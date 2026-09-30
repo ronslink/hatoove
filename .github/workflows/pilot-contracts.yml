@@ -29,3 +29,4 @@ jobs:
           node-version: '24'
       - run: npm ci --prefix spikes/auth-runtime --ignore-scripts --no-audit --no-fund
       - run: node --test spikes/auth-runtime/test.mjs
+      - run: node --test spikes/auth-runtime/isolation.test.mjs

@@ -2,7 +2,7 @@
 
 The local coordinator owns this board. Detailed assignments live on linked GitHub issues; PRs and merged source provide completion evidence. Follow the [workflow](../docs/AGENT_WORKFLOW.md), [task template](TASK_TEMPLATE.md) and [handoff template](HANDOFF_TEMPLATE.md).
 
-Repository: **[private `ronslink/hatoove`](https://github.com/ronslink/hatoove)**. Curated baseline `2feaba6` is published and its Linux/Windows CI passed. Remote assignments are linked below. No production deployment or recurring runner is scheduled.
+Repository: **[private `ronslink/hatoove`](https://github.com/ronslink/hatoove)**. Curated baseline `2feaba6` is published and its Linux/Windows CI passed. Remote assignments are linked below. No production deployment is scheduled. Ron-authorized coordinator heartbeat `continue-hatoove-implementation` is active every ten minutes; worker runs remain bounded.
 
 ## Preparation
 
@@ -33,21 +33,21 @@ Use the [pilot plan](../PILOT_BUILD_PLAN.md) for detailed scope. Speaking is exc
 
 ## Active executions
 
-Global cap: **4 active agents including the coordinator and all children/reviewers**. Preparation executions are historical. Fresh implementation allocations below expire at 18:35 UTC on 30 September 2026 unless renewed by coordinator. No recursive spawning.
+Global cap: **4 active agents including the coordinator and all children/reviewers**. Preparation executions are historical. Current allocations below are for 30 September 2026; leases are recorded separately per execution. No recursive spawning.
 
 | Slot | Execution | Current assignment/status |
 |---|---|---|
-| 1 | pre05-20260930-a | Coordinator, [PRE-05](implementation/PRE-05.md), isolated `codex/pre-05-runtime-contracts`; architecture, source, integration |
-| 2 | f03a-20260930-a / f03r1-20260930-a | OpenClaw audit corrected, reviewed and merged in PR #9; process ended. Local independent source reviewer supplied three findings; coordinator reproduced/fixed them; final recheck allocated separately |
-| 3 | f03h-20260930-a | Hermes review ended; coordinator inspected and packaged its staged report as `19e501d`; no active Hermes child/worker |
-| 4 | user02-20260930-a | Ron-controlled agent acknowledged at 17:52 UTC; [USER-02](implementation/USER-02.md), [issue #10](https://github.com/ronslink/hatoove/issues/10); branch `codex/pilot-01-css-user02`; checkpoint 18:03, expires **18:48 UTC** |
+| 1 | f02-20260930-a | Coordinator [F02/A01](implementation/F02-A01.md), issue #13, `codex/f02-a01-local-isolation`, base a9a4cfd; real-role SQL isolation implementation; expires19:15 UTC |
+| 2 | c01d-20260930-a | Hermes [content discovery](implementation/C01-DISCOVERY.md), issue #14; two earlier processes ended incomplete; coordinator-reviewed corrections dispatched18:35, lease19:15 UTC. No children |
+| 3 | user03r-20260930-a / f02r2-20260930-a | Local read-only USER03 review completed with corrections for USER04; slot reserved for final F02 follow-up review. OpenClaw final report PR15 complete and process ended; no active remote reviewer |
+| 4 | user04-20260930-a | Ron-controlled agent [five-task batch](implementation/USER-04.md), issue #19; branch codex/user04-source-fixtures, base7030a66; expires20:31 UTC. USER03 delivered PR17, independent corrections pending; USER02 merged PR12 atbb30267 |
 
 The advisory reviewer supplied failure cases (idempotency races, transactional rollback, lease fencing, allowance reservation and deletion precedence); those are test advice, not diff approval. See [USER-01 disposition and next slices](implementation/PILOT-01-CSS.md). `public/js/exam.js` is reserved for coordinator-owned draft integration, with no active edits yet.
 
-Ron-agent handoff: `C:/Users/ronon/.codex/hatoove-handoff/ron-agent`. Coordinator owns `CURRENT.md`/`QUEUE.md`; worker writes execution-specific `ACK.md`, `CHECKPOINT.md`, `RESULT.md`. Communication files only, outside source/OneDrive. Queue candidates do not grant edits; no timer or recurring automation was created.
+Ron-agent handoff: `C:/Users/ronon/.codex/hatoove-handoff/ron-agent`. Coordinator owns `CURRENT.md`/`QUEUE.md`; worker writes execution-specific `ACK.md`, `CHECKPOINT.md`, `RESULT.md`. Communication files only, outside source/OneDrive. CURRENT grants the USER-04 five-task sequence; other queue candidates do not grant edits. The coordinator heartbeat checks this folder; the user-controlled agent polls it as arranged by Ron.
 
 Coordinator preparation closes with the merge of [PR #6](https://github.com/ronslink/hatoove/pull/6), following independent review and CI. The completed PRE dispatch files are historical records, not current execution grants.
 
-Update status only from observed evidence. Distinguish a tooling inventory, a successful agent exercise, and a verified product behavior.
+Update this board and IMPLEMENTATION_PLAN.md progress together after meaningful transitions. Update status only from observed evidence. Distinguish a tooling inventory, a successful agent exercise, and a verified product behavior.
 
-Next integration: review the spike and contract, then F-02/A-01 ownership hardening and coordinator-owned PILOT-02-DRAFT. CSS-only PILOT-01 reproduction has a separate scope. No real-device acceptance or complete learner journey is claimed.
+PRE-05 PR #11 merged at a9a4cfd. CSS PR #12 merged after independent review/CI; issue10 closed. Next integration: F-02/A-01 SQL isolation PR18 with PR15 review, corrected content/source reports, then coordinator-owned PILOT-02-DRAFT. The original CSS review overstated tablet/focus defects; only reproduced D5/D6 received changes. No real-device acceptance or complete learner journey is claimed.

@@ -4,10 +4,19 @@ export class Fault extends Error {
 }
 const fail = (status, code) => { throw new Fault(status, code); };
 const row = result => result.rows[0];
-export function store(pool) {
+export function store(pool, {ownerId}={}) {
+  if (ownerId !== undefined && (typeof ownerId !== 'string' || !ownerId)) throw new Error('Invalid trusted owner context');
   async function tx(fn) {
     const c = await pool.connect();
-    try { await c.query('BEGIN'); const value = await fn(c); await c.query('COMMIT'); return value; }
+    try {
+      await c.query('BEGIN');
+      // The HTTP layer obtains this value from the verified server session.
+      // Always set it locally, including an empty value for worker/unscoped calls.
+      await c.query("SELECT set_config('hatoove.owner_id',$1,true)", [ownerId ?? '']);
+      const value = await fn(c);
+      await c.query('COMMIT');
+      return value;
+    }
     catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
   }
   async function owned(c, owner, id) {
@@ -28,8 +37,8 @@ export function store(pool) {
     return time.valid ? j : null;
   }
   async function reapExpired() {
-    const expired = await pool.query(`SELECT id,owner_id FROM jobs WHERE status='running'
-      AND tries>=3 AND lease_until<clock_timestamp()`);
+    const expired = await tx(c=>c.query(`SELECT id,owner_id FROM jobs WHERE status='running'
+      AND tries>=3 AND lease_until<clock_timestamp()`));
     for (const job of expired.rows) await tx(async c => {
       await c.query('SELECT owner_id FROM entitlements WHERE owner_id=$1 FOR UPDATE', [job.owner_id]);
       const result = await c.query(`UPDATE jobs SET status='failed',failure_code='retry_exhausted',lease_token=NULL,lease_until=NULL
