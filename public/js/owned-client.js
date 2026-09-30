@@ -84,6 +84,9 @@ const STATUS_CODES = Object.freeze({
 
 const ACCOUNT_PATH = '/api/v1/account';
 const ATTEMPTS_PATH = '/api/v1/attempts';
+const SETTINGS_PATH = '/api/v1/settings';
+/** The closed allowlist the server enforces; mirrored here so the client fails before sending. */
+const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'model', 'theme', 'language'];
 const SIGN_UP_PATH = '/api/auth/sign-up/email';
 const SIGN_IN_PATH = '/api/auth/sign-in/email';
 const SIGN_OUT_PATH = '/api/auth/sign-out';
@@ -280,6 +283,22 @@ function readDeletedShape(value) {
   const resource = asResource(value, 'deletion');
   if (typeof resource.deleted !== 'boolean') fail('malformed_response', { message: 'deletion.deleted is not a boolean' });
   return resource;
+}
+
+/**
+ * Account settings, as the server owns them. The shape is validated rather than passed through:
+ * a response carrying an unexpected field is a protocol error, because the caller would otherwise
+ * persist whatever arrived. `language` here is the EXPLANATION language - see readSettings below.
+ */
+function readSettingsShape(value) {
+  const resource = asResource(value, 'settings');
+  if (!Number.isSafeInteger(resource.revision) || resource.revision < 0) {
+    fail('malformed_response', { message: 'settings.revision must be a non-negative integer' });
+  }
+  const settings = asResource(resource.settings, 'settings.settings');
+  const unknown = Object.keys(settings).filter((key) => !SETTINGS_FIELDS.includes(key));
+  if (unknown.length) fail('malformed_response', { message: `unsupported setting(s) in the response: ${unknown.join(', ')}` });
+  return { revision: resource.revision, settings };
 }
 
 /* ----------------------------------------------------------- the factory */
@@ -666,6 +685,38 @@ export function createOwnedClient(config = {}) {
     });
   }
 
+  /*
+   * Account settings. The account-scoped record the server owns: exam date, daily goal, model,
+   * theme and `language`. Two deliberate properties:
+   *
+   *   - the caller passes the revision it last saw, exactly as the draft path does, so a second
+   *     device cannot silently overwrite the first (the server answers 409 settings_conflict);
+   *   - the response is validated rather than trusted, so a caller cannot persist a field the
+   *     server never agreed to store.
+   *
+   * `language` is the EXPLANATION language. It must never reach the interface or the exam content -
+   * the menu and the content stay German - which `tools/design-check.mjs` enforces mechanically.
+   */
+  function readSettings() {
+    rejectExtraArguments(arguments, 0, 'readSettings');
+    return call({ method: 'GET', path: SETTINGS_PATH, validate: readSettingsShape });
+  }
+
+  function saveSettings(options) {
+    rejectExtraArguments(arguments, 1, 'saveSettings');
+    const { expectedRevision, settings } = allowlist(options, ['expectedRevision', 'settings'], 'saveSettings');
+    const revision = requireRevision(expectedRevision, 'expectedRevision');
+    if (!isPlainObject(settings)) fail('invalid_request', { message: 'settings must be an object' });
+    const unknown = Object.keys(settings).filter((key) => !SETTINGS_FIELDS.includes(key));
+    if (unknown.length) fail('invalid_request', { message: `unsupported setting(s): ${unknown.join(', ')}` });
+    return call({
+      method: 'PUT',
+      path: SETTINGS_PATH,
+      body: { expectedRevision: revision, settings: deepCopy(settings) },
+      validate: readSettingsShape,
+    });
+  }
+
   function retrySubmission(submissionId) {
     rejectExtraArguments(arguments, 1, 'retry');
     const id = requireUuid(submissionId, 'submissionId');
@@ -702,6 +753,8 @@ export function createOwnedClient(config = {}) {
     saveDraft,
     submit,
     readResult,
+    readSettings,
+    saveSettings,
     retry: retrySubmission,
     deleteAttempt,
   });
