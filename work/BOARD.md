@@ -39,8 +39,8 @@ Global cap: **4 active agents including the coordinator and all children/reviewe
 |---|---|---|
 | 1 | f02-20260930-a completed; progress-20260930 | Coordinator SQL slice merged PR18 ata58f6fb; independent review/final CI passed; updating master plan/board and preparing owned-client/draft slice. Dedicated synthetic DB stopped |
 | 2 | c01d-20260930-a completed | Hermes runs ended; coordinator independently checked/package-reviewed the corrected two-file source7e24229 and merged PR20 on green CI. Slot free; no live Hermes task |
-| 3 | user03r-20260930-a / f02r2-20260930-a completed | Local reviews ended; USER03 corrections sent to USER04; final SQL270e1b8 approved. OpenClaw PR15 final review recorded and closed; remote process ended. Slot free |
-| 4 | user04-20260930-a | Ron-controlled agent [five-task batch](implementation/USER-04.md), issue #19; branch codex/user04-source-fixtures, base7030a66; expires20:31 UTC. USER03 delivered PR17, independent corrections pending; USER02 merged PR12 atbb30267 |
+| 3 | user04r-20260930-a | Local read-only acceptance review of exact USER04 daaf55f/PR21, checkpoint19:00, expires19:15. Prior SQL270e1b8 review approved; OpenClaw PR15 closed and remote process ended |
+| 4 | user04-20260930-a | Ron-controlled agent [five-task batch](implementation/USER-04.md), issue #19; branch codex/user04-source-fixtures, base7030a66; expires20:31 UTC. Five deliverables reported in PR21; checker edits still in progress and acceptance corrections in CURRENT. Preserve branch; no new grant until clean reviewed handoff |
 
 The advisory reviewer supplied failure cases (idempotency races, transactional rollback, lease fencing, allowance reservation and deletion precedence); those are test advice, not diff approval. See [USER-01 disposition and next slices](implementation/PILOT-01-CSS.md). `public/js/exam.js` is reserved for coordinator-owned draft integration, with no active edits yet.
 
