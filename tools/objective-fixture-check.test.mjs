@@ -436,11 +436,18 @@ test('review O7 (NEW-1): bare `grade` is rejected at both guard levels', () => {
   // replaced a nested literal that contained 'grade' with a shared claimFields list that did not,
   // so the bare name `grade` lost its guard. It is now in both lists.
   // Top level (how the shipped suite actually stores claim fields on a marked case):
-  for (const [field, value] of [['grade', 'sehr gut'], ['band', 'B1'], ['readiness', 'likely'],
-    ['learnerScore', 42], ['passed', false], ['percentage', 55]]) {
+  for (const [field, value] of [['grade', 'sehr gut'], ['readiness', 'likely'],
+    ['learnerScore', 42], ['passed', false], ['percentage', 55], ['note', 'gut']]) {
     const o = clone();
     caseById(o, 'OMC-LV1-01')[field] = value;
     expectFailure(validateObjectiveCases(o), /case\.prohibited-learner-claim/, `top-level ${field}`);
+  }
+  // `band` is real Hatoove vocabulary (bandToTotal is a *writing* concept), but it is not part of the
+  // objective case shape, so at top level it is caught as an unknown key rather than a claim.
+  {
+    const o = clone();
+    caseById(o, 'OMC-LV1-01').band = 'B1';
+    expectFailure(validateObjectiveCases(o), /case\.unknown-key/, 'top-level band');
   }
   // Nested expectation block (the level that regressed at c8c86dc):
   for (const [field, value] of [['grade', 'sehr gut'], ['band', 'B1'], ['learnerScore', 42]]) {
@@ -451,6 +458,37 @@ test('review O7 (NEW-1): bare `grade` is rejected at both guard levels', () => {
   }
   // The legitimate fixture must still pass, and NEW-2 stays an accepted limitation.
   assert.equal(validateObjectiveCases(clone()).ok, true, 'shipped fixture must stay green');
+});
+
+test('review O8 (NEW-2): a renamed learner claim is rejected as an unknown key', () => {
+  // Independent review (Claude, USER04-R4) disagreed with treating the renamed-field hole as an
+  // accepted limitation: the case shape is fixed at 11 keys, so rejecting unknown keys closes the
+  // whole class without guessing names. That reasoning is right and this is the regression for it.
+  for (const field of ['score', 'total', 'result', 'outcomeScore', 'mark', 'overallScore', 'points']) {
+    const o = clone();
+    caseById(o, 'OMC-LV1-01')[field] = 'sehr gut';
+    expectFailure(validateObjectiveCases(o), /case\.unknown-key/, `renamed field ${field}`);
+  }
+  // German "Note" is the telc grade, so it is a learner claim, not merely an unknown key.
+  const g = clone();
+  caseById(g, 'OMC-LV1-01').note = 'gut';
+  expectFailure(validateObjectiveCases(g), /case\.prohibited-learner-claim/, 'German note as grade');
+});
+
+test('review O9 (NEW-1b): `band` is NOT banned at the top level, because it is real blueprint vocabulary', () => {
+  // The coordinator's first NEW-1 fix over-corrected by adding `band` to the top-level list; Hatoove
+  // uses band/bandPoints/bands/bandTone/bandToTotal, so that would have rejected legitimate data.
+  // An independent review caught it. `band` stays guarded only inside the nested expectation block.
+  const o = clone();
+  const c = caseById(o, 'OMC-LV1-01');
+  c.band = 'B1';
+  const r = validateObjectiveCases(o);
+  assert.equal(r.errors.filter((e) => /prohibited-learner-claim/.test(e) && /\.band /.test(e)).length, 0,
+    'top-level `band` must not be reported as a learner claim');
+  // ...but inside an expectation block it still is.
+  const n = clone();
+  caseById(n, 'OMC-AGG-02').expected = { outcome: 'aggregate', band: 'B1' };
+  expectFailure(validateObjectiveCases(n), /case\.prohibited-learner-claim/, 'nested expected.band');
 });
 
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {

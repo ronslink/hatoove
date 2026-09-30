@@ -42,6 +42,15 @@ const PROHIBITED_LEARNER_CLAIMS = [
 ];
 /** Families that have no objective key of their own and are asserted separately. */
 const NON_OBJECTIVE_FAMILIES = ['SA1'];
+/**
+ * The complete set of keys an objective marking case may carry. Unknown keys are rejected, which is
+ * what closes the "renamed learner claim" hole: a banned-name scan can never enumerate every synonym
+ * (`score`, `total`, `result`, `outcomeScore`, `mark`, ...), but the case shape is fixed, so anything
+ * outside this list is a defect by construction. `note` is included deliberately so it can be caught
+ * as a German grade claim ("Note" is the telc grade) rather than rejected merely as unknown.
+ */
+const OBJECTIVE_CASE_KEYS = ['id', 'family', 'scenario', 'answers', 'expectedOutcome', 'expectedError',
+  'expectedCorrectCount', 'expectedPoints', 'unassessed', 'synthetic', 'rationale', 'expected', 'note'];
 const ALLOWED_OUTCOMES = ['marked', 'marked-or-flagged', 'rejected-or-flagged', 'aggregate', 'unassessed'];
 const ALLOWED_ERRORS = [
   'none', 'invalid-answer', 'duplicate-selection', 'no-match-not-supported',
@@ -374,14 +383,25 @@ export function validateObjectiveCases(fixture) {
     // the oral part is unassessed. Presence is the defect, not the value: a numeric or boolean
     // claim (`learnerScore: 42`, `passed: false`, `readiness: 0.9`) is just as wrong as a string
     // one, and must not slip through a word-list scan.
-    // NOTE: this is a name allowlist, not a general "no learner claim anywhere" check — a renamed
-    // field (`score`, `result`, `band`) is not detectable this way. Accepted limitation (NEW-2).
-    const claimFields = ['expectedGrade', 'grade', 'band', 'gradeBand', 'readiness', 'overallResult', 'passed',
-      'learnerScore', 'percentage', 'overallPassed', 'certificate', 'finalGrade'];
-    // The nested expectation block historically also guarded the bare name `grade`. It is kept
-    // here explicitly so sharing this list cannot silently drop it again (independent review
+    // NOTE: a banned-name scan cannot catch a *renamed* claim field (`score`, `total`, `result`).
+    // That class is closed by OBJECTIVE_CASE_KEYS below rather than by extending this list, because
+    // guessing more names would be open-ended; `band` in particular is legitimate Hatoove
+    // vocabulary (band/bandPoints/bands/bandTone/bandToTotal), not a learner claim.
+    const claimFields = ['expectedGrade', 'grade', 'gradeBand', 'readiness', 'overallResult', 'passed',
+      'learnerScore', 'percentage', 'overallPassed', 'certificate', 'finalGrade', 'note'];
+    // The nested expectation block originally also guarded the bare names `grade` and `band`, and it
+    // is the only place a band-shaped claim could hide without colliding with blueprint vocabulary.
+    // It is kept separate so sharing one list cannot silently drop a guard again (independent review
     // NEW-1: the c8c86dc rewrite replaced a literal that contained `grade` and lost the guard).
-    const nestedClaimFields = [...new Set([...claimFields, 'grade', 'gradeBand', 'band'])];
+    // No shipped case currently carries an `expected` block; this stays as a backstop.
+    const nestedClaimFields = [...new Set([...claimFields, 'band', 'bandName', 'gradeName'])];
+    // The case shape is fixed, so an unknown key is a defect: this is where a renamed learner claim
+    // (`score`, `total`, `result`, `outcomeScore`, `mark`) is caught without guessing more names.
+    for (const key of Object.keys(c)) {
+      if (!OBJECTIVE_CASE_KEYS.includes(key)) {
+        err('case.unknown-key', `${label}.${key} is not part of the objective case shape; a renamed field cannot be assumed harmless, and new case data must be added to OBJECTIVE_CASE_KEYS deliberately`);
+      }
+    }
     for (const field of claimFields) {
       if (c[field] === undefined || c[field] === null) continue;
       err('case.prohibited-learner-claim', `${label}.${field} asserts a learner result; the pilot cannot compute an overall pass, grade or readiness`);
