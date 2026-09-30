@@ -256,14 +256,6 @@ button.daily-stat:hover { border-color: var(--line); }
   .daily-stat small { font-size: .73rem; }
   .daily-stat > div > span, .daily-stat > span > span { font-size: .69rem; }
   .daily-stat > svg { display: none; }
-  /* Narrow phones leave ~98 px for stat copy; the nowrap text used to spill
-     past the cell edge. Allow the label to wrap there and guard the flex text
-     column so it can never push past the grid track. */
-  .daily-stat > div,
-  .daily-stat > span { min-width: 0; }
-  .daily-stat strong,
-  .daily-stat > div > span,
-  .daily-stat > span > span { white-space: normal; overflow-wrap: anywhere; }
   .skill-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .skill-card { padding: 18px; }
   .skill-card > strong { font-size: 1rem; }
