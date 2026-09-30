@@ -4,10 +4,11 @@ import pg from 'pg';
 import { randomBytes } from 'node:crypto';
 
 // Intentionally no .env loader, server entrypoint or production URL option.
-export function localPool(schema) {
+export function localPool(schema, {user='postgres', max=4}={}) {
   if (!/^spike_[a-f0-9]+$/.test(schema)) throw new Error('Unsafe test schema');
+  if (user !== 'postgres' && !/^spike_[a-f0-9]+_(migration|auth|learner|worker)$/.test(user)) throw new Error('Unsafe test role');
   return new pg.Pool({ host: '127.0.0.1', port: 55435, database: 'hatoove_spike',
-    user: 'postgres', max: 4, application_name: schema, options: `-c search_path=${schema}` });
+    user, max, application_name: schema, options: `-c search_path=${schema},pg_catalog` });
 }
 export function authOptions(pool, baseURL, secret = randomBytes(48).toString('base64url')) {
   const url = new URL(baseURL);

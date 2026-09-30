@@ -1,6 +1,6 @@
 # Dispatch and handoff commands
 
-Read [AGENT_WORKFLOW.md](AGENT_WORKFLOW.md) first. These are manually dispatched session commands, not a background scheduler. The coordinator records the task/lease on GitHub and verifies the worktree/branch/base before a worker edits. Never reuse an active worker's checkout for another assignment.
+Read [AGENT_WORKFLOW.md](AGENT_WORKFLOW.md) first. These are bounded worker dispatch commands. Ron requested continuous coordination: the active Codex thread heartbeat `continue-hatoove-implementation` resumes the coordinator every ten minutes and reports meaningful changes, completion, failures or required action. It does not make workers autonomous beyond their task leases. The coordinator records the task/lease on GitHub and verifies the worktree/branch/base before a worker edits. Never reuse an active worker's checkout for another assignment.
 
 ## OpenClaw on Hetzner
 
