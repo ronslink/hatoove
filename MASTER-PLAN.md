@@ -15,7 +15,7 @@ authoritative source for detail.
 | What is running right now, on which slot and lease? | [`work/BOARD.md`](work/BOARD.md) — live slot table |
 | What is authorized next? | coordinator handoff `QUEUE.md` (12 ordered workstreams) |
 | What is the current coordination status? | coordinator handoff `CURRENT.md` |
-| Handoff folder (outside the repo; communication files only) | `C:/Users/ronon/.codex/hatoove-handoff/ron-agent/` |
+| Handoff folder (outside the repo; communication files only) | `<user-home>/.codex/hatoove-handoff/ron-agent/` |
 | Why is the product built this way? | [`PILOT_BUILD_PLAN.md`](PILOT_BUILD_PLAN.md) |
 | How do agents/hosts/handoffs work? | [`docs/AGENT_WORKFLOW.md`](docs/AGENT_WORKFLOW.md), [`docs/AGENT_RUNBOOK.md`](docs/AGENT_RUNBOOK.md) |
 

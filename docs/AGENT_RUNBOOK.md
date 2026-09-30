@@ -41,4 +41,4 @@ Hermes has no working GitHub login in this setup. Exchange commits without trans
 
 The baseline clone and task branches can persist between sessions. Bundles and local logs are not canonical completion records: the reviewed GitHub PR, task issue and board are. Record blocked or timed-out runs honestly and stop the old process before issuing a replacement execution.
 
-Coordinator transfer: see issue27. The original Codex heartbeat is paused to conserve credits; Ron's appointed agent now owns the five-minute CURRENT.md loop and remote dispatch. Its handoff is at C:/Users/ronon/.codex/hatoove-handoff/ron-agent/COORDINATOR-HANDOFF.md.
+Coordinator transfer: see issue27. The original Codex heartbeat is paused to conserve credits; Ron's appointed agent now owns the five-minute CURRENT.md loop and remote dispatch. Its handoff is at <user-home>/.codex/hatoove-handoff/ron-agent/COORDINATOR-HANDOFF.md.
