@@ -1,0 +1,716 @@
+{
+  "version": "0.1.0-draft",
+  "exam": {
+    "id": "telc-deutsch-b1",
+    "title": "Zertifikat Deutsch / telc Deutsch B1",
+    "titleEn": "Certificate German / telc German B1",
+    "level": "CEFR B1",
+    "variantNote": "General-purpose Zertifikat Deutsch / telc Deutsch B1 only. Not Deutsch-Test für den Beruf (DTB), telc Deutsch B1·B2 Beruf, telc Deutsch B1 Schule or Deutsch-Test für Zuwanderer (DTZ).",
+    "editionOfRetrievedBlueprintSource": "13. Auflage 2020, © 2020 by telc gGmbH, Frankfurt am Main"
+  },
+  "scope": {
+    "included": [
+      "written-examination structure and task families",
+      "item counts per part",
+      "section and shared timings",
+      "objective points and weighting",
+      "matching reuse and no-match rules as printed",
+      "listening permitted plays per part",
+      "writing task, four Leitpunkte, three criteria and band-to-total calculation",
+      "written aggregate threshold"
+    ],
+    "excluded": [
+      "speaking and oral scoring (never asserted as assessed; oral is unassessed in this pilot)",
+      "overall pass/fail or overall grade computation",
+      "full exam texts, answer keys and audio",
+      "any claim that a generated item or generated feedback matches telc standards"
+    ],
+    "overallPassInference": {
+      "allowed": false,
+      "reason": "Only the written partial result can be reported. The official pass condition requires 60 % in the written AND 60 % in the oral part; because the pilot does not assess speaking, no overall pass, fail or grade band may be computed or shown."
+    }
+  },
+  "writtenExam": {
+    "totalMinutes": 150,
+    "writtenAggregatePoints": 225,
+    "totalPointsAllParts": 300,
+    "writtenWeightPercent": 75,
+    "oralPoints": 75,
+    "oralWeightPercent": 25,
+    "writtenPassPoints": 135,
+    "writtenPassPercent": 60,
+    "oralPassPoints": 45,
+    "oralPassPercent": 60,
+    "thresholdAppliesPerPart": true,
+    "thresholdAppliesPerSubtest": false,
+    "sources": [
+      "S2-p41-p39",
+      "S2-p42-p40",
+      "S1"
+    ],
+    "itemWeightsNote": "Partial credit is fractional because each part divides its maximum across its items: Sprachbausteine 15/10 = 1.5 points per item; the 25-point 10-item parts (LV Teil 3, HV Teil 2) = 2.5 per item; the 25-point 5-item parts = 5 per item. Half-point written aggregates such as 269.5 are therefore reachable, which is why the printed grade bands carry .5 endpoints. Equal weight within a part is the verified rule (S2-p41-p39); the per-item values follow by division. No rounding rule is verified."
+  },
+  "sources": [
+    {
+      "id": "S1",
+      "kind": "official-web-page",
+      "title": "Zertifikat Deutsch / telc Deutsch B1 — official exam page",
+      "url": "https://www.telc.net/sprachpruefungen/deutsch/zertifikat-deutsch-telc-deutsch-b1/",
+      "retrieved": "2026-09-30",
+      "editionOrDate": null,
+      "locatorNote": "Section \"Aufbau und Ablauf der Prüfung\"",
+      "verification": "HTTP 200; page read"
+    },
+    {
+      "id": "S2",
+      "kind": "official-practice-test-pdf",
+      "title": "Zertifikat Deutsch, telc Deutsch B1 — Übungstest 1, Prüfungsvorbereitung",
+      "url": "https://www.telc.net/fileadmin/user_upload/mock_exams/Deutsch/telc_deutsch_b1.zip",
+      "urlNote": "Free official download bundle named on S1; contains the practice-test PDF plus listening audio. The same PDF is served by the shop URL https://shop.telc.net/media/catalog/product/file/telc_deutsch_b1_zd_uebungstest_1.pdf — both files were downloaded and have the identical SHA-256 below.",
+      "retrieved": "2026-09-30",
+      "editionOrDate": "13. Auflage 2020, © 2020 by telc gGmbH",
+      "pages": 48,
+      "sha256": "6fd22ffcc25ca75e5718cc9d55bf2369ed716d4071a1058a1fdd301f58fa2b2f",
+      "pageIndexConvention": "Both PDF page numbers and printed page numbers are one-based, and they run in parallel: PDF page = printed page + 2, equivalently printed page = PDF page - 2. In zero-based array indices the offset is printedIndex = pdfIndex - 2. Check: the test-format table is PDF page 7 = printed page 5; answer sheet S30 is PDF page 24 = printed page 22.",
+      "pageOffset": {
+        "printedToPdf": 2,
+        "verified": true,
+        "basis": "S2-p7-p5, S2-p24-p22, S2-p41-p39, S2-p42-p40"
+      },
+      "verification": "Downloaded and text-extracted locally, page by page"
+    },
+    {
+      "id": "S3",
+      "kind": "official-regulations-pdf",
+      "title": "telc Prüfungsregularien (regulations binding for all telc examinations)",
+      "url": "https://www.telc.net/fileadmin/user_upload/pdfs/AGB_Pruefungsordnung/9994-P00-150010.pdf",
+      "retrieved": "2026-09-30",
+      "editionOrDate": "gültig ab 15.04.2025; document no. P01-9994-P00-150010",
+      "pages": 40,
+      "locatorNote": "Linked from the site's \"AGB und Prüfungsregularien\" page. Section 1 Geltungsbereich (PDF p. 4 / printed p. 4) states the regulations are valid for all telc examinations and that the respective model tests must be observed in their current version.",
+      "verification": "Downloaded and text-extracted; effective date, document number, scope clause and change-log section located"
+    },
+    {
+      "id": "S4",
+      "kind": "official-product-sheet-pdf",
+      "title": "Zertifikat Deutsch / telc Deutsch B1 product sheet for the scaled examination telc Deutsch A2·B1 (5060-B00-010101)",
+      "url": "https://www.telc.net/fileadmin/user_upload/pdfs/Produktblatt_1060_Deutsch_A2_B1.pdf",
+      "retrieved": "2026-09-30",
+      "editionOrDate": "Stand: 10.03.2023",
+      "pages": 2,
+      "locatorNote": "Documents a DIFFERENT, newer scaled examination: model test published 28.02.2023, first digital exam date 29.03.2023, first paper date 05.06.2023. Must not be confused with the classic single-level Zertifikat Deutsch / telc Deutsch B1 analysed in this draft.",
+      "verification": "Downloaded and text-extracted"
+    }
+  ],
+  "sections": [
+    {
+      "id": "lv",
+      "order": 1,
+      "subtest": "Leseverstehen",
+      "subtestEn": "Reading",
+      "assessedInPilot": true,
+      "timing": {
+        "kind": "shared-block",
+        "sharedBlockId": "lv-sb-90",
+        "minutes": 90,
+        "minutesIsApproximate": false,
+        "breakWithinBlock": false
+      },
+      "objective": true,
+      "points": {
+        "raw": 25,
+        "rawIsPerPart": true,
+        "max": 75,
+        "weightPercent": 25
+      },
+      "items": {
+        "count": 20,
+        "first": 1,
+        "last": 20
+      },
+      "answerRuleRefs": [
+        "ar-lv-single-use",
+        "ar-lv-no-match"
+      ],
+      "sources": [
+        "S1",
+        "S2-p7-p5",
+        "S2-p31-p29"
+      ],
+      "parts": [
+        {
+          "id": "lv-t1",
+          "order": 1,
+          "title": "Teil 1",
+          "skill": "Globalverstehen",
+          "taskFamily": "matching",
+          "responseFormat": "matching",
+          "items": {
+            "count": 5,
+            "first": 1,
+            "last": 5
+          },
+          "points": 25,
+          "optionCount": 10,
+          "optionLabelRange": "a-j",
+          "reuseLimit": 1,
+          "noMatchAllowed": false,
+          "sources": [
+            "S2-p7-p5",
+            "S2-p8-p6"
+          ]
+        },
+        {
+          "id": "lv-t2",
+          "order": 2,
+          "title": "Teil 2",
+          "skill": "Detailverstehen",
+          "taskFamily": "multiple-choice",
+          "responseFormat": "multiple-choice",
+          "items": {
+            "count": 5,
+            "first": 6,
+            "last": 10
+          },
+          "points": 25,
+          "optionCount": null,
+          "reuseLimit": null,
+          "noMatchAllowed": null,
+          "sources": [
+            "S2-p7-p5"
+          ]
+        },
+        {
+          "id": "lv-t3",
+          "order": 3,
+          "title": "Teil 3",
+          "skill": "Selektives Verstehen",
+          "taskFamily": "matching",
+          "responseFormat": "matching",
+          "items": {
+            "count": 10,
+            "first": 11,
+            "last": 20
+          },
+          "points": 25,
+          "optionCount": 12,
+          "optionLabelRange": "a-l",
+          "reuseLimit": 1,
+          "noMatchAllowed": true,
+          "noMatchMarker": "x",
+          "sources": [
+            "S2-p7-p5",
+            "S2-p12-p10"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sb",
+      "order": 2,
+      "subtest": "Sprachbausteine",
+      "subtestEn": "Language elements",
+      "assessedInPilot": true,
+      "timing": {
+        "kind": "shared-block",
+        "sharedBlockId": "lv-sb-90",
+        "minutes": 90,
+        "minutesIsApproximate": false,
+        "breakWithinBlock": false
+      },
+      "objective": true,
+      "points": {
+        "raw": 15,
+        "rawIsPerPart": true,
+        "max": 30,
+        "weightPercent": 10
+      },
+      "items": {
+        "count": 20,
+        "first": 21,
+        "last": 40
+      },
+      "answerRuleRefs": [
+        "ar-sb-single-use"
+      ],
+      "sources": [
+        "S1",
+        "S2-p7-p5",
+        "S2-p31-p29"
+      ],
+      "parts": [
+        {
+          "id": "sb-t1",
+          "order": 1,
+          "title": "Teil 1",
+          "skill": "Grammatik",
+          "taskFamily": "multiple-choice",
+          "responseFormat": "multiple-choice",
+          "items": {
+            "count": 10,
+            "first": 21,
+            "last": 30
+          },
+          "points": 15,
+          "optionCount": null,
+          "reuseLimit": null,
+          "noMatchAllowed": null,
+          "sources": [
+            "S2-p7-p5"
+          ]
+        },
+        {
+          "id": "sb-t2",
+          "order": 2,
+          "title": "Teil 2",
+          "skill": "Lexik",
+          "taskFamily": "matching",
+          "responseFormat": "gap-fill-from-options",
+          "items": {
+            "count": 10,
+            "first": 31,
+            "last": 40
+          },
+          "points": 15,
+          "optionCount": 15,
+          "optionLabelRange": "a-o",
+          "reuseLimit": 1,
+          "noMatchAllowed": null,
+          "sources": [
+            "S2-p7-p5",
+            "S2-p15-p13"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hv",
+      "order": 3,
+      "subtest": "Hörverstehen",
+      "subtestEn": "Listening",
+      "assessedInPilot": true,
+      "timing": {
+        "kind": "own-block",
+        "sharedBlockId": null,
+        "minutes": 30,
+        "minutesIsApproximate": true,
+        "breakWithinBlock": false
+      },
+      "objective": true,
+      "points": {
+        "raw": 25,
+        "rawIsPerPart": true,
+        "max": 75,
+        "weightPercent": 25
+      },
+      "items": {
+        "count": 20,
+        "first": 41,
+        "last": 60
+      },
+      "answerRuleRefs": [
+        "ar-hv-plus-minus",
+        "ar-hv-plays-per-part"
+      ],
+      "sources": [
+        "S1",
+        "S2-p7-p5",
+        "S2-p31-p29"
+      ],
+      "parts": [
+        {
+          "id": "hv-t1",
+          "order": 1,
+          "title": "Teil 1",
+          "skill": "Globalverstehen",
+          "taskFamily": "true-false",
+          "responseFormat": "true-false",
+          "items": {
+            "count": 5,
+            "first": 41,
+            "last": 45
+          },
+          "points": 25,
+          "permittedPlays": 1,
+          "sources": [
+            "S2-p7-p5",
+            "S2-p16-p14"
+          ]
+        },
+        {
+          "id": "hv-t2",
+          "order": 2,
+          "title": "Teil 2",
+          "skill": "Detailverstehen",
+          "taskFamily": "true-false",
+          "responseFormat": "true-false",
+          "items": {
+            "count": 10,
+            "first": 46,
+            "last": 55
+          },
+          "points": 25,
+          "permittedPlays": 2,
+          "sources": [
+            "S2-p7-p5",
+            "S2-p17-p15"
+          ]
+        },
+        {
+          "id": "hv-t3",
+          "order": 3,
+          "title": "Teil 3",
+          "skill": "Selektives Verstehen",
+          "taskFamily": "true-false",
+          "responseFormat": "true-false",
+          "items": {
+            "count": 5,
+            "first": 56,
+            "last": 60
+          },
+          "points": 25,
+          "permittedPlays": 2,
+          "sources": [
+            "S2-p7-p5",
+            "S2-p18-p16"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sa",
+      "order": 4,
+      "subtest": "Schriftlicher Ausdruck",
+      "subtestEn": "Writing",
+      "assessedInPilot": true,
+      "timing": {
+        "kind": "own-block",
+        "sharedBlockId": null,
+        "minutes": 30,
+        "minutesIsApproximate": false,
+        "breakWithinBlock": false
+      },
+      "objective": false,
+      "points": {
+        "raw": 15,
+        "rawIsPerPart": false,
+        "max": 45,
+        "weightPercent": 15
+      },
+      "items": {
+        "count": 1,
+        "first": null,
+        "last": null
+      },
+      "answerRuleRefs": [
+        "ar-sa-band-multiplier",
+        "ar-sa-topic-missed"
+      ],
+      "sources": [
+        "S1",
+        "S2-p7-p5",
+        "S2-p41-p39",
+        "S2-p40-p38"
+      ],
+      "parts": [
+        {
+          "id": "sa-t1",
+          "order": 1,
+          "title": "E-Mail",
+          "skill": "productive writing",
+          "taskFamily": "writing-task",
+          "responseFormat": "free-text-email",
+          "items": {
+            "count": 1,
+            "first": null,
+            "last": null
+          },
+          "points": 45,
+          "taskTextType": "informal or semi-formal e-mail",
+          "requiredContentPoints": 4,
+          "contentPointTerm": "Leitpunkte",
+          "criteria": [
+            {
+              "id": "k1",
+              "name": "Aufgabenbewältigung",
+              "nameEn": "task fulfilment",
+              "bands": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "bandPoints": {
+                "A": 5,
+                "B": 3,
+                "C": 1,
+                "D": 0
+              },
+              "sources": [
+                "S2-p38-p36",
+                "S2-p40-p38"
+              ]
+            },
+            {
+              "id": "k2",
+              "name": "Kommunikative Gestaltung",
+              "nameEn": "communicative design",
+              "bands": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "bandPoints": {
+                "A": 5,
+                "B": 3,
+                "C": 1,
+                "D": 0
+              },
+              "sources": [
+                "S2-p38-p36",
+                "S2-p40-p38"
+              ]
+            },
+            {
+              "id": "k3",
+              "name": "Formale Richtigkeit",
+              "nameEn": "formal accuracy",
+              "bands": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "bandPoints": {
+                "A": 5,
+                "B": 3,
+                "C": 1,
+                "D": 0
+              },
+              "sources": [
+                "S2-p38-p36",
+                "S2-p40-p38"
+              ]
+            }
+          ],
+          "bandToTotal": {
+            "formula": "(k1 + k2 + k3) * 3",
+            "rawCriterionMax": 15,
+            "multiplier": 3,
+            "subtestMax": 45,
+            "sources": [
+              "S2-p40-p38"
+            ]
+          },
+          "ratingProcedure": {
+            "independentRaters": 2,
+            "secondRatingOverridesFirstOnDifference": true,
+            "finalRatingByPublisher": true,
+            "sources": [
+              "S2-p40-p38"
+            ]
+          },
+          "sources": [
+            "S2-p7-p5",
+            "S2-p40-p38"
+          ]
+        }
+      ]
+    }
+  ],
+  "answerRules": [
+    {
+      "id": "ar-lv-single-use",
+      "appliesTo": [
+        "lv-t1",
+        "lv-t3"
+      ],
+      "rule": "Each option (headline in Teil 1, advertisement in Teil 3) may be used only once.",
+      "sources": [
+        "S2-p8-p6",
+        "S2-p12-p10"
+      ]
+    },
+    {
+      "id": "ar-lv-no-match",
+      "appliesTo": [
+        "lv-t3"
+      ],
+      "rule": "If no advertisement matches a situation, the learner marks an x. Stated for Leseverstehen Teil 3 only; it is not stated for Teil 1 or Teil 2.",
+      "sources": [
+        "S2-p12-p10"
+      ]
+    },
+    {
+      "id": "ar-sb-single-use",
+      "appliesTo": [
+        "sb-t2"
+      ],
+      "rule": "Each word from the option list a-o fits only once.",
+      "sources": [
+        "S2-p15-p13"
+      ]
+    },
+    {
+      "id": "ar-hv-plus-minus",
+      "appliesTo": [
+        "hv-t1",
+        "hv-t2",
+        "hv-t3"
+      ],
+      "rule": "Mark PLUS (+) for richtig and MINUS (-) for falsch on the answer sheet.",
+      "sources": [
+        "S2-p16-p14",
+        "S2-p17-p15",
+        "S2-p18-p16"
+      ]
+    },
+    {
+      "id": "ar-hv-plays-per-part",
+      "appliesTo": [
+        "hv-t1",
+        "hv-t2",
+        "hv-t3"
+      ],
+      "rule": "Permitted plays are not uniform: one play in Teil 1, two plays in Teil 2, and two plays for each of the five short texts in Teil 3.",
+      "sources": [
+        "S2-p16-p14",
+        "S2-p17-p15",
+        "S2-p18-p16"
+      ]
+    },
+    {
+      "id": "ar-sa-band-multiplier",
+      "appliesTo": [
+        "sa-t1"
+      ],
+      "rule": "The three criterion scores are summed (max 15) and multiplied by three in the publisher's centre, giving a subtest maximum of 45 points.",
+      "sources": [
+        "S2-p40-p38"
+      ]
+    },
+    {
+      "id": "ar-sa-topic-missed",
+      "appliesTo": [
+        "sa-t1"
+      ],
+      "rule": "If the text has no or hardly any connection to the writing task, D is given for all three criteria and the Thema-verfehlt field is marked. If only the situational framing is missed, or only one or no Leitpunkt is handled appropriately, only Kriterium I is set to D and criteria II and III are still assessed.",
+      "sources": [
+        "S2-p38-p36",
+        "S2-p39-p37"
+      ]
+    }
+  ],
+  "unresolved": [
+    {
+      "id": "U1",
+      "question": "The general binding regulations are now located and verified (S3, gültig ab 15.04.2025), but no test specification or Prüfungsordnung specific to the classic Zertifikat Deutsch B1 was found, so the written-format rules still rest on the model test (S2) plus the exam page (S1).",
+      "status": "unresolved",
+      "impact": "high",
+      "progress": "partly-closed",
+      "sources": [
+        "S1",
+        "S3"
+      ]
+    },
+    {
+      "id": "U2",
+      "question": "Whether the 13. Auflage 2020 model test is still the current one for the classic B1 exam. A different, newer scaled examination (telc Deutsch A2·B1) was verified, and S3 requires model tests to be used in their current version.",
+      "status": "unresolved",
+      "impact": "high",
+      "progress": "partly-closed",
+      "sources": [
+        "S2",
+        "S3",
+        "S4"
+      ]
+    },
+    {
+      "id": "U3",
+      "question": "Whether wrong objective answers are penalised or guessing is discouraged. No such provision exists in the model test instructions or in the binding regulations (S3); the absence of a rule is not itself a rule, so this stays unresolved rather than inferred from silence.",
+      "status": "unresolved",
+      "impact": "high",
+      "progress": "absence-confirmed-in-sources",
+      "sources": [
+        "S2",
+        "S3"
+      ]
+    },
+    {
+      "id": "U4",
+      "question": "What the learner should do when no option fits in Sprachbausteine Teil 1 or Leseverstehen Teil 2; the no-match rule is printed only for Leseverstehen Teil 3.",
+      "status": "unresolved",
+      "impact": "medium",
+      "progress": "open",
+      "sources": [
+        "S2-p12-p10",
+        "S2-p15-p13"
+      ]
+    },
+    {
+      "id": "U5",
+      "question": "There is no printed sub-allocation of the shared 90 minutes between Leseverstehen and Sprachbausteine.",
+      "status": "unresolved",
+      "impact": "medium",
+      "progress": "open",
+      "sources": [
+        "S1",
+        "S2-p31-p29"
+      ]
+    },
+    {
+      "id": "U6",
+      "question": "No per-part duration is printed for Hörverstehen beyond the announced reading pauses; the section is given as approximately 30 minutes.",
+      "status": "unresolved",
+      "impact": "low",
+      "progress": "open",
+      "sources": [
+        "S1",
+        "S2-p16-p14",
+        "S2-p17-p15"
+      ]
+    },
+    {
+      "id": "U7",
+      "question": "No verified rounding rule exists for a fractional written total. Partial credit IS genuinely fractional (1.5 points per Sprachbausteine item, 2.5 per item in the 10-item 25-point parts), so a .5 aggregate such as 269.5 is reachable; an earlier revision wrongly claimed .5 totals were impossible because section totals are integers, and that derivation is withdrawn.",
+      "status": "unresolved",
+      "impact": "low",
+      "progress": "narrowed-to-rounding-only",
+      "sources": [
+        "S2-p42-p40",
+        "S3"
+      ]
+    },
+    {
+      "id": "U8",
+      "question": "The precise differences from Deutsch-Test für den Beruf, telc Deutsch B1·B2 Beruf, telc Deutsch B1 Schule and DTZ were not examined systematically. The scaled telc Deutsch A2·B1 is distinguished from the classic B1 using verified evidence; the pilot target is already fixed as the classic single-level B1 by AGENTS.md and IMPLEMENTATION_PLAN.md, and the scaled exam must not replace this blueprint.",
+      "status": "unresolved",
+      "impact": "medium",
+      "progress": "partly-closed",
+      "sources": [
+        "S4"
+      ]
+    }
+  ],
+  "gates": {
+    "examFidelityApproval": {
+      "satisfied": false,
+      "note": "Requires qualified human expert review; not performed in this execution."
+    },
+    "nativeLanguageExplanations": {
+      "satisfied": false,
+      "note": "No explanation-language content was produced or reviewed."
+    },
+    "audioAndReuseRights": {
+      "satisfied": false,
+      "note": "Public availability is not permission to copy. The publisher's copyright notice requires written consent for uses beyond statutory exceptions; scripts, recordings and reuse need separate clearance."
+    }
+  },
+  "review": {
+    "status": "unreviewed",
+    "approvedBy": null,
+    "reviewedAt": null,
+    "note": "Draft extraction for coordinator implementation and human review. The checker validates internal consistency only; it cannot and must not assert exam validity or approval."
+  }
+}
