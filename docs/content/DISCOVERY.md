@@ -125,6 +125,8 @@ Interpretation (stated as such):
 
 ## Execution status of this correction (precise)
 
+Coordinator completion, after the worker's bounded run ended: independently inspected both corrected files, staged only those paths, ran both modes twice with byte-identical output within each mode, and passed101+9+14 baseline, repository guard162 files/142 text blobs and whitespace checks. Packaged preserved work as7e24229, verified the bundle and its one-commit/two-file scope, then integrated through CI-green PR20. These results close the packaging steps below; the following paragraph preserves the worker's original checkpoint rather than claiming it finished steps it did not run. Formal content/exam/rights review remains open.
+
 Counts above are the output of the corrected command on this checkout. When the execution budget ended, the
 after-correction steps had **not** yet been completed: the two-mode/two-run determinism comparison, the
 124-check offline baseline (`tools/check.js` + `tools/writing-check.js` + `tools/feedback-check.js`), staging,
