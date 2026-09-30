@@ -57,6 +57,19 @@ export async function loadOwnedApi({ env = process.env } = {}) {
   const { createPostgresSettings } = await import('./owned-postgres/settings.mjs');
 
   const persistent = await provisionPersistent({ config: persistentConfig(env) });
+  // A3: a `pg` pool whose backend disappears emits `error` on the *pool*; with no listener
+  // Node aborts the process, so a database blink would take the whole hosted runtime down
+  // instead of answering a refusal. Attach a listener that logs a secret-free line and lets
+  // the request path return its own 5xx. Guarding every pool closes the idle-client case
+  // (sockets dropped with nothing in flight) as well as the in-flight one.
+  for (const key of ['migration', 'auth', 'learner', 'worker', 'admin']) {
+    const pool = persistent[key];
+    if (pool && typeof pool.on === 'function') {
+      pool.on('error', (error) => {
+        console.error(`  DB pool ${key}: ${error && error.message ? error.message : String(error)}`);
+      });
+    }
+  }
   const fixture = {
     schema: persistent.config.schema,
     roles: persistent.config.roles,
