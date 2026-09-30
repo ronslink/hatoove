@@ -716,7 +716,7 @@ async function handleApi(req, res, pathname) {
  * Build the HTTP server without listening, so a test can start it in-process on an
  * ephemeral port (see tools/server-origin-check.mjs).
  */
-export function createServer() {
+export function createServer({ ownedApi = null } = {}) {
   return http.createServer(async (req, res) => {
     const pathname = (() => {
       try {
@@ -739,6 +739,10 @@ export function createServer() {
             return;
           }
         }
+        // OWNAPI-01 mount: opt-in only. Active solely when a caller injects an owned API
+        // (server/owned-api.mjs); `node server.js` never does. Placed after the SEC-01 gate,
+        // which has already rejected any foreign mutation, hence originChecked: true.
+        if (ownedApi && ownedApi.matches(pathname)) return void (await ownedApi.handleNode(req, res, { originChecked: true }));
         const handled = await handleApi(req, res, pathname);
         if (!handled) sendJSON(res, 404, { ok: false, error: `Unknown endpoint ${pathname}` });
         return;
