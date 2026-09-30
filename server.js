@@ -408,6 +408,49 @@ async function readProgress(paths = LEGACY_PATHS) {
   return { found: false, source: null, state: null };
 }
 
+/**
+ * The copies a full delete is responsible for. `writeProgress` leaves `.bak` on every save
+ * after the first and `.tmp` while a write is in flight, so those three are the only files
+ * this server writes beside the record. Nothing else is added to this list: a copy written
+ * by another tool is not this endpoint's to delete, and claiming otherwise would be the
+ * same dishonesty in the other direction (see work/implementation/F5-RESCOPE.md).
+ */
+function deletableCandidates(paths) {
+  return [paths.progress, `${paths.progress}.bak`, `${paths.progress}.tmp`];
+}
+
+/**
+ * True when `p` exists. `fsp.rm(..., { force: true })` is silent for a missing file, so the
+ * delete path needs a real check in order to report exactly what it removed.
+ */
+async function pathExists(p) {
+  try {
+    await fsp.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * What a full delete of this record cannot reach, stated in the response rather than left
+ * to be inferred from `deleted: true` (F-5, re-scoped: F5-RESCOPE.md §1.1, §2).
+ *
+ * These sentences are about *reach*, never about duration: no retention period is claimed
+ * anywhere, because that policy is Ron's decision and is not made here. They name the
+ * record and the fence file actually in use, so a scoped delete describes its own scope.
+ */
+function deletionBoundary(paths) {
+  const record = path.basename(paths.progress);
+  const fence = path.basename(paths.rev);
+  return [
+    `Kept on purpose: ${fence}, the write fence that refuses a save queued before this delete. It holds no learner text.`,
+    "Not reached: the browser's cached copy of this record. The page clears its own copy after this response; a server cannot reach a browser.",
+    `Not reached: a copy of ${record} that another tool wrote beside it. This delete removes exactly the files this server writes - ${record}, ${record}.bak and ${record}.tmp - so anything else in that directory survives it.`,
+    'Not reached: the hosted stores. A backup of this server or of its database, and the records the server holds in the owned account database (attempts, drafts, submissions, assessments, usage_ledger, account settings and sessions), are not deleted by this endpoint.',
+  ];
+}
+
 const ALLOWED_STATIC_ROOTS = [PUBLIC_DIR, DATA_DIR];
 
 function resolveStatic(urlPath) {
@@ -644,16 +687,43 @@ async function handleApi(req, res, pathname) {
         sendJSON(res, 500, { ok: false, error: `Could not record the reset: ${err.message}` });
         return true;
       }
-      try {
-        await fsp.rm(paths.progress, { force: true });
-        await fsp.rm(`${paths.progress}.bak`, { force: true });
-        // A leftover temp file from an interrupted write would otherwise be renamed
-        // into place by the next save and resurrect the record.
-        await fsp.rm(`${paths.progress}.tmp`, { force: true });
-      } catch {
-        /* already gone */
+      // F-5, re-scoped: a full delete must remove what it claims and say what it cannot
+      // reach. Each candidate is checked before removal so the response can name exactly
+      // what it removed, and a removal that throws is reported instead of swallowed -
+      // `deleted: true` must never be returned while a copy the app claims to have
+      // deleted is still on disk. The list is the three files this server writes beside
+      // the record; a copy another tool left there is deliberately not in it, and the
+      // response says so (F5-RESCOPE.md §1.3).
+      const removed = [];
+      const failed = [];
+      for (const candidate of deletableCandidates(paths)) {
+        if (!(await pathExists(candidate))) continue;
+        try {
+          await fsp.rm(candidate, { force: true });
+          removed.push(path.basename(candidate));
+        } catch {
+          failed.push(path.basename(candidate));
+        }
       }
-      sendJSON(res, 200, { ok: true, scope: 'all', deleted: true, rev });
+      if (failed.length) {
+        // The delete is incomplete, so it is reported as a failure with the detail rather
+        // than as a success with a caveat the client would ignore.
+        sendJSON(res, 500, {
+          ok: false,
+          code: 'delete_incomplete',
+          scope: 'all',
+          deleted: false,
+          rev,
+          removed,
+          failed,
+          outsideScope: deletionBoundary(paths),
+        });
+        return true;
+      }
+      // The tombstone (.rev) is kept on purpose: it is what refuses a pre-delete write,
+      // and it holds no learner text. Everything out of this endpoint's reach is named in
+      // the response, never claimed to be gone.
+      sendJSON(res, 200, { ok: true, scope: 'all', deleted: true, rev, removed, outsideScope: deletionBoundary(paths) });
       return true;
     }
 
