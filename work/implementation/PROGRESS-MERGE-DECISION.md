@@ -64,7 +64,29 @@ that path when the stateful views move to owned attempts.** Reasons:
 was sync, and it is already removed. This is a conflict policy, and it is the *only* thing standing between two
 writers and silently lost answers on the legacy path today.
 
-## Consequence for the dropped-feature removal just done
+## Ron's follow-up: *"we will have no portability so no need to sync any data"*
+
+**Correct, and it changes nothing about `mergeProgress` — because `mergeProgress` was never what synced data.**
+Two different things have been sharing the word:
+
+| | What it is | Status |
+|---|---|---|
+| **Portability / sync** | moving a progress file between an install, a portable copy or another machine | **removed, and no longer needed.** `tools/sync-home.js`, the portable build and `portable/**` are already deleted; there is no second copy to reconcile because the server is the only copy |
+| **`mergeProgress`** | a rule for *two writers of the same row*, needed when a writer sends a **whole snapshot** instead of an operation | **still needed today, and unrelated to portability** |
+
+The second is not device-to-device. Its own header names the case that produced it: **debounced saves and two tabs
+on the same machine** — a tab holding a slightly older in-memory snapshot can flush *after* a tab that already saved
+newer answers, and a real save once carried **68 fewer attempts** than the one before it. The browser is a writer
+that holds state, so "no portability" does not remove the second writer.
+
+**But the direction Ron is pointing at is right, and stronger than "no sync":** when the stateful views read and
+write owned attempts with a **revision**, a stale snapshot is **refused with 409 and re-read**, not merged. That
+policy is already built (`owned-postgres/adapter.mjs`, `revision-check` 8/8) and it is the one that can express a
+**deletion** — which a monotonic union never can, and which caused the F-2 reset race.
+
+**So:** portability and sync are gone and stay gone; the merge is retired **with** the legacy snapshot path, not
+before it, and **must not be extended or "fixed" further in the meantime**. Recorded so that a future reader does
+not re-open this as if sync had been left behind.
 
 The removals already executed (`start.cmd`, `tools/sync-home*.js`, the portable build and `portable/**`,
 `tools/recover-progress.js`, and the `recover` npm script) are **correct and unrelated to this**: none of them was
