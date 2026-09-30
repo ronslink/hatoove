@@ -56,7 +56,6 @@ export const REQUIRED_CHECKS = [
   'clear-notebook-removes-entries-keeps-history',
   'unknown-delete-scope-is-rejected',
   'delete-requires-same-origin',
-  'backup-copies-outside-deletion-path',
 ];
 
 export const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -509,16 +508,21 @@ export async function runResetChecks({ root = DEFAULT_ROOT, mode = 'tree' } = {}
       return '403 origin_rejected; record intact';
     });
 
-    /* 9. What the reset deliberately does not reach. */
-    await record('backup-copies-outside-deletion-path', async () => {
-      const copy = `${ctx.progressPath}.pre-recovery`;
-      fs.writeFileSync(copy, JSON.stringify(seededState()), 'utf8');
-      await client.reset();
-      await sleep(SETTLE_MS);
-      assertTrue(fs.existsSync(copy), 'the pre-recovery copy must be untouched (this is the documented boundary)');
-      fs.rmSync(copy, { force: true });
-      return 'documented: pre-recovery/portable copies (F-5) are outside the deletion path';
-    });
+    /*
+     * The `backup-copies-outside-deletion-path` check was REMOVED here, deliberately and visibly,
+     * taking this suite from 9 checks to 8.
+     *
+     * It asserted that a `progress.json.pre-recovery` copy survives a reset. That file's only writer
+     * was `tools/recover-progress.js`, which the hosted target dropped and which has been deleted
+     * from the tree along with the portable build and the sync tool. The check created its own copy
+     * to assert against, so it kept passing - a test protecting a boundary the retained product can
+     * no longer produce, i.e. dead code with an assertion attached.
+     *
+     * This is the follow-up the independent F-5 re-scope specified: "when the dropped tools are
+     * deleted from the tree, this check must be deleted WITH them, taking the count 9 -> 8 as a
+     * deliberate, visible act." The hosted replacement for what this check was reaching for is the
+     * per-account deletion path, which does not exist yet - issue #63 and D3 (hard delete).
+     */
   } finally {
     clearProgressFiles(ctx);
   }
