@@ -6,6 +6,35 @@ Revised 30 September 2026. This is the authoritative executable revision of the 
 
 The next outcome is a dependable, mobile-capable learner journey in the previous app's visual style. Prepare and integrate source through the private `ronslink/hatoove` repository. This plan does not authorize publishing a site, sending invitations, configuring live domain traffic or deploying production services.
 
+## Verified progress — 1 October 2026
+
+`origin/main` = **`5a63429949275f4cb27cd7f64565afe8cf029511`**. Everything here was measured on a fresh worktree at
+that commit on 2026-10-01, not carried over. Baseline unchanged and re-confirmed: `check.js` **101/0** ·
+`writing-check.js` **9/0** · `feedback-check.js` **14/0**; checkers `server-origin` 16 · `reset` 9 · `revision` 8 ·
+`owned-client` 31 · `owned-api` 24 · `keymask` 12 · `progress-equal` 10 · `draft-session` 17; `repository-check`
+passes (277 tracked files, 206 text blobs screened — explicitly **not** a complete secret audit).
+
+| Package / slice | Verified state and evidence | Remaining acceptance / next action |
+|---|---|---|
+| **A-01 owned-client transport** | **Merged** `de4ecb6`; `owned-client-check.mjs` **31/31**, generation fencing holds even when the injected transport ignores `AbortSignal`; three independent review notes closed | No browser consumer exists in `public/**` yet — the ownership boundary is proven at the module level only |
+| **A-01 owned API routes** | **Merged** `2974359`; `owned-api-check.mjs` **24/24** driving the real client through the real mount over real HTTP | Only the in-memory datastore was wired until OWNAPI-02 |
+| **A-01 / F-02 PostgreSQL datastore (OWNAPI-02)** | **Merged** `5a63429`. Adapter in its own package scope (`pg` 8.23.1) so the root app stays dependency-free. Coordinator executed the proof against a disposable `postgres:17-alpine`: `owned-api-pg-check` **6/6** and the **same** 24-check suite on `--backend=postgres` **24/24**. **The proof is not vacuous** — granting the learner role `BYPASSRLS` in a scratch copy makes it fail with `learner must not be rolbypassrls` and `attempts leaked a cross-owner row` | Sessions are a **synthetic pg-backed port, not Better Auth**. No cookie security, expiry, abuse-control or recovery evidence, no migration history, no deployment. CI gates the pg job |
+| **F-1 origin/authorization gate** | **Merged** `9c57ffd`; 16/16 with a discrimination probe proving pre-fix `82ae9c2` returned 200 **and rewrote the env file** while the fixed head returns 403 | Human `P-03` remains open |
+| **F-2 reset** | **Merged** `675a3f6` (9/9) after which independent review found the **in-flight-save race**; corrected by the revision fence in `8a71f71` (`revision-check` **8/8** with pre-fix discrimination, `409 stale_revision`) | Design decision on the race is recorded; no further action queued |
+| **F-3 disclosure** | **Merged** `0ee7e13` | Learner-facing copy — **flagged for human C-06 native-language review** |
+| **F-7 key exposure** | **Merged** `616e1e5`; `keymask-check` **12/12**; pre-fix disclosed exactly 5 runs of ≥3 key characters, fixed discloses none | DeepSeek key rotation still on Ron's list (accepted residual risk) |
+| **F-8 machine paths / account name** | **Merged** `fa53e30` | — |
+| **PM-01 `progressEqual`** | **Merged** `2f892d2`; `progress-equal-check` **10/10** with pre-fix discrimination | — |
+| **Workstream 5 — recoverable-draft service (DRAFT-SESSION-01)** | **Merged** `c8bf97a` (PR #51). Four files added, **0 deletions**, `public/js/exam.js` byte-identical. Checker **17/17**, tests **21/21**. **Independent review: accept-with-notes, no blocking defect.** Pointer store holds **IDs only**, keyed by account+task, never learner text; a forged or foreign ID resolves to "not found" | Reviewer's non-blocking finding recorded: the checker does **not** discriminate the module's own generation/account fence (deleting it still yields 17/17 and 8/8 on an independent probe) because `owned-client.js` throws first — correct in shipped code, **redundancy today, not a proven control**. Not wired into the app: see workstream 6 |
+| **Workstream 4 — truthful mock outcomes (WRITING-OUTCOMES-02)** | **Delivered twice, under independent adjudication.** #54 `793f3c6`: checker **19/19**, tests **21/21**, self-contained browser proof **11/11** on this host, plus a restart-button defect fix. #53 `72994ad`: 16/16, 20/20, its browser check cannot run unattended (needs a caller-started server and hard-codes a Linux Chromium path) | `wo02-verify-hermes-20261001-a` is verifying and adjudicating. **No merge until that verdict.** No live-provider rendering observed by anyone; no real device |
+| **Workstream 12 — verification gaps** | Four recorded: five checkers **ungated by CI** (`revision`, `keymask`, `progress-equal`, `draft-session`, `owned-api`); `reset-check --legacy-root` with no value compares the candidate against itself; the draft-session fence gap above; the OWNAPI-02 mutation was run by the coordinator, not an independent reviewer | `ci-gates-01-claude-20261001-a` is closing the first. The others stay recorded until independently reproduced |
+| **F-4 account-scoped progress** | **In flight** — `f4-scope-01-openclaw-20261001-a` | Must adopt the legacy blob once without losing it and either fix or honestly record the plaintext-at-rest property |
+| **F-5 deletion scope** | **In flight** — `f5-deletion-01-clawd-20261001-a` | Must enumerate every path the app writes and state plainly what portable media cannot be reached |
+
+**Unchanged and still true:** no overall completion percentage is inferred from task counts; every human gate
+(exam fidelity E-01, content/audio rights C-04, native language C-06, security/privacy/legal P-03, real devices)
+remains open, and no agent may close one.
+
 ## Verified progress — 30 September 2026, 18:46 UTC
 
 This is the master progress record. Package acceptance below remains authoritative: a finished subtask, passing test or worker report does not close the entire package. The [board](work/BOARD.md) carries exact owners/leases; linked PRs carry review and integration evidence. No overall completion percentage or launch date is inferred from task counts.
