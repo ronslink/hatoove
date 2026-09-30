@@ -1,0 +1,930 @@
+{
+  "level": "B1",
+  "source": "telc Deutsch B1 - mündliche Prüfung: Strategie, Redemittel und Beispiele",
+  "parts": [
+    {
+      "id": "SP1",
+      "title": "Teil 1 – Präsentation",
+      "summary": "Der Kandidat präsentiert etwa drei Minuten lang ein Thema anhand von vier bis sechs Stichwörtern auf der Aufgabenkarte und beantwortet danach eine Anschlussfrage.",
+      "minutes": 3,
+      "approach": [
+        {
+          "step": "Begrüßen und Thema nennen",
+          "detail": "Ein bis zwei Sätze. Nennen Sie das Thema klar und deutlich, damit die Prüfer sofort wissen, worüber Sie sprechen.",
+          "seconds": 20,
+          "stepEn": "Greet the examiners and name the topic",
+          "detailEn": "One or two sentences. Name the topic clearly so the examiners know straight away what you are talking about."
+        },
+        {
+          "step": "Überblick über die Stichwörter geben",
+          "detail": "Sagen Sie kurz, welche Punkte Sie nennen werden. So bekommen Ihre Ausführungen eine klare Struktur.",
+          "seconds": 20,
+          "stepEn": "Give an overview of the keywords",
+          "detailEn": "Say briefly which points you are going to mention. That gives your presentation a clear structure."
+        },
+        {
+          "step": "Die Stichwörter der Reihe nach bearbeiten",
+          "detail": "Machen Sie aus jedem Stichwort zwei bis drei ganze Sätze. Verbinden Sie die Punkte mit Wörtern wie zuerst, danach und zum Schluss.",
+          "seconds": 70,
+          "stepEn": "Work through the keywords one by one",
+          "detailEn": "Turn each keyword into two or three full sentences. Link the points with words such as zuerst, danach and zum Schluss."
+        },
+        {
+          "step": "Eigene Meinung und Erfahrung einbringen",
+          "detail": "Berichten Sie kurz von sich selbst: Was haben Sie erlebt? Was finden Sie gut oder schlecht? Das wirkt natürlich und persönlich.",
+          "seconds": 35,
+          "stepEn": "Add your own opinion and experience",
+          "detailEn": "Say something about yourself: what have you experienced? What do you think is good or bad? That sounds natural and personal."
+        },
+        {
+          "step": "Zusammenfassen",
+          "detail": "Fassen Sie Ihren wichtigsten Gedanken in ein bis zwei Sätzen zusammen und bedanken Sie sich für das Zuhören.",
+          "seconds": 20,
+          "stepEn": "Summarise",
+          "detailEn": "Sum up your most important thought in one or two sentences and thank the listeners."
+        },
+        {
+          "step": "Zu Anschlussfragen einladen",
+          "detail": "Bieten Sie am Ende an, Fragen zu beantworten. So zeigen Sie, dass Sie das Gespräch führen können.",
+          "seconds": 15,
+          "stepEn": "Invite follow-up questions",
+          "detailEn": "Offer to answer questions at the end. That shows you can lead the conversation."
+        }
+      ],
+      "phrases": [
+        {
+          "group": "Einleitung",
+          "hint": "Mit diesen Sätzen beginnen Sie die Präsentation und nennen das Thema.",
+          "items": [
+            {
+              "de": "Ich möchte Ihnen ... vorstellen.",
+              "en": "I would like to present ... to you.",
+              "example": "Ich möchte Ihnen meine Heimatstadt vorstellen."
+            },
+            {
+              "de": "Mein Thema heute ist ...",
+              "en": "My topic today is ...",
+              "example": "Mein Thema heute ist mein Beruf als Krankenpfleger."
+            },
+            {
+              "de": "Ich möchte heute über ... sprechen.",
+              "en": "Today I would like to talk about ...",
+              "example": "Ich möchte heute über meinen Lieblingssport sprechen."
+            },
+            {
+              "de": "Wie Sie vielleicht wissen, ...",
+              "en": "As you may know, ...",
+              "example": "Wie Sie vielleicht wissen, wohne ich erst seit zwei Jahren in Deutschland."
+            },
+            {
+              "de": "Ich habe mir das Thema ... ausgesucht, weil ...",
+              "en": "I chose the topic ... because ...",
+              "example": "Ich habe mir das Thema Feste in meinem Land ausgesucht, weil Feiern bei uns sehr wichtig sind."
+            },
+            {
+              "de": "Zuerst möchte ich kurz sagen, worum es geht.",
+              "en": "First I would like to say briefly what this is about.",
+              "example": "Zuerst möchte ich kurz sagen, worum es geht: um meine Arbeit in einem kleinen Büro."
+            }
+          ],
+          "groupEn": "Introduction",
+          "hintEn": "With these sentences you begin the presentation and name the topic."
+        },
+        {
+          "group": "Struktur und Reihenfolge",
+          "hint": "Diese Redemittel ordnen Ihre Präsentation und führen die Prüfer von Punkt zu Punkt.",
+          "items": [
+            {
+              "de": "Ich möchte über drei Punkte sprechen: ...",
+              "en": "I would like to talk about three points: ...",
+              "example": "Ich möchte über drei Punkte sprechen: meine Stadt, die Menschen und das Leben dort."
+            },
+            {
+              "de": "Zuerst ... danach ... und zum Schluss ...",
+              "en": "First ... then ... and finally ...",
+              "example": "Zuerst erzähle ich von meiner Familie, danach von meiner Arbeit und zum Schluss von meinen Plänen."
+            },
+            {
+              "de": "Ein wichtiger Punkt ist auch ...",
+              "en": "Another important point is ...",
+              "example": "Ein wichtiger Punkt ist auch die Frage, wie viel ein Ausflug kosten darf."
+            },
+            {
+              "de": "Ich beginne mit ... und komme danach zu ...",
+              "en": "I will start with ... and then move on to ...",
+              "example": "Ich beginne mit meiner Ausbildung und komme danach zu meinem jetzigen Job."
+            },
+            {
+              "de": "Der nächste Punkt ist ...",
+              "en": "The next point is ...",
+              "example": "Der nächste Punkt ist das Essen in meinem Heimatland."
+            },
+            {
+              "de": "Dazu möchte ich ein Beispiel geben.",
+              "en": "I would like to give an example of that.",
+              "example": "Dazu möchte ich ein Beispiel geben: Meine Schwester arbeitet auch im Supermarkt."
+            }
+          ],
+          "groupEn": "Structure and order",
+          "hintEn": "These phrases organise your presentation and guide the examiners from point to point."
+        },
+        {
+          "group": "Vor- und Nachteile",
+          "hint": "Nutzen Sie diese Sätze, wenn Sie ein Stichwort von zwei Seiten beleuchten wollen.",
+          "items": [
+            {
+              "de": "Ein Vorteil ist, dass ...",
+              "en": "One advantage is that ...",
+              "example": "Ein Vorteil ist, dass man in der Stadt schnell mit dem Bus fahren kann."
+            },
+            {
+              "de": "Ein Nachteil ist, dass ...",
+              "en": "One disadvantage is that ...",
+              "example": "Ein Nachteil ist, dass die Mieten in der Stadt sehr hoch sind."
+            },
+            {
+              "de": "Positiv finde ich, dass ...",
+              "en": "I think it is positive that ...",
+              "example": "Positiv finde ich, dass es in meinem Beruf viele freundliche Kollegen gibt."
+            },
+            {
+              "de": "Negativ finde ich, dass ...",
+              "en": "I think it is negative that ...",
+              "example": "Negativ finde ich, dass ich am Samstag fast immer arbeiten muss."
+            },
+            {
+              "de": "Auf der einen Seite ..., auf der anderen Seite ...",
+              "en": "On the one hand ... on the other hand ...",
+              "example": "Auf der einen Seite ist das Leben auf dem Land ruhig, auf der anderen Seite gibt es dort wenig Arbeit."
+            },
+            {
+              "de": "Man muss auch beachten, dass ...",
+              "en": "One also has to consider that ...",
+              "example": "Man muss auch beachten, dass ein Auto im Monat viel Geld kostet."
+            }
+          ],
+          "groupEn": "Advantages and disadvantages",
+          "hintEn": "Use these sentences when you want to look at a keyword from two sides."
+        },
+        {
+          "group": "Eigene Erfahrung",
+          "hint": "Mit diesen Sätzen machen Sie die Präsentation persönlich und glaubwürdig.",
+          "items": [
+            {
+              "de": "Ich habe die Erfahrung gemacht, dass ...",
+              "en": "I have found that ...",
+              "example": "Ich habe die Erfahrung gemacht, dass man mit Geduld viel erreichen kann."
+            },
+            {
+              "de": "Bei mir war es so, dass ...",
+              "en": "In my case it was like this: ...",
+              "example": "Bei mir war es so, dass ich nach dem Umzug zuerst keine Arbeit gefunden habe."
+            },
+            {
+              "de": "Als ich ... war, habe ich ...",
+              "en": "When I was ..., I ...",
+              "example": "Als ich zwölf Jahre alt war, habe ich jeden Sommer bei meinem Onkel gearbeitet."
+            },
+            {
+              "de": "Ich erinnere mich, dass ...",
+              "en": "I remember that ...",
+              "example": "Ich erinnere mich, dass wir als Kinder jeden Abend auf der Straße gespielt haben."
+            },
+            {
+              "de": "In meinem Heimatland ist es üblich, dass ...",
+              "en": "In my home country it is common that ...",
+              "example": "In meinem Heimatland ist es üblich, dass die ganze Familie am Sonntag zusammen isst."
+            },
+            {
+              "de": "Damit habe ich schon Erfahrungen gemacht.",
+              "en": "I already have experience with that.",
+              "example": "Mit dem Fahrrad zur Arbeit zu fahren ist bei uns normal, damit habe ich schon Erfahrungen gemacht."
+            }
+          ],
+          "groupEn": "Your own experience",
+          "hintEn": "With these sentences you make the presentation personal and credible."
+        },
+        {
+          "group": "Zusammenfassung",
+          "hint": "Diese Sätze beenden Ihren Vortrag und heben den wichtigsten Gedanken hervor.",
+          "items": [
+            {
+              "de": "Zusammenfassend kann ich sagen, dass ...",
+              "en": "In summary, I can say that ...",
+              "example": "Zusammenfassend kann ich sagen, dass meine Heimatstadt für mich der schönste Ort ist."
+            },
+            {
+              "de": "Zum Schluss möchte ich betonen, dass ...",
+              "en": "Finally I would like to emphasise that ...",
+              "example": "Zum Schluss möchte ich betonen, dass Gesundheit wichtiger ist als Geld."
+            },
+            {
+              "de": "Alles in allem finde ich ...",
+              "en": "All in all, I find ...",
+              "example": "Alles in allem finde ich meinen Beruf sehr interessant."
+            },
+            {
+              "de": "Ich fasse kurz zusammen: ...",
+              "en": "Let me summarise briefly: ...",
+              "example": "Ich fasse kurz zusammen: Der Job macht Spaß, aber die Arbeitszeiten sind schwierig."
+            },
+            {
+              "de": "Deshalb ist ... für mich wichtig.",
+              "en": "That is why ... is important to me.",
+              "example": "Deshalb ist Zeit für meine Familie für mich wichtig."
+            },
+            {
+              "de": "Ich hoffe, ich konnte Ihnen einen guten Überblick geben.",
+              "en": "I hope I was able to give you a good overview.",
+              "example": "Ich hoffe, ich konnte Ihnen einen guten Überblick über meinen Alltag geben."
+            }
+          ],
+          "groupEn": "Summary",
+          "hintEn": "These sentences end your talk and highlight the most important thought."
+        },
+        {
+          "group": "Auf Anschlussfragen reagieren",
+          "hint": "Wenn die Prüfer nachfragen, bleiben Sie ruhig und antworten Sie in vollständigen Sätzen.",
+          "items": [
+            {
+              "de": "Das ist eine gute Frage. Ich denke, dass ...",
+              "en": "That is a good question. I think that ...",
+              "example": "Das ist eine gute Frage. Ich denke, dass sich in den nächsten Jahren viel ändern wird."
+            },
+            {
+              "de": "Vielen Dank für die Frage. Also, ...",
+              "en": "Thank you for the question. Well, ...",
+              "example": "Vielen Dank für die Frage. Also, ich würde am liebsten in meiner Heimatstadt bleiben."
+            },
+            {
+              "de": "Da bin ich mir nicht ganz sicher, aber ich glaube, dass ...",
+              "en": "I am not quite sure, but I believe that ...",
+              "example": "Da bin ich mir nicht ganz sicher, aber ich glaube, dass mehr Busse helfen würden."
+            },
+            {
+              "de": "Könnten Sie die Frage bitte wiederholen?",
+              "en": "Could you please repeat the question?",
+              "example": "Entschuldigung, könnten Sie die Frage bitte wiederholen?"
+            },
+            {
+              "de": "Ich habe noch nie darüber nachgedacht. Ich würde sagen, dass ...",
+              "en": "I have never thought about that. I would say that ...",
+              "example": "Ich habe noch nie darüber nachgedacht. Ich würde sagen, dass beide Wege möglich sind."
+            },
+            {
+              "de": "Wie ich schon gesagt habe, ...",
+              "en": "As I already said, ...",
+              "example": "Wie ich schon gesagt habe, ist mir die Familie am wichtigsten."
+            }
+          ],
+          "groupEn": "Reacting to follow-up questions",
+          "hintEn": "If the examiners ask questions, stay calm and answer in full sentences."
+        }
+      ],
+      "examples": [
+        {
+          "topic": "Meine Heimatstadt",
+          "text": "Ich möchte Ihnen meine Heimatstadt vorstellen. Sie heißt Valjevo und liegt im Westen von Serbien. Dort habe ich meine ganze Kindheit verbracht, und meine Eltern wohnen noch heute dort. Ich möchte über drei Punkte sprechen: die Stadt, die Menschen und das Leben dort. Valjevo ist keine große Stadt, aber es gibt alles, was man braucht: Schulen, ein Krankenhaus, viele kleine Geschäfte und einen großen Markt. Am Wochenende treffen sich die Menschen in der Fußgängerzone, trinken Kaffee und unterhalten sich. Besonders schön ist die Natur. Rund um die Stadt gibt es grüne Hügel und einen Fluss, in dem ich als Kind oft geschwommen bin. Ein Vorteil ist, dass das Leben dort ruhig und nicht so teuer ist. Die Menschen kennen sich und helfen einander. Ein Nachteil ist, dass es wenig Arbeit gibt. Deshalb sind viele junge Leute ins Ausland gegangen, auch ich. Ich habe die Erfahrung gemacht, dass man seine Heimat nie ganz vergisst, obwohl man weit weg wohnt. Zusammenfassend kann ich sagen, dass Valjevo für mich der schönste Ort ist, weil dort meine Familie und meine besten Erinnerungen sind. Ich fahre jedes Jahr im Sommer hin. Vielen Dank, dass Sie zugehört haben. Haben Sie noch Fragen?",
+          "topicEn": "My home town"
+        },
+        {
+          "topic": "Mein Beruf / meine Arbeit",
+          "text": "Ich möchte Ihnen meinen Beruf vorstellen. Ich arbeite als Verkäuferin in einem Supermarkt und bin seit vier Jahren in dieser Firma. Zuerst erzähle ich von meinem Arbeitstag, danach von den Vor- und Nachteilen und zum Schluss von meinen Plänen. Meine Arbeit beginnt um sieben Uhr morgens. Ich räume die Regale auf und kontrolliere, ob alle Waren frisch sind. Danach arbeite ich an der Kasse. Dort habe ich viel Kontakt mit Kunden, und das gefällt mir besonders gut. Manchmal muss ich auch Bestellungen machen oder beim Einräumen helfen. Ein Vorteil ist, dass ich nette Kollegen habe und jeden Tag etwas Neues passiert. Ein Nachteil ist, dass ich oft am Samstag arbeiten muss und dann wenig Zeit für meine Familie bleibt. Außerdem ist das Gehalt nicht sehr hoch. Ich habe die Erfahrung gemacht, dass man in diesem Beruf geduldig und freundlich sein muss. Wenn ein Kunde sich ärgert, darf ich nicht unhöflich werden. Deshalb möchte ich in zwei Jahren eine Weiterbildung machen, damit ich mehr verdienen kann. Zum Schluss möchte ich sagen, dass ich meine Arbeit gern mache, obwohl sie manchmal anstrengend ist. Vielen Dank für Ihre Aufmerksamkeit.",
+          "topicEn": "My job / my work"
+        }
+      ],
+      "watchOut": [
+        "Die Stichwörter nicht einfach vorlesen, sondern daraus ganze Sätze machen.",
+        "Nach drei Minuten ist die Präsentation zu Ende – die Zeit vorher zu Hause üben.",
+        "Keine langen, komplizierten Nebensätze bilden; kurze Hauptsätze sind verständlicher.",
+        "Die eigene Meinung oder Erfahrung nicht vergessen, sonst wirkt der Vortrag unpersönlich.",
+        "Zu leise sprechen und die Prüfer nicht anschauen – Augenkontakt gehört dazu."
+      ],
+      "titleEn": "Part 1 – Presentation",
+      "summaryEn": "The candidate presents a topic for about three minutes using the four to six keywords on the task card, and then answers one follow-up question.",
+      "watchOutEn": [
+        "Do not simply read the keywords out — turn them into full sentences.",
+        "The presentation is over after three minutes — practise the timing at home beforehand.",
+        "Do not build long, complicated subordinate clauses; short main clauses are easier to understand.",
+        "Do not forget your own opinion or experience, otherwise the talk sounds impersonal.",
+        "Speaking too quietly and not looking at the examiners — eye contact is part of it."
+      ]
+    },
+    {
+      "id": "SP2",
+      "title": "Teil 2 – Diskussion",
+      "summary": "Der Kandidat diskutiert etwa sechs Minuten mit seinem Partner über ein kontroverses Alltagsthema, äußert seine Meinung, begründet sie und reagiert auf den Partner.",
+      "minutes": 6,
+      "approach": [
+        {
+          "step": "Die eigene Position klar sagen",
+          "detail": "Sagen Sie am Anfang deutlich, was Sie denken. Ein Satz wie Ich bin der Meinung, dass ... reicht völlig aus.",
+          "seconds": 50,
+          "stepEn": "State your own position clearly",
+          "detailEn": "Say clearly at the start what you think. One sentence like Ich bin der Meinung, dass ... is quite enough."
+        },
+        {
+          "step": "Die Meinung begründen",
+          "detail": "Nennen Sie mindestens einen Grund mit weil, denn oder deshalb. Ohne Begründung wirkt die Meinung leer.",
+          "seconds": 60,
+          "stepEn": "Justify your opinion",
+          "detailEn": "Give at least one reason with weil, denn or deshalb. Without a reason the opinion sounds empty."
+        },
+        {
+          "step": "Ein Beispiel geben",
+          "detail": "Erzählen Sie eine kurze Situation aus Ihrem Leben oder aus Ihrem Umfeld. Das macht Ihr Argument konkret.",
+          "seconds": 60,
+          "stepEn": "Give an example",
+          "detailEn": "Tell a short story from your life or from the people around you. That makes your argument concrete."
+        },
+        {
+          "step": "Auf den Partner reagieren",
+          "detail": "Hören Sie zu und gehen Sie auf sein Argument ein: stimmen Sie zu, widersprechen Sie höflich oder ergänzen Sie etwas.",
+          "seconds": 70,
+          "stepEn": "React to your partner",
+          "detailEn": "Listen and respond to their argument: agree, disagree politely or add something."
+        },
+        {
+          "step": "Beide Seiten abwägen",
+          "detail": "Zeigen Sie, dass Sie auch die andere Meinung verstehen. Das wirkt reif und bringt das Gespräch voran.",
+          "seconds": 70,
+          "stepEn": "Weigh up both sides",
+          "detailEn": "Show that you understand the other opinion too. That sounds mature and moves the conversation forward."
+        },
+        {
+          "step": "Zu einem Ergebnis kommen",
+          "detail": "Fassen Sie am Ende zusammen, wo Sie stehen. Eine Einigung ist gut, aber eine klare eigene Position ist wichtiger.",
+          "seconds": 50,
+          "stepEn": "Come to a conclusion",
+          "detailEn": "Sum up at the end where you stand. Reaching agreement is good, but a clear position of your own matters more."
+        }
+      ],
+      "phrases": [
+        {
+          "group": "Meinung äußern",
+          "hint": "Mit diesen Sätzen sagen Sie klar, was Sie zu dem Thema denken.",
+          "items": [
+            {
+              "de": "Ich bin der Meinung, dass ...",
+              "en": "I am of the opinion that ...",
+              "example": "Ich bin der Meinung, dass Handys in der Schule verboten sein sollten."
+            },
+            {
+              "de": "Meiner Meinung nach ...",
+              "en": "In my opinion ...",
+              "example": "Meiner Meinung nach fahren zu viele Autos in der Innenstadt."
+            },
+            {
+              "de": "Ich finde, dass ...",
+              "en": "I find that ...",
+              "example": "Ich finde, dass Kinder mehr draußen spielen sollten."
+            },
+            {
+              "de": "Aus meiner Sicht ist es wichtig, dass ...",
+              "en": "From my point of view it is important that ...",
+              "example": "Aus meiner Sicht ist es wichtig, dass alle Schüler ein eigenes Frühstück bekommen."
+            },
+            {
+              "de": "Ich persönlich glaube, dass ...",
+              "en": "I personally believe that ...",
+              "example": "Ich persönlich glaube, dass man ohne Handy heute nicht mehr arbeiten kann."
+            },
+            {
+              "de": "Für mich ist klar, dass ...",
+              "en": "For me it is clear that ...",
+              "example": "Für mich ist klar, dass ein Auto in der Stadt oft nur teuer und langsam ist."
+            }
+          ],
+          "groupEn": "Expressing an opinion",
+          "hintEn": "With these sentences you say clearly what you think about the topic."
+        },
+        {
+          "group": "Begründen",
+          "hint": "Diese Redemittel liefern den Grund für Ihre Meinung.",
+          "items": [
+            {
+              "de": "..., weil ...",
+              "en": "... because ...",
+              "example": "Ich bin gegen Handys im Unterricht, weil die Kinder dann nicht aufpassen."
+            },
+            {
+              "de": "Der Grund dafür ist, dass ...",
+              "en": "The reason for that is that ...",
+              "example": "Der Grund dafür ist, dass die Luft in der Stadt sehr schlecht ist."
+            },
+            {
+              "de": "Deshalb bin ich der Meinung, dass ...",
+              "en": "That is why I am of the opinion that ...",
+              "example": "Deshalb bin ich der Meinung, dass wir mehr Busse brauchen."
+            },
+            {
+              "de": "..., denn ...",
+              "en": "... because ...",
+              "example": "Ein Handy ist im Notfall sehr praktisch, denn die Eltern können ihr Kind immer erreichen."
+            },
+            {
+              "de": "Ein wichtiger Grund ist, dass ...",
+              "en": "An important reason is that ...",
+              "example": "Ein wichtiger Grund ist, dass die Kinder mit dem Handy auch lernen können."
+            },
+            {
+              "de": "Dafür gibt es mehrere Gründe: Erstens ..., zweitens ...",
+              "en": "There are several reasons for that: firstly ..., secondly ...",
+              "example": "Dafür gibt es mehrere Gründe: Erstens ist es billiger, zweitens ist es besser für die Umwelt."
+            }
+          ],
+          "groupEn": "Giving reasons",
+          "hintEn": "These phrases supply the reason for your opinion."
+        },
+        {
+          "group": "Beispiele geben",
+          "hint": "Mit diesen Sätzen machen Sie Ihr Argument konkret und lebendig.",
+          "items": [
+            {
+              "de": "Zum Beispiel ...",
+              "en": "For example ...",
+              "example": "Zum Beispiel sehe ich im Bus viele Jugendliche, die nur auf ihr Handy schauen."
+            },
+            {
+              "de": "Ein gutes Beispiel dafür ist ...",
+              "en": "A good example of that is ...",
+              "example": "Ein gutes Beispiel dafür ist meine Nichte: Sie lernt mit dem Handy neue Wörter."
+            },
+            {
+              "de": "Ich kenne jemanden, der ...",
+              "en": "I know someone who ...",
+              "example": "Ich kenne einen Kollegen, der jeden Tag mit dem Auto zur Arbeit fährt."
+            },
+            {
+              "de": "Bei uns in ... ist es so, dass ...",
+              "en": "Where I come from in ..., it is the case that ...",
+              "example": "Bei uns in meinem Dorf ist es so, dass die Kinder erst ab zwölf ein Handy bekommen."
+            },
+            {
+              "de": "Das sieht man zum Beispiel daran, dass ...",
+              "en": "You can see that, for example, from the fact that ...",
+              "example": "Das sieht man zum Beispiel daran, dass morgens alle Straßen voll sind."
+            },
+            {
+              "de": "In meiner Kindheit war es so, dass ...",
+              "en": "In my childhood it was the case that ...",
+              "example": "In meiner Kindheit war es so, dass wir den ganzen Tag draußen gespielt haben."
+            }
+          ],
+          "groupEn": "Giving examples",
+          "hintEn": "With these sentences you make your argument concrete and vivid."
+        },
+        {
+          "group": "Zustimmen",
+          "hint": "So zeigen Sie dem Partner, dass Sie sein Argument akzeptieren.",
+          "items": [
+            {
+              "de": "Da hast du recht.",
+              "en": "You are right about that.",
+              "example": "Da hast du recht, das habe ich auch schon erlebt."
+            },
+            {
+              "de": "Das sehe ich genauso.",
+              "en": "I see it exactly the same way.",
+              "example": "Das sehe ich genauso, ein Verbot löst das Problem nicht."
+            },
+            {
+              "de": "Ich stimme dir zu, weil ...",
+              "en": "I agree with you because ...",
+              "example": "Ich stimme dir zu, weil die Kinder ohne Handy sicherer sind."
+            },
+            {
+              "de": "Das ist ein gutes Argument.",
+              "en": "That is a good argument.",
+              "example": "Das ist ein gutes Argument, daran habe ich noch nicht gedacht."
+            },
+            {
+              "de": "Genau, das finde ich auch.",
+              "en": "Exactly, I think so too.",
+              "example": "Genau, das finde ich auch, und deshalb brauchen wir klare Regeln."
+            },
+            {
+              "de": "Du hast recht, aber ich möchte noch etwas ergänzen.",
+              "en": "You are right, but I would like to add something.",
+              "example": "Du hast recht, aber ich möchte noch etwas ergänzen: Die Lehrer müssen auch mitmachen."
+            }
+          ],
+          "groupEn": "Agreeing",
+          "hintEn": "This is how you show your partner that you accept their argument."
+        },
+        {
+          "group": "Widersprechen",
+          "hint": "Mit diesen Sätzen widersprechen Sie höflich, ohne den Partner anzugreifen.",
+          "items": [
+            {
+              "de": "Das sehe ich anders.",
+              "en": "I see that differently.",
+              "example": "Das sehe ich anders, denn ein Verbot kontrolliert niemand."
+            },
+            {
+              "de": "Da bin ich anderer Meinung.",
+              "en": "I have a different opinion on that.",
+              "example": "Da bin ich anderer Meinung, weil viele Familien auf das Auto angewiesen sind."
+            },
+            {
+              "de": "Ich verstehe dein Argument, aber ...",
+              "en": "I understand your argument, but ...",
+              "example": "Ich verstehe dein Argument, aber die Schule kann nicht alles verbieten."
+            },
+            {
+              "de": "Das stimmt zwar, aber ...",
+              "en": "That is true, but ...",
+              "example": "Das stimmt zwar, aber ein Handy kann im Unterricht auch helfen."
+            },
+            {
+              "de": "Ich bin nicht sicher, ob das stimmt.",
+              "en": "I am not sure whether that is true.",
+              "example": "Ich bin nicht sicher, ob das stimmt, denn viele Busse kommen zu spät."
+            },
+            {
+              "de": "Im Gegenteil, ich finde, dass ...",
+              "en": "On the contrary, I think that ...",
+              "example": "Im Gegenteil, ich finde, dass ein Auto in der Stadt mehr Probleme macht."
+            }
+          ],
+          "groupEn": "Disagreeing",
+          "hintEn": "With these sentences you disagree politely without attacking your partner."
+        },
+        {
+          "group": "Abwägen und abschließen",
+          "hint": "Diese Redemittel helfen Ihnen, beide Seiten zu sehen und das Gespräch zu beenden.",
+          "items": [
+            {
+              "de": "Einerseits ..., andererseits ...",
+              "en": "On the one hand ..., on the other hand ...",
+              "example": "Einerseits ist das Handy praktisch, andererseits stört es im Unterricht."
+            },
+            {
+              "de": "Auf der einen Seite hat ... Vorteile, auf der anderen Seite ...",
+              "en": "On the one hand ... has advantages, on the other hand ...",
+              "example": "Auf der einen Seite hat das Auto Vorteile, auf der anderen Seite ist es teuer."
+            },
+            {
+              "de": "Man muss beide Seiten sehen.",
+              "en": "One has to see both sides.",
+              "example": "Man muss beide Seiten sehen, denn es gibt gute Gründe für und gegen ein Verbot."
+            },
+            {
+              "de": "Insgesamt denke ich, dass ...",
+              "en": "Overall I think that ...",
+              "example": "Insgesamt denke ich, dass klare Regeln besser sind als ein Verbot."
+            },
+            {
+              "de": "Wir sind uns also einig, dass ...",
+              "en": "So we agree that ...",
+              "example": "Wir sind uns also einig, dass die Stadt mehr Radwege braucht."
+            },
+            {
+              "de": "Ich kann beide Meinungen verstehen, aber ...",
+              "en": "I can understand both opinions, but ...",
+              "example": "Ich kann beide Meinungen verstehen, aber für mich ist die Umwelt wichtiger."
+            }
+          ],
+          "groupEn": "Weighing up and concluding",
+          "hintEn": "These phrases help you see both sides and bring the conversation to an end."
+        }
+      ],
+      "examples": [
+        {
+          "topic": "Handy in der Schule",
+          "text": "Ich bin der Meinung, dass Handys in der Schule nicht komplett verboten sein sollten. Meiner Meinung nach kommt es darauf an, wie die Schüler sie benutzen. In der Pause oder im Notfall ist ein Handy sehr praktisch, weil die Eltern ihre Kinder dann erreichen können. Allerdings stimme ich dir zu, dass Handys im Unterricht stören. Ich habe selbst die Erfahrung gemacht, dass viele Jugendliche nur auf den Bildschirm schauen und nicht aufpassen. Deshalb finde ich eine klare Regel besser als ein totales Verbot. Zum Beispiel müssen die Handys während der Stunde in der Tasche bleiben, und in der Pause darf man sie benutzen. Natürlich kann man sagen, dass ein Verbot einfacher zu kontrollieren ist. Das stimmt, aber ich glaube, dass die Schüler dann heimlich telefonieren. Besser ist es, wenn die Schule mit den Eltern zusammen Regeln aufstellt und den Kindern erklärt, warum ein vernünftiger Umgang wichtig ist. Ich kann beide Meinungen verstehen, aber insgesamt denke ich, dass ein Handy ein gutes Werkzeug sein kann, wenn man klare Grenzen setzt. Wir müssen also nicht verbieten, sondern erziehen.",
+          "topicEn": "Mobile phones in school"
+        },
+        {
+          "topic": "Auto in der Stadt",
+          "text": "Ich bin der Meinung, dass es in der Innenstadt zu viele Autos gibt. Meiner Meinung nach sollte man den Autoverkehr in der Stadtmitte reduzieren, weil die Luft dort sehr schlecht ist und es oft laut ist. Ein wichtiger Grund dafür ist die Umwelt. Zum Beispiel sehe ich jeden Morgen vor der Schule eine lange Autoschlange, und die Kinder müssen zwischen den Autos über die Straße gehen. Das ist gefährlich. Außerdem brauchen die Autos viel Platz, deshalb gibt es in vielen Straßen keinen Radweg. Natürlich verstehe ich die Leute, die mit dem Auto zur Arbeit fahren. Da hast du recht, besonders wenn sie weit weg wohnen oder kleine Kinder haben. Ich verstehe auch, dass ein Bus nicht immer pünktlich kommt. Aber ich finde, dass die Stadt bessere Busse und sichere Radwege anbieten muss, damit die Menschen freiwillig umsteigen. Auf der einen Seite kostet das viel Geld, auf der anderen Seite wird das Leben in der Stadt dadurch ruhiger und gesünder. Insgesamt denke ich, dass wir alle etwas ändern müssen: weniger Auto, mehr Bus und Fahrrad.",
+          "topicEn": "Cars in the city"
+        }
+      ],
+      "watchOut": [
+        "Zu kurz antworten: Einwortantworten wie Ja oder Nein reichen in der Diskussion nicht.",
+        "Den Partner ständig unterbrechen und nicht ausreden lassen.",
+        "Nur die eigene Meinung wiederholen und nicht auf das Argument des Partners eingehen.",
+        "Zu komplizierte Sätze mit vielen Nebensätzen bilden – lieber klar und einfach bleiben.",
+        "Am Ende keine klare Position nennen, sondern das Gespräch einfach abbrechen."
+      ],
+      "titleEn": "Part 2 – Discussion",
+      "summaryEn": "The candidate discusses a controversial everyday topic with their partner for about six minutes, gives their opinion, justifies it and responds to the partner.",
+      "watchOutEn": [
+        "Answering too briefly: one-word answers like Ja or Nein are not enough in a discussion.",
+        "Constantly interrupting your partner and never letting them finish.",
+        "Only repeating your own opinion and never engaging with your partner’s argument.",
+        "Building overly complicated sentences with many subordinate clauses — stay clear and simple instead.",
+        "Not stating a clear position at the end, but simply breaking off the conversation."
+      ]
+    },
+    {
+      "id": "SP3",
+      "title": "Teil 3 – Gemeinsam etwas planen",
+      "summary": "Der Kandidat plant mit seinem Partner etwa fünf Minuten lang eine gemeinsame Aktivität, macht Vorschläge, reagiert auf Ideen und einigt sich am Ende auf ein konkretes Ergebnis.",
+      "minutes": 5,
+      "approach": [
+        {
+          "step": "Begrüßen und einen ersten Vorschlag machen",
+          "detail": "Beginnen Sie das Gespräch und bringen Sie eine konkrete Idee ein. So führen Sie das Gespräch von Anfang an.",
+          "seconds": 40,
+          "stepEn": "Greet your partner and make a first suggestion",
+          "detailEn": "Start the conversation and put forward a concrete idea. That way you lead the conversation from the beginning."
+        },
+        {
+          "step": "Nach der Meinung des Partners fragen",
+          "detail": "Fragen Sie nach seiner Meinung und lassen Sie ihn antworten. Ein Gespräch funktioniert nur mit zwei Personen.",
+          "seconds": 50,
+          "stepEn": "Ask for your partner’s opinion",
+          "detailEn": "Ask what they think and let them answer. A conversation only works with two people."
+        },
+        {
+          "step": "Alternativen abwägen",
+          "detail": "Vergleichen Sie zwei Möglichkeiten mit ihren Vor- und Nachteilen, zum Beispiel Preis, Entfernung oder Wetter.",
+          "seconds": 70,
+          "stepEn": "Weigh up alternatives",
+          "detailEn": "Compare two options with their advantages and disadvantages, for example price, distance or weather."
+        },
+        {
+          "step": "Aufgaben verteilen",
+          "detail": "Klären Sie, wer was macht. Sagen Sie klar, was Sie übernehmen, und fragen Sie den Partner nach seinen Aufgaben.",
+          "seconds": 60,
+          "stepEn": "Share out the tasks",
+          "detailEn": "Clarify who does what. Say clearly what you will take on and ask your partner about their tasks."
+        },
+        {
+          "step": "Zeit und Ort festlegen",
+          "detail": "Nennen Sie einen konkreten Tag, eine Uhrzeit und einen Treffpunkt. Ohne diese Angaben bleibt die Planung unvollständig.",
+          "seconds": 50,
+          "stepEn": "Fix a time and a place",
+          "detailEn": "Name a concrete day, a time and a meeting point. Without these details the plan stays incomplete."
+        },
+        {
+          "step": "Die Entscheidung bestätigen",
+          "detail": "Fassen Sie am Ende alle Punkte noch einmal zusammen und lassen Sie sich die Einigung bestätigen.",
+          "seconds": 30,
+          "stepEn": "Confirm the decision",
+          "detailEn": "Sum up all the points once more at the end and have the agreement confirmed."
+        }
+      ],
+      "phrases": [
+        {
+          "group": "Vorschläge machen",
+          "hint": "Mit diesen Sätzen bringen Sie eine erste Idee in das Gespräch ein.",
+          "items": [
+            {
+              "de": "Ich schlage vor, dass wir ...",
+              "en": "I suggest that we ...",
+              "example": "Ich schlage vor, dass wir ein Abschiedsfest im Garten feiern."
+            },
+            {
+              "de": "Wie wäre es, wenn wir ...?",
+              "en": "How about we ...?",
+              "example": "Wie wäre es, wenn wir am Sonntag einen Ausflug machen?"
+            },
+            {
+              "de": "Wir könnten ...",
+              "en": "We could ...",
+              "example": "Wir könnten auch ins Museum gehen, das ist nicht so teuer."
+            },
+            {
+              "de": "Ich hätte eine Idee: ...",
+              "en": "I would have an idea: ...",
+              "example": "Ich hätte eine Idee: Wir treffen uns bei mir und kochen zusammen."
+            },
+            {
+              "de": "Vielleicht können wir ...",
+              "en": "Maybe we can ...",
+              "example": "Vielleicht können wir die Fahrräder bei mir im Hof parken."
+            },
+            {
+              "de": "Sollen wir ...?",
+              "en": "Shall we ...?",
+              "example": "Sollen wir zuerst die Getränke einkaufen?"
+            }
+          ],
+          "groupEn": "Making suggestions",
+          "hintEn": "With these sentences you bring a first idea into the conversation."
+        },
+        {
+          "group": "Nach der Meinung fragen",
+          "hint": "Diese Fragen halten das Gespräch in Gang und beziehen den Partner ein.",
+          "items": [
+            {
+              "de": "Was hältst du davon?",
+              "en": "What do you think of that?",
+              "example": "Wir könnten am Samstag feiern. Was hältst du davon?"
+            },
+            {
+              "de": "Wie findest du die Idee?",
+              "en": "How do you find the idea?",
+              "example": "Wir fahren mit dem Zug. Wie findest du die Idee?"
+            },
+            {
+              "de": "Bist du damit einverstanden?",
+              "en": "Do you agree with that?",
+              "example": "Wir treffen uns um zehn Uhr am Bahnhof. Bist du damit einverstanden?"
+            },
+            {
+              "de": "Was meinst du dazu?",
+              "en": "What do you think about that?",
+              "example": "Ich übernehme den Kuchen. Was meinst du dazu?"
+            },
+            {
+              "de": "Hast du einen anderen Vorschlag?",
+              "en": "Do you have another suggestion?",
+              "example": "Der Park ist vielleicht zu weit. Hast du einen anderen Vorschlag?"
+            },
+            {
+              "de": "Passt dir das?",
+              "en": "Does that suit you?",
+              "example": "Sonntag um elf Uhr im Café am Markt – passt dir das?"
+            }
+          ],
+          "groupEn": "Asking for an opinion",
+          "hintEn": "These questions keep the conversation going and involve your partner."
+        },
+        {
+          "group": "Alternativen abwägen",
+          "hint": "Mit diesen Sätzen vergleichen Sie zwei Möglichkeiten, bevor Sie sich entscheiden.",
+          "items": [
+            {
+              "de": "Wir haben zwei Möglichkeiten: Entweder ... oder ...",
+              "en": "We have two options: either ... or ...",
+              "example": "Wir haben zwei Möglichkeiten: Entweder feiern wir im Klassenzimmer oder im Park."
+            },
+            {
+              "de": "Das ist günstiger, aber ...",
+              "en": "That is cheaper, but ...",
+              "example": "Das Café am Bahnhof ist günstiger, aber dort ist es sehr laut."
+            },
+            {
+              "de": "Ein Vorteil von ... ist, dass ...",
+              "en": "An advantage of ... is that ...",
+              "example": "Ein Vorteil vom Park ist, dass wir dort grillen können."
+            },
+            {
+              "de": "Im Vergleich zu ... ist ... besser, weil ...",
+              "en": "Compared to ..., ... is better because ...",
+              "example": "Im Vergleich zum Auto ist der Zug besser, weil er billiger ist."
+            },
+            {
+              "de": "Wenn wir ... machen, dann ...",
+              "en": "If we do ..., then ...",
+              "example": "Wenn wir früh losfahren, dann sind wir schon um zwölf da."
+            },
+            {
+              "de": "Das Problem dabei ist, dass ...",
+              "en": "The problem with that is that ...",
+              "example": "Das Problem dabei ist, dass am Sonntag kein Bus fährt."
+            }
+          ],
+          "groupEn": "Weighing up alternatives",
+          "hintEn": "With these sentences you compare two options before deciding."
+        },
+        {
+          "group": "Aufgaben verteilen",
+          "hint": "Diese Redemittel klären, wer sich um was kümmert.",
+          "items": [
+            {
+              "de": "Ich kann ... übernehmen.",
+              "en": "I can take care of ...",
+              "example": "Ich kann die Getränke und den Kuchen übernehmen."
+            },
+            {
+              "de": "Kannst du bitte ...?",
+              "en": "Could you please ...?",
+              "example": "Kannst du bitte die Musikbox mitbringen?"
+            },
+            {
+              "de": "Soll ich ... mitbringen?",
+              "en": "Shall I bring ...?",
+              "example": "Soll ich einen Salat und Brot mitbringen?"
+            },
+            {
+              "de": "Wer kümmert sich um ...?",
+              "en": "Who will take care of ...?",
+              "example": "Wer kümmert sich um die Einladungen für die anderen?"
+            },
+            {
+              "de": "Du kümmerst dich um ..., und ich mache ...",
+              "en": "You take care of ..., and I will do ...",
+              "example": "Du kümmerst dich um die Musik, und ich mache die Einladungen."
+            },
+            {
+              "de": "Ich frage ..., ob er/sie helfen kann.",
+              "en": "I will ask ... whether he/she can help.",
+              "example": "Ich frage Marco, ob er seinen Grill mitbringen kann."
+            }
+          ],
+          "groupEn": "Sharing out tasks",
+          "hintEn": "These phrases clarify who takes care of what."
+        },
+        {
+          "group": "Zustimmen und ablehnen",
+          "hint": "So reagieren Sie auf die Vorschläge Ihres Partners – freundlich, aber klar.",
+          "items": [
+            {
+              "de": "Das ist eine gute Idee.",
+              "en": "That is a good idea.",
+              "example": "Das ist eine gute Idee, dann müssen wir nichts kochen."
+            },
+            {
+              "de": "Einverstanden.",
+              "en": "Agreed.",
+              "example": "Wir teilen die Kosten. Einverstanden."
+            },
+            {
+              "de": "Das finde ich gut, machen wir so.",
+              "en": "I like that, let us do it that way.",
+              "example": "Wir fahren mit dem Fahrrad. Das finde ich gut, machen wir so."
+            },
+            {
+              "de": "Das passt mir leider nicht, weil ...",
+              "en": "Unfortunately that does not suit me, because ...",
+              "example": "Samstagmorgen passt mir leider nicht, weil ich arbeiten muss."
+            },
+            {
+              "de": "Lieber nicht, denn ...",
+              "en": "Rather not, because ...",
+              "example": "Lieber nicht im Restaurant, denn das wird zu teuer."
+            },
+            {
+              "de": "Das ist mir zu ...",
+              "en": "That is too ... for me.",
+              "example": "Das ist mir zu teuer, wir haben nur hundert Euro zusammen."
+            }
+          ],
+          "groupEn": "Agreeing and declining",
+          "hintEn": "This is how you react to your partner’s suggestions — friendly but clear."
+        },
+        {
+          "group": "Entscheidung festhalten",
+          "hint": "Mit diesen Sätzen beenden Sie die Planung mit einem klaren Ergebnis.",
+          "items": [
+            {
+              "de": "Also machen wir es so: ...",
+              "en": "So let us do it like this: ...",
+              "example": "Also machen wir es so: Wir treffen uns am Samstag um sechs Uhr im Park."
+            },
+            {
+              "de": "Wir haben uns entschieden, dass ...",
+              "en": "We have decided that ...",
+              "example": "Wir haben uns entschieden, dass jeder etwas zu essen mitbringt."
+            },
+            {
+              "de": "Dann treffen wir uns am ... um ... Uhr.",
+              "en": "Then we will meet on ... at ... o'clock.",
+              "example": "Dann treffen wir uns am Sonntag um zehn Uhr am Bahnhof."
+            },
+            {
+              "de": "Ich notiere: ...",
+              "en": "Let me note down: ...",
+              "example": "Ich notiere: Sonntag, zehn Uhr, Bahnhof, Fahrradtour und Picknick."
+            },
+            {
+              "de": "Sind wir uns also einig?",
+              "en": "So are we agreed?",
+              "example": "Wir machen die Fahrradtour und jeder bringt etwas mit. Sind wir uns also einig?"
+            },
+            {
+              "de": "Super, dann ist alles klar. Ich freue mich schon.",
+              "en": "Great, then everything is clear. I am already looking forward to it.",
+              "example": "Super, dann ist alles klar. Ich freue mich schon auf unser Fest."
+            }
+          ],
+          "groupEn": "Recording the decision",
+          "hintEn": "With these sentences you end the planning with a clear result."
+        }
+      ],
+      "examples": [
+        {
+          "topic": "Ein Abschiedsfest planen",
+          "text": "Also, ich hätte eine Idee: Wir könnten für unseren Kurs ein Abschiedsfest machen. Was hältst du davon? Ich finde auch, dass wir das verdient haben. Wann sollen wir feiern? Am Samstagabend wäre gut, dann haben alle Zeit. Und wo? Wir haben zwei Möglichkeiten: Entweder feiern wir im Klassenzimmer oder im Park. Ein Vorteil vom Park ist, dass wir dort draußen sitzen und grillen können. Natürlich kann es regnen, aber dann gehen wir einfach ins Klassenzimmer. Was meinst du dazu? Gut, dann machen wir es so. Jetzt müssen wir noch die Aufgaben verteilen. Ich kann die Einladungen schreiben und den Kuchen besorgen. Kannst du bitte die Getränke mitbringen? Super, danke. Wer kümmert sich um die Musik? Vielleicht fragst du Marco, ob er seine Box mitbringt. Und die Fotos mache ich, ich habe eine gute Kamera. Also machen wir es so: Wir treffen uns am Samstag um achtzehn Uhr im Stadtpark. Ich schreibe die Einladungen, du bringst die Getränke mit, und Marco kommt mit der Musik. Sind wir uns also einig? Perfekt, dann ist alles klar. Ich freue mich schon auf unser Fest.",
+          "topicEn": "Planning a farewell party"
+        },
+        {
+          "topic": "Einen Ausflug planen",
+          "text": "Wir sollen für unseren Deutschkurs einen Ausflug planen, deshalb hätte ich eine Idee: Wir könnten nach Heidelberg fahren, weil die Stadt schön ist und viele Museen hat. Was hältst du davon? Heidelberg ist allerdings etwas weit. Wie wäre es, wenn wir stattdessen in den Zoo gehen? Das ist billiger, und die Fahrt dauert nur eine Stunde. Das stimmt, aber im Zoo waren wir schon letztes Jahr. Wir könnten auch eine Fahrradtour am Fluss machen. Das kostet nichts und macht Spaß. Das finde ich gut, machen wir so. Wann passt es dir? Am Samstag oder lieber am Sonntag? Sonntag ist besser, weil ich am Samstag arbeiten muss. Wir müssen aber auch an das Wetter denken. Wenn es regnet, bleiben wir zu Hause und machen einen Filmabend. Jetzt zu den Aufgaben: Ich kann die Fahrräder reservieren und die Route planen. Kannst du bitte das Picknick vorbereiten? Danke, das ist nett. Soll ich eine Nachricht in die Gruppe schreiben, damit alle Bescheid wissen? Ja, gern. Also halten wir fest: Am Sonntag um zehn Uhr treffen wir uns am Bahnhof, wir machen eine Fahrradtour am Fluss, und jeder bringt etwas zu essen mit. Sind wir uns also einig? Super, dann ist alles klar.",
+          "topicEn": "Planning an outing"
+        }
+      ],
+      "watchOut": [
+        "Nur eigene Vorschläge machen und nie nach der Meinung des Partners fragen.",
+        "Am Ende keine Entscheidung treffen – es muss ein klares Ergebnis mit Zeit und Ort stehen.",
+        "Den Treffpunkt oder die Uhrzeit vergessen, dann ist die Planung unvollständig.",
+        "Zu lange bei einer einzigen Idee bleiben und die fünf Minuten nicht einteilen.",
+        "Unhöflich ablehnen, statt freundlich zu sagen: Das passt mir leider nicht, weil ..."
+      ],
+      "titleEn": "Part 3 – Planning something together",
+      "summaryEn": "The candidate plans a shared activity with their partner for about five minutes, makes suggestions, responds to ideas and agrees on a concrete result at the end.",
+      "watchOutEn": [
+        "Only making your own suggestions and never asking for your partner’s opinion.",
+        "Not reaching a decision at the end — there has to be a clear result with a time and a place.",
+        "Forgetting the meeting point or the time, which leaves the plan incomplete.",
+        "Staying on a single idea for too long and not dividing up the five minutes.",
+        "Rejecting something rudely instead of saying politely: Das passt mir leider nicht, weil ..."
+      ]
+    }
+  ]
+}

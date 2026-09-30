@@ -1,0 +1,1920 @@
+{
+  "LV1": [
+    {
+      "title": "Wohnungen und WG-Zimmer",
+      "headlines": [
+        {
+          "id": "a",
+          "text": "Ferienhaus an der Ostsee zu vermieten"
+        },
+        {
+          "id": "b",
+          "text": "Zimmer in einer Wohngemeinschaft für Nichtraucher"
+        },
+        {
+          "id": "c",
+          "text": "4-Zimmer-Wohnung mit Garten für eine Familie gesucht"
+        },
+        {
+          "id": "d",
+          "text": "Möbliertes Zimmer für Studenten in Uninähe"
+        },
+        {
+          "id": "e",
+          "text": "Bürofläche im Gewerbegebiet zu vermieten"
+        },
+        {
+          "id": "f",
+          "text": "Nachmieter für eine 1-Zimmer-Wohnung im Zentrum"
+        },
+        {
+          "id": "g",
+          "text": "Ebenerdige Wohnung mit Balkon für eine Seniorin gesucht"
+        },
+        {
+          "id": "h",
+          "text": "Tauschwohnung: zwei Zimmer gegen drei Zimmer"
+        },
+        {
+          "id": "i",
+          "text": "Wohnung mit Werkstatt für Handwerker"
+        },
+        {
+          "id": "j",
+          "text": "Zwei ältere Damen suchen eine ruhige Mitbewohnerin"
+        }
+      ],
+      "texts": [
+        {
+          "id": "1",
+          "text": "Wir sind zwei Studentinnen und suchen ab 1. Mai eine dritte Mitbewohnerin für unsere Wohnung. Das Zimmer ist 18 Quadratmeter groß und kostet 380 Euro warm, Internet ist inklusive. Wichtig ist uns, dass du ruhig bist und nicht rauchst.",
+          "answer": "b"
+        },
+        {
+          "id": "2",
+          "text": "Wir sind eine Familie mit zwei kleinen Kindern und suchen dringend eine größere Wohnung. Sie sollte vier Zimmer haben und möglichst einen Garten. Ein Kindergarten in der Nähe wäre für uns sehr wichtig.",
+          "answer": "c"
+        },
+        {
+          "id": "3",
+          "text": "Nachmieter gesucht! Kleine Wohnung mit einem Zimmer im dritten Stock, 32 Quadratmeter, direkt im Zentrum. Einen Aufzug gibt es leider nicht. Wir vermieten nur an Berufstätige.",
+          "answer": "f"
+        },
+        {
+          "id": "4",
+          "text": "Ich bin 68 Jahre alt und suche eine Wohnung im Erdgeschoss. Ein Balkon ist mir sehr wichtig, denn ich habe viele Blumen. Treppen kann ich nämlich nicht mehr gut steigen.",
+          "answer": "g"
+        },
+        {
+          "id": "5",
+          "text": "Ich studiere im ersten Semester und suche ein möbliertes Zimmer für ein halbes Jahr. Am besten wäre eine Wohnung ganz in der Nähe der Universität, denn ich habe kein Auto.",
+          "answer": "d"
+        }
+      ],
+      "why": {
+        "1": "In Text 1 wird ein Zimmer in einer Wohngemeinschaft angeboten, und Nichtraucher werden ausdrücklich verlangt.",
+        "2": "Text 2 beschreibt eine Familie mit zwei Kindern, die vier Zimmer und einen Garten sucht.",
+        "3": "Text 3 ist die Anzeige eines Nachmieters für eine kleine Wohnung mit einem Zimmer im Zentrum.",
+        "4": "In Text 4 sucht eine 68-jährige Person eine Wohnung im Erdgeschoss mit Balkon.",
+        "5": "Text 5 beschreibt einen Studenten, der ein möbliertes Zimmer in Uninähe sucht."
+      }
+    },
+    {
+      "title": "Stellenanzeigen und Arbeitsuche",
+      "headlines": [
+        {
+          "id": "a",
+          "text": "Aushilfe für das Café am Wochenende gesucht"
+        },
+        {
+          "id": "b",
+          "text": "Praktikumsplatz im Marketing"
+        },
+        {
+          "id": "c",
+          "text": "Lagerarbeiter mit Führerschein für die Frühschicht"
+        },
+        {
+          "id": "d",
+          "text": "Teilzeitstelle für eine Krankenschwester gesucht"
+        },
+        {
+          "id": "e",
+          "text": "Deutschlehrer für Abendkurse gesucht"
+        },
+        {
+          "id": "f",
+          "text": "Reinigungskraft für Bürogebäude"
+        },
+        {
+          "id": "g",
+          "text": "Ausbildung zum Koch/zur Köchin"
+        },
+        {
+          "id": "h",
+          "text": "Verkäuferin für eine Bäckerei"
+        },
+        {
+          "id": "i",
+          "text": "IT-Spezialist für die Arbeit von zu Hause"
+        },
+        {
+          "id": "j",
+          "text": "Nachhilfe in Mathematik für Schüler"
+        }
+      ],
+      "texts": [
+        {
+          "id": "1",
+          "text": "Unser kleines Café in der Innenstadt sucht eine Aushilfe. Sie arbeiten nur am Samstag und am Sonntag von acht bis vierzehn Uhr. Wir erwarten Freundlichkeit und etwas Erfahrung mit Kaffee.",
+          "answer": "a"
+        },
+        {
+          "id": "2",
+          "text": "Du studierst Wirtschaft und möchtest drei Monate praktische Erfahrung sammeln? Unsere Firma bietet ab September ein Praktikum im Marketing an. Bewerbungen bitte per E-Mail.",
+          "answer": "b"
+        },
+        {
+          "id": "3",
+          "text": "Für unser Lager suchen wir einen Mitarbeiter. Die Arbeit beginnt früh um sechs Uhr, deshalb brauchst du einen Führerschein. Die Stelle ist Vollzeit.",
+          "answer": "c"
+        },
+        {
+          "id": "4",
+          "text": "Ich bin gelernte Krankenschwester und habe zwei kleine Kinder. Deshalb suche ich eine Stelle mit etwa zwanzig Stunden pro Woche. Nachmittags kann ich leider nicht arbeiten.",
+          "answer": "d"
+        },
+        {
+          "id": "5",
+          "text": "Unsere Sprachschule braucht dringend eine Lehrkraft für Deutsch als Fremdsprache. Der Kurs findet zweimal pro Woche abends statt. Sie sollten Muttersprachler sein.",
+          "answer": "e"
+        }
+      ],
+      "why": {
+        "1": "Text 1 sucht eine Aushilfe, die nur am Wochenende im Café arbeitet.",
+        "2": "In Text 2 wird ein Praktikum im Marketing für Studierende angeboten.",
+        "3": "Text 3 beschreibt eine Stelle im Lager mit Frühschicht und Führerschein.",
+        "4": "Text 4 ist die Suche einer Krankenschwester nach einer Teilzeitstelle.",
+        "5": "Text 5 sucht einen Deutschlehrer für Abendkurse."
+      }
+    },
+    {
+      "title": "Kurse und Freizeitangebote",
+      "headlines": [
+        {
+          "id": "a",
+          "text": "Yoga für Anfänger am Abend"
+        },
+        {
+          "id": "b",
+          "text": "Computerkenntnisse für ältere Menschen"
+        },
+        {
+          "id": "c",
+          "text": "Schwimmen lernen für Kinder"
+        },
+        {
+          "id": "d",
+          "text": "Fotografieren lernen in der Stadt"
+        },
+        {
+          "id": "e",
+          "text": "Abendkurs Deutsch B1 mit Prüfungsvorbereitung"
+        },
+        {
+          "id": "f",
+          "text": "Gitarrenunterricht für Erwachsene"
+        },
+        {
+          "id": "g",
+          "text": "Tanzkurs für Paare"
+        },
+        {
+          "id": "h",
+          "text": "Kochkurs: Italienische Küche"
+        },
+        {
+          "id": "i",
+          "text": "Theoriekurs für den Führerschein"
+        },
+        {
+          "id": "j",
+          "text": "Nähen für Fortgeschrittene"
+        }
+      ],
+      "texts": [
+        {
+          "id": "1",
+          "text": "Du hast noch nie Yoga gemacht? Kein Problem! Unser Kurs am Dienstagabend um achtzehn Uhr ist genau für Anfänger gedacht. Zehn Termine kosten achtzig Euro, eine Matte bringst du bitte selbst mit.",
+          "answer": "a"
+        },
+        {
+          "id": "2",
+          "text": "In diesem Kurs lernen Seniorinnen und Senioren, wie man E-Mails schreibt und im Internet einkauft. Vorkenntnisse sind nicht nötig, wir üben alles ganz langsam.",
+          "answer": "b"
+        },
+        {
+          "id": "3",
+          "text": "Ab fünf Jahren können Kinder bei uns das Schwimmen lernen. Der Kurs findet jeden Samstag im Hallenbad statt. Die Anmeldung ist nur online möglich.",
+          "answer": "c"
+        },
+        {
+          "id": "4",
+          "text": "Beim Fotokurs am Wochenende treffen wir uns draußen und fotografieren die Stadt. Du brauchst eine eigene Kamera und bequeme Schuhe, denn wir laufen viel.",
+          "answer": "d"
+        },
+        {
+          "id": "5",
+          "text": "Unser Deutschkurs auf dem Niveau B1 findet dreimal pro Woche abends statt. Wir üben gezielt für die Prüfung, damit du sicher bestehen kannst.",
+          "answer": "e"
+        }
+      ],
+      "why": {
+        "1": "Text 1 bietet einen Yoga-Kurs für Anfänger am Abend an.",
+        "2": "In Text 2 geht es um einen Computerkurs für Seniorinnen und Senioren.",
+        "3": "Text 3 ist ein Schwimmkurs für Kinder ab fünf Jahren.",
+        "4": "Text 4 beschreibt einen Fotokurs, bei dem man in der Stadt fotografiert.",
+        "5": "Text 5 ist ein Abendkurs Deutsch B1 mit Prüfungsvorbereitung."
+      }
+    }
+  ],
+  "LV2": [
+    {
+      "title": "Mehr Platz für Fahrräder in der Innenstadt",
+      "text": "Die Stadt Freiburg will den Verkehr in der Innenstadt neu ordnen. Ab dem nächsten Frühjahr sollen Autofahrerinnen und Autofahrer einige Straßen nicht mehr benutzen dürfen. Stattdessen entstehen dort breite Radwege und zusätzliche Abstellplätze für Fahrräder.\n\nNach Angaben der Stadtverwaltung fahren täglich etwa 25.000 Menschen mit dem Rad zur Arbeit oder zur Schule. In den letzten fünf Jahren ist diese Zahl um fast die Hälfte gestiegen. Gleichzeitig gab es immer mehr Unfälle zwischen Autos und Fahrrädern, besonders an Kreuzungen. Mit den neuen Wegen hofft man, diese Unfälle zu reduzieren.\n\nNicht alle sind mit den Plänen zufrieden. Die Geschäftsleute in der Innenstadt befürchten, dass ihre Kunden nicht mehr mit dem Auto kommen und deshalb weniger einkaufen. „Viele ältere Menschen können nicht Rad fahren und brauchen das Auto“, sagt der Sprecher des Handelsverbands. Die Stadt antwortet, dass die Parkhäuser am Rand der Innenstadt erhalten bleiben und dass ein kostenloser Bus alle zehn Minuten fährt.\n\nDie Bauarbeiten beginnen im März und sollen ein Jahr dauern. Während dieser Zeit kann es an manchen Tagen zu Staus kommen. Die Stadt bittet die Bürgerinnen und Bürger, in dieser Zeit häufiger öffentliche Verkehrsmittel zu nutzen. Informationen gibt es im Internet und in einem Büro in der Rathausstraße, das montags bis freitags von neun bis siebzehn Uhr geöffnet ist.",
+      "questions": [
+        {
+          "n": 6,
+          "question": "Was soll sich in der Innenstadt ändern?",
+          "options": {
+            "a": "Autos dürfen dort bald überall fahren.",
+            "b": "In einigen Straßen sollen Radwege entstehen.",
+            "c": "Der Busverkehr wird ganz eingestellt."
+          },
+          "answer": "b",
+          "why": "Im ersten Absatz steht, dass Autos einige Straßen nicht mehr benutzen dürfen und dort breite Radwege entstehen."
+        },
+        {
+          "n": 7,
+          "question": "Wie hat sich die Zahl der Radfahrer entwickelt?",
+          "options": {
+            "a": "Sie ist in fünf Jahren um fast die Hälfte gestiegen.",
+            "b": "Sie ist in den letzten Jahren leicht gesunken.",
+            "c": "Sie ist gleich geblieben."
+          },
+          "answer": "a",
+          "why": "Laut Stadtverwaltung ist die Zahl der Radfahrer in fünf Jahren um fast die Hälfte gestiegen."
+        },
+        {
+          "n": 8,
+          "question": "Warum gibt es Kritik an den Plänen?",
+          "options": {
+            "a": "Die Geschäftsleute befürchten weniger Kunden.",
+            "b": "Die Radfahrer wollen breitere Wege.",
+            "c": "Die Bauarbeiten sind zu teuer."
+          },
+          "answer": "a",
+          "why": "Die Geschäftsleute in der Innenstadt befürchten, dass ihre Kunden nicht mehr mit dem Auto kommen und weniger einkaufen."
+        },
+        {
+          "n": 9,
+          "question": "Was bietet die Stadt als Lösung an?",
+          "options": {
+            "a": "kostenlose Fahrräder für alle",
+            "b": "Parkhäuser am Rand und einen kostenlosen Bus",
+            "c": "billigere Taxis in der Innenstadt"
+          },
+          "answer": "b",
+          "why": "Die Stadt sagt, dass die Parkhäuser am Rand erhalten bleiben und ein kostenloser Bus alle zehn Minuten fährt."
+        },
+        {
+          "n": 10,
+          "question": "Was passiert während der Bauarbeiten?",
+          "options": {
+            "a": "Es kann an manchen Tagen zu Staus kommen.",
+            "b": "Die Innenstadt ist ein Jahr lang ganz gesperrt.",
+            "c": "Der Bus fährt nur am Wochenende."
+          },
+          "answer": "a",
+          "why": "Im letzten Absatz steht, dass es während der Bauarbeiten an manchen Tagen zu Staus kommen kann."
+        }
+      ]
+    },
+    {
+      "title": "Gesünder arbeiten im Büro",
+      "text": "Viele Menschen sitzen heute mehr als acht Stunden am Tag. Ärzte warnen seit Jahren, dass langes Sitzen Rückenschmerzen, Kopfschmerzen und sogar Herzprobleme verursachen kann. Deshalb starten immer mehr Firmen Programme für die Gesundheit ihrer Mitarbeiter.\n\nDie Firma Meier und Söhne in Hannover hat vor zwei Jahren damit begonnen, höhenverstellbare Tische zu kaufen. Die Beschäftigten können nun im Stehen arbeiten, wann immer sie wollen. Außerdem gibt es jeden Dienstag und Donnerstag um halb zwölf eine gemeinsame Bewegungspause von fünfzehn Minuten. Eine Physiotherapeutin zeigt dabei einfache Übungen für Nacken und Rücken.\n\nDie Ergebnisse sind positiv. Nach Angaben der Personalabteilung sind die Fehltage im letzten Jahr um zwanzig Prozent gesunken. Auch die Mitarbeiter sind zufriedener: In einer Umfrage gaben achtzig Prozent an, dass sie sich nach der Arbeit weniger müde fühlen. Kritik gibt es trotzdem. Einige Beschäftigte sagen, dass die Bewegungspause mitten in der Arbeitszeit liegt und sie danach länger bleiben müssen.\n\nDie Krankenkasse AOK empfiehlt kleinen Betrieben, mit einfachen Mitteln anzufangen. Schon ein kurzer Spaziergang in der Mittagspause oder Treppensteigen statt Aufzug hilft. Wichtig sei, dass die Chefs selbst mitmachen, denn dann fühlen sich die Mitarbeiter nicht kontrolliert. Die Krankenkasse bietet kostenlose Beratung per Telefon und im Internet an.",
+      "questions": [
+        {
+          "n": 6,
+          "question": "Warum starten immer mehr Firmen Gesundheitsprogramme?",
+          "options": {
+            "a": "Weil langes Sitzen krank machen kann.",
+            "b": "Weil die Möbel billiger geworden sind.",
+            "c": "Weil die Mitarbeiter mehr Geld verlangen."
+          },
+          "answer": "a",
+          "why": "Ärzte warnen, dass langes Sitzen Rücken- und Kopfschmerzen und sogar Herzprobleme verursachen kann."
+        },
+        {
+          "n": 7,
+          "question": "Was hat die Firma in Hannover gemacht?",
+          "options": {
+            "a": "Sie hat höhenverstellbare Tische gekauft.",
+            "b": "Sie hat die Arbeitszeit verkürzt.",
+            "c": "Sie hat ein Fitnessstudio gebaut."
+          },
+          "answer": "a",
+          "why": "Die Firma hat vor zwei Jahren begonnen, höhenverstellbare Tische zu kaufen."
+        },
+        {
+          "n": 8,
+          "question": "Was zeigen die Ergebnisse in der Firma?",
+          "options": {
+            "a": "Die Fehltage sind um zwanzig Prozent gesunken.",
+            "b": "Die Mitarbeiter arbeiten deutlich länger.",
+            "c": "Die Firma hat weniger Kunden."
+          },
+          "answer": "a",
+          "why": "Nach Angaben der Personalabteilung sind die Fehltage im letzten Jahr um zwanzig Prozent gesunken."
+        },
+        {
+          "n": 9,
+          "question": "Was kritisieren einige Mitarbeiter?",
+          "options": {
+            "a": "Die Übungen sind zu schwer.",
+            "b": "Die Pause liegt in der Arbeitszeit, deshalb bleiben sie länger.",
+            "c": "Die Therapeutin kommt zu selten."
+          },
+          "answer": "b",
+          "why": "Einige Beschäftigte sagen, dass die Bewegungspause in der Arbeitszeit liegt und sie danach länger bleiben müssen."
+        },
+        {
+          "n": 10,
+          "question": "Was empfiehlt die Krankenkasse kleinen Betrieben?",
+          "options": {
+            "a": "sofort teure Geräte zu kaufen",
+            "b": "mit einfachen Mitteln anzufangen und dass die Chefs mitmachen",
+            "c": "die Mittagspause abzuschaffen"
+          },
+          "answer": "b",
+          "why": "Die AOK rät, mit einfachen Mitteln anzufangen; wichtig ist, dass die Chefs selbst mitmachen."
+        }
+      ]
+    },
+    {
+      "title": "Mit dem Zug in den Urlaub: neue Angebote der Bahn",
+      "text": "Wer in diesem Sommer mit dem Zug in den Urlaub fahren möchte, hat mehr Auswahl als je zuvor. Die Deutsche Bahn hat angekündigt, ab Juni zusätzliche Züge an die Nordsee und in die Alpen einzusetzen. Besonders am Freitagnachmittag und am Sonntagabend waren die Züge in den letzten Jahren oft voll.\n\nNeu ist auch ein Angebot für Familien: Kinder unter sechzehn Jahren fahren in den Sommerferien kostenlos, wenn mindestens ein Elternteil ein Ticket kauft. Wer sein Ticket vier Wochen vor der Reise bucht, bekommt außerdem einen Rabatt von dreißig Prozent. Die Bahn empfiehlt, Sitzplätze rechtzeitig zu reservieren, besonders für lange Strecken.\n\nReisende mit viel Gepäck können ihren Koffer jetzt schon am Abend vor der Reise an ausgewählten Bahnhöfen abgeben. Der Koffer wird dann direkt zum Zielbahnhof gebracht. Dieser Service kostet zwölf Euro pro Gepäckstück und ist bisher nur auf sechs Strecken möglich.\n\nDer Fahrgastverband begrüßt die neuen Angebote, kritisiert aber die Preise. „Für eine Familie mit zwei Kindern ist die Bahn immer noch teurer als das Auto“, sagt eine Sprecherin. Die Bahn antwortet, dass man mit dem neuen Familienangebot und dem Frühbucherrabatt bis zu vierzig Prozent sparen könne. Wer sich informieren möchte, findet alle Details auf der Internetseite der Bahn oder in den Reisezentren, die montags bis freitags von acht bis achtzehn Uhr geöffnet sind.",
+      "questions": [
+        {
+          "n": 6,
+          "question": "Was plant die Deutsche Bahn ab Juni?",
+          "options": {
+            "a": "zusätzliche Züge an die Nordsee und in die Alpen",
+            "b": "billigere Fahrkarten für Autofahrer",
+            "c": "weniger Züge am Wochenende"
+          },
+          "answer": "a",
+          "why": "Die Bahn will ab Juni zusätzliche Züge an die Nordsee und in die Alpen einsetzen."
+        },
+        {
+          "n": 7,
+          "question": "Was gilt in den Sommerferien für Familien?",
+          "options": {
+            "a": "Kinder unter sechzehn Jahren fahren kostenlos.",
+            "b": "Alle Tickets für die ganze Familie sind gratis.",
+            "c": "Kinder zahlen die Hälfte des Preises."
+          },
+          "answer": "a",
+          "why": "Kinder unter sechzehn Jahren fahren kostenlos, wenn mindestens ein Elternteil ein Ticket kauft."
+        },
+        {
+          "n": 8,
+          "question": "Wie bekommt man einen Rabatt von dreißig Prozent?",
+          "options": {
+            "a": "wenn man vier Wochen vor der Reise bucht",
+            "b": "wenn man an einem Sonntag fährt",
+            "c": "wenn man im Reisezentrum bezahlt"
+          },
+          "answer": "a",
+          "why": "Wer sein Ticket vier Wochen vor der Reise bucht, bekommt dreißig Prozent Rabatt."
+        },
+        {
+          "n": 9,
+          "question": "Was ist der neue Gepäckservice?",
+          "options": {
+            "a": "Man kann den Koffer am Abend vor der Reise abgeben.",
+            "b": "Man darf nur noch einen Koffer mitnehmen.",
+            "c": "Das Gepäck wird kostenlos transportiert."
+          },
+          "answer": "a",
+          "why": "Reisende können den Koffer schon am Abend vor der Reise abgeben; er wird zum Zielbahnhof gebracht."
+        },
+        {
+          "n": 10,
+          "question": "Was kritisiert der Fahrgastverband?",
+          "options": {
+            "a": "die Preise für Familien",
+            "b": "die langen Fahrzeiten",
+            "c": "die wenigen Sitzplätze"
+          },
+          "answer": "a",
+          "why": "Die Sprecherin des Fahrgastverbands sagt, dass die Bahn für eine Familie mit zwei Kindern teurer ist als das Auto."
+        }
+      ]
+    }
+  ],
+  "LV3": [
+    {
+      "ads": [
+        {
+          "id": "a",
+          "text": "Möbeltransport und Umzugshilfe: Zwei starke Männer mit Transporter. Ab 60 Euro pro Stunde, auch am Wochenende. Tel. 0221 55 44 33."
+        },
+        {
+          "id": "b",
+          "text": "Wir reinigen Teppiche und Sofas direkt bei Ihnen zu Hause. Trocknung in zwei Stunden, umweltfreundliche Mittel. Termine nach Absprache."
+        },
+        {
+          "id": "c",
+          "text": "Gebrauchte Küchen zu kaufen: Über 40 Küchen im Lager. Lieferung und Aufbau inklusive. Öffnungszeiten: Mittwoch bis Samstag 10–18 Uhr."
+        },
+        {
+          "id": "d",
+          "text": "Schreinerei Krause: Wir bauen Einbauschränke nach Maß und reparieren Türen und Fenster. Kostenlose Beratung vor Ort."
+        },
+        {
+          "id": "e",
+          "text": "Sie möchten Ihre Wohnung vermieten? Wir übernehmen die Verwaltung, suchen Mieter und kümmern uns um alle Fragen. Faire Preise für Eigentümer."
+        },
+        {
+          "id": "f",
+          "text": "Gartenpflege: Rasen mähen, Hecken schneiden, Blumen pflanzen. Auch regelmäßige Betreuung möglich. Tel. 0176 22 33 44."
+        },
+        {
+          "id": "g",
+          "text": "Elektriker-Notdienst rund um die Uhr: Wenn der Strom ausfällt, sind wir in 45 Minuten bei Ihnen. Festpreis 90 Euro."
+        },
+        {
+          "id": "h",
+          "text": "Malerbetrieb Weiß: Streichen von Wohnungen und Treppenhäusern. Wir arbeiten sauber und schnell, das Angebot ist kostenlos."
+        },
+        {
+          "id": "i",
+          "text": "Second-Hand-Laden für Kleidung und Hausrat: Wir nehmen gut erhaltene Sachen kostenlos an und verkaufen sie für einen guten Zweck."
+        },
+        {
+          "id": "j",
+          "text": "Fahrradwerkstatt: Reparatur und Service für alle Marken. Neuer Standort in der Gartenstraße 12. Termin online buchen."
+        },
+        {
+          "id": "k",
+          "text": "Nachhilfe für Kinder in Mathematik und Deutsch, Klasse 1 bis 6, bei Ihnen zu Hause. 18 Euro pro Stunde."
+        },
+        {
+          "id": "l",
+          "text": "Fahrschule Sonne: Neue Kurse für Theorie und Praxis, auch Intensivkurse in den Ferien. Anmeldung persönlich oder telefonisch."
+        }
+      ],
+      "situations": [
+        {
+          "n": 11,
+          "text": "Sie ziehen in eine andere Wohnung und brauchen Hilfe, weil Ihre Waschmaschine und das Sofa zu schwer sind.",
+          "answer": "a",
+          "why": "Anzeige a bietet einen Möbeltransport mit Transporter und zwei Helfern an."
+        },
+        {
+          "n": 12,
+          "text": "Ihr Sofa ist schmutzig, und Sie möchten es reinigen lassen, ohne es wegzubringen.",
+          "answer": "b",
+          "why": "In Anzeige b steht, dass Teppiche und Sofas direkt beim Kunden zu Hause gereinigt werden."
+        },
+        {
+          "n": 13,
+          "text": "In Ihrer Wohnung ist abends plötzlich kein Strom mehr, und Sie brauchen sofort Hilfe.",
+          "answer": "g",
+          "why": "Anzeige g ist ein Elektriker-Notdienst, der rund um die Uhr arbeitet."
+        },
+        {
+          "n": 14,
+          "text": "Sie möchten Ihre Wohnung neu streichen lassen und wünschen vorher ein Angebot.",
+          "answer": "h",
+          "why": "Der Malerbetrieb in Anzeige h streicht Wohnungen und macht ein kostenloses Angebot."
+        },
+        {
+          "n": 15,
+          "text": "Ihre Wohnungstür schließt nicht mehr richtig, und Sie suchen jemanden, der sie repariert.",
+          "answer": "d",
+          "why": "Die Schreinerei in Anzeige d repariert unter anderem Türen und Fenster."
+        },
+        {
+          "n": 16,
+          "text": "Sie haben gut erhaltene Kleidung und möchten sie spenden.",
+          "answer": "i",
+          "why": "Der Second-Hand-Laden in Anzeige i nimmt gut erhaltene Sachen kostenlos an."
+        },
+        {
+          "n": 17,
+          "text": "Sie fahren in den Urlaub und suchen jemanden, der sich in dieser Zeit um Ihren Garten kümmert.",
+          "answer": "f",
+          "why": "Anzeige f bietet Gartenpflege und regelmäßige Betreuung an."
+        },
+        {
+          "n": 18,
+          "text": "Sie besitzen eine Wohnung und möchten sie vermieten, haben aber keine Zeit für die Verwaltung.",
+          "answer": "e",
+          "why": "Anzeige e richtet sich an Eigentümer, die die Verwaltung ihrer Wohnung abgeben möchten."
+        },
+        {
+          "n": 19,
+          "text": "Sie suchen für die Wintermonate eine günstige Ferienwohnung am Meer für zwei Wochen.",
+          "answer": "x",
+          "why": "Keine Anzeige bietet eine Ferienwohnung am Meer an; Anzeige e ist nur eine Verwaltung für Eigentümer."
+        },
+        {
+          "n": 20,
+          "text": "Ihr Computer startet nicht mehr, und Sie suchen eine Werkstatt, die ihn repariert.",
+          "answer": "x",
+          "why": "Es gibt keine Anzeige für Computerreparaturen; Anzeige j repariert nur Fahrräder."
+        }
+      ]
+    },
+    {
+      "ads": [
+        {
+          "id": "a",
+          "text": "Zahnarztpraxis Dr. Berger: Wir behandeln auch Angstpatienten und bieten Termine am Samstagvormittag an. Tel. 030 44 55 66."
+        },
+        {
+          "id": "b",
+          "text": "Physiotherapie am Park: Massage, Krankengymnastik und Training nach Verletzungen. Rezept vom Arzt nötig, Termin nur nach Vereinbarung."
+        },
+        {
+          "id": "c",
+          "text": "Apotheke am Markt: Wir liefern Medikamente kostenlos nach Hause, Bestellung bis 16 Uhr per Telefon oder App."
+        },
+        {
+          "id": "d",
+          "text": "Fitnessstudio Aktiv: Probetraining kostenlos. Kurse von Yoga bis Boxen, geöffnet täglich 6–23 Uhr. Monatlich ab 29 Euro."
+        },
+        {
+          "id": "e",
+          "text": "Optiker Schmitt: Brillen in einer Stunde, auch Gleitsichtbrillen. Kostenlose Sehtests ohne Termin."
+        },
+        {
+          "id": "f",
+          "text": "Ernährungsberatung für Familien: Wir erstellen Essenspläne und begleiten Sie acht Wochen. Auch online möglich."
+        },
+        {
+          "id": "g",
+          "text": "Psychologische Beratung in Krisen: Telefonisch rund um die Uhr, anonym und kostenlos. 0800 111 0 222."
+        },
+        {
+          "id": "h",
+          "text": "Hörgeräte-Zentrum: Kostenloser Hörtest und Beratung, auch Hausbesuche für ältere Menschen."
+        },
+        {
+          "id": "i",
+          "text": "Schwimmbad Therme Süd: Sauna, Dampfbad und Whirlpool. Dienstags Seniorenrabatt 30 Prozent."
+        },
+        {
+          "id": "j",
+          "text": "Pflegedienst Herz: Wir helfen zu Hause bei der Körperpflege und beim Anziehen. Auch am Wochenende."
+        },
+        {
+          "id": "k",
+          "text": "Sanitätshaus: Rollstühle, Gehhilfen und Bandagen zum Ausleihen oder Kaufen. Beratung zu Hause möglich."
+        },
+        {
+          "id": "l",
+          "text": "Krankenfahrten: Wir bringen Sie zu Untersuchungen und wieder nach Hause, auch mit Rollstuhl. Feste Preise, Termine telefonisch."
+        }
+      ],
+      "situations": [
+        {
+          "n": 11,
+          "text": "Sie haben starke Rückenschmerzen, und der Arzt hat Ihnen Krankengymnastik verschrieben.",
+          "answer": "b",
+          "why": "Anzeige b bietet Krankengymnastik an und verlangt dafür ein Rezept vom Arzt."
+        },
+        {
+          "n": 12,
+          "text": "Sie können Ihre Medikamente nicht selbst abholen und möchten sie nach Hause bekommen.",
+          "answer": "c",
+          "why": "Die Apotheke in Anzeige c liefert Medikamente kostenlos nach Hause."
+        },
+        {
+          "n": 13,
+          "text": "Ihre Mutter ist 84 und kann nicht mehr allein zum Arzt gehen. Sie suchen einen Fahrdienst.",
+          "answer": "l",
+          "why": "Anzeige l bietet Krankenfahrten zu Untersuchungen und zurück an."
+        },
+        {
+          "n": 14,
+          "text": "Sie hören schlecht und möchten zuerst kostenlos testen lassen, ob ein Hörgerät nötig ist.",
+          "answer": "h",
+          "why": "Das Hörgeräte-Zentrum in Anzeige h macht einen kostenlosen Hörtest."
+        },
+        {
+          "n": 15,
+          "text": "Sie haben seit Wochen keine Kraft und möchten mit jemandem über Ihre Probleme sprechen, ohne dass es jemand erfährt.",
+          "answer": "g",
+          "why": "Anzeige g bietet anonyme psychologische Beratung am Telefon an."
+        },
+        {
+          "n": 16,
+          "text": "Sie möchten sich gesünder ernähren und brauchen einen Essensplan für die ganze Familie.",
+          "answer": "f",
+          "why": "Die Ernährungsberatung in Anzeige f erstellt Essenspläne für Familien."
+        },
+        {
+          "n": 17,
+          "text": "Ihre neue Brille ist fertig, und Sie möchten sie noch heute abholen.",
+          "answer": "e",
+          "why": "Der Optiker in Anzeige e fertigt Brillen innerhalb einer Stunde an."
+        },
+        {
+          "n": 18,
+          "text": "Ihr Vater braucht nach einer Operation Hilfe beim Waschen zu Hause.",
+          "answer": "j",
+          "why": "Der Pflegedienst in Anzeige j hilft zu Hause bei der Körperpflege."
+        },
+        {
+          "n": 19,
+          "text": "Sie suchen ein neues Auto für Ihre Familie und möchten verschiedene Modelle probefahren.",
+          "answer": "x",
+          "why": "Keine Anzeige bietet Autos oder Probefahrten an; Anzeige l bietet nur Fahrten zum Arzt."
+        },
+        {
+          "n": 20,
+          "text": "Ihre Küche ist alt, und Sie möchten eine neue einbauen lassen.",
+          "answer": "x",
+          "why": "Für Küchen und Einbau gibt es in diesen Anzeigen kein Angebot; es geht hier nur um Gesundheit."
+        }
+      ]
+    },
+    {
+      "ads": [
+        {
+          "id": "a",
+          "text": "Busreisen Meier: Tagesfahrten nach Amsterdam, Prag und Wien. Abfahrt immer samstags um 7 Uhr, Preis inklusive Mittagessen."
+        },
+        {
+          "id": "b",
+          "text": "Flughafentransfer: Wir holen Sie zu Hause ab und bringen Sie pünktlich zum Flug. Festpreis, auch nachts."
+        },
+        {
+          "id": "c",
+          "text": "Fahrradverleih am See: Räder für Erwachsene und Kinder, Helme gratis. Täglich 9–19 Uhr, halber Tag 8 Euro."
+        },
+        {
+          "id": "d",
+          "text": "Sprachreisen für Jugendliche: Drei Wochen England mit Gastfamilie und Unterricht. Betreuung rund um die Uhr."
+        },
+        {
+          "id": "e",
+          "text": "Fernbus Linie Nord: Täglich Berlin–Hamburg ab 9 Euro, Steckdosen und WLAN an Bord."
+        },
+        {
+          "id": "f",
+          "text": "Reisebüro Sonnenschein: Wir planen Ihre Fernreise und kümmern uns um Visa und Versicherungen."
+        },
+        {
+          "id": "g",
+          "text": "Autovermietung Blitz: Kleinwagen ab 25 Euro pro Tag, Kilometer unbegrenzt, Abholung am Bahnhof."
+        },
+        {
+          "id": "h",
+          "text": "Wohnmobil zu vermieten: Platz für vier Personen, Küche und Dusche an Bord. Mindestens eine Woche."
+        },
+        {
+          "id": "i",
+          "text": "Gepäckaufbewahrung Hauptbahnhof: Schließfächer in drei Größen, ab 3 Euro pro Tag, geöffnet 6–22 Uhr."
+        },
+        {
+          "id": "j",
+          "text": "Stadtführungen zu Fuß: Zwei Stunden durch die Altstadt, täglich um 10 und 15 Uhr, ohne Anmeldung."
+        },
+        {
+          "id": "k",
+          "text": "Kanutouren auf der Elbe: Geführte Touren für Anfänger, Ausrüstung inklusive, samstags und sonntags."
+        },
+        {
+          "id": "l",
+          "text": "Taxi-Zentrale 24: Bestellung per App oder Telefon, Kartenzahlung möglich, auch Großraumtaxi."
+        }
+      ],
+      "situations": [
+        {
+          "n": 11,
+          "text": "Sie fliegen früh am Morgen von Frankfurt und brauchen um vier Uhr ein Fahrzeug zum Flughafen.",
+          "answer": "b",
+          "why": "Anzeige b bietet einen Flughafentransfer mit Abholung zu Hause an, auch nachts."
+        },
+        {
+          "n": 12,
+          "text": "Sie möchten einen Tag am See verbringen und dort Fahrräder für die ganze Familie ausleihen.",
+          "answer": "c",
+          "why": "Der Fahrradverleih in Anzeige c hat Räder für Erwachsene und Kinder."
+        },
+        {
+          "n": 13,
+          "text": "Sie fahren mit dem Zug nach Berlin und möchten Ihren schweren Koffer für ein paar Stunden im Bahnhof lassen.",
+          "answer": "i",
+          "why": "Anzeige i bietet Schließfächer im Hauptbahnhof an."
+        },
+        {
+          "n": 14,
+          "text": "Sie möchten am Wochenende günstig mit dem Bus nach Hamburg fahren.",
+          "answer": "e",
+          "why": "Der Fernbus in Anzeige e fährt täglich Berlin–Hamburg schon ab 9 Euro."
+        },
+        {
+          "n": 15,
+          "text": "Ihre Tochter möchte in den Sommerferien Englisch lernen und in einer Familie wohnen.",
+          "answer": "d",
+          "why": "Anzeige d bietet Sprachreisen für Jugendliche mit Gastfamilie und Unterricht an."
+        },
+        {
+          "n": 16,
+          "text": "Sie möchten eine Woche Urlaub mit dem Wohnmobil machen und brauchen ein Fahrzeug für vier Personen.",
+          "answer": "h",
+          "why": "Das Wohnmobil in Anzeige h bietet Platz für vier Personen."
+        },
+        {
+          "n": 17,
+          "text": "Sie besuchen die Stadt zum ersten Mal und möchten in zwei Stunden die wichtigsten Gebäude sehen.",
+          "answer": "j",
+          "why": "Anzeige j bietet zweistündige Stadtführungen zu Fuß an, ohne Anmeldung."
+        },
+        {
+          "n": 18,
+          "text": "Sie brauchen für zwei Tage ein Auto, weil Ihr eigenes in der Werkstatt ist.",
+          "answer": "g",
+          "why": "Die Autovermietung in Anzeige g vermietet Kleinwagen pro Tag mit unbegrenzten Kilometern."
+        },
+        {
+          "n": 19,
+          "text": "Sie möchten in Ihrem Garten einen neuen Zaun bauen und suchen das Material dafür.",
+          "answer": "x",
+          "why": "Keine Anzeige verkauft Baumaterial; alle Angebote betreffen Reisen und Verkehr."
+        },
+        {
+          "n": 20,
+          "text": "Sie suchen eine Putzhilfe für Ihre Wohnung, zweimal pro Woche.",
+          "answer": "x",
+          "why": "Eine Putzhilfe wird in keiner der Anzeigen angeboten."
+        }
+      ]
+    }
+  ],
+  "SB1": [
+    {
+      "letter": "Liebe Nina,\n\nwie geht es dir? Wir sind endlich im Urlaub! Am Freitag {21} wir in Neapel angekommen. Die Reise war sehr lang, {22} sind wir pünktlich da. Unser Hotel liegt direkt {23} Meer, und wir haben schon {24} Strand gefunden.\n\nGestern haben wir ein kleines Dorf besucht, {25} auf einem Hügel liegt. Leider habe ich meinen Sonnenhut {26}. Kannst du {27} Bruder fragen, ob er noch einen alten Hut hat? Meine Schwester kommt am Wochenende zu Besuch, ich freue mich sehr auf {28}. Das Wasser ist hier übrigens viel {29} als zu Hause.\n\nEs {30} schön, wenn du im August kommen könntest. Sag mir bitte bald Bescheid!\n\nViele Grüße\nSara",
+      "gaps": [
+        {
+          "n": 21,
+          "options": {
+            "a": "haben",
+            "b": "sind",
+            "c": "werden"
+          },
+          "answer": "b",
+          "grammar": "perfekt_auxiliar",
+          "why": "Bei „ankommen“ bildet man das Perfekt mit „sein“: Wir sind angekommen."
+        },
+        {
+          "n": 22,
+          "options": {
+            "a": "trotzdem",
+            "b": "weil",
+            "c": "obwohl"
+          },
+          "answer": "a",
+          "grammar": "konnektoren",
+          "why": "Der Gegensatz wird mit dem Adverb „trotzdem“ ausgedrückt, danach folgt das Verb."
+        },
+        {
+          "n": 23,
+          "options": {
+            "a": "am",
+            "b": "ans",
+            "c": "im"
+          },
+          "answer": "a",
+          "grammar": "praeposition_kasus",
+          "why": "„liegen“ steht mit dem Dativ: direkt am Meer."
+        },
+        {
+          "n": 24,
+          "options": {
+            "a": "einen ruhigen",
+            "b": "ein ruhiger",
+            "c": "einem ruhigen"
+          },
+          "answer": "a",
+          "grammar": "adjektivendungen",
+          "why": "Nach „haben“ steht der Akkusativ maskulin: einen ruhigen Strand."
+        },
+        {
+          "n": 25,
+          "options": {
+            "a": "das",
+            "b": "dem",
+            "c": "den"
+          },
+          "answer": "a",
+          "grammar": "relativpronomen",
+          "why": "Das Relativpronomen bezieht sich auf „ein kleines Dorf“ und ist Subjekt: das."
+        },
+        {
+          "n": 26,
+          "options": {
+            "a": "verloren",
+            "b": "verliert",
+            "c": "verlor"
+          },
+          "answer": "a",
+          "grammar": "partizip2",
+          "why": "Im Perfekt steht das Partizip II: Ich habe verloren."
+        },
+        {
+          "n": 27,
+          "options": {
+            "a": "deinen",
+            "b": "dein",
+            "c": "deinem"
+          },
+          "answer": "a",
+          "grammar": "possessivartikel",
+          "why": "„fragen“ verlangt den Akkusativ: Kannst du deinen Bruder fragen?"
+        },
+        {
+          "n": 28,
+          "options": {
+            "a": "sie",
+            "b": "ihr",
+            "c": "ihnen"
+          },
+          "answer": "a",
+          "grammar": "personalpronomen",
+          "why": "„sich freuen auf“ steht mit dem Akkusativ, deshalb „auf sie“."
+        },
+        {
+          "n": 29,
+          "options": {
+            "a": "wärmer",
+            "b": "warm",
+            "c": "am wärmsten"
+          },
+          "answer": "a",
+          "grammar": "komparativ",
+          "why": "Der Vergleich mit „als“ verlangt den Komparativ: viel wärmer als zu Hause."
+        },
+        {
+          "n": 30,
+          "options": {
+            "a": "wäre",
+            "b": "wird",
+            "c": "war"
+          },
+          "answer": "a",
+          "grammar": "konjunktiv2_hoeflich",
+          "why": "Der irreale Wunsch steht im Konjunktiv II: Es wäre schön."
+        }
+      ]
+    },
+    {
+      "letter": "Liebe Julia,\n\nendlich habe ich eine neue Wohnung gefunden! {21} drei Wochen bin ich umgezogen, und seitdem schlafe ich viel besser. Die Wohnung ist klein, aber sie ist viel {22} als meine alte.\n\n{23} du mir am Samstag beim Umzug helfen? Meine Nachbarn sind sehr freundlich, besonders die Frau, {24} unter mir wohnt. Sie hat mir am ersten Tag einen Kuchen gebracht, und ich habe {25} sofort zum Kaffee eingeladen.\n\nAm Samstag {26} ich endlich die letzten Kartons aus. Außerdem muss ich noch ein Regal aufbauen: Ich {27} es schon am Montag aufgebaut, aber die Anleitung war auf Schwedisch. Du bist handwerklich viel geschickter als ich, deshalb brauche ich wirklich deine Hilfe.\n\nÜbrigens gibt es in der neuen Straße einen {28} Park, dort können wir im Sommer zusammen grillen. Ich freue mich schon sehr {29} deinen Besuch. Schreib mir bitte, {30} du am Wochenende Zeit hast.\n\nViele Grüße\nSara",
+      "gaps": [
+        {
+          "n": 21,
+          "options": {
+            "a": "Vor",
+            "b": "Seit",
+            "c": "In"
+          },
+          "answer": "a",
+          "grammar": "temporalpraeposition",
+          "why": "Ein abgeschlossener Zeitpunkt in der Vergangenheit braucht „vor“: Vor drei Wochen bin ich umgezogen."
+        },
+        {
+          "n": 22,
+          "options": {
+            "a": "größer",
+            "b": "groß",
+            "c": "am größten"
+          },
+          "answer": "a",
+          "grammar": "komparativ",
+          "why": "Nach „viel“ und vor „als“ steht der Komparativ: viel größer als meine alte."
+        },
+        {
+          "n": 23,
+          "options": {
+            "a": "Kannst",
+            "b": "Kann",
+            "c": "Können"
+          },
+          "answer": "a",
+          "grammar": "modalverben",
+          "why": "Das Subjekt ist „du“, deshalb lautet die Form „kannst“."
+        },
+        {
+          "n": 24,
+          "options": {
+            "a": "die",
+            "b": "der",
+            "c": "den"
+          },
+          "answer": "a",
+          "grammar": "relativpronomen",
+          "why": "Bezugswort ist „die Frau“; das Relativpronomen ist Subjekt und heißt „die“."
+        },
+        {
+          "n": 25,
+          "options": {
+            "a": "sie",
+            "b": "ihr",
+            "c": "ihnen"
+          },
+          "answer": "a",
+          "grammar": "personalpronomen",
+          "why": "„einladen“ steht mit dem Akkusativ, die Nachbarin ist „sie“."
+        },
+        {
+          "n": 26,
+          "options": {
+            "a": "packe",
+            "b": "auspacke",
+            "c": "packen"
+          },
+          "answer": "a",
+          "grammar": "trennbare_verben",
+          "why": "Bei „auspacken“ steht das Verb an zweiter Stelle und die Vorsilbe „aus“ am Satzende."
+        },
+        {
+          "n": 27,
+          "options": {
+            "a": "habe",
+            "b": "bin",
+            "c": "werde"
+          },
+          "answer": "a",
+          "grammar": "perfekt_auxiliar",
+          "why": "„aufbauen“ bildet das Perfekt mit „haben“: Ich habe aufgebaut."
+        },
+        {
+          "n": 28,
+          "options": {
+            "a": "großen",
+            "b": "großer",
+            "c": "großem"
+          },
+          "answer": "a",
+          "grammar": "adjektivendungen",
+          "why": "Nach „einen“ steht im Akkusativ maskulin die Endung -en: einen großen Park."
+        },
+        {
+          "n": 29,
+          "options": {
+            "a": "auf",
+            "b": "über",
+            "c": "an"
+          },
+          "answer": "a",
+          "grammar": "praeposition_kasus",
+          "why": "Wenn man sich auf etwas Zukünftiges freut, sagt man „sich freuen auf“ + Akkusativ."
+        },
+        {
+          "n": 30,
+          "options": {
+            "a": "ob",
+            "b": "wenn",
+            "c": "dass"
+          },
+          "answer": "a",
+          "grammar": "konnektoren",
+          "why": "Nach „Schreib mir bitte“ ist es eine indirekte Frage, deshalb „ob“."
+        }
+      ]
+    },
+    {
+      "letter": "Liebe Mama,\n\nich habe tolle Neuigkeiten: Ich habe eine neue Stelle gefunden! {21} Montag arbeite ich in einer großen Firma im Zentrum. Die Arbeit ist besser bezahlt, {22} ich weniger Freizeit habe.\n\nMeine Chefin ist eine {23} Frau, die immer freundlich grüßt. Die Kollegen, {24} ich schon kennengelernt habe, helfen mir sehr. Am ersten Tag habe ich {25} Computer nicht gefunden, aber jetzt klappt alles.\n\nIch muss jeden Tag einen Anzug tragen, weil ich viel {26} Kunden spreche. {27} du mir am Wochenende helfen und meine alten Sachen sortieren? Letzte Woche {28} ich nämlich den Vertrag unterschrieben, und nun muss alles schnell gehen. Vor der Arbeit {29} ich noch einen Deutschkurs besuchen, aber ich weiß nicht, ob ich die Zeit dafür habe.\n\nMein neuer Chef ist übrigens viel {30} als der alte. Ich hoffe, es geht dir gut. Besuchst du mich bald?\n\nViele Grüße\nSara",
+      "gaps": [
+        {
+          "n": 21,
+          "options": {
+            "a": "Ab",
+            "b": "Seit",
+            "c": "Vor"
+          },
+          "answer": "a",
+          "grammar": "temporalpraeposition",
+          "why": "Für die Zukunft ab einem Zeitpunkt verwendet man „ab“: Ab Montag arbeite ich dort."
+        },
+        {
+          "n": 22,
+          "options": {
+            "a": "obwohl",
+            "b": "weil",
+            "c": "deshalb"
+          },
+          "answer": "a",
+          "grammar": "konnektoren",
+          "why": "Hier steht ein Gegensatz: besser bezahlt, obwohl ich weniger Freizeit habe."
+        },
+        {
+          "n": 23,
+          "options": {
+            "a": "nette",
+            "b": "netten",
+            "c": "netter"
+          },
+          "answer": "a",
+          "grammar": "adjektivendungen",
+          "why": "Nach „eine“ im Nominativ feminin steht die Endung -e: eine nette Frau."
+        },
+        {
+          "n": 24,
+          "options": {
+            "a": "die",
+            "b": "denen",
+            "c": "der"
+          },
+          "answer": "a",
+          "grammar": "relativpronomen",
+          "why": "Das Relativpronomen ist Objekt im Akkusativ Plural: die Kollegen, die ich kenne."
+        },
+        {
+          "n": 25,
+          "options": {
+            "a": "meinen",
+            "b": "mein",
+            "c": "meinem"
+          },
+          "answer": "a",
+          "grammar": "possessivartikel",
+          "why": "„finden“ verlangt den Akkusativ: ich habe meinen Computer nicht gefunden."
+        },
+        {
+          "n": 26,
+          "options": {
+            "a": "mit",
+            "b": "für",
+            "c": "gegen"
+          },
+          "answer": "a",
+          "grammar": "praeposition_kasus",
+          "why": "Man spricht „mit“ jemandem: mit Kunden sprechen."
+        },
+        {
+          "n": 27,
+          "options": {
+            "a": "Könntest",
+            "b": "Kannst",
+            "c": "Konntest"
+          },
+          "answer": "a",
+          "grammar": "konjunktiv2_hoeflich",
+          "why": "Eine höfliche Bitte formuliert man mit dem Konjunktiv II: Könntest du mir helfen?"
+        },
+        {
+          "n": 28,
+          "options": {
+            "a": "habe",
+            "b": "bin",
+            "c": "werde"
+          },
+          "answer": "a",
+          "grammar": "perfekt_auxiliar",
+          "why": "„unterschreiben“ bildet das Perfekt mit „haben“: Ich habe unterschrieben."
+        },
+        {
+          "n": 29,
+          "options": {
+            "a": "möchte",
+            "b": "möchtest",
+            "c": "möchten"
+          },
+          "answer": "a",
+          "grammar": "modalverben",
+          "why": "Das Subjekt ist „ich“, deshalb heißt die Form „möchte“."
+        },
+        {
+          "n": 30,
+          "options": {
+            "a": "freundlicher",
+            "b": "freundlich",
+            "c": "am freundlichsten"
+          },
+          "answer": "a",
+          "grammar": "komparativ",
+          "why": "Der Vergleich mit „als“ verlangt den Komparativ: viel freundlicher als der alte."
+        }
+      ]
+    }
+  ],
+  "SB2": [
+    {
+      "letter": "Sehr geehrte Damen und Herren,\n\n{31} schreibe ich Ihnen, weil ich mich in München anmelden möchte. Ich {32} am 1. September in die Gartenstraße 14 gezogen. Leider habe ich bis heute keinen Termin bekommen, {33} ich dreimal angerufen habe.\n\n{34} ich alle nötigen Unterlagen mitbringen muss, möchte ich das vorher wissen. {35} Sie mir bitte einen Termin am Nachmittag geben? Meine Wohnung gehört {36} Schwester, die ebenfalls in München lebt.\n\n{37} meines Urlaubs war ich nicht erreichbar, das tut mir leid. Außerdem {38} ich noch meinen Mietvertrag übersetzen lassen. Ich habe schon dreimal angerufen, {39} hat sich niemand gemeldet.\n\nVielen Dank im Voraus. Bitte schicken Sie {40} eine kurze Bestätigung.\n\nMit freundlichen Grüßen\nAli Yildirim",
+      "bank": [
+        {
+          "id": "a",
+          "word": "DESHALB"
+        },
+        {
+          "id": "b",
+          "word": "BIN"
+        },
+        {
+          "id": "c",
+          "word": "OBWOHL"
+        },
+        {
+          "id": "d",
+          "word": "DA"
+        },
+        {
+          "id": "e",
+          "word": "KÖNNTEN"
+        },
+        {
+          "id": "f",
+          "word": "MEINER"
+        },
+        {
+          "id": "g",
+          "word": "WÄHREND"
+        },
+        {
+          "id": "h",
+          "word": "MUSS"
+        },
+        {
+          "id": "i",
+          "word": "TROTZDEM"
+        },
+        {
+          "id": "j",
+          "word": "MIR"
+        },
+        {
+          "id": "k",
+          "word": "SEIT"
+        },
+        {
+          "id": "l",
+          "word": "NACH"
+        },
+        {
+          "id": "m",
+          "word": "IHNEN"
+        },
+        {
+          "id": "n",
+          "word": "WÄRE"
+        },
+        {
+          "id": "o",
+          "word": "DÜRFEN"
+        }
+      ],
+      "gaps": [
+        {
+          "n": 31,
+          "answer": "a",
+          "grammar": "konnektoren",
+          "why": "„Deshalb“ leitet die Folge ein und steht auf Position 1, danach kommt das Verb."
+        },
+        {
+          "n": 32,
+          "answer": "b",
+          "grammar": "perfekt_auxiliar",
+          "why": "„ziehen“ (Umzug) bildet das Perfekt mit „sein“: Ich bin gezogen."
+        },
+        {
+          "n": 33,
+          "answer": "c",
+          "grammar": "konnektoren",
+          "why": "Der Gegensatz im Nebensatz verlangt „obwohl“."
+        },
+        {
+          "n": 34,
+          "answer": "d",
+          "grammar": "konnektoren",
+          "why": "„Da“ leitet einen kausalen Nebensatz ein, der vor dem Hauptsatz steht."
+        },
+        {
+          "n": 35,
+          "answer": "e",
+          "grammar": "konjunktiv2_hoeflich",
+          "why": "Eine höfliche Frage bildet man mit dem Konjunktiv II: Könnten Sie …?"
+        },
+        {
+          "n": 36,
+          "answer": "f",
+          "grammar": "possessivartikel",
+          "why": "„gehören“ steht mit dem Dativ: meiner Schwester."
+        },
+        {
+          "n": 37,
+          "answer": "g",
+          "grammar": "temporalpraeposition",
+          "why": "„Während“ + Genitiv: Während meines Urlaubs."
+        },
+        {
+          "n": 38,
+          "answer": "h",
+          "grammar": "modalverben",
+          "why": "Das Subjekt ist „ich“, deshalb „muss“: Ich muss den Vertrag übersetzen lassen."
+        },
+        {
+          "n": 39,
+          "answer": "i",
+          "grammar": "konnektoren",
+          "why": "Der Gegensatz zwischen dem Anrufen und der fehlenden Antwort verlangt „trotzdem“."
+        },
+        {
+          "n": 40,
+          "answer": "j",
+          "grammar": "personalpronomen",
+          "why": "„schicken“ steht mit dem Dativ: Bitte schicken Sie mir eine Bestätigung."
+        }
+      ]
+    },
+    {
+      "letter": "Sehr geehrte Frau Weber,\n\n{31} Ihrer Anzeige bewerbe ich mich um ein Praktikum im Bereich Marketing. Ich studiere Betriebswirtschaft {32} der Universität Köln und habe bereits zwei Semester abgeschlossen.\n\n{33} ich mein Studium im Sommer beende, möchte ich vorher praktische Erfahrung sammeln. In meinem Nebenjob {34} ich schon Kunden beraten und kleine Werbekampagnen planen. {35} Sie mir bitte mit, ob auch ein Praktikum von drei Monaten möglich ist.\n\nIch {36} mich sehr freuen, wenn Sie mir eine Chance geben. {37} meines Studiums habe ich außerdem einen Kurs in Online-Marketing besucht. Meine Kenntnisse in Spanisch sind {38} als in Englisch, deshalb könnte ich auch internationale Kunden betreuen.\n\n{39} Sie meine Bewerbung bitte prüfen? Bitte senden Sie {40} bis Ende April eine kurze Antwort. Über eine Einladung zum Gespräch würde ich mich sehr freuen.\n\nMit freundlichen Grüßen\nLena Hoffmann",
+      "bank": [
+        {
+          "id": "a",
+          "word": "WEGEN"
+        },
+        {
+          "id": "b",
+          "word": "AN"
+        },
+        {
+          "id": "c",
+          "word": "DA"
+        },
+        {
+          "id": "d",
+          "word": "KONNTE"
+        },
+        {
+          "id": "e",
+          "word": "TEILEN"
+        },
+        {
+          "id": "f",
+          "word": "WÜRDE"
+        },
+        {
+          "id": "g",
+          "word": "WÄHREND"
+        },
+        {
+          "id": "h",
+          "word": "BESSER"
+        },
+        {
+          "id": "i",
+          "word": "KÖNNTEN"
+        },
+        {
+          "id": "j",
+          "word": "MIR"
+        },
+        {
+          "id": "k",
+          "word": "OHNE"
+        },
+        {
+          "id": "l",
+          "word": "TROTZ"
+        },
+        {
+          "id": "m",
+          "word": "IHNEN"
+        },
+        {
+          "id": "n",
+          "word": "MÜSSTE"
+        },
+        {
+          "id": "o",
+          "word": "SEIT"
+        }
+      ],
+      "gaps": [
+        {
+          "n": 31,
+          "answer": "a",
+          "grammar": "praeposition_kasus",
+          "why": "„wegen“ + Genitiv: Wegen Ihrer Anzeige bewerbe ich mich."
+        },
+        {
+          "n": 32,
+          "answer": "b",
+          "grammar": "praeposition_kasus",
+          "why": "Man studiert „an“ einer Universität: an der Universität Köln."
+        },
+        {
+          "n": 33,
+          "answer": "c",
+          "grammar": "konnektoren",
+          "why": "„Da“ leitet den kausalen Nebensatz ein, danach folgt der Hauptsatz."
+        },
+        {
+          "n": 34,
+          "answer": "d",
+          "grammar": "modalverben",
+          "why": "Im Nebenjob ist die Vergangenheit von „können“ gemeint: konnte ich Kunden beraten."
+        },
+        {
+          "n": 35,
+          "answer": "e",
+          "grammar": "trennbare_verben",
+          "why": "Das trennbare Verb „mitteilen“ steht hier mit der Vorsilbe „mit“ am Satzende: Teilen Sie mir bitte mit."
+        },
+        {
+          "n": 36,
+          "answer": "f",
+          "grammar": "konjunktiv2_hoeflich",
+          "why": "Höfliche Form im Hauptsatz: Ich würde mich sehr freuen."
+        },
+        {
+          "n": 37,
+          "answer": "g",
+          "grammar": "temporalpraeposition",
+          "why": "„während“ + Genitiv: Während meines Studiums."
+        },
+        {
+          "n": 38,
+          "answer": "h",
+          "grammar": "komparativ",
+          "why": "Der Vergleich mit „als“ verlangt den Komparativ: besser als in Englisch."
+        },
+        {
+          "n": 39,
+          "answer": "i",
+          "grammar": "konjunktiv2_hoeflich",
+          "why": "Höfliche Bitte mit dem Konjunktiv II: Könnten Sie bitte …?"
+        },
+        {
+          "n": 40,
+          "answer": "j",
+          "grammar": "personalpronomen",
+          "why": "„senden“ steht mit dem Dativ: Bitte senden Sie mir eine Antwort."
+        }
+      ]
+    },
+    {
+      "letter": "Sehr geehrte Damen und Herren,\n\n{31} Ihrer Internetseite habe ich erfahren, dass Sie im Herbst einen Kurs für Deutsch B1 anbieten. Ich {32} mich gern dafür anmelden.\n\n{33} ich seit zwei Jahren in Deutschland lebe, spreche ich schon recht gut, aber {34} möchte ich die Prüfung sicher bestehen. {35} Sie mir bitte mitteilen, wann der Kurs beginnt und wie viel er kostet?\n\nIch arbeite {36} Montag bis Freitag bis 17 Uhr, deshalb kann ich nur abends teilnehmen. {37} der Kurs am Wochenende stattfindet, hätte ich mehr Zeit. Mein Kollege hat den Kurs schon besucht und sagt, er sei {38} als andere Kurse.\n\nBitte schicken Sie {39} außerdem Informationen über die Prüfung. Ich {40} Ihre AGB bereits gelesen und akzeptiere sie. Über eine baldige Antwort würde ich mich sehr freuen.\n\nMit freundlichen Grüßen\nMarta Kowalska",
+      "bank": [
+        {
+          "id": "a",
+          "word": "AUF"
+        },
+        {
+          "id": "b",
+          "word": "WÜRDE"
+        },
+        {
+          "id": "c",
+          "word": "DA"
+        },
+        {
+          "id": "d",
+          "word": "TROTZDEM"
+        },
+        {
+          "id": "e",
+          "word": "KÖNNTEN"
+        },
+        {
+          "id": "f",
+          "word": "VON"
+        },
+        {
+          "id": "g",
+          "word": "WENN"
+        },
+        {
+          "id": "h",
+          "word": "BESSER"
+        },
+        {
+          "id": "i",
+          "word": "MIR"
+        },
+        {
+          "id": "j",
+          "word": "HABE"
+        },
+        {
+          "id": "k",
+          "word": "SEIT"
+        },
+        {
+          "id": "l",
+          "word": "OHNE"
+        },
+        {
+          "id": "m",
+          "word": "NACH"
+        },
+        {
+          "id": "n",
+          "word": "IHNEN"
+        },
+        {
+          "id": "o",
+          "word": "WÄREN"
+        }
+      ],
+      "gaps": [
+        {
+          "n": 31,
+          "answer": "a",
+          "grammar": "praeposition_kasus",
+          "why": "„erfahren“ steht mit „auf“ + Dativ: Auf Ihrer Internetseite habe ich erfahren."
+        },
+        {
+          "n": 32,
+          "answer": "b",
+          "grammar": "konjunktiv2_hoeflich",
+          "why": "Höfliche Absicht im Konjunktiv II: Ich würde mich gern anmelden."
+        },
+        {
+          "n": 33,
+          "answer": "c",
+          "grammar": "konnektoren",
+          "why": "„Da“ leitet den kausalen Nebensatz ein, der vor dem Hauptsatz steht."
+        },
+        {
+          "n": 34,
+          "answer": "d",
+          "grammar": "konnektoren",
+          "why": "Der Gegensatz verlangt das Adverb „trotzdem“ mit Verb an zweiter Stelle."
+        },
+        {
+          "n": 35,
+          "answer": "e",
+          "grammar": "konjunktiv2_hoeflich",
+          "why": "Höfliche Frage mit dem Konjunktiv II: Könnten Sie mir mitteilen …?"
+        },
+        {
+          "n": 36,
+          "answer": "f",
+          "grammar": "temporalpraeposition",
+          "why": "Die Zeitspanne wird mit „von … bis“ angegeben: von Montag bis Freitag."
+        },
+        {
+          "n": 37,
+          "answer": "g",
+          "grammar": "konnektoren",
+          "why": "Eine Bedingung leitet man mit „wenn“ ein: Wenn der Kurs am Wochenende stattfindet, …"
+        },
+        {
+          "n": 38,
+          "answer": "h",
+          "grammar": "komparativ",
+          "why": "Der Vergleich mit „als“ verlangt den Komparativ: besser als andere Kurse."
+        },
+        {
+          "n": 39,
+          "answer": "i",
+          "grammar": "personalpronomen",
+          "why": "„schicken“ steht mit dem Dativ: Bitte schicken Sie mir Informationen."
+        },
+        {
+          "n": 40,
+          "answer": "j",
+          "grammar": "perfekt_auxiliar",
+          "why": "„lesen“ bildet das Perfekt mit „haben“: Ich habe die AGB gelesen."
+        }
+      ]
+    }
+  ],
+  "HV1": [
+    {
+      "title": "Nachrichten von Freunden",
+      "script": "[Sprecherin 1]: Hallo Tim, hier ist Anna. Ich muss dir leider absagen: Der Kinobesuch am Freitag klappt nicht, weil ich länger arbeiten muss. Hast du am Sonntag Zeit? Wir könnten um vier ins Museum gehen und danach etwas essen.\n\n[Sprecher 2]: Hallo, hier ist Ben. Ich kann am Samstag leider nicht zum Fußball kommen, weil meine Eltern zu Besuch sind. Können wir uns nächste Woche treffen? Ich rufe dich am Abend noch einmal an.\n\n[Sprecherin 3]: Hi, hier ist Lisa. Ich stehe vor dem Restaurant, aber ich sehe dich nicht. Wir wollten uns doch um sieben treffen. Ich warte noch zehn Minuten am Eingang, dann fahre ich nach Hause.\n\n[Sprecher 4]: Hallo, hier ist Peter. Ich bin mit dem Fahrrad unterwegs und habe eine Panne. Kannst du mich mit dem Auto abholen? Ich stehe an der Kreuzung Bahnhofstraße und warte dort.\n\n[Sprecherin 5]: Guten Abend, hier ist Familie Kaya. Wir möchten für Samstag einen Tisch für sechs Personen reservieren, am liebsten draußen. Bitte rufen Sie uns bis Donnerstag zurück, unsere Nummer ist 0221 98 76 54.",
+      "items": [
+        {
+          "n": 41,
+          "statement": "Anna kann am Freitag nicht ins Kino gehen, weil sie länger arbeiten muss.",
+          "answer": true,
+          "why": "Anna sagt, dass der Kinobesuch am Freitag nicht klappt, weil sie länger arbeiten muss."
+        },
+        {
+          "n": 42,
+          "statement": "Ben sagt das Fußballtreffen am Samstag ab, weil er arbeiten muss.",
+          "answer": false,
+          "why": "Ben kann nicht kommen, weil seine Eltern zu Besuch sind – nicht wegen der Arbeit."
+        },
+        {
+          "n": 43,
+          "statement": "Lisa wartet zehn Minuten am Eingang des Restaurants und fährt dann nach Hause.",
+          "answer": true,
+          "why": "Lisa sagt, dass sie noch zehn Minuten am Eingang wartet und dann nach Hause fährt."
+        },
+        {
+          "n": 44,
+          "statement": "Peter bittet darum, mit dem Auto abgeholt zu werden, weil sein Fahrrad kaputt ist.",
+          "answer": true,
+          "why": "Peter hat mit dem Fahrrad eine Panne und fragt, ob man ihn mit dem Auto abholt."
+        },
+        {
+          "n": 45,
+          "statement": "Familie Kaya reserviert einen Tisch für vier Personen.",
+          "answer": false,
+          "why": "Im Text ist von sechs Personen die Rede, nicht von vier."
+        }
+      ]
+    },
+    {
+      "title": "Ansagen und Nachrichten zum Thema Reisen",
+      "script": "[Sprecherin 1]: Hallo Marie, hier ist Jonas. Ich bin am Bahnhof angekommen, aber mein Zug nach Hamburg hat zwanzig Minuten Verspätung. Ich schaffe es also nicht mehr zum Mittagessen. Warte bitte nicht auf mich, ich komme direkt ins Hotel.\n\n[Sprecher 2]: Liebe Fahrgäste, der ICE nach München fährt heute nicht von Gleis acht, sondern von Gleis zwölf. Der Zug hat außerdem zehn Minuten Verspätung. Bitte beachten Sie die Durchsagen.\n\n[Sprecherin 3]: Hi, hier ist Sofia. Unser Flug nach Lissabon wurde leider gestrichen. Die Airline hat uns aber schon einen neuen Flug für morgen früh um sechs Uhr angeboten. Können wir uns heute Abend noch treffen?\n\n[Sprecher 4]: Guten Tag, hier ist das Hotel Sonne. Ihr Zimmer ist ab vierzehn Uhr fertig. Das Frühstück ist im Preis enthalten und wird von sieben bis zehn Uhr serviert. Der Parkplatz kostet acht Euro pro Tag.\n\n[Sprecherin 5]: Hallo, hier ist der Fahrradverleih am See. Ihre reservierten Räder stehen ab neun Uhr für Sie bereit. Bitte bringen Sie einen Ausweis mit und kommen Sie bis spätestens achtzehn Uhr, sonst geben wir die Räder weiter.",
+      "items": [
+        {
+          "n": 41,
+          "statement": "Jonas hat Verspätung und schafft es nicht mehr zum Mittagessen.",
+          "answer": true,
+          "why": "Jonas sagt, sein Zug hat zwanzig Minuten Verspätung, deshalb schafft er das Mittagessen nicht."
+        },
+        {
+          "n": 42,
+          "statement": "Der Zug nach München fährt heute von Gleis acht.",
+          "answer": false,
+          "why": "Laut Ansage fährt der ICE nach München heute von Gleis zwölf."
+        },
+        {
+          "n": 43,
+          "statement": "Sofias Flug nach Lissabon wurde gestrichen, sie fliegt jetzt morgen früh.",
+          "answer": true,
+          "why": "Der Flug wurde gestrichen und die Airline hat einen neuen Flug für morgen früh um sechs Uhr angeboten."
+        },
+        {
+          "n": 44,
+          "statement": "Das Frühstück im Hotel Sonne kostet extra.",
+          "answer": false,
+          "why": "Im Text steht, dass das Frühstück im Preis enthalten ist."
+        },
+        {
+          "n": 45,
+          "statement": "Die reservierten Fahrräder müssen bis achtzehn Uhr abgeholt werden.",
+          "answer": true,
+          "why": "Der Fahrradverleih bittet darum, bis spätestens achtzehn Uhr zu kommen."
+        }
+      ]
+    },
+    {
+      "title": "Nachrichten rund um Gesundheit und Termine",
+      "script": "[Sprecherin 1]: Guten Tag, hier ist die Praxis Dr. Noll. Ihr Termin am Mittwoch um neun Uhr muss leider verschoben werden. Wir hätten noch Donnerstag um halb elf oder Freitag um zwei Uhr frei. Bitte rufen Sie uns zurück.\n\n[Sprecher 2]: Hallo Papa, hier ist Laura. Denk bitte daran, dass du heute Abend deine Tabletten nehmen musst. Ich komme morgen um zehn und bringe die neuen Rezepte von der Apotheke mit.\n\n[Sprecherin 3]: Guten Morgen, hier ist das Fitnessstudio Aktiv. Ihr Kurs am Dienstag fällt diese Woche aus, weil die Trainerin krank ist. Sie können aber am Donnerstag um achtzehn Uhr am gleichen Kurs teilnehmen. Eine Anmeldung ist nicht nötig.\n\n[Sprecher 4]: Hallo, hier ist die Apotheke am Markt. Ihre Bestellung ist da, aber leider ist ein Medikament nicht lieferbar. Wir bekommen es erst am Montag. Möchten Sie warten oder soll ich mit dem Arzt sprechen?\n\n[Sprecherin 5]: Guten Tag, hier ist die Zahnarztpraxis Dr. Berg. Wir möchten Sie daran erinnern, dass Sie am Freitag um elf Uhr einen Kontrolltermin haben. Bitte bringen Sie Ihre Versichertenkarte mit.",
+      "items": [
+        {
+          "n": 41,
+          "statement": "Der Termin bei Dr. Noll am Mittwoch wird verschoben, die Praxis bietet Donnerstag oder Freitag an.",
+          "answer": true,
+          "why": "Die Praxis schlägt Donnerstag um halb elf oder Freitag um zwei Uhr vor."
+        },
+        {
+          "n": 42,
+          "statement": "Laura bringt ihrem Vater morgen die neuen Rezepte mit.",
+          "answer": true,
+          "why": "Laura sagt, dass sie morgen um zehn kommt und die Rezepte von der Apotheke mitbringt."
+        },
+        {
+          "n": 43,
+          "statement": "Der Kurs am Dienstag findet wie geplant statt.",
+          "answer": false,
+          "why": "Der Kurs am Dienstag fällt aus, weil die Trainerin krank ist."
+        },
+        {
+          "n": 44,
+          "statement": "Die Apotheke hat alle bestellten Medikamente vorrätig.",
+          "answer": false,
+          "why": "Ein Medikament ist nicht lieferbar und kommt erst am Montag."
+        },
+        {
+          "n": 45,
+          "statement": "Der Kontrolltermin beim Zahnarzt ist am Freitag um elf Uhr.",
+          "answer": true,
+          "why": "Die Zahnarztpraxis erinnert an den Kontrolltermin am Freitag um elf Uhr."
+        }
+      ]
+    }
+  ],
+  "HV2": [
+    {
+      "title": "Interview mit der Ernährungsberaterin Dr. Karin Baum",
+      "script": "[Moderator]: Herzlich willkommen zu unserer Sendung „Gesund leben“. Heute ist Frau Dr. Karin Baum bei uns, sie arbeitet als Ernährungsberaterin in einer großen Praxis in Leipzig. Frau Baum, viele Menschen wollen sich gesünder ernähren, aber sie wissen nicht, wo sie anfangen sollen. Was raten Sie?\n\n[Gast]: Guten Tag. Ja, das ist wirklich ein großes Thema. Mein wichtigster Rat ist: Fangen Sie nicht mit einer strengen Diät an. Wer plötzlich gar keinen Zucker und kein Fett mehr isst, hält das meistens nur zwei oder drei Wochen durch. Besser ist es, jeden Tag eine kleine Veränderung einzubauen. Zum Beispiel: statt Limonade Wasser, statt Weißbrot Vollkornbrot.\n\n[Moderator]: Viele Leute sagen, dass gesundes Essen teuer ist. Stimmt das?\n\n[Gast]: Das stimmt nur zum Teil. Fertigprodukte und Fast Food sind oft billiger, das ist wahr. Aber Gemüse aus der Saison, Hülsenfrüchte wie Linsen und Bohnen und Haferflocken kosten nicht viel. Wer auf dem Markt kurz vor Ladenschluss einkauft, bekommt das Gemüse manchmal sogar billiger. Teuer wird es vor allem, wenn man viele „gesunde“ Produkte kauft, die in bunten Packungen werben – zum Beispiel spezielle Riegel oder Säfte. Die braucht niemand.\n\n[Moderator]: Sie arbeiten auch mit Kindern und Jugendlichen. Was hat sich in den letzten Jahren verändert?\n\n[Gast]: Leider nicht nur Gutes. Die Kinder trinken viel mehr süße Getränke als früher, und sie bewegen sich weniger. In unserer Praxis sehen wir immer mehr Zehnjährige mit Übergewicht. Gleichzeitig interessieren sich viele Jugendliche sehr für Ernährung, besonders seit es diese Videos im Internet gibt. Das nutzen wir in den Kursen: Wir kochen mit den Jugendlichen und sprechen darüber, was in den Videos stimmt und was nicht.\n\n[Moderator]: Was halten Sie von diesen Videos?\n\n[Gast]: Ein Teil ist gut, ein Teil ist gefährlich. Ich habe nichts gegen Rezepte im Internet. Aber wenn jemand ohne Ausbildung sagt, man solle keine Medikamente mehr nehmen oder nur noch eine einzige Sache essen, dann ist das gefährlich. Ich empfehle immer, bei einer Ärztin oder einem Arzt nachzufragen.\n\n[Moderator]: Sie bieten auch Kurse für Firmen an. Wie läuft so ein Kurs ab?\n\n[Gast]: Ein Kurs dauert bei uns acht Wochen, und wir treffen uns einmal pro Woche für neunzig Minuten. In der ersten Stunde schauen wir gemeinsam, was die Teilnehmer schon wissen und was sie ändern möchten. Danach kochen wir in jeder Stunde ein einfaches Gericht, das in zwanzig Minuten fertig ist. Die Teilnehmer bekommen also keine komplizierten Rezepte, sondern Ideen für den Alltag. Wichtig ist: Niemand muss mitmachen, der nicht will. Freiwilligkeit funktioniert viel besser als Druck.\n\n[Moderator]: Und was kostet so ein Firmentraining?\n\n[Gast]: Das hängt von der Firmengröße ab. Für kleine Betriebe mit weniger als zwanzig Mitarbeitern bieten wir einen festen Preis von 600 Euro für den ganzen Kurs an. Größere Firmen zahlen 40 Euro pro Person. Die Krankenkassen übernehmen die Kosten leider nicht, aber einige Firmen bekommen einen Zuschuss vom Land.\n\n[Moderator]: Frau Baum, vielen Dank für das Gespräch.",
+      "items": [
+        {
+          "n": 46,
+          "statement": "Frau Baum empfiehlt, sofort mit einer strengen Diät zu beginnen.",
+          "answer": false,
+          "why": "Sie rät ausdrücklich davon ab und empfiehlt kleine Veränderungen im Alltag."
+        },
+        {
+          "n": 47,
+          "statement": "Ihrer Erfahrung nach halten strenge Diäten meistens nur zwei oder drei Wochen.",
+          "answer": true,
+          "why": "Frau Baum sagt, dass man eine strenge Diät meistens nur zwei oder drei Wochen durchhält."
+        },
+        {
+          "n": 48,
+          "statement": "Gesundes Essen ist laut Frau Baum immer teurer als Fast Food.",
+          "answer": false,
+          "why": "Sie sagt, das stimme nur zum Teil; saisonales Gemüse und Hülsenfrüchte sind nicht teuer."
+        },
+        {
+          "n": 49,
+          "statement": "Spezielle Riegel und Säfte in bunten Packungen hält sie für überflüssig.",
+          "answer": true,
+          "why": "Sie sagt am Ende des Absatzes: „Die braucht niemand.“"
+        },
+        {
+          "n": 50,
+          "statement": "In der Praxis sehen sie immer mehr zehnjährige Kinder mit Übergewicht.",
+          "answer": true,
+          "why": "Frau Baum berichtet, dass sie immer mehr Zehnjährige mit Übergewicht sehen."
+        },
+        {
+          "n": 51,
+          "statement": "Frau Baum findet alle Ernährungsvideos im Internet gefährlich.",
+          "answer": false,
+          "why": "Sie sagt, ein Teil sei gut und nur ein Teil gefährlich."
+        },
+        {
+          "n": 52,
+          "statement": "Sie empfiehlt, bei Fragen zu Medikamenten eine Ärztin oder einen Arzt zu fragen.",
+          "answer": true,
+          "why": "Sie empfiehlt immer, bei einer Ärztin oder einem Arzt nachzufragen."
+        },
+        {
+          "n": 53,
+          "statement": "Ein Firmenkurs dauert acht Wochen mit einem Termin pro Woche.",
+          "answer": true,
+          "why": "Der Kurs dauert acht Wochen, und man trifft sich einmal pro Woche für neunzig Minuten."
+        },
+        {
+          "n": 54,
+          "statement": "In den Firmenkursen müssen alle Teilnehmer mitkochen, auch wenn sie nicht wollen.",
+          "answer": false,
+          "why": "Frau Baum betont, dass niemand mitmachen muss; Freiwilligkeit ist wichtiger als Druck."
+        },
+        {
+          "n": 55,
+          "statement": "Kleine Firmen mit weniger als zwanzig Mitarbeitern zahlen 600 Euro für den ganzen Kurs.",
+          "answer": true,
+          "why": "Für kleine Betriebe gibt es einen festen Preis von 600 Euro für den ganzen Kurs."
+        }
+      ]
+    },
+    {
+      "title": "Interview mit dem Fahrlehrer Thomas Reinhardt",
+      "script": "[Moderator]: Willkommen bei „Auto und mehr“. Zu Gast ist Herr Thomas Reinhardt, Fahrlehrer aus Dortmund. Herr Reinhardt, Sie unterrichten seit über zwanzig Jahren. Haben sich Ihre Fahrschüler in dieser Zeit verändert?\n\n[Gast]: Ja, deutlich. Die jungen Leute sind heute viel unsicherer, wenn sie zum ersten Mal im Auto sitzen. Sie kennen sich mit dem Handy perfekt aus, aber sie haben oft Angst vor dem Verkehr. Außerdem kommen viele Fahrschüler aus Familien, in denen niemand ein Auto hat. Für sie ist alles neu, auch das Tanken.\n\n[Moderator]: Ist der Führerschein teurer geworden?\n\n[Gast]: Leider ja. Vor zwanzig Jahren haben die meisten zwischen 1.200 und 1.500 Euro bezahlt. Heute sind es oft 2.500 Euro oder mehr. Der Grund sind höhere Kosten für Benzin, Versicherung und die Fahrzeuge selbst. Wer zusätzlich viele Fahrstunden braucht, kann auch bei 3.000 Euro landen.\n\n[Moderator]: Was raten Sie, damit es billiger wird?\n\n[Gast]: Zuerst: Üben Sie die Theorie nicht erst am Ende. Wer die Theorieprüfung früh besteht, kann sich im praktischen Unterricht voll auf das Fahren konzentrieren und braucht weniger Stunden. Zweitens: Fahren Sie privat, wenn es möglich ist. In Deutschland darf man ab siebzehn mit Begleitung fahren. Drittens: Vergleichen Sie die Preise der Fahrschulen, aber schauen Sie nicht nur auf den Preis. Eine billige Fahrschule mit schlechter Ausbildung kostet am Ende mehr.\n\n[Moderator]: Was ist mit dem Führerschein ab siebzehn?\n\n[Gast]: Das Modell „begleitetes Fahren“ gibt es seit vielen Jahren, und die Erfahrung ist gut. Wer ab siebzehn fährt, hat später weniger Unfälle. Allerdings muss eine Begleitperson dabei sein, und diese Person muss bestimmte Bedingungen erfüllen: Sie muss mindestens dreißig Jahre alt sein und seit fünf Jahren einen Führerschein haben. Die Begleitperson darf außerdem nicht mehr als einen Punkt in Flensburg haben.\n\n[Moderator]: Und was sagen Sie zum Thema E-Auto in der Fahrschule?\n\n[Gast]: Wir haben seit zwei Jahren zwei E-Autos. Die Fahrschüler finden sie toll, weil sie leise sind und automatisch schalten. Aber für uns als Fahrschule ist es kompliziert: Wir brauchen eine eigene Ladestation, und die ist teuer. Außerdem dauert das Laden länger als das Tanken. Trotzdem glaube ich, dass in zehn Jahren fast alle Fahrschulen mit E-Autos fahren.\n\n[Moderator]: Eine letzte Frage: Was wünschen Sie sich von Ihren Fahrschülern?\n\n[Gast]: Ich wünsche mir, dass sie geduldig bleiben. Fahren lernt man nicht in zwei Wochen. Und ich wünsche mir, dass sie die Regeln nicht nur für die Prüfung lernen, sondern weil sie im Verkehr wichtig sind. Wer rücksichtsvoll fährt, kommt am Ende sicherer an.\n\n[Moderator]: Vielen Dank, Herr Reinhardt.",
+      "items": [
+        {
+          "n": 46,
+          "statement": "Herr Reinhardt sagt, dass junge Fahrschüler heute unsicherer sind als früher.",
+          "answer": true,
+          "why": "Er sagt, die jungen Leute sind heute viel unsicherer, wenn sie zum ersten Mal im Auto sitzen."
+        },
+        {
+          "n": 47,
+          "statement": "Viele Fahrschüler haben schon als Kinder viel über Autos gelernt, weil ihre Familien ein Auto haben.",
+          "answer": false,
+          "why": "Im Gegenteil: Viele kommen aus Familien, in denen niemand ein Auto hat."
+        },
+        {
+          "n": 48,
+          "statement": "Vor zwanzig Jahren war der Führerschein meist billiger als heute.",
+          "answer": true,
+          "why": "Früher zahlte man 1.200 bis 1.500 Euro, heute oft 2.500 Euro oder mehr."
+        },
+        {
+          "n": 49,
+          "statement": "Wer die Theorieprüfung früh besteht, braucht meistens weniger Fahrstunden.",
+          "answer": true,
+          "why": "So kann man sich im praktischen Unterricht voll auf das Fahren konzentrieren."
+        },
+        {
+          "n": 50,
+          "statement": "Beim begleiteten Fahren reicht es, wenn die Begleitperson einen Führerschein hat.",
+          "answer": false,
+          "why": "Sie muss außerdem mindestens dreißig Jahre alt sein, seit fünf Jahren den Führerschein haben und darf höchstens einen Punkt haben."
+        },
+        {
+          "n": 51,
+          "statement": "Die Begleitperson muss mindestens dreißig Jahre alt sein.",
+          "answer": true,
+          "why": "Herr Reinhardt nennt genau diese Bedingung für die Begleitperson."
+        },
+        {
+          "n": 52,
+          "statement": "Für die Fahrschule sind E-Autos im Unterricht völlig unproblematisch.",
+          "answer": false,
+          "why": "Die Fahrschule braucht eine teure Ladestation, und das Laden dauert länger als das Tanken."
+        },
+        {
+          "n": 53,
+          "statement": "Herr Reinhardt erwartet, dass in zehn Jahren fast alle Fahrschulen E-Autos nutzen.",
+          "answer": true,
+          "why": "Er sagt, dass in zehn Jahren fast alle Fahrschulen mit E-Autos fahren werden."
+        },
+        {
+          "n": 54,
+          "statement": "Er sagt, dass man das Fahren in zwei Wochen lernen kann.",
+          "answer": false,
+          "why": "Er betont: „Fahren lernt man nicht in zwei Wochen.“"
+        },
+        {
+          "n": 55,
+          "statement": "Er möchte, dass Fahrschüler die Regeln lernen, weil sie im Verkehr wichtig sind.",
+          "answer": true,
+          "why": "Er wünscht sich, dass sie die Regeln nicht nur für die Prüfung lernen, sondern weil sie im Verkehr wichtig sind."
+        }
+      ]
+    },
+    {
+      "title": "Interview mit der Umweltberaterin Julia Kessler",
+      "script": "[Moderator]: In unserer Sendung „Umwelt heute“ sprechen wir mit Frau Julia Kessler. Sie berät Kommunen in Fragen der Abfallvermeidung. Frau Kessler, warum wird das Thema gerade jetzt so wichtig?\n\n[Gast]: Weil die Mengen nicht sinken. In Deutschland produziert jeder Mensch im Durchschnitt etwa 620 Kilogramm Haushaltsabfall pro Jahr. Zwar trennen die meisten Bürger sehr gewissenhaft, aber das Recycling allein reicht nicht. Wir müssen zuerst weniger produzieren.\n\n[Moderator]: Viele Menschen sagen, sie seien unsicher, wie sie den Müll richtig trennen. Was sind die häufigsten Fehler?\n\n[Gast]: Der häufigste Fehler ist der Joghurtbecher. Viele werfen ihn ungespült in den gelben Sack. Das ist nicht falsch, aber besser ist es, den Becher kurz auszuspülen, denn Reste von Milchprodukten stören das Recycling. Ein zweiter Fehler: benutzte Taschentücher und Küchenpapier gehören in den Restmüll, nicht ins Papier. Und drittens: Glas wird nach Farben getrennt, aber blaue Flaschen sind ein Problem, deshalb gehören sie meistens zum grünen Glas.\n\n[Moderator]: Sie setzen sich seit Jahren für Mehrwegverpackungen ein. Wie läuft das?\n\n[Gast]: Die Idee ist einfach: Man gibt einen Becher oder eine Box zurück und bekommt das Pfand. Seit 2023 müssen größere Gastronomiebetriebe in Deutschland Mehrweg anbieten, wenn sie Einweg-Plastik verkaufen. Kleine Betriebe, zum Beispiel ein Kiosk mit wenigen Mitarbeitern, sind davon ausgenommen. In der Praxis funktioniert das System aber nur, wenn viele Läden mitmachen. Sonst behält der Kunde am Ende zehn verschiedene Becher zu Hause.\n\n[Moderator]: Kritiker sagen, Mehrwegbecher seien schlechter für die Umwelt, weil man sie mit heißem Wasser spülen muss. Was sagen Sie dazu?\n\n[Gast]: Diese Rechnung stimmt nur, wenn der Becher nur ein einziges Mal benutzt wird. Studien zeigen: Ab etwa zwanzig Nutzungen ist der Mehrwegbecher deutlich besser als der Einwegbecher. Wichtig ist also, dass die Becher oft zurückkommen. Deshalb arbeiten wir mit einem einheitlichen Pfandsystem, bei dem man den Becher in jedem teilnehmenden Café abgeben kann.\n\n[Moderator]: Was kann jeder Einzelne tun?\n\n[Gast]: Fünf Dinge: eine eigene Tasche mitnehmen, eine Trinkflasche statt Flaschen kaufen, Obst ohne Plastikverpackung wählen, Brot in der Bäckerei in einem Stoffbeutel kaufen und Geräte reparieren lassen statt neue zu kaufen. Das klingt nach wenig, aber wenn das Millionen Menschen machen, ändert sich sehr viel.\n\n[Moderator]: Und was macht Ihnen bei Ihrer Arbeit am meisten Freude?\n\n[Gast]: Wenn ich sehe, dass eine Schule oder eine Stadt etwas verändert. Letztes Jahr hat eine kleine Gemeinde in Bayern mit unseren Tipps 30 Prozent weniger Restmüll produziert. Das war ein schöner Moment.\n\n[Moderator]: Frau Kessler, danke für das Gespräch.",
+      "items": [
+        {
+          "n": 46,
+          "statement": "In Deutschland produziert jeder Mensch im Durchschnitt etwa 620 Kilogramm Haushaltsabfall pro Jahr.",
+          "answer": true,
+          "why": "Frau Kessler nennt genau diese Zahl von etwa 620 Kilogramm pro Jahr."
+        },
+        {
+          "n": 47,
+          "statement": "Frau Kessler findet, dass Recycling allein ausreicht.",
+          "answer": false,
+          "why": "Sie sagt ausdrücklich, dass Recycling allein nicht reicht und wir zuerst weniger produzieren müssen."
+        },
+        {
+          "n": 48,
+          "statement": "Joghurtbecher sollte man kurz ausspülen, bevor man sie in den gelben Sack wirft.",
+          "answer": true,
+          "why": "Sie empfiehlt, den Becher kurz auszuspülen, weil Reste von Milchprodukten das Recycling stören."
+        },
+        {
+          "n": 49,
+          "statement": "Benutzte Taschentücher gehören ins Altpapier.",
+          "answer": false,
+          "why": "Benutzte Taschentücher und Küchenpapier gehören in den Restmüll."
+        },
+        {
+          "n": 50,
+          "statement": "Blaue Glasflaschen gehören meistens zum grünen Glas.",
+          "answer": true,
+          "why": "Frau Kessler sagt, blaue Flaschen sind ein Problem und gehören deshalb meistens zum grünen Glas."
+        },
+        {
+          "n": 51,
+          "statement": "Alle Gastronomiebetriebe in Deutschland müssen seit 2023 Mehrweg anbieten.",
+          "answer": false,
+          "why": "Kleine Betriebe wie ein Kiosk mit wenigen Mitarbeitern sind davon ausgenommen."
+        },
+        {
+          "n": 52,
+          "statement": "Studien zufolge sind Mehrwegbecher ab etwa zwanzig Nutzungen besser als Einwegbecher.",
+          "answer": true,
+          "why": "Genau diese Zahl nennt Frau Kessler mit Verweis auf Studien."
+        },
+        {
+          "n": 53,
+          "statement": "Man muss den Mehrwegbecher in demselben Café zurückgeben, in dem man ihn gekauft hat.",
+          "answer": false,
+          "why": "Es gibt ein einheitliches Pfandsystem, bei dem man den Becher in jedem teilnehmenden Café abgeben kann."
+        },
+        {
+          "n": 54,
+          "statement": "Frau Kessler empfiehlt, Geräte reparieren zu lassen statt neue zu kaufen.",
+          "answer": true,
+          "why": "Das ist einer der fünf Tipps, die sie am Ende gibt."
+        },
+        {
+          "n": 55,
+          "statement": "Die Gemeinde in Bayern hat mit den Tipps 30 Prozent mehr Restmüll produziert.",
+          "answer": false,
+          "why": "Sie hat 30 Prozent weniger Restmüll produziert, nicht mehr."
+        }
+      ]
+    }
+  ],
+  "HV3": [
+    {
+      "title": "Ansagen und Nachrichten aus Geschäften und Einrichtungen",
+      "script": "[Anrufbeantworter]: Guten Tag, hier ist die Bäckerei Krause. Ihre Torte für die Geburtstagsfeier ist fertig. Sie können sie am Freitag zwischen acht und sechzehn Uhr abholen. Bitte bringen Sie die Rechnung mit. Am Samstag schließen wir schon um zwölf Uhr.\n\n[Durchsage]: Liebe Kundinnen und Kunden, unser Supermarkt schließt heute ausnahmsweise bereits um neunzehn Uhr, weil wir eine Inventur machen. Ab morgen sind wir wieder wie gewohnt bis zweiundzwanzig Uhr für Sie da. Vielen Dank für Ihr Verständnis.\n\n[Anrufbeantworter]: Hallo, hier ist Mehmet vom Möbelhaus Wohnwelt. Ihr Sofa kann leider nicht am Dienstag geliefert werden. Der neue Liefertermin ist Donnerstag zwischen dreizehn und siebzehn Uhr. Bitte rufen Sie uns an, wenn Ihnen das nicht passt.\n\n[Durchsage]: Sehr geehrte Fahrgäste, wegen Bauarbeiten fährt die Straßenbahnlinie 4 heute nur bis zur Haltestelle Marktplatz. Von dort fahren Busse weiter in Richtung Hauptbahnhof. Die Bauarbeiten dauern noch bis Ende des Monats.\n\n[Anrufbeantworter]: Guten Tag, hier ist die Stadtbibliothek. Das Buch, das Sie bestellt haben, ist eingetroffen. Sie können es bis Samstag abholen. Die Ausleihfrist beträgt vier Wochen. Wenn Sie es nicht abholen, geben wir es am Montag an den nächsten Interessenten weiter.",
+      "items": [
+        {
+          "n": 56,
+          "statement": "Die Torte kann man am Freitag zwischen acht und sechzehn Uhr abholen.",
+          "answer": true,
+          "why": "Die Bäckerei nennt genau diesen Abholtermin am Freitag."
+        },
+        {
+          "n": 57,
+          "statement": "Der Supermarkt schließt heute schon um neunzehn Uhr.",
+          "answer": true,
+          "why": "Wegen der Inventur schließt der Supermarkt heute ausnahmsweise um neunzehn Uhr."
+        },
+        {
+          "n": 58,
+          "statement": "Das Sofa wird am Dienstag zwischen dreizehn und siebzehn Uhr geliefert.",
+          "answer": false,
+          "why": "Die Lieferung am Dienstag ist nicht möglich; der neue Termin ist Donnerstag zwischen dreizehn und siebzehn Uhr."
+        },
+        {
+          "n": 59,
+          "statement": "Die Straßenbahnlinie 4 fährt heute nur bis zur Haltestelle Marktplatz.",
+          "answer": true,
+          "why": "Wegen der Bauarbeiten endet die Linie 4 heute am Marktplatz, dort fahren Busse weiter."
+        },
+        {
+          "n": 60,
+          "statement": "Das bestellte Buch kann man bis Montag abholen.",
+          "answer": false,
+          "why": "Man kann das Buch bis Samstag abholen; am Montag wird es weitergegeben."
+        }
+      ]
+    },
+    {
+      "title": "Durchsagen und Nachrichten für Reisende",
+      "script": "[Durchsage]: Information für alle Reisenden: Der Regionalexpress nach Stuttgart, Abfahrt zwölf Uhr siebzehn, fährt heute von Gleis neun. Der Zug hat etwa fünf Minuten Verspätung. Wir bitten um Ihr Verständnis.\n\n[Durchsage]: Liebe Fluggäste, der Flug LH 442 nach Rom ist leider um zwei Stunden verschoben. Der neue Abflug ist um sechzehn Uhr fünfzig. Bitte gehen Sie zum Gate B 12. Getränke erhalten Sie am Gate kostenlos.\n\n[Anrufbeantworter]: Guten Tag, hier ist das Reisebüro Sonnenschein. Ihre Reiseunterlagen für den Urlaub in Griechenland sind da. Sie können sie ab morgen abholen. Denken Sie bitte daran, dass Ihr Reisepass noch mindestens sechs Monate gültig sein muss. Unser Büro ist am Mittwochnachmittag geschlossen.\n\n[Durchsage]: Achtung, eine wichtige Information für die Fahrgäste der Linie S 3: Wegen eines Unfalls fahren die Züge heute nicht über die Station Universität. Bitte benutzen Sie die Buslinie 25 ab der Haltestelle Rathaus. Die Störung dauert voraussichtlich bis achtzehn Uhr.\n\n[Anrufbeantworter]: Hallo, hier ist die Jugendherberge am See. Ihre Buchung für vier Personen vom 3. bis 10. Juli ist bestätigt. Das Frühstück kostet sechs Euro pro Person, das Abendessen neun Euro. Fahrräder können Sie für fünf Euro pro Tag ausleihen. Bitte zahlen Sie bei der Ankunft in bar.",
+      "items": [
+        {
+          "n": 56,
+          "statement": "Der Regionalexpress nach Stuttgart fährt heute von Gleis zwölf.",
+          "answer": false,
+          "why": "Laut Durchsage fährt der Zug heute von Gleis neun, nicht von Gleis zwölf."
+        },
+        {
+          "n": 57,
+          "statement": "Der Flug nach Rom startet jetzt um sechzehn Uhr fünfzig am Gate B 12.",
+          "answer": true,
+          "why": "Der neue Abflug ist um sechzehn Uhr fünfzig, das Gate ist B 12."
+        },
+        {
+          "n": 58,
+          "statement": "Für den Urlaub in Griechenland muss der Reisepass noch mindestens sechs Monate gültig sein.",
+          "answer": true,
+          "why": "Das Reisebüro weist ausdrücklich auf diese sechs Monate hin."
+        },
+        {
+          "n": 59,
+          "statement": "Die S-Bahn fährt heute über die Station Universität.",
+          "answer": false,
+          "why": "Wegen eines Unfalls fahren die Züge heute nicht über die Station Universität."
+        },
+        {
+          "n": 60,
+          "statement": "In der Jugendherberge kostet das Abendessen neun Euro pro Person.",
+          "answer": true,
+          "why": "Laut Buchungsbestätigung kostet das Abendessen neun Euro pro Person."
+        }
+      ]
+    },
+    {
+      "title": "Nachrichten aus Verein, Schule und Musikschule",
+      "script": "[Anrufbeantworter]: Guten Tag, hier ist der Sportverein Blau-Weiß. Das Training der Jugendmannschaft fällt am Mittwoch aus, weil die Halle renoviert wird. Am Freitag trainieren wir stattdessen draußen auf dem Sportplatz, von sechzehn bis achtzehn Uhr.\n\n[Durchsage]: Liebe Mitglieder, unsere Jahreshauptversammlung findet in diesem Jahr am 14. März statt, nicht wie geplant am 7. März. Beginn ist um neunzehn Uhr im Vereinsheim. Bitte bringen Sie Ihren Mitgliedsausweis mit.\n\n[Anrufbeantworter]: Hallo, hier ist die Musikschule Klang. Der Gitarrenkurs am Donnerstag muss leider verschoben werden, weil Frau Sommer krank ist. Der Kurs findet jetzt am Samstag um elf Uhr statt. Fragen beantworten wir unter der Nummer 0341 55 66 77.\n\n[Durchsage]: Achtung, liebe Eltern: Der Elternabend der Klasse 4b beginnt morgen nicht um achtzehn Uhr, sondern erst um neunzehn Uhr dreißig. Der Raum bleibt derselbe, Raum 204 im ersten Stock. Wir bitten um pünktliches Erscheinen.\n\n[Anrufbeantworter]: Guten Tag, hier ist die Stadtbücherei. Wir möchten Sie daran erinnern, dass der Lesekurs für Erwachsene am Montag beginnt. Er dauert sechs Wochen und kostet 25 Euro. Anmelden können Sie sich noch bis Freitag im Internet.",
+      "items": [
+        {
+          "n": 56,
+          "statement": "Das Training der Jugendmannschaft findet am Mittwoch in der Halle statt.",
+          "answer": false,
+          "why": "Das Training am Mittwoch fällt aus, weil die Halle renoviert wird; am Freitag trainiert man draußen."
+        },
+        {
+          "n": 57,
+          "statement": "Die Jahreshauptversammlung ist am 14. März um neunzehn Uhr.",
+          "answer": true,
+          "why": "Der neue Termin ist der 14. März, Beginn um neunzehn Uhr im Vereinsheim."
+        },
+        {
+          "n": 58,
+          "statement": "Der Gitarrenkurs am Donnerstag findet wie geplant statt.",
+          "answer": false,
+          "why": "Der Kurs wurde auf Samstag um elf Uhr verschoben, weil Frau Sommer krank ist."
+        },
+        {
+          "n": 59,
+          "statement": "Der Elternabend der Klasse 4b beginnt um neunzehn Uhr dreißig in Raum 204.",
+          "answer": true,
+          "why": "Der Elternabend beginnt erst um neunzehn Uhr dreißig, der Raum bleibt Raum 204."
+        },
+        {
+          "n": 60,
+          "statement": "Der Lesekurs für Erwachsene kostet 25 Euro und dauert sechs Wochen.",
+          "answer": true,
+          "why": "Die Stadtbücherei nennt sechs Wochen Dauer und 25 Euro Kursgebühr."
+        }
+      ]
+    }
+  ]
+}

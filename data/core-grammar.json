@@ -1,0 +1,1159 @@
+{
+  "level": "B1",
+  "source": "telc Deutsch B1 exam core - function words and grammar",
+  "tiers": [
+    {
+      "id": "funktionswoerter",
+      "title": "Konnektoren & Funktionswörter",
+      "why": "In Sprachbausteine Teil 2 wird fast nur diese Wortart geprüft: Wer Konnektor und Wortstellung sicher beherrscht, holt die meisten Punkte.",
+      "items": [
+        {
+          "id": "aber",
+          "de": "aber (Verb an Position 2, Hauptsatz)",
+          "en": "but",
+          "pos": "conj",
+          "example": "Ich möchte kommen, aber ich habe am Samstag leider keine Zeit.",
+          "exampleEn": "I would like to come, but unfortunately I have no time on Saturday.",
+          "note": "Aber ist eine nebenordnende Konjunktion: Position 0, danach folgt ganz normal Subjekt und Verb."
+        },
+        {
+          "id": "denn",
+          "de": "denn (Verb an Position 2, Hauptsatz)",
+          "en": "because, for",
+          "pos": "conj",
+          "example": "Wir bleiben zu Hause, denn das Wetter ist heute sehr schlecht.",
+          "exampleEn": "We are staying home, because the weather is very bad today.",
+          "note": "Denn leitet keinen Nebensatz ein: Das Verb bleibt an Position 2 (nicht ans Satzende)."
+        },
+        {
+          "id": "sondern",
+          "de": "sondern (Verb an Position 2, nach Verneinung)",
+          "en": "but rather",
+          "pos": "conj",
+          "example": "Er wohnt nicht in Berlin, sondern in Potsdam bei seiner Familie.",
+          "exampleEn": "He does not live in Berlin, but rather in Potsdam with his family.",
+          "note": "Sondern steht nur nach einer Verneinung und korrigiert sie; sonst benutzt man aber."
+        },
+        {
+          "id": "deshalb",
+          "de": "deshalb (Verb an Position 2)",
+          "en": "therefore, that is why",
+          "pos": "adv",
+          "example": "Es hat stark geregnet, deshalb sind wir zu Hause geblieben.",
+          "exampleEn": "It rained heavily, therefore we stayed at home.",
+          "note": "Deshalb ist ein Adverb: Es besetzt Position 1, das Verb bleibt Position 2."
+        },
+        {
+          "id": "deswegen",
+          "de": "deswegen (Verb an Position 2)",
+          "en": "that is why, because of that",
+          "pos": "adv",
+          "example": "Der Zug hatte Verspätung, deswegen kam ich zu spät.",
+          "exampleEn": "The train was delayed, that is why I arrived late.",
+          "note": "Bedeutung wie deshalb; wichtig ist nur die Wortstellung: Verb direkt nach deswegen."
+        },
+        {
+          "id": "trotzdem",
+          "de": "trotzdem (Verb an Position 2)",
+          "en": "nevertheless, anyway",
+          "pos": "adv",
+          "example": "Ich war sehr müde, trotzdem habe ich noch meine Hausaufgaben gemacht.",
+          "exampleEn": "I was very tired, nevertheless I still did my homework.",
+          "note": "Trotzdem ist ein Adverb der Folge; nicht mit obwohl verwechseln (obwohl = Nebensatz)."
+        },
+        {
+          "id": "obwohl",
+          "de": "obwohl (Verb am Satzende)",
+          "en": "although",
+          "pos": "conj",
+          "example": "Obwohl es geregnet hat, sind wir spazieren gegangen.",
+          "exampleEn": "Although it rained, we went for a walk.",
+          "note": "Obwohl leitet einen Nebensatz ein: Das konjugierte Verb steht am Ende."
+        },
+        {
+          "id": "weil",
+          "de": "weil (Verb am Satzende)",
+          "en": "because",
+          "pos": "conj",
+          "example": "Ich komme heute nicht, weil ich länger arbeiten muss.",
+          "exampleEn": "I am not coming today because I have to work longer.",
+          "note": "Weil-Satz: Verb am Satzende. Verwechslungsgefahr mit denn (Verb Position 2)."
+        },
+        {
+          "id": "da",
+          "de": "da (Verb am Satzende)",
+          "en": "since, as",
+          "pos": "conj",
+          "example": "Da ich kein Auto habe, fahre ich mit dem Bus zur Arbeit.",
+          "exampleEn": "Since I do not have a car, I take the bus to work.",
+          "note": "Da ist wie weil, steht aber oft am Satzanfang, wenn der Grund schon bekannt ist."
+        },
+        {
+          "id": "damit",
+          "de": "damit (Verb am Satzende)",
+          "en": "so that",
+          "pos": "conj",
+          "example": "Ich lerne jeden Tag Vokabeln, damit ich die Prüfung bestehe.",
+          "exampleEn": "I learn vocabulary every day so that I pass the exam.",
+          "note": "Damit + Nebensatz mit Verb am Ende, wenn die Subjekte verschieden sind."
+        },
+        {
+          "id": "wenn",
+          "de": "wenn (Verb am Satzende)",
+          "en": "when, if, whenever",
+          "pos": "conj",
+          "example": "Wenn ich Zeit habe, besuche ich meine Eltern am Wochenende.",
+          "exampleEn": "When I have time, I visit my parents at the weekend.",
+          "note": "Wenn steht bei Gegenwart, Zukunft und bei wiederholten Handlungen."
+        },
+        {
+          "id": "als",
+          "de": "als (Verb am Satzende, einmalige Vergangenheit)",
+          "en": "when (single past event)",
+          "pos": "conj",
+          "example": "Als ich klein war, haben wir jedes Jahr in Italien Urlaub gemacht.",
+          "exampleEn": "When I was little, we went on holiday in Italy every year.",
+          "note": "Als nur für ein einmaliges Ereignis in der Vergangenheit; Wiederholung = wenn."
+        },
+        {
+          "id": "falls",
+          "de": "falls (Verb am Satzende)",
+          "en": "in case, if",
+          "pos": "conj",
+          "example": "Falls Sie Fragen haben, rufen Sie mich bitte einfach an.",
+          "exampleEn": "In case you have any questions, please just call me.",
+          "note": "Falls ist wie wenn, aber nur bedingt möglich: Nebensatz mit Verb am Ende."
+        },
+        {
+          "id": "bevor",
+          "de": "bevor (Verb am Satzende)",
+          "en": "before",
+          "pos": "conj",
+          "example": "Bevor ich zur Arbeit gehe, frühstücke ich immer mit meiner Familie.",
+          "exampleEn": "Before I go to work, I always have breakfast with my family.",
+          "note": "Bevor + Nebensatz; im Hauptsatz steht oft zuerst oder danach als Signalwort."
+        },
+        {
+          "id": "nachdem",
+          "de": "nachdem (Verb am Satzende, Zeitenfolge)",
+          "en": "after",
+          "pos": "conj",
+          "example": "Nachdem ich gefrühstückt hatte, bin ich zur Arbeit gefahren.",
+          "exampleEn": "After I had had breakfast, I drove to work.",
+          "note": "Nachdem verlangt Zeitenfolge: Perfekt/Plusquamperfekt im Nebensatz, Präsens/Präteritum im Hauptsatz."
+        },
+        {
+          "id": "waehrend",
+          "de": "während (Verb am Satzende)",
+          "en": "while, during",
+          "pos": "conj",
+          "example": "Während ich koche, hört mein Mann Musik im Wohnzimmer.",
+          "exampleEn": "While I cook, my husband listens to music in the living room.",
+          "note": "Als Konjunktion mit Nebensatz; als Präposition steht während + Genitiv."
+        },
+        {
+          "id": "seit",
+          "de": "seit (Verb am Satzende, temporal)",
+          "en": "since",
+          "pos": "conj",
+          "example": "Seit er in München arbeitet, fährt er jeden Tag mit dem Rad.",
+          "exampleEn": "Since he has been working in Munich, he cycles every day.",
+          "note": "Seit + Dativ als Präposition; als Konjunktion steht das Verb am Satzende."
+        },
+        {
+          "id": "bis",
+          "de": "bis (Verb am Satzende)",
+          "en": "until",
+          "pos": "conj",
+          "example": "Ich bleibe noch hier, bis der Regen endlich aufhört.",
+          "exampleEn": "I will stay here until the rain finally stops.",
+          "note": "Bis als Konjunktion ohne dass: Nebensatz mit Verb am Ende."
+        },
+        {
+          "id": "ausserdem",
+          "de": "außerdem (Verb an Position 2)",
+          "en": "besides, moreover",
+          "pos": "adv",
+          "example": "Wir haben wenig Zeit, außerdem ist das Museum heute geschlossen.",
+          "exampleEn": "We have little time, besides, the museum is closed today.",
+          "note": "Außerdem fügt ein weiteres Argument hinzu und steht auf Position 1 oder 3."
+        },
+        {
+          "id": "schliesslich",
+          "de": "schließlich (Verb an Position 2)",
+          "en": "finally, after all",
+          "pos": "adv",
+          "example": "Nach langem Warten kam der Bus schließlich doch noch an.",
+          "exampleEn": "After a long wait, the bus finally arrived after all.",
+          "note": "Schließlich steht für das letzte Argument oder ein Ereignis am Ende."
+        },
+        {
+          "id": "zuerst",
+          "de": "zuerst (Verb an Position 2)",
+          "en": "first (of all)",
+          "pos": "adv",
+          "example": "Zuerst lesen Sie bitte den Text, dann beantworten Sie die Fragen.",
+          "exampleEn": "First please read the text, then answer the questions.",
+          "note": "Reihenfolge im Text: zuerst - dann - danach - schließlich - zuletzt."
+        },
+        {
+          "id": "danach",
+          "de": "danach (Verb an Position 2)",
+          "en": "afterwards, after that",
+          "pos": "adv",
+          "example": "Zuerst machen wir die Übung, danach gehen wir noch ein Eis essen.",
+          "exampleEn": "First we do the exercise, afterwards we will get some ice cream.",
+          "note": "Danach ordnet Ereignisse zeitlich; das Verb folgt direkt auf Position 2."
+        },
+        {
+          "id": "zuletzt",
+          "de": "zuletzt (Verb an Position 2)",
+          "en": "lastly, finally",
+          "pos": "adv",
+          "example": "Zuletzt möchte ich mich bei allen herzlich für die Hilfe bedanken.",
+          "exampleEn": "Lastly I would like to thank everyone warmly for the help.",
+          "note": "Zuletzt schließt eine Aufzählung ab; typisch in Briefen und Berichten."
+        },
+        {
+          "id": "jedoch",
+          "de": "jedoch (Verb an Position 2)",
+          "en": "however",
+          "pos": "adv",
+          "example": "Das Hotel war ziemlich teuer, jedoch sehr sauber und ruhig.",
+          "exampleEn": "The hotel was quite expensive, however very clean and quiet.",
+          "note": "Jedoch kann auch mitten im Satz stehen, das Verb bleibt dann an Position 2."
+        },
+        {
+          "id": "allerdings",
+          "de": "allerdings (Verb an Position 2)",
+          "en": "however, though",
+          "pos": "adv",
+          "example": "Ich würde gerne kommen, allerdings habe ich am Montag keine Zeit.",
+          "exampleEn": "I would like to come, however I have no time on Monday.",
+          "note": "Allerdings ist eine Einschränkung und steht meist auf Position 1 oder 3."
+        },
+        {
+          "id": "also",
+          "de": "also (Verb an Position 2)",
+          "en": "so, therefore",
+          "pos": "adv",
+          "example": "Ich habe heute keine Zeit, also treffen wir uns morgen.",
+          "exampleEn": "I have no time today, so we will meet tomorrow.",
+          "note": "Also zeigt die Folge; nicht mit dem Füllwort also (= na ja) verwechseln."
+        },
+        {
+          "id": "sonst",
+          "de": "sonst (Verb an Position 2)",
+          "en": "otherwise",
+          "pos": "adv",
+          "example": "Beeil dich bitte, sonst verpassen wir noch den Zug.",
+          "exampleEn": "Please hurry up, otherwise we will miss the train.",
+          "note": "Sonst nennt die negative Folge, wenn etwas nicht geschieht."
+        },
+        {
+          "id": "entweder_oder",
+          "de": "entweder ... oder (Verb an Position 2)",
+          "en": "either ... or",
+          "pos": "conj",
+          "example": "Entweder fahren wir mit dem Auto oder wir nehmen den Zug.",
+          "exampleEn": "Either we go by car or we take the train.",
+          "note": "Zweiteilige Konjunktion: entweder steht auf Position 1, oder leitet den zweiten Hauptsatz ein."
+        },
+        {
+          "id": "sowohl_als_auch",
+          "de": "sowohl ... als auch (Verb an Position 2)",
+          "en": "both ... and",
+          "pos": "conj",
+          "example": "Sie spricht sowohl Englisch als auch ein bisschen Französisch.",
+          "exampleEn": "She speaks both English and a little French.",
+          "note": "Sowohl ... als auch verbindet zwei gleichwertige Satzteile; das Verb steht im Plural."
+        },
+        {
+          "id": "weder_noch",
+          "de": "weder ... noch (Verb an Position 2)",
+          "en": "neither ... nor",
+          "pos": "conj",
+          "example": "Er hat weder Zeit noch Lust, heute ins Kino zu gehen.",
+          "exampleEn": "He has neither time nor desire to go to the cinema today.",
+          "note": "Weder ... noch ist selbst verneinend: kein zusätzliches nicht im Satz."
+        },
+        {
+          "id": "nicht_nur_sondern_auch",
+          "de": "nicht nur ... sondern auch (Verb an Position 2)",
+          "en": "not only ... but also",
+          "pos": "conj",
+          "example": "Sie ist nicht nur klug, sondern auch sehr freundlich zu allen.",
+          "exampleEn": "She is not only clever but also very friendly to everyone.",
+          "note": "Nach sondern auch wiederholt man das Subjekt nicht, das Verb bleibt Position 2."
+        },
+        {
+          "id": "je_desto",
+          "de": "je ... desto (Verb direkt nach desto)",
+          "en": "the ... the (comparison)",
+          "pos": "conj",
+          "example": "Je länger ich warte, desto nervöser werde ich.",
+          "exampleEn": "The longer I wait, the more nervous I get.",
+          "note": "Je + Komparativ am Satzanfang, desto + Komparativ, dann sofort das Verb."
+        },
+        {
+          "id": "besonders",
+          "de": "besonders (Adverb, betont ein Wort)",
+          "en": "especially, particularly",
+          "pos": "adv",
+          "example": "Ich mag italienisches Essen besonders gern, vor allem Pizza.",
+          "exampleEn": "I especially like Italian food, above all pizza.",
+          "note": "Besonders steht vor dem Wort, das hervorgehoben wird, oft vor gern oder gut."
+        },
+        {
+          "id": "dafuer",
+          "de": "dafür (Pronominaladverb, Verb an Position 2)",
+          "en": "for that, in return",
+          "pos": "adv",
+          "example": "Der Kurs war teuer, dafür haben wir sehr viel gelernt.",
+          "exampleEn": "The course was expensive, in return we learned a lot.",
+          "note": "Dafür weist auf einen Gegensatz oder auf eine Sache zurück; Frageform: wofür?"
+        },
+        {
+          "id": "damals",
+          "de": "damals (Adverb der Vergangenheit, Verb an Position 2)",
+          "en": "back then, at that time",
+          "pos": "adv",
+          "example": "Damals habe ich in einer kleinen Stadt bei Köln gewohnt.",
+          "exampleEn": "Back then I lived in a small town near Cologne.",
+          "note": "Damals bezieht sich auf eine frühere Zeit; Zeiten: Präteritum oder Perfekt."
+        },
+        {
+          "id": "gerne",
+          "de": "gerne (Adverb, steht nach dem Verb)",
+          "en": "gladly, with pleasure",
+          "pos": "adv",
+          "example": "Ich helfe Ihnen gerne, wenn Sie noch Fragen haben.",
+          "exampleEn": "I will gladly help you if you still have questions.",
+          "note": "Gerne steht direkt nach dem konjugierten Verb; Komparativ: lieber, Superlativ: am liebsten."
+        },
+        {
+          "id": "wann",
+          "de": "wann (Fragewort, indirekte Frage: Verb am Satzende)",
+          "en": "when (question word)",
+          "pos": "adv",
+          "example": "Wissen Sie, wann der nächste Zug nach Berlin fährt?",
+          "exampleEn": "Do you know when the next train to Berlin leaves?",
+          "note": "Wann fragt nach einem Zeitpunkt; wenn ist eine Konjunktion, wann ein Fragewort."
+        },
+        {
+          "id": "dass",
+          "de": "dass (Verb am Satzende)",
+          "en": "that",
+          "pos": "conj",
+          "example": "Ich hoffe, dass du bald wieder ganz gesund wirst.",
+          "exampleEn": "I hope that you get completely well again soon.",
+          "note": "Dass-Satz: Verb am Ende; im Hauptsatz steht oft hoffen, glauben, sagen oder finden."
+        },
+        {
+          "id": "ob",
+          "de": "ob (Verb am Satzende, indirekte Ja/Nein-Frage)",
+          "en": "whether, if",
+          "pos": "conj",
+          "example": "Ich weiß nicht, ob er heute Abend zu Hause ist.",
+          "exampleEn": "I do not know whether he is at home this evening.",
+          "note": "Ob steht bei indirekten Ja/Nein-Fragen; bei Ergänzungsfragen nimmt man das Fragewort."
+        },
+        {
+          "id": "um_zu",
+          "de": "um ... zu (Infinitiv am Satzende)",
+          "en": "in order to",
+          "pos": "phrase",
+          "example": "Ich lerne jeden Tag Deutsch, um in Deutschland studieren zu können.",
+          "exampleEn": "I learn German every day in order to be able to study in Germany.",
+          "note": "Um ... zu + Infinitiv nur bei gleichem Subjekt; sonst damit + Nebensatz."
+        },
+        {
+          "id": "statt_zu",
+          "de": "statt ... zu (Infinitiv am Satzende)",
+          "en": "instead of",
+          "pos": "phrase",
+          "example": "Statt zu Hause zu bleiben, gehen wir heute zusammen schwimmen.",
+          "exampleEn": "Instead of staying at home, we are going swimming together today.",
+          "note": "Statt ... zu + Infinitiv bei gleichem Subjekt; sonst statt dass + Nebensatz."
+        },
+        {
+          "id": "ohne_zu",
+          "de": "ohne ... zu (Infinitiv am Satzende)",
+          "en": "without",
+          "pos": "phrase",
+          "example": "Sie ging aus dem Haus, ohne sich von uns zu verabschieden.",
+          "exampleEn": "She left the house without saying goodbye to us.",
+          "note": "Ohne ... zu + Infinitiv bei gleichem Subjekt; sonst ohne dass + Nebensatz."
+        },
+        {
+          "id": "so_dass",
+          "de": "so dass (Verb am Satzende, Folge)",
+          "en": "so that (as a result)",
+          "pos": "conj",
+          "example": "Es hat sehr stark geregnet, so dass die Straße überschwemmt war.",
+          "exampleEn": "It rained very heavily, so that the street was flooded.",
+          "note": "So dass nennt die Folge: Nebensatz mit Verb am Satzende, oft nach einem Komma."
+        },
+        {
+          "id": "indem",
+          "de": "indem (Verb am Satzende, Mittel)",
+          "en": "by (doing something)",
+          "pos": "conj",
+          "example": "Man lernt eine Sprache am besten, indem man täglich spricht.",
+          "exampleEn": "You learn a language best by speaking every day.",
+          "note": "Indem gibt das Mittel an, wie man etwas erreicht: Verb am Satzende."
+        },
+        {
+          "id": "anstatt_dass",
+          "de": "anstatt dass (Verb am Satzende)",
+          "en": "instead of (with different subjects)",
+          "pos": "conj",
+          "example": "Anstatt dass er mir hilft, sitzt er nur vor dem Fernseher.",
+          "exampleEn": "Instead of helping me, he just sits in front of the television.",
+          "note": "Anstatt dass benutzt man, wenn die Subjekte in beiden Sätzen verschieden sind."
+        }
+      ]
+    },
+    {
+      "id": "konjunktiv2",
+      "title": "Konjunktiv II & Höflichkeit",
+      "why": "Höfliche Bitten und Wünsche im Brief oder in der E-Mail sind ein Standardteil der Prüfung und bringen sichere Punkte.",
+      "items": [
+        {
+          "id": "haette_gern",
+          "de": "Ich hätte gern ...",
+          "en": "I would like ...",
+          "pos": "phrase",
+          "example": "Ich hätte gern einen Termin beim Arzt am nächsten Montag.",
+          "exampleEn": "I would like an appointment with the doctor next Monday.",
+          "note": "Höflicher Wunsch: hätte gern + Akkusativ; im Restaurant und am Telefon sehr häufig."
+        },
+        {
+          "id": "waere",
+          "de": "Es wäre ... / Das wäre ...",
+          "en": "It would be ...",
+          "pos": "verb",
+          "example": "Es wäre sehr nett, wenn Sie mir kurz antworten könnten.",
+          "exampleEn": "It would be very nice if you could answer me briefly.",
+          "note": "Konjunktiv II von sein: wäre; typisch für höfliche Wünsche und irreale Bedingungen."
+        },
+        {
+          "id": "wuerde",
+          "de": "Ich würde ... + Infinitiv",
+          "en": "I would ...",
+          "pos": "verb",
+          "example": "Ich würde mich sehr über eine schnelle Antwort freuen.",
+          "exampleEn": "I would be very happy about a quick answer.",
+          "note": "Würde + Infinitiv ersetzt die meisten Konjunktiv-II-Formen, z. B. ich würde kommen."
+        },
+        {
+          "id": "koennte",
+          "de": "Könnte ich bitte ... ?",
+          "en": "Could I please ...?",
+          "pos": "verb",
+          "example": "Könnte ich bitte noch eine Frage zum Kurs stellen?",
+          "exampleEn": "Could I please ask one more question about the course?",
+          "note": "Könnte ist die höfliche Form von können und steht oft am Satzanfang."
+        },
+        {
+          "id": "muesste",
+          "de": "Ich müsste ... (höflich, indirekt)",
+          "en": "I would have to ...",
+          "pos": "verb",
+          "example": "Ich müsste den Termin leider auf nächste Woche verschieben.",
+          "exampleEn": "Unfortunately I would have to postpone the appointment to next week.",
+          "note": "Müsste klingt viel höflicher als muss; gut für Absagen und Bitten."
+        },
+        {
+          "id": "duerfte",
+          "de": "Dürfte ich ... ?",
+          "en": "May I ...?",
+          "pos": "verb",
+          "example": "Dürfte ich Sie um eine kurze Auskunft bitten?",
+          "exampleEn": "May I ask you for some brief information?",
+          "note": "Dürfte ich ... ? ist die höflichste Form, um um Erlaubnis zu bitten."
+        },
+        {
+          "id": "sollte",
+          "de": "Sie sollten ... (Ratschlag)",
+          "en": "You should ...",
+          "pos": "verb",
+          "example": "Sie sollten sich für den Kurs früh genug anmelden.",
+          "exampleEn": "You should register for the course early enough.",
+          "note": "Sollte ist die höfliche Empfehlung: Sie sollten + Infinitiv."
+        },
+        {
+          "id": "wuerden_sie",
+          "de": "Würden Sie ... ? (höfliche Bitte)",
+          "en": "Would you ...?",
+          "pos": "phrase",
+          "example": "Würden Sie mir bitte die genaue Adresse schicken?",
+          "exampleEn": "Would you please send me the exact address?",
+          "note": "Würden Sie + Infinitiv ist eine sehr höfliche Bitte an eine fremde Person."
+        },
+        {
+          "id": "waeren_sie_so_nett",
+          "de": "Wären Sie so nett und ... / Wären Sie so nett, mir zu ...",
+          "en": "Would you be so kind as to ...",
+          "pos": "phrase",
+          "example": "Wären Sie so nett und schicken mir die Unterlagen per E-Mail?",
+          "exampleEn": "Would you be so kind as to send me the documents by email?",
+          "note": "Sehr höfliche Bitte: Wären Sie so nett und + Verb, oder Wären Sie so nett, ... zu + Infinitiv."
+        },
+        {
+          "id": "koennten_sie_mir_sagen",
+          "de": "Könnten Sie mir bitte sagen, ... ?",
+          "en": "Could you please tell me ...?",
+          "pos": "phrase",
+          "example": "Könnten Sie mir bitte sagen, wann der Kurs beginnt?",
+          "exampleEn": "Could you please tell me when the course begins?",
+          "note": "Nach dieser Einleitung folgt eine indirekte Frage mit Verb am Satzende."
+        },
+        {
+          "id": "ich_wuerde_gern_wissen_ob",
+          "de": "Ich würde gern wissen, ob ...",
+          "en": "I would like to know whether ...",
+          "pos": "phrase",
+          "example": "Ich würde gern wissen, ob noch Plätze im Kurs frei sind.",
+          "exampleEn": "I would like to know whether there are still places free in the course.",
+          "note": "Höfliche indirekte Frage mit ob; das Verb steht am Ende des Nebensatzes."
+        },
+        {
+          "id": "ich_haette_eine_frage",
+          "de": "Ich hätte eine Frage zu ...",
+          "en": "I would have a question about ...",
+          "pos": "phrase",
+          "example": "Ich hätte eine Frage zu den Kurszeiten am Freitag.",
+          "exampleEn": "I would have a question about the course times on Friday.",
+          "note": "Höflicher Gesprächsbeginn am Telefon oder in der E-Mail: Ich hätte eine Frage zu + Dativ."
+        },
+        {
+          "id": "es_waere_schoen_wenn",
+          "de": "Es wäre schön, wenn ...",
+          "en": "It would be nice if ...",
+          "pos": "conj",
+          "example": "Es wäre schön, wenn wir uns nächste Woche treffen könnten.",
+          "exampleEn": "It would be nice if we could meet next week.",
+          "note": "Höflicher Wunsch: Hauptsatz mit wäre, wenn-Satz mit Verb am Ende."
+        },
+        {
+          "id": "an_ihrer_stelle_wuerde_ich",
+          "de": "An Ihrer Stelle würde ich ...",
+          "en": "If I were you, I would ...",
+          "pos": "phrase",
+          "example": "An Ihrer Stelle würde ich den Termin lieber verschieben.",
+          "exampleEn": "If I were you, I would rather postpone the appointment.",
+          "note": "Höflicher Ratschlag: An Ihrer Stelle (formell) / An deiner Stelle (informell) + würde ich."
+        },
+        {
+          "id": "koennten_sie_mir_bitte_helfen",
+          "de": "Könnten Sie mir bitte helfen?",
+          "en": "Could you please help me?",
+          "pos": "phrase",
+          "example": "Könnten Sie mir bitte bei der Anmeldung helfen?",
+          "exampleEn": "Could you please help me with the registration?",
+          "note": "Höfliche Bitte mit Dativobjekt: jemandem helfen + Dativ."
+        },
+        {
+          "id": "ich_braeuchte",
+          "de": "Ich bräuchte ...",
+          "en": "I would need ...",
+          "pos": "verb",
+          "example": "Ich bräuchte noch ein paar Informationen zu Ihrem Angebot.",
+          "exampleEn": "I would need a few more pieces of information about your offer.",
+          "note": "Bräuchte ist der höfliche Konjunktiv II von brauchen; perfekt für Anfragen."
+        },
+        {
+          "id": "konj_muessten",
+          "de": "müssten (Konjunktiv II von müssen)",
+          "en": "would have to",
+          "pos": "verb",
+          "example": "Wir müssten uns beeilen, sonst verpassen wir den Zug.",
+          "exampleEn": "We would have to hurry, otherwise we will miss the train.",
+          "note": "Konjunktiv II von müssen: drückt eine vorsichtige Notwendigkeit aus, keinen Befehl."
+        }
+      ]
+    },
+    {
+      "id": "verbpraeposition",
+      "title": "Verben mit Präposition",
+      "why": "Verb und Präposition mit dem richtigen Fall sind ein Kernthema in Sprachbausteine Teil 1 und kosten sonst schnell Punkte im Brief.",
+      "items": [
+        {
+          "id": "sich_interessieren_fuer",
+          "de": "sich interessieren für + Akkusativ",
+          "en": "to be interested in",
+          "pos": "verb",
+          "example": "Ich interessiere mich sehr für Musik und fremde Sprachen.",
+          "exampleEn": "I am very interested in music and foreign languages.",
+          "note": "Feste Verbindung mit Akkusativ: sich interessieren für + Akkusativ."
+        },
+        {
+          "id": "warten_auf",
+          "de": "warten auf + Akkusativ",
+          "en": "to wait for",
+          "pos": "verb",
+          "example": "Wir warten schon seit einer Stunde auf den Bus.",
+          "exampleEn": "We have been waiting for the bus for an hour already.",
+          "note": "Feste Verbindung mit Akkusativ: warten auf + Akkusativ."
+        },
+        {
+          "id": "sich_freuen_ueber",
+          "de": "sich freuen über + Akkusativ",
+          "en": "to be glad about (something already received)",
+          "pos": "verb",
+          "example": "Ich freue mich sehr über das Geschenk von meinen Eltern.",
+          "exampleEn": "I am very happy about the present from my parents.",
+          "note": "Feste Verbindung mit Akkusativ; über = etwas ist schon da."
+        },
+        {
+          "id": "sich_freuen_auf",
+          "de": "sich freuen auf + Akkusativ",
+          "en": "to look forward to",
+          "pos": "verb",
+          "example": "Wir freuen uns schon sehr auf unseren Urlaub in Spanien.",
+          "exampleEn": "We are already very much looking forward to our holiday in Spain.",
+          "note": "Feste Verbindung mit Akkusativ; auf = etwas kommt erst noch."
+        },
+        {
+          "id": "denken_an",
+          "de": "denken an + Akkusativ",
+          "en": "to think of, to think about",
+          "pos": "verb",
+          "example": "Ich denke oft an meine Familie und meine alten Freunde.",
+          "exampleEn": "I often think of my family and my old friends.",
+          "note": "Feste Verbindung mit Akkusativ: denken an + Akkusativ."
+        },
+        {
+          "id": "sich_kuemmern_um",
+          "de": "sich kümmern um + Akkusativ",
+          "en": "to take care of",
+          "pos": "verb",
+          "example": "Sie kümmert sich jeden Tag um ihre kranke Großmutter.",
+          "exampleEn": "She takes care of her sick grandmother every day.",
+          "note": "Feste Verbindung mit Akkusativ: sich kümmern um + Akkusativ."
+        },
+        {
+          "id": "teilnehmen_an",
+          "de": "teilnehmen an + Dativ",
+          "en": "to take part in",
+          "pos": "verb",
+          "example": "Ich möchte gern an einem Deutschkurs am Abend teilnehmen.",
+          "exampleEn": "I would like to take part in an evening German course.",
+          "note": "Feste Verbindung mit Dativ: teilnehmen an + Dativ; trennbar: ich nehme teil."
+        },
+        {
+          "id": "sich_bewerben_um",
+          "de": "sich bewerben um + Akkusativ",
+          "en": "to apply for",
+          "pos": "verb",
+          "example": "Ich bewerbe mich um einen Praktikumsplatz in einer großen Firma.",
+          "exampleEn": "I am applying for an internship place in a large company.",
+          "note": "Feste Verbindung mit Akkusativ: sich bewerben um + Akkusativ."
+        },
+        {
+          "id": "sich_erinnern_an",
+          "de": "sich erinnern an + Akkusativ",
+          "en": "to remember",
+          "pos": "verb",
+          "example": "Ich erinnere mich noch gut an meinen ersten Schultag.",
+          "exampleEn": "I still remember my first school day well.",
+          "note": "Feste Verbindung mit Akkusativ: sich erinnern an + Akkusativ."
+        },
+        {
+          "id": "bitten_um",
+          "de": "bitten um + Akkusativ",
+          "en": "to ask for, to request",
+          "pos": "verb",
+          "example": "Ich bitte Sie um eine kurze Antwort bis Freitag.",
+          "exampleEn": "I ask you for a short answer by Friday.",
+          "note": "Feste Verbindung mit Akkusativ: jemanden um etwas bitten."
+        },
+        {
+          "id": "sich_aergern_ueber",
+          "de": "sich ärgern über + Akkusativ",
+          "en": "to be annoyed about",
+          "pos": "verb",
+          "example": "Ich ärgere mich sehr über die laute Musik im Nachbarhaus.",
+          "exampleEn": "I am very annoyed about the loud music in the neighbouring house.",
+          "note": "Feste Verbindung mit Akkusativ: sich ärgern über + Akkusativ."
+        },
+        {
+          "id": "sich_entscheiden_fuer",
+          "de": "sich entscheiden für + Akkusativ",
+          "en": "to decide on, to choose",
+          "pos": "verb",
+          "example": "Wir haben uns für das kleinere Hotel am Meer entschieden.",
+          "exampleEn": "We decided on the smaller hotel by the sea.",
+          "note": "Feste Verbindung mit Akkusativ: sich entscheiden für + Akkusativ."
+        },
+        {
+          "id": "gehoeren_zu",
+          "de": "gehören zu + Dativ",
+          "en": "to belong to",
+          "pos": "verb",
+          "example": "Diese alten Fotos gehören zu meiner Kindheit in Polen.",
+          "exampleEn": "These old photos belong to my childhood in Poland.",
+          "note": "Feste Verbindung mit Dativ: gehören zu + Dativ."
+        },
+        {
+          "id": "bestehen_aus",
+          "de": "bestehen aus + Dativ",
+          "en": "to consist of",
+          "pos": "verb",
+          "example": "Die Prüfung besteht aus einem schriftlichen und einem mündlichen Teil.",
+          "exampleEn": "The exam consists of a written and an oral part.",
+          "note": "Feste Verbindung mit Dativ: bestehen aus + Dativ."
+        },
+        {
+          "id": "sich_beschaeftigen_mit",
+          "de": "sich beschäftigen mit + Dativ",
+          "en": "to occupy oneself with, to deal with",
+          "pos": "verb",
+          "example": "In meiner Freizeit beschäftige ich mich gern mit Fotografie.",
+          "exampleEn": "In my free time I like to occupy myself with photography.",
+          "note": "Feste Verbindung mit Dativ: sich beschäftigen mit + Dativ."
+        },
+        {
+          "id": "abhaengen_von",
+          "de": "abhängen von + Dativ",
+          "en": "to depend on",
+          "pos": "verb",
+          "example": "Unser Urlaub hängt leider vom Wetter und vom Geld ab.",
+          "exampleEn": "Unfortunately our holiday depends on the weather and on money.",
+          "note": "Feste Verbindung mit Dativ: abhängen von + Dativ; trennbar: es hängt ab."
+        },
+        {
+          "id": "achten_auf",
+          "de": "achten auf + Akkusativ",
+          "en": "to pay attention to",
+          "pos": "verb",
+          "example": "Bitte achten Sie auf die genaue Schreibweise der Wörter.",
+          "exampleEn": "Please pay attention to the exact spelling of the words.",
+          "note": "Feste Verbindung mit Akkusativ: achten auf + Akkusativ."
+        },
+        {
+          "id": "sich_vorbereiten_auf",
+          "de": "sich vorbereiten auf + Akkusativ",
+          "en": "to prepare for",
+          "pos": "verb",
+          "example": "Ich bereite mich seit drei Monaten auf die Prüfung vor.",
+          "exampleEn": "I have been preparing for the exam for three months.",
+          "note": "Feste Verbindung mit Akkusativ: sich vorbereiten auf + Akkusativ."
+        },
+        {
+          "id": "traeumen_von",
+          "de": "träumen von + Dativ",
+          "en": "to dream of",
+          "pos": "verb",
+          "example": "Sie träumt von einem eigenen kleinen Haus am See.",
+          "exampleEn": "She dreams of her own little house by the lake.",
+          "note": "Feste Verbindung mit Dativ: träumen von + Dativ."
+        },
+        {
+          "id": "sprechen_ueber",
+          "de": "sprechen über + Akkusativ",
+          "en": "to talk about",
+          "pos": "verb",
+          "example": "Wir haben lange über unsere Pläne für den Sommer gesprochen.",
+          "exampleEn": "We talked for a long time about our plans for the summer.",
+          "note": "Feste Verbindung mit Akkusativ: sprechen über + Akkusativ."
+        },
+        {
+          "id": "sich_unterhalten_ueber",
+          "de": "sich unterhalten über + Akkusativ",
+          "en": "to converse about, to chat about",
+          "pos": "verb",
+          "example": "Die Kollegen unterhalten sich in der Pause über die neue Chefin.",
+          "exampleEn": "The colleagues chat about the new boss during the break.",
+          "note": "Feste Verbindung mit Akkusativ: sich unterhalten über + Akkusativ."
+        },
+        {
+          "id": "sich_bedanken_fuer",
+          "de": "sich bedanken für + Akkusativ",
+          "en": "to thank for",
+          "pos": "verb",
+          "example": "Ich bedanke mich herzlich für Ihre schnelle Hilfe.",
+          "exampleEn": "I thank you warmly for your quick help.",
+          "note": "Feste Verbindung mit Akkusativ: sich bedanken für + Akkusativ."
+        },
+        {
+          "id": "sich_entschuldigen_bei",
+          "de": "sich entschuldigen bei + Dativ",
+          "en": "to apologise to",
+          "pos": "verb",
+          "example": "Ich entschuldige mich bei Ihnen für die späte Antwort.",
+          "exampleEn": "I apologise to you for the late answer.",
+          "note": "Person mit Dativ: sich bei jemandem entschuldigen; der Grund steht mit für + Akkusativ."
+        },
+        {
+          "id": "fragen_nach",
+          "de": "fragen nach + Dativ",
+          "en": "to ask about, to ask for",
+          "pos": "verb",
+          "example": "Der Gast fragt nach dem Weg zum Hauptbahnhof.",
+          "exampleEn": "The guest asks for the way to the main station.",
+          "note": "Feste Verbindung mit Dativ: fragen nach + Dativ."
+        },
+        {
+          "id": "suchen_nach",
+          "de": "suchen nach + Dativ",
+          "en": "to search for",
+          "pos": "verb",
+          "example": "Wir suchen noch nach einer günstigen Wohnung in der Nähe.",
+          "exampleEn": "We are still searching for an affordable flat nearby.",
+          "note": "Suchen + Akkusativ ist auch möglich; mit nach steht immer der Dativ."
+        },
+        {
+          "id": "sich_treffen_mit",
+          "de": "sich treffen mit + Dativ",
+          "en": "to meet (with)",
+          "pos": "verb",
+          "example": "Ich treffe mich am Freitag mit meiner besten Freundin.",
+          "exampleEn": "I am meeting my best friend on Friday.",
+          "note": "Feste Verbindung mit Dativ: sich treffen mit + Dativ."
+        },
+        {
+          "id": "zufrieden_sein_mit",
+          "de": "zufrieden sein mit + Dativ",
+          "en": "to be satisfied with",
+          "pos": "phrase",
+          "example": "Meine Chefin ist mit meiner Arbeit sehr zufrieden.",
+          "exampleEn": "My boss is very satisfied with my work.",
+          "note": "Feste Verbindung mit Dativ: zufrieden sein mit + Dativ."
+        },
+        {
+          "id": "angst_haben_vor",
+          "de": "Angst haben vor + Dativ",
+          "en": "to be afraid of",
+          "pos": "phrase",
+          "example": "Viele Kinder haben Angst vor großen Hunden im Park.",
+          "exampleEn": "Many children are afraid of big dogs in the park.",
+          "note": "Feste Verbindung mit Dativ: Angst haben vor + Dativ."
+        },
+        {
+          "id": "lust_haben_auf",
+          "de": "Lust haben auf + Akkusativ",
+          "en": "to feel like (doing something)",
+          "pos": "phrase",
+          "example": "Hast du heute Abend Lust auf einen Film im Kino?",
+          "exampleEn": "Do you feel like a film at the cinema tonight?",
+          "note": "Feste Verbindung mit Akkusativ: Lust haben auf + Akkusativ."
+        },
+        {
+          "id": "zeit_haben_fuer",
+          "de": "Zeit haben für + Akkusativ",
+          "en": "to have time for",
+          "pos": "phrase",
+          "example": "Am Wochenende habe ich endlich Zeit für meine Familie.",
+          "exampleEn": "At the weekend I finally have time for my family.",
+          "note": "Feste Verbindung mit Akkusativ: Zeit haben für + Akkusativ."
+        },
+        {
+          "id": "sich_verabreden_mit",
+          "de": "sich verabreden mit + Dativ",
+          "en": "to arrange to meet with",
+          "pos": "verb",
+          "example": "Ich habe mich für Samstag mit zwei Kollegen verabredet.",
+          "exampleEn": "I have arranged to meet two colleagues for Saturday.",
+          "note": "Feste Verbindung mit Dativ: sich verabreden mit + Dativ."
+        },
+        {
+          "id": "sich_informieren_ueber",
+          "de": "sich informieren über + Akkusativ",
+          "en": "to inform oneself about",
+          "pos": "verb",
+          "example": "Ich möchte mich über die Preise der Kurse informieren.",
+          "exampleEn": "I would like to inform myself about the prices of the courses.",
+          "note": "Feste Verbindung mit Akkusativ: sich informieren über + Akkusativ."
+        },
+        {
+          "id": "sich_anmelden_fuer",
+          "de": "sich anmelden für + Akkusativ",
+          "en": "to register for",
+          "pos": "verb",
+          "example": "Sie müssen sich bis Freitag für den Kurs anmelden.",
+          "exampleEn": "You have to register for the course by Friday.",
+          "note": "Feste Verbindung mit Akkusativ: sich anmelden für + Akkusativ."
+        },
+        {
+          "id": "sich_beschweren_ueber",
+          "de": "sich beschweren über + Akkusativ",
+          "en": "to complain about",
+          "pos": "verb",
+          "example": "Die Nachbarn beschweren sich über den Lärm im Treppenhaus.",
+          "exampleEn": "The neighbours complain about the noise in the stairwell.",
+          "note": "Feste Verbindung mit Akkusativ: sich beschweren über + Akkusativ."
+        },
+        {
+          "id": "rechnen_mit",
+          "de": "rechnen mit + Dativ",
+          "en": "to reckon with, to expect",
+          "pos": "verb",
+          "example": "Für morgen müssen wir mit starkem Regen rechnen.",
+          "exampleEn": "For tomorrow we have to expect heavy rain.",
+          "note": "Feste Verbindung mit Dativ: rechnen mit + Dativ."
+        },
+        {
+          "id": "sich_verstehen_mit",
+          "de": "sich verstehen mit + Dativ",
+          "en": "to get along with",
+          "pos": "verb",
+          "example": "Ich verstehe mich sehr gut mit meinen neuen Kollegen.",
+          "exampleEn": "I get along very well with my new colleagues.",
+          "note": "Feste Verbindung mit Dativ: sich verstehen mit + Dativ."
+        },
+        {
+          "id": "verbprep_dankbar",
+          "de": "dankbar sein für + Akkusativ",
+          "en": "to be grateful for",
+          "pos": "phrase",
+          "example": "Ich bin Ihnen sehr dankbar für Ihre schnelle Hilfe.",
+          "exampleEn": "I am very grateful to you for your quick help.",
+          "note": "dankbar für + Akkusativ; die Person steht im Dativ: Ich bin dir / Ihnen dankbar."
+        }
+      ]
+    },
+    {
+      "id": "nomenverb",
+      "title": "Nomen-Verb-Verbindungen",
+      "why": "Diese festen Wendungen wirken im Brief und im mündlichen Ausdruck sofort sicher und werden in telc B1 gern erwartet.",
+      "items": [
+        {
+          "id": "eine_entscheidung_treffen",
+          "de": "eine Entscheidung treffen",
+          "en": "to make a decision",
+          "pos": "phrase",
+          "example": "Wir müssen bald eine Entscheidung über unseren Urlaub treffen.",
+          "exampleEn": "We soon have to make a decision about our holiday.",
+          "note": "Nicht machen, sondern treffen: eine Entscheidung treffen."
+        },
+        {
+          "id": "einen_termin_vereinbaren",
+          "de": "einen Termin vereinbaren",
+          "en": "to arrange an appointment",
+          "pos": "phrase",
+          "example": "Ich möchte mit dem Arzt einen neuen Termin vereinbaren.",
+          "exampleEn": "I would like to arrange a new appointment with the doctor.",
+          "note": "Formell für Termine: einen Termin vereinbaren (auch: einen Termin machen)."
+        },
+        {
+          "id": "einen_termin_absagen",
+          "de": "einen Termin absagen",
+          "en": "to cancel an appointment",
+          "pos": "phrase",
+          "example": "Leider muss ich meinen Termin am Montag absagen.",
+          "exampleEn": "Unfortunately I have to cancel my appointment on Monday.",
+          "note": "Gegenteil von vereinbaren: einen Termin absagen."
+        },
+        {
+          "id": "bescheid_geben",
+          "de": "Bescheid geben",
+          "en": "to let someone know",
+          "pos": "phrase",
+          "example": "Bitte geben Sie mir bis Freitag über das Projekt Bescheid.",
+          "exampleEn": "Please let me know by Friday.",
+          "note": "Jemandem Bescheid geben: die Person steht im Dativ."
+        },
+        {
+          "id": "bescheid_sagen",
+          "de": "Bescheid sagen",
+          "en": "to tell someone, to inform someone",
+          "pos": "phrase",
+          "example": "Ich sage dir morgen Bescheid, ob ich mitkomme.",
+          "exampleEn": "I will tell you tomorrow whether I am coming along.",
+          "note": "Umgangssprachlich für kurze Information: jemandem Bescheid sagen."
+        },
+        {
+          "id": "eine_rolle_spielen",
+          "de": "eine Rolle spielen",
+          "en": "to play a role",
+          "pos": "phrase",
+          "example": "Das Wetter spielt bei unserer Planung eine große Rolle.",
+          "exampleEn": "The weather plays a big role in our planning.",
+          "note": "Oft mit Adjektiv: eine wichtige, große oder kleine Rolle spielen."
+        },
+        {
+          "id": "kritik_ueben",
+          "de": "Kritik üben",
+          "en": "to criticise",
+          "pos": "phrase",
+          "example": "In der Sitzung hat der Chef deutliche Kritik geübt.",
+          "exampleEn": "In the meeting the boss criticised clearly.",
+          "note": "Formell: Kritik üben an + Dativ; umgangssprachlich: kritisieren."
+        },
+        {
+          "id": "ruecksicht_nehmen_auf",
+          "de": "Rücksicht nehmen auf + Akkusativ",
+          "en": "to show consideration for",
+          "pos": "phrase",
+          "example": "Bitte nehmen Sie Rücksicht auf die älteren Teilnehmer.",
+          "exampleEn": "Please show consideration for the older participants.",
+          "note": "Feste Wendung mit Akkusativ: Rücksicht nehmen auf + Akkusativ."
+        },
+        {
+          "id": "in_frage_kommen",
+          "de": "in Frage kommen",
+          "en": "to be an option, to be considered",
+          "pos": "phrase",
+          "example": "Für den Job kommen nur Bewerber mit Erfahrung in Frage.",
+          "exampleEn": "Only applicants with experience are an option for the job.",
+          "note": "Meist verneint oder einschränkend: für etwas in Frage kommen."
+        },
+        {
+          "id": "zur_verfuegung_stehen",
+          "de": "zur Verfügung stehen",
+          "en": "to be available",
+          "pos": "phrase",
+          "example": "Für Fragen stehe ich Ihnen gerne jederzeit zur Verfügung.",
+          "exampleEn": "I am gladly available to you at any time for questions.",
+          "note": "Jemandem zur Verfügung stehen; typische Höflichkeitsformel im Brief."
+        },
+        {
+          "id": "abschied_nehmen",
+          "de": "Abschied nehmen",
+          "en": "to say goodbye",
+          "pos": "phrase",
+          "example": "Am letzten Tag haben wir traurig Abschied genommen.",
+          "exampleEn": "On the last day we sadly said goodbye.",
+          "note": "Von jemandem Abschied nehmen: die Person steht mit von + Dativ."
+        },
+        {
+          "id": "einen_antrag_stellen",
+          "de": "einen Antrag stellen",
+          "en": "to submit an application",
+          "pos": "phrase",
+          "example": "Ich habe beim Amt einen Antrag auf Urlaub gestellt.",
+          "exampleEn": "I submitted an application for leave at the office.",
+          "note": "Formell für Behörden: einen Antrag stellen; Zweck mit auf + Akkusativ."
+        },
+        {
+          "id": "eine_frage_stellen",
+          "de": "eine Frage stellen",
+          "en": "to ask a question",
+          "pos": "phrase",
+          "example": "Darf ich Ihnen noch eine kurze Frage stellen?",
+          "exampleEn": "May I ask you one more short question?",
+          "note": "Eine Frage stellen, nicht machen; die Person steht im Dativ."
+        },
+        {
+          "id": "sport_treiben",
+          "de": "Sport treiben",
+          "en": "to do sport",
+          "pos": "phrase",
+          "example": "Ich treibe dreimal pro Woche Sport im Fitnessstudio.",
+          "exampleEn": "I do sport three times a week at the gym.",
+          "note": "Feste Wendung: Sport treiben (auch: Sport machen)."
+        },
+        {
+          "id": "den_haushalt_machen",
+          "de": "den Haushalt machen",
+          "en": "to do the housework",
+          "pos": "phrase",
+          "example": "Am Samstag machen wir zusammen den ganzen Haushalt.",
+          "exampleEn": "On Saturday we do the whole housework together.",
+          "note": "Feste Wendung: den Haushalt machen; auch: im Haushalt helfen."
+        },
+        {
+          "id": "verantwortung_uebernehmen",
+          "de": "Verantwortung übernehmen",
+          "en": "to take on responsibility",
+          "pos": "phrase",
+          "example": "In diesem Projekt übernehme ich die Verantwortung für das Team.",
+          "exampleEn": "In this project I take on responsibility for the team.",
+          "note": "Untrennbar: Verantwortung übernehmen; für etwas/jemanden + Akkusativ."
+        },
+        {
+          "id": "einen_vortrag_halten",
+          "de": "einen Vortrag halten",
+          "en": "to give a talk",
+          "pos": "phrase",
+          "example": "Am Donnerstag hält unsere Lehrerin einen Vortrag über Umwelt.",
+          "exampleEn": "On Thursday our teacher gives a talk about the environment.",
+          "note": "Nicht machen, sondern halten: einen Vortrag halten."
+        },
+        {
+          "id": "platz_nehmen",
+          "de": "Platz nehmen",
+          "en": "to take a seat",
+          "pos": "phrase",
+          "example": "Bitte nehmen Sie doch Platz, der Arzt kommt gleich.",
+          "exampleEn": "Please do take a seat, the doctor will come soon.",
+          "note": "Formelle Aufforderung: Nehmen Sie Platz! / Bitte Platz nehmen."
+        },
+        {
+          "id": "in_kontakt_bleiben",
+          "de": "in Kontakt bleiben",
+          "en": "to stay in contact",
+          "pos": "phrase",
+          "example": "Nach dem Kurs möchten wir gern in Kontakt bleiben.",
+          "exampleEn": "After the course we would like to stay in contact.",
+          "note": "Mit jemandem in Kontakt bleiben; auch: in Kontakt sein."
+        },
+        {
+          "id": "unter_druck_stehen",
+          "de": "unter Druck stehen",
+          "en": "to be under pressure",
+          "pos": "phrase",
+          "example": "Vor der Prüfung stehen viele Kursteilnehmer unter Druck.",
+          "exampleEn": "Before the exam many course participants are under pressure.",
+          "note": "Feste Wendung mit Dativ: unter Druck stehen."
+        },
+        {
+          "id": "rad_fahren",
+          "de": "Rad fahren",
+          "en": "to cycle, to ride a bike",
+          "pos": "phrase",
+          "example": "Im Sommer fahre ich jeden Morgen mit dem Rad zur Arbeit.",
+          "exampleEn": "In summer I cycle to work every morning.",
+          "note": "Rad fahren ist trennbar: ich fahre Rad; auch: mit dem Rad fahren."
+        },
+        {
+          "id": "zu_fuss_gehen",
+          "de": "zu Fuß gehen",
+          "en": "to walk, to go on foot",
+          "pos": "phrase",
+          "example": "Zum Bahnhof gehe ich lieber zu Fuß, das dauert zehn Minuten.",
+          "exampleEn": "I prefer to walk to the station, that takes ten minutes.",
+          "note": "Feste Wendung: zu Fuß gehen; nicht mit dem Fuß gehen."
+        },
+        {
+          "id": "einen_eindruck_machen",
+          "de": "einen Eindruck machen",
+          "en": "to make an impression",
+          "pos": "phrase",
+          "example": "Das neue Café macht auf mich einen sehr guten Eindruck.",
+          "exampleEn": "The new café makes a very good impression on me.",
+          "note": "Auf jemanden einen guten oder schlechten Eindruck machen."
+        },
+        {
+          "id": "hilfe_leisten",
+          "de": "Hilfe leisten",
+          "en": "to provide help",
+          "pos": "phrase",
+          "example": "Die Freiwilligen leisten den Familien im Dorf große Hilfe.",
+          "exampleEn": "The volunteers provide great help to the families in the village.",
+          "note": "Formell: jemandem Hilfe leisten; umgangssprachlich: helfen."
+        },
+        {
+          "id": "einen_vorschlag_machen",
+          "de": "einen Vorschlag machen",
+          "en": "to make a suggestion",
+          "pos": "phrase",
+          "example": "Ich möchte Ihnen einen Vorschlag für unser Treffen machen.",
+          "exampleEn": "I would like to make you a suggestion for our meeting.",
+          "note": "Jemandem einen Vorschlag machen; auch: einen Vorschlag bringen."
+        },
+        {
+          "id": "geld_verdienen",
+          "de": "Geld verdienen",
+          "en": "to earn money",
+          "pos": "phrase",
+          "example": "Mit diesem Nebenjob kann ich gut Geld verdienen.",
+          "exampleEn": "With this side job I can earn good money.",
+          "note": "Feste Wendung: Geld verdienen; nicht Geld machen."
+        }
+      ]
+    }
+  ]
+}

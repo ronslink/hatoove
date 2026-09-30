@@ -1,0 +1,630 @@
+{
+  "level": "B1",
+  "source": "telc Deutsch B1 - Schreiben: Strategie, Bausteine und Beispiele",
+  "sections": [
+    {
+      "title": "Die Aufgabe verstehen",
+      "why": "Wer die Situation nicht richtig liest, schreibt am Thema vorbei und verliert schon am Anfang wichtige Punkte.",
+      "points": [
+        {
+          "idea": "Wer schreibt an wen?",
+          "ideaEn": "Who is writing to whom?",
+          "detail": "Prüfen Sie zuerst, wer der Absender und wer der Empfänger ist. Davon hängen Anrede, Ton und Inhalt ab. Ein Brief an eine Firma klingt ganz anders als eine Nachricht an eine Freundin.",
+          "detailEn": "First check who the sender is and who the recipient is. The salutation, the tone and the content all depend on this. A letter to a company sounds completely different from a message to a friend.",
+          "good": "An eine Firma: Sehr geehrte Damen und Herren, / An eine Freundin: Liebe Julia,",
+          "bad": "An eine Firma: Hey Leute,"
+        },
+        {
+          "idea": "Warum schreibe ich?",
+          "ideaEn": "Why am I writing?",
+          "detail": "Suchen Sie den Anlass in der Aufgabe. Jede Aufgabe hat einen klaren Grund: eine Beschwerde, eine Anfrage, eine Absage oder eine Einladung. Dieser Grund gehört in die Einleitung.",
+          "detailEn": "Find the reason in the task. Every task has a clear reason: a complaint, an enquiry, a cancellation or an invitation. That reason belongs in the introduction."
+        },
+        {
+          "idea": "Formell oder privat?",
+          "ideaEn": "Formal or personal?",
+          "detail": "Achten Sie auf die Beziehung zwischen den Personen. Bei Fremden, Firmen und Behörden schreiben Sie formell mit Sie. Bei Freunden und Familie schreiben Sie privat mit du.",
+          "detailEn": "Look at the relationship between the people. With strangers, companies and authorities you write formally with Sie. With friends and family you write personally with du.",
+          "good": "Formell: Könnten Sie mir bitte helfen? / Privat: Kannst du mir bitte helfen?",
+          "bad": "Kannst Sie mir bitte helfen?"
+        },
+        {
+          "idea": "Welche Rolle habe ich?",
+          "ideaEn": "What role am I playing?",
+          "detail": "Sie schreiben nicht als Sie selbst, sondern als die Person in der Aufgabe. Erfinden Sie keine neuen Namen und keine neuen Fakten, sondern bleiben Sie genau bei der Situation.",
+          "detailEn": "You are not writing as yourself but as the person in the task. Do not invent new names or new facts — stick exactly to the situation."
+        }
+      ],
+      "titleEn": "Understanding the task",
+      "whyEn": "Anyone who does not read the situation properly writes off-topic and loses important marks right at the start."
+    },
+    {
+      "title": "Die vier Leitpunkte",
+      "why": "Die vier Leitpunkte sind das Gerüst der ganzen Aufgabe und bringen die meisten Punkte.",
+      "points": [
+        {
+          "idea": "Alle vier Leitpunkte müssen vorkommen",
+          "ideaEn": "All four guiding points must appear",
+          "detail": "Jeder Leitpunkt ist ein eigener Inhaltspunkt. Wenn einer fehlt, fehlt ein Viertel des geforderten Inhalts und die Bewertung fällt schlechter aus.",
+          "detailEn": "Each guiding point is a separate content point. If one is missing, a quarter of the required content is missing and the assessment suffers.",
+          "good": "Ich habe alle vier Punkte in je einem Absatz behandelt.",
+          "bad": "Ich habe nur über den Grund geschrieben."
+        },
+        {
+          "idea": "Reihenfolge einhalten",
+          "ideaEn": "Keep to the order",
+          "detail": "Bearbeiten Sie die Leitpunkte in der Reihenfolge der Aufgabe. So findet der Bewerter alles schnell und der Text wirkt klar geordnet.",
+          "detailEn": "Work through the guiding points in the order given in the task. That way the marker finds everything quickly and the text looks clearly organised."
+        },
+        {
+          "idea": "Jeden Leitpunkt deutlich machen",
+          "ideaEn": "Make each guiding point clear",
+          "detail": "Schreiben Sie zu jedem Leitpunkt mindestens einen ganzen Satz. Ein halber Satz oder nur ein Stichwort reicht nicht aus.",
+          "detailEn": "Write at least one full sentence for each guiding point. Half a sentence or a single keyword is not enough.",
+          "good": "Außerdem möchte ich wissen, wie viel der Kurs kostet.",
+          "bad": "Preis?"
+        },
+        {
+          "idea": "Nichts dazu erfinden",
+          "ideaEn": "Do not invent anything extra",
+          "detail": "Sie brauchen keine zusätzlichen Inhalte. Zwei oder drei gute Sätze pro Leitpunkt sind genug, denn ein langer Text bringt keine Extrapunkte.",
+          "detailEn": "You do not need extra content. Two or three good sentences per guiding point are enough, because a long text earns no extra marks."
+        }
+      ],
+      "titleEn": "The four guiding points",
+      "whyEn": "The four guiding points are the skeleton of the whole task and they earn the most marks."
+    },
+    {
+      "title": "Aufbau des Briefes",
+      "why": "Ein klarer Aufbau mit Anrede, Einleitung, Hauptteil, Schluss und Grußformel wirkt sofort sicher und gut.",
+      "points": [
+        {
+          "idea": "Anrede",
+          "ideaEn": "Salutation",
+          "detail": "Beginnen Sie mit der Anrede und setzen Sie danach ein Komma. In der nächsten Zeile schreiben Sie klein weiter, wenn Sie formell schreiben.",
+          "detailEn": "Start with the salutation and put a comma after it. On the next line you continue in lower case if you are writing formally.",
+          "good": "Sehr geehrte Frau Berger,",
+          "bad": "Sehr geehrte Frau Berger"
+        },
+        {
+          "idea": "Einleitung",
+          "ideaEn": "Introduction",
+          "detail": "Schreiben Sie ein bis zwei Sätze zum Anlass. Nennen Sie den Grund, warum Sie schreiben, damit der Leser sofort versteht, worum es geht.",
+          "detailEn": "Write one or two sentences about the occasion. Name the reason why you are writing so the reader understands immediately what it is about.",
+          "good": "ich schreibe Ihnen, weil ich ein Problem mit meiner Bestellung habe."
+        },
+        {
+          "idea": "Hauptteil",
+          "ideaEn": "Main part",
+          "detail": "Der Hauptteil enthält die vier Leitpunkte. Jeder Leitpunkt bekommt einen eigenen kleinen Absatz mit zwei bis drei Sätzen.",
+          "detailEn": "The main part contains the four guiding points. Each guiding point gets its own short paragraph of two to three sentences."
+        },
+        {
+          "idea": "Schluss und Grußformel",
+          "ideaEn": "Closing and sign-off",
+          "detail": "Beenden Sie den Brief mit einem Satz, zum Beispiel einer Bitte um Antwort. Danach folgen die zum Empfänger passende Grußformel und Ihr Name in einer neuen Zeile. Privat passen zum Beispiel Liebe Grüße oder Bis bald.",
+          "detailEn": "End the letter with one sentence, for example a request for a reply. Then a sign-off suited to the recipient and your name follow on a new line. For a personal letter, Liebe Grüße or Bis bald work well.",
+          "good": "An eine Freundin: Liebe Grüße\nAnna",
+          "bad": "An eine Firma: Tschüss\nAnna"
+        }
+      ],
+      "titleEn": "Structure of the letter",
+      "whyEn": "A clear structure with salutation, introduction, main part, closing and sign-off immediately looks confident and good."
+    },
+    {
+      "title": "Anrede und Grußformel",
+      "why": "Anrede und Grußformel rahmen den Brief und zeigen dem Bewerter sofort, ob der Ton stimmt.",
+      "points": [
+        {
+          "idea": "Sie oder du?",
+          "ideaEn": "Sie or du?",
+          "detail": "Bei fremden Personen, Firmen und Ämtern schreiben Sie immer Sie. Bei Freunden, Familie und guten Bekannten schreiben Sie du. Mischen Sie die beiden Formen nie in einem Brief.",
+          "detailEn": "With strangers, companies and authorities always write Sie. With friends, family and close acquaintances write du. Never mix the two forms in one letter.",
+          "good": "Könnten Sie mir bitte antworten?",
+          "bad": "Könnten Sie mir bitte antworten? Wie geht es dir?"
+        },
+        {
+          "idea": "Empfänger mit Namen",
+          "ideaEn": "Recipient with a name",
+          "detail": "Wenn der Name in der Aufgabe steht, schreiben Sie ihn in die Anrede. Formell nehmen Sie Frau oder Herr mit dem Nachnamen. Privat verwenden Sie den Vornamen, zum Beispiel Liebe Julia oder Lieber Max.",
+          "detailEn": "If the name is given in the task, use it in the salutation. For formal letters, use Frau or Herr with the surname. For personal letters, use the first name, for example Liebe Julia or Lieber Max.",
+          "good": "Sehr geehrter Herr Weber,",
+          "bad": "Sehr geehrte Herr Weber,"
+        },
+        {
+          "idea": "Empfänger ohne Namen",
+          "ideaEn": "Recipient without a name",
+          "detail": "Wenn Sie den Namen nicht kennen, schreiben Sie die allgemeine Form. Diese Anrede passt bei Firmen, Schulen und Behörden.",
+          "detailEn": "If you do not know the name, use the general form. This salutation suits companies, schools and authorities.",
+          "good": "Sehr geehrte Damen und Herren,",
+          "bad": "Sehr geehrte Frau,"
+        },
+        {
+          "idea": "Passende Grußformel",
+          "ideaEn": "A fitting sign-off",
+          "detail": "Die Grußformel muss zum Ton passen. Formell nehmen Sie Mit freundlichen Grüßen, privat Liebe Grüße oder Viele Grüße. Danach schreiben Sie Ihren Namen ohne Komma.",
+          "detailEn": "The sign-off has to match the tone. Use Mit freundlichen Grüßen for formal letters, Liebe Grüße or Viele Grüße for personal ones. After it you write your name without a comma.",
+          "good": "Mit freundlichen Grüßen\nMehmet Yilmaz",
+          "bad": "Mit freundlichen Grüßen\nLiebe Julia"
+        }
+      ],
+      "titleEn": "Salutation and sign-off",
+      "whyEn": "The salutation and the sign-off frame the letter and show the marker immediately whether the tone is right."
+    },
+    {
+      "title": "Umfang und Zeit",
+      "why": "Wer den Umfang und die Zeit richtig plant, schreibt ruhig, vollständig und ohne Stress.",
+      "points": [
+        {
+          "idea": "80 bis 120 Wörter",
+          "ideaEn": "80 to 120 words",
+          "detail": "Die Aufgabe verlangt etwa 80 bis 120 Wörter. In dieser Länge passen alle vier Leitpunkte gut hinein. Zu kurze Texte wirken unvollständig, zu lange Texte bringen keine Extrapunkte.",
+          "detailEn": "The task asks for about 80 to 120 words. All four guiding points fit comfortably into that length. Texts that are too short look incomplete, and texts that are too long earn no extra marks.",
+          "good": "Ich schreibe zu jedem Leitpunkt zwei bis drei Sätze.",
+          "bad": "Ich schreibe fünf Seiten, damit es besser aussieht."
+        },
+        {
+          "idea": "Zeit einteilen",
+          "ideaEn": "Divide up the time",
+          "detail": "Sie haben 30 Minuten. Planen Sie etwa 5 Minuten für das Lesen und Planen, 20 Minuten für das Schreiben und 5 Minuten für die Kontrolle.",
+          "detailEn": "You have 30 minutes. Plan about 5 minutes for reading and planning, 20 minutes for writing and 5 minutes for checking.",
+          "good": "Erst planen, dann schreiben, dann prüfen."
+        },
+        {
+          "idea": "Nicht zu viel schreiben",
+          "ideaEn": "Do not write too much",
+          "detail": "Mehr Wörter bedeuten mehr Fehler. Je länger der Text, desto größer ist die Gefahr, dass Sie die Zeit verlieren und wichtige Punkte vergessen.",
+          "detailEn": "More words mean more mistakes. The longer the text, the greater the risk that you run out of time and forget important points.",
+          "good": "Ich bleibe bei einem klaren und kurzen Text.",
+          "bad": "Ich schreibe alles auf, was mir einfällt."
+        },
+        {
+          "idea": "Am Ende kontrollieren",
+          "ideaEn": "Check at the end",
+          "detail": "Lesen Sie den Text am Ende noch einmal. Prüfen Sie die Verbform, die Großschreibung der Nomen und die Anrede. Kleine Fehler kosten schnell Punkte.",
+          "detailEn": "Read the text through once more at the end. Check the verb forms, the capitalisation of nouns and the salutation. Small mistakes quickly cost marks."
+        }
+      ],
+      "titleEn": "Length and time",
+      "whyEn": "Anyone who plans the length and the time properly writes calmly, completely and without stress."
+    },
+    {
+      "title": "Worauf die Bewerter achten",
+      "why": "Die Bewertung folgt festen Kriterien, und wer sie kennt, kann gezielt Punkte sammeln.",
+      "points": [
+        {
+          "idea": "Aufgabengerechtheit",
+          "ideaEn": "Task fulfilment",
+          "detail": "Der Bewerter prüft, ob alle vier Leitpunkte klar und richtig behandelt sind. Fehlende oder falsch verstandene Punkte kosten hier viele Punkte.",
+          "detailEn": "The marker checks whether all four guiding points are dealt with clearly and correctly. Missing or misunderstood points cost a lot of marks here."
+        },
+        {
+          "idea": "Kommunikative Gestaltung",
+          "ideaEn": "Communicative design",
+          "detail": "Der Text muss zum Anlass und zum Empfänger passen. Eine Beschwerde klingt anders als eine Einladung, und höfliche Formeln gehören einfach dazu.",
+          "detailEn": "The text has to suit the occasion and the recipient. A complaint sounds different from an invitation, and polite formulas are simply part of it.",
+          "good": "Könnten Sie mir bitte bis Freitag antworten?",
+          "bad": "Antworten Sie sofort!"
+        },
+        {
+          "idea": "Formale Richtigkeit",
+          "ideaEn": "Formal accuracy",
+          "detail": "Achten Sie auf Grammatik, Wortstellung, Verbformen und Rechtschreibung. Auch die Anrede, die Grußformel und die Absätze gehören dazu.",
+          "detailEn": "Pay attention to grammar, word order, verb forms and spelling. The salutation, the sign-off and the paragraphs count too.",
+          "good": "Ich habe den Kurs schon bezahlt.",
+          "bad": "Ich habe den Kurs schon bezahlt gehabt."
+        },
+        {
+          "idea": "Ausdruck",
+          "ideaEn": "Expression",
+          "detail": "Benutzen Sie Wörter, die Sie sicher kennen. Einfache Sätze mit Verbindungswörtern wie weil, deshalb und außerdem wirken besser als komplizierte Sätze mit Fehlern.",
+          "detailEn": "Use words you know reliably. Simple sentences with connectors such as weil, deshalb and außerdem work better than complicated sentences with mistakes.",
+          "good": "Deshalb bitte ich Sie um eine schnelle Antwort.",
+          "bad": "Ich erbitte umgehendst Ihre geschätzte Rückäußerung."
+        }
+      ],
+      "titleEn": "What the markers look for",
+      "whyEn": "The assessment follows fixed criteria, and anyone who knows them can collect marks deliberately."
+    }
+  ],
+  "phrases": [
+    {
+      "group": "Anrede",
+      "hint": "Diese Bausteine stehen ganz am Anfang des Briefes, direkt vor dem ersten Satz.",
+      "items": [
+        {
+          "de": "Sehr geehrte Damen und Herren,",
+          "en": "Dear Sir or Madam,",
+          "example": "Sehr geehrte Damen und Herren, ich schreibe Ihnen wegen Ihrer Anzeige."
+        },
+        {
+          "de": "Sehr geehrte Frau ...,",
+          "en": "Dear Ms ...,",
+          "example": "Sehr geehrte Frau Berger, ich habe eine Frage zu meiner Bestellung."
+        },
+        {
+          "de": "Sehr geehrter Herr ...,",
+          "en": "Dear Mr ...,",
+          "example": "Sehr geehrter Herr Weber, leider muss ich unseren Termin verschieben."
+        },
+        {
+          "de": "Liebe Frau ...,",
+          "en": "Dear Ms ... (friendly)",
+          "example": "Liebe Frau Berger, vielen Dank für Ihre nette Hilfe."
+        },
+        {
+          "de": "Hallo ...,",
+          "en": "Hello ... (informal)",
+          "example": "Hallo Julia, wie geht es dir und deiner Familie?"
+        },
+        {
+          "de": "Liebe ..., / Lieber ...,",
+          "en": "Dear ... (informal)",
+          "example": "Liebe Julia, ich habe mich sehr über deine Nachricht gefreut."
+        }
+      ],
+      "groupEn": "Salutation",
+      "hintEn": "These building blocks come right at the start of the letter, directly before the first sentence."
+    },
+    {
+      "group": "Einleitung und Anlass",
+      "hint": "Mit diesen Sätzen erklären Sie gleich am Anfang, warum Sie schreiben.",
+      "items": [
+        {
+          "de": "ich schreibe Ihnen, weil ...",
+          "en": "I am writing to you because ...",
+          "example": "ich schreibe Ihnen, weil ich mich für Ihren Kurs interessiere."
+        },
+        {
+          "de": "ich wende mich an Sie, weil ...",
+          "en": "I am contacting you because ...",
+          "example": "ich wende mich an Sie, weil ich ein Problem mit Ihrer Rechnung habe."
+        },
+        {
+          "de": "vielen Dank für Ihre E-Mail vom ...",
+          "en": "many thanks for your e-mail of ...",
+          "example": "vielen Dank für Ihre E-Mail vom 5. Mai, die ich heute bekommen habe."
+        },
+        {
+          "de": "ich habe Ihre Anzeige im Internet gelesen.",
+          "en": "I read your advertisement on the internet.",
+          "example": "ich habe Ihre Anzeige im Internet gelesen und interessiere mich sehr dafür."
+        },
+        {
+          "de": "leider muss ich Ihnen etwas Unangenehmes mitteilen.",
+          "en": "Unfortunately I have to tell you something unpleasant.",
+          "example": "leider muss ich Ihnen etwas Unangenehmes mitteilen: Ich kann am Freitag nicht kommen."
+        },
+        {
+          "de": "ich habe eine Frage zu ...",
+          "en": "I have a question about ...",
+          "example": "ich habe eine Frage zu dem Deutschkurs im August."
+        }
+      ],
+      "groupEn": "Introduction and occasion",
+      "hintEn": "With these sentences you explain right at the start why you are writing."
+    },
+    {
+      "group": "Grund nennen",
+      "hint": "Mit diesen Bausteinen begründen Sie Ihr Anliegen höflich und klar.",
+      "items": [
+        {
+          "de": "deshalb ...",
+          "en": "that is why ...",
+          "example": "Deshalb bitte ich Sie um eine schnelle Antwort."
+        },
+        {
+          "de": "weil ...",
+          "en": "because ...",
+          "example": "Ich kann am Freitag nicht kommen, weil meine Mutter krank ist."
+        },
+        {
+          "de": "der Grund dafür ist, dass ...",
+          "en": "the reason for that is that ...",
+          "example": "Der Grund dafür ist, dass ich an diesem Tag arbeiten muss."
+        },
+        {
+          "de": "leider ist es so, dass ...",
+          "en": "unfortunately it is the case that ...",
+          "example": "Leider ist es so, dass das Gerät schon nach zwei Tagen kaputt war."
+        },
+        {
+          "de": "ich habe schon versucht, ... zu ...",
+          "en": "I have already tried to ...",
+          "example": "Ich habe schon versucht, Sie telefonisch zu erreichen, aber niemand hat geantwortet."
+        }
+      ],
+      "groupEn": "Giving a reason",
+      "hintEn": "With these building blocks you justify your request politely and clearly."
+    },
+    {
+      "group": "Bitten und Fragen",
+      "hint": "Diese Sätze brauchen Sie, wenn Sie etwas möchten oder eine Information wollen.",
+      "items": [
+        {
+          "de": "Könnten Sie mir bitte ... ?",
+          "en": "Could you please ... ?",
+          "example": "Könnten Sie mir bitte den Preis für den Kurs nennen?"
+        },
+        {
+          "de": "ich möchte Sie bitten, ... zu ...",
+          "en": "I would like to ask you to ...",
+          "example": "ich möchte Sie bitten, mir ein neues Gerät zu schicken."
+        },
+        {
+          "de": "ich würde mich freuen, wenn ...",
+          "en": "I would be pleased if ...",
+          "example": "ich würde mich freuen, wenn Sie mir bald antworten könnten."
+        },
+        {
+          "de": "wäre es möglich, dass ... ?",
+          "en": "would it be possible that ... ?",
+          "example": "Wäre es möglich, dass wir den Termin auf Montag verschieben?"
+        },
+        {
+          "de": "ich hätte noch eine Frage:",
+          "en": "I would have one more question:",
+          "example": "Ich hätte noch eine Frage: Wie lange dauert der Kurs?"
+        },
+        {
+          "de": "Bitte sagen Sie mir, ob ...",
+          "en": "Please tell me whether ...",
+          "example": "Bitte sagen Sie mir, ob noch ein Platz frei ist."
+        }
+      ],
+      "groupEn": "Requests and questions",
+      "hintEn": "You need these sentences when you want something or want information."
+    },
+    {
+      "group": "Entschuldigung",
+      "hint": "Mit diesen Formeln entschuldigen Sie sich höflich, wenn etwas schiefgeht.",
+      "items": [
+        {
+          "de": "es tut mir sehr leid, aber ...",
+          "en": "I am very sorry, but ...",
+          "example": "Es tut mir sehr leid, aber ich muss den Termin absagen."
+        },
+        {
+          "de": "ich möchte mich bei Ihnen entschuldigen.",
+          "en": "I would like to apologize to you.",
+          "example": "Ich möchte mich bei Ihnen für die Verspätung entschuldigen."
+        },
+        {
+          "de": "bitte entschuldigen Sie die Umstände.",
+          "en": "please excuse the inconvenience.",
+          "example": "Bitte entschuldigen Sie die Umstände, die dadurch entstanden sind."
+        },
+        {
+          "de": "ich hoffe, Sie haben Verständnis dafür.",
+          "en": "I hope you understand.",
+          "example": "Ich hoffe, Sie haben Verständnis dafür, dass ich so kurzfristig absagen muss."
+        },
+        {
+          "de": "das war keine Absicht.",
+          "en": "that was not intentional.",
+          "example": "Das war keine Absicht, und es kommt auch nicht wieder vor."
+        }
+      ],
+      "groupEn": "Apology",
+      "hintEn": "With these formulas you apologise politely when something goes wrong."
+    },
+    {
+      "group": "Dank",
+      "hint": "Danken Sie höflich, wenn Sie eine Information, Hilfe oder eine Einladung bekommen haben.",
+      "items": [
+        {
+          "de": "vielen Dank für ...",
+          "en": "many thanks for ...",
+          "example": "Vielen Dank für Ihre schnelle Antwort und Ihre Hilfe."
+        },
+        {
+          "de": "ich bedanke mich bei Ihnen für ...",
+          "en": "I thank you for ...",
+          "example": "Ich bedanke mich bei Ihnen für die freundliche Beratung."
+        },
+        {
+          "de": "vielen Dank im Voraus.",
+          "en": "many thanks in advance.",
+          "example": "Vielen Dank im Voraus für Ihre Mühe."
+        },
+        {
+          "de": "das ist sehr nett von Ihnen.",
+          "en": "that is very kind of you.",
+          "example": "Das ist sehr nett von Ihnen, dass Sie mir so schnell geholfen haben."
+        },
+        {
+          "de": "ich freue mich sehr über ...",
+          "en": "I am very pleased about ...",
+          "example": "Ich freue mich sehr über Ihre Einladung zu Ihrem Fest."
+        }
+      ],
+      "groupEn": "Thanks",
+      "hintEn": "Thank someone politely when you have received information, help or an invitation."
+    },
+    {
+      "group": "Vorschlag und Meinung",
+      "hint": "Mit diesen Bausteinen machen Sie einen Vorschlag oder sagen höflich Ihre Meinung.",
+      "items": [
+        {
+          "de": "wie wäre es, wenn ... ?",
+          "en": "how about it if ... ?",
+          "example": "Wie wäre es, wenn wir uns am Montag treffen?"
+        },
+        {
+          "de": "ich schlage vor, dass ...",
+          "en": "I suggest that ...",
+          "example": "Ich schlage vor, dass wir den Termin auf Freitag legen."
+        },
+        {
+          "de": "meiner Meinung nach ...",
+          "en": "in my opinion ...",
+          "example": "Meiner Meinung nach ist der Preis für den Kurs zu hoch."
+        },
+        {
+          "de": "vielleicht könnten wir ...",
+          "en": "perhaps we could ...",
+          "example": "Vielleicht könnten wir das Problem gemeinsam lösen."
+        },
+        {
+          "de": "ich finde es besser, wenn ...",
+          "en": "I think it is better if ...",
+          "example": "Ich finde es besser, wenn wir nächste Woche noch einmal sprechen."
+        }
+      ],
+      "groupEn": "Suggestion and opinion",
+      "hintEn": "With these building blocks you make a suggestion or give your opinion politely."
+    },
+    {
+      "group": "Schluss und Grußformel",
+      "hint": "Diese Bausteine stehen am Ende des Briefes, nach dem letzten Inhaltssatz.",
+      "items": [
+        {
+          "de": "ich freue mich auf Ihre Antwort.",
+          "en": "I look forward to your reply.",
+          "example": "Ich freue mich auf Ihre Antwort und bedanke mich noch einmal."
+        },
+        {
+          "de": "bitte antworten Sie mir bis ...",
+          "en": "please reply to me by ...",
+          "example": "Bitte antworten Sie mir bis zum 20. Juni, damit ich planen kann."
+        },
+        {
+          "de": "für weitere Fragen stehe ich Ihnen gerne zur Verfügung.",
+          "en": "I am happy to help with further questions.",
+          "example": "Für weitere Fragen stehe ich Ihnen gerne zur Verfügung."
+        },
+        {
+          "de": "Mit freundlichen Grüßen",
+          "en": "Yours sincerely",
+          "example": "Mit freundlichen Grüßen, Anna Keller"
+        },
+        {
+          "de": "Liebe Grüße",
+          "en": "Kind regards (informal)",
+          "example": "Liebe Grüße und bis Samstag, deine Tanja"
+        },
+        {
+          "de": "Bis bald / Alles Liebe",
+          "en": "See you soon / All the best (informal)",
+          "example": "Bis bald, ich freue mich schon sehr auf dich."
+        }
+      ],
+      "groupEn": "Closing and sign-off",
+      "hintEn": "These building blocks come at the end of the letter, after the last content sentence."
+    }
+  ],
+  "examples": [
+    {
+      "type": "Beschwerde",
+      "situation": "Frau Keller schreibt an eine Verkäuferin, weil der neue Kaffeeautomat schon nach zwei Tagen nicht mehr funktioniert.",
+      "leitpunkte": [
+        "Grund der Beschwerde: Was ist passiert?",
+        "Was Sie schon versucht haben",
+        "Was Sie jetzt erwarten (neues Gerät oder Geld zurück)",
+        "Bis wann Sie eine Antwort brauchen"
+      ],
+      "text": "Sehr geehrte Frau Berger,\n\nich schreibe Ihnen, weil ich mit dem Kaffeeautomaten, den ich am 3. Mai bei Ihnen gekauft habe, sehr unzufrieden bin. Das Gerät ist schon nach zwei Tagen kaputtgegangen.\n\nIch habe die Bedienungsanleitung genau gelesen und den Automaten mehrmals neu gestartet, aber er funktioniert immer noch nicht. Deshalb habe ich am Montag bei Ihrer Hotline angerufen. Leider hat mir dort niemand geholfen. Auch eine E-Mail an Ihren Kundenservice hat nichts gebracht.\n\nIch möchte Sie deshalb bitten, mir ein neues Gerät zu schicken oder mir den Kaufpreis zurückzuzahlen. Bitte antworten Sie mir bis zum 20. Juni.\n\nMit freundlichen Grüßen\nAnna Keller",
+      "typeEn": "Complaint",
+      "situationEn": "Ms Keller writes to a sales assistant because the new coffee machine stopped working after only two days.",
+      "leitpunkteEn": [
+        "Reason for the complaint: what happened?",
+        "What you have already tried",
+        "What you now expect (a new device or your money back)",
+        "When you need a reply by"
+      ]
+    },
+    {
+      "type": "Anfrage",
+      "situation": "Herr Yilmaz schreibt an eine Sprachschule, weil er im August einen Deutschkurs machen möchte und noch Fragen hat.",
+      "leitpunkte": [
+        "Warum ich schreibe: Interesse am Intensivkurs im August",
+        "Fragen zu Preis und Stundenzahl",
+        "Fragen zu Unterkunft und Einstufungstest",
+        "Bitte um eine schnelle Antwort"
+      ],
+      "text": "Sehr geehrte Damen und Herren,\n\nich habe Ihre Anzeige im Internet gelesen und interessiere mich sehr für Ihren Intensivkurs Deutsch im August.\n\nLeider finde ich auf Ihrer Webseite nicht alle Informationen. Deshalb habe ich einige Fragen: Wie viel kostet der Kurs und wie viele Stunden hat er pro Woche? Können Sie mir auch ein Zimmer bei einer Gastfamilie vermitteln? Außerdem möchte ich wissen, ob ich vor dem Kurs einen Einstufungstest machen muss.\n\nIch würde mich sehr freuen, wenn Sie mir diese Fragen bald beantworten könnten. Vielen Dank im Voraus.\n\nMit freundlichen Grüßen\nMehmet Yilmaz",
+      "typeEn": "Enquiry",
+      "situationEn": "Mr Yilmaz writes to a language school because he wants to take a German course in August and still has some questions.",
+      "leitpunkteEn": [
+        "Why I am writing: interest in the intensive course in August",
+        "Questions about the price and the number of hours",
+        "Questions about accommodation and the placement test",
+        "Request for a quick reply"
+      ]
+    },
+    {
+      "type": "Absage",
+      "situation": "Frau Nowak schreibt an ihren Arzt, weil sie einen Termin nicht wahrnehmen kann und einen neuen Termin braucht.",
+      "leitpunkte": [
+        "Termin absagen: welcher Termin genau",
+        "Grund nennen und sich entschuldigen",
+        "Neuen Termin vorschlagen",
+        "Um Bestätigung bitten"
+      ],
+      "text": "Sehr geehrter Herr Doktor Weber,\n\nleider muss ich unseren Termin am Donnerstag, dem 12. September, absagen. Ich habe mich sehr darauf gefreut, aber es geht nicht anders.\n\nMeine Mutter ist plötzlich krank geworden und ich muss sie ins Krankenhaus bringen. Das tut mir wirklich sehr leid. Ich hoffe, Sie haben dafür Verständnis.\n\nKönnten wir den Termin vielleicht auf den 19. September verschieben? Am Nachmittag habe ich immer Zeit. Bitte schreiben Sie mir kurz, ob Ihnen dieser Termin passt.\n\nIch melde mich nächste Woche wieder bei Ihnen. Vielen Dank für Ihr Verständnis.\n\nMit freundlichen Grüßen\nSara Nowak",
+      "typeEn": "Cancellation",
+      "situationEn": "Ms Nowak writes to her doctor because she cannot attend an appointment and needs a new one.",
+      "leitpunkteEn": [
+        "Cancel the appointment: which one exactly",
+        "Give the reason and apologise",
+        "Suggest a new appointment",
+        "Ask for confirmation"
+      ]
+    },
+    {
+      "type": "Einladung",
+      "situation": "Tanja schreibt an ihre Freundin Julia und antwortet auf die Einladung zur Geburtstagsparty.",
+      "leitpunkte": [
+        "Dank für die Einladung und Zusage",
+        "Was ich mitbringe",
+        "Nach der Uhrzeit fragen",
+        "Nach dem Weg fragen"
+      ],
+      "text": "Liebe Julia,\n\nvielen Dank für deine Einladung zu deiner Geburtstagsparty am Samstag! Ich habe mich sehr darüber gefreut und komme natürlich sehr gern.\n\nIch habe schon eine Idee für ein Geschenk. Außerdem kann ich einen Salat und einen Kuchen mitbringen, wenn du möchtest. Sag mir einfach, was du noch brauchst.\n\nEine Frage habe ich aber: Wann fängt die Party an und wie komme ich am besten zu dir? Ich kenne deine neue Wohnung noch nicht. Kannst du mir bitte den Weg beschreiben?\n\nIch freue mich schon sehr auf Samstag!\n\nLiebe Grüße\nTanja",
+      "typeEn": "Invitation",
+      "situationEn": "Tanja writes to her friend Julia and replies to the invitation to the birthday party.",
+      "leitpunkteEn": [
+        "Thanks for the invitation and accepting",
+        "What I will bring",
+        "Ask about the time",
+        "Ask for directions"
+      ]
+    }
+  ],
+  "checklist": [
+    "Ich habe alle vier Leitpunkte klar und in der richtigen Reihenfolge behandelt.",
+    "Meine Anrede passt zum Empfänger, und die Grußformel passt zur Anrede.",
+    "Ich benutze in dem ganzen Brief nur eine Form: Sie oder du.",
+    "Mein Text hat etwa 80 bis 120 Wörter.",
+    "Ich habe den Brief in Absätze gegliedert und zu jedem Leitpunkt etwas geschrieben.",
+    "Ich habe am Ende die Verbformen, die Großschreibung der Nomen und die Satzzeichen kontrolliert.",
+    "Ich habe passende freundliche Formeln wie Könnten Sie, Kannst du bitte oder ich würde mich freuen benutzt.",
+    "Mein Name steht unter der Grußformel, und ich habe keinen neuen Inhalt erfunden."
+  ],
+  "watchOut": [
+    "Die Anrede fehlt oder passt nicht zum Empfänger. Formell passt Sehr geehrte Frau Berger, privat zum Beispiel Liebe Julia.",
+    "Sie und du werden gemischt, zum Beispiel Sehr geehrte Frau Berger, wie geht es dir?",
+    "Ein Leitpunkt fehlt oder wird nur mit einem Stichwort behandelt.",
+    "Der Text ist viel zu lang oder viel zu kurz, zum Beispiel nur 40 Wörter.",
+    "Die Grußformel passt nicht zum Ton, zum Beispiel Tschüss in einem formellen Brief.",
+    "Die Verbform oder die Wortstellung ist falsch, zum Beispiel Ich habe den Kurs bezahlt gehabt."
+  ],
+  "checklistEn": [
+    "I have dealt with all four guiding points clearly and in the right order.",
+    "My salutation suits the recipient and the sign-off suits the salutation.",
+    "I use only one form throughout the letter: Sie or du.",
+    "My text is about 80 to 120 words.",
+    "I have divided the letter into paragraphs and written something for each guiding point.",
+    "At the end I checked the verb forms, the capitalisation of nouns and the punctuation.",
+    "I used friendly formulas suited to the recipient, such as Könnten Sie, Kannst du bitte or ich würde mich freuen.",
+    "My name is below the sign-off and I did not invent any new content."
+  ],
+  "watchOutEn": [
+    "The salutation is missing or does not suit the recipient. Sehr geehrte Frau Berger works formally; Liebe Julia works for a personal letter.",
+    "Sie and du are mixed, for example Sehr geehrte Frau Berger, wie geht es dir?",
+    "A guiding point is missing or dealt with using only a single keyword.",
+    "The text is far too long or far too short, for example only 40 words.",
+    "The sign-off does not match the tone, for example Tschüss in a formal letter.",
+    "The verb form or the word order is wrong, for example Ich habe den Kurs bezahlt gehabt."
+  ]
+}

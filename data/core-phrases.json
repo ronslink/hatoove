@@ -1,0 +1,1197 @@
+{
+  "level": "B1",
+  "source": "telc Deutsch B1 exam core - written and spoken formulae, thematic vocabulary",
+  "tiers": [
+    {
+      "id": "redemittel_schreiben",
+      "title": "Redemittel: Schreiben",
+      "why": "Diese formelhaften Wendungen bringen im schriftlichen Teil sofort Punkte, weil sie den formellen Briefaufbau und die Höflichkeit sichern.",
+      "items": [
+        {
+          "id": "rede_schreiben_anrede_1",
+          "de": "Sehr geehrte Damen und Herren,",
+          "en": "Dear Sir or Madam,",
+          "pos": "phrase",
+          "example": "Sehr geehrte Damen und Herren, ich schreibe Ihnen wegen Ihrer Anzeige.",
+          "exampleEn": "Dear Sir or Madam, I am writing to you regarding your advertisement.",
+          "note": "Formelle Anrede, wenn der Name unbekannt ist. Danach klein weiterschreiben."
+        },
+        {
+          "id": "rede_schreiben_anrede_2",
+          "de": "Sehr geehrte Frau Weber,",
+          "en": "Dear Ms Weber,",
+          "pos": "phrase",
+          "example": "Sehr geehrte Frau Weber, vielen Dank für Ihre freundliche Einladung.",
+          "exampleEn": "Dear Ms Weber, thank you very much for your kind invitation.",
+          "note": "Formelle Anrede mit Namen. Nach der Anrede geht es klein weiter."
+        },
+        {
+          "id": "rede_schreiben_anrede_3",
+          "de": "Sehr geehrter Herr Bauer,",
+          "en": "Dear Mr Bauer,",
+          "pos": "phrase",
+          "example": "Sehr geehrter Herr Bauer, ich habe eine Frage zu Ihrem Kurs.",
+          "exampleEn": "Dear Mr Bauer, I have a question about your course.",
+          "note": "Formell bei Männern: 'Sehr geehrter Herr' plus Nachname."
+        },
+        {
+          "id": "rede_schreiben_anrede_4",
+          "de": "Liebe Frau Klein,",
+          "en": "Dear Ms Klein,",
+          "pos": "phrase",
+          "example": "Liebe Frau Klein, ich hoffe, es geht Ihnen gut.",
+          "exampleEn": "Dear Ms Klein, I hope you are well.",
+          "note": "Informelle, aber höfliche Anrede. Bei Männern: 'Lieber Herr ...'."
+        },
+        {
+          "id": "rede_schreiben_anrede_5",
+          "de": "Hallo Thomas,",
+          "en": "Hello Thomas,",
+          "pos": "phrase",
+          "example": "Hallo Thomas, hast du am Wochenende Zeit für ein Treffen?",
+          "exampleEn": "Hello Thomas, do you have time for a meeting at the weekend?",
+          "note": "Sehr informelle Anrede für Freunde; im Examen nur bei privaten Texten."
+        },
+        {
+          "id": "rede_schreiben_einstieg_1",
+          "de": "Ich schreibe Ihnen, weil ...",
+          "en": "I am writing to you because ...",
+          "pos": "phrase",
+          "example": "Ich schreibe Ihnen, weil ich mich für den Deutschkurs anmelden möchte.",
+          "exampleEn": "I am writing to you because I would like to register for the German course.",
+          "note": "Formeller Einstieg in Brief oder E-Mail. Das Verb steht am Ende des Nebensatzes."
+        },
+        {
+          "id": "rede_schreiben_einstieg_2",
+          "de": "Ich schreibe dir, weil ...",
+          "en": "I am writing to you because ...",
+          "pos": "phrase",
+          "example": "Ich schreibe dir, weil ich am Samstag leider nicht kommen kann.",
+          "exampleEn": "I am writing to you because unfortunately I cannot come on Saturday.",
+          "note": "Informelle Variante mit 'dir'. Gut für E-Mails an Freunde."
+        },
+        {
+          "id": "rede_schreiben_grund_1",
+          "de": "Ich melde mich, weil ...",
+          "en": "I am getting in touch because ...",
+          "pos": "phrase",
+          "example": "Ich melde mich, weil ich eine Frage zu Ihrer Wohnung habe.",
+          "exampleEn": "I am getting in touch because I have a question about your flat.",
+          "note": "Alternative zum Einstieg; klingt freundlich und unkompliziert."
+        },
+        {
+          "id": "rede_schreiben_grund_2",
+          "de": "Der Grund für meine E-Mail ist, dass ...",
+          "en": "The reason for my email is that ...",
+          "pos": "phrase",
+          "example": "Der Grund für meine E-Mail ist, dass ich den Termin verschieben muss.",
+          "exampleEn": "The reason for my email is that I have to postpone the appointment.",
+          "note": "Sehr klarer, formeller Grund. 'dass' schickt das Verb ans Satzende."
+        },
+        {
+          "id": "rede_schreiben_bitte_1",
+          "de": "Könnten Sie mir bitte ... ?",
+          "en": "Could you please ... ?",
+          "pos": "phrase",
+          "example": "Könnten Sie mir bitte die genaue Adresse des Kurses schicken?",
+          "exampleEn": "Could you please send me the exact address of the course?",
+          "note": "Höfliche Bitte im Konjunktiv II. Danach steht der Infinitiv am Satzende."
+        },
+        {
+          "id": "rede_schreiben_bitte_2",
+          "de": "Ich würde Sie bitten, ...",
+          "en": "I would ask you to ...",
+          "pos": "phrase",
+          "example": "Ich würde Sie bitten, mir bis Freitag zu antworten.",
+          "exampleEn": "I would ask you to reply to me by Friday.",
+          "note": "Sehr höfliche Bitte im formellen Register; danach Infinitiv mit 'zu'."
+        },
+        {
+          "id": "rede_schreiben_bitte_3",
+          "de": "Könntest du mir bitte ... ?",
+          "en": "Could you please ... ?",
+          "pos": "phrase",
+          "example": "Könntest du mir bitte deinen Fahrradschlüssel bis morgen leihen?",
+          "exampleEn": "Could you please lend me your bicycle key until tomorrow?",
+          "note": "Informelle Bitte mit 'du'. Gut für Nachrichten an Freunde."
+        },
+        {
+          "id": "rede_schreiben_frage_1",
+          "de": "Könnten Sie mir sagen, ob ... ?",
+          "en": "Could you tell me whether ... ?",
+          "pos": "phrase",
+          "example": "Könnten Sie mir sagen, ob der Kurs am Montag beginnt?",
+          "exampleEn": "Could you tell me whether the course starts on Monday?",
+          "note": "Höfliche indirekte Frage; 'ob' leitet den Nebensatz ein."
+        },
+        {
+          "id": "rede_schreiben_frage_2",
+          "de": "Ich würde gern wissen, wann ...",
+          "en": "I would like to know when ...",
+          "pos": "phrase",
+          "example": "Ich würde gern wissen, wann die Prüfung genau stattfindet.",
+          "exampleEn": "I would like to know when the exam takes place exactly.",
+          "note": "Höfliche Frage, auch ohne Fragezeichen möglich; Verb am Ende."
+        },
+        {
+          "id": "rede_schreiben_entschuldigung_1",
+          "de": "Entschuldigen Sie bitte, dass ...",
+          "en": "Please excuse the fact that ...",
+          "pos": "phrase",
+          "example": "Entschuldigen Sie bitte, dass ich mich erst heute melde.",
+          "exampleEn": "Please excuse the fact that I am only getting in touch today.",
+          "note": "Formelle Entschuldigung; sehr typisch für Absagen im Examen."
+        },
+        {
+          "id": "rede_schreiben_entschuldigung_2",
+          "de": "Leider muss ich Ihnen mitteilen, dass ...",
+          "en": "Unfortunately I have to inform you that ...",
+          "pos": "phrase",
+          "example": "Leider muss ich Ihnen mitteilen, dass ich nicht kommen kann.",
+          "exampleEn": "Unfortunately I have to inform you that I cannot come.",
+          "note": "Höfliche Form für schlechte Nachrichten, zum Beispiel für eine Absage."
+        },
+        {
+          "id": "rede_schreiben_entschuldigung_3",
+          "de": "Entschuldige bitte, dass ...",
+          "en": "Sorry that ...",
+          "pos": "phrase",
+          "example": "Entschuldige bitte, dass ich gestern nicht angerufen habe.",
+          "exampleEn": "Sorry that I did not call yesterday.",
+          "note": "Informelle Entschuldigung mit 'du'."
+        },
+        {
+          "id": "rede_schreiben_dank_1",
+          "de": "Vielen Dank im Voraus.",
+          "en": "Many thanks in advance.",
+          "pos": "phrase",
+          "example": "Vielen Dank im Voraus für Ihre schnelle und freundliche Antwort.",
+          "exampleEn": "Many thanks in advance for your quick and friendly reply.",
+          "note": "Standardformel am Ende einer Bitte um Information."
+        },
+        {
+          "id": "rede_schreiben_dank_2",
+          "de": "Ich möchte mich herzlich bedanken für ...",
+          "en": "I would like to sincerely thank you for ...",
+          "pos": "phrase",
+          "example": "Ich möchte mich herzlich bedanken für Ihre Hilfe beim Umzug.",
+          "exampleEn": "I would like to sincerely thank you for your help with the move.",
+          "note": "Sehr herzlicher, aber noch formeller Dank; danach folgt der Akkusativ."
+        },
+        {
+          "id": "rede_schreiben_freude_1",
+          "de": "Ich würde mich sehr freuen, wenn ...",
+          "en": "I would be very pleased if ...",
+          "pos": "phrase",
+          "example": "Ich würde mich sehr freuen, wenn Sie mir bald antworten.",
+          "exampleEn": "I would be very pleased if you replied to me soon.",
+          "note": "Höflicher Wunsch; 'wenn' schickt das Verb ans Satzende."
+        },
+        {
+          "id": "rede_schreiben_freude_2",
+          "de": "Ich freue mich auf deine Antwort.",
+          "en": "I look forward to your reply.",
+          "pos": "phrase",
+          "example": "Ich freue mich auf deine Antwort und grüße dich herzlich.",
+          "exampleEn": "I look forward to your reply and send you warm regards.",
+          "note": "Informeller Schlusssatz; formell: 'Ich freue mich auf Ihre Antwort.'"
+        },
+        {
+          "id": "rede_schreiben_meinung_1",
+          "de": "Aus meiner Sicht ist es wichtig, dass ...",
+          "en": "From my point of view it is important that ...",
+          "pos": "phrase",
+          "example": "Aus meiner Sicht ist es wichtig, dass Kinder regelmäßig Sport machen.",
+          "exampleEn": "From my point of view it is important that children do sport regularly.",
+          "note": "Meinung formell ausdrücken; Alternative: 'Meiner Meinung nach ...'."
+        },
+        {
+          "id": "rede_schreiben_meinung_2",
+          "de": "Ich bin davon überzeugt, dass ...",
+          "en": "I am convinced that ...",
+          "pos": "phrase",
+          "example": "Ich bin davon überzeugt, dass ein Verein viele Vorteile hat.",
+          "exampleEn": "I am convinced that a club has many advantages.",
+          "note": "Starke Meinung; gut für den Schluss eines Arguments."
+        },
+        {
+          "id": "rede_schreiben_vorschlag_1",
+          "de": "Ich möchte Ihnen folgenden Vorschlag machen: ...",
+          "en": "I would like to make you the following suggestion: ...",
+          "pos": "phrase",
+          "example": "Ich möchte Ihnen folgenden Vorschlag machen: Wir treffen uns am Freitag.",
+          "exampleEn": "I would like to make you the following suggestion: let us meet on Friday.",
+          "note": "Formeller Vorschlag im Brief; danach folgt ein Hauptsatz."
+        },
+        {
+          "id": "rede_schreiben_schluss_1",
+          "de": "Mit freundlichen Grüßen",
+          "en": "Yours sincerely",
+          "pos": "phrase",
+          "example": "Am Ende des Briefes schreibe ich 'Mit freundlichen Grüßen' und meinen Namen.",
+          "exampleEn": "At the end of the letter I write 'Yours sincerely' and my name.",
+          "note": "Standardgruß im formellen Brief; danach folgt die Unterschrift."
+        },
+        {
+          "id": "rede_schreiben_schluss_2",
+          "de": "Mit besten Grüßen",
+          "en": "Best regards",
+          "pos": "phrase",
+          "example": "Nach dem Termin beende ich die E-Mail mit 'Mit besten Grüßen'.",
+          "exampleEn": "After the appointment I end the email with 'Best regards'.",
+          "note": "Etwas persönlicher als 'Mit freundlichen Grüßen', aber noch formell."
+        },
+        {
+          "id": "rede_schreiben_schluss_3",
+          "de": "Viele Grüße",
+          "en": "Many greetings",
+          "pos": "phrase",
+          "example": "In der E-Mail an meinen Kollegen stehen am Ende 'Viele Grüße'.",
+          "exampleEn": "In the email to my colleague, 'Many greetings' appears at the end.",
+          "note": "Neutral-freundlicher Gruß; passt für Bekannte und Kollegen."
+        },
+        {
+          "id": "rede_schreiben_schluss_4",
+          "de": "Bis bald",
+          "en": "See you soon",
+          "pos": "phrase",
+          "example": "Bis bald, ich freue mich schon auf unser Treffen am Montag.",
+          "exampleEn": "See you soon, I am already looking forward to our meeting on Monday.",
+          "note": "Informeller Schluss für Freunde; oft mit einem Komma weitergeführt."
+        }
+      ]
+    },
+    {
+      "id": "redemittel_sprechen",
+      "title": "Redemittel: Sprechen",
+      "why": "Mit diesen Redemitteln kann man alle drei Teile der mündlichen Prüfung flüssig und strukturiert bewältigen.",
+      "items": [
+        {
+          "id": "rede_sprechen_praesentation_1",
+          "de": "Ich möchte Ihnen ... vorstellen.",
+          "en": "I would like to present ... to you.",
+          "pos": "phrase",
+          "example": "Ich möchte Ihnen heute meine Heimatstadt Hamburg kurz vorstellen.",
+          "exampleEn": "Today I would like to briefly present my home town of Hamburg to you.",
+          "note": "Teil 1: typischer Einstieg in die Präsentation. 'Ihnen' ist Dativ."
+        },
+        {
+          "id": "rede_sprechen_praesentation_2",
+          "de": "Ich habe ... gewählt, weil ...",
+          "en": "I chose ... because ...",
+          "pos": "phrase",
+          "example": "Ich habe das Thema Reisen gewählt, weil ich gern reise.",
+          "exampleEn": "I chose the topic of travel because I like travelling.",
+          "note": "Begründet die Themenwahl; 'weil' schickt das Verb ans Ende."
+        },
+        {
+          "id": "rede_sprechen_praesentation_3",
+          "de": "Besonders wichtig ist, dass ...",
+          "en": "It is particularly important that ...",
+          "pos": "phrase",
+          "example": "Besonders wichtig ist, dass man im Verein schnell Freunde findet.",
+          "exampleEn": "It is particularly important that you quickly find friends in a club.",
+          "note": "Hebt einen Kernpunkt hervor. Sehr gut für die Folie geeignet."
+        },
+        {
+          "id": "rede_sprechen_praesentation_4",
+          "de": "Ein Vorteil ist, dass ...",
+          "en": "One advantage is that ...",
+          "pos": "phrase",
+          "example": "Ein Vorteil ist, dass ich mit dem Fahrrad schneller bin.",
+          "exampleEn": "One advantage is that I am faster with the bicycle.",
+          "note": "Nennt ein Pro-Argument in der Präsentation."
+        },
+        {
+          "id": "rede_sprechen_praesentation_5",
+          "de": "Ein Nachteil ist, dass ...",
+          "en": "One disadvantage is that ...",
+          "pos": "phrase",
+          "example": "Ein Nachteil ist, dass die Fahrkarten sehr teuer geworden sind.",
+          "exampleEn": "One disadvantage is that the tickets have become very expensive.",
+          "note": "Nennt ein Contra-Argument; in Teil 1 immer beide Seiten zeigen."
+        },
+        {
+          "id": "rede_sprechen_praesentation_6",
+          "de": "Aus eigener Erfahrung kann ich sagen, dass ...",
+          "en": "From my own experience I can say that ...",
+          "pos": "phrase",
+          "example": "Aus eigener Erfahrung kann ich sagen, dass Nachhilfe wirklich hilft.",
+          "exampleEn": "From my own experience I can say that tutoring really helps.",
+          "note": "Persönlicher Beleg; macht die Präsentation lebendig."
+        },
+        {
+          "id": "rede_sprechen_praesentation_7",
+          "de": "Zum Schluss möchte ich noch erwähnen, ...",
+          "en": "Finally I would like to mention ...",
+          "pos": "phrase",
+          "example": "Zum Schluss möchte ich noch erwähnen, dass Sport gesund ist.",
+          "exampleEn": "Finally I would like to mention that sport is healthy.",
+          "note": "Leitet den letzten Punkt der Präsentation ein."
+        },
+        {
+          "id": "rede_sprechen_praesentation_8",
+          "de": "Vielen Dank für Ihre Aufmerksamkeit.",
+          "en": "Thank you very much for your attention.",
+          "pos": "phrase",
+          "example": "Vielen Dank für Ihre Aufmerksamkeit, jetzt beantworte ich gern Fragen.",
+          "exampleEn": "Thank you very much for your attention, now I will gladly answer questions.",
+          "note": "Fester Schlusssatz der Präsentation in Teil 1."
+        },
+        {
+          "id": "rede_sprechen_praesentation_9",
+          "de": "Haben Sie noch Fragen?",
+          "en": "Do you have any questions?",
+          "pos": "phrase",
+          "example": "Haben Sie noch Fragen zu meinem Thema oder zum Verein?",
+          "exampleEn": "Do you have any questions about my topic or about the club?",
+          "note": "Höfliche Einladung zur Fragerunde nach der Präsentation."
+        },
+        {
+          "id": "rede_sprechen_diskussion_1",
+          "de": "Meiner Meinung nach ...",
+          "en": "In my opinion ...",
+          "pos": "phrase",
+          "example": "Meiner Meinung nach sollten Kinder mehr draußen spielen.",
+          "exampleEn": "In my opinion children should play outside more.",
+          "note": "Teil 2: kurze Meinungsformel; danach folgt ein Hauptsatz."
+        },
+        {
+          "id": "rede_sprechen_diskussion_2",
+          "de": "Ich bin der Meinung, dass ...",
+          "en": "I am of the opinion that ...",
+          "pos": "phrase",
+          "example": "Ich bin der Meinung, dass Hausarbeit gerecht aufgeteilt werden muss.",
+          "exampleEn": "I am of the opinion that housework must be shared fairly.",
+          "note": "Etwas formeller als 'Ich finde'; gut für die Diskussion."
+        },
+        {
+          "id": "rede_sprechen_diskussion_3",
+          "de": "Ich finde es wichtig, dass ...",
+          "en": "I find it important that ...",
+          "pos": "phrase",
+          "example": "Ich finde es wichtig, dass Jugendliche einen Jugendclub haben.",
+          "exampleEn": "I find it important that young people have a youth club.",
+          "note": "Bewertung mit 'es wichtig'; das Verb steht am Ende des dass-Satzes."
+        },
+        {
+          "id": "rede_sprechen_diskussion_4",
+          "de": "Da stimme ich dir zu, aber ...",
+          "en": "I agree with you there, but ...",
+          "pos": "phrase",
+          "example": "Da stimme ich dir zu, aber die Kosten sind wirklich sehr hoch.",
+          "exampleEn": "I agree with you there, but the costs really are very high.",
+          "note": "Zustimmen und dann widersprechen: ideal für Teil 2."
+        },
+        {
+          "id": "rede_sprechen_diskussion_5",
+          "de": "Ich sehe das anders, weil ...",
+          "en": "I see it differently because ...",
+          "pos": "phrase",
+          "example": "Ich sehe das anders, weil meine Familie andere Erfahrungen gemacht hat.",
+          "exampleEn": "I see it differently because my family has had different experiences.",
+          "note": "Höflicher Widerspruch; danach immer eine Begründung geben."
+        },
+        {
+          "id": "rede_sprechen_diskussion_6",
+          "de": "Auf der einen Seite ..., auf der anderen Seite ...",
+          "en": "On the one hand ..., on the other hand ...",
+          "pos": "phrase",
+          "example": "Auf der einen Seite spart man Zeit, auf der anderen Seite kostet es Geld.",
+          "exampleEn": "On the one hand you save time, on the other hand it costs money.",
+          "note": "Klassische Abwägung; zeigt dem Prüfer eine klare Struktur."
+        },
+        {
+          "id": "rede_sprechen_diskussion_7",
+          "de": "Ein Argument dafür ist, dass ...",
+          "en": "One argument in favour is that ...",
+          "pos": "phrase",
+          "example": "Ein Argument dafür ist, dass man im Verein neue Leute kennenlernt.",
+          "exampleEn": "One argument in favour is that you get to know new people in a club.",
+          "note": "Pro-Argument in der Diskussion; Gegenteil: 'Ein Argument dagegen ...'."
+        },
+        {
+          "id": "rede_sprechen_diskussion_8",
+          "de": "Ein Argument dagegen ist, dass ...",
+          "en": "One argument against it is that ...",
+          "pos": "phrase",
+          "example": "Ein Argument dagegen ist, dass der Beitrag jedes Jahr steigt.",
+          "exampleEn": "One argument against it is that the fee rises every year.",
+          "note": "Contra-Argument; danach passt gut ein Beispiel."
+        },
+        {
+          "id": "rede_sprechen_diskussion_9",
+          "de": "Zum Beispiel ...",
+          "en": "For example ...",
+          "pos": "phrase",
+          "example": "Zum Beispiel fahre ich jeden Morgen mit der Straßenbahn.",
+          "exampleEn": "For example, I take the tram every morning.",
+          "note": "Beispiel anfügen; alternativ 'Ein Beispiel dafür ist ...'."
+        },
+        {
+          "id": "rede_sprechen_diskussion_10",
+          "de": "Für mich überwiegt am Ende ...",
+          "en": "For me, in the end ... outweighs ...",
+          "pos": "phrase",
+          "example": "Für mich überwiegt am Ende der Vorteil, dass ich Zeit spare.",
+          "exampleEn": "For me, in the end the advantage that I save time outweighs everything.",
+          "note": "Fazit nach der Abwägung; sehr guter Schlusssatz in Teil 2."
+        },
+        {
+          "id": "rede_sprechen_diskussion_11",
+          "de": "Das ist ein interessanter Punkt, aber ...",
+          "en": "That is an interesting point, but ...",
+          "pos": "phrase",
+          "example": "Das ist ein interessanter Punkt, aber ich sehe auch Nachteile.",
+          "exampleEn": "That is an interesting point, but I also see disadvantages.",
+          "note": "Reagiert höflich auf das Argument des Partners."
+        },
+        {
+          "id": "rede_sprechen_diskussion_12",
+          "de": "Ich stimme dir voll und ganz zu.",
+          "en": "I completely agree with you.",
+          "pos": "phrase",
+          "example": "Ich stimme dir voll und ganz zu, das ist wirklich ein Problem.",
+          "exampleEn": "I completely agree with you, that really is a problem.",
+          "note": "Starke Zustimmung; gut, um Gemeinsamkeiten zu zeigen."
+        },
+        {
+          "id": "rede_sprechen_planung_1",
+          "de": "Ich hätte einen Vorschlag.",
+          "en": "I would have a suggestion.",
+          "pos": "phrase",
+          "example": "Ich hätte einen Vorschlag: Wir treffen uns am Samstag im Café.",
+          "exampleEn": "I would have a suggestion: let us meet on Saturday in the café.",
+          "note": "Teil 3: höflicher Einstieg in die gemeinsame Planung."
+        },
+        {
+          "id": "rede_sprechen_planung_2",
+          "de": "Wie wäre es, wenn wir ... ?",
+          "en": "How would it be if we ... ?",
+          "pos": "phrase",
+          "example": "Wie wäre es, wenn wir das Geschenk zusammen kaufen?",
+          "exampleEn": "How would it be if we bought the present together?",
+          "note": "Höflicher Vorschlag im Konjunktiv II; das Verb steht am Satzende."
+        },
+        {
+          "id": "rede_sprechen_planung_3",
+          "de": "Sollen wir ... ?",
+          "en": "Shall we ... ?",
+          "pos": "phrase",
+          "example": "Sollen wir die Getränke schon am Freitag einkaufen?",
+          "exampleEn": "Shall we buy the drinks already on Friday?",
+          "note": "Einfache Frage nach der Meinung des Partners."
+        },
+        {
+          "id": "rede_sprechen_planung_4",
+          "de": "Das finde ich gut, aber ...",
+          "en": "I think that is good, but ...",
+          "pos": "phrase",
+          "example": "Das finde ich gut, aber der Termin passt mir leider nicht.",
+          "exampleEn": "I think that is good, but unfortunately the date does not suit me.",
+          "note": "Zustimmung mit Einschränkung; typisch für die Planung."
+        },
+        {
+          "id": "rede_sprechen_planung_5",
+          "de": "Ich könnte mich um ... kümmern.",
+          "en": "I could take care of ...",
+          "pos": "phrase",
+          "example": "Ich könnte mich um die Musik und die Getränke kümmern.",
+          "exampleEn": "I could take care of the music and the drinks.",
+          "note": "Aufgabe übernehmen; 'sich kümmern um' steht mit Akkusativ."
+        },
+        {
+          "id": "rede_sprechen_planung_6",
+          "de": "Wer übernimmt ... ?",
+          "en": "Who will take on ... ?",
+          "pos": "phrase",
+          "example": "Wer übernimmt die Aufgabe, den Saal zu reservieren?",
+          "exampleEn": "Who will take on the task of reserving the hall?",
+          "note": "Frage nach der Aufgabenverteilung in der Gruppe."
+        },
+        {
+          "id": "rede_sprechen_planung_7",
+          "de": "Wann passt es dir am besten?",
+          "en": "When does it suit you best?",
+          "pos": "phrase",
+          "example": "Wann passt es dir am besten, am Freitag oder am Samstag?",
+          "exampleEn": "When does it suit you best, on Friday or on Saturday?",
+          "note": "Terminfrage an den Partner; informell mit 'dir'."
+        },
+        {
+          "id": "rede_sprechen_planung_8",
+          "de": "Dann machen wir es so.",
+          "en": "Then we will do it that way.",
+          "pos": "phrase",
+          "example": "Dann machen wir es so und treffen uns um sechs Uhr.",
+          "exampleEn": "Then we will do it that way and meet at six o'clock.",
+          "note": "Fester Abschluss einer Absprache in Teil 3."
+        },
+        {
+          "id": "rede_sprechen_planung_9",
+          "de": "Sind wir uns einig?",
+          "en": "Are we agreed?",
+          "pos": "phrase",
+          "example": "Sind wir uns einig oder möchtest du noch etwas ändern?",
+          "exampleEn": "Are we agreed or would you like to change something?",
+          "note": "Abschlussformel, wenn die Planung fertig ist."
+        }
+      ]
+    },
+    {
+      "id": "themenwortschatz",
+      "title": "Themenwortschatz",
+      "why": "Zwölf Schlüsselwörter pro Prüfungsthema decken den Wortschatz ab, der in telc B1 Übungstest 1 wirklich vorkommt.",
+      "items": [
+        {
+          "id": "thema_haus_haushalt",
+          "de": "der Haushalt",
+          "en": "the household",
+          "pos": "noun",
+          "example": "In unserem Haushalt teilen wir die Hausarbeit gerecht auf.",
+          "exampleEn": "In our household we share the housework fairly.",
+          "note": "Plural: die Haushalte."
+        },
+        {
+          "id": "thema_haus_hausarbeit",
+          "de": "die Hausarbeit",
+          "en": "the housework",
+          "pos": "noun",
+          "example": "Die Hausarbeit nimmt jeden Tag fast zwei Stunden in Anspruch.",
+          "exampleEn": "The housework takes almost two hours every day.",
+          "note": "Plural: die Hausarbeiten."
+        },
+        {
+          "id": "thema_haus_aufteilen",
+          "de": "aufteilen",
+          "en": "to share out, to divide up",
+          "pos": "verb",
+          "example": "Wir wollen die Hausarbeit in der Familie gerecht aufteilen.",
+          "exampleEn": "We want to share the housework in the family fairly.",
+          "note": "Perfekt: hat aufgeteilt. Trennbares Verb: ich teile auf."
+        },
+        {
+          "id": "thema_haus_hausmann",
+          "de": "der Hausmann",
+          "en": "the househusband",
+          "pos": "noun",
+          "example": "Mein Bruder ist Hausmann und betreut die zwei Kinder.",
+          "exampleEn": "My brother is a househusband and looks after the two children.",
+          "note": "Plural: die Hausmänner. Weibliche Form: die Hausfrau."
+        },
+        {
+          "id": "thema_haus_kinderbetreuung",
+          "de": "die Kinderbetreuung",
+          "en": "the childcare",
+          "pos": "noun",
+          "example": "Gute Kinderbetreuung ist für berufstätige Eltern besonders wichtig.",
+          "exampleEn": "Good childcare is particularly important for working parents.",
+          "note": "Plural: die Kinderbetreuungen (selten). Meist ohne Plural."
+        },
+        {
+          "id": "thema_haus_erziehen",
+          "de": "erziehen",
+          "en": "to raise, to bring up",
+          "pos": "verb",
+          "example": "Eltern sollen ihre Kinder mit Geduld und Liebe erziehen.",
+          "exampleEn": "Parents should raise their children with patience and love.",
+          "note": "Perfekt: hat erzogen. Dritte Person Singular: er erzieht."
+        },
+        {
+          "id": "thema_haus_familienmitglied",
+          "de": "das Familienmitglied",
+          "en": "the family member",
+          "pos": "noun",
+          "example": "Jedes Familienmitglied hilft am Wochenende im Haushalt mit.",
+          "exampleEn": "Every family member helps with the housework at the weekend.",
+          "note": "Plural: die Familienmitglieder."
+        },
+        {
+          "id": "thema_haus_ehefrau",
+          "de": "die Ehefrau",
+          "en": "the wife",
+          "pos": "noun",
+          "example": "Seine Ehefrau arbeitet Teilzeit und studiert am Abend.",
+          "exampleEn": "His wife works part-time and studies in the evening.",
+          "note": "Plural: die Ehefrauen. Männliche Form: der Ehemann."
+        },
+        {
+          "id": "thema_haus_versorgen",
+          "de": "versorgen",
+          "en": "to look after, to provide for",
+          "pos": "verb",
+          "example": "Sie versorgt ihre kranke Mutter jeden Tag nach der Arbeit.",
+          "exampleEn": "She looks after her sick mother every day after work.",
+          "note": "Perfekt: hat versorgt. Mit Akkusativ: jemanden versorgen."
+        },
+        {
+          "id": "thema_haus_streit",
+          "de": "der Streit",
+          "en": "the argument, the quarrel",
+          "pos": "noun",
+          "example": "Wegen der Hausarbeit gibt es bei uns oft Streit.",
+          "exampleEn": "Because of the housework there are often arguments at our place.",
+          "note": "Plural: die Streite. Häufig: Streit haben, sich streiten."
+        },
+        {
+          "id": "thema_haus_gleichberechtigung",
+          "de": "die Gleichberechtigung",
+          "en": "the equal rights, equality",
+          "pos": "noun",
+          "example": "Gleichberechtigung beginnt für mich schon im eigenen Haushalt.",
+          "exampleEn": "For me, equal rights begin in one's own household.",
+          "note": "Plural: meist ohne Plural. Adjektiv: gleichberechtigt."
+        },
+        {
+          "id": "thema_haus_kuemmern",
+          "de": "sich kümmern",
+          "en": "to take care of, to look after",
+          "pos": "verb",
+          "example": "Am Nachmittag kümmere ich mich um meine kleine Schwester.",
+          "exampleEn": "In the afternoon I look after my little sister.",
+          "note": "Perfekt: hat sich gekümmert. Reflexiv: ich kümmere mich um ..."
+        },
+        {
+          "id": "thema_freizeit_verein",
+          "de": "der Verein",
+          "en": "the club, the association",
+          "pos": "noun",
+          "example": "Mein Verein organisiert jedes Jahr ein großes Sommerfest.",
+          "exampleEn": "My club organises a big summer festival every year.",
+          "note": "Plural: die Vereine."
+        },
+        {
+          "id": "thema_freizeit_mitglied",
+          "de": "das Mitglied",
+          "en": "the member",
+          "pos": "noun",
+          "example": "Als Mitglied muss man einen kleinen Beitrag pro Jahr zahlen.",
+          "exampleEn": "As a member you have to pay a small fee per year.",
+          "note": "Plural: die Mitglieder."
+        },
+        {
+          "id": "thema_freizeit_beitrag",
+          "de": "der Beitrag",
+          "en": "the fee, the contribution",
+          "pos": "noun",
+          "example": "Der Beitrag für den Verein kostet zwölf Euro im Monat.",
+          "exampleEn": "The fee for the club costs twelve euros a month.",
+          "note": "Plural: die Beiträge."
+        },
+        {
+          "id": "thema_freizeit_anmelden",
+          "de": "sich anmelden",
+          "en": "to register, to sign up",
+          "pos": "verb",
+          "example": "Ich möchte mich für den Yoga-Kurs am Dienstag anmelden.",
+          "exampleEn": "I would like to register for the yoga course on Tuesday.",
+          "note": "Perfekt: hat sich angemeldet. Nomen: die Anmeldung."
+        },
+        {
+          "id": "thema_freizeit_hobby",
+          "de": "das Hobby",
+          "en": "the hobby",
+          "pos": "noun",
+          "example": "Mein größtes Hobby ist Fotografieren in der freien Natur.",
+          "exampleEn": "My biggest hobby is photography in nature.",
+          "note": "Plural: die Hobbys."
+        },
+        {
+          "id": "thema_freizeit_freizeitgestaltung",
+          "de": "die Freizeitgestaltung",
+          "en": "the leisure activities, the organisation of free time",
+          "pos": "noun",
+          "example": "Die Freizeitgestaltung der Jugendlichen findet heute oft online statt.",
+          "exampleEn": "Young people's leisure activities often take place online today.",
+          "note": "Plural: meist ohne Plural."
+        },
+        {
+          "id": "thema_freizeit_mannschaft",
+          "de": "die Mannschaft",
+          "en": "the team",
+          "pos": "noun",
+          "example": "Unsere Mannschaft hat am Sonntag das wichtige Spiel gewonnen.",
+          "exampleEn": "Our team won the important match on Sunday.",
+          "note": "Plural: die Mannschaften."
+        },
+        {
+          "id": "thema_freizeit_training",
+          "de": "das Training",
+          "en": "the training",
+          "pos": "noun",
+          "example": "Das Training im Verein dauert immer eineinhalb Stunden.",
+          "exampleEn": "The training at the club always lasts one and a half hours.",
+          "note": "Plural: die Trainings."
+        },
+        {
+          "id": "thema_freizeit_teilnehmen",
+          "de": "teilnehmen",
+          "en": "to take part, to participate",
+          "pos": "verb",
+          "example": "Ich möchte an dem Kurs am Wochenende gern teilnehmen.",
+          "exampleEn": "I would like to take part in the course at the weekend.",
+          "note": "Perfekt: hat teilgenommen. Mit Dativ: an etwas teilnehmen."
+        },
+        {
+          "id": "thema_freizeit_mitgliedschaft",
+          "de": "die Mitgliedschaft",
+          "en": "the membership",
+          "pos": "noun",
+          "example": "Die Mitgliedschaft im Schwimmverein kostet leider ziemlich viel.",
+          "exampleEn": "Membership in the swimming club unfortunately costs quite a lot.",
+          "note": "Plural: die Mitgliedschaften."
+        },
+        {
+          "id": "thema_freizeit_ausflug",
+          "de": "der Ausflug",
+          "en": "the trip, the excursion",
+          "pos": "noun",
+          "example": "Am Samstag machen wir einen Ausflug in die Berge.",
+          "exampleEn": "On Saturday we are going on a trip to the mountains.",
+          "note": "Plural: die Ausflüge."
+        },
+        {
+          "id": "thema_freizeit_treffen",
+          "de": "sich treffen",
+          "en": "to meet",
+          "pos": "verb",
+          "example": "Wir treffen uns jeden Donnerstag im Jugendzentrum zum Spielen.",
+          "exampleEn": "We meet every Thursday at the youth centre to play.",
+          "note": "Perfekt: hat sich getroffen. Reflexiv: wir treffen uns."
+        },
+        {
+          "id": "thema_reise_unterkunft",
+          "de": "die Unterkunft",
+          "en": "the accommodation",
+          "pos": "noun",
+          "example": "Die Unterkunft am See war billig, aber sehr sauber.",
+          "exampleEn": "The accommodation by the lake was cheap but very clean.",
+          "note": "Plural: die Unterkünfte."
+        },
+        {
+          "id": "thema_reise_buchung",
+          "de": "die Buchung",
+          "en": "the booking",
+          "pos": "noun",
+          "example": "Nach der Buchung habe ich sofort eine Bestätigung per E-Mail bekommen.",
+          "exampleEn": "After the booking I immediately received a confirmation by email.",
+          "note": "Plural: die Buchungen."
+        },
+        {
+          "id": "thema_reise_fahrkarte",
+          "de": "die Fahrkarte",
+          "en": "the ticket",
+          "pos": "noun",
+          "example": "Am Automaten kaufe ich eine Fahrkarte für die Straßenbahn.",
+          "exampleEn": "At the machine I buy a ticket for the tram.",
+          "note": "Plural: die Fahrkarten."
+        },
+        {
+          "id": "thema_reise_umsteigen",
+          "de": "umsteigen",
+          "en": "to change trains, to transfer",
+          "pos": "verb",
+          "example": "In Köln muss ich in den Schnellzug nach Hamburg umsteigen.",
+          "exampleEn": "In Cologne I have to change to the express train to Hamburg.",
+          "note": "Perfekt: ist umgestiegen. Trennbares Verb, Perfekt mit 'sein'."
+        },
+        {
+          "id": "thema_reise_verspaetung",
+          "de": "die Verspätung",
+          "en": "the delay",
+          "pos": "noun",
+          "example": "Der Zug nach Berlin hat heute wieder zwanzig Minuten Verspätung.",
+          "exampleEn": "The train to Berlin is twenty minutes late again today.",
+          "note": "Plural: die Verspätungen."
+        },
+        {
+          "id": "thema_reise_aufenthalt",
+          "de": "der Aufenthalt",
+          "en": "the stay",
+          "pos": "noun",
+          "example": "Unser Aufenthalt in Wien dauerte leider nur drei Tage.",
+          "exampleEn": "Our stay in Vienna unfortunately lasted only three days.",
+          "note": "Plural: die Aufenthalte."
+        },
+        {
+          "id": "thema_reise_gleis",
+          "de": "das Gleis",
+          "en": "the platform, the track",
+          "pos": "noun",
+          "example": "Der Zug nach München fährt heute von Gleis sieben ab.",
+          "exampleEn": "The train to Munich departs from platform seven today.",
+          "note": "Plural: die Gleise."
+        },
+        {
+          "id": "thema_reise_reservierung",
+          "de": "die Reservierung",
+          "en": "the reservation",
+          "pos": "noun",
+          "example": "Ohne Reservierung bekommt man im Sommer schwer einen Platz.",
+          "exampleEn": "Without a reservation it is hard to get a seat in summer.",
+          "note": "Plural: die Reservierungen."
+        },
+        {
+          "id": "thema_reise_buchen",
+          "de": "buchen",
+          "en": "to book",
+          "pos": "verb",
+          "example": "Wir buchen die Reise nach Italien schon im Januar.",
+          "exampleEn": "We book the trip to Italy already in January.",
+          "note": "Perfekt: hat gebucht. Nomen: die Buchung."
+        },
+        {
+          "id": "thema_reise_koffer",
+          "de": "der Koffer",
+          "en": "the suitcase",
+          "pos": "noun",
+          "example": "Mein Koffer war zu schwer und ich musste extra zahlen.",
+          "exampleEn": "My suitcase was too heavy and I had to pay extra.",
+          "note": "Plural: die Koffer."
+        },
+        {
+          "id": "thema_reise_grenze",
+          "de": "die Grenze",
+          "en": "the border",
+          "pos": "noun",
+          "example": "An der Grenze mussten wir unsere Pässe zeigen.",
+          "exampleEn": "At the border we had to show our passports.",
+          "note": "Plural: die Grenzen."
+        },
+        {
+          "id": "thema_reise_verpassen",
+          "de": "verpassen",
+          "en": "to miss (a train, a bus)",
+          "pos": "verb",
+          "example": "Ich darf den letzten Bus auf keinen Fall verpassen.",
+          "exampleEn": "I must not miss the last bus under any circumstances.",
+          "note": "Perfekt: hat verpasst."
+        },
+        {
+          "id": "thema_gesundheit_schlafstoerung",
+          "de": "die Schlafstörung",
+          "en": "the sleep disorder, insomnia",
+          "pos": "noun",
+          "example": "Wegen der Schlafstörung bin ich morgens immer sehr müde.",
+          "exampleEn": "Because of the sleep disorder I am always very tired in the morning.",
+          "note": "Plural: die Schlafstörungen."
+        },
+        {
+          "id": "thema_gesundheit_beschwerden",
+          "de": "die Beschwerden",
+          "en": "the complaints, the symptoms",
+          "pos": "noun",
+          "example": "Der Arzt fragt zuerst nach meinen Beschwerden und meiner Vorgeschichte.",
+          "exampleEn": "The doctor first asks about my complaints and my medical history.",
+          "note": "Plural: die Beschwerden. Singular selten: die Beschwerde."
+        },
+        {
+          "id": "thema_gesundheit_termin",
+          "de": "der Termin",
+          "en": "the appointment",
+          "pos": "noun",
+          "example": "Beim Arzt bekommt man oft erst in zwei Wochen einen Termin.",
+          "exampleEn": "At the doctor's you often only get an appointment in two weeks.",
+          "note": "Plural: die Termine."
+        },
+        {
+          "id": "thema_gesundheit_verschreiben",
+          "de": "verschreiben",
+          "en": "to prescribe",
+          "pos": "verb",
+          "example": "Der Arzt hat mir ein starkes Medikament verschrieben.",
+          "exampleEn": "The doctor prescribed me a strong medication.",
+          "note": "Perfekt: hat verschrieben."
+        },
+        {
+          "id": "thema_gesundheit_krankenkasse",
+          "de": "die Krankenkasse",
+          "en": "the health insurance fund",
+          "pos": "noun",
+          "example": "Die Krankenkasse bezahlt in diesem Fall die ganze Behandlung.",
+          "exampleEn": "The health insurance pays for the whole treatment in this case.",
+          "note": "Plural: die Krankenkassen."
+        },
+        {
+          "id": "thema_gesundheit_erholen",
+          "de": "sich erholen",
+          "en": "to recover, to rest",
+          "pos": "verb",
+          "example": "Im Urlaub am Meer kann ich mich richtig gut erholen.",
+          "exampleEn": "On holiday by the sea I can really recover well.",
+          "note": "Perfekt: hat sich erholt. Reflexiv: ich erhole mich."
+        },
+        {
+          "id": "thema_gesundheit_rezept",
+          "de": "das Rezept",
+          "en": "the prescription",
+          "pos": "noun",
+          "example": "Das Rezept für die Tabletten muss ich in der Apotheke abholen.",
+          "exampleEn": "I have to pick up the prescription for the tablets at the pharmacy.",
+          "note": "Plural: die Rezepte. Achtung: 'das Rezept' ist auch ein Kochrezept."
+        },
+        {
+          "id": "thema_gesundheit_untersuchung",
+          "de": "die Untersuchung",
+          "en": "the examination, the check-up",
+          "pos": "noun",
+          "example": "Die Untersuchung beim Arzt hat zum Glück nichts Schlimmes gezeigt.",
+          "exampleEn": "Fortunately the examination at the doctor's showed nothing serious.",
+          "note": "Plural: die Untersuchungen."
+        },
+        {
+          "id": "thema_gesundheit_krankenhaus",
+          "de": "das Krankenhaus",
+          "en": "the hospital",
+          "pos": "noun",
+          "example": "Nach dem Unfall musste er zwei Wochen im Krankenhaus bleiben.",
+          "exampleEn": "After the accident he had to stay in hospital for two weeks.",
+          "note": "Plural: die Krankenhäuser."
+        },
+        {
+          "id": "thema_gesundheit_tablette",
+          "de": "die Tablette",
+          "en": "the tablet, the pill",
+          "pos": "noun",
+          "example": "Nimm die Tablette bitte immer nach dem Frühstück.",
+          "exampleEn": "Please always take the tablet after breakfast.",
+          "note": "Plural: die Tabletten."
+        },
+        {
+          "id": "thema_gesundheit_erkaelten",
+          "de": "sich erkälten",
+          "en": "to catch a cold",
+          "pos": "verb",
+          "example": "Im Winter erkälte ich mich leider fast jedes Jahr.",
+          "exampleEn": "In winter I unfortunately catch a cold almost every year.",
+          "note": "Perfekt: hat sich erkältet. Nomen: die Erkältung."
+        },
+        {
+          "id": "thema_gesundheit_behandlung",
+          "de": "die Behandlung",
+          "en": "the treatment",
+          "pos": "noun",
+          "example": "Die Behandlung beim Zahnarzt war teuer, aber nicht schmerzhaft.",
+          "exampleEn": "The treatment at the dentist was expensive but not painful.",
+          "note": "Plural: die Behandlungen."
+        },
+        {
+          "id": "thema_bildung_kurs",
+          "de": "der Kurs",
+          "en": "the course",
+          "pos": "noun",
+          "example": "Der Kurs für Computer und Internet beginnt nächsten Montag.",
+          "exampleEn": "The course for computers and internet starts next Monday.",
+          "note": "Plural: die Kurse."
+        },
+        {
+          "id": "thema_bildung_nachhilfe",
+          "de": "die Nachhilfe",
+          "en": "the tutoring, the private lessons",
+          "pos": "noun",
+          "example": "In Mathematik braucht mein Sohn dringend zweimal pro Woche Nachhilfe.",
+          "exampleEn": "In maths my son urgently needs tutoring twice a week.",
+          "note": "Plural: meist ohne Plural."
+        },
+        {
+          "id": "thema_bildung_zeugnis",
+          "de": "das Zeugnis",
+          "en": "the report, the certificate",
+          "pos": "noun",
+          "example": "Im Zeugnis hatte sie in allen Fächern gute Noten.",
+          "exampleEn": "In her report she had good grades in all subjects.",
+          "note": "Plural: die Zeugnisse."
+        },
+        {
+          "id": "thema_bildung_anmeldung",
+          "de": "die Anmeldung",
+          "en": "the registration",
+          "pos": "noun",
+          "example": "Die Anmeldung für den Sprachkurs ist nur online möglich.",
+          "exampleEn": "Registration for the language course is only possible online.",
+          "note": "Plural: die Anmeldungen."
+        },
+        {
+          "id": "thema_bildung_jugendclub",
+          "de": "der Jugendclub",
+          "en": "the youth club",
+          "pos": "noun",
+          "example": "Im Jugendclub können die Kinder nach der Schule spielen.",
+          "exampleEn": "At the youth club the children can play after school.",
+          "note": "Plural: die Jugendclubs. Auch möglich: das Jugendzentrum."
+        },
+        {
+          "id": "thema_bildung_ausbildung",
+          "de": "die Ausbildung",
+          "en": "the training, the vocational training",
+          "pos": "noun",
+          "example": "Nach der Schule beginnt sie eine Ausbildung als Krankenschwester.",
+          "exampleEn": "After school she begins training as a nurse.",
+          "note": "Plural: die Ausbildungen."
+        },
+        {
+          "id": "thema_bildung_pruefung",
+          "de": "die Prüfung",
+          "en": "the exam",
+          "pos": "noun",
+          "example": "Vor der Prüfung lerne ich jeden Abend zwei Stunden Vokabeln.",
+          "exampleEn": "Before the exam I study vocabulary for two hours every evening.",
+          "note": "Plural: die Prüfungen."
+        },
+        {
+          "id": "thema_bildung_abschluss",
+          "de": "der Abschluss",
+          "en": "the qualification, the degree",
+          "pos": "noun",
+          "example": "Mit einem guten Abschluss findet man leichter eine Stelle.",
+          "exampleEn": "With a good qualification it is easier to find a position.",
+          "note": "Plural: die Abschlüsse."
+        },
+        {
+          "id": "thema_bildung_bewerben",
+          "de": "sich bewerben",
+          "en": "to apply",
+          "pos": "verb",
+          "example": "Ich möchte mich für einen Studienplatz in Berlin bewerben.",
+          "exampleEn": "I would like to apply for a place at university in Berlin.",
+          "note": "Perfekt: hat sich beworben. Nomen: die Bewerbung."
+        },
+        {
+          "id": "thema_bildung_wiederholen",
+          "de": "wiederholen",
+          "en": "to repeat, to revise",
+          "pos": "verb",
+          "example": "Vor der Prüfung wiederhole ich die wichtigsten Grammatikregeln.",
+          "exampleEn": "Before the exam I revise the most important grammar rules.",
+          "note": "Perfekt: hat wiederholt."
+        },
+        {
+          "id": "thema_bildung_hausaufgabe",
+          "de": "die Hausaufgabe",
+          "en": "the homework",
+          "pos": "noun",
+          "example": "Die Hausaufgabe in Deutsch war heute besonders schwierig.",
+          "exampleEn": "The German homework was particularly difficult today.",
+          "note": "Plural: die Hausaufgaben."
+        },
+        {
+          "id": "thema_bildung_besuchen",
+          "de": "besuchen",
+          "en": "to attend, to visit",
+          "pos": "verb",
+          "example": "Meine Tochter besucht dreimal pro Woche einen Englischkurs.",
+          "exampleEn": "My daughter attends an English course three times a week.",
+          "note": "Perfekt: hat besucht."
+        },
+        {
+          "id": "thema_essen_speisekarte",
+          "de": "die Speisekarte",
+          "en": "the menu",
+          "pos": "noun",
+          "example": "Der Kellner brachte uns sofort die Speisekarte und die Getränkekarte.",
+          "exampleEn": "The waiter immediately brought us the menu and the drinks menu.",
+          "note": "Plural: die Speisekarten."
+        },
+        {
+          "id": "thema_essen_gericht",
+          "de": "das Gericht",
+          "en": "the dish, the meal",
+          "pos": "noun",
+          "example": "Das Gericht mit Fisch und Reis hat sehr gut geschmeckt.",
+          "exampleEn": "The dish with fish and rice tasted very good.",
+          "note": "Plural: die Gerichte."
+        },
+        {
+          "id": "thema_essen_bestellen",
+          "de": "bestellen",
+          "en": "to order",
+          "pos": "verb",
+          "example": "Wir bestellen heute Abend eine Pizza und einen Salat.",
+          "exampleEn": "Tonight we are ordering a pizza and a salad.",
+          "note": "Perfekt: hat bestellt."
+        },
+        {
+          "id": "thema_essen_zutat",
+          "de": "die Zutat",
+          "en": "the ingredient",
+          "pos": "noun",
+          "example": "Für dieses Rezept braucht man nur wenige frische Zutaten.",
+          "exampleEn": "For this recipe you need only a few fresh ingredients.",
+          "note": "Plural: die Zutaten. Meist im Plural verwendet."
+        },
+        {
+          "id": "thema_essen_mitnehmen",
+          "de": "mitnehmen",
+          "en": "to take away, to take with you",
+          "pos": "verb",
+          "example": "Ich möchte das Essen bitte mitnehmen, wir haben es eilig.",
+          "exampleEn": "I would like to take the food with me, please, we are in a hurry.",
+          "note": "Perfekt: hat mitgenommen. Trennbares Verb: ich nehme mit."
+        },
+        {
+          "id": "thema_essen_mahlzeit",
+          "de": "die Mahlzeit",
+          "en": "the meal",
+          "pos": "noun",
+          "example": "Die gemeinsame Mahlzeit am Abend ist für uns sehr wichtig.",
+          "exampleEn": "The shared meal in the evening is very important for us.",
+          "note": "Plural: die Mahlzeiten."
+        },
+        {
+          "id": "thema_essen_fruehstueck",
+          "de": "das Frühstück",
+          "en": "the breakfast",
+          "pos": "noun",
+          "example": "Im Hotel war das Frühstück im Preis schon enthalten.",
+          "exampleEn": "In the hotel breakfast was already included in the price.",
+          "note": "Plural: die Frühstücke."
+        },
+        {
+          "id": "thema_essen_rechnung",
+          "de": "die Rechnung",
+          "en": "the bill, the invoice",
+          "pos": "noun",
+          "example": "Der Kellner bringt am Ende die Rechnung an den Tisch.",
+          "exampleEn": "At the end the waiter brings the bill to the table.",
+          "note": "Plural: die Rechnungen."
+        },
+        {
+          "id": "thema_essen_probieren",
+          "de": "probieren",
+          "en": "to try, to taste",
+          "pos": "verb",
+          "example": "Möchtest du den Kuchen einmal probieren? Er ist selbst gebacken.",
+          "exampleEn": "Would you like to try the cake? It is home-made.",
+          "note": "Perfekt: hat probiert."
+        },
+        {
+          "id": "thema_essen_kellner",
+          "de": "der Kellner",
+          "en": "the waiter",
+          "pos": "noun",
+          "example": "Der Kellner hat uns freundlich zu einem freien Tisch begleitet.",
+          "exampleEn": "The waiter kindly accompanied us to a free table.",
+          "note": "Plural: die Kellner. Weibliche Form: die Kellnerin."
+        },
+        {
+          "id": "thema_essen_getraenk",
+          "de": "das Getränk",
+          "en": "the drink, the beverage",
+          "pos": "noun",
+          "example": "Als Getränk nehme ich lieber Wasser als Cola.",
+          "exampleEn": "As a drink I prefer water to cola.",
+          "note": "Plural: die Getränke."
+        },
+        {
+          "id": "thema_essen_schmecken",
+          "de": "schmecken",
+          "en": "to taste",
+          "pos": "verb",
+          "example": "Die Suppe schmeckt nach Knoblauch und frischen Kräutern.",
+          "exampleEn": "The soup tastes of garlic and fresh herbs.",
+          "note": "Perfekt: hat geschmeckt. Oft: Das schmeckt mir gut."
+        }
+      ]
+    }
+  ]
+}

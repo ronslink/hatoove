@@ -1,0 +1,2406 @@
+{
+  "level": "B1",
+  "source": "B1 core vocabulary for telc Deutsch B1",
+  "words": [
+    {
+      "de": "der Verwandte",
+      "en": "relative",
+      "pos": "noun",
+      "plural": "die Verwandten",
+      "example": "Meine Verwandten wohnen alle in Süddeutschland.",
+      "exampleEn": "All my relatives live in southern Germany."
+    },
+    {
+      "de": "die Erziehung",
+      "en": "upbringing, parenting",
+      "pos": "noun",
+      "plural": "die Erziehungen",
+      "example": "Die Erziehung der Kinder ist Aufgabe der Eltern.",
+      "exampleEn": "Bringing up children is the parents' responsibility."
+    },
+    {
+      "de": "der Ehemann",
+      "en": "husband",
+      "pos": "noun",
+      "plural": "die Ehemänner",
+      "example": "Ihr Ehemann arbeitet als Ingenieur bei einer großen Firma.",
+      "exampleEn": "Her husband works as an engineer at a large company."
+    },
+    {
+      "de": "die Ehefrau",
+      "en": "wife",
+      "pos": "noun",
+      "plural": "die Ehefrauen",
+      "example": "Seine Ehefrau kommt aus Österreich.",
+      "exampleEn": "His wife comes from Austria."
+    },
+    {
+      "de": "der Nachbar",
+      "en": "neighbour",
+      "pos": "noun",
+      "plural": "die Nachbarn",
+      "example": "Unser Nachbar hilft uns oft im Garten.",
+      "exampleEn": "Our neighbour often helps us in the garden."
+    },
+    {
+      "de": "das Ehepaar",
+      "en": "married couple",
+      "pos": "noun",
+      "plural": "die Ehepaare",
+      "example": "Das Ehepaar Müller hat zwei Kinder und einen Hund.",
+      "exampleEn": "The Müllers are a married couple with two children and a dog."
+    },
+    {
+      "de": "der Jugendliche",
+      "en": "young person, teenager",
+      "pos": "noun",
+      "plural": "die Jugendlichen",
+      "example": "Viele Jugendliche verbringen zu viel Zeit am Handy.",
+      "exampleEn": "Many young people spend too much time on their phones."
+    },
+    {
+      "de": "der Erwachsene",
+      "en": "adult",
+      "pos": "noun",
+      "plural": "die Erwachsenen",
+      "example": "Erwachsene brauchen genauso viel Schlaf wie Jugendliche.",
+      "exampleEn": "Adults need just as much sleep as young people."
+    },
+    {
+      "de": "das Verhältnis",
+      "en": "relationship, ratio",
+      "pos": "noun",
+      "plural": "die Verhältnisse",
+      "example": "Ich habe ein gutes Verhältnis zu meinen Eltern.",
+      "exampleEn": "I have a good relationship with my parents."
+    },
+    {
+      "de": "die Beziehung",
+      "en": "relationship",
+      "pos": "noun",
+      "plural": "die Beziehungen",
+      "example": "Nach zwei Jahren hat sie die Beziehung beendet.",
+      "exampleEn": "After two years she ended the relationship."
+    },
+    {
+      "de": "der Charakter",
+      "en": "character",
+      "pos": "noun",
+      "plural": "die Charaktere",
+      "example": "Mein Bruder hat einen ruhigen Charakter.",
+      "exampleEn": "My brother has a calm character."
+    },
+    {
+      "de": "die Eigenschaft",
+      "en": "quality, characteristic",
+      "pos": "noun",
+      "plural": "die Eigenschaften",
+      "example": "Geduld ist eine wichtige Eigenschaft im Beruf.",
+      "exampleEn": "Patience is an important quality at work."
+    },
+    {
+      "de": "der Bekannte",
+      "en": "acquaintance",
+      "pos": "noun",
+      "plural": "die Bekannten",
+      "example": "Ein Bekannter von mir arbeitet in Berlin.",
+      "exampleEn": "An acquaintance of mine works in Berlin."
+    },
+    {
+      "de": "die Freundschaft",
+      "en": "friendship",
+      "pos": "noun",
+      "plural": "die Freundschaften",
+      "example": "Unsere Freundschaft besteht schon seit der Schulzeit.",
+      "exampleEn": "Our friendship goes back to our school days."
+    },
+    {
+      "de": "das Vertrauen",
+      "en": "trust",
+      "pos": "noun",
+      "plural": "das Vertrauen",
+      "example": "Ohne Vertrauen kann eine Beziehung nicht funktionieren.",
+      "exampleEn": "Without trust a relationship cannot work."
+    },
+    {
+      "de": "die Verantwortung",
+      "en": "responsibility",
+      "pos": "noun",
+      "plural": "die Verantwortungen",
+      "example": "Als Vater trage ich die Verantwortung für meine Familie.",
+      "exampleEn": "As a father I carry the responsibility for my family."
+    },
+    {
+      "de": "der Elternteil",
+      "en": "parent",
+      "pos": "noun",
+      "plural": "die Elternteile",
+      "example": "Jeder Elternteil sollte Zeit mit dem Kind verbringen.",
+      "exampleEn": "Every parent should spend time with the child."
+    },
+    {
+      "de": "die Geschwister",
+      "en": "siblings",
+      "pos": "noun",
+      "plural": "die Geschwister",
+      "example": "Ich habe drei Geschwister, zwei Brüder und eine Schwester.",
+      "exampleEn": "I have three siblings, two brothers and one sister."
+    },
+    {
+      "de": "das Einzelkind",
+      "en": "only child",
+      "pos": "noun",
+      "plural": "die Einzelkinder",
+      "example": "Als Einzelkind hatte ich keine Geschwister.",
+      "exampleEn": "As an only child I had no siblings."
+    },
+    {
+      "de": "die Schwiegermutter",
+      "en": "mother-in-law",
+      "pos": "noun",
+      "plural": "die Schwiegermütter",
+      "example": "Meine Schwiegermutter kocht besser als ich.",
+      "exampleEn": "My mother-in-law cooks better than I do."
+    },
+    {
+      "de": "sich verlieben",
+      "en": "to fall in love",
+      "pos": "verb",
+      "plural": null,
+      "example": "Sie hat sich in ihren besten Freund verliebt.",
+      "exampleEn": "She has fallen in love with her best friend."
+    },
+    {
+      "de": "erziehen",
+      "en": "to bring up, to raise",
+      "pos": "verb",
+      "plural": null,
+      "example": "Meine Großmutter hat mich erzogen, weil meine Eltern viel arbeiten mussten.",
+      "exampleEn": "My grandmother raised me because my parents had to work a lot."
+    },
+    {
+      "de": "heiraten",
+      "en": "to marry",
+      "pos": "verb",
+      "plural": null,
+      "example": "Wir haben im Sommer in einer kleinen Kirche geheiratet.",
+      "exampleEn": "We got married in summer in a small church."
+    },
+    {
+      "de": "die Generation",
+      "en": "generation",
+      "pos": "noun",
+      "plural": "die Generationen",
+      "example": "Meine Generation denkt über dieses Thema anders.",
+      "exampleEn": "My generation thinks differently about this topic."
+    },
+    {
+      "de": "der Kontakt",
+      "en": "contact",
+      "pos": "noun",
+      "plural": "die Kontakte",
+      "example": "Ich habe noch guten Kontakt zu meinen alten Kollegen.",
+      "exampleEn": "I still have good contact with my old colleagues."
+    },
+    {
+      "de": "die Wohnung",
+      "en": "flat, apartment",
+      "pos": "noun",
+      "plural": "die Wohnungen",
+      "example": "Wir suchen eine größere Wohnung mit Balkon.",
+      "exampleEn": "We are looking for a bigger flat with a balcony."
+    },
+    {
+      "de": "die Miete",
+      "en": "rent",
+      "pos": "noun",
+      "plural": "die Mieten",
+      "example": "Die Miete in der Innenstadt ist sehr hoch.",
+      "exampleEn": "The rent in the city centre is very high."
+    },
+    {
+      "de": "der Vermieter",
+      "en": "landlord",
+      "pos": "noun",
+      "plural": "die Vermieter",
+      "example": "Unser Vermieter hat die Miete leider erhöht.",
+      "exampleEn": "Unfortunately our landlord has raised the rent."
+    },
+    {
+      "de": "der Mieter",
+      "en": "tenant",
+      "pos": "noun",
+      "plural": "die Mieter",
+      "example": "Die Mieter müssen die Nebenkosten selbst bezahlen.",
+      "exampleEn": "The tenants have to pay the additional costs themselves."
+    },
+    {
+      "de": "die Nebenkosten",
+      "en": "additional costs, utilities",
+      "pos": "noun",
+      "plural": "die Nebenkosten",
+      "example": "In den Nebenkosten sind Wasser und Heizung enthalten.",
+      "exampleEn": "Water and heating are included in the additional costs."
+    },
+    {
+      "de": "die Möbel",
+      "en": "furniture",
+      "pos": "noun",
+      "plural": "die Möbel",
+      "example": "Unsere neuen Möbel kommen nächste Woche.",
+      "exampleEn": "Our new furniture is arriving next week."
+    },
+    {
+      "de": "der Schrank",
+      "en": "wardrobe, cupboard",
+      "pos": "noun",
+      "plural": "die Schränke",
+      "example": "Die Kleidung hängt im Schrank.",
+      "exampleEn": "The clothes are hanging in the wardrobe."
+    },
+    {
+      "de": "das Regal",
+      "en": "shelf",
+      "pos": "noun",
+      "plural": "die Regale",
+      "example": "Die Bücher stehen im Regal neben dem Fenster.",
+      "exampleEn": "The books are on the shelf next to the window."
+    },
+    {
+      "de": "der Teppich",
+      "en": "carpet, rug",
+      "pos": "noun",
+      "plural": "die Teppiche",
+      "example": "Im Wohnzimmer liegt ein bunter Teppich.",
+      "exampleEn": "There is a colourful carpet in the living room."
+    },
+    {
+      "de": "die Heizung",
+      "en": "heating",
+      "pos": "noun",
+      "plural": "die Heizungen",
+      "example": "Im Winter funktioniert die Heizung oft nicht richtig.",
+      "exampleEn": "In winter the heating often does not work properly."
+    },
+    {
+      "de": "der Aufzug",
+      "en": "lift, elevator",
+      "pos": "noun",
+      "plural": "die Aufzüge",
+      "example": "Der Aufzug ist leider schon wieder kaputt.",
+      "exampleEn": "Unfortunately the lift is broken again."
+    },
+    {
+      "de": "der Keller",
+      "en": "cellar, basement",
+      "pos": "noun",
+      "plural": "die Keller",
+      "example": "Die Fahrräder stehen bei uns im Keller.",
+      "exampleEn": "Our bicycles are kept in the cellar."
+    },
+    {
+      "de": "der Balkon",
+      "en": "balcony",
+      "pos": "noun",
+      "plural": "die Balkone",
+      "example": "Am Abend sitzen wir gern auf dem Balkon.",
+      "exampleEn": "In the evening we like sitting on the balcony."
+    },
+    {
+      "de": "der Umzug",
+      "en": "move (to a new home)",
+      "pos": "noun",
+      "plural": "die Umzüge",
+      "example": "Der Umzug in die neue Wohnung war sehr anstrengend.",
+      "exampleEn": "The move into the new flat was very exhausting."
+    },
+    {
+      "de": "umziehen",
+      "en": "to move house",
+      "pos": "verb",
+      "plural": null,
+      "example": "Letztes Jahr sind wir nach Hamburg umgezogen.",
+      "exampleEn": "Last year we moved to Hamburg."
+    },
+    {
+      "de": "die Nachbarschaft",
+      "en": "neighbourhood",
+      "pos": "noun",
+      "plural": "die Nachbarschaften",
+      "example": "In unserer Nachbarschaft wohnen viele Familien mit Kindern.",
+      "exampleEn": "Many families with children live in our neighbourhood."
+    },
+    {
+      "de": "das Erdgeschoss",
+      "en": "ground floor",
+      "pos": "noun",
+      "plural": "die Erdgeschosse",
+      "example": "Unsere Wohnung liegt im Erdgeschoss.",
+      "exampleEn": "Our flat is on the ground floor."
+    },
+    {
+      "de": "die Etage",
+      "en": "floor, storey",
+      "pos": "noun",
+      "plural": "die Etagen",
+      "example": "Wir wohnen in der dritten Etage ohne Aufzug.",
+      "exampleEn": "We live on the third floor without a lift."
+    },
+    {
+      "de": "die Einrichtung",
+      "en": "furnishings, equipment",
+      "pos": "noun",
+      "plural": "die Einrichtungen",
+      "example": "Die Einrichtung des Zimmers ist sehr modern.",
+      "exampleEn": "The furnishings of the room are very modern."
+    },
+    {
+      "de": "renovieren",
+      "en": "to renovate",
+      "pos": "verb",
+      "plural": null,
+      "example": "Wir wollen das Badezimmer im Frühling renovieren.",
+      "exampleEn": "We want to renovate the bathroom in spring."
+    },
+    {
+      "de": "die Kaution",
+      "en": "deposit",
+      "pos": "noun",
+      "plural": "die Kautionen",
+      "example": "Für die Wohnung mussten wir eine Kaution bezahlen.",
+      "exampleEn": "We had to pay a deposit for the flat."
+    },
+    {
+      "de": "der Mietvertrag",
+      "en": "lease, rental agreement",
+      "pos": "noun",
+      "plural": "die Mietverträge",
+      "example": "Den Mietvertrag haben wir für zwei Jahre unterschrieben.",
+      "exampleEn": "We signed the lease for two years."
+    },
+    {
+      "de": "die Wohngemeinschaft",
+      "en": "flat share",
+      "pos": "noun",
+      "plural": "die Wohngemeinschaften",
+      "example": "In der Wohngemeinschaft teilen wir uns die Küche.",
+      "exampleEn": "In the flat share we share the kitchen."
+    },
+    {
+      "de": "der Quadratmeter",
+      "en": "square metre",
+      "pos": "noun",
+      "plural": "die Quadratmeter",
+      "example": "Die Wohnung hat etwa siebzig Quadratmeter.",
+      "exampleEn": "The flat has about seventy square metres."
+    },
+    {
+      "de": "gemütlich",
+      "en": "cosy, comfortable",
+      "pos": "adj",
+      "plural": null,
+      "example": "Unser Wohnzimmer ist klein, aber sehr gemütlich.",
+      "exampleEn": "Our living room is small but very cosy."
+    },
+    {
+      "de": "der Arbeitgeber",
+      "en": "employer",
+      "pos": "noun",
+      "plural": "die Arbeitgeber",
+      "example": "Mein Arbeitgeber bezahlt mir die Fahrkarte für den Bus.",
+      "exampleEn": "My employer pays for my bus ticket."
+    },
+    {
+      "de": "der Arbeitnehmer",
+      "en": "employee",
+      "pos": "noun",
+      "plural": "die Arbeitnehmer",
+      "example": "Die Arbeitnehmer fordern höhere Löhne.",
+      "exampleEn": "The employees are demanding higher wages."
+    },
+    {
+      "de": "die Bewerbung",
+      "en": "application",
+      "pos": "noun",
+      "plural": "die Bewerbungen",
+      "example": "Ich habe meine Bewerbung gestern per E-Mail geschickt.",
+      "exampleEn": "I sent my application by email yesterday."
+    },
+    {
+      "de": "das Bewerbungsgespräch",
+      "en": "job interview",
+      "pos": "noun",
+      "plural": "die Bewerbungsgespräche",
+      "example": "Das Bewerbungsgespräch hat fast eine Stunde gedauert.",
+      "exampleEn": "The job interview lasted almost an hour."
+    },
+    {
+      "de": "der Lebenslauf",
+      "en": "CV, résumé",
+      "pos": "noun",
+      "plural": "die Lebensläufe",
+      "example": "Im Lebenslauf müssen alle Stationen genau stehen.",
+      "exampleEn": "All your stations must be listed precisely in your CV."
+    },
+    {
+      "de": "die Stelle",
+      "en": "position, job",
+      "pos": "noun",
+      "plural": "die Stellen",
+      "example": "Sie hat eine neue Stelle als Verkäuferin gefunden.",
+      "exampleEn": "She has found a new position as a sales assistant."
+    },
+    {
+      "de": "der Kollege",
+      "en": "colleague",
+      "pos": "noun",
+      "plural": "die Kollegen",
+      "example": "Meine Kollegen sind sehr freundlich und hilfsbereit.",
+      "exampleEn": "My colleagues are very friendly and helpful."
+    },
+    {
+      "de": "die Kollegin",
+      "en": "colleague (female)",
+      "pos": "noun",
+      "plural": "die Kolleginnen",
+      "example": "Meine Kollegin hilft mir oft bei schwierigen Aufgaben.",
+      "exampleEn": "My colleague often helps me with difficult tasks."
+    },
+    {
+      "de": "der Vorgesetzte",
+      "en": "superior, boss",
+      "pos": "noun",
+      "plural": "die Vorgesetzten",
+      "example": "Mein Vorgesetzter ist mit meiner Arbeit sehr zufrieden.",
+      "exampleEn": "My superior is very satisfied with my work."
+    },
+    {
+      "de": "die Erfahrung",
+      "en": "experience",
+      "pos": "noun",
+      "plural": "die Erfahrungen",
+      "example": "Ich habe drei Jahre Erfahrung im Verkauf gesammelt.",
+      "exampleEn": "I have gathered three years of experience in sales."
+    },
+    {
+      "de": "die Qualifikation",
+      "en": "qualification",
+      "pos": "noun",
+      "plural": "die Qualifikationen",
+      "example": "Für diese Stelle braucht man eine gute Qualifikation.",
+      "exampleEn": "You need a good qualification for this position."
+    },
+    {
+      "de": "die Karriere",
+      "en": "career",
+      "pos": "noun",
+      "plural": "die Karrieren",
+      "example": "Sie hat in kurzer Zeit eine steile Karriere gemacht.",
+      "exampleEn": "She has had a rapid career in a short time."
+    },
+    {
+      "de": "das Gehalt",
+      "en": "salary",
+      "pos": "noun",
+      "plural": "die Gehälter",
+      "example": "Das Gehalt ist gut, aber die Arbeit ist sehr stressig.",
+      "exampleEn": "The salary is good, but the work is very stressful."
+    },
+    {
+      "de": "der Lohn",
+      "en": "wage",
+      "pos": "noun",
+      "plural": "die Löhne",
+      "example": "Die Mitarbeiter wollen einen höheren Lohn.",
+      "exampleEn": "The employees want a higher wage."
+    },
+    {
+      "de": "die Überstunde",
+      "en": "overtime hour",
+      "pos": "noun",
+      "plural": "die Überstunden",
+      "example": "Ich habe diese Woche viele Überstunden gemacht.",
+      "exampleEn": "I worked a lot of overtime this week."
+    },
+    {
+      "de": "die Kündigung",
+      "en": "notice, termination",
+      "pos": "noun",
+      "plural": "die Kündigungen",
+      "example": "Nach der Kündigung sucht er sofort eine neue Arbeit.",
+      "exampleEn": "After the termination he is immediately looking for a new job."
+    },
+    {
+      "de": "kündigen",
+      "en": "to give notice, to quit",
+      "pos": "verb",
+      "plural": null,
+      "example": "Weil die Firma sparen muss, hat sie zehn Mitarbeiter gekündigt.",
+      "exampleEn": "Because the company has to save money, it has given ten employees notice."
+    },
+    {
+      "de": "die Teilzeit",
+      "en": "part-time work",
+      "pos": "noun",
+      "plural": "die Teilzeiten",
+      "example": "Nach der Geburt arbeitet sie nur noch in Teilzeit.",
+      "exampleEn": "After the birth she only works part-time."
+    },
+    {
+      "de": "die Besprechung",
+      "en": "meeting, discussion",
+      "pos": "noun",
+      "plural": "die Besprechungen",
+      "example": "Die Besprechung dauert leider länger als geplant.",
+      "exampleEn": "Unfortunately the meeting is taking longer than planned."
+    },
+    {
+      "de": "die Aufgabe",
+      "en": "task, duty",
+      "pos": "noun",
+      "plural": "die Aufgaben",
+      "example": "Meine Aufgabe ist es, die Kunden gut zu beraten.",
+      "exampleEn": "My task is to advise the customers well."
+    },
+    {
+      "de": "der Kunde",
+      "en": "customer, client",
+      "pos": "noun",
+      "plural": "die Kunden",
+      "example": "Der Kunde hat sich über die späte Lieferung beschwert.",
+      "exampleEn": "The customer complained about the late delivery."
+    },
+    {
+      "de": "die Abteilung",
+      "en": "department",
+      "pos": "noun",
+      "plural": "die Abteilungen",
+      "example": "Ich arbeite in der Abteilung für Marketing.",
+      "exampleEn": "I work in the marketing department."
+    },
+    {
+      "de": "zuständig",
+      "en": "responsible (for), in charge",
+      "pos": "adj",
+      "plural": null,
+      "example": "Für diese Frage ist meine Kollegin zuständig.",
+      "exampleEn": "My colleague is responsible for this question."
+    },
+    {
+      "de": "fleißig",
+      "en": "hard-working, diligent",
+      "pos": "adj",
+      "plural": null,
+      "example": "Sie ist sehr fleißig und lernt jeden Abend zwei Stunden.",
+      "exampleEn": "She is very hard-working and studies for two hours every evening."
+    },
+    {
+      "de": "arbeitslos",
+      "en": "unemployed",
+      "pos": "adj",
+      "plural": null,
+      "example": "Nach der Kündigung war er sechs Monate arbeitslos.",
+      "exampleEn": "After being made redundant he was unemployed for six months."
+    },
+    {
+      "de": "die Ausbildung",
+      "en": "vocational training, apprenticeship",
+      "pos": "noun",
+      "plural": "die Ausbildungen",
+      "example": "Nach der Schule macht sie eine Ausbildung als Krankenschwester.",
+      "exampleEn": "After school she is doing training as a nurse."
+    },
+    {
+      "de": "der Studiengang",
+      "en": "degree course",
+      "pos": "noun",
+      "plural": "die Studiengänge",
+      "example": "Mein Studiengang dauert insgesamt sechs Semester.",
+      "exampleEn": "My degree course lasts six semesters in total."
+    },
+    {
+      "de": "die Universität",
+      "en": "university",
+      "pos": "noun",
+      "plural": "die Universitäten",
+      "example": "Sie studiert Medizin an der Universität Heidelberg.",
+      "exampleEn": "She studies medicine at Heidelberg University."
+    },
+    {
+      "de": "die Vorlesung",
+      "en": "lecture",
+      "pos": "noun",
+      "plural": "die Vorlesungen",
+      "example": "Die Vorlesung beginnt heute schon um acht Uhr.",
+      "exampleEn": "The lecture starts at eight o'clock today."
+    },
+    {
+      "de": "das Seminar",
+      "en": "seminar",
+      "pos": "noun",
+      "plural": "die Seminare",
+      "example": "Im Seminar müssen wir nächste Woche ein Referat halten.",
+      "exampleEn": "In the seminar we have to give a presentation next week."
+    },
+    {
+      "de": "die Prüfung",
+      "en": "exam",
+      "pos": "noun",
+      "plural": "die Prüfungen",
+      "example": "Ich habe die Prüfung beim ersten Versuch bestanden.",
+      "exampleEn": "I passed the exam on the first attempt."
+    },
+    {
+      "de": "bestehen",
+      "en": "to pass (an exam)",
+      "pos": "verb",
+      "plural": null,
+      "example": "Nur die Hälfte der Teilnehmer hat die Prüfung bestanden.",
+      "exampleEn": "Only half of the participants passed the exam."
+    },
+    {
+      "de": "durchfallen",
+      "en": "to fail (an exam)",
+      "pos": "verb",
+      "plural": null,
+      "example": "Er ist in der Prüfung durchgefallen, weil er kaum gelernt hat.",
+      "exampleEn": "He failed the exam because he hardly studied."
+    },
+    {
+      "de": "die Note",
+      "en": "mark, grade",
+      "pos": "noun",
+      "plural": "die Noten",
+      "example": "Sie hat in Mathematik immer gute Noten.",
+      "exampleEn": "She always gets good marks in maths."
+    },
+    {
+      "de": "das Zeugnis",
+      "en": "certificate, school report",
+      "pos": "noun",
+      "plural": "die Zeugnisse",
+      "example": "Am Ende des Schuljahres bekommen wir ein Zeugnis.",
+      "exampleEn": "At the end of the school year we get a report."
+    },
+    {
+      "de": "die Hausaufgabe",
+      "en": "homework",
+      "pos": "noun",
+      "plural": "die Hausaufgaben",
+      "example": "Die Hausaufgaben mache ich meistens am Abend.",
+      "exampleEn": "I usually do my homework in the evening."
+    },
+    {
+      "de": "der Unterricht",
+      "en": "lessons, classes",
+      "pos": "noun",
+      "plural": "die Unterrichte",
+      "example": "Der Unterricht fängt pünktlich um neun Uhr an.",
+      "exampleEn": "The lessons start punctually at nine o'clock."
+    },
+    {
+      "de": "der Lehrer",
+      "en": "teacher",
+      "pos": "noun",
+      "plural": "die Lehrer",
+      "example": "Unser Lehrer erklärt die Grammatik sehr geduldig.",
+      "exampleEn": "Our teacher explains the grammar very patiently."
+    },
+    {
+      "de": "die Lehrerin",
+      "en": "teacher (female)",
+      "pos": "noun",
+      "plural": "die Lehrerinnen",
+      "example": "Die Lehrerin hat uns ein neues Buch empfohlen.",
+      "exampleEn": "The teacher recommended a new book to us."
+    },
+    {
+      "de": "der Kurs",
+      "en": "course",
+      "pos": "noun",
+      "plural": "die Kurse",
+      "example": "Ich besuche einen Deutschkurs an der Volkshochschule.",
+      "exampleEn": "I am taking a German course at the adult education centre."
+    },
+    {
+      "de": "das Fach",
+      "en": "subject",
+      "pos": "noun",
+      "plural": "die Fächer",
+      "example": "Mein Lieblingsfach in der Schule war Geschichte.",
+      "exampleEn": "My favourite subject at school was history."
+    },
+    {
+      "de": "die Kenntnis",
+      "en": "knowledge, skill",
+      "pos": "noun",
+      "plural": "die Kenntnisse",
+      "example": "Meine Kenntnisse in Mathematik sind nicht besonders gut.",
+      "exampleEn": "My knowledge of mathematics is not particularly good."
+    },
+    {
+      "de": "das Wissen",
+      "en": "knowledge",
+      "pos": "noun",
+      "plural": "das Wissen",
+      "example": "Sein Wissen über Computer ist wirklich beeindruckend.",
+      "exampleEn": "His knowledge about computers is really impressive."
+    },
+    {
+      "de": "das Studium",
+      "en": "studies, degree",
+      "pos": "noun",
+      "plural": "die Studien",
+      "example": "Sie hat ihr Studium nach zwei Jahren abgebrochen.",
+      "exampleEn": "She dropped out of her studies after two years."
+    },
+    {
+      "de": "der Abschluss",
+      "en": "degree, qualification",
+      "pos": "noun",
+      "plural": "die Abschlüsse",
+      "example": "Nach dem Abschluss möchte er ein Jahr ins Ausland gehen.",
+      "exampleEn": "After graduating he wants to go abroad for a year."
+    },
+    {
+      "de": "die Nachhilfe",
+      "en": "private tuition",
+      "pos": "noun",
+      "plural": "die Nachhilfen",
+      "example": "Mein Sohn bekommt zweimal pro Woche Nachhilfe in Englisch.",
+      "exampleEn": "My son gets English tutoring twice a week."
+    },
+    {
+      "de": "der Mitschüler",
+      "en": "classmate",
+      "pos": "noun",
+      "plural": "die Mitschüler",
+      "example": "Meine Mitschüler und ich lernen zusammen für die Prüfung.",
+      "exampleEn": "My classmates and I study together for the exam."
+    },
+    {
+      "de": "üben",
+      "en": "to practise",
+      "pos": "verb",
+      "plural": null,
+      "example": "Ich muss noch viel üben, bevor ich die Prüfung mache.",
+      "exampleEn": "I still have to practise a lot before I take the exam."
+    },
+    {
+      "de": "wiederholen",
+      "en": "to repeat, to revise",
+      "pos": "verb",
+      "plural": null,
+      "example": "Vor der Prüfung wiederhole ich alle Vokabeln noch einmal.",
+      "exampleEn": "Before the exam I revise all the vocabulary once more."
+    },
+    {
+      "de": "das Referat",
+      "en": "presentation, paper",
+      "pos": "noun",
+      "plural": "die Referate",
+      "example": "Ich halte nächste Woche ein Referat über Umweltschutz.",
+      "exampleEn": "Next week I am giving a presentation about environmental protection."
+    },
+    {
+      "de": "das Geschäft",
+      "en": "shop, business",
+      "pos": "noun",
+      "plural": "die Geschäfte",
+      "example": "Das Geschäft schließt heute schon um achtzehn Uhr.",
+      "exampleEn": "The shop closes at six o'clock today."
+    },
+    {
+      "de": "der Einkauf",
+      "en": "purchase, shopping",
+      "pos": "noun",
+      "plural": "die Einkäufe",
+      "example": "Der Einkauf im Supermarkt war diesmal ziemlich teuer.",
+      "exampleEn": "The shopping at the supermarket was quite expensive this time."
+    },
+    {
+      "de": "die Kasse",
+      "en": "checkout, cash desk",
+      "pos": "noun",
+      "plural": "die Kassen",
+      "example": "An der Kasse standen viele Leute mit vollen Körben.",
+      "exampleEn": "Many people with full baskets were standing at the checkout."
+    },
+    {
+      "de": "die Quittung",
+      "en": "receipt",
+      "pos": "noun",
+      "plural": "die Quittungen",
+      "example": "Kann ich bitte eine Quittung bekommen?",
+      "exampleEn": "Could I please have a receipt?"
+    },
+    {
+      "de": "der Preis",
+      "en": "price",
+      "pos": "noun",
+      "plural": "die Preise",
+      "example": "Die Preise für Obst sind in diesem Jahr stark gestiegen.",
+      "exampleEn": "The prices for fruit have risen sharply this year."
+    },
+    {
+      "de": "das Angebot",
+      "en": "offer, special offer",
+      "pos": "noun",
+      "plural": "die Angebote",
+      "example": "Diese Woche gibt es Milch und Käse im Angebot.",
+      "exampleEn": "This week milk and cheese are on special offer."
+    },
+    {
+      "de": "der Rabatt",
+      "en": "discount",
+      "pos": "noun",
+      "plural": "die Rabatte",
+      "example": "Auf alle Schuhe gibt es heute zehn Prozent Rabatt.",
+      "exampleEn": "There is a ten percent discount on all shoes today."
+    },
+    {
+      "de": "die Rechnung",
+      "en": "bill, invoice",
+      "pos": "noun",
+      "plural": "die Rechnungen",
+      "example": "Die Rechnung können Sie auch mit Karte bezahlen.",
+      "exampleEn": "You can also pay the bill by card."
+    },
+    {
+      "de": "bezahlen",
+      "en": "to pay",
+      "pos": "verb",
+      "plural": null,
+      "example": "Ich möchte bitte mit Karte bezahlen.",
+      "exampleEn": "I would like to pay by card, please."
+    },
+    {
+      "de": "die Kreditkarte",
+      "en": "credit card",
+      "pos": "noun",
+      "plural": "die Kreditkarten",
+      "example": "Kann ich hier auch mit Kreditkarte zahlen?",
+      "exampleEn": "Can I also pay by credit card here?"
+    },
+    {
+      "de": "das Kleingeld",
+      "en": "small change",
+      "pos": "noun",
+      "plural": "das Kleingeld",
+      "example": "Hast du Kleingeld für den Automaten?",
+      "exampleEn": "Do you have small change for the machine?"
+    },
+    {
+      "de": "der Verkäufer",
+      "en": "salesman, shop assistant",
+      "pos": "noun",
+      "plural": "die Verkäufer",
+      "example": "Der Verkäufer hat mir eine andere Größe gebracht.",
+      "exampleEn": "The shop assistant brought me a different size."
+    },
+    {
+      "de": "die Verkäuferin",
+      "en": "saleswoman, shop assistant (female)",
+      "pos": "noun",
+      "plural": "die Verkäuferinnen",
+      "example": "Die Verkäuferin war sehr freundlich und hat mir alles erklärt.",
+      "exampleEn": "The shop assistant was very friendly and explained everything to me."
+    },
+    {
+      "de": "die Ware",
+      "en": "goods, merchandise",
+      "pos": "noun",
+      "plural": "die Waren",
+      "example": "Die Ware ist leider beschädigt bei uns angekommen.",
+      "exampleEn": "Unfortunately the goods arrived with us damaged."
+    },
+    {
+      "de": "umtauschen",
+      "en": "to exchange",
+      "pos": "verb",
+      "plural": null,
+      "example": "Kann ich diese Hose umtauschen, wenn sie nicht passt?",
+      "exampleEn": "Can I exchange these trousers if they don't fit?"
+    },
+    {
+      "de": "die Größe",
+      "en": "size",
+      "pos": "noun",
+      "plural": "die Größen",
+      "example": "Haben Sie das Hemd auch in einer größeren Größe?",
+      "exampleEn": "Do you have the shirt in a larger size as well?"
+    },
+    {
+      "de": "die Qualität",
+      "en": "quality",
+      "pos": "noun",
+      "plural": "die Qualitäten",
+      "example": "Bei Kleidung achte ich immer auf gute Qualität.",
+      "exampleEn": "When it comes to clothes I always look for good quality."
+    },
+    {
+      "de": "der Verbraucher",
+      "en": "consumer",
+      "pos": "noun",
+      "plural": "die Verbraucher",
+      "example": "Die Verbraucher beschweren sich über die hohen Preise.",
+      "exampleEn": "Consumers are complaining about the high prices."
+    },
+    {
+      "de": "günstig",
+      "en": "cheap, favourable",
+      "pos": "adj",
+      "plural": null,
+      "example": "In diesem Laden sind die Preise besonders günstig.",
+      "exampleEn": "In this shop the prices are particularly cheap."
+    },
+    {
+      "de": "die Lieferung",
+      "en": "delivery",
+      "pos": "noun",
+      "plural": "die Lieferungen",
+      "example": "Die Lieferung dauert normalerweise drei bis vier Tage.",
+      "exampleEn": "The delivery usually takes three to four days."
+    },
+    {
+      "de": "bestellen",
+      "en": "to order",
+      "pos": "verb",
+      "plural": null,
+      "example": "Ich habe das Buch gestern online bestellt.",
+      "exampleEn": "I ordered the book online yesterday."
+    },
+    {
+      "de": "das Sonderangebot",
+      "en": "special offer",
+      "pos": "noun",
+      "plural": "die Sonderangebote",
+      "example": "Im Sonderangebot kostet das nur fünf Euro.",
+      "exampleEn": "In the special offer it only costs five euros."
+    },
+    {
+      "de": "der Supermarkt",
+      "en": "supermarket",
+      "pos": "noun",
+      "plural": "die Supermärkte",
+      "example": "Ich gehe zweimal pro Woche in den Supermarkt.",
+      "exampleEn": "I go to the supermarket twice a week."
+    },
+    {
+      "de": "sparen",
+      "en": "to save (money)",
+      "pos": "verb",
+      "plural": null,
+      "example": "Wir sparen jeden Monat Geld für den Urlaub.",
+      "exampleEn": "We save money every month for our holiday."
+    },
+    {
+      "de": "ausgeben",
+      "en": "to spend",
+      "pos": "verb",
+      "plural": null,
+      "example": "Ich habe am Wochenende viel Geld ausgegeben.",
+      "exampleEn": "I spent a lot of money at the weekend."
+    },
+    {
+      "de": "die Gesundheit",
+      "en": "health",
+      "pos": "noun",
+      "plural": "die Gesundheit",
+      "example": "Gesundheit ist wichtiger als Geld.",
+      "exampleEn": "Health is more important than money."
+    },
+    {
+      "de": "der Arzt",
+      "en": "doctor",
+      "pos": "noun",
+      "plural": "die Ärzte",
+      "example": "Ich muss morgen früh zum Arzt gehen.",
+      "exampleEn": "I have to go to the doctor tomorrow morning."
+    },
+    {
+      "de": "die Ärztin",
+      "en": "doctor (female)",
+      "pos": "noun",
+      "plural": "die Ärztinnen",
+      "example": "Die Ärztin hat mir ein Rezept ausgestellt.",
+      "exampleEn": "The doctor wrote me a prescription."
+    },
+    {
+      "de": "die Praxis",
+      "en": "doctor's practice, surgery",
+      "pos": "noun",
+      "plural": "die Praxen",
+      "example": "Die Praxis ist am Mittwochnachmittag geschlossen.",
+      "exampleEn": "The practice is closed on Wednesday afternoon."
+    },
+    {
+      "de": "die Krankheit",
+      "en": "illness, disease",
+      "pos": "noun",
+      "plural": "die Krankheiten",
+      "example": "Nach einer langen Krankheit ist er endlich wieder gesund.",
+      "exampleEn": "After a long illness he is finally healthy again."
+    },
+    {
+      "de": "krank",
+      "en": "ill, sick",
+      "pos": "adj",
+      "plural": null,
+      "example": "Ich war letzte Woche drei Tage krank.",
+      "exampleEn": "I was ill for three days last week."
+    },
+    {
+      "de": "die Erkältung",
+      "en": "cold (illness)",
+      "pos": "noun",
+      "plural": "die Erkältungen",
+      "example": "Im Winter habe ich oft eine starke Erkältung.",
+      "exampleEn": "In winter I often have a bad cold."
+    },
+    {
+      "de": "das Fieber",
+      "en": "fever",
+      "pos": "noun",
+      "plural": "das Fieber",
+      "example": "Das Kind hat hohes Fieber und muss im Bett bleiben.",
+      "exampleEn": "The child has a high fever and has to stay in bed."
+    },
+    {
+      "de": "der Husten",
+      "en": "cough",
+      "pos": "noun",
+      "plural": "der Husten",
+      "example": "Mein Husten wird einfach nicht besser.",
+      "exampleEn": "My cough just won't get better."
+    },
+    {
+      "de": "die Schmerzen",
+      "en": "pain, aches",
+      "pos": "noun",
+      "plural": "die Schmerzen",
+      "example": "Ich habe seit gestern starke Schmerzen im Rücken.",
+      "exampleEn": "I have had severe pain in my back since yesterday."
+    },
+    {
+      "de": "die Tablette",
+      "en": "tablet, pill",
+      "pos": "noun",
+      "plural": "die Tabletten",
+      "example": "Nehmen Sie die Tabletten dreimal täglich nach dem Essen.",
+      "exampleEn": "Take the tablets three times a day after meals."
+    },
+    {
+      "de": "das Medikament",
+      "en": "medicine, medication",
+      "pos": "noun",
+      "plural": "die Medikamente",
+      "example": "Dieses Medikament darf man nicht mit Alkohol nehmen.",
+      "exampleEn": "You must not take this medication with alcohol."
+    },
+    {
+      "de": "das Rezept",
+      "en": "prescription, recipe",
+      "pos": "noun",
+      "plural": "die Rezepte",
+      "example": "Ohne Rezept bekommt man dieses Medikament nicht.",
+      "exampleEn": "You cannot get this medication without a prescription."
+    },
+    {
+      "de": "die Apotheke",
+      "en": "pharmacy, chemist's",
+      "pos": "noun",
+      "plural": "die Apotheken",
+      "example": "Die Apotheke hat auch am Samstag geöffnet.",
+      "exampleEn": "The pharmacy is also open on Saturdays."
+    },
+    {
+      "de": "die Versicherung",
+      "en": "insurance",
+      "pos": "noun",
+      "plural": "die Versicherungen",
+      "example": "Meine Versicherung bezahlt zum Glück die ganze Behandlung.",
+      "exampleEn": "Luckily my insurance pays for the whole treatment."
+    },
+    {
+      "de": "sich verletzen",
+      "en": "to injure oneself",
+      "pos": "verb",
+      "plural": null,
+      "example": "Beim Fußballspielen hat er sich am Knie verletzt.",
+      "exampleEn": "He injured his knee playing football."
+    },
+    {
+      "de": "die Verletzung",
+      "en": "injury",
+      "pos": "noun",
+      "plural": "die Verletzungen",
+      "example": "Die Verletzung ist zum Glück nicht so schlimm.",
+      "exampleEn": "Fortunately the injury is not that bad."
+    },
+    {
+      "de": "sich erholen",
+      "en": "to recover, to rest",
+      "pos": "verb",
+      "plural": null,
+      "example": "Im Urlaub konnte ich mich endlich richtig erholen.",
+      "exampleEn": "On holiday I was finally able to really recover."
+    },
+    {
+      "de": "die Behandlung",
+      "en": "treatment",
+      "pos": "noun",
+      "plural": "die Behandlungen",
+      "example": "Die Behandlung dauert etwa drei Wochen.",
+      "exampleEn": "The treatment takes about three weeks."
+    },
+    {
+      "de": "die Ernährung",
+      "en": "nutrition, diet",
+      "pos": "noun",
+      "plural": "die Ernährungen",
+      "example": "Eine ausgewogene Ernährung hilft gegen viele Krankheiten.",
+      "exampleEn": "A balanced diet helps against many illnesses."
+    },
+    {
+      "de": "die Bewegung",
+      "en": "exercise, movement",
+      "pos": "noun",
+      "plural": "die Bewegungen",
+      "example": "Jeden Tag etwas Bewegung tut dem Körper sehr gut.",
+      "exampleEn": "A bit of exercise every day is very good for the body."
+    },
+    {
+      "de": "das Gewicht",
+      "en": "weight",
+      "pos": "noun",
+      "plural": "die Gewichte",
+      "example": "In den Ferien habe ich zwei Kilo an Gewicht zugenommen.",
+      "exampleEn": "During the holidays I put on two kilos in weight."
+    },
+    {
+      "de": "abnehmen",
+      "en": "to lose weight",
+      "pos": "verb",
+      "plural": null,
+      "example": "Sie möchte bis zum Sommer fünf Kilo abnehmen.",
+      "exampleEn": "She wants to lose five kilos by the summer."
+    },
+    {
+      "de": "der Magen",
+      "en": "stomach",
+      "pos": "noun",
+      "plural": "die Mägen",
+      "example": "Auf nüchternen Magen sollte man keine Tabletten nehmen.",
+      "exampleEn": "You should not take tablets on an empty stomach."
+    },
+    {
+      "de": "das Krankenhaus",
+      "en": "hospital",
+      "pos": "noun",
+      "plural": "die Krankenhäuser",
+      "example": "Nach dem Unfall lag er zwei Wochen im Krankenhaus.",
+      "exampleEn": "After the accident he was in hospital for two weeks."
+    },
+    {
+      "de": "die Reise",
+      "en": "journey, trip",
+      "pos": "noun",
+      "plural": "die Reisen",
+      "example": "Die Reise nach Italien hat zwei Wochen gedauert.",
+      "exampleEn": "The trip to Italy lasted two weeks."
+    },
+    {
+      "de": "die Fahrkarte",
+      "en": "ticket (for public transport)",
+      "pos": "noun",
+      "plural": "die Fahrkarten",
+      "example": "Ich habe die Fahrkarte schon online gekauft.",
+      "exampleEn": "I already bought the ticket online."
+    },
+    {
+      "de": "der Bahnhof",
+      "en": "train station",
+      "pos": "noun",
+      "plural": "die Bahnhöfe",
+      "example": "Wir treffen uns um neun Uhr am Bahnhof.",
+      "exampleEn": "We are meeting at the station at nine o'clock."
+    },
+    {
+      "de": "der Flughafen",
+      "en": "airport",
+      "pos": "noun",
+      "plural": "die Flughäfen",
+      "example": "Der Flughafen liegt eine Stunde von der Stadt entfernt.",
+      "exampleEn": "The airport is an hour away from the city."
+    },
+    {
+      "de": "das Gleis",
+      "en": "platform, track",
+      "pos": "noun",
+      "plural": "die Gleise",
+      "example": "Der Zug nach München fährt von Gleis acht ab.",
+      "exampleEn": "The train to Munich departs from platform eight."
+    },
+    {
+      "de": "der Abflug",
+      "en": "departure (flight)",
+      "pos": "noun",
+      "plural": "die Abflüge",
+      "example": "Der Abflug wurde wegen des Sturms verschoben.",
+      "exampleEn": "The departure was postponed because of the storm."
+    },
+    {
+      "de": "die Ankunft",
+      "en": "arrival",
+      "pos": "noun",
+      "plural": "die Ankünfte",
+      "example": "Nach unserer Ankunft sind wir sofort ins Hotel gefahren.",
+      "exampleEn": "After our arrival we went straight to the hotel."
+    },
+    {
+      "de": "die Verspätung",
+      "en": "delay",
+      "pos": "noun",
+      "plural": "die Verspätungen",
+      "example": "Der Zug hat wieder zwanzig Minuten Verspätung.",
+      "exampleEn": "The train is twenty minutes late again."
+    },
+    {
+      "de": "umsteigen",
+      "en": "to change (trains, buses)",
+      "pos": "verb",
+      "plural": null,
+      "example": "In Frankfurt müssen wir in einen anderen Zug umsteigen.",
+      "exampleEn": "In Frankfurt we have to change to another train."
+    },
+    {
+      "de": "die Unterkunft",
+      "en": "accommodation",
+      "pos": "noun",
+      "plural": "die Unterkünfte",
+      "example": "Die Unterkunft war einfach, aber sehr sauber.",
+      "exampleEn": "The accommodation was simple but very clean."
+    },
+    {
+      "de": "die Jugendherberge",
+      "en": "youth hostel",
+      "pos": "noun",
+      "plural": "die Jugendherbergen",
+      "example": "Wir haben drei Nächte in einer Jugendherberge geschlafen.",
+      "exampleEn": "We slept in a youth hostel for three nights."
+    },
+    {
+      "de": "die Buchung",
+      "en": "booking, reservation",
+      "pos": "noun",
+      "plural": "die Buchungen",
+      "example": "Die Buchung des Hotels hat problemlos geklappt.",
+      "exampleEn": "The booking of the hotel went without any problems."
+    },
+    {
+      "de": "buchen",
+      "en": "to book",
+      "pos": "verb",
+      "plural": null,
+      "example": "Wir haben den Flug schon im Januar gebucht.",
+      "exampleEn": "We already booked the flight in January."
+    },
+    {
+      "de": "das Gepäck",
+      "en": "luggage",
+      "pos": "noun",
+      "plural": "das Gepäck",
+      "example": "Mein Gepäck ist leider nicht in Berlin angekommen.",
+      "exampleEn": "Unfortunately my luggage did not arrive in Berlin."
+    },
+    {
+      "de": "der Koffer",
+      "en": "suitcase",
+      "pos": "noun",
+      "plural": "die Koffer",
+      "example": "Ich habe viel zu viel in den Koffer gepackt.",
+      "exampleEn": "I packed far too much into the suitcase."
+    },
+    {
+      "de": "die Grenze",
+      "en": "border",
+      "pos": "noun",
+      "plural": "die Grenzen",
+      "example": "An der Grenze mussten wir unsere Pässe zeigen.",
+      "exampleEn": "At the border we had to show our passports."
+    },
+    {
+      "de": "der Verkehr",
+      "en": "traffic",
+      "pos": "noun",
+      "plural": "der Verkehr",
+      "example": "Am Morgen ist der Verkehr in der Stadt besonders stark.",
+      "exampleEn": "In the morning the traffic in the city is particularly heavy."
+    },
+    {
+      "de": "die Sehenswürdigkeit",
+      "en": "sight, tourist attraction",
+      "pos": "noun",
+      "plural": "die Sehenswürdigkeiten",
+      "example": "In Berlin gibt es sehr viele Sehenswürdigkeiten.",
+      "exampleEn": "There are a great many sights in Berlin."
+    },
+    {
+      "de": "besichtigen",
+      "en": "to visit, to view",
+      "pos": "verb",
+      "plural": null,
+      "example": "Am Nachmittag wollen wir das Schloss besichtigen.",
+      "exampleEn": "In the afternoon we want to visit the castle."
+    },
+    {
+      "de": "der Aufenthalt",
+      "en": "stay, sojourn",
+      "pos": "noun",
+      "plural": "die Aufenthalte",
+      "example": "Unser Aufenthalt in Wien war leider viel zu kurz.",
+      "exampleEn": "Unfortunately our stay in Vienna was far too short."
+    },
+    {
+      "de": "das Ausland",
+      "en": "abroad, foreign countries",
+      "pos": "noun",
+      "plural": "das Ausland",
+      "example": "Sie arbeitet seit zwei Jahren im Ausland.",
+      "exampleEn": "She has been working abroad for two years."
+    },
+    {
+      "de": "die Autobahn",
+      "en": "motorway",
+      "pos": "noun",
+      "plural": "die Autobahnen",
+      "example": "Auf der Autobahn gab es einen langen Stau.",
+      "exampleEn": "There was a long traffic jam on the motorway."
+    },
+    {
+      "de": "der Stau",
+      "en": "traffic jam",
+      "pos": "noun",
+      "plural": "die Staus",
+      "example": "Wir standen zwei Stunden im Stau.",
+      "exampleEn": "We were stuck in a traffic jam for two hours."
+    },
+    {
+      "de": "die Kreuzung",
+      "en": "crossroads, junction",
+      "pos": "noun",
+      "plural": "die Kreuzungen",
+      "example": "An der nächsten Kreuzung müssen Sie links abbiegen.",
+      "exampleEn": "At the next junction you have to turn left."
+    },
+    {
+      "de": "der Führerschein",
+      "en": "driving licence",
+      "pos": "noun",
+      "plural": "die Führerscheine",
+      "example": "Mit achtzehn habe ich endlich meinen Führerschein gemacht.",
+      "exampleEn": "At eighteen I finally got my driving licence."
+    },
+    {
+      "de": "die Freizeit",
+      "en": "free time, leisure",
+      "pos": "noun",
+      "plural": "die Freizeiten",
+      "example": "In meiner Freizeit spiele ich Tennis und lese viel.",
+      "exampleEn": "In my free time I play tennis and read a lot."
+    },
+    {
+      "de": "das Hobby",
+      "en": "hobby",
+      "pos": "noun",
+      "plural": "die Hobbys",
+      "example": "Mein größtes Hobby ist das Fotografieren.",
+      "exampleEn": "My biggest hobby is photography."
+    },
+    {
+      "de": "die Veranstaltung",
+      "en": "event",
+      "pos": "noun",
+      "plural": "die Veranstaltungen",
+      "example": "Die Veranstaltung findet bei jedem Wetter statt.",
+      "exampleEn": "The event takes place whatever the weather."
+    },
+    {
+      "de": "die Eintrittskarte",
+      "en": "admission ticket",
+      "pos": "noun",
+      "plural": "die Eintrittskarten",
+      "example": "Die Eintrittskarten für das Konzert waren schnell ausverkauft.",
+      "exampleEn": "The admission tickets for the concert sold out quickly."
+    },
+    {
+      "de": "die Ausstellung",
+      "en": "exhibition",
+      "pos": "noun",
+      "plural": "die Ausstellungen",
+      "example": "Wir haben uns eine Ausstellung über moderne Kunst angesehen.",
+      "exampleEn": "We looked at an exhibition about modern art."
+    },
+    {
+      "de": "das Konzert",
+      "en": "concert",
+      "pos": "noun",
+      "plural": "die Konzerte",
+      "example": "Das Konzert hat erst um einundzwanzig Uhr angefangen.",
+      "exampleEn": "The concert only started at nine in the evening."
+    },
+    {
+      "de": "der Film",
+      "en": "film, movie",
+      "pos": "noun",
+      "plural": "die Filme",
+      "example": "Der Film war spannend, aber ziemlich lang.",
+      "exampleEn": "The film was exciting but quite long."
+    },
+    {
+      "de": "die Sendung",
+      "en": "programme, broadcast",
+      "pos": "noun",
+      "plural": "die Sendungen",
+      "example": "Diese Sendung läuft jeden Sonntagabend.",
+      "exampleEn": "This programme is on every Sunday evening."
+    },
+    {
+      "de": "die Nachrichten",
+      "en": "the news",
+      "pos": "noun",
+      "plural": "die Nachrichten",
+      "example": "Ich höre die Nachrichten jeden Morgen im Radio.",
+      "exampleEn": "I listen to the news on the radio every morning."
+    },
+    {
+      "de": "die Zeitschrift",
+      "en": "magazine, journal",
+      "pos": "noun",
+      "plural": "die Zeitschriften",
+      "example": "Sie liest gern Zeitschriften über Mode und Reisen.",
+      "exampleEn": "She likes reading magazines about fashion and travel."
+    },
+    {
+      "de": "die Zeitung",
+      "en": "newspaper",
+      "pos": "noun",
+      "plural": "die Zeitungen",
+      "example": "Mein Vater liest die Zeitung immer beim Frühstück.",
+      "exampleEn": "My father always reads the newspaper at breakfast."
+    },
+    {
+      "de": "der Fernseher",
+      "en": "television set",
+      "pos": "noun",
+      "plural": "die Fernseher",
+      "example": "Unser Fernseher ist leider schon wieder kaputt.",
+      "exampleEn": "Unfortunately our television set is broken again."
+    },
+    {
+      "de": "das Internet",
+      "en": "internet",
+      "pos": "noun",
+      "plural": "das Internet",
+      "example": "Im Internet finde ich schnell die Informationen, die ich brauche.",
+      "exampleEn": "On the internet I quickly find the information I need."
+    },
+    {
+      "de": "die Werbung",
+      "en": "advertising, advertisement",
+      "pos": "noun",
+      "plural": "die Werbungen",
+      "example": "Die Werbung vor dem Film dauert fast zehn Minuten.",
+      "exampleEn": "The advertising before the film lasts almost ten minutes."
+    },
+    {
+      "de": "das Programm",
+      "en": "programme",
+      "pos": "noun",
+      "plural": "die Programme",
+      "example": "Heute Abend kommt ein interessantes Programm im Fernsehen.",
+      "exampleEn": "There is an interesting programme on television tonight."
+    },
+    {
+      "de": "der Zuschauer",
+      "en": "viewer, spectator",
+      "pos": "noun",
+      "plural": "die Zuschauer",
+      "example": "Millionen Zuschauer haben das Finale gesehen.",
+      "exampleEn": "Millions of viewers watched the final."
+    },
+    {
+      "de": "die Band",
+      "en": "band",
+      "pos": "noun",
+      "plural": "die Bands",
+      "example": "Die Band spielt am Samstag in einem kleinen Club.",
+      "exampleEn": "The band is playing in a small club on Saturday."
+    },
+    {
+      "de": "der Verein",
+      "en": "club, association",
+      "pos": "noun",
+      "plural": "die Vereine",
+      "example": "In unserem Verein spielen wir einmal pro Woche Fußball.",
+      "exampleEn": "In our club we play football once a week."
+    },
+    {
+      "de": "das Mitglied",
+      "en": "member",
+      "pos": "noun",
+      "plural": "die Mitglieder",
+      "example": "Unser Verein hat über hundert Mitglieder.",
+      "exampleEn": "Our club has more than a hundred members."
+    },
+    {
+      "de": "wandern",
+      "en": "to hike, to go walking",
+      "pos": "verb",
+      "plural": null,
+      "example": "Am Wochenende wandern wir gern in den Bergen.",
+      "exampleEn": "At the weekend we like hiking in the mountains."
+    },
+    {
+      "de": "die Mannschaft",
+      "en": "team",
+      "pos": "noun",
+      "plural": "die Mannschaften",
+      "example": "Unsere Mannschaft hat das Spiel zwei zu eins gewonnen.",
+      "exampleEn": "Our team won the match two to one."
+    },
+    {
+      "de": "gewinnen",
+      "en": "to win",
+      "pos": "verb",
+      "plural": null,
+      "example": "Wenn wir das nächste Spiel gewinnen, sind wir Meister.",
+      "exampleEn": "If we win the next match, we will be champions."
+    },
+    {
+      "de": "verlieren",
+      "en": "to lose",
+      "pos": "verb",
+      "plural": null,
+      "example": "Leider haben wir das Finale knapp verloren.",
+      "exampleEn": "Unfortunately we narrowly lost the final."
+    },
+    {
+      "de": "sich interessieren",
+      "en": "to be interested (in)",
+      "pos": "verb",
+      "plural": null,
+      "example": "Ich interessiere mich sehr für Geschichte und Politik.",
+      "exampleEn": "I am very interested in history and politics."
+    },
+    {
+      "de": "der Roman",
+      "en": "novel",
+      "pos": "noun",
+      "plural": "die Romane",
+      "example": "Sie liest gerade einen spannenden Roman.",
+      "exampleEn": "She is currently reading an exciting novel."
+    },
+    {
+      "de": "das Amt",
+      "en": "office, public authority",
+      "pos": "noun",
+      "plural": "die Ämter",
+      "example": "Für den neuen Pass muss ich zum Amt gehen.",
+      "exampleEn": "I have to go to the office for the new passport."
+    },
+    {
+      "de": "die Behörde",
+      "en": "authority, government agency",
+      "pos": "noun",
+      "plural": "die Behörden",
+      "example": "Die Behörde hat meinen Antrag noch nicht bearbeitet.",
+      "exampleEn": "The authority has not yet processed my application."
+    },
+    {
+      "de": "der Antrag",
+      "en": "application, request",
+      "pos": "noun",
+      "plural": "die Anträge",
+      "example": "Ich habe einen Antrag auf Arbeitslosengeld gestellt.",
+      "exampleEn": "I submitted an application for unemployment benefit."
+    },
+    {
+      "de": "beantragen",
+      "en": "to apply for",
+      "pos": "verb",
+      "plural": null,
+      "example": "Sie hat eine neue Aufenthaltserlaubnis beantragt.",
+      "exampleEn": "She applied for a new residence permit."
+    },
+    {
+      "de": "das Formular",
+      "en": "form",
+      "pos": "noun",
+      "plural": "die Formulare",
+      "example": "Bitte füllen Sie das Formular vollständig aus.",
+      "exampleEn": "Please fill in the form completely."
+    },
+    {
+      "de": "ausfüllen",
+      "en": "to fill in",
+      "pos": "verb",
+      "plural": null,
+      "example": "Ich muss heute noch das Formular für die Krankenkasse ausfüllen.",
+      "exampleEn": "I still have to fill in the form for the health insurance today."
+    },
+    {
+      "de": "die Unterschrift",
+      "en": "signature",
+      "pos": "noun",
+      "plural": "die Unterschriften",
+      "example": "Ohne Unterschrift ist der Antrag leider nicht gültig.",
+      "exampleEn": "Without a signature the application is unfortunately not valid."
+    },
+    {
+      "de": "unterschreiben",
+      "en": "to sign",
+      "pos": "verb",
+      "plural": null,
+      "example": "Hier müssen Sie den Vertrag unterschreiben.",
+      "exampleEn": "You have to sign the contract here."
+    },
+    {
+      "de": "der Ausweis",
+      "en": "identity card, ID",
+      "pos": "noun",
+      "plural": "die Ausweise",
+      "example": "Bitte zeigen Sie Ihren Ausweis an der Rezeption.",
+      "exampleEn": "Please show your ID at the reception desk."
+    },
+    {
+      "de": "die Anmeldung",
+      "en": "registration",
+      "pos": "noun",
+      "plural": "die Anmeldungen",
+      "example": "Die Anmeldung beim Einwohnermeldeamt ist in Deutschland Pflicht.",
+      "exampleEn": "Registration at the residents' registration office is compulsory in Germany."
+    },
+    {
+      "de": "die Aufenthaltserlaubnis",
+      "en": "residence permit",
+      "pos": "noun",
+      "plural": "die Aufenthaltserlaubnisse",
+      "example": "Meine Aufenthaltserlaubnis muss ich im Juni verlängern lassen.",
+      "exampleEn": "I have to have my residence permit extended in June."
+    },
+    {
+      "de": "die Staatsangehörigkeit",
+      "en": "nationality, citizenship",
+      "pos": "noun",
+      "plural": "die Staatsangehörigkeiten",
+      "example": "Im Formular steht die Frage nach der Staatsangehörigkeit.",
+      "exampleEn": "The form asks about your nationality."
+    },
+    {
+      "de": "die Bescheinigung",
+      "en": "certificate, written confirmation",
+      "pos": "noun",
+      "plural": "die Bescheinigungen",
+      "example": "Die Krankenkasse schickt mir eine Bescheinigung für den Arbeitgeber.",
+      "exampleEn": "The health insurance is sending me a certificate for my employer."
+    },
+    {
+      "de": "die Frist",
+      "en": "deadline, time limit",
+      "pos": "noun",
+      "plural": "die Fristen",
+      "example": "Die Frist für den Antrag läuft am Freitag ab.",
+      "exampleEn": "The deadline for the application expires on Friday."
+    },
+    {
+      "de": "die Gebühr",
+      "en": "fee, charge",
+      "pos": "noun",
+      "plural": "die Gebühren",
+      "example": "Für den neuen Pass muss man eine Gebühr bezahlen.",
+      "exampleEn": "You have to pay a fee for the new passport."
+    },
+    {
+      "de": "gültig",
+      "en": "valid",
+      "pos": "adj",
+      "plural": null,
+      "example": "Mein Pass ist noch zwei Jahre gültig.",
+      "exampleEn": "My passport is still valid for two years."
+    },
+    {
+      "de": "die Genehmigung",
+      "en": "permission, approval",
+      "pos": "noun",
+      "plural": "die Genehmigungen",
+      "example": "Ohne Genehmigung darf man hier nicht bauen.",
+      "exampleEn": "You are not allowed to build here without permission."
+    },
+    {
+      "de": "der Vertrag",
+      "en": "contract",
+      "pos": "noun",
+      "plural": "die Verträge",
+      "example": "Ich habe den Vertrag genau gelesen, bevor ich unterschrieben habe.",
+      "exampleEn": "I read the contract carefully before I signed it."
+    },
+    {
+      "de": "die Steuer",
+      "en": "tax",
+      "pos": "noun",
+      "plural": "die Steuern",
+      "example": "Von meinem Gehalt werden jeden Monat Steuern abgezogen.",
+      "exampleEn": "Taxes are deducted from my salary every month."
+    },
+    {
+      "de": "das Einkommen",
+      "en": "income",
+      "pos": "noun",
+      "plural": "die Einkommen",
+      "example": "Sein Einkommen reicht kaum für die hohe Miete.",
+      "exampleEn": "His income is barely enough for the high rent."
+    },
+    {
+      "de": "die Rente",
+      "en": "pension",
+      "pos": "noun",
+      "plural": "die Renten",
+      "example": "Seine Rente ist leider sehr niedrig.",
+      "exampleEn": "Unfortunately his pension is very low."
+    },
+    {
+      "de": "die Krankenkasse",
+      "en": "health insurance fund",
+      "pos": "noun",
+      "plural": "die Krankenkassen",
+      "example": "Bei der Krankenkasse muss ich meine neue Adresse melden.",
+      "exampleEn": "I have to report my new address to the health insurance fund."
+    },
+    {
+      "de": "persönlich",
+      "en": "personal, in person",
+      "pos": "adj",
+      "plural": null,
+      "example": "Sie müssen den Antrag persönlich beim Amt abgeben.",
+      "exampleEn": "You have to hand in the application at the office in person."
+    },
+    {
+      "de": "die Bearbeitung",
+      "en": "processing",
+      "pos": "noun",
+      "plural": "die Bearbeitungen",
+      "example": "Die Bearbeitung des Antrags dauert etwa vier Wochen.",
+      "exampleEn": "The processing of the application takes about four weeks."
+    },
+    {
+      "de": "die Entscheidung",
+      "en": "decision",
+      "pos": "noun",
+      "plural": "die Entscheidungen",
+      "example": "Die Behörde trifft ihre Entscheidung innerhalb von vier Wochen.",
+      "exampleEn": "The authority makes its decision within four weeks."
+    },
+    {
+      "de": "die Umwelt",
+      "en": "environment",
+      "pos": "noun",
+      "plural": "die Umwelten",
+      "example": "Wir müssen die Umwelt besser schützen.",
+      "exampleEn": "We have to protect the environment better."
+    },
+    {
+      "de": "der Umweltschutz",
+      "en": "environmental protection",
+      "pos": "noun",
+      "plural": "der Umweltschutz",
+      "example": "Umweltschutz beginnt schon beim täglichen Einkaufen.",
+      "exampleEn": "Environmental protection starts with everyday shopping."
+    },
+    {
+      "de": "der Müll",
+      "en": "rubbish, waste",
+      "pos": "noun",
+      "plural": "der Müll",
+      "example": "Der Müll wird bei uns jeden Dienstag abgeholt.",
+      "exampleEn": "The rubbish is collected at our place every Tuesday."
+    },
+    {
+      "de": "die Mülltrennung",
+      "en": "waste separation",
+      "pos": "noun",
+      "plural": "die Mülltrennungen",
+      "example": "In Deutschland ist die Mülltrennung gesetzlich geregelt.",
+      "exampleEn": "In Germany waste separation is regulated by law."
+    },
+    {
+      "de": "recyceln",
+      "en": "to recycle",
+      "pos": "verb",
+      "plural": null,
+      "example": "Plastikflaschen kann man heutzutage gut recyceln.",
+      "exampleEn": "Nowadays plastic bottles can be recycled well."
+    },
+    {
+      "de": "der Strom",
+      "en": "electricity, power",
+      "pos": "noun",
+      "plural": "der Strom",
+      "example": "Der Strom aus Windkraft ist umweltfreundlich.",
+      "exampleEn": "Electricity from wind power is environmentally friendly."
+    },
+    {
+      "de": "die Energie",
+      "en": "energy",
+      "pos": "noun",
+      "plural": "die Energien",
+      "example": "Wir sollten insgesamt weniger Energie verbrauchen.",
+      "exampleEn": "We should consume less energy overall."
+    },
+    {
+      "de": "die Zukunft",
+      "en": "future",
+      "pos": "noun",
+      "plural": "die Zukünfte",
+      "example": "In der Zukunft werden wir vielleicht alle elektrisch fahren.",
+      "exampleEn": "In the future perhaps we will all drive electric cars."
+    },
+    {
+      "de": "das Klima",
+      "en": "climate",
+      "pos": "noun",
+      "plural": "die Klimas",
+      "example": "Das Klima auf der Erde verändert sich immer schneller.",
+      "exampleEn": "The climate on earth is changing faster and faster."
+    },
+    {
+      "de": "der Klimawandel",
+      "en": "climate change",
+      "pos": "noun",
+      "plural": "der Klimawandel",
+      "example": "Der Klimawandel ist eine der größten Aufgaben unserer Zeit.",
+      "exampleEn": "Climate change is one of the greatest challenges of our time."
+    },
+    {
+      "de": "die Verschmutzung",
+      "en": "pollution",
+      "pos": "noun",
+      "plural": "die Verschmutzungen",
+      "example": "Die Verschmutzung der Flüsse ist ein großes Problem.",
+      "exampleEn": "The pollution of the rivers is a big problem."
+    },
+    {
+      "de": "schützen",
+      "en": "to protect",
+      "pos": "verb",
+      "plural": null,
+      "example": "Wir müssen die Wälder vor dem Abholzen schützen.",
+      "exampleEn": "We have to protect the forests from being cleared."
+    },
+    {
+      "de": "die Gesellschaft",
+      "en": "society",
+      "pos": "noun",
+      "plural": "die Gesellschaften",
+      "example": "Junge Menschen verändern unsere Gesellschaft.",
+      "exampleEn": "Young people are changing our society."
+    },
+    {
+      "de": "die Bevölkerung",
+      "en": "population",
+      "pos": "noun",
+      "plural": "die Bevölkerungen",
+      "example": "Die Bevölkerung der Stadt wächst jedes Jahr.",
+      "exampleEn": "The population of the city grows every year."
+    },
+    {
+      "de": "die Armut",
+      "en": "poverty",
+      "pos": "noun",
+      "plural": "die Armut",
+      "example": "Viele Familien leben trotz Arbeit in Armut.",
+      "exampleEn": "Many families live in poverty despite working."
+    },
+    {
+      "de": "sozial",
+      "en": "social",
+      "pos": "adj",
+      "plural": null,
+      "example": "Die Regierung plant soziale Reformen für Familien.",
+      "exampleEn": "The government is planning social reforms for families."
+    },
+    {
+      "de": "die Gleichberechtigung",
+      "en": "equal rights, equality",
+      "pos": "noun",
+      "plural": "die Gleichberechtigungen",
+      "example": "Die Gleichberechtigung von Mann und Frau ist noch nicht überall erreicht.",
+      "exampleEn": "Equal rights for men and women have not yet been achieved everywhere."
+    },
+    {
+      "de": "die Integration",
+      "en": "integration",
+      "pos": "noun",
+      "plural": "die Integrationen",
+      "example": "Die Integration von Zuwanderern braucht Zeit und Geduld.",
+      "exampleEn": "The integration of immigrants takes time and patience."
+    },
+    {
+      "de": "die Regel",
+      "en": "rule",
+      "pos": "noun",
+      "plural": "die Regeln",
+      "example": "In der Bibliothek gelten besondere Regeln.",
+      "exampleEn": "Special rules apply in the library."
+    },
+    {
+      "de": "das Gesetz",
+      "en": "law",
+      "pos": "noun",
+      "plural": "die Gesetze",
+      "example": "Das neue Gesetz tritt im Januar in Kraft.",
+      "exampleEn": "The new law comes into force in January."
+    },
+    {
+      "de": "verboten",
+      "en": "forbidden, prohibited",
+      "pos": "adj",
+      "plural": null,
+      "example": "Rauchen ist in diesem Gebäude streng verboten.",
+      "exampleEn": "Smoking is strictly forbidden in this building."
+    },
+    {
+      "de": "erlauben",
+      "en": "to allow, to permit",
+      "pos": "verb",
+      "plural": null,
+      "example": "Hier ist es nicht erlaubt, Fahrrad zu fahren.",
+      "exampleEn": "It is not allowed to ride a bicycle here."
+    },
+    {
+      "de": "die Pflicht",
+      "en": "duty, obligation",
+      "pos": "noun",
+      "plural": "die Pflichten",
+      "example": "Jeder Bürger hat die Pflicht, Steuern zu zahlen.",
+      "exampleEn": "Every citizen has the duty to pay taxes."
+    },
+    {
+      "de": "die Spende",
+      "en": "donation",
+      "pos": "noun",
+      "plural": "die Spenden",
+      "example": "Viele Menschen machen Spenden für arme Kinder.",
+      "exampleEn": "Many people make donations for poor children."
+    },
+    {
+      "de": "ehrenamtlich",
+      "en": "voluntary, unpaid",
+      "pos": "adj",
+      "plural": null,
+      "example": "Sie arbeitet ehrenamtlich in einem Tierheim.",
+      "exampleEn": "She works voluntarily at an animal shelter."
+    },
+    {
+      "de": "das Gefühl",
+      "en": "feeling",
+      "pos": "noun",
+      "plural": "die Gefühle",
+      "example": "Ich habe das Gefühl, dass er mich nicht richtig versteht.",
+      "exampleEn": "I have the feeling that he doesn't really understand me."
+    },
+    {
+      "de": "die Stimmung",
+      "en": "mood, atmosphere",
+      "pos": "noun",
+      "plural": "die Stimmungen",
+      "example": "Die Stimmung auf der Party war sehr gut.",
+      "exampleEn": "The atmosphere at the party was very good."
+    },
+    {
+      "de": "die Freude",
+      "en": "joy, pleasure",
+      "pos": "noun",
+      "plural": "die Freuden",
+      "example": "Die Kinder hatten große Freude am Schnee.",
+      "exampleEn": "The children took great pleasure in the snow."
+    },
+    {
+      "de": "stolz",
+      "en": "proud",
+      "pos": "adj",
+      "plural": null,
+      "example": "Meine Eltern sind sehr stolz auf mich.",
+      "exampleEn": "My parents are very proud of me."
+    },
+    {
+      "de": "eifersüchtig",
+      "en": "jealous",
+      "pos": "adj",
+      "plural": null,
+      "example": "Er ist schnell eifersüchtig, wenn sie mit anderen Männern spricht.",
+      "exampleEn": "He quickly gets jealous when she talks to other men."
+    },
+    {
+      "de": "nervös",
+      "en": "nervous",
+      "pos": "adj",
+      "plural": null,
+      "example": "Vor der Prüfung bin ich immer sehr nervös.",
+      "exampleEn": "I am always very nervous before the exam."
+    },
+    {
+      "de": "enttäuscht",
+      "en": "disappointed",
+      "pos": "adj",
+      "plural": null,
+      "example": "Ich war ziemlich enttäuscht von dem Film.",
+      "exampleEn": "I was quite disappointed by the film."
+    },
+    {
+      "de": "zufrieden",
+      "en": "satisfied, content",
+      "pos": "adj",
+      "plural": null,
+      "example": "Mit meinem neuen Job bin ich sehr zufrieden.",
+      "exampleEn": "I am very satisfied with my new job."
+    },
+    {
+      "de": "die Angst",
+      "en": "fear, anxiety",
+      "pos": "noun",
+      "plural": "die Ängste",
+      "example": "Viele Menschen haben Angst vor der Zukunft.",
+      "exampleEn": "Many people are afraid of the future."
+    },
+    {
+      "de": "sich ärgern",
+      "en": "to get annoyed, to be angry",
+      "pos": "verb",
+      "plural": null,
+      "example": "Ich ärgere mich über den Lärm in der Nacht.",
+      "exampleEn": "I get annoyed about the noise at night."
+    },
+    {
+      "de": "der Ärger",
+      "en": "trouble, annoyance",
+      "pos": "noun",
+      "plural": "der Ärger",
+      "example": "Mit dem Nachbarn hatten wir viel Ärger.",
+      "exampleEn": "We had a lot of trouble with the neighbour."
+    },
+    {
+      "de": "die Wut",
+      "en": "anger, rage",
+      "pos": "noun",
+      "plural": "die Wut",
+      "example": "Seine Wut war zum Glück schnell wieder vorbei.",
+      "exampleEn": "Luckily his anger quickly passed."
+    },
+    {
+      "de": "traurig",
+      "en": "sad",
+      "pos": "adj",
+      "plural": null,
+      "example": "Sie war sehr traurig, als ihr Hund gestorben ist.",
+      "exampleEn": "She was very sad when her dog died."
+    },
+    {
+      "de": "die Meinung",
+      "en": "opinion",
+      "pos": "noun",
+      "plural": "die Meinungen",
+      "example": "Meiner Meinung nach ist das keine gute Idee.",
+      "exampleEn": "In my opinion that is not a good idea."
+    },
+    {
+      "de": "der Eindruck",
+      "en": "impression",
+      "pos": "noun",
+      "plural": "die Eindrücke",
+      "example": "Der erste Eindruck von der Stadt war sehr positiv.",
+      "exampleEn": "The first impression of the city was very positive."
+    },
+    {
+      "de": "zweifeln",
+      "en": "to doubt",
+      "pos": "verb",
+      "plural": null,
+      "example": "Ich zweifle daran, dass er die Wahrheit sagt.",
+      "exampleEn": "I doubt that he is telling the truth."
+    },
+    {
+      "de": "hoffen",
+      "en": "to hope",
+      "pos": "verb",
+      "plural": null,
+      "example": "Wir hoffen, dass das Wetter am Wochenende besser wird.",
+      "exampleEn": "We hope that the weather will be better at the weekend."
+    },
+    {
+      "de": "die Hoffnung",
+      "en": "hope",
+      "pos": "noun",
+      "plural": "die Hoffnungen",
+      "example": "Die Hoffnung auf eine schnelle Lösung habe ich aufgegeben.",
+      "exampleEn": "I have given up hope of a quick solution."
+    },
+    {
+      "de": "sich freuen",
+      "en": "to be glad, to look forward",
+      "pos": "verb",
+      "plural": null,
+      "example": "Ich freue mich schon sehr auf den Urlaub.",
+      "exampleEn": "I am already very much looking forward to the holiday."
+    },
+    {
+      "de": "überzeugen",
+      "en": "to convince",
+      "pos": "verb",
+      "plural": null,
+      "example": "Seine Argumente haben mich am Ende überzeugt.",
+      "exampleEn": "In the end his arguments convinced me."
+    },
+    {
+      "de": "die Kritik",
+      "en": "criticism",
+      "pos": "noun",
+      "plural": "die Kritiken",
+      "example": "Er nimmt jede Kritik sehr persönlich.",
+      "exampleEn": "He takes every criticism very personally."
+    },
+    {
+      "de": "der Vorschlag",
+      "en": "suggestion, proposal",
+      "pos": "noun",
+      "plural": "die Vorschläge",
+      "example": "Dein Vorschlag gefällt mir sehr gut.",
+      "exampleEn": "I like your suggestion very much."
+    },
+    {
+      "de": "vorschlagen",
+      "en": "to suggest, to propose",
+      "pos": "verb",
+      "plural": null,
+      "example": "Er hat vorgeschlagen, das Treffen zu verschieben.",
+      "exampleEn": "He suggested postponing the meeting."
+    },
+    {
+      "de": "die Sorge",
+      "en": "worry, concern",
+      "pos": "noun",
+      "plural": "die Sorgen",
+      "example": "Um meine Gesundheit mache ich mir keine Sorgen.",
+      "exampleEn": "I am not worried about my health."
+    },
+    {
+      "de": "das Verständnis",
+      "en": "understanding",
+      "pos": "noun",
+      "plural": "das Verständnis",
+      "example": "Für meine Probleme hat er viel Verständnis.",
+      "exampleEn": "He has a lot of understanding for my problems."
+    },
+    {
+      "de": "der Termin",
+      "en": "appointment",
+      "pos": "noun",
+      "plural": "die Termine",
+      "example": "Ich habe morgen um zehn Uhr einen Termin beim Zahnarzt.",
+      "exampleEn": "I have a dentist's appointment tomorrow at ten o'clock."
+    },
+    {
+      "de": "die Verabredung",
+      "en": "arrangement, date",
+      "pos": "noun",
+      "plural": "die Verabredungen",
+      "example": "Wir haben eine Verabredung für Samstagabend.",
+      "exampleEn": "We have an arrangement for Saturday evening."
+    },
+    {
+      "de": "pünktlich",
+      "en": "punctual, on time",
+      "pos": "adj",
+      "plural": null,
+      "example": "Der Zug ist heute endlich pünktlich angekommen.",
+      "exampleEn": "The train finally arrived on time today."
+    },
+    {
+      "de": "die Uhrzeit",
+      "en": "time (of day)",
+      "pos": "noun",
+      "plural": "die Uhrzeiten",
+      "example": "Kannst du mir die genaue Uhrzeit sagen?",
+      "exampleEn": "Can you tell me the exact time?"
+    },
+    {
+      "de": "der Zeitpunkt",
+      "en": "point in time, moment",
+      "pos": "noun",
+      "plural": "die Zeitpunkte",
+      "example": "Der Zeitpunkt für unser Gespräch passt mir gut.",
+      "exampleEn": "The timing of our conversation suits me well."
+    },
+    {
+      "de": "dauern",
+      "en": "to last, to take (time)",
+      "pos": "verb",
+      "plural": null,
+      "example": "Die Fahrt mit dem Bus dauert etwa eine Stunde.",
+      "exampleEn": "The bus journey takes about an hour."
+    },
+    {
+      "de": "die Dauer",
+      "en": "duration, length",
+      "pos": "noun",
+      "plural": "die Dauern",
+      "example": "Die Dauer des Kurses beträgt zwölf Wochen.",
+      "exampleEn": "The duration of the course is twelve weeks."
+    },
+    {
+      "de": "der Zeitraum",
+      "en": "period, time span",
+      "pos": "noun",
+      "plural": "die Zeiträume",
+      "example": "In diesem Zeitraum habe ich Urlaub.",
+      "exampleEn": "I am on holiday during this period."
+    },
+    {
+      "de": "verschieben",
+      "en": "to postpone, to move",
+      "pos": "verb",
+      "plural": null,
+      "example": "Wir müssen das Treffen leider verschieben.",
+      "exampleEn": "Unfortunately we have to postpone the meeting."
+    },
+    {
+      "de": "absagen",
+      "en": "to cancel, to call off",
+      "pos": "verb",
+      "plural": null,
+      "example": "Sie hat den Termin kurzfristig abgesagt.",
+      "exampleEn": "She cancelled the appointment at short notice."
+    },
+    {
+      "de": "vereinbaren",
+      "en": "to arrange, to agree",
+      "pos": "verb",
+      "plural": null,
+      "example": "Ich möchte einen neuen Termin vereinbaren.",
+      "exampleEn": "I would like to arrange a new appointment."
+    },
+    {
+      "de": "rechtzeitig",
+      "en": "in time, early enough",
+      "pos": "adv",
+      "plural": null,
+      "example": "Wir sind rechtzeitig am Bahnhof angekommen.",
+      "exampleEn": "We arrived at the station in time."
+    },
+    {
+      "de": "der Feiertag",
+      "en": "public holiday",
+      "pos": "noun",
+      "plural": "die Feiertage",
+      "example": "An Feiertagen haben die meisten Geschäfte geschlossen.",
+      "exampleEn": "On public holidays most shops are closed."
+    },
+    {
+      "de": "der Alltag",
+      "en": "everyday life, daily routine",
+      "pos": "noun",
+      "plural": "der Alltag",
+      "example": "Im Alltag habe ich leider wenig Zeit für Sport.",
+      "exampleEn": "In everyday life I unfortunately have little time for sport."
+    },
+    {
+      "de": "die Vergangenheit",
+      "en": "past",
+      "pos": "noun",
+      "plural": "die Vergangenheiten",
+      "example": "In der Vergangenheit habe ich sehr viel gereist.",
+      "exampleEn": "In the past I travelled a great deal."
+    },
+    {
+      "de": "die Gegenwart",
+      "en": "present (time)",
+      "pos": "noun",
+      "plural": "die Gegenwarten",
+      "example": "In der Gegenwart ändert sich alles sehr schnell.",
+      "exampleEn": "In the present everything changes very quickly."
+    },
+    {
+      "de": "der Beginn",
+      "en": "beginning, start",
+      "pos": "noun",
+      "plural": "die Beginne",
+      "example": "Der Beginn der Veranstaltung wurde auf neunzehn Uhr verschoben.",
+      "exampleEn": "The start of the event was moved to seven in the evening."
+    },
+    {
+      "de": "regelmäßig",
+      "en": "regular, regularly",
+      "pos": "adj",
+      "plural": null,
+      "example": "Ich gehe regelmäßig zweimal pro Woche schwimmen.",
+      "exampleEn": "I go swimming regularly twice a week."
+    },
+    {
+      "de": "selten",
+      "en": "rarely, seldom",
+      "pos": "adv",
+      "plural": null,
+      "example": "So einen guten Film sehe ich selten.",
+      "exampleEn": "I rarely see such a good film."
+    },
+    {
+      "de": "inzwischen",
+      "en": "meanwhile, by now",
+      "pos": "adv",
+      "plural": null,
+      "example": "Inzwischen hat sich die Lage wieder verbessert.",
+      "exampleEn": "Meanwhile the situation has improved again."
+    },
+    {
+      "de": "damals",
+      "en": "back then, at that time",
+      "pos": "adv",
+      "plural": null,
+      "example": "Damals hatten wir noch kein Internet zu Hause.",
+      "exampleEn": "Back then we didn't have the internet at home yet."
+    },
+    {
+      "de": "demnächst",
+      "en": "soon, shortly",
+      "pos": "adv",
+      "plural": null,
+      "example": "Demnächst ziehen wir in eine andere Stadt.",
+      "exampleEn": "Soon we are moving to another city."
+    },
+    {
+      "de": "vorher",
+      "en": "beforehand, before",
+      "pos": "adv",
+      "plural": null,
+      "example": "Ruf mich bitte vorher an, wenn du kommst.",
+      "exampleEn": "Please call me beforehand if you are coming."
+    },
+    {
+      "de": "nachher",
+      "en": "afterwards, later",
+      "pos": "adv",
+      "plural": null,
+      "example": "Nachher gehen wir noch etwas trinken.",
+      "exampleEn": "Afterwards we'll go and have a drink."
+    },
+    {
+      "de": "das Datum",
+      "en": "date",
+      "pos": "noun",
+      "plural": "die Daten",
+      "example": "Bitte schreiben Sie das Datum auf das Formular.",
+      "exampleEn": "Please write the date on the form."
+    }
+  ]
+}

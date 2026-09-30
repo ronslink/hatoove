@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Certa – Prüfungstraining telc Deutsch B1</title>
+<meta name="description" content="Certa bereitet dich gezielt auf die telc Deutsch B1 Prüfung vor: Lesen, Sprachbausteine, Hören, Schreiben, Sprechen – adaptiv und prüfungsnah.">
+<meta name="theme-color" content="#f3f6fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111b2a" media="(prefers-color-scheme: dark)">
+<script>
+  // Apply a saved theme before first paint so there is no light/dark flash.
+  try {
+    var t = localStorage.getItem('certa-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) { /* storage unavailable: follow the system */ }
+</script>
+<link rel="preload" href="/fonts/fraunces-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/source-sans-3-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/shell-refresh.css">
+<link rel="stylesheet" href="/studio.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='10' fill='%23142b45'/><g transform='translate(4 3)' fill='none' stroke='%23e7efff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M26 9.5a13 13 0 1 0 2.4 12.3'/><path d='m11 17 4.5 4.5L29 8'/></g></svg>">
+</head>
+<body>
+<a class="skip-link" href="#main">Zum Inhalt springen</a>
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="Certa Navigation">
+    <div class="brand">
+      <button class="brand-home" type="button" data-shell-view="home" aria-label="Certa – zur Übersicht">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 34 34" fill="none">
+            <path d="M26 9.5a13 13 0 1 0 2.4 12.3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="m11 17 4.5 4.5L29 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="brand-text"><b id="brand-name">Certa</b><span>Exam Academy</span></span>
+      </button>
+      <button class="nav-close" id="nav-close" type="button" aria-label="Navigation schließen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="course-card" aria-label="Deine Prüfung">
+      <span class="course-language" aria-hidden="true">DE</span>
+      <div><span class="course-label">Deutsch</span><strong id="brand-exam">telc Deutsch B1</strong></div>
+    </div>
+    <nav id="nav" aria-label="Lernbereiche"></nav>
+    <div class="exam-target" id="exam-target" aria-label="Dein Prüfungstermin"></div>
+    <div class="sidebar-foot">
+      <span class="small">Darstellung</span>
+      <div class="theme-toggle" id="theme-toggle" role="group" aria-label="Farbschema"></div>
+    </div>
+  </aside>
+  <div class="nav-scrim" id="nav-scrim" hidden aria-hidden="true"></div>
+
+  <main class="main" id="main" tabindex="-1">
+    <header class="topbar">
+      <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Navigation öffnen" aria-controls="sidebar" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="view-heading">
+        <div class="view-breadcrumb"><span>Deutsch B1</span><span aria-hidden="true">/</span><span id="view-section">Dein Lernraum</span></div>
+        <h1 id="view-title" tabindex="-1">Lädt…</h1>
+      </div>
+      <div class="spacer"></div>
+      <div id="view-actions" class="btn-row"></div>
+    </header>
+    <div id="view"></div>
+  </main>
+</div>
+
+<div class="toast-host" id="toasts" role="status" aria-live="polite"></div>
+<div id="overlay-host"></div>
+
+<noscript>
+  <p style="padding:24px">Diese App braucht JavaScript.</p>
+</noscript>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

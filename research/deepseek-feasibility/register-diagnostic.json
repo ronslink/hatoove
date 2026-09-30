@@ -1,0 +1,54 @@
+{
+  "diagnostic_id": "guesthouse-register-versus-role-v1",
+  "created_on": "2026-09-30",
+  "task": {
+    "id": "guesthouse-weekend-original-v1",
+    "language": "de",
+    "exam_family": "telc Deutsch B1 / Zertifikat Deutsch",
+    "skill": "writing",
+    "register": "halbformell; Sie; Frau Neumann manages a guesthouse and is not a personal friend",
+    "context": "Sie möchten ein Wochenende in einer anderen Stadt verbringen und haben bei einer kleinen Pension nach einem Zimmer gefragt.",
+    "incoming_letter": "Guten Tag,\n\nvielen Dank für Ihre Anfrage. Für das kommende Wochenende haben wir noch ein Zimmer frei. Bitte schicken Sie mir weitere Angaben zu Ihrem Aufenthalt. Wenn Sie Fragen zur Anreise oder zu unserem Angebot haben, beantworte ich sie gern.\n\nMit freundlichen Grüßen\nLena Neumann\nPension am Park",
+    "instruction": "Antworten Sie Frau Neumann in einer zusammenhängenden E-Mail. Bearbeiten Sie alle vier Punkte und wählen Sie eine passende Anrede und einen passenden Schluss.",
+    "points": [
+      "Geben Sie an, wie viele Personen kommen und wie viele Nächte Sie bleiben möchten.",
+      "Erklären Sie den Grund für Ihren Besuch in der Stadt.",
+      "Fragen Sie nach der Verbindung vom Bahnhof zur Pension.",
+      "Fragen Sie, ob Frühstück angeboten wird."
+    ],
+    "point_ids": [
+      "stay_details",
+      "visit_reason",
+      "station_connection",
+      "breakfast_question"
+    ],
+    "time_limit_minutes": 30
+  },
+  "case": {
+    "id": "guesthouse_role_reversal_control",
+    "task_id": "guesthouse-weekend-original-v1",
+    "label": "Genuine communicative-role reversal: the prospective guest writes as a guesthouse proprietor and treats Frau Neumann as the guest.",
+    "text": "Sehr geehrte Frau Neumann,\n\nvielen Dank für Ihr Interesse an unserer Pension. Gern bieten wir Ihnen und Ihrer Schwester ein Zimmer für das kommende Wochenende an. Sie können am Freitag anreisen und zwei Nächte bei uns bleiben.\n\nWenn Sie die Ausstellung im Stadtmuseum besuchen möchten, ist unsere Pension eine gute Wahl. Das Museum ist nur zehn Minuten zu Fuß entfernt. An der Rezeption geben wir Ihnen gern einen Stadtplan.\n\nVom Bahnhof erreichen Sie uns mit der Buslinie 7. Steigen Sie bitte an der Haltestelle Stadtpark aus. Von dort sind es nur wenige Schritte zu unserem Haus.\n\nWir bieten täglich zwischen 7 und 10 Uhr Frühstück an. Es kostet acht Euro pro Person. Bitte teilen Sie uns mit, ob wir das Frühstück für Sie einplanen sollen.\n\nWir freuen uns darauf, Sie als Gäste bei uns begrüßen zu dürfen.\n\nMit freundlichen Grüßen\nRobin Frank\nPension Sonnenblick",
+    "expected": {
+      "expected_status": "wrong_situation",
+      "retain_language_credit": true,
+      "expert_score": null,
+      "covered_points": [],
+      "missing_points": [],
+      "invariants": [
+        "The text stays on the accommodation-booking topic, so it should not be classified as wholly off_topic.",
+        "The learner reverses the host/guest roles and provides an accommodation offer instead of replying as the prospective guest.",
+        "Evaluate communicative design and formal accuracy independently rather than zeroing them solely because the situation is wrong."
+      ],
+      "interpretation": "No content-point booleans or language scores are predetermined; only the situation classification and independent language assessment are diagnostic targets."
+    },
+    "provenance": {
+      "original_synthetic": true,
+      "real_learner_data": false,
+      "independently_expert_scored": false,
+      "basis": "New original response to the existing frozen guesthouse task. Its reversal of sender/recipient roles is analogous to the provider's distinction between responding to an invitation and issuing an invitation.",
+      "rubric_source": "https://shop.telc.net/media/catalog/product/file/telc_deutsch_b1_zd_uebungstest_1.pdf",
+      "model_input_exclusion": "Do not send label, expected, provenance or diagnostic rationale to the grading model."
+    }
+  }
+}

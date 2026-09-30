@@ -1,0 +1,568 @@
+{
+  "level": "B1",
+  "source": "telc Deutsch B1 - Fälle und Artikel zum Nachschlagen",
+  "intro": "Im Deutschen zeigt der Artikel, welche Rolle ein Nomen im Satz hat. Deshalb ändert sich der Artikel, aber das Nomen bleibt fast immer gleich. Wenn du den Fall kennst, kannst du den richtigen Artikel sicher wählen.",
+  "tables": [
+    {
+      "id": "bestimmter_artikel",
+      "title": "Bestimmter Artikel: der / die / das",
+      "why": "Diese Tabelle brauchst du, wenn du über etwas Bestimmtes sprichst und der Artikel schon bekannt ist.",
+      "headers": [
+        "",
+        "maskulin",
+        "neutrum",
+        "feminin",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Nominativ",
+          "der",
+          "das",
+          "die",
+          "die"
+        ],
+        [
+          "Akkusativ",
+          "den",
+          "das",
+          "die",
+          "die"
+        ],
+        [
+          "Dativ",
+          "dem",
+          "dem",
+          "der",
+          "den (+ -n am Nomen)"
+        ],
+        [
+          "Genitiv",
+          "des (+ -s)",
+          "des (+ -s)",
+          "der",
+          "der"
+        ]
+      ],
+      "note": "Nur wenige Zellen ändern sich wirklich: maskulin wird im Akkusativ zu den und im Genitiv zu des, und im Dativ Plural steht den mit einem -n am Nomen.",
+      "titleEn": "Definite article: der / die / das",
+      "whyEn": "You need this table when you are talking about something specific and the article is already known.",
+      "noteEn": "Only a few cells really change: masculine becomes den in the accusative and des in the genitive, and in the dative plural it is den with an -n on the noun.",
+      "headersEn": [
+        "",
+        "masculine",
+        "neuter",
+        "feminine",
+        "plural"
+      ]
+    },
+    {
+      "id": "unbestimmter_artikel",
+      "title": "Unbestimmter Artikel und ein-Wörter",
+      "why": "Diese Tabelle brauchst du, wenn du über etwas Unbestimmtes sprichst oder etwas verneinst oder besitzt.",
+      "headers": [
+        "",
+        "maskulin",
+        "neutrum",
+        "feminin",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Nominativ",
+          "ein",
+          "ein",
+          "eine",
+          "keine"
+        ],
+        [
+          "Akkusativ",
+          "einen",
+          "ein",
+          "eine",
+          "keine"
+        ],
+        [
+          "Dativ",
+          "einem",
+          "einem",
+          "einer",
+          "keinen"
+        ],
+        [
+          "Genitiv",
+          "eines",
+          "eines",
+          "einer",
+          "keiner"
+        ]
+      ],
+      "note": "kein- und die Possessivartikel mein-, dein-, sein-, ihr-, unser-, euer-, Ihr- haben genau dieselben Endungen wie ein-.",
+      "titleEn": "Indefinite article and the ein-words",
+      "whyEn": "You need this table when you are talking about something indefinite, or negating or owning something.",
+      "noteEn": "kein- and the possessive articles mein-, dein-, sein-, ihr-, unser-, euer-, Ihr- take exactly the same endings as ein-.",
+      "headersEn": [
+        "",
+        "masculine",
+        "neuter",
+        "feminine",
+        "plural"
+      ]
+    },
+    {
+      "id": "personalpronomen",
+      "title": "Personalpronomen im Nominativ, Akkusativ und Dativ",
+      "why": "Diese Tabelle brauchst du, wenn du eine Person nicht mit einem Nomen, sondern mit einem Pronomen nennst.",
+      "headers": [
+        "",
+        "Nominativ",
+        "Akkusativ",
+        "Dativ"
+      ],
+      "rows": [
+        [
+          "ich",
+          "ich",
+          "mich",
+          "mir"
+        ],
+        [
+          "du",
+          "du",
+          "dich",
+          "dir"
+        ],
+        [
+          "er",
+          "er",
+          "ihn",
+          "ihm"
+        ],
+        [
+          "es",
+          "es",
+          "es",
+          "ihm"
+        ],
+        [
+          "sie",
+          "sie",
+          "sie",
+          "ihr"
+        ],
+        [
+          "wir",
+          "wir",
+          "uns",
+          "uns"
+        ],
+        [
+          "ihr",
+          "ihr",
+          "euch",
+          "euch"
+        ],
+        [
+          "sie",
+          "sie",
+          "sie",
+          "ihnen"
+        ],
+        [
+          "Sie",
+          "Sie",
+          "Sie",
+          "Ihnen"
+        ]
+      ],
+      "note": "Achte auf die Formen ihn/ihm, sie/ihr und sie/ihnen: Hier ändert sich das Pronomen stark, obwohl das Nomen gleich bleibt.",
+      "titleEn": "Personal pronouns in the nominative, accusative and dative",
+      "whyEn": "You need this table when you refer to a person with a pronoun instead of a noun.",
+      "noteEn": "Watch the pairs ihn/ihm, sie/ihr and sie/ihnen: the pronoun changes a lot here even though the noun stays the same.",
+      "headersEn": [
+        "",
+        "nominative",
+        "accusative",
+        "dative"
+      ]
+    },
+    {
+      "id": "fragewoerter",
+      "title": "Welcher Fall? Die Fragewörter",
+      "why": "Diese Tabelle brauchst du, wenn du den Fall im Satz schnell bestimmen willst.",
+      "headers": [
+        "Fall",
+        "Fragewort",
+        "Rolle im Satz",
+        "Beispiel"
+      ],
+      "rows": [
+        [
+          "Nominativ",
+          "Wer? Was?",
+          "das Subjekt",
+          "Der Kurs beginnt um neun."
+        ],
+        [
+          "Akkusativ",
+          "Wen? Was?",
+          "das direkte Objekt",
+          "Ich kaufe den Kurs."
+        ],
+        [
+          "Dativ",
+          "Wem?",
+          "das indirekte Objekt",
+          "Ich danke dem Lehrer."
+        ],
+        [
+          "Genitiv",
+          "Wessen?",
+          "der Besitz",
+          "Das Auto meines Bruders ist neu."
+        ]
+      ],
+      "note": "Stelle die Frage mit dem Fragewort und du hörst den Fall: Wer? für den Nominativ, Wen? für den Akkusativ und Wem? für den Dativ.",
+      "titleEn": "Which case? The question words",
+      "whyEn": "You need this table when you want to work out the case in a sentence quickly.",
+      "noteEn": "Ask the question with the question word and you will hear the case: Wer? for the nominative, Wen? for the accusative and Wem? for the dative.",
+      "headersEn": [
+        "case",
+        "question word",
+        "role in the sentence",
+        "example"
+      ]
+    },
+    {
+      "id": "adjektivendungen_bestimmt",
+      "title": "Adjektivendungen nach der / die / das",
+      "why": "Diese Tabelle brauchst du, wenn ein Adjektiv nach dem bestimmten Artikel steht.",
+      "headers": [
+        "",
+        "maskulin",
+        "neutrum",
+        "feminin",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Nominativ",
+          "-e",
+          "-e",
+          "-e",
+          "-en"
+        ],
+        [
+          "Akkusativ",
+          "-en",
+          "-e",
+          "-e",
+          "-en"
+        ],
+        [
+          "Dativ",
+          "-en",
+          "-en",
+          "-en",
+          "-en"
+        ],
+        [
+          "Genitiv",
+          "-en",
+          "-en",
+          "-en",
+          "-en"
+        ]
+      ],
+      "note": "Nach der / die / das steht fast immer -e oder -en, nur der Nominativ und der Akkusativ im Singular zeigen -e.",
+      "titleEn": "Adjective endings after der / die / das",
+      "whyEn": "You need this table when an adjective comes after the definite article.",
+      "noteEn": "After der / die / das the ending is almost always -e or -en; only the nominative and accusative singular show -e.",
+      "headersEn": [
+        "",
+        "masculine",
+        "neuter",
+        "feminine",
+        "plural"
+      ]
+    },
+    {
+      "id": "adjektivendungen_unbestimmt",
+      "title": "Adjektivendungen nach ein / kein / mein",
+      "why": "Diese Tabelle brauchst du, wenn ein Adjektiv nach ein, kein oder einem Possessivartikel steht.",
+      "headers": [
+        "",
+        "maskulin",
+        "neutrum",
+        "feminin",
+        "Plural"
+      ],
+      "rows": [
+        [
+          "Nominativ",
+          "-er",
+          "-es",
+          "-e",
+          "-en"
+        ],
+        [
+          "Akkusativ",
+          "-en",
+          "-es",
+          "-e",
+          "-en"
+        ],
+        [
+          "Dativ",
+          "-en",
+          "-en",
+          "-en",
+          "-en"
+        ],
+        [
+          "Genitiv",
+          "-en",
+          "-en",
+          "-en",
+          "-en"
+        ]
+      ],
+      "note": "Nach ein / kein / mein trägt das Adjektiv im Nominativ die Endung, die der bestimmte Artikel hätte: -er für maskulin, -es für neutrum, -e für feminin.",
+      "titleEn": "Adjective endings after ein / kein / mein",
+      "whyEn": "You need this table when an adjective follows ein, kein or a possessive article.",
+      "noteEn": "After ein / kein / mein the adjective carries the ending the definite article would have had: -er for masculine, -es for neuter, -e for feminine.",
+      "headersEn": [
+        "",
+        "masculine",
+        "neuter",
+        "feminine",
+        "plural"
+      ]
+    },
+    {
+      "id": "n_deklination",
+      "title": "n-Deklination: der Junge, den Jungen",
+      "why": "Diese Tabelle brauchst du, wenn ein maskulines Nomen im Akkusativ, Dativ oder Genitiv ein -n bekommt.",
+      "headers": [
+        "",
+        "Nominativ",
+        "Akkusativ",
+        "Dativ"
+      ],
+      "rows": [
+        [
+          "der Junge",
+          "der Junge",
+          "den Jungen",
+          "dem Jungen"
+        ],
+        [
+          "der Name",
+          "der Name",
+          "den Namen",
+          "dem Namen"
+        ],
+        [
+          "der Herr",
+          "der Herr",
+          "den Herrn",
+          "dem Herrn"
+        ],
+        [
+          "der Nachbar",
+          "der Nachbar",
+          "den Nachbarn",
+          "dem Nachbarn"
+        ],
+        [
+          "der Kollege",
+          "der Kollege",
+          "den Kollegen",
+          "dem Kollegen"
+        ],
+        [
+          "der Student",
+          "der Student",
+          "den Studenten",
+          "dem Studenten"
+        ],
+        [
+          "der Mensch",
+          "der Mensch",
+          "den Menschen",
+          "dem Menschen"
+        ]
+      ],
+      "note": "Bei diesen Nomen bleibt nur der Nominativ ohne -n; im Akkusativ, Dativ und Genitiv steht immer die Endung -n oder -en.",
+      "titleEn": "n-declension: der Junge, den Jungen",
+      "whyEn": "You need this table when a masculine noun takes an -n in the accusative, dative or genitive.",
+      "noteEn": "With these nouns only the nominative stays without -n; in the accusative, dative and genitive the ending is always -n or -en.",
+      "headersEn": [
+        "",
+        "nominative",
+        "accusative",
+        "dative"
+      ]
+    },
+    {
+      "id": "praepositionen_kasus",
+      "title": "Präpositionen und ihr Fall",
+      "why": "Diese Tabelle brauchst du, wenn du nach einer Präposition den richtigen Artikel wählen willst.",
+      "headers": [
+        "Fall",
+        "Präpositionen",
+        "Beispiel"
+      ],
+      "rows": [
+        [
+          "Dativ",
+          "aus, bei, mit, nach, seit, von, zu, gegenüber",
+          "Ich fahre mit dem Bus."
+        ],
+        [
+          "Akkusativ",
+          "durch, für, gegen, ohne, um, bis, entlang",
+          "Das Geschenk ist für meinen Bruder."
+        ],
+        [
+          "Wechsel",
+          "an, auf, in, über, unter, vor, hinter, neben, zwischen",
+          "Ich hänge das Bild an die Wand. / Das Bild hängt an der Wand."
+        ]
+      ],
+      "note": "Die Wechselpräpositionen zeigen den Akkusativ bei einer Bewegung (Wohin?) und den Dativ bei einer Position (Wo?).",
+      "titleEn": "Prepositions and their case",
+      "whyEn": "You need this table when you want to choose the right article after a preposition.",
+      "noteEn": "The two-way prepositions take the accusative for movement (Wohin?) and the dative for a position (Wo?).",
+      "headersEn": [
+        "case",
+        "prepositions",
+        "example"
+      ]
+    }
+  ],
+  "triggers": [
+    {
+      "case": "Nominativ",
+      "kind": "Verben mit Nominativ",
+      "items": [
+        "sein",
+        "werden",
+        "bleiben",
+        "heißen"
+      ],
+      "example": "Mein Bruder ist Lehrer und bleibt in Berlin.",
+      "en": "My brother is a teacher and stays in Berlin.",
+      "kindEn": "verbs that take the nominative"
+    },
+    {
+      "case": "Dativ",
+      "kind": "Verben mit Dativ",
+      "items": [
+        "helfen",
+        "danken",
+        "gefallen",
+        "gehören",
+        "antworten",
+        "passen",
+        "schmecken",
+        "gratulieren",
+        "folgen",
+        "wehtun"
+      ],
+      "example": "Ich helfe dir und danke dir.",
+      "en": "I help you and thank you.",
+      "kindEn": "verbs that take the dative"
+    },
+    {
+      "case": "Akkusativ",
+      "kind": "Verben mit Akkusativ",
+      "items": [
+        "haben",
+        "sehen",
+        "kaufen",
+        "brauchen",
+        "besuchen",
+        "fragen",
+        "suchen",
+        "es gibt"
+      ],
+      "example": "Ich habe einen Bruder und besuche ihn jeden Sonntag.",
+      "en": "I have a brother and visit him every Sunday.",
+      "kindEn": "verbs that take the accusative"
+    },
+    {
+      "case": "Dativ",
+      "kind": "Höfliche Wendungen",
+      "items": [
+        "es gefällt mir",
+        "es tut mir leid",
+        "es passt mir",
+        "es schmeckt mir",
+        "es geht mir gut"
+      ],
+      "example": "Die Suppe schmeckt mir gut, aber der Termin passt mir leider nicht.",
+      "en": "I like the soup, but unfortunately the appointment doesn't suit me.",
+      "kindEn": "polite expressions"
+    }
+  ],
+  "examples": [
+    {
+      "de": "Der Mann kauft den Hund und gibt dem Kind den Ball.",
+      "en": "The man buys the dog and gives the child the ball.",
+      "note": "der = Nominativ (Subjekt), den = Akkusativ (direktes Objekt), dem = Dativ (indirektes Objekt)."
+    },
+    {
+      "de": "Meine Nachbarin hilft dem alten Herrn jeden Morgen.",
+      "en": "My neighbour helps the old gentleman every morning.",
+      "note": "Das Verb helfen verlangt immer den Dativ: dem alten Herrn."
+    },
+    {
+      "de": "Wir warten ohne unseren Vater am Eingang.",
+      "en": "We wait at the entrance without our father.",
+      "note": "Die Präposition ohne steht mit dem Akkusativ: unseren Vater."
+    },
+    {
+      "de": "Nach dem Unterricht gehe ich mit meiner Freundin ins Café.",
+      "en": "After class I go to the café with my friend.",
+      "note": "Die Präpositionen nach und mit stehen mit dem Dativ: dem Unterricht, meiner Freundin."
+    },
+    {
+      "de": "Ich hänge das Bild an die Wand.",
+      "en": "I hang the picture on the wall.",
+      "note": "Wechselpräposition mit Richtung (Wohin?): an die Wand = Akkusativ."
+    },
+    {
+      "de": "Das Bild hängt an der Wand.",
+      "en": "The picture hangs on the wall.",
+      "note": "Wechselpräposition mit Position (Wo?): an der Wand = Dativ."
+    },
+    {
+      "de": "Ich sehe den Studenten und spreche mit dem Studenten.",
+      "en": "I see the student and speak with the student.",
+      "note": "n-Deklination: der Student bekommt im Akkusativ und im Dativ die Endung -en."
+    },
+    {
+      "de": "Ich fahre mit meinem neuen Auto zu meiner Arbeit.",
+      "en": "I drive to work with my new car.",
+      "note": "Possessivartikel im Dativ: mit meinem Auto, zu meiner Arbeit."
+    }
+  ],
+  "watchOut": [
+    "Der Dativ Plural braucht ein -n am Nomen: mit den Kindern, nicht mit den Kinder.",
+    "Nach dem Dativ-Verb helfen steht der Dativ, nicht der Akkusativ: Ich helfe meinem Bruder.",
+    "Bei der Wechselpräposition entscheidet die Frage: Wohin? = Akkusativ, Wo? = Dativ.",
+    "Die n-Deklination wird oft vergessen: Ich sehe den Jungen, nicht den Junge.",
+    "Der Genitiv maskulin und neutrum braucht -s: das Auto meines Bruders, nicht meines Bruder.",
+    "Nach ein, kein und mein bekommt das Adjektiv im Nominativ maskulin -er: ein guter Freund, nicht ein gute Freund."
+  ],
+  "introEn": "In German the article shows what role a noun plays in the sentence. That is why the article changes while the noun itself almost always stays the same. If you know the case, you can choose the right article with confidence.",
+  "watchOutEn": [
+    "The dative plural needs an -n on the noun: mit den Kindern, not mit den Kinder.",
+    "After the dative verb helfen you use the dative, not the accusative: Ich helfe meinem Bruder.",
+    "With a two-way preposition the question decides: Wohin? = accusative, Wo? = dative.",
+    "The n-declension is often forgotten: Ich sehe den Jungen, not den Junge.",
+    "The masculine and neuter genitive needs -s: das Auto meines Bruders, not meines Bruder.",
+    "After ein, kein and mein the adjective in the nominative masculine takes -er: ein guter Freund, not ein gute Freund."
+  ]
+}

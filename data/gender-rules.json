@@ -1,0 +1,688 @@
+{
+  "level": "B1",
+  "source": "telc Deutsch B1 - Nomen: Genus-Regeln und Ausnahmen",
+  "intro": "Das Genus der deutschen Nomen ist zum Teil vorhersagbar: Endungen wie -ung oder -chen und Bedeutungsgruppen wie Tage, Metalle oder junge Lebewesen geben starke Hinweise. Der Rest muss aber mit dem Artikel gelernt werden, denn keine Regel gilt ohne Ausnahme. Am besten lernst du jedes Nomen gleich mit Artikel und Plural.",
+  "rules": [
+    {
+      "gender": "die",
+      "kind": "Endung",
+      "title": "Endungen: immer feminin",
+      "items": [
+        "-ung",
+        "-heit",
+        "-keit",
+        "-schaft",
+        "-tion",
+        "-tät",
+        "-ie",
+        "-ei",
+        "-in (weibliche Personen)"
+      ],
+      "note": "Diese Endungen sind sehr zuverlässig: Fast alle Nomen mit -ung, -heit, -keit, -schaft, -tion, -tät, -ie, -ei und -in sind feminin.",
+      "examples": [
+        {
+          "de": "die Wohnung",
+          "en": "flat",
+          "plural": "die Wohnungen"
+        },
+        {
+          "de": "die Freiheit",
+          "en": "freedom",
+          "plural": "die Freiheiten"
+        },
+        {
+          "de": "die Möglichkeit",
+          "en": "possibility",
+          "plural": "die Möglichkeiten"
+        },
+        {
+          "de": "die Freundschaft",
+          "en": "friendship",
+          "plural": "die Freundschaften"
+        }
+      ],
+      "titleEn": "Endings: always feminine",
+      "noteEn": "These endings are very reliable: almost all nouns in -ung, -heit, -keit, -schaft, -tion, -tät, -ie, -ei and -in are feminine."
+    },
+    {
+      "gender": "der",
+      "kind": "Endung",
+      "title": "Endungen: immer maskulin",
+      "items": [
+        "-er (Personen und Geräte)",
+        "-ling",
+        "-or",
+        "-ismus",
+        "-ant",
+        "-ent",
+        "-ist"
+      ],
+      "note": "Die Endungen -ling, -or, -ismus, -ant, -ent und -ist sind fast immer maskulin; bei -er gibt es aber Ausnahmen wie das Fenster und das Messer.",
+      "examples": [
+        {
+          "de": "der Lehrer",
+          "en": "teacher",
+          "plural": "die Lehrer"
+        },
+        {
+          "de": "der Frühling",
+          "en": "spring",
+          "plural": "die Frühlinge"
+        },
+        {
+          "de": "der Motor",
+          "en": "engine",
+          "plural": "die Motoren"
+        },
+        {
+          "de": "der Praktikant",
+          "en": "intern",
+          "plural": "die Praktikanten"
+        }
+      ],
+      "titleEn": "Endings: always masculine",
+      "noteEn": "The endings -ling, -or, -ismus, -ant, -ent and -ist are almost always masculine; with -er there are exceptions such as das Fenster and das Messer."
+    },
+    {
+      "gender": "das",
+      "kind": "Endung",
+      "title": "Endungen: immer neutrum",
+      "items": [
+        "-chen",
+        "-lein",
+        "-ment",
+        "-um",
+        "-nis",
+        "-tum",
+        "-ett"
+      ],
+      "note": "Die Verkleinerungsendungen -chen und -lein sind die sichersten Regeln im Deutschen; -nis kann auch feminin sein (die Kenntnis), und bei -tum gibt es der Reichtum.",
+      "examples": [
+        {
+          "de": "das Brötchen",
+          "en": "bread roll",
+          "plural": "die Brötchen"
+        },
+        {
+          "de": "das Büchlein",
+          "en": "little book",
+          "plural": "die Büchlein"
+        },
+        {
+          "de": "das Dokument",
+          "en": "document",
+          "plural": "die Dokumente"
+        },
+        {
+          "de": "das Museum",
+          "en": "museum",
+          "plural": "die Museen"
+        }
+      ],
+      "titleEn": "Endings: always neuter",
+      "noteEn": "The diminutive endings -chen and -lein are the most reliable rules in German; -nis can also be feminine (die Kenntnis), and -tum has der Reichtum."
+    },
+    {
+      "gender": "der",
+      "kind": "Bedeutung",
+      "title": "Bedeutungsgruppen: maskulin",
+      "items": [
+        "Tage, Monate und Jahreszeiten",
+        "Wetter: Regen, Schnee, Wind, Nebel",
+        "alkoholische Getränke: Wein, Schnaps, Whisky",
+        "Autos und Motorräder: BMW, Harley",
+        "Züge und deren Namen"
+      ],
+      "note": "Diese Bedeutungsgruppen stimmen meistens, aber nicht immer: Es heißt der Wein, doch das Bier.",
+      "examples": [
+        {
+          "de": "der Montag",
+          "en": "Monday",
+          "plural": "die Montage"
+        },
+        {
+          "de": "der Sommer",
+          "en": "summer",
+          "plural": "die Sommer"
+        },
+        {
+          "de": "der Wein",
+          "en": "wine",
+          "plural": "die Weine"
+        },
+        {
+          "de": "der BMW",
+          "en": "BMW (car)",
+          "plural": "die BMWs"
+        }
+      ],
+      "titleEn": "Meaning groups: masculine",
+      "noteEn": "These meaning groups usually hold, but not always: it is der Wein, yet das Bier."
+    },
+    {
+      "gender": "die",
+      "kind": "Bedeutung",
+      "title": "Bedeutungsgruppen: feminin",
+      "items": [
+        "Zahlen als Nomen: die Eins, die Zwei",
+        "Bäume und Blumen: die Eiche, die Rose",
+        "Flüsse in Deutschland: die Elbe, die Donau",
+        "Schiffe und Flugzeuge: die Titanic"
+      ],
+      "note": "Bei Zahlen, Bäumen und Blumen ist die Regel recht sicher, bei Flüssen und Schiffen gibt es jedoch viele Ausnahmen wie der Rhein und der Main.",
+      "examples": [
+        {
+          "de": "die Eins",
+          "en": "one (the number)",
+          "plural": "die Einsen"
+        },
+        {
+          "de": "die Eiche",
+          "en": "oak",
+          "plural": "die Eichen"
+        },
+        {
+          "de": "die Rose",
+          "en": "rose",
+          "plural": "die Rosen"
+        },
+        {
+          "de": "die Boeing",
+          "en": "Boeing (plane)",
+          "plural": "die Boeings"
+        }
+      ],
+      "titleEn": "Meaning groups: feminine",
+      "noteEn": "With numbers, trees and flowers the rule is fairly safe, but with rivers and ships there are many exceptions such as der Rhein and der Main."
+    },
+    {
+      "gender": "das",
+      "kind": "Bedeutung",
+      "title": "Bedeutungsgruppen: neutrum",
+      "items": [
+        "junge Lebewesen: das Baby, das Kalb, das Lamm",
+        "Metalle: das Eisen, das Gold, das Silber",
+        "Länder und Städte: das schöne Wien, das moderne Berlin",
+        "substantivierte Verben und Adjektive: das Essen, das Schöne"
+      ],
+      "note": "Metalle sind meistens neutrum, aber es heißt der Stahl und die Bronze; bei Ländern und Städten steht oft gar kein Artikel.",
+      "examples": [
+        {
+          "de": "das Metall",
+          "en": "metal",
+          "plural": "die Metalle"
+        },
+        {
+          "de": "das Edelmetall",
+          "en": "precious metal",
+          "plural": "die Edelmetalle"
+        },
+        {
+          "de": "das Essen",
+          "en": "meal, food",
+          "plural": "die Essen"
+        },
+        {
+          "de": "das Junge",
+          "en": "young animal",
+          "plural": "die Jungen"
+        }
+      ],
+      "titleEn": "Meaning groups: neuter",
+      "noteEn": "Metals are mostly neuter, but it is der Stahl and die Bronze; with countries and cities there is often no article at all."
+    }
+  ],
+  "exceptions": [
+    {
+      "de": "das Mädchen",
+      "en": "girl",
+      "plural": "die Mädchen",
+      "looks": "die",
+      "why": "Die Endung -chen macht jedes Wort neutrum, auch wenn es eine weibliche Person bezeichnet.",
+      "whyEn": "The ending -chen makes any word neuter, even when it refers to a female person."
+    },
+    {
+      "de": "das Fräulein",
+      "en": "young lady",
+      "plural": "die Fräulein",
+      "looks": "die",
+      "why": "Die Verkleinerungsendung -lein steht immer mit das, auch wenn das Wort eine weibliche Person meint.",
+      "whyEn": "The diminutive ending -lein always takes das, even when the word refers to a female person."
+    },
+    {
+      "de": "das Baby",
+      "en": "baby",
+      "plural": "die Babys",
+      "looks": "die",
+      "why": "Bei jungen Lebewesen entscheidet nicht das Geschlecht, sondern die Bedeutung: darum heißt es das Baby.",
+      "whyEn": "With young creatures it is not biological sex that decides but the meaning: hence das Baby."
+    },
+    {
+      "de": "das Kind",
+      "en": "child",
+      "plural": "die Kinder",
+      "looks": "der",
+      "why": "Das Wort bezeichnet einen Menschen ohne festes Geschlecht, und solche Wörter sind im Deutschen neutrum.",
+      "whyEn": "The word refers to a person without a fixed sex, and such words are neuter in German."
+    },
+    {
+      "de": "das Weib",
+      "en": "woman (pejorative)",
+      "plural": "die Weiber",
+      "looks": "die",
+      "why": "Obwohl das Wort eine erwachsene Frau bezeichnet, ist es neutrum: das Weib, die Weiber.",
+      "whyEn": "Although the word refers to an adult woman, it is neuter: das Weib, die Weiber."
+    },
+    {
+      "de": "das Kalb",
+      "en": "calf",
+      "plural": "die Kälber",
+      "looks": "der",
+      "why": "Junge Tiere sind im Deutschen neutrum, auch wenn das Geschlecht des Tieres bekannt ist.",
+      "whyEn": "Young animals are neuter in German even when the animal's sex is known."
+    },
+    {
+      "de": "das Lamm",
+      "en": "lamb",
+      "plural": "die Lämmer",
+      "looks": "der",
+      "why": "Die Bedeutung junges Tier ist stärker als jede Endungsregel: darum heißt es das Lamm.",
+      "whyEn": "The meaning 'young animal' is stronger than any ending rule: hence das Lamm."
+    },
+    {
+      "de": "das Fohlen",
+      "en": "foal",
+      "plural": "die Fohlen",
+      "looks": "der",
+      "why": "Alle jungen Tiere stehen im Neutrum, deshalb heißt es das Fohlen und nicht der Fohlen.",
+      "whyEn": "All young animals are neuter, so it is das Fohlen and not der Fohlen."
+    },
+    {
+      "de": "das Küken",
+      "en": "chick",
+      "plural": "die Küken",
+      "looks": "der",
+      "why": "Junge Lebewesen sind neutrum, und das Küken bleibt im Plural unverändert: die Küken.",
+      "whyEn": "Young creatures are neuter, and das Küken stays unchanged in the plural: die Küken."
+    },
+    {
+      "de": "das Rind",
+      "en": "cattle, cow",
+      "plural": "die Rinder",
+      "looks": "der",
+      "why": "Das Rind ist der Oberbegriff für Kuh und Stier, und Oberbegriffe für Tiere sind oft neutrum.",
+      "whyEn": "das Rind is the collective term for cow and bull, and collective terms for animals are often neuter."
+    },
+    {
+      "de": "das Schaf",
+      "en": "sheep",
+      "plural": "die Schafe",
+      "looks": "der",
+      "why": "Obwohl jedes Schaf ein Geschlecht hat, nennt das Wort beide Geschlechter, und darum steht das.",
+      "whyEn": "Although every sheep has a sex, the word covers both, and so it takes das."
+    },
+    {
+      "de": "der Junge",
+      "en": "boy",
+      "plural": "die Jungen",
+      "looks": "die",
+      "why": "Die Endung -e täuscht: der Junge ist maskulin und gehört zu den schwachen Nomen (den Jungen).",
+      "whyEn": "The ending -e is misleading here: der Junge is masculine and belongs to the weak nouns (den Jungen)."
+    },
+    {
+      "de": "der Name",
+      "en": "name",
+      "plural": "die Namen",
+      "looks": "die",
+      "why": "Nomen der n-Deklination sind maskulin, auch wenn sie auf -e enden: der Name, den Namen.",
+      "whyEn": "Nouns of the n-declension are masculine even when they end in -e: der Name, den Namen."
+    },
+    {
+      "de": "der Käse",
+      "en": "cheese",
+      "plural": "die Käse",
+      "looks": "die",
+      "why": "Nicht jedes Wort auf -e ist feminin: der Käse ist maskulin und heißt im Plural die Käse.",
+      "whyEn": "Not every word in -e is feminine: der Käse is masculine and its plural is die Käse."
+    },
+    {
+      "de": "der Frieden",
+      "en": "peace",
+      "plural": "die Frieden",
+      "looks": "die",
+      "why": "Die Endung -en ist hier kein Femininum: der Frieden ist maskulin, auch wenn der Plural selten ist.",
+      "whyEn": "The ending -en is not feminine here: der Frieden is masculine, even though the plural is rare."
+    },
+    {
+      "de": "der Glaube",
+      "en": "faith, belief",
+      "plural": "die Glauben",
+      "looks": "die",
+      "why": "Der Glaube gehört zur n-Deklination und ist maskulin: der Glaube, den Glauben.",
+      "whyEn": "der Glaube belongs to the n-declension and is masculine: der Glaube, den Glauben."
+    },
+    {
+      "de": "der Wille",
+      "en": "will",
+      "plural": "die Willen",
+      "looks": "die",
+      "why": "Der Wille ist maskulin und schwach: der Wille, den Willen, die Willen.",
+      "whyEn": "der Wille is masculine and weak: der Wille, den Willen, die Willen."
+    },
+    {
+      "de": "der Funke",
+      "en": "spark",
+      "plural": "die Funken",
+      "looks": "die",
+      "why": "Trotz der Endung -e ist der Funke maskulin: der Funke, den Funken, die Funken.",
+      "whyEn": "Despite the ending -e, der Funke is masculine: der Funke, den Funken, die Funken."
+    },
+    {
+      "de": "der Buchstabe",
+      "en": "letter (of alphabet)",
+      "plural": "die Buchstaben",
+      "looks": "die",
+      "why": "Der Buchstabe ist maskulin und schwach: der Buchstabe, den Buchstaben, die Buchstaben.",
+      "whyEn": "der Buchstabe is masculine and weak: der Buchstabe, den Buchstaben, die Buchstaben."
+    },
+    {
+      "de": "der Gedanke",
+      "en": "thought",
+      "plural": "die Gedanken",
+      "looks": "die",
+      "why": "Die Endung -e macht den Gedanken nicht feminin: der Gedanke, den Gedanken, die Gedanken.",
+      "whyEn": "The ending -e does not make der Gedanke feminine: der Gedanke, den Gedanken, die Gedanken."
+    },
+    {
+      "de": "der Same",
+      "en": "seed",
+      "plural": "die Samen",
+      "looks": "die",
+      "why": "Der Same ist maskulin und gehört zur n-Deklination: der Same, den Samen, die Samen.",
+      "whyEn": "der Same is masculine and belongs to the n-declension: der Same, den Samen, die Samen."
+    },
+    {
+      "de": "der Herr",
+      "en": "gentleman, Mr",
+      "plural": "die Herren",
+      "looks": "der",
+      "why": "Der Artikel stimmt, aber der Herr ist schwach: der Herr, den Herrn, dem Herrn, die Herren.",
+      "whyEn": "The article is right, but der Herr is weak: der Herr, den Herrn, dem Herrn, die Herren."
+    },
+    {
+      "de": "der Nachbar",
+      "en": "neighbour",
+      "plural": "die Nachbarn",
+      "looks": "der",
+      "why": "Der Nachbar ist maskulin und schwach: der Nachbar, den Nachbarn, die Nachbarn.",
+      "whyEn": "der Nachbar is masculine and weak: der Nachbar, den Nachbarn, die Nachbarn."
+    },
+    {
+      "de": "der Kollege",
+      "en": "colleague",
+      "plural": "die Kollegen",
+      "looks": "die",
+      "why": "Die Endung -e bedeutet hier kein Femininum: der Kollege, den Kollegen, die Kollegen.",
+      "whyEn": "The ending -e does not mean feminine here: der Kollege, den Kollegen, die Kollegen."
+    },
+    {
+      "de": "der Kunde",
+      "en": "customer",
+      "plural": "die Kunden",
+      "looks": "die",
+      "why": "Der Kunde ist maskulin und schwach, obwohl das Wort auf -e endet: den Kunden, die Kunden.",
+      "whyEn": "der Kunde is masculine and weak even though the word ends in -e: den Kunden, die Kunden."
+    },
+    {
+      "de": "der Mensch",
+      "en": "human being",
+      "plural": "die Menschen",
+      "looks": "das",
+      "why": "Wörter für Personen sind nicht automatisch neutrum: der Mensch, den Menschen, die Menschen.",
+      "whyEn": "Words for people are not automatically neuter: der Mensch, den Menschen, die Menschen."
+    },
+    {
+      "de": "der Student",
+      "en": "student",
+      "plural": "die Studenten",
+      "looks": "der",
+      "why": "Die Endung -ent ist maskulin, aber der Student ist schwach: der Student, den Studenten.",
+      "whyEn": "The ending -ent is masculine, but der Student is weak: der Student, den Studenten."
+    },
+    {
+      "de": "die Butter",
+      "en": "butter",
+      "plural": "kein Plural",
+      "looks": "der",
+      "why": "Butter ist feminin, obwohl viele Speisen anders klingen, und das Wort hat keinen Plural: die Butter.",
+      "whyEn": "Butter is feminine even though many foods sound different, and the word has no plural: die Butter."
+    },
+    {
+      "de": "die Milch",
+      "en": "milk",
+      "plural": "kein Plural",
+      "looks": "das",
+      "why": "Milch ist feminin, obwohl die meisten Getränke wie das Wasser neutrum sind: die Milch.",
+      "whyEn": "Milch is feminine even though most drinks, like das Wasser, are neuter: die Milch."
+    },
+    {
+      "de": "die Wurst",
+      "en": "sausage",
+      "plural": "die Würste",
+      "looks": "das",
+      "why": "Wurst ist feminin, obwohl viele Lebensmittel neutrum sind: die Wurst, die Würste.",
+      "whyEn": "Wurst is feminine even though many foods are neuter: die Wurst, die Würste."
+    },
+    {
+      "de": "das Brot",
+      "en": "bread",
+      "plural": "die Brote",
+      "looks": "der",
+      "why": "Anders als der Käse ist das Brot neutrum: das Brot, die Brote.",
+      "whyEn": "Unlike der Käse, das Brot is neuter: das Brot, die Brote."
+    },
+    {
+      "de": "das Ei",
+      "en": "egg",
+      "plural": "die Eier",
+      "looks": "der",
+      "why": "Ei ist neutrum und bildet den Plural auf -er: das Ei, die Eier.",
+      "whyEn": "Ei is neuter and forms its plural in -er: das Ei, die Eier."
+    },
+    {
+      "de": "der Kaffee",
+      "en": "coffee",
+      "plural": "die Kaffees",
+      "looks": "das",
+      "why": "Kaffee ist maskulin, obwohl viele Getränke wie das Wasser neutrum sind: der Kaffee.",
+      "whyEn": "Kaffee is masculine even though many drinks, like das Wasser, are neuter: der Kaffee."
+    },
+    {
+      "de": "der Tee",
+      "en": "tea",
+      "plural": "die Tees",
+      "looks": "das",
+      "why": "Tee ist maskulin: der Tee, die Tees; nur wenige Getränke sind neutrum.",
+      "whyEn": "Tee is masculine: der Tee, die Tees; only a few drinks are neuter."
+    },
+    {
+      "de": "das Fenster",
+      "en": "window",
+      "plural": "die Fenster",
+      "looks": "der",
+      "why": "Die Endung -er ist meist maskulin, aber das Fenster ist neutrum: das Fenster, die Fenster.",
+      "whyEn": "The ending -er is usually masculine, but das Fenster is neuter: das Fenster, die Fenster."
+    },
+    {
+      "de": "das Zimmer",
+      "en": "room",
+      "plural": "die Zimmer",
+      "looks": "der",
+      "why": "Zimmer ist neutrum, obwohl die Endung -er oft maskuline Nomen kennzeichnet: die Zimmer.",
+      "whyEn": "Zimmer is neuter even though the ending -er often marks masculine nouns: die Zimmer."
+    },
+    {
+      "de": "das Messer",
+      "en": "knife",
+      "plural": "die Messer",
+      "looks": "der",
+      "why": "Messer ist neutrum, obwohl viele Werkzeuge auf -er maskulin sind: das Messer, die Messer.",
+      "whyEn": "Messer is neuter even though many tools in -er are masculine: das Messer, die Messer."
+    },
+    {
+      "de": "das Regal",
+      "en": "shelf",
+      "plural": "die Regale",
+      "looks": "der",
+      "why": "Regal ist neutrum und wird im Plural zu die Regale, auch wenn es wie ein maskulines Wort aussieht.",
+      "whyEn": "Regal is neuter and becomes die Regale in the plural, even though it looks like a masculine word."
+    },
+    {
+      "de": "der Spiegel",
+      "en": "mirror",
+      "plural": "die Spiegel",
+      "looks": "das",
+      "why": "Nicht alle Wörter auf -el sind neutrum: der Spiegel ist maskulin und heißt im Plural die Spiegel.",
+      "whyEn": "Not all words in -el are neuter: der Spiegel is masculine and its plural is die Spiegel."
+    },
+    {
+      "de": "das Dach",
+      "en": "roof",
+      "plural": "die Dächer",
+      "looks": "der",
+      "why": "Dach ist neutrum und bildet den Plural mit Umlaut: das Dach, die Dächer.",
+      "whyEn": "Dach is neuter and forms its plural with an umlaut: das Dach, die Dächer."
+    }
+  ],
+  "doubleGender": [
+    {
+      "de": "der See",
+      "en": "lake",
+      "other": "die See",
+      "otherEn": "sea",
+      "why": "Der Artikel ändert die Bedeutung: der See ist ein Binnensee, die See ist das Meer.",
+      "whyEn": "The article changes the meaning: der See is an inland lake, die See is the sea."
+    },
+    {
+      "de": "der Band",
+      "en": "volume (book)",
+      "other": "die Band",
+      "otherEn": "band (music group)",
+      "why": "der Band ist ein Buch (die Bände), die Band ist eine Musikgruppe (die Bands).",
+      "whyEn": "der Band is a book (die Bände), die Band is a music group (die Bands)."
+    },
+    {
+      "de": "der Leiter",
+      "en": "leader",
+      "other": "die Leiter",
+      "otherEn": "ladder",
+      "why": "der Leiter ist eine Person, die etwas leitet; die Leiter ist ein Gerät zum Steigen.",
+      "whyEn": "der Leiter is a person who leads something; die Leiter is a ladder."
+    },
+    {
+      "de": "der Tor",
+      "en": "fool",
+      "other": "das Tor",
+      "otherEn": "gate, goal",
+      "why": "der Tor bedeutet Narr, das Tor bedeutet Tür oder Treffer im Sport.",
+      "whyEn": "der Tor means fool, das Tor means gate or a goal in sport."
+    },
+    {
+      "de": "der Moment",
+      "en": "moment (in time)",
+      "other": "das Moment",
+      "otherEn": "factor, element",
+      "why": "der Moment ist ein Augenblick, das Moment ist ein ausschlaggebender Umstand.",
+      "whyEn": "der Moment is a moment in time, das Moment is a decisive factor."
+    },
+    {
+      "de": "der Kiefer",
+      "en": "jaw",
+      "other": "die Kiefer",
+      "otherEn": "pine (tree)",
+      "why": "der Kiefer ist der Knochen im Kopf, die Kiefer ist ein Nadelbaum.",
+      "whyEn": "der Kiefer is the jawbone, die Kiefer is a pine tree."
+    },
+    {
+      "de": "der Verdienst",
+      "en": "earnings",
+      "other": "das Verdienst",
+      "otherEn": "merit",
+      "why": "der Verdienst ist das verdiente Geld, das Verdienst ist eine anerkannte Leistung.",
+      "whyEn": "der Verdienst is the money you earn, das Verdienst is a recognised achievement."
+    },
+    {
+      "de": "der Gehalt",
+      "en": "content, proportion",
+      "other": "das Gehalt",
+      "otherEn": "salary",
+      "why": "der Gehalt ist der Inhalt oder Anteil, das Gehalt ist der Lohn für die Arbeit.",
+      "whyEn": "der Gehalt is the content or proportion, das Gehalt is the salary."
+    },
+    {
+      "de": "die Steuer",
+      "en": "tax",
+      "other": "das Steuer",
+      "otherEn": "steering wheel",
+      "why": "die Steuer ist Geld, das man an den Staat zahlt; das Steuer ist das Lenkrad.",
+      "whyEn": "die Steuer is money paid to the state; das Steuer is the steering wheel."
+    },
+    {
+      "de": "der Otter",
+      "en": "otter",
+      "other": "die Otter",
+      "otherEn": "viper (snake)",
+      "why": "der Otter ist ein Säugetier im Wasser, die Otter ist eine Schlange.",
+      "whyEn": "der Otter is a mammal living in water, die Otter is a snake."
+    },
+    {
+      "de": "der Bauer",
+      "en": "farmer",
+      "other": "das Bauer",
+      "otherEn": "birdcage",
+      "why": "der Bauer ist ein Landwirt, das Bauer ist ein Käfig für Vögel.",
+      "whyEn": "der Bauer is a farmer, das Bauer is a birdcage."
+    },
+    {
+      "de": "der Golf",
+      "en": "gulf, bay",
+      "other": "das Golf",
+      "otherEn": "golf (sport)",
+      "why": "der Golf ist ein Meerbusen, das Golf ist die Sportart mit Schläger und Ball.",
+      "whyEn": "der Golf is a gulf or bay, das Golf is the sport played with clubs and a ball."
+    },
+    {
+      "de": "der Kunde",
+      "en": "customer",
+      "other": "die Kunde",
+      "otherEn": "news, message",
+      "why": "der Kunde ist eine Person, die etwas kauft; die Kunde ist eine Nachricht.",
+      "whyEn": "der Kunde is a person who buys something; die Kunde is a piece of news."
+    },
+    {
+      "de": "der Junge",
+      "en": "boy",
+      "other": "das Junge",
+      "otherEn": "young animal",
+      "why": "der Junge ist ein männliches Kind, das Junge ist ein Tierkind.",
+      "whyEn": "der Junge is a boy, das Junge is a young animal."
+    }
+  ],
+  "watchOut": [
+    "Lerne jedes neue Nomen immer mit Artikel und Plural, zum Beispiel die Wohnung, die Wohnungen.",
+    "Die Endungsregeln sind stark, aber die Bedeutung gewinnt oft: das Mädchen und das Baby sind trotz weiblicher Bedeutung neutrum.",
+    "Wörter auf -e sind meistens feminin, doch schwache Maskulina wie der Junge, der Name und der Kunde sind die große Ausnahme.",
+    "Achte besonders auf Wörter mit zwei Artikeln: der See und die See oder der Band und die Band haben verschiedene Bedeutungen.",
+    "Bei Lebensmitteln und Getränken hilft keine Regel sicher: der Kaffee, das Wasser, die Milch und das Brot musst du einzeln lernen.",
+    "Wenn du unsicher bist, schlag im Wörterbuch nach und schreibe Artikel und Plural in deine Vokabelliste."
+  ],
+  "introEn": "German noun gender is partly predictable: endings such as -ung or -chen, and meaning groups such as days, metals or young creatures, are strong pointers. The rest simply has to be learned with the article, because no rule is without exception. The best habit is to learn every noun together with its article and its plural.",
+  "watchOutEn": [
+    "Always learn a new noun with its article and plural, for example die Wohnung, die Wohnungen.",
+    "The ending rules are strong, but meaning often wins: das Mädchen and das Baby are neuter despite referring to females.",
+    "Words in -e are mostly feminine, but weak masculines like der Junge, der Name and der Kunde are the big exception.",
+    "Pay special attention to words with two articles: der See and die See, or der Band and die Band, have different meanings.",
+    "With food and drink no rule is reliable: der Kaffee, das Wasser, die Milch and das Brot all have to be learned individually.",
+    "If you are unsure, look it up in the dictionary and write the article and the plural into your vocabulary list."
+  ]
+}

@@ -1,0 +1,1126 @@
+{
+  "level": "B1",
+  "source": "telc Deutsch B1 - Grammatik zum Nachschlagen",
+  "topics": [
+    {
+      "id": "reflexivverben",
+      "title": "Reflexivverben: sich ...",
+      "why": "Reflexivverben kommen in der Prüfung ständig vor, zum Beispiel wenn Sie über Hobbys, Gefühle und Pläne sprechen, und mit ihnen klingen Ihre Sätze sofort natürlicher.",
+      "rule": "Bei einem Reflexivverb gehört ein kleines Wort fest zum Verb: sich freuen, sich ärgern, sich beeilen. Dieses Wort ändert sich mit der Person: ich freue mich, du freust dich, er freut sich, wir freuen uns, ihr freut euch, sie freuen sich. Bei den meisten Verben steht dieses Wort im Akkusativ (mich, dich, sich, uns, euch, sich), bei einigen aber im Dativ: Ich kann mir das gut vorstellen. Viele Reflexivverben haben außerdem eine feste Präposition, und der Kasus danach gehört einfach zum Verb: sich interessieren für + Akkusativ, sich kümmern um + Akkusativ, sich erinnern an + Akkusativ, sich ärgern über + Akkusativ, sich freuen auf + Akkusativ. Weitere häufige Verben sind sich entschuldigen bei + Dativ, sich beschweren über + Akkusativ, sich verabreden mit + Dativ, sich treffen mit + Dativ und sich fühlen.",
+      "pattern": "sich + Verb (+ Präposition + Kasus)",
+      "examples": [
+        {
+          "de": "Ich interessiere mich für Musik und gehe jeden Samstag ins Konzert.",
+          "en": "I am interested in music and go to a concert every Saturday.",
+          "note": "sich interessieren für + Akkusativ"
+        },
+        {
+          "de": "Wir freuen uns schon sehr auf den Urlaub in Italien.",
+          "en": "We are already very much looking forward to the holiday in Italy.",
+          "note": "sich freuen auf + Akkusativ (Zukunft)"
+        },
+        {
+          "de": "Kannst du dich bitte um die Getränke kümmern?",
+          "en": "Could you please take care of the drinks?",
+          "note": "sich kümmern um + Akkusativ"
+        },
+        {
+          "de": "Ich kann mich nicht mehr an seinen Namen erinnern.",
+          "en": "I can no longer remember his name.",
+          "note": "sich erinnern an + Akkusativ"
+        },
+        {
+          "de": "Wir müssen uns beeilen, sonst verpassen wir den Zug.",
+          "en": "We have to hurry, otherwise we will miss the train.",
+          "note": "sich beeilen steht ohne Präposition"
+        },
+        {
+          "de": "Ich kann mir gut vorstellen, in Deutschland zu arbeiten.",
+          "en": "I can well imagine working in Germany.",
+          "note": "sich vorstellen + Dativ (mir) + zu + Infinitiv"
+        }
+      ],
+      "table": {
+        "headers": [
+          "Person",
+          "Akkusativ",
+          "Dativ"
+        ],
+        "rows": [
+          [
+            "ich",
+            "mich",
+            "mir"
+          ],
+          [
+            "du",
+            "dich",
+            "dir"
+          ],
+          [
+            "er / sie / es",
+            "sich",
+            "sich"
+          ],
+          [
+            "wir",
+            "uns",
+            "uns"
+          ],
+          [
+            "ihr",
+            "euch",
+            "euch"
+          ],
+          [
+            "sie / Sie",
+            "sich",
+            "sich"
+          ]
+        ],
+        "headersEn": [
+          "person",
+          "accusative",
+          "dative"
+        ],
+        "firstColumnEn": [
+          "I",
+          "you",
+          "he / she / it",
+          "we",
+          "you (plural)",
+          "they / you (formal)"
+        ]
+      },
+      "traps": [
+        "Falsch: Ich interessiere mich über Musik. – Richtig: Ich interessiere mich für Musik.",
+        "Falsch: Ich freue mich über den Urlaub nächste Woche. – Richtig: Ich freue mich auf den Urlaub nächste Woche, denn es geht um die Zukunft.",
+        "Falsch: Ich kann mich gut vorstellen, in Deutschland zu arbeiten. – Richtig: Ich kann mir gut vorstellen, in Deutschland zu arbeiten.",
+        "Falsch: Ich interessiere mich für Musik nicht. – Richtig: Ich interessiere mich nicht für Musik."
+      ],
+      "titleEn": "Reflexive verbs: sich ...",
+      "whyEn": "Reflexive verbs come up constantly in the exam — for example when you talk about hobbies, feelings and plans — and they make your sentences sound natural straight away.",
+      "ruleEn": "With a reflexive verb a small word belongs firmly to the verb: sich freuen, sich ärgern, sich beeilen. That word changes with the person: ich freue mich, du freust dich, er freut sich, wir freuen uns, ihr freut euch, sie freuen sich. With most verbs this word is in the accusative (mich, dich, sich, uns, euch, sich), but with some it is in the dative: Ich kann mir das gut vorstellen. Many reflexive verbs also take a fixed preposition, and the case after it simply belongs to the verb: sich interessieren für + accusative, sich kümmern um + accusative, sich erinnern an + accusative, sich ärgern über + accusative, sich freuen auf + accusative. Other common verbs are sich entschuldigen bei + dative, sich beschweren über + accusative, sich verabreden mit + dative, sich treffen mit + dative and sich fühlen.",
+      "patternEn": "sich + verb (+ preposition + case)",
+      "trapsEn": [
+        "Wrong: Ich interessiere mich über Musik. – Right: Ich interessiere mich für Musik.",
+        "Wrong: Ich freue mich über den Urlaub nächste Woche. – Right: Ich freue mich auf den Urlaub nächste Woche, because it is about the future.",
+        "Wrong: Ich kann mich gut vorstellen, in Deutschland zu arbeiten. – Right: Ich kann mir gut vorstellen, in Deutschland zu arbeiten.",
+        "Wrong: Ich interessiere mich für Musik nicht. – Right: Ich interessiere mich nicht für Musik."
+      ]
+    },
+    {
+      "id": "um_zu_infinitiv",
+      "title": "um ... zu + Infinitiv",
+      "why": "Mit um ... zu können Sie in der mündlichen Prüfung Ziele und Gründe kurz und sicher nennen, ohne einen langen Nebensatz zu bauen.",
+      "rule": "Mit um ... zu + Infinitiv sagen Sie, warum jemand etwas macht, also welches Ziel er hat. Die beiden Teile stehen weit auseinander: um steht nach dem Komma am Anfang, zu + Infinitiv steht ganz am Ende. Das geht nur, wenn beide Teile dieselbe Person haben. Wenn die Personen verschieden sind, nehmen Sie damit und einen Nebensatz mit dem Verb am Ende. Bei trennbaren Verben schiebt sich zu zwischen Vorsilbe und Verb: einkaufen wird einzukaufen, anrufen wird anzurufen.",
+      "pattern": "Hauptsatz, um ... zu + Infinitiv",
+      "examples": [
+        {
+          "de": "Ich stehe jeden Morgen früh auf, um vor der Arbeit Deutsch zu lernen.",
+          "en": "I get up early every morning in order to study German before work.",
+          "note": "gleiche Person im Haupt- und Nebensatz"
+        },
+        {
+          "de": "Wir fahren am Samstag in die Stadt, um neue Schuhe zu kaufen.",
+          "en": "On Saturday we are going into town to buy new shoes.",
+          "note": "zu + Infinitiv steht am Satzende"
+        },
+        {
+          "de": "Sie hat den Job gewechselt, um mehr Geld zu verdienen.",
+          "en": "She changed jobs in order to earn more money.",
+          "note": "Perfekt im Hauptsatz, danach um ... zu + Infinitiv"
+        },
+        {
+          "de": "Ich habe heute keine Zeit, um noch einzukaufen.",
+          "en": "I have no time today to go shopping.",
+          "note": "trennbares Verb: ein|kaufen wird einzukaufen"
+        },
+        {
+          "de": "Er hat mir geschrieben, um sich zu entschuldigen.",
+          "en": "He wrote to me in order to apologise.",
+          "note": "Reflexivverb: sich entschuldigen wird sich zu entschuldigen"
+        },
+        {
+          "de": "Ich spreche langsam, damit du mich besser verstehst.",
+          "en": "I speak slowly so that you understand me better.",
+          "note": "verschiedene Personen: damit + Verb am Ende"
+        }
+      ],
+      "table": {
+        "headers": [
+          "Gleiche Person: um ... zu",
+          "Verschiedene Personen: damit"
+        ],
+        "rows": [
+          [
+            "Ich lerne jeden Tag Vokabeln, um die Prüfung zu bestehen.",
+            "Ich lerne jeden Tag Vokabeln, damit mein Bruder die Prüfung besteht."
+          ],
+          [
+            "Wir fahren früh los, um den Stau zu vermeiden.",
+            "Wir fahren früh los, damit die Kinder nicht so lange warten müssen."
+          ]
+        ],
+        "headersEn": [
+          "same person: um ... zu",
+          "different people: damit"
+        ]
+      },
+      "traps": [
+        "Falsch: Ich lerne Deutsch, um in Deutschland arbeiten. – Richtig: Ich lerne Deutsch, um in Deutschland zu arbeiten.",
+        "Falsch: Ich spreche langsam, um mein Lehrer mich versteht. – Richtig: Ich spreche langsam, damit mein Lehrer mich versteht.",
+        "Falsch: Ich gehe in den Supermarkt, um einkaufen zu. – Richtig: Ich gehe in den Supermarkt, um einzukaufen.",
+        "Falsch: Um die Prüfung zu bestehen, ich lerne jeden Tag. – Richtig: Um die Prüfung zu bestehen, lerne ich jeden Tag."
+      ],
+      "titleEn": "um ... zu + infinitive",
+      "whyEn": "With um ... zu you can name goals and reasons briefly and confidently in the oral exam, without building a long subordinate clause.",
+      "ruleEn": "With um ... zu + infinitive you say why someone does something, that is, what their goal is. The two parts stand far apart: um comes after the comma at the start, zu + infinitive comes right at the end. This only works when both parts have the same person. If the people are different, you use damit and a subordinate clause with the verb at the end. With separable verbs zu slips between the prefix and the verb: einkaufen becomes einzukaufen, anrufen becomes anzurufen.",
+      "patternEn": "main clause, um ... zu + infinitive",
+      "trapsEn": [
+        "Wrong: Ich lerne Deutsch, um in Deutschland arbeiten. – Right: Ich lerne Deutsch, um in Deutschland zu arbeiten.",
+        "Wrong: Ich spreche langsam, um mein Lehrer mich versteht. – Right: Ich spreche langsam, damit mein Lehrer mich versteht.",
+        "Wrong: Ich gehe in den Supermarkt, um einkaufen zu. – Right: Ich gehe in den Supermarkt, um einzukaufen.",
+        "Wrong: Um die Prüfung zu bestehen, ich lerne jeden Tag. – Right: Um die Prüfung zu bestehen, lerne ich jeden Tag."
+      ]
+    },
+    {
+      "id": "infinitiv_mit_zu",
+      "title": "Infinitiv mit zu",
+      "why": "Viele Verben und Ausdrücke, die Sie in der Prüfung oft brauchen, verlangen zu + Infinitiv, und wer das zu vergisst, macht einen sehr typischen Fehler.",
+      "rule": "Nach bestimmten Verben steht zu + Infinitiv: vorhaben, versuchen, vergessen, anfangen, aufhören und hoffen. Auch feste Ausdrücke wie Lust haben, Zeit haben, es ist wichtig und es ist schwierig nehmen zu + Infinitiv. Der Infinitiv steht am Ende des Satzes, und bei trennbaren Verben steht zu in der Mitte: einzukaufen, anzurufen, aufzustehen. Nach Modalverben wie können, müssen oder wollen steht dagegen kein zu, dort genügt der Infinitiv am Satzende. Das Verb nach zu verändert sich nie, egal ob ich, du oder wir im Satz steht.",
+      "pattern": "Verb / Ausdruck + zu + Infinitiv (am Satzende)",
+      "examples": [
+        {
+          "de": "Ich habe vor, im Sommer einen Deutschkurs zu machen.",
+          "en": "I plan to take a German course in the summer.",
+          "note": "vorhaben + zu + Infinitiv"
+        },
+        {
+          "de": "Er versucht, jeden Tag zwanzig neue Wörter zu lernen.",
+          "en": "He tries to learn twenty new words every day.",
+          "note": "versuchen + zu + Infinitiv"
+        },
+        {
+          "de": "Hast du Lust, am Wochenende mit uns ins Kino zu gehen?",
+          "en": "Do you feel like going to the cinema with us at the weekend?",
+          "note": "Lust haben + zu + Infinitiv"
+        },
+        {
+          "de": "Ich habe vergessen, die Rechnung zu bezahlen.",
+          "en": "I forgot to pay the bill.",
+          "note": "vergessen + zu + Infinitiv"
+        },
+        {
+          "de": "Es ist wichtig, jeden Tag ein bisschen zu üben.",
+          "en": "It is important to practise a little every day.",
+          "note": "es ist wichtig + zu + Infinitiv"
+        },
+        {
+          "de": "Wir haben aufgehört, jeden Abend fernzusehen.",
+          "en": "We stopped watching television every evening.",
+          "note": "trennbares Verb: fern|sehen wird fernzusehen"
+        }
+      ],
+      "traps": [
+        "Falsch: Ich versuche, jeden Tag Deutsch lernen. – Richtig: Ich versuche, jeden Tag Deutsch zu lernen.",
+        "Falsch: Ich muss heute zu arbeiten. – Richtig: Ich muss heute arbeiten, denn nach Modalverben steht kein zu.",
+        "Falsch: Ich habe vor, einzukaufen im Supermarkt. – Richtig: Ich habe vor, im Supermarkt einzukaufen.",
+        "Falsch: Es ist wichtig, dass jeden Tag zu üben. – Richtig: Es ist wichtig, jeden Tag zu üben."
+      ],
+      "titleEn": "Infinitive with zu",
+      "whyEn": "Many verbs and expressions that you often need in the exam require zu + infinitive, and forgetting that zu is a very typical mistake.",
+      "ruleEn": "After certain verbs you use zu + infinitive: vorhaben, versuchen, vergessen, anfangen, aufhören and hoffen. Fixed expressions such as Lust haben, Zeit haben, es ist wichtig and es ist schwierig also take zu + infinitive. The infinitive stands at the end of the sentence, and with separable verbs zu goes in the middle: einzukaufen, anzurufen, aufzustehen. After modal verbs such as können, müssen or wollen there is no zu — the bare infinitive at the end of the sentence is enough. The verb after zu never changes, whether the sentence has ich, du or wir.",
+      "patternEn": "verb / expression + zu + infinitive (at the end of the sentence)",
+      "trapsEn": [
+        "Wrong: Ich versuche, jeden Tag Deutsch lernen. – Right: Ich versuche, jeden Tag Deutsch zu lernen.",
+        "Wrong: Ich muss heute zu arbeiten. – Right: Ich muss heute arbeiten, because there is no zu after modal verbs.",
+        "Wrong: Ich habe vor, einzukaufen im Supermarkt. – Right: Ich habe vor, im Supermarkt einzukaufen.",
+        "Wrong: Es ist wichtig, dass jeden Tag zu üben. – Right: Es ist wichtig, jeden Tag zu üben."
+      ]
+    },
+    {
+      "id": "nebensatz_wortstellung",
+      "title": "Nebensätze: das Verb ans Ende",
+      "why": "In fast jeder Aufgabe verbinden Sie zwei Sätze, und in der Prüfung fällt sofort auf, wenn das Verb im Nebensatz nicht am Ende steht.",
+      "rule": "Ein Nebensatz beginnt mit einem Wort wie weil, dass, obwohl, wenn, als, damit, ob, während, bevor, nachdem oder seitdem. In diesem Nebensatz steht das konjugierte Verb ganz am Ende. Hauptsatz und Nebensatz trennt man mit einem Komma. Steht der Nebensatz zuerst, beginnt der Hauptsatz direkt nach dem Komma mit dem Verb. Bei trennbaren Verben steht im Nebensatz das ganze Verb zusammen am Ende.",
+      "pattern": "..., weil / dass / obwohl / wenn + Subjekt + ... + Verb (am Ende)",
+      "examples": [
+        {
+          "de": "Ich komme heute später, weil ich noch einen Termin beim Arzt habe.",
+          "en": "I will be a bit later today because I still have a doctor’s appointment.",
+          "note": "weil + konjugiertes Verb am Ende"
+        },
+        {
+          "de": "Er hat mir gesagt, dass er nächste Woche umzieht.",
+          "en": "He told me that he is moving next week.",
+          "note": "dass + konjugiertes Verb am Ende"
+        },
+        {
+          "de": "Obwohl es stark geregnet hat, sind wir spazieren gegangen.",
+          "en": "Although it rained heavily, we went for a walk.",
+          "note": "Nebensatz zuerst, dann beginnt der Hauptsatz mit dem Verb"
+        },
+        {
+          "de": "Wenn ich Zeit habe, rufe ich dich heute Abend an.",
+          "en": "If I have time, I will call you this evening.",
+          "note": "Hauptsatz mit trennbarem Verb: rufe ... an"
+        },
+        {
+          "de": "Weißt du schon, ob der Kurs am Montag anfängt?",
+          "en": "Do you already know whether the course starts on Monday?",
+          "note": "indirekte Frage mit ob, Verb am Ende"
+        },
+        {
+          "de": "Nachdem ich gefrühstückt hatte, bin ich zur Arbeit gefahren.",
+          "en": "After I had had breakfast, I drove to work.",
+          "note": "nachdem + Plusquamperfekt, danach der Hauptsatz"
+        }
+      ],
+      "traps": [
+        "Falsch: Ich komme später, weil ich habe noch einen Termin. – Richtig: Ich komme später, weil ich noch einen Termin habe.",
+        "Falsch: Obwohl es hat geregnet, sind wir spazieren gegangen. – Richtig: Obwohl es geregnet hat, sind wir spazieren gegangen.",
+        "Falsch: Wenn ich Zeit habe, ich rufe dich an. – Richtig: Wenn ich Zeit habe, rufe ich dich an.",
+        "Falsch: Ich komme nicht, weil ich anfange um acht Uhr. – Richtig: Ich komme nicht, weil ich um acht Uhr anfange."
+      ],
+      "titleEn": "Subordinate clauses: the verb goes to the end",
+      "whyEn": "In almost every task you join two sentences, and in the exam it is immediately obvious when the verb in a subordinate clause is not at the end.",
+      "ruleEn": "A subordinate clause begins with a word such as weil, dass, obwohl, wenn, als, damit, ob, während, bevor, nachdem or seitdem. In this subordinate clause the conjugated verb stands right at the end. Main clause and subordinate clause are separated by a comma. If the subordinate clause comes first, the main clause begins with the verb directly after the comma. With separable verbs the whole verb stands together at the end of the subordinate clause.",
+      "patternEn": "..., weil / dass / obwohl / wenn + subject + ... + verb (at the end)",
+      "trapsEn": [
+        "Wrong: Ich komme später, weil ich habe noch einen Termin. – Right: Ich komme später, weil ich noch einen Termin habe.",
+        "Wrong: Obwohl es hat geregnet, sind wir spazieren gegangen. – Right: Obwohl es geregnet hat, sind wir spazieren gegangen.",
+        "Wrong: Wenn ich Zeit habe, ich rufe dich an. – Right: Wenn ich Zeit habe, rufe ich dich an.",
+        "Wrong: Ich komme nicht, weil ich anfange um acht Uhr. – Right: Ich komme nicht, weil ich um acht Uhr anfange."
+      ]
+    },
+    {
+      "id": "wechselpraepositionen",
+      "title": "Wechselpräpositionen: wo? / wohin?",
+      "why": "Diese neun Präpositionen brauchen Sie für Wegbeschreibungen, für die Bildbeschreibung in der Prüfung und für jede Geschichte in der Vergangenheit.",
+      "rule": "Zu den Wechselpräpositionen gehören an, auf, in, über, unter, vor, hinter, neben und zwischen. Wenn sich etwas bewegt oder wohin kommt, steht danach der Akkusativ: Ich gehe in die Küche. Wenn etwas nur an einem Ort liegt oder steht, steht danach der Dativ: Ich bin in der Küche. Die Frage hilft immer: wohin? ergibt Akkusativ, wo? ergibt Dativ. Es gibt feste Verbpaare, die man zusammen lernen sollte: legen und liegen, stellen und stehen, hängen und hängen, setzen und sitzen, wobei das Akkusativ-Verb die Bewegung und das Dativ-Verb die Position zeigt.",
+      "pattern": "wohin? + Akkusativ | wo? + Dativ",
+      "examples": [
+        {
+          "de": "Ich hänge die Jacke in den Schrank.",
+          "en": "I hang the jacket in the wardrobe.",
+          "note": "wohin? in + Akkusativ"
+        },
+        {
+          "de": "Die Jacke hängt im Schrank.",
+          "en": "The jacket is hanging in the wardrobe.",
+          "note": "wo? in + Dativ (im = in dem)"
+        },
+        {
+          "de": "Bitte lege die Zeitung auf den Küchentisch.",
+          "en": "Please put the newspaper on the kitchen table.",
+          "note": "legen + auf + Akkusativ (Bewegung)"
+        },
+        {
+          "de": "Die Zeitung liegt schon auf dem Küchentisch.",
+          "en": "The newspaper is already lying on the kitchen table.",
+          "note": "liegen + auf + Dativ (Position)"
+        },
+        {
+          "de": "Wir treffen uns um sieben Uhr vor dem Kino.",
+          "en": "We are meeting in front of the cinema at seven o’clock.",
+          "note": "wo? vor + Dativ"
+        },
+        {
+          "de": "Stell die Flaschen bitte in den Kühlschrank.",
+          "en": "Please put the bottles in the fridge.",
+          "note": "stellen + in + Akkusativ"
+        }
+      ],
+      "table": {
+        "headers": [
+          "wohin? (Akkusativ)",
+          "wo? (Dativ)"
+        ],
+        "rows": [
+          [
+            "Ich hänge das Bild an die Wand.",
+            "Das Bild hängt an der Wand."
+          ],
+          [
+            "Er legt das Buch auf den Tisch.",
+            "Das Buch liegt auf dem Tisch."
+          ],
+          [
+            "Wir gehen in die Stadt.",
+            "Wir sind in der Stadt."
+          ],
+          [
+            "Sie stellt die Vase neben das Fenster.",
+            "Die Vase steht neben dem Fenster."
+          ],
+          [
+            "Ich setze mich zwischen die beiden Kinder.",
+            "Ich sitze zwischen den beiden Kindern."
+          ]
+        ],
+        "headersEn": [
+          "wohin? (accusative)",
+          "wo? (dative)"
+        ]
+      },
+      "traps": [
+        "Falsch: Ich gehe in der Küche. – Richtig: Ich gehe in die Küche, denn auf die Frage wohin? folgt der Akkusativ.",
+        "Falsch: Das Buch liegt auf den Tisch. – Richtig: Das Buch liegt auf dem Tisch.",
+        "Falsch: Ich lege mich auf dem Sofa. – Richtig: Ich lege mich auf das Sofa.",
+        "Falsch: Er steht vor die Tür. – Richtig: Er steht vor der Tür."
+      ],
+      "titleEn": "Two-way prepositions: wo? / wohin?",
+      "whyEn": "You need these nine prepositions for giving directions, for describing a picture in the exam, and for any story in the past.",
+      "ruleEn": "The two-way prepositions are an, auf, in, über, unter, vor, hinter, neben and zwischen. If something moves or is going somewhere, the accusative follows: Ich gehe in die Küche. If something is simply located somewhere, the dative follows: Ich bin in der Küche. The question always helps: wohin? gives the accusative, wo? gives the dative. There are fixed verb pairs worth learning together: legen and liegen, stellen and stehen, hängen and hängen, setzen and sitzen, where the accusative verb shows movement and the dative verb shows position.",
+      "patternEn": "wohin? + accusative | wo? + dative",
+      "trapsEn": [
+        "Wrong: Ich gehe in der Küche. – Right: Ich gehe in die Küche, because the question wohin? takes the accusative.",
+        "Wrong: Das Buch liegt auf den Tisch. – Right: Das Buch liegt auf dem Tisch.",
+        "Wrong: Ich lege mich auf dem Sofa. – Right: Ich lege mich auf das Sofa.",
+        "Wrong: Er steht vor die Tür. – Right: Er steht vor der Tür."
+      ]
+    },
+    {
+      "id": "praepositionen_kasus",
+      "title": "Präpositionen und ihr Kasus",
+      "why": "Der Kasus nach der Präposition ist ein Lieblingsthema der Prüfer, und mit einer kurzen Liste können Sie hier viele Punkte sicher machen.",
+      "rule": "Manche Präpositionen haben immer den Dativ: aus, bei, mit, nach, seit, von, zu und gegenüber. Andere haben immer den Akkusativ: durch, für, gegen, ohne, um, bis und entlang. Bei entlang steht das Wort meistens nach dem Nomen: die Straße entlang. Viele Präpositionen verschmelzen mit dem Artikel zu einem kurzen Wort: zu dem wird zum, zu der wird zur, bei dem wird beim, von dem wird vom, in dem wird im, an dem wird am, an das wird ans, in das wird ins. Diese kurzen Formen benutzt man im Alltag fast immer.",
+      "pattern": "Dativ: aus, bei, mit, nach, seit, von, zu | Akkusativ: durch, für, gegen, ohne, um, bis",
+      "examples": [
+        {
+          "de": "Ich fahre jeden Tag mit dem Fahrrad zur Arbeit.",
+          "en": "I cycle to work every day.",
+          "note": "mit + Dativ, zur = zu der"
+        },
+        {
+          "de": "Nach dem Unterricht gehe ich noch kurz zum Supermarkt.",
+          "en": "After the lesson I will quickly go to the supermarket.",
+          "note": "nach + Dativ, zum = zu dem"
+        },
+        {
+          "de": "Seit drei Jahren wohne ich bei meinen Eltern.",
+          "en": "I have been living with my parents for three years.",
+          "note": "seit + Dativ, bei + Dativ"
+        },
+        {
+          "de": "Wir gehen ohne unseren Lehrer durch den Park.",
+          "en": "We are walking through the park without our teacher.",
+          "note": "ohne + Akkusativ, durch + Akkusativ"
+        },
+        {
+          "de": "Das Geschenk ist für meine Schwester und nicht für mich.",
+          "en": "The present is for my sister and not for me.",
+          "note": "für + Akkusativ"
+        },
+        {
+          "de": "Wir sitzen seit einer Stunde im Café gegenüber dem Bahnhof.",
+          "en": "We have been sitting in the café opposite the station for an hour.",
+          "note": "gegenüber + Dativ"
+        }
+      ],
+      "table": {
+        "headers": [
+          "Dativ",
+          "Akkusativ"
+        ],
+        "rows": [
+          [
+            "aus dem Haus",
+            "durch den Park"
+          ],
+          [
+            "bei meiner Tante",
+            "für meinen Bruder"
+          ],
+          [
+            "mit dem Bus",
+            "gegen die Regeln"
+          ],
+          [
+            "nach der Arbeit",
+            "ohne meinen Schlüssel"
+          ],
+          [
+            "seit einem Jahr",
+            "um den See"
+          ],
+          [
+            "von der Arbeit / zum Arzt / zur Schule",
+            "bis nächsten Montag / die Straße entlang"
+          ]
+        ],
+        "headersEn": [
+          "dative",
+          "accusative"
+        ]
+      },
+      "traps": [
+        "Falsch: Ich fahre mit den Bus. – Richtig: Ich fahre mit dem Bus.",
+        "Falsch: Das Geschenk ist für meinem Bruder. – Richtig: Das Geschenk ist für meinen Bruder.",
+        "Falsch: Seit drei Jahre lerne ich Deutsch. – Richtig: Seit drei Jahren lerne ich Deutsch.",
+        "Falsch: Nach der Arbeit ich gehe zum Sport. – Richtig: Nach der Arbeit gehe ich zum Sport."
+      ],
+      "titleEn": "Prepositions and their case",
+      "whyEn": "The case after a preposition is a favourite topic with examiners, and with a short list you can secure a lot of marks here.",
+      "ruleEn": "Some prepositions always take the dative: aus, bei, mit, nach, seit, von, zu and gegenüber. Others always take the accusative: durch, für, gegen, ohne, um, bis and entlang. With entlang the word usually comes after the noun: die Straße entlang. Many prepositions merge with the article into a short word: zu dem becomes zum, zu der becomes zur, bei dem becomes beim, von dem becomes vom, in dem becomes im, an dem becomes am, an das becomes ans, in das becomes ins. These short forms are used almost always in everyday speech.",
+      "patternEn": "dative: aus, bei, mit, nach, seit, von, zu | accusative: durch, für, gegen, ohne, um, bis",
+      "trapsEn": [
+        "Wrong: Ich fahre mit den Bus. – Right: Ich fahre mit dem Bus.",
+        "Wrong: Das Geschenk ist für meinem Bruder. – Right: Das Geschenk ist für meinen Bruder.",
+        "Wrong: Seit drei Jahre lerne ich Deutsch. – Right: Seit drei Jahren lerne ich Deutsch.",
+        "Wrong: Nach der Arbeit ich gehe zum Sport. – Right: Nach der Arbeit gehe ich zum Sport."
+      ]
+    },
+    {
+      "id": "relativsaetze",
+      "title": "Relativsätze",
+      "why": "Relativsätze machen Ihre Sätze in der Prüfung reicher und zeigen, dass Sie Personen und Dinge genauer beschreiben können.",
+      "rule": "Ein Relativsatz beschreibt ein Nomen aus dem Hauptsatz genauer und steht direkt nach diesem Nomen. Das Relativpronomen richtet sich in Geschlecht und Zahl nach dem Nomen: der Mann, der ...; die Frau, die ...; das Kind, das ...; die Freunde, die .... Den Kasus bestimmt aber die Rolle im Relativsatz, zum Beispiel: Ich kenne den Mann, den alle mögen. Im Relativsatz steht das konjugierte Verb am Ende. Mit Präposition steht die Präposition vor dem Relativpronomen: der Kollege, mit dem ich arbeite.",
+      "pattern": "Nomen + , + Relativpronomen + ... + Verb (am Ende)",
+      "examples": [
+        {
+          "de": "Das ist der Kollege, der mir immer hilft.",
+          "en": "That is the colleague who always helps me.",
+          "note": "der = Nominativ maskulin"
+        },
+        {
+          "de": "Die Wohnung, die wir gemietet haben, ist sehr hell.",
+          "en": "The flat that we rented is very bright.",
+          "note": "die = Akkusativ feminin"
+        },
+        {
+          "de": "Der Mann, dem ich geholfen habe, war sehr freundlich.",
+          "en": "The man whom I helped was very friendly.",
+          "note": "dem = Dativ maskulin"
+        },
+        {
+          "de": "Die Nachbarn, mit denen wir oft grillen, sind im Urlaub.",
+          "en": "The neighbours with whom we often have a barbecue are on holiday.",
+          "note": "Präposition + denen = Dativ Plural"
+        },
+        {
+          "de": "Das ist die Firma, bei der mein Vater arbeitet.",
+          "en": "That is the company where my father works.",
+          "note": "bei + der = Dativ feminin"
+        },
+        {
+          "de": "Kennst du die Frau, deren Sohn bei uns in der Klasse ist?",
+          "en": "Do you know the woman whose son is in our class?",
+          "note": "deren = Genitiv feminin"
+        }
+      ],
+      "traps": [
+        "Falsch: Das ist der Mann, den mir geholfen hat. – Richtig: Das ist der Mann, der mir geholfen hat.",
+        "Falsch: Die Frau, ich gestern gesehen habe, wohnt hier. – Richtig: Die Frau, die ich gestern gesehen habe, wohnt hier.",
+        "Falsch: Der Kollege, mit der ich arbeite, ist krank. – Richtig: Der Kollege, mit dem ich arbeite, ist krank.",
+        "Falsch: Kennst du die Frau, dessen Sohn in unserer Klasse ist? – Richtig: Kennst du die Frau, deren Sohn in unserer Klasse ist?"
+      ],
+      "titleEn": "Relative clauses",
+      "whyEn": "Relative clauses make your sentences in the exam richer and show that you can describe people and things more precisely.",
+      "ruleEn": "A relative clause describes a noun from the main clause more precisely and stands directly after that noun. The relative pronoun matches the noun in gender and number: der Mann, der ...; die Frau, die ...; das Kind, das ...; die Freunde, die .... The case, however, is decided by the role in the relative clause, for example: Ich kenne den Mann, den alle mögen. In the relative clause the conjugated verb stands at the end. With a preposition the preposition comes before the relative pronoun: der Kollege, mit dem ich arbeite.",
+      "patternEn": "noun + , + relative pronoun + ... + verb (at the end)",
+      "trapsEn": [
+        "Wrong: Das ist der Mann, den mir geholfen hat. – Right: Das ist der Mann, der mir geholfen hat.",
+        "Wrong: Die Frau, ich gestern gesehen habe, wohnt hier. – Right: Die Frau, die ich gestern gesehen habe, wohnt hier.",
+        "Wrong: Der Kollege, mit der ich arbeite, ist krank. – Right: Der Kollege, mit dem ich arbeite, ist krank.",
+        "Wrong: Kennst du die Frau, dessen Sohn in unserer Klasse ist? – Right: Kennst du die Frau, deren Sohn in unserer Klasse ist?"
+      ]
+    },
+    {
+      "id": "perfekt_praeteritum",
+      "title": "Perfekt und Präteritum",
+      "why": "Die Vergangenheit kommt in der mündlichen Prüfung und im Brief ständig vor, und ein falsches Hilfsverb fällt sofort auf.",
+      "rule": "Für die Vergangenheit, über die man spricht, nimmt man das Perfekt: haben oder sein plus Partizip II. Die meisten Verben nehmen haben: Ich habe gearbeitet. Sein nimmt man bei Verben der Bewegung von einem Ort zu einem anderen und bei der Veränderung eines Zustands: Ich bin nach Berlin gefahren, ich bin eingeschlafen. Das Präteritum benutzt man fast nur bei sein, haben, werden und den Modalverben: ich war, ich hatte, ich wurde, ich konnte. Regelmäßige Verben bilden das Partizip II mit ge ... t (arbeiten wird gearbeitet), unregelmäßige Formen muss man lernen: gegangen, gegessen, genommen.",
+      "pattern": "haben / sein + Partizip II (am Satzende)",
+      "examples": [
+        {
+          "de": "Gestern habe ich drei Stunden Deutsch gelernt.",
+          "en": "Yesterday I studied German for three hours.",
+          "note": "haben + Partizip II"
+        },
+        {
+          "de": "Letztes Jahr sind wir nach Österreich gefahren.",
+          "en": "Last year we went to Austria.",
+          "note": "Bewegung: sein + gefahren"
+        },
+        {
+          "de": "Sie ist heute Morgen um sieben Uhr aufgestanden.",
+          "en": "She got up at seven o’clock this morning.",
+          "note": "trennbares Verb: aufgestanden"
+        },
+        {
+          "de": "Als Kind hatte ich einen Hund und zwei Katzen.",
+          "en": "As a child I had a dog and two cats.",
+          "note": "Präteritum von haben"
+        },
+        {
+          "de": "Wir mussten gestern lange auf den Bus warten.",
+          "en": "Yesterday we had to wait a long time for the bus.",
+          "note": "Modalverben stehen im Präteritum: mussten"
+        },
+        {
+          "de": "Bist du schon einmal in Deutschland gewesen?",
+          "en": "Have you ever been to Germany?",
+          "note": "Perfekt von sein: sein + gewesen"
+        }
+      ],
+      "table": {
+        "headers": [
+          "Infinitiv",
+          "Partizip II",
+          "Hilfsverb"
+        ],
+        "rows": [
+          [
+            "gehen",
+            "gegangen",
+            "sein"
+          ],
+          [
+            "fahren",
+            "gefahren",
+            "sein"
+          ],
+          [
+            "kommen",
+            "gekommen",
+            "sein"
+          ],
+          [
+            "bleiben",
+            "geblieben",
+            "sein"
+          ],
+          [
+            "aufstehen",
+            "aufgestanden",
+            "sein"
+          ],
+          [
+            "essen",
+            "gegessen",
+            "haben"
+          ],
+          [
+            "trinken",
+            "getrunken",
+            "haben"
+          ],
+          [
+            "nehmen",
+            "genommen",
+            "haben"
+          ],
+          [
+            "schreiben",
+            "geschrieben",
+            "haben"
+          ],
+          [
+            "sprechen",
+            "gesprochen",
+            "haben"
+          ]
+        ],
+        "headersEn": [
+          "infinitive",
+          "past participle",
+          "auxiliary"
+        ]
+      },
+      "traps": [
+        "Falsch: Ich habe nach Berlin gefahren. – Richtig: Ich bin nach Berlin gefahren.",
+        "Falsch: Ich bin drei Stunden Deutsch gelernt. – Richtig: Ich habe drei Stunden Deutsch gelernt.",
+        "Falsch: Gestern ich habe viel gearbeitet. – Richtig: Gestern habe ich viel gearbeitet.",
+        "Falsch: Ich bin in die Stadt gegeht. – Richtig: Ich bin in die Stadt gegangen."
+      ],
+      "titleEn": "Perfect and preterite",
+      "whyEn": "The past tense comes up constantly in the oral exam and in letters, and a wrong auxiliary verb is immediately noticeable.",
+      "ruleEn": "For the past that you talk about, you use the perfect: haben or sein plus the past participle. Most verbs take haben: Ich habe gearbeitet. You use sein with verbs of movement from one place to another and with a change of state: Ich bin nach Berlin gefahren, ich bin eingeschlafen. The preterite is used almost only with sein, haben, werden and the modal verbs: ich war, ich hatte, ich wurde, ich konnte. Regular verbs form the past participle with ge ... t (arbeiten becomes gearbeitet); irregular forms have to be learned: gegangen, gegessen, genommen.",
+      "patternEn": "haben / sein + past participle (at the end of the sentence)",
+      "trapsEn": [
+        "Wrong: Ich habe nach Berlin gefahren. – Right: Ich bin nach Berlin gefahren.",
+        "Wrong: Ich bin drei Stunden Deutsch gelernt. – Right: Ich habe drei Stunden Deutsch gelernt.",
+        "Wrong: Gestern ich habe viel gearbeitet. – Right: Gestern habe ich viel gearbeitet.",
+        "Wrong: Ich bin in die Stadt gegeht. – Right: Ich bin in die Stadt gegangen."
+      ]
+    },
+    {
+      "id": "konjunktiv2",
+      "title": "Konjunktiv II: höflich und irreal",
+      "why": "Höfliche Bitten und irreale Sätze mit wenn ... hätte sind im Brief und in der mündlichen Prüfung der sicherste Weg zu einem guten Eindruck.",
+      "rule": "Mit dem Konjunktiv II sagt man etwas höflich oder etwas, das nicht wirklich so ist. Die wichtigsten Formen sind hätte, wäre, würde, könnte, müsste und dürfte. In Briefen und Bitten benutzt man sie für Höflichkeit, zum Beispiel: Ich hätte eine Frage, könnten Sie mir bitte bis Freitag antworten. Für irreale Bedingungen nimmt man wenn + Konjunktiv II und im zweiten Teil oft würde + Infinitiv: Wenn ich mehr Zeit hätte, würde ich jeden Tag schwimmen. Die Vergangenheit bildet man mit hätte oder wäre plus Partizip II: Ich hätte dir gerne geholfen, aber ich hatte keine Zeit.",
+      "pattern": "hätte / wäre / würde / könnte + Infinitiv",
+      "examples": [
+        {
+          "de": "Könnten Sie mir bitte bis Freitag antworten?",
+          "en": "Could you please reply to me by Friday?",
+          "note": "höfliche Bitte mit könnten"
+        },
+        {
+          "de": "Ich hätte eine Frage zu Ihrer Anzeige in der Zeitung.",
+          "en": "I would have a question about your advert in the newspaper.",
+          "note": "höflich mit hätte"
+        },
+        {
+          "de": "Wenn ich mehr Zeit hätte, würde ich einen Sprachkurs machen.",
+          "en": "If I had more time, I would take a language course.",
+          "note": "irreale Bedingung: wenn + hätte, würde + Infinitiv"
+        },
+        {
+          "de": "An deiner Stelle wäre ich vorsichtiger.",
+          "en": "In your place I would be more careful.",
+          "note": "wäre = Konjunktiv II von sein"
+        },
+        {
+          "de": "Es wäre schön, wenn wir uns nächste Woche treffen könnten.",
+          "en": "It would be nice if we could meet next week.",
+          "note": "könnten steht am Ende des Nebensatzes"
+        },
+        {
+          "de": "Ich hätte dir gerne geholfen, aber ich war im Urlaub.",
+          "en": "I would gladly have helped you, but I was on holiday.",
+          "note": "Vergangenheit: hätte + Partizip II"
+        }
+      ],
+      "traps": [
+        "Falsch: Wenn ich Zeit hätte, ich würde mehr lesen. – Richtig: Wenn ich Zeit hätte, würde ich mehr lesen.",
+        "Falsch: Ich würde haben eine Frage. – Richtig: Ich hätte eine Frage.",
+        "Falsch: Ich würde dir gerne geholfen. – Richtig: Ich hätte dir gerne geholfen.",
+        "Falsch: Es wäre schön, wenn wir uns treffen würden können. – Richtig: Es wäre schön, wenn wir uns treffen könnten."
+      ],
+      "titleEn": "Konjunktiv II: polite and unreal",
+      "whyEn": "Polite requests and unreal sentences with wenn ... hätte are the surest way to make a good impression in a letter and in the oral exam.",
+      "ruleEn": "With the Konjunktiv II you say something politely, or something that is not really the case. The most important forms are hätte, wäre, würde, könnte, müsste and dürfte. In letters and requests they are used for politeness, for example: Ich hätte eine Frage, könnten Sie mir bitte bis Freitag antworten. For unreal conditions you use wenn + Konjunktiv II and often würde + infinitive in the second part: Wenn ich mehr Zeit hätte, würde ich jeden Tag schwimmen. The past is formed with hätte or wäre plus the past participle: Ich hätte dir gerne geholfen, aber ich hatte keine Zeit.",
+      "patternEn": "hätte / wäre / würde / könnte + infinitive",
+      "trapsEn": [
+        "Wrong: Wenn ich Zeit hätte, ich würde mehr lesen. – Right: Wenn ich Zeit hätte, würde ich mehr lesen.",
+        "Wrong: Ich würde haben eine Frage. – Right: Ich hätte eine Frage.",
+        "Wrong: Ich würde dir gerne geholfen. – Right: Ich hätte dir gerne geholfen.",
+        "Wrong: Es wäre schön, wenn wir uns treffen würden können. – Right: Es wäre schön, wenn wir uns treffen könnten."
+      ]
+    },
+    {
+      "id": "adjektivendungen",
+      "title": "Adjektivendungen",
+      "why": "Adjektivendungen wirken kompliziert, aber mit einer kleinen Tabelle und drei Fällen schreiben Sie in der Prüfung fast automatisch richtig.",
+      "rule": "Die Endung des Adjektivs hängt vom Artikel, vom Kasus und vom Nomen ab. Nach der, die und das ist die Endung meist -e oder -en: der neue Job, die neue Wohnung, den neuen Job. Nach ein und eine ist sie meist -er, -es oder -en: ein neuer Job, ein neues Auto, eine neue Wohnung. Ohne Artikel zeigt das Adjektiv den Kasus selbst: guter Wein, frisches Brot, kalte Milch, neue Ideen. Im Dativ steht fast immer -en (mit dem neuen Auto, mit einer neuen Kollegin), und im Plural steht nach der, die, das und nach ein-Wörtern im Nominativ und Akkusativ immer -en: die neuen Nachbarn.",
+      "pattern": "Artikel + Adjektiv + Endung + Nomen",
+      "examples": [
+        {
+          "de": "Ich habe mir einen neuen Job gesucht.",
+          "en": "I looked for a new job.",
+          "note": "Akkusativ maskulin nach ein-Wort: -en"
+        },
+        {
+          "de": "Das ist ein wirklich interessantes Buch.",
+          "en": "That is a really interesting book.",
+          "note": "Nominativ neutrum nach ein: -es"
+        },
+        {
+          "de": "Wir wohnen in einer kleinen Wohnung im Zentrum.",
+          "en": "We live in a small flat in the centre.",
+          "note": "Dativ feminin nach ein-Wort: -en"
+        },
+        {
+          "de": "Die neuen Nachbarn sind sehr freundlich.",
+          "en": "The new neighbours are very friendly.",
+          "note": "Plural nach die: -en"
+        },
+        {
+          "de": "Mit kaltem Wasser kann ich nicht duschen.",
+          "en": "I cannot shower with cold water.",
+          "note": "ohne Artikel, Dativ neutrum: -em"
+        },
+        {
+          "de": "Ich trinke am liebsten starken Kaffee.",
+          "en": "I prefer drinking strong coffee.",
+          "note": "ohne Artikel, Akkusativ maskulin: -en"
+        }
+      ],
+      "table": {
+        "headers": [
+          "Kasus",
+          "maskulin",
+          "neutrum",
+          "feminin",
+          "Plural"
+        ],
+        "rows": [
+          [
+            "Nominativ nach der / die / das",
+            "der neue Job",
+            "das neue Auto",
+            "die neue Wohnung",
+            "die neuen Ideen"
+          ],
+          [
+            "Akkusativ nach der / die / das",
+            "den neuen Job",
+            "das neue Auto",
+            "die neue Wohnung",
+            "die neuen Ideen"
+          ],
+          [
+            "Dativ nach der / die / das",
+            "dem neuen Job",
+            "dem neuen Auto",
+            "der neuen Wohnung",
+            "den neuen Ideen"
+          ],
+          [
+            "Nominativ nach ein / eine",
+            "ein neuer Job",
+            "ein neues Auto",
+            "eine neue Wohnung",
+            "meine neuen Ideen"
+          ],
+          [
+            "Akkusativ nach ein / eine",
+            "einen neuen Job",
+            "ein neues Auto",
+            "eine neue Wohnung",
+            "meine neuen Ideen"
+          ],
+          [
+            "Dativ nach ein / eine",
+            "einem neuen Job",
+            "einem neuen Auto",
+            "einer neuen Wohnung",
+            "meinen neuen Ideen"
+          ],
+          [
+            "Nominativ ohne Artikel",
+            "guter Wein",
+            "frisches Brot",
+            "kalte Milch",
+            "neue Ideen"
+          ],
+          [
+            "Akkusativ ohne Artikel",
+            "guten Wein",
+            "frisches Brot",
+            "kalte Milch",
+            "neue Ideen"
+          ],
+          [
+            "Dativ ohne Artikel",
+            "gutem Wein",
+            "frischem Brot",
+            "kalter Milch",
+            "neuen Ideen"
+          ]
+        ],
+        "headersEn": [
+          "case",
+          "masculine",
+          "neuter",
+          "feminine",
+          "plural"
+        ],
+        "firstColumnEn": [
+          "nominative after der / die / das",
+          "accusative after der / die / das",
+          "dative after der / die / das",
+          "nominative after ein / eine",
+          "accusative after ein / eine",
+          "dative after ein / eine",
+          "nominative without article",
+          "accusative without article",
+          "dative without article"
+        ]
+      },
+      "traps": [
+        "Falsch: Ich habe einen neue Job. – Richtig: Ich habe einen neuen Job.",
+        "Falsch: Das ist ein interessant Buch. – Richtig: Das ist ein interessantes Buch.",
+        "Falsch: Wir wohnen in einer kleine Wohnung. – Richtig: Wir wohnen in einer kleinen Wohnung.",
+        "Falsch: Die neue Nachbarn sind freundlich. – Richtig: Die neuen Nachbarn sind freundlich."
+      ],
+      "titleEn": "Adjective endings",
+      "whyEn": "Adjective endings look complicated, but with a small table and three cases you will write them correctly almost automatically in the exam.",
+      "ruleEn": "The adjective ending depends on the article, the case and the noun. After der, die and das the ending is usually -e or -en: der neue Job, die neue Wohnung, den neuen Job. After ein and eine it is usually -er, -es or -en: ein neuer Job, ein neues Auto, eine neue Wohnung. With no article the adjective shows the case itself: guter Wein, frisches Brot, kalte Milch, neue Ideen. In the dative it is almost always -en (mit dem neuen Auto, mit einer neuen Kollegin), and in the plural after der, die, das and after ein-words in the nominative and accusative it is always -en: die neuen Nachbarn.",
+      "patternEn": "article + adjective + ending + noun",
+      "trapsEn": [
+        "Wrong: Ich habe einen neue Job. – Right: Ich habe einen neuen Job.",
+        "Wrong: Das ist ein interessant Buch. – Right: Das ist ein interessantes Buch.",
+        "Wrong: Wir wohnen in einer kleine Wohnung. – Right: Wir wohnen in einer kleinen Wohnung.",
+        "Wrong: Die neue Nachbarn sind freundlich. – Right: Die neuen Nachbarn sind freundlich."
+      ]
+    },
+    {
+      "id": "modalverben",
+      "title": "Modalverben",
+      "why": "Modalverben braucht man in jeder Prüfungsaufgabe, und die Reihenfolge im Satz sowie die Vergangenheit sind typische Fehlerquellen.",
+      "rule": "Die Modalverben sind können, müssen, dürfen, sollen, wollen und möchten. Sie stehen an der zweiten Stelle im Satz, und der Infinitiv steht ganz am Ende: Ich muss morgen früh aufstehen. können heißt Fähigkeit oder Möglichkeit, müssen heißt Pflicht, dürfen heißt Erlaubnis, sollen heißt Rat oder Auftrag, wollen heißt eigener Wille und möchten ist ein höflicher Wunsch. Wichtig ist der Unterschied: nicht müssen heißt, es ist nicht nötig, aber nicht dürfen heißt, es ist verboten. Die Vergangenheit bildet man meist mit dem Präteritum: ich konnte, musste, durfte, sollte, wollte.",
+      "pattern": "Subjekt + Modalverb (Position 2) + ... + Infinitiv (am Ende)",
+      "examples": [
+        {
+          "de": "Ich kann am Samstag leider nicht kommen.",
+          "en": "Unfortunately I cannot come on Saturday.",
+          "note": "können: keine Möglichkeit"
+        },
+        {
+          "de": "Du musst das Formular bis Freitag abgeben.",
+          "en": "You have to hand in the form by Friday.",
+          "note": "müssen: Pflicht, trennbares Verb am Ende"
+        },
+        {
+          "de": "Hier darf man nicht parken, das ist verboten.",
+          "en": "You are not allowed to park here, that is forbidden.",
+          "note": "dürfen: Erlaubnis, verneint ein Verbot"
+        },
+        {
+          "de": "Du solltest mehr schlafen und weniger arbeiten.",
+          "en": "You should sleep more and work less.",
+          "note": "sollen im Präteritum als Rat: solltest"
+        },
+        {
+          "de": "Ich möchte mich für den Kurs anmelden.",
+          "en": "I would like to register for the course.",
+          "note": "möchten: höflicher Wunsch, Reflexivverb am Ende"
+        },
+        {
+          "de": "Wir wollten dich gestern anrufen, aber wir hatten kein Netz.",
+          "en": "We wanted to call you yesterday, but we had no signal.",
+          "note": "Präteritum von wollen: wollten"
+        }
+      ],
+      "traps": [
+        "Falsch: Ich muss aufstehen morgen früh. – Richtig: Ich muss morgen früh aufstehen.",
+        "Falsch: Du musst hier nicht rauchen. – Richtig: Du darfst hier nicht rauchen, denn es ist verboten.",
+        "Falsch: Ich habe gestern nicht kommen gekonnt. – Richtig: Ich konnte gestern nicht kommen.",
+        "Falsch: Ich will mich anmelden für den Kurs. – Richtig: Ich will mich für den Kurs anmelden."
+      ],
+      "titleEn": "Modal verbs",
+      "whyEn": "Modal verbs are needed in every exam task, and both the word order in the sentence and the past tense are typical sources of error.",
+      "ruleEn": "The modal verbs are können, müssen, dürfen, sollen, wollen and möchten. They stand in second position in the sentence and the infinitive goes right at the end: Ich muss morgen früh aufstehen. können means ability or possibility, müssen means obligation, dürfen means permission, sollen means advice or an instruction, wollen means your own will, and möchten is a polite wish. The important difference is: nicht müssen means it is not necessary, but nicht dürfen means it is forbidden. The past is usually formed with the preterite: ich konnte, musste, durfte, sollte, wollte.",
+      "patternEn": "subject + modal verb (position 2) + ... + infinitive (at the end)",
+      "trapsEn": [
+        "Wrong: Ich muss aufstehen morgen früh. – Right: Ich muss morgen früh aufstehen.",
+        "Wrong: Du musst hier nicht rauchen. – Right: Du darfst hier nicht rauchen, because it is forbidden.",
+        "Wrong: Ich habe gestern nicht kommen gekonnt. – Right: Ich konnte gestern nicht kommen.",
+        "Wrong: Ich will mich anmelden für den Kurs. – Right: Ich will mich für den Kurs anmelden."
+      ]
+    },
+    {
+      "id": "komparativ_superlativ",
+      "title": "Komparativ und Superlativ",
+      "why": "Vergleiche kommen in der Prüfung oft vor, zum Beispiel beim Beschreiben von Bildern oder beim Argumentieren, und als und wie werden sehr häufig verwechselt.",
+      "rule": "Mit dem Komparativ vergleicht man zwei Dinge: Adjektiv + -er. Mit dem Superlativ sagt man, dass etwas am größten ist: am + Adjektiv + -sten. Kurze Adjektive bekommen oft einen Umlaut: alt wird älter und am ältesten, groß wird größer und am größten. Einige Formen sind unregelmäßig: gut wird besser und am besten, viel wird mehr und am meisten, gern wird lieber und am liebsten, hoch wird höher und am höchsten. Beim Vergleich mit als steht der Komparativ (Mein Bruder ist älter als ich), und wenn beide gleich sind, steht wie: Er ist genauso groß wie ich.",
+      "pattern": "Komparativ: ...-er als | Superlativ: am ...-sten",
+      "examples": [
+        {
+          "de": "Mein Bruder ist zwei Jahre älter als ich.",
+          "en": "My brother is two years older than me.",
+          "note": "Komparativ + als"
+        },
+        {
+          "de": "Berlin ist viel größer als meine Heimatstadt.",
+          "en": "Berlin is much bigger than my home town.",
+          "note": "groß wird größer, mit Umlaut"
+        },
+        {
+          "de": "Im Sommer ist es hier am wärmsten.",
+          "en": "In summer it is warmest here.",
+          "note": "Superlativ: am wärmsten"
+        },
+        {
+          "de": "Ich fahre lieber mit dem Zug als mit dem Auto.",
+          "en": "I prefer travelling by train to going by car.",
+          "note": "gern wird lieber, Vergleich mit als"
+        },
+        {
+          "de": "Deutsch finde ich schwieriger als Englisch, aber Mathe ist am schwierigsten.",
+          "en": "I find German more difficult than English, but maths is the most difficult.",
+          "note": "Komparativ und Superlativ zusammen"
+        },
+        {
+          "de": "Meine neue Wohnung ist genauso teuer wie die alte.",
+          "en": "My new flat is just as expensive as the old one.",
+          "note": "gleicher Grad: genauso ... wie"
+        }
+      ],
+      "table": {
+        "headers": [
+          "Positiv",
+          "Komparativ",
+          "Superlativ"
+        ],
+        "rows": [
+          [
+            "gut",
+            "besser",
+            "am besten"
+          ],
+          [
+            "viel",
+            "mehr",
+            "am meisten"
+          ],
+          [
+            "gern",
+            "lieber",
+            "am liebsten"
+          ],
+          [
+            "hoch",
+            "höher",
+            "am höchsten"
+          ],
+          [
+            "alt",
+            "älter",
+            "am ältesten"
+          ],
+          [
+            "groß",
+            "größer",
+            "am größten"
+          ],
+          [
+            "warm",
+            "wärmer",
+            "am wärmsten"
+          ],
+          [
+            "nah",
+            "näher",
+            "am nächsten"
+          ]
+        ],
+        "headersEn": [
+          "positive",
+          "comparative",
+          "superlative"
+        ]
+      },
+      "traps": [
+        "Falsch: Mein Bruder ist älter wie ich. – Richtig: Mein Bruder ist älter als ich.",
+        "Falsch: Er ist genauso groß als ich. – Richtig: Er ist genauso groß wie ich.",
+        "Beim Komparativ vergessen viele den Umlaut: Es heißt älter, größer, wärmer und höher.",
+        "Falsch: Ich trinke am gernsten Tee. – Richtig: Ich trinke am liebsten Tee."
+      ],
+      "titleEn": "Comparative and superlative",
+      "whyEn": "Comparisons come up often in the exam, for example when describing pictures or arguing a point, and als and wie are very often confused.",
+      "ruleEn": "With the comparative you compare two things: adjective + -er. With the superlative you say that something is the most: am + adjective + -sten. Short adjectives often take an umlaut: alt becomes älter and am ältesten, groß becomes größer and am größten. Some forms are irregular: gut becomes besser and am besten, viel becomes mehr and am meisten, gern becomes lieber and am liebsten, hoch becomes höher and am höchsten. In a comparison with als you use the comparative (Mein Bruder ist älter als ich), and when both are equal you use wie: Er ist genauso groß wie ich.",
+      "patternEn": "comparative: ...-er als | superlative: am ...-sten",
+      "trapsEn": [
+        "Wrong: Mein Bruder ist älter wie ich. – Right: Mein Bruder ist älter als ich.",
+        "Wrong: Er ist genauso groß als ich. – Right: Er ist genauso groß wie ich.",
+        "Many people forget the umlaut in the comparative: it is älter, größer, wärmer and höher.",
+        "Wrong: Ich trinke am gernsten Tee. – Right: Ich trinke am liebsten Tee."
+      ]
+    },
+    {
+      "id": "trennbare_verben",
+      "title": "Trennbare Verben",
+      "why": "Trennbare Verben sind im Alltag überall, und wenn die Vorsilbe an der falschen Stelle steht, klingt der ganze Satz falsch.",
+      "rule": "Trennbare Verben haben eine Vorsilbe, die im Hauptsatz allein ans Satzende geht: anrufen wird Ich rufe dich später an. Nach einem Modalverb bleibt das Verb zusammen und steht als Infinitiv am Ende: Ich muss dich später anrufen. Auch beim Infinitiv mit zu bleibt das Verb zusammen, und zu steht in der Mitte: Ich habe vergessen, dich anzurufen. Im Nebensatz steht das ganze Verb zusammen am Ende: ..., weil ich dich anrufe. Typische trennbare Verben sind anrufen, aufstehen, einkaufen, mitkommen, anfangen, ausgehen, fernsehen, einladen, aufräumen und stattfinden.",
+      "pattern": "Vorsilbe + Verb (Position 2) ... Vorsilbe am Satzende",
+      "examples": [
+        {
+          "de": "Ich rufe dich heute Abend an.",
+          "en": "I will call you this evening.",
+          "note": "anrufen: an geht ans Satzende"
+        },
+        {
+          "de": "Ich muss jeden Morgen um sechs Uhr aufstehen.",
+          "en": "I have to get up at six o’clock every morning.",
+          "note": "nach muss bleibt aufstehen zusammen"
+        },
+        {
+          "de": "Wir kaufen samstags immer im Supermarkt ein.",
+          "en": "On Saturdays we always shop at the supermarket.",
+          "note": "einkaufen: ein geht ans Satzende"
+        },
+        {
+          "de": "Der Kurs fängt am Montag um neun Uhr an.",
+          "en": "The course starts on Monday at nine o’clock.",
+          "note": "anfangen: an geht ans Satzende"
+        },
+        {
+          "de": "Das Konzert findet am Samstag im Stadtpark statt.",
+          "en": "The concert takes place in the city park on Saturday.",
+          "note": "stattfinden: statt geht ans Satzende"
+        },
+        {
+          "de": "Ich habe vergessen, meine Freunde einzuladen.",
+          "en": "I forgot to invite my friends.",
+          "note": "einladen wird einzuladen, zu steht in der Mitte"
+        }
+      ],
+      "traps": [
+        "Falsch: Ich rufe an dich heute Abend. – Richtig: Ich rufe dich heute Abend an.",
+        "Falsch: Ich muss um sechs Uhr auf stehen. – Richtig: Ich muss um sechs Uhr aufstehen.",
+        "Falsch: Kommst du mit uns mitkommen? – Richtig: Kommst du mit uns mit?",
+        "Falsch: Ich habe vor, meine Freunde einladen zu. – Richtig: Ich habe vor, meine Freunde einzuladen."
+      ],
+      "titleEn": "Separable verbs",
+      "whyEn": "Separable verbs are everywhere in everyday language, and if the prefix is in the wrong place the whole sentence sounds wrong.",
+      "ruleEn": "Separable verbs have a prefix that goes to the end of the sentence on its own in a main clause: anrufen becomes Ich rufe dich später an. After a modal verb the verb stays together and stands as an infinitive at the end: Ich muss dich später anrufen. With the infinitive with zu the verb also stays together, and zu goes in the middle: Ich habe vergessen, dich anzurufen. In a subordinate clause the whole verb stands together at the end: ..., weil ich dich anrufe. Typical separable verbs are anrufen, aufstehen, einkaufen, mitkommen, anfangen, ausgehen, fernsehen, einladen, aufräumen and stattfinden.",
+      "patternEn": "prefix + verb (position 2) ... prefix at the end of the sentence",
+      "trapsEn": [
+        "Wrong: Ich rufe an dich heute Abend. – Right: Ich rufe dich heute Abend an.",
+        "Wrong: Ich muss um sechs Uhr auf stehen. – Right: Ich muss um sechs Uhr aufstehen.",
+        "Wrong: Kommst du mit uns mitkommen? – Right: Kommst du mit uns mit?",
+        "Wrong: Ich habe vor, meine Freunde einladen zu. – Right: Ich habe vor, meine Freunde einzuladen."
+      ]
+    },
+    {
+      "id": "passiv",
+      "title": "Passiv mit werden",
+      "why": "Das Passiv braucht man für formelle Briefe, für Anleitungen und für Beschreibungen, und in der Prüfung wirkt es sofort fortgeschritten.",
+      "rule": "Im Passiv steht das Wichtige am Anfang, und wer etwas macht, ist oft nicht so wichtig. Man bildet es mit werden plus Partizip II: Das Formular wird ausgefüllt. Wenn man die Person nennen will, nimmt man von + Dativ: Der Brief wird von der Chefin unterschrieben. Mit einem Modalverb steht das Modalverb an der zweiten Stelle und am Ende werden + Partizip II: Das Formular muss bis Freitag ausgefüllt werden. Die Vergangenheit heißt wurde + Partizip II (Das Haus wurde 1990 gebaut), und im Passiv steht immer das Partizip II und nie der Infinitiv.",
+      "pattern": "werden + Partizip II (+ von + Dativ)",
+      "examples": [
+        {
+          "de": "Das Formular wird im Büro ausgefüllt.",
+          "en": "The form is filled in at the office.",
+          "note": "Präsens Passiv: wird + Partizip II"
+        },
+        {
+          "de": "Die Rechnung wird von der Chefin unterschrieben.",
+          "en": "The invoice is signed by the boss.",
+          "note": "von + Dativ nennt die Person"
+        },
+        {
+          "de": "Das Formular muss bis Freitag ausgefüllt werden.",
+          "en": "The form must be filled in by Friday.",
+          "note": "Modalpassiv: Modalverb + Partizip II + werden"
+        },
+        {
+          "de": "Das neue Krankenhaus wurde letztes Jahr gebaut.",
+          "en": "The new hospital was built last year.",
+          "note": "Vergangenheit: wurde + Partizip II"
+        },
+        {
+          "de": "In unserer Schule werden viele Sprachen unterrichtet.",
+          "en": "Many languages are taught at our school.",
+          "note": "Plural: werden + Partizip II"
+        },
+        {
+          "de": "Die Getränke werden von den Kollegen mitgebracht.",
+          "en": "The drinks are brought along by the colleagues.",
+          "note": "von + Dativ Plural, Partizip mitgebracht"
+        }
+      ],
+      "traps": [
+        "Falsch: Das Formular wird ausfüllen. – Richtig: Das Formular wird ausgefüllt.",
+        "Falsch: Das Formular muss ausgefüllt. – Richtig: Das Formular muss ausgefüllt werden, denn im Modalpassiv steht werden am Ende.",
+        "Falsch: Die Rechnung wird von die Chefin unterschrieben. – Richtig: Die Rechnung wird von der Chefin unterschrieben.",
+        "Falsch: Das Formular wird ausgefüllt werden. – Richtig: Das Formular wird ausgefüllt."
+      ],
+      "titleEn": "Passive with werden",
+      "whyEn": "The passive is needed for formal letters, for instructions and for descriptions, and in the exam it immediately sounds advanced.",
+      "ruleEn": "In the passive the important thing comes first, and who does something is often less important. It is formed with werden plus the past participle: Das Formular wird ausgefüllt. If you want to name the person, you use von + dative: Der Brief wird von der Chefin unterschrieben. With a modal verb the modal verb stands in second position and werden + past participle at the end: Das Formular muss bis Freitag ausgefüllt werden. The past is wurde + past participle (Das Haus wurde 1990 gebaut), and the passive always uses the past participle and never the infinitive.",
+      "patternEn": "werden + past participle (+ von + dative)",
+      "trapsEn": [
+        "Wrong: Das Formular wird ausfüllen. – Right: Das Formular wird ausgefüllt.",
+        "Wrong: Das Formular muss ausgefüllt. – Right: Das Formular muss ausgefüllt werden, because the modal passive puts werden at the end.",
+        "Wrong: Die Rechnung wird von die Chefin unterschrieben. – Right: Die Rechnung wird von der Chefin unterschrieben.",
+        "Wrong: Das Formular wird ausgefüllt werden. – Right: Das Formular wird ausgefüllt."
+      ]
+    }
+  ]
+}

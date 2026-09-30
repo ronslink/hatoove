@@ -1,0 +1,23 @@
+{
+  "name": "b1-prep",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Adaptive AI coach for the telc Deutsch B1 exam - all five subtests, dynamic questions, weakness tracking.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node tools/check.js",
+    "test:e2e": "node tools/e2e.js",
+    "test:ai": "node tools/e2e-ai.js",
+    "tts": "node tools/tts-check.js",
+    "ai:live": "node tools/ai-live.js",
+    "icon": "node tools/make-icon.js",
+    "recover": "node tools/recover-progress.js",
+    "mock:ai": "node tools/mock-deepseek.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {}
+}
