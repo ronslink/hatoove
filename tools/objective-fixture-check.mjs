@@ -32,6 +32,14 @@ const ALLOWED_SCENARIOS = [
   'no-match-marked-where-not-expected', 'duplicate-bank-word', 'family-weight-aggregation',
   'item-count-continuity', 'writing-unassessed', 'provider-failure-no-heuristic',
 ];
+/**
+ * Outcome words that would assert a learner's overall examination result. The pilot cannot
+ * compute one — the oral part is unassessed — so no objective fixture may claim it.
+ */
+const PROHIBITED_LEARNER_CLAIMS = [
+  'passed', 'failed', 'pass', 'fail', 'bestanden', 'nicht bestanden', 'sehr gut', 'gut',
+  'befriedigend', 'ausreichend', 'readiness', 'grade', 'band', 'overall', 'certificate',
+];
 /** Families that have no objective key of their own and are asserted separately. */
 const NON_OBJECTIVE_FAMILIES = ['SA1'];
 const ALLOWED_OUTCOMES = ['marked', 'marked-or-flagged', 'rejected-or-flagged', 'aggregate', 'unassessed'];
@@ -351,6 +359,25 @@ export function validateObjectiveCases(fixture) {
     /* Aggregate cases must not claim a learner score. */
     if (c.scenario === 'family-weight-aggregation' && objectivePoints !== 180) {
       err('case.aggregate-total', `${label} expects 180 objective points but the family maxima sum to ${objectivePoints}`);
+    }
+    // No fixture may assert a whole-exam learner result: the pilot cannot compute one because
+    // the oral part is unassessed. This applies to every case, and especially to aggregates.
+    const claimFields = ['expectedOutcome', 'expectedGrade', 'gradeBand', 'readiness',
+      'overallResult', 'passed', 'learnerScore', 'percentage'];
+    for (const field of claimFields) {
+      if (c[field] === undefined || c[field] === null) continue;
+      const value = String(c[field]).toLowerCase();
+      const hit = PROHIBITED_LEARNER_CLAIMS.find((w) => value === w || value.includes(w));
+      if (hit) {
+        err('case.prohibited-learner-claim', `${label}.${field} asserts a learner result ("${hit}"); the pilot cannot compute an overall pass, grade or readiness`);
+      }
+    }
+    if (isPlainObject(c.expected)) {
+      for (const field of ['grade', 'gradeBand', 'readiness', 'passed', 'overallResult', 'learnerScore', 'percentage']) {
+        if (c.expected[field] !== undefined && c.expected[field] !== null) {
+          err('case.prohibited-learner-claim', `${label}.expected.${field} asserts a learner result; the pilot cannot compute an overall pass, grade or readiness`);
+        }
+      }
     }
 
     /* Unassessed cases must not carry points or a mark. */

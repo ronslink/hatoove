@@ -68,7 +68,8 @@
     "topic-missed-all-criteria",
     "content-credit-withdrawn-for-leitpunkt-shortfall",
     "content-credit-preserved-for-partial-coverage",
-    "retry-possible-after-failure-clears-lease"
+    "retry-possible-after-failure-clears-lease",
+    "ineligibility-is-not-permanent-failure"
   ],
   "errorClassifications": [
     "none",
@@ -885,7 +886,7 @@
       "title": "Successful-review allowance already consumed",
       "synthetic": true,
       "source": "C1 (one successful entitlement debit; system failures do not consume the allowance); IMPLEMENTATION_PLAN.md allowance accounting",
-      "rationale": "When no allowance remains, a provider failure must not be retried into a new debit. The submission stays unassessed and the learner's exhausted allowance is preserved rather than charged again.",
+      "rationale": "When no allowance remains, a provider failure must not be retried into a new debit. The submission stays unassessed and the learner's exhausted allowance is preserved rather than charged again. Current ineligibility only: the contract does not establish a permanent failure, so a later change of allowance or revision may make the action possible.",
       "input": {
         "kind": "provider-response",
         "taskType": "informal e-mail",
@@ -902,13 +903,16 @@
           "no-retry-without-allowance",
           "no-duplicate-debit",
           "no-heuristic-mark",
-          "unassessed-preservation"
+          "unassessed-preservation",
+          "ineligibility-is-not-permanent-failure"
         ],
         "retryPermitted": false,
         "retryConditions": [],
         "assessmentCreated": false,
         "usageDebited": false,
-        "numericScorePermitted": false
+        "numericScorePermitted": false,
+        "currentlyIneligible": true,
+        "permanentlyTerminal": false
       },
       "judgement": "structural",
       "decidability": {
@@ -916,7 +920,8 @@
           "no-retry-without-allowance",
           "no-duplicate-debit",
           "no-heuristic-mark",
-          "unassessed-preservation"
+          "unassessed-preservation",
+          "ineligibility-is-not-permanent-failure"
         ],
         "linguisticHuman": []
       }
@@ -1014,7 +1019,7 @@
       "title": "A newer revision replaced the submission being assessed",
       "synthetic": true,
       "source": "C1 (a submission snapshots the exact text; edits become a new revision; reopening or translating does not regrade); IMPLEMENTATION_PLAN.md immutable submission and revision lineage",
-      "rationale": "Assessment must attach to the exact submitted revision. If the learner has since revised, the in-flight result belongs to the earlier revision and must not be presented as feedback on the new text.",
+      "rationale": "Assessment must attach to the exact submitted revision. If the learner has since revised, the in-flight result belongs to the earlier revision and must not be presented as feedback on the new text. Current ineligibility only: the contract does not establish a permanent failure, so a later change of allowance or revision may make the action possible.",
       "input": {
         "kind": "provider-response",
         "taskType": "informal e-mail",
@@ -1030,19 +1035,23 @@
         "invariants": [
           "superseded-submission-not-assessed",
           "single-authoritative-assessment",
-          "repeat-variability-recorded"
+          "repeat-variability-recorded",
+          "ineligibility-is-not-permanent-failure"
         ],
         "retryPermitted": false,
         "assessmentCountAtMost": 1,
         "assessmentAttachedToRevision": 1,
-        "numericScorePermitted": false
+        "numericScorePermitted": false,
+        "currentlyIneligible": true,
+        "permanentlyTerminal": false
       },
       "judgement": "structural",
       "decidability": {
         "mechanical": [
           "superseded-submission-not-assessed",
           "single-authoritative-assessment",
-          "repeat-variability-recorded"
+          "repeat-variability-recorded",
+          "ineligibility-is-not-permanent-failure"
         ],
         "linguisticHuman": []
       }
@@ -1101,5 +1110,17 @@
       },
       "judgement": "mixed"
     }
-  ]
+  ],
+  "classificationSemantics": {
+    "permanentFailure": [
+      "retry_exhausted",
+      "attempt_deleted",
+      "stale_lease"
+    ],
+    "currentlyIneligible": [
+      "allowance_exhausted",
+      "submission_superseded"
+    ],
+    "note": "Permanent failures describe a state the attempt cannot leave. allowance_exhausted and submission_superseded are NOT permanently terminal domain policies: the current contract establishes only that the action is unavailable now, under the present allowance or revision state. A renewed allowance, a new revision or a changed plan may make a later action eligible. Cases assert current ineligibility, never a permanent impossibility."
+  }
 }

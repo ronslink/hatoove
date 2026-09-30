@@ -110,7 +110,7 @@ A conditional retry is only permitted while **all** applicable conditions hold: 
 | `no-duplicate-debit` | Exactly one successful debit per completed assessment. |
 | `text-preserved-on-failure` | The learner's submitted text survives any failure unchanged. |
 
-### 3.2 Error-classification vocabulary — conditional versus terminal
+### 3.2 Error-classification vocabulary — conditional, terminal and ineligible
 
 An earlier draft of this document implied that `provider_unavailable` is simply "retryable". That was
 **too broad**. Retryability is a property of the attempt's *state*, not of the error code alone:
@@ -118,6 +118,18 @@ An earlier draft of this document implied that `provider_unavailable` is simply 
 | Class | Codes | Retry behaviour |
 |---|---|---|
 | **Conditional** | `malformed_feedback`, `provider_unavailable` | A bounded retry is permitted **only while every applicable condition holds** (see §3.1). Stating a retry right without conditions is rejected by the checker. |
+| **Permanently terminal** | `retry_exhausted`, `attempt_deleted`, `stale_lease` | Never retried, and may not advertise retry conditions at all — including where the underlying error was originally retryable. |
+| **Currently ineligible** | `allowance_exhausted`, `submission_superseded` | The action is unavailable **now**, under the present allowance or revision state. These are **not** permanent domain policies: the current contract establishes no such thing, so a renewed allowance, a new revision or a changed plan may make a later action possible. Cases assert `currentlyIneligible: true` and `permanentlyTerminal: false`. |
+| **None** | `none` | The case expects an ordinary assessment. |
+
+**A second overreach corrected.** An earlier revision placed `allowance_exhausted` and
+`submission_superseded` in the terminal group alongside genuine permanent failures. That froze a policy the
+contract does not state. The two groups are now separated, and the checker rejects any case that asserts
+permanence for an ineligible classification.
+
+The three classifications defined by the pilot contract (`malformed_feedback`, `provider_unavailable`,
+`retry_exhausted`) remain unchanged; the added codes describe state outcomes the contract already implies —
+deletion precedence, one successful debit, lease reclamation and immutable submission lineage.
 
 **Retry eligibility is not the same as worker completion.** The two paths need different conditions, and
 conflating them would make retry impossible in exactly the case it is for:
@@ -128,8 +140,6 @@ conflating them would make retry impossible in exactly the case it is for:
 | **Worker-side completion / lease reclaim** (WFC-12) | the same, **plus `liveLease`** | Completion must prove it still holds the current lease token |
 
 WFC-15 carries the invariant `retry-possible-after-failure-clears-lease` to pin this distinction.
-| **Terminal** | `retry_exhausted`, `attempt_deleted`, `allowance_exhausted`, `stale_lease`, `submission_superseded` | Never retried, and may not advertise retry conditions at all — including the case where the underlying error was originally retryable. |
-| **None** | `none` | The case expects an ordinary assessment. |
 
 The three classifications defined by the pilot contract (`malformed_feedback`, `provider_unavailable`,
 `retry_exhausted`) remain unchanged; the four added codes are the state outcomes the contract already

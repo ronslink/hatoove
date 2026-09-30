@@ -78,13 +78,20 @@ contract. They are reported, **not** changed here.
 | ID | Severity | Finding | Anchor | Why it conflicts |
 |---|---|---|---|---|
 | **G1** | High | The mock result card **„Bestanden?"** is driven by the **written** part alone: it shows „Ja" whenever `written >= 135`, regardless of the oral part. | `exam.js:1497-1498` uses `scored.written.ok` | The verified rule requires **60 % in the written *and* 60 % in the oral part separately** (S2 PDF p. 42 / printed p. 40). The engine already computes the correct conjunction at `engine.js:266` (`passed`), so the UI contradicts both the source and its own engine. With speaking excluded from the pilot, the honest display is a **partial written result**, never „Bestanden?" |
-| **G2** | Medium | The grade band is computed on the **written** percentage `(written / 225) × 100` and displayed beside „Gesamt … / 225". | `exam.js:1484` `gradeBand((scored.total / 300) * 100)` where `scored.total = written + oral` (oral 0 without speaking), then `band.label` shown at `exam.js:1497` | Official bands apply to the **300-point total** and only once both parts have reached their minimum (S2 PDF p. 42 / printed p. 40). With oral unassessed, `written/300` is not a total and no band may be shown. |
+| **G2** | Medium | The grade band is derived from `written / 300` — a **three-part** denominator that treats the 225-point written aggregate as a fraction of the 300-point whole — and that label is displayed in the card whose value is `${written} / 225`. | `exam.js:1484` `gradeBand((scored.total / 300) * 100)`; rendered beside the `/ 225` total at `exam.js:1497` | Two separate problems in one label. (a) With the oral part unassessed, `written / 300` is not a whole-exam percentage, so the band reflects a quantity the pilot cannot compute. (b) Even taken at face value the computation and the displayed denominator disagree: the same card shows a `/ 225` total while the band is scaled to 300. Official bands apply to the 300-point total and only once both parts reach their minimum (S2 PDF p. 42 / printed p. 40). |
 | **G3** | High | When the writing AI result is unavailable, the mock assigns `points = Math.round(heuristic * 45 * 0.82)` and then a binary `correct: points >= 27`. | `exam.js:1409`, `1437-1438` | `IMPLEMENTATION_PLAN.md` ("Durable writing and truthful feedback") and `docs/contracts/PILOT-V0.1.md:69` both require that **provider failure cannot yield a heuristic mark**; writing is provisional/formative. A synthesised 45-point writing score is an unvalidated fallback. |
-| **G4** | Low | The writing subtest result is displayed as `g.total / 45` in one view and `g.points / 25` in another. | `exam.js:818` (`/ 45`) versus `exam.js:1153` (`/ 25`) | The verified subtest maximum is **45** (S2 PDF p. 40 / printed p. 38). The `/ 25` card is the speaking grader; if it is ever reused for writing it would misstate the maximum. Verify which view reaches which branch before treating this as a live defect. |
 
-**Not reported as conflicts** (deliberately): the `/ 25` speaking card is consistent with a 25-point speaking
-subtest, and speaking is outside the pilot; the `SP1–SP3` entries remain in `SUBTEST_ORDER` but are not
-part of the written claims examined here.
+- **G4 (not a writing defect).** Earlier drafts of this map listed the `/ 45` versus `/ 25` difference as a
+  writing conflict. **That entry is withdrawn.** The `/ 25` card belongs to the **speaking** grader
+  (`exam.js:1153`, `g.points / 25`), consistent with a 25-point speaking subtest, and speaking is outside the
+  pilot. The writing views consistently use `/ 45`, which matches the verified maximum. No conflict is
+  demonstrated here, so it is not a demonstrated defect.
+
+**Observed defect versus hypothesis.** G1, G2 and G3 are **observed defects**: each is a code path whose
+behaviour contradicts a verified rule or the pilot contract, and each is anchored to the exact expression
+that produces it. Nothing else in this map is asserted as a defect. The *Unknown* rows in §2 and §3 are
+explicitly **hypotheses** awaiting evidence, not findings — they record behaviour that the sources read do
+not settle either way.
 
 ---
 

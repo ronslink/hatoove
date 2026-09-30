@@ -357,6 +357,35 @@ test('review O4: null and primitive entries never throw', () => {
   }
 });
 
+test('review O5: no fixture may assert a prohibited learner-score claim', () => {
+  // The pilot cannot compute an overall pass, grade or readiness because oral is unassessed.
+  for (const c of raw.cases) {
+    assert.ok(
+      !['passed', 'failed', 'pass', 'fail', 'bestanden', 'sehr gut', 'gut', 'readiness', 'grade'].includes(String(c.expectedOutcome)),
+      `${c.id} must not assert an overall result`
+    );
+    assert.equal(Object.prototype.hasOwnProperty.call(c, 'gradeBand'), false, `${c.id} must not carry a grade band`);
+    if (c.expected === undefined) continue; // aggregate cases carry no per-case expectation block
+    for (const field of ['grade', 'gradeBand', 'readiness', 'passed', 'overallResult', 'learnerScore', 'percentage']) {
+      assert.equal(c.expected[field], undefined, `${c.id} must not carry expected.${field}`);
+    }
+  }
+
+  const topLevel = clone();
+  caseById(topLevel, 'OMC-AGG-01').expectedOutcome = 'passed';
+  expectFailure(validateObjectiveCases(topLevel), /case\.outcome|case\.prohibited-learner-claim/, 'outcome claims a pass');
+
+  const graded = clone();
+  caseById(graded, 'OMC-AGG-02').expected = {
+    outcome: 'aggregate', errorClassification: 'none', gradeBand: 'sehr gut', numericScorePermitted: false,
+  };
+  expectFailure(validateObjectiveCases(graded), /case\.prohibited-learner-claim/, 'aggregate claims a grade band');
+
+  const readiness = clone();
+  caseById(readiness, 'OMC-AGG-01').readiness = 'likely to pass';
+  expectFailure(validateObjectiveCases(readiness), /case\.prohibited-learner-claim/, 'aggregate claims readiness');
+});
+
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {
   const { runCli } = await import('./objective-fixture-check.mjs');
   const quiet = { log() {}, error() {} };

@@ -482,6 +482,34 @@ test('review F6: a legitimate failure clears the lease, so retry must not requir
   assert.ok(!r.ok || r.warnings.length > 0, 'requiring a lease after failure should at least be flagged');
 });
 
+test('review F7: ineligibility is not asserted as permanent failure', () => {
+  // The contract establishes no permanent policy for these two codes.
+  for (const id of ['WFC-17', 'WFC-20']) {
+    const c = caseById(raw, id);
+    assert.equal(c.expected.currentlyIneligible, true, `${id} must record present ineligibility`);
+    assert.equal(c.expected.permanentlyTerminal, false, `${id} must not claim permanent failure`);
+    assert.ok(c.expected.invariants.includes('ineligibility-is-not-permanent-failure'));
+  }
+  // Genuine permanent failures are separate.
+  for (const id of ['WFC-14', 'WFC-16', 'WFC-18']) {
+    const c = caseById(raw, id);
+    assert.ok(['retry_exhausted', 'attempt_deleted', 'stale_lease'].includes(c.expected.errorClassification), id);
+    assert.notEqual(c.expected.permanentlyTerminal, false, `${id} may not deny permanence`);
+  }
+
+  const permanence = clone();
+  caseById(permanence, 'WFC-20').expected.permanentlyTerminal = true;
+  expectFailure(validateFeedbackCases(permanence), /case\.ineligibility-permanence/, 'ineligibility asserted as permanent');
+
+  const noFlag = clone();
+  delete caseById(noFlag, 'WFC-17').expected.currentlyIneligible;
+  expectFailure(validateFeedbackCases(noFlag), /case\.ineligibility-flag/, 'ineligibility not flagged');
+
+  const terminalDenied = clone();
+  caseById(terminalDenied, 'WFC-16').expected.permanentlyTerminal = false;
+  expectFailure(validateFeedbackCases(terminalDenied), /case\.terminal-contradiction/, 'permanent failure denied');
+});
+
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {
   const { runCli } = await import('./feedback-case-check.mjs');
   const quiet = { log() {}, error() {} };

@@ -43,9 +43,14 @@ const SYNTHETIC_TEXT_PATTERN = /Hallo|Sehr geehrte|Guten Tag|vielen Dank|Ich /;
 export const CONDITIONAL_RETRY_ERRORS = ['provider_unavailable', 'malformed_feedback'];
 
 /** Classifications that never retry, whatever state the attempt is in. */
-export const TERMINAL_ERRORS = [
-  'retry_exhausted', 'attempt_deleted', 'allowance_exhausted', 'stale_lease', 'submission_superseded',
-];
+export const TERMINAL_ERRORS = ['retry_exhausted', 'attempt_deleted', 'stale_lease'];
+
+/**
+ * Classifications that are ineligible *now* rather than permanently failed. The current
+ * contract does not establish these as terminal domain policies, so a later renewal or
+ * revision may make the action possible again. Cases must not assert permanence.
+ */
+export const INELIGIBLE_ERRORS = ['allowance_exhausted', 'submission_superseded'];
 
 /** State conditions a conditional retry must satisfy. */
 export const RETRY_CONDITIONS = [
@@ -263,6 +268,23 @@ export function validateFeedbackCases(fixture) {
       }
       if (Array.isArray(exp.retryConditions) && exp.retryConditions.length > 0) {
         err('case.retry-conditions-terminal', `${label}: ${exp.errorClassification} never retries, so it must not list retryConditions`);
+      }
+      if (exp.permanentlyTerminal === false) {
+        err('case.terminal-contradiction', `${label}: ${exp.errorClassification} is a permanent failure, so permanentlyTerminal may not be false`);
+      }
+    } else if (INELIGIBLE_ERRORS.includes(exp.errorClassification)) {
+      // Ineligible now, not permanently failed. The contract does not establish permanence.
+      if (exp.retryPermitted === true) {
+        err('case.retry-coherence', `${label}: ${exp.errorClassification} is not currently eligible for a retry`);
+      }
+      if (Array.isArray(exp.retryConditions) && exp.retryConditions.length > 0) {
+        err('case.retry-conditions-terminal', `${label}: ${exp.errorClassification} must not list retryConditions while ineligible`);
+      }
+      if (exp.permanentlyTerminal === true) {
+        err('case.ineligibility-permanence', `${label}: ${exp.errorClassification} must not be asserted as a permanently terminal failure; the contract establishes only current ineligibility`);
+      }
+      if (exp.currentlyIneligible !== true) {
+        err('case.ineligibility-flag', `${label}: ${exp.errorClassification} must set currentlyIneligible true to distinguish present ineligibility from permanent failure`);
       }
     }
     if (exp.errorClassification === 'malformed_feedback' && exp.outcome === 'assessed') {
