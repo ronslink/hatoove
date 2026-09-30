@@ -6,7 +6,10 @@
  * merge is monotonic, so folding a backup back in restores what was lost and can never
  * remove anything.
  *
- * Safe to run at any time; it writes a `.pre-recovery` copy first.
+ * Safe to run at any time; it writes a `.pre-recovery` copy first. That copy sits beside
+ * the record, so a full "delete everything" in the app removes it too. A copy on removable
+ * media is outside that path and is only disclosed, never claimed deleted (finding F-5;
+ * see work/implementation/F5-DELETION-01.md).
  *
  * Usage:
  *   node tools/recover-progress.js --dry-run     # show what would change
@@ -92,3 +95,5 @@ fs.copyFileSync(target, safety);
 fs.writeFileSync(target, JSON.stringify(merged));
 console.log(`\nWrote ${target}`);
 console.log(`Safety copy of the previous file: ${safety}`);
+console.log('That copy sits beside the record, so the app\'s full delete removes it too.');
+console.log('A copy on removable media is out of that delete path (finding F-5).');

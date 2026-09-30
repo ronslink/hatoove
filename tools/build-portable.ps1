@@ -43,16 +43,44 @@ foreach ($relative in @('check.js', 'recover-progress.js', 'sync-home.js')) {
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $stageRoot 'sync-home.json') -Encoding UTF8
 
 # Copy only learner settings and durable progress, never browser profiles or test data.
+# F-5: the key and the record travel with the media, and a delete inside the installed app
+# cannot reach media that is not attached. That is stated in the bundle, never claimed
+# deleted - mitigation by disclosure, not deletion.
 $learnerFiles = @('.env', 'progress.json', 'progress.json.bak', 'progress.json.pre-recovery')
+$copiedLearnerFiles = @()
 foreach ($relative in $learnerFiles) {
   $learnerFile = Join-Path $LearnerSource $relative
   if (Test-Path -LiteralPath $learnerFile) {
     Copy-Item -LiteralPath $learnerFile -Destination $stageRoot
+    $copiedLearnerFiles += $relative
     if ($relative -like 'progress.json*') {
       $state = Get-Content -LiteralPath (Join-Path $stageRoot $relative) -Raw | ConvertFrom-Json
       if ($null -eq $state.nodes) { throw "Invalid learner record: $relative" }
     }
   }
+}
+
+# F-5: say plainly, on the media itself, that these copies are outside the app's delete path.
+$deletionNotice = @(
+  'Hatoove / B1 Prep - Hinweis zum Loeschen / deletion notice',
+  '',
+  'Diese Dateien liegen auf einem Wechseldatentraeger (z. B. SSD). Das installierte',
+  'Programm kann Daten auf einem nicht angeschlossenen Datentraeger nicht loeschen.',
+  '"Alles zuruecksetzen" loescht nur die Kopien auf dem Laufwerk, auf dem es laeuft.',
+  'Auf diesem Datentraeger bleiben sie erhalten:',
+  '',
+  ($copiedLearnerFiles | ForEach-Object { "  - $_" }),
+  '',
+  'Das ist eine Offenlegung, KEINE Loeschung: die Kopie wandert mit dem Datentraeger.',
+  'Um sie zu entfernen, loeschen Sie die Dateien auf dem Datentraeger selbst.',
+  '',
+  'English: this copy travels with the removable media and is outside the app delete path.',
+  'This is mitigation by disclosure, not deletion.',
+  ''
+)
+$deletionNotice | Set-Content -LiteralPath (Join-Path $stageRoot 'DELETION-NOTICE.txt') -Encoding UTF8
+if ($copiedLearnerFiles.Count -gt 0) {
+  Write-Warning ("The provider key and learner progress were copied to the media ({0}). A delete inside the install cannot reach them." -f ($copiedLearnerFiles -join ', '))
 }
 
 # Extract only the executable and its license; npm and installation tools are not needed.

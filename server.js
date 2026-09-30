@@ -58,6 +58,21 @@ const ACCOUNT_HEADER = 'x-b1prep-account';
 const ACCOUNT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,63}$/;
 // The unscoped paths: the legacy single-user record.
 const LEGACY_PATHS = Object.freeze({ accountId: null, progress: PROGRESS_PATH, rev: PROGRESS_REV_PATH });
+// F-5: the copies the app leaves beside the record. `writeProgress` leaves `.bak`/`.tmp`,
+// tools/recover-progress.js leaves `.pre-recovery`, and tools/sync-home.js leaves
+// `progress.json.before-ssd-sync-<id>.bak`. None is visible in the UI, so before this fix
+// a learner who "deleted everything" still left their text in them. A full delete must
+// reach every copy the app created on this install.
+const SYNC_BACKUP_PREFIX = 'before-ssd-sync-';
+const SYNC_BACKUP_SUFFIX = '.bak';
+// What a full local delete deliberately cannot reach, stated rather than guessed. Returned
+// by DELETE and printed by the portable build, so `deleted: true` is never read as "every
+// copy on every medium is gone".
+const OUTSIDE_DELETION_SCOPE = Object.freeze([
+  'Copies on removable media: the portable build copies .env and the progress files onto the media, and a delete on the install cannot reach media that is not attached.',
+  "A progress export the browser downloaded to the learner's Downloads folder.",
+  'The provider key and settings in .env: that is configuration, not learner progress.',
+]);
 
 /**
  * Resolve the progress paths for a request. An invalid account token is a 400 rather than
@@ -408,6 +423,34 @@ async function readProgress(paths = LEGACY_PATHS) {
   return { found: false, source: null, state: null };
 }
 
+/**
+ * True when `p` exists. `fsp.rm(..., { force: true })` is silent for a missing file, so
+ * the delete path needs a real check to report exactly what it removed.
+ */
+async function pathExists(p) {
+  try {
+    await fsp.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The `progress.json.before-ssd-sync-<id>.bak` copies `tools/sync-home.js` leaves beside
+ * the record. They hold the learner's full text, so a full delete must reach them too.
+ */
+async function syncBackupsBeside(progressPath) {
+  const dir = path.dirname(progressPath);
+  const prefix = `${path.basename(progressPath)}.${SYNC_BACKUP_PREFIX}`;
+  try {
+    const names = await fsp.readdir(dir);
+    return names.filter((name) => name.startsWith(prefix) && name.endsWith(SYNC_BACKUP_SUFFIX)).map((name) => path.join(dir, name));
+  } catch {
+    return [];
+  }
+}
+
 const ALLOWED_STATIC_ROOTS = [PUBLIC_DIR, DATA_DIR];
 
 function resolveStatic(urlPath) {
@@ -644,16 +687,32 @@ async function handleApi(req, res, pathname) {
         sendJSON(res, 500, { ok: false, error: `Could not record the reset: ${err.message}` });
         return true;
       }
-      try {
-        await fsp.rm(paths.progress, { force: true });
-        await fsp.rm(`${paths.progress}.bak`, { force: true });
+      // F-5: remove every copy the app left beside the record, not just the record. A
+      // copy the learner never asked for must not outlive "delete everything": the
+      // one-generation `.bak`, a leftover `.tmp`, the recovery tool's `.pre-recovery`,
+      // and the home-sync tool's `.before-ssd-sync-<id>.bak` copies all hold their text.
+      const candidates = [
+        paths.progress,
+        `${paths.progress}.bak`,
         // A leftover temp file from an interrupted write would otherwise be renamed
         // into place by the next save and resurrect the record.
-        await fsp.rm(`${paths.progress}.tmp`, { force: true });
-      } catch {
-        /* already gone */
+        `${paths.progress}.tmp`,
+        `${paths.progress}.pre-recovery`,
+        ...(await syncBackupsBeside(paths.progress)),
+      ];
+      const removed = [];
+      for (const candidate of candidates) {
+        if (!(await pathExists(candidate))) continue;
+        try {
+          await fsp.rm(candidate, { force: true });
+          removed.push(path.basename(candidate));
+        } catch {
+          /* already gone */
+        }
       }
-      sendJSON(res, 200, { ok: true, scope: 'all', deleted: true, rev });
+      // The tombstone (.rev) is kept on purpose: it is what refuses a pre-delete write,
+      // and it holds no learner text. The media copy is named, never claimed as deleted.
+      sendJSON(res, 200, { ok: true, scope: 'all', deleted: true, rev, removed, outsideScope: OUTSIDE_DELETION_SCOPE });
       return true;
     }
 

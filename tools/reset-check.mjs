@@ -56,7 +56,7 @@ export const REQUIRED_CHECKS = [
   'clear-notebook-removes-entries-keeps-history',
   'unknown-delete-scope-is-rejected',
   'delete-requires-same-origin',
-  'backup-copies-outside-deletion-path',
+  'app-created-copies-removed-by-full-delete',
 ];
 
 export const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -509,15 +509,35 @@ export async function runResetChecks({ root = DEFAULT_ROOT, mode = 'tree' } = {}
       return '403 origin_rejected; record intact';
     });
 
-    /* 9. What the reset deliberately does not reach. */
-    await record('backup-copies-outside-deletion-path', async () => {
-      const copy = `${ctx.progressPath}.pre-recovery`;
-      fs.writeFileSync(copy, JSON.stringify(seededState()), 'utf8');
+    /*
+     * 9. The app-created copies beside the record must not outlive a full delete.
+     *
+     * This check used to assert the opposite: it recorded the F-5 boundary ("the
+     * pre-recovery copy must be untouched") as a documented gap. F-5 is now fixed in
+     * server.js, so the boundary it recorded is gone and the assertion is inverted. The
+     * copy on removable media is still outside the deletion path and is stated, not
+     * claimed deleted - see tools/deletion-scope-check.mjs and
+     * work/implementation/F5-DELETION-01.md.
+     */
+    await record('app-created-copies-removed-by-full-delete', async () => {
+      clearProgressFiles(ctx);
+      const seeded = seededState();
+      await ctx.postProgress(seeded);
+      // A second save leaves the one-generation `progress.json.bak`.
+      await ctx.postProgress(seeded);
+      const preRecovery = `${ctx.progressPath}.pre-recovery`;
+      const syncCopy = `${ctx.progressPath}.before-ssd-sync-2031-03-15T00-00-00-000Z-00000000-0000-4000-8000-000000000000.bak`;
+      fs.writeFileSync(preRecovery, JSON.stringify(seeded), 'utf8');
+      fs.writeFileSync(syncCopy, JSON.stringify(seeded), 'utf8');
+      await client.seed(seeded);
       await client.reset();
       await sleep(SETTLE_MS);
-      assertTrue(fs.existsSync(copy), 'the pre-recovery copy must be untouched (this is the documented boundary)');
-      fs.rmSync(copy, { force: true });
-      return 'documented: pre-recovery/portable copies (F-5) are outside the deletion path';
+      for (const copy of [preRecovery, syncCopy, `${ctx.progressPath}.bak`, `${ctx.progressPath}.tmp`]) {
+        assertTrue(!fs.existsSync(copy), `${path.basename(copy)} must be removed by a full delete (F-5)`);
+      }
+      const leftovers = filesContaining(ctx.dir, MARKER);
+      assertEqual(leftovers.length, 0, `no file may still hold learner text, found ${leftovers.join(', ')}`);
+      return 'full delete also removed the pre-recovery and home-sync copies (F-5 fix)';
     });
   } finally {
     clearProgressFiles(ctx);

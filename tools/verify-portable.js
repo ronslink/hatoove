@@ -122,9 +122,22 @@ try {
   const summary = browserResult.stdout.match(/[^\r\n]*(?:passed|failed)[^\r\n]*/gi) || [];
   console.log(summary.join('\n'));
   checks.push('Existing browser suite passes against the SSD using isolated progress');
+
+  // F-5: the bundle must say, on the media itself, that the key and the progress copy it
+  // carries travel with the media and are outside the app's delete path. This is
+  // disclosure, not deletion: the app cannot delete from media it cannot reach.
+  const noticePath = path.join(root, 'DELETION-NOTICE.txt');
+  let notice = '';
+  try { notice = await fs.readFile(noticePath, 'utf8'); } catch { /* absent */ }
+  assert.ok(notice.length > 0, 'The portable bundle must carry DELETION-NOTICE.txt (F-5)');
+  assert.ok(
+    /outside the app delete path/i.test(notice) && /mitigation by disclosure/i.test(notice),
+    'DELETION-NOTICE.txt must state that the media copy is outside the app delete path'
+  );
+  checks.push('Portable bundle states that the key and progress on the media are outside the app delete path');
 } finally {
   await stop();
-  for (const suffix of ['', '.bak', '.tmp']) await fs.rm(testFile + suffix, { force: true });
+  for (const suffix of ['', '.bak', '.tmp', '.pre-recovery']) await fs.rm(testFile + suffix, { force: true });
   for (const [name, original] of before) {
     assert.equal(await hash(path.join(root, name)), original, `${name} was not changed by tests`);
   }
