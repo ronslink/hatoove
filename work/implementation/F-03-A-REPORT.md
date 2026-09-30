@@ -8,6 +8,10 @@
 - **Worktree:** `/root/workspaces/hatoove-f03-a`
 - **Issued:** 2026-09-30 17:35 UTC · **Checkpoint:** 17:50 UTC · **Expires:** 18:35 UTC
 - **Independent reviewer:** coordinator
+- **Revision:** 2 — 2026-09-30, section 6 rewritten on coordinator review to adopt the
+  pilot's versioned PostgreSQL contracts and to reject client-controlled AI/config and
+  blob-as-authority persistence. Source findings (sections 1–5) and command evidence are
+  unchanged; no implementation is claimed.
 
 ## Scope and method
 
@@ -217,39 +221,75 @@ tts rate, daily goal) live inside this same blob (`store.js:35-42`).
 
 ---
 
-## 6. Recommended integration seams (preserve the existing interface)
+## 6. Recommended integration seams (preserve the visual interface)
 
-The current client/server contract can stay intact; the account dimension is added
-underneath it.
+The **visual interface** in `public/` (previous-app styling, adapted for phone/tablet) is
+preserved; the legacy transport and persistence underneath it are **replaced by the
+pilot's versioned PostgreSQL contracts**, not extended in place. The existing
+client/server bodies, the single progress file and the browser singleton are not reusable
+as the pilot boundary. Seams below are proposals for the F-03/A-01 owner.
 
-1. **Owner context at the HTTP layer.** Resolve an owner per request and pass an
-   `ownerId` into a progress-store adapter. Keep the existing response shapes
-   (`GET` → `{ok, found, source, state}`, `POST` → `{ok, bytes, savedAt, merged[, state]}`,
-   `DELETE` → `{ok}`) so `store.js` needs no call-site changes. Where no owner is
-   present, **fail closed** (`401`) instead of defaulting to the shared store.
-2. **Per-owner progress persistence.** Key the durable record by `ownerId` (file per
-   account or a row), keeping the `state` object shape identical so `mergeProgress`
-   (`public/js/progress-merge.js:42`) and `migrateTags` keep working. Change `POST`
-   merge so it only ever merges two states of the *same* owner.
-3. **Protect `/api/ai` and `/api/ai/test`.** Keep request/response bodies; add
-   authentication plus per-account usage counters/quotas, and attribute `store.noteAi`
-   per account so provider spend is not a shared global fact.
-4. **Separate server config from learner settings.** Keep `GET /api/config` returning the
-   same fields, but stop letting a learner POST write `.env`/`process.env`
-   (`server.js:403-412`, `saveEnv` at `server.js:117-141`); move `examDate`/`model` into
-   the account-scoped record. Provide a separate, authenticated admin path if the
-   operator needs server config (owner/coordinator scope, not learner scope).
-5. **Account-scope the client singleton.** Keep every exported function in `store.js`;
-   add an injected account id (e.g. `setAccount(id)` that reloads/reset the singleton and
-   selects `` `b1prep.state.v1:${accountId}` `` as `STORAGE_KEY`), plus an account-scoped
-   clear on logout. This mirrors the plan's "account-scoped cache clearing".
-6. **Content entitlement.** If any `data/` pack is not meant to be public, gate it behind
-   the owner/entitlement check; keep `resolveStatic`'s path allowlist (`server.js:216-230`)
-   as defence-in-depth. Never let downloadable assets carry unsubmitted scoring keys.
-7. **View-state ownership.** Move the page-global mutable view state in `exam.js`
-   (`writingTask`, `speakingTask`, `mockState`, render tokens) into a per-view controller
-   that is reset on account/route change, and give each submission a stable id so the
-   server (not the DOM via `collectFromDom`) owns marking and the immutable record.
+1. **Server-owned request context.** Resolve the authenticated owner on the server per
+   request (maintained auth library with server-side sessions) and derive identity,
+   entitlement, task version, rubric and input limits from it. Public routes (sign-in,
+   callbacks, legal pages, verified webhooks and designated public tools) keep an explicit
+   allowlist; learner records and privileged endpoints require authentication and
+   ownership checks. A missing or invalid owner **fails closed** rather than defaulting to
+   the shared store.
+2. **Versioned Postgres attempt/draft/submission/job contracts — not per-owner files or
+   progress blobs.** Persist `learner_profiles`; immutable `exam_packages`,
+   `rubric_versions`, `content_versions`; `attempts` (owner, task/rubric references,
+   draft, response, revision lineage, mode, assistance used, lifecycle state);
+   `content_assets`; `assessments` (attempt, structured feedback/evidence, model and
+   prompt versions, status); `jobs` and `usage_ledger`; and the commercial tables, per the
+   pilot plan's "Minimal persistent records". Drafts autosave with visible state and
+   explicit conflict handling; a submission snapshots the exact text and the
+   task/content/rubric references; edits become a new revision. An owned submission and a
+   durable job (transactional enqueue/outbox) are saved **before** the endpoint
+   acknowledges acceptance. Do **not** key per-owner files carved from `progress.json` as
+   the pilot database, and do not treat the mutable progress blob as authoritative attempt
+   evidence.
+3. **Derive progress from owned attempts; import the legacy blob separately.** Progress
+   summaries, reports and resume state are computed from owned attempt rows under
+   server-verified ownership and row-level security — not from a browser-supplied blob or
+   final score. The existing single learner's `progress.json`/`localStorage` record is a
+   separate, explicit, previewable and idempotent migration: show the parsed contents for
+   confirmation, preserve historical scoring labels and evidence, and never silently
+   relabel old results under the corrected rubric. That import is a one-off path, not the
+   ongoing persistence model.
+4. **Replace `/api/ai` and `/api/ai/test` with server-controlled assessment routes.** Do
+   not preserve the current arbitrary request/response bodies (client-chosen `messages`
+   and prompts) behind authentication. The browser sends task references, selected
+   answers and written responses only; the server determines the learner identity,
+   entitlement, task version, answer keys, model, provider, prompt, rubric and limits, and
+   must not accept arbitrary provider URLs, credentials or grading prompts from the
+   learner interface. Objective marking is deterministic and server-side; writing
+   feedback runs as a durable job behind a model-provider adapter, validates structured
+   output, retains criterion evidence and stores the model/prompt/rubric versions.
+   Reopening a saved assessment returns that result instead of rerunning the model.
+   Provider spend is recorded per owner in `usage_ledger`; the shared client
+   `store.noteAi` counters become owner-scoped, server-derived facts.
+5. **Split server configuration from account preferences.** Stop the learner POST writing
+   `.env` / mutating `process.env` (`server.js:403-412`, `saveEnv` at `server.js:117-141`).
+   Server config (provider, credentials, base URL, assessment model, limits) stays
+   operator-owned and is not learner-selectable; account preferences (exam, exam date,
+   instruction language, navigation/theme) live in `learner_profiles` and **exclude any
+   client-selected assessment model or provider**. `GET /api/health` and config responses
+   must **not expose provider details** (no masked key, model id or base URL); health
+   reports liveness only. Any operator config change uses a separate, authenticated
+   operator/coordinator path outside learner scope.
+6. **Account-scoped client cache and content entitlement.** Keep the existing exported
+   `store.js` functions, scope the local cache per account and clear private state on
+   sign-out (the plan's "account-scoped cache clearing"). The cache is a convenience
+   mirror of server state, never the authority. Serve only approved/entitled content;
+   keep `resolveStatic`'s path allowlist (`server.js:216-230`) as defence-in-depth, and
+   never let downloadable assets carry unsubmitted scoring keys.
+7. **Per-view state and stable submission identity.** Move the page-global mutable view
+   state in `exam.js` (`writingTask`, `speakingTask`, `mockState`, render tokens) into a
+   per-view controller reset on account/route change. Give every submission a stable id
+   so the server (not the DOM via `collectFromDom`) owns marking, the immutable
+   submission record and the revision lineage; views render saved server state and
+   recover interrupted work from it.
 
 ## 7. Limitations and non-claims
 
