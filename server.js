@@ -282,6 +282,24 @@ async function writeProgress(data) {
   return body.length;
 }
 
+/**
+ * Replace the stored record without keeping the previous generation.
+ *
+ * Used by the scoped delete (clearing the error notebook): the learner asked for that
+ * text to be gone, and `writeProgress` would copy the record that still contains it to
+ * `progress.json.bak`. The write itself stays atomic (temp file + rename), so the rest
+ * of the progress is not at risk; only the one-generation backup is dropped, because
+ * keeping it would keep exactly the entries the learner deleted.
+ */
+async function writeProgressScoped(data) {
+  const tmp = `${PROGRESS_PATH}.tmp`;
+  const body = JSON.stringify(data);
+  await fsp.writeFile(tmp, body, 'utf8');
+  await fsp.rename(tmp, PROGRESS_PATH);
+  await fsp.rm(`${PROGRESS_PATH}.bak`, { force: true });
+  return body.length;
+}
+
 async function readProgress() {
   for (const p of [PROGRESS_PATH, `${PROGRESS_PATH}.bak`]) {
     try {
@@ -471,13 +489,50 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/progress' && method === 'DELETE') {
+    // SEC-02 fix for finding F-2: a user-visible reset must really delete.
+    // POST keeps merging on purpose (a partial write must never erase a week of study),
+    // so deletion is a separate, explicitly scoped operation. `scope` defaults to 'all'
+    // for the existing reset path. An unrecognised scope is rejected instead of
+    // guessing, so a typo can never delete more (or less) than the caller asked for.
+    let scope = 'all';
     try {
-      await fsp.rm(PROGRESS_PATH, { force: true });
-      await fsp.rm(`${PROGRESS_PATH}.bak`, { force: true });
+      scope = new URL(req.url, 'http://127.0.0.1').searchParams.get('scope') || 'all';
     } catch {
-      /* already gone */
+      /* unreachable: the pathname was parsed from the same URL */
     }
-    sendJSON(res, 200, { ok: true });
+
+    if (scope === 'all') {
+      try {
+        await fsp.rm(PROGRESS_PATH, { force: true });
+        await fsp.rm(`${PROGRESS_PATH}.bak`, { force: true });
+        // A leftover temp file from an interrupted write would otherwise be renamed
+        // into place by the next save and resurrect the record.
+        await fsp.rm(`${PROGRESS_PATH}.tmp`, { force: true });
+      } catch {
+        /* already gone */
+      }
+      sendJSON(res, 200, { ok: true, scope: 'all', deleted: true });
+      return true;
+    }
+
+    if (scope === 'errors') {
+      const existing = await readProgress();
+      if (!existing.found) {
+        sendJSON(res, 200, { ok: true, scope: 'errors', existed: false, cleared: 0 });
+        return true;
+      }
+      try {
+        await writeProgressScoped({ ...existing.state, errors: [], updatedAt: Date.now() });
+      } catch (err) {
+        sendJSON(res, 500, { ok: false, error: `Could not clear the notebook: ${err.message}` });
+        return true;
+      }
+      const cleared = Array.isArray(existing.state.errors) ? existing.state.errors.length : 0;
+      sendJSON(res, 200, { ok: true, scope: 'errors', existed: true, cleared });
+      return true;
+    }
+
+    sendJSON(res, 400, { ok: false, code: 'invalid_scope', error: `Unknown delete scope: ${scope}` });
     return true;
   }
 
