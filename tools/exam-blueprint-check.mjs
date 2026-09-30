@@ -44,12 +44,13 @@ const close = (a, b) => Math.abs(a - b) < 1e-6;
 /**
  * Pure validator. No I/O, no globals, no side effects.
  *
+ * There is deliberately no option to relax the approval guards: approval cannot be
+ * elevated from inside this artifact under any call shape.
+ *
  * @param {unknown} blueprint parsed blueprint object
- * @param {{allowApproved?: boolean}} [options] `allowApproved` is intentionally unusable
- *   for elevating approval: it is recorded but never relaxes the approval guards.
  * @returns {{ok: boolean, errors: string[], warnings: string[], summary: object}}
  */
-export function validateBlueprint(blueprint, options = {}) {
+export function validateBlueprint(blueprint) {
   const errors = [];
   const warnings = [];
   const err = (code, detail) => errors.push(`[${code}] ${detail}`);
@@ -59,9 +60,6 @@ export function validateBlueprint(blueprint, options = {}) {
   if (!isPlainObject(blueprint)) {
     err('schema.root', 'blueprint must be a JSON object');
     return { ok: false, errors, warnings, summary };
-  }
-  if (options && options.allowApproved) {
-    warn('approval.option-ignored', 'allowApproved is ignored: this checker never elevates approval.');
   }
 
   /* ------------------------------------------------------------ version */
@@ -99,6 +97,10 @@ export function validateBlueprint(blueprint, options = {}) {
 
   /* ------------------------------------------------------------ sources */
   const sourceIds = new Set();
+  /** Source id -> verified printedPage to PDF page offset, when declared. */
+  const sourcePageOffset = new Map();
+  /** Source ids that declare a page count, for upper-bound checks. */
+  const sourcePageCount = new Map();
   if (!Array.isArray(blueprint.sources) || blueprint.sources.length === 0) {
     err('sources.missing', 'sources must be a non-empty array');
   } else {
@@ -115,10 +117,25 @@ export function validateBlueprint(blueprint, options = {}) {
         err('sources.retrieved', `${at}.retrieved date is required`);
       } else if (!/^\d{4}-\d{2}-\d{2}$/.test(s.retrieved)) {
         err('sources.retrieved-format', `${at}.retrieved must be YYYY-MM-DD, got "${s.retrieved}"`);
+      } else if (s.retrieved > new Date().toISOString().slice(0, 10)) {
+        // A retrieval event cannot be dated in the future.
+        err('sources.retrieved-future', `${at}.retrieved "${s.retrieved}" is in the future`);
       }
       if (!isNonEmptyString(s.verification)) {
         err('sources.verification', `${at}.verification is required (how it was verified)`);
       }
+      if (s.pageOffset !== undefined && s.pageOffset !== null) {
+        if (!isPlainObject(s.pageOffset)) {
+          err('sources.page-offset-type', `${at}.pageOffset must be an object`);
+        } else if (!isPositiveInteger(s.pageOffset.printedToPdf)) {
+          err('sources.page-offset-value', `${at}.pageOffset.printedToPdf must be a positive integer`);
+        } else if (s.pageOffset.verified !== true) {
+          err('sources.page-offset-unverified', `${at}.pageOffset is declared but not marked verified; an unverified offset must not be used to validate citations`);
+        } else {
+          sourcePageOffset.set(s.id, s.pageOffset.printedToPdf);
+        }
+      }
+      if (isPositiveInteger(s.pages)) sourcePageCount.set(s.id, s.pages);
     });
   }
 
@@ -321,6 +338,11 @@ export function validateBlueprint(blueprint, options = {}) {
       }
 
       /* writing criteria */
+      const isWritingFamily = part.taskFamily === 'writing-task' || part.taskFamily === 'free-text-email';
+      const hasWritingShape = part.criteria !== undefined || part.bandToTotal !== undefined || part.requiredContentPoints !== undefined;
+      if (hasWritingShape && !isWritingFamily) {
+        err('part.writing-shape-family', `${plabel} carries writing criteria/bandToTotal/requiredContentPoints but its taskFamily "${part.taskFamily}" is not a writing family`);
+      }
       if (part.taskFamily === 'writing-task' || part.criteria !== undefined) {
         if (!isPositiveInteger(part.requiredContentPoints)) {
           err('part.content-points', `${plabel}.requiredContentPoints must be a positive integer`);
@@ -339,6 +361,18 @@ export function validateBlueprint(blueprint, options = {}) {
             if (!isNonEmptyString(c.name)) err('criterion.name', `${cat}.name is required`);
             if (!Array.isArray(c.bands) || c.bands.length === 0) {
               err('criterion.bands', `${cat}.bands must be a non-empty array`);
+            } else {
+              // Bands must be unique, and bandPoints must describe exactly those bands.
+              const seenBands = new Set();
+              for (const band of c.bands) {
+                if (!isNonEmptyString(band)) {
+                  err('criterion.band-type', `${cat}.bands contains a non-string entry`);
+                } else if (seenBands.has(band)) {
+                  err('criterion.band-duplicate', `${cat}.bands lists "${band}" more than once`);
+                } else {
+                  seenBands.add(band);
+                }
+              }
             }
             if (!isPlainObject(c.bandPoints)) {
               err('criterion.band-points', `${cat}.bandPoints must be an object`);
@@ -354,9 +388,23 @@ export function validateBlueprint(blueprint, options = {}) {
                     err('criterion.band-missing-points', `${cat}: band "${band}" has no bandPoints entry`);
                   }
                 }
+                for (const band of Object.keys(c.bandPoints)) {
+                  if (!c.bands.includes(band)) {
+                    err('criterion.points-extra-band', `${cat}.bandPoints declares "${band}" which is not listed in bands`);
+                  }
+                }
               }
-              const max = Math.max(...Object.values(c.bandPoints).filter(isFiniteNumber));
-              if (isFiniteNumber(max)) critSum += max;
+              const vals = Object.values(c.bandPoints).filter(isFiniteNumber);
+              if (vals.length) {
+                const max = Math.max(...vals);
+                if (vals.some((v) => v < 0)) {
+                  err('criterion.band-negative', `${cat}.bandPoints contains a negative value`);
+                }
+                if (!vals.includes(0)) {
+                  warn('criterion.band-no-zero', `${cat}.bandPoints has no zero band; B1 writing criteria include a 0 band`);
+                }
+                critSum += max;
+              }
             }
           });
           const b2t = part.bandToTotal;
@@ -472,6 +520,7 @@ export function validateBlueprint(blueprint, options = {}) {
     });
     // every section/part rule reference must resolve
     blueprint.sections.forEach((section) => {
+      if (!isPlainObject(section)) return; // already reported as section.type
       for (const ref of section.answerRuleRefs || []) {
         if (!ruleIds.has(ref)) {
           err('rule.unknown-reference', `section "${section.id}" references unknown answer rule "${ref}"`);
@@ -640,6 +689,27 @@ export function validateBlueprint(blueprint, options = {}) {
       const base = ref.split('-')[0];
       if (!sourceIds.has(base)) {
         err('sources.ref-unknown', `${at} references unknown source "${base}"`);
+        continue;
+      }
+      // A page locator must be one-based and arithmetically consistent with the
+      // source's verified printedPage -> PDF page offset.
+      const m = ref.match(/^S[0-9]+-p([0-9]+)-p([0-9]+)$/);
+      if (!m) continue;
+      const pdfPage = Number(m[1]);
+      const printedPage = Number(m[2]);
+      if (pdfPage < 1 || printedPage < 1) {
+        err('sources.locator-zero', `${at} reference "${ref}" uses a zero page number; PDF and printed pages are one-based`);
+        continue;
+      }
+      const declaredOffset = sourcePageOffset.get(base);
+      if (declaredOffset === undefined) {
+        warn('sources.locator-unverifiable', `${at} reference "${ref}" cites two page numbers but source "${base}" declares no verified pageOffset, so the pair cannot be checked`);
+      } else if (pdfPage - printedPage !== declaredOffset) {
+        err('sources.locator-offset', `${at} reference "${ref}" implies an offset of ${pdfPage - printedPage} but source "${base}" declares printedPage + ${declaredOffset} = PDF page`);
+      }
+      const maxPages = sourcePageCount.get(base);
+      if (isPositiveInteger(maxPages) && pdfPage > maxPages) {
+        err('sources.locator-range', `${at} reference "${ref}" cites PDF page ${pdfPage} but source "${base}" has only ${maxPages} pages`);
       }
     }
   }

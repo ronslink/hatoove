@@ -16,6 +16,7 @@ import { validateBlueprint, DEFAULT_BLUEPRINT_PATH, EXPECTED_VERSION } from './e
 
 const raw = JSON.parse(fs.readFileSync(DEFAULT_BLUEPRINT_PATH, 'utf8'));
 const clone = () => JSON.parse(JSON.stringify(raw));
+const isPlainObject = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Assert that validation failed and that at least one error matches the pattern. */
 function expectFailure(result, pattern, label) {
@@ -105,12 +106,18 @@ test('never elevates approval: a gate may not mark itself satisfied', () => {
   expectFailure(validateBlueprint(bp), /gate\.self-approval/, 'self-satisfied gate');
 });
 
-test('an allowApproved option cannot be used to bypass the approval guards', () => {
+test('approval guards cannot be relaxed by any option', () => {
+  // The former no-op `allowApproved` option has been removed: it had no effect and only
+  // advertised a bypass. Passing it must not change the outcome.
   const bp = clone();
-  bp.review.status = 'approved';
-  const result = validateBlueprint(bp, { allowApproved: true });
-  assert.equal(result.ok, false, 'allowApproved must not relax the approval guard');
-  assert.ok(result.warnings.some((w) => /allowApproved is ignored/.test(w)));
+  const strict = validateBlueprint(bp);
+  const withOption = validateBlueprint(bp, { allowApproved: true });
+  assert.deepEqual(withOption.errors, strict.errors);
+  assert.deepEqual(withOption.warnings, strict.warnings);
+
+  const bad = clone();
+  bad.review.status = 'approved';
+  assert.equal(validateBlueprint(bad, { allowApproved: true }).ok, false, 'no call shape may accept an approval claim');
 });
 
 /* ------------------------------------------------------- source integrity */
@@ -318,6 +325,214 @@ test('rejects duplicate unresolved ids', () => {
 });
 
 /* ----------------------------------------------------------- CLI surface */
+
+/* ==================================================================== */
+/* Adversarial regression suite (USER-04 Task 2)                        */
+/* Each block below records a defect that the earlier checker accepted. */
+/* ==================================================================== */
+
+test('defect 1: a page locator whose arithmetic contradicts the declared offset is rejected', () => {
+  // The regex accepted any two page numbers. "S2-p39-p5" is not a real page pair:
+  // S2's verified convention is printedPage + 2 = PDF page.
+  const bad = clone();
+  bad.sections[0].sources = ['S2-p39-p5'];
+  expectFailure(validateBlueprint(bad), /sources\.locator-offset/, 'offset mismatch');
+
+  const reversed = clone();
+  reversed.sections[0].sources = ['S2-p5-p39'];
+  expectFailure(validateBlueprint(reversed), /sources\.locator-offset/, 'reversed page pair');
+
+  const good = clone();
+  good.sections[0].sources = ['S2-p39-p37'];
+  assert.equal(validateBlueprint(good).ok, true, 'a correct page pair must still pass');
+});
+
+test('defect 2: a zero page number is rejected because pages are one-based', () => {
+  const bad = clone();
+  bad.sections[0].sources = ['S2-p0-p0'];
+  expectFailure(validateBlueprint(bad), /sources\.locator-zero/, 'zero page numbers');
+});
+
+test('defect 3: a page locator beyond the source page count is rejected', () => {
+  const bad = clone();
+  bad.sections[0].sources = ['S2-p99-p97'];
+  expectFailure(validateBlueprint(bad), /sources\.locator-range/, 'page beyond source length');
+});
+
+test('a two-page locator on a source with no verified offset warns rather than silently passing', () => {
+  const bp = clone();
+  bp.sections[0].sources = ['S3-p4-p4'];
+  const r = validateBlueprint(bp);
+  assert.ok(r.warnings.some((w) => /locator-unverifiable/.test(w)), 'expected an unverifiable-locator warning');
+});
+
+test('defect 4: writing-shaped data on a non-writing task family is rejected', () => {
+  const bad = clone();
+  bad.sections[3].parts[0].taskFamily = 'multiple-choice';
+  expectFailure(validateBlueprint(bad), /part\.writing-shape-family/, 'criteria kept on a non-writing family');
+});
+
+test('defect 5: a retrieval date in the future is rejected', () => {
+  const bad = clone();
+  bad.sources[0].retrieved = '2099-01-01';
+  expectFailure(validateBlueprint(bad), /sources\.retrieved-future/, 'future retrieval date');
+
+  const ok = clone();
+  ok.sources[0].retrieved = '2026-09-30';
+  assert.equal(validateBlueprint(ok).ok, true);
+});
+
+/* ---------------- deeper adversarial shapes around the same surfaces ---------------- */
+
+test('rejects null, primitive and nested-missing data instead of throwing', () => {
+  const shapes = [
+    ['null parts array', (b) => { b.sections[0].parts = null; }],
+    ['null part items', (b) => { b.sections[0].parts[0].items = null; }],
+    ['null source entry', (b) => { b.sources[0] = null; }],
+    ['primitive source entry', (b) => { b.sources[0] = 'S1'; }],
+    ['null section', (b) => { b.sections[0] = null; }],
+    ['null part', (b) => { b.sections[0].parts[0] = null; }],
+    ['null criterion', (b) => { b.sections[3].parts[0].criteria[0] = null; }],
+    ['null rule', (b) => { b.answerRules[0] = null; }],
+    ['null unresolved entry', (b) => { b.unresolved[0] = null; }],
+    ['null gate', (b) => { b.gates.examFidelityApproval = null; }],
+    ['null writtenExam', (b) => { b.writtenExam = null; }],
+    ['null scope', (b) => { b.scope = null; }],
+    ['null timing', (b) => { b.sections[0].timing = null; }],
+    ['null points', (b) => { b.sections[0].points = null; }],
+  ];
+  for (const [label, mutate] of shapes) {
+    const b = clone();
+    mutate(b);
+    let r;
+    assert.doesNotThrow(() => { r = validateBlueprint(b); }, `${label} must not throw`);
+    assert.equal(r.ok, false, `${label} must be rejected`);
+  }
+});
+
+test('rejects non-finite and otherwise invalid numbers', () => {
+  const cases = [
+    ['NaN section points', (b) => { b.sections[0].points.max = NaN; }],
+    ['Infinity timing', (b) => { b.sections[0].timing.minutes = Infinity; }],
+    ['-Infinity weight', (b) => { b.sections[0].points.weightPercent = -Infinity; }],
+    ['negative weight', (b) => { b.sections[0].points.weightPercent = -25; }],
+    ['string number', (b) => { b.sections[0].points.max = '75'; }],
+    ['float item count', (b) => { b.sections[0].parts[0].items.count = 5.5; }],
+    ['boolean minutes', (b) => { b.sections[1].timing.minutes = true; }],
+  ];
+  for (const [label, mutate] of cases) {
+    const b = clone();
+    mutate(b);
+    let r;
+    assert.doesNotThrow(() => { r = validateBlueprint(b); }, `${label} must not throw`);
+    assert.equal(r.ok, false, `${label} must be rejected`);
+  }
+});
+
+test('rejects overlapping and duplicated item ranges within a section', () => {
+  const overlap = clone();
+  overlap.sections[0].parts[1].items = { count: 5, first: 1, last: 5 };
+  expectFailure(validateBlueprint(overlap), /part\.items\.not-contiguous|part\.items\.range-count/, 'overlapping ranges');
+
+  const duplicateSection = clone();
+  const sb = duplicateSection.sections[1];
+  sb.items = { count: 20, first: 1, last: 20 };
+  sb.parts[0].items = { count: 10, first: 1, last: 10 };
+  sb.parts[1].items = { count: 10, first: 11, last: 20 };
+  expectFailure(validateBlueprint(duplicateSection), /items\.objective-gap/, 'range reused across sections');
+});
+
+test('rejects writing criterion and band structure defects', () => {
+  const missingBand = clone();
+  missingBand.sections[3].parts[0].criteria[0].bands = ['A', 'B', 'C'];
+  expectFailure(validateBlueprint(missingBand), /criterion\.band-missing-points|criterion\.points-extra-band|criterion\.band-no-zero|band-to-total\.raw-mismatch/, 'band list and bandPoints disagree');
+
+  const extraBand = clone();
+  extraBand.sections[3].parts[0].criteria[0].bandPoints.E = 7;
+  expectFailure(validateBlueprint(extraBand), /criterion\.points-extra-band|band-to-total\.raw-mismatch/, 'bandPoints has an undeclared band');
+
+  const duplicateBand = clone();
+  duplicateBand.sections[3].parts[0].criteria[0].bands = ['A', 'A', 'C', 'D'];
+  expectFailure(validateBlueprint(duplicateBand), /criterion\.band-duplicate/, 'duplicate band entry');
+
+  const negativeBand = clone();
+  negativeBand.sections[3].parts[0].criteria[0].bandPoints.D = -1;
+  expectFailure(validateBlueprint(negativeBand), /criterion\.band-point-invalid|criterion\.band-negative/, 'negative band points');
+
+  const noZero = clone();
+  noZero.sections[3].parts[0].criteria[0].bandPoints.D = 1;
+  const r = validateBlueprint(noZero);
+  assert.ok(r.warnings.some((w) => /band-no-zero/.test(w)), 'a missing zero band should warn');
+});
+
+test('rejects altered section weights and unsupported claims', () => {
+  const weights = clone();
+  weights.sections[0].points.weightPercent = 50;
+  weights.writtenExam.writtenWeightPercent = 50;
+  weights.writtenExam.oralWeightPercent = 50;
+  expectFailure(validateBlueprint(weights), /weight-inconsistent|weight-sum/, 'altered weights');
+
+  const oral = clone();
+  oral.sections.push({
+    id: 'ma', order: 5, subtest: 'Mündlicher Ausdruck', subtestEn: 'Speaking', assessedInPilot: true, objective: true,
+    timing: { kind: 'own-block', sharedBlockId: null, minutes: 15, minutesIsApproximate: true, breakWithinBlock: false },
+    points: { raw: 25, rawIsPerPart: true, max: 75, weightPercent: 25 },
+    items: { count: 3, first: 1, last: 3 }, sources: ['S1'],
+    parts: [{ id: 'ma-t1', order: 1, title: 'T1', skill: 'x', taskFamily: 'matching', responseFormat: 'matching', items: { count: 3, first: 1, last: 3 }, points: 75, sources: ['S1'] }],
+  });
+  expectFailure(validateBlueprint(oral), /section\.oral-claim/, 'oral section added');
+});
+
+test('source-integrity surface: unverified offsets, bad gate shape, non-array rule refs', () => {
+  const unverified = clone();
+  unverified.sources[1].pageOffset = { printedToPdf: 2, verified: false };
+  expectFailure(validateBlueprint(unverified), /sources\.page-offset-unverified/, 'unverified offset used for validation');
+
+  const gateShape = clone();
+  delete gateShape.gates.audioAndReuseRights.satisfied;
+  expectFailure(validateBlueprint(gateShape), /gate\.satisfied/, 'gate without satisfied flag');
+
+  const ruleRefs = clone();
+  ruleRefs.sections[0].answerRuleRefs = 'ar-lv-single-use';
+  expectFailure(validateBlueprint(ruleRefs), /rule\.unknown-reference/, 'non-array rule refs');
+
+  const emptyApplies = clone();
+  emptyApplies.answerRules[0].appliesTo = [];
+  expectFailure(validateBlueprint(emptyApplies), /rule\.applies-to/, 'rule with no targets');
+});
+
+test('unresolved entries may legitimately cite no source, but must stay unresolved', () => {
+  // U8 records an out-of-scope comparison with no document behind it. That is an
+  // honest unknown, not a defect, so an empty source list is permitted there.
+  const bp = clone();
+  bp.unresolved[7].sources = [];
+  assert.equal(validateBlueprint(bp).ok, true, 'an explicitly out-of-scope unknown may cite nothing');
+
+  const fabricated = clone();
+  fabricated.unresolved[0].status = 'closed';
+  expectFailure(validateBlueprint(fabricated), /unresolved\.status/, 'unresolved entry claiming closure');
+});
+
+test('every shipped page locator is arithmetically consistent with its source', () => {
+  const withLocators = [];
+  const walk = (v) => {
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (isPlainObject(v)) {
+      for (const [k, val] of Object.entries(v)) {
+        if (k === 'sources' && Array.isArray(val)) withLocators.push(...val.filter((s) => typeof s === 'string'));
+        else walk(val);
+      }
+    }
+  };
+  walk(raw);
+  const paged = withLocators.filter((s) => /^S2-p\d+-p\d+$/.test(s));
+  assert.ok(paged.length > 10, `expected many S2 page locators, found ${paged.length}`);
+  for (const ref of paged) {
+    const m = ref.match(/^S2-p(\d+)-p(\d+)$/);
+    assert.equal(Number(m[1]) - Number(m[2]), 2, `${ref} must satisfy PDF = printed + 2`);
+    assert.ok(Number(m[1]) >= 1 && Number(m[2]) >= 1, `${ref} must be one-based`);
+  }
+});
 
 test('CLI exits nonzero on a corrupt file and zero on the real artifact', async () => {
   const { runCli } = await import('./exam-blueprint-check.mjs');
