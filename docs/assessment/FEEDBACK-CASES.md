@@ -57,6 +57,17 @@ Requirement coverage is asserted by the checker. `scenario` values are the requi
 | WFC-12 | `provider-unavailable` | Provider returns 503 | Recoverable failure surfaced to the learner; bounded retry; no heuristic mark (C1) | `no-heuristic-mark`, `bounded-retry-classified` | `provider_unavailable` |
 | WFC-13 | `duplicate-retry` | The same submission enqueued/retried twice | One authoritative saved assessment; one successful debit for one completed review; late/duplicate workers change nothing (B1: 9/12 stable totals; C1) | `single-authoritative-assessment`, `idempotent-retry`, `repeat-variability-recorded` | — |
 | WFC-14 | `unassessed-preservation` | Duplicate clicks or retry exhaustion | The submission stays explicitly unassessed with a recoverable state; no numeric placeholder (C1) | `unassessed-preservation`, `no-heuristic-mark`, `retry-exhausted-terminal` | `retry_exhausted` |
+| WFC-15 | `provider-unavailable` | 503 while two claims remain | **Retryable only conditionally** — a claim remains, the entitlement is active, the attempt is not deleted and the lease is live. The same failure after the last claim becomes `retry_exhausted` | `retry-conditional-on-state`, `bounded-retry-classified`, `text-preserved-on-failure` | `provider_unavailable` |
+| WFC-16 | `deleted-attempt` | Attempt deleted while a job is in flight | Terminal, never retried; a late worker cannot recreate deleted work or debit anything (C1 deletion precedence) | `no-retry-after-deletion`, `no-duplicate-debit`, `unassessed-preservation` | `attempt_deleted` |
+| WFC-17 | `allowance-exhausted` | Allowance already consumed | Terminal: no retry into a new debit; the submission stays unassessed | `no-retry-without-allowance`, `no-duplicate-debit`, `no-heuristic-mark` | `allowance_exhausted` |
+| WFC-18 | `stale-lease` | Reclaimed lease, then the old worker returns a valid assessment | The stale completion is inert: exactly one authoritative assessment and exactly one debit | `stale-lease-no-double-complete`, `single-authoritative-assessment`, `no-duplicate-debit` | `stale_lease` |
+| WFC-19 | `malformed-after-bounded-attempts` | The same malformed shape recurs on every allowed attempt | Boundary case: retryable `malformed_feedback` becomes terminal `retry_exhausted`; text preserved, nothing invented | `retry-exhausted-terminal`, `permanent-malformed-unassessed`, `text-preserved-on-failure` | `retry_exhausted` |
+| WFC-20 | `superseded-submission` | Revision 2 submitted while revision 1 is in flight | The result attaches to revision 1 only and is never presented as feedback on the newer text (C1 revision lineage) | `superseded-submission-not-assessed`, `single-authoritative-assessment` | `submission_superseded` |
+
+### 3.1 Condition vocabulary
+
+A conditional retry is only permitted while **all** applicable conditions hold: `claimsRemaining`,
+`entitlementActive`, `attemptNotDeleted`, `liveLease`, `assessmentNotAlreadySaved`.
 
 ### 3.1 Invariant vocabulary
 
@@ -88,11 +99,42 @@ Requirement coverage is asserted by the checker. `scenario` values are the requi
 | `idempotent-retry` | Duplicate submission/retry yields no second assessment or second debit. |
 | `repeat-variability-recorded` | Observed variation between repeats is recorded, not hidden (B1: 3/12 varied). |
 | `unassessed-preservation` | Unassessed work stays explicitly unassessed and recoverable. |
+| `retry-conditional-on-state` | A retryable error is retried only while its state conditions still hold. |
+| `no-retry-after-deletion` | A deleted or tombstoned attempt is never completed into an assessment. |
+| `no-retry-without-allowance` | No retry may create a new debit once the allowance is gone. |
+| `stale-lease-no-double-complete` | A reclaimed lease makes the original worker's completion inert. |
+| `superseded-submission-not-assessed` | Feedback attaches to the submitted revision, not to later text. |
+| `no-duplicate-debit` | Exactly one successful debit per completed assessment. |
+| `text-preserved-on-failure` | The learner's submitted text survives any failure unchanged. |
 
-### 3.2 Error-classification vocabulary
+### 3.2 Error-classification vocabulary — conditional versus terminal
 
-`malformed_feedback` · `provider_unavailable` · `retry_exhausted` — the three classifications the pilot
-contract already defines (C1). `none` is used where the case expects a normal assessment.
+An earlier draft of this document implied that `provider_unavailable` is simply "retryable". That was
+**too broad**. Retryability is a property of the attempt's *state*, not of the error code alone:
+
+| Class | Codes | Retry behaviour |
+|---|---|---|
+| **Conditional** | `malformed_feedback`, `provider_unavailable` | A bounded retry is permitted **only while every applicable condition holds** (see §3.1). Stating a retry right without conditions is rejected by the checker. |
+| **Terminal** | `retry_exhausted`, `attempt_deleted`, `allowance_exhausted`, `stale_lease`, `submission_superseded` | Never retried, and may not advertise retry conditions at all — including the case where the underlying error was originally retryable. |
+| **None** | `none` | The case expects an ordinary assessment. |
+
+The three classifications defined by the pilot contract (`malformed_feedback`, `provider_unavailable`,
+`retry_exhausted`) remain unchanged; the four added codes are the state outcomes the contract already
+implies — deletion precedence, one successful debit, lease reclamation and immutable submission lineage.
+
+### 3.3 Mechanical checks versus human judgement
+
+Every case now declares which of its expected invariants a machine may decide and which need a human:
+
+- **`mechanical`** — shape, state and evidence presence: was an assessment produced at all, was it saved
+  exactly once, is a quotation present and exact, was a retry bounded, was a debit single.
+- **`linguisticHuman`** — content coverage, register, relevance, task-point identification and the
+  correctness of a proposed replacement.
+
+Current split across the 20 cases: **49 invariants mechanically decidable, 22 requiring human judgement**.
+Cases are classed `structural` (11), `mixed` (6) or `human-judgement-required` (3). The checker reports the
+human-judgement set separately and states plainly that it cannot decide those: **structural integrity is
+not linguistic correctness and not examiner calibration.**
 
 ## 4. Explicit limits to report alongside any future C-05 result
 

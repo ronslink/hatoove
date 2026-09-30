@@ -25,9 +25,32 @@ export const DEFAULT_FIXTURE_PATH = path.join(HERE, '..', 'tests', 'fixtures', '
 export const EXPECTED_VERSION = '0.1.0-draft';
 export const MIN_CASES = 12;
 const ID_PATTERN = /^WFC-[0-9]{2}$/;
-const ALLOWED_JUDGEMENT = ['structural', 'human-judgement-required'];
+/**
+ * structural                 — every expected invariant is mechanically decidable
+ * mixed                      — some invariants are mechanical, others need a human
+ * human-judgement-required   — nothing about this case is mechanically decidable
+ */
+const ALLOWED_JUDGEMENT = ['structural', 'mixed', 'human-judgement-required'];
+/**
+ * Whether the expected invariant can be decided mechanically from shape/state, or needs a
+ * human. A validator can check that feedback was produced, saved once, quoted and not
+ * invented; it cannot decide content coverage, register, relevance or linguistic correctness.
+ */
+export const ALLOWED_DECIDABILITY = ['mechanical', 'linguistic-human'];
 const ALLOWED_OUTCOMES = ['assessed', 'unassessed', 'recoverable-failure', 'rejected-or-flagged'];
 const SYNTHETIC_TEXT_PATTERN = /Hallo|Sehr geehrte|Guten Tag|vielen Dank|Ich /;
+/** Error codes whose retryability is conditional on state rather than fixed by the code. */
+export const CONDITIONAL_RETRY_ERRORS = ['provider_unavailable', 'malformed_feedback'];
+
+/** Classifications that never retry, whatever state the attempt is in. */
+export const TERMINAL_ERRORS = [
+  'retry_exhausted', 'attempt_deleted', 'allowance_exhausted', 'stale_lease', 'submission_superseded',
+];
+
+/** State conditions a conditional retry must satisfy. */
+export const RETRY_CONDITIONS = [
+  'claimsRemaining', 'entitlementActive', 'attemptNotDeleted', 'liveLease', 'assessmentNotAlreadySaved',
+];
 
 const isPlainObject = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isNonEmptyString = (v) => typeof v === 'string' && v.trim() !== '';
@@ -44,11 +67,12 @@ export function validateFeedbackCases(fixture) {
   const err = (code, detail) => errors.push(`[${code}] ${detail}`);
   const warn = (code, detail) => warnings.push(`[${code}] ${detail}`);
   const humanJudgementCases = [];
-  const summary = { cases: 0, scenarios: 0, invariantsUsed: 0, structural: 0, humanJudgement: 0 };
+  const mixedCases = [];
+  const summary = { cases: 0, scenarios: 0, invariantsUsed: 0, structural: 0, mixed: 0, humanJudgement: 0, mechanicalInvariants: 0, humanInvariants: 0 };
 
   if (!isPlainObject(fixture)) {
     err('schema.root', 'fixture must be a JSON object');
-    return { ok: false, errors, warnings, summary, humanJudgementCases };
+    return { ok: false, errors, warnings, summary, humanJudgementCases, mixedCases };
   }
 
   /* ------------------------------------------------------ fixture-level */
@@ -97,7 +121,7 @@ export function validateFeedbackCases(fixture) {
   /* ------------------------------------------------------------- cases */
   if (!Array.isArray(fixture.cases) || fixture.cases.length === 0) {
     err('cases.missing', 'cases must be a non-empty array');
-    return { ok: errors.length === 0, errors, warnings, summary, humanJudgementCases };
+    return { ok: errors.length === 0, errors, warnings, summary, humanJudgementCases, mixedCases };
   }
   if (fixture.cases.length < MIN_CASES) {
     err('cases.minimum', `at least ${MIN_CASES} cases are required, found ${fixture.cases.length}`);
@@ -205,12 +229,37 @@ export function validateFeedbackCases(fixture) {
       err('case.numeric-score', `${label}.expected.numericScorePermitted must be false: no calibrated numeric score may be expected here`);
     }
 
-    /* error-classification coherence with the contract's retry semantics */
+    /* error-classification coherence with the contract's conditional retry semantics */
     if (exp.errorClassification === 'retry_exhausted' && exp.retryPermitted === true) {
       err('case.retry-coherence', `${label}: retry_exhausted must never permit another retry`);
     }
-    if (exp.errorClassification === 'provider_unavailable' && exp.retryPermitted !== true) {
-      err('case.retry-coherence', `${label}: provider_unavailable is a bounded-retry classification, so retryPermitted must be true`);
+    // Retryability is conditional on state. A provider-unavailable or malformed-feedback
+    // failure may only be retried while a claim remains, the entitlement is active, the
+    // attempt is not deleted and no authoritative assessment is already saved.
+    if (CONDITIONAL_RETRY_ERRORS.includes(exp.errorClassification)) {
+      const conditions = Array.isArray(exp.retryConditions) ? exp.retryConditions : [];
+      if (exp.retryPermitted === true && conditions.length === 0) {
+        err('case.retry-conditions', `${label}: ${exp.errorClassification} is retryable only under explicit state conditions, so retryConditions must be stated`);
+      }
+      if (exp.retryPermitted !== true && conditions.length > 0) {
+        err('case.retry-conditions', `${label}: retryConditions are stated but retryPermitted is not true`);
+      }
+      for (const cond of conditions) {
+        if (!RETRY_CONDITIONS.includes(cond)) {
+          err('case.retry-condition-unknown', `${label}.retryConditions names "${cond}", which is not a known state condition`);
+        }
+      }
+      if (exp.retryPermitted === true && conditions.length > 0) {
+        warn('case.retry-conditional', `${label}: retry is permitted only while ${conditions.join(', ')} hold`);
+      }
+    } else if (TERMINAL_ERRORS.includes(exp.errorClassification)) {
+      // A terminal classification never retries, and must not advertise state conditions.
+      if (exp.retryPermitted === true) {
+        err('case.retry-coherence', `${label}: ${exp.errorClassification} is a terminal classification and must not permit a retry`);
+      }
+      if (Array.isArray(exp.retryConditions) && exp.retryConditions.length > 0) {
+        err('case.retry-conditions-terminal', `${label}: ${exp.errorClassification} never retries, so it must not list retryConditions`);
+      }
     }
     if (exp.errorClassification === 'malformed_feedback' && exp.outcome === 'assessed') {
       err('case.malformed-outcome', `${label}: malformed feedback must not yield an assessed outcome`);
@@ -241,8 +290,62 @@ export function validateFeedbackCases(fixture) {
     } else if (c.judgement === 'human-judgement-required') {
       humanJudgementCases.push(c.id);
       summary.humanJudgement += 1;
+    } else if (c.judgement === 'mixed') {
+      mixedCases.push(c.id);
+      summary.mixed += 1;
     } else {
       summary.structural += 1;
+    }
+
+    /* decidability: which invariants a machine may decide, and which need a human */
+    if (!isPlainObject(c.decidability)) {
+      err('case.decidability', `${label}.decidability is required so mechanical checks are not confused with judgement`);
+    } else {
+      const { mechanical, linguisticHuman } = c.decidability;
+      if (!Array.isArray(mechanical)) {
+        err('case.decidability-mechanical', `${label}.decidability.mechanical must be an array (use [] when nothing is mechanical)`);
+      }
+      if (!Array.isArray(linguisticHuman)) {
+        err('case.decidability-linguistic', `${label}.decidability.linguisticHuman must be an array (use [] when nothing needs a human)`);
+      }
+      if (Array.isArray(mechanical) && Array.isArray(linguisticHuman) && mechanical.length === 0 && linguisticHuman.length === 0) {
+        err('case.decidability-empty', `${label}.decidability classifies no invariant at all`);
+      }
+      for (const key of ['mechanical', 'linguisticHuman']) {
+        const list = c.decidability[key];
+        if (!Array.isArray(list)) continue;
+        for (const inv of list) {
+          if (!isNonEmptyString(inv)) {
+            err('case.decidability-type', `${label}.decidability.${key} contains a non-string entry`);
+          } else if (!invariantVocab.has(inv)) {
+            err('case.decidability-unknown', `${label}.decidability.${key} references undeclared invariant "${inv}"`);
+          } else if (Array.isArray(exp.invariants) && !exp.invariants.includes(inv)) {
+            err('case.decidability-not-expected', `${label}.decidability.${key} names "${inv}", which the case does not expect`);
+          }
+        }
+      }
+      if (Array.isArray(mechanical) && Array.isArray(linguisticHuman)) {
+        const both = mechanical.filter((m) => linguisticHuman.includes(m));
+        if (both.length) {
+          err('case.decidability-overlap', `${label}: ${both.join(', ')} cannot be both mechanically and humanly decided`);
+        }
+        const covered = [...mechanical, ...linguisticHuman];
+        if (Array.isArray(exp.invariants)) {
+          const uncovered = exp.invariants.filter((i) => !covered.includes(i));
+          if (uncovered.length) {
+            err('case.decidability-gap', `${label}: ${uncovered.join(', ')} are neither mechanical nor human-classified`);
+          }
+        }
+      }
+      // A case that needs a linguistic verdict must say so in its judgement class.
+      if (Array.isArray(linguisticHuman) && linguisticHuman.length > 0 && c.judgement === 'structural') {
+        const purelyMechanical = Array.isArray(mechanical) && mechanical.length === 0;
+        if (purelyMechanical) {
+          err('case.judgement-mismatch', `${label} claims to be structural but classifies every invariant as human judgement`);
+        }
+      }
+      summary.mechanicalInvariants += Array.isArray(mechanical) ? mechanical.length : 0;
+      summary.humanInvariants += Array.isArray(linguisticHuman) ? linguisticHuman.length : 0;
     }
   });
 
@@ -270,7 +373,7 @@ export function validateFeedbackCases(fixture) {
   summary.scenarios = seenScenarios.size;
   summary.invariantsUsed = invariantsUsed.size;
 
-  return { ok: errors.length === 0, errors, warnings, summary, humanJudgementCases };
+  return { ok: errors.length === 0, errors, warnings, summary, humanJudgementCases, mixedCases };
 }
 
 /* -------------------------------------------------------------------- CLI */
@@ -286,7 +389,10 @@ export function runCli(argv = process.argv.slice(2), io = console) {
   }
   const r = validateFeedbackCases(parsed);
   io.log(`feedback-case-check: ${abs}`);
-  io.log(`  cases=${r.summary.cases} scenarios=${r.summary.scenarios}/${(parsed.requiredScenarios || []).length} invariantsUsed=${r.summary.invariantsUsed} structural=${r.summary.structural} humanJudgement=${r.summary.humanJudgement}`);
+  io.log(`  cases=${r.summary.cases} scenarios=${r.summary.scenarios}/${(parsed.requiredScenarios || []).length} invariantsUsed=${r.summary.invariantsUsed} structural=${r.summary.structural} mixed=${r.summary.mixed} humanJudgement=${r.summary.humanJudgement}`);
+  io.log(`  invariants: mechanically decidable=${r.summary.mechanicalInvariants} human-judgement=${r.summary.humanInvariants}`);
+  io.log('  BOUNDARY A machine may check shape, state and evidence presence. It cannot decide content');
+  io.log('  BOUNDARY coverage, register, relevance or linguistic correctness; those stay human review.');
   for (const w of r.warnings) io.log(`  WARN  ${w}`);
   for (const e of r.errors) io.error(`  ERROR ${e}`);
   if (r.humanJudgementCases.length) {

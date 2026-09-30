@@ -58,10 +58,28 @@ test('every case forbids a numeric score and carries provenance plus a rationale
 test('cases that need human judgement are reported separately, not as structural', () => {
   const r = validateFeedbackCases(clone());
   assert.ok(r.humanJudgementCases.length >= 1, 'expected at least one human-judgement case');
+  // WFC-06 is the clean-text control: no mechanical invariant can decide it.
   assert.ok(r.humanJudgementCases.includes('WFC-06'));
-  assert.ok(r.humanJudgementCases.includes('WFC-07'));
   assert.equal(r.summary.humanJudgement, r.humanJudgementCases.length);
-  assert.equal(r.summary.structural + r.summary.humanJudgement, raw.cases.length);
+  // structural + mixed + human must partition every case exactly.
+  assert.equal(r.summary.structural + r.summary.mixed + r.summary.humanJudgement, raw.cases.length);
+  assert.ok(r.summary.mixed >= 1, 'expected at least one mixed case');
+  assert.equal(r.mixedCases.length, r.summary.mixed);
+});
+
+test('every case separates mechanical checks from linguistic judgement', () => {
+  for (const c of raw.cases) {
+    assert.ok(c.decidability, `${c.id} needs a decidability block`);
+    assert.ok(Array.isArray(c.decidability.mechanical), `${c.id} mechanical must be an array`);
+    assert.ok(Array.isArray(c.decidability.linguisticHuman), `${c.id} linguisticHuman must be an array`);
+    const both = [...c.decidability.mechanical, ...c.decidability.linguisticHuman];
+    for (const inv of c.expected.invariants) {
+      assert.ok(both.includes(inv), `${c.id}: invariant ${inv} is not classified`);
+    }
+    for (const m of c.decidability.mechanical) {
+      assert.ok(!c.decidability.linguisticHuman.includes(m), `${c.id}: ${m} cannot be both`);
+    }
+  }
 });
 
 /* ---------------------------------------------- required scenario coverage */
@@ -132,10 +150,113 @@ test('rejects retry semantics that contradict the contract', () => {
   const a = clone();
   caseById(a, 'WFC-14').expected.retryPermitted = true;
   expectFailure(validateFeedbackCases(a), /case\.retry-coherence/, 'retry_exhausted may not retry');
+});
 
-  const b = clone();
-  caseById(b, 'WFC-12').expected.retryPermitted = false;
-  expectFailure(validateFeedbackCases(b), /case\.retry-coherence/, 'provider_unavailable must be retryable');
+/* ------------------------- Task 4: conditional retry and failure semantics ------------------------- */
+
+test('retryability is conditional on state, not on the error code alone', () => {
+  // A conditional-retry error may not claim retryPermitted without naming its conditions.
+  const missingConds = clone();
+  delete caseById(missingConds, 'WFC-12').expected.retryConditions;
+  expectFailure(validateFeedbackCases(missingConds), /case\.retry-conditions/, 'retry without stated conditions');
+
+  // A terminal classification must not advertise retry conditions either.
+  const terminalConds = clone();
+  caseById(terminalConds, 'WFC-17').expected.retryConditions = ['claimsRemaining'];
+  expectFailure(validateFeedbackCases(terminalConds), /case\.retry-conditions-terminal/, 'terminal code with conditions');
+
+  // A terminal classification may never permit a retry.
+  const terminal = clone();
+  caseById(terminal, 'WFC-16').expected.retryPermitted = true;
+  expectFailure(validateFeedbackCases(terminal), /case\.retry-coherence/, 'terminal classification retrying');
+
+  // Unknown state conditions are rejected.
+  const unknownCond = clone();
+  caseById(unknownCond, 'WFC-12').expected.retryConditions = ['vibesAreGood'];
+  expectFailure(validateFeedbackCases(unknownCond), /case\.retry-condition-unknown/, 'unknown retry condition');
+});
+
+test('the same provider failure is retryable with claims and terminal once they run out', () => {
+  const withClaims = caseById(raw, 'WFC-15');
+  assert.equal(withClaims.expected.errorClassification, 'provider_unavailable');
+  assert.equal(withClaims.expected.retryPermitted, true);
+  assert.ok(withClaims.expected.retryConditions.length >= 4, 'conditions must be enumerated');
+
+  const exhausted = caseById(raw, 'WFC-14');
+  assert.equal(exhausted.expected.errorClassification, 'retry_exhausted');
+  assert.equal(exhausted.expected.retryPermitted, false);
+});
+
+test('a deleted attempt is terminal and cannot be completed by a late worker', () => {
+  const c = caseById(raw, 'WFC-16');
+  assert.equal(c.expected.errorClassification, 'attempt_deleted');
+  assert.equal(c.expected.retryPermitted, false);
+  assert.equal(c.expected.assessmentCreated, false);
+  assert.equal(c.expected.usageDebited, false);
+  assert.equal(c.expected.lateWorkerEffect, 'none');
+  assert.ok(c.expected.invariants.includes('no-retry-after-deletion'));
+});
+
+test('exhausted allowance blocks retry and blocks a second debit', () => {
+  const c = caseById(raw, 'WFC-17');
+  assert.equal(c.expected.errorClassification, 'allowance_exhausted');
+  assert.equal(c.expected.retryPermitted, false);
+  assert.equal(c.expected.usageDebited, false);
+  assert.equal(c.expected.assessmentCreated, false);
+  assert.deepEqual(c.expected.retryConditions, []);
+});
+
+test('a stale lease cannot complete a second assessment or a second debit', () => {
+  const c = caseById(raw, 'WFC-18');
+  assert.equal(c.expected.errorClassification, 'stale_lease');
+  assert.equal(c.expected.retryPermitted, false);
+  assert.equal(c.expected.assessmentCount, 1, 'exactly one authoritative assessment');
+  assert.equal(c.expected.usageDebitCount, 1, 'exactly one successful debit');
+  assert.ok(c.expected.invariants.includes('stale-lease-no-double-complete'));
+});
+
+test('malformed output becomes terminal only after the bounded attempts', () => {
+  const retryable = caseById(raw, 'WFC-10');
+  assert.equal(retryable.expected.errorClassification, 'malformed_feedback');
+  assert.equal(retryable.expected.retryPermitted, true);
+
+  const terminal = caseById(raw, 'WFC-19');
+  assert.equal(terminal.expected.errorClassification, 'retry_exhausted');
+  assert.equal(terminal.expected.retryPermitted, false);
+  assert.equal(terminal.expected.assessmentCreated, false);
+  assert.equal(terminal.expected.originalSubmissionPreserved, true);
+});
+
+test('a superseded submission is not reported as feedback on the newer text', () => {
+  const c = caseById(raw, 'WFC-20');
+  assert.equal(c.expected.errorClassification, 'submission_superseded');
+  assert.equal(c.expected.assessmentAttachedToRevision, 1);
+  assert.ok(c.expected.invariants.includes('superseded-submission-not-assessed'));
+});
+
+test('rejects a case whose invariants are not classified for decidability', () => {
+  const unclassified = clone();
+  caseById(unclassified, 'WFC-10').decidability.mechanical = [];
+  caseById(unclassified, 'WFC-10').decidability.linguisticHuman = [];
+  expectFailure(validateFeedbackCases(unclassified), /case\.decidability-empty/, 'nothing classified');
+
+  const overlap = clone();
+  const inv = caseById(overlap, 'WFC-10').decidability.mechanical[0];
+  caseById(overlap, 'WFC-10').decidability.linguisticHuman.push(inv);
+  expectFailure(validateFeedbackCases(overlap), /case\.decidability-overlap/, 'invariant classified twice');
+
+  const gap = clone();
+  const gapCase = caseById(gap, 'WFC-10');
+  const mechInv = gapCase.decidability.mechanical[0];
+  assert.ok(mechInv, 'precondition: the case classifies a mechanical invariant');
+  gapCase.decidability.mechanical = gapCase.decidability.mechanical.filter((i) => i !== mechInv);
+  expectFailure(validateFeedbackCases(gap), /case\.decidability-gap/, 'invariant left unclassified');
+});
+
+test('rejects a decidability entry that is not an expected invariant', () => {
+  const fx = clone();
+  caseById(fx, 'WFC-10').decidability.mechanical.push('injection-resisted');
+  expectFailure(validateFeedbackCases(fx), /case\.decidability-not-expected/, 'foreign invariant classified');
 });
 
 test('rejects malformed feedback that is still reported as assessed', () => {
