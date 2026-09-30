@@ -176,8 +176,9 @@ test('separate login roles, forced RLS and real owned HTTP journey',async t=>{
           assert.equal(success.status,200); assert.equal(success.body.owner_id,self.id);
           assert.equal((await request(`/api/v1/attempts/${other}`,{cookie:self.cookie,target:concurrent})).status,404);
         }));
-        const clients=await Promise.all([pool.connect(),pool.connect(),pool.connect()]);
+        const clients=[];
         try {
+          for(let i=0;i<3;i++) clients.push(await pool.connect());
           const snapshots=await Promise.all(clients.map(c=>c.query('SELECT pg_backend_pid() AS pid,(SELECT count(*)::int FROM attempts) AS visible')));
           assert.equal(new Set(snapshots.map(s=>s.rows[0].pid)).size,3);
           for(const s of snapshots) assert.equal(s.rows[0].visible,0);
