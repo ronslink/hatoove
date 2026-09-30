@@ -476,6 +476,71 @@ check('read-result-never-regrades', async (ctx) => {
   assert.equal(w.store.inspect.job(failed).status, 'failed', 'no retry was queued by reading');
 });
 
+/* ------------------------------------------- the module's OWN fence, in isolation */
+
+/**
+ * The #51 reviewer's non-blocking finding, closed.
+ *
+ * The checks above exercise the fence through `owned-client.js`, whose own generation guard
+ * throws `stale_session` FIRST - so the module's own guard was never the thing being tested, and
+ * deleting it from `draft-session.js` still left every check green. This check drives the module
+ * with a transport that does NOT guard: it silently switches account and bumps `generation` under
+ * an open session, exactly as a broken or hostile client could. Only the module's own fence can
+ * refuse that, so if this check passes the guard is load-bearing rather than redundant.
+ */
+check('own-fence-holds-when-the-transport-does-not', async (ctx) => {
+  const { createDraftSession } = await loadSessionModule(ctx.modulePath);
+  const pointers = memoryPointers();
+  const accountA = { id: 'user-00000000-0000-4000-8000-00000000000a', email: 'a@example.invalid' };
+  const accountB = { id: 'user-00000000-0000-4000-8000-00000000000b', email: 'b@example.invalid' };
+  const attempt = { id: '11111111-1111-4111-8111-111111111111', revision: 1, text: '' };
+  const sent = [];
+
+  // A transport with NO fence of its own: no throwing on an account change, no generation check.
+  let current = accountA;
+  const fake = {
+    generation: 1,
+    getAccount: () => current,
+    refreshAccount: async () => current,
+    createAttempt: async () => ({ ...attempt }),
+    readAttempt: async () => ({ ...attempt }),
+    saveDraft: async (id, { expectedRevision, text }) => {
+      sent.push({ text });
+      attempt.revision = expectedRevision + 1;
+      attempt.text = text;
+      return { revision: attempt.revision, text };
+    },
+    submit: async () => ({ submissionId: '22222222-2222-4222-8222-222222222222', replay: false }),
+    readResult: async () => ({ submission: { id: '22222222-2222-4222-8222-222222222222' }, job: { status: 'queued' }, assessment: null }),
+    signOut: async () => { current = null; },
+    clear: () => { current = null; },
+  };
+
+  const session = createDraftSession({ client: fake, pointers, taskId: TASK });
+  const first = await session.open();
+  assert.equal(first.text, '');
+  assert.deepEqual(await session.save(TEXT_A), { status: 'saved', revision: 2 });
+  assert.equal(sent.length, 1);
+
+  // The account changes underneath the open session, and the transport says nothing about it.
+  current = accountB;
+  fake.generation += 1;
+
+  await expectCode(session.save(TEXT_B), 'stale_session');
+  assert.equal(sent.length, 1, 'nothing was written to B under the old session');
+  assert.equal(session.snapshot(), null, 'the local text was dropped, not carried across accounts');
+
+  // And with the account restored, the dropped session stays dropped. The refusal is `not_open`
+  // on this SECOND call rather than `stale_session`, because the first breach already dropped the
+  // state - that is the module's documented behaviour, so the check records it instead of
+  // demanding a particular code. What matters is that nothing is sent and open() is required again.
+  current = accountA;
+  const after = await expectCode(session.save(TEXT_A), 'not_open');
+  assert.equal(after.code, 'not_open');
+  assert.equal(sent.length, 1, 'a fenced session does not come back to life on its own');
+  assert.equal((await session.open()).text, TEXT_A, 're-opening recovers the server copy');
+});
+
 /* ---------------------------------------------------------------- fail closed */
 
 check('fail-closed-without-client-or-account', async (ctx) => {
