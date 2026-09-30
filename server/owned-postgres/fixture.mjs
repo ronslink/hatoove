@@ -37,8 +37,16 @@ export async function createPostgresWorld({ allowance = 10, fixture } = {}) {
 
   const inspect = {
     calls,
-    async submissionCount() {
-      return (await one('SELECT count(*)::int AS n FROM submissions')).n;
+    /**
+     * Submission count. On a **persistent** installation (OWNAPI-03) the table keeps every
+     * earlier run's rows, so pass an `owner` to scope the count to one account; without one
+     * this is the absolute total across the whole installation.
+     */
+    async submissionCount(owner) {
+      const row = owner === undefined
+        ? await one('SELECT count(*)::int AS n FROM submissions')
+        : await one('SELECT count(*)::int AS n FROM submissions WHERE owner_id = $1', [owner]);
+      return row.n;
     },
     async submission(id) {
       const row = await one('SELECT * FROM submissions WHERE id = $1', [id]);
@@ -123,5 +131,17 @@ export async function createPostgresWorld({ allowance = 10, fixture } = {}) {
     },
   };
 
-  return { store: { port, inspect, worker }, sessions, api, fixture: db, teardown: () => db.cleanup() };
+  return {
+    store: { port, inspect, worker },
+    sessions,
+    api,
+    fixture: db,
+    // A disposable fixture drops its schema/roles; a *persistent* installation (OWNAPI-03,
+    // built by provision.mjs) has no cleanup and must keep its rows, so teardown only
+    // closes the pools it was handed.
+    teardown: async () => {
+      if (typeof db.cleanup === 'function') await db.cleanup();
+      else await db.close();
+    },
+  };
 }

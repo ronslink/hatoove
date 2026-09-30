@@ -20,8 +20,8 @@ import { readFile } from 'node:fs/promises';
 
 const SPIKE = new URL('../../spikes/auth-runtime/', import.meta.url);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
-const SCHEMA_NAME = /^ownapi_[a-f0-9]{8,}$/;
-const ROLE_NAME = /^ownapi_[a-f0-9]{8,}_(migration|auth|learner|worker)$/;
+const SCHEMA_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
+const ROLE_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
 
 const ident = (name) => {
   if (!IDENTIFIER.test(name)) throw new Error(`Unsafe identifier: ${String(name)}`);
@@ -43,10 +43,10 @@ const connection = (config, extra) => ({
   host: config.host, port: config.port, database: config.database, ...extra,
 });
 
-/** Pool bound to one restricted role, search_path fixed to the random schema. */
+/** Pool bound to one restricted role, search_path fixed to the given schema. */
 export function rolePool(config, schema, user, max = 2) {
-  if (!SCHEMA_NAME.test(schema)) throw new Error('Unsafe test schema name');
-  if (!ROLE_NAME.test(user)) throw new Error('Unsafe test role name');
+  if (!SCHEMA_NAME.test(schema)) throw new Error(`Unsafe schema name: ${String(schema)}`);
+  if (!ROLE_NAME.test(user)) throw new Error(`Unsafe role name: ${String(user)}`);
   return new pg.Pool({
     ...connection(config, { user }), max, application_name: schema,
     options: `-c search_path=${schema},pg_catalog`,

@@ -85,9 +85,15 @@ export function createPostgresSessions({
   return {
     cookieName,
 
-    /** Fixture-only count of live session rows. */
-    async liveSessions() {
-      const row = (await adminPool.query('SELECT count(*)::int AS n FROM session')).rows[0];
+    /**
+     * Fixture-only count of session rows. On a **persistent** installation (OWNAPI-03) the
+     * table keeps every earlier run's sessions, so pass a `userId` to scope the count to one
+     * account; without one this is the absolute total across the whole installation.
+     */
+    async liveSessions(userId) {
+      const row = userId === undefined
+        ? (await adminPool.query('SELECT count(*)::int AS n FROM session')).rows[0]
+        : (await adminPool.query('SELECT count(*)::int AS n FROM session WHERE "userId" = $1', [userId])).rows[0];
       return row ? row.n : 0;
     },
 

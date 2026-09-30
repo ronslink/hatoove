@@ -351,7 +351,14 @@ function httpBrowser(port, { origin = `http://127.0.0.1:${port}` } = {}) {
 const ATTEMPT_ABSENT = '0f0f0f0f-0000-4000-8000-000000000000';
 const SUBMISSION_ABSENT = '0e0e0e0e-0000-4000-8000-000000000000';
 let emailCounter = 0;
-const nextEmail = (tag) => `${tag}-${++emailCounter}@example.invalid`;
+/**
+ * Unique per process. A durable installation (backend `postgres-persistent`) is never
+ * dropped, so fixed addresses would collide on the second run and every sign-up would
+ * fail with `user_exists`. The run id keeps repeated runs independent while the schema
+ * and its rows persist - which is the property being proved.
+ */
+const RUN_ID = `${process.pid.toString(36)}${Date.now().toString(36)}`;
+const nextEmail = (tag) => `${tag}-${RUN_ID}-${++emailCounter}@example.invalid`;
 
 /**
  * Selected datastore backend. `memory` is the original in-memory test double
@@ -367,6 +374,26 @@ async function world({ allowance } = {}) {
   if (BACKEND === 'postgres') {
     const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
     const pg = await createPostgresWorld({ allowance });
+    openWorlds.push(pg);
+    return { store: pg.store, sessions: pg.sessions, api: pg.api, browser: () => inProcessBrowser(pg.api) };
+  }
+  if (BACKEND === 'postgres-persistent') {
+    // The SAME suite over a PERSISTENT installation (OWNAPI-03): real schema, real roles,
+    // provisioned from reviewed SQL and never dropped. This is the deployment shape, as
+    // opposed to the disposable fixture above that a checker can throw away.
+    const { provisionPersistent } = await import('../server/owned-postgres/provision.mjs');
+    const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
+    const pools = await provisionPersistent();
+    const fixture = {
+      schema: pools.config.schema,
+      roles: pools.config.roles,
+      learner: pools.learner,
+      auth: pools.auth,
+      worker: pools.worker,
+      admin: pools.admin,
+      close: async () => { const { closePersistent } = await import('../server/owned-postgres/provision.mjs'); await closePersistent(pools); },
+    };
+    const pg = await createPostgresWorld({ allowance, fixture });
     openWorlds.push(pg);
     return { store: pg.store, sessions: pg.sessions, api: pg.api, browser: () => inProcessBrowser(pg.api) };
   }
@@ -522,7 +549,7 @@ check('submission-idempotent-on-owner-and-event', async () => {
   const s = await submitted(w);
   const again = await s.client.submit(s.attempt.id, { expectedRevision: s.draft.revision, eventId: s.eventId });
   assert.deepEqual(again, { submissionId: s.receipt.submissionId, replay: true });
-  assert.equal(await w.store.inspect.submissionCount(), 1, 'no duplicate submission');
+  assert.equal(await w.store.inspect.submissionCount(s.account.id), 1, 'no duplicate submission');
   assert.equal((await w.store.inspect.entitlement(s.account.id)).reserved, 1, 'reserved exactly once');
   // Same key, different fingerprint -> conflict.
   await expectClientError(s.client.submit(s.attempt.id, { expectedRevision: s.draft.revision + 1, eventId: s.eventId }),
@@ -530,7 +557,7 @@ check('submission-idempotent-on-owner-and-event', async () => {
   // New key cannot resubmit the same frozen attempt.
   await expectClientError(s.client.submit(s.attempt.id, { expectedRevision: s.draft.revision, eventId: randomUUID() }),
     'conflict', { status: 409, detail: 'already_submitted' });
-  assert.equal(await w.store.inspect.submissionCount(), 1);
+  assert.equal(await w.store.inspect.submissionCount(s.account.id), 1);
   // The event key is per owner: another account reusing the same eventId gets its own submission.
   const b = await learner(w, 'b');
   const attemptB = await b.client.createAttempt();
@@ -695,7 +722,7 @@ check('error-403-mutation-without-origin-gate', async () => {
     assert.deepEqual(res.json, { error: 'origin_rejected' });
   }
   assert.equal(await w.store.inspect.fingerprint(), before);
-  assert.equal(await w.sessions.liveSessions(), 1, 'an ungated sign-out did not end the session');
+  assert.equal(await w.sessions.liveSessions(a.account.id), 1, 'an ungated sign-out did not end the session');
   const read = await a.raw('GET', '/api/v1/account', undefined, { originChecked: false });
   assert.equal(read.status, 200, 'reads do not need the mutation gate');
 });
@@ -849,7 +876,7 @@ check('server-mount-behind-sec01-origin-gate', async () => {
     const noOrigin = await absent.request({ method: 'POST', url: '/api/v1/attempts', headers: { 'content-type': 'application/json' }, body: '{}' });
     assert.equal(noOrigin.status, 403, 'absent Origin and Referer is rejected');
     assert.equal(await w.store.inspect.fingerprint(), before, 'no rejected request reached the datastore');
-    assert.equal(await w.sessions.liveSessions(), 0, 'no cross-origin sign-up created a session');
+    assert.equal(await w.sessions.liveSessions(null), 0, 'no cross-origin sign-up created a session');
   } finally { await ctx.close(); }
 });
 
@@ -888,7 +915,7 @@ export const REQUIRED_CHECKS = checks.map((c) => c.name);
  *   README); it is the only mode that exercises FORCE ROW LEVEL SECURITY.
  */
 export async function runOwnedApiChecks({ backend = 'memory' } = {}) {
-  if (backend !== 'memory' && backend !== 'postgres') throw new Error(`unknown backend: ${backend}`);
+  if (!['memory', 'postgres', 'postgres-persistent'].includes(backend)) throw new Error(`unknown backend: ${backend}`);
   BACKEND = backend;
   const results = [];
   try {
