@@ -915,6 +915,16 @@ export async function settingsView(el) {
         </div>
       </div>`}
       <label class="field">
+        <span>Sprache der Erklärungen</span>
+        <select id="explain-language">
+          <option value="de" ${(st.language || 'de') === 'de' ? 'selected' : ''}>Deutsch</option>
+          <option value="en" ${st.language === 'en' ? 'selected' : ''}>English</option>
+        </select>
+        <div class="hint">
+          Gilt nur für Erklärungen und Rückmeldungen zu deinen Antworten. <b>Menü und Prüfungsinhalte bleiben Deutsch.</b>
+        </div>
+      </label>
+      <label class="field">
         <span>KI-Aufgaben im Drill</span>
         <select id="ai-drills">
           <option value="true" ${st.aiDrills !== false ? 'selected' : ''}>An – frisch generierte Aufgaben (empfohlen)</option>
@@ -969,6 +979,8 @@ export async function settingsView(el) {
     settings.dailyGoal = Number(el.querySelector('#daily-goal').value) || 20;
     settings.ttsRate = Number(rate.value);
     settings.aiDrills = el.querySelector('#ai-drills').value === 'true';
+    const langSel = el.querySelector('#explain-language');
+    if (langSel) settings.language = langSel.value;
     const voiceSel = el.querySelector('#voice-name');
     if (voiceSel) settings.voiceName = voiceSel.value;
     store.saveNow();
@@ -976,6 +988,39 @@ export async function settingsView(el) {
       await ai.saveExamDate(settings.examDate);
     } catch {
       /* the date still works locally */
+    }
+    /*
+     * Account-scoped settings. Attempted only when signed in, and never silently: a signed-out
+     * learner keeps the local behaviour exactly as before, and a refused save is reported rather
+     * than swallowed, because a settings page that claims to save and does not is the defect this
+     * whole slice exists to remove.
+     */
+    try {
+      const { ownedClient } = await import('./account.js');
+      const client = ownedClient();
+      if (client.getAccount()) {
+        const current = await client.readSettings();
+        const saved = await client.saveSettings({
+          expectedRevision: current.revision,
+          settings: {
+            examDate: settings.examDate,
+            dailyGoal: settings.dailyGoal,
+            theme: settings.theme || 'system',
+            language: settings.language || 'de',
+          },
+        });
+        settings.settingsRevision = saved.revision;
+      }
+    } catch (error) {
+      // A 409 means another device moved the record; say so instead of pretending it saved.
+      const code = error && error.code;
+      if (code === 'conflict') {
+        toast('Die Einstellungen wurden auf einem anderen Gerät geändert. Bitte neu laden.', 'warn', 6000);
+        return;
+      }
+      if (code !== 'unauthenticated' && code !== 'not_open') {
+        toast('Einstellungen lokal gespeichert; die Kontospeicherung ist fehlgeschlagen.', 'warn', 6000);
+      }
     }
     toast('Einstellungen gespeichert.', 'good');
     navigate('settings');

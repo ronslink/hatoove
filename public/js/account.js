@@ -28,7 +28,12 @@ const ACCOUNT_ICON = '<svg class="ico-svg" viewBox="0 0 24 24" fill="none" strok
 /** The one transport instance for the whole page. */
 let client = null;
 
-function ownedClient() {
+/**
+ * Exported deliberately: `settingsView` needs the account-scoped settings record, and creating a
+ * SECOND client there would quietly defeat the generation fencing this module exists to provide -
+ * a stale-session response would be fenced on one instance and trusted on the other.
+ */
+export function ownedClient() {
   if (!client) {
     // A thin wrapper, not a bare `globalThis.fetch` reference: calling fetch detached
     // from `window` throws "Illegal invocation" in Chromium.
