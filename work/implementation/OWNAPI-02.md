@@ -126,3 +126,34 @@ package installed to run the proofs. Added steps after the existing spike tests:
   than claimed: all listed PostgreSQL checks were executed.
 - The legacy `server.js` mount is still programmatic only; `node server.js` does not wire an owned API.
 - This closes no security, privacy or educational gate. Human `P-03` review remains required.
+
+## Independent re-verification (same execution id, this session)
+
+The prior run's disposable container was gone when re-checked, so a fresh one was created
+(`docker run … postgres:17-alpine`, `127.0.0.1:55436` → database `hatoove_ownapi02`, trust
+auth, synthetic records only) and **every** check was re-executed against it, not taken on
+trust from the record:
+
+| Suite | Re-run result |
+|---|---|
+| `node tools/check.js` | **101 passed, 0 failed** |
+| `node tools/writing-check.js` | **9 passed, 0 failed** |
+| `node tools/feedback-check.js` | **14 passed, 0 failed** |
+| `node tools/server-origin-check.mjs` | **16/16** |
+| `node tools/reset-check.mjs` | **9/9** |
+| `node tools/revision-check.mjs` | **8/8** |
+| `node tools/owned-client-check.mjs` | **31 passed, 0 failed** |
+| `node tools/keymask-check.mjs` | **12/12** |
+| `node tools/owned-api-check.mjs` (memory) | **24 passed, 0 failed** |
+| `node tools/owned-api-check.mjs --backend=postgres` | **24 passed, 0 failed** |
+| `node --test tools/owned-api-check.test.mjs` | **25/25** |
+| `node tools/owned-api-pg-check.mjs` | **5 passed, 0 failed** |
+| `node --test tools/owned-api-pg-check.test.mjs` | **6/6** |
+
+After the runs the disposable database held **0** `ownapi_%` schemas and **0** `ownapi_%`
+roles (checked directly). `node tools/repository-check.mjs` passed and
+`git diff --cached --check` was clean. The lockfile is consistent
+(`npm ci --dry-run` → up to date; resolved `pg` **8.23.1**); the root `package.json` still
+has `"dependencies": {}`. Changed paths re-checked: `public/js/exam.js`,
+`public/js/owned-client.js`, `server/owned-api.mjs`, the root `package.json`,
+`IMPLEMENTATION_PLAN.md` and `work/BOARD.md` are untouched.
