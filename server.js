@@ -116,17 +116,21 @@ function settings() {
   };
 }
 
-function maskKey(key) {
-  if (!key) return '';
-  if (key.length <= 10) return '****';
-  return `${key.slice(0, 5)}...${key.slice(-4)}`;
-}
-
+/**
+ * What the learner UI is allowed to know about the stored configuration.
+ *
+ * SEC-04, finding F-7: this used to also carry `keyMasked: <first 5>...<last 4>`, i.e.
+ * nine characters of the API key, and /api/health and /api/config serve this object
+ * without authentication. The server binds 127.0.0.1, so those characters were never
+ * remotely reachable and are not a usable credential - but a status display does not need
+ * any character of the key at all. `configured` plus `model` is what the Settings pill
+ * shows, so that is what is returned. Do not add key material back here, and do not add a
+ * per-key fingerprint to replace it (see work/implementation/SEC-04.md).
+ */
 function publicConfig() {
   const s = settings();
   return {
     configured: Boolean(s.apiKey),
-    keyMasked: maskKey(s.apiKey),
     model: s.model,
     baseUrl: s.baseUrl,
     examDate: s.examDate,
@@ -776,7 +780,9 @@ if (invokedDirectly) {
     console.log('  B1 Prep  -  telc Deutsch B1 adaptive trainer');
     console.log(line);
     console.log(`  App:      http://127.0.0.1:${PORT}`);
-    console.log(`  DeepSeek: ${s.apiKey ? `key set (${maskKey(s.apiKey)}), model ${s.model}` : 'NO KEY - offline mode (open Settings to add one)'}`);
+    // SEC-04: the banner used to echo <first 5>...<last 4> of the key. A console line does
+    // not need key characters either, so it only reports that one is set.
+    console.log(`  DeepSeek: ${s.apiKey ? `key set (value hidden), model ${s.model}` : 'NO KEY - offline mode (open Settings to add one)'}`);
     console.log(`  Exam:     ${s.examDate || 'not set (open Settings to add your date)'}`);
     console.log(`  Progress: ${PROGRESS_PATH}`);
     console.log(line);
