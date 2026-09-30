@@ -237,10 +237,18 @@ async function startServer(port, options = {}) {
      */
     stop: () => new Promise((resolve) => {
       let done = false;
-      const finish = () => { if (done) return; done = true; clearTimeout(killTimer); clearTimeout(forceTimer); resolve(); };
+      let killTimer = null;
+      let forceTimer = null;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        if (killTimer) clearTimeout(killTimer);
+        if (forceTimer) clearTimeout(forceTimer);
+        resolve();
+      };
       if (child.exitCode !== null || child.signalCode) return finish();
-      const killTimer = setTimeout(() => { try { child.kill('SIGKILL'); } catch { finish(); } }, 4000);
-      const forceTimer = setTimeout(finish, 8000);
+      killTimer = setTimeout(() => { try { child.kill('SIGKILL'); } catch { finish(); } }, 4000);
+      forceTimer = setTimeout(finish, 8000);
       child.once('exit', finish);
       child.once('error', finish);
       try { child.kill(); } catch { finish(); }
