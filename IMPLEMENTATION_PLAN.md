@@ -2,6 +2,8 @@
 
 Revised 30 September 2026. This is the authoritative executable revision of the pasted **36-package agent-swarm plan**. It supersedes that plan's calendar, platform assumptions, package ownership and acceptance rules. The [pilot plan](PILOT_BUILD_PLAN.md) supplies product, examination and architecture rationale. Follow the user's later decisions if a document conflicts with them.
 
+**Start here for a quick programme view:** [`MASTER-PLAN.md`](MASTER-PLAN.md) is the consolidated delivery tracker — milestones with merge evidence, the twelve coordination workstreams, the review/integration queue and the open human/device gates. It is a **summary that may lag**; this plan stays authoritative for package scope and acceptance. For what is running right now, see [`work/BOARD.md`](work/BOARD.md).
+
 The next outcome is a dependable, mobile-capable learner journey in the previous app's visual style. Prepare and integrate source through the private `ronslink/hatoove` repository. This plan does not authorize publishing a site, sending invitations, configuring live domain traffic or deploying production services.
 
 ## Verified progress — 30 September 2026, 18:46 UTC

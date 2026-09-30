@@ -1,6 +1,6 @@
 # Hatoove exam preparation
 
-The canonical development repository is [ronslink/hatoove](https://github.com/ronslink/hatoove). Start with the [revised implementation plan](IMPLEMENTATION_PLAN.md), [agent instructions](AGENTS.md), [work cadence](docs/AGENT_WORKFLOW.md), [task board](work/BOARD.md) and [pilot product plan](PILOT_BUILD_PLAN.md).
+The canonical development repository is [ronslink/hatoove](https://github.com/ronslink/hatoove). Start with the [master plan](MASTER-PLAN.md) for the consolidated progress view, then the [revised implementation plan](IMPLEMENTATION_PLAN.md), [agent instructions](AGENTS.md), [work cadence](docs/AGENT_WORKFLOW.md), [task board](work/BOARD.md) and [pilot product plan](PILOT_BUILD_PLAN.md).
 
 The pilot covers reading, language elements, listening and writing. Preserve the existing `public/` learner interface as the logged-in visual foundation and adapt it for mobile. `hatoove-site/dist/` is the maintained orange marketing/practice preview, not generated build output. Hosting and production changes are outside this repository preparation.
 
