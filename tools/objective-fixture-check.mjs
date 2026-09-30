@@ -374,8 +374,14 @@ export function validateObjectiveCases(fixture) {
     // the oral part is unassessed. Presence is the defect, not the value: a numeric or boolean
     // claim (`learnerScore: 42`, `passed: false`, `readiness: 0.9`) is just as wrong as a string
     // one, and must not slip through a word-list scan.
-    const claimFields = ['expectedGrade', 'gradeBand', 'readiness', 'overallResult', 'passed',
+    // NOTE: this is a name allowlist, not a general "no learner claim anywhere" check — a renamed
+    // field (`score`, `result`, `band`) is not detectable this way. Accepted limitation (NEW-2).
+    const claimFields = ['expectedGrade', 'grade', 'band', 'gradeBand', 'readiness', 'overallResult', 'passed',
       'learnerScore', 'percentage', 'overallPassed', 'certificate', 'finalGrade'];
+    // The nested expectation block historically also guarded the bare name `grade`. It is kept
+    // here explicitly so sharing this list cannot silently drop it again (independent review
+    // NEW-1: the c8c86dc rewrite replaced a literal that contained `grade` and lost the guard).
+    const nestedClaimFields = [...new Set([...claimFields, 'grade', 'gradeBand', 'band'])];
     for (const field of claimFields) {
       if (c[field] === undefined || c[field] === null) continue;
       err('case.prohibited-learner-claim', `${label}.${field} asserts a learner result; the pilot cannot compute an overall pass, grade or readiness`);
@@ -390,7 +396,7 @@ export function validateObjectiveCases(fixture) {
       }
     }
     if (isPlainObject(c.expected)) {
-      for (const field of claimFields) {
+      for (const field of nestedClaimFields) {
         if (c.expected[field] !== undefined && c.expected[field] !== null) {
           err('case.prohibited-learner-claim', `${label}.expected.${field} asserts a learner result; the pilot cannot compute an overall pass, grade or readiness`);
         }

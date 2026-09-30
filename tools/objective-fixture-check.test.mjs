@@ -431,6 +431,28 @@ test('review O6 (N1): numeric and boolean learner-result claims are rejected, no
   assert.equal(validateObjectiveCases(clone()).ok, true);
 });
 
+test('review O7 (NEW-1): bare `grade` is rejected at both guard levels', () => {
+  // Regression for an independent review finding (Clawdbot, USER04-R3): the c8c86dc rewrite
+  // replaced a nested literal that contained 'grade' with a shared claimFields list that did not,
+  // so the bare name `grade` lost its guard. It is now in both lists.
+  // Top level (how the shipped suite actually stores claim fields on a marked case):
+  for (const [field, value] of [['grade', 'sehr gut'], ['band', 'B1'], ['readiness', 'likely'],
+    ['learnerScore', 42], ['passed', false], ['percentage', 55]]) {
+    const o = clone();
+    caseById(o, 'OMC-LV1-01')[field] = value;
+    expectFailure(validateObjectiveCases(o), /case\.prohibited-learner-claim/, `top-level ${field}`);
+  }
+  // Nested expectation block (the level that regressed at c8c86dc):
+  for (const [field, value] of [['grade', 'sehr gut'], ['band', 'B1'], ['learnerScore', 42]]) {
+    const o = clone();
+    const agg = caseById(o, 'OMC-AGG-02');
+    agg.expected = { outcome: 'aggregate', errorClassification: 'none', numericScorePermitted: false, [field]: value };
+    expectFailure(validateObjectiveCases(o), /case\.prohibited-learner-claim/, `nested expected.${field}`);
+  }
+  // The legitimate fixture must still pass, and NEW-2 stays an accepted limitation.
+  assert.equal(validateObjectiveCases(clone()).ok, true, 'shipped fixture must stay green');
+});
+
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {
   const { runCli } = await import('./objective-fixture-check.mjs');
   const quiet = { log() {}, error() {} };
