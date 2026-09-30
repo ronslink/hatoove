@@ -6,6 +6,8 @@
  *   1. serve ./public (the app) and ./data (content packs)
  *   2. hold the DeepSeek API key server-side so it never lands in browser storage
  *   3. proxy generation/grading requests to DeepSeek
+ *   4. reject cross-origin state changes, so a page the learner visits cannot retarget
+ *      the stored key or spend their credit (see isSameOriginRequest)
  *
  * Binds to 127.0.0.1 only, because it stores an API key.
  */
@@ -20,7 +22,12 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
-const ENV_PATH = path.join(ROOT, '.env');
+// .env holds the provider key and the saved settings. B1PREP_ENV_FILE lets the
+// origin/authorization tests write to a throwaway path, so a test run can never touch
+// the learner's real .env (the same idea as B1PREP_PROGRESS_FILE below).
+const ENV_PATH = process.env.B1PREP_ENV_FILE
+  ? path.resolve(process.env.B1PREP_ENV_FILE)
+  : path.join(ROOT, '.env');
 // Learner progress is kept here, on disk, as the durable source of truth. The browser's
 // localStorage is only a fast local cache: it dies with site data, a different browser,
 // or a changed port, which is exactly what you do not want days before an exam.
@@ -175,8 +182,87 @@ async function readJSON(req, limitBytes) {
   try {
     return JSON.parse(raw);
   } catch {
-    throw Object.assign(new Error('Invalid JSON body'), { status: 400 });
+    throw Object.assign(new Error('Invalid JSON body'), { status: 400, code: 'invalid_json' });
   }
+}
+
+/* ------------------------------------------------------- request boundary */
+
+// The API can rewrite .env (including where the key is sent) and spend the learner's
+// provider credit. The server binds 127.0.0.1 only, so no other machine can connect;
+// but the learner's own browser can still be pointed at this port by any page they
+// visit. The same-origin policy stops that page from *reading* the response, not from
+// *sending* the request, so the server itself must reject foreign state changes.
+//
+// Precedent: spikes/auth-runtime/server.mjs rejects a non-GET whose Origin is not the
+// server's own base URL with 403 origin_rejected, and requires application/json.
+//
+// Deliberate choices for the cases the finding leaves open:
+//   * A missing Origin is NOT treated as same-origin. Browsers send Origin on every
+//     non-GET request, including same-origin fetch and form posts, so trusting an
+//     absent header would leave exactly the blind-POST path this closes. When Origin
+//     is absent we fall back to Referer; if neither identifies this server, we reject.
+//   * `Origin: null` (a sandboxed iframe, a data: or file: page) is rejected too, since
+//     it marks an opaque origin rather than this app.
+//   * The Host header must also name a loopback host on the port we are listening on,
+//     so a DNS-rebinding name cannot reach the API even with a matching Origin.
+const LOOPBACK_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+/** Methods whose bodies this server parses as JSON. */
+const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH']);
+
+function parseOriginLike(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+function isLoopbackHostname(hostname) {
+  return LOOPBACK_HOSTNAMES.has(hostname) || hostname === '::ffff:127.0.0.1';
+}
+
+/**
+ * True only when a state-changing API request comes from this server's own origin.
+ * `ownPort` is the local socket port, so this also works on an ephemeral test port.
+ */
+function isSameOriginRequest(req, ownPort) {
+  const port = String(ownPort);
+  const hostUrl = parseOriginLike(`http://${req.headers.host || ''}`);
+  if (!hostUrl || !isLoopbackHostname(hostUrl.hostname)) return false;
+  if ((hostUrl.port || '80') !== port) return false;
+
+  const origin = req.headers.origin;
+  if (origin === undefined) {
+    const referer = req.headers.referer;
+    if (!referer) return false;
+    const refUrl = parseOriginLike(referer);
+    return Boolean(refUrl) && refUrl.protocol === 'http:' && isLoopbackHostname(refUrl.hostname) && (refUrl.port || '80') === port;
+  }
+  const originUrl = parseOriginLike(origin);
+  return Boolean(originUrl) && originUrl.protocol === 'http:' && isLoopbackHostname(originUrl.hostname) && (originUrl.port || '80') === port;
+}
+
+/** Tolerates parameters such as "; charset=utf-8", rejects anything else. */
+function hasJsonContentType(req) {
+  return /^application\/json\s*(?:;|$)/i.test(String(req.headers['content-type'] || '').trim());
+}
+
+/**
+ * A saved baseUrl is where the learner's stored key is sent as a bearer token, so an
+ * unauthenticated caller must not be able to point it at an arbitrary host. https is
+ * required; http is allowed only for a loopback host, which keeps the documented local
+ * mock-provider development path working.
+ */
+function validateBaseUrl(raw) {
+  const url = parseOriginLike(raw);
+  if (!url) {
+    throw Object.assign(new Error('baseUrl must be a valid absolute URL.'), { status: 400, code: 'invalid_base_url' });
+  }
+  if (url.protocol === 'https:') return raw.replace(/\/+$/, '');
+  if (url.protocol === 'http:' && isLoopbackHostname(url.hostname)) return raw.replace(/\/+$/, '');
+  throw Object.assign(new Error('baseUrl must use https, or http only for a loopback host.'), { status: 400, code: 'invalid_base_url' });
 }
 
 /* --------------------------------------------------------------- progress */
@@ -405,7 +491,7 @@ async function handleApi(req, res, pathname) {
     const updates = {};
     if (typeof body.apiKey === 'string') updates.DEEPSEEK_API_KEY = body.apiKey.trim();
     if (typeof body.model === 'string' && body.model.trim()) updates.DEEPSEEK_MODEL = body.model.trim();
-    if (typeof body.baseUrl === 'string' && body.baseUrl.trim()) updates.DEEPSEEK_BASE_URL = body.baseUrl.trim();
+    if (typeof body.baseUrl === 'string' && body.baseUrl.trim()) updates.DEEPSEEK_BASE_URL = validateBaseUrl(body.baseUrl.trim());
     if (typeof body.examDate === 'string') updates.EXAM_DATE = body.examDate.trim();
     const cfg = await saveEnv(updates);
     sendJSON(res, 200, { ...cfg, saved: Object.keys(updates) });
@@ -456,61 +542,86 @@ async function handleApi(req, res, pathname) {
   return false;
 }
 
-const server = http.createServer(async (req, res) => {
-  const pathname = (() => {
+/**
+ * Build the HTTP server without listening, so a test can start it in-process on an
+ * ephemeral port (see tools/server-origin-check.mjs).
+ */
+export function createServer() {
+  return http.createServer(async (req, res) => {
+    const pathname = (() => {
+      try {
+        return new URL(req.url, 'http://127.0.0.1').pathname;
+      } catch {
+        return '/';
+      }
+    })();
+
     try {
-      return new URL(req.url, 'http://127.0.0.1').pathname;
-    } catch {
-      return '/';
+      if (pathname.startsWith('/api/')) {
+        const method = req.method || 'GET';
+        if (method !== 'GET' && method !== 'HEAD') {
+          if (!isSameOriginRequest(req, req.socket.localPort)) {
+            sendJSON(res, 403, { ok: false, code: 'origin_rejected', error: 'Cross-origin API request rejected.' });
+            return;
+          }
+          if (BODY_METHODS.has(method) && !hasJsonContentType(req)) {
+            sendJSON(res, 415, { ok: false, code: 'json_required', error: 'Content-Type must be application/json.' });
+            return;
+          }
+        }
+        const handled = await handleApi(req, res, pathname);
+        if (!handled) sendJSON(res, 404, { ok: false, error: `Unknown endpoint ${pathname}` });
+        return;
+      }
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Method not allowed');
+        return;
+      }
+      await serveStatic(req, res, pathname);
+    } catch (err) {
+      const payload = { ok: false, error: err.message };
+      if (err && err.code) payload.code = err.code;
+      if (!res.headersSent) sendJSON(res, err.status || 500, payload);
+      else res.end();
     }
-  })();
+  });
+}
 
-  try {
-    if (pathname.startsWith('/api/')) {
-      const handled = await handleApi(req, res, pathname);
-      if (!handled) sendJSON(res, 404, { ok: false, error: `Unknown endpoint ${pathname}` });
-      return;
+// `node server.js` starts the learner's server; merely importing the module does not.
+const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (invokedDirectly) {
+  const server = createServer();
+  // A portable launcher can choose its own port without rewriting the saved .env.
+  const PORT = Number(process.env.B1PREP_PORT) || Number(process.env.PORT) || 4321;
+  server.listen(PORT, '127.0.0.1', () => {
+    const s = settings();
+    const line = '='.repeat(58);
+    console.log(line);
+    console.log('  B1 Prep  -  telc Deutsch B1 adaptive trainer');
+    console.log(line);
+    console.log(`  App:      http://127.0.0.1:${PORT}`);
+    console.log(`  DeepSeek: ${s.apiKey ? `key set (${maskKey(s.apiKey)}), model ${s.model}` : 'NO KEY - offline mode (open Settings to add one)'}`);
+    console.log(`  Exam:     ${s.examDate || 'not set (open Settings to add your date)'}`);
+    console.log(`  Progress: ${PROGRESS_PATH}`);
+    console.log(line);
+    console.log('  Ctrl+C to stop.');
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      // The common case is a second double-click on the desktop shortcut, not a
+      // misconfiguration, so say that first rather than alarming the learner.
+      console.error('');
+      console.error(`  B1 Prep is already running - nothing to do.`);
+      console.error(`  Open or refresh:  http://127.0.0.1:${PORT}`);
+      console.error('');
+      console.error(`  (Port ${PORT} is occupied. To run a second copy, set a different PORT in .env.)`);
+      console.error('');
+    } else {
+      console.error(err);
     }
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Method not allowed');
-      return;
-    }
-    await serveStatic(req, res, pathname);
-  } catch (err) {
-    if (!res.headersSent) sendJSON(res, err.status || 500, { ok: false, error: err.message });
-    else res.end();
-  }
-});
-
-// A portable launcher can choose its own port without rewriting the saved .env.
-const PORT = Number(process.env.B1PREP_PORT) || Number(process.env.PORT) || 4321;
-server.listen(PORT, '127.0.0.1', () => {
-  const s = settings();
-  const line = '='.repeat(58);
-  console.log(line);
-  console.log('  B1 Prep  -  telc Deutsch B1 adaptive trainer');
-  console.log(line);
-  console.log(`  App:      http://127.0.0.1:${PORT}`);
-  console.log(`  DeepSeek: ${s.apiKey ? `key set (${maskKey(s.apiKey)}), model ${s.model}` : 'NO KEY - offline mode (open Settings to add one)'}`);
-  console.log(`  Exam:     ${s.examDate || 'not set (open Settings to add your date)'}`);
-  console.log(`  Progress: ${PROGRESS_PATH}`);
-  console.log(line);
-  console.log('  Ctrl+C to stop.');
-});
-
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    // The common case is a second double-click on the desktop shortcut, not a
-    // misconfiguration, so say that first rather than alarming the learner.
-    console.error('');
-    console.error(`  B1 Prep is already running - nothing to do.`);
-    console.error(`  Open or refresh:  http://127.0.0.1:${PORT}`);
-    console.error('');
-    console.error(`  (Port ${PORT} is occupied. To run a second copy, set a different PORT in .env.)`);
-    console.error('');
-  } else {
-    console.error(err);
-  }
-  process.exit(1);
-});
+    process.exit(1);
+  });
+}
