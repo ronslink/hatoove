@@ -74,6 +74,53 @@ function accountPaths(req) {
   return { accountId: id, progress: `${PROGRESS_PATH}.${id}`, rev: `${PROGRESS_PATH}.${id}.rev` };
 }
 
+/* ------------------------------------------------------- hosted (SaaS) mode */
+
+/**
+ * SAAS-RUNTIME-01 (issue #63 step A). The hosted runtime is opt-in and **off by default**
+ * (`B1PREP_SAAS=1`). A plain `node server.js` stays the local single-user install, and none of
+ * the refusals below apply to it.
+ *
+ * Hosted mode changes four things, and they are all refusals rather than features:
+ *   * the legacy file-based progress routes - the `x-b1prep-account` owner selector and its
+ *     unscoped fallback - are unavailable; they were attribution, never authentication
+ *     (HOSTED-BLOCKERS B5);
+ *   * `/api/ai` requires a verified session, ignores the caller's model and bounds the input
+ *     server-side (HOSTED-BLOCKERS B6); `/api/ai/test` becomes operator-only;
+ *   * a missing auth/database configuration, or a failed initialisation, fails closed: learner
+ *     routes answer 503 and `GET /api/ready` reports not ready - it never downgrades to
+ *     anonymous single-user behaviour;
+ *   * the trusted origin is the deployment's own public origin (`B1PREP_PUBLIC_ORIGIN`, exact).
+ *     The bind stays loopback; a same-host reverse proxy is the deployment shape, so the
+ *     request's Host is the public name rather than 127.0.0.1.
+ *
+ * `B1PREP_SAAS` is the explicit flag. It is off by default and it is *not* a local-install
+ * setting; see `work/implementation/SAAS-RUNTIME-01.md`.
+ */
+function isSaasMode(env = process.env) {
+  return env.B1PREP_SAAS === '1';
+}
+
+/** The deployment's own public origin, or null. http/https, origin only (no path/query/hash). */
+function configuredPublicOrigin(env = process.env) {
+  const raw = String(env.B1PREP_PUBLIC_ORIGIN || '').trim();
+  if (!raw) return null;
+  const url = parseOriginLike(raw);
+  if (!url || url.search || url.hash || (url.pathname !== '' && url.pathname !== '/')) return null;
+  return url;
+}
+
+/**
+ * A1. The legacy progress record is refused in hosted mode. Deliberately a 403 with a code
+ * rather than a 404: the route exists in the code and its removal is planned with the
+ * persistence migration, so an operator should be able to tell "disabled" from "typo".
+ */
+const LEGACY_PROGRESS_REFUSAL = Object.freeze({
+  status: 403,
+  code: 'legacy_progress_disabled',
+  error: 'The file-based progress record is not available on a hosted deployment. Learner progress is served by the account-scoped attempt routes.',
+});
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -270,22 +317,54 @@ function isLoopbackHostname(hostname) {
 /**
  * True only when a state-changing API request comes from this server's own origin.
  * `ownPort` is the local socket port, so this also works on an ephemeral test port.
+ *
+ * Local mode (default): the trusted origin is loopback on this port, exactly as before.
+ * Hosted mode (`B1PREP_SAAS=1`): the trusted origin is `B1PREP_PUBLIC_ORIGIN` - the
+ * deployment's own public origin, exact (A4). The loopback list is *not* consulted there,
+ * because behind a same-host reverse proxy the request's Host is the public name; the bind
+ * stays loopback and a foreign origin is refused in both modes.
  */
-function isSameOriginRequest(req, ownPort) {
+function isSameOriginRequest(req, ownPort, { saas = false, origin = null } = {}) {
+  if (saas) {
+    if (!origin) return false;
+    if (!hostMatchesOrigin(origin, req.headers.host)) return false;
+    const header = req.headers.origin;
+    if (header !== undefined) return originMatches(origin, header);
+    const referer = req.headers.referer;
+    return referer ? originMatches(origin, referer) : false;
+  }
   const port = String(ownPort);
   const hostUrl = parseOriginLike(`http://${req.headers.host || ''}`);
   if (!hostUrl || !isLoopbackHostname(hostUrl.hostname)) return false;
   if ((hostUrl.port || '80') !== port) return false;
 
-  const origin = req.headers.origin;
-  if (origin === undefined) {
+  const requestOrigin = req.headers.origin;
+  if (requestOrigin === undefined) {
     const referer = req.headers.referer;
     if (!referer) return false;
     const refUrl = parseOriginLike(referer);
     return Boolean(refUrl) && refUrl.protocol === 'http:' && isLoopbackHostname(refUrl.hostname) && (refUrl.port || '80') === port;
   }
-  const originUrl = parseOriginLike(origin);
+  const originUrl = parseOriginLike(requestOrigin);
   return Boolean(originUrl) && originUrl.protocol === 'http:' && isLoopbackHostname(originUrl.hostname) && (originUrl.port || '80') === port;
+}
+
+/** scheme+host+port equality against the configured origin (default ports normalised by URL). */
+function originMatches(configured, value) {
+  const url = parseOriginLike(String(value));
+  return Boolean(url) && `${url.protocol}//${url.host}` === `${configured.protocol}//${configured.host}`;
+}
+
+/**
+ * The Host header names the configured origin's host. An explicit port must match the
+ * configured one; a Host without a port matches, because a reverse proxy usually forwards
+ * `Host: app.example.com` for an https origin on its default port.
+ */
+function hostMatchesOrigin(configured, hostHeader) {
+  const url = parseOriginLike(`http://${hostHeader || ''}`);
+  if (!url || url.hostname !== configured.hostname) return false;
+  if (!url.port) return true;
+  return url.port === (configured.port || (configured.protocol === 'https:' ? '443' : '80'));
 }
 
 /** Tolerates parameters such as "; charset=utf-8", rejects anything else. */
@@ -527,13 +606,97 @@ async function callDeepSeek({ messages, model, temperature, json, maxTokens, tim
 
 /* ------------------------------------------------------------------ routes */
 
-async function handleApi(req, res, pathname) {
+// A2 bounds. The caller may send a timeout and a token limit, but the server decides the
+// ceiling; a request cannot ask for an unbounded completion or an unbounded hang.
+const AI_BODY_LIMIT_BYTES = 256 * 1024;
+const AI_MAX_MESSAGES = 40;
+const AI_MAX_CHARS_PER_MESSAGE = 24000;
+const AI_MAX_TOKENS = 4096;
+const AI_MIN_TIMEOUT_MS = 1000;
+const AI_MAX_TIMEOUT_MS = 120000;
+
+/**
+ * Validate and bound an `/api/ai` body. The model is deliberately absent: it is operator
+ * configuration (`DEEPSEEK_MODEL`), and a caller-supplied model is discarded, not honoured.
+ */
+function validateAiRequest(body) {
+  const messages = body && body.messages;
+  if (!Array.isArray(messages) || messages.length === 0 || messages.length > AI_MAX_MESSAGES) {
+    throw Object.assign(new Error(`messages[] must be an array of 1..${AI_MAX_MESSAGES}`), { status: 422, code: 'invalid_messages' });
+  }
+  for (const m of messages) {
+    if (!m || typeof m !== 'object' || typeof m.role !== 'string' || typeof m.content !== 'string'
+      || m.content.length > AI_MAX_CHARS_PER_MESSAGE) {
+      throw Object.assign(new Error('each message needs a string role and a string content within the limit'), { status: 422, code: 'invalid_messages' });
+    }
+  }
+  const number = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const maxTokens = number(body.maxTokens);
+  const timeoutMs = number(body.timeoutMs);
+  return {
+    messages,
+    temperature: clamp(number(body.temperature) ?? 0.85, 0, 2),
+    json: body.json !== false,
+    maxTokens: maxTokens === null ? AI_MAX_TOKENS : clamp(Math.floor(maxTokens), 1, AI_MAX_TOKENS),
+    timeoutMs: timeoutMs === null ? AI_MAX_TIMEOUT_MS : clamp(Math.floor(timeoutMs), AI_MIN_TIMEOUT_MS, AI_MAX_TIMEOUT_MS),
+  };
+}
+
+/**
+ * The verified session behind a request, resolved through the owned API's own session port.
+ * There is no second identity source: a header, a body field or a query never names an account.
+ * Returns null when there is no session, when accounts are not mounted, or when the port is not
+ * configured - all three are "no identity", and the AI routes refuse on any of them.
+ */
+async function requestIdentity(owned, req) {
+  if (!owned) return null;
+  try {
+    const reply = await owned.handle({ method: 'GET', path: '/api/auth/get-session', headers: req.headers });
+    if (!reply || reply.status !== 200) return null;
+    const parsed = JSON.parse(reply.body);
+    const user = parsed && parsed.user;
+    return user && typeof user.id === 'string' && user.id.trim() !== '' ? { id: user.id, email: user.email || null } : null;
+  } catch {
+    return null;
+  }
+}
+
+async function handleApi(req, res, pathname, ctx = {}) {
   const method = req.method || 'GET';
+  const { owned = null, saas = false } = ctx;
+  // A2. Identity is required on the AI routes in hosted mode, and whenever accounts are
+  // mounted (then a session exists and it is the only acceptable source of it). A plain local
+  // install with accounts off keeps its single-user AI path, which is the local contract.
+  const identityRequired = saas || Boolean(owned);
 
   if (pathname === '/api/health' && method === 'GET') {
     // Liveness only: a supervised service needs this, and it must reveal nothing about the
     // provider key. No `configured`, no `model`, no `baseUrl` (D1.2).
     sendJSON(res, 200, { ok: true, node: process.version });
+    return true;
+  }
+
+  // A3 readiness. /api/health must keep answering while the process is up; this route says
+  // whether learner traffic can be served at all, so a supervisor never has to guess from 503s.
+  if (pathname === '/api/ready' && method === 'GET') {
+    const readiness = ctx.readiness || { ready: !saas, reason: saas ? 'starting' : 'local' };
+    sendJSON(res, readiness.ready ? 200 : 503, {
+      ok: readiness.ready,
+      ready: readiness.ready,
+      mode: saas ? 'saas' : 'local',
+      reason: readiness.reason || (readiness.ready ? 'ready' : 'not_ready'),
+    });
+    return true;
+  }
+
+  // A1 / HOSTED-BLOCKERS B5. The file-based progress routes are attributed by a caller header,
+  // never authenticated, and a request without the header falls back to a shared record. In
+  // hosted mode they are unavailable - refused before any path is resolved, so neither another
+  // account's file nor the shared one can be named, read, written or deleted by an anonymous
+  // caller. (Removal of the routes themselves belongs to the persistence migration.)
+  if (saas && pathname === '/api/progress') {
+    sendJSON(res, LEGACY_PROGRESS_REFUSAL.status, { ok: false, code: LEGACY_PROGRESS_REFUSAL.code, error: LEGACY_PROGRESS_REFUSAL.error });
     return true;
   }
 
@@ -707,15 +870,31 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/ai' && method === 'POST') {
-    const body = await readJSON(req);
+    // A2.1: an anonymous caller must never reach the operator's provider key. With accounts
+    // mounted (or in hosted mode) the session is required; without either, this is the local
+    // single-user install and the request proceeds.
+    if (identityRequired && !(await requestIdentity(owned, req))) {
+      sendJSON(res, 401, { ok: false, code: 'unauthenticated', error: 'A signed-in session is required for the AI routes.' });
+      return true;
+    }
+    const body = await readJSON(req, AI_BODY_LIMIT_BYTES);
+    let params;
     try {
+      params = validateAiRequest(body);
+    } catch (err) {
+      sendJSON(res, err.status || 422, { ok: false, code: err.code || 'invalid_request', error: err.message });
+      return true;
+    }
+    try {
+      // A2.2: the caller's `model` is not passed. The model is operator configuration
+      // (`DEEPSEEK_MODEL`) exactly as the provider is (D1), so `callDeepSeek` falls back to
+      // the operator's model. Nothing a request says can change it.
       const result = await callDeepSeek({
-        messages: body.messages,
-        model: body.model,
-        temperature: body.temperature,
-        json: body.json !== false,
-        maxTokens: body.maxTokens,
-        timeoutMs: body.timeoutMs,
+        messages: params.messages,
+        temperature: params.temperature,
+        json: params.json,
+        maxTokens: params.maxTokens,
+        timeoutMs: params.timeoutMs,
       });
       sendJSON(res, 200, { ok: true, ...result });
     } catch (err) {
@@ -729,6 +908,16 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/ai/test' && method === 'POST') {
+    // A2.4: a diagnostic that spends the operator's credits is operator-only. It is off
+    // unless the operator explicitly opts in; a learner session is never enough for it.
+    if (process.env.B1PREP_AI_TEST !== '1') {
+      sendJSON(res, 403, {
+        ok: false,
+        code: 'ai_test_operator_only',
+        error: 'POST /api/ai/test is operator-only. Set B1PREP_AI_TEST=1 in the server environment to enable the diagnostic.',
+      });
+      return true;
+    }
     try {
       const result = await callDeepSeek({
         messages: [
@@ -775,10 +964,19 @@ export function createServer({ ownedApi = null } = {}) {
     })();
 
     try {
+      const saas = isSaasMode();
+      const origin = configuredPublicOrigin();
+      const serverRef = req.socket.server;
+      // A3 readiness. In local mode the app is always ready in its own terms; in hosted mode
+      // it is ready only once accounts have loaded, and the startup block below keeps this
+      // current. An unset value means "still starting", which fails closed.
+      const readiness = saas
+        ? (serverRef && serverRef.saasReadiness ? serverRef.saasReadiness : { ready: false, reason: 'starting' })
+        : { ready: true, reason: 'local' };
       if (pathname.startsWith('/api/')) {
         const method = req.method || 'GET';
         if (method !== 'GET' && method !== 'HEAD') {
-          if (!isSameOriginRequest(req, req.socket.localPort)) {
+          if (!isSameOriginRequest(req, req.socket.localPort, { saas, origin })) {
             sendJSON(res, 403, { ok: false, code: 'origin_rejected', error: 'Cross-origin API request rejected.' });
             return;
           }
@@ -787,6 +985,13 @@ export function createServer({ ownedApi = null } = {}) {
             return;
           }
         }
+        // A3 fail closed. While the hosted runtime is not ready, every API route except
+        // liveness and readiness refuses. It never answers as a single-user app, and the
+        // refusal is a 503 with a reason token rather than an anonymous fallback.
+        if (saas && !readiness.ready && pathname !== '/api/health' && pathname !== '/api/ready') {
+          sendJSON(res, 503, { ok: false, code: 'not_ready', error: `The hosted runtime is not ready (${readiness.reason || 'starting'}).` });
+          return;
+        }
         // Owned-API mount: opt-in only (B1PREP_ACCOUNTS=1, see server/accounts.mjs). With
         // accounts off this is inactive and the single-user behaviour is unchanged. Placed
         // after the SEC-01 gate, which has already rejected any foreign mutation, hence
@@ -794,7 +999,7 @@ export function createServer({ ownedApi = null } = {}) {
         // or a rejected request would be handled twice.
         const owned = resolveOwnedApi(req.socket.server);
         if (owned && owned.matches(pathname)) return void (await owned.handleNode(req, res, { originChecked: true }));
-        const handled = await handleApi(req, res, pathname);
+        const handled = await handleApi(req, res, pathname, { owned, saas, origin, readiness });
         if (!handled) sendJSON(res, 404, { ok: false, error: `Unknown endpoint ${pathname}` });
         return;
       }
@@ -820,16 +1025,21 @@ if (invokedDirectly) {
   const server = createServer();
   // A portable launcher can choose its own port without rewriting the saved .env.
   const PORT = Number(process.env.B1PREP_PORT) || Number(process.env.PORT) || 4321;
+  // A3. In hosted mode the runtime is *not* ready until accounts have loaded; the request path
+  // reads this and refuses with 503 in the meantime. In local mode it is always ready.
+  server.saasReadiness = { ready: !isSaasMode(), reason: isSaasMode() ? 'starting' : 'local' };
 
   /*
    * Accounts (A-01 mount). Off unless B1PREP_ACCOUNTS=1. Loading is deliberately *after* the
-   * socket starts: the single-user app must come up even if the database is slow, unreachable
-   * or misconfigured, and an account request then answers 404 exactly as it does today rather
-   * than the whole server failing to boot. The banner reports which of the two happened, and
-   * no credential or connection string is ever printed.
+   * socket starts, so the socket exists before a slow database is ready - but in hosted mode
+   * (B1PREP_SAAS=1) a failure does NOT downgrade to single-user: readiness stays false and every
+   * learner route answers 503 until accounts load. In local mode the app still comes up
+   * single-user when the database is slow, unreachable or misconfigured, and an account request
+   * answers 404 exactly as it did before. No credential or connection string is ever printed.
    */
   import('./server/accounts.mjs').then(async ({ loadOwnedApi, accountsConfig, accountsSummary }) => {
     const config = accountsConfig();
+    const saas = isSaasMode();
     let summary = accountsSummary(null, config);
     if (config.enabled) {
       try {
@@ -837,18 +1047,35 @@ if (invokedDirectly) {
         if (loaded) {
           server.ownedApi = loaded.api;
           summary = accountsSummary(loaded, config);
+          if (saas) server.saasReadiness = { ready: true, reason: 'ready' };
           const shutdown = () => { loaded.close().finally(() => process.exit(0)); };
           process.once('SIGINT', shutdown);
           process.once('SIGTERM', shutdown);
+        } else {
+          server.saasReadiness = { ready: false, reason: 'accounts_unavailable' };
         }
       } catch (error) {
         // Say what failed, never the credentials: `error.message` from `pg` can contain the
-        // host and database but not the password.
-        summary = `accounts: FAILED to load (${error && error.message ? error.message : error}) - the app runs single-user`;
+        // host and database but not the password. The detail goes to the operator console only;
+        // the readiness reason stays a short token that is safe on an anonymous route.
+        const detail = error && error.message ? error.message : error;
+        if (saas) {
+          server.saasReadiness = { ready: false, reason: 'accounts_failed' };
+          summary = `accounts: FAILED to load (${detail}) - hosted mode refuses learner routes (503)`;
+        } else {
+          summary = `accounts: FAILED to load (${detail}) - the app runs single-user`;
+        }
       }
+    } else if (saas) {
+      // Hosted mode with accounts disabled (the flag is absent, or the database configuration is
+      // missing) is a misconfiguration, not a single-user install. Fail closed and say so.
+      server.saasReadiness = { ready: false, reason: 'accounts_disabled' };
+      summary = `accounts: off (${config.reason}) - hosted mode refuses learner routes (503)`;
     }
     console.log(`  Accounts: ${summary}`);
+    if (saas) console.log(`  Readiness: ${server.saasReadiness.ready ? 'ready' : `NOT READY (${server.saasReadiness.reason})`}`);
   }).catch((error) => {
+    server.saasReadiness = { ready: false, reason: 'accounts_unavailable' };
     console.log(`  Accounts: wiring unavailable (${error && error.message ? error.message : error})`);
   });
 
@@ -864,7 +1091,13 @@ if (invokedDirectly) {
     // operator's console, not a route: the learner UI is told nothing about the key (D1).
     console.log(`  DeepSeek: ${s.apiKey ? `key set (value hidden), model ${s.model}` : 'NO KEY - offline mode (set DEEPSEEK_API_KEY in the server environment)'}`);
     console.log(`  Exam:     ${s.examDate || 'not set (set EXAM_DATE, or use the learner settings page)'}`);
-    console.log(`  Progress: ${PROGRESS_PATH}`);
+    if (isSaasMode()) {
+      const o = configuredPublicOrigin();
+      console.log(`  SaaS:     hosted runtime - trusted origin ${o ? o.origin : 'NOT CONFIGURED (mutations are refused)'}`);
+      console.log(`  Progress: file record disabled (account-scoped attempts)`);
+    } else {
+      console.log(`  Progress: ${PROGRESS_PATH}`);
+    }
     console.log(line);
     console.log('  Ctrl+C to stop.');
   });
