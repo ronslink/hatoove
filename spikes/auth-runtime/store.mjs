@@ -37,8 +37,8 @@ export function store(pool, {ownerId}={}) {
     return time.valid ? j : null;
   }
   async function reapExpired() {
-    const expired = await pool.query(`SELECT id,owner_id FROM jobs WHERE status='running'
-      AND tries>=3 AND lease_until<clock_timestamp()`);
+    const expired = await tx(c=>c.query(`SELECT id,owner_id FROM jobs WHERE status='running'
+      AND tries>=3 AND lease_until<clock_timestamp()`));
     for (const job of expired.rows) await tx(async c => {
       await c.query('SELECT owner_id FROM entitlements WHERE owner_id=$1 FOR UPDATE', [job.owner_id]);
       const result = await c.query(`UPDATE jobs SET status='failed',failure_code='retry_exhausted',lease_token=NULL,lease_until=NULL

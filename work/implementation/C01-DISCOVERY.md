@@ -1,6 +1,7 @@
 # C-01 discovery: count existing source content without approving it
 
 Execution c01d-20260930-a; Hermes/Docker slot3; no children.
+At the final correction checkpoint the coordinator reallocated Hermes to slot2 after OpenClaw ended; slot3 served the local independent USER03 review. The execution, base, branch, allowed paths and19:15 expiry remain unchanged.
 Base a9a4cfd95992df95dc76bdbab3bbb690efe4841f; branch codex/c01-discovery; worktree /opt/data/workspaces/hatoove-c01-discovery. Issued18:15 UTC 2026-09-30; checkpoint18:30; expires19:15 UTC.
 Read AGENTS.md, docs/AGENT_WORKFLOW.md and this assignment. Return ACK before editing for coordinator relay.
 Allowed writes ONLY tools/content-discovery.mjs and docs/content/DISCOVERY.md. Read tracked data/*.json and relevant source references only; no .env/progress/research runs or other projects. Implement a dependency-free read-only Node inventory command with deterministic counts of actual source files, task families, complete sets versus answer slots where identifiable, writing prompts versus feedback guides, and fixed audio references versus browser TTS. Explain each counting unit. Do not print complete question/answer text. The report should quote the command's counts, list metadata/review/audio gaps, and separate existing source facts from interpretation. Mark all review/rights status unknown unless explicit human evidence exists; do not approve content or assert exam fidelity. This is a prerequisite-independent discovery deliverable; formal C-01 migration/audit still depends on E-01 blueprint review.

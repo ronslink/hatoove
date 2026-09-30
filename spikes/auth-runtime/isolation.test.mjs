@@ -4,14 +4,16 @@ import {randomBytes,randomUUID} from 'node:crypto';
 import {isolatedFixture} from './isolation-fixture.mjs';
 import {store} from './store.mjs';
 import {start} from './server.mjs';
+import {localPool} from './auth.mjs';
 
 const denied=async promise=>assert.rejects(promise,e=>e.code==='42501');
 test('separate login roles, forced RLS and real owned HTTP journey',async t=>{
   const f=await isolatedFixture();
+  const secret=randomBytes(48).toString('base64url');
   let api;
-  const request=async(path,{method='GET',body,cookie}={})=>{
-    const response=await fetch(api.baseURL+path,{method,headers:{...(cookie?{cookie}:{}),
-      ...(method!=='GET'?{origin:api.baseURL,'content-type':'application/json'}:{})},
+  const request=async(path,{method='GET',body,cookie,target=api}={})=>{
+    const response=await fetch(target.baseURL+path,{method,headers:{...(cookie?{cookie}:{}),
+      ...(method!=='GET'?{origin:target.baseURL,'content-type':'application/json'}:{})},
       ...(method!=='GET'?{body:JSON.stringify(body??{})}:{})});
     return {status:response.status,body:await response.json(),cookies:response.headers.getSetCookie()};
   };
@@ -45,12 +47,15 @@ test('separate login roles, forced RLS and real owned HTTP journey',async t=>{
       assert.equal(tables.rowCount,7); for(const table of tables.rows) {assert.equal(table.relrowsecurity,true); assert.equal(table.relforcerowsecurity,true);}
     });
     await t.test('authentication connects with its own role and cannot read learner records',async()=>{
-      api=await start(f.auth,randomBytes(48).toString('base64url'),{learnerPool:f.learner,workerPool:f.worker});
+      api=await start(f.auth,secret,{learnerPool:f.learner,workerPool:f.worker});
       alice=await register('alice@example.test'); bob=await register('bob@example.test');
       await denied(f.auth.query('SELECT * FROM drafts'));
+      await denied(f.auth.query('SELECT * FROM attempts'));
       for(const kind of ['learner','worker']) {
         await denied(f[kind].query('SELECT * FROM account'));
         await denied(f[kind].query('SELECT token FROM session'));
+        await denied(f[kind].query('SELECT * FROM "user"'));
+        await denied(f[kind].query('SELECT * FROM verification'));
       }
     });
     await t.test('learner HTTP paths use restricted role and preserve cross-owner 404',async()=>{
@@ -98,12 +103,21 @@ test('separate login roles, forced RLS and real owned HTTP journey',async t=>{
       } finally {await c.query('ROLLBACK'); c.release();}
       await f.migration.query('CREATE TABLE future_private(id int)');
       await denied(f.learner.query('SELECT * FROM future_private'));
+      await f.migration.query(`GRANT SELECT ON future_private TO ${f.roles.learner}`);
+      await f.migration.query('INSERT INTO future_private VALUES(1)');
+      await f.migration.query('ALTER TABLE future_private ENABLE ROW LEVEL SECURITY');
+      assert.equal((await f.learner.query('SELECT * FROM future_private')).rowCount,0,'enabled RLS without a policy denies rows');
       await f.migration.query("CREATE FUNCTION future_helper() RETURNS int LANGUAGE sql AS 'SELECT 1'");
       await denied(f.learner.query('SELECT future_helper()'));
+      const acl=await f.admin.query(`SELECT has_function_privilege($1,'future_helper()','EXECUTE') AS allowed,
+        (SELECT count(*)::int FROM pg_default_acl WHERE defaclrole=$2::regrole AND defaclobjtype='f') AS defaults`,[f.roles.learner,f.roles.migration]);
+      assert.equal(acl.rows[0].allowed,false); assert.equal(acl.rows[0].defaults,1);
     });
     await t.test('learner cannot manufacture allowance, success or feedback; worker cannot read drafts',async()=>{
       await denied(f.learner.query('UPDATE entitlements SET allowance=999'));
       await denied(f.learner.query('UPDATE entitlements SET used=0'));
+      await denied(f.learner.query('UPDATE jobs SET tries=0'));
+      await denied(f.learner.query('UPDATE attempts SET owner_id=$1',[bob.id]));
       await denied(f.learner.query('INSERT INTO assessments VALUES($1,$2,$3,$4,$5,$6)',[submitted,alice.id,{},'x','x','x']));
       await denied(f.learner.query('TRUNCATE jobs'));
       await denied(f.worker.query('SELECT * FROM drafts'));
@@ -149,6 +163,26 @@ test('separate login roles, forced RLS and real owned HTTP journey',async t=>{
       await assert.rejects(scoped.read(alice.id,d.id),/not_found/);
       await assert.rejects(scoped.save(alice.id,d.id,2,'resurrect'),/not_found/);
       await assert.rejects(scoped.retry(alice.id,s.submissionId),/not_found/);
+    });
+    await t.test('concurrent two-account HTTP requests remain isolated across three pooled connections',async()=>{
+      const pool=localPool(f.schema,{user:f.roles.learner,max:3});
+      let concurrent;
+      try {
+        const b=await store(f.learner,{ownerId:bob.id}).create(bob.id);
+        concurrent=await start(f.auth,secret,{learnerPool:pool,workerPool:f.worker});
+        await Promise.all(Array.from({length:18},async(_,i)=>{
+          const self=i%2?alice:bob,own=i%2?attempt:b.id,other=i%2?b.id:attempt;
+          const success=await request(`/api/v1/attempts/${own}`,{cookie:self.cookie,target:concurrent});
+          assert.equal(success.status,200); assert.equal(success.body.owner_id,self.id);
+          assert.equal((await request(`/api/v1/attempts/${other}`,{cookie:self.cookie,target:concurrent})).status,404);
+        }));
+        const clients=await Promise.all([pool.connect(),pool.connect(),pool.connect()]);
+        try {
+          const snapshots=await Promise.all(clients.map(c=>c.query('SELECT pg_backend_pid() AS pid,(SELECT count(*)::int FROM attempts) AS visible')));
+          assert.equal(new Set(snapshots.map(s=>s.rows[0].pid)).size,3);
+          for(const s of snapshots) assert.equal(s.rows[0].visible,0);
+        } finally {for(const c of clients)c.release();}
+      } finally {if(concurrent)await concurrent.close(); await pool.end();}
     });
   } finally { if(api) await api.close(); await f.cleanup(); }
 });
