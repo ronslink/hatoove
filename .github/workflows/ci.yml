@@ -29,6 +29,12 @@ jobs:
         run: node tools/writing-check.js
       - name: Feedback regression checks
         run: node tools/feedback-check.js
+      # DESIGN-LANGUAGE.md: no raw colour or font family in a rule, the required tokens present,
+      # the dark override present, the mobile breakpoints and reduced motion honoured, and every
+      # view registered through the shell. This gate is RED until the pre-existing font-family
+      # debt is cleared - which is the point: the debt is visible instead of hidden.
+      - name: Design language consistency
+        run: node tools/design-check.mjs
   contracts:
     name: Server and owned API contracts (${{ matrix.os }})
     strategy:
