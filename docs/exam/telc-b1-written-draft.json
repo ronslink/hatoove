@@ -66,8 +66,31 @@
       "editionOrDate": "13. Auflage 2020, © 2020 by telc gGmbH",
       "pages": 48,
       "sha256": "6fd22ffcc25ca75e5718cc9d55bf2369ed716d4071a1058a1fdd301f58fa2b2f",
-      "pageIndexConvention": "PDF page N = printed page N-2 (e.g. the test-format table is PDF p. 7 = printed p. 5).",
+      "pageIndexConvention": "Both PDF page numbers and printed page numbers are one-based, and they run in parallel: PDF page = printed page + 2, equivalently printed page = PDF page - 2. In zero-based array indices the offset is printedIndex = pdfIndex - 2. Check: the test-format table is PDF page 7 = printed page 5; answer sheet S30 is PDF page 24 = printed page 22.",
+      "pageOffset": { "printedToPdf": 2, "verified": true, "basis": "S2-p7-p5, S2-p24-p22, S2-p41-p39, S2-p42-p40" },
       "verification": "Downloaded and text-extracted locally, page by page"
+    },
+    {
+      "id": "S3",
+      "kind": "official-regulations-pdf",
+      "title": "telc Prüfungsregularien (regulations binding for all telc examinations)",
+      "url": "https://www.telc.net/fileadmin/user_upload/pdfs/AGB_Pruefungsordnung/9994-P00-150010.pdf",
+      "retrieved": "2026-09-30",
+      "editionOrDate": "gültig ab 15.04.2025; document no. P01-9994-P00-150010",
+      "pages": 40,
+      "locatorNote": "Linked from the site's \"AGB und Prüfungsregularien\" page. Section 1 Geltungsbereich (PDF p. 4 / printed p. 4) states the regulations are valid for all telc examinations and that the respective model tests must be observed in their current version.",
+      "verification": "Downloaded and text-extracted; effective date, document number, scope clause and change-log section located"
+    },
+    {
+      "id": "S4",
+      "kind": "official-product-sheet-pdf",
+      "title": "Zertifikat Deutsch / telc Deutsch B1 product sheet for the scaled examination telc Deutsch A2·B1 (5060-B00-010101)",
+      "url": "https://www.telc.net/fileadmin/user_upload/pdfs/Produktblatt_1060_Deutsch_A2_B1.pdf",
+      "retrieved": "2026-09-30",
+      "editionOrDate": "Stand: 10.03.2023",
+      "pages": 2,
+      "locatorNote": "Documents a DIFFERENT, newer scaled examination: model test published 28.02.2023, first digital exam date 29.03.2023, first paper date 05.06.2023. Must not be confused with the classic single-level Zertifikat Deutsch / telc Deutsch B1 analysed in this draft.",
+      "verification": "Downloaded and text-extracted"
     }
   ],
   "sections": [
@@ -345,30 +368,34 @@
   "unresolved": [
     {
       "id": "U1",
-      "question": "The binding exam regulations (Prüfungsordnung) and the official test specification were not retrieved, so no rule here is confirmed against them.",
+      "question": "The general binding regulations are now located and verified (S3, gültig ab 15.04.2025), but no test specification or Prüfungsordnung specific to the classic Zertifikat Deutsch B1 was found, so the written-format rules still rest on the model test (S2) plus the exam page (S1).",
       "status": "unresolved",
       "impact": "high",
-      "sources": ["S1"]
+      "progress": "partly-closed",
+      "sources": ["S1", "S3"]
     },
     {
       "id": "U2",
-      "question": "Whether a newer edition than 13. Auflage 2020 is current for the live examination.",
+      "question": "Whether the 13. Auflage 2020 model test is still the current one for the classic B1 exam. A different, newer scaled examination (telc Deutsch A2·B1) was verified, and S3 requires model tests to be used in their current version.",
       "status": "unresolved",
       "impact": "high",
-      "sources": ["S2"]
+      "progress": "partly-closed",
+      "sources": ["S2", "S3", "S4"]
     },
     {
       "id": "U3",
-      "question": "Whether wrong objective answers are penalised or guessing is discouraged.",
+      "question": "Whether wrong objective answers are penalised or guessing is discouraged. No such provision exists in the model test instructions or in the binding regulations (S3); the absence of a rule is not itself a rule, so this stays unresolved rather than inferred from silence.",
       "status": "unresolved",
       "impact": "high",
-      "sources": ["S2-p7-p5"]
+      "progress": "absence-confirmed-in-sources",
+      "sources": ["S2", "S3"]
     },
     {
       "id": "U4",
       "question": "What the learner should do when no option fits in Sprachbausteine Teil 1 or Leseverstehen Teil 2; the no-match rule is printed only for Leseverstehen Teil 3.",
       "status": "unresolved",
       "impact": "medium",
+      "progress": "open",
       "sources": ["S2-p12-p10", "S2-p15-p13"]
     },
     {
@@ -376,6 +403,7 @@
       "question": "There is no printed sub-allocation of the shared 90 minutes between Leseverstehen and Sprachbausteine.",
       "status": "unresolved",
       "impact": "medium",
+      "progress": "open",
       "sources": ["S1", "S2-p31-p29"]
     },
     {
@@ -383,21 +411,24 @@
       "question": "No per-part duration is printed for Hörverstehen beyond the announced reading pauses; the section is given as approximately 30 minutes.",
       "status": "unresolved",
       "impact": "low",
+      "progress": "open",
       "sources": ["S1", "S2-p16-p14", "S2-p17-p15"]
     },
     {
       "id": "U7",
-      "question": "How fractional written totals arise for the printed grade bands, whose boundaries include .5 endpoints.",
+      "question": "How or whether fractional written totals arise for the printed grade bands, whose endpoints include .5. All verified point-bearing elements are integral, so a .5 total is arithmetically unreachable and the endpoints act as strict upper limits; no rounding rule exists in the model test or the regulations.",
       "status": "unresolved",
       "impact": "low",
-      "sources": ["S2-p42-p40"]
+      "progress": "partly-closed",
+      "sources": ["S2-p42-p40", "S3"]
     },
     {
       "id": "U8",
-      "question": "The precise differences from Deutsch-Test für den Beruf, telc Deutsch B1·B2 Beruf, telc Deutsch B1 Schule and DTZ were not examined.",
+      "question": "The precise differences from Deutsch-Test für den Beruf, telc Deutsch B1·B2 Beruf, telc Deutsch B1 Schule and DTZ were not examined systematically. The scaled telc Deutsch A2·B1 is now distinguished from the classic B1 using verified evidence.",
       "status": "unresolved",
       "impact": "medium",
-      "sources": []
+      "progress": "partly-closed",
+      "sources": ["S4"]
     }
   ],
   "gates": {

@@ -38,21 +38,50 @@ is asserted — see U9.
 | **S2** | Official practice test (*Übungstest 1*): *Zertifikat Deutsch, telc Deutsch B1 — Übungstest 1, Prüfungsvorbereitung* | 2026-09-30 | PDF, 48 pages, SHA-256 `6FD22FFCC25CA75E5718CC9D55BF2369ED716D4071A1058A1FDD301F58FA2B2F` | Downloaded and text-extracted locally; page-by-page inspected |
 | **S2-a** | Same PDF via the publisher shop link named in the assignment: `https://shop.telc.net/media/catalog/product/file/telc_deutsch_b1_zd_uebungstest_1.pdf` | 2026-09-30 | identical file | **SHA-256 identical to S2** — confirmed byte-for-byte |
 | **S2-b** | Official download bundle named on S1 (`telc_deutsch_b1.zip`, contains S2 plus the listening audio `telc_deutsch_b1_zd_uebungstest_4.mp3`) | 2026-09-30 | `https://www.telc.net/fileadmin/user_upload/mock_exams/Deutsch/telc_deutsch_b1.zip` | Downloaded; contained PDF hashed identical to S2 |
+| **S3** | *telc Prüfungsregularien* — the binding regulations for all telc examinations, linked from the site's „AGB und Prüfungsregularien" page | 2026-09-30 | `https://www.telc.net/fileadmin/user_upload/pdfs/AGB_Pruefungsordnung/9994-P00-150010.pdf` — **„gültig ab 15.04.2025"**, document no. `P01-9994-P00-150010`, 40 PDF pages | Downloaded and text-extracted; effective date, document number and change-log section located |
+| **S4** | *Zertifikat Deutsch / telc Deutsch B1* Übungstest — **product sheet** for the scaled exam `telc Deutsch A2·B1` (5060-B00-010101), „Stand: 10.03.2023" | 2026-09-30 | `https://www.telc.net/fileadmin/user_upload/pdfs/Produktblatt_1060_Deutsch_A2_B1.pdf` | Downloaded and text-extracted; **records a different, newer scaled examination** (see §1.1) |
 
 **Edition / date (S2):** „13. Auflage 2020 · © 2020 by telc gGmbH, Frankfurt am Main · Printed in Germany" (S2, PDF p. 4 = printed p. 2).
 Bibliographic identifiers recorded on that page: Testheft ISBN 978-3-933908-02-5, order no. 5061-B00-010301;
 Audio-CD ISBN 978-3-933908-93-3, order no. 5061-CD0-010101.
 
-**Page-index convention (important).** S2's PDF page numbers run **exactly two ahead** of its printed
-page numbers: PDF page *N* = printed page *N* − 2 (e.g. the test-format table is PDF p. 7 = printed p. 5;
-`Punkte und Gewichtung` is PDF p. 41 = printed p. 39). The PDF's own table of contents (PDF p. 6 = printed p. 4)
-lists printed page numbers. **Rule citations below give both**, in the form `S2 PDF p. 7 / printed p. 5`.
+**Precedence.** S3 states that the *Prüfungsregularien* are valid for all telc examinations, that
+exam-specific organisational guidelines **and the respective model tests in the current version**
+(„die jeweiligen Modelltests in der aktuellen Fassung") must additionally be observed, and that every rule
+laid down in the regulations is binding (S3 PDF p. 4 / printed p. 4, §1 *Geltungsbereich*). The classic
+*Zertifikat Deutsch / telc Deutsch B1* has no separately published test specification in these documents, so
+S2 remains the primary rule source for the written format while S3 governs the surrounding examination
+conduct.
 
-**Reuse rights (separate gate).** S2 carries an explicit copyright notice: „Diese Publikation und ihre Teile
-sind urheberrechtlich geschützt. Jede Verwendung in anderen als den gesetzlich zugelassenen Fällen bedarf
-deshalb der schriftlichen Einwilligung des Herausgebers." (S2, PDF p. 4 / printed p. 2). The material is
-**publicly downloadable, which is not permission to copy** exercise texts, answer keys or audio into the
-product. This register therefore paraphrases rules and does not reproduce passages, keys or audio.
+**Page-index convention (corrected).** The PDF page and the printed page run in parallel, and both are
+**one-based numbers**. Hence `PDF page = printed page + 2`, equivalently `printed page = PDF page - 2`;
+in zero-based array indices the offset is `printedIndex = pdfIndex - 2`. The earlier wording in this file
+described the offset as a subtraction on one-based numbers, which was wrong even though its worked examples
+were right. Check: the test-format table is PDF page 7, printed page 5 → 7 = 5 + 2 ✅; the answer sheet
+S30 is PDF page 24, printed page 22 ✅.
+
+**Reuse rights (separate gate).** S2 carries an explicit copyright notice reserving all rights and requiring
+the publisher's prior written consent for any use beyond the statutory exceptions (S2, PDF p. 4 / printed
+p. 2). Those downloads are **publicly available, which is not permission to copy** exercise texts, answer
+keys or audio into the product. This register therefore paraphrases rules and does not reproduce passages,
+keys or audio.
+
+### 2.1 Related but distinct examination — `telc Deutsch A2·B1`
+
+S4 documents a **different, newer scaled examination** introduced in 2023, which must not be confused with the
+classic *Zertifikat Deutsch / telc Deutsch B1* analysed in this register:
+
+| Field | `telc Deutsch A2·B1` (S4) | Classic `Zertifikat Deutsch / telc Deutsch B1` (S1, S2) |
+|---|---|---|
+| Nature | scaled format, certifies A2 **and** B1 from one test | single-level B1 certificate |
+| Product code | 5060-B00-010101 | 5061-B00-010301 (Testheft) |
+| Announced timeline | model test published 28.02.2023; first digital exam date 29.03.2023; first paper date 05.06.2023 | Übungstest 1, 13. Auflage 2020 |
+| Written subtests (from the same series' test book) | Lesen, Sprachbausteine, **Lesen und Schreiben**, Hören, **Hören und Schreiben**, Schreiben — incl. *Mediation* | Leseverstehen, Sprachbausteine, Hörverstehen, Schriftlicher Ausdruck |
+| Writing criteria | **four** criteria, bands **A–F** | **three** criteria, bands **A–D** at 5/3/1/0 |
+
+Both examinations appear on the same site. **Which one a given learner is preparing for is a product
+decision that this register does not make**, and the rules recorded below apply only to the classic B1 form
+supported by S1 and S2.
 
 ---
 
@@ -156,6 +185,13 @@ Grade bands (only once both parts have reached their minimum):
 | 180 – 209.5 | ausreichend |
 | 0 – 179.5 | nicht bestanden |
 
+**How fractional totals could arise, and what is *not* established.** Every point-bearing element recorded
+above is integral: LV 3 × 25, SB 15 + 15, HV 3 × 25, and writing `(I + II + III) × 3` where each criterion is
+5/3/1/0, so the whole-number written aggregate (and the oral subtotal) can only take integer values. The
+`.5` endpoints therefore behave as strict upper limits for the band below rather than as reachable scores,
+which is a **derived arithmetic observation, not a sourced rule**. S2 does not print a rounding rule, and S3
+contains no rounding or half-point provision for this examination. The question is carried as **U7**.
+
 **Limitation for this pilot — no overall pass can be inferred.** The written partial result
 (`Teilergebnis I`, 225 points) is only half of a two-part condition. Because the pilot excludes speaking
 and STT (IMPLEMENTATION_PLAN.md decision 3), the oral part is **unassessed**, so:
@@ -225,6 +261,12 @@ weigh less than agreement errors, and A or B is possible where errors do not imp
   writing time, pages 5 and 6 plus all booklets and notes (S2 PDF p. 31 / printed p. 29).
 - A failed or unattempted part may be repeated in the same or the following calendar year; a repeat result
   replaces the earlier one irrevocably (S2 PDF p. 42 / printed p. 40).
+- **Government by S3.** Re-marking can also make a result *worse*, and the revised result then applies
+  irrevocably (S3 PDF p. 36 / printed p. 36, *Überprüfung des Prüfungsergebnisses*). S3's **Anhang 1**
+  governs when a previously achieved partial result may be credited to a later attempt (*Anrechnung von
+  Teilergebnissen*), and it names which examinations permit this and which do not — relevant if the product
+  ever reports a partial written result (S3 PDF pp. 34–36 / printed pp. 34–36 and p. 39). **The specific
+  entries for this examination were not transcribed**, because the pilot reports no official result.
 - Test versions exist in several languages (S2 PDF pp. 28–29 / printed pp. 26–27).
 
 ---
@@ -242,17 +284,25 @@ weigh less than agreement errors, and A or B is possible where errors do not imp
 
 ## 8. Unresolved edges
 
-| ID | Unresolved | Detail |
-|---|---|---|
-| U1 | **Official test specification / Prüfungsordnung not read** | Only the exam page (S1) and the practice test (S2) were consulted. The binding exam regulations and the official test specification (`Prüfungsordnung`, linked from S1's footer as „AGB und Prüfungsregularien") were **not retrieved**, so every rule above is sourced from the practice test and the public exam page. Whether those two are fully current and authoritative for the live examination is **not verified**. |
-| U2 | **Version currency** | Edition retrieved is „13. Auflage 2020". A newer edition may exist. `PILOT_BUILD_PLAN.md` itself instructs: „Recheck versions before implementation and release." |
-| U3 | **Objective answer rules for multiple choice** | The model test's printed instructions for the MCQ parts do not state a penalty for wrong answers or a guessing policy. **Not verified** whether marks are deducted for incorrect answers. Only correct/incorrect per item is assumed, which is **not** confirmed by the sources read. |
-| U4 | **Distractor / no-match semantics for Sprachbausteine Teil 1 and Leseverstehen Teil 2** | The no-match (`x`) rule is stated only for Leseverstehen Teil 3, and single-use is stated only for the matching parts (LV Teil 1, LV Teil 3, SB Teil 2). What the learner should do when no option fits in Sprachbausteine Teil 1 or Leseverstehen Teil 2 is **not addressed** in the pages read. |
-| U5 | **Part-level timing split inside the 90-minute block** | S1/S2 state 90 minutes shared by Leseverstehen and Sprachbausteine with no break. **No sub-allocation** between the two subtests is given. |
-| U6 | **Hörverstehen timing detail** | S1 says „ca. 30" minutes; the model test's own pages do not break that 30 minutes into per-part durations beyond the announced reading pauses. |
-| U7 | **Grade-band boundary exactness** | Bands as printed: 270–300, 240–269.5, 210–239.5, 180–209.5, 0–179.5. The `.5` endpoints imply half-point totals; how the written aggregate produces fractional totals is not explained on the page read (the written subtests are integer-valued; the oral criteria are integers). Treated as printed, **not** interpreted. |
-| U8 | **Differences from DTZ / telc Deutsch B1 Schule and other variants** | Explicitly out of scope for the sources read. No comparison is asserted. |
-| U9 | **Speaking subtest details** | S1 gives approx. 15 minutes and typically 2 participants with 20 minutes preparation; the oral criteria (four, not three) and M10 rating sheet appear in S2. These are recorded only to justify excluding oral results from written claims, and are **not** developed into a blueprint, since speaking is out of pilot scope. |
+IDs are stable and match `unresolved[].id` in the companion JSON. An entry described as *partly closed*
+carries verified new evidence but still lacks the specific confirmation it needs; nothing here is marked
+resolved without a source page.
+
+| ID | Status | Unresolved | Detail |
+|---|---|---|---|
+| U1 | **Partly closed** | Binding regulations located; no separate B1 test specification found | The general **telc Prüfungsregularien are now retrieved and verified** as **S3** („gültig ab 15.04.2025", doc `P01-9994-P00-150010`) and state that they are valid for all telc examinations, that exam-specific organisational guidelines *and the current model tests* must additionally be observed, and that every rule therein is binding. **No separately published test specification / `Prüfungsordnung` specific to the classic Zertifikat Deutsch B1 was located**, so the written-format rules above still rest on the model test (S2) plus S1. Whether S2 in its 2020 edition is the current model test is **not confirmed** (see U2). |
+| U2 | **Partly closed** | Current edition of the classic B1 model test unconfirmed; a newer *scaled* exam verified | S2 remains the latest classic-B1 model test located (13. Auflage 2020, §2). However **S4 records a different, newer scaled examination `telc Deutsch A2·B1`** whose model test was published 28.02.2023 with first exams in 2023 (§2.1) — the same series whose test book carries four writing criteria at bands A–F. Whether the classic single-level B1 model test has been superseded *for a given learner* is a product decision this register does not make. S3 itself requires the **current version** to be used, so this must be rechecked before implementation. |
+| U3 | **Unresolved — absence confirmed in S3** | No objective penalty rule in the retrieved official sources | Neither S2's instructions for the objective parts nor **S3** contains a penalty, deduction or guessing provision for this examination. S3 covers examination conduct, entitlement, results, re-marking and repeat rules rather than per-item scoring. Reporting this as *unresolved* is deliberate: **the absence of a rule in the documents read is not a rule that no penalty applies**, and it is not inferred from silence. Only correct/incorrect per item is assumed, which remains **unconfirmed**. |
+| U4 | Unresolved | Distractor / no-match semantics for Sprachbausteine Teil 1 and Leseverstehen Teil 2 | The no-match (`x`) rule is stated only for Leseverstehen Teil 3, and single-use only for the matching parts (LV Teil 1, LV Teil 3, SB Teil 2). What the learner should do when no option fits in SB Teil 1 or LV Teil 2 is **not addressed** in any source read. |
+| U5 | Unresolved | Part-level timing split inside the 90-minute block | S1/S2 state 90 minutes shared by Leseverstehen and Sprachbausteine with no break. **No sub-allocation** between the two subtests is printed. |
+| U6 | Unresolved | Hörverstehen timing detail | S1 says „ca. 30" minutes; the model test does not break that 30 minutes into per-part durations beyond the announced reading pauses. |
+| U7 | **Partly closed** | Grade-band `.5` endpoints and rounding | Bands as printed: 270–300, 240–269.5, 210–239.5, 180–209.5, 0–179.5. Every point-bearing element verified above is integral, so a `.5` total is arithmetically unreachable and the endpoints act as strict upper limits — a **derived observation, not a sourced rule**. S2 prints no rounding rule and S3 contains no rounding or half-point provision. How or whether fractional totals occur is **not explained by any source read** and is not speculated further. |
+| U8 | Partly closed | Differences from DTZ / B1 Schule / other variants | Still out of scope for a systematic comparison, but §2.1 now distinguishes the classic B1 from the **scaled `telc Deutsch A2·B1`** using S4 evidence. No DTZ or B1-Schule comparison is asserted. |
+
+**Numbering note.** Earlier drafts of this register listed a ninth item U9 (*speaking subtest details*) while
+the companion JSON carried eight unresolved entries, so the two documents disagreed. The speaking/`M10`
+details were never an open question — they are recorded in §6 as context for excluding oral results — and that
+duplicate has been removed. Both documents now carry **U1–U8 with the same meanings**.
 
 ---
 
