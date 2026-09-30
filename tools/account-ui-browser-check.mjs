@@ -316,6 +316,34 @@ async function main(argv) {
     await cdp.waitFor(`document.getElementById('view-title').textContent === 'Einstellungen' && !!document.querySelector('#view .card')`, 15000, 'Einstellungen');
     record('existing-view-einstellungen-still-renders-accounts-disabled', true, 'Einstellungen rendered');
 
+    /*
+     * D2: the explanation-language setting.
+     *
+     * Ron's constraint is that the language setting must NOT translate the interface: "the menu and the content
+     * remain german". So these checks assert the control exists AND that the German chrome around it is unchanged,
+     * which is the half a screenshot cannot prove. What they cannot show is that a chosen language changes the
+     * language an explanation arrives in - that is a property of a provider response and belongs to a stubbed
+     * provider check, not here.
+     */
+    const langPresent = await cdp.evaluate(`return !!document.querySelector('#explain-language')`);
+    record('settings-offers-the-explanation-language', langPresent, langPresent ? 'select#explain-language present' : 'no language control found');
+    if (langPresent) {
+      const options = await cdp.evaluate(`return Array.from(document.querySelectorAll('#explain-language option')).map(function (o) { return o.value; }).join(',')`);
+      record('the-language-control-is-a-real-choice', options === 'de,en', `options=${options}`);
+      const germanLabel = await cdp.evaluate(`return /Sprache der Erklärungen/.test(document.getElementById('view').innerText)`);
+      record('the-language-control-is-labelled-in-german', germanLabel, 'label text is German');
+      const scopeStated = await cdp.evaluate(`return /Menü und Prüfungsinhalte bleiben Deutsch/.test(document.getElementById('view').innerText)`);
+      record('the-control-states-its-scope-in-the-ui', scopeStated, 'the UI says the menu and content stay German');
+
+      // The decisive check: switching the setting must not translate the interface.
+      const before = await cdp.evaluate(`return document.querySelector('#nav').innerText`);
+      await cdp.evaluate(`var s = document.querySelector('#explain-language'); s.value = 'en'; s.dispatchEvent(new Event('change', { bubbles: true })); return s.value`);
+      const after = await cdp.evaluate(`return document.querySelector('#nav').innerText`);
+      record('changing-the-language-does-not-translate-the-menu', before === after, `nav identical before/after: ${before === after}`);
+      const viewTitle = await cdp.evaluate(`return document.getElementById('view-title').textContent`);
+      record('changing-the-language-does-not-translate-the-page-title', viewTitle === 'Einstellungen', `view title="${viewTitle}"`);
+    }
+
     const navCount = await cdp.evaluate(`return document.querySelectorAll('#nav .nav-item').length`);
     record('legacy-navigation-still-has-its-12-views', navCount === 12, `#nav .nav-item = ${navCount}`);
 
