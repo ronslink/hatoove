@@ -846,7 +846,11 @@ async function startLegacyServer(options) {
 
 async function serverSupportsMount() {
   const source = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
-  return /OWNAPI-01 mount/.test(source);
+  // Was `/OWNAPI-01 mount/` - a comment string. It is a MARKER, not a proof: renaming the
+  // comment made two checks fail as "no mount point" while the mount was working perfectly,
+  // and a comment could equally stay while the mount was removed. Look for the call that
+  // actually resolves the API and hands it to the mount, and keep a marker for readability.
+  return /resolveOwnedApi\(req\.socket\.server\)/.test(source) && /\.handleNode\(req, res/.test(source);
 }
 
 check('server-mount-off-by-default', async () => {

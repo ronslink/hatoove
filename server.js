@@ -753,8 +753,18 @@ async function handleApi(req, res, pathname) {
 /**
  * Build the HTTP server without listening, so a test can start it in-process on an
  * ephemeral port (see tools/server-origin-check.mjs).
+ *
+ * `ownedApi` may be a handle (`{ api }`, as `loadOwnedApi()` returns) or the API itself. It
+ * is read per request, so a caller may also set `server.ownedApi` after construction - which
+ * is how `node server.js` mounts accounts once the database is ready, without delaying the
+ * listening socket.
  */
 export function createServer({ ownedApi = null } = {}) {
+  const resolveOwnedApi = (server) => {
+    const value = server.ownedApi !== undefined && server.ownedApi !== null ? server.ownedApi : ownedApi;
+    if (!value) return null;
+    return typeof value.matches === 'function' ? value : value.api || null;
+  };
   return http.createServer(async (req, res) => {
     const pathname = (() => {
       try {
@@ -777,10 +787,13 @@ export function createServer({ ownedApi = null } = {}) {
             return;
           }
         }
-        // OWNAPI-01 mount: opt-in only. Active solely when a caller injects an owned API
-        // (server/owned-api.mjs); `node server.js` never does. Placed after the SEC-01 gate,
-        // which has already rejected any foreign mutation, hence originChecked: true.
-        if (ownedApi && ownedApi.matches(pathname)) return void (await ownedApi.handleNode(req, res, { originChecked: true }));
+        // Owned-API mount: opt-in only (B1PREP_ACCOUNTS=1, see server/accounts.mjs). With
+        // accounts off this is inactive and the single-user behaviour is unchanged. Placed
+        // after the SEC-01 gate, which has already rejected any foreign mutation, hence
+        // originChecked: true - the owned API must never re-check what is already enforced,
+        // or a rejected request would be handled twice.
+        const owned = resolveOwnedApi(req.socket.server);
+        if (owned && owned.matches(pathname)) return void (await owned.handleNode(req, res, { originChecked: true }));
         const handled = await handleApi(req, res, pathname);
         if (!handled) sendJSON(res, 404, { ok: false, error: `Unknown endpoint ${pathname}` });
         return;
@@ -807,6 +820,38 @@ if (invokedDirectly) {
   const server = createServer();
   // A portable launcher can choose its own port without rewriting the saved .env.
   const PORT = Number(process.env.B1PREP_PORT) || Number(process.env.PORT) || 4321;
+
+  /*
+   * Accounts (A-01 mount). Off unless B1PREP_ACCOUNTS=1. Loading is deliberately *after* the
+   * socket starts: the single-user app must come up even if the database is slow, unreachable
+   * or misconfigured, and an account request then answers 404 exactly as it does today rather
+   * than the whole server failing to boot. The banner reports which of the two happened, and
+   * no credential or connection string is ever printed.
+   */
+  import('./server/accounts.mjs').then(async ({ loadOwnedApi, accountsConfig, accountsSummary }) => {
+    const config = accountsConfig();
+    let summary = accountsSummary(null, config);
+    if (config.enabled) {
+      try {
+        const loaded = await loadOwnedApi();
+        if (loaded) {
+          server.ownedApi = loaded.api;
+          summary = accountsSummary(loaded, config);
+          const shutdown = () => { loaded.close().finally(() => process.exit(0)); };
+          process.once('SIGINT', shutdown);
+          process.once('SIGTERM', shutdown);
+        }
+      } catch (error) {
+        // Say what failed, never the credentials: `error.message` from `pg` can contain the
+        // host and database but not the password.
+        summary = `accounts: FAILED to load (${error && error.message ? error.message : error}) - the app runs single-user`;
+      }
+    }
+    console.log(`  Accounts: ${summary}`);
+  }).catch((error) => {
+    console.log(`  Accounts: wiring unavailable (${error && error.message ? error.message : error})`);
+  });
+
   server.listen(PORT, '127.0.0.1', () => {
     const s = settings();
     const line = '='.repeat(58);
