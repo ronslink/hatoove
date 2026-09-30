@@ -1,0 +1,1421 @@
+{
+  "label": "before",
+  "capturedAt": "2026-09-30T17:52:05.511Z",
+  "base": "http://127.0.0.1:55437",
+  "results": [
+    {
+      "view": "dashboard",
+      "vp": "320x568",
+      "theme": "light",
+      "zoom": 0,
+      "vw": 320,
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "bodyScrollWidth": 320,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 6,
+      "overflow": [
+        {
+          "sel": "div.session-art",
+          "left": 152,
+          "right": 362,
+          "width": 210,
+          "scrollW": 263,
+          "clientW": 210,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div.art-grid",
+          "left": 152,
+          "right": 362,
+          "width": 210,
+          "scrollW": 210,
+          "clientW": 210,
+          "text": ""
+        },
+        {
+          "sel": "div.art-orbit",
+          "left": 170,
+          "right": 415,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        },
+        {
+          "sel": "div.art-paper",
+          "left": 208.9,
+          "right": 342.1,
+          "width": 133.2,
+          "scrollW": 113,
+          "clientW": 101,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div",
+          "left": 295.1,
+          "right": 331.1,
+          "width": 35.9,
+          "scrollW": 25,
+          "clientW": 25,
+          "text": ""
+        },
+        {
+          "sel": "svg",
+          "left": 303.8,
+          "right": 322.4,
+          "width": 18.5,
+          "scrollW": 16,
+          "clientW": 16,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "390x844",
+      "theme": "light",
+      "zoom": 0,
+      "vw": 390,
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 6,
+      "overflow": [
+        {
+          "sel": "div.session-art",
+          "left": 222,
+          "right": 432,
+          "width": 210,
+          "scrollW": 263,
+          "clientW": 210,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div.art-grid",
+          "left": 222,
+          "right": 432,
+          "width": 210,
+          "scrollW": 210,
+          "clientW": 210,
+          "text": ""
+        },
+        {
+          "sel": "div.art-orbit",
+          "left": 240,
+          "right": 485,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        },
+        {
+          "sel": "div.art-paper",
+          "left": 278.9,
+          "right": 412.1,
+          "width": 133.2,
+          "scrollW": 113,
+          "clientW": 101,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div",
+          "left": 365.1,
+          "right": 401.1,
+          "width": 35.9,
+          "scrollW": 25,
+          "clientW": 25,
+          "text": ""
+        },
+        {
+          "sel": "svg",
+          "left": 373.8,
+          "right": 392.4,
+          "width": 18.5,
+          "scrollW": 16,
+          "clientW": 16,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "768x1024",
+      "theme": "light",
+      "zoom": 0,
+      "vw": 768,
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 1,
+      "overflow": [
+        {
+          "sel": "div.art-orbit",
+          "left": 566,
+          "right": 811,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "1024x768",
+      "theme": "light",
+      "zoom": 0,
+      "vw": 1024,
+      "clientWidth": 1024,
+      "scrollWidth": 1024,
+      "bodyScrollWidth": 1024,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 1,
+      "overflow": [
+        {
+          "sel": "div.art-orbit",
+          "left": 816,
+          "right": 1061,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "1180x820",
+      "theme": "light",
+      "zoom": 0,
+      "vw": 1180,
+      "clientWidth": 1180,
+      "scrollWidth": 1180,
+      "bodyScrollWidth": 1180,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 0,
+      "overflow": [],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "1280x800",
+      "theme": "light",
+      "zoom": 0,
+      "vw": 1280,
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 0,
+      "overflow": [],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "320x568",
+      "theme": "dark",
+      "zoom": 0,
+      "vw": 320,
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "bodyScrollWidth": 320,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 6,
+      "overflow": [
+        {
+          "sel": "div.session-art",
+          "left": 152,
+          "right": 362,
+          "width": 210,
+          "scrollW": 263,
+          "clientW": 210,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div.art-grid",
+          "left": 152,
+          "right": 362,
+          "width": 210,
+          "scrollW": 210,
+          "clientW": 210,
+          "text": ""
+        },
+        {
+          "sel": "div.art-orbit",
+          "left": 170,
+          "right": 415,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        },
+        {
+          "sel": "div.art-paper",
+          "left": 208.9,
+          "right": 342.1,
+          "width": 133.2,
+          "scrollW": 113,
+          "clientW": 101,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div",
+          "left": 295.1,
+          "right": 331.1,
+          "width": 35.9,
+          "scrollW": 25,
+          "clientW": 25,
+          "text": ""
+        },
+        {
+          "sel": "svg",
+          "left": 303.8,
+          "right": 322.4,
+          "width": 18.5,
+          "scrollW": 16,
+          "clientW": 16,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "390x844",
+      "theme": "dark",
+      "zoom": 0,
+      "vw": 390,
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 6,
+      "overflow": [
+        {
+          "sel": "div.session-art",
+          "left": 222,
+          "right": 432,
+          "width": 210,
+          "scrollW": 263,
+          "clientW": 210,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div.art-grid",
+          "left": 222,
+          "right": 432,
+          "width": 210,
+          "scrollW": 210,
+          "clientW": 210,
+          "text": ""
+        },
+        {
+          "sel": "div.art-orbit",
+          "left": 240,
+          "right": 485,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        },
+        {
+          "sel": "div.art-paper",
+          "left": 278.9,
+          "right": 412.1,
+          "width": 133.2,
+          "scrollW": 113,
+          "clientW": 101,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div",
+          "left": 365.1,
+          "right": 401.1,
+          "width": 35.9,
+          "scrollW": 25,
+          "clientW": 25,
+          "text": ""
+        },
+        {
+          "sel": "svg",
+          "left": 373.8,
+          "right": 392.4,
+          "width": 18.5,
+          "scrollW": 16,
+          "clientW": 16,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "768x1024",
+      "theme": "dark",
+      "zoom": 0,
+      "vw": 768,
+      "clientWidth": 768,
+      "scrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 1,
+      "overflow": [
+        {
+          "sel": "div.art-orbit",
+          "left": 566,
+          "right": 811,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "1024x768",
+      "theme": "dark",
+      "zoom": 0,
+      "vw": 1024,
+      "clientWidth": 1024,
+      "scrollWidth": 1024,
+      "bodyScrollWidth": 1024,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 1,
+      "overflow": [
+        {
+          "sel": "div.art-orbit",
+          "left": 816,
+          "right": 1061,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "1180x820",
+      "theme": "dark",
+      "zoom": 0,
+      "vw": 1180,
+      "clientWidth": 1180,
+      "scrollWidth": 1180,
+      "bodyScrollWidth": 1180,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 0,
+      "overflow": [],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "1280x800",
+      "theme": "dark",
+      "zoom": 0,
+      "vw": 1280,
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 0,
+      "overflow": [],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "320x568",
+      "theme": "light",
+      "zoom": 200,
+      "vw": 320,
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "bodyScrollWidth": 320,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 6,
+      "overflow": [
+        {
+          "sel": "div.session-art",
+          "left": 152,
+          "right": 362,
+          "width": 210,
+          "scrollW": 263,
+          "clientW": 210,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div.art-grid",
+          "left": 152,
+          "right": 362,
+          "width": 210,
+          "scrollW": 210,
+          "clientW": 210,
+          "text": ""
+        },
+        {
+          "sel": "div.art-orbit",
+          "left": 170,
+          "right": 415,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        },
+        {
+          "sel": "div.art-paper",
+          "left": 208.9,
+          "right": 342.1,
+          "width": 133.2,
+          "scrollW": 113,
+          "clientW": 101,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div",
+          "left": 295.1,
+          "right": 331.1,
+          "width": 35.9,
+          "scrollW": 25,
+          "clientW": 25,
+          "text": ""
+        },
+        {
+          "sel": "svg",
+          "left": 303.8,
+          "right": 322.4,
+          "width": 18.5,
+          "scrollW": 16,
+          "clientW": 16,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "390x844",
+      "theme": "light",
+      "zoom": 200,
+      "vw": 390,
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 6,
+      "overflow": [
+        {
+          "sel": "div.session-art",
+          "left": 222,
+          "right": 432,
+          "width": 210,
+          "scrollW": 263,
+          "clientW": 210,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div.art-grid",
+          "left": 222,
+          "right": 432,
+          "width": 210,
+          "scrollW": 210,
+          "clientW": 210,
+          "text": ""
+        },
+        {
+          "sel": "div.art-orbit",
+          "left": 240,
+          "right": 485,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        },
+        {
+          "sel": "div.art-paper",
+          "left": 278.9,
+          "right": 412.1,
+          "width": 133.2,
+          "scrollW": 113,
+          "clientW": 101,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div",
+          "left": 365.1,
+          "right": 401.1,
+          "width": 35.9,
+          "scrollW": 25,
+          "clientW": 25,
+          "text": ""
+        },
+        {
+          "sel": "svg",
+          "left": 373.8,
+          "right": 392.4,
+          "width": 18.5,
+          "scrollW": 16,
+          "clientW": 16,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "1280x800",
+      "theme": "light",
+      "zoom": 200,
+      "vw": 1280,
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 0,
+      "overflow": [],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "320x568",
+      "theme": "dark",
+      "zoom": 200,
+      "vw": 320,
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "bodyScrollWidth": 320,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 6,
+      "overflow": [
+        {
+          "sel": "div.session-art",
+          "left": 152,
+          "right": 362,
+          "width": 210,
+          "scrollW": 263,
+          "clientW": 210,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div.art-grid",
+          "left": 152,
+          "right": 362,
+          "width": 210,
+          "scrollW": 210,
+          "clientW": 210,
+          "text": ""
+        },
+        {
+          "sel": "div.art-orbit",
+          "left": 170,
+          "right": 415,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        },
+        {
+          "sel": "div.art-paper",
+          "left": 208.9,
+          "right": 342.1,
+          "width": 133.2,
+          "scrollW": 113,
+          "clientW": 101,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div",
+          "left": 295.1,
+          "right": 331.1,
+          "width": 35.9,
+          "scrollW": 25,
+          "clientW": 25,
+          "text": ""
+        },
+        {
+          "sel": "svg",
+          "left": 303.8,
+          "right": 322.4,
+          "width": 18.5,
+          "scrollW": 16,
+          "clientW": 16,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "390x844",
+      "theme": "dark",
+      "zoom": 200,
+      "vw": 390,
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 6,
+      "overflow": [
+        {
+          "sel": "div.session-art",
+          "left": 222,
+          "right": 432,
+          "width": 210,
+          "scrollW": 263,
+          "clientW": 210,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div.art-grid",
+          "left": 222,
+          "right": 432,
+          "width": 210,
+          "scrollW": 210,
+          "clientW": 210,
+          "text": ""
+        },
+        {
+          "sel": "div.art-orbit",
+          "left": 240,
+          "right": 485,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        },
+        {
+          "sel": "div.art-paper",
+          "left": 278.9,
+          "right": 412.1,
+          "width": 133.2,
+          "scrollW": 113,
+          "clientW": 101,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div",
+          "left": 365.1,
+          "right": 401.1,
+          "width": 35.9,
+          "scrollW": 25,
+          "clientW": 25,
+          "text": ""
+        },
+        {
+          "sel": "svg",
+          "left": 373.8,
+          "right": 392.4,
+          "width": 18.5,
+          "scrollW": 16,
+          "clientW": 16,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "view": "dashboard",
+      "vp": "1280x800",
+      "theme": "dark",
+      "zoom": 200,
+      "vw": 1280,
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 0,
+      "overflow": [],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    }
+  ],
+  "focus": [
+    {
+      "vp": "320x568",
+      "theme": "light",
+      "total": 19,
+      "weak": [
+        {
+          "sel": "button.nav-toggle",
+          "text": "",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 40,
+          "h": 40
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Lernplan",
+          "focused": true,
+          "outline": "none 3px rgb(36, 91, 211)",
+          "boxShadow": "none",
+          "w": 68,
+          "h": 36
+        },
+        {
+          "sel": "button.today-task",
+          "text": "01Lesen · Teil 1 – Überschriften",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 97
+        },
+        {
+          "sel": "button.today-task",
+          "text": "02Adaptive Übungen20 Min. · Gezi",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 79
+        },
+        {
+          "sel": "button.today-task",
+          "text": "03Hören · Teil 1 – Kurze Texte (",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 97
+        },
+        {
+          "sel": "button.daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 142,
+          "h": 43
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Alle Prüfungsteile",
+          "focused": true,
+          "outline": "none 3px rgb(36, 91, 211)",
+          "boxShadow": "none",
+          "w": 101,
+          "h": 40
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-0",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 40
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-1",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 40
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-2",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 40
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Einrichten",
+          "focused": true,
+          "outline": "none 3px rgb(36, 91, 211)",
+          "boxShadow": "none",
+          "w": 84,
+          "h": 36
+        }
+      ],
+      "weakCount": 11,
+      "mainFocus": {
+        "focused": true,
+        "outline": "none 3px",
+        "boxShadow": "none"
+      }
+    },
+    {
+      "vp": "1280x800",
+      "theme": "light",
+      "total": 19,
+      "weak": [
+        {
+          "sel": "button.nav-toggle",
+          "text": "",
+          "focused": false,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "rgba(20, 43, 69, 0.016) 0px 2px 4px 0px",
+          "w": 0,
+          "h": 0
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Lernplan",
+          "focused": true,
+          "outline": "none 3px rgb(36, 91, 211)",
+          "boxShadow": "none",
+          "w": 76,
+          "h": 36
+        },
+        {
+          "sel": "button.today-task",
+          "text": "01Lesen · Teil 1 – Überschriften",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 543,
+          "h": 63
+        },
+        {
+          "sel": "button.today-task",
+          "text": "02Adaptive Übungen20 Min. · Gezi",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 543,
+          "h": 63
+        },
+        {
+          "sel": "button.today-task",
+          "text": "03Hören · Teil 1 – Kurze Texte (",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 543,
+          "h": 63
+        },
+        {
+          "sel": "button.daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 236,
+          "h": 47
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Alle Prüfungsteile",
+          "focused": true,
+          "outline": "none 3px rgb(36, 91, 211)",
+          "boxShadow": "none",
+          "w": 130,
+          "h": 36
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-0",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 351,
+          "h": 40
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-1",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 351,
+          "h": 40
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-2",
+          "focused": true,
+          "outline": "none 3px rgb(23, 44, 70)",
+          "boxShadow": "none",
+          "w": 351,
+          "h": 40
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Einrichten",
+          "focused": true,
+          "outline": "none 3px rgb(36, 91, 211)",
+          "boxShadow": "none",
+          "w": 84,
+          "h": 36
+        }
+      ],
+      "weakCount": 11,
+      "mainFocus": {
+        "focused": true,
+        "outline": "none 3px",
+        "boxShadow": "none"
+      }
+    },
+    {
+      "vp": "320x568",
+      "theme": "dark",
+      "total": 19,
+      "weak": [
+        {
+          "sel": "button.nav-toggle",
+          "text": "",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 40,
+          "h": 40
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Lernplan",
+          "focused": true,
+          "outline": "none 3px rgb(155, 184, 255)",
+          "boxShadow": "none",
+          "w": 68,
+          "h": 36
+        },
+        {
+          "sel": "button.today-task",
+          "text": "01Lesen · Teil 1 – Überschriften",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 97
+        },
+        {
+          "sel": "button.today-task",
+          "text": "02Adaptive Übungen20 Min. · Gezi",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 79
+        },
+        {
+          "sel": "button.today-task",
+          "text": "03Hören · Teil 1 – Kurze Texte (",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 97
+        },
+        {
+          "sel": "button.daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 142,
+          "h": 43
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Alle Prüfungsteile",
+          "focused": true,
+          "outline": "none 3px rgb(155, 184, 255)",
+          "boxShadow": "none",
+          "w": 101,
+          "h": 40
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-0",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 40
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-1",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 40
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-2",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 244,
+          "h": 40
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Einrichten",
+          "focused": true,
+          "outline": "none 3px rgb(155, 184, 255)",
+          "boxShadow": "none",
+          "w": 84,
+          "h": 36
+        }
+      ],
+      "weakCount": 11,
+      "mainFocus": {
+        "focused": true,
+        "outline": "none 3px",
+        "boxShadow": "none"
+      }
+    },
+    {
+      "vp": "1280x800",
+      "theme": "dark",
+      "total": 19,
+      "weak": [
+        {
+          "sel": "button.nav-toggle",
+          "text": "",
+          "focused": false,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "rgba(0, 0, 0, 0.3) 0px 1px 2px 0px",
+          "w": 0,
+          "h": 0
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Lernplan",
+          "focused": true,
+          "outline": "none 3px rgb(155, 184, 255)",
+          "boxShadow": "none",
+          "w": 76,
+          "h": 36
+        },
+        {
+          "sel": "button.today-task",
+          "text": "01Lesen · Teil 1 – Überschriften",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 543,
+          "h": 63
+        },
+        {
+          "sel": "button.today-task",
+          "text": "02Adaptive Übungen20 Min. · Gezi",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 543,
+          "h": 63
+        },
+        {
+          "sel": "button.today-task",
+          "text": "03Hören · Teil 1 – Kurze Texte (",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 543,
+          "h": 63
+        },
+        {
+          "sel": "button.daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 236,
+          "h": 47
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Alle Prüfungsteile",
+          "focused": true,
+          "outline": "none 3px rgb(155, 184, 255)",
+          "boxShadow": "none",
+          "w": 130,
+          "h": 36
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-0",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 351,
+          "h": 40
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-1",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 351,
+          "h": 40
+        },
+        {
+          "sel": "button.focus-item",
+          "text": "synthetic-2",
+          "focused": true,
+          "outline": "none 3px rgb(237, 243, 252)",
+          "boxShadow": "none",
+          "w": 351,
+          "h": 40
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Einrichten",
+          "focused": true,
+          "outline": "none 3px rgb(155, 184, 255)",
+          "boxShadow": "none",
+          "w": 84,
+          "h": 36
+        }
+      ],
+      "weakCount": 11,
+      "mainFocus": {
+        "focused": true,
+        "outline": "none 3px",
+        "boxShadow": "none"
+      }
+    }
+  ],
+  "exam": [
+    {
+      "vp": "320x568",
+      "theme": "light",
+      "vw": 320,
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "bodyScrollWidth": 320,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 6,
+      "overflow": [
+        {
+          "sel": "div.session-art",
+          "left": 152,
+          "right": 362,
+          "width": 210,
+          "scrollW": 263,
+          "clientW": 210,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div.art-grid",
+          "left": 152,
+          "right": 362,
+          "width": 210,
+          "scrollW": 210,
+          "clientW": 210,
+          "text": ""
+        },
+        {
+          "sel": "div.art-orbit",
+          "left": 170,
+          "right": 415,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        },
+        {
+          "sel": "div.art-paper",
+          "left": 208.9,
+          "right": 342.1,
+          "width": 133.2,
+          "scrollW": 113,
+          "clientW": 101,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div",
+          "left": 295.1,
+          "right": 331.1,
+          "width": 35.9,
+          "scrollW": 25,
+          "clientW": 25,
+          "text": ""
+        },
+        {
+          "sel": "svg",
+          "left": 303.8,
+          "right": 322.4,
+          "width": 18.5,
+          "scrollW": 16,
+          "clientW": 16,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "vp": "390x844",
+      "theme": "light",
+      "vw": 390,
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 6,
+      "overflow": [
+        {
+          "sel": "div.session-art",
+          "left": 222,
+          "right": 432,
+          "width": 210,
+          "scrollW": 263,
+          "clientW": 210,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div.art-grid",
+          "left": 222,
+          "right": 432,
+          "width": 210,
+          "scrollW": 210,
+          "clientW": 210,
+          "text": ""
+        },
+        {
+          "sel": "div.art-orbit",
+          "left": 240,
+          "right": 485,
+          "width": 245,
+          "scrollW": 243,
+          "clientW": 243,
+          "text": ""
+        },
+        {
+          "sel": "div.art-paper",
+          "left": 278.9,
+          "right": 412.1,
+          "width": 133.2,
+          "scrollW": 113,
+          "clientW": 101,
+          "text": "DEUTSCHB1"
+        },
+        {
+          "sel": "div",
+          "left": 365.1,
+          "right": 401.1,
+          "width": 35.9,
+          "scrollW": 25,
+          "clientW": 25,
+          "text": ""
+        },
+        {
+          "sel": "svg",
+          "left": 373.8,
+          "right": 392.4,
+          "width": 18.5,
+          "scrollW": 16,
+          "clientW": 16,
+          "text": ""
+        }
+      ],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    },
+    {
+      "vp": "1280x800",
+      "theme": "light",
+      "vw": 1280,
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "bodyScrollWidth": 1280,
+      "docOverflow": 0,
+      "viewTitle": "Übersicht",
+      "overflowCount": 0,
+      "overflow": [],
+      "statOverflow": [],
+      "collisions": [],
+      "scrollers": [],
+      "focusables": 19
+    }
+  ]
+}

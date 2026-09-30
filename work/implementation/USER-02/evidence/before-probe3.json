@@ -1,0 +1,2478 @@
+{
+  "label": "before",
+  "at": "2026-09-30T17:56:50.281Z",
+  "stats": [
+    {
+      "vp": "320x568",
+      "theme": "light",
+      "present": true,
+      "gridCols": "142px 142px",
+      "wrapW": 286,
+      "wrapScrollW": 286,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 160,
+          "w": 142,
+          "scrollW": 141,
+          "clientW": 141,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "ws": "normal",
+              "lines": 5,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3,
+              "cellRight": 160,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 73,
+              "right": 118.5,
+              "w": 45.5,
+              "cellRight": 160,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6,
+              "cellRight": 160,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3,
+              "cellRight": 160,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 160,
+          "right": 302,
+          "w": 142,
+          "scrollW": 142,
+          "clientW": 142,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "ws": "normal",
+              "lines": 5,
+              "left": 215,
+              "right": 286.1,
+              "w": 71.1,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 215,
+              "right": 256.3,
+              "w": 41.3,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 232.9,
+              "right": 256.3,
+              "w": 23.4,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 215,
+              "right": 286.1,
+              "w": 71.1,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 160,
+          "w": 142,
+          "scrollW": 153,
+          "clientW": 141,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "ws": "normal",
+              "lines": 4,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4,
+              "cellRight": 160,
+              "wrapsPastCell": true,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4,
+              "cellRight": 160,
+              "wrapsPastCell": true,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 138.9,
+              "w": 65.9,
+              "cellRight": 160,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 160,
+          "right": 302,
+          "w": 142,
+          "scrollW": 144,
+          "clientW": 142,
+          "measures": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "ws": "normal",
+              "lines": 5,
+              "left": 215,
+              "right": 304,
+              "w": 89,
+              "cellRight": 302,
+              "wrapsPastCell": true,
+              "wrapsPastWrap": true
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 215,
+              "right": 247.6,
+              "w": 32.6,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 224,
+              "right": 247.6,
+              "w": 23.6,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 215,
+              "right": 304,
+              "w": 89,
+              "cellRight": 302,
+              "wrapsPastCell": true,
+              "wrapsPastWrap": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vp": "390x844",
+      "theme": "light",
+      "present": true,
+      "gridCols": "177px 177px",
+      "wrapW": 356,
+      "wrapScrollW": 354,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 195,
+          "w": 177,
+          "scrollW": 176,
+          "clientW": 176,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "ws": "normal",
+              "lines": 5,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 73,
+              "right": 118.5,
+              "w": 45.5,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 195,
+          "right": 372,
+          "w": 177,
+          "scrollW": 177,
+          "clientW": 177,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "ws": "normal",
+              "lines": 5,
+              "left": 250,
+              "right": 321.1,
+              "w": 71.1,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 250,
+              "right": 291.3,
+              "w": 41.3,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 267.9,
+              "right": 291.3,
+              "w": 23.4,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 250,
+              "right": 321.1,
+              "w": 71.1,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 195,
+          "w": 177,
+          "scrollW": 176,
+          "clientW": 176,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "ws": "normal",
+              "lines": 4,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 138.9,
+              "w": 65.9,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 195,
+          "right": 372,
+          "w": 177,
+          "scrollW": 177,
+          "clientW": 177,
+          "measures": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "ws": "normal",
+              "lines": 5,
+              "left": 250,
+              "right": 339,
+              "w": 89,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 250,
+              "right": 282.6,
+              "w": 32.6,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 259,
+              "right": 282.6,
+              "w": 23.6,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 250,
+              "right": 339,
+              "w": 89,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vp": "600x900",
+      "theme": "light",
+      "present": true,
+      "gridCols": "275px 275px",
+      "wrapW": 552,
+      "wrapScrollW": 550,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 25,
+          "right": 300,
+          "w": 275,
+          "scrollW": 274,
+          "clientW": 274,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "ws": "normal",
+              "lines": 5,
+              "left": 80,
+              "right": 152.3,
+              "w": 72.3,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 80,
+              "right": 125.5,
+              "w": 45.5,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 106.9,
+              "right": 125.5,
+              "w": 18.6,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 80,
+              "right": 152.3,
+              "w": 72.3,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 300,
+          "right": 575,
+          "w": 275,
+          "scrollW": 275,
+          "clientW": 275,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "ws": "normal",
+              "lines": 5,
+              "left": 355,
+              "right": 426.1,
+              "w": 71.1,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 355,
+              "right": 396.3,
+              "w": 41.3,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 372.9,
+              "right": 396.3,
+              "w": 23.4,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 355,
+              "right": 426.1,
+              "w": 71.1,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 25,
+          "right": 300,
+          "w": 275,
+          "scrollW": 274,
+          "clientW": 274,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "ws": "normal",
+              "lines": 4,
+              "left": 80,
+              "right": 178.4,
+              "w": 98.4,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 80,
+              "right": 178.4,
+              "w": 98.4,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 80,
+              "right": 145.9,
+              "w": 65.9,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 300,
+          "right": 575,
+          "w": 275,
+          "scrollW": 275,
+          "clientW": 275,
+          "measures": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "ws": "normal",
+              "lines": 5,
+              "left": 355,
+              "right": 444,
+              "w": 89,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 355,
+              "right": 387.6,
+              "w": 32.6,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 364,
+              "right": 387.6,
+              "w": 23.6,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 355,
+              "right": 444,
+              "w": 89,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vp": "768x1024",
+      "theme": "light",
+      "present": true,
+      "gridCols": "351.5px 351.5px",
+      "wrapW": 705,
+      "wrapScrollW": 703,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 25,
+          "right": 376.5,
+          "w": 351.5,
+          "scrollW": 351,
+          "clientW": 351,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "ws": "normal",
+              "lines": 5,
+              "left": 87,
+              "right": 163.5,
+              "w": 76.5,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 87,
+              "right": 139.5,
+              "w": 52.5,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 117.5,
+              "right": 139.5,
+              "w": 22,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 87,
+              "right": 163.5,
+              "w": 76.5,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 376.5,
+          "right": 728,
+          "w": 351.5,
+          "scrollW": 352,
+          "clientW": 352,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "ws": "normal",
+              "lines": 5,
+              "left": 438.5,
+              "right": 513.8,
+              "w": 75.3,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 438.5,
+              "right": 486.4,
+              "w": 47.9,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 458.8,
+              "right": 486.4,
+              "w": 27.6,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 438.5,
+              "right": 513.8,
+              "w": 75.3,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 25,
+          "right": 376.5,
+          "w": 351.5,
+          "scrollW": 351,
+          "clientW": 351,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "ws": "normal",
+              "lines": 4,
+              "left": 87,
+              "right": 198.6,
+              "w": 111.6,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 87,
+              "right": 198.6,
+              "w": 111.6,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 87,
+              "right": 156.7,
+              "w": 69.7,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 376.5,
+          "right": 728,
+          "w": 351.5,
+          "scrollW": 352,
+          "clientW": 352,
+          "measures": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "ws": "normal",
+              "lines": 5,
+              "left": 438.5,
+              "right": 532.7,
+              "w": 94.2,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 438.5,
+              "right": 476.6,
+              "w": 38.1,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 448.7,
+              "right": 476.6,
+              "w": 27.9,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 438.5,
+              "right": 532.7,
+              "w": 94.2,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vp": "1280x800",
+      "theme": "light",
+      "present": true,
+      "gridCols": "231.75px 231.75px 231.75px 231.75px",
+      "wrapW": 929,
+      "wrapScrollW": 927,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 293,
+          "right": 524.8,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "ws": "normal",
+              "lines": 5,
+              "left": 367,
+              "right": 443.5,
+              "w": 76.5,
+              "cellRight": 524.8,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 367,
+              "right": 419.5,
+              "w": 52.5,
+              "cellRight": 524.8,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 397.5,
+              "right": 419.5,
+              "w": 22,
+              "cellRight": 524.8,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 367,
+              "right": 443.5,
+              "w": 76.5,
+              "cellRight": 524.8,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 524.8,
+          "right": 756.5,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "ws": "normal",
+              "lines": 5,
+              "left": 598.8,
+              "right": 674,
+              "w": 75.3,
+              "cellRight": 756.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 598.8,
+              "right": 646.7,
+              "w": 47.9,
+              "cellRight": 756.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 619.1,
+              "right": 646.7,
+              "w": 27.6,
+              "cellRight": 756.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 598.8,
+              "right": 674,
+              "w": 75.3,
+              "cellRight": 756.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 756.5,
+          "right": 988.3,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "ws": "normal",
+              "lines": 4,
+              "left": 830.5,
+              "right": 942.1,
+              "w": 111.6,
+              "cellRight": 988.3,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 830.5,
+              "right": 942.1,
+              "w": 111.6,
+              "cellRight": 988.3,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 830.5,
+              "right": 900.2,
+              "w": 69.7,
+              "cellRight": 988.3,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 988.3,
+          "right": 1220,
+          "w": 231.8,
+          "scrollW": 232,
+          "clientW": 232,
+          "measures": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "ws": "normal",
+              "lines": 5,
+              "left": 1062.3,
+              "right": 1156.4,
+              "w": 94.2,
+              "cellRight": 1220,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 1062.3,
+              "right": 1100.4,
+              "w": 38.1,
+              "cellRight": 1220,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 1072.4,
+              "right": 1100.4,
+              "w": 27.9,
+              "cellRight": 1220,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 1062.3,
+              "right": 1156.4,
+              "w": 94.2,
+              "cellRight": 1220,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vp": "320x568",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "142px 142px",
+      "wrapW": 286,
+      "wrapScrollW": 286,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 160,
+          "w": 142,
+          "scrollW": 141,
+          "clientW": 141,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "ws": "normal",
+              "lines": 5,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3,
+              "cellRight": 160,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 73,
+              "right": 118.5,
+              "w": 45.5,
+              "cellRight": 160,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6,
+              "cellRight": 160,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3,
+              "cellRight": 160,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 160,
+          "right": 302,
+          "w": 142,
+          "scrollW": 142,
+          "clientW": 142,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "ws": "normal",
+              "lines": 5,
+              "left": 215,
+              "right": 286.1,
+              "w": 71.1,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 215,
+              "right": 256.3,
+              "w": 41.3,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 232.9,
+              "right": 256.3,
+              "w": 23.4,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 215,
+              "right": 286.1,
+              "w": 71.1,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 160,
+          "w": 142,
+          "scrollW": 153,
+          "clientW": 141,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "ws": "normal",
+              "lines": 4,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4,
+              "cellRight": 160,
+              "wrapsPastCell": true,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4,
+              "cellRight": 160,
+              "wrapsPastCell": true,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 138.9,
+              "w": 65.9,
+              "cellRight": 160,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 160,
+          "right": 302,
+          "w": 142,
+          "scrollW": 144,
+          "clientW": 142,
+          "measures": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "ws": "normal",
+              "lines": 5,
+              "left": 215,
+              "right": 304,
+              "w": 89,
+              "cellRight": 302,
+              "wrapsPastCell": true,
+              "wrapsPastWrap": true
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 215,
+              "right": 247.6,
+              "w": 32.6,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 224,
+              "right": 247.6,
+              "w": 23.6,
+              "cellRight": 302,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 215,
+              "right": 304,
+              "w": 89,
+              "cellRight": 302,
+              "wrapsPastCell": true,
+              "wrapsPastWrap": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vp": "390x844",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "177px 177px",
+      "wrapW": 356,
+      "wrapScrollW": 354,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 195,
+          "w": 177,
+          "scrollW": 176,
+          "clientW": 176,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "ws": "normal",
+              "lines": 5,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 73,
+              "right": 118.5,
+              "w": 45.5,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 195,
+          "right": 372,
+          "w": 177,
+          "scrollW": 177,
+          "clientW": 177,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "ws": "normal",
+              "lines": 5,
+              "left": 250,
+              "right": 321.1,
+              "w": 71.1,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 250,
+              "right": 291.3,
+              "w": 41.3,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 267.9,
+              "right": 291.3,
+              "w": 23.4,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 250,
+              "right": 321.1,
+              "w": 71.1,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 195,
+          "w": 177,
+          "scrollW": 176,
+          "clientW": 176,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "ws": "normal",
+              "lines": 4,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 73,
+              "right": 138.9,
+              "w": 65.9,
+              "cellRight": 195,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 195,
+          "right": 372,
+          "w": 177,
+          "scrollW": 177,
+          "clientW": 177,
+          "measures": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "ws": "normal",
+              "lines": 5,
+              "left": 250,
+              "right": 339,
+              "w": 89,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 250,
+              "right": 282.6,
+              "w": 32.6,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 259,
+              "right": 282.6,
+              "w": 23.6,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 250,
+              "right": 339,
+              "w": 89,
+              "cellRight": 372,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vp": "600x900",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "275px 275px",
+      "wrapW": 552,
+      "wrapScrollW": 550,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 25,
+          "right": 300,
+          "w": 275,
+          "scrollW": 274,
+          "clientW": 274,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "ws": "normal",
+              "lines": 5,
+              "left": 80,
+              "right": 152.3,
+              "w": 72.3,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 80,
+              "right": 125.5,
+              "w": 45.5,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 106.9,
+              "right": 125.5,
+              "w": 18.6,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 80,
+              "right": 152.3,
+              "w": 72.3,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 300,
+          "right": 575,
+          "w": 275,
+          "scrollW": 275,
+          "clientW": 275,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "ws": "normal",
+              "lines": 5,
+              "left": 355,
+              "right": 426.1,
+              "w": 71.1,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 355,
+              "right": 396.3,
+              "w": 41.3,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 372.9,
+              "right": 396.3,
+              "w": 23.4,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 355,
+              "right": 426.1,
+              "w": 71.1,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 25,
+          "right": 300,
+          "w": 275,
+          "scrollW": 274,
+          "clientW": 274,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "ws": "normal",
+              "lines": 4,
+              "left": 80,
+              "right": 178.4,
+              "w": 98.4,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 80,
+              "right": 178.4,
+              "w": 98.4,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 80,
+              "right": 145.9,
+              "w": 65.9,
+              "cellRight": 300,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 300,
+          "right": 575,
+          "w": 275,
+          "scrollW": 275,
+          "clientW": 275,
+          "measures": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "ws": "normal",
+              "lines": 5,
+              "left": 355,
+              "right": 444,
+              "w": 89,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 355,
+              "right": 387.6,
+              "w": 32.6,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 364,
+              "right": 387.6,
+              "w": 23.6,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 355,
+              "right": 444,
+              "w": 89,
+              "cellRight": 575,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vp": "768x1024",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "351.5px 351.5px",
+      "wrapW": 705,
+      "wrapScrollW": 703,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 25,
+          "right": 376.5,
+          "w": 351.5,
+          "scrollW": 351,
+          "clientW": 351,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "ws": "normal",
+              "lines": 5,
+              "left": 87,
+              "right": 163.5,
+              "w": 76.5,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 87,
+              "right": 139.5,
+              "w": 52.5,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 117.5,
+              "right": 139.5,
+              "w": 22,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 87,
+              "right": 163.5,
+              "w": 76.5,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 376.5,
+          "right": 728,
+          "w": 351.5,
+          "scrollW": 352,
+          "clientW": 352,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "ws": "normal",
+              "lines": 5,
+              "left": 438.5,
+              "right": 513.8,
+              "w": 75.3,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 438.5,
+              "right": 486.4,
+              "w": 47.9,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 458.8,
+              "right": 486.4,
+              "w": 27.6,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 438.5,
+              "right": 513.8,
+              "w": 75.3,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 25,
+          "right": 376.5,
+          "w": 351.5,
+          "scrollW": 351,
+          "clientW": 351,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "ws": "normal",
+              "lines": 4,
+              "left": 87,
+              "right": 198.6,
+              "w": 111.6,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 87,
+              "right": 198.6,
+              "w": 111.6,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 87,
+              "right": 156.7,
+              "w": 69.7,
+              "cellRight": 376.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 376.5,
+          "right": 728,
+          "w": 351.5,
+          "scrollW": 352,
+          "clientW": 352,
+          "measures": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "ws": "normal",
+              "lines": 5,
+              "left": 438.5,
+              "right": 532.7,
+              "w": 94.2,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 438.5,
+              "right": 476.6,
+              "w": 38.1,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 448.7,
+              "right": 476.6,
+              "w": 27.9,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 438.5,
+              "right": 532.7,
+              "w": 94.2,
+              "cellRight": 728,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vp": "1280x800",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "231.75px 231.75px 231.75px 231.75px",
+      "wrapW": 929,
+      "wrapScrollW": 927,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 293,
+          "right": 524.8,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "ws": "normal",
+              "lines": 5,
+              "left": 367,
+              "right": 443.5,
+              "w": 76.5,
+              "cellRight": 524.8,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 367,
+              "right": 419.5,
+              "w": 52.5,
+              "cellRight": 524.8,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 397.5,
+              "right": 419.5,
+              "w": 22,
+              "cellRight": 524.8,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 367,
+              "right": 443.5,
+              "w": 76.5,
+              "cellRight": 524.8,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 524.8,
+          "right": 756.5,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "ws": "normal",
+              "lines": 5,
+              "left": 598.8,
+              "right": 674,
+              "w": 75.3,
+              "cellRight": 756.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 598.8,
+              "right": 646.7,
+              "w": 47.9,
+              "cellRight": 756.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 619.1,
+              "right": 646.7,
+              "w": 27.6,
+              "cellRight": 756.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 598.8,
+              "right": 674,
+              "w": 75.3,
+              "cellRight": 756.5,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 756.5,
+          "right": 988.3,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "measures": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "ws": "normal",
+              "lines": 4,
+              "left": 830.5,
+              "right": 942.1,
+              "w": 111.6,
+              "cellRight": 988.3,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 830.5,
+              "right": 942.1,
+              "w": 111.6,
+              "cellRight": 988.3,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 830.5,
+              "right": 900.2,
+              "w": 69.7,
+              "cellRight": 988.3,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 988.3,
+          "right": 1220,
+          "w": 231.8,
+          "scrollW": 232,
+          "clientW": 232,
+          "measures": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "ws": "normal",
+              "lines": 5,
+              "left": 1062.3,
+              "right": 1156.4,
+              "w": 94.2,
+              "cellRight": 1220,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "ws": "nowrap",
+              "lines": 3,
+              "left": 1062.3,
+              "right": 1100.4,
+              "w": 38.1,
+              "cellRight": 1220,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 1072.4,
+              "right": 1100.4,
+              "w": 27.9,
+              "cellRight": 1220,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "ws": "nowrap",
+              "lines": 1,
+              "left": 1062.3,
+              "right": 1156.4,
+              "w": 94.2,
+              "cellRight": 1220,
+              "wrapsPastCell": false,
+              "wrapsPastWrap": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "passages": [
+    {
+      "vp": "320x568",
+      "cards": "LV1,LV2,LV3,SB1,SB2,HV1,HV2,HV3,SA1,SP1,SP2,SP3",
+      "present": true,
+      "vw": 320,
+      "docOverflow": 0,
+      "cls": "passage short",
+      "clientH": 242,
+      "scrollH": 242,
+      "overflowY": "auto",
+      "maxHeight": "280px",
+      "innerScrolls": false,
+      "hiddenPx": 0,
+      "textLen": 187,
+      "reachedScrollTop": 0,
+      "maxScrollTop": 0,
+      "pageScrollH": 3268,
+      "pageClientH": 568,
+      "passageRect": {
+        "x": 36,
+        "y": 1200,
+        "w": 248,
+        "h": 244
+      },
+      "tallerThanViewport": false
+    },
+    {
+      "vp": "390x844",
+      "cards": "LV1,LV2,LV3,SB1,SB2,HV1,HV2,HV3,SA1,SP1,SP2,SP3",
+      "present": true,
+      "vw": 390,
+      "docOverflow": 0,
+      "cls": "passage short",
+      "clientH": 242,
+      "scrollH": 242,
+      "overflowY": "auto",
+      "maxHeight": "280px",
+      "innerScrolls": false,
+      "hiddenPx": 0,
+      "textLen": 234,
+      "reachedScrollTop": 0,
+      "maxScrollTop": 0,
+      "pageScrollH": 3065,
+      "pageClientH": 844,
+      "passageRect": {
+        "x": 36,
+        "y": 1179,
+        "w": 318,
+        "h": 244
+      },
+      "tallerThanViewport": false
+    },
+    {
+      "vp": "600x900",
+      "cards": "LV1,LV2,LV3,SB1,SB2,HV1,HV2,HV3,SA1,SP1,SP2,SP3",
+      "present": true,
+      "vw": 600,
+      "docOverflow": 0,
+      "cls": "passage short",
+      "clientH": 121,
+      "scrollH": 121,
+      "overflowY": "auto",
+      "maxHeight": "280px",
+      "innerScrolls": false,
+      "hiddenPx": 0,
+      "textLen": 187,
+      "reachedScrollTop": 0,
+      "maxScrollTop": 0,
+      "pageScrollH": 2316,
+      "pageClientH": 900,
+      "passageRect": {
+        "x": 43,
+        "y": 807,
+        "w": 514,
+        "h": 123
+      },
+      "tallerThanViewport": false
+    },
+    {
+      "vp": "768x1024",
+      "cards": "LV1,LV2,LV3,SB1,SB2,HV1,HV2,HV3,SA1,SP1,SP2,SP3",
+      "present": true,
+      "vw": 753,
+      "docOverflow": 0,
+      "cls": "passage short",
+      "clientH": 127,
+      "scrollH": 127,
+      "overflowY": "auto",
+      "maxHeight": "280px",
+      "innerScrolls": false,
+      "hiddenPx": 0,
+      "textLen": 194,
+      "reachedScrollTop": 0,
+      "maxScrollTop": 0,
+      "pageScrollH": 2183,
+      "pageClientH": 1024,
+      "passageRect": {
+        "x": 49,
+        "y": 747,
+        "w": 655,
+        "h": 129
+      },
+      "tallerThanViewport": false
+    },
+    {
+      "vp": "1280x800",
+      "cards": "LV1,LV2,LV3,SB1,SB2,HV1,HV2,HV3,SA1,SP1,SP2,SP3",
+      "present": true,
+      "vw": 1265,
+      "docOverflow": 0,
+      "cls": "passage short",
+      "clientH": 96,
+      "scrollH": 96,
+      "overflowY": "auto",
+      "maxHeight": "280px",
+      "innerScrolls": false,
+      "hiddenPx": 0,
+      "textLen": 194,
+      "reachedScrollTop": 0,
+      "maxScrollTop": 0,
+      "pageScrollH": 2119,
+      "pageClientH": 800,
+      "passageRect": {
+        "x": 317,
+        "y": 705,
+        "w": 879,
+        "h": 98
+      },
+      "tallerThanViewport": false
+    }
+  ]
+}

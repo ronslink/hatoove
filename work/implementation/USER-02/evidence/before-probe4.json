@@ -1,0 +1,946 @@
+{
+  "label": "before",
+  "at": "2026-09-30T17:58:56.559Z",
+  "focus": [
+    {
+      "vp": "390x844",
+      "theme": "light",
+      "steps": [
+        {
+          "sel": "a.skip-link",
+          "text": "Zum Inhalt springen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "rgba(20, 43, 69, 0.027) 0px 6px 24px 0px",
+          "borderColor": "rgb(23, 44, 70)",
+          "rect": {
+            "x": 12,
+            "y": 10,
+            "w": 166,
+            "h": 45
+          }
+        },
+        {
+          "sel": "button.nav-toggle",
+          "text": "",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(225, 231, 239)",
+          "rect": {
+            "x": 17,
+            "y": 22,
+            "w": 40,
+            "h": 40
+          }
+        },
+        {
+          "sel": "button.exam-date",
+          "text": "42 Tage bis zur PrüfungMi., 11",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "rgba(20, 43, 69, 0.016) 0px 2px 4px 0px",
+          "borderColor": "rgb(225, 231, 239)",
+          "rect": {
+            "x": 17,
+            "y": 207,
+            "w": 356,
+            "h": 47
+          }
+        },
+        {
+          "sel": "button.primary.lg",
+          "text": "Lernschritt starten",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "rgba(29, 80, 176, 0.1) 0px 3px 7px 0px",
+          "borderColor": "rgb(255, 255, 255)",
+          "rect": {
+            "x": 41,
+            "y": 461,
+            "w": 172,
+            "h": 43
+          }
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Lernplan",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(36, 91, 211)",
+          "rect": {
+            "x": 284,
+            "y": 579,
+            "w": 68,
+            "h": 36
+          }
+        },
+        {
+          "sel": "button.today-task",
+          "text": "01Lesen · Teil 1 – Überschrift",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(225, 231, 239) rgb(23, 44, 70) rgb(23, 44, 70)",
+          "rect": {
+            "x": 38,
+            "y": 664,
+            "w": 314,
+            "h": 63
+          }
+        },
+        {
+          "sel": "button.today-task",
+          "text": "02Adaptive Übungen20 Min. · Ge",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(225, 231, 239) rgb(23, 44, 70) rgb(23, 44, 70)",
+          "rect": {
+            "x": 38,
+            "y": 727,
+            "w": 314,
+            "h": 63
+          }
+        },
+        {
+          "sel": "button.today-task",
+          "text": "03Hören · Teil 1 – Kurze Texte",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(225, 231, 239) rgb(23, 44, 70) rgb(23, 44, 70)",
+          "rect": {
+            "x": 38,
+            "y": 763,
+            "w": 314,
+            "h": 81
+          }
+        },
+        {
+          "sel": "button.forecast-link",
+          "text": "Mit einem Mocktest überprüfen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "rgba(20, 43, 69, 0.016) 0px 2px 4px 0px",
+          "borderColor": "rgb(225, 231, 239)",
+          "rect": {
+            "x": 38,
+            "y": 402,
+            "w": 314,
+            "h": 40
+          }
+        },
+        {
+          "sel": "button.daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(23, 44, 70)",
+          "rect": {
+            "x": 195,
+            "y": 566,
+            "w": 177,
+            "h": 43
+          }
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Alle Prüfungsteile",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(36, 91, 211)",
+          "rect": {
+            "x": 260,
+            "y": 658,
+            "w": 113,
+            "h": 40
+          }
+        },
+        {
+          "sel": "button.skill-card",
+          "text": "LesenTexte gezielt verstehenNo",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "rgba(20, 43, 69, 0.016) 0px 2px 4px 0px",
+          "borderColor": "rgb(225, 231, 239)",
+          "rect": {
+            "x": 17,
+            "y": 619,
+            "w": 173,
+            "h": 225
+          }
+        },
+        {
+          "sel": "button.skill-card",
+          "text": "SprachbausteineGrammatik im Ko",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "rgba(20, 43, 69, 0.016) 0px 2px 4px 0px",
+          "borderColor": "rgb(225, 231, 239)",
+          "rect": {
+            "x": 200,
+            "y": 619,
+            "w": 173,
+            "h": 225
+          }
+        },
+        {
+          "sel": "button.skill-card",
+          "text": "HörenDie wichtigen Details hör",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "rgba(20, 43, 69, 0.016) 0px 2px 4px 0px",
+          "borderColor": "rgb(225, 231, 239)",
+          "rect": {
+            "x": 17,
+            "y": 309,
+            "w": 173,
+            "h": 225
+          }
+        }
+      ]
+    },
+    {
+      "vp": "1280x800",
+      "theme": "light",
+      "steps": [
+        {
+          "sel": "a.skip-link",
+          "text": "Zum Inhalt springen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(25, 73, 175)",
+          "outlineNone": false,
+          "boxShadow": "rgba(20, 43, 69, 0.027) 0px 6px 24px 0px",
+          "borderColor": "rgb(23, 44, 70)",
+          "rect": {
+            "x": 12,
+            "y": 10,
+            "w": 166,
+            "h": 45
+          }
+        },
+        {
+          "sel": "button.brand-home",
+          "text": "CertaExam Academy",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(246, 248, 252)",
+          "rect": {
+            "x": 25,
+            "y": 23,
+            "w": 129,
+            "h": 51
+          }
+        },
+        {
+          "sel": "button.nav-item.active",
+          "text": "Übersicht",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(255, 255, 255)",
+          "rect": {
+            "x": 18,
+            "y": 195,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Lernplan",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 232,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Adaptive Übungen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 269,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Wortschatz",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 306,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Fehlerheft",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 343,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Prüfungsteile",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 418,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Hören",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 455,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Schreiben",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 492,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Sprechen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 529,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Mocktest",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 566,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Nachschlagen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 641,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Einstellungen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 678,
+            "w": 202,
+            "h": 35
+          }
+        }
+      ]
+    },
+    {
+      "vp": "390x844",
+      "theme": "dark",
+      "steps": [
+        {
+          "sel": "a.skip-link",
+          "text": "Zum Inhalt springen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "rgba(0, 0, 0, 0.3) 0px 1px 2px 0px, rgba(0, 0, 0, 0.6) 0px 10px ",
+          "borderColor": "rgb(237, 243, 252)",
+          "rect": {
+            "x": 12,
+            "y": 10,
+            "w": 166,
+            "h": 45
+          }
+        },
+        {
+          "sel": "button.nav-toggle",
+          "text": "",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(44, 61, 85)",
+          "rect": {
+            "x": 17,
+            "y": 22,
+            "w": 40,
+            "h": 40
+          }
+        },
+        {
+          "sel": "button.exam-date",
+          "text": "42 Tage bis zur PrüfungMi., 11",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "rgba(0, 0, 0, 0.3) 0px 1px 2px 0px",
+          "borderColor": "rgb(44, 61, 85)",
+          "rect": {
+            "x": 17,
+            "y": 207,
+            "w": 356,
+            "h": 47
+          }
+        },
+        {
+          "sel": "button.primary.lg",
+          "text": "Lernschritt starten",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "rgba(29, 80, 176, 0.1) 0px 3px 7px 0px",
+          "borderColor": "rgb(255, 255, 255)",
+          "rect": {
+            "x": 41,
+            "y": 461,
+            "w": 172,
+            "h": 43
+          }
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Lernplan",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(155, 184, 255)",
+          "rect": {
+            "x": 284,
+            "y": 579,
+            "w": 68,
+            "h": 36
+          }
+        },
+        {
+          "sel": "button.today-task",
+          "text": "01Lesen · Teil 1 – Überschrift",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(44, 61, 85) rgb(237, 243, 252) rgb(237, 243, 252)",
+          "rect": {
+            "x": 38,
+            "y": 664,
+            "w": 314,
+            "h": 63
+          }
+        },
+        {
+          "sel": "button.today-task",
+          "text": "02Adaptive Übungen20 Min. · Ge",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(44, 61, 85) rgb(237, 243, 252) rgb(237, 243, 252)",
+          "rect": {
+            "x": 38,
+            "y": 727,
+            "w": 314,
+            "h": 63
+          }
+        },
+        {
+          "sel": "button.today-task",
+          "text": "03Hören · Teil 1 – Kurze Texte",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(44, 61, 85) rgb(237, 243, 252) rgb(237, 243, 252)",
+          "rect": {
+            "x": 38,
+            "y": 763,
+            "w": 314,
+            "h": 81
+          }
+        },
+        {
+          "sel": "button.forecast-link",
+          "text": "Mit einem Mocktest überprüfen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "rgba(0, 0, 0, 0.3) 0px 1px 2px 0px",
+          "borderColor": "rgb(44, 61, 85)",
+          "rect": {
+            "x": 38,
+            "y": 402,
+            "w": 314,
+            "h": 40
+          }
+        },
+        {
+          "sel": "button.daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(237, 243, 252)",
+          "rect": {
+            "x": 195,
+            "y": 566,
+            "w": 177,
+            "h": 43
+          }
+        },
+        {
+          "sel": "button.text-button",
+          "text": "Alle Prüfungsteile",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(155, 184, 255)",
+          "rect": {
+            "x": 260,
+            "y": 658,
+            "w": 113,
+            "h": 40
+          }
+        },
+        {
+          "sel": "button.skill-card",
+          "text": "LesenTexte gezielt verstehenNo",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "rgba(0, 0, 0, 0.3) 0px 1px 2px 0px",
+          "borderColor": "rgb(44, 61, 85)",
+          "rect": {
+            "x": 17,
+            "y": 619,
+            "w": 173,
+            "h": 225
+          }
+        },
+        {
+          "sel": "button.skill-card",
+          "text": "SprachbausteineGrammatik im Ko",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "rgba(0, 0, 0, 0.3) 0px 1px 2px 0px",
+          "borderColor": "rgb(44, 61, 85)",
+          "rect": {
+            "x": 200,
+            "y": 619,
+            "w": 173,
+            "h": 225
+          }
+        },
+        {
+          "sel": "button.skill-card",
+          "text": "HörenDie wichtigen Details hör",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "rgba(0, 0, 0, 0.3) 0px 1px 2px 0px",
+          "borderColor": "rgb(44, 61, 85)",
+          "rect": {
+            "x": 17,
+            "y": 309,
+            "w": 173,
+            "h": 225
+          }
+        }
+      ]
+    },
+    {
+      "vp": "1280x800",
+      "theme": "dark",
+      "steps": [
+        {
+          "sel": "a.skip-link",
+          "text": "Zum Inhalt springen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 204, 255)",
+          "outlineNone": false,
+          "boxShadow": "rgba(0, 0, 0, 0.3) 0px 1px 2px 0px, rgba(0, 0, 0, 0.6) 0px 10px ",
+          "borderColor": "rgb(237, 243, 252)",
+          "rect": {
+            "x": 12,
+            "y": 10,
+            "w": 166,
+            "h": 45
+          }
+        },
+        {
+          "sel": "button.brand-home",
+          "text": "CertaExam Academy",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(246, 248, 252)",
+          "rect": {
+            "x": 25,
+            "y": 23,
+            "w": 129,
+            "h": 51
+          }
+        },
+        {
+          "sel": "button.nav-item.active",
+          "text": "Übersicht",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(255, 255, 255)",
+          "rect": {
+            "x": 18,
+            "y": 195,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Lernplan",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 232,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Adaptive Übungen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 269,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Wortschatz",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 306,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Fehlerheft",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 343,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Prüfungsteile",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 418,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Hören",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 455,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Schreiben",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 492,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Sprechen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 529,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Mocktest",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 566,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Nachschlagen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 641,
+            "w": 202,
+            "h": 35
+          }
+        },
+        {
+          "sel": "button.nav-item",
+          "text": "Einstellungen",
+          "focusVisible": true,
+          "outline": "solid 2px rgb(182, 209, 255)",
+          "outlineNone": false,
+          "boxShadow": "none",
+          "borderColor": "rgb(212, 222, 236)",
+          "rect": {
+            "x": 18,
+            "y": 678,
+            "w": 202,
+            "h": 35
+          }
+        }
+      ]
+    }
+  ],
+  "longest": [
+    {
+      "vp": "320x568",
+      "part": "HV1"
+    },
+    {
+      "vp": "320x568",
+      "part": "LV2"
+    },
+    {
+      "vp": "320x568",
+      "part": "SB1"
+    },
+    {
+      "vp": "390x844",
+      "part": "HV1"
+    },
+    {
+      "vp": "390x844",
+      "part": "LV2"
+    },
+    {
+      "vp": "390x844",
+      "part": "SB1"
+    },
+    {
+      "vp": "600x900",
+      "part": "HV1"
+    },
+    {
+      "vp": "600x900",
+      "part": "LV2"
+    },
+    {
+      "vp": "600x900",
+      "part": "SB1"
+    },
+    {
+      "vp": "1280x800",
+      "part": "HV1"
+    },
+    {
+      "vp": "1280x800",
+      "part": "LV2"
+    },
+    {
+      "vp": "1280x800",
+      "part": "SB1"
+    }
+  ],
+  "drawer": [
+    {
+      "vp": "390x844",
+      "seq": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "vp": "320x568",
+      "seq": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  ]
+}

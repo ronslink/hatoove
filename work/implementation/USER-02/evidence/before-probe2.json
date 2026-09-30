@@ -1,0 +1,5345 @@
+{
+  "label": "before",
+  "at": "2026-09-30T17:54:35.860Z",
+  "stats": [
+    {
+      "vp": "320x568",
+      "theme": "light",
+      "present": true,
+      "gridCols": "142px 142px",
+      "wrapW": 286,
+      "wrapScrollW": 286,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 160,
+          "w": 142,
+          "scrollW": 141,
+          "clientW": 141,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 19,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 160,
+          "right": 302,
+          "w": 142,
+          "scrollW": 142,
+          "clientW": 142,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 215,
+              "right": 286.1,
+              "w": 71.1
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 215,
+              "right": 286.1,
+              "w": 71.1
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 23,
+              "left": 232.9,
+              "right": 256.3,
+              "w": 23.4
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 215,
+              "right": 286.1,
+              "w": 71.1
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 160,
+          "w": 142,
+          "scrollW": 153,
+          "clientW": 141,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 160,
+          "right": 302,
+          "w": 142,
+          "scrollW": 144,
+          "clientW": 142,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 215,
+              "right": 304,
+              "w": 89
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 215,
+              "right": 304,
+              "w": 89
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 24,
+              "left": 224,
+              "right": 247.6,
+              "w": 23.6
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 215,
+              "right": 304,
+              "w": 89
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 14.7
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        }
+      ]
+    },
+    {
+      "vp": "360x740",
+      "theme": "light",
+      "present": true,
+      "gridCols": "162px 162px",
+      "wrapW": 326,
+      "wrapScrollW": 324,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 180,
+          "w": 162,
+          "scrollW": 161,
+          "clientW": 161,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 19,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 180,
+          "right": 342,
+          "w": 162,
+          "scrollW": 162,
+          "clientW": 162,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 235,
+              "right": 306.1,
+              "w": 71.1
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 235,
+              "right": 306.1,
+              "w": 71.1
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 23,
+              "left": 252.9,
+              "right": 276.3,
+              "w": 23.4
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 235,
+              "right": 306.1,
+              "w": 71.1
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 180,
+          "w": 162,
+          "scrollW": 161,
+          "clientW": 161,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 180,
+          "right": 342,
+          "w": 162,
+          "scrollW": 162,
+          "clientW": 162,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 235,
+              "right": 324,
+              "w": 89
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 235,
+              "right": 324,
+              "w": 89
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 24,
+              "left": 244,
+              "right": 267.6,
+              "w": 23.6
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 235,
+              "right": 324,
+              "w": 89
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 14.7
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        }
+      ]
+    },
+    {
+      "vp": "390x844",
+      "theme": "light",
+      "present": true,
+      "gridCols": "177px 177px",
+      "wrapW": 356,
+      "wrapScrollW": 354,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 195,
+          "w": 177,
+          "scrollW": 176,
+          "clientW": 176,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 19,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 195,
+          "right": 372,
+          "w": 177,
+          "scrollW": 177,
+          "clientW": 177,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 250,
+              "right": 321.1,
+              "w": 71.1
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 250,
+              "right": 321.1,
+              "w": 71.1
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 23,
+              "left": 267.9,
+              "right": 291.3,
+              "w": 23.4
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 250,
+              "right": 321.1,
+              "w": 71.1
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 195,
+          "w": 177,
+          "scrollW": 176,
+          "clientW": 176,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 195,
+          "right": 372,
+          "w": 177,
+          "scrollW": 177,
+          "clientW": 177,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 250,
+              "right": 339,
+              "w": 89
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 250,
+              "right": 339,
+              "w": 89
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 24,
+              "left": 259,
+              "right": 282.6,
+              "w": 23.6
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 250,
+              "right": 339,
+              "w": 89
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 14.7
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        }
+      ]
+    },
+    {
+      "vp": "480x800",
+      "theme": "light",
+      "present": true,
+      "gridCols": "222px 222px",
+      "wrapW": 446,
+      "wrapScrollW": 444,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 240,
+          "w": 222,
+          "scrollW": 221,
+          "clientW": 221,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 19,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 240,
+          "right": 462,
+          "w": 222,
+          "scrollW": 222,
+          "clientW": 222,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 295,
+              "right": 366.1,
+              "w": 71.1
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 295,
+              "right": 366.1,
+              "w": 71.1
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 23,
+              "left": 312.9,
+              "right": 336.3,
+              "w": 23.4
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 295,
+              "right": 366.1,
+              "w": 71.1
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 240,
+          "w": 222,
+          "scrollW": 221,
+          "clientW": 221,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 240,
+          "right": 462,
+          "w": 222,
+          "scrollW": 222,
+          "clientW": 222,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 295,
+              "right": 384,
+              "w": 89
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 295,
+              "right": 384,
+              "w": 89
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 24,
+              "left": 304,
+              "right": 327.6,
+              "w": 23.6
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 295,
+              "right": 384,
+              "w": 89
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 14.7
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        }
+      ]
+    },
+    {
+      "vp": "600x900",
+      "theme": "light",
+      "present": true,
+      "gridCols": "275px 275px",
+      "wrapW": 552,
+      "wrapScrollW": 550,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 25,
+          "right": 300,
+          "w": 275,
+          "scrollW": 274,
+          "clientW": 274,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 80,
+              "right": 152.3,
+              "w": 72.3
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 80,
+              "right": 152.3,
+              "w": 72.3
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 19,
+              "left": 106.9,
+              "right": 125.5,
+              "w": 18.6
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 80,
+              "right": 152.3,
+              "w": 72.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 300,
+          "right": 575,
+          "w": 275,
+          "scrollW": 275,
+          "clientW": 275,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 355,
+              "right": 426.1,
+              "w": 71.1
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 355,
+              "right": 426.1,
+              "w": 71.1
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 23,
+              "left": 372.9,
+              "right": 396.3,
+              "w": 23.4
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 355,
+              "right": 426.1,
+              "w": 71.1
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 25,
+          "right": 300,
+          "w": 275,
+          "scrollW": 274,
+          "clientW": 274,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 80,
+              "right": 178.4,
+              "w": 98.4
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 80,
+              "right": 178.4,
+              "w": 98.4
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 80,
+              "right": 178.4,
+              "w": 98.4
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 300,
+          "right": 575,
+          "w": 275,
+          "scrollW": 275,
+          "clientW": 275,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 355,
+              "right": 444,
+              "w": 89
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 355,
+              "right": 444,
+              "w": 89
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 24,
+              "left": 364,
+              "right": 387.6,
+              "w": 23.6
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 355,
+              "right": 444,
+              "w": 89
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 14.7
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        }
+      ]
+    },
+    {
+      "vp": "768x1024",
+      "theme": "light",
+      "present": true,
+      "gridCols": "351.5px 351.5px",
+      "wrapW": 705,
+      "wrapScrollW": 703,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 25,
+          "right": 376.5,
+          "w": 351.5,
+          "scrollW": 351,
+          "clientW": 351,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 87,
+              "right": 163.5,
+              "w": 76.5
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 87,
+              "right": 163.5,
+              "w": 76.5
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 22,
+              "left": 117.5,
+              "right": 139.5,
+              "w": 22
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 87,
+              "right": 163.5,
+              "w": 76.5
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 376.5,
+          "right": 728,
+          "w": 351.5,
+          "scrollW": 352,
+          "clientW": 352,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 438.5,
+              "right": 513.8,
+              "w": 75.3
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 438.5,
+              "right": 513.8,
+              "w": 75.3
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 28,
+              "left": 458.8,
+              "right": 486.4,
+              "w": 27.6
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 438.5,
+              "right": 513.8,
+              "w": 75.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 25,
+          "right": 376.5,
+          "w": 351.5,
+          "scrollW": 351,
+          "clientW": 351,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 87,
+              "right": 198.6,
+              "w": 111.6
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 87,
+              "right": 198.6,
+              "w": 111.6
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 87,
+              "right": 198.6,
+              "w": 111.6
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 376.5,
+          "right": 728,
+          "w": 351.5,
+          "scrollW": 352,
+          "clientW": 352,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 438.5,
+              "right": 532.7,
+              "w": 94.2
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 438.5,
+              "right": 532.7,
+              "w": 94.2
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 28,
+              "left": 448.7,
+              "right": 476.6,
+              "w": 27.9
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 438.5,
+              "right": 532.7,
+              "w": 94.2
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 22
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 22
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 22
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 27.9
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 27.9
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 27.6
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 27.6
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 17.8
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 27.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 27.9
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 75.3
+        }
+      ]
+    },
+    {
+      "vp": "1280x800",
+      "theme": "light",
+      "present": true,
+      "gridCols": "231.75px 231.75px 231.75px 231.75px",
+      "wrapW": 929,
+      "wrapScrollW": 927,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 293,
+          "right": 524.8,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 367,
+              "right": 443.5,
+              "w": 76.5
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 367,
+              "right": 443.5,
+              "w": 76.5
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 22,
+              "left": 397.5,
+              "right": 419.5,
+              "w": 22
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 367,
+              "right": 443.5,
+              "w": 76.5
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 524.8,
+          "right": 756.5,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 598.8,
+              "right": 674,
+              "w": 75.3
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 598.8,
+              "right": 674,
+              "w": 75.3
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 28,
+              "left": 619.1,
+              "right": 646.7,
+              "w": 27.6
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 598.8,
+              "right": 674,
+              "w": 75.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 756.5,
+          "right": 988.3,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 830.5,
+              "right": 942.1,
+              "w": 111.6
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 830.5,
+              "right": 942.1,
+              "w": 111.6
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 830.5,
+              "right": 942.1,
+              "w": 111.6
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 988.3,
+          "right": 1220,
+          "w": 231.8,
+          "scrollW": 232,
+          "clientW": 232,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 1062.3,
+              "right": 1156.4,
+              "w": 94.2
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 1062.3,
+              "right": 1156.4,
+              "w": 94.2
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 28,
+              "left": 1072.4,
+              "right": 1100.4,
+              "w": 27.9
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 1062.3,
+              "right": 1156.4,
+              "w": 94.2
+            }
+          ]
+        }
+      ],
+      "collisions": []
+    },
+    {
+      "vp": "320x568",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "142px 142px",
+      "wrapW": 286,
+      "wrapScrollW": 286,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 160,
+          "w": 142,
+          "scrollW": 141,
+          "clientW": 141,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 19,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 160,
+          "right": 302,
+          "w": 142,
+          "scrollW": 142,
+          "clientW": 142,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 215,
+              "right": 286.1,
+              "w": 71.1
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 215,
+              "right": 286.1,
+              "w": 71.1
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 23,
+              "left": 232.9,
+              "right": 256.3,
+              "w": 23.4
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 215,
+              "right": 286.1,
+              "w": 71.1
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 160,
+          "w": 142,
+          "scrollW": 153,
+          "clientW": 141,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 160,
+          "right": 302,
+          "w": 142,
+          "scrollW": 144,
+          "clientW": 142,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 215,
+              "right": 304,
+              "w": 89
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 215,
+              "right": 304,
+              "w": 89
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 24,
+              "left": 224,
+              "right": 247.6,
+              "w": 23.6
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 215,
+              "right": 304,
+              "w": 89
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 14.7
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        }
+      ]
+    },
+    {
+      "vp": "360x740",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "162px 162px",
+      "wrapW": 326,
+      "wrapScrollW": 324,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 180,
+          "w": 162,
+          "scrollW": 161,
+          "clientW": 161,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 19,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 180,
+          "right": 342,
+          "w": 162,
+          "scrollW": 162,
+          "clientW": 162,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 235,
+              "right": 306.1,
+              "w": 71.1
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 235,
+              "right": 306.1,
+              "w": 71.1
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 23,
+              "left": 252.9,
+              "right": 276.3,
+              "w": 23.4
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 235,
+              "right": 306.1,
+              "w": 71.1
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 180,
+          "w": 162,
+          "scrollW": 161,
+          "clientW": 161,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 180,
+          "right": 342,
+          "w": 162,
+          "scrollW": 162,
+          "clientW": 162,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 235,
+              "right": 324,
+              "w": 89
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 235,
+              "right": 324,
+              "w": 89
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 24,
+              "left": 244,
+              "right": 267.6,
+              "w": 23.6
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 235,
+              "right": 324,
+              "w": 89
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 14.7
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        }
+      ]
+    },
+    {
+      "vp": "390x844",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "177px 177px",
+      "wrapW": 356,
+      "wrapScrollW": 354,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 195,
+          "w": 177,
+          "scrollW": 176,
+          "clientW": 176,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 19,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 195,
+          "right": 372,
+          "w": 177,
+          "scrollW": 177,
+          "clientW": 177,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 250,
+              "right": 321.1,
+              "w": 71.1
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 250,
+              "right": 321.1,
+              "w": 71.1
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 23,
+              "left": 267.9,
+              "right": 291.3,
+              "w": 23.4
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 250,
+              "right": 321.1,
+              "w": 71.1
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 195,
+          "w": 177,
+          "scrollW": 176,
+          "clientW": 176,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 195,
+          "right": 372,
+          "w": 177,
+          "scrollW": 177,
+          "clientW": 177,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 250,
+              "right": 339,
+              "w": 89
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 250,
+              "right": 339,
+              "w": 89
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 24,
+              "left": 259,
+              "right": 282.6,
+              "w": 23.6
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 250,
+              "right": 339,
+              "w": 89
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 14.7
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        }
+      ]
+    },
+    {
+      "vp": "480x800",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "222px 222px",
+      "wrapW": 446,
+      "wrapScrollW": 444,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 18,
+          "right": 240,
+          "w": 222,
+          "scrollW": 221,
+          "clientW": 221,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 19,
+              "left": 99.9,
+              "right": 118.5,
+              "w": 18.6
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 73,
+              "right": 145.3,
+              "w": 72.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 240,
+          "right": 462,
+          "w": 222,
+          "scrollW": 222,
+          "clientW": 222,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 295,
+              "right": 366.1,
+              "w": 71.1
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 295,
+              "right": 366.1,
+              "w": 71.1
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 23,
+              "left": 312.9,
+              "right": 336.3,
+              "w": 23.4
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 295,
+              "right": 366.1,
+              "w": 71.1
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 18,
+          "right": 240,
+          "w": 222,
+          "scrollW": 221,
+          "clientW": 221,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 73,
+              "right": 171.4,
+              "w": 98.4
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 240,
+          "right": 462,
+          "w": 222,
+          "scrollW": 222,
+          "clientW": 222,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 295,
+              "right": 384,
+              "w": 89
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 295,
+              "right": 384,
+              "w": 89
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 24,
+              "left": 304,
+              "right": 327.6,
+              "w": 23.6
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 295,
+              "right": 384,
+              "w": 89
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 14.7
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        }
+      ]
+    },
+    {
+      "vp": "600x900",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "275px 275px",
+      "wrapW": 552,
+      "wrapScrollW": 550,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 25,
+          "right": 300,
+          "w": 275,
+          "scrollW": 274,
+          "clientW": 274,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 80,
+              "right": 152.3,
+              "w": 72.3
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 80,
+              "right": 152.3,
+              "w": 72.3
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 19,
+              "left": 106.9,
+              "right": 125.5,
+              "w": 18.6
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 72,
+              "clientW": 72,
+              "offsetW": 72,
+              "left": 80,
+              "right": 152.3,
+              "w": 72.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 300,
+          "right": 575,
+          "w": 275,
+          "scrollW": 275,
+          "clientW": 275,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 355,
+              "right": 426.1,
+              "w": 71.1
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 355,
+              "right": 426.1,
+              "w": 71.1
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 23,
+              "left": 372.9,
+              "right": 396.3,
+              "w": 23.4
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 71,
+              "clientW": 71,
+              "offsetW": 71,
+              "left": 355,
+              "right": 426.1,
+              "w": 71.1
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 25,
+          "right": 300,
+          "w": 275,
+          "scrollW": 274,
+          "clientW": 274,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 80,
+              "right": 178.4,
+              "w": 98.4
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 80,
+              "right": 178.4,
+              "w": 98.4
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 98,
+              "clientW": 98,
+              "offsetW": 98,
+              "left": 80,
+              "right": 178.4,
+              "w": 98.4
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 300,
+          "right": 575,
+          "w": 275,
+          "scrollW": 275,
+          "clientW": 275,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 355,
+              "right": 444,
+              "w": 89
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 355,
+              "right": 444,
+              "w": 89
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 24,
+              "left": 364,
+              "right": 387.6,
+              "w": 23.6
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 89,
+              "clientW": 89,
+              "offsetW": 89,
+              "left": 355,
+              "right": 444,
+              "w": 89
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 18.6
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 72.3
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 72.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 14.7
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 23.4
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 71.1
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 23.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 71.1
+        }
+      ]
+    },
+    {
+      "vp": "768x1024",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "351.5px 351.5px",
+      "wrapW": 705,
+      "wrapScrollW": 703,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 25,
+          "right": 376.5,
+          "w": 351.5,
+          "scrollW": 351,
+          "clientW": 351,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 87,
+              "right": 163.5,
+              "w": 76.5
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 87,
+              "right": 163.5,
+              "w": 76.5
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 22,
+              "left": 117.5,
+              "right": 139.5,
+              "w": 22
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 87,
+              "right": 163.5,
+              "w": 76.5
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 376.5,
+          "right": 728,
+          "w": 351.5,
+          "scrollW": 352,
+          "clientW": 352,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 438.5,
+              "right": 513.8,
+              "w": 75.3
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 438.5,
+              "right": 513.8,
+              "w": 75.3
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 28,
+              "left": 458.8,
+              "right": 486.4,
+              "w": 27.6
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 438.5,
+              "right": 513.8,
+              "w": 75.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 25,
+          "right": 376.5,
+          "w": 351.5,
+          "scrollW": 351,
+          "clientW": 351,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 87,
+              "right": 198.6,
+              "w": 111.6
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 87,
+              "right": 198.6,
+              "w": 111.6
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 87,
+              "right": 198.6,
+              "w": 111.6
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 376.5,
+          "right": 728,
+          "w": 351.5,
+          "scrollW": 352,
+          "clientW": 352,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 438.5,
+              "right": 532.7,
+              "w": 94.2
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 438.5,
+              "right": 532.7,
+              "w": 94.2
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 28,
+              "left": 448.7,
+              "right": 476.6,
+              "w": 27.9
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 438.5,
+              "right": 532.7,
+              "w": 94.2
+            }
+          ]
+        }
+      ],
+      "collisions": [
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:118 / 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 22
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 22
+        },
+        {
+          "a": "118 / 20Aufgaben heu:/ 20",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 22
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:7 Std. 45 Min.",
+          "overlapX": 76.5
+        },
+        {
+          "a": "118 / 20Aufgaben heu:Aufgaben heute",
+          "b": "7 Std. 45 Min.Lernze:Lernzeit heute",
+          "overlapX": 76.5
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 27.9
+        },
+        {
+          "a": "14 TageIn Folge gele:14 TageIn Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 27.9
+        },
+        {
+          "a": "14 TageIn Folge gele:14 Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 27.6
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 27.6
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 17.8
+        },
+        {
+          "a": "14 TageIn Folge gele:Tage",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 27.6
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fälligFehler wiederholen",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:0 fällig",
+          "overlapX": 75.3
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:fällig",
+          "overlapX": 27.9
+        },
+        {
+          "a": "14 TageIn Folge gele:In Folge gelernt",
+          "b": "0 fälligFehler wiede:Fehler wiederholen",
+          "overlapX": 75.3
+        }
+      ]
+    },
+    {
+      "vp": "1280x800",
+      "theme": "dark",
+      "present": true,
+      "gridCols": "231.75px 231.75px 231.75px 231.75px",
+      "wrapW": 929,
+      "wrapScrollW": 927,
+      "cells": [
+        {
+          "cls": "daily-stat",
+          "text": "118 / 20Aufgaben heute",
+          "left": 293,
+          "right": 524.8,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "118 / 20Aufgaben heute",
+              "nowrap": "normal",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 367,
+              "right": 443.5,
+              "w": 76.5
+            },
+            {
+              "tag": "strong",
+              "text": "118 / 20",
+              "nowrap": "nowrap",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 367,
+              "right": 443.5,
+              "w": 76.5
+            },
+            {
+              "tag": "small",
+              "text": "/ 20",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 22,
+              "left": 397.5,
+              "right": 419.5,
+              "w": 22
+            },
+            {
+              "tag": "span",
+              "text": "Aufgaben heute",
+              "nowrap": "nowrap",
+              "scrollW": 77,
+              "clientW": 77,
+              "offsetW": 77,
+              "left": 367,
+              "right": 443.5,
+              "w": 76.5
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "14 TageIn Folge gelernt",
+          "left": 524.8,
+          "right": 756.5,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "14 TageIn Folge gelernt",
+              "nowrap": "normal",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 598.8,
+              "right": 674,
+              "w": 75.3
+            },
+            {
+              "tag": "strong",
+              "text": "14 Tage",
+              "nowrap": "nowrap",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 598.8,
+              "right": 674,
+              "w": 75.3
+            },
+            {
+              "tag": "small",
+              "text": "Tage",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 28,
+              "left": 619.1,
+              "right": 646.7,
+              "w": 27.6
+            },
+            {
+              "tag": "span",
+              "text": "In Folge gelernt",
+              "nowrap": "nowrap",
+              "scrollW": 75,
+              "clientW": 75,
+              "offsetW": 75,
+              "left": 598.8,
+              "right": 674,
+              "w": 75.3
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "7 Std. 45 Min.Lernzeit heute",
+          "left": 756.5,
+          "right": 988.3,
+          "w": 231.8,
+          "scrollW": 231,
+          "clientW": 231,
+          "parts": [
+            {
+              "tag": "div",
+              "text": "7 Std. 45 Min.Lernzeit heute",
+              "nowrap": "normal",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 830.5,
+              "right": 942.1,
+              "w": 111.6
+            },
+            {
+              "tag": "strong",
+              "text": "7 Std. 45 Min.",
+              "nowrap": "nowrap",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 830.5,
+              "right": 942.1,
+              "w": 111.6
+            },
+            {
+              "tag": "span",
+              "text": "Lernzeit heute",
+              "nowrap": "nowrap",
+              "scrollW": 112,
+              "clientW": 112,
+              "offsetW": 112,
+              "left": 830.5,
+              "right": 942.1,
+              "w": 111.6
+            }
+          ]
+        },
+        {
+          "cls": "daily-stat",
+          "text": "0 fälligFehler wiederholen",
+          "left": 988.3,
+          "right": 1220,
+          "w": 231.8,
+          "scrollW": 232,
+          "clientW": 232,
+          "parts": [
+            {
+              "tag": "span",
+              "text": "0 fälligFehler wiederholen",
+              "nowrap": "normal",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 1062.3,
+              "right": 1156.4,
+              "w": 94.2
+            },
+            {
+              "tag": "strong",
+              "text": "0 fällig",
+              "nowrap": "nowrap",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 1062.3,
+              "right": 1156.4,
+              "w": 94.2
+            },
+            {
+              "tag": "small",
+              "text": "fällig",
+              "nowrap": "nowrap",
+              "scrollW": 0,
+              "clientW": 0,
+              "offsetW": 28,
+              "left": 1072.4,
+              "right": 1100.4,
+              "w": 27.9
+            },
+            {
+              "tag": "span",
+              "text": "Fehler wiederholen",
+              "nowrap": "nowrap",
+              "scrollW": 94,
+              "clientW": 94,
+              "offsetW": 94,
+              "left": 1062.3,
+              "right": 1156.4,
+              "w": 94.2
+            }
+          ]
+        }
+      ],
+      "collisions": []
+    }
+  ],
+  "passages": [
+    {
+      "vp": "320x568",
+      "view": "paper",
+      "present": false,
+      "passages": [],
+      "controls": 0,
+      "vw": 320,
+      "docOverflow": 0,
+      "outerScrollHeight": 2767,
+      "outerClientHeight": 568
+    },
+    {
+      "vp": "320x568",
+      "view": "paper",
+      "phase": "opened",
+      "present": true,
+      "passages": [
+        {
+          "cls": "passage short",
+          "clientH": 242,
+          "scrollH": 242,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 187
+        },
+        {
+          "cls": "passage short",
+          "clientH": 272,
+          "scrollH": 272,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 172
+        },
+        {
+          "cls": "passage short",
+          "clientH": 211,
+          "scrollH": 211,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 148
+        },
+        {
+          "cls": "passage short",
+          "clientH": 242,
+          "scrollH": 242,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 172
+        },
+        {
+          "cls": "passage short",
+          "clientH": 211,
+          "scrollH": 211,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 163
+        }
+      ],
+      "controls": 5,
+      "vw": 320,
+      "docOverflow": 0,
+      "outerScrollHeight": 3268,
+      "outerClientHeight": 568,
+      "passageScrolledTo": 0,
+      "passageMaxScroll": 0
+    },
+    {
+      "vp": "320x568",
+      "view": "listening",
+      "present": false,
+      "passages": [],
+      "controls": 0,
+      "vw": 320,
+      "docOverflow": 0,
+      "outerScrollHeight": 968,
+      "outerClientHeight": 568
+    },
+    {
+      "vp": "320x568",
+      "view": "listening",
+      "phase": "opened",
+      "present": true,
+      "passages": [
+        {
+          "cls": "passage",
+          "clientH": 478,
+          "scrollH": 1542,
+          "overflowY": "auto",
+          "maxHeight": "480px",
+          "innerScrollable": true,
+          "reachable": 1064,
+          "textLen": 1030
+        }
+      ],
+      "controls": 0,
+      "vw": 320,
+      "docOverflow": 0,
+      "outerScrollHeight": 1708,
+      "outerClientHeight": 568,
+      "passageScrolledTo": 1064,
+      "passageMaxScroll": 1064
+    },
+    {
+      "vp": "390x844",
+      "view": "paper",
+      "present": false,
+      "passages": [],
+      "controls": 0,
+      "vw": 390,
+      "docOverflow": 0,
+      "outerScrollHeight": 2430,
+      "outerClientHeight": 844
+    },
+    {
+      "vp": "390x844",
+      "view": "paper",
+      "phase": "opened",
+      "present": true,
+      "passages": [
+        {
+          "cls": "passage short",
+          "clientH": 242,
+          "scrollH": 242,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 234
+        },
+        {
+          "cls": "passage short",
+          "clientH": 211,
+          "scrollH": 211,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 201
+        },
+        {
+          "cls": "passage short",
+          "clientH": 181,
+          "scrollH": 181,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 175
+        },
+        {
+          "cls": "passage short",
+          "clientH": 181,
+          "scrollH": 181,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 169
+        },
+        {
+          "cls": "passage short",
+          "clientH": 181,
+          "scrollH": 181,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 171
+        }
+      ],
+      "controls": 5,
+      "vw": 390,
+      "docOverflow": 0,
+      "outerScrollHeight": 3065,
+      "outerClientHeight": 844,
+      "passageScrolledTo": 0,
+      "passageMaxScroll": 0
+    },
+    {
+      "vp": "390x844",
+      "view": "listening",
+      "present": false,
+      "passages": [],
+      "controls": 0,
+      "vw": 390,
+      "docOverflow": 0,
+      "outerScrollHeight": 844,
+      "outerClientHeight": 844
+    },
+    {
+      "vp": "390x844",
+      "view": "listening",
+      "phase": "opened",
+      "present": true,
+      "passages": [
+        {
+          "cls": "passage",
+          "clientH": 478,
+          "scrollH": 1179,
+          "overflowY": "auto",
+          "maxHeight": "480px",
+          "innerScrollable": true,
+          "reachable": 701,
+          "textLen": 1091
+        }
+      ],
+      "controls": 0,
+      "vw": 390,
+      "docOverflow": 0,
+      "outerScrollHeight": 1396,
+      "outerClientHeight": 844,
+      "passageScrolledTo": 701,
+      "passageMaxScroll": 701
+    },
+    {
+      "vp": "600x900",
+      "view": "paper",
+      "present": false,
+      "passages": [],
+      "controls": 0,
+      "vw": 600,
+      "docOverflow": 0,
+      "outerScrollHeight": 2326,
+      "outerClientHeight": 900
+    },
+    {
+      "vp": "600x900",
+      "view": "paper",
+      "phase": "opened",
+      "present": true,
+      "passages": [
+        {
+          "cls": "passage short",
+          "clientH": 121,
+          "scrollH": 121,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 187
+        },
+        {
+          "cls": "passage short",
+          "clientH": 121,
+          "scrollH": 121,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 172
+        },
+        {
+          "cls": "passage short",
+          "clientH": 121,
+          "scrollH": 121,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 148
+        },
+        {
+          "cls": "passage short",
+          "clientH": 121,
+          "scrollH": 121,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 172
+        },
+        {
+          "cls": "passage short",
+          "clientH": 121,
+          "scrollH": 121,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 163
+        }
+      ],
+      "controls": 5,
+      "vw": 600,
+      "docOverflow": 0,
+      "outerScrollHeight": 2316,
+      "outerClientHeight": 900,
+      "passageScrolledTo": 0,
+      "passageMaxScroll": 0
+    },
+    {
+      "vp": "600x900",
+      "view": "listening",
+      "present": false,
+      "passages": [],
+      "controls": 0,
+      "vw": 600,
+      "docOverflow": 0,
+      "outerScrollHeight": 900,
+      "outerClientHeight": 900
+    },
+    {
+      "vp": "600x900",
+      "view": "listening",
+      "phase": "opened",
+      "present": true,
+      "passages": [
+        {
+          "cls": "passage",
+          "clientH": 478,
+          "scrollH": 756,
+          "overflowY": "auto",
+          "maxHeight": "480px",
+          "innerScrollable": true,
+          "reachable": 278,
+          "textLen": 1030
+        }
+      ],
+      "controls": 0,
+      "vw": 600,
+      "docOverflow": 0,
+      "outerScrollHeight": 1192,
+      "outerClientHeight": 900,
+      "passageScrolledTo": 278,
+      "passageMaxScroll": 278
+    },
+    {
+      "vp": "1280x800",
+      "view": "paper",
+      "present": false,
+      "passages": [],
+      "controls": 0,
+      "vw": 1265,
+      "docOverflow": 0,
+      "outerScrollHeight": 1532,
+      "outerClientHeight": 800
+    },
+    {
+      "vp": "1280x800",
+      "view": "paper",
+      "phase": "opened",
+      "present": true,
+      "passages": [
+        {
+          "cls": "passage short",
+          "clientH": 127,
+          "scrollH": 127,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 234
+        },
+        {
+          "cls": "passage short",
+          "clientH": 96,
+          "scrollH": 96,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 201
+        },
+        {
+          "cls": "passage short",
+          "clientH": 96,
+          "scrollH": 96,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 175
+        },
+        {
+          "cls": "passage short",
+          "clientH": 96,
+          "scrollH": 96,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 169
+        },
+        {
+          "cls": "passage short",
+          "clientH": 96,
+          "scrollH": 96,
+          "overflowY": "auto",
+          "maxHeight": "280px",
+          "innerScrollable": false,
+          "reachable": 0,
+          "textLen": 171
+        }
+      ],
+      "controls": 5,
+      "vw": 1265,
+      "docOverflow": 0,
+      "outerScrollHeight": 2195,
+      "outerClientHeight": 800,
+      "passageScrolledTo": 0,
+      "passageMaxScroll": 0
+    },
+    {
+      "vp": "1280x800",
+      "view": "listening",
+      "present": false,
+      "passages": [],
+      "controls": 0,
+      "vw": 1280,
+      "docOverflow": 0,
+      "outerScrollHeight": 800,
+      "outerClientHeight": 800
+    },
+    {
+      "vp": "1280x800",
+      "view": "listening",
+      "phase": "opened",
+      "present": true,
+      "passages": [
+        {
+          "cls": "passage",
+          "clientH": 478,
+          "scrollH": 520,
+          "overflowY": "auto",
+          "maxHeight": "480px",
+          "innerScrollable": true,
+          "reachable": 42,
+          "textLen": 1091
+        }
+      ],
+      "controls": 0,
+      "vw": 1265,
+      "docOverflow": 0,
+      "outerScrollHeight": 1176,
+      "outerClientHeight": 800,
+      "passageScrolledTo": 42,
+      "passageMaxScroll": 42
+    }
+  ],
+  "drawer": [
+    {
+      "vp": "390x844",
+      "seq": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "vp": "320x568",
+      "seq": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  ],
+  "focus": [
+    {
+      "vp": "390x844",
+      "theme": "light",
+      "steps": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "vp": "1280x800",
+      "theme": "light",
+      "steps": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "vp": "390x844",
+      "theme": "dark",
+      "steps": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "vp": "1280x800",
+      "theme": "dark",
+      "steps": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  ],
+  "navIds": "home,plan,drill,vocab,notebook,paper,listening,writing,speaking,mock,reference,settings"
+}

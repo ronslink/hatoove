@@ -1,0 +1,536 @@
+{
+  "label": "before",
+  "at": "2026-09-30T18:02:14.341Z",
+  "longest": [
+    {
+      "vp": "320x568",
+      "part": "HV1",
+      "present": true,
+      "count": 1,
+      "cls": "passage",
+      "textLen": 1070,
+      "clientH": 478,
+      "scrollH": 1632,
+      "maxHeight": "480px",
+      "overflowY": "auto",
+      "innerScrolls": true,
+      "hiddenPx": 1154,
+      "pageScrollH": 1631,
+      "pageClientH": 568,
+      "tallerThanViewport": false,
+      "rect": {
+        "x": 51,
+        "y": 726,
+        "w": 218,
+        "h": 480
+      },
+      "docOverflow": 0,
+      "afterScroll": {
+        "reachedEnd": true,
+        "maxScroll": 1154
+      }
+    },
+    {
+      "vp": "320x568",
+      "part": "LV2",
+      "present": true,
+      "count": 1,
+      "cls": "passage",
+      "textLen": 1379,
+      "clientH": 478,
+      "scrollH": 1753,
+      "maxHeight": "480px",
+      "overflowY": "auto",
+      "innerScrolls": true,
+      "hiddenPx": 1275,
+      "pageScrollH": 2906,
+      "pageClientH": 568,
+      "tallerThanViewport": false,
+      "rect": {
+        "x": 36,
+        "y": 460,
+        "w": 248,
+        "h": 480
+      },
+      "docOverflow": 0,
+      "afterScroll": {
+        "reachedEnd": true,
+        "maxScroll": 1275
+      }
+    },
+    {
+      "vp": "320x568",
+      "part": "SB1",
+      "present": false,
+      "vw": 320,
+      "doc": 0
+    },
+    {
+      "vp": "320x568",
+      "part": "LV3",
+      "present": false,
+      "vw": 320,
+      "doc": 0
+    },
+    {
+      "vp": "390x844",
+      "part": "HV1",
+      "present": true,
+      "count": 1,
+      "cls": "passage",
+      "textLen": 1070,
+      "clientH": 478,
+      "scrollH": 1209,
+      "maxHeight": "480px",
+      "overflowY": "auto",
+      "innerScrolls": true,
+      "hiddenPx": 731,
+      "pageScrollH": 1396,
+      "pageClientH": 844,
+      "tallerThanViewport": false,
+      "rect": {
+        "x": 51,
+        "y": 611,
+        "w": 288,
+        "h": 480
+      },
+      "docOverflow": 0,
+      "afterScroll": {
+        "reachedEnd": true,
+        "maxScroll": 731
+      }
+    },
+    {
+      "vp": "390x844",
+      "part": "LV2",
+      "present": true,
+      "count": 1,
+      "cls": "passage",
+      "textLen": 1381,
+      "clientH": 478,
+      "scrollH": 1391,
+      "maxHeight": "480px",
+      "overflowY": "auto",
+      "innerScrolls": true,
+      "hiddenPx": 913,
+      "pageScrollH": 2681,
+      "pageClientH": 844,
+      "tallerThanViewport": false,
+      "rect": {
+        "x": 36,
+        "y": 402,
+        "w": 318,
+        "h": 480
+      },
+      "docOverflow": 0,
+      "afterScroll": {
+        "reachedEnd": true,
+        "maxScroll": 913
+      }
+    },
+    {
+      "vp": "390x844",
+      "part": "SB1",
+      "present": false,
+      "vw": 390,
+      "doc": 0
+    },
+    {
+      "vp": "390x844",
+      "part": "LV3",
+      "present": false,
+      "vw": 390,
+      "doc": 0
+    },
+    {
+      "vp": "600x900",
+      "part": "HV1",
+      "present": true,
+      "count": 1,
+      "cls": "passage",
+      "textLen": 1070,
+      "clientH": 478,
+      "scrollH": 756,
+      "maxHeight": "480px",
+      "overflowY": "auto",
+      "innerScrolls": true,
+      "hiddenPx": 278,
+      "pageScrollH": 1164,
+      "pageClientH": 900,
+      "tallerThanViewport": false,
+      "rect": {
+        "x": 58,
+        "y": 497,
+        "w": 484,
+        "h": 480
+      },
+      "docOverflow": 0,
+      "afterScroll": {
+        "reachedEnd": true,
+        "maxScroll": 278
+      }
+    },
+    {
+      "vp": "600x900",
+      "part": "LV2",
+      "present": true,
+      "count": 1,
+      "cls": "passage",
+      "textLen": 1389,
+      "clientH": 478,
+      "scrollH": 877,
+      "maxHeight": "480px",
+      "overflowY": "auto",
+      "innerScrolls": true,
+      "hiddenPx": 399,
+      "pageScrollH": 2381,
+      "pageClientH": 900,
+      "tallerThanViewport": false,
+      "rect": {
+        "x": 43,
+        "y": 313,
+        "w": 514,
+        "h": 480
+      },
+      "docOverflow": 0,
+      "afterScroll": {
+        "reachedEnd": true,
+        "maxScroll": 399
+      }
+    },
+    {
+      "vp": "600x900",
+      "part": "SB1",
+      "present": false,
+      "vw": 600,
+      "doc": 0
+    },
+    {
+      "vp": "600x900",
+      "part": "LV3",
+      "present": false,
+      "vw": 600,
+      "doc": 0
+    },
+    {
+      "vp": "768x1024",
+      "part": "HV1",
+      "present": true,
+      "count": 1,
+      "cls": "passage",
+      "textLen": 1070,
+      "clientH": 478,
+      "scrollH": 641,
+      "maxHeight": "480px",
+      "overflowY": "auto",
+      "innerScrolls": true,
+      "hiddenPx": 163,
+      "pageScrollH": 1190,
+      "pageClientH": 1024,
+      "tallerThanViewport": false,
+      "rect": {
+        "x": 64,
+        "y": 494,
+        "w": 625,
+        "h": 480
+      },
+      "docOverflow": 0,
+      "afterScroll": {
+        "reachedEnd": true,
+        "maxScroll": 163
+      }
+    },
+    {
+      "vp": "768x1024",
+      "part": "LV2",
+      "present": true,
+      "count": 1,
+      "cls": "passage",
+      "textLen": 1381,
+      "clientH": 478,
+      "scrollH": 731,
+      "maxHeight": "480px",
+      "overflowY": "auto",
+      "innerScrolls": true,
+      "hiddenPx": 253,
+      "pageScrollH": 2519,
+      "pageClientH": 1024,
+      "tallerThanViewport": false,
+      "rect": {
+        "x": 49,
+        "y": 331,
+        "w": 655,
+        "h": 480
+      },
+      "docOverflow": 0,
+      "afterScroll": {
+        "reachedEnd": true,
+        "maxScroll": 253
+      }
+    },
+    {
+      "vp": "768x1024",
+      "part": "SB1",
+      "present": false,
+      "vw": 753,
+      "doc": 0
+    },
+    {
+      "vp": "768x1024",
+      "part": "LV3",
+      "present": false,
+      "vw": 753,
+      "doc": 0
+    },
+    {
+      "vp": "1280x800",
+      "part": "HV1",
+      "present": true,
+      "count": 1,
+      "cls": "passage",
+      "textLen": 1091,
+      "clientH": 478,
+      "scrollH": 520,
+      "maxHeight": "480px",
+      "overflowY": "auto",
+      "innerScrolls": true,
+      "hiddenPx": 42,
+      "pageScrollH": 1176,
+      "pageClientH": 800,
+      "tallerThanViewport": false,
+      "rect": {
+        "x": 332,
+        "y": 481,
+        "w": 849,
+        "h": 480
+      },
+      "docOverflow": 0,
+      "afterScroll": {
+        "reachedEnd": true,
+        "maxScroll": 42
+      }
+    },
+    {
+      "vp": "1280x800",
+      "part": "LV2",
+      "present": true,
+      "count": 1,
+      "cls": "passage",
+      "textLen": 1381,
+      "clientH": 478,
+      "scrollH": 580,
+      "maxHeight": "480px",
+      "overflowY": "auto",
+      "innerScrolls": true,
+      "hiddenPx": 102,
+      "pageScrollH": 2514,
+      "pageClientH": 800,
+      "tallerThanViewport": false,
+      "rect": {
+        "x": 317,
+        "y": 318,
+        "w": 879,
+        "h": 480
+      },
+      "docOverflow": 0,
+      "afterScroll": {
+        "reachedEnd": true,
+        "maxScroll": 102
+      }
+    },
+    {
+      "vp": "1280x800",
+      "part": "SB1",
+      "present": false,
+      "vw": 1265,
+      "doc": 0
+    },
+    {
+      "vp": "1280x800",
+      "part": "LV3",
+      "present": false,
+      "vw": 1265,
+      "doc": 0
+    }
+  ],
+  "drawer": [
+    {
+      "vp": "390x844",
+      "seq": [
+        {
+          "tag": "initial",
+          "inert": true,
+          "ariaHidden": "true",
+          "focusInSidebar": false,
+          "active": "body",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": true,
+          "sidebarFocusables": 18,
+          "sidebarW": 290
+        },
+        {
+          "tag": "opened",
+          "inert": false,
+          "ariaHidden": null,
+          "focusInSidebar": true,
+          "active": "button#nav-close.nav-close",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": false,
+          "sidebarFocusables": 18,
+          "sidebarW": 290
+        },
+        {
+          "tag": "resized-taller",
+          "inert": false,
+          "ariaHidden": null,
+          "focusInSidebar": true,
+          "active": "button#nav-close.nav-close",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": false,
+          "sidebarFocusables": 18,
+          "sidebarW": 290
+        },
+        {
+          "tag": "resized-back",
+          "inert": false,
+          "ariaHidden": null,
+          "focusInSidebar": true,
+          "active": "button#nav-close.nav-close",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": false,
+          "sidebarFocusables": 18,
+          "sidebarW": 290
+        },
+        {
+          "tag": "after-escape",
+          "inert": true,
+          "ariaHidden": "true",
+          "focusInSidebar": false,
+          "active": "button#nav-toggle.nav-toggle",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": true,
+          "sidebarFocusables": 18,
+          "sidebarW": 290
+        },
+        {
+          "tag": "reopened",
+          "inert": false,
+          "ariaHidden": null,
+          "focusInSidebar": true,
+          "active": "button#nav-close.nav-close",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": false,
+          "sidebarFocusables": 18,
+          "sidebarW": 290
+        },
+        {
+          "tag": "after-close-x",
+          "inert": true,
+          "ariaHidden": "true",
+          "focusInSidebar": false,
+          "active": "button#nav-toggle.nav-toggle",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": true,
+          "sidebarFocusables": 18,
+          "sidebarW": 290
+        }
+      ]
+    },
+    {
+      "vp": "320x568",
+      "seq": [
+        {
+          "tag": "initial",
+          "inert": true,
+          "ariaHidden": "true",
+          "focusInSidebar": false,
+          "active": "body",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": true,
+          "sidebarFocusables": 18,
+          "sidebarW": 276
+        },
+        {
+          "tag": "opened",
+          "inert": false,
+          "ariaHidden": null,
+          "focusInSidebar": true,
+          "active": "button#nav-close.nav-close",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": false,
+          "sidebarFocusables": 18,
+          "sidebarW": 276
+        },
+        {
+          "tag": "resized-taller",
+          "inert": false,
+          "ariaHidden": null,
+          "focusInSidebar": true,
+          "active": "button#nav-close.nav-close",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": false,
+          "sidebarFocusables": 18,
+          "sidebarW": 276
+        },
+        {
+          "tag": "resized-back",
+          "inert": false,
+          "ariaHidden": null,
+          "focusInSidebar": true,
+          "active": "button#nav-close.nav-close",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": false,
+          "sidebarFocusables": 18,
+          "sidebarW": 276
+        },
+        {
+          "tag": "after-escape",
+          "inert": true,
+          "ariaHidden": "true",
+          "focusInSidebar": false,
+          "active": "button#nav-toggle.nav-toggle",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": true,
+          "sidebarFocusables": 18,
+          "sidebarW": 276
+        },
+        {
+          "tag": "reopened",
+          "inert": false,
+          "ariaHidden": null,
+          "focusInSidebar": true,
+          "active": "button#nav-close.nav-close",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": false,
+          "sidebarFocusables": 18,
+          "sidebarW": 276
+        },
+        {
+          "tag": "after-close-x",
+          "inert": true,
+          "ariaHidden": "true",
+          "focusInSidebar": false,
+          "active": "button#nav-toggle.nav-toggle",
+          "toggleDisplay": "flex",
+          "closeDisplay": "flex",
+          "scrimHidden": true,
+          "sidebarFocusables": 18,
+          "sidebarW": 276
+        }
+      ]
+    }
+  ]
+}
