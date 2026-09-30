@@ -1,0 +1,8 @@
+{
+  "name": "hatoove-auth-runtime-spike",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.16" },
+  "scripts": { "test": "node --test test.mjs" },
+  "dependencies": { "better-auth": "1.7.6", "pg": "8.23.1" }
+}
