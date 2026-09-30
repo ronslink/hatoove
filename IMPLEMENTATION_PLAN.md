@@ -95,6 +95,8 @@ There are no overlapping promised week ranges. A package starts only after its l
 
 At this point demonstrate the complete **internal first journey**: sign in, choose exam/date/language, complete a small reviewed reading/grammar/listening set, write, leave during feedback, return, revise, and reopen on another device. Use provider stubs first. Include a slow response, failed response, reload and duplicate click. This milestone does not wait for SEO pages, a large question bank, push reminders or checkout.
 
+Small observed usability sessions can evaluate this internal journey before full mock and checkout completion, subject to the applicable participant/privacy authorization. The later B-01 controlled beta deliberately tests the broader supported offer and therefore includes Q-01, checkout and full written-simulation evidence.
+
 ### Public/legal and commercial branch
 
 P-03 can proceed after F-03 in parallel with the internal journey. S-01 is a separately gated public release; “ready” does not mean automatically published.
@@ -141,6 +143,8 @@ Store validated feedback, criterion evidence and model/prompt/rubric versions. R
 
 The [benchmark results](research/deepseek-feasibility/RESULTS-2026-09-30.md) and [semantic review](research/deepseek-feasibility/semantic-review.md) provisionally favor DeepSeek V4.1 Flash via GreenPT for a private formative-feedback pilot. They do not calibrate exam scores or pass prediction. Median latency was about 10 seconds, sample p95 about 26 seconds and maximum 43 seconds: saved asynchronous state is essential. Reuse these findings; rerun targeted evaluation when model, prompt, rubric or processing changes justify it. Any fallback model must meet the same evidence/validation requirements before learners receive its output; otherwise retain a recoverable failure. Fixed sample rankings or a 12/12 gold set alone are insufficient release evidence.
 
+C-05 must freeze its evaluation protocol before a new run, reserve fresh holdout scripts, and report unnecessary corrections, missed errors, incorrect replacements, criterion agreement, repeat variability and register-versus-role regressions separately. Include incomplete/off-topic responses and compare attack effects against ordinary repeat variation. Independent qualified human ratings establish assessment quality; schema validity and agreement between models do not. Define task-specific thresholds before inspecting new results.
+
 ### Exam fidelity and objective practice
 
 E-01 records the dated official specification and expert signoff. The current pilot reference has reading/language elements sharing 90 minutes, listening about 30 and writing 30; the writing response covers four points and uses the three official criteria. Pass thresholds apply to the aggregate written result, not separately to every written subtest. Preserve the detailed rules and sources in the pilot plan and recheck the applicable version before release.
@@ -152,6 +156,8 @@ Fixed recordings receive educational/audio review. Test load failure, retry, int
 ### Human review capacity and supported languages
 
 Set the release content requirement from advertised coverage, useful variation, task families, review/diagnostic needs and complete mock coverage where offered. There is no automatic “800 items means ready” gate. Record counts by part/tag/version, review status, source rights, approved audio and supported-language explanation coverage. Qualified exam reviewers, native-language reviewers and audio reviewers sign the areas they actually checked.
+
+Define the counting unit for each family (individual answer, complete set, recording or writing task) and report approved sets separately from answer slots. Reserve unseen diagnostic/mock/evaluation material so repeated training exposure is not mistaken for independent performance evidence.
 
 C-03 is intentionally available before generation scales. Time an initial review batch, record acceptance/rework rates and each reviewer's available hours, then set sustainable weekly quotas. Include correction and re-review, not just first inspection. The superseded 60–100 items/week for ten weeks yields 600–1,000, not a guaranteed 800; starting after week 10 leaves only 600 at the maximum through week 16. Adjust scope, capacity or release timing from observed throughput.
 

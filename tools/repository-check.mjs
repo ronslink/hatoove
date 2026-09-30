@@ -5,7 +5,7 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer
 const entries = git('ls-files', '--stage', '-z').split('\0').filter(Boolean);
 const failures = [];
 let inspected = 0;
-const deniedPath = /(?:^|\/)(?:\.qa|node_modules|\.git|\.ssh|\.hermes|\.openai|\.sites-runtime|\.worktrees|_backup_[^/]*)(?:\/|$)|(?:^|\/)(?:progress(?:-[^/]*)?\.json[^/]*|\.progress-[^/]*|sync-home\.json|\.sync-home-complete[^/]*|\.b1prep-sync-home\.lock)$|^research\/[^/]+\/runs\/|\.(?:pem|key|p12|pfx|db|sqlite\w*|exe|dll|zip|tar\.gz)$/i;
+const deniedPath = /(?:^|\/)(?:\.qa|node_modules|\.git|\.ssh|\.hermes|\.openai|\.sites-runtime|\.worktrees|_backup_[^/]*)(?:\/|$)|(?:^|\/)(?:progress(?:-[^/]*)?\.json[^/]*|\.progress-[^/]*|sync-home\.json|\.sync-home-complete[^/]*|\.b1prep-sync-home\.lock)$|^research\/[^/]+\/runs\/|\.(?:pem|key|p12|pfx|db|sqlite\w*|exe|dll|zip|tar\.gz|bundle)$/i;
 const patterns = [
   ['GitHub token', /\b(?:gh[pousr]_[A-Za-z0-9]{24,}|github_pat_[A-Za-z0-9_]{24,})\b/],
   ['provider key', /\bsk-[A-Za-z0-9_-]{24,}\b/],

@@ -27,4 +27,5 @@ research/mistral-feasibility/study-summary.json
 *.dll
 *.zip
 *.tar.gz
+*.bundle
 # hatoove-site/dist is maintained site source and MUST remain tracked.
