@@ -64,7 +64,81 @@ that path when the stateful views move to owned attempts.** Reasons:
 was sync, and it is already removed. This is a conflict policy, and it is the *only* thing standing between two
 writers and silently lost answers on the legacy path today.
 
-## Ron's follow-up: *"we will have no portability so no need to sync any data"*
+## Ron's second point: *"we will have no portability so no need to sync any data"*
+
+**Correct, and it changes nothing about `mergeProgress` — because `mergeProgress` was never what synced data.**
+Two different things have been sharing the word:
+
+| | What it is | Status |
+|---|---|---|
+| **Portability / sync** | moving a progress file between an install, a portable copy or another machine | **removed, and no longer needed.** `tools/sync-home.js`, the portable build and `portable/**` are deleted; there is no second copy to reconcile because the server is the only copy |
+| **`mergeProgress`** | a rule for *two writers of the same row*, needed when a writer sends a **whole snapshot** instead of an operation | **a consequence of file persistence** — see the third point below, which supersedes the softer reading in this section |
+
+The second is not device-to-device. Its own header names the case that produced it: **debounced saves and two tabs
+on the same machine** — a tab holding a slightly older in-memory snapshot can flush *after* a tab that already saved
+newer answers, and a real save once carried **68 fewer attempts** than the one before it. The browser is a writer
+that holds state, so "no portability" alone does not remove the second writer. **Changing the persistence model
+does** — which is the point Ron makes next.
+
+
+
+**Correct, and it makes my earlier "keep it until the legacy path goes" too cautious.** The right way to say it is:
+
+> **`mergeProgress` is not a persistence strategy that we are choosing to keep. It is a *consequence* of the wrong
+> persistence strategy** — a single mutable record, rewritten whole, written by snapshot-carrying clients. On a
+> server, persistence is the database, and the record is a row (or rows) owned by an account and updated through
+> **revisions**.
+
+Once that is said, the three things that looked like separate decisions are **one**:
+
+| Looks like | Actually is |
+|---|---|
+| "we do not need a progress merge" | true **once** the writer stops sending snapshots |
+| "we do not need `progress.json`" | the same change: the row replaces the file |
+| "the stateful views must move to the account record" | the work that performs both |
+
+So: **the target is DB persistence with revision-checked writes, and the file-plus-merge model is retired as one
+act, not two.** The revision path is already built (`owned-postgres/adapter.mjs`) and already refuses a stale write
+with `409`; `revision-check` (8/8) proves a `DELETE` invalidates an older in-flight write. Nothing new has to be
+invented — the file model just has to stop existing.
+
+## Ron's third point: *"if the idea is persistence there are other ways to achieve that in a server vs local environment"* — and this reframes the whole note
+
+**Correct, and it makes my earlier "keep it until the legacy path goes" too cautious.** The right way to say it is:
+
+> **`mergeProgress` is not a persistence strategy we are choosing to keep. It is a *consequence* of the wrong
+> persistence strategy** — a single mutable record, rewritten whole, written by snapshot-carrying clients. On a
+> server, persistence is the database, and the record is a row (or rows) owned by an account and updated through
+> **revisions**.
+
+Once that is said, the three things that looked like separate decisions are **one**:
+
+| Looks like | Actually is |
+|---|---|
+| "we do not need a progress merge" | true **once** the writer stops sending snapshots |
+| "we do not need `progress.json`" | the same change: the row replaces the file |
+| "the stateful views must move to the account record" | the work that performs both |
+
+So: **the target is DB persistence with revision-checked writes, and the file-plus-merge model is retired as one
+act, not two.** The revision path is already built (`owned-postgres/adapter.mjs`) and already refuses a stale write
+with `409`; `revision-check` (8/8) proves a `DELETE` invalidates an older in-flight write. Nothing new has to be
+invented — the file model just has to stop existing.
+
+### Persistence options for a server, and which to use where
+
+| Option | Use it for | Why not for the learner record |
+|---|---|---|
+| **PostgreSQL, `owner_id` + `FORCE ROW LEVEL SECURITY`, revision-checked updates** | **the learner record, attempts, drafts, submissions, settings** | — this **is** the choice, and its isolation evidence is already in hand |
+| Redis | job queues, rate-limit counters, short-lived session or cache data — **ephemeral, high-churn, safe to lose** | isolation would live in application code rather than in the database, and a mis-keyed record is readable by anyone holding the connection |
+| Object storage (S3-compatible) | fixed audio, exports, large immutable artifacts | not a transactional record; no ownership enforcement, no revisions |
+| **A JSON file on disk** | **nothing, in a hosted service.** Acceptable only as the legacy local artefact being retired | one writer, one process, one filesystem; rewritten whole on every save; invisible to a second instance and gone with an ephemeral container |
+
+**Therefore the ordering changes.** The stateful-views migration is not "step 3 after D1" with the merge retired
+later; it is **the persistence change**, and it retires the file and the merge in the same movement. Until it lands,
+the file path stays alive and the merge must stay with it — but it is now recorded as **scheduled for removal**,
+not as a guard the programme intends to keep.
+
+
 
 **Correct, and it changes nothing about `mergeProgress` — because `mergeProgress` was never what synced data.**
 Two different things have been sharing the word:
