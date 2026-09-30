@@ -1,0 +1,412 @@
+{
+  "version": "0.1.0-draft",
+  "title": "Synthetic objective-marking cases for the eight written part families",
+  "created": "2026-09-30",
+  "execution": "user04-20260930-a",
+  "status": "draft-unreviewed",
+  "synthetic": true,
+  "reviewed": false,
+  "containsRealExamText": false,
+  "purpose": "Defines how the eight telc B1 written part families are expected to be marked: key type, blank handling, no-match support, duplicate matching selection and item-weight aggregation. These are behavioural expectations for coordinator review and future E-02 work. They contain no real exam or seed text, and implementing them is not authorised by this file.",
+  "scopeNotes": [
+    "Objective marking only. Writing (SA1) is covered solely by an explicit unassessed case; no rubric, score or AI behaviour is defined here.",
+    "No overall pass/fail or grade band is defined, because the oral part is unassessed in this pilot.",
+    "Maximum points reuse the verified subtest weights: LV 75 (3x25), SB 30 (2x15), HV 75 (3x25)."
+  ],
+  "keyTypes": ["matching-single-use", "mc-choice", "mc-choice-inline", "word-bank-single-use", "true-false"],
+  "optionPools": {
+    "headlines": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+    "ads": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"],
+    "mc3": ["a", "b", "c"],
+    "wordbank": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o"],
+    "truefalse": ["+", "-"]
+  },
+  "families": [
+    {
+      "id": "LV1",
+      "subtest": "Leseverstehen Teil 1",
+      "keyType": "matching-single-use",
+      "responseFormat": "matching",
+      "pointsMax": 25,
+      "items": [
+        { "n": 1, "key": "b" }, { "n": 2, "key": "d" }, { "n": 3, "key": "f" },
+        { "n": 4, "key": "h" }, { "n": 5, "key": "j" }
+      ],
+      "optionPool": "headlines",
+      "reuseLimit": 1,
+      "noMatchSupported": false,
+      "source": "S2-p7-p5; S2-p8-p6"
+    },
+    {
+      "id": "LV2",
+      "subtest": "Leseverstehen Teil 2",
+      "keyType": "mc-choice",
+      "responseFormat": "multiple-choice",
+      "pointsMax": 25,
+      "items": [
+        { "n": 6, "key": "a" }, { "n": 7, "key": "c" }, { "n": 8, "key": "b" },
+        { "n": 9, "key": "a" }, { "n": 10, "key": "c" }
+      ],
+      "optionPool": "mc3",
+      "reuseLimit": null,
+      "noMatchSupported": false,
+      "source": "S2-p7-p5"
+    },
+    {
+      "id": "LV3",
+      "subtest": "Leseverstehen Teil 3",
+      "keyType": "matching-single-use",
+      "responseFormat": "matching",
+      "pointsMax": 25,
+      "items": [
+        { "n": 11, "key": "a" }, { "n": 12, "key": "c" }, { "n": 13, "key": "e" },
+        { "n": 14, "key": "x" }, { "n": 15, "key": "g" }, { "n": 16, "key": "i" },
+        { "n": 17, "key": "x" }, { "n": 18, "key": "k" }, { "n": 19, "key": "b" },
+        { "n": 20, "key": "d" }
+      ],
+      "optionPool": "ads",
+      "reuseLimit": 1,
+      "noMatchSupported": true,
+      "noMatchMarker": "x",
+      "source": "S2-p7-p5; S2-p12-p10"
+    },
+    {
+      "id": "SB1",
+      "subtest": "Sprachbausteine Teil 1",
+      "keyType": "mc-choice-inline",
+      "responseFormat": "multiple-choice",
+      "pointsMax": 15,
+      "items": [
+        { "n": 21, "key": "a" }, { "n": 22, "key": "b" }, { "n": 23, "key": "c" },
+        { "n": 24, "key": "a" }, { "n": 25, "key": "b" }, { "n": 26, "key": "c" },
+        { "n": 27, "key": "a" }, { "n": 28, "key": "b" }, { "n": 29, "key": "c" },
+        { "n": 30, "key": "a" }
+      ],
+      "optionPool": "mc3",
+      "reuseLimit": null,
+      "noMatchSupported": false,
+      "source": "S2-p7-p5"
+    },
+    {
+      "id": "SB2",
+      "subtest": "Sprachbausteine Teil 2",
+      "keyType": "word-bank-single-use",
+      "responseFormat": "gap-fill-from-options",
+      "pointsMax": 15,
+      "items": [
+        { "n": 31, "key": "a" }, { "n": 32, "key": "b" }, { "n": 33, "key": "c" },
+        { "n": 34, "key": "d" }, { "n": 35, "key": "e" }, { "n": 36, "key": "f" },
+        { "n": 37, "key": "g" }, { "n": 38, "key": "h" }, { "n": 39, "key": "i" },
+        { "n": 40, "key": "j" }
+      ],
+      "optionPool": "wordbank",
+      "reuseLimit": 1,
+      "noMatchSupported": false,
+      "source": "S2-p7-p5; S2-p15-p13"
+    },
+    {
+      "id": "HV1",
+      "subtest": "Hörverstehen Teil 1",
+      "keyType": "true-false",
+      "responseFormat": "true-false",
+      "pointsMax": 25,
+      "items": [
+        { "n": 41, "key": "+" }, { "n": 42, "key": "-" }, { "n": 43, "key": "+" },
+        { "n": 44, "key": "+" }, { "n": 45, "key": "-" }
+      ],
+      "optionPool": "truefalse",
+      "reuseLimit": null,
+      "noMatchSupported": false,
+      "permittedPlays": 1,
+      "source": "S2-p7-p5; S2-p16-p14"
+    },
+    {
+      "id": "HV2",
+      "subtest": "Hörverstehen Teil 2",
+      "keyType": "true-false",
+      "responseFormat": "true-false",
+      "pointsMax": 25,
+      "items": [
+        { "n": 46, "key": "+" }, { "n": 47, "key": "-" }, { "n": 48, "key": "+" },
+        { "n": 49, "key": "-" }, { "n": 50, "key": "+" }, { "n": 51, "key": "-" },
+        { "n": 52, "key": "+" }, { "n": 53, "key": "+" }, { "n": 54, "key": "-" },
+        { "n": 55, "key": "+" }
+      ],
+      "optionPool": "truefalse",
+      "reuseLimit": null,
+      "noMatchSupported": false,
+      "permittedPlays": 2,
+      "source": "S2-p7-p5; S2-p17-p15"
+    },
+    {
+      "id": "HV3",
+      "subtest": "Hörverstehen Teil 3",
+      "keyType": "true-false",
+      "responseFormat": "true-false",
+      "pointsMax": 25,
+      "items": [
+        { "n": 56, "key": "-" }, { "n": 57, "key": "+" }, { "n": 58, "key": "-" },
+        { "n": 59, "key": "+" }, { "n": 60, "key": "-" }
+      ],
+      "optionPool": "truefalse",
+      "reuseLimit": null,
+      "noMatchSupported": false,
+      "permittedPlays": 2,
+      "source": "S2-p7-p5; S2-p18-p16"
+    }
+  ],
+  "cases": [
+    {
+      "id": "OMC-LV1-01", "family": "LV1", "scenario": "all-correct",
+      "answers": { "1": "b", "2": "d", "3": "f", "4": "h", "5": "j" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 5, "expectedPoints": 25, "unassessed": false, "synthetic": true,
+      "rationale": "A fully correct matching submission earns the whole part maximum."
+    },
+    {
+      "id": "OMC-LV1-02", "family": "LV1", "scenario": "all-wrong",
+      "answers": { "1": "a", "2": "a", "3": "a", "4": "a", "5": "a" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 0, "expectedPoints": 0, "unassessed": false, "synthetic": true,
+      "rationale": "Reusing one headline for every item is wrong on four items even though it is a legal token; no negative marking is assumed."
+    },
+    {
+      "id": "OMC-LV1-03", "family": "LV1", "scenario": "blank",
+      "answers": { "1": "b", "2": "", "3": "f", "4": null, "5": "j" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 3, "expectedPoints": 15, "unassessed": false, "synthetic": true,
+      "rationale": "Empty and missing answers are simply incorrect items, not a failure of the whole set."
+    },
+    {
+      "id": "OMC-LV1-04", "family": "LV1", "scenario": "invalid-choice",
+      "answers": { "1": "b", "2": "z", "3": "f", "4": "h", "5": "j" },
+      "expectedOutcome": "rejected-or-flagged", "expectedError": "invalid-answer",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": false, "synthetic": true,
+      "rationale": "\"z\" is outside the headline pool a-j and outside the no-match vocabulary of this family, so it must not be silently accepted as wrong-but-valid."
+    },
+    {
+      "id": "OMC-LV1-05", "family": "LV1", "scenario": "duplicate-matching-selection",
+      "answers": { "1": "b", "2": "b", "3": "f", "4": "h", "5": "j" },
+      "expectedOutcome": "marked-or-flagged", "expectedError": "duplicate-selection",
+      "expectedCorrectCount": 4, "expectedPoints": 20, "unassessed": false, "synthetic": true,
+      "rationale": "The source states each headline may be used once. Whether the app blocks the duplicate before submission or marks the second occurrence wrong is an open product decision, so both outcomes are acceptable as long as the duplicate is observable and never credited."
+    },
+    {
+      "id": "OMC-LV2-01", "family": "LV2", "scenario": "all-correct",
+      "answers": { "6": "a", "7": "c", "8": "b", "9": "a", "10": "c" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 5, "expectedPoints": 25, "unassessed": false, "synthetic": true,
+      "rationale": "Repeated correct options are legal here; LV2 has no single-use constraint."
+    },
+    {
+      "id": "OMC-LV2-02", "family": "LV2", "scenario": "all-wrong",
+      "answers": { "6": "b", "7": "b", "8": "a", "9": "b", "10": "a" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 0, "expectedPoints": 0, "unassessed": false, "synthetic": true,
+      "rationale": "All three options are legal tokens, so nothing is invalid; the score is zero."
+    },
+    {
+      "id": "OMC-LV2-03", "family": "LV2", "scenario": "blank",
+      "answers": { "6": "", "7": "c", "8": "", "9": "a", "10": "c" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 3, "expectedPoints": 15, "unassessed": false, "synthetic": true,
+      "rationale": "Two unanswered items cost exactly 2 x 5 points in a 5-item, 25-point part."
+    },
+    {
+      "id": "OMC-LV2-04", "family": "LV2", "scenario": "unsupported-no-match",
+      "answers": { "6": "a", "7": "x", "8": "b", "9": "a", "10": "c" },
+      "expectedOutcome": "rejected-or-flagged", "expectedError": "no-match-not-supported",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": false, "synthetic": true,
+      "rationale": "The no-match marker is verified only for LV Teil 3. Accepting x in LV Teil 2 would invent a rule the sources do not state."
+    },
+    {
+      "id": "OMC-LV3-01", "family": "LV3", "scenario": "all-correct-with-no-match",
+      "answers": { "11": "a", "12": "c", "13": "e", "14": "x", "15": "g", "16": "i", "17": "x", "18": "k", "19": "b", "20": "d" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 10, "expectedPoints": 25, "unassessed": false, "synthetic": true,
+      "rationale": "The x marker is part of the key here, so a correct x is a credited correct answer, not a blank."
+    },
+    {
+      "id": "OMC-LV3-02", "family": "LV3", "scenario": "no-match-marked-where-not-expected",
+      "answers": { "11": "x", "12": "c", "13": "e", "14": "x", "15": "g", "16": "i", "17": "x", "18": "k", "19": "b", "20": "d" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 9, "expectedPoints": 22.5, "unassessed": false, "synthetic": true,
+      "rationale": "Using x where an advertisement was expected is wrong for that item; it must not consume another item's credit. 9 of 10 items grants 22.5 of 25."
+    },
+    {
+      "id": "OMC-LV3-03", "family": "LV3", "scenario": "blank",
+      "answers": { "11": "a", "12": "", "13": "", "14": "x", "15": "g", "16": "i", "17": "x", "18": "k", "19": "b", "20": "d" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 8, "expectedPoints": 20, "unassessed": false, "synthetic": true,
+      "rationale": "A blank is distinct from x: blank means no decision, x means the learner decided no advertisement fits."
+    },
+    {
+      "id": "OMC-LV3-04", "family": "LV3", "scenario": "duplicate-matching-selection",
+      "answers": { "11": "a", "12": "a", "13": "e", "14": "x", "15": "g", "16": "i", "17": "x", "18": "k", "19": "b", "20": "d" },
+      "expectedOutcome": "marked-or-flagged", "expectedError": "duplicate-selection",
+      "expectedCorrectCount": 9, "expectedPoints": 22.5, "unassessed": false, "synthetic": true,
+      "rationale": "Advertisement a is used twice against the single-use rule; the duplicate may be blocked or marked, but must never both be credited."
+    },
+    {
+      "id": "OMC-LV3-05", "family": "LV3", "scenario": "invalid-choice",
+      "answers": { "11": "a", "12": "c", "13": "e", "14": "x", "15": "g", "16": "i", "17": "x", "18": "k", "19": "b", "20": "m" },
+      "expectedOutcome": "rejected-or-flagged", "expectedError": "invalid-answer",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": false, "synthetic": true,
+      "rationale": "\"m\" is outside the advertisement pool a-l and outside the marker vocabulary."
+    },
+    {
+      "id": "OMC-SB1-01", "family": "SB1", "scenario": "all-correct",
+      "answers": { "21": "a", "22": "b", "23": "c", "24": "a", "25": "b", "26": "c", "27": "a", "28": "b", "29": "c", "30": "a" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 10, "expectedPoints": 15, "unassessed": false, "synthetic": true,
+      "rationale": "SB1 is worth 15 points over 10 items, i.e. 1.5 points per item, so a perfect score is exactly 15."
+    },
+    {
+      "id": "OMC-SB1-02", "family": "SB1", "scenario": "all-wrong",
+      "answers": { "21": "b", "22": "a", "23": "a", "24": "b", "25": "a", "26": "a", "27": "b", "28": "a", "29": "a", "30": "b" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 0, "expectedPoints": 0, "unassessed": false, "synthetic": true,
+      "rationale": "Zero correct items yields zero points with no deduction, per the unpenalised marking assumption."
+    },
+    {
+      "id": "OMC-SB1-03", "family": "SB1", "scenario": "partial-weight-aggregation",
+      "answers": { "21": "a", "22": "b", "23": "c", "24": "a", "25": "b", "26": "c", "27": "a", "28": "", "29": "", "30": "" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 7, "expectedPoints": 10.5, "unassessed": false, "synthetic": true,
+      "rationale": "Seven of ten items must give 7 x 1.5 = 10.5, exercising a fractional item weight that is nevertheless an exact value."
+    },
+    {
+      "id": "OMC-SB1-04", "family": "SB1", "scenario": "invalid-choice",
+      "answers": { "21": "a", "22": "b", "23": "d", "24": "a", "25": "b", "26": "c", "27": "a", "28": "b", "29": "c", "30": "a" },
+      "expectedOutcome": "rejected-or-flagged", "expectedError": "invalid-answer",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": false, "synthetic": true,
+      "rationale": "\"d\" is outside the a/b/c choice set for this family."
+    },
+    {
+      "id": "OMC-SB2-01", "family": "SB2", "scenario": "all-correct",
+      "answers": { "31": "a", "32": "b", "33": "c", "34": "d", "35": "e", "36": "f", "37": "g", "38": "h", "39": "i", "40": "j" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 10, "expectedPoints": 15, "unassessed": false, "synthetic": true,
+      "rationale": "Ten correct gaps from the bank earn the full 15 points; five bank words are intentionally unused."
+    },
+    {
+      "id": "OMC-SB2-02", "family": "SB2", "scenario": "all-wrong",
+      "answers": { "31": "k", "32": "l", "33": "m", "34": "n", "35": "o", "36": "k", "37": "l", "38": "m", "39": "n", "40": "o" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 0, "expectedPoints": 0, "unassessed": false, "synthetic": true,
+      "rationale": "Only words from the valid bank are used, so nothing is invalid; every gap is simply wrong."
+    },
+    {
+      "id": "OMC-SB2-03", "family": "SB2", "scenario": "duplicate-bank-word",
+      "answers": { "31": "a", "32": "a", "33": "c", "34": "d", "35": "e", "36": "f", "37": "g", "38": "h", "39": "i", "40": "j" },
+      "expectedOutcome": "marked-or-flagged", "expectedError": "duplicate-selection",
+      "expectedCorrectCount": 9, "expectedPoints": 13.5, "unassessed": false, "synthetic": true,
+      "rationale": "The source states each bank word fits only once. The duplicate must not earn a second credit even if the app chooses to allow the selection."
+    },
+    {
+      "id": "OMC-SB2-04", "family": "SB2", "scenario": "invalid-choice",
+      "answers": { "31": "a", "32": "b", "33": "c", "34": "d", "35": "e", "36": "f", "37": "g", "38": "h", "39": "i", "40": "z" },
+      "expectedOutcome": "rejected-or-flagged", "expectedError": "invalid-answer",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": false, "synthetic": true,
+      "rationale": "\"z\" is outside the fifteen-word bank a-o."
+    },
+    {
+      "id": "OMC-HV1-01", "family": "HV1", "scenario": "all-correct",
+      "answers": { "41": "+", "42": "-", "43": "+", "44": "+", "45": "-" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 5, "expectedPoints": 25, "unassessed": false, "synthetic": true,
+      "rationale": "Five true/false items at 5 points each, using the + / - markers the answer sheet defines."
+    },
+    {
+      "id": "OMC-HV1-02", "family": "HV1", "scenario": "all-wrong",
+      "answers": { "41": "-", "42": "+", "43": "-", "44": "-", "45": "+" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 0, "expectedPoints": 0, "unassessed": false, "synthetic": true,
+      "rationale": "A fully inverted submission scores zero; no penalty beyond lost credit is assumed."
+    },
+    {
+      "id": "OMC-HV1-03", "family": "HV1", "scenario": "blank",
+      "answers": { "41": "+", "42": "", "43": "+", "44": "", "45": "-" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 3, "expectedPoints": 15, "unassessed": false, "synthetic": true,
+      "rationale": "Skipping an item under single-play conditions must be scored as wrong, not as a partly correct item."
+    },
+    {
+      "id": "OMC-HV1-04", "family": "HV1", "scenario": "invalid-choice",
+      "answers": { "41": "+", "42": "ja", "43": "+", "44": "+", "45": "-" },
+      "expectedOutcome": "rejected-or-flagged", "expectedError": "invalid-answer",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": false, "synthetic": true,
+      "rationale": "Only the + and - markers are defined; a free-text \"ja\" must not be coerced into a correct answer."
+    },
+    {
+      "id": "OMC-HV2-01", "family": "HV2", "scenario": "all-correct",
+      "answers": { "46": "+", "47": "-", "48": "+", "49": "-", "50": "+", "51": "-", "52": "+", "53": "+", "54": "-", "55": "+" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 10, "expectedPoints": 25, "unassessed": false, "synthetic": true,
+      "rationale": "Ten items at 2.5 points each total 25."
+    },
+    {
+      "id": "OMC-HV2-02", "family": "HV2", "scenario": "partial-weight-aggregation",
+      "answers": { "46": "+", "47": "+", "48": "+", "49": "-", "50": "+", "51": "-", "52": "", "53": "+", "54": "-", "55": "" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 7, "expectedPoints": 17.5, "unassessed": false, "synthetic": true,
+      "rationale": "Seven of ten items must give 7 x 2.5 = 17.5, a half-point aggregate produced by exact item weights rather than rounding."
+    },
+    {
+      "id": "OMC-HV2-03", "family": "HV2", "scenario": "all-wrong",
+      "answers": { "46": "-", "47": "+", "48": "-", "49": "+", "50": "-", "51": "+", "52": "-", "53": "-", "54": "+", "55": "-" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 0, "expectedPoints": 0, "unassessed": false, "synthetic": true,
+      "rationale": "All-inverted answers on a two-play part still score zero without penalty."
+    },
+    {
+      "id": "OMC-HV3-01", "family": "HV3", "scenario": "all-correct",
+      "answers": { "56": "-", "57": "+", "58": "-", "59": "+", "60": "-" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 5, "expectedPoints": 25, "unassessed": false, "synthetic": true,
+      "rationale": "Five items at 5 points each. HV3 permits two plays per short text, which must not change the marking."
+    },
+    {
+      "id": "OMC-HV3-02", "family": "HV3", "scenario": "blank",
+      "answers": { "56": "-", "57": "", "58": "-", "59": "", "60": "" },
+      "expectedOutcome": "marked", "expectedError": "none",
+      "expectedCorrectCount": 2, "expectedPoints": 10, "unassessed": false, "synthetic": true,
+      "rationale": "Two correct of five gives 10 points; unfilled items are wrong without deduction."
+    },
+    {
+      "id": "OMC-HV3-03", "family": "HV3", "scenario": "invalid-choice",
+      "answers": { "56": "-", "57": "+", "58": "-", "59": "richtig", "60": "-" },
+      "expectedOutcome": "rejected-or-flagged", "expectedError": "invalid-answer",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": false, "synthetic": true,
+      "rationale": "The word \"richtig\" is not a defined marker; accepting it would blur the answer vocabulary."
+    },
+    {
+      "id": "OMC-AGG-01", "family": "ALL", "scenario": "family-weight-aggregation",
+      "answers": null,
+      "expectedOutcome": "aggregate", "expectedError": "none",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": false, "synthetic": true,
+      "rationale": "Summing every family maximum must give LV 75 + SB 30 + HV 75 = 180 objective points across 60 items, before the 45 writing points that complete the 225 written aggregate. This case asserts the aggregation identity, not a learner result."
+    },
+    {
+      "id": "OMC-AGG-02", "family": "ALL", "scenario": "item-count-continuity",
+      "answers": null,
+      "expectedOutcome": "aggregate", "expectedError": "none",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": false, "synthetic": true,
+      "rationale": "The eight families must cover items 1-60 exactly once and without gaps: 1-5, 6-10, 11-20, 21-30, 31-40, 41-45, 46-55, 56-60."
+    },
+    {
+      "id": "OMC-SA1-01", "family": "SA1", "scenario": "writing-unassessed",
+      "answers": null,
+      "expectedOutcome": "unassessed", "expectedError": "none",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": true, "synthetic": true,
+      "rationale": "Writing is not objectively markable. When no validated assessment exists, the writing subtest stays explicitly unassessed: no objective points, no placeholder mark, and no overall pass or grade band may be derived."
+    },
+    {
+      "id": "OMC-SA1-02", "family": "SA1", "scenario": "provider-failure-no-heuristic",
+      "answers": null,
+      "expectedOutcome": "unassessed", "expectedError": "provider_unavailable",
+      "expectedCorrectCount": null, "expectedPoints": null, "unassessed": true, "synthetic": true,
+      "rationale": "A provider failure must not be converted into a heuristic writing score; the submission stays unassessed and recoverable. This restates the contract rule inside the objective-marking vocabulary."
+    }
+  ]
+}
