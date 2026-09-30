@@ -1,0 +1,150 @@
+/**
+ * PostgreSQL session port for the owned-attempts seam (OWNAPI-02, test fixture).
+ *
+ * The datastore adapter is the point of this task; this port exists so the same
+ * check suite can run against a real database instead of the in-memory session
+ * fake. It is deliberately NOT a production auth system and NOT Better Auth:
+ * it stores synthetic accounts and sessions in the tracked Better Auth schema
+ * (`spikes/auth-runtime/auth-schema.sql`) so the `attempts.owner_id -> "user"(id)`
+ * foreign key is satisfied by a genuine database row.
+ *
+ * Least privilege: every learner-facing read writes as the restricted `__AUTH__`
+ * role, which can touch only `"user"`, `session`, `account` and `verification`.
+ * It cannot read `attempts`, `drafts` or `submissions`.
+ *
+ * The only privileged step is provisioning a synthetic entitlement allowance at
+ * sign-up, which mirrors `spikes/auth-runtime/test.mjs`'s `account()` helper and
+ * `isolation.test.mjs`'s `register()`. That runs through the fixture's admin pool
+ * because the restricted roles have no INSERT right on `entitlements`.
+ */
+
+import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
+import { Fault } from '../../server/owned-api.mjs';
+
+const COOKIE_DEFAULT = 'hatoove_owned_session';
+
+/** scrypt hash in a self-describing single column: `scrypt:<salt-hex>:<hash-hex>`. */
+function hashPassword(password) {
+  const salt = randomBytes(16);
+  const digest = scryptSync(password, salt, 32);
+  return `scrypt:${salt.toString('hex')}:${digest.toString('hex')}`;
+}
+
+function verifyPassword(password, stored) {
+  const [scheme, saltHex, hashHex] = String(stored || '').split(':');
+  if (scheme !== 'scrypt' || !saltHex || !hashHex) return false;
+  const expected = Buffer.from(hashHex, 'hex');
+  const actual = scryptSync(password, Buffer.from(saltHex, 'hex'), expected.length);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+function tokenFrom(headers, cookieName) {
+  const cookie = String((headers && headers.cookie) || '');
+  for (const part of cookie.split(';')) {
+    const [name, ...rest] = part.trim().split('=');
+    if (name === cookieName) return rest.join('=');
+  }
+  return null;
+}
+
+/**
+ * @param {{pool: object, adminPool: object, allowance?: number, sessionTtlSeconds?: number, cookieName?: string}} options
+ *   `pool` connects as the restricted auth role; `adminPool` is the fixture's
+ *   privileged pool used only to provision a synthetic entitlement allowance.
+ */
+export function createPostgresSessions({
+  pool, adminPool, allowance = 10, sessionTtlSeconds = 3600, cookieName = COOKIE_DEFAULT,
+} = {}) {
+  if (!pool || typeof pool.connect !== 'function') throw new TypeError('createPostgresSessions requires a pg Pool');
+  if (!adminPool || typeof adminPool.query !== 'function') throw new TypeError('createPostgresSessions requires an admin Pool');
+
+  async function inTransaction(work) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const value = await work(client);
+      await client.query('COMMIT');
+      return value;
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch { /* preserve the original failure */ }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async function issueSession(client, userId) {
+    const token = randomBytes(24).toString('base64url');
+    await client.query(
+      `INSERT INTO session(id, "expiresAt", token, "createdAt", "updatedAt", "userId")
+       VALUES($1, now() + make_interval(secs => $2), $3, now(), now(), $4)`,
+      [randomUUID(), sessionTtlSeconds, token, userId]);
+    return { setCookie: `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax` };
+  }
+
+  return {
+    cookieName,
+
+    /** Fixture-only count of live session rows. */
+    async liveSessions() {
+      const row = (await adminPool.query('SELECT count(*)::int AS n FROM session')).rows[0];
+      return row ? row.n : 0;
+    },
+
+    async getSession(headers) {
+      const token = tokenFrom(headers, cookieName);
+      if (!token) return null;
+      const row = (await pool.query(
+        `SELECT s."userId" AS "userId", u.email AS email, s."expiresAt" AS "expiresAt"
+         FROM session s JOIN "user" u ON u.id = s."userId" WHERE s.token = $1`, [token])).rows[0];
+      if (!row) return null;
+      if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) return null;
+      return { userId: row.userId, email: row.email };
+    },
+
+    async signUp({ name, email, password }) {
+      const id = `user-${randomUUID()}`;
+      const existing = (await pool.query('SELECT 1 FROM "user" WHERE email = $1', [email])).rows[0];
+      if (existing) throw new Fault(422, 'user_exists');
+      try {
+        return await inTransaction(async (client) => {
+          await client.query(
+            `INSERT INTO "user"(id, name, email, "emailVerified", "createdAt", "updatedAt")
+             VALUES($1, $2, $3, false, now(), now())`, [id, name, email]);
+          await client.query(
+            `INSERT INTO account(id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt")
+             VALUES($1, $2, 'credential', $3, $4, now(), now())`,
+            [randomUUID(), id, id, hashPassword(password)]);
+          const cookie = await issueSession(client, id);
+          return { ...cookie, userId: id };
+        }).then(async (created) => {
+          // Synthetic allowance, provisioned as the fixture's privileged step.
+          if (allowance !== null && allowance !== undefined) {
+            await adminPool.query(
+              'INSERT INTO entitlements(owner_id, allowance) VALUES($1, $2) ON CONFLICT (owner_id) DO NOTHING',
+              [id, allowance]);
+          }
+          return { setCookie: created.setCookie };
+        });
+      } catch (error) {
+        if (error && error.code === '23505') throw new Fault(422, 'user_exists');
+        throw error;
+      }
+    },
+
+    async signIn({ email, password }) {
+      const row = (await pool.query(
+        `SELECT u.id AS "userId", a.password AS password
+         FROM "user" u JOIN account a ON a."userId" = u.id
+         WHERE u.email = $1 AND a."providerId" = 'credential'`, [email])).rows[0];
+      if (!row || !verifyPassword(password, row.password)) throw new Fault(401, 'invalid_credentials');
+      return inTransaction((client) => issueSession(client, row.userId));
+    },
+
+    async signOut(headers) {
+      const token = tokenFrom(headers, cookieName);
+      if (token) await pool.query('DELETE FROM session WHERE token = $1', [token]);
+      return { setCookie: `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` };
+    },
+  };
+}

@@ -11,20 +11,24 @@
  *   * The server.js mount (when present) sits behind the SEC-01 origin gate: a
  *     second pass starts server.js in-process on an ephemeral loopback port.
  *
- * What this does NOT prove
- *   * Anything about PostgreSQL. The datastore below is IN MEMORY and test-only.
- *     The programme's ownership guarantees were proven against PostgreSQL with
- *     forced RLS and separate roles (spikes/auth-runtime/isolation.test.mjs); no
- *     adapter to that exists yet. Here, ownership scoping lives in the in-memory
- *     store's `ownedAttempt`/`ownedSubmission` helpers, which the discrimination
- *     run in work/implementation/OWNAPI-01.md disables to show the suite fails.
- *   * Real auth. The session port is a synthetic in-memory fake, not Better Auth.
+ * What this does NOT prove (default `memory` backend)
+ *   * Anything about PostgreSQL. In the default mode the datastore below is IN MEMORY
+ *     and test-only. Run with `--backend=postgres` (OWNAPI-02) to drive the same
+ *     checks through server/owned-postgres as a restricted role with FORCE ROW
+ *     LEVEL SECURITY; that mode needs the package installed and a disposable
+ *     database. In memory, ownership scoping lives in the in-memory store's
+ *     `ownedAttempt`/`ownedSubmission` helpers, which the discrimination run in
+ *     work/implementation/OWNAPI-01.md disables to show the suite fails.
+ *   * Real auth. The session port is a synthetic fake (in memory) or a
+ *     synthetic PostgreSQL-backed port (postgres). Neither is Better Auth.
  *   * Browser behaviour. No browser is started.
  *
- * Safety: offline, no database, no provider, no `.env`; the server.js pass points
- * B1PREP_ENV_FILE / B1PREP_PROGRESS_FILE at a throwaway temp directory.
+ * Safety: offline by default; no database, no provider, no `.env`; the server.js
+ * pass points B1PREP_ENV_FILE / B1PREP_PROGRESS_FILE at a throwaway temp directory.
  *
- * Usage: node tools/owned-api-check.mjs   (exit 0 when every check passes)
+ * Usage:
+ *   node tools/owned-api-check.mjs                     (memory; exit 0 when every check passes)
+ *   node tools/owned-api-check.mjs --backend=postgres  (real PostgreSQL + FORCE RLS)
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -349,11 +353,32 @@ const SUBMISSION_ABSENT = '0e0e0e0e-0000-4000-8000-000000000000';
 let emailCounter = 0;
 const nextEmail = (tag) => `${tag}-${++emailCounter}@example.invalid`;
 
-function world({ allowance } = {}) {
+/**
+ * Selected datastore backend. `memory` is the original in-memory test double
+ * (no persistence, no RLS). `postgres` swaps in the real adapter from
+ * server/owned-postgres, which runs learner paths as a restricted role with
+ * FORCE ROW LEVEL SECURITY. The checks below are otherwise untouched: the same
+ * suite drives the same real client through the same real mount on both.
+ */
+let BACKEND = 'memory';
+const openWorlds = [];
+
+async function world({ allowance } = {}) {
+  if (BACKEND === 'postgres') {
+    const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
+    const pg = await createPostgresWorld({ allowance });
+    openWorlds.push(pg);
+    return { store: pg.store, sessions: pg.sessions, api: pg.api, browser: () => inProcessBrowser(pg.api) };
+  }
   const store = createMemoryDatastore({ allowance });
   const sessions = createMemorySessions();
   const api = createOwnedApi({ datastore: store.port, sessions });
   return { store, sessions, api, browser: () => inProcessBrowser(api) };
+}
+
+/** Tear down every PostgreSQL schema/role a `world()` opened. No-op in memory. */
+async function closeWorlds() {
+  for (const pg of openWorlds.splice(0)) await pg.teardown();
 }
 
 async function learner(w, tag = 'a') {
@@ -388,7 +413,7 @@ const check = (name, run) => checks.push({ name, run });
 /* ----------------------------------------------------------- account/auth */
 
 check('client-signup-establishes-verified-account', async () => {
-  const w = world();
+  const w = await world();
   const a = await learner(w);
   assert.equal(a.account.contractVersion, CONTRACT_VERSION);
   assert.match(a.account.id, /^user-/, 'opaque text user id from the session port');
@@ -399,7 +424,7 @@ check('client-signup-establishes-verified-account', async () => {
 });
 
 check('client-signin-and-wrong-password', async () => {
-  const w = world();
+  const w = await world();
   const email = nextEmail('s');
   await w.browser().client.signUp({ name: 'S', email, password: 'right-synthetic' });
   const b = w.browser();
@@ -410,7 +435,7 @@ check('client-signin-and-wrong-password', async () => {
 });
 
 check('unauthenticated-requests-get-401', async () => {
-  const w = world();
+  const w = await world();
   const b = w.browser();
   assert.equal(await b.client.refreshAccount(), null, 'a 401 account reads as signed out');
   for (const [method, url, body] of [
@@ -428,7 +453,7 @@ check('unauthenticated-requests-get-401', async () => {
 });
 
 check('sign-out-invalidates-server-session', async () => {
-  const w = world();
+  const w = await world();
   const a = await learner(w);
   const stolen = cookieHeader(a.jar);
   await a.client.signOut();
@@ -439,7 +464,7 @@ check('sign-out-invalidates-server-session', async () => {
 });
 
 check('get-session-reports-only-the-verified-session', async () => {
-  const w = world();
+  const w = await world();
   const a = await learner(w);
   const res = await a.raw('GET', '/api/auth/get-session');
   assert.deepEqual(res.json, { user: { id: a.account.id, email: a.account.email } });
@@ -451,7 +476,7 @@ check('get-session-reports-only-the-verified-session', async () => {
 /* -------------------------------------------------------------- lifecycle */
 
 check('client-full-lifecycle-shapes', async () => {
-  const w = world();
+  const w = await world();
   const a = await learner(w);
   const attempt = await a.client.createAttempt();
   assert.equal(attempt.revision, 1, 'draft revisions start at 1');
@@ -478,34 +503,34 @@ check('client-full-lifecycle-shapes', async () => {
 });
 
 check('draft-revision-checked-and-increments-once', async () => {
-  const w = world();
+  const w = await world();
   const a = await learner(w);
   const attempt = await a.client.createAttempt();
   const r2 = await a.client.saveDraft(attempt.id, { expectedRevision: 1, text: 'eins' });
   const r3 = await a.client.saveDraft(attempt.id, { expectedRevision: 2, text: 'zwei' });
   assert.deepEqual([r2.revision, r3.revision], [2, 3]);
-  const before = w.store.inspect.fingerprint();
+  const before = await w.store.inspect.fingerprint();
   await expectClientError(a.client.saveDraft(attempt.id, { expectedRevision: 2, text: 'veraltet' }), 'conflict', { status: 409, detail: 'draft_conflict' });
   await expectClientError(a.client.saveDraft(attempt.id, { expectedRevision: 9, text: 'Zukunft' }), 'conflict', { status: 409, detail: 'draft_conflict' });
-  assert.equal(w.store.inspect.fingerprint(), before, 'a stale save writes nothing');
+  assert.equal(await w.store.inspect.fingerprint(), before, 'a stale save writes nothing');
   const current = await a.client.readAttempt(attempt.id);
   assert.deepEqual([current.revision, current.text], [3, 'zwei']);
 });
 
 check('submission-idempotent-on-owner-and-event', async () => {
-  const w = world();
+  const w = await world();
   const s = await submitted(w);
   const again = await s.client.submit(s.attempt.id, { expectedRevision: s.draft.revision, eventId: s.eventId });
   assert.deepEqual(again, { submissionId: s.receipt.submissionId, replay: true });
-  assert.equal(w.store.inspect.submissionCount(), 1, 'no duplicate submission');
-  assert.equal(w.store.inspect.entitlement(s.account.id).reserved, 1, 'reserved exactly once');
+  assert.equal(await w.store.inspect.submissionCount(), 1, 'no duplicate submission');
+  assert.equal((await w.store.inspect.entitlement(s.account.id)).reserved, 1, 'reserved exactly once');
   // Same key, different fingerprint -> conflict.
   await expectClientError(s.client.submit(s.attempt.id, { expectedRevision: s.draft.revision + 1, eventId: s.eventId }),
     'conflict', { status: 409, detail: 'idempotency_conflict' });
   // New key cannot resubmit the same frozen attempt.
   await expectClientError(s.client.submit(s.attempt.id, { expectedRevision: s.draft.revision, eventId: randomUUID() }),
     'conflict', { status: 409, detail: 'already_submitted' });
-  assert.equal(w.store.inspect.submissionCount(), 1);
+  assert.equal(await w.store.inspect.submissionCount(), 1);
   // The event key is per owner: another account reusing the same eventId gets its own submission.
   const b = await learner(w, 'b');
   const attemptB = await b.client.createAttempt();
@@ -516,11 +541,11 @@ check('submission-idempotent-on-owner-and-event', async () => {
 });
 
 check('submission-snapshot-immutable', async () => {
-  const w = world();
+  const w = await world();
   const s = await submitted(w, 'a', 'Original eingereicht');
   await expectClientError(s.client.saveDraft(s.attempt.id, { expectedRevision: s.draft.revision, text: 'nachträglich' }),
     'conflict', { status: 409, detail: 'revision_required' });
-  const record = w.store.inspect.submission(s.receipt.submissionId);
+  const record = await w.store.inspect.submission(s.receipt.submissionId);
   assert.throws(() => { record.text = 'changed'; }, TypeError, 'stored snapshot is frozen');
   const result = await s.client.readResult(s.receipt.submissionId);
   assert.equal(result.submission.text, 'Original eingereicht');
@@ -535,45 +560,45 @@ check('submission-snapshot-immutable', async () => {
 });
 
 check('result-never-regrades', async () => {
-  const w = world();
+  const w = await world();
   const s = await submitted(w);
   const id = s.receipt.submissionId;
-  assert.ok(w.store.worker.claim(id));
-  assert.ok(w.store.worker.complete(id, 'Synthetic formative note.'));
-  const usageBefore = w.store.inspect.entitlement(s.account.id);
-  const fingerprint = w.store.inspect.fingerprint();
+  assert.ok(await w.store.worker.claim(id));
+  assert.ok(await w.store.worker.complete(id, 'Synthetic formative note.'));
+  const usageBefore = await w.store.inspect.entitlement(s.account.id);
+  const fingerprint = await w.store.inspect.fingerprint();
   const reads = [];
   for (let i = 0; i < 3; i += 1) reads.push(await s.client.readResult(id));
   assert.equal(reads[0].job.status, 'succeeded');
   assert.deepEqual(reads[0].assessment.feedback, { kind: 'synthetic-formative', comment: 'Synthetic formative note.' });
   assert.deepEqual(reads[1], reads[0]);
   assert.deepEqual(reads[2], reads[0]);
-  assert.equal(w.store.inspect.fingerprint(), fingerprint, 'reading a result writes nothing');
-  assert.deepEqual(w.store.inspect.entitlement(s.account.id), usageBefore, 'no new debit or reservation');
+  assert.equal(await w.store.inspect.fingerprint(), fingerprint, 'reading a result writes nothing');
+  assert.deepEqual(await w.store.inspect.entitlement(s.account.id), usageBefore, 'no new debit or reservation');
   // A succeeded job is not retryable, so a result cannot be regraded through retry either.
   await expectClientError(s.client.retry(id), 'conflict', { status: 409, detail: 'retry_unavailable' });
 });
 
 check('retry-only-eligible-failed-job-same-identity', async () => {
-  const w = world();
+  const w = await world();
   const s = await submitted(w);
   const id = s.receipt.submissionId;
   await expectClientError(s.client.retry(id), 'conflict', { status: 409, detail: 'retry_unavailable' });
-  w.store.worker.claim(id);
-  w.store.worker.fail(id, 'provider_unavailable');
+  await w.store.worker.claim(id);
+  await w.store.worker.fail(id, 'provider_unavailable');
   assert.deepEqual(await s.client.retry(id), { queued: true });
   const result = await s.client.readResult(id);
   assert.equal(result.job.status, 'queued');
   assert.equal(result.submission.id, id, 'same submission identity');
   await expectClientError(s.client.retry(id), 'conflict', { status: 409, detail: 'retry_unavailable' });
   // retry_exhausted never retries.
-  w.store.worker.claim(id);
-  w.store.worker.fail(id, 'retry_exhausted');
+  await w.store.worker.claim(id);
+  await w.store.worker.fail(id, 'retry_exhausted');
   await expectClientError(s.client.retry(id), 'conflict', { status: 409, detail: 'retry_unavailable' });
 });
 
 check('allowance-exhausted-409', async () => {
-  const w = world({ allowance: 1 });
+  const w = await world({ allowance: 1 });
   const s = await submitted(w);
   const next = await s.client.createAttempt();
   await s.client.saveDraft(next.id, { expectedRevision: 1, text: 'zweiter Text' });
@@ -582,13 +607,13 @@ check('allowance-exhausted-409', async () => {
 });
 
 check('delete-is-a-tombstone', async () => {
-  const w = world();
+  const w = await world();
   const s = await submitted(w);
   assert.deepEqual(await s.client.deleteAttempt(s.attempt.id), { deleted: true });
-  assert.ok(w.store.inspect.attempt(s.attempt.id).deleted_at, 'tombstone recorded');
-  assert.equal(w.store.inspect.attempt(s.attempt.id).draft, null, 'draft removed');
-  assert.equal(w.store.inspect.job(s.receipt.submissionId).status, 'cancelled');
-  assert.equal(w.store.inspect.entitlement(s.account.id).reserved, 0, 'reservation released');
+  assert.ok((await w.store.inspect.attempt(s.attempt.id)).deleted_at, 'tombstone recorded');
+  assert.equal((await w.store.inspect.attempt(s.attempt.id)).draft, null, 'draft removed');
+  assert.equal((await w.store.inspect.job(s.receipt.submissionId)).status, 'cancelled');
+  assert.equal((await w.store.inspect.entitlement(s.account.id)).reserved, 0, 'reservation released');
   await expectClientError(s.client.readAttempt(s.attempt.id), 'not_found', { status: 404 });
   await expectClientError(s.client.saveDraft(s.attempt.id, { expectedRevision: 2, text: 'stale' }), 'not_found', { status: 404 });
   await expectClientError(s.client.submit(s.attempt.id, { expectedRevision: 2, eventId: s.eventId }), 'not_found', { status: 404 });
@@ -596,20 +621,20 @@ check('delete-is-a-tombstone', async () => {
   await expectClientError(s.client.retry(s.receipt.submissionId), 'not_found', { status: 404 });
   await expectClientError(s.client.createAttempt({ parentSubmissionId: s.receipt.submissionId }), 'not_found', { status: 404 });
   await expectClientError(s.client.deleteAttempt(s.attempt.id), 'not_found', { status: 404 });
-  assert.equal(w.store.worker.complete(s.receipt.submissionId, 'late'), false, 'a late completion cannot recreate it');
+  assert.equal(await w.store.worker.complete(s.receipt.submissionId, 'late'), false, 'a late completion cannot recreate it');
 });
 
 /* -------------------------------------------------------------- ownership */
 
 check('cross-owner-is-404-for-every-route', async () => {
-  const w = world();
+  const w = await world();
   const a = await submitted(w, 'a');
   const openA = await a.client.createAttempt();
   await a.client.saveDraft(openA.id, { expectedRevision: 1, text: 'A privat' });
-  w.store.worker.claim(a.receipt.submissionId);
-  w.store.worker.fail(a.receipt.submissionId, 'provider_unavailable'); // retry-eligible for A
+  await w.store.worker.claim(a.receipt.submissionId);
+  await w.store.worker.fail(a.receipt.submissionId, 'provider_unavailable'); // retry-eligible for A
   const b = await learner(w, 'b');
-  const before = w.store.inspect.fingerprint();
+  const before = await w.store.inspect.fingerprint();
 
   const attempts = [
     ['read', () => b.client.readAttempt(openA.id), () => b.client.readAttempt(ATTEMPT_ABSENT)],
@@ -629,14 +654,14 @@ check('cross-owner-is-404-for-every-route', async () => {
     assert.equal(e1.detail, e2.detail, `${label}: another owner's record must look exactly like an absent one`);
     assert.equal(e1.detail, 'not_found');
   }
-  assert.equal(w.store.inspect.fingerprint(), before, 'B changed nothing that belongs to A');
+  assert.equal(await w.store.inspect.fingerprint(), before, 'B changed nothing that belongs to A');
   // A still owns everything, unchanged.
   assert.equal((await a.client.readAttempt(openA.id)).text, 'A privat');
   assert.deepEqual(await a.client.retry(a.receipt.submissionId), { queued: true });
 });
 
 check('identity-is-never-accepted-from-input', async () => {
-  const w = world();
+  const w = await world();
   const a = await learner(w, 'a');
   const b = await learner(w, 'b');
   const attemptA = await a.client.createAttempt();
@@ -661,22 +686,22 @@ check('identity-is-never-accepted-from-input', async () => {
 /* ---------------------------------------------------------- error contract */
 
 check('error-403-mutation-without-origin-gate', async () => {
-  const w = world();
+  const w = await world();
   const a = await learner(w);
-  const before = w.store.inspect.fingerprint();
+  const before = await w.store.inspect.fingerprint();
   for (const url of ['/api/v1/attempts', '/api/v1/no-such-route', '/api/auth/sign-in/email', '/api/auth/sign-out']) {
     const res = await a.raw('POST', url, {}, { originChecked: false });
     assert.equal(res.status, 403, url);
     assert.deepEqual(res.json, { error: 'origin_rejected' });
   }
-  assert.equal(w.store.inspect.fingerprint(), before);
-  assert.equal(w.sessions.liveSessions(), 1, 'an ungated sign-out did not end the session');
+  assert.equal(await w.store.inspect.fingerprint(), before);
+  assert.equal(await w.sessions.liveSessions(), 1, 'an ungated sign-out did not end the session');
   const read = await a.raw('GET', '/api/v1/account', undefined, { originChecked: false });
   assert.equal(read.status, 200, 'reads do not need the mutation gate');
 });
 
 check('error-404-unknown-routes-and-methods', async () => {
-  const w = world();
+  const w = await world();
   const a = await learner(w);
   for (const [method, url] of [
     ['GET', '/api/v1/nope'], ['GET', '/api/v1'], ['PUT', '/api/v1/attempts'], ['GET', '/api/v1/attempts'],
@@ -690,7 +715,7 @@ check('error-404-unknown-routes-and-methods', async () => {
 });
 
 check('error-400-413-415-422', async () => {
-  const w = world();
+  const w = await world();
   const a = await learner(w);
   const attempt = await a.client.createAttempt();
   const put = `/api/v1/attempts/${attempt.id}`;
@@ -719,7 +744,7 @@ check('error-400-413-415-422', async () => {
 });
 
 check('error-500-is-redacted', async () => {
-  const w = world();
+  const w = await world();
   const leaky = { ...w.store.port, async read() { throw new Error('SELECT * FROM attempts -- password=synthetic-secret'); } };
   const api = createOwnedApi({ datastore: leaky, sessions: w.sessions });
   const b = inProcessBrowser(api);
@@ -733,7 +758,7 @@ check('error-500-is-redacted', async () => {
 /* ------------------------------------------------------------- fail closed */
 
 check('fail-closed-without-ports', async () => {
-  const w = world();
+  const w = await world();
   const a = await learner(w);
   const cookie = cookieHeader(a.jar);
   const partialStore = { ...w.store.port };
@@ -761,7 +786,7 @@ check('fail-closed-without-ports', async () => {
 });
 
 check('garbage-session-port-output-is-401', async () => {
-  const w = world();
+  const w = await world();
   for (const value of [{ userId: '' }, { userId: '   ' }, { userId: 42 }, 'user-a', ['user-a'], undefined]) {
     const api = createOwnedApi({ datastore: w.store.port, sessions: { ...w.sessions, getSession: async () => value } });
     const res = await api.handle({ method: 'GET', path: '/api/v1/account' });
@@ -810,11 +835,11 @@ check('server-mount-off-by-default', async () => {
 
 check('server-mount-behind-sec01-origin-gate', async () => {
   if (!(await serverSupportsMount())) throw new Error('server.js has no OWNAPI-01 mount point');
-  const w = world();
+  const w = await world();
   const ctx = await startLegacyServer({ ownedApi: w.api });
   try {
     const foreign = httpBrowser(ctx.port, { origin: 'http://attacker.example' });
-    const before = w.store.inspect.fingerprint();
+    const before = await w.store.inspect.fingerprint();
     for (const url of ['/api/auth/sign-up/email', '/api/v1/attempts', '/api/v1/no-such-route']) {
       const res = await foreign.request({ method: 'POST', url, headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: 'X', email: 'x@example.invalid', password: 'pw' }) });
@@ -823,14 +848,14 @@ check('server-mount-behind-sec01-origin-gate', async () => {
     const absent = httpBrowser(ctx.port, { origin: null });
     const noOrigin = await absent.request({ method: 'POST', url: '/api/v1/attempts', headers: { 'content-type': 'application/json' }, body: '{}' });
     assert.equal(noOrigin.status, 403, 'absent Origin and Referer is rejected');
-    assert.equal(w.store.inspect.fingerprint(), before, 'no rejected request reached the datastore');
-    assert.equal(w.sessions.liveSessions(), 0, 'no cross-origin sign-up created a session');
+    assert.equal(await w.store.inspect.fingerprint(), before, 'no rejected request reached the datastore');
+    assert.equal(await w.sessions.liveSessions(), 0, 'no cross-origin sign-up created a session');
   } finally { await ctx.close(); }
 });
 
 check('server-mount-real-client-over-http', async () => {
   if (!(await serverSupportsMount())) throw new Error('server.js has no OWNAPI-01 mount point');
-  const w = world();
+  const w = await world();
   const ctx = await startLegacyServer({ ownedApi: w.api });
   try {
     const a = httpBrowser(ctx.port);
@@ -855,29 +880,50 @@ check('server-mount-real-client-over-http', async () => {
 
 export const REQUIRED_CHECKS = checks.map((c) => c.name);
 
-export async function runOwnedApiChecks() {
+/**
+ * Run every check against one backend.
+ * @param {{backend?: 'memory'|'postgres'}} [options]
+ *   'memory' is the original in-memory double. 'postgres' requires the
+ *   server/owned-postgres package installed and a disposable database (see its
+ *   README); it is the only mode that exercises FORCE ROW LEVEL SECURITY.
+ */
+export async function runOwnedApiChecks({ backend = 'memory' } = {}) {
+  if (backend !== 'memory' && backend !== 'postgres') throw new Error(`unknown backend: ${backend}`);
+  BACKEND = backend;
   const results = [];
-  for (const { name, run } of checks) {
-    try {
-      await run();
-      results.push({ name, ok: true, detail: 'ok' });
-    } catch (error) {
-      results.push({ name, ok: false, detail: error && error.message ? error.message.split('\n')[0] : String(error), error });
+  try {
+    for (const { name, run } of checks) {
+      try {
+        await run();
+        results.push({ name, ok: true, detail: 'ok' });
+      } catch (error) {
+        results.push({ name, ok: false, detail: error && error.message ? error.message.split('\n')[0] : String(error), error });
+      } finally {
+        // Close each PostgreSQL world immediately: bounds open schemas, roles and
+        // pooled connections to one at a time.
+        await closeWorlds();
+      }
     }
+  } finally {
+    await closeWorlds();
   }
   if (legacy) fs.rmSync(legacy.dir, { recursive: true, force: true });
-  return { ok: results.every((r) => r.ok), results };
+  return { ok: results.every((r) => r.ok), backend, results };
 }
 
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
-  const report = await runOwnedApiChecks();
+  const backendArg = process.argv.find((a) => a.startsWith('--backend='));
+  const backend = backendArg ? backendArg.slice('--backend='.length) : 'memory';
+  const report = await runOwnedApiChecks({ backend });
   for (const r of report.results) {
     console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.ok ? '' : `\n  ${r.detail}`}`);
     if (!r.ok && r.error && r.error.stack) console.log(r.error.stack.split('\n').slice(1, 4).join('\n'));
   }
   const failed = report.results.filter((r) => !r.ok).length;
-  console.log(`\n${report.results.length - failed} passed, ${failed} failed`);
-  console.log('NOTE in-memory datastore and session fakes only; no PostgreSQL/RLS evidence.');
+  console.log(`\n${report.results.length - failed} passed, ${failed} failed (backend: ${report.backend})`);
+  console.log(report.backend === 'postgres'
+    ? 'NOTE real PostgreSQL datastore as the restricted learner role with FORCE RLS; synthetic sessions.'
+    : 'NOTE in-memory datastore and session fakes only; no PostgreSQL/RLS evidence. Add --backend=postgres for that.');
   process.exitCode = failed ? 1 : 0;
 }

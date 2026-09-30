@@ -1,0 +1,10 @@
+{
+  "name": "hatoove-owned-postgres",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PostgreSQL datastore adapter for the owned-attempts port (OWNAPI-02), with its own package scope so the root app stays dependency-free.",
+  "engines": { "node": ">=22.16" },
+  "scripts": { "check": "node ../../tools/owned-api-pg-check.mjs" },
+  "dependencies": { "pg": "8.23.1" }
+}
