@@ -2,7 +2,7 @@
 
 Status: working. Coordinator owns architecture, source and integration.
 Execution: pre05-20260930-a. Slot 1. Base: 48c3d210173a0291eb1d82ad2c8a74ad52da8416.
-Branch: codex/pre-05-runtime-contracts. Managed worktree: C:/Users/ronon/.codex/worktrees/pre05-runtime-contracts/B1_Prep.
+Branch: codex/pre-05-runtime-contracts. Managed worktree: <user-home>/.codex/worktrees/pre05-runtime-contracts/B1_Prep.
 Issued 2026-09-30 17:35 UTC; checkpoint 17:50 UTC; expires 18:35 UTC. No children.
 
 Allowed paths: spikes/auth-runtime/**, docs/contracts/**, work/implementation/**, work/BOARD.md, .github/workflows/pilot-contracts.yml.

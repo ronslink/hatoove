@@ -1,12 +1,12 @@
 # USER-03: sequential exam-source, validation and feedback-fixture batch
 
 Assigned to Ron-controlled local agent, slot4; execution user03-20260930-a; no children. USER-02 completed at commit3ca5367/PR12 and is now awaiting coordinator review; its worktree/evidence remain preserved.
-Base a9a4cfd95992df95dc76bdbab3bbb690efe4841f; branch codex/e01-sources-user03; worktree C:/Users/ronon/.codex/worktrees/user03-exam-sources/B1_Prep.
+Base a9a4cfd95992df95dc76bdbab3bbb690efe4841f; branch codex/e01-sources-user03; worktree <user-home>/.codex/worktrees/user03-exam-sources/B1_Prep.
 Issued 2026-09-30 18:18 UTC; checkpoint18:33 and every15 minutes; expires20:18 UTC. Coordinator extended this batch at Ron's explicit request for several tasks. Acknowledge exact base/branch, scope and lease before editing. Read AGENTS.md, IMPLEMENTATION_PLAN.md, PILOT_BUILD_PLAN.md and docs/AGENT_WORKFLOW.md in this worktree.
 
 Task: verify the applicable official telc Deutsch B1 written-examination specification and prepare a concise source register plus machine-readable DRAFT blueprint for later coordinator implementation/human review. This is source extraction/verification, not final educational approval or a task to edit app scoring.
 
-Allowed writes ONLY docs/exam/TELC-B1-SOURCES.md, docs/exam/telc-b1-written-draft.json, tools/exam-blueprint-check.mjs, tools/exam-blueprint-check.test.mjs, docs/assessment/FEEDBACK-CASES.md, tests/fixtures/writing-feedback-cases.json and tools/feedback-case-check.mjs. Also write ACK.md, CHECKPOINT.md and RESULT.md under C:/Users/ronon/.codex/hatoove-handoff/ron-agent/reports/user03-20260930-a/. No application code, content-pack, CSS, board, dependency, CI, old USER-02 or public/js/exam.js edits. Tool scripts below are the only code exception.
+Allowed writes ONLY docs/exam/TELC-B1-SOURCES.md, docs/exam/telc-b1-written-draft.json, tools/exam-blueprint-check.mjs, tools/exam-blueprint-check.test.mjs, docs/assessment/FEEDBACK-CASES.md, tests/fixtures/writing-feedback-cases.json and tools/feedback-case-check.mjs. Also write ACK.md, CHECKPOINT.md and RESULT.md under <user-home>/.codex/hatoove-handoff/ron-agent/reports/user03-20260930-a/. No application code, content-pack, CSS, board, dependency, CI, old USER-02 or public/js/exam.js edits. Tool scripts below are the only code exception.
 
 Start with the plan's official sources, opening actual pages/PDF rather than relying on snippets:
 https://www.telc.net/sprachpruefungen/deutsch/zertifikat-deutsch-telc-deutsch-b1/
