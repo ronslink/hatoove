@@ -35,9 +35,7 @@ Use the [pilot plan](../PILOT_BUILD_PLAN.md) for detailed scope. Speaking is exc
 
 Global cap: **4 active agents including the coordinator and all children/reviewers**. All remote preparation runs have ended; no remote worker or child is assigned now. New tasks require fresh allocations. Existing Hermes installation allows four children and depth two with automatic worktree isolation off; these host defaults do not grant this project permission to use them.
 
-| Task | Execution ID | Owner / host | Slot | Branch / base SHA | Checkpoint / expiry UTC | Issue / PR |
-|---|---|---|---|---|---|---|
-| Coordination | Session integration | Local coordinator | 1 | `codex/coordinator-cadence` / `2feaba6` | Session-managed | Coordination PR pending |
+Coordinator preparation closes with the merge of [PR #6](https://github.com/ronslink/hatoove/pull/6), following independent review and CI. The completed PRE dispatch files are historical records, not current execution grants.
 
 Update status only from observed evidence. Distinguish a tooling inventory, a successful agent exercise, and a verified product behavior.
 
