@@ -33,10 +33,11 @@ const client = createOwnedClient();                          // uses globalThis.
 const client = createOwnedClient({ fetchImpl: fakeFetch });  // injected transport
 ```
 
-`config.fetchImpl` defaults to `globalThis.fetch` and is read **per call**, never at module scope,
-so importing the module performs no network work. No other option is accepted: an unknown option
-(for example `baseURL`, `ownerID`, `origin`) is refused with `invalid_request`. A missing or
-non-function transport fails every call with `transport_unavailable`.
+`config.fetchImpl` defaults to `globalThis.fetch` and is captured **once, when `createOwnedClient()` is
+called** — never at module scope and never re-read per call — so importing the module performs no
+network work, and replacing `globalThis.fetch` afterwards does not change an existing client. No other
+option is accepted: an unknown option (for example `baseURL`, `ownerID`, `origin`) is refused with
+`invalid_request`. A missing or non-function transport fails every call with `transport_unavailable`.
 
 The returned object is frozen. Every method is closed: unexpected extra arguments are refused with
 `invalid_request` instead of being ignored.
@@ -64,6 +65,14 @@ All learner methods require a verified account (see `refreshAccount`). Without o
 
 `client.generation` is a read-only number: it increases on every invalidation and identity
 transition. It is exposed so a caller-owned cache can be keyed to the same session boundary.
+
+### The auth POSTs
+
+`signIn`/`signUp` are the only methods that establish a verified identity from credentials: they POST the
+credentials and then take identity **only** from `GET /api/v1/account`. A non-2xx answer is reported with
+its documented code (`401` → `unauthenticated`), and a `401` from an auth POST does **not** clear an
+existing verified identity — the learner's other session may still be valid — so `getAccount()` keeps
+returning that account (it stays `null` only when no identity had been verified).
 
 ### Request shape (identical for every call)
 
@@ -138,15 +147,19 @@ does not change the verified identity.
 
 A monotonic local `generation` fences every awaited result:
 
-- `clear()`, `signOut()`, a `refreshAccount()` identity transition and a current-generation 401
-  invalidate the local context: the identity is dropped, the generation increases and the in-flight
-  requests of the superseded generation are aborted.
+- `clear()`, `signOut()`, a `refreshAccount()` identity transition and a current-generation `401` from a
+  **learner call** (`refreshAccount`, `createAttempt`, `readAttempt`, `saveDraft`, `submit`, `readResult`,
+  `retry`, `deleteAttempt`) invalidate the local context: the identity is dropped, the generation increases
+  and the in-flight requests of the superseded generation are aborted. An auth POST is **not** one of these
+  boundaries — see the auth POST note above.
 - Each learner call captures the verified identity and generation on entry and re-checks them after
   the `await`, **before** exposing a value or an error. A response that belongs to a superseded
-  generation rejects as `stale_session` even when the transport ignores the `AbortSignal`.
+  generation rejects as `stale_session` even when the transport ignores the `AbortSignal`. The
+  `signIn`/`signUp` POSTs carry the same re-check, so a superseded sign-in/sign-up failure is also
+  `stale_session` rather than `network_error`.
 - A late response from an old account can therefore never populate or restore the new account.
-- A 401 seen at the current generation invalidates the account; a 401 that arrives at an older
-  generation is reported as `stale_session` and does not sign out the newer account.
+- A learner-call `401` seen at the current generation invalidates the account; a `401` that arrives at an
+  older generation is reported as `stale_session` and does not sign out the newer account.
 - A network failure is not an identity change: it never clears or replaces the verified identity.
 - `refreshAccount()` confirming the *same* account is not a transition, so it neither aborts nor
   fences a valid in-flight save. Only a changed/cleared identity is a boundary.

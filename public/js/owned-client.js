@@ -287,7 +287,8 @@ function readDeletedShape(value) {
 /**
  * Create a transport bound to one fetch implementation.
  * @param {object} [config] only `fetchImpl` is accepted; it defaults to
- *   `globalThis.fetch` and is read per call, never at module scope.
+ *   `globalThis.fetch` and is captured once, when the factory is called,
+ *   never at module scope and never re-read per call.
  */
 export function createOwnedClient(config = {}) {
   if (!isPlainObject(config)) fail('invalid_request', { message: 'createOwnedClient expects an options object' });
@@ -524,7 +525,13 @@ export function createOwnedClient(config = {}) {
     try {
       response = await send('POST', path, body, signal);
     } catch (error) {
-      throw toClientError(error, signal);
+      const mapped = toClientError(error, signal);
+      // Same generation re-check as every learner method: without an
+      // AbortSignal a superseded failure must still read as stale_session.
+      if (superseded(gen, id)) {
+        throw new OwnedClientError('stale_session', { message: 'The session changed while authenticating' });
+      }
+      throw mapped;
     }
     if (superseded(gen, id)) {
       throw new OwnedClientError('stale_session', { message: 'The session changed while authenticating' });

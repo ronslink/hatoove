@@ -236,6 +236,35 @@ check('sign-in that does not establish a session reports unauthenticated instead
   assert.equal(client.getAccount(), null);
 });
 
+check('a 401 from an auth POST does not clear an existing verified identity', async () => {
+  let signIns = 0;
+  const fake = transport((call) => {
+    if (call.url === '/api/auth/sign-in/email') {
+      signIns += 1;
+      return signIns === 1
+        ? jsonResponse(200, { user: { id: ACCOUNT_A.id } })
+        : jsonResponse(401, { error: 'invalid_credentials' });
+    }
+    if (call.url === '/api/v1/account') return jsonResponse(200, ACCOUNT_A);
+    if (call.url === `/api/v1/attempts/${ATTEMPT}`) return jsonResponse(200, attemptResource());
+    throw new Error(`unexpected request ${call.url}`);
+  });
+  const client = fake.client();
+  await client.signIn({ email: 'ron@example.com', password: 'correct-horse' });
+  fake.calls.length = 0;
+
+  const before = client.getAccount();
+  const generation = client.generation;
+  const error = await expectError(() => client.signIn({ email: 'ron@example.com', password: 'wrong-password' }), 'unauthenticated');
+  assert.equal(error.status, 401);
+  assert.equal(error.detail, 'invalid_credentials');
+  assert.equal(fake.calls.length, 1, 'a failed auth POST is not retried and is not followed by an account call');
+  assert.deepEqual(client.getAccount(), before, 'the verified identity survives a failed auth POST');
+  assert.equal(client.generation, generation, 'a failed auth POST is not an identity transition');
+  await client.readAttempt(ATTEMPT); // the verified account is still authorised
+  assert.equal(fake.calls.length, 2);
+});
+
 check('getAccount hands out copies that cannot alter the internal identity', async () => {
   const { client } = await signedIn(() => jsonResponse(200, attemptResource()));
   const first = client.getAccount();
@@ -455,6 +484,64 @@ check('a delayed save that resolves after clear() is fenced even if the transpor
   await expectError(() => pending, 'stale_session');
   assert.equal(client.getAccount(), null, 'a late response must not restore the cleared identity');
   await expectError(() => client.readAttempt(ATTEMPT), 'unauthenticated');
+});
+
+check('a superseded auth failure is stale_session, not network_error, when the transport ignores AbortSignal', async () => {
+  // With no AbortController the client has no signal to lean on, so only the
+  // generation re-check can tell a superseded auth failure from a real one.
+  const savedAbortController = globalThis.AbortController;
+  globalThis.AbortController = undefined;
+  try {
+    const gate = deferredResponse();
+    const fake = transport(async () => {
+      await gate.promise;
+      throw new TypeError('fetch failed');
+    });
+    const client = fake.client();
+    const pending = client.signIn({ email: 'ron@example.com', password: 'correct-horse' });
+    assert.equal(fake.calls.length, 1, 'the sign-in POST is already in flight');
+    assert.equal(fake.calls[0].url, '/api/auth/sign-in/email');
+    assert.equal(fake.calls[0].method, 'POST');
+    assert.equal(fake.calls[0].signal, undefined, 'there is no AbortSignal for the transport to honour');
+
+    client.clear(); // the session boundary that supersedes the in-flight auth call
+    assert.equal(client.getAccount(), null, 'clear() drops the identity immediately');
+    gate.resolve();
+    await expectError(() => pending, 'stale_session');
+    assert.equal(fake.calls.length, 1, 'a superseded auth call is neither retried nor re-posted');
+
+    // Control: in the same signal-less environment an unsuperseded auth failure
+    // is still a transport failure, so the re-check cannot mask a real one.
+    const control = transport(async () => { throw new TypeError('fetch failed'); });
+    await expectError(() => control.client().signIn({ email: 'ron@example.com', password: 'correct-horse' }), 'network_error');
+    assert.equal(control.calls.length, 1, 'a failed auth call is not retried');
+  } finally {
+    globalThis.AbortController = savedAbortController;
+  }
+});
+
+check('a sign-out supersedes an in-flight auth call as stale_session', async () => {
+  const savedAbortController = globalThis.AbortController;
+  globalThis.AbortController = undefined;
+  try {
+    const gate = deferredResponse();
+    const fake = transport(async (call) => {
+      if (call.url === '/api/auth/sign-out') return jsonResponse(200, { success: true });
+      await gate.promise;
+      throw new TypeError('fetch failed');
+    });
+    const client = fake.client();
+    const pending = client.signIn({ email: 'ron@example.com', password: 'correct-horse' });
+    assert.equal(fake.calls[0].signal, undefined, 'there is no AbortSignal for the transport to honour');
+    await client.signOut(); // a real session boundary, not just a local clear
+    assert.equal(client.getAccount(), null);
+    gate.resolve();
+    await expectError(() => pending, 'stale_session');
+    assert.equal(fake.calls.length, 2, 'sign-in and sign-out are each attempted exactly once');
+    assert.equal(fake.calls.filter((call) => call.url === '/api/auth/sign-in/email').length, 1);
+  } finally {
+    globalThis.AbortController = savedAbortController;
+  }
 });
 
 check('a delayed response from a previous account cannot populate the new account', async () => {
