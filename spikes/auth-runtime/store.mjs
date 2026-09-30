@@ -18,6 +18,15 @@ export function store(pool) {
   async function draft(c, id) {
     return row(await c.query('SELECT revision,text FROM drafts WHERE attempt_id=$1', [id]));
   }
+  async function liveLease(c, job) {
+    const j = row(await c.query('SELECT * FROM jobs WHERE id=$1 FOR UPDATE', [job.id]));
+    if (!j || j.status !== 'running' || j.lease_token !== job.lease_token ||
+        j.owner_id !== job.owner_id || j.submission_id !== job.submission_id) return null;
+    // A SELECT projection can be evaluated before waiting for FOR UPDATE.
+    // Check database time in a separate statement after the lock is held.
+    const time = row(await c.query('SELECT lease_until>clock_timestamp() AS valid FROM jobs WHERE id=$1', [job.id]));
+    return time.valid ? j : null;
+  }
   async function reapExpired() {
     const expired = await pool.query(`SELECT id,owner_id FROM jobs WHERE status='running'
       AND tries>=3 AND lease_until<clock_timestamp()`);
@@ -67,7 +76,7 @@ export function store(pool) {
         const a = await owned(c, owner, id);
         const prior = row(await c.query('SELECT * FROM submissions WHERE owner_id=$1 AND event_id=$2', [owner, eventId]));
         if (prior) {
-          if (prior.attempt_id !== id || prior.draft_revision !== expectedRevision) fail(409, 'idempotency_conflict');
+          if (prior.attempt_id !== a.id || prior.draft_revision !== expectedRevision) fail(409, 'idempotency_conflict');
           return { submissionId: prior.id, replay: true };
         }
         const d = await draft(c, id);
@@ -102,8 +111,8 @@ export function store(pool) {
         const s = row(await c.query('SELECT * FROM submissions WHERE id=$1 AND owner_id=$2', [job.submission_id,job.owner_id]));
         if (!s) return false;
         const a = row(await c.query('SELECT * FROM attempts WHERE id=$1 FOR UPDATE', [s.attempt_id]));
-        const j = row(await c.query('SELECT *,lease_until>clock_timestamp() AS lease_valid FROM jobs WHERE id=$1 FOR UPDATE', [job.id]));
-        if (a.deleted_at || !j || j.status !== 'running' || j.lease_token !== job.lease_token || !j.lease_valid) return false;
+        const j = await liveLease(c,job);
+        if (a.deleted_at || !j) return false;
         await c.query(`INSERT INTO assessments VALUES($1,$2,$3,'fixture-v1','fixture-v1',$4)`, [s.id,s.owner_id,feedback,s.rubric_version]);
         await c.query('INSERT INTO usage_ledger VALUES($1,$2,1)', [s.id,s.owner_id]);
         await c.query('UPDATE entitlements SET reserved=reserved-1,used=used+1 WHERE owner_id=$1', [s.owner_id]);
@@ -115,8 +124,8 @@ export function store(pool) {
       if (!['provider_unavailable','malformed_feedback','retry_exhausted'].includes(code)) fail(422,'invalid_failure');
       return tx(async c => {
         await c.query('SELECT owner_id FROM entitlements WHERE owner_id=$1 FOR UPDATE', [job.owner_id]);
-        const j = row(await c.query('SELECT *,lease_until>clock_timestamp() AS lease_valid FROM jobs WHERE id=$1 FOR UPDATE', [job.id]));
-        if (!j || j.status !== 'running' || j.lease_token !== job.lease_token || !j.lease_valid) return false;
+        const j = await liveLease(c,job);
+        if (!j) return false;
         await c.query(`UPDATE jobs SET status='failed',failure_code=$2,lease_token=NULL,lease_until=NULL WHERE id=$1`, [j.id,code]);
         await c.query('UPDATE entitlements SET reserved=reserved-1 WHERE owner_id=$1', [j.owner_id]);
         return true;
@@ -129,7 +138,7 @@ export function store(pool) {
         if (!s) fail(404,'not_found');
         await owned(c,owner,s.attempt_id);
         const j = row(await c.query('SELECT * FROM jobs WHERE submission_id=$1 FOR UPDATE', [submissionId]));
-        if (j.status !== 'failed' || j.tries>=3) fail(409,'retry_unavailable');
+        if (j.status !== 'failed' || j.tries>=3 || j.failure_code==='retry_exhausted') fail(409,'retry_unavailable');
         if (!ent || ent.used+ent.reserved>=ent.allowance) fail(409,'allowance_exhausted');
         await c.query(`UPDATE jobs SET status='queued',failure_code=NULL WHERE id=$1`, [j.id]);
         await c.query('UPDATE entitlements SET reserved=reserved+1 WHERE owner_id=$1', [owner]);

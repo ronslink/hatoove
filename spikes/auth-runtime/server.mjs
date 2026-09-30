@@ -15,6 +15,7 @@ export async function start(pool, secret) {
   const server = http.createServer(async (req, res) => {
     const send = (status, value) => { res.writeHead(status, { 'Content-Type':'application/json', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
     try {
+      if (!auth || !baseURL) return send(503,{error:'starting'});
       const path = new URL(req.url,baseURL).pathname;
       const route = `${req.method} ${path}`;
       if (route === 'GET /api/health') return send(200,{ status:'local-spike', contractVersion:'0.1.0' });
@@ -24,12 +25,13 @@ export async function start(pool, secret) {
         if (!/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) throw new Fault(415,'json_required');
         let bytes = 0;
         const chunks = [];
-        for await (const chunk of req) {
+        for await (const chunk of req.iterator({destroyOnReturn:false})) {
           bytes += chunk.length;
-          if (bytes > 65536) throw new Fault(413,'body_too_large');
+          if (bytes > 65536) { req.resume(); throw new Fault(413,'body_too_large'); }
           chunks.push(chunk);
         }
-        text = Buffer.concat(chunks).toString('utf8');
+        try { text = new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks)); }
+        catch { throw new Fault(400,'invalid_utf8'); }
       }
       const headers = new Headers();
       for (const [k,v] of Object.entries(req.headers)) if (typeof v === 'string') headers.set(k,v);
@@ -52,7 +54,8 @@ export async function start(pool, secret) {
       if (route === 'GET /api/v1/account') return send(200,{contractVersion:'0.1.0',id:owner,email:session.user.email});
       if (route === 'POST /api/v1/attempts') {
         fields(['parentSubmissionId']);
-        if (body.parentSubmissionId && !new RegExp(`^${uuid}$`,'i').test(body.parentSubmissionId)) throw new Fault(422,'invalid_parent');
+        if (body.parentSubmissionId !== undefined &&
+            (typeof body.parentSubmissionId !== 'string' || !new RegExp(`^${uuid}$`,'i').test(body.parentSubmissionId))) throw new Fault(422,'invalid_parent');
         return send(201,await records.create(owner,body.parentSubmissionId));
       }
       const a = attemptPath.exec(path), s = submitPath.exec(path), r = retryPath.exec(path);

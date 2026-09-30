@@ -12,7 +12,7 @@ Repository: **[private `ronslink/hatoove`](https://github.com/ronslink/hatoove)*
 | PRE-02 | OpenClaw write/PR exercise / Hetzner worker | Done, [issue #1](https://github.com/ronslink/hatoove/issues/1) | Actual agent run, 124 checks, scoped commit `54be708`; independently reviewed and merged [PR #3](https://github.com/ronslink/hatoove/pull/3), CI passed |
 | PRE-03 | Hermes write/PR exercise / Hermes worker | Done, [issue #2](https://github.com/ronslink/hatoove/issues/2) | Ownership failure repaired; fresh execution `pre03-20260930-b` produced 124 passing checks and scoped commit `b7db454`; bundle digest/one-commit history/snapshot guard verified; reviewed [PR #4](https://github.com/ronslink/hatoove/pull/4), CI passed |
 | PRE-04 | Previous-app visual and mobile reference / coordinator | Desktop reference and acceptance recorded; responsive implementation remains | [Reference and mobile acceptance](../docs/design/REFERENCE_UI.md); real-device checks remain outstanding |
-| PRE-05 | Durable pilot contracts and first implementation slices / coordinator | Working, [issue #7](https://github.com/ronslink/hatoove/issues/7), execution pre05-20260930-a | [Contract 0.1.0](../docs/contracts/PILOT-V0.1.md); isolated real PostgreSQL/auth spike; independent review pending; learner UI integration and human gates remain |
+| PRE-05 | Durable pilot contracts and first implementation slices / coordinator | First spike validated, [PR #11](https://github.com/ronslink/hatoove/pull/11), [issue #7](https://github.com/ronslink/hatoove/issues/7), execution pre05-20260930-a | [Contract 0.1.0](../docs/contracts/PILOT-V0.1.md) and [results/review disposition](implementation/PRE-05-RESULT.md); final integration recorded on PR; broader ownership/UI/human gates remain |
 | PRE-06 | Hermes child exercise / Hermes + one granted child | Done, [issue #5](https://github.com/ronslink/hatoove/issues/5) | One actual synchronous child completed; direct trace inspection, separate clean worktrees and 9 writing checks; [verified evidence](exercises/PRE-06/pre06-20260930-a/RESULT.md). Multi-child concurrency and child writing remain unverified |
 
 Preparation exercises use distinct paths such as `work/exercises/PRE-02/<execution-id>/RESULT.md` and `work/exercises/PRE-03/<execution-id>/RESULT.md`, finalized in their dispatch records. They do not change product code. The coordinator can run PRE-04/PRE-05 while worker exercises proceed.
@@ -38,11 +38,13 @@ Global cap: **4 active agents including the coordinator and all children/reviewe
 | Slot | Execution | Current assignment/status |
 |---|---|---|
 | 1 | pre05-20260930-a | Coordinator, [PRE-05](implementation/PRE-05.md), isolated `codex/pre-05-runtime-contracts`; architecture, source, integration |
-| 2 | f03a-20260930-a | OpenClaw, [F-03-A](implementation/F-03-A.md), report-only [PR #9](https://github.com/ronslink/hatoove/pull/9); coordinator requested corrections to proposed legacy API reuse |
-| 3 | f03r0-20260930-a / next f03h-20260930-a | Local advisory reviewer finished without edits; slot released for Hermes independent spike review |
-| 4 | user01-20260930-a | Ron-controlled read-only UI review returned; slot released. Findings require source/browser verification before implementation |
+| 2 | f03a-20260930-a / f03r1-20260930-a | OpenClaw audit corrected, reviewed and merged in PR #9; process ended. Local independent source reviewer supplied three findings; coordinator reproduced/fixed them; final recheck allocated separately |
+| 3 | f03h-20260930-a | Hermes review ended; coordinator inspected and packaged its staged report as `19e501d`; no active Hermes child/worker |
+| 4 | user02-20260930-a | Ron-controlled agent acknowledged at 17:52 UTC; [USER-02](implementation/USER-02.md), [issue #10](https://github.com/ronslink/hatoove/issues/10); branch `codex/pilot-01-css-user02`; checkpoint 18:03, expires **18:48 UTC** |
 
 The advisory reviewer supplied failure cases (idempotency races, transactional rollback, lease fencing, allowance reservation and deletion precedence); those are test advice, not diff approval. See [USER-01 disposition and next slices](implementation/PILOT-01-CSS.md). `public/js/exam.js` is reserved for coordinator-owned draft integration, with no active edits yet.
+
+Ron-agent handoff: `C:/Users/ronon/.codex/hatoove-handoff/ron-agent`. Coordinator owns `CURRENT.md`/`QUEUE.md`; worker writes execution-specific `ACK.md`, `CHECKPOINT.md`, `RESULT.md`. Communication files only, outside source/OneDrive. Queue candidates do not grant edits; no timer or recurring automation was created.
 
 Coordinator preparation closes with the merge of [PR #6](https://github.com/ronslink/hatoove/pull/6), following independent review and CI. The completed PRE dispatch files are historical records, not current execution grants.
 

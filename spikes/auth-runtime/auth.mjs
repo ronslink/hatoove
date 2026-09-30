@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 export function localPool(schema) {
   if (!/^spike_[a-f0-9]+$/.test(schema)) throw new Error('Unsafe test schema');
   return new pg.Pool({ host: '127.0.0.1', port: 55435, database: 'hatoove_spike',
-    user: 'postgres', max: 4, options: `-c search_path=${schema}` });
+    user: 'postgres', max: 4, application_name: schema, options: `-c search_path=${schema}` });
 }
 export function authOptions(pool, baseURL, secret = randomBytes(48).toString('base64url')) {
   const url = new URL(baseURL);

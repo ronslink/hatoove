@@ -14,6 +14,7 @@ async function request(path, {cookie, method='GET', body, origin}={}) {
   const res = await fetch(api.baseURL+path,{method,headers:{...(cookie?{cookie}:{}),
     ...(method!=='GET'?{'content-type':'application/json',origin:origin??api.baseURL}: {})},
     ...(method!=='GET'?{body:JSON.stringify(body??{})}:{})});
+  assert.equal(res.headers.get('cache-control'),'no-store');
   return {status:res.status,body:await res.json(),cookies:res.headers.getSetCookie()};
 }
 async function account(email) {
@@ -39,7 +40,7 @@ test('local Better Auth and PostgreSQL contract 0.1.0',async t=>{
   await pool.query(`CREATE SCHEMA ${schema}`);
   try {
     const authSQL = await migrateAuth(pool);
-    assert.equal(authSQL.trim(), (await readFile(new URL('./auth-schema.sql',import.meta.url),'utf8')).trim());
+    assert.equal(authSQL.trim(), (await readFile(new URL('./auth-schema.sql',import.meta.url),'utf8')).replace(/\r\n/g,'\n').trim());
     assert.equal((await migrateAuth(pool)).trim(),';');
     await pool.query(await readFile(new URL('./schema.sql',import.meta.url),'utf8'));
     api=await start(pool,secret);
@@ -49,6 +50,7 @@ test('local Better Auth and PostgreSQL contract 0.1.0',async t=>{
       for(const name of ['user','session','account','verification']) assert.ok(names.includes(name));
       alice=await account('alice@example.test'); bob=await account('bob@example.test');
       assert.equal((await request('/api/v1/account')).status,401);
+      assert.equal((await request('/api/auth/get-session',{cookie:alice.cookie})).body.user.id,alice.id);
       assert.equal((await request('/api/health')).status,200);
       assert.equal((await request('/api/progress',{cookie:alice.cookie})).status,404);
       assert.equal((await request('/api/v1/attempts',{cookie:alice.cookie,method:'POST',origin:'https://evil.example'})).status,403);
@@ -56,9 +58,22 @@ test('local Better Auth and PostgreSQL contract 0.1.0',async t=>{
       const missingOrigin = await fetch(api.baseURL+'/api/v1/attempts',{method:'POST',headers:{cookie:alice.cookie,'content-type':'application/json'},body:'{}'});
       assert.equal(missingOrigin.status,403);
       assert.equal((await request('/api/v1/attempts',{cookie:alice.cookie,method:'POST',body:{ownerId:bob.id}})).status,422);
+      for (const parentSubmissionId of [false,0,'',null,[randomUUID()]])
+        assert.equal((await request('/api/v1/attempts',{cookie:alice.cookie,method:'POST',body:{parentSubmissionId}})).status,422);
+      const large = await request('/api/v1/attempts',{cookie:alice.cookie,method:'POST',body:{padding:'a'.repeat(70000)}});
+      assert.equal(large.status,413);
+      const invalidUTF8=await fetch(api.baseURL+'/api/v1/attempts',{method:'POST',headers:{cookie:alice.cookie,origin:api.baseURL,'content-type':'application/json'},body:Buffer.from([0xc3,0x28])});
+      assert.equal(invalidUTF8.status,400);
+      assert.equal((await invalidUTF8.json()).error,'invalid_utf8');
+      const malformed=await fetch(api.baseURL+'/api/v1/attempts',{method:'POST',headers:{cookie:alice.cookie,origin:api.baseURL,'content-type':'application/json'},body:'{'});
+      assert.equal(malformed.status,400);
+      const nonJSON=await fetch(api.baseURL+'/api/v1/attempts',{method:'POST',headers:{cookie:alice.cookie,origin:api.baseURL,'content-type':'text/plain'},body:'{}'});
+      assert.equal(nonJSON.status,415);
     });
     await t.test('owned drafts, two concurrent writes and UTF-8 text round trip',async()=>{
       a=await draft(alice,'Grüße! مرحبا');
+      assert.equal((await request(`/api/v1/attempts/${a.id}`,{cookie:alice.cookie,method:'PUT',body:{expectedRevision:2,text:'a'.repeat(12001)}})).status,422);
+      assert.equal((await request(`/api/v1/attempts/${a.id}/submissions`,{cookie:alice.cookie,method:'POST',body:{expectedRevision:2,eventId:'invalid'}})).status,422);
       assert.equal((await request(`/api/v1/attempts/${a.id}`,{cookie:alice.cookie})).body.text,'Grüße! مرحبا');
       assert.equal((await request(`/api/v1/attempts/${a.id}`,{cookie:bob.cookie})).status,404);
       assert.equal((await request(`/api/v1/attempts/${a.id}`,{cookie:bob.cookie,method:'PUT',body:{expectedRevision:2,text:'stolen'}})).status,404);
@@ -90,6 +105,8 @@ test('local Better Auth and PostgreSQL contract 0.1.0',async t=>{
       assert.deepEqual(results.map(r=>r.status),[202,202]);
       assert.equal(results[0].body.submissionId,results[1].body.submissionId); submission=results[0].body.submissionId;
       assert.equal(await count('submissions'),1); assert.equal(await count('jobs'),1);
+      const upperReplay=await request(`/api/v1/attempts/${a.id.toUpperCase()}/submissions`,{cookie:alice.cookie,method:'POST',body:{expectedRevision:3,eventId}});
+      assert.equal(upperReplay.status,202); assert.equal(upperReplay.body.submissionId,submission);
       assert.equal((await request(`/api/v1/attempts/${a.id}/submissions`,{cookie:alice.cookie,method:'POST',body:{expectedRevision:2,eventId}})).status,409);
       assert.equal((await request(`/api/v1/attempts/${a.id}`,{cookie:alice.cookie,method:'PUT',body:{expectedRevision:3,text:'changed'}})).status,409);
       assert.equal((await request('/api/v1/attempts',{cookie:bob.cookie,method:'POST',body:{parentSubmissionId:submission}})).status,404);
@@ -154,6 +171,32 @@ test('local Better Auth and PostgreSQL contract 0.1.0',async t=>{
       await assert.rejects(api.records.retry(alice.id,s.submissionId),/retry_unavailable/);
       assert.equal((await pool.query('SELECT reserved FROM entitlements WHERE owner_id=$1',[alice.id])).rows[0].reserved,0);
     });
+    await t.test('completion and failure recheck lease time after waiting for row lock',async()=>{
+      const d=await draft(alice); await api.records.submit(alice.id,d.id,2,randomUUID());
+      for (const operation of ['complete','failJob']) {
+        const job=await api.records.claim();
+        await pool.query(`UPDATE jobs SET lease_until=clock_timestamp()+interval '2 seconds' WHERE id=$1`,[job.id]);
+        const blocker=await pool.connect();
+        let pending;
+        try {
+          await blocker.query('BEGIN');
+          await blocker.query('SELECT * FROM jobs WHERE id=$1 FOR UPDATE',[job.id]);
+          pending = operation==='complete' ? api.records.complete(job,feedback) : api.records.failJob(job,'provider_unavailable');
+          let waiting=false;
+          for(let i=0;i<100;i++) {
+            const state=await pool.query(`SELECT 1 FROM pg_stat_activity WHERE application_name=$1 AND wait_event_type='Lock'`,[schema]);
+            if(state.rowCount) { waiting=true; break; }
+            await pool.query('SELECT pg_sleep(0.01)');
+          }
+          assert.ok(waiting,'worker must be blocked on the job row before expiry');
+          await pool.query('SELECT pg_sleep(2.1)');
+          await blocker.query('COMMIT');
+          assert.equal(await pending,false,operation+' must reject an expired lease after acquiring lock');
+          assert.equal((await pool.query('SELECT reserved FROM entitlements WHERE owner_id=$1',[alice.id])).rows[0].reserved,1);
+        } finally { await blocker.query('ROLLBACK'); blocker.release(); if(pending) await pending.catch(()=>{}); }
+      }
+      await api.records.remove(alice.id,d.id);
+    });
     await t.test('deletion defeats stale save, idempotency replay and late completion',async()=>{
       const d=await draft(alice),eventId=randomUUID();
       await api.records.submit(alice.id,d.id,2,eventId);
@@ -162,6 +205,7 @@ test('local Better Auth and PostgreSQL contract 0.1.0',async t=>{
       await assert.rejects(api.records.save(alice.id,d.id,2,'stale'),/not_found/);
       await assert.rejects(api.records.submit(alice.id,d.id,2,eventId),/not_found/);
       assert.equal(await api.records.complete(job,feedback),false);
+      await assert.rejects(api.records.create(alice.id,job.submission_id),/not_found/);
       assert.equal((await pool.query('SELECT reserved FROM entitlements WHERE owner_id=$1',[alice.id])).rows[0].reserved,0);
     });
   } finally {
