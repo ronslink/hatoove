@@ -43,7 +43,12 @@
     "oralPassPercent": 60,
     "thresholdAppliesPerPart": true,
     "thresholdAppliesPerSubtest": false,
-    "sources": ["S2-p41-p39", "S2-p42-p40", "S1"]
+    "sources": [
+      "S2-p41-p39",
+      "S2-p42-p40",
+      "S1"
+    ],
+    "itemWeightsNote": "Partial credit is fractional because each part divides its maximum across its items: Sprachbausteine 15/10 = 1.5 points per item; the 25-point 10-item parts (LV Teil 3, HV Teil 2) = 2.5 per item; the 25-point 5-item parts = 5 per item. Half-point written aggregates such as 269.5 are therefore reachable, which is why the printed grade bands carry .5 endpoints. Equal weight within a part is the verified rule (S2-p41-p39); the per-item values follow by division. No rounding rule is verified."
   },
   "sources": [
     {
@@ -67,7 +72,11 @@
       "pages": 48,
       "sha256": "6fd22ffcc25ca75e5718cc9d55bf2369ed716d4071a1058a1fdd301f58fa2b2f",
       "pageIndexConvention": "Both PDF page numbers and printed page numbers are one-based, and they run in parallel: PDF page = printed page + 2, equivalently printed page = PDF page - 2. In zero-based array indices the offset is printedIndex = pdfIndex - 2. Check: the test-format table is PDF page 7 = printed page 5; answer sheet S30 is PDF page 24 = printed page 22.",
-      "pageOffset": { "printedToPdf": 2, "verified": true, "basis": "S2-p7-p5, S2-p24-p22, S2-p41-p39, S2-p42-p40" },
+      "pageOffset": {
+        "printedToPdf": 2,
+        "verified": true,
+        "basis": "S2-p7-p5, S2-p24-p22, S2-p41-p39, S2-p42-p40"
+      },
       "verification": "Downloaded and text-extracted locally, page by page"
     },
     {
@@ -108,10 +117,26 @@
         "breakWithinBlock": false
       },
       "objective": true,
-      "points": { "raw": 25, "rawIsPerPart": true, "max": 75, "weightPercent": 25 },
-      "items": { "count": 20, "first": 1, "last": 20 },
-      "answerRuleRefs": ["ar-lv-single-use", "ar-lv-no-match"],
-      "sources": ["S1", "S2-p7-p5", "S2-p31-p29"],
+      "points": {
+        "raw": 25,
+        "rawIsPerPart": true,
+        "max": 75,
+        "weightPercent": 25
+      },
+      "items": {
+        "count": 20,
+        "first": 1,
+        "last": 20
+      },
+      "answerRuleRefs": [
+        "ar-lv-single-use",
+        "ar-lv-no-match"
+      ],
+      "sources": [
+        "S1",
+        "S2-p7-p5",
+        "S2-p31-p29"
+      ],
       "parts": [
         {
           "id": "lv-t1",
@@ -120,13 +145,20 @@
           "skill": "Globalverstehen",
           "taskFamily": "matching",
           "responseFormat": "matching",
-          "items": { "count": 5, "first": 1, "last": 5 },
+          "items": {
+            "count": 5,
+            "first": 1,
+            "last": 5
+          },
           "points": 25,
           "optionCount": 10,
           "optionLabelRange": "a-j",
           "reuseLimit": 1,
           "noMatchAllowed": false,
-          "sources": ["S2-p7-p5", "S2-p8-p6"]
+          "sources": [
+            "S2-p7-p5",
+            "S2-p8-p6"
+          ]
         },
         {
           "id": "lv-t2",
@@ -135,12 +167,18 @@
           "skill": "Detailverstehen",
           "taskFamily": "multiple-choice",
           "responseFormat": "multiple-choice",
-          "items": { "count": 5, "first": 6, "last": 10 },
+          "items": {
+            "count": 5,
+            "first": 6,
+            "last": 10
+          },
           "points": 25,
           "optionCount": null,
           "reuseLimit": null,
           "noMatchAllowed": null,
-          "sources": ["S2-p7-p5"]
+          "sources": [
+            "S2-p7-p5"
+          ]
         },
         {
           "id": "lv-t3",
@@ -149,14 +187,21 @@
           "skill": "Selektives Verstehen",
           "taskFamily": "matching",
           "responseFormat": "matching",
-          "items": { "count": 10, "first": 11, "last": 20 },
+          "items": {
+            "count": 10,
+            "first": 11,
+            "last": 20
+          },
           "points": 25,
           "optionCount": 12,
           "optionLabelRange": "a-l",
           "reuseLimit": 1,
           "noMatchAllowed": true,
           "noMatchMarker": "x",
-          "sources": ["S2-p7-p5", "S2-p12-p10"]
+          "sources": [
+            "S2-p7-p5",
+            "S2-p12-p10"
+          ]
         }
       ]
     },
@@ -174,10 +219,25 @@
         "breakWithinBlock": false
       },
       "objective": true,
-      "points": { "raw": 15, "rawIsPerPart": true, "max": 30, "weightPercent": 10 },
-      "items": { "count": 20, "first": 21, "last": 40 },
-      "answerRuleRefs": ["ar-sb-single-use"],
-      "sources": ["S1", "S2-p7-p5", "S2-p31-p29"],
+      "points": {
+        "raw": 15,
+        "rawIsPerPart": true,
+        "max": 30,
+        "weightPercent": 10
+      },
+      "items": {
+        "count": 20,
+        "first": 21,
+        "last": 40
+      },
+      "answerRuleRefs": [
+        "ar-sb-single-use"
+      ],
+      "sources": [
+        "S1",
+        "S2-p7-p5",
+        "S2-p31-p29"
+      ],
       "parts": [
         {
           "id": "sb-t1",
@@ -186,12 +246,18 @@
           "skill": "Grammatik",
           "taskFamily": "multiple-choice",
           "responseFormat": "multiple-choice",
-          "items": { "count": 10, "first": 21, "last": 30 },
+          "items": {
+            "count": 10,
+            "first": 21,
+            "last": 30
+          },
           "points": 15,
           "optionCount": null,
           "reuseLimit": null,
           "noMatchAllowed": null,
-          "sources": ["S2-p7-p5"]
+          "sources": [
+            "S2-p7-p5"
+          ]
         },
         {
           "id": "sb-t2",
@@ -200,13 +266,20 @@
           "skill": "Lexik",
           "taskFamily": "matching",
           "responseFormat": "gap-fill-from-options",
-          "items": { "count": 10, "first": 31, "last": 40 },
+          "items": {
+            "count": 10,
+            "first": 31,
+            "last": 40
+          },
           "points": 15,
           "optionCount": 15,
           "optionLabelRange": "a-o",
           "reuseLimit": 1,
           "noMatchAllowed": null,
-          "sources": ["S2-p7-p5", "S2-p15-p13"]
+          "sources": [
+            "S2-p7-p5",
+            "S2-p15-p13"
+          ]
         }
       ]
     },
@@ -224,10 +297,26 @@
         "breakWithinBlock": false
       },
       "objective": true,
-      "points": { "raw": 25, "rawIsPerPart": true, "max": 75, "weightPercent": 25 },
-      "items": { "count": 20, "first": 41, "last": 60 },
-      "answerRuleRefs": ["ar-hv-plus-minus", "ar-hv-plays-per-part"],
-      "sources": ["S1", "S2-p7-p5", "S2-p31-p29"],
+      "points": {
+        "raw": 25,
+        "rawIsPerPart": true,
+        "max": 75,
+        "weightPercent": 25
+      },
+      "items": {
+        "count": 20,
+        "first": 41,
+        "last": 60
+      },
+      "answerRuleRefs": [
+        "ar-hv-plus-minus",
+        "ar-hv-plays-per-part"
+      ],
+      "sources": [
+        "S1",
+        "S2-p7-p5",
+        "S2-p31-p29"
+      ],
       "parts": [
         {
           "id": "hv-t1",
@@ -236,10 +325,17 @@
           "skill": "Globalverstehen",
           "taskFamily": "true-false",
           "responseFormat": "true-false",
-          "items": { "count": 5, "first": 41, "last": 45 },
+          "items": {
+            "count": 5,
+            "first": 41,
+            "last": 45
+          },
           "points": 25,
           "permittedPlays": 1,
-          "sources": ["S2-p7-p5", "S2-p16-p14"]
+          "sources": [
+            "S2-p7-p5",
+            "S2-p16-p14"
+          ]
         },
         {
           "id": "hv-t2",
@@ -248,10 +344,17 @@
           "skill": "Detailverstehen",
           "taskFamily": "true-false",
           "responseFormat": "true-false",
-          "items": { "count": 10, "first": 46, "last": 55 },
+          "items": {
+            "count": 10,
+            "first": 46,
+            "last": 55
+          },
           "points": 25,
           "permittedPlays": 2,
-          "sources": ["S2-p7-p5", "S2-p17-p15"]
+          "sources": [
+            "S2-p7-p5",
+            "S2-p17-p15"
+          ]
         },
         {
           "id": "hv-t3",
@@ -260,10 +363,17 @@
           "skill": "Selektives Verstehen",
           "taskFamily": "true-false",
           "responseFormat": "true-false",
-          "items": { "count": 5, "first": 56, "last": 60 },
+          "items": {
+            "count": 5,
+            "first": 56,
+            "last": 60
+          },
           "points": 25,
           "permittedPlays": 2,
-          "sources": ["S2-p7-p5", "S2-p18-p16"]
+          "sources": [
+            "S2-p7-p5",
+            "S2-p18-p16"
+          ]
         }
       ]
     },
@@ -281,10 +391,27 @@
         "breakWithinBlock": false
       },
       "objective": false,
-      "points": { "raw": 15, "rawIsPerPart": false, "max": 45, "weightPercent": 15 },
-      "items": { "count": 1, "first": null, "last": null },
-      "answerRuleRefs": ["ar-sa-band-multiplier", "ar-sa-topic-missed"],
-      "sources": ["S1", "S2-p7-p5", "S2-p41-p39", "S2-p40-p38"],
+      "points": {
+        "raw": 15,
+        "rawIsPerPart": false,
+        "max": 45,
+        "weightPercent": 15
+      },
+      "items": {
+        "count": 1,
+        "first": null,
+        "last": null
+      },
+      "answerRuleRefs": [
+        "ar-sa-band-multiplier",
+        "ar-sa-topic-missed"
+      ],
+      "sources": [
+        "S1",
+        "S2-p7-p5",
+        "S2-p41-p39",
+        "S2-p40-p38"
+      ],
       "parts": [
         {
           "id": "sa-t1",
@@ -293,30 +420,101 @@
           "skill": "productive writing",
           "taskFamily": "writing-task",
           "responseFormat": "free-text-email",
-          "items": { "count": 1, "first": null, "last": null },
+          "items": {
+            "count": 1,
+            "first": null,
+            "last": null
+          },
           "points": 45,
           "taskTextType": "informal or semi-formal e-mail",
           "requiredContentPoints": 4,
           "contentPointTerm": "Leitpunkte",
           "criteria": [
-            { "id": "k1", "name": "Aufgabenbewältigung", "nameEn": "task fulfilment", "bands": ["A", "B", "C", "D"], "bandPoints": { "A": 5, "B": 3, "C": 1, "D": 0 }, "sources": ["S2-p38-p36", "S2-p40-p38"] },
-            { "id": "k2", "name": "Kommunikative Gestaltung", "nameEn": "communicative design", "bands": ["A", "B", "C", "D"], "bandPoints": { "A": 5, "B": 3, "C": 1, "D": 0 }, "sources": ["S2-p38-p36", "S2-p40-p38"] },
-            { "id": "k3", "name": "Formale Richtigkeit", "nameEn": "formal accuracy", "bands": ["A", "B", "C", "D"], "bandPoints": { "A": 5, "B": 3, "C": 1, "D": 0 }, "sources": ["S2-p38-p36", "S2-p40-p38"] }
+            {
+              "id": "k1",
+              "name": "Aufgabenbewältigung",
+              "nameEn": "task fulfilment",
+              "bands": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "bandPoints": {
+                "A": 5,
+                "B": 3,
+                "C": 1,
+                "D": 0
+              },
+              "sources": [
+                "S2-p38-p36",
+                "S2-p40-p38"
+              ]
+            },
+            {
+              "id": "k2",
+              "name": "Kommunikative Gestaltung",
+              "nameEn": "communicative design",
+              "bands": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "bandPoints": {
+                "A": 5,
+                "B": 3,
+                "C": 1,
+                "D": 0
+              },
+              "sources": [
+                "S2-p38-p36",
+                "S2-p40-p38"
+              ]
+            },
+            {
+              "id": "k3",
+              "name": "Formale Richtigkeit",
+              "nameEn": "formal accuracy",
+              "bands": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "bandPoints": {
+                "A": 5,
+                "B": 3,
+                "C": 1,
+                "D": 0
+              },
+              "sources": [
+                "S2-p38-p36",
+                "S2-p40-p38"
+              ]
+            }
           ],
           "bandToTotal": {
             "formula": "(k1 + k2 + k3) * 3",
             "rawCriterionMax": 15,
             "multiplier": 3,
             "subtestMax": 45,
-            "sources": ["S2-p40-p38"]
+            "sources": [
+              "S2-p40-p38"
+            ]
           },
           "ratingProcedure": {
             "independentRaters": 2,
             "secondRatingOverridesFirstOnDifference": true,
             "finalRatingByPublisher": true,
-            "sources": ["S2-p40-p38"]
+            "sources": [
+              "S2-p40-p38"
+            ]
           },
-          "sources": ["S2-p7-p5", "S2-p40-p38"]
+          "sources": [
+            "S2-p7-p5",
+            "S2-p40-p38"
+          ]
         }
       ]
     }
@@ -324,45 +522,84 @@
   "answerRules": [
     {
       "id": "ar-lv-single-use",
-      "appliesTo": ["lv-t1", "lv-t3"],
+      "appliesTo": [
+        "lv-t1",
+        "lv-t3"
+      ],
       "rule": "Each option (headline in Teil 1, advertisement in Teil 3) may be used only once.",
-      "sources": ["S2-p8-p6", "S2-p12-p10"]
+      "sources": [
+        "S2-p8-p6",
+        "S2-p12-p10"
+      ]
     },
     {
       "id": "ar-lv-no-match",
-      "appliesTo": ["lv-t3"],
+      "appliesTo": [
+        "lv-t3"
+      ],
       "rule": "If no advertisement matches a situation, the learner marks an x. Stated for Leseverstehen Teil 3 only; it is not stated for Teil 1 or Teil 2.",
-      "sources": ["S2-p12-p10"]
+      "sources": [
+        "S2-p12-p10"
+      ]
     },
     {
       "id": "ar-sb-single-use",
-      "appliesTo": ["sb-t2"],
+      "appliesTo": [
+        "sb-t2"
+      ],
       "rule": "Each word from the option list a-o fits only once.",
-      "sources": ["S2-p15-p13"]
+      "sources": [
+        "S2-p15-p13"
+      ]
     },
     {
       "id": "ar-hv-plus-minus",
-      "appliesTo": ["hv-t1", "hv-t2", "hv-t3"],
+      "appliesTo": [
+        "hv-t1",
+        "hv-t2",
+        "hv-t3"
+      ],
       "rule": "Mark PLUS (+) for richtig and MINUS (-) for falsch on the answer sheet.",
-      "sources": ["S2-p16-p14", "S2-p17-p15", "S2-p18-p16"]
+      "sources": [
+        "S2-p16-p14",
+        "S2-p17-p15",
+        "S2-p18-p16"
+      ]
     },
     {
       "id": "ar-hv-plays-per-part",
-      "appliesTo": ["hv-t1", "hv-t2", "hv-t3"],
+      "appliesTo": [
+        "hv-t1",
+        "hv-t2",
+        "hv-t3"
+      ],
       "rule": "Permitted plays are not uniform: one play in Teil 1, two plays in Teil 2, and two plays for each of the five short texts in Teil 3.",
-      "sources": ["S2-p16-p14", "S2-p17-p15", "S2-p18-p16"]
+      "sources": [
+        "S2-p16-p14",
+        "S2-p17-p15",
+        "S2-p18-p16"
+      ]
     },
     {
       "id": "ar-sa-band-multiplier",
-      "appliesTo": ["sa-t1"],
+      "appliesTo": [
+        "sa-t1"
+      ],
       "rule": "The three criterion scores are summed (max 15) and multiplied by three in the publisher's centre, giving a subtest maximum of 45 points.",
-      "sources": ["S2-p40-p38"]
+      "sources": [
+        "S2-p40-p38"
+      ]
     },
     {
       "id": "ar-sa-topic-missed",
-      "appliesTo": ["sa-t1"],
+      "appliesTo": [
+        "sa-t1"
+      ],
       "rule": "If the text has no or hardly any connection to the writing task, D is given for all three criteria and the Thema-verfehlt field is marked. If only the situational framing is missed, or only one or no Leitpunkt is handled appropriately, only Kriterium I is set to D and criteria II and III are still assessed.",
-      "sources": ["S2-p38-p36", "S2-p39-p37"]
+      "sources": [
+        "S2-p38-p36",
+        "S2-p39-p37"
+      ]
     }
   ],
   "unresolved": [
@@ -372,7 +609,10 @@
       "status": "unresolved",
       "impact": "high",
       "progress": "partly-closed",
-      "sources": ["S1", "S3"]
+      "sources": [
+        "S1",
+        "S3"
+      ]
     },
     {
       "id": "U2",
@@ -380,7 +620,11 @@
       "status": "unresolved",
       "impact": "high",
       "progress": "partly-closed",
-      "sources": ["S2", "S3", "S4"]
+      "sources": [
+        "S2",
+        "S3",
+        "S4"
+      ]
     },
     {
       "id": "U3",
@@ -388,7 +632,10 @@
       "status": "unresolved",
       "impact": "high",
       "progress": "absence-confirmed-in-sources",
-      "sources": ["S2", "S3"]
+      "sources": [
+        "S2",
+        "S3"
+      ]
     },
     {
       "id": "U4",
@@ -396,7 +643,10 @@
       "status": "unresolved",
       "impact": "medium",
       "progress": "open",
-      "sources": ["S2-p12-p10", "S2-p15-p13"]
+      "sources": [
+        "S2-p12-p10",
+        "S2-p15-p13"
+      ]
     },
     {
       "id": "U5",
@@ -404,7 +654,10 @@
       "status": "unresolved",
       "impact": "medium",
       "progress": "open",
-      "sources": ["S1", "S2-p31-p29"]
+      "sources": [
+        "S1",
+        "S2-p31-p29"
+      ]
     },
     {
       "id": "U6",
@@ -412,29 +665,47 @@
       "status": "unresolved",
       "impact": "low",
       "progress": "open",
-      "sources": ["S1", "S2-p16-p14", "S2-p17-p15"]
+      "sources": [
+        "S1",
+        "S2-p16-p14",
+        "S2-p17-p15"
+      ]
     },
     {
       "id": "U7",
-      "question": "How or whether fractional written totals arise for the printed grade bands, whose endpoints include .5. All verified point-bearing elements are integral, so a .5 total is arithmetically unreachable and the endpoints act as strict upper limits; no rounding rule exists in the model test or the regulations.",
+      "question": "No verified rounding rule exists for a fractional written total. Partial credit IS genuinely fractional (1.5 points per Sprachbausteine item, 2.5 per item in the 10-item 25-point parts), so a .5 aggregate such as 269.5 is reachable; an earlier revision wrongly claimed .5 totals were impossible because section totals are integers, and that derivation is withdrawn.",
       "status": "unresolved",
       "impact": "low",
-      "progress": "partly-closed",
-      "sources": ["S2-p42-p40", "S3"]
+      "progress": "narrowed-to-rounding-only",
+      "sources": [
+        "S2-p42-p40",
+        "S3"
+      ]
     },
     {
       "id": "U8",
-      "question": "The precise differences from Deutsch-Test für den Beruf, telc Deutsch B1·B2 Beruf, telc Deutsch B1 Schule and DTZ were not examined systematically. The scaled telc Deutsch A2·B1 is now distinguished from the classic B1 using verified evidence.",
+      "question": "The precise differences from Deutsch-Test für den Beruf, telc Deutsch B1·B2 Beruf, telc Deutsch B1 Schule and DTZ were not examined systematically. The scaled telc Deutsch A2·B1 is distinguished from the classic B1 using verified evidence; the pilot target is already fixed as the classic single-level B1 by AGENTS.md and IMPLEMENTATION_PLAN.md, and the scaled exam must not replace this blueprint.",
       "status": "unresolved",
       "impact": "medium",
       "progress": "partly-closed",
-      "sources": ["S4"]
+      "sources": [
+        "S4"
+      ]
     }
   ],
   "gates": {
-    "examFidelityApproval": { "satisfied": false, "note": "Requires qualified human expert review; not performed in this execution." },
-    "nativeLanguageExplanations": { "satisfied": false, "note": "No explanation-language content was produced or reviewed." },
-    "audioAndReuseRights": { "satisfied": false, "note": "Public availability is not permission to copy. The publisher's copyright notice requires written consent for uses beyond statutory exceptions; scripts, recordings and reuse need separate clearance." }
+    "examFidelityApproval": {
+      "satisfied": false,
+      "note": "Requires qualified human expert review; not performed in this execution."
+    },
+    "nativeLanguageExplanations": {
+      "satisfied": false,
+      "note": "No explanation-language content was produced or reviewed."
+    },
+    "audioAndReuseRights": {
+      "satisfied": false,
+      "note": "Public availability is not permission to copy. The publisher's copyright notice requires written consent for uses beyond statutory exceptions; scripts, recordings and reuse need separate clearance."
+    }
   },
   "review": {
     "status": "unreviewed",

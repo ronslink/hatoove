@@ -79,9 +79,11 @@ classic *Zertifikat Deutsch / telc Deutsch B1* analysed in this register:
 | Written subtests (from the same series' test book) | Lesen, Sprachbausteine, **Lesen und Schreiben**, Hören, **Hören und Schreiben**, Schreiben — incl. *Mediation* | Leseverstehen, Sprachbausteine, Hörverstehen, Schriftlicher Ausdruck |
 | Writing criteria | **four** criteria, bands **A–F** | **three** criteria, bands **A–D** at 5/3/1/0 |
 
-Both examinations appear on the same site. **Which one a given learner is preparing for is a product
-decision that this register does not make**, and the rules recorded below apply only to the classic B1 form
-supported by S1 and S2.
+Both examinations appear on the same site. **The pilot target is already decided:** AGENTS.md and
+IMPLEMENTATION_PLAN.md specify standalone preparation for the **classic single-level Zertifikat Deutsch /
+telc Deutsch B1**, which is what this register documents. The scaled `telc Deutsch A2·B1` is recorded here
+only so it is not mistaken for the same examination; it **must not replace this blueprint** and requires no
+new product decision.
 
 ---
 
@@ -185,12 +187,27 @@ Grade bands (only once both parts have reached their minimum):
 | 180 – 209.5 | ausreichend |
 | 0 – 179.5 | nicht bestanden |
 
-**How fractional totals could arise, and what is *not* established.** Every point-bearing element recorded
-above is integral: LV 3 × 25, SB 15 + 15, HV 3 × 25, and writing `(I + II + III) × 3` where each criterion is
-5/3/1/0, so the whole-number written aggregate (and the oral subtotal) can only take integer values. The
-`.5` endpoints therefore behave as strict upper limits for the band below rather than as reachable scores,
-which is a **derived arithmetic observation, not a sourced rule**. S2 does not print a rounding rule, and S3
-contains no rounding or half-point provision for this examination. The question is carried as **U7**.
+**How fractional totals arise — from verified item weights.** The written subtests are **not** integer-valued
+per item. Each part awards its maximum divided across its items, so partial credit is frequently a half point:
+
+| Subtest | Part maximum / items | Points per item | Example partial mark |
+|---|---|---|---|
+| Sprachbausteine Teil 1 | 15 / 10 | **1.5** | 7 correct = **10.5** |
+| Sprachbausteine Teil 2 | 15 / 10 | **1.5** | 3 correct = 4.5 |
+| Hörverstehen each part | 25 / 10 or 25 / 5 | **2.5** or **5** | 7 of 10 = **17.5** |
+| Leseverstehen Teil 3 | 25 / 10 | **2.5** | 9 correct = **22.5** |
+| Leseverstehen Teil 1 / 2 | 25 / 5 | **5** | 3 correct = 15 |
+
+Partial credit therefore lands on the half point, which is exactly why the printed grade bands carry `.5`
+endpoints (240–269.5, 210–239.5, 180–209.5). A written aggregate of, for example, 269.5 is **reachable**.
+Equal weight within a part is the verified rule (S2 PDF p. 41 / printed p. 39 gives one maximum per part);
+the per-item values above follow from dividing that maximum by the item count.
+
+**Correction of an earlier claim.** A previous revision of this register argued that a `.5` total was
+arithmetically impossible because "section totals are integers". **That was wrong.** Integer *maxima* say
+nothing about integer *partial marks*. The false derivation is withdrawn; the objective weights are
+unchanged. What remains unresolved is narrower: **no verified rounding rule** appears in either S2 or S3
+(U7), and nothing here should be read as settling how the publisher rounds a fractional written total.
 
 **Limitation for this pilot — no overall pass can be inferred.** The written partial result
 (`Teilergebnis I`, 225 points) is only half of a two-part condition. Because the pilot excludes speaking
@@ -296,8 +313,8 @@ resolved without a source page.
 | U4 | Unresolved | Distractor / no-match semantics for Sprachbausteine Teil 1 and Leseverstehen Teil 2 | The no-match (`x`) rule is stated only for Leseverstehen Teil 3, and single-use only for the matching parts (LV Teil 1, LV Teil 3, SB Teil 2). What the learner should do when no option fits in SB Teil 1 or LV Teil 2 is **not addressed** in any source read. |
 | U5 | Unresolved | Part-level timing split inside the 90-minute block | S1/S2 state 90 minutes shared by Leseverstehen and Sprachbausteine with no break. **No sub-allocation** between the two subtests is printed. |
 | U6 | Unresolved | Hörverstehen timing detail | S1 says „ca. 30" minutes; the model test does not break that 30 minutes into per-part durations beyond the announced reading pauses. |
-| U7 | **Partly closed** | Grade-band `.5` endpoints and rounding | Bands as printed: 270–300, 240–269.5, 210–239.5, 180–209.5, 0–179.5. Every point-bearing element verified above is integral, so a `.5` total is arithmetically unreachable and the endpoints act as strict upper limits — a **derived observation, not a sourced rule**. S2 prints no rounding rule and S3 contains no rounding or half-point provision. How or whether fractional totals occur is **not explained by any source read** and is not speculated further. |
-| U8 | Partly closed | Differences from DTZ / B1 Schule / other variants | Still out of scope for a systematic comparison, but §2.1 now distinguishes the classic B1 from the **scaled `telc Deutsch A2·B1`** using S4 evidence. No DTZ or B1-Schule comparison is asserted. |
+| U7 | **Unresolved (narrowed)** | Rounding of a fractional written total | Bands as printed: 270–300, 240–269.5, 210–239.5, 180–209.5, 0–179.5. Partial credit is genuinely fractional — 1.5 points per SB item, 2.5 per item in the 10-item 25-point parts — so a `.5` aggregate such as 269.5 is reachable and the endpoints are meaningful, not merely formal. What is **not** established is any **rounding rule**: S2 prints none and S3 contains no rounding or half-point provision. An earlier revision of this register wrongly claimed `.5` totals were impossible because section totals are integers; that derivation is withdrawn. No rounding behaviour is inferred. |
+| U8 | Partly closed | Differences from DTZ / B1 Schule / other variants | Still out of scope for a systematic comparison, but §2.1 now distinguishes the classic B1 from the **scaled `telc Deutsch A2·B1`** using S4 evidence. **The pilot target is already fixed as the classic single-level Zertifikat Deutsch / telc Deutsch B1** by AGENTS.md and IMPLEMENTATION_PLAN.md; the scaled exam must not replace this blueprint, and no new product decision is required. No DTZ or B1-Schule comparison is asserted. |
 
 **Numbering note.** Earlier drafts of this register listed a ninth item U9 (*speaking subtest details*) while
 the companion JSON carried eight unresolved entries, so the two documents disagreed. The speaking/`M10`
