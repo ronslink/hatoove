@@ -96,8 +96,8 @@ test('the pre-fix failures name the disclosed characters, not a broken run', () 
     assert.match(failure.detail, /disclosed|key characters/, `${failure.name}: ${failure.detail}`);
   }
   // The same source must still report a live key, or the failures would be meaningless.
-  const live = prefixReport.results.find((r) => r.name === 'configured-true-with-key');
-  assert.ok(live?.ok, `configured-true-with-key must pass on the pre-fix source: ${live?.detail}`);
+  const live = prefixReport.results.find((r) => r.name === 'key-loaded-into-the-server-process');
+  assert.ok(live?.ok, `key-loaded-into-the-server-process must pass on the pre-fix source: ${live?.detail}`);
 });
 
 test('the discrimination source is stated, not assumed', (t) => {
@@ -125,15 +125,14 @@ test('server.js exposes no key-derived field', () => {
   assert.deepEqual(codeLines, [], 'keyMasked may only survive in the explanatory comment');
 });
 
-test('the Settings pill still shows the status without key characters', () => {
+test('the learner UI renders no key-derived status and no provider field', () => {
   const ui = fs.readFileSync(path.join(DEFAULT_ROOT, 'public/js/ui.js'), 'utf8');
-  const lines = ui.split('\n');
-  const pillIndex = lines.findIndex((line) => line.includes('class="pill') && line.includes('cfg.configured'));
-  assert.ok(pillIndex !== -1, 'the Settings status pill must still exist');
-  const pill = lines[pillIndex];
-  const row = lines.slice(pillIndex, pillIndex + 3).join('\n');
-  assert.ok(!/keyMasked/.test(row), `the pill row must not render keyMasked: ${pill.trim()}`);
-  assert.match(pill, /Schlüssel gespeichert/, 'the pill must still say whether a key is configured');
-  assert.match(row, /Modell:/, 'the model stays visible in the same row');
-  assert.ok(!/Verbunden · \$\{/.test(pill), 'the pill must not interpolate a key-derived value');
+  // PROVIDER-CONFIG-01 (D1): the Settings page dropped the provider card entirely, so no
+  // view may render the key, the base URL or the model, and no status may display a
+  // key-derived value.
+  assert.ok(!/keyMasked/.test(ui), 'ui.js must not reference keyMasked');
+  assert.ok(!/cfg\.configured/.test(ui), 'ui.js must not render a configured pill');
+  assert.ok(!/id="api-key"/.test(ui), 'the Settings page must offer no key input');
+  assert.ok(!/data-test-key/.test(ui), 'the Settings page must offer no "test key" button');
+  assert.ok(!/data-save-key/.test(ui), 'the Settings page must offer no provider save button');
 });

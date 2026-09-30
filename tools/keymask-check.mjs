@@ -18,11 +18,12 @@
  *     know about it.
  *   * The same scan runs over every string value of the parsed JSON with field paths, so a
  *     leak in a nested field is reported with its location.
- *   * `configured` is asserted true at scan time - so a pass cannot be vacuous because no
- *     key was loaded - and false after the key is removed, so the flag is not hard-coded.
- *   * The field set of the payload is asserted to be exactly {configured, model, baseUrl,
- *     examDate}, which is how "do not invent a new exposure to replace the old one" is
- *     enforced against a future field.
+ *   * the synthetic key is asserted loaded into the server process at scan time - so a pass
+ *     cannot be vacuous because no key was loaded - and the read routes are asserted to
+ *     carry no key-derived field both with and without the key.
+ *   * The field set of the payload is asserted to be exactly {examDate} for /api/config and
+ *     {node, ok} for /api/health, which is how "do not invent a new exposure to replace the
+ *     old one" is enforced against a future field.
  *   * `detector-flags-the-legacy-mask` exercises the detector itself: it must flag the
  *     exact string the old `maskKey` returned, and must stay silent on the new payload.
  *   * `runKeyMaskChecks({ serverPath })` re-runs the whole probe against another server.js
@@ -74,9 +75,14 @@ export const PREFIX_COMMIT = '8a71f718ee534851a98d19eece07dab933b56479';
 
 export const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Fields publicConfig() is allowed to return. No key material, no per-key fingerprint. */
-export const ALLOWED_CONFIG_FIELDS = ['baseUrl', 'configured', 'examDate', 'model'];
-export const ALLOWED_HEALTH_FIELDS = ['baseUrl', 'configured', 'examDate', 'model', 'node', 'ok'];
+/**
+ * Fields the read routes may return after PROVIDER-CONFIG-01 (D1). D1 removed `configured`,
+ * `model` and `baseUrl`: a presence flag and the operator's provider setup are not learner
+ * information. `/api/config` now carries only the learner's own `examDate`, and
+ * `/api/health` is a bare liveness payload.
+ */
+export const ALLOWED_CONFIG_FIELDS = ['examDate'];
+export const ALLOWED_HEALTH_FIELDS = ['node', 'ok'];
 
 /** The checks that must FAIL on a source that still discloses key characters. */
 export const LEAK_CHECKS = [
@@ -91,10 +97,10 @@ export const LEAK_CHECKS = [
 export const REQUIRED_CHECKS = [
   'probe-key-is-synthetic-not-credential-shaped',
   'throwaway-env-file-outside-repository',
-  'configured-true-with-key',
-  'status-still-shows-configured-and-model',
+  'key-loaded-into-the-server-process',
+  'status-reports-no-key-derived-field',
   ...LEAK_CHECKS,
-  'configured-false-without-key',
+  'read-routes-stay-live-without-a-key',
   'detector-flags-the-legacy-mask',
   'repository-env-untouched',
 ];
@@ -309,14 +315,14 @@ export function judgeDiscrimination(report) {
   const byName = new Map(report.results.map((result) => [result.name, result]));
   const missing = LEAK_CHECKS.filter((name) => !byName.has(name));
   const failedLeakChecks = LEAK_CHECKS.filter((name) => byName.has(name) && !byName.get(name).ok);
-  const liveKey = byName.get('configured-true-with-key');
+  const liveKey = byName.get('key-loaded-into-the-server-process');
   const keyWasLive = Boolean(liveKey && liveKey.ok);
   const ok = missing.length === 0 && failedLeakChecks.length > 0 && keyWasLive;
   const message = ok
     ? `${report.label} fails ${failedLeakChecks.length}/${LEAK_CHECKS.length} leak check(s) while the key is live: ${failedLeakChecks.join(', ')}`
     : `${report.label} did NOT discriminate: failed leak checks = ${failedLeakChecks.join(', ') || 'none'}` +
       `${missing.length ? `; missing checks = ${missing.join(', ')}` : ''}` +
-      `; configured-true-with-key = ${liveKey ? (liveKey.ok ? 'passed' : `failed (${liveKey.detail})`) : 'did not run'}`;
+      `; key-loaded-into-the-server-process = ${liveKey ? (liveKey.ok ? 'passed' : `failed (${liveKey.detail})`) : 'did not run'}`;
   return { ok, failedLeakChecks, keyWasLive, message };
 }
 
@@ -324,9 +330,9 @@ export function judgeDiscrimination(report) {
 
 function leakScanText(res, route) {
   if (res.status !== 200) throw new Error(`${route}: expected HTTP 200, got ${res.status} (${res.text.slice(0, 120)})`);
-  if (res.json?.configured !== true) {
-    throw new Error(`${route}: configured must be true so the scan is not vacuous, got ${JSON.stringify(res.json?.configured)}`);
-  }
+  // The scan is only meaningful while the synthetic key is live. The route no longer reports
+  // whether a key exists (D1.2), so prove liveness at the source rather than from the body.
+  assertEqual(process.env.DEEPSEEK_API_KEY, SYNTHETIC_KEY, `${route}: the synthetic key must be loaded, or the scan is vacuous`);
   const runs = findKeyRuns(res.text);
   if (runs.length) {
     throw new Error(`${route}: disclosed ${runs.length} run(s) of >=${KEY_RUN_LENGTH} key characters: ${runs.map((r) => JSON.stringify(r)).join(', ')}`);
@@ -391,26 +397,27 @@ export async function runKeyMaskChecks({ root = DEFAULT_ROOT, serverPath = null,
     const config = await ctx.get('/api/config');
 
     /* 3. The key really is loaded - otherwise every leak check below would be vacuous. */
-    await record('configured-true-with-key', () => {
+    await record('key-loaded-into-the-server-process', () => {
       assertEqual(envValue(ctx.readEnv(), 'DEEPSEEK_API_KEY'), SYNTHETIC_KEY, 'throwaway env file holds the synthetic key');
       assertEqual(process.env.DEEPSEEK_API_KEY, SYNTHETIC_KEY, 'server process holds the synthetic key');
       assertEqual(process.env.B1PREP_ENV_FILE, ctx.envPath, 'server reads the throwaway env file');
       for (const [route, res] of [['/api/health', health], ['/api/config', config]]) {
         assertEqual(res.status, 200, `${route} status`);
-        assertEqual(res.json?.configured, true, `${route} configured`);
       }
-      return `configured=true on both routes with the key loaded from ${path.basename(ctx.envPath)}`;
+      return `synthetic key loaded into the server process from ${path.basename(ctx.envPath)}`;
     });
 
-    /* 4. The learner-visible status stays meaningful: configured + model, exact field set. */
-    await record('status-still-shows-configured-and-model', () => {
+    /* 4. The read routes carry only learner/liveness state: no key-derived field at all. */
+    await record('status-reports-no-key-derived-field', () => {
       assertListEqual(Object.keys(config.json || {}).sort(), ALLOWED_CONFIG_FIELDS, '/api/config field set');
       assertListEqual(Object.keys(health.json || {}).sort(), ALLOWED_HEALTH_FIELDS, '/api/health field set');
-      assertEqual(config.json?.model, SYNTHETIC_MODEL, '/api/config model');
-      assertEqual(health.json?.model, SYNTHETIC_MODEL, '/api/health model');
       assertEqual(config.json?.examDate, EXAM_DATE, '/api/config examDate');
-      assertEqual(config.json?.configured, true, '/api/config configured');
-      return `configured + model (${config.json?.model}) + examDate, fields exactly [${ALLOWED_CONFIG_FIELDS.join(', ')}]`;
+      // The removed fields must not come back under any spelling.
+      for (const field of ['configured', 'model', 'baseUrl', 'keyMasked']) {
+        assertTrue(!Object.hasOwn(config.json || {}, field), `/api/config must not report ${field}`);
+        assertTrue(!Object.hasOwn(health.json || {}, field), `/api/health must not report ${field}`);
+      }
+      return `/api/config = [${ALLOWED_CONFIG_FIELDS.join(', ')}]; /api/health = [${ALLOWED_HEALTH_FIELDS.join(', ')}]`;
     });
 
     /* 5-8. The read routes must carry no character run of the key. */
@@ -428,20 +435,22 @@ export async function runKeyMaskChecks({ root = DEFAULT_ROOT, serverPath = null,
       return `${detail}; save landed in the throwaway file, not the checkout`;
     });
 
-    /* 10. Without a key the flag must flip - and the status must stay usable offline. */
-    await record('configured-false-without-key', async () => {
+    /* 10. Without a key the read routes stay live and still carry no key-derived field. */
+    await record('read-routes-stay-live-without-a-key', async () => {
       delete process.env.DEEPSEEK_API_KEY;
       const offlineHealth = await ctx.get('/api/health');
       const offlineConfig = await ctx.get('/api/config');
       for (const [route, res] of [['/api/health', offlineHealth], ['/api/config', offlineConfig]]) {
         assertEqual(res.status, 200, `${route} status without a key`);
-        assertEqual(res.json?.configured, false, `${route} configured without a key`);
-        // Still a usable status display: the model has to survive an offline start.
-        assertTrue(typeof res.json?.model === 'string' && res.json.model.length > 0, `${route} must still report the model offline`);
+        assertListEqual(
+          Object.keys(res.json || {}).sort(),
+          route === '/api/health' ? ALLOWED_HEALTH_FIELDS : ALLOWED_CONFIG_FIELDS,
+          `${route} field set without a key`
+        );
         const runs = findKeyRuns(res.text);
         assertTrue(runs.length === 0, `${route} disclosed key characters without a key: ${runs.join(', ')}`);
       }
-      return 'configured=false on both routes, model still reported, no key characters';
+      return 'both routes 200 with no key-derived field and no key characters';
     });
 
     /* 11. The detector is not vacuous: it must catch the old shape, and only that shape. */

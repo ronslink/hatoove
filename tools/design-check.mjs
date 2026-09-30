@@ -39,6 +39,21 @@ const RADIUS_RE = /border(?:-[a-z]+)?-radius\s*:\s*[^;]*?\b\d+(?:\.\d+)?(?:px|re
 const FONT_RE = /font-family\s*:/i;
 const CUSTOM_PROP_RE = /^\s*--[A-Za-z0-9-]+\s*:/;
 
+/**
+ * A `font-family` declaration that NAMES a family instead of using a token.
+ *
+ * The first version of this check matched every `font-family:` line, so it reported the 22
+ * rules that already say `var(--serif|sans|mono)` as debt alongside the 4 `@font-face`
+ * descriptors - 26 "raw" declarations, of which 0 were raw. A rule consuming a face must use
+ * a token, so a bare `var(--serif)` passes; a `@font-face` block is the definition of the
+ * face and CSS forbids `var()` there, so those descriptors are structural. Blank the
+ * @font-face blocks (keeping line numbers) and then flag only a declaration whose value is
+ * not one of the three type tokens.
+ */
+const FONT_FACE_RE = /@font-face\s*\{[^}]*\}/g;
+const TOKEN_FONT_RE = /font-family\s*:\s*var\(--(?:serif|sans|mono)\)/i;
+const fontFaceBlanked = (css) => css.replace(FONT_FACE_RE, (block) => block.replace(/[^\n]/g, ' '));
+
 /** Tokens DESIGN-LANGUAGE.md section 2 promises, so a view can style itself from tokens alone. */
 const REQUIRED_TOKENS = [
   'bg', 'line', 'fg', 'sidebar-bg',
@@ -66,9 +81,10 @@ check('no-raw-colour-outside-a-token', () => {
 });
 
 check('no-raw-font-family-outside-a-token', () => {
-  const offenders = nonTokenLines(read(CSS_PATH)).filter(({ line }) => FONT_RE.test(line));
+  const offenders = nonTokenLines(fontFaceBlanked(read(CSS_PATH)))
+    .filter(({ line }) => FONT_RE.test(line) && !TOKEN_FONT_RE.test(line));
   if (offenders.length) {
-    throw new Error(`${offenders.length} hard-coded font family(ies), first at line ${offenders[0].number}: ${offenders[0].line.trim()}`);
+    throw new Error(`${offenders.length} raw font family(ies) in a rule, first at line ${offenders[0].number}: ${offenders[0].line.trim()}`);
   }
 });
 

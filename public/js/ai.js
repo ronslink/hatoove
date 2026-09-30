@@ -4,12 +4,22 @@
  * The key never touches the browser: everything goes through the local server's
  * /api/ai proxy. Every call is JSON-mode and validated before it is trusted, and
  * every generator has an offline fallback so the app degrades instead of breaking.
+ *
+ * PROVIDER-CONFIG-01 (D1): the client is not told whether an operator key exists. The
+ * provider key, base URL and model are server environment configuration, and every route
+ * reports nothing about them.
  */
 
 import { PARTS, TAGS } from './blueprint.js';
 import * as store from './store.js';
 
-let status = { configured: false, model: 'deepseek-chat', keyMasked: '', examDate: '', checked: false };
+/**
+ * `status` holds only what a route is allowed to tell the client. PROVIDER-CONFIG-01 (D1)
+ * removed the provider key, base URL and model from every route, so the client is told
+ * nothing about them; `configured` stays undefined until - and unless - a server says
+ * otherwise, and availability is learned from the AI call itself.
+ */
+let status = { configured: undefined, examDate: '', checked: false };
 
 /* ----------------------------------------------------------------- basics */
 
@@ -17,9 +27,14 @@ export async function refreshStatus() {
   try {
     const res = await fetch('/api/config');
     const data = await res.json();
-    status = { ...data, checked: true };
+    // The real route sends no provider field (D1.2). A stub or a legacy server may still
+    // send `configured`; when it does, honour it so the offline/online switch stays
+    // testable, but never surface it to a learner.
+    const next = { examDate: data?.examDate ?? status.examDate, checked: true };
+    if (typeof data?.configured === 'boolean') next.configured = data.configured;
+    status = next;
   } catch {
-    status = { ...status, configured: false, checked: true };
+    status = { ...status, checked: true };
   }
   return status;
 }
@@ -28,8 +43,14 @@ export function aiStatus() {
   return status;
 }
 
+/**
+ * Whether to attempt the AI path. When the server reports no availability (the normal
+ * D1 case) the client attempts the call and degrades on error; it is never told whether
+ * an operator key exists. Only an explicit `configured:false` - from a stub or an older
+ * server - suppresses the attempt.
+ */
 export function isConfigured() {
-  return Boolean(status.configured);
+  return status.configured !== false;
 }
 
 function extractJSON(text) {
@@ -112,19 +133,19 @@ export async function callAI({ system, user, temperature = 0.9, maxTokens = 4096
   }
 }
 
-export async function testKey() {
-  const res = await fetch('/api/ai/test', { method: 'POST' });
-  return res.json();
-}
-
-export async function saveConfig(patch) {
+/**
+ * Persist the learner's exam date. Provider fields are operator configuration and are
+ * refused by the server (D1); this route only ever carries learner state.
+ */
+export async function saveExamDate(examDate) {
   const res = await fetch('/api/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
+    body: JSON.stringify({ examDate }),
   });
-  const data = await res.json();
-  status = { ...status, ...data, checked: true };
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `Speichern fehlgeschlagen (${res.status})`);
+  status = { ...status, examDate: data?.examDate ?? examDate, checked: true };
   return data;
 }
 
