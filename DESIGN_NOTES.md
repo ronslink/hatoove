@@ -15,7 +15,7 @@ The adaptive engine, question content, AI connection, server and learner-storage
 
 ## Files and working copies
 
-The live application is `D:\B1_Prep`. The development copy is `C:\Users\ronon\OneDrive\Documents\ChatGPT\B1_Prep`.
+The live application is `D:\B1_Prep`. The development copy is `<user-home>\OneDrive\Documents\ChatGPT\B1_Prep`.
 
 `public/js/dashboard.js` owns the new dashboard. `public/shell-refresh.css` owns the application shell. `public/studio.css` owns shared design tokens, component refinements and dashboard layout. Both stylesheets load after the original `styles.css`; existing exercise class names remain compatible.
 

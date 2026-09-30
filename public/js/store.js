@@ -16,6 +16,11 @@ import { NODE_WEIGHTS, canonicalTag } from './blueprint.js';
 import { mergeProgress } from './progress-merge.js';
 
 const STORAGE_KEY = 'b1prep.state.v1';
+// Set before a reset is sent to the server and cleared only once the server confirmed
+// the deletion. If the request could not be delivered (server restarting, tab closed
+// mid-reset), the next start retries it before anything is merged - merging first would
+// hand the deleted record straight back, which is the failure SEC-02 fixes.
+const RESET_FLAG_KEY = 'b1prep.reset.pending.v1';
 const SCALE = 18;        // logistic spread in points
 const START_THETA = 50;
 const PRIOR_N = 4;       // pseudo-observations pulling new nodes toward START_THETA
@@ -56,6 +61,9 @@ let state = freshState();
 let loaded = false;
 let saveTimer = null;
 let serverTimer = null;
+// The POST currently in flight, if any. An explicit delete waits for it, otherwise a
+// request that left before the reset could land after it and write the record back.
+let inflight = null;
 let sync = { state: 'idle', lastSavedAt: 0, lastError: '', lastLoadedSource: null };
 
 function storage() {
@@ -119,6 +127,36 @@ function migrateTags() {
   return merged;
 }
 
+function readResetFlag() {
+  const s = storage();
+  if (!s) return false;
+  try {
+    return s.getItem(RESET_FLAG_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeResetFlag() {
+  const s = storage();
+  if (!s) return;
+  try {
+    s.setItem(RESET_FLAG_KEY, '1');
+  } catch {
+    /* private mode or quota: the delete itself still runs */
+  }
+}
+
+function clearResetFlag() {
+  const s = storage();
+  if (!s) return;
+  try {
+    s.removeItem(RESET_FLAG_KEY);
+  } catch {
+    /* nothing to clear */
+  }
+}
+
 export function load() {
   if (loaded) return state;
   loaded = true;
@@ -157,6 +195,16 @@ export function syncStatus() {
  * or a changed port.
  */
 export async function flushToServer() {
+  const run = sendProgress();
+  inflight = run;
+  try {
+    return await run;
+  } finally {
+    if (inflight === run) inflight = null;
+  }
+}
+
+async function sendProgress() {
   if (typeof fetch !== 'function') return false;
   state.updatedAt = Date.now();
   try {
@@ -183,6 +231,31 @@ export async function flushToServer() {
   }
 }
 
+/**
+ * Delete the stored progress on the server, on purpose.
+ *
+ * This is the only path that removes data. Ordinary saves keep merging, because the
+ * merge protects a learner whose partial write would otherwise erase a week of study.
+ * @param {'all'|'errors'} scope 'all' deletes the record, 'errors' only the notebook.
+ */
+async function deleteServerProgress(scope = 'all') {
+  if (typeof fetch !== 'function') return false;
+  // Let a save that is already on its way finish first: the DELETE must be the last
+  // write, or the merge it started from would put the record back.
+  if (inflight) await inflight.catch(() => {});
+  const query = scope === 'all' ? '' : `?scope=${encodeURIComponent(scope)}`;
+  try {
+    const res = await fetch(`/api/progress${query}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    sync = { ...sync, state: 'saved', lastSavedAt: Date.now(), lastError: '' };
+    return true;
+  } catch (err) {
+    sync = { ...sync, state: 'error', lastError: String(err.message || err) };
+    return false;
+  }
+}
+
 function queueServerSave(delay = 1200) {
   if (typeof fetch !== 'function') return;
   if (serverTimer) clearTimeout(serverTimer);
@@ -201,6 +274,12 @@ function queueServerSave(delay = 1200) {
 export async function syncFromServer({ timeoutMs = 5000 } = {}) {
   if (typeof fetch !== 'function') return { adopted: false, reachable: false };
   load();
+  // A reset that never reached the server is applied now, before anything is merged.
+  if (readResetFlag()) {
+    const cleared = await deleteServerProgress('all');
+    if (cleared) clearResetFlag();
+    return { adopted: false, uploaded: false, reachable: cleared, resetApplied: cleared };
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -273,10 +352,43 @@ export function saveNow() {
   queueServerSave();
 }
 
-export function resetAll() {
+/**
+ * Settings that are configuration rather than learner evidence, and therefore survive a
+ * reset: the exam date plus the preferences chosen on the Einstellungen page.
+ * `writingTaskIndex` is deliberately absent - it is a rotation counter that follows the
+ * recorded attempts, so a reset has to return it to the start.
+ */
+const CONFIG_SETTINGS = ['examDate', 'dailyGoal', 'ttsRate', 'voiceName', 'autoPlay', 'aiDrills', 'model'];
+
+export async function resetAll() {
+  // A reset must actually reset. Saves merge on purpose (see mergeProgress), so
+  // "empty the state and save it" deleted nothing: the merge returned the full record
+  // to both the server and this browser (audit finding F-2). So cancel the pending
+  // saves and delete the server record through DELETE /api/progress instead of posting.
+  //
+  // Configuration is not learner progress and keeps working: the exam date and the
+  // Einstellungen preferences in CONFIG_SETTINGS, the provider key and exam date in
+  // .env, and the theme in localStorage. The rotation counter is progress and is
+  // cleared. Copies outside progress.json (finding F-5) are not touched - see SEC-02.md.
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  if (serverTimer) {
+    clearTimeout(serverTimer);
+    serverTimer = null;
+  }
+  const configuration = {};
+  for (const key of CONFIG_SETTINGS) {
+    if (state.settings && state.settings[key] !== undefined) configuration[key] = state.settings[key];
+  }
   state = freshState();
+  state.settings = { ...state.settings, ...configuration };
   invalidateAbilityCache();
-  saveNow();
+  loaded = true;
+  writeLocal();
+  writeResetFlag();
+  if (await deleteServerProgress('all')) clearResetFlag();
   return state;
 }
 
@@ -580,9 +692,24 @@ export function resolveError(id) {
   return e;
 }
 
-export function clearErrors() {
+/**
+ * Empty the error notebook for real: in this browser and in the server record.
+ * Emptying only the local copy was undone by the merge on the next save, because the
+ * notebook is unioned by id (audit finding F-2). The rest of the progress is kept.
+ */
+export async function clearErrors() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  if (serverTimer) {
+    clearTimeout(serverTimer);
+    serverTimer = null;
+  }
   state.errors = [];
-  saveNow();
+  invalidateAbilityCache();
+  writeLocal();
+  await deleteServerProgress('errors');
 }
 
 /* ------------------------------------------------------- spaced repetition */

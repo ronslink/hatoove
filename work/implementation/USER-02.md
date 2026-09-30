@@ -1,7 +1,7 @@
 # USER-02 / PILOT-01-CSS: responsive verification and bounded fixes
 
 Status: assigned to Ron-controlled local agent, slot 4; execution user02-20260930-a. No children.
-Base: 5e75ec59d1889fb46a161cdf1af0363ae68f0416. Branch codex/pilot-01-css-user02. Managed worktree C:/Users/ronon/.codex/worktrees/pilot01-css-user/B1_Prep.
+Base: 5e75ec59d1889fb46a161cdf1af0363ae68f0416. Branch codex/pilot-01-css-user02. Managed worktree <user-home>/.codex/worktrees/pilot01-css-user/B1_Prep.
 Issued 2026-09-30 17:48 UTC; checkpoint 18:03 UTC; expires 18:48 UTC. This supersedes the completed USER-01 read-only grant, not its evidence.
 
 Read AGENTS.md, docs/AGENT_WORKFLOW.md, docs/design/REFERENCE_UI.md and work/implementation/PILOT-01-CSS.md in your assigned worktree, plus this current issue assignment. Acknowledge execution, branch/base and clean source-only checkout to Ron before editing.

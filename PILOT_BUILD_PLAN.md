@@ -67,7 +67,7 @@ Evaluate local price experiments using paid conversion, meaningful practice comp
 
 ## Current baseline
 
-Development checkout: `C:\Users\ronon\OneDrive\Documents\ChatGPT\B1_Prep`. The installed application on D: is a separate copy; account for any differences before synchronising application files. Keep learner records separate from source-code changes.
+Development checkout: `<user-home>\OneDrive\Documents\ChatGPT\B1_Prep`. The installed application on D: is a separate copy; account for any differences before synchronising application files. Keep learner records separate from source-code changes.
 
 The three offline suites passed on 30 September 2026:
 

@@ -10,7 +10,7 @@ The [dispatch runbook](AGENT_RUNBOOK.md) records the installed one-shot interfac
 
 | Host | Verified inventory | Still to prove |
 |---|---|---|
-| Local coordinator | Canonical source: `C:\Users\ronon\OneDrive\Documents\ChatGPT\B1_Prep`; private baseline published; 124 offline checks and Linux/Windows CI passed | Product implementation and device evidence |
+| Local coordinator | Canonical source: `<user-home>\OneDrive\Documents\ChatGPT\B1_Prep`; private baseline published; 124 offline checks and Linux/Windows CI passed | Product implementation and device evidence |
 | Hetzner, SSH alias `hetzner` | OpenClaw 2026.8.2, Node 22, Git and `gh`; GitHub identity `ronslink`; actual scoped worker run, 124 checks and [PR #3](https://github.com/ronslink/hatoove/pull/3) reviewed/merged | Product-specific task capability; unrelated filesystem MCP/memory startup warnings remain outside this setup |
 | Local Docker `hermes-agent` | Hermes 0.21.1, Node 26, Git; persistent `/opt/data`; `G:/Hermes/Projects` mounted at `/projects`; actual worker run, 124 checks, commit/bundle and [PR #4](https://github.com/ronslink/hatoove/pull/4) verified after fixing project ownership to UID/GID 10000; [one synchronous read-only child](../work/exercises/PRE-06/pre06-20260930-a/RESULT.md) verified | Browser tooling, multi-child concurrency and child writing handoff; no direct GitHub login |
 

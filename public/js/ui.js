@@ -881,6 +881,7 @@ export async function settingsView(el) {
     <div class="card">
       <h3>DeepSeek-Schlüssel</h3>
       <p class="muted small">Der Schlüssel wird nur lokal in <span class="mono">.env</span> auf diesem Rechner gespeichert und nie an den Browser zurückgegeben. Ohne Schlüssel läuft die App im Offline-Modus weiter.</p>
+      <p class="muted small">Mit Schlüssel schickt der lokale Server bei KI-Funktionen deine Texte an den KI-Anbieter (standardmäßig DeepSeek): deine Briefe und E-Mails zur Bewertung, deine mündlichen Antworten als Transkript, Sätze aus „Satzbau verstehen“ und – wenn du „Genauer erklären“ wählst – deine Antwort im Drill. Ohne Schlüssel wird davon nichts gesendet.</p>
       <div class="btn-row mb">
         <span class="pill ${cfg.configured ? 'good' : 'warn'}">${cfg.configured ? `Verbunden · ${esc(cfg.keyMasked)}` : 'Kein Schlüssel hinterlegt'}</span>
         <span class="pill">Modell: ${esc(cfg.model || 'deepseek-chat')}</span>
