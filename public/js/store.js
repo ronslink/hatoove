@@ -64,6 +64,18 @@ let serverTimer = null;
 // The POST currently in flight, if any. An explicit delete waits for it, otherwise a
 // request that left before the reset could land after it and write the record back.
 let inflight = null;
+// SEC-05: the server revision this client last saw. It travels with every write, so the
+// server can tell a write that left before a reset from one that came after it. It is
+// deliberately not persisted in localStorage: `syncFromServer()` reads it before any
+// upload, and a wrong guess is answered with 409 and resolved by a re-read, never by
+// writing.
+let serverRev = 0;
+// Bumped whenever the whole state is replaced - a reset, an import, adopting the server's
+// copy. A save response may only fold its answer back while the epoch it left under is
+// still current; otherwise a save that was in flight across a reset would write the
+// deleted record back into the browser cache. That is the single-tab F-2 race the SEC-02
+// report wrongly claimed was closed.
+let stateEpoch = 0;
 let sync = { state: 'idle', lastSavedAt: 0, lastError: '', lastLoadedSource: null };
 
 function storage() {
@@ -204,21 +216,65 @@ export async function flushToServer() {
   }
 }
 
+/**
+ * Resolve a 409: the server refused a write because a reset (or notebook clear) moved the
+ * revision past it. Re-read and adopt the server's record, which is now authoritative.
+ * A full reset leaves nothing to adopt, so the pre-delete copy in this browser is dropped
+ * rather than re-uploaded - re-uploading it would be exactly the resurrection the
+ * revision exists to prevent.
+ */
+async function adoptServerAfterConflict() {
+  try {
+    const res = await fetch('/api/progress');
+    const data = await res.json();
+    if (Number.isFinite(Number(data.rev))) serverRev = Number(data.rev);
+    if (data.found && data.state) {
+      state = { ...freshState(), ...data.state };
+      state.settings = { ...freshState().settings, ...(data.state.settings || {}) };
+      state.counters = { ...freshState().counters, ...(data.state.counters || {}) };
+      migrateTags();
+    } else {
+      state = freshWithConfiguration();
+    }
+    stateEpoch += 1;
+    invalidateAbilityCache();
+    loaded = true;
+    writeLocal();
+    sync = { ...sync, state: 'saved', lastSavedAt: Date.now(), lastError: '' };
+    return true;
+  } catch (err) {
+    sync = { ...sync, state: 'error', lastError: String(err.message || err) };
+    return false;
+  }
+}
+
 async function sendProgress() {
   if (typeof fetch !== 'function') return false;
   state.updatedAt = Date.now();
+  // Captured before the request leaves: if either moves while it is in flight, the state
+  // has been replaced (a reset) and the answer must not be folded back.
+  const epoch = stateEpoch;
+  const sentRev = serverRev;
   try {
     const res = await fetch('/api/progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state }),
+      body: JSON.stringify({ state, rev: sentRev }),
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 409 || data.code === 'stale_revision') {
+      // Do not retry: retrying with the new revision would restore what the reset
+      // deleted. Re-read and adopt instead.
+      await adoptServerAfterConflict();
+      return false;
+    }
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (Number.isFinite(Number(data.rev))) serverRev = Number(data.rev);
     // The server merges every write. If it recovered anything we were missing - another
     // tab having saved meanwhile, say - fold it in. Merging rather than replacing keeps
-    // any answer made while this request was in flight.
-    if (data.state) {
+    // any answer made while this request was in flight. But never fold over a state this
+    // client has replaced since (a reset) or a reset that is still pending.
+    if (data.state && epoch === stateEpoch && !readResetFlag()) {
       state = mergeProgress(state, data.state);
       invalidateAbilityCache();
       writeLocal();
@@ -248,6 +304,10 @@ async function deleteServerProgress(scope = 'all') {
     const res = await fetch(`/api/progress${query}`, { method: 'DELETE' });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    // The delete moved the revision, so this client now knows the post-delete value: its
+    // next ordinary save carries it and is accepted, and a write that left before the
+    // delete still carries the old one and is refused.
+    if (Number.isFinite(Number(data.rev))) serverRev = Number(data.rev);
     sync = { ...sync, state: 'saved', lastSavedAt: Date.now(), lastError: '' };
     return true;
   } catch (err) {
@@ -285,8 +345,23 @@ export async function syncFromServer({ timeoutMs = 5000 } = {}) {
   try {
     const res = await fetch('/api/progress', { signal: controller.signal });
     const data = await res.json();
+    if (Number.isFinite(Number(data.rev))) serverRev = Number(data.rev);
     if (!data.found || !data.state) {
       const hasLocal = (state.counters?.attempts || 0) > 0 || Object.keys(state.nodes || {}).length > 0;
+      // SEC-05: a revision that has advanced with nothing stored means the record was
+      // deleted on purpose. (`rev > 0` together with no record can only follow a delete.)
+      // Uploading the local copy would resurrect it, so the browser copy is dropped
+      // instead. Only a server that has never held a record (rev 0) may be seeded from a
+      // browser-only learner - that is the one-time migration path.
+      if (hasLocal && (Number(data.rev) || 0) > 0) {
+        state = freshWithConfiguration();
+        stateEpoch += 1;
+        invalidateAbilityCache();
+        loaded = true;
+        writeLocal();
+        sync = { ...sync, state: 'idle', lastError: '' };
+        return { adopted: false, uploaded: false, reachable: true, empty: true, discardedLocal: true };
+      }
       if (hasLocal) {
         const ok = await flushToServer();
         return { adopted: false, uploaded: ok, reachable: true, empty: true };
@@ -302,6 +377,7 @@ export async function syncFromServer({ timeoutMs = 5000 } = {}) {
       state.settings = { ...freshState().settings, ...(data.state.settings || {}) };
       state.counters = { ...freshState().counters, ...(data.state.counters || {}) };
       const folded = migrateTags();
+      stateEpoch += 1;
       invalidateAbilityCache();
       loaded = true;
       writeLocal();
@@ -360,11 +436,26 @@ export function saveNow() {
  */
 const CONFIG_SETTINGS = ['examDate', 'dailyGoal', 'ttsRate', 'voiceName', 'autoPlay', 'aiDrills', 'model'];
 
+/** A fresh record that keeps the settings which are configuration, not learner evidence. */
+function freshWithConfiguration(from = state) {
+  const configuration = {};
+  for (const key of CONFIG_SETTINGS) {
+    if (from?.settings && from.settings[key] !== undefined) configuration[key] = from.settings[key];
+  }
+  const next = freshState();
+  next.settings = { ...next.settings, ...configuration };
+  return next;
+}
+
 export async function resetAll() {
   // A reset must actually reset. Saves merge on purpose (see mergeProgress), so
   // "empty the state and save it" deleted nothing: the merge returned the full record
   // to both the server and this browser (audit finding F-2). So cancel the pending
   // saves and delete the server record through DELETE /api/progress instead of posting.
+  //
+  // SEC-05 closes the race that fix left open: the DELETE now records a revision on the
+  // server, so a save that was already on the wire when the reset ran is refused (409)
+  // and this client re-reads and adopts the empty record instead of resurrecting it.
   //
   // Configuration is not learner progress and keeps working: the exam date and the
   // Einstellungen preferences in CONFIG_SETTINGS, the provider key and exam date in
@@ -378,17 +469,22 @@ export async function resetAll() {
     clearTimeout(serverTimer);
     serverTimer = null;
   }
-  const configuration = {};
-  for (const key of CONFIG_SETTINGS) {
-    if (state.settings && state.settings[key] !== undefined) configuration[key] = state.settings[key];
-  }
-  state = freshState();
-  state.settings = { ...state.settings, ...configuration };
+  // A save may already be on the wire. Bumping the epoch before anything else means its
+  // response cannot fold the record back into the state the reset is about to clear
+  // (SEC-05: the single-tab race SEC-02's report claimed was closed).
+  stateEpoch += 1;
+  state = freshWithConfiguration();
   invalidateAbilityCache();
   loaded = true;
   writeLocal();
   writeResetFlag();
-  if (await deleteServerProgress('all')) clearResetFlag();
+  const deleted = await deleteServerProgress('all');
+  if (deleted) {
+    clearResetFlag();
+    // Re-assert the empty state after awaiting the in-flight save and the delete, so a
+    // late write cannot leave the browser cache holding the deleted record.
+    writeLocal();
+  }
   return state;
 }
 
@@ -401,6 +497,8 @@ export function importJSON(text) {
   if (!parsed || typeof parsed !== 'object' || typeof parsed.nodes !== 'object') {
     throw new Error('Das sieht nicht nach einer B1-Prep-Datei aus.');
   }
+  // Replacing the state wholesale: a save already in flight must not fold over the import.
+  stateEpoch += 1;
   state = { ...freshState(), ...parsed };
   state.settings = { ...freshState().settings, ...(parsed.settings || {}) };
   migrateTags();
@@ -706,10 +804,13 @@ export async function clearErrors() {
     clearTimeout(serverTimer);
     serverTimer = null;
   }
+  // Same guard as resetAll: a save still in flight carrying the notebook entries must not
+  // fold them back after the notebook has been emptied.
+  stateEpoch += 1;
   state.errors = [];
   invalidateAbilityCache();
   writeLocal();
-  await deleteServerProgress('errors');
+  if (await deleteServerProgress('errors')) writeLocal();
 }
 
 /* ------------------------------------------------------- spaced repetition */

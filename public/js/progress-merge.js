@@ -167,11 +167,43 @@ export function mergeProgress(a, b) {
   return out;
 }
 
-/** True when merging changed nothing meaningful - used to skip redundant response payloads. */
+/**
+ * Rebuild `value` with every object's keys in sorted order, so two records that differ
+ * only in key insertion order serialise identically. Arrays keep their order (order is
+ * meaningful there) and primitives are returned untouched, so JSON.stringify below still
+ * applies exactly the same value semantics as before - only key order, which carries no
+ * meaning, is normalised.
+ */
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const key of Object.keys(value).sort()) out[key] = canonicalize(value[key]);
+    return out;
+  }
+  return value;
+}
+
+/**
+ * True when two progress records are logically equal, regardless of key order - used to
+ * skip redundant response payloads.
+ *
+ * This is deliberately a *canonical* comparison, not a raw `JSON.stringify(a) ===
+ * JSON.stringify(b)`. `mergeProgress` emits its fields in a different order than the
+ * state it is given (`counters` precedes `nodes`), so the raw comparison was false even
+ * for logically identical records. That made the one question this function exists to
+ * answer - "did the merge change anything?" - unanswerable, so `server.js` shipped a full
+ * merged state on every POST. Comparing a stable key-ordered serialisation keeps every
+ * existing call site unchanged and answers the question for every caller.
+ *
+ * It is a real comparison, not a constant: a changed counter, a changed or added or
+ * removed key still compares unequal, and it is symmetric
+ * (`progressEqual(a, b) === progressEqual(b, a)`).
+ */
 export function progressEqual(a, b) {
   if (a === b) return true;
   try {
-    return JSON.stringify(a) === JSON.stringify(b);
+    return JSON.stringify(canonicalize(a)) === JSON.stringify(canonicalize(b));
   } catch {
     return false;
   }

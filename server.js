@@ -36,6 +36,18 @@ const ENV_PATH = process.env.B1PREP_ENV_FILE
 const PROGRESS_PATH = process.env.B1PREP_PROGRESS_FILE
   ? path.resolve(process.env.B1PREP_PROGRESS_FILE)
   : path.join(ROOT, 'progress.json');
+// SEC-05 (finding F-2 race): a monotonic revision, persisted *beside* the progress
+// record. Ordinary POSTs still merge - that protection is deliberate and stays - but a
+// reset has to be able to invalidate a write that left before it. The revision, plus the
+// high-water mark of the last delete (`deletedThrough`), is what a stale write is refused
+// against.
+//
+// It lives in its own file rather than inside progress.json because a full reset deletes
+// progress.json: a revision stored inside the record would be destroyed by exactly the
+// delete it exists to survive. Beside the record it survives the delete and a restart.
+const PROGRESS_REV_PATH = `${PROGRESS_PATH}.rev`;
+// The revision of a server that has never accepted a write or a delete.
+const INITIAL_REV = 0;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -104,17 +116,21 @@ function settings() {
   };
 }
 
-function maskKey(key) {
-  if (!key) return '';
-  if (key.length <= 10) return '****';
-  return `${key.slice(0, 5)}...${key.slice(-4)}`;
-}
-
+/**
+ * What the learner UI is allowed to know about the stored configuration.
+ *
+ * SEC-04, finding F-7: this used to also carry `keyMasked: <first 5>...<last 4>`, i.e.
+ * nine characters of the API key, and /api/health and /api/config serve this object
+ * without authentication. The server binds 127.0.0.1, so those characters were never
+ * remotely reachable and are not a usable credential - but a status display does not need
+ * any character of the key at all. `configured` plus `model` is what the Settings pill
+ * shows, so that is what is returned. Do not add key material back here, and do not add a
+ * per-key fingerprint to replace it (see work/implementation/SEC-04.md).
+ */
 function publicConfig() {
   const s = settings();
   return {
     configured: Boolean(s.apiKey),
-    keyMasked: maskKey(s.apiKey),
     model: s.model,
     baseUrl: s.baseUrl,
     examDate: s.examDate,
@@ -300,6 +316,58 @@ async function writeProgressScoped(data) {
   return body.length;
 }
 
+/**
+ * Read the revision marker. Missing or unreadable means the initial state (revision 0,
+ * no delete yet), so a progress.json written before this change keeps working.
+ */
+async function readRevision() {
+  const whole = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.floor(Number(v))) : 0);
+  try {
+    const parsed = JSON.parse(await fsp.readFile(PROGRESS_REV_PATH, 'utf8'));
+    return { rev: whole(parsed?.rev), deletedThrough: whole(parsed?.deletedThrough) };
+  } catch {
+    return { rev: INITIAL_REV, deletedThrough: 0 };
+  }
+}
+
+/** Persist the revision marker atomically, so a crash cannot leave it half-written. */
+async function writeRevision(marker) {
+  const tmp = `${PROGRESS_REV_PATH}.tmp`;
+  await fsp.writeFile(tmp, JSON.stringify({ rev: marker.rev, deletedThrough: marker.deletedThrough }), 'utf8');
+  await fsp.rename(tmp, PROGRESS_REV_PATH);
+}
+
+/**
+ * Decide whether an incoming write may be applied.
+ *
+ * The monotonic merge must stay: a partial write from one tab must never erase newer
+ * answers from another, so an ordinary write that is merely behind the current revision
+ * is still merged. The one case that must be refused is a write that left *before a
+ * delete*: `deletedThrough` is the revision the last delete produced, and a snapshot older
+ * than that would restore the record the learner just deleted (the F-2 race).
+ *
+ * Deliberate choices, so they are not re-litigated by accident:
+ *   * Missing `rev` (a lean client that only posts `{state}`): accepted while no delete
+ *     has ever happened, so an existing simple client keeps working; refused once a
+ *     delete has advanced the revision, because such a write cannot be proven newer than
+ *     the delete and silently accepting it would reopen exactly this hole.
+ *   * `rev` ahead of the stored one: accepted. It means this server lost its marker (a
+ *     restored backup, a copied progress.json), and refusing would discard learner
+ *     evidence. It cannot cross a delete, because the comparison is against
+ *     `deletedThrough`, not against `rev`.
+ */
+function classifyWrite(rawRev, marker) {
+  const hasRev = typeof rawRev === 'number' && Number.isFinite(rawRev);
+  if (!hasRev) {
+    return marker.deletedThrough > 0
+      ? { accept: false, reason: 'missing_revision_after_delete', revision: INITIAL_REV }
+      : { accept: true, revision: INITIAL_REV };
+  }
+  const rev = Math.max(0, Math.floor(rawRev));
+  if (rev < marker.deletedThrough) return { accept: false, reason: 'older_than_delete', revision: rev };
+  return { accept: true, revision: rev };
+}
+
 async function readProgress() {
   for (const p of [PROGRESS_PATH, `${PROGRESS_PATH}.bak`]) {
     try {
@@ -457,7 +525,10 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/progress' && method === 'GET') {
     const { found, source, state } = await readProgress();
-    sendJSON(res, 200, found ? { ok: true, found: true, source, state } : { ok: true, found: false });
+    // A GET only reports the revision; it never advances it, so a client can learn the
+    // value it must send with its next write without disturbing anyone else.
+    const { rev } = await readRevision();
+    sendJSON(res, 200, found ? { ok: true, found: true, source, rev, state } : { ok: true, found: false, rev });
     return true;
   }
 
@@ -469,6 +540,24 @@ async function handleApi(req, res, pathname) {
       sendJSON(res, 400, { ok: false, error: 'state.nodes is required' });
       return true;
     }
+    // SEC-05: refuse a write that left before the last delete. The revision the client
+    // believes it is updating travels with the write; a stale one gets 409 and no write.
+    const marker = await readRevision();
+    const verdict = classifyWrite(body?.rev, marker);
+    if (!verdict.accept) {
+      sendJSON(res, 409, {
+        ok: false,
+        code: 'stale_revision',
+        reason: verdict.reason,
+        error:
+          verdict.reason === 'missing_revision_after_delete'
+            ? 'A reset has happened and this write carries no revision. Re-read /api/progress before saving.'
+            : 'A reset invalidated this write. Re-read /api/progress before saving.',
+        rev: marker.rev,
+        deletedThrough: marker.deletedThrough,
+      });
+      return true;
+    }
     try {
       // Merge rather than overwrite. Saves are debounced and can arrive from more than
       // one tab; a plain overwrite let a tab holding an older snapshot erase newer
@@ -476,8 +565,13 @@ async function handleApi(req, res, pathname) {
       const existing = await readProgress();
       const merged = existing.found ? mergeProgress(existing.state, state) : state;
       const bytes = await writeProgress(merged);
+      // Every accepted write advances the revision, so a later delete always outranks
+      // every write that left before it. `max` keeps it monotonic even for a client that
+      // somehow arrived with a higher revision than this server has issued.
+      const rev = Math.max(marker.rev, verdict.revision) + 1;
+      await writeRevision({ rev, deletedThrough: marker.deletedThrough });
 
-      const payload = { ok: true, bytes, savedAt: Date.now(), merged: existing.found };
+      const payload = { ok: true, bytes, savedAt: Date.now(), merged: existing.found, rev };
       // Only send the state back when the merge actually recovered something the
       // caller was missing, so ordinary saves stay cheap.
       if (!progressEqual(state, merged)) payload.state = merged;
@@ -502,6 +596,20 @@ async function handleApi(req, res, pathname) {
     }
 
     if (scope === 'all') {
+      // SEC-05: leave a tombstone before removing anything. The revision is recorded
+      // *first*, so a crash between the two steps leaves it high (which only costs the
+      // next writer a re-read) rather than low (which would let a pre-delete write
+      // through). Every write that left before this delete is now below `deletedThrough`
+      // and is refused instead of restoring the record.
+      let rev;
+      try {
+        const marker = await readRevision();
+        rev = marker.rev + 1;
+        await writeRevision({ rev, deletedThrough: rev });
+      } catch (err) {
+        sendJSON(res, 500, { ok: false, error: `Could not record the reset: ${err.message}` });
+        return true;
+      }
       try {
         await fsp.rm(PROGRESS_PATH, { force: true });
         await fsp.rm(`${PROGRESS_PATH}.bak`, { force: true });
@@ -511,14 +619,25 @@ async function handleApi(req, res, pathname) {
       } catch {
         /* already gone */
       }
-      sendJSON(res, 200, { ok: true, scope: 'all', deleted: true });
+      sendJSON(res, 200, { ok: true, scope: 'all', deleted: true, rev });
       return true;
     }
 
     if (scope === 'errors') {
       const existing = await readProgress();
+      // The notebook clear moves the revision too: an in-flight save still carrying the
+      // cleared entries must not merge them back.
+      let rev;
+      try {
+        const marker = await readRevision();
+        rev = marker.rev + 1;
+        await writeRevision({ rev, deletedThrough: rev });
+      } catch (err) {
+        sendJSON(res, 500, { ok: false, error: `Could not clear the notebook: ${err.message}` });
+        return true;
+      }
       if (!existing.found) {
-        sendJSON(res, 200, { ok: true, scope: 'errors', existed: false, cleared: 0 });
+        sendJSON(res, 200, { ok: true, scope: 'errors', existed: false, cleared: 0, rev });
         return true;
       }
       try {
@@ -528,7 +647,7 @@ async function handleApi(req, res, pathname) {
         return true;
       }
       const cleared = Array.isArray(existing.state.errors) ? existing.state.errors.length : 0;
-      sendJSON(res, 200, { ok: true, scope: 'errors', existed: true, cleared });
+      sendJSON(res, 200, { ok: true, scope: 'errors', existed: true, cleared, rev });
       return true;
     }
 
@@ -601,7 +720,7 @@ async function handleApi(req, res, pathname) {
  * Build the HTTP server without listening, so a test can start it in-process on an
  * ephemeral port (see tools/server-origin-check.mjs).
  */
-export function createServer() {
+export function createServer({ ownedApi = null } = {}) {
   return http.createServer(async (req, res) => {
     const pathname = (() => {
       try {
@@ -624,6 +743,10 @@ export function createServer() {
             return;
           }
         }
+        // OWNAPI-01 mount: opt-in only. Active solely when a caller injects an owned API
+        // (server/owned-api.mjs); `node server.js` never does. Placed after the SEC-01 gate,
+        // which has already rejected any foreign mutation, hence originChecked: true.
+        if (ownedApi && ownedApi.matches(pathname)) return void (await ownedApi.handleNode(req, res, { originChecked: true }));
         const handled = await handleApi(req, res, pathname);
         if (!handled) sendJSON(res, 404, { ok: false, error: `Unknown endpoint ${pathname}` });
         return;
@@ -657,7 +780,9 @@ if (invokedDirectly) {
     console.log('  B1 Prep  -  telc Deutsch B1 adaptive trainer');
     console.log(line);
     console.log(`  App:      http://127.0.0.1:${PORT}`);
-    console.log(`  DeepSeek: ${s.apiKey ? `key set (${maskKey(s.apiKey)}), model ${s.model}` : 'NO KEY - offline mode (open Settings to add one)'}`);
+    // SEC-04: the banner used to echo <first 5>...<last 4> of the key. A console line does
+    // not need key characters either, so it only reports that one is set.
+    console.log(`  DeepSeek: ${s.apiKey ? `key set (value hidden), model ${s.model}` : 'NO KEY - offline mode (open Settings to add one)'}`);
     console.log(`  Exam:     ${s.examDate || 'not set (open Settings to add your date)'}`);
     console.log(`  Progress: ${PROGRESS_PATH}`);
     console.log(line);

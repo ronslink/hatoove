@@ -205,7 +205,10 @@ export async function closeAll() {
 }
 
 function clearProgressFiles(ctx) {
-  for (const suffix of ['', '.bak', '.tmp', '.pre-recovery']) {
+  // `.rev` is the SEC-05 revision/tombstone sidecar. Each scenario starts from a clean
+  // slate, so it must go too - otherwise a delete in one scenario would leave a
+  // `deletedThrough` mark that (correctly) refuses the next scenario's first write.
+  for (const suffix of ['', '.bak', '.tmp', '.pre-recovery', '.rev', '.rev.tmp']) {
     fs.rmSync(ctx.progressPath + suffix, { force: true });
   }
 }
@@ -539,9 +542,43 @@ function printRun(report, io) {
   }
 }
 
+/**
+ * Parse `--legacy-root <path>`.
+ *
+ * SEC-05 hardening: with no value (or another flag next) this used to resolve to the
+ * current directory and compare the candidate against itself, reporting a silent false
+ * negative (`pre-fix run fails 0 check(s)`). It now fails loudly instead, and a path that
+ * is not a checkout is refused rather than run.
+ *
+ * @returns {{provided: boolean, root: string|null, error: string|null}}
+ */
+export function parseLegacyRoot(argv = [], defaultRoot = DEFAULT_ROOT) {
+  const index = argv.indexOf('--legacy-root');
+  if (index === -1) return { provided: false, root: null, error: null };
+  const value = argv[index + 1];
+  if (value === undefined || value === '' || value.startsWith('-')) {
+    return { provided: true, root: null, error: '--legacy-root requires a path to a pre-fix checkout (got no value)' };
+  }
+  const root = path.resolve(value);
+  if (!fs.existsSync(path.join(root, 'server.js'))) {
+    return { provided: true, root, error: `no server.js under ${root}; --legacy-root must point at a pre-fix checkout` };
+  }
+  if (root === path.resolve(defaultRoot)) {
+    return { provided: true, root, error: `--legacy-root points at this tree (${root}); the comparison would be against itself` };
+  }
+  return { provided: true, root, error: null };
+}
+
 export async function runCli(argv = process.argv.slice(2), io = console) {
-  const legacyIndex = argv.indexOf('--legacy-root');
-  const legacyRoot = legacyIndex === -1 ? null : path.resolve(argv[legacyIndex + 1] || '');
+  const legacy = parseLegacyRoot(argv);
+  const legacyRoot = legacy.root;
+
+  // A bad --legacy-root is a caller error, not a passing run: report it and stop before
+  // claiming anything, so the silent compare-against-itself false negative cannot recur.
+  if (legacy.provided && legacy.error) {
+    io.error(`  FAIL  ${legacy.error}`);
+    return 1;
+  }
 
   io.log('reset-check: reset and clear actually delete (SEC-02, finding F-2)');
   const report = await runResetChecks({ mode: 'tree' });
@@ -549,18 +586,23 @@ export async function runCli(argv = process.argv.slice(2), io = console) {
   printRun(report, io);
 
   if (legacyRoot) {
-    let legacy = null;
+    let prefix = null;
     try {
-      legacy = await runResetChecks({ root: legacyRoot, mode: 'tree' });
+      prefix = await runResetChecks({ root: legacyRoot, mode: 'tree' });
     } catch (err) {
       io.log(`  pre-fix checkout at ${legacyRoot} could not be run: ${err.message}`);
     }
-    if (legacy) {
+    if (prefix) {
       io.log('');
-      io.log(`  BEFORE/AFTER — same probe, pre-fix tree ${legacy.root}`);
-      printRun(legacy, io);
-      const failed = legacy.results.filter((result) => !result.ok).map((result) => result.name);
+      io.log(`  BEFORE/AFTER — same probe, pre-fix tree ${prefix.root}`);
+      printRun(prefix, io);
+      const failed = prefix.results.filter((result) => !result.ok).map((result) => result.name);
       io.log(`  pre-fix run fails ${failed.length} check(s): ${failed.join(', ') || 'none'}`);
+      if (failed.length === 0) {
+        io.error('  FAIL  the pre-fix tree passed every check: the probe is not discriminating.');
+        await closeAll();
+        return 1;
+      }
     }
   }
 
