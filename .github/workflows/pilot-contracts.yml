@@ -30,3 +30,10 @@ jobs:
       - run: npm ci --prefix spikes/auth-runtime --ignore-scripts --no-audit --no-fund
       - run: node --test spikes/auth-runtime/test.mjs
       - run: node --test spikes/auth-runtime/isolation.test.mjs
+      # OWNAPI-02: the datastore adapter is its own package (root stays dependency-free).
+      - name: Install the owned-postgres adapter package (pg 8.23.1)
+        run: npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
+      - name: Owned API suite against PostgreSQL as the restricted learner role
+        run: node tools/owned-api-check.mjs --backend=postgres
+      - name: Owned API PostgreSQL isolation and RLS discrimination proof
+        run: node --test tools/owned-api-pg-check.test.mjs
