@@ -142,24 +142,26 @@ function settings() {
 }
 
 /**
- * What the learner UI is allowed to know about the stored configuration.
+ * What a route is allowed to report about server configuration.
  *
- * SEC-04, finding F-7: this used to also carry `keyMasked: <first 5>...<last 4>`, i.e.
- * nine characters of the API key, and /api/health and /api/config serve this object
- * without authentication. The server binds 127.0.0.1, so those characters were never
- * remotely reachable and are not a usable credential - but a status display does not need
- * any character of the key at all. `configured` plus `model` is what the Settings pill
- * shows, so that is what is returned. Do not add key material back here, and do not add a
- * per-key fingerprint to replace it (see work/implementation/SEC-04.md).
+ * PROVIDER-CONFIG-01 (D1). SEC-04 / F-7 had already stopped serving characters of the key,
+ * but GET /api/config and /api/health still reported `configured` (whether a key exists)
+ * plus `model`/`baseUrl` (the operator's provider setup), and POST /api/config let the
+ * browser write the key and base URL into the server's .env. On a hosted service that is an
+ * operator control handed to a tenant. The provider key, base URL and model now come from
+ * server environment configuration only, and **no route reports anything about the key** -
+ * not its characters, not its presence, not a hint. `configured` is a presence report, so
+ * it is gone; a client that used to branch on it learns that AI is unavailable when the
+ * call fails, which is how a hosted client behaves.
+ *
+ * The two read routes therefore carry only non-key state:
+ *   * GET /api/health carries a bare liveness payload (`ok`, `node`) for supervision;
+ *   * GET /api/config carries the learner's own non-provider preference (`examDate`).
+ * Do not add a key-derived field back here - not a length, not a fingerprint, not a
+ * presence flag (see work/implementation/PROVIDER-CONFIG-01.md, D1.2).
  */
 function publicConfig() {
-  const s = settings();
-  return {
-    configured: Boolean(s.apiKey),
-    model: s.model,
-    baseUrl: s.baseUrl,
-    examDate: s.examDate,
-  };
+  return { examDate: settings().examDate };
 }
 
 async function saveEnv(updates) {
@@ -173,8 +175,9 @@ async function saveEnv(updates) {
     ...Object.keys(merged).filter((k) => !ENV_ORDER.includes(k)),
   ];
   const lines = [
-    '# B1 Prep configuration - maintained by the app Settings page.',
-    '# Get a DeepSeek key at https://platform.deepseek.com/api_keys',
+    '# B1 Prep configuration.',
+    '# The provider key, base URL and model are operator settings: set DEEPSEEK_API_KEY,',
+    '# DEEPSEEK_BASE_URL and DEEPSEEK_MODEL in the server environment, never through a route.',
     '',
     ...keys.map((k) => `${k}=${merged[k]}`),
     '',
@@ -184,7 +187,7 @@ async function saveEnv(updates) {
     if (v === '') delete process.env[k];
     else process.env[k] = v;
   }
-  return publicConfig();
+  return Object.keys(updates);
 }
 
 /* -------------------------------------------------------------------- http */
@@ -288,22 +291,6 @@ function isSameOriginRequest(req, ownPort) {
 /** Tolerates parameters such as "; charset=utf-8", rejects anything else. */
 function hasJsonContentType(req) {
   return /^application\/json\s*(?:;|$)/i.test(String(req.headers['content-type'] || '').trim());
-}
-
-/**
- * A saved baseUrl is where the learner's stored key is sent as a bearer token, so an
- * unauthenticated caller must not be able to point it at an arbitrary host. https is
- * required; http is allowed only for a loopback host, which keeps the documented local
- * mock-provider development path working.
- */
-function validateBaseUrl(raw) {
-  const url = parseOriginLike(raw);
-  if (!url) {
-    throw Object.assign(new Error('baseUrl must be a valid absolute URL.'), { status: 400, code: 'invalid_base_url' });
-  }
-  if (url.protocol === 'https:') return raw.replace(/\/+$/, '');
-  if (url.protocol === 'http:' && isLoopbackHostname(url.hostname)) return raw.replace(/\/+$/, '');
-  throw Object.assign(new Error('baseUrl must use https, or http only for a loopback host.'), { status: 400, code: 'invalid_base_url' });
 }
 
 /* --------------------------------------------------------------- progress */
@@ -544,7 +531,9 @@ async function handleApi(req, res, pathname) {
   const method = req.method || 'GET';
 
   if (pathname === '/api/health' && method === 'GET') {
-    sendJSON(res, 200, { ok: true, node: process.version, ...publicConfig() });
+    // Liveness only: a supervised service needs this, and it must reveal nothing about the
+    // provider key. No `configured`, no `model`, no `baseUrl` (D1.2).
+    sendJSON(res, 200, { ok: true, node: process.version });
     return true;
   }
 
@@ -696,13 +685,24 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/config' && method === 'POST') {
     const body = await readJSON(req);
+    // D1.1: the provider is operator configuration. A browser may not set, change or read
+    // the key, the base URL or the model. Those attempts are refused with a clear status
+    // rather than silently ignored, and nothing is written to the environment file.
+    const keys = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
+    const refused = ['apiKey', 'baseUrl', 'model'].filter((field) => Object.hasOwn(keys, field));
+    if (refused.length) {
+      sendJSON(res, 403, {
+        ok: false,
+        code: 'provider_config_is_operator_only',
+        error: 'The provider configuration (' + refused.join(', ') + ') is set by the server operator, not from the browser.',
+        refused,
+      });
+      return true;
+    }
     const updates = {};
-    if (typeof body.apiKey === 'string') updates.DEEPSEEK_API_KEY = body.apiKey.trim();
-    if (typeof body.model === 'string' && body.model.trim()) updates.DEEPSEEK_MODEL = body.model.trim();
-    if (typeof body.baseUrl === 'string' && body.baseUrl.trim()) updates.DEEPSEEK_BASE_URL = validateBaseUrl(body.baseUrl.trim());
-    if (typeof body.examDate === 'string') updates.EXAM_DATE = body.examDate.trim();
-    const cfg = await saveEnv(updates);
-    sendJSON(res, 200, { ...cfg, saved: Object.keys(updates) });
+    if (typeof keys.examDate === 'string') updates.EXAM_DATE = keys.examDate.trim();
+    const saved = await saveEnv(updates);
+    sendJSON(res, 200, { ok: true, ...publicConfig(), saved });
     return true;
   }
 
@@ -860,9 +860,10 @@ if (invokedDirectly) {
     console.log(line);
     console.log(`  App:      http://127.0.0.1:${PORT}`);
     // SEC-04: the banner used to echo <first 5>...<last 4> of the key. A console line does
-    // not need key characters either, so it only reports that one is set.
-    console.log(`  DeepSeek: ${s.apiKey ? `key set (value hidden), model ${s.model}` : 'NO KEY - offline mode (open Settings to add one)'}`);
-    console.log(`  Exam:     ${s.examDate || 'not set (open Settings to add your date)'}`);
+    // not need key characters either, so it only reports that one is set. This is the
+    // operator's console, not a route: the learner UI is told nothing about the key (D1).
+    console.log(`  DeepSeek: ${s.apiKey ? `key set (value hidden), model ${s.model}` : 'NO KEY - offline mode (set DEEPSEEK_API_KEY in the server environment)'}`);
+    console.log(`  Exam:     ${s.examDate || 'not set (set EXAM_DATE, or use the learner settings page)'}`);
     console.log(`  Progress: ${PROGRESS_PATH}`);
     console.log(line);
     console.log('  Ctrl+C to stop.');

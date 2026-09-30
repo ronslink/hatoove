@@ -6,6 +6,12 @@
  * JSON regardless of Content-Type, and let an unauthenticated POST retarget the saved
  * provider key. This file proves the boundary at the HTTP layer with node:http.
  *
+ * PROVIDER-CONFIG-01 (D1) extends the boundary: the provider key, base URL and model are
+ * server environment configuration and POST /api/config now REFUSES them from any browser
+ * (same-origin included) with 403 `provider_config_is_operator_only`, writing nothing. The
+ * checks that used to prove a learner could set the key and base URL now prove the refusal,
+ * and the read routes are checked for the absence of every key-derived field.
+ *
  * Scope and honesty:
  *   * HTTP layer only. No browser is started, so this does NOT prove what any specific
  *     browser sends or blocks. It proves the server's own decision for each request.
@@ -28,8 +34,6 @@ import { fileURLToPath } from 'node:url';
 
 /** Synthetic, and deliberately not `sk-` shaped so the repository secret scan stays quiet. */
 export const SYNTHETIC_KEY = 'origin-check-synthetic-value-not-a-real-key';
-export const HTTPS_BASE = 'https://api.deepseek.com';
-export const LOOPBACK_HTTP_BASE = 'http://127.0.0.1:9/v1';
 
 /** Names the acceptance criteria require; the test file asserts each one ran and passed. */
 export const REQUIRED_CHECKS = [
@@ -37,10 +41,10 @@ export const REQUIRED_CHECKS = [
   'post-absent-origin-rejected',
   'post-null-origin-rejected',
   'post-text-plain-rejected',
-  'post-same-origin-json-accepted',
-  'baseurl-http-nonloopback-rejected',
-  'baseurl-https-accepted',
+  'post-same-origin-api-key-refused',
+  'post-refused-leaves-provider-env-unchanged',
   'get-foreign-origin-still-works',
+  'read-routes-report-no-key-derived-field',
 ];
 
 function assertStatus(res, expected, label) {
@@ -216,22 +220,18 @@ export async function runOriginChecks() {
       return `415 ${res.json?.code}`;
     });
 
-    await record('post-same-origin-json-accepted', async () => {
+    await record('post-same-origin-api-key-refused', async () => {
+      const before = ctx.readEnv();
       const res = await request(ctx.port, {
         method: 'POST',
         path: '/api/config',
-        headers: { 'Content-Type': 'application/json; charset=utf-8', Origin: goodOrigin },
+        headers: { ...json, Origin: goodOrigin },
         body: JSON.stringify({ apiKey: SYNTHETIC_KEY }),
       });
-      assertStatus(res, 200, 'same-origin JSON');
-      // B1PREP_FORCE_OFFLINE keeps `configured` false in this suite by design; the proof
-      // we want is that the write landed in the (throwaway) env file.
-      if (!Array.isArray(res.json?.saved) || !res.json.saved.includes('DEEPSEEK_API_KEY')) {
-        throw new Error(`saved list must name the key, got ${JSON.stringify(res.json?.saved)}`);
-      }
-      const after = ctx.readEnv();
-      assertEqual(envValue(after, 'DEEPSEEK_API_KEY'), SYNTHETIC_KEY, 'synthetic key persisted');
-      return '200 saved';
+      assertStatus(res, 403, 'same-origin apiKey');
+      assertEqual(res.json?.code, 'provider_config_is_operator_only', 'error token');
+      assertEqual(ctx.readEnv(), before, 'env file must be unchanged');
+      return `403 ${res.json?.code}`;
     });
 
     await record('post-loopback-referer-accepted', async () => {
@@ -258,54 +258,46 @@ export async function runOriginChecks() {
       return `403 ${res.json?.code}`;
     });
 
-    await record('baseurl-http-nonloopback-rejected', async () => {
+    await record('post-same-origin-base-url-refused', async () => {
       const before = envValue(ctx.readEnv(), 'DEEPSEEK_BASE_URL');
       const res = await request(ctx.port, {
         method: 'POST',
         path: '/api/config',
         headers: { ...json, Origin: goodOrigin },
-        body: JSON.stringify({ baseUrl: 'http://attacker.example/v1' }),
+        body: JSON.stringify({ baseUrl: 'https://attacker.example/v1' }),
       });
-      assertStatus(res, 400, 'non-loopback http baseUrl');
-      assertEqual(res.json?.code, 'invalid_base_url', 'error token');
+      assertStatus(res, 403, 'same-origin baseUrl');
+      assertEqual(res.json?.code, 'provider_config_is_operator_only', 'error token');
       assertEqual(envValue(ctx.readEnv(), 'DEEPSEEK_BASE_URL'), before, 'env baseUrl must be unchanged');
-      return `400 ${res.json?.code}`;
+      return `403 ${res.json?.code}`;
     });
 
-    await record('baseurl-non-http-scheme-rejected', async () => {
+    await record('post-same-origin-model-refused', async () => {
+      const before = envValue(ctx.readEnv(), 'DEEPSEEK_MODEL');
       const res = await request(ctx.port, {
         method: 'POST',
         path: '/api/config',
         headers: { ...json, Origin: goodOrigin },
-        body: JSON.stringify({ baseUrl: 'file:///etc/passwd' }),
+        body: JSON.stringify({ model: 'model-of-the-attacker' }),
       });
-      assertStatus(res, 400, 'file:// baseUrl');
-      assertEqual(res.json?.code, 'invalid_base_url', 'error token');
-      return `400 ${res.json?.code}`;
+      assertStatus(res, 403, 'same-origin model');
+      assertEqual(res.json?.code, 'provider_config_is_operator_only', 'error token');
+      assertEqual(envValue(ctx.readEnv(), 'DEEPSEEK_MODEL'), before, 'env model must be unchanged');
+      return `403 ${res.json?.code}`;
     });
 
-    await record('baseurl-https-accepted', async () => {
+    await record('post-refused-leaves-provider-env-unchanged', async () => {
+      const before = ctx.readEnv();
       const res = await request(ctx.port, {
         method: 'POST',
         path: '/api/config',
         headers: { ...json, Origin: goodOrigin },
-        body: JSON.stringify({ baseUrl: `${HTTPS_BASE}/` }),
+        body: JSON.stringify({ apiKey: SYNTHETIC_KEY, baseUrl: 'http://127.0.0.1:9/v1', model: 'x', examDate: '2039-09-09' }),
       });
-      assertStatus(res, 200, 'https baseUrl');
-      assertEqual(envValue(ctx.readEnv(), 'DEEPSEEK_BASE_URL'), HTTPS_BASE, 'https baseUrl persisted (trailing slash trimmed)');
-      return '200 saved';
-    });
-
-    await record('baseurl-http-loopback-accepted', async () => {
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json, Origin: goodOrigin },
-        body: JSON.stringify({ baseUrl: LOOPBACK_HTTP_BASE }),
-      });
-      assertStatus(res, 200, 'loopback http baseUrl');
-      assertEqual(envValue(ctx.readEnv(), 'DEEPSEEK_BASE_URL'), LOOPBACK_HTTP_BASE, 'loopback baseUrl persisted');
-      return '200 saved';
+      assertStatus(res, 403, 'all provider fields at once');
+      assertEqual(res.json?.code, 'provider_config_is_operator_only', 'error token');
+      assertEqual(ctx.readEnv(), before, 'a refused request writes nothing, not even the exam date it also carried');
+      return '403, env byte-identical';
     });
 
     await record('get-foreign-origin-still-works', async () => {
@@ -332,6 +324,19 @@ export async function runOriginChecks() {
         throw new Error(`expected text/html, got ${res.headers['content-type']}`);
       }
       return '200 static';
+    });
+
+    await record('read-routes-report-no-key-derived-field', async () => {
+      for (const route of ['/api/health', '/api/config']) {
+        const res = await request(ctx.port, { method: 'GET', path: route });
+        assertStatus(res, 200, route);
+        for (const field of ['configured', 'model', 'baseUrl', 'keyMasked']) {
+          if (res.json && Object.hasOwn(res.json, field)) {
+            throw new Error(`${route} reports ${field}; the provider key, base URL and model must be invisible (D1.2)`);
+          }
+        }
+      }
+      return 'no configured/model/baseUrl/keyMasked on either read route';
     });
   } finally {
     await ctx.close();

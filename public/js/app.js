@@ -275,7 +275,6 @@ async function boot() {
     settings.examDate = cfg.examDate;
     store.saveNow();
   }
-  if (cfg.model) settings.model = cfg.model;
 
   window.addEventListener('error', (e) => {
     console.error(e.error || e.message);

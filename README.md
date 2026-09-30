@@ -96,15 +96,21 @@ It renders the tile in a real browser so the text is properly hinted, then packs
 16/24/32/48/64/128/256px into a multi-resolution `.ico`. If Windows shows a stale icon
 after regenerating, refresh the Desktop with F5.
 
-### Add your DeepSeek key
+### Configure the AI provider (operator)
 
-Two ways, both equivalent:
+The AI provider is **server configuration, not a learner setting**. The Settings page offers
+no key field, and no route tells the browser whether a key exists - so a learner cannot set,
+change or read it. Set it once in the server environment (or in the server's `.env`):
 
-1. **In the app**: *Einstellungen* → paste the key → *Speichern* → *Verbindung testen*.
-   The key is written to `.env` on this machine and never sent to the browser.
-2. **In a file**: copy `.env.example` to `.env` and fill in `DEEPSEEK_API_KEY`.
+```text
+DEEPSEEK_API_KEY=...
+# optional:
+DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+```
 
-Get a key at <https://platform.deepseek.com/api_keys>.
+Get a key at <https://platform.deepseek.com/api_keys>. The key is read at startup and never
+sent to the browser.
 
 **Without a key the app still works.** See [Offline mode](#offline-mode).
 
@@ -265,7 +271,7 @@ Results feed three outputs:
 | **Sprechen** | Oral task cards, prep timer, dictation, and feedback on structure and vocabulary |
 | **Mocktest** | Full timed written exam: 150 minutes, 225 points, real pass marks |
 | **Lernplan** | The dated day-by-day plan. Tasks tick themselves off as you do them, and every task opened from here has a **← Lernplan** link back |
-| **Einstellungen** | Key, exam date, TTS voice and speed, export/import, reset |
+| **Einstellungen** | Exam date, TTS voice and speed, AI drills toggle, export/import, reset |
 
 ---
 
@@ -338,8 +344,8 @@ For `Am Montag ich fahre nach Berlin.` it says:
 and for each clause it shows the Vorfeld, the finite verb, the Mittelfeld and the closing
 bracket, with the rule named and explained. It is deliberately conservative — it only
 reports what it recognises confidently, because a wrong correction teaches the wrong thing.
-A **KI-Erklärung** button adds a full breakdown (role and case of every part) when a key is
-configured.
+A **KI-Erklärung** button adds a full breakdown (role and case of every part) when the AI
+provider is configured.
 
 ---
 

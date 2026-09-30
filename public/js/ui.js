@@ -867,7 +867,6 @@ function renderSyncStatus() {
 }
 
 export async function settingsView(el) {
-  const cfg = ai.aiStatus();
   const st = store.getState().settings;
   // Chrome populates getVoices() asynchronously and returns [] on the first call,
   // so wait for the list before deciding whether a German voice exists. Reading it
@@ -878,32 +877,6 @@ export async function settingsView(el) {
   const voices = germanVoices();
 
   el.innerHTML = `
-    <div class="card">
-      <h3>DeepSeek-Schlüssel</h3>
-      <p class="muted small">Der Schlüssel wird nur lokal in <span class="mono">.env</span> auf diesem Rechner gespeichert und nie an den Browser zurückgegeben. Ohne Schlüssel läuft die App im Offline-Modus weiter.</p>
-      <p class="muted small">Mit Schlüssel schickt der lokale Server bei KI-Funktionen deine Texte an den KI-Anbieter (standardmäßig DeepSeek): deine Briefe und E-Mails zur Bewertung, deine mündlichen Antworten als Transkript, Sätze aus „Satzbau verstehen“ und – wenn du „Genauer erklären“ wählst – deine Antwort im Drill. Ohne Schlüssel wird davon nichts gesendet.</p>
-      <div class="btn-row mb">
-        <span class="pill ${cfg.configured ? 'good' : 'warn'}">${cfg.configured ? 'Verbunden · Schlüssel gespeichert' : 'Kein Schlüssel hinterlegt'}</span>
-        <span class="pill">Modell: ${esc(cfg.model || 'deepseek-chat')}</span>
-      </div>
-      <label class="field">
-        <span>API-Schlüssel</span>
-        <input type="password" id="api-key" placeholder="sk-…" autocomplete="off">
-        <div class="hint">Von platform.deepseek.com/api_keys. Leer lassen = unverändert.</div>
-      </label>
-      <label class="field">
-        <span>Modell</span>
-        <input type="text" id="model" value="${esc(cfg.model || 'deepseek-chat')}">
-        <div class="hint">deepseek-chat (schnell) oder deepseek-reasoner (gründlicher, langsamer).</div>
-      </label>
-      <div class="btn-row">
-        <button class="primary" data-save-key>Speichern</button>
-        <button data-test-key>Verbindung testen</button>
-        ${cfg.configured ? '<button class="danger" data-clear-key>Schlüssel entfernen</button>' : ''}
-      </div>
-      <div id="key-status" class="mt"></div>
-    </div>
-
     <div class="card">
       <h3>Prüfung & Lernen</h3>
       <label class="field">
@@ -984,43 +957,6 @@ export async function settingsView(el) {
     </div>
   `;
 
-  /* --- deepseek */
-  on(el.querySelector('[data-save-key]'), 'click', async () => {
-    const key = el.querySelector('#api-key').value.trim();
-    const model = el.querySelector('#model').value.trim();
-    busy('Wird gespeichert…');
-    try {
-      await ai.saveConfig({ ...(key ? { apiKey: key } : {}), model });
-      el.querySelector('#api-key').value = '';
-      toast('Gespeichert.', 'good');
-      navigate('settings');
-    } catch (err) {
-      toast(err.message, 'bad');
-    } finally {
-      unbusy();
-    }
-  });
-
-  const clearKey = el.querySelector('[data-clear-key]');
-  if (clearKey) {
-    on(clearKey, 'click', async () => {
-      if (!(await confirmDialog('API-Schlüssel wirklich entfernen? Die App läuft danach im Offline-Modus.', 'Entfernen'))) return;
-      await ai.saveConfig({ apiKey: '' });
-      toast('Schlüssel entfernt.', 'good');
-      navigate('settings');
-    });
-  }
-
-  on(el.querySelector('[data-test-key]'), 'click', async () => {
-    const out = el.querySelector('#key-status');
-    out.innerHTML = spinnerRow('Teste Verbindung zu DeepSeek…');
-    const res = await ai.testKey().catch((e) => ({ ok: false, error: e.message }));
-    out.innerHTML = res.ok
-      ? `<div class="feedback ok"><div class="verdict">✓ Verbindung steht</div><div class="why">Modell ${esc(res.model || '')} hat geantwortet.</div></div>`
-      : `<div class="feedback no"><div class="verdict">✗ Fehlgeschlagen</div><div class="why">${esc(res.error || 'Unbekannter Fehler')}</div></div>`;
-    await ai.refreshStatus();
-  });
-
   /* --- prefs */
   const rate = el.querySelector('#tts-rate');
   on(rate, 'input', () => {
@@ -1037,7 +973,7 @@ export async function settingsView(el) {
     if (voiceSel) settings.voiceName = voiceSel.value;
     store.saveNow();
     try {
-      await ai.saveConfig({ examDate: settings.examDate });
+      await ai.saveExamDate(settings.examDate);
     } catch {
       /* the date still works locally */
     }
