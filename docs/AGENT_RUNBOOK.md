@@ -1,3 +1,8 @@
+# Agent runbook
+
+> **Supervising workers?** Read [AGENT_SUPERVISION.md](AGENT_SUPERVISION.md) first: how to detect a stalled
+> agent, harvest its work before discarding it, make inputs reachable, and verify that a new check actually
+> discriminates.
 # Dispatch and handoff commands
 
 Read [AGENT_WORKFLOW.md](AGENT_WORKFLOW.md) first. These are bounded worker dispatch commands. Ron requested continuous coordination: the active Codex thread heartbeat `continue-hatoove-implementation` resumes the coordinator every five minutes and reports meaningful changes, completion, failures or required action. It does not make workers autonomous beyond their task leases. The coordinator records the task/lease on GitHub and verifies the worktree/branch/base before a worker edits. Never reuse an active worker's checkout for another assignment.
