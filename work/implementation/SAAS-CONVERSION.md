@@ -13,8 +13,12 @@
    the same browser — syncing, exporting, backing up, portable builds, recovery files — is **not needed**, because
    there is now one authoritative copy that every signed-in device reads.
 2. **Shared content stays shared; learner state becomes per account.** The blueprint, the content packs, the
-   guides, the vocabulary, the generators' rules and the scoring rules need **no conversion**. Progress, the
-   ability model, the notebook, drafts, submissions and settings are **the whole conversion**.
+   guides, the vocabulary and the generators' *pure* rules need **no conversion**. Progress, the ability model, the
+   notebook, drafts, submissions and settings are per-account state.
+   **Corrected 2026-10-01 by the independent review in [issue #63](https://github.com/ronslink/hatoove/issues/63):**
+   "scoring rules need no conversion" was **too broad**. Pure logic may be reused, but **marking authority,
+   answer-key delivery, provider prompts and cost control must move to the server** — they *are* part of the
+   conversion, because a client that holds the key, the rubric and the mark is not a client of a service.
 
 ## 1. Target feature set
 

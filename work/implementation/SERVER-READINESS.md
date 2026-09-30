@@ -19,11 +19,15 @@ This is the single most blocking item: the security control that was correct for
 prevents it from working on a server. The fix is not to loosen it — it is to make the **trusted origin
 configuration-driven** (the deployment's own public origin) while keeping everything else rejected.
 
-### B2. The server binds to loopback
+### B2. ~~The server binds to loopback~~ — **WITHDRAWN as a blocker**
 
-`server.js:855`: `server.listen(PORT, '127.0.0.1', ...)`. Nothing outside the machine can connect. A hosted
-deployment needs a configurable bind address, and the banner's hard-coded `http://127.0.0.1:${PORT}` (`:861`) says
-the wrong thing to an operator.
+`server.js:855` binds `127.0.0.1`. **Corrected on 2026-10-01 by the independent review in issue #63:** a **loopback
+bind behind a same-host reverse proxy is a valid deployment**, and static assets in a read-only image are valid
+too. Binding `0.0.0.0` is *neither* a sufficient SaaS conversion *nor* universally required.
+
+What actually remains is **S7 in that review**: configure the **exact public origin** and **explicit proxy trust**,
+and prove that the allowed origin is accepted **and foreign origins are still refused**. The banner's hard-coded
+`http://127.0.0.1:${PORT}` (`:861`) is still worth fixing for operator clarity, but it is not a blocker.
 
 ### B3. Provider configuration is read once from a file, and written to that file
 
@@ -65,8 +69,16 @@ before or beside D1**, because D1 alone does not make the app servable:
 ## 4. The one-line summary
 
 **Everything merged so far made the *boundary* multi-user. Nothing merged so far made the *process* a server.**
-`SERVER-READY-01` is the slice that does, and it is the prerequisite for demonstrating any of the account work on a
-real host.
 
-**No gate is closed by this record.** `P-03`/`X-01` remain open, and three of the four blockers are security-relevant
-enough that a human should read the fix, not just the checker.
+**Corrected on 2026-10-01, and this supersedes the sentence above as a plan: the authoritative target is now
+[issue #63](https://github.com/ronslink/hatoove/issues/63), "close legacy bypasses and prove one server-owned
+learner journey."** That review confirms S1/B5 and S2/B6, adds S3 (fail-closed startup), S4 (one application
+session boundary), S5 (production auth, not the synthetic fixture), S6 (server-owned task identity, marking and a
+durable worker) and S7 (hosted ingress and operations), and **withdraws B2** as a blocker.
+
+The four hard blockers in §1 remain useful as *mechanisms*, but the plan of record is issue #63's order:
+**A** runtime boundary that fails closed → **B** production account lifecycle → **C** one vertical journey →
+**D** the remaining views, marking and operations.
+
+**No gate is closed by this record.** `P-03`/`X-01` remain open, and the review is explicit that it is *not* a
+production-security approval.
