@@ -282,28 +282,50 @@ export function validateFeedbackCases(fixture) {
     // Content credit may also be withdrawn WITHOUT a wrong situation, in two legitimate ways:
     // (a) topic-missed — no connection to the task, so criterion I is D and the language criteria
     //     are zeroed as well; (b) a Leitpunkt shortfall — only one or no Leitpunkt is handled, so
-    //     criterion I is D while the language criteria remain assessable. Both must be declared
-    //     explicitly rather than left to inference.
+    //     criterion I is D while the language criteria remain assessable.
+    // A shortfall of one or two missing points is NOT automatic zero credit: the case must state
+    // how many points were handled, and only 0 or 1 justifies withdrawing credit.
     const topicMissed = exp.topicMissed === true;
-    const leitpunktShortfall = c.leitpunktShortfall === true
-      || (isPlainObject(c.input) && c.input.leitpunktShortfall === true);
-    if (topicMissed && leitpunktShortfall) {
+    const expectedCredit = exp.contentScoreCreditPreserved;
+    const stated = c.leitpunktShortfall === true || (isPlainObject(c.input) && c.input.leitpunktShortfall === true);
+    if (topicMissed && stated) {
       err('case.topic-missed-conflated', `${label}: topic-missed and a Leitpunkt shortfall are different branches; declare only one`);
     }
-    if (exp.wrongSituation === false && exp.contentScoreCreditPreserved === false && !leitpunktShortfall && !topicMissed) {
-      err('case.content-credit-unexplained', `${label}: content credit is withdrawn without a wrong situation, so either topic-missed or the Leitpunkt shortfall behind it must be stated`);
+
+    // How many of the four points the synthetic text actually handles, when declared.
+    const pointsHandled = Number.isInteger(c.pointsHandled) ? c.pointsHandled : null;
+    if (c.pointsHandled !== undefined && c.pointsHandled !== null && !Number.isInteger(c.pointsHandled)) {
+      err('case.points-handled-type', `${label}.pointsHandled must be an integer between 0 and 4`);
+    } else if (pointsHandled !== null && (pointsHandled < 0 || pointsHandled > 4)) {
+      err('case.points-handled-range', `${label}.pointsHandled must be between 0 and 4, got ${pointsHandled}`);
     }
-    if (topicMissed && exp.contentScoreCreditPreserved !== false) {
+
+    const creditWithdrawn = expectedCredit === false;
+    // A genuine wrong situation is its own, already-validated explanation for the withdrawal.
+    const shortfallExplainsCredit = stated || pointsHandled === 0 || pointsHandled === 1 || exp.wrongSituation === true;
+    if (creditWithdrawn && !shortfallExplainsCredit && !topicMissed) {
+      err('case.content-credit-unexplained', `${label}: content credit is withdrawn without a wrong situation, so either topic-missed or a Leitpunkt shortfall of 0-1 handled points must be stated`);
+    }
+    if (stated && !creditWithdrawn) {
+      err('case.leitpunkt-credit', `${label}: a Leitpunkt shortfall that withdraws credit must set contentScoreCreditPreserved false`);
+    }
+    if (stated && exp.wrongSituation === true) {
+      err('case.leitpunkt-wrong-situation', `${label}: a Leitpunkt shortfall and a wrong situation are different cases; do not merge them`);
+    }
+    if (topicMissed && expectedCredit !== false && expectedCredit !== undefined) {
       err('case.topic-missed-credit', `${label}: a topic-missed text cannot retain content credit`);
     }
     if (topicMissed && exp.languageCriteriaStillAssessed === true) {
       err('case.topic-missed-language', `${label}: topic-missed sets the language criteria to zero, so languageCriteriaStillAssessed must not be true`);
     }
-    if (leitpunktShortfall && exp.contentScoreCreditPreserved !== false) {
-      err('case.leitpunkt-credit', `${label}: a Leitpunkt shortfall must withdraw content credit`);
-    }
-    if (leitpunktShortfall && exp.wrongSituation === true) {
-      err('case.leitpunkt-wrong-situation', `${label}: a Leitpunkt shortfall and a wrong situation are different cases; do not merge them`);
+    // Criterion I is D only for one or no handled point; three of four preserves credit.
+    if (pointsHandled !== null) {
+      if (pointsHandled >= 2 && creditWithdrawn) {
+        err('case.credit-withdrawn-too-early', `${label}: ${pointsHandled} of 4 points handled is not the criterion-I-zero branch, so content credit must be preserved`);
+      }
+      if (pointsHandled <= 1 && !creditWithdrawn && !topicMissed) {
+        err('case.credit-kept-below-threshold', `${label}: only ${pointsHandled} of 4 points handled, so criterion I is D and content credit must be withdrawn`);
+      }
     }
     if (exp.wrongSituation === true && exp.invariants && exp.invariants.includes('register-not-conflated-with-role') === false) {
       warn('case.register-invariant', `${label} asserts a wrong situation without the register/role invariant; confirm that is intended`);

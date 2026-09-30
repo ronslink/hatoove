@@ -632,6 +632,36 @@ test('review R5: written pass-rule inputs must exist', () => {
   expectFailure(validateBlueprint(flags), /writtenExam\.missing-flag/, 'missing threshold flag');
 });
 
+test('review R6: every schema-defined source field must exist and be an array', () => {
+  // Second independent review: absence and mistyping both bypassed validation.
+  const absentCriterion = clone();
+  delete absentCriterion.sections[3].parts[0].criteria[0].sources;
+  expectFailure(validateBlueprint(absentCriterion), /sources\.field-missing/, 'criterion sources absent');
+
+  const stringCriterion = clone();
+  stringCriterion.sections[3].parts[0].criteria[0].sources = 'S2-p40-p38';
+  expectFailure(validateBlueprint(stringCriterion), /sources\.refs-type/, 'criterion sources as a string');
+
+  const absentWritten = clone();
+  delete absentWritten.writtenExam.sources;
+  expectFailure(validateBlueprint(absentWritten), /sources\.field-missing/, 'writtenExam sources absent');
+
+  const stringWritten = clone();
+  stringWritten.writtenExam.sources = 'S2-p41-p39';
+  expectFailure(validateBlueprint(stringWritten), /sources\.refs-type/, 'writtenExam sources as a string');
+
+  const absentPart = clone();
+  delete absentPart.sections[0].parts[0].sources;
+  expectFailure(validateBlueprint(absentPart), /sources\.field-missing/, 'part sources absent');
+
+  const absentRule = clone();
+  delete absentRule.answerRules[0].sources;
+  expectFailure(validateBlueprint(absentRule), /sources\.field-missing/, 'answer rule sources absent');
+
+  // The real artifact must still satisfy every required field.
+  assert.equal(validateBlueprint(clone()).ok, true);
+});
+
 test('CLI exits nonzero on a corrupt file and zero on the real artifact', async () => {
   const { runCli } = await import('./exam-blueprint-check.mjs');
   const quiet = { log() {}, error() {} };

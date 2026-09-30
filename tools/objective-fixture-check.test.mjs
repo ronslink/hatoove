@@ -283,6 +283,80 @@ test('rejects an unsupported play count above two', () => {
 
 /* ----------------------------------------------------------- CLI surface */
 
+/* ==================================================================== */
+/* Second independent-review regressions                                */
+/* ==================================================================== */
+
+test('review O1: a marked case must declare both its correct count and its points', () => {
+  // Before: deleting expectedCorrectCount left expectedPoints unchecked, so 999 was accepted.
+  const noCount = clone();
+  const c = caseById(noCount, 'OMC-LV1-01');
+  delete c.expectedCorrectCount;
+  c.expectedPoints = 999;
+  expectFailure(validateObjectiveCases(noCount), /case\.expectation-missing/, 'missing correct count with points');
+
+  const noPoints = clone();
+  delete caseById(noPoints, 'OMC-LV1-01').expectedPoints;
+  expectFailure(validateObjectiveCases(noPoints), /case\.expectation-missing/, 'missing points');
+
+  // Explicit nulls remain valid only for non-marked cases.
+  assert.equal(caseById(raw, 'OMC-SA1-01').expectedPoints, null);
+  assert.equal(caseById(raw, 'OMC-AGG-01').expectedPoints, null);
+});
+
+test('review O2: numeric strings and non-finite point values are rejected', () => {
+  const strPoints = clone();
+  caseById(strPoints, 'OMC-LV1-01').expectedPoints = '25';
+  expectFailure(validateObjectiveCases(strPoints), /case\.points-type/, 'numeric string points');
+
+  const strCount = clone();
+  caseById(strCount, 'OMC-LV1-01').expectedCorrectCount = '5';
+  expectFailure(validateObjectiveCases(strCount), /case\.correct-count-type/, 'numeric string count');
+
+  const infinite = clone();
+  caseById(infinite, 'OMC-LV1-01').expectedPoints = Infinity;
+  expectFailure(validateObjectiveCases(infinite), /case\.points-type/, 'infinite points');
+});
+
+test('review O3: only the no-match marker may repeat in a single-use family', () => {
+  // LV3 legitimately repeats x, so the shipped fixture must pass.
+  const lv3 = famById(raw, 'LV3');
+  const xs = lv3.items.filter((i) => i.key === 'x').length;
+  assert.ok(xs >= 2, 'LV3 should legitimately repeat the no-match marker');
+  assert.equal(validateObjectiveCases(clone()).ok, true, 'repeated x must be allowed');
+
+  // A repeated real option is a defect even in a family that supports no-match.
+  const repeatedOption = clone();
+  const items = famById(repeatedOption, 'LV3').items;
+  const firstOption = items.find((i) => i.key !== 'x').key;
+  const secondOption = items.filter((i) => i.key !== 'x')[1];
+  secondOption.key = firstOption;
+  expectFailure(validateObjectiveCases(repeatedOption), /family\.key-reuse/, 'repeated real option in LV3');
+
+  // A repeated option in a family without no-match is likewise rejected.
+  const lv1 = clone();
+  famById(lv1, 'LV1').items[1].key = famById(lv1, 'LV1').items[0].key;
+  expectFailure(validateObjectiveCases(lv1), /family\.key-reuse/, 'repeated option in LV1');
+});
+
+test('review O4: null and primitive entries never throw', () => {
+  const shapes = [
+    ['null item', (o) => { o.families[0].items[1] = null; }],
+    ['string item', (o) => { o.families[0].items[1] = 'a'; }],
+    ['null family', (o) => { o.families[1] = null; }],
+    ['null case', (o) => { o.cases[2] = null; }],
+    ['null answers', (o) => { caseById(o, 'OMC-LV1-01').answers = null; }],
+    ['null pool entry', (o) => { o.optionPools.headlines = null; }],
+  ];
+  for (const [label, mutate] of shapes) {
+    const o = clone();
+    mutate(o);
+    let r;
+    assert.doesNotThrow(() => { r = validateObjectiveCases(o); }, `${label} must not throw`);
+    assert.equal(r.ok, false, `${label} must be rejected`);
+  }
+});
+
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {
   const { runCli } = await import('./objective-fixture-check.mjs');
   const quiet = { log() {}, error() {} };

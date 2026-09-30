@@ -392,32 +392,38 @@ test('review F1: a null or primitive case is reported, never dereferenced', () =
   assert.doesNotThrow(() => { validateFeedbackCases(nulFirst); });
 });
 
-test('review F2: content credit may be withdrawn for a Leitpunkt shortfall, not only a wrong situation', () => {
-  // Before: any wrongSituation=false with content credit withdrawn was rejected, which wrongly
-  // forbade the verified rule that criterion I is D when only one or no Leitpunkt is handled.
+test('review F2: a three-point case preserves credit and only 0-1 points withdraw it', () => {
+  // WFC-04 handles three of four Leitpunkte, so criterion I is B and credit is preserved.
+  const three = caseById(raw, 'WFC-04');
+  assert.equal(three.pointsHandled, 3);
+  assert.equal(three.expected.contentScoreCreditPreserved, true, 'three of four points must keep credit');
+  assert.equal(three.expected.wrongSituation, false);
+
+  const withdrawnTooEarly = clone();
+  caseById(withdrawnTooEarly, 'WFC-04').expected.contentScoreCreditPreserved = false;
+  expectFailure(validateFeedbackCases(withdrawnTooEarly), /case\.content-credit-unexplained|case\.credit-withdrawn-too-early/, 'credit withdrawn at three points');
+
+  // WFC-21 is the separate zero-credit branch: only one point handled.
+  const one = caseById(raw, 'WFC-21');
+  assert.equal(one.pointsHandled, 1);
+  assert.equal(one.expected.contentScoreCreditPreserved, false, 'one of four points withdraws credit');
+  assert.equal(one.expected.wrongSituation, false);
+  assert.equal(one.expected.languageCriteriaStillAssessed, true, 'language credit survives the content shortfall');
+  assert.ok(one.expected.invariants.includes('content-credit-withdrawn-for-leitpunkt-shortfall'));
+
+  const keptBelow = clone();
+  caseById(keptBelow, 'WFC-21').expected.contentScoreCreditPreserved = true;
+  expectFailure(validateFeedbackCases(keptBelow), /case\.credit-kept-below-threshold/, 'credit kept at one point');
+
+  // An unexplained withdrawal is still rejected.
   const unexplained = clone();
-  delete caseById(unexplained, 'WFC-04').leitpunktShortfall;
-  delete caseById(unexplained, 'WFC-04').input.leitpunktShortfall;
-  caseById(unexplained, 'WFC-04').expected.contentScoreCreditPreserved = false;
-  expectFailure(validateFeedbackCases(unexplained), /case\.content-credit-unexplained/, 'unexplained credit withdrawal');
-
-  const declared = clone();
-  const declaredCase = caseById(declared, 'WFC-04');
-  declaredCase.leitpunktShortfall = true;
-  declaredCase.expected.contentScoreCreditPreserved = false;
-  declaredCase.expected.wrongSituation = false;
-  declaredCase.expected.languageCriteriaStillAssessed = true;
-  assert.equal(validateFeedbackCases(declared).ok, true, 'a declared Leitpunkt shortfall must be accepted');
-
-  // The shortfall must not be conflated with a wrong situation, and it must withdraw credit.
-  const conflated = clone();
-  caseById(conflated, 'WFC-04').expected.wrongSituation = true;
-  expectFailure(validateFeedbackCases(conflated), /case\.leitpunkt-wrong-situation/, 'shortfall merged with wrong situation');
-
-  const noWithdrawal = clone();
-  const noWithdrawalCase = caseById(noWithdrawal, 'WFC-04');
-  noWithdrawalCase.expected.contentScoreCreditPreserved = true;
-  expectFailure(validateFeedbackCases(noWithdrawal), /case\.leitpunkt-credit/, 'shortfall without credit withdrawal');
+  const u = caseById(unexplained, 'WFC-05');
+  u.expected.contentScoreCreditPreserved = false;
+  delete u.pointsHandled;
+  delete u.leitpunktShortfall;
+  delete u.input.leitpunktShortfall;
+  delete u.expected.topicMissed;
+  expectFailure(validateFeedbackCases(unexplained), /case\.content-credit-unexplained/, 'unexplained withdrawal');
 });
 
 test('review F3: the fixture distinguishes topic-missed from a wrong situation', () => {
@@ -446,11 +452,34 @@ test('review F4: the reviewed cases carry their synthetic task and four Leitpunk
   }
 });
 
-test('review F5: a Leitpunkt-shortfall case states that language is still assessed', () => {
-  const c = caseById(raw, 'WFC-04');
-  assert.equal(c.leitpunktShortfall, true);
+test('review F5: the zero-credit branch states that language is still assessed', () => {
+  const c = caseById(raw, 'WFC-21');
   assert.equal(c.expected.languageCriteriaStillAssessed, true, 'language credit must survive a content shortfall');
   assert.equal(c.expected.wrongSituation, false, 'a shortfall is not a wrong situation');
+  assert.equal(c.pointsHandled, 1, 'the zero-credit branch is the one-or-none case');
+  assert.ok(c.input.task && c.input.task.leitpunkte.length === 4, 'the case needs its synthetic task and four points');
+});
+
+test('review F6: a legitimate failure clears the lease, so retry must not require one', () => {
+  // WFC-15 retries an explicitly failed job: failJob clears the lease.
+  const failed = caseById(raw, 'WFC-15');
+  assert.equal(failed.expected.retryPermitted, true);
+  assert.ok(!failed.expected.retryConditions.includes('liveLease'),
+    'a failed job has no live lease, so retry must not require one');
+  assert.ok(failed.expected.retryConditions.includes('claimsRemaining'));
+  assert.ok(failed.expected.retryConditions.includes('assessmentNotAlreadySaved'));
+  assert.ok(failed.expected.invariants.includes('retry-possible-after-failure-clears-lease'));
+
+  // A worker-side completion retry is a different path and does need the live lease.
+  const worker = caseById(raw, 'WFC-12');
+  assert.ok(worker.expected.retryConditions.includes('liveLease'),
+    'the worker completion path still requires the live lease');
+
+  // Requiring a lease on the failed-job path must be rejected as a contradiction.
+  const wrong = clone();
+  caseById(wrong, 'WFC-15').expected.retryConditions.push('liveLease');
+  const r = validateFeedbackCases(wrong);
+  assert.ok(!r.ok || r.warnings.length > 0, 'requiring a lease after failure should at least be flagged');
 });
 
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {

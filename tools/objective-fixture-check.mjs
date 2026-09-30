@@ -164,12 +164,17 @@ export function validateObjectiveCases(fixture) {
         }
         coveredItems.push({ family: fam.id, first: sorted[0], last: sorted[sorted.length - 1], count: numbers.length });
       }
-      // single-use families must not repeat a key
+      // single-use families must not repeat a key. The no-match marker is the only
+      // legitimate repeat, because several situations can have no matching option; the
+      // whole point of the rule is that a real option is consumed by one item.
       if (isPositiveInteger(fam.reuseLimit) && fam.reuseLimit === 1) {
-        const keys = fam.items.map((i) => i.key).filter(isNonEmptyString);
-        const dupes = keys.filter((k, i) => keys.indexOf(k) !== i);
-        if (dupes.length && fam.noMatchSupported !== true) {
-          err('family.key-reuse', `${label} declares reuseLimit 1 but repeats key(s): ${[...new Set(dupes)].join(', ')}`);
+        const consumed = fam.items
+          .filter((i) => isPlainObject(i))
+          .map((i) => i.key)
+          .filter((k) => isNonEmptyString(k) && !(fam.noMatchSupported === true && k === fam.noMatchMarker));
+        const dupes = [...new Set(consumed.filter((k, i) => consumed.indexOf(k) !== i))];
+        if (dupes.length) {
+          err('family.key-reuse', `${label} declares reuseLimit 1 but repeats option key(s): ${dupes.join(', ')}${fam.noMatchSupported === true ? ` (the no-match marker "${fam.noMatchMarker}" is exempt)` : ''}`);
         }
       }
     }
@@ -251,6 +256,12 @@ export function validateObjectiveCases(fixture) {
     if (hasAnswers && c.family === 'ALL') {
       err('case.aggregate-answers', `${label} is an aggregate case and must not carry per-item answers`);
     }
+    // A marked case must carry answers; null answers are only meaningful for aggregate or
+    // unassessed cases, which is checked explicitly rather than left to inference.
+    if (!hasAnswers && c.family !== 'ALL' && c.expectedOutcome !== 'unassessed'
+        && (c.expectedOutcome === 'marked' || c.expectedOutcome === 'marked-or-flagged' || c.expectedOutcome === 'rejected-or-flagged')) {
+      err('case.answers-required', `${label} is a ${c.expectedOutcome} case, so per-item answers are required`);
+    }
     if (!hasAnswers && c.family !== 'ALL' && c.expectedOutcome !== 'unassessed') {
       warn('case.no-answers', `${label} has no answers but is not an aggregate or unassessed case`);
     }
@@ -261,7 +272,7 @@ export function validateObjectiveCases(fixture) {
       if (!isPlainObject(c.answers)) {
         err('case.answers-type', `${label}.answers must be an object or null`);
       } else {
-        const famNumbers = new Set(fam.items.map((i) => String(i.n)));
+        const famNumbers = new Set(fam.items.filter((i) => isPlainObject(i)).map((i) => String(i.n)));
         for (const [k, v] of Object.entries(c.answers)) {
           if (!famNumbers.has(k)) {
             err('case.answer-unknown-item', `${label}.answers references item ${k}, which is not in family ${c.family}`);
@@ -272,7 +283,7 @@ export function validateObjectiveCases(fixture) {
             err('case.answer-type', `${label}.answers.${k} must be a non-empty string or a blank value`);
             continue;
           }
-          const key = fam.items.find((i) => String(i.n) === k)?.key;
+          const key = fam.items.find((i) => isPlainObject(i) && String(i.n) === k)?.key;
           // The scenario decides whether a marker or an out-of-vocabulary token is intentional.
           const pool = isPlainObject(fixture.optionPools) && isNonEmptyString(fam.optionPool) ? fixture.optionPools[fam.optionPool] : [];
           const legalToken = Array.isArray(pool) && pool.includes(v);
@@ -295,12 +306,27 @@ export function validateObjectiveCases(fixture) {
     }
 
     /* Recompute the expected score for marked per-item cases. */
-    if (hasAnswers && fam && Array.isArray(fam.items) && isPlainObject(c.answers)
-        && (c.expectedOutcome === 'marked' || c.expectedOutcome === 'marked-or-flagged')) {
+    const isMarked = c.expectedOutcome === 'marked' || c.expectedOutcome === 'marked-or-flagged';
+    if (hasAnswers && fam && Array.isArray(fam.items) && isPlainObject(c.answers) && isMarked) {
+      // A declared expectation must be a number of the right type and must be present:
+      // omitting the correct count while asserting points would otherwise skip the check.
+      const hasCount = c.expectedCorrectCount !== null && c.expectedCorrectCount !== undefined;
+      const hasPoints = c.expectedPoints !== null && c.expectedPoints !== undefined;
+      if (!hasCount || !hasPoints) {
+        err('case.expectation-missing', `${label} is a marked case with answers, so both expectedCorrectCount and expectedPoints are required (use an explicit null only for a non-marked case)`);
+      }
+      if (hasCount && !Number.isInteger(c.expectedCorrectCount)) {
+        err('case.correct-count-type', `${label}.expectedCorrectCount must be an integer, got ${JSON.stringify(c.expectedCorrectCount)}`);
+      }
+      if (hasPoints && (typeof c.expectedPoints !== 'number' || !Number.isFinite(c.expectedPoints))) {
+        err('case.points-type', `${label}.expectedPoints must be a finite number, got ${JSON.stringify(c.expectedPoints)}`);
+      }
+
       const perItem = fam.pointsMax / fam.items.length;
       let correct = 0;
       const usedKeys = new Map();
       for (const it of fam.items) {
+        if (!isPlainObject(it)) continue;
         const given = c.answers[String(it.n)];
         const isBlank = given === '' || given === null || given === undefined;
         if (isBlank) continue;
@@ -314,13 +340,11 @@ export function validateObjectiveCases(fixture) {
         correct += 1;
       }
       const points = correct * perItem;
-      if (Number.isInteger(c.expectedCorrectCount)) {
-        if (c.expectedCorrectCount !== correct) {
-          err('case.correct-count', `${label} declares ${c.expectedCorrectCount} correct but the key and answers give ${correct}`);
-        }
-        if (typeof c.expectedPoints === 'number' && !close(c.expectedPoints, points)) {
-          err('case.points', `${label} declares ${c.expectedPoints} points but ${correct} x ${perItem} = ${points}`);
-        }
+      if (Number.isInteger(c.expectedCorrectCount) && c.expectedCorrectCount !== correct) {
+        err('case.correct-count', `${label} declares ${c.expectedCorrectCount} correct but the key and answers give ${correct}`);
+      }
+      if (typeof c.expectedPoints === 'number' && Number.isFinite(c.expectedPoints) && !close(c.expectedPoints, points)) {
+        err('case.points', `${label} declares ${c.expectedPoints} points but ${correct} x ${perItem} = ${points}`);
       }
     }
 

@@ -706,10 +706,54 @@ export function validateBlueprint(blueprint) {
   summary.objectivePoints = objectivePoints;
   summary.writtenPoints = writtenPoints;
 
+  /**
+   * Schema-defined source-reference fields. Each must exist and be an array of valid
+   * locators; the recursive walk below cannot catch a field that is simply absent, and
+   * `typeof 'string'` must not be mistaken for a reference list.
+   */
+  const requiredSourceFields = [
+    ['blueprint.writtenExam.sources', () => blueprint.writtenExam && blueprint.writtenExam.sources],
+  ];
+  blueprint.sections.forEach((section, si) => {
+    const sLabel = isPlainObject(section) && isNonEmptyString(section.id) ? section.id : `sections[${si}]`;
+    requiredSourceFields.push([`${sLabel}.sources`, () => (isPlainObject(section) ? section.sources : undefined)]);
+    if (Array.isArray(section && section.parts)) {
+      section.parts.forEach((part, pi) => {
+        const pLabel = isPlainObject(part) && isNonEmptyString(part.id) ? part.id : `${sLabel}.parts[${pi}]`;
+        requiredSourceFields.push([`${pLabel}.sources`, () => (isPlainObject(part) ? part.sources : undefined)]);
+        if (Array.isArray(part && part.criteria)) {
+          part.criteria.forEach((c, ci) => {
+            const cLabel = isPlainObject(c) && isNonEmptyString(c.id) ? `${pLabel}.criteria.${c.id}` : `${pLabel}.criteria[${ci}]`;
+            requiredSourceFields.push([`${cLabel}.sources`, () => (isPlainObject(c) ? c.sources : undefined)]);
+          });
+        }
+        if (isPlainObject(part) && part.bandToTotal !== undefined) {
+          requiredSourceFields.push([`${pLabel}.bandToTotal.sources`, () => part.bandToTotal && part.bandToTotal.sources]);
+        }
+        if (isPlainObject(part) && part.ratingProcedure !== undefined) {
+          requiredSourceFields.push([`${pLabel}.ratingProcedure.sources`, () => part.ratingProcedure && part.ratingProcedure.sources]);
+        }
+      });
+    }
+  });
+  (blueprint.answerRules || []).forEach((r, ri) => {
+    const rLabel = isPlainObject(r) && isNonEmptyString(r.id) ? r.id : `answerRules[${ri}]`;
+    requiredSourceFields.push([`${rLabel}.sources`, () => (isPlainObject(r) ? r.sources : undefined)]);
+  });
+
+  for (const [at, get] of requiredSourceFields) {
+    const refs = get();
+    if (refs === undefined || refs === null) {
+      err('sources.field-missing', `${at} is required; a source reference field may not be absent`);
+      continue;
+    }
+    checkSources(refs, at);
+  }
+
   /* ------------------------------------------- recursive source integrity */
-  // Source references may appear in nested blocks (timing, points, criteria, bandToTotal,
-  // ratingProcedure, writtenExam, gates). Anything called `sources` anywhere in the payload is
-  // checked, so a reference cannot hide in a block the per-section passes do not visit.
+  // Source references may also appear in nested blocks the schema list does not name.
+  // Anything called `sources` anywhere in the payload is checked, so a reference cannot
+  // hide in a block the per-section passes do not visit.
   walkSourceRefs(blueprint, 'blueprint');
 
   return { ok: errors.length === 0, errors, warnings, summary };
@@ -723,7 +767,9 @@ export function validateBlueprint(blueprint) {
     }
     for (const [key, value] of Object.entries(node)) {
       // `blueprint.sources` is the source *definition* list, not a reference list.
-      if (key === 'sources' && at !== 'blueprint' && Array.isArray(value)) {
+      if (key === 'sources' && at !== 'blueprint') {
+        // Absence and mistyping must both fail: a string is not a reference list, and a
+        // missing field would otherwise skip validation while still claiming provenance.
         checkSources(value, `${at}.sources`, { optional: true });
       } else if (value && typeof value === 'object') {
         walkSourceRefs(value, `${at}.${key}`, depth + 1);

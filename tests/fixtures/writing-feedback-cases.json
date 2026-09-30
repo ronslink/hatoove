@@ -66,7 +66,9 @@
     "no-duplicate-debit",
     "text-preserved-on-failure",
     "topic-missed-all-criteria",
-    "content-credit-withdrawn-for-leitpunkt-shortfall"
+    "content-credit-withdrawn-for-leitpunkt-shortfall",
+    "content-credit-preserved-for-partial-coverage",
+    "retry-possible-after-failure-clears-lease"
   ],
   "errorClassifications": [
     "none",
@@ -253,7 +255,7 @@
       "title": "Three of four Leitpunkte handled",
       "synthetic": true,
       "source": "B1 (96/96 content labels matched); C2",
-      "rationale": "The feedback must name the specific unaddressed point and keep credit for the three that were handled, without inventing a fifth expectation.",
+      "rationale": "Three of four Leitpunkte are handled appropriately, so criterion I is B and content credit is preserved. This case guards against conflating a partial shortfall with the criterion-I-zero branch.",
       "input": {
         "kind": "learner-text",
         "taskType": "informal e-mail",
@@ -286,13 +288,12 @@
           "content-point-coverage-accuracy",
           "no-fabricated-points",
           "criterion-evidence-required",
-          "content-credit-withdrawn-for-leitpunkt-shortfall",
-          "language-credit-preserved-on-content-zero"
+          "content-credit-preserved-for-partial-coverage"
         ],
         "missingContentPointsNamed": true,
         "wrongSituation": false,
         "numericScorePermitted": false,
-        "contentScoreCreditPreserved": false,
+        "contentScoreCreditPreserved": true,
         "languageCriteriaStillAssessed": true
       },
       "judgement": "mixed",
@@ -303,11 +304,10 @@
         "linguisticHuman": [
           "content-point-coverage-accuracy",
           "no-fabricated-points",
-          "content-credit-withdrawn-for-leitpunkt-shortfall",
-          "language-credit-preserved-on-content-zero"
+          "content-credit-preserved-for-partial-coverage"
         ]
       },
-      "leitpunktShortfall": true
+      "pointsHandled": 3
     },
     {
       "id": "WFC-05",
@@ -593,7 +593,6 @@
           "claimsRemaining",
           "entitlementActive",
           "attemptNotDeleted",
-          "liveLease",
           "assessmentNotAlreadySaved"
         ]
       },
@@ -641,7 +640,6 @@
           "claimsRemaining",
           "entitlementActive",
           "attemptNotDeleted",
-          "liveLease",
           "assessmentNotAlreadySaved"
         ]
       },
@@ -811,14 +809,14 @@
           "retry-conditional-on-state",
           "bounded-retry-classified",
           "no-heuristic-mark",
-          "text-preserved-on-failure"
+          "text-preserved-on-failure",
+          "retry-possible-after-failure-clears-lease"
         ],
         "retryPermitted": true,
         "retryConditions": [
           "claimsRemaining",
           "entitlementActive",
           "attemptNotDeleted",
-          "liveLease",
           "assessmentNotAlreadySaved"
         ],
         "assessmentCreated": false,
@@ -832,11 +830,12 @@
           "retry-conditional-on-state",
           "bounded-retry-classified",
           "no-heuristic-mark",
-          "text-preserved-on-failure"
+          "text-preserved-on-failure",
+          "retry-possible-after-failure-clears-lease"
         ],
         "linguisticHuman": []
       },
-      "retryNote": "Retry is permitted only while every listed condition holds."
+      "retryNote": "Retry is an explicit operation on a failed job with remaining tries. A legitimate failure clears the lease, so a live lease is NOT required; only remaining claims, an active entitlement, a non-deleted attempt and no already-saved assessment apply."
     },
     {
       "id": "WFC-16",
@@ -1047,6 +1046,60 @@
         ],
         "linguisticHuman": []
       }
+    },
+    {
+      "id": "WFC-21",
+      "scenario": "missing-content-point",
+      "title": "Only one of four Leitpunkte handled (criterion I is D)",
+      "synthetic": true,
+      "source": "C2 (criterion I is D when only one or no Leitpunkt is handled appropriately; criteria II and III are still assessed)",
+      "rationale": "The verified rule sets criterion I to D for one or no handled point, which withdraws content credit while the language criteria remain assessable. This is the zero-credit branch and is deliberately distinct from the three-point case.",
+      "pointsHandled": 1,
+      "input": {
+        "kind": "learner-text",
+        "taskType": "semi-formal e-mail",
+        "requiredContentPoints": 4,
+        "task": {
+          "prompt": "Du möchtest ein Zimmer in einer Pension buchen. Schreibe an die Pension.",
+          "register": "semi-formal (Sie)",
+          "leitpunkte": [
+            "give your arrival date",
+            "give your departure date",
+            "ask whether breakfast is included",
+            "ask about the price"
+          ]
+        },
+        "learnerText": "Sehr geehrte Damen und Herren, ich möchte gern ein Zimmer buchen. Mit freundlichen Grüßen"
+      },
+      "provider": {
+        "behaviour": "normal"
+      },
+      "expected": {
+        "outcome": "assessed",
+        "errorClassification": "none",
+        "invariants": [
+          "content-point-coverage-accuracy",
+          "content-credit-withdrawn-for-leitpunkt-shortfall",
+          "language-credit-preserved-on-content-zero",
+          "criterion-evidence-required"
+        ],
+        "missingContentPointsNamed": true,
+        "wrongSituation": false,
+        "contentScoreCreditPreserved": false,
+        "languageCriteriaStillAssessed": true,
+        "numericScorePermitted": false
+      },
+      "decidability": {
+        "mechanical": [
+          "criterion-evidence-required"
+        ],
+        "linguisticHuman": [
+          "content-point-coverage-accuracy",
+          "content-credit-withdrawn-for-leitpunkt-shortfall",
+          "language-credit-preserved-on-content-zero"
+        ]
+      },
+      "judgement": "mixed"
     }
   ]
 }

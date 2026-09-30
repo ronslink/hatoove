@@ -46,7 +46,8 @@ Requirement coverage is asserted by the checker. `scenario` values are the requi
 | WFC-01 | `incomplete-response` | Very short reply covering one point | Feedback is still produced and formative; no pass/readiness claim; unaddressed points named | `criterion-evidence-required`, `no-pass-or-readiness-claim` | — |
 | WFC-02 | `off-topic-response` | Letter about an unrelated subject (**topic missed**) | Topic-missed is its own branch: criterion I is D **and** the language criteria are set to zero, because the text has no connection to the task (C2) | `topic-missed-all-criteria`, `criterion-evidence-required` | — |
 | WFC-03 | `wrong-situation-role` | Writer answers as the host instead of the guest | Genuine role change is `wrong_situation`; language credit still assessed, not treated as unrelated | `wrong-situation-routing`, `language-credit-preserved-on-content-zero`, `register-not-conflated-with-role` | — |
-| WFC-04 | `missing-content-point` | Three of four Leitpunkte handled | Missing point is named; the other three keep credit; no fabricated point. Declares `leitpunktShortfall` so the withdrawn credit is attributable | `content-point-coverage-accuracy`, `no-invented-mandatory-correction` | — |
+| WFC-04 | `missing-content-point` | **Three** of four Leitpunkte handled | Missing point is named; the other three keep credit. Declares `pointsHandled: 3`, so criterion I is B and **content credit is preserved** | `content-point-coverage-accuracy`, `no-fabricated-points`, `content-credit-preserved-for-partial-coverage` | — |
+| WFC-21 | `missing-content-point` | **One** of four Leitpunkte handled | The separate zero-credit branch: criterion I is D, content credit withdrawn, **language criteria still assessed**. Declares `pointsHandled: 1` | `content-credit-withdrawn-for-leitpunkt-shortfall`, `language-credit-preserved-on-content-zero` | — |
 | WFC-05 | `wrong-register-only` | All four points true, informal address in a semi-formal exchange | **Content credit preserved**; register penalised under communicative design only; no `wrong_situation` (B2, regression of the 24/45 failure) | `register-not-conflated-with-role`, `content-credit-preserved-on-register-only`, `no-double-penalty` | — |
 | WFC-06 | `unnecessary-correction` | Grammar-clean text | No invented mandatory corrections; optional wording suggestions are labelled optional (B1: 0/12) | `no-invented-mandatory-correction`, `optional-suggestions-labelled` | — |
 | WFC-07 | `incorrect-replacement` | Provider proposes `haben`→`sein` in a construction that requires `haben` | A wrong replacement must be detectable and must not be presented as a mandatory repair | `no-incorrect-mandatory-correction`, `correction-context-preserved` | — |
@@ -117,6 +118,16 @@ An earlier draft of this document implied that `provider_unavailable` is simply 
 | Class | Codes | Retry behaviour |
 |---|---|---|
 | **Conditional** | `malformed_feedback`, `provider_unavailable` | A bounded retry is permitted **only while every applicable condition holds** (see §3.1). Stating a retry right without conditions is rejected by the checker. |
+
+**Retry eligibility is not the same as worker completion.** The two paths need different conditions, and
+conflating them would make retry impossible in exactly the case it is for:
+
+| Path | Required conditions | Why |
+|---|---|---|
+| **Explicit retry of a failed job** (WFC-10, WFC-11, WFC-15) | `claimsRemaining`, `entitlementActive`, `attemptNotDeleted`, `assessmentNotAlreadySaved` | A legitimate failure **clears the lease**, so demanding a live lease would forbid the retry that the contract explicitly permits |
+| **Worker-side completion / lease reclaim** (WFC-12) | the same, **plus `liveLease`** | Completion must prove it still holds the current lease token |
+
+WFC-15 carries the invariant `retry-possible-after-failure-clears-lease` to pin this distinction.
 | **Terminal** | `retry_exhausted`, `attempt_deleted`, `allowance_exhausted`, `stale_lease`, `submission_superseded` | Never retried, and may not advertise retry conditions at all — including the case where the underlying error was originally retryable. |
 | **None** | `none` | The case expects an ordinary assessment. |
 
