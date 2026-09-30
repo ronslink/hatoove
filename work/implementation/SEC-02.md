@@ -54,8 +54,9 @@ The merge path (`POST`) is untouched. Same-origin/JSON enforcement is inherited 
   the next start, so a reset cannot be silently undone by the merge. It no longer posts the empty
   state, which is what recreated the record.
 - `clearErrors()` clears the notebook locally and calls the scoped delete.
-- `deleteServerProgress` waits for an in-flight save first, so a POST that left before the reset
-  cannot land after the delete and write the record back.
+- `deleteServerProgress` waits for an in-flight save first, which covers the ordinary case where the
+  debounced save has not yet left. **It does NOT cover a POST already on the wire** — see the
+  correction below; that gap was found by independent review after this merged.
 - Both functions are now `async`. The two existing callers (`ui.js`) ignore the return value, so
   no UI change was needed.
 
@@ -152,8 +153,24 @@ SEC-01 same-origin gate on the new delete path is asserted too (`delete-requires
 - No browser run, so the click-through, the confirm dialogs and real debounce/tab-close timing are
   unverified; `localStorage.clear()` was not needed and is not used.
 - A second tab that holds pre-reset state can still re-upload it after the delete, because the
-  merge is intentionally monotonic and the app has no accounts or sessions. The in-flight-save
-  race is closed for one tab; cross-tab is not, and is stated rather than hidden.
+  merge is intentionally monotonic and the app has no accounts or sessions.
+
+> **CORRECTION (2026-09-30, after independent review).** This document previously claimed the
+> in-flight-save race was *"closed for one tab."* **That claim was wrong and has been removed.**
+> Independent review (`sec-02r-clawd-20260930-a`, report `work/implementation/SEC-02R-REPORT.md`,
+> PR #43) reproduced, **with no second tab**, that a reset racing a single `POST` already on the wire
+> is **silently undone**: the `DELETE` runs, but the in-flight request's stale snapshot is merged
+> back and **a reload resurrects the deleted record**.
+>
+> Root cause, as measured by the reviewer: `progressEqual()` compares `JSON.stringify`, while
+> `mergeProgress()` emits the top-level object with a different key order, so
+> `progressEqual(state, mergeProgress(state, state)) === false` **even for logically identical
+> state**. The server therefore returns a full payload on *every* `POST`, and a stale snapshot can
+> restore a deleted record.
+>
+> **This is an open defect in the merged code, tracked in the master plan, not a resolved one.** The
+> fix direction is a coordinator decision: either a server-side revision so a `DELETE` invalidates
+> writes older than it, or accept the race and document it honestly here.
 - Backups, exports and portable copies remain outside the deletion path (F-5), as above.
 - `importJSON` keeps its additive semantics; F-3 (AI disclosure) and F-4 (unscoped local
   persistence) are untouched.
