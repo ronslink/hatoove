@@ -118,11 +118,24 @@ PASS  probe-discriminates-on-prefix-tree  [pre-fix leaves progress.json.pre-reco
 
 - `git show 3a8c266...:server.js | sha256sum` = `ce465f18601ea3e68c1b19313f9f0c00c3f2554c913bfe7d2ba4cfdb1615d207`
   — the checker asserts this byte-for-byte before it trusts the comparison.
-- Pre-fix result: the delete leaves `progress.json.pre-recovery` **and**
-  `progress.json.before-ssd-sync-*.bak` behind, so `ui-delete-removes-every-local-copy`,
-  `delete-response-states-its-boundary` and the media/`removed` checks fail there. The checker
-  reports this and refuses to pass if the pre-fix tree removed everything (which would mean the
-  probe discriminates nothing).
+- The same checks run with the pre-fix tree as the primary root **fail there**, and the copies
+  are the reason:
+
+```
+pre-fix tree materialized at /tmp/b1prep-f5-prefix-… (base 3a8c26647a2dabd1a95aff393ca9be870381d01a)
+PASS  app-created-copies-created-first  [created first: progress.json, progress.json.bak, progress.json.tmp, progress.json.pre-recovery, progress.json.before-ssd-sync-…bak]
+FAIL  ui-delete-removes-every-local-copy  [these app-created copies outlived the delete: progress.json.pre-recovery, progress.json.before-ssd-sync-…bak: expected 0, got 2]
+FAIL  learner-record-gone-get-reports-empty  [no file may still hold learner text, found progress.json.before-ssd-sync-…bak, progress.json.pre-recovery]
+PASS  tombstone-kept-without-learner-text  [.rev kept as the write fence; holds no learner text]
+PASS  removable-media-copy-reported-out-of-scope  [reported, not claimed deleted: the simulated media copy (.env + progress.json) is untouched]
+FAIL  delete-response-states-its-boundary  [the delete must report the files it removed]
+ok = false
+```
+
+On this branch the same probe is 7/7 (`ok = true`), and the in-suite `probe-discriminates-on-prefix-tree` check asserts the pre-fix tree leaves `.pre-recovery` behind — refusing to pass if the pre-fix tree removed everything (which would mean the probe discriminates nothing).
+
+(Evidence produced by a scratch runner kept at `.openclaw/tmp/f5-prefix-evidence.mjs` in the
+worker workspace; it is not committed.)
 
 **Baseline (actual counts):**
 
