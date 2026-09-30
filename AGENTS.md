@@ -42,7 +42,7 @@ The private repository is `ronslink/hatoove`. Use a separate clone on each host 
 
 Edit only assigned paths. Ask the coordinator to resolve overlaps or interface changes before editing shared files. In particular, `public/js/exam.js` must not have concurrent owners. Do not mark content approved; qualified human review remains necessary. The coordinator may resolve routine implementation choices within the user's authorized scope without asking Ron again.
 
-Do not commit credentials, learner records, machine configuration, agent memory, raw provider runs, private browser state, generated portable bundles or the older `D:\B1_Prep` checkout. Run `node tools/repository-check.mjs` on the staged snapshot before pushing. It catches common problems, not every possible secret. Review the staged file list as well.
+Do not commit credentials, learner records, machine configuration, agent memory, raw provider runs, private browser state or the older `D:\B1_Prep` checkout. Run `node tools/repository-check.mjs` on the staged snapshot before pushing. It catches common problems, not every possible secret. Review the staged file list as well.
 
 ## Validation and boundaries
 
@@ -56,7 +56,7 @@ node tools/feedback-check.js
 
 The recorded baseline is 101 + 9 + 14 passing checks. These test legacy behavior, not exam validity. Add focused tests for changed behavior; do not preserve an incorrect exam rule just to retain a test result.
 
-Do not run live AI, recovery, portable-build or synchronization scripts as automatic setup. The current `server.js` reads `.env` even in offline mode. Browser tests require a disposable source-only checkout, synthetic progress and explicitly isolated ports. Never point generic tests at the learner's existing app.
+Do not run live AI or recovery scripts as automatic setup. The current `server.js` reads `.env` even in offline mode, and the provider key is server configuration that must never be settable or readable from a browser. Browser tests require a disposable source-only checkout, synthetic progress and explicitly isolated ports. Never point generic tests at the learner's existing app. The portable-build, synchronization and file-recovery scripts are **removed**: this is a hosted application with one authoritative server copy.
 
 Keep reviewed tasks/audio versioned, mark objective answers deterministically, preserve unassessed writing failures and save drafts/submissions/results/revisions. The saved DeepSeek benchmark supports provisional formative feedback, not calibrated readiness scores. Runtime fallbacks need separate evaluation.
 
