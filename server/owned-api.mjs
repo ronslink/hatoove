@@ -73,6 +73,54 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
 
 const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry', 'remove'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
+const SETTINGS_METHODS = ['read', 'write'];
+/**
+ * The closed allowlist for account settings. Validation lives here rather than in the port so
+ * the HTTP contract is the contract, whatever datastore implements it. Unknown keys are
+ * refused, never dropped: silently discarding a field a caller believes it saved is a defect.
+ */
+const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'model', 'theme', 'language'];
+const SETTINGS_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const SETTINGS_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/;
+const SETTINGS_THEMES = ['system', 'light', 'dark'];
+
+/**
+ * Validate an account-settings payload. Kept here, beside the route, so the HTTP contract is
+ * enforced at the boundary whatever port implements it. Unknown keys are refused rather than
+ * dropped, because silently discarding a field a caller believes it saved is a defect this
+ * programme has already been bitten by.
+ */
+function validateSettings(input) {
+  if (!isPlainObject(input)) fault(422, 'invalid_settings');
+  const unknown = Object.keys(input).filter((key) => !SETTINGS_FIELDS.includes(key));
+  if (unknown.length) fault(422, 'invalid_settings');
+  const out = {};
+  if (input.examDate !== undefined) {
+    if (typeof input.examDate !== 'string' || input.examDate.length > 10) fault(422, 'invalid_settings');
+    if (input.examDate !== '' && !SETTINGS_DATE_RE.test(input.examDate)) fault(422, 'invalid_settings');
+    out.examDate = input.examDate;
+  }
+  if (input.dailyGoal !== undefined) {
+    if (!Number.isSafeInteger(input.dailyGoal) || input.dailyGoal < 1 || input.dailyGoal > 500) fault(422, 'invalid_settings');
+    out.dailyGoal = input.dailyGoal;
+  }
+  if (input.model !== undefined) {
+    if (typeof input.model !== 'string' || !SETTINGS_TOKEN_RE.test(input.model)) fault(422, 'invalid_settings');
+    out.model = input.model;
+  }
+  if (input.theme !== undefined) {
+    if (!SETTINGS_THEMES.includes(input.theme)) fault(422, 'invalid_settings');
+    out.theme = input.theme;
+  }
+  if (input.language !== undefined) {
+    // Stored, but the app does not offer a language setting yet: the field exists so the
+    // contract does not have to change when it does. See C-06.
+    if (typeof input.language !== 'string' || input.language.length > 16) fault(422, 'invalid_settings');
+    out.language = input.language;
+  }
+  if (!Object.keys(out).length) fault(422, 'invalid_settings');
+  return out;
+}
 
 /** True for every path this module answers, including its unknown routes (404). */
 export function isOwnedPath(pathname) {
@@ -161,13 +209,16 @@ const errorReply = (status, code) => reply(status, { error: TOKEN_RE.test(code) 
 
 /**
  * Build the owned API.
- * @param {{datastore?: object, sessions?: object}} ports
+ * @param {{datastore?: object, sessions?: object, settings?: object}} ports
+ *   `settings` is optional: an installation that does not wire it answers 503 on the settings
+ *   routes only, so the account boundary is unaffected by a missing optional port.
  * @returns {{handle: Function, handleNode: Function, matches: Function, configured: boolean}}
  */
-export function createOwnedApi({ datastore, sessions } = {}) {
+export function createOwnedApi({ datastore, sessions, settings = null } = {}) {
   // Fail closed: without both ports wired, every owned route answers 503 and no
   // port method is ever reached, so nothing can be served without an identity.
   const configured = implementsAll(datastore, DATASTORE_METHODS) && implementsAll(sessions, SESSION_METHODS);
+  const settingsWired = implementsAll(settings, SETTINGS_METHODS);
 
   async function identify(headers) {
     const session = await sessions.getSession(headers);
@@ -208,6 +259,32 @@ export function createOwnedApi({ datastore, sessions } = {}) {
 
     if (pathname === '/api/v1/account' && method === 'GET') {
       return reply(200, { contractVersion: CONTRACT_VERSION, id: owner, email: who.email });
+    }
+
+    /*
+     * Account settings (A-01). Same account boundary as everything else, and the same
+     * revision story as the owned-attempts port: the first write is `expectedRevision: 0`,
+     * each write increments the revision by one, and a stale write writes nothing and is
+     * refused with the server's current copy so the caller can reconcile rather than guess.
+     */
+    if (pathname === '/api/v1/settings') {
+      if (!settingsWired) fault(503, 'settings_unavailable');
+      if (method === 'GET') return reply(200, await settings.read(owner));
+      if (method === 'PUT') {
+        onlyFields(body, ['expectedRevision', 'settings', ...SETTINGS_FIELDS]);
+        const expectedRevision = body.expectedRevision === undefined ? 0 : body.expectedRevision;
+        if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) fault(422, 'invalid_settings');
+        // Either a `settings` object or the fields inline; never both, so there is one shape
+        // a caller can rely on and no ambiguity about which one wins.
+        const hasObject = body.settings !== undefined;
+        const hasInline = SETTINGS_FIELDS.some((field) => body[field] !== undefined);
+        if (hasObject && hasInline) fault(422, 'invalid_settings');
+        if (!hasObject && !hasInline) fault(422, 'invalid_settings');
+        const input = hasObject ? body.settings : Object.fromEntries(
+          SETTINGS_FIELDS.filter((field) => body[field] !== undefined).map((field) => [field, body[field]]));
+        return reply(200, await settings.write(owner, expectedRevision, validateSettings(input)));
+      }
+      fault(404, 'not_found');
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId']);

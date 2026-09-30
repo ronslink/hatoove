@@ -12,6 +12,7 @@
 import { createFixture } from './bootstrap.mjs';
 import { createPostgresDatastore } from './adapter.mjs';
 import { createPostgresSessions } from './sessions.mjs';
+import { createPostgresSettings } from './settings.mjs';
 import { createOwnedApi } from '../../server/owned-api.mjs';
 
 /** Deterministic table order for `fingerprint()`. */
@@ -29,7 +30,10 @@ export async function createPostgresWorld({ allowance = 10, fixture } = {}) {
   const calls = [];
   const port = createPostgresDatastore({ pool: db.learner, onCall: (name) => calls.push(name) });
   const sessions = createPostgresSessions({ pool: db.auth, adminPool: db.admin, allowance });
-  const api = createOwnedApi({ datastore: port, sessions });
+  // Account settings are part of the same account, so the world builds them from the same
+  // restricted learner pool. An injected fixture may supply its own.
+  const settings = db.settings ?? createPostgresSettings({ pool: db.learner });
+  const api = createOwnedApi({ datastore: port, sessions, settings });
 
   async function one(sql, params) {
     return (await db.admin.query(sql, params)).rows[0];
@@ -134,6 +138,7 @@ export async function createPostgresWorld({ allowance = 10, fixture } = {}) {
   return {
     store: { port, inspect, worker },
     sessions,
+    settings,
     api,
     fixture: db,
     // A disposable fixture drops its schema/roles; a *persistent* installation (OWNAPI-03,

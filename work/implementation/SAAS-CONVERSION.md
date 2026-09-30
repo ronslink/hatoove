@@ -1,116 +1,106 @@
-# SAAS CONVERSION — the authoritative feature inventory and conversion rules
+# SAAS CONVERSION — the target feature set, and what changes from the original app
 
 | | |
 |---|---|
-| Direction | Ron, 2026-10-01: **the original application is being converted to a SaaS application.** |
-| This document's job | to be the **definition of done** for that conversion: the complete list of what the app does today, and the rule for when each item may be called converted |
-| Source of the inventory | read out of the code at `4f76b9428aacfc2ef670bdd3bdf5e43fa316222e` — `public/` (19 modules), `server.js`, `tools/` (34 checkers) — not from memory or from a plan document |
-| Companion records | `AUTH-USER-AUDIT.md` (is the user model there?), `FEATURE-PARITY-PORT.md` (what each function assumes), `MULTI-USER-TRANSITION.md` (why the findings cluster) |
+| Direction | Ron, 2026-10-01: the original application is being **converted to a SaaS application**, and — also Ron, same day — *"the original app acts as a guideline of what functionality we need, but it's not necessarily one to one; for example we do not need sync functionality any more."* |
+| This document's job | to state the **target feature set** as a decision, item by item: **carry** (same user-facing function, now per account), **transform** (same need, different shape because the server owns what the browser used to), or **drop** (deliberately not needed in the SaaS product). It is the definition of done for the conversion. |
+| Source of the inventory | read out of the code at `4f76b9428aacfc2ef670bdd3bdf5e43fa316222e` — `app.js` registers 21 views — not from a plan document |
+| Supersedes | the earlier "one-to-one parity" framing in this file. **Parity with the old app is not the goal and must not be used as an acceptance rule.** Behavioural parity *within a carried function* still is, and is checked against the existing baselines (`check.js` 101, `writing-check.js` 9, `feedback-check.js` 14). |
 
-## The distinction that governs the whole conversion
+## 0. The two rules that govern every row
 
-The app has exactly two kinds of state, and only one of them needs converting:
+1. **The server is the single source of truth.** Anything that existed only to move data between two copies of
+   the same browser — syncing, exporting, backing up, portable builds, recovery files — is **not needed**, because
+   there is now one authoritative copy that every signed-in device reads.
+2. **Shared content stays shared; learner state becomes per account.** The blueprint, the content packs, the
+   guides, the vocabulary, the generators' rules and the scoring rules need **no conversion**. Progress, the
+   ability model, the notebook, drafts, submissions and settings are **the whole conversion**.
 
-| | Shared, tenancy-independent | Per learner, must become per account |
-|---|---|---|
-| Examples | the exam blueprint, the 36 content packs in `data/`, the guides (`guides.js`), vocabulary and lexicon, the item generators' rules, the scoring rules, the writing-feedback rubric, the app's CSS identity | progress and history, the ability/weakness model, the error notebook, the study plan, the exam date and settings, drafts, submissions and assessments, the writing text itself |
-| Conversion work | **none.** These must be served identically to every learner | **all of it.** Every item must be selected by the verified account |
+## 1. Target feature set
 
-**So "convert to SaaS" does not mean rebuilding the app.** It means: keep every shared component byte-identical,
-and put a verified account boundary between each learner and their own state. Where that boundary already exists
-(PostgreSQL with `FORCE ROW LEVEL SECURITY`), it is done; where it does not, it is the remaining work.
+### 1.1 Carried — same function for the learner, now per account
 
-## A. Complete inventory — every surface the app has today
-
-Views are the authoritative list: `app.js` registers **21** of them. "State class" is **S** for shared content and
-**P** for per-learner state that must become per-account.
-
-| # | View / route id | What the learner does there | State class | Converted? |
-|---|---|---|---|---|
-| 1 | `home` (Übersicht) | sees countdown, today's plan, stats | **P** | no — reads the single record |
-| 2 | `plan` (Lernplan) | follows a dated study plan to the exam | **P** | no — needs the account's exam date |
-| 3 | `drill` (Adaptive Übungen) | trains against their own weak tags | **P** + S rules | no — the ability model is shared-record |
-| 4 | `vocab` (Wortschatz) | browses vocabulary | S | n/a (shared) |
-| 5 | `vocabdrill` (Wortschatz-Training) | drills vocabulary, results feed the ability model | S content + **P** results | no |
-| 6 | `notebook` (Fehlerheft) | reviews their own mistakes; the nav badge counts them | **P** | no — single unscoped notebook |
-| 7 | `paper` (Prüfungsteile) | practises exam parts and is marked | S content + **P** attempts | no |
-| 8 | `listening` (Hörverstehen) | the same, filtered to HV, with audio | S + **P** | no — and `C-04` (audio rights) is a human gate |
-| 9 | `writing` (Schreiben) | writes a letter and gets formative feedback | S task + **P** text via the provider | no — and key custody is undecided |
-| 10 | `speaking` (Sprechen) | speaking practice with browser speech | S + **P** | outside the pilot scope |
-| 11 | `mock` (Mocktest) | sits timed blocks and sees an honest result | S content + **P** session | no — one in-flight mock, in browser memory |
-| 12 | `reference` (Nachschlagen) | hub for the guides | S | n/a |
-| 13–18 | `speakingguide`, `writingguide`, `casesguide`, `nounsguide`, `grammarguide`, `sentenceguide` | reads reference material | S | n/a |
-| 19 | `settings` (Einstellungen) | sets exam date, daily goal, model, theme; **key entry** | **P** (and an operator control) | no — device-local, and not account-scoped |
-| 20 | *(not a view)* account identity | sign up, sign in, sign out | **P** | **server side done, no UI** |
-| 21 | *(not a view)* export / recover / delete | backs up, restores or deletes their record | **P** | partial — delete semantics proven, F-5 in PR #59 |
-
-Supporting surfaces that are also part of "the app's functions":
-
-| Surface | Where | State class | Converted? |
+| # | View / surface (`app.js` id) | What the learner does | What changes in SaaS |
 |---|---|---|---|
-| Progress merge on save | `progress-merge.js`, `server.js` POST | **P** | **store yes** (`progress-scope-check` 7/7), **wired no** |
-| Reset / clear | `server.js` DELETE, `store.js` | **P** | yes — `reset-check` 9/9, `revision-check` 8/8 |
-| Backup and portable build | `tools/recover-progress.js`, `tools/build-portable.ps1` | **P** | PR #59 |
-| Provider configuration | `POST /api/config` writes `DEEPSEEK_BASE_URL` | operator control, not a learner feature | **must change** — needs Ron's decision |
-| Health/config status | `/api/health`, `/api/config` | S | yes — `keymask-check` 12/12 |
-| Theme | `localStorage: certa-theme` | **P** | no — browser key, should move to the account's settings |
-| Offline behaviour | `B1PREP_FORCE_OFFLINE`, browser provider calls | architecture | **must change** — a server calls the provider, not the learner's browser |
+| 1 | `home` (Übersicht) | countdown, today's plan, their own stats | reads the **account's** record, not one shared blob |
+| 2 | `plan` (Lernplan) | dated plan to their exam | uses the **account's** exam date |
+| 3 | `drill` (Adaptive Übungen) | trains their own weak tags | ability model per account |
+| 4 | `vocab` (Wortschatz) | browses vocabulary | **shared content — unchanged** |
+| 5 | `vocabdrill` (Wortschatz-Training) | vocabulary drills, results feed the ability model | shared items, **per-account results** |
+| 6 | `notebook` (Fehlerheft) | reviews their own mistakes; nav badge counts them | per-account notebook |
+| 7 | `paper` (Prüfungsteile) | practises exam parts and is marked | shared items, **per-account attempts** |
+| 8 | `listening` (Hören) | the same for listening, with audio | shared audio, per-account attempts; `C-04` rights is a human gate |
+| 9 | `writing` (Schreiben) | writes a letter, gets formative feedback | **transformed** — see 1.2 |
+| 10 | `mock` (Mocktest) | timed blocks, honest result | one in-flight mock **per account**, server-owned |
+| 11 | `reference` + `speakingguide`, `writingguide`, `casesguide`, `nounsguide`, `grammarguide`, `sentenceguide` | reads reference material | **shared content — unchanged** |
+| 12 | *(new)* account identity | sign up, sign in, sign out, see who they are | **new, and the prerequisite for all of the above** |
+| 13 | *(new)* account settings | exam date, daily goal, model, theme | **transformed** — see 1.2 |
+| 14 | `speaking` (Sprechen) | speaking practice with browser speech | **out of pilot scope**, unchanged decision |
 
-## B. The conversion checklist, in dependency order
+### 1.2 Transformed — the need survives, the mechanism does not
 
-| Step | Scope | Why here |
+| Original mechanism | SaaS form | Why it changes |
 |---|---|---|
-| **1. Account surface** | sign-up / sign-in / sign-out, session display, in the existing shell and visual style | the server side is proven (`accounts-http-check` 5/5 over real HTTP and a real restart); nothing else can be exercised as an account without it |
-| **2. Account-scoped settings** | new server record: exam date, daily goal, model, theme; `language` when it exists | the dashboard, the study plan and the practice engine all read it, so it is the cheapest way to make several views account-aware at once |
-| **3. Point the stateful views at the account's record** | `home`, `plan`, `drill`, `vocabdrill`, `notebook` → the account-scoped progress store (F-4) | F-4 is merged and proven but has no caller; this is the step that gives it one |
-| **4. Per-account attempts** | `paper`, `listening`, `mock` → owned attempts | the owned API and PostgreSQL RLS already model exactly this |
-| **5. Writing via the server** | `writing` → server-side provider call | blocked on key custody; the browser must stop holding or redirect the key |
-| **6. Export and deletion per account** | export, recover, delete, retention | closes F-5 and F-6 honestly; needs the retention policy decided |
-| **7. Shared content serving** | `paper`, `listening`, guides, vocabulary | already shared; verify it stays shared and is cached, not per-account |
+| Settings in one unscoped progress blob + a bare `localStorage` theme key | **account-scoped server settings record** (`server/owned-postgres/settings.mjs`, `GET`/`PUT /api/v1/settings`) | settings must follow the *account* across devices, not the browser |
+| Writing feedback sent from the **browser** to the provider, using the learner's own key | **server-side provider call, operator-owned key** | a shared server must not let a tenant choose where the key is sent. Needs Ron's decision on `POST /api/config` |
+| Progress as one merged local file plus a browser cache, reconciled between devices | **one account-scoped server record** | the reconciliation problem disappears when there is one authoritative copy |
+| Delete = remove the local file | **delete = a policy**: records, backups, exports, retention | a hosted service has more places data lives; this is what turns F-5/F-6 into a specification |
+| Provider/health status read from a local `.env` | server configuration, exposed read-only without key characters | `keymask-check` 12/12 already enforces the "no key characters" half |
 
-Steps 1–3 make the stated user journey real (log in, configure, use, log out, return to find data and
-performance). Steps 4–6 complete the conversion. Step 7 is a check, not a build.
+### 1.3 Dropped — deliberately not part of the SaaS product
 
-## C. What "converted" is allowed to mean — one test, applied per row
+| Original surface | Where it lived | Why it is dropped |
+|---|---|---|
+| **Sync between a device and the install** | `tools/sync-home.js`, `tools/sync-home-check.js`, `store.js` sync paths | Ron's call, and structurally right: with one authoritative server copy there is nothing to sync. Two copies reconciling was a *consequence* of the local design, not a learner feature |
+| **Export / import of the progress file** | `store.js` import/export, `tools/recover-progress.js` | replaced by server persistence. If a data-portability *right* is later required by `P-03`, that is a deliberate product decision with its own specification — not this mechanism |
+| **Portable / USB build, and copies of the key on removable media** | `tools/build-portable.ps1`, `tools/verify-portable.js`, `build-launcher.ps1` | no USB option in a traditional SaaS deployment; also the whole of privacy finding **F-5**'s removable-media half |
+| **Local `.env` provider configuration by the learner** | `POST /api/config` writing `DEEPSEEK_BASE_URL` | an operator control, not a tenant one |
+| **Pre-recovery / `.bak` copies beside the install** | `server.js` recovery path | no install directory once the app is served |
+
+**Consequence for F-5:** with sync, export and the portable build dropped, the *only* deletion-scope question left
+is the hosted one — server backups, exports and retention. The worker's in-flight F-5 slice (PR #59) was scoped
+against the local app; **it must be re-scoped against this list before it is merged**, and its change to the merged
+`reset-check` assertion should be re-examined in that light rather than merged as-is.
+
+## 2. What "done" means per item — one test, applied per row
 
 An item is **converted** when a checker demonstrates, with a **signed-in account**:
 
-1. **behaviour parity** — the same input produces the same output as for the single user, checked against the
-   existing baseline (`check.js` 101, `writing-check.js` 9, `feedback-check.js` 14) rather than a new opinion;
-2. **isolation** — a second account cannot read, change or inherit it, and the failure is indistinguishable from
+1. **behaviour parity within the carried function** — the same input gives the same output as the single user,
+   measured against the existing baseline rather than a new opinion;
+2. **isolation** — a second account cannot read, change or inherit it, and the refusal is indistinguishable from
    "does not exist";
 3. **durability** — it survives sign-out and sign-in **on a new server process** (the pattern already proven for
-   session and draft in `accounts-http-check`);
-4. **authority** — the account-scoped store is the source of truth, not the legacy blob;
+   session and draft by `accounts-http-check`);
+4. **authority** — the account-scoped server record is the source of truth, with no second copy to reconcile;
 5. **no regression** — the existing checker for that behaviour still passes.
 
-**An item that merely still works while one anonymous user is present is NOT converted.** This is the single most
-important sentence in this document, because the app's current green test suite would look identical in both cases.
+**An item that works only while one anonymous user is present is NOT converted**, and an item in 1.3 must be
+*absent*, not merely unused.
 
-## D. Where the conversion stands
+## 3. Dependency order
 
-| Layer | State |
-|---|---|
-| Shared content and rules (the "S" rows) | **already correct** — must be preserved, not rebuilt |
-| Data model and isolation (PostgreSQL, FORCE RLS, roles, persistent install) | **built and proven** |
-| HTTP contract (accounts, owned attempts, submissions) | **built and proven, and now mounted** (`server/accounts.mjs`, `B1PREP_ACCOUNTS=1`) |
-| Browser transport and stored session | **built and proven** (`owned-client` 31/31) |
-| **Account UI** | **not built** — the first step of B |
-| **Account-scoped settings, language** | **not built** |
-| **Stateful views pointed at the account record** | **not built** — F-4 merged, unmounted |
-| Key custody, session hardening, retention policy | **undecided / not built** |
+| Step | Scope | Status |
+|---|---|---|
+| 1 | Mount the owned API in the running server | **done** — `server/accounts.mjs`, `B1PREP_ACCOUNTS=1`, `accounts-http-check` **5/5** |
+| 2 | Account-scoped settings | **port and migration written; routes and wiring next** |
+| 3 | Account identity UI (sign-up / sign-in / sign-out in the shell) | **not built** — the server side is proven |
+| 4 | Point `home`, `plan`, `drill`, `vocabdrill`, `notebook` at the account's record | **not built** — F-4 merged and still unmounted |
+| 5 | `paper`, `listening`, `mock` on per-account attempts | **not built** — the API already models it |
+| 6 | Writing via the server | **blocked on key custody** |
+| 7 | Deletion and retention to the hosted policy | **needs the policy decided**; re-scope F-5 first |
+| 8 | Confirm the dropped list is actually absent | **not checked** |
 
-Honest reading: **the platform conversion is largely done; the product conversion has barely started.** The four
-gaps in the bottom block are the whole of the remaining user-visible work for steps 1–3.
+Steps 1–4 make the stated user journey real: log in, configure, use, log out, come back and find the data and
+performance. Steps 5–8 complete the conversion.
 
-## E. Decisions this document needs from Ron
+## 4. Decisions this document needs from Ron
 
-1. **Deployment shape** — hosted multi-tenant, multi-account local, or one codebase for both? It decides whether
-   the browser may hold a provider key at all.
-2. **Key custody** — should `POST /api/config` stop accepting a base URL, so the provider key is operator-only?
-3. **Retention and deletion policy** — what an account deletion must actually remove (records, backups, exports,
-   logs) — this is what turns F-5/F-6 from findings into a specification.
-4. **Language** — which languages, and does `C-06` native review gate the feature's release? Today `language` is
-   not a stored setting at all.
+1. **Deployment shape** — hosted multi-tenant, or one codebase that can also run locally for one account?
+2. **Key custody** — does `POST /api/config` stop accepting a base URL, making the provider key operator-only?
+3. **Retention and deletion policy** — what an account deletion must remove (records, backups, exports, logs).
+4. **Language** — which languages, and does the `C-06` native review gate the feature's release? Today `language`
+   is stored in the settings contract but is **not** a feature the app offers.
+5. **Confirm the dropped list** in 1.3, so nobody rebuilds sync or the portable build by mistake.
 
 **No gate is closed by this document**, and nothing in it is an exam-validity, security, privacy or legal approval.

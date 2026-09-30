@@ -1,0 +1,184 @@
+/**
+ * Account settings port (A-01 settings).
+ *
+ * The single-user app kept exam date, daily goal, model and theme in the browser: a
+ * `localStorage` key for the theme and the rest inside the one unscoped progress blob. For a
+ * SaaS user the requirement is explicit - *configure their language etc. in settings ... log
+ * out and find their data still exists* - so settings have to be an **account-scoped server
+ * record**, not a device key, or they vanish on the next device.
+ *
+ * This module is the port `server/owned-api.mjs` injects as `settings`. It implements:
+ *
+ *   read(owner)                        -> {revision, settings} (defaults when never saved)
+ *   write(owner, expectedRevision, s)  -> {revision, settings}, or throws Fault(409,
+ *                                         'settings_conflict') when the revision moved
+ *
+ * Semantics deliberately matched to the owned-attempts port, so the client can rely on one
+ * story: the first write is `expectedRevision: 0`, every write increments the revision by one,
+ * and a stale write writes nothing and is refused rather than merged.
+ *
+ * Scope and limits, stated plainly:
+ *   - `language` is stored here, but **the app does not yet offer a language setting** and the
+ *     reviewed native-language explanations are the open human gate C-06. Storing the field now
+ *     means the contract does not have to change when the feature lands; it is NOT a claim that
+ *     language support exists.
+ *   - Values are validated by shape (short strings, an integer in range, a known theme) and
+ *     never interpreted. No field here is a security control.
+ *   - It is not a general key/value store: the allowlist is fixed and closed.
+ */
+
+import { Fault } from '../owned-api.mjs';
+
+export const SETTINGS_LIMITS = Object.freeze({
+  examDate: 10,      // ISO calendar date, `YYYY-MM-DD`
+  model: 64,
+  theme: 16,
+  language: 16,
+});
+
+export const SETTINGS_THEMES = Object.freeze(['system', 'light', 'dark']);
+/** Language codes the app may offer later. Empty today: the feature does not exist yet. */
+export const SETTINGS_LANGUAGES = Object.freeze([]);
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/;
+
+/** The defaults a learner has before they change anything. Mirrors the app's own defaults. */
+export const SETTINGS_DEFAULTS = Object.freeze({
+  examDate: '',
+  dailyGoal: 20,
+  model: 'deepseek-chat',
+  theme: 'system',
+  language: '',
+});
+
+const asRow = (row) => ({
+  revision: Number(row.revision),
+  settings: {
+    examDate: row.exam_date || '',
+    dailyGoal: Number(row.daily_goal),
+    model: row.model || SETTINGS_DEFAULTS.model,
+    theme: row.theme || SETTINGS_DEFAULTS.theme,
+    language: row.language || '',
+  },
+});
+
+/**
+ * Validate a settings object. Unknown keys are refused outright rather than ignored: silently
+ * dropping a field a caller believes it saved is the kind of defect this programme keeps
+ * finding.
+ *
+ * `partial` allows an update to mention only some fields; the rest keep their stored value.
+ */
+export function validateSettings(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Fault(422, 'invalid_settings');
+  }
+  const allowed = ['examDate', 'dailyGoal', 'model', 'theme', 'language'];
+  const unknown = Object.keys(input).filter((key) => !allowed.includes(key));
+  if (unknown.length) throw new Fault(422, 'invalid_settings');
+
+  const out = {};
+  if (input.examDate !== undefined) {
+    if (typeof input.examDate !== 'string' || input.examDate.length > SETTINGS_LIMITS.examDate) {
+      throw new Fault(422, 'invalid_settings');
+    }
+    if (input.examDate !== '' && !DATE_RE.test(input.examDate)) throw new Fault(422, 'invalid_settings');
+    out.examDate = input.examDate;
+  }
+  if (input.dailyGoal !== undefined) {
+    if (!Number.isSafeInteger(input.dailyGoal) || input.dailyGoal < 1 || input.dailyGoal > 500) {
+      throw new Fault(422, 'invalid_settings');
+    }
+    out.dailyGoal = input.dailyGoal;
+  }
+  if (input.model !== undefined) {
+    if (typeof input.model !== 'string' || !TOKEN_RE.test(input.model)) throw new Fault(422, 'invalid_settings');
+    out.model = input.model;
+  }
+  if (input.theme !== undefined) {
+    if (!SETTINGS_THEMES.includes(input.theme)) throw new Fault(422, 'invalid_settings');
+    out.theme = input.theme;
+  }
+  if (input.language !== undefined) {
+    if (typeof input.language !== 'string' || input.language.length > SETTINGS_LIMITS.language) {
+      throw new Fault(422, 'invalid_settings');
+    }
+    if (input.language !== '' && SETTINGS_LANGUAGES.length && !SETTINGS_LANGUAGES.includes(input.language)) {
+      throw new Fault(422, 'invalid_settings');
+    }
+    out.language = input.language;
+  }
+  if (!Object.keys(out).length) throw new Fault(422, 'invalid_settings');
+  return out;
+}
+
+/**
+ * @param {object} options
+ * @param {object} options.pool a pool bound to the restricted learner role
+ */
+export function createPostgresSettings({ pool } = {}) {
+  if (!pool || typeof pool.connect !== 'function') throw new TypeError('createPostgresSettings requires a pg Pool');
+
+  /** One transaction, with the verified owner bound locally, exactly like the attempts port. */
+  async function settle(owner, work) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query("SELECT set_config('hatoove.owner_id', $1, true)", [owner]);
+      const value = await work(client);
+      await client.query('COMMIT');
+      return value;
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch { /* preserve the original failure */ }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  return {
+    /** Read, or the defaults when the account has never saved anything. */
+    async read(owner) {
+      return settle(owner, async (client) => {
+        const row = (await client.query(
+          'SELECT revision, exam_date, daily_goal, model, theme, language FROM learner_settings WHERE user_id = $1',
+          [owner])).rows[0];
+        if (!row) return { revision: 0, settings: { ...SETTINGS_DEFAULTS } };
+        return asRow(row);
+      });
+    },
+
+    /**
+     * Write against `expectedRevision`. `0` creates the row; any other value updates it only if
+     * the stored revision still matches, so a second device cannot silently overwrite the first.
+     */
+    async write(owner, expectedRevision, patch) {
+      if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Fault(422, 'invalid_settings');
+      return settle(owner, async (client) => {
+        const current = (await client.query(
+          'SELECT revision, exam_date, daily_goal, model, theme, language FROM learner_settings WHERE user_id = $1 FOR UPDATE',
+          [owner])).rows[0];
+        const base = current ? asRow(current) : { revision: 0, settings: { ...SETTINGS_DEFAULTS } };
+        if (base.revision !== expectedRevision) {
+          // Nothing is written. The caller gets the server's copy so it can reconcile.
+          throw new Fault(409, 'settings_conflict', { current: base });
+        }
+        const next = { ...base.settings, ...patch };
+        const row = (await client.query(
+          `INSERT INTO learner_settings (user_id, exam_date, daily_goal, model, theme, language, revision)
+           VALUES ($1, $2, $3, $4, $5, $6, 1)
+           ON CONFLICT (user_id) DO UPDATE SET
+             exam_date = EXCLUDED.exam_date,
+             daily_goal = EXCLUDED.daily_goal,
+             model = EXCLUDED.model,
+             theme = EXCLUDED.theme,
+             language = EXCLUDED.language,
+             revision = learner_settings.revision + 1
+           RETURNING revision, exam_date, daily_goal, model, theme, language`,
+          [owner, next.examDate, next.dailyGoal, next.model, next.theme, next.language])).rows[0];
+        return asRow(row);
+      });
+    },
+  };
+}

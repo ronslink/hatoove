@@ -25,6 +25,19 @@
  *   - It does not replace `bootstrap.mjs`, which stays for the isolated test runs.
  *   - Applying it proves schema and role isolation. It does not close the P-03/X-01 gate.
  *
+ * DEPLOYMENT SHAPE — ONE database for every user (Ron, 2026-10-01)
+ *
+ * This is a **single PostgreSQL database shared by all users**. It is *not* a database per
+ * user, and *not* a schema per user. Multi-tenancy is carried by **`owner_id` together with
+ * `FORCE ROW LEVEL SECURITY`**: every user's rows live in the same tables, and the database
+ * itself refuses to show one owner another owner's rows. That is the entire reason the learner
+ * role is created `NOBYPASSRLS`, and why the isolation proof reads a foreign row as empty.
+ *
+ * `OWNAPI_PG_SCHEMA` therefore names the **one application schema** inside that database — a
+ * deployment and upgrade unit, like a namespace — and **must never be varied per user or per
+ * tenant**: a schema per user would multiply migrations, roles and policies by the number of
+ * learners and would put isolation in the wrong place. The policies are the isolation.
+ *
  * Configuration (`OWNAPI_PG_*`, all optional except in a real deployment):
  *   OWNAPI_PG_HOST, OWNAPI_PG_PORT, OWNAPI_PG_DATABASE, OWNAPI_PG_USER, OWNAPI_PG_PASSWORD
  *   OWNAPI_PG_SCHEMA        default `hatoove`
@@ -48,6 +61,32 @@ export const MIGRATIONS = Object.freeze([
   { id: '0001-auth-schema', file: new URL('auth-schema.sql', SPIKE) },
   { id: '0002-owned-schema', file: new URL('schema.sql', SPIKE) },
   { id: '0003-isolation', file: new URL('isolation.sql', SPIKE) },
+  // Inline because it is Hatoove's own table, not part of the reused spike SQL. It must be
+  // idempotent on its own: an installation created before this migration exists already holds
+  // the tracked tables, and only this one is added.
+  {
+    id: '0004-account-settings',
+    sql: (config) => `
+      CREATE TABLE IF NOT EXISTS ${ident(config.schema)}.learner_settings (
+        user_id     text PRIMARY KEY REFERENCES ${ident(config.schema)}."user"(id) ON DELETE CASCADE,
+        exam_date   text NOT NULL DEFAULT '',
+        daily_goal  integer NOT NULL DEFAULT 20,
+        model       text NOT NULL DEFAULT 'deepseek-chat',
+        theme       text NOT NULL DEFAULT 'system',
+        language    text NOT NULL DEFAULT '',
+        revision    integer NOT NULL DEFAULT 0,
+        updated_at  timestamptz NOT NULL DEFAULT now()
+      );
+      ALTER TABLE ${ident(config.schema)}.learner_settings ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE ${ident(config.schema)}.learner_settings FORCE ROW LEVEL SECURITY;
+      DROP POLICY IF EXISTS learner_settings_owner ON ${ident(config.schema)}.learner_settings;
+      CREATE POLICY learner_settings_owner ON ${ident(config.schema)}.learner_settings
+        USING (user_id = current_setting('hatoove.owner_id', true))
+        WITH CHECK (user_id = current_setting('hatoove.owner_id', true));
+      REVOKE ALL ON ${ident(config.schema)}.learner_settings FROM PUBLIC;
+      GRANT SELECT, INSERT, UPDATE ON ${ident(config.schema)}.learner_settings TO ${ident(config.roles.learner)};
+    `,
+  },
 ]);
 
 const ident = (name) => {
@@ -149,7 +188,9 @@ export async function applyMigrations(pool, config) {
   const skipped = [];
   for (const migration of MIGRATIONS) {
     if (done.has(migration.id)) { skipped.push(migration.id); continue; }
-    let sql = await readFile(migration.file, 'utf8');
+    let sql = migration.sql
+      ? migration.sql(config)
+      : await readFile(migration.file, 'utf8');
     if (migration.id === '0003-isolation') {
       for (const [key, value] of Object.entries({
         SCHEMA: config.schema, AUTH: config.roles.auth, LEARNER: config.roles.learner, WORKER: config.roles.worker,

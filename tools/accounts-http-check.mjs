@@ -233,6 +233,68 @@ check('the-owned-routes-sit-behind-the-origin-gate', async () => {
   } finally { await server.stop(); }
 });
 
+check('settings-are-per-account-and-refuse-a-stale-write', async () => {
+  const server = await startServer(4477, { accounts: true });
+  try {
+    assert.ok(await waitForBanner(server, 'Accounts: accounts: on'), 'accounts did not come up');
+    const base = `http://127.0.0.1:4477`;
+    const jar = new Map();
+    const call = async (method, path, body) => {
+      const headers = { origin: base };
+      if (jar.size) headers.cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
+      if (body !== undefined) headers['content-type'] = 'application/json';
+      const response = await fetch(`${base}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+      for (const line of (response.headers.getSetCookie ? response.headers.getSetCookie() : [])) {
+        const [pair] = line.split(';');
+        const eq = pair.indexOf('=');
+        jar.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim());
+      }
+      let json = null;
+      try { json = await response.json(); } catch { /* some replies have no body */ }
+      return { status: response.status, json };
+    };
+
+    await call('POST', '/api/auth/sign-up/email', { name: 'S', email: email('settings'), password: 'pw-s-1' });
+
+    // A brand-new account has the app's own defaults, not an empty object.
+    const initial = await call('GET', '/api/v1/settings');
+    assert.equal(initial.status, 200);
+    assert.equal(initial.json.revision, 0, 'a never-saved account is at revision 0');
+    assert.equal(initial.json.settings.dailyGoal, 20);
+    assert.equal(initial.json.settings.theme, 'system');
+    assert.equal(initial.json.settings.language, '');
+
+    // The first write is expectedRevision 0 and bumps the revision to 1.
+    const saved = await call('PUT', '/api/v1/settings', { expectedRevision: 0, settings: { examDate: '2026-12-05', dailyGoal: 30, theme: 'dark', language: 'de' } });
+    assert.equal(saved.status, 200, `save failed: ${JSON.stringify(saved.json)}`);
+    assert.equal(saved.json.revision, 1);
+    assert.equal(saved.json.settings.examDate, '2026-12-05');
+    assert.equal(saved.json.settings.theme, 'dark');
+
+    // A stale revision writes NOTHING and is refused with the server's copy to reconcile.
+    const stale = await call('PUT', '/api/v1/settings', { expectedRevision: 0, settings: { theme: 'light' } });
+    assert.equal(stale.status, 409, 'a stale write must be refused');
+    assert.equal(stale.json.error, 'settings_conflict');
+    const afterStale = await call('GET', '/api/v1/settings');
+    assert.equal(afterStale.json.settings.theme, 'dark', 'the refused write must not have changed anything');
+
+    // Unknown fields and bad values are refused, never silently dropped.
+    assert.equal((await call('PUT', '/api/v1/settings', { expectedRevision: 1, settings: { nope: 1 } })).status, 422);
+    assert.equal((await call('PUT', '/api/v1/settings', { expectedRevision: 1, settings: { dailyGoal: 0 } })).status, 422);
+    assert.equal((await call('PUT', '/api/v1/settings', { expectedRevision: 1, settings: { theme: 'neon' } })).status, 422);
+
+    // Another account sees its OWN defaults, never the first account's settings.
+    const otherJar = [...jar];
+    jar.clear();
+    await call('POST', '/api/auth/sign-up/email', { name: 'T', email: email('settings-other'), password: 'pw-t-1' });
+    const other = await call('GET', '/api/v1/settings');
+    assert.equal(other.json.revision, 0, 'a second account must not inherit the first account settings');
+    assert.equal(other.json.settings.theme, 'system');
+    assert.equal(other.json.settings.examDate, '');
+    assert.ok(otherJar.length, 'the first account had a session');
+  } finally { await server.stop(); }
+});
+
 /* ====================================================================== run */
 
 export async function runAccountsHttpChecks() {

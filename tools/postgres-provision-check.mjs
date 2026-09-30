@@ -22,8 +22,11 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
 import {
-  persistentConfig, provisionPersistent, closePersistent, appliedMigrations,
+  persistentConfig, provisionPersistent, closePersistent, appliedMigrations, MIGRATIONS,
 } from '../server/owned-postgres/provision.mjs';
+
+/** Derived from the migration list, so adding a migration cannot leave this check stale. */
+const ALL_MIGRATIONS = MIGRATIONS.map((migration) => migration.id);
 
 const config = persistentConfig();
 const FORBIDDEN_DATABASES = new Set(['postgres', 'template0', 'template1']);
@@ -59,7 +62,7 @@ check('fresh-database-is-provisioned-once', async () => {
     // first (everything applied) or a later one (everything already applied). Either way
     // the schema, the restricted roles and FORCE RLS must be in place, and every migration
     // must be accounted for exactly once.
-    const all = ['0001-auth-schema', '0002-owned-schema', '0003-isolation'];
+    const all = ALL_MIGRATIONS;
     assert.deepEqual([...pools.applied, ...pools.skipped].sort(), [...all].sort(),
       'every migration must be either applied now or already applied');
     assert.deepEqual(await appliedMigrations(pools.migration, config.schema), all);
@@ -83,19 +86,22 @@ check('fresh-database-is-provisioned-once', async () => {
 });
 
 check('second-run-applies-nothing-and-changes-no-role', async () => {
-  const before = await withAdmin(async (admin) => (await admin.query(
+  // Establish the installed state FIRST, so this check measures idempotency whether or not an
+  // earlier check ran in the same process. Measuring "before" on a database that might not be
+  // provisioned yet would compare against roles that do not exist.
+  const first = await provisionPersistent({ config });
+  await closePersistent(first);
+  const roleSnapshot = () => withAdmin(async (admin) => (await admin.query(
     'SELECT rolname, rolsuper, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname = ANY($1::text[]) ORDER BY rolname',
     [Object.values(config.roles)])).rows);
+  const before = await roleSnapshot();
   const pools = await provisionPersistent({ config });
   try {
     assert.deepEqual(pools.applied, [], 'a second run must apply no migration');
-    assert.deepEqual(pools.skipped, ['0001-auth-schema', '0002-owned-schema', '0003-isolation']);
-    const after = await withAdmin(async (admin) => (await admin.query(
-      'SELECT rolname, rolsuper, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname = ANY($1::text[]) ORDER BY rolname',
-      [Object.values(config.roles)])).rows);
+    assert.deepEqual(pools.skipped, ALL_MIGRATIONS, 'a second run must skip every migration');
+    const after = await roleSnapshot();
     assert.deepEqual(after, before, 'existing roles must not be altered');
-    assert.deepEqual(await appliedMigrations(pools.migration, config.schema),
-      ['0001-auth-schema', '0002-owned-schema', '0003-isolation']);
+    assert.deepEqual(await appliedMigrations(pools.migration, config.schema), ALL_MIGRATIONS);
   } finally { await closePersistent(pools); }
 });
 

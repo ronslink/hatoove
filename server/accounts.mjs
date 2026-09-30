@@ -54,7 +54,7 @@ export async function loadOwnedApi({ env = process.env } = {}) {
 
   const { provisionPersistent, closePersistent, persistentConfig } = await import('./owned-postgres/provision.mjs');
   const { createPostgresWorld } = await import('./owned-postgres/fixture.mjs');
-  const { createOwnedApi } = await import('./owned-api.mjs');
+  const { createPostgresSettings } = await import('./owned-postgres/settings.mjs');
 
   const persistent = await provisionPersistent({ config: persistentConfig(env) });
   const fixture = {
@@ -64,10 +64,17 @@ export async function loadOwnedApi({ env = process.env } = {}) {
     auth: persistent.auth,
     worker: persistent.worker,
     admin: persistent.admin,
+    // Account settings are part of the account, so they run on the same restricted learner
+    // pool; `createPostgresWorld` would otherwise build its own, which would be a second
+    // wiring of the same thing.
+    settings: createPostgresSettings({ pool: persistent.learner }),
     close: () => closePersistent(persistent),
   };
   const world = await createPostgresWorld({ fixture });
-  const api = createOwnedApi({ datastore: world.store.port, sessions: world.sessions });
+  // `world.api` is built by the same code the checks use, so the running server and the tests
+  // cannot drift apart. Building a second API here with the ports re-supplied by hand is what
+  // dropped account settings on the floor once already.
+  const api = world.api;
 
   return {
     api,
