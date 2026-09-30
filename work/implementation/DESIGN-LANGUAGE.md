@@ -73,14 +73,31 @@ The stylesheet already adapts at **1100 px, 860 px, 600 px and 480 px**, and hon
 
 ## 6. How this is verified, not merely stated
 
-Consistency is only real if it is checked. Two mechanisms, both already in use in this programme:
+Consistency is only real if it is checked. Two mechanisms, both now in place:
 
-1. **A structural check** over new views: they may not introduce a hex colour, a raw `px` radius, or a new
-   font-family; they must render inside the shell; and they must use the token names above. This kind of check is
-   cheap to write and it is the only thing that stops a second design language appearing one view at a time.
+1. **`tools/design-check.mjs`** — the structural check, and it is a real gate, not a promise. It fails on: any raw
+   colour in a rule outside a custom property; any raw `font-family` in a rule; a missing token; a missing dark
+   override; a missing mobile breakpoint; a missing `prefers-reduced-motion`; a view not registered through the
+   shell; a second navigation pattern; or a shell that is not the view host. Inline corner radii are reported as
+   **WARN, not FAIL**, deliberately: `border-radius: 0 3px 3px 0` is legitimate, and a check that cries wolf is
+   worse than no check — this programme has been bitten eight times by *wrong checks* rather than by wrong
+   artifacts.
 2. **Browser evidence at 390 px and 1440 px** in **both themes**, asserting: no horizontal overflow, no console
    errors, touch targets at least 44 px, and visible focus — the pattern `tools/mock-outcome-browser-check.mjs`
    already establishes.
+
+### 6.1 What the first run of `design-check.mjs` found — real debt, recorded not hidden
+
+Run against the current tree, it passes 9 of 10 and reports:
+
+| Finding | Count | Meaning |
+|---|---|---|
+| **Raw `font-family` in a rule** | **26** | the design language has exactly three faces (`--serif`, `--sans`, `--mono`); 26 rules name a family directly instead. The first is `font-family: 'Fraunces';` at line 11 — a *partial* stack that drops the fallbacks `--serif` carries, which is exactly the kind of drift this check exists to catch. **This one is a FAIL, so the gate is red until it is fixed** |
+| Inline corner radius outside a token | 19 | WARN only; `border-radius: 0 3px 3px 0` is legitimate. Visible debt for the shell cleanup |
+
+**Both are pre-existing**: they are in `main` today, not introduced by the account work. Fixing them is its own
+bounded slice (it is a stylesheet-wide change that needs both-theme visual evidence), and it is queued as such
+rather than smuggled into an unrelated commit.
 
 **Existing evidence to build on, not to redo:** `tools/exam-blueprint-check.mjs` and the earlier CSS bounding work
 (`PILOT-01`) already proved that only the D5/D6 defects were real and that 200 %-zoom filenames are not proof of
