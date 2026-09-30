@@ -13,6 +13,7 @@ import {
 import * as store from './store.js';
 import * as engine from './engine.js';
 import * as ai from './ai.js';
+import { assessMockWriting, createCompletionGate, summarizeMockOutcome, WRITING_MAX, WRITING_REASONS } from './mock-outcome.js';
 import { PARTS, GROUPS, SUBTEST_ORDER, groupOf, tagInfo } from './blueprint.js';
 import { speak, speakScript, stopSpeaking, ttsSupported, germanVoices, waitForVoices, startDictation, sttSupported, speakingRate, beep } from './speech.js';
 
@@ -1183,6 +1184,8 @@ const MOCK_BLOCKS = [
 ];
 
 let mockState = null;
+let mockCleanup = null;
+let mockPreparation = 0;
 
 export async function mockView(el, params = {}) {
   if (!mockState || params.nonce) {
@@ -1195,15 +1198,14 @@ export async function mockView(el, params = {}) {
 }
 
 function renderMockIntro(el) {
-  const r = engine.readiness();
   setViewActions('');
   el.innerHTML = `
     <div class="card">
-      <h3>Mocktest – die schriftliche Prüfung</h3>
-      <p class="muted">150 Minuten unter Prüfungsbedingungen: Leseverstehen + Sprachbausteine (90 Min.), Hörverstehen (30 Min.), Schreiben (30 Min.). Insgesamt 225 Punkte, bestanden ab 135.</p>
+      <h3>Mocktest – schriftliche Übung</h3>
+      <p class="muted">150 Minuten Übungszeit: Leseverstehen + Sprachbausteine (90 Min.), Hörverstehen (30 Min.), Schreiben (30 Min.).</p>
       <p class="muted small">
-        Die mündliche Prüfung findet hier nicht statt: sie ist eine Paarprüfung mit 20 Minuten Vorbereitung.
-        Trainiere sie separat im Bereich <b>Sprechen</b>.
+        Objektive Aufgaben werden anhand der hinterlegten Lösungen ausgewertet. Schreibfeedback ist vorläufig.
+        Diese Übung liefert keine Bestehensprognose; Aufgaben und Hörmaterial sind noch nicht abschließend fachlich geprüft.
       </p>
       <table class="plain mt">
         <thead><tr><th>Block</th><th>Teile</th><th class="num">Zeit</th></tr></thead>
@@ -1214,7 +1216,7 @@ function renderMockIntro(el) {
       <div class="btn-row mt">
         <button class="primary" data-start-mock>Mocktest starten</button>
       </div>
-      <div class="dim small mt">Aktuelle Prognose: ${Math.round(r.total)} / 300 (${esc(r.band.label)}). Nach dem Mocktest wird sie neu berechnet.</div>
+      <div class="dim small mt">Dein Schreibtext bleibt während dieser Sitzung verfügbar. Wiederherstellung nach Neuladen ist hier noch nicht verfügbar.</div>
     </div>
     ${!ai.isConfigured() ? `<div class="card" style="border-color:var(--warn-dim)">
       <h3>Hinweis zum Offline-Modus</h3>
@@ -1229,6 +1231,7 @@ function renderMockIntro(el) {
 }
 
 async function startMock() {
+  const preparation = ++mockPreparation;
   const el = document.getElementById('view');
   const allParts = MOCK_BLOCKS.flatMap((b) => b.parts);
   const total = allParts.length;
@@ -1254,6 +1257,7 @@ async function startMock() {
         });
     })
   );
+  if (preparation !== mockPreparation) return;
   unbusy();
 
   const sets = Object.fromEntries(results.filter(([, s]) => s));
@@ -1273,8 +1277,11 @@ async function startMock() {
 }
 
 function renderMockBlock(el) {
-  const block = MOCK_BLOCKS[mockState.blockIndex];
-  const sets = mockState.sets;
+  mockCleanup?.();
+  const session = mockState;
+  const index = session.blockIndex;
+  const block = MOCK_BLOCKS[index];
+  const sets = session.sets;
   const available = block.parts.filter((p) => sets[p]);
 
   setViewActions(`<span class="pill">Block ${mockState.blockIndex + 1} / ${MOCK_BLOCKS.length}</span>`);
@@ -1302,7 +1309,7 @@ function renderMockBlock(el) {
     wrap.dataset.mockPart = partId;
     partsHost.appendChild(wrap);
     if (partId === 'SA1') {
-      renderMockWriting(wrap, sets[partId]);
+      renderMockWriting(wrap, sets[partId], session.writingText || '');
       continue;
     }
     renderPartInto(wrap, partId, sets[partId], { mock: true });
@@ -1319,6 +1326,15 @@ function renderMockBlock(el) {
     if (handle) clearInterval(handle);
     handle = null;
   };
+  mockCleanup = () => {
+    stop();
+    const textarea = partsHost.querySelector('#mock-writing');
+    if (textarea) session.writingText = textarea.value;
+  };
+  if (session.completionIndex !== index) {
+    session.completionIndex = index;
+    session.completeBlock = createCompletionGate();
+  }
   on(el.querySelector('[data-toggle-mock]'), 'click', (e) => {
     if (handle) {
       stop();
@@ -1347,32 +1363,63 @@ function renderMockBlock(el) {
   });
 
   async function endBlock(b) {
+    stop();
     stopSpeaking();
-    // collect answers from every part in this block
-    for (const partId of available) {
-      const wrap = partsHost.querySelector(`[data-mock-part="${partId}"]`);
-      if (partId === 'SA1') {
-        busy('Schreiben wird bewertet…', 'Bitte warten');
-        const entry = await gradeMockWriting(wrap, sets[partId]);
-        unbusy();
-        mockState.blockResults.push(entry);
-        continue;
-      }
-      const state = collectFromDom(partId, sets[partId], wrap);
-      const result = scoreSet(partId, sets[partId], state);
-      recordSetAttempts(partId, sets[partId], result, 'mock');
-      mockState.blockResults.push(result);
-    }
-    mockState.blockIndex += 1;
-    if (mockState.blockIndex >= MOCK_BLOCKS.length) {
-      mockState.phase = 'done';
-      mockState.finishedAt = Date.now();
-    }
-    navigate('mock', {});
+    const endBtn = el.querySelector('[data-end-block]');
+    const toggleBtn = el.querySelector('[data-toggle-mock]');
+    if (endBtn) endBtn.disabled = true;
+    if (toggleBtn) toggleBtn.disabled = true;
+    return session.completeBlock({
+      isCurrent: () => mockState === session && session.phase === 'exam' && session.blockIndex === index,
+      collect: async () => {
+        const entries = [];
+        for (const partId of available) {
+          const wrap = partsHost.querySelector(`[data-mock-part="${partId}"]`);
+          if (partId === 'SA1') {
+            const textarea = wrap.querySelector('#mock-writing');
+            session.writingText = textarea.value;
+            textarea.readOnly = true;
+            // A local indicator cannot cover a later view while feedback is pending.
+            wrap.insertAdjacentHTML('beforeend', '<div class="card muted" role="status">Schreibfeedback wird angefragt…</div>');
+            entries.push(await gradeMockWriting(wrap, sets[partId]));
+          } else {
+            entries.push(scoreSet(partId, sets[partId], collectFromDom(partId, sets[partId], wrap)));
+          }
+        }
+        return entries;
+      },
+      commit: (entries) => {
+        for (const entry of entries) {
+          if (entry.partId === 'SA1') {
+            // Only provisional AI feedback feeds the error notebook, and only when the
+            // block result is actually committed. The offline heuristic checks are
+            // deliberately NOT recorded as assessed writing outcomes - that was the defect.
+            if (entry.status === 'provisional' && entry.aiResult) {
+              for (const corr of entry.aiResult.corrections.slice(0, 10)) {
+                store.addError({
+                  partId: 'SA1', tags: ['sa_grammatik'], difficulty: engine.PART_DIFFICULTY.SA1,
+                  prompt: corr.original, yourAnswer: corr.original, correctAnswer: corr.corrected,
+                  explanation: corr.explanation, source: 'mock',
+                });
+              }
+            }
+            continue;
+          }
+          recordSetAttempts(entry.partId, sets[entry.partId], entry, 'mock');
+        }
+        session.blockResults.push(...entries);
+        session.blockIndex += 1;
+        if (session.blockIndex >= MOCK_BLOCKS.length) {
+          session.phase = 'done';
+          session.finishedAt = Date.now();
+        }
+        if (partsHost.isConnected) navigate('mock', {});
+      },
+    });
   }
 }
 
-function renderMockWriting(wrap, task) {
+function renderMockWriting(wrap, task, text = '') {
   wrap.innerHTML = `
     <div class="card">
       <div class="btn-row" style="justify-content:space-between">
@@ -1391,57 +1438,24 @@ function renderMockWriting(wrap, task) {
       <ol class="muted" style="margin:0 0 0 18px;padding:0">
         ${task.leitpunkte.map((l) => `<li>${esc(l)}</li>`).join('')}
       </ol>
-      <textarea id="mock-writing" class="mt" style="min-height:220px" placeholder="Schreibe hier deinen Brief…"></textarea>
+      <textarea id="mock-writing" class="mt" style="min-height:220px" placeholder="Schreibe hier deinen Brief…">${esc(text)}</textarea>
       <div class="dim small mt" id="mock-writing-count">0 Wörter</div>
     </div>`;
   const ta = wrap.querySelector('#mock-writing');
   const count = wrap.querySelector('#mock-writing-count');
-  on(ta, 'input', () => {
+  const updateCount = () => {
     const n = ta.value.trim().split(/\s+/).filter(Boolean).length;
     count.textContent = `${n} Wörter${n >= 80 ? ' · im Zielbereich' : ' · Ziel ab 80'}`;
-  });
+  };
+  on(ta, 'input', updateCount);
+  updateCount();
 }
 
-/** Grade the mock's writing block: AI rubric when available, heuristics otherwise. */
+/** Preserve the submission even when provisional feedback is unavailable. */
 async function gradeMockWriting(wrap, task) {
   const text = wrap.querySelector('#mock-writing')?.value || '';
   const analysis = engine.analyseWriting(text, task);
-  let points = Math.round(analysis.heuristic * 45 * 0.82);
-  let aiResult = null;
-
-  if (ai.isConfigured() && analysis.words >= 40) {
-    try {
-      aiResult = await ai.gradeWriting({ task, text, analysis });
-      points = Math.round(aiResult.total);
-    } catch {
-      /* keep the heuristic score */
-    }
-  }
-
-  for (const c of analysis.checks) {
-    store.recordAttempt({ partId: 'SA1', tags: [c.tag], difficulty: engine.PART_DIFFICULTY.SA1, correct: c.ok, source: 'mock' });
-  }
-  if (aiResult) {
-    for (const corr of aiResult.corrections.slice(0, 10)) {
-      store.addError({
-        partId: 'SA1', tags: ['sa_grammatik'], difficulty: engine.PART_DIFFICULTY.SA1,
-        prompt: corr.original, yourAnswer: corr.original, correctAnswer: corr.corrected,
-        explanation: corr.explanation, source: 'mock',
-      });
-    }
-  }
-
-  return {
-    partId: 'SA1',
-    rubric: true,
-    points,
-    correct: points >= 27 ? 1 : 0,
-    total: 1,
-    items: [],
-    analysis,
-    aiResult,
-    text,
-  };
+  return assessMockWriting({ text, task, analysis, configured: ai.isConfigured(), grade: ai.gradeWriting });
 }
 
 /** Read whatever is currently in the DOM for a part. */
@@ -1470,36 +1484,46 @@ function collectFromDom(partId, set, root) {
 }
 
 function renderMockResult(el) {
+  // Objective parts only. Schreiben is rubric/feedback, never right-wrong, and an
+  // unassessed text must not be folded in as a zero.
   const card = engine.emptyScorecard();
   for (const r of mockState.blockResults) {
+    if (r.rubric) continue;
     if (!card[r.partId]) card[r.partId] = { correct: 0, total: 0 };
     card[r.partId].correct += r.correct;
     card[r.partId].total += r.total;
   }
-  // Schreiben is scored by rubric, not by right/wrong items.
-  const overrides = {};
-  const writingEntry = mockState.blockResults.find((r) => r.rubric && typeof r.points === 'number');
-  if (writingEntry) overrides[writingEntry.partId] = writingEntry.points;
-  const scored = engine.scorecardToPoints(card, overrides);
-  const band = engine.gradeBand((scored.total / 300) * 100);
+  const scored = engine.scorecardToPoints(card);
+  const summary = summarizeMockOutcome(mockState.blockResults);
+  const writingEntry = mockState.blockResults.find((r) => r.rubric) || null;
+  const writing = summary.writing;
+  const objectiveMax = GROUPS.filter((g) => g.mode === 'written' && g.id !== 'SA').reduce((s, g) => s + g.pts, 0);
+  const objectivePoints = summary.objective.parts.reduce((s, p) => s + engine.pointsFor(p.partId, p.correct, p.total), 0);
   const minutes = Math.round((mockState.finishedAt - mockState.startedAt) / 60000);
+  const writingReason = writing ? (WRITING_REASONS[writing.reason] || 'nicht bewertet') : '';
 
-  setViewActions(`<button data-new-mock>Neuer Mocktest</button>`);
-  on(document.querySelector('[data-new-mock]'), 'click', () => {
+  const actions = setViewActions(`<button data-new-mock>Neuer Mocktest</button>`);
+  // #view-actions is a sibling of #view, not a child: query it through the element
+  // setViewActions returns, otherwise the button would never receive a handler.
+  on(actions?.querySelector('[data-new-mock]'), 'click', () => {
     mockState = null;
     navigate('mock', { nonce: Date.now() });
   });
 
   el.innerHTML = `
     <div class="card">
-      <h2>Mocktest-Ergebnis</h2>
+      <h2>Mocktest – Ergebnis (Übung)</h2>
       <div class="grid four mt">
-        ${statCard('Gesamt', `${round1(scored.written.points)}<span class="dim" style="font-size:.9rem"> / 225</span>`, `<span class="pill ${scored.written.ok ? 'good' : 'bad'}">${esc(band.label)}</span>`)}
-        ${statCard('Bestanden?', scored.written.ok ? 'Ja' : 'Nein', scored.written.ok ? '<span class="dim">≥ 135 Punkte</span>' : `<span style="color:var(--bad)">${Math.ceil(135 - scored.written.points)} Punkte fehlen</span>`)}
-        ${statCard('Quote', pct((scored.written.points / 225) * 100), '')}
-        ${statCard('Dauer', `${minutes} Min.`, '<span class="dim">inkl. Lesen</span>')}
+        ${statCard('Objektive Punkte', `${round1(objectivePoints)}<span class="dim" style="font-size:.9rem"> / ${objectiveMax}</span>`, '<span class="dim">LV · SB · HV</span>')}
+        ${statCard('Richtig', `${summary.objective.correct} / ${summary.objective.total}`, '')}
+        ${statCard('Schreiben', writing ? (writing.status === 'provisional' ? `${round1(writing.points)}<span class="dim" style="font-size:.9rem"> / ${writing.max}</span>` : '<span class="dim" style="font-size:.9rem">nicht bewertet</span>') : '—', writing ? `<span class="pill ${writing.status === 'provisional' ? 'warn' : ''}">${esc(writing.status === 'provisional' ? 'vorläufig' : 'unbewertet')}</span>` : '')}
+        ${statCard('Dauer', `${minutes} Min.`, '<span class="dim">inkl. Pausen</span>')}
       </div>
-      <div class="dim small mt">Die mündliche Prüfung (75 Punkte, bestanden ab 45) ist hier nicht enthalten – trainiere sie im Bereich Sprechen.</div>
+      <div class="dim small mt">
+        Ausgewertet werden nur die objektiven Teile (Leseverstehen, Sprachbausteine, Hörverstehen) mit
+        ${objectiveMax} Punkten. Diese Übung zeigt bewusst <b>kein Bestanden/Nicht bestanden und keine Gesamtnote</b>:
+        Sprechen ist hier nicht geprüft und Schreibfeedback ist vorläufig – ein Gesamtergebnis lässt sich daraus nicht berechnen.
+      </div>
     </div>
 
     <div class="card">
@@ -1523,27 +1547,33 @@ function renderMockResult(el) {
 
     ${writingEntry ? `
     <div class="card">
-      <h3>Schreiben im Detail</h3>
+      <h3>Schreiben</h3>
       <div class="btn-row mb">
-        <span class="pill ${writingEntry.points >= 27 ? 'good' : 'bad'}">${round1(writingEntry.points)} / 45 Punkte</span>
-        <span class="pill">${writingEntry.analysis.words} Wörter</span>
-        ${writingEntry.aiResult ? '<span class="pill good">KI-Bewertung</span>' : '<span class="pill warn">Schätzung ohne KI</span>'}
+        ${writing.status === 'provisional'
+          ? `<span class="pill warn">vorläufig · ${round1(writing.points)} / ${writing.max} Punkte</span>`
+          : '<span class="pill">nicht bewertet · kein Punktwert</span>'}
+        ${writingEntry.analysis ? `<span class="pill">${writingEntry.analysis.words} Wörter</span>` : ''}
       </div>
-      <table class="plain">
-        <tbody>
-          ${writingEntry.analysis.checks.map((c) => `<tr>
-            <td style="width:26px;color:${c.ok ? 'var(--good)' : 'var(--bad)'}">${c.ok ? '✓' : '✗'}</td>
-            <td>${esc(c.label)}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-      ${writingEntry.aiResult?.corrections?.length ? `
+      ${writing.status === 'provisional'
+        ? '<p class="muted small">Vorläufige KI-Einschätzung, kein Prüfungsergebnis. Sie zählt nicht zu den objektiven Punkten und ist nicht fachlich freigegeben.</p>'
+        : `<p class="muted small">Nicht bewertet (${esc(writingReason)}). Der Text bleibt erhalten und wird nicht als 0 Punkte gezählt.</p>`}
+      ${writing.hasText ? `<div class="passage mt">${esc(writing.text)}</div>` : '<p class="dim small mt">Kein Text abgegeben.</p>'}
+      ${writingEntry.analysis?.checks?.length ? `
+        <details class="disclosure mt"><summary>Automatische Textmerkmale (keine Bewertung)</summary>
+          <table class="plain"><tbody>
+            ${writingEntry.analysis.checks.map((c) => `<tr>
+              <td style="width:26px;color:${c.ok ? 'var(--good)' : 'var(--bad)'}">${c.ok ? '✓' : '✗'}</td>
+              <td>${esc(c.label)}</td>
+            </tr>`).join('')}
+          </tbody></table>
+        </details>` : ''}
+      ${writing.status === 'provisional' && writingEntry.aiResult?.corrections?.length ? `
         <h4 class="mt">Korrekturen</h4>
         ${writingEntry.aiResult.corrections.slice(0, 8).map((c) => `<div class="correction">
           <div><span class="orig">${esc(c.original)}</span> → <span class="corr">${esc(c.corrected)}</span></div>
           ${c.explanation ? `<div class="why">${esc(c.explanation)}</div>` : ''}
         </div>`).join('')}` : ''}
-      ${writingEntry.aiResult?.modelAnswer ? `
+      ${writing.status === 'provisional' && writingEntry.aiResult?.modelAnswer ? `
         <details class="disclosure mt"><summary>Musterbrief</summary><div class="passage">${esc(writingEntry.aiResult.modelAnswer)}</div></details>` : ''}
     </div>` : ''}
 
@@ -1601,6 +1631,8 @@ function renderMockResult(el) {
 
 /** Called when leaving a view so audio and timers never outlive it. */
 export function teardownExamViews() {
+  mockCleanup?.();
+  mockCleanup = null;
   writingRender += 1; // a late AI response must not replace another view
   speakingRender += 1;
   stopSpeaking();
