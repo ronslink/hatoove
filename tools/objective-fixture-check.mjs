@@ -48,9 +48,16 @@ const NON_OBJECTIVE_FAMILIES = ['SA1'];
  * (`score`, `total`, `result`, `outcomeScore`, `mark`, ...), but the case shape is fixed, so anything
  * outside this list is a defect by construction. `note` is included deliberately so it can be caught
  * as a German grade claim ("Note" is the telc grade) rather than rejected merely as unknown.
+ *
+ * `expected` is deliberately ABSENT. It was previously allowed as a backstop for a nested
+ * expectation block that no shipped case uses, but permitting the key without constraining its
+ * contents reopened the very hole this list exists to close: `expected.score`, `expected.total`,
+ * `expected.Grade` and even a non-object `expected` ("bestanden", 42, ["sehr gut"]) were all
+ * accepted. Independent review (Claude, USER04-R4B, finding F1) caught this. A nested expectation
+ * block must now be added here deliberately, together with guards for its shape.
  */
 const OBJECTIVE_CASE_KEYS = ['id', 'family', 'scenario', 'answers', 'expectedOutcome', 'expectedError',
-  'expectedCorrectCount', 'expectedPoints', 'unassessed', 'synthetic', 'rationale', 'expected', 'note'];
+  'expectedCorrectCount', 'expectedPoints', 'unassessed', 'synthetic', 'rationale', 'note'];
 const ALLOWED_OUTCOMES = ['marked', 'marked-or-flagged', 'rejected-or-flagged', 'aggregate', 'unassessed'];
 const ALLOWED_ERRORS = [
   'none', 'invalid-answer', 'duplicate-selection', 'no-match-not-supported',

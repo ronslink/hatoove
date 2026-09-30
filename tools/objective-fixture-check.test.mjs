@@ -449,12 +449,14 @@ test('review O7 (NEW-1): bare `grade` is rejected at both guard levels', () => {
     caseById(o, 'OMC-LV1-01').band = 'B1';
     expectFailure(validateObjectiveCases(o), /case\.unknown-key/, 'top-level band');
   }
-  // Nested expectation block (the level that regressed at c8c86dc):
+  // Nested expectation block (the level that regressed at c8c86dc). Since `expected` is no longer a
+  // permitted key at all (F1), the block is now refused as an unknown key before its contents are
+  // even inspected — which is strictly stronger than guarding individual names inside it.
   for (const [field, value] of [['grade', 'sehr gut'], ['band', 'B1'], ['learnerScore', 42]]) {
     const o = clone();
     const agg = caseById(o, 'OMC-AGG-02');
     agg.expected = { outcome: 'aggregate', errorClassification: 'none', numericScorePermitted: false, [field]: value };
-    expectFailure(validateObjectiveCases(o), /case\.prohibited-learner-claim/, `nested expected.${field}`);
+    expectFailure(validateObjectiveCases(o), /case\.unknown-key/, `nested expected.${field}`);
   }
   // The legitimate fixture must still pass, and NEW-2 stays an accepted limitation.
   assert.equal(validateObjectiveCases(clone()).ok, true, 'shipped fixture must stay green');
@@ -462,8 +464,8 @@ test('review O7 (NEW-1): bare `grade` is rejected at both guard levels', () => {
 
 test('review O8 (NEW-2): a renamed learner claim is rejected as an unknown key', () => {
   // Independent review (Claude, USER04-R4) disagreed with treating the renamed-field hole as an
-  // accepted limitation: the case shape is fixed at 11 keys, so rejecting unknown keys closes the
-  // whole class without guessing names. That reasoning is right and this is the regression for it.
+  // accepted limitation: the case shape is fixed, so rejecting unknown keys closes the whole class
+  // without guessing names. That reasoning is right and this is the regression for it.
   for (const field of ['score', 'total', 'result', 'outcomeScore', 'mark', 'overallScore', 'points']) {
     const o = clone();
     caseById(o, 'OMC-LV1-01')[field] = 'sehr gut';
@@ -485,10 +487,32 @@ test('review O9 (NEW-1b): `band` is NOT banned at the top level, because it is r
   const r = validateObjectiveCases(o);
   assert.equal(r.errors.filter((e) => /prohibited-learner-claim/.test(e) && /\.band /.test(e)).length, 0,
     'top-level `band` must not be reported as a learner claim');
-  // ...but inside an expectation block it still is.
+  // ...and an expectation block carrying a band is refused too, now as an unknown key (F1).
   const n = clone();
   caseById(n, 'OMC-AGG-02').expected = { outcome: 'aggregate', band: 'B1' };
-  expectFailure(validateObjectiveCases(n), /case\.prohibited-learner-claim/, 'nested expected.band');
+  expectFailure(validateObjectiveCases(n), /case\.unknown-key/, 'nested expected.band');
+});
+
+test('review O10 (F1): a nested `expected` block is refused outright, in every shape', () => {
+  // Independent review (Claude, USER04-R4B, finding F1): the first allowlist kept `expected` as a
+  // permitted key but constrained nothing inside it, so expected.score / expected.total /
+  // expected.Grade were accepted and the "renamed-claim class is closed" claim was only half true.
+  // No shipped case uses `expected`, so the key is refused rather than half-guarded.
+  const shapes = [
+    ['renamed claim inside', { outcome: 'aggregate', score: 42 }],
+    ['another renamed claim', { outcome: 'aggregate', total: 150 }],
+    ['capitalised claim', { Grade: 'sehr gut' }],
+    ['string, not an object', 'bestanden'],
+    ['number, not an object', 42],
+    ['array, not an object', ['sehr gut']],
+  ];
+  for (const [label, value] of shapes) {
+    const o = clone();
+    caseById(o, 'OMC-AGG-02').expected = value;
+    expectFailure(validateObjectiveCases(o), /case\.unknown-key/, label);
+  }
+  // The fixture stays green without it, which is what makes refusing the key safe.
+  assert.equal(validateObjectiveCases(clone()).ok, true, 'shipped fixture must stay green');
 });
 
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {
