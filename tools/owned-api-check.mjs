@@ -321,6 +321,8 @@ function httpBrowser(port, { origin = `http://127.0.0.1:${port}` } = {}) {
     const sent = { host: `127.0.0.1:${port}`, ...headers };
     if (origin) sent.origin = origin;
     if (jar.size) sent.cookie = cookieHeader(jar);
+    // As a browser does. node:http would otherwise send a DELETE body unframed.
+    if (body !== undefined) sent['content-length'] = String(Buffer.byteLength(body));
     const req = http.request({ host: '127.0.0.1', port, method, path: url, headers: sent }, (res) => {
       const chunks = [];
       res.on('data', (c) => chunks.push(c));
