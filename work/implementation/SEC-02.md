@@ -6,6 +6,7 @@
 | Worker | OpenClaw/Hetzner, slot 3 (same worker as SEC-01; finding written by Claude, independently of this fix) |
 | Base | `origin/main` @ `9c57ffd72f67856c88fedbf996f27f127c51e8f0` |
 | Branch | `codex/sec-02-reset` |
+| Pull request | [draft PR #42](https://github.com/ronslink/hatoove/pull/42) (base `main`) |
 | Allowed paths | `server.js`, `public/js/store.js`, `public/js/settings.js`, `public/settings.html`, `tools/reset-check.mjs`, `tools/reset-check.test.mjs`, `work/implementation/SEC-02.md` |
 | Fixes | `work/implementation/P-03A-PRIVACY-AUDIT.md` finding **F-2 (medium)** |
 | Status | Reset and clear now reach a real delete path, proven offline. **This closes no privacy or security gate.** Human `P-03` review remains required. |
