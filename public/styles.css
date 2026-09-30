@@ -481,7 +481,7 @@ button.lg { padding: 12px 22px; font-size: 1.02rem; border-radius: 11px; }
 
 /* --------------------------------------------------------------- controls */
 
-input[type="text"], input[type="password"], input[type="date"], input[type="number"], input[type="search"], textarea, select {
+input[type="text"], input[type="password"], input[type="email"], input[type="date"], input[type="number"], input[type="search"], textarea, select {
   font: inherit;
   background: var(--bg-2);
   color: var(--fg);
@@ -998,4 +998,42 @@ details.disclosure[open] > summary { margin-bottom: 10px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ---------------------------------------------------------------- account */
+
+.account-nav { margin-top: 14px; }
+.account-nav .nav-item { width: 100%; }
+
+.account-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+}
+.account-identity .label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--fg-3);
+}
+.account-identity strong { font-size: 1rem; word-break: break-all; }
+
+.account-error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--bad-dim);
+  border-radius: var(--radius-sm);
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 860px) {
+  .account-nav { margin: 0; }
 }

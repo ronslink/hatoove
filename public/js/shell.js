@@ -221,6 +221,17 @@ export function markActiveNav(id) {
       if (sectionEl) sectionEl.textContent = btn.dataset.section || 'Dein Lernraum';
     } else btn.removeAttribute('aria-current');
   });
+  // The Konto entry lives beside #nav (its own container), so it is marked here rather
+  // than by the loop above.
+  $$('#account-nav [data-shell-view="account"]').forEach((btn) => {
+    const active = id === 'account';
+    btn.classList.toggle('active', active);
+    if (active) {
+      btn.setAttribute('aria-current', 'page');
+      const sectionEl = document.getElementById('view-section');
+      if (sectionEl) sectionEl.textContent = btn.dataset.section || 'Konto';
+    } else btn.removeAttribute('aria-current');
+  });
 }
 
 let returnTarget = null;
