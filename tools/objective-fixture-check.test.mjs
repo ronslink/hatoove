@@ -386,6 +386,25 @@ test('review O5: no fixture may assert a prohibited learner-score claim', () => 
   expectFailure(validateObjectiveCases(readiness), /case\.prohibited-learner-claim/, 'aggregate claims readiness');
 });
 
+test('PR26 F6 residual: an aggregate case must not carry a per-item learner score', () => {
+  // The review's original F6 probe: OMC-AGG-01 with a fabricated count and total.
+  const fabricated = clone();
+  const agg = caseById(fabricated, 'OMC-AGG-01');
+  agg.expectedCorrectCount = 42;
+  agg.expectedPoints = 150;
+  expectFailure(validateObjectiveCases(fabricated), /case\.aggregate-learner-score/, 'aggregate with counts');
+
+  const pointsOnly = clone();
+  caseById(pointsOnly, 'OMC-AGG-02').expectedPoints = 999;
+  expectFailure(validateObjectiveCases(pointsOnly), /case\.aggregate-learner-score/, 'aggregate with points only');
+
+  // The shipped aggregate cases keep both fields null.
+  for (const c of raw.cases.filter((x) => x.family === 'ALL')) {
+    assert.equal(c.expectedCorrectCount, null, `${c.id}.expectedCorrectCount must stay null`);
+    assert.equal(c.expectedPoints, null, `${c.id}.expectedPoints must stay null`);
+  }
+});
+
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {
   const { runCli } = await import('./objective-fixture-check.mjs');
   const quiet = { log() {}, error() {} };

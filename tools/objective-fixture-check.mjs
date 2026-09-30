@@ -264,6 +264,16 @@ export function validateObjectiveCases(fixture) {
     if (hasAnswers && c.family === 'ALL') {
       err('case.aggregate-answers', `${label} is an aggregate case and must not carry per-item answers`);
     }
+    // An aggregate or unassessed case has no per-item marking surface, so carrying a correct
+    // count or a point total would assert a learner result the fixture cannot justify.
+    const isAggregate = c.family === 'ALL' || c.expectedOutcome === 'aggregate';
+    if (isAggregate) {
+      for (const field of ['expectedCorrectCount', 'expectedPoints']) {
+        if (c[field] !== null && c[field] !== undefined) {
+          err('case.aggregate-learner-score', `${label}.${field} asserts a per-item learner result on an aggregate case; it must stay null`);
+        }
+      }
+    }
     // A marked case must carry answers; null answers are only meaningful for aggregate or
     // unassessed cases, which is checked explicitly rather than left to inference.
     if (!hasAnswers && c.family !== 'ALL' && c.expectedOutcome !== 'unassessed'
