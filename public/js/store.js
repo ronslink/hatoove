@@ -16,6 +16,21 @@ import { NODE_WEIGHTS, canonicalTag } from './blueprint.js';
 import { mergeProgress } from './progress-merge.js';
 
 const STORAGE_KEY = 'b1prep.state.v1';
+// Account scope (F-4). A signed-in account gets its own namespaced copy of the learner
+// record so a second account on the same browser can neither read nor inherit the first
+// account's history, notebook or settings. An install that never signs in stays in the
+// legacy mode and keeps using STORAGE_KEY exactly as before. The design, the one-time
+// legacy migration and the plaintext limitation are recorded in
+// work/implementation/F4-SCOPE-01.md.
+const SCOPE_KEY = 'b1prep.scope.v1';
+// Records which account (if any) already adopted the legacy unscoped blob, so it is
+// adopted exactly once and never duplicated into a second account.
+const LEGACY_OWNER_KEY = 'b1prep.state.v1.legacy-owner';
+// The same header server.js reads to select an account-scoped progress record.
+const ACCOUNT_HEADER = 'X-B1Prep-Account';
+// An opaque account id: the owned-auth account id is a UUID, which fits. No dots, so it
+// can never collide with the server's .bak/.tmp/.rev suffixes.
+const ACCOUNT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,63}$/;
 // Set before a reset is sent to the server and cleared only once the server confirmed
 // the deletion. If the request could not be delivered (server restarting, tab closed
 // mid-reset), the next start retries it before anything is merged - merging first would
@@ -59,6 +74,15 @@ function freshState() {
 
 let state = freshState();
 let loaded = false;
+// Account scope (F-4): 'legacy' (default, unchanged single-user install), 'scoped'
+// (a signed-in account) or 'signed-out' (explicitly signed out: hold nothing, persist
+// nothing learner-derived). The marker is persisted so a reload keeps the mode.
+let scopeMode = 'legacy';
+let accountId = null;
+let scopeLoaded = false;
+// Set when this session adopted the legacy unscoped blob, so the adoption is visible and
+// reportable rather than implicit.
+let lastAdoption = null;
 let saveTimer = null;
 let serverTimer = null;
 // The POST currently in flight, if any. An explicit delete waits for it, otherwise a
@@ -86,11 +110,142 @@ function storage() {
   }
 }
 
-function writeLocal() {
+/* ------------------------------------------------------------- account scope */
+
+const scopedStorageKey = (id) => `${STORAGE_KEY}::${id}`;
+
+/**
+ * The key the current mode reads and writes, or null when nothing may be persisted.
+ * Signed out, no learner-derived key is touched at all (fail closed).
+ */
+function activeStorageKey() {
+  if (scopeMode === 'signed-out') return null;
+  if (scopeMode === 'scoped' && accountId) return scopedStorageKey(accountId);
+  return STORAGE_KEY;
+}
+
+/** The pending-reset flag belongs to one scope, so it must not cross accounts. */
+function resetFlagKey() {
+  if (scopeMode === 'signed-out') return null;
+  if (scopeMode === 'scoped' && accountId) return `${RESET_FLAG_KEY}::${accountId}`;
+  return RESET_FLAG_KEY;
+}
+
+function ensureScopeLoaded() {
+  if (scopeLoaded) return;
+  scopeLoaded = true;
+  readScopeMarker();
+}
+
+function readScopeMarker() {
   const s = storage();
   if (!s) return;
   try {
-    s.setItem(STORAGE_KEY, JSON.stringify(state));
+    const raw = s.getItem(SCOPE_KEY);
+    if (!raw) return; // no marker: a legacy install, unchanged
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.mode === 'scoped' && typeof parsed.accountId === 'string' && ACCOUNT_ID_RE.test(parsed.accountId)) {
+      scopeMode = 'scoped';
+      accountId = parsed.accountId;
+    } else if (parsed && parsed.mode === 'signed-out') {
+      scopeMode = 'signed-out';
+      accountId = null;
+    } else {
+      scopeMode = 'legacy';
+      accountId = null;
+    }
+  } catch {
+    /* unreadable marker: stay in the safe legacy mode */
+  }
+}
+
+function writeScopeMarker() {
+  const s = storage();
+  if (!s) return;
+  try {
+    if (scopeMode === 'legacy') s.removeItem(SCOPE_KEY);
+    else s.setItem(SCOPE_KEY, JSON.stringify({ mode: scopeMode, accountId: accountId || null }));
+  } catch {
+    /* private mode or quota: the in-memory mode still applies for this session */
+  }
+}
+
+/** Current account mode; `accountId` is null unless signed in with a scope. */
+export function getAccountScope() {
+  ensureScopeLoaded();
+  return { mode: scopeMode, accountId: scopeMode === 'scoped' ? accountId : null };
+}
+
+/** Machine-readable scope state, including whether this session adopted the legacy blob. */
+export function accountScopeStatus() {
+  load();
+  return { ...getAccountScope(), legacyAdopted: lastAdoption };
+}
+
+/**
+ * Enter the account scope. If this account has no cache yet and the legacy unscoped blob
+ * exists and was not already adopted by another account, adopt it once: copy it into the
+ * account namespace and leave the legacy key untouched as the learner's backup copy.
+ * @param {string} id an opaque account id (the owned-auth account id)
+ */
+export function setAccountScope(id) {
+  if (typeof id !== 'string' || !ACCOUNT_ID_RE.test(id)) {
+    throw new Error('setAccountScope expects an account id matching [A-Za-z0-9][A-Za-z0-9-]{0,63}');
+  }
+  // A queued save/reset belongs to the scope it was queued under; drop the timers so a
+  // debounced write cannot land under the account that is being switched in.
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  if (serverTimer) { clearTimeout(serverTimer); serverTimer = null; }
+  scopeLoaded = true;
+  scopeMode = 'scoped';
+  accountId = id;
+  lastAdoption = null;
+  loaded = false;
+  state = freshState();
+  writeScopeMarker();
+  load(); // loads this account's cache, or adopts the legacy blob once
+  return { mode: scopeMode, accountId, legacyAdopted: lastAdoption };
+}
+
+/**
+ * Sign out: hold nothing learner-derived and persist nothing. The account's namespaced
+ * cache is left on disk (so that account can resume) but is unreadable by any other
+ * account, which only ever reads its own namespace.
+ */
+export function clearAccountScope() {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  if (serverTimer) { clearTimeout(serverTimer); serverTimer = null; }
+  scopeLoaded = true;
+  scopeMode = 'signed-out';
+  accountId = null;
+  lastAdoption = null;
+  stateEpoch += 1;
+  state = freshState();
+  loaded = true;
+  invalidateAbilityCache();
+  writeScopeMarker();
+  return getAccountScope();
+}
+
+/** True when progress may be read from / written to the server in the current mode. */
+function progressServerEnabled() {
+  return scopeMode !== 'signed-out';
+}
+
+/** Request headers for the progress API, carrying the account scope when there is one. */
+function progressHeaders(base = {}) {
+  const headers = { ...base };
+  if (scopeMode === 'scoped' && accountId) headers[ACCOUNT_HEADER] = accountId;
+  return headers;
+}
+
+function writeLocal() {
+  const s = storage();
+  const key = activeStorageKey();
+  // Signed out: never persist learner-derived text (fail closed).
+  if (!s || !key) return;
+  try {
+    s.setItem(key, JSON.stringify(state));
   } catch {
     /* quota or private mode: the server copy is still authoritative */
   }
@@ -140,50 +295,83 @@ function migrateTags() {
 }
 
 function readResetFlag() {
+  const key = resetFlagKey();
+  if (!key) return false;
   const s = storage();
   if (!s) return false;
   try {
-    return s.getItem(RESET_FLAG_KEY) === '1';
+    return s.getItem(key) === '1';
   } catch {
     return false;
   }
 }
 
 function writeResetFlag() {
+  const key = resetFlagKey();
+  if (!key) return;
   const s = storage();
   if (!s) return;
   try {
-    s.setItem(RESET_FLAG_KEY, '1');
+    s.setItem(key, '1');
   } catch {
     /* private mode or quota: the delete itself still runs */
   }
 }
 
 function clearResetFlag() {
+  const key = resetFlagKey();
+  if (!key) return;
   const s = storage();
   if (!s) return;
   try {
-    s.removeItem(RESET_FLAG_KEY);
+    s.removeItem(key);
   } catch {
     /* nothing to clear */
+  }
+}
+
+function parseIntoState(raw) {
+  const parsed = JSON.parse(raw);
+  if (parsed && typeof parsed === 'object') {
+    state = { ...freshState(), ...parsed };
+    state.settings = { ...freshState().settings, ...(parsed.settings || {}) };
+    state.counters = { ...freshState().counters, ...(parsed.counters || {}) };
+    migrateTags();
+    invalidateAbilityCache();
   }
 }
 
 export function load() {
   if (loaded) return state;
   loaded = true;
+  ensureScopeLoaded();
   const s = storage();
   if (!s) return state;
+  const key = activeStorageKey();
+  // Signed out: only ever hold the fresh in-memory record.
+  if (!key) return state;
   try {
-    const raw = s.getItem(STORAGE_KEY);
-    if (!raw) return state;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') {
-      state = { ...freshState(), ...parsed };
-      state.settings = { ...freshState().settings, ...(parsed.settings || {}) };
-      state.counters = { ...freshState().counters, ...(parsed.counters || {}) };
-      migrateTags();
-      invalidateAbilityCache();
+    const raw = s.getItem(key);
+    if (raw) {
+      parseIntoState(raw);
+      return state;
+    }
+    // No record under this key yet. A signed-in account adopts the legacy unscoped blob
+    // exactly once - and only if no other account has already taken it.
+    if (scopeMode === 'scoped' && accountId) {
+      const legacyRaw = s.getItem(STORAGE_KEY);
+      const owner = s.getItem(LEGACY_OWNER_KEY);
+      if (legacyRaw && (!owner || owner === accountId)) {
+        parseIntoState(legacyRaw);
+        lastAdoption = { accountId, at: Date.now() };
+        s.setItem(LEGACY_OWNER_KEY, accountId);
+        // Copy it into the account namespace, but leave STORAGE_KEY untouched: it is the
+        // learner's only other copy and must never be deleted by a migration.
+        writeLocal();
+        return state;
+      }
+      // Mark the account namespace as present so this account never adopts later either.
+      writeLocal();
     }
   } catch {
     /* corrupt state: start clean rather than crash */
@@ -250,6 +438,8 @@ async function adoptServerAfterConflict() {
 
 async function sendProgress() {
   if (typeof fetch !== 'function') return false;
+  // Signed out: no learner text leaves the browser in any direction.
+  if (!progressServerEnabled()) return false;
   state.updatedAt = Date.now();
   // Captured before the request leaves: if either moves while it is in flight, the state
   // has been replaced (a reset) and the answer must not be folded back.
@@ -258,7 +448,7 @@ async function sendProgress() {
   try {
     const res = await fetch('/api/progress', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: progressHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ state, rev: sentRev }),
     });
     const data = await res.json().catch(() => ({}));
@@ -296,12 +486,13 @@ async function sendProgress() {
  */
 async function deleteServerProgress(scope = 'all') {
   if (typeof fetch !== 'function') return false;
+  if (!progressServerEnabled()) return false;
   // Let a save that is already on its way finish first: the DELETE must be the last
   // write, or the merge it started from would put the record back.
   if (inflight) await inflight.catch(() => {});
   const query = scope === 'all' ? '' : `?scope=${encodeURIComponent(scope)}`;
   try {
-    const res = await fetch(`/api/progress${query}`, { method: 'DELETE' });
+    const res = await fetch(`/api/progress${query}`, { method: 'DELETE', headers: progressHeaders() });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     // The delete moved the revision, so this client now knows the post-delete value: its
@@ -334,6 +525,9 @@ function queueServerSave(delay = 1200) {
 export async function syncFromServer({ timeoutMs = 5000 } = {}) {
   if (typeof fetch !== 'function') return { adopted: false, reachable: false };
   load();
+  // Signed out: the browser must not read the legacy server record either, or it would
+  // expose the previous learner's text to the next account.
+  if (!progressServerEnabled()) return { adopted: false, reachable: false, signedOut: true };
   // A reset that never reached the server is applied now, before anything is merged.
   if (readResetFlag()) {
     const cleared = await deleteServerProgress('all');
@@ -343,7 +537,7 @@ export async function syncFromServer({ timeoutMs = 5000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch('/api/progress', { signal: controller.signal });
+    const res = await fetch('/api/progress', { signal: controller.signal, headers: progressHeaders() });
     const data = await res.json();
     if (Number.isFinite(Number(data.rev))) serverRev = Number(data.rev);
     if (!data.found || !data.state) {
