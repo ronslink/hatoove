@@ -9,8 +9,8 @@ const retryPath = new RegExp(`^/api/v1/submissions/(${uuid})/retry$`, 'i');
 const resultPath = new RegExp(`^/api/v1/submissions/(${uuid})$`, 'i');
 const authRoutes = new Set(['POST /api/auth/sign-up/email','POST /api/auth/sign-in/email',
   'POST /api/auth/sign-out','GET /api/auth/get-session']);
-export async function start(pool, secret, {learnerPool=pool,workerPool=pool}={}) {
-  const records = store(workerPool);
+export async function start(pool, secret) {
+  const records = store(pool);
   let auth, baseURL;
   const server = http.createServer(async (req, res) => {
     const send = (status, value) => { res.writeHead(status, { 'Content-Type':'application/json', 'Cache-Control':'no-store' }); res.end(JSON.stringify(value)); };
@@ -47,7 +47,6 @@ export async function start(pool, secret, {learnerPool=pool,workerPool=pool}={})
       const session = await auth.api.getSession({headers});
       if (!session) throw new Fault(401,'unauthenticated');
       const owner = session.user.id;
-      const records = store(learnerPool,{ownerId:owner});
       let body = {};
       try { if (text) body = JSON.parse(text); } catch { throw new Fault(400,'invalid_json'); }
       if (!body || Array.isArray(body) || typeof body !== 'object') throw new Fault(422,'invalid_body');

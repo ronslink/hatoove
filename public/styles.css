@@ -606,14 +606,6 @@ input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color:
 }
 .passage.short { max-height: 280px; }
 
-/* On phones the capped inner scroller put most of a passage behind a second
-   scroll region inside a page that already scrolls. Let the passage grow and
-   use the page scroll instead; tablet and desktop keep the caps above. */
-@media (max-width: 600px) {
-  .passage,
-  .passage.short { max-height: none; overflow-y: visible; }
-}
-
 .item-block { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
 .item-block:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
 .item-stem { margin-bottom: 8px; }
