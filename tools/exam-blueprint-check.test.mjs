@@ -662,6 +662,27 @@ test('review R6: every schema-defined source field must exist and be an array', 
   assert.equal(validateBlueprint(clone()).ok, true);
 });
 
+test('review R7 (N5): a bad source field is reported once, not twice', () => {
+  // Before: the required-field pass and the recursive walk both reported the same defect.
+  const stringWritten = clone();
+  stringWritten.writtenExam.sources = 'S2-p41-p39';
+  const r = validateBlueprint(stringWritten);
+  const hits = r.errors.filter((e) => /sources\.refs-type.*writtenExam\.sources/.test(e));
+  assert.equal(hits.length, 1, `expected exactly one report, got ${hits.length}: ${hits.join(' | ')}`);
+
+  const absentWritten = clone();
+  delete absentWritten.writtenExam.sources;
+  const r2 = validateBlueprint(absentWritten);
+  const misses = r2.errors.filter((e) => /sources\.field-missing.*writtenExam\.sources/.test(e));
+  assert.equal(misses.length, 1, `expected exactly one missing-field report, got ${misses.length}`);
+
+  // Nested-only paths that the schema list does not name are still caught exactly once.
+  const nested = clone();
+  nested.sections[0].timing.sources = 'S1';
+  const r3 = validateBlueprint(nested);
+  assert.equal(r3.errors.filter((e) => /sources\.refs-type.*timing\.sources/.test(e)).length, 1, 'nested path reported once');
+});
+
 test('CLI exits nonzero on a corrupt file and zero on the real artifact', async () => {
   const { runCli } = await import('./exam-blueprint-check.mjs');
   const quiet = { log() {}, error() {} };

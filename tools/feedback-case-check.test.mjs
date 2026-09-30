@@ -510,6 +510,39 @@ test('review F7: ineligibility is not asserted as permanent failure', () => {
   expectFailure(validateFeedbackCases(terminalDenied), /case\.terminal-contradiction/, 'permanent failure denied');
 });
 
+test('review F8 (N2/N3): terminal cases must declare permanence and semantics cannot drift', () => {
+  // N2: before, a terminal case could simply omit permanentlyTerminal.
+  const noFlag = clone();
+  delete caseById(noFlag, 'WFC-14').expected.permanentlyTerminal;
+  expectFailure(validateFeedbackCases(noFlag), /case\.terminal-flag/, 'terminal case omitting the flag');
+
+  const denied = clone();
+  caseById(denied, 'WFC-16').expected.permanentlyTerminal = false;
+  expectFailure(validateFeedbackCases(denied), /case\.terminal-contradiction/, 'terminal case denying permanence');
+
+  // The shipped terminal cases all declare it.
+  for (const id of ['WFC-14', 'WFC-16', 'WFC-18', 'WFC-19']) {
+    assert.equal(caseById(raw, id).expected.permanentlyTerminal, true, `${id} must declare permanence`);
+  }
+
+  // N3: classificationSemantics had no reader and could silently drift from the constants.
+  const drift = clone();
+  drift.classificationSemantics.permanentFailure = ['retry_exhausted'];
+  expectFailure(validateFeedbackCases(drift), /semantics\.drift/, 'declared policy drifting from enforced');
+
+  const missingSemantics = clone();
+  delete missingSemantics.classificationSemantics;
+  expectFailure(validateFeedbackCases(missingSemantics), /semantics\.missing/, 'missing semantics block');
+
+  const noNote = clone();
+  delete noNote.classificationSemantics.note;
+  expectFailure(validateFeedbackCases(noNote), /semantics\.note/, 'semantics without a note');
+
+  // The shipped block agrees with the checker's own constants.
+  const r = validateFeedbackCases(clone());
+  assert.equal(r.errors.some((e) => /semantics\./.test(e)), false, 'shipped semantics must match the enforced policy');
+});
+
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {
   const { runCli } = await import('./feedback-case-check.mjs');
   const quiet = { log() {}, error() {} };

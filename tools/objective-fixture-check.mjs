@@ -371,19 +371,26 @@ export function validateObjectiveCases(fixture) {
       err('case.aggregate-total', `${label} expects 180 objective points but the family maxima sum to ${objectivePoints}`);
     }
     // No fixture may assert a whole-exam learner result: the pilot cannot compute one because
-    // the oral part is unassessed. This applies to every case, and especially to aggregates.
-    const claimFields = ['expectedOutcome', 'expectedGrade', 'gradeBand', 'readiness',
-      'overallResult', 'passed', 'learnerScore', 'percentage'];
+    // the oral part is unassessed. Presence is the defect, not the value: a numeric or boolean
+    // claim (`learnerScore: 42`, `passed: false`, `readiness: 0.9`) is just as wrong as a string
+    // one, and must not slip through a word-list scan.
+    const claimFields = ['expectedGrade', 'gradeBand', 'readiness', 'overallResult', 'passed',
+      'learnerScore', 'percentage', 'overallPassed', 'certificate', 'finalGrade'];
     for (const field of claimFields) {
       if (c[field] === undefined || c[field] === null) continue;
-      const value = String(c[field]).toLowerCase();
-      const hit = PROHIBITED_LEARNER_CLAIMS.find((w) => value === w || value.includes(w));
+      err('case.prohibited-learner-claim', `${label}.${field} asserts a learner result; the pilot cannot compute an overall pass, grade or readiness`);
+    }
+    // A string outcome that names a pass/fail/band is also a claim, checked separately so that
+    // the legitimate outcome vocabulary ("marked", "aggregate", "unassessed") stays allowed.
+    if (isNonEmptyString(c.expectedOutcome)) {
+      const value = c.expectedOutcome.toLowerCase().trim();
+      const hit = PROHIBITED_LEARNER_CLAIMS.find((w) => value === w);
       if (hit) {
-        err('case.prohibited-learner-claim', `${label}.${field} asserts a learner result ("${hit}"); the pilot cannot compute an overall pass, grade or readiness`);
+        err('case.prohibited-learner-claim', `${label}.expectedOutcome "${c.expectedOutcome}" asserts a learner result; the pilot cannot compute an overall pass, grade or readiness`);
       }
     }
     if (isPlainObject(c.expected)) {
-      for (const field of ['grade', 'gradeBand', 'readiness', 'passed', 'overallResult', 'learnerScore', 'percentage']) {
+      for (const field of claimFields) {
         if (c.expected[field] !== undefined && c.expected[field] !== null) {
           err('case.prohibited-learner-claim', `${label}.expected.${field} asserts a learner result; the pilot cannot compute an overall pass, grade or readiness`);
         }

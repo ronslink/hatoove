@@ -741,38 +741,45 @@ export function validateBlueprint(blueprint) {
     requiredSourceFields.push([`${rLabel}.sources`, () => (isPlainObject(r) ? r.sources : undefined)]);
   });
 
+  /** Source-reference paths already checked by the required-field pass above. */
+  const checkedSourcePaths = new Set();
   for (const [at, get] of requiredSourceFields) {
     const refs = get();
     if (refs === undefined || refs === null) {
       err('sources.field-missing', `${at} is required; a source reference field may not be absent`);
       continue;
     }
+    checkedSourcePaths.add(at);
     checkSources(refs, at);
   }
 
   /* ------------------------------------------- recursive source integrity */
   // Source references may also appear in nested blocks the schema list does not name.
   // Anything called `sources` anywhere in the payload is checked, so a reference cannot
-  // hide in a block the per-section passes do not visit.
-  walkSourceRefs(blueprint, 'blueprint');
+  // hide in a block the per-section passes do not visit. Paths already validated above are
+  // skipped so one bad field does not produce the same error twice.
+  walkSourceRefs(blueprint, 'blueprint', 0, checkedSourcePaths);
 
   return { ok: errors.length === 0, errors, warnings, summary };
 
   /** Recursively validate every `sources` array found in the payload. */
-  function walkSourceRefs(node, at, depth = 0) {
+  function walkSourceRefs(node, at, depth = 0, skip = new Set()) {
     if (depth > 8 || node === null || typeof node !== 'object') return;
     if (Array.isArray(node)) {
-      node.forEach((child, i) => walkSourceRefs(child, `${at}[${i}]`, depth + 1));
+      node.forEach((child, i) => walkSourceRefs(child, `${at}[${i}]`, depth + 1, skip));
       return;
     }
     for (const [key, value] of Object.entries(node)) {
       // `blueprint.sources` is the source *definition* list, not a reference list.
       if (key === 'sources' && at !== 'blueprint') {
+        const path = `${at}.sources`;
+        // Already validated by the required-field pass; do not report the same defect twice.
+        if (skip.has(path)) continue;
         // Absence and mistyping must both fail: a string is not a reference list, and a
         // missing field would otherwise skip validation while still claiming provenance.
-        checkSources(value, `${at}.sources`, { optional: true });
+        checkSources(value, path, { optional: true });
       } else if (value && typeof value === 'object') {
-        walkSourceRefs(value, `${at}.${key}`, depth + 1);
+        walkSourceRefs(value, `${at}.${key}`, depth + 1, skip);
       }
     }
   }

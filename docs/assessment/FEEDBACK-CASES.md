@@ -141,10 +141,6 @@ conflating them would make retry impossible in exactly the case it is for:
 
 WFC-15 carries the invariant `retry-possible-after-failure-clears-lease` to pin this distinction.
 
-The three classifications defined by the pilot contract (`malformed_feedback`, `provider_unavailable`,
-`retry_exhausted`) remain unchanged; the four added codes are the state outcomes the contract already
-implies — deletion precedence, one successful debit, lease reclamation and immutable submission lineage.
-
 ### 3.3 Mechanical checks versus human judgement
 
 Every case now declares which of its expected invariants a machine may decide and which need a human:

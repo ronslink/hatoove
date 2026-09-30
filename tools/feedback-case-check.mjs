@@ -107,6 +107,32 @@ export function validateFeedbackCases(fixture) {
   }
   const errorVocab = new Set(Array.isArray(fixture.errorClassifications) ? fixture.errorClassifications : []);
 
+  // The fixture's classificationSemantics must agree with this checker's own constants,
+  // otherwise the declared policy can drift from the enforced one.
+  if (!isPlainObject(fixture.classificationSemantics)) {
+    err('semantics.missing', 'classificationSemantics is required so the declared policy cannot drift from the enforced one');
+  } else {
+    const sem = fixture.classificationSemantics;
+    const expectedPairs = [
+      ['permanentFailure', TERMINAL_ERRORS],
+      ['currentlyIneligible', INELIGIBLE_ERRORS],
+    ];
+    for (const [key, enforced] of expectedPairs) {
+      if (!Array.isArray(sem[key])) {
+        err('semantics.type', `classificationSemantics.${key} must be an array`);
+        continue;
+      }
+      const declared = [...sem[key]].sort();
+      const actual = [...enforced].sort();
+      if (declared.join(',') !== actual.join(',')) {
+        err('semantics.drift', `classificationSemantics.${key} is [${declared.join(', ')}] but the checker enforces [${actual.join(', ')}]`);
+      }
+    }
+    if (!isNonEmptyString(sem.note)) {
+      err('semantics.note', 'classificationSemantics.note is required to explain that ineligibility is not permanence');
+    }
+  }
+
   if (!Array.isArray(fixture.requiredScenarios) || fixture.requiredScenarios.length === 0) {
     err('vocabulary.scenarios', 'requiredScenarios must be a non-empty array');
   }
@@ -268,6 +294,9 @@ export function validateFeedbackCases(fixture) {
       }
       if (Array.isArray(exp.retryConditions) && exp.retryConditions.length > 0) {
         err('case.retry-conditions-terminal', `${label}: ${exp.errorClassification} never retries, so it must not list retryConditions`);
+      }
+      if (exp.permanentlyTerminal !== true) {
+        err('case.terminal-flag', `${label}: ${exp.errorClassification} is a permanent failure, so permanentlyTerminal must be set true (a terminal case may not merely omit the flag)`);
       }
       if (exp.permanentlyTerminal === false) {
         err('case.terminal-contradiction', `${label}: ${exp.errorClassification} is a permanent failure, so permanentlyTerminal may not be false`);

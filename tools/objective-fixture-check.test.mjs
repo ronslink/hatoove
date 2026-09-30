@@ -405,6 +405,32 @@ test('PR26 F6 residual: an aggregate case must not carry a per-item learner scor
   }
 });
 
+test('review O6 (N1): numeric and boolean learner-result claims are rejected, not just strings', () => {
+  // Before: the top-level guard scanned String(value) against a word list, so numeric or
+  // boolean claims escaped while the nested expectation block flagged mere presence.
+  const cases = [
+    ['learnerScore number', (o) => { caseById(o, 'OMC-AGG-01').learnerScore = 42; }],
+    ['passed boolean false', (o) => { caseById(o, 'OMC-AGG-01').passed = false; }],
+    ['readiness number', (o) => { caseById(o, 'OMC-AGG-01').readiness = 0.9; }],
+    ['percentage number on a marked case', (o) => { caseById(o, 'OMC-LV1-01').percentage = 55; }],
+    ['overallPassed boolean', (o) => { caseById(o, 'OMC-LV1-01').overallPassed = true; }],
+    ['certificate string', (o) => { caseById(o, 'OMC-AGG-02').certificate = 'B1'; }],
+    ['finalGrade string', (o) => { caseById(o, 'OMC-AGG-02').finalGrade = 'gut'; }],
+    ['expectedGrade string', (o) => { caseById(o, 'OMC-AGG-01').expectedGrade = 'sehr gut'; }],
+  ];
+  for (const [label, mutate] of cases) {
+    const o = clone();
+    mutate(o);
+    let r;
+    assert.doesNotThrow(() => { r = validateObjectiveCases(o); }, `${label} must not throw`);
+    assert.equal(r.ok, false, `${label} must be rejected`);
+    assert.ok(r.errors.some((e) => /case\.prohibited-learner-claim/.test(e)), `${label} must raise the claim error`);
+  }
+
+  // The legitimate outcome vocabulary must still be accepted.
+  assert.equal(validateObjectiveCases(clone()).ok, true);
+});
+
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {
   const { runCli } = await import('./objective-fixture-check.mjs');
   const quiet = { log() {}, error() {} };
