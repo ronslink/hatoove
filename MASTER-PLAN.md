@@ -1,10 +1,38 @@
 # Hatoove master plan — delivery tracker
 
 **Owner:** coordinator (`COORD-TAKEOVER-20260930`, issue [#27](https://github.com/ronslink/hatoove/issues/27))
-**Last updated:** 2026-10-01 · **Base:** `origin/main` @ `5a63429949275f4cb27cd7f64565afe8cf029511`
+**Last updated:** 2026-10-01 · **Base:** `origin/main` @ `3a8c26647a2dabd1a95aff393ca9be870381d01a`
 **Update cadence:** with `work/BOARD.md` and `IMPLEMENTATION_PLAN.md` after meaningful transitions.
 **Dispatch mechanics:** the per-worker setup, delivery and verification facts live in the coordinator handoff
 folder's `WORKSPACE-SETUP.md` (recorded 2026-10-01) so a handoff stops re-deriving them.
+
+## Movement since the previous revision (same day)
+
+Four more merges, all verified on a fresh worktree before merging and re-verified on `main` afterwards:
+
+| Merge | Slice | Why it mattered |
+|---|---|---|
+| `1b96af6` | **CI-GATES-01 (#56)** | Closes the recorded gap that **five checkers were ungated**: `revision`, `keymask`, `progress-equal`, `draft-session`, `owned-api` plus `server-origin`, `reset`, `owned-client` and the three fixture checkers are now gated on **ubuntu and windows**. The new `contracts` job uses `fetch-depth: 0` because three checkers materialise the pre-fix tree with `git show`. The author proved each gate bites by breaking eleven things one at a time in a scratch copy outside the repo |
+| `e5d29e3` | Coordination records (#55) | `MASTER-PLAN.md`, `work/BOARD.md`, `IMPLEMENTATION_PLAN.md` brought current |
+| `8d6dc44` | **WRITING-OUTCOMES-02 (#54)** | Workstream 4 landed: absent/failed/unavailable/malformed writing stays **explicitly unassessed**, successful feedback is provisional, and **no whole-exam pass/grade/readiness figure** is computed. Chosen over the competing #53 after a measured comparison (19/19 checker, 21/21 tests, self-contained browser proof 11/11, plus a dead restart-button fix); #53 closed as superseded with its branch retained |
+| `3a8c266` | **F-4 account-scoped progress (#57)** | Learner records are now account-scoped, the legacy unscoped blob is adopted **once** and stays recoverable, and a signed-out browser exposes no learner text. Its checker is **7/7 with real discrimination** (the four scope checks fail on the pre-fix tree while both controls pass), and the existing reset and revision-fence behaviour is unchanged |
+
+**The product chain is unblocked.** With #54 on `main`, `public/js/exam.js` is released and the next slice —
+**wiring the recoverable-draft service into the writing surface** — is dispatched; it was blocked for two rounds.
+
+**Recorded limitations, not hidden:**
+
+- **F-4 has no production caller yet.** `index.html`/`app.js` were outside the slice's allowed paths, so the app
+  still runs in legacy unscoped mode until `A-01` wires sign-in. The isolation is proven by the checker, not yet
+  exercised by the product. It is also **not** an authentication boundary — the account id is client-supplied here.
+  Its checker is **not yet gated in CI**.
+- The **draft pointer store is device-local and not durable**; cross-device recovery needs a server-side task
+  field plus a list route and stays an open decision.
+- The `draft-session` checker still does **not** discriminate the module's own generation/account fence (the
+  reviewer's finding stands): correct in shipped code, **redundancy today, not a proven control**.
+- The WRITING-OUTCOMES-02 decision was taken **before** the independent remote verification finished. That
+  verification was not discarded — its verdict is collected and, if it finds a blocking defect, it is fixed in a
+  follow-up slice rather than left in place.
 
 This is the **single consolidated progress tracker** for the programme. Read it first, then go to the
 authoritative source for detail.
@@ -32,6 +60,15 @@ security, accessibility or product acceptance. Delivered ≠ reviewed ≠ merged
 (exam/content/language/security/legal) are separate from all of the above.
 
 ## Programme objective
+
+> **⚠ Target change (Ron, 2026-10-01).** The app was built as a **local, single-user** install; the programme is
+> moving to a **server serving multiple users**. Read `MULTI-USER-TRANSITION.md` in the coordinator handoff folder
+> **before planning anything**: it maps every open finding to that one assumption, lists which merged mitigations
+> **expire** when the loopback bind goes away, and names the next three slices. In short: the merged security work
+> hardened a single-user app; the **multi-user boundary — identity, tenancy and key custody — is still almost
+> entirely unbuilt**, and the pieces that exist (`owned-api`, `owned-postgres` with FORCE RLS, `owned-client`,
+> `draft-session`, account-scoped progress) have **no production caller**. PostgreSQL remains the owned-state
+> store; Redis is not adopted for owned state and is a candidate only for the job queue and rate-limit counters.
 
 A dependable, mobile-capable **internal learner journey** in the existing `public/` app's visual style:
 account/exam/date/language setup → owned attempt/task identity and draft → submission with pending, failed or
@@ -71,15 +108,15 @@ migration, no hosting change.
 | 1 | **Takeover and reconcile live work** | **merged** | `41b5efb` (PR #29) | — |
 | 2 | **Finish USER04 acceptance; integrate source/fixture stack** | **merged** | Integration stack `82ae9c2`; the hand-refusal (#33) is retained as the rejection record | Independent review of the accepted stack's known guard limits (`rationale`/top-level/family gaps) is documented, not closed |
 | 3 | **Accept and integrate Hermes owned API client** | **merged** | `de4ecb6` (31/31) and the owned API `2974359` (24/24) | — |
-| 4 | **Truthful mock outcomes** | **delivered twice, under independent review** | Two complete implementations exist: **#53** `72994ad` (16/16 checker, 20/20 tests, browser check cannot run unattended) and **#54** `793f3c6` (19/19, 21/21, self-contained browser proof **11/11**, plus a restart-button defect fix). Measured comparison published on `origin/codex/wo02-impl-compare` | **Hermes `wo02-verify-hermes-20261001-a` is adjudicating and verifying now.** Merge waits on that verdict; #53 would then be closed as superseded |
-| 5 | **Account-scoped draft state** | **delivered, merged** | `public/js/draft-session.js` in `c8bf97a`; IDs only, keyed by account+task, never learner text; reviewer found one **non-blocking** discriminator gap (the module's own generation fence is redundancy today, not an independently proven control) | Wire it into the app (workstream 6) once Ron releases `exam.js` |
-| 6 | **Connect writing UI to durable attempts/drafts** | **blocked on Ron's `exam.js` release** | The original hold is gone (the paused `writing-outcomes-01` no longer owns the file — WRITING-OUTCOMES-02 rewrote it), so the hold now means only "no second concurrent writer" | Confirm release, then wire `draft-session.js` in as its own bounded slice |
-| 7 | **Account/session entry flow + browser-to-server fixture** | **planned** | The owned client and owned API are both merged, but **nothing in `public/**` calls them** — the audit's premise correction still stands | Next product slice after 6; synthetic loopback server, ephemeral secrets |
+| 4 | **Truthful mock outcomes** | **MERGED** `8d6dc44` (#54) | Chosen over the competing #53 (`72994ad`) after a measured comparison: 19/19 checker, 21/21 tests, self-contained browser proof **11/11** on this host, plus a dead restart-button fix #53 lacks. Both candidates carried pre-fix discrimination (15 defect checks fail on the pre-fix tree, 4 controls pass). #53 closed as superseded, branch retained. Comparison recorded on `origin/codex/wo02-impl-compare` | Independent remote verification was still in flight when the decision was needed; **its verdict is collected and any blocking defect is fixed in a follow-up slice** |
+| 5 | **Account-scoped draft state** | **MERGED** `c8bf97a` (#51) | `public/js/draft-session.js`; IDs only, keyed by account+task, never learner text; reviewer found one **non-blocking** discriminator gap (the module's own generation fence is redundancy today, not an independently proven control) | Being wired into the app now — see 6 |
+| 6 | **Connect writing UI to durable attempts/drafts** | **IN FLIGHT** — `wire-draft-01-claude-20261001-a` | **Unblocked**: `exam.js` was released by the coordinator under Ron's delegation now that #54 owns the file, and the draft-recovery question was decided in favour of the caller-side ID store (IDs only, server still authorises every read) | Delivered as `codex/wire-draft-01`; must keep the #54 honest-outcome behaviour intact and prove reload recovery in a real headless browser |
+| 7 | **Account/session entry flow + browser-to-server fixture** | **planned** | The owned client and owned API are merged, but **nothing in `public/**` calls them** — and F-4's account scoping has **no production caller** for the same reason: `index.html`/`app.js` are untouched | Next product slice after 6; synthetic loopback server, ephemeral secrets |
 | 8 | **Durable submission/result/retry/revision UI** | **planned** | Server contract already proves idempotency, lease fencing, one debit | Serialise behind 6 and 7; provider stubs |
 | 9 | **Server-side objective marking** | **planned** | Fixtures prepared (36 cases); **no authoritative marking implemented** | Bounded slice after 6; keep private keys out of learner payloads |
 | 10 | **Fixed-audio delivery + content provenance** | **planned** | Discovery reports **0 tracked fixed audio**; rights unknown | Asset manifest/schema + local delivery fixture with synthetic/licensed audio only |
 | 11 | **Independently verify the internal learner journey** | **blocked on 6–8** | — | Fresh synthetic checkout, isolated ports; real-device evidence stays **pending**, never passing-by-emulation |
-| 12 | **Close plan gaps; prepare next bounded batch** | **ongoing** | Baseline `101 / 9 / 14` plus checkers 16 · 9 · 8 · 31 · 24 · 12 · 10 · 17 re-measured 2026-10-01 | **Wire the ungated checkers into CI** (`ci-gates-01-claude-20261001-a` running); F-4 (`f4-scope-01` OpenClaw) and F-5 (`f5-deletion-01` Clawdbot) running |
+| 12 | **Close plan gaps; prepare next bounded batch** | **ongoing** | Baseline `101 / 9 / 14` plus checkers 16 · 9 · 8 · 31 · 24 · 12 · 10 · 17 · 19 · 7 re-measured on `3a8c266` | **CI gating is DONE** (#56). Running: F-5 deletion scope (Claude), the draft wiring (Claude). Next after those: gate F-4's new checker in CI, then `A-01` sign-in wiring so the account-scoped store and the owned client actually have a production caller |
 
 ## Open review and integration queue
 
