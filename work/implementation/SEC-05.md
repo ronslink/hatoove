@@ -6,7 +6,7 @@
 | Worker | OpenClaw/Hetzner, slot 3. Authored SEC-02; the defect was found by **Clawdbot** (`sec-02r-clawd-20260930-a`), so this is not self-graded |
 | Base | `origin/main` @ `8a71f718ee534851a98d19eece07dab933b56479` |
 | Branch | `codex/sec-05-revision` (fresh worktree; `hatoove-sec02` not reused) |
-| Pull request | draft PR to `main` (title: `SEC-05: a reset invalidates older writes via a persisted revision (proper F-2 race fix)`) |
+| Pull request | [draft PR #47](https://github.com/ronslink/hatoove/pull/47) (base `main`), head `6a8eb1a` |
 | Allowed paths | `server.js`, `public/js/store.js`, `tools/reset-check.mjs`, `tools/revision-check.mjs`, `tools/revision-check.test.mjs`, `work/implementation/SEC-05.md` |
 | Fixes | `work/implementation/SEC-02R-REPORT.md` finding **F-2 race (medium-high)** |
 | Status | The race is closed and the probe discriminates against the pre-fix tree. **This closes no security or privacy gate.** Human `P-03` review remains required. |
