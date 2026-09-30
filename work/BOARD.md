@@ -33,16 +33,24 @@ Use the [pilot plan](../PILOT_BUILD_PLAN.md) for detailed scope. Speaking is exc
 
 ## Active executions
 
-**Board state: 2026-10-01.** `origin/main` = **`5a63429949275f4cb27cd7f64565afe8cf029511`**. Baseline re-measured on
-2026-10-01: `check.js` 101/0 · `writing-check.js` 9/0 · `feedback-check.js` 14/0 · checkers `server-origin` 16 ·
-`reset` 9 · `revision` 8 · `owned-client` 31 · `owned-api` 24 · `keymask` 12 · `progress-equal` 10 ·
-`draft-session` 17. **Concurrency: Ron authorised all four workers plus the coordinator (2026-09-30)**, which
+**Board state: 2026-10-01 (second revision).** `origin/main` = **`3a8c26647a2dabd1a95aff393ca9be870381d01a`**.
+Baseline re-measured on that commit: `check.js` 101/0 · `writing-check.js` 9/0 · `feedback-check.js` 14/0 ·
+checkers `server-origin` 16 · `reset` 9 · `revision` 8 · `owned-client` 31 · `owned-api` 24 · `keymask` 12 ·
+`progress-equal` 10 · `draft-session` 17 · **`mock-outcome` 19** · **`progress-scope` 7** · `repository-check`
+passes (295 tracked files). **Merged since the first revision:** #56 CI gates, #55 records, #54 WRITING-OUTCOMES-02,
+#57 F-4 account scope. **Concurrency: Ron authorised all four workers plus the coordinator (2026-09-30)**, which
 supersedes the earlier "four including the coordinator" cap. No recursive spawning.
+
+**Routing (Ron, 2026-10-01): Claude takes the more complex tasks.** Observed on this run: Claude delivered
+CI-GATES-01 end to end and was reassigned the F-5 slice; OpenClaw is fast and reliable on well-scoped slices;
+Hermes is thorough but slow and **cannot push**; Clawdbot produced ~90 KB of transcript across two launches on F-5
+with **not one file edit** and is treated as a last resort until it completes a run.
 
 **Dispatch mechanics live in the coordinator handoff folder's `WORKSPACE-SETUP.md`** — per-worker setup, delivery
 and verification, including the traps that each cost a launch attempt this round (Hermes cannot clone from GitHub
 and cannot use `/root`; a bundle must be *fetched*, not cloned; Hetzner's `hatoove` checkout has a stale
-`origin/main`; browser checks need `CHROME_PATH`; the `G:` handoff mount rejects atomic writes).
+`origin/main`; browser checks need `CHROME_PATH`; the `G:` handoff mount rejects atomic writes; copying a checkout
+copies its worktree pointer file and produces two directories sharing one worktree admin).
 
 | Slot | Execution | Current assignment/status |
 |---|---|---|
