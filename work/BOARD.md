@@ -2,7 +2,7 @@
 
 The local coordinator owns this board. Detailed assignments live on linked GitHub issues; PRs and merged source provide completion evidence. Follow the [workflow](../docs/AGENT_WORKFLOW.md), [task template](TASK_TEMPLATE.md) and [handoff template](HANDOFF_TEMPLATE.md).
 
-Repository: **[private `ronslink/hatoove`](https://github.com/ronslink/hatoove)**. Curated baseline `2feaba6` is published and its Linux/Windows CI passed. Remote assignments are linked below. No production deployment is scheduled. Ron-authorized coordinator heartbeat `continue-hatoove-implementation` is active every ten minutes; worker runs remain bounded.
+Repository: **[private `ronslink/hatoove`](https://github.com/ronslink/hatoove)**. Curated baseline `2feaba6` is published and its Linux/Windows CI passed. Remote assignments are linked below. No production deployment is scheduled. Ron-authorized coordinator heartbeat `continue-hatoove-implementation` is active every five minutes; worker runs remain bounded.
 
 ## Preparation
 
@@ -37,12 +37,13 @@ Global cap: **4 active agents including the coordinator and all children/reviewe
 
 | Slot | Execution | Current assignment/status |
 |---|---|---|
-| 1 | f02-20260930-a completed; progress-20260930 | Coordinator SQL slice merged PR18 ata58f6fb; independent review/final CI passed; updating master plan/board and preparing owned-client/draft slice. Dedicated synthetic DB stopped |
-| 2 | c01d-20260930-a completed | Hermes runs ended; coordinator independently checked/package-reviewed the corrected two-file source7e24229 and merged PR20 on green CI. Slot free; no live Hermes task |
-| 3 | user04r-20260930-a | Local read-only acceptance review of exact USER04 daaf55f/PR21, checkpoint19:00, expires19:15. Prior SQL270e1b8 review approved; OpenClaw PR15 closed and remote process ended |
-| 4 | user04-20260930-a | Ron-controlled agent [five-task batch](implementation/USER-04.md), issue #19; branch codex/user04-source-fixtures, base7030a66; expires20:31 UTC. Five deliverables reported in PR21; checker edits still in progress and acceptance corrections in CURRENT. Preserve branch; no new grant until clean reviewed handoff |
+| 1 | COORD-TAKEOVER-20260930 | **Ron's locally controlled agent is now the coordinator** (issue [#27](https://github.com/ronslink/hatoove/issues/27); ACK in the shared handoff). Owns allocation, architecture/contracts, central records and integration after independent review and green CI; maintains CURRENT.md every 5 minutes. Original coordinator implementation paused at Ron's request; `codex/writing-outcomes-01` preserved/unmerged |
+| 2 | ocli-20260930-a | Hermes OWNED-CLI-01 / issue23: base `074aebf`, branch `codex/owned-client-01`, expires 20:00 UTC. **Bundle returned `009d931`**; coordinator verified `git bundle verify`, exactly the three allowed paths, its checker **28/28**, baseline **101+9+14** on the returned tree, and clean code boundaries. **Delivered + coordinator-verified; independent review still required.** Future runs 160/2400 |
+| 3 | user04r2b-20260930-a | OpenClaw **running** a fresh bounded review of the USER04 correction delta at exact `cba0f0c` (base `074aebf`), reproducing every PR26 finding by mutation probe and reporting FIXED/STILL PRESENT. Expires 20:30 UTC. PR26's `562902b` verdicts are **stale** and must not be treated as current |
+| 4 | — | Reserved: next independent reviewer (Hermes OWNED-CLI-01 acceptance, then integration-candidate review) |
+| — | user04-20260930-a | Ron-controlled agent [five-task batch](implementation/USER-04.md), issue #19; branch `codex/user04-source-fixtures` base `7030a66`, **head `cba0f0c`** (clean, pushed), stacked PR #21 on #17. Five deliverables plus 20 reproduced-and-fixed review corrections. **Delivered + self-checked (127 tests); NOT independently accepted** — the author cannot accept its own work. Integration blocked until acceptance |
 
-The advisory reviewer supplied failure cases (idempotency races, transactional rollback, lease fencing, allowance reservation and deletion precedence); those are test advice, not diff approval. See [USER-01 disposition and next slices](implementation/PILOT-01-CSS.md). `public/js/exam.js` is reserved for coordinator-owned draft integration, with no active edits yet.
+The advisory reviewer supplied failure cases (idempotency races, transactional rollback, lease fencing, allowance reservation and deletion precedence); those are test advice, not diff approval. See [USER-01 disposition and next slices](implementation/PILOT-01-CSS.md). `public/js/exam.js` remains reserved for the coordinator; unfinished mock-outcome edits are preserved in its isolated worktree and paused at Ron's request.
 
 Ron-agent handoff: `C:/Users/ronon/.codex/hatoove-handoff/ron-agent`. Coordinator owns `CURRENT.md`/`QUEUE.md`; worker writes execution-specific `ACK.md`, `CHECKPOINT.md`, `RESULT.md`. Communication files only, outside source/OneDrive. CURRENT grants the USER-04 five-task sequence; other queue candidates do not grant edits. The coordinator heartbeat checks this folder; the user-controlled agent polls it as arranged by Ron.
 
@@ -51,3 +52,7 @@ Coordinator preparation closes with the merge of [PR #6](https://github.com/rons
 Update this board and IMPLEMENTATION_PLAN.md progress together after meaningful transitions. Update status only from observed evidence. Distinguish a tooling inventory, a successful agent exercise, and a verified product behavior.
 
 PRE-05 PR #11 merged ata9a4cfd; CSS PR #12 atbb30267; SQL PR #18 ata58f6fb; discovery PR #20 includes7e24229. Issues10/13/14 closed after acceptance of their bounded slices. Next: independently review USER04 corrections to source/fixtures PR17, then coordinator-owned client/draft recovery. The original CSS review overstated tablet/focus defects; only reproduced D5/D6 received changes. Text zoom, real-device acceptance and complete learner journey remain open.
+
+## Coordinator ownership transfer — 2026-09-30 19:07 UTC
+
+Ron explicitly appointed his locally controlled agent to take over coordination between Hermes and OpenClaw and requested a substantial task batch. [Issue27](https://github.com/ronslink/hatoove/issues/27) records the transfer. The new coordinator owns task allocation, architecture/contracts, central records and integration after independent review and greenCI; the original coordinator's implementation is paused and its unfinished changes remain preserved/unmerged. The new coordinator must ACK in the shared handoff and maintain CURRENT.md every5minutes. Twelve ordered delivery workstreams and exact worker/branch/process state are in C:/Users/ronon/.codex/hatoove-handoff/ron-agent/COORDINATOR-HANDOFF.md and QUEUE.md. Earlier references to the original chat as the sole coordinator are superseded by this user instruction. Existing worker leases, the global4agentcap and production/human-review gates remain.
