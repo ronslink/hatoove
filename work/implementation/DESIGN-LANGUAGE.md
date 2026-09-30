@@ -88,16 +88,19 @@ Consistency is only real if it is checked. Two mechanisms, both now in place:
 
 ### 6.1 What the first run of `design-check.mjs` found — real debt, recorded not hidden
 
-Run against the current tree, it passes 9 of 10 and reports:
+Run against the tree as it stood, it passed 9 of 10 and reported the following. **This section carried a wrong
+number, and it is corrected here rather than left standing:**
 
 | Finding | Count | Meaning |
 |---|---|---|
-| **Raw `font-family` in a rule** | **26** | the design language has exactly three faces (`--serif`, `--sans`, `--mono`); 26 rules name a family directly instead. The first is `font-family: 'Fraunces';` at line 11 — a *partial* stack that drops the fallbacks `--serif` carries, which is exactly the kind of drift this check exists to catch. **This one is a FAIL, so the gate is red until it is fixed** |
-| Inline corner radius outside a token | 19 | WARN only; `border-radius: 0 3px 3px 0` is legitimate. Visible debt for the shell cleanup |
+| **Raw `font-family` in a rule** | **0** — *previously reported as 26, which was wrong* | The original check used `FONT_RE=/font-family\s*:/i`, which matched **every** `font-family` declaration — including the 22 rules that already said `var(--serif\|sans\|mono)` and the four `@font-face` descriptors. **26 was the check's own count, not the file's.** The descriptors cannot use `var()` at all, so "replace them with tokens" was never possible. Corrected by the D1 author and independently confirmed by the coordinator: the check now blanks the `@font-face` blocks and flags only a family that is not one of the three type tokens, and it still fails when a raw family is introduced into a rule |
+| Inline corner radius outside a token | 19 | WARN only; `border-radius: 0 3px 3px 0` is legitimate. Visible debt, reported rather than failed |
 
-**Both are pre-existing**: they are in `main` today, not introduced by the account work. Fixing them is its own
-bounded slice (it is a stylesheet-wide change that needs both-theme visual evidence), and it is queued as such
-rather than smuggled into an unrelated commit.
+**The lesson is worth more than the number.** This was a check the coordinator wrote that counted the very
+declarations it was meant to approve — the twelfth instance in this programme of a check being wrong rather than the
+artifact, and the second one that reached CI before anyone noticed. `public/styles.css` is byte-identical to
+`main`, so the rendered typography was never affected.
+
 
 **Existing evidence to build on, not to redo:** `tools/exam-blueprint-check.mjs` and the earlier CSS bounding work
 (`PILOT-01`) already proved that only the D5/D6 defects were real and that 200 %-zoom filenames are not proof of

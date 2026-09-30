@@ -4,7 +4,7 @@
 |---|---|
 | Reported by | Ron, 2026-10-01: *"the legacy progress API still trusts a caller-supplied account ID, and the AI proxy still accepts anonymous requests and a caller-selected model. I reproduced both in an isolated copy using synthetic data and a stubbed provider. No learner data or live AI service was used. These paths need to be replaced or disabled before hosted use; the new account APIs don't protect them."* |
 | Status | **confirmed in the code, and a hard blocker for hosted use.** These sit **beside** the new account boundary, not behind it, so nothing the account work does protects them |
-| Read from | `origin/codex/ownapi-03-persistent` @ `d445f3b` on 2026-10-01 |
+| Read from | `origin/codex/ownapi-03-persistent` @ `2bbcd21` when first recorded, and **re-confirmed at the reviewed head `90d9860`** on 2026-10-01. **Correction:** this record previously cited `d445f3b`, which was an unreferenced duplicate merge commit from a failed push; it is not on the branch and cannot be verified, so it has been replaced with the two heads that can be. The independent platform review found this and was right to |
 
 ## B5. The legacy progress API trusts a caller-supplied account id
 

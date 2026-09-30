@@ -31,11 +31,7 @@ Built for one specific goal: **pass the exam next weekend**.
 
 ## Quick start
 
-**Double-click the `B1 Prep` icon on your Desktop.** It starts the server and opens the
-app in your browser.
-
-That icon points at `start.cmd`. If it's missing, you can always start the app by
-double-clicking **`start.cmd`** in `D:\B1_Prep`, or from a terminal:
+Start the server as an ordinary process and open the app:
 
 ```bash
 node server.js
@@ -43,44 +39,27 @@ node server.js
 
 Then open **http://127.0.0.1:4321**.
 
-Keep the launcher window open while you study — closing it (or pressing Ctrl+C) stops
-the server. The server is an ordinary process: it does not start itself, and it stops when
-you reboot. **Your progress is not affected** — it lives in `progress.json` and is picked
-up again the next time you start.
-
-If you double-click the icon while it is already running, it says so and does nothing
-harmful; just refresh the browser tab.
+Keep it running while you study — closing it (or pressing Ctrl+C) stops the server. The server is an ordinary
+process: it does not start itself, and it stops when you reboot.
 
 There is nothing to install — the app has **zero dependencies** and needs only Node 20+.
 
-> **The installed copy lives at `D:\B1_Prep`.** The portable Windows copy can run from
-> an exFAT drive: the app does not require hardlinks. Keep development/editor tooling
-> on NTFS if that tooling requires hardlinks.
+### Running as a hosted service
 
-### Portable Windows copy
+**This project is being converted from a local single-user install to a server serving multiple users.** The
+hosted shape, the deployment decisions and what is still missing are recorded in
+[`work/implementation/SAAS-CONVERSION.md`](work/implementation/SAAS-CONVERSION.md),
+[`MULTI-USER-TRANSITION.md`](work/implementation/MULTI-USER-TRANSITION.md),
+[`SERVER-READINESS.md`](work/implementation/SERVER-READINESS.md) and
+[`HOSTED-BLOCKERS.md`](work/implementation/HOSTED-BLOCKERS.md). Read those before deploying anything: **the
+application is not yet hosted-ready** and the records say precisely why.
 
-The SSD copy is in `F:\B1_Prep` (the drive letter can change on another PC).
-Double-click its **B1 Prep.exe** icon (or use `start.cmd`). It uses the bundled Node runtime and opens
-`http://127.0.0.1:4381`, separately from the installed copy on port 4321.
-No Node installation or administrator access is needed for normal use on Windows
-10/11 x64, subject to the destination PC's application policies.
+**Removed with the local-install shape, deliberately:** the `start.cmd` launcher, the portable/USB build
+(`portable/**`, `tools/build-portable.ps1`, `tools/verify-portable.js`), the synchronisation tool
+(`tools/sync-home.js`) and the file-based progress recovery script (`tools/recover-progress.js`). A hosted service
+has one authoritative copy on the server, so there is nothing to sync, copy or recover from a local file. The
+history is in [`work/implementation/DROPPED-FOR-SAAS.md`](work/implementation/DROPPED-FOR-SAAS.md).
 
-Progress and settings are saved beside the portable app, in `progress.json` and
-`.env`. The copied `.env` includes the AI API key; keep the drive private. These files
-travel with the drive, but later changes do not automatically sync with `D:\B1_Prep`.
-Use one copy consistently. Browser permissions and theme preferences are local to
-each PC. AI features require internet; built-in exercises work offline.
-
-Before unplugging, wait for progress to finish saving, close the app tab, stop the
-launcher with Ctrl+C, and safely eject the SSD. Keep a separate backup of your progress.
-The portable launchers are maintained in `portable/`; `tools/build-portable.ps1`
-stages a copy with a checksum-verified official Node archive and the live learner files.
-
-For the requested one-time return from the office, reconnect the SSD to the home PC,
-save and close both app tabs and server windows, and run `Sync-to-Home.cmd` on the SSD.
-It backs up the home record, merges the SSD's progress into `D:\B1_Prep`, and records
-completion so an accidental second click does nothing. It does not modify the SSD's
-progress, API configuration or app code. There is no background or scheduled sync.
 Restart the home app afterward so its browser cache reloads the merged record.
 
 ### The Desktop icon
@@ -435,7 +414,6 @@ The browser tests drive real Chrome over the DevTools Protocol and assert there 
 
 ```
 server.js                 zero-dependency server: static files + DeepSeek proxy + key storage
-start.cmd                 launcher (what the Desktop shortcut points at)
 b1prep.ico                app icon used by the Desktop shortcut
 .env.example              config template
 progress.json             YOUR PROGRESS (written automatically; back this up)
@@ -473,7 +451,6 @@ tools/
   tts-check.js            real-browser speech diagnostic (voices, timing, playback)
   cdp.js                  shared DevTools-protocol harness
   make-icon.js            regenerates b1prep.ico by rendering it in a real browser
-  recover-progress.js     folds a backup into progress.json (monotonic, safe to run)
   mock-deepseek.js        mock DeepSeek API so the AI path is testable without a key
 ```
 
@@ -510,15 +487,15 @@ export/import a JSON file for an off-machine backup.
 
 ### Recovering lost progress
 
-Because the merge is monotonic, a backup can always be folded back in without risk. If progress
-ever looks short:
+**The file-based recovery tool has been removed** with the rest of the local-install tooling
+(`tools/recover-progress.js`; see [`DROPPED-FOR-SAAS.md`](work/implementation/DROPPED-FOR-SAAS.md)). It existed to
+fold a local `progress.json` backup back into a local record, which is a problem the hosted shape does not have:
+recovery becomes the operator's database backup and restore, and the retention policy for that is recorded in
+[`PROVIDER-CONFIG-01.md`](work/implementation/PROVIDER-CONFIG-01.md) as a decision still owed by the product owner.
 
-```bash
-node tools/recover-progress.js --dry-run   # show what would change
-node tools/recover-progress.js             # apply, keeping a .pre-recovery copy
-```
+On a local install the merge-on-save behaviour still protects a partial write from erasing a record — that is
+`public/js/progress-merge.js`, and it is deliberately still present.
 
-This is how the 68 attempts lost to the stale-write bug were restored from `progress.json.bak`.
 
 ---
 
