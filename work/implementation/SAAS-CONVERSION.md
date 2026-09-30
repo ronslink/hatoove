@@ -49,18 +49,30 @@
 
 ### 1.3 Dropped — deliberately not part of the SaaS product
 
+**Decisions taken by Ron on 2026-10-01 are binding and recorded in full in `PROVIDER-CONFIG-01.md`:** the provider
+becomes **server configuration and invisible to the learner**; **Settings becomes a learner-preferences page**
+(language, exam date, daily goal, theme); **delete is a hard delete**; and **`start.cmd` goes** — *"this application
+now needs to work like a traditional SaaS app."*
+
 | Original surface | Where it lived | Why it is dropped |
 |---|---|---|
 | **Sync between a device and the install** | `tools/sync-home.js`, `tools/sync-home-check.js`, `store.js` sync paths | Ron's call, and structurally right: with one authoritative server copy there is nothing to sync. Two copies reconciling was a *consequence* of the local design, not a learner feature |
 | **Export / import of the progress file** | `store.js` import/export, `tools/recover-progress.js` | replaced by server persistence. If a data-portability *right* is later required by `P-03`, that is a deliberate product decision with its own specification — not this mechanism |
-| **Portable / USB build, and copies of the key on removable media** | `tools/build-portable.ps1`, `tools/verify-portable.js`, `build-launcher.ps1` | no USB option in a traditional SaaS deployment; also the whole of privacy finding **F-5**'s removable-media half |
-| **Local `.env` provider configuration by the learner** | `POST /api/config` writing `DEEPSEEK_BASE_URL` | an operator control, not a tenant one |
+| **Portable / USB build, and copies of the key on removable media** | `tools/build-portable.ps1`, `tools/verify-portable.js`, `build-launcher.ps1`, `portable/**` | no USB option in a traditional SaaS deployment; also the whole of privacy finding **F-5**'s removable-media half |
+| **The local launcher** | `start.cmd` at the repository root | *"we dont need start.cmd anymore period"* — a service is started by process management, not by a file in the repository |
+| **Local `.env` provider configuration by the learner** | `POST /api/config` writing `DEEPSEEK_BASE_URL`, plus every key field in Settings | **the provider becomes server configuration and is invisible to the user.** The AI feature stays; the learner-facing control does not |
+| **Any key-presence reporting** | `GET /api/config`, `/api/health` | even "configured: true" tells a tenant something about the operator's key. No route reports anything about it |
 | **Pre-recovery / `.bak` copies beside the install** | `server.js` recovery path | no install directory once the app is served |
+| Soft-delete and retention-window machinery | never built | **delete is a hard delete** (D3), so it must not be built |
+
+**Not dropped:** the AI call path itself, writing feedback, objective marking, the account settings record, or any
+learner-facing feature. The provider moves; the feature stays.
 
 **Consequence for F-5:** with sync, export and the portable build dropped, the *only* deletion-scope question left
-is the hosted one — server backups, exports and retention. The worker's in-flight F-5 slice (PR #59) was scoped
-against the local app; **it must be re-scoped against this list before it is merged**, and its change to the merged
-`reset-check` assertion should be re-examined in that light rather than merged as-is.
+is the hosted one — server backups, exports and retention — and **D3 answers the application half of it**: hard
+delete, with anything the code cannot reach stated plainly rather than implied away. The worker's in-flight slice
+(PR #59) was scoped against the local app, so **it must be re-scoped against this list before it is merged**, and
+its change to the merged `reset-check` assertion re-examined in that light.
 
 ## 2. What "done" means per item — one test, applied per row
 
