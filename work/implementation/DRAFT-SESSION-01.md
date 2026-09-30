@@ -5,7 +5,8 @@
 | Task / execution | DRAFT-SESSION-01 / `draft-session-01-claude-20260930-a` |
 | Worker | Claude for Windows (local), coordinator `COORD-TAKEOVER-20260930` |
 | Base | `origin/main` @ `258f2000b8fed1a30677937ad5464c3d0599b43a` (re-checked with `git rev-parse origin/main` before editing; unchanged from the assignment) |
-| Branch | `codex/draft-session-01` |
+| Branch | `codex/draft-session-01` @ `35fc0534e82124e9e5f8647742b84c399e659133` (implementation commit) |
+| Pull request | [draft PR #51](https://github.com/ronslink/hatoove/pull/51) (base `main`) |
 | Allowed paths used | `public/js/draft-session.js`, `tools/draft-session-check.mjs`, `tools/draft-session-check.test.mjs`, `work/implementation/DRAFT-SESSION-01.md` |
 | Not touched | `public/js/exam.js`, `public/js/owned-client.js`, `server/owned-api.mjs`, `IMPLEMENTATION_PLAN.md`, `work/BOARD.md`, `docs/qa/DRAFT-RECOVERY-MATRIX.md` (no inaccuracy found: the *browser* surface is still unwired, so section U's "currently missing" remains true) |
 | Status | Module + 17 offline checks + discrimination done. **Closes no browser, device, security or educational gate.** Independent review is batched. |
