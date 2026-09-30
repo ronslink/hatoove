@@ -8,6 +8,7 @@ import * as ai from './ai.js';
 import { icon } from './icons.js';
 import { examCountdown } from './engine.js';
 import { dashboardView, drillView, vocabView, vocabDrillView, notebookView, planView, settingsView } from './ui.js';
+import { accountView, accountNavHtml } from './account.js';
 import { paperView, writingView, speakingView, mockView, teardownExamViews } from './exam.js';
 import {
   referenceHubView,
@@ -64,6 +65,17 @@ function buildNav() {
   `).join('');
 
   shell.delegate(host, 'click', '[data-view]', (e, t) => navigate(t.dataset.view));
+}
+
+/**
+ * The account entry. It sits in the sidebar beside the nav rather than inside `#nav`,
+ * so the legacy navigation (and its "all 12 views" regression check in tools/e2e.js)
+ * stays untouched. It still navigates through the same `[data-shell-view]` delegation
+ * the brand button and the exam-target button already use.
+ */
+function buildAccountNav() {
+  const host = document.getElementById('account-nav');
+  if (host) host.innerHTML = accountNavHtml();
 }
 
 /* --------------------------------------------------------- mobile drawer */
@@ -243,9 +255,11 @@ async function boot() {
   shell.registerView('mock', { title: 'Mocktest', render: mockView });
   shell.registerView('plan', { title: 'Lernplan', render: planView });
   shell.registerView('settings', { title: 'Einstellungen', render: settingsView });
+  shell.registerView('account', { title: 'Konto', render: accountView });
 
   shell.setNavigator(navigate);
   buildNav();
+  buildAccountNav();
   buildThemeToggle();
   buildDrawer();
 
