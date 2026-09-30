@@ -2,18 +2,18 @@
 
 The local coordinator owns this board. Detailed assignments live on linked GitHub issues; PRs and merged source provide completion evidence. Follow the [workflow](../docs/AGENT_WORKFLOW.md), [task template](TASK_TEMPLATE.md) and [handoff template](HANDOFF_TEMPLATE.md).
 
-Repository: **[private `ronslink/hatoove`](https://github.com/ronslink/hatoove)**, created and visibility verified. The initial curated commit is in progress. No remote task is assigned by this document alone. No production deployment or recurring runner is scheduled.
+Repository: **[private `ronslink/hatoove`](https://github.com/ronslink/hatoove)**. Curated baseline `2feaba6` is published and its Linux/Windows CI passed. Remote assignments are linked below. No production deployment or recurring runner is scheduled.
 
 ## Preparation
 
 | ID | Task / owner | State and prerequisites | Completion evidence |
 |---|---|---|---|
-| PRE-01 | Curated source, private repository, guidance and CI / coordinator | In progress | Private visibility confirmed; reviewed initial commit; personal records and secrets excluded; source guard and current regression results recorded |
-| PRE-02 | OpenClaw write/PR exercise / Hetzner worker | Ready after PRE-01 and explicit dispatch | Independent persistent clone/worktree; scoped result document; assigned check runs; branch pushed and linked PR opened with execution ID; coordinator reviews it |
-| PRE-03 | Hermes write/PR exercise / Hermes worker | Ready after PRE-01 and explicit dispatch | Persistent clone/worktree; agent commits a scoped report and exports a Git bundle; coordinator verifies/imports/pushes it and opens the PR; actual runtime limitations recorded |
+| PRE-01 | Curated source, private repository, guidance and CI / coordinator | Done | Private baseline `2feaba6`; 133 source files, no gitlinks; source guard and negative excluded-file check passed; 124 regression checks; [Linux/Windows CI](https://github.com/ronslink/hatoove/actions/runs/36747230832) passed |
+| PRE-02 | OpenClaw write/PR exercise / Hetzner worker | Done, [issue #1](https://github.com/ronslink/hatoove/issues/1) | Actual agent run, 124 checks, scoped commit `54be708`; independently reviewed and merged [PR #3](https://github.com/ronslink/hatoove/pull/3), CI passed |
+| PRE-03 | Hermes write/PR exercise / Hermes worker | Done, [issue #2](https://github.com/ronslink/hatoove/issues/2) | Ownership failure repaired; fresh execution `pre03-20260930-b` produced 124 passing checks and scoped commit `b7db454`; bundle digest/one-commit history/snapshot guard verified; reviewed [PR #4](https://github.com/ronslink/hatoove/pull/4), CI passed |
 | PRE-04 | Previous-app visual and mobile reference / coordinator | Desktop reference and acceptance recorded; responsive implementation remains | [Reference and mobile acceptance](../docs/design/REFERENCE_UI.md); real-device checks remain outstanding |
 | PRE-05 | Durable pilot contracts and first implementation slices / coordinator | Ready after PRE-01; incorporate PRE-04 UI decisions | Owned attempts/drafts, revisions, idempotency and feedback states specified; objective/audio boundary defined; implementation tasks have paths, dependencies and failure checks |
-| PRE-06 | Optional Hermes child exercise / Hermes + one granted child | Deferred until PRE-03 succeeds and a global slot is granted | One child performs a bounded independent exercise; parent reports lifecycle/outputs; slot accounting and separate writing worktree verified; no nested spawning |
+| PRE-06 | Hermes child exercise / Hermes + one granted child | Done, [issue #5](https://github.com/ronslink/hatoove/issues/5) | One actual synchronous child completed; direct trace inspection, separate clean worktrees and 9 writing checks; [verified evidence](exercises/PRE-06/pre06-20260930-a/RESULT.md). Multi-child concurrency and child writing remain unverified |
 
 Preparation exercises use distinct paths such as `work/exercises/PRE-02/<execution-id>/RESULT.md` and `work/exercises/PRE-03/<execution-id>/RESULT.md`, finalized in their dispatch records. They do not change product code. The coordinator can run PRE-04/PRE-05 while worker exercises proceed.
 
@@ -33,10 +33,12 @@ Use the [pilot plan](../PILOT_BUILD_PLAN.md) for detailed scope. Speaking is exc
 
 ## Active executions
 
-No remote execution is assigned yet. Global cap: **4 active agents including the coordinator and all children/reviewers**. Hermes child budget: **0** until PRE-06 is explicitly dispatched.
+Global cap: **4 active agents including the coordinator and all children/reviewers**. All remote preparation runs have ended; no remote worker or child is assigned now. New tasks require fresh allocations. Existing Hermes installation allows four children and depth two with automatic worktree isolation off; these host defaults do not grant this project permission to use them.
 
 | Task | Execution ID | Owner / host | Slot | Branch / base SHA | Checkpoint / expiry UTC | Issue / PR |
 |---|---|---|---|---|---|---|
-| PRE-01 | Coordinator records at dispatch | Local coordinator | 1 | Initial baseline in progress | Session-managed | Pending repository creation |
+| Coordination | Session integration | Local coordinator | 1 | `codex/coordinator-cadence` / `2feaba6` | Session-managed | Coordination PR pending |
 
 Update status only from observed evidence. Distinguish a tooling inventory, a successful agent exercise, and a verified product behavior.
+
+Next ready coordinator task: PRE-05, the durable pilot contracts/auth-runtime spike, using the preserved UI reference from PRE-04. Allocate bounded worker checks after its interfaces and paths are defined. Product implementation and real-device acceptance have not been completed by repository preparation.
