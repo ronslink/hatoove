@@ -534,6 +534,104 @@ test('every shipped page locator is arithmetically consistent with its source', 
   }
 });
 
+/* ==================================================================== */
+/* Independent-review regressions (CURRENT.md "final independent-review */
+/* additions"). Each test names the defect and proves it now fails.     */
+/* ==================================================================== */
+
+test('review R1: section maximum must equal the real sum of part points', () => {
+  // Before: every LV part could change 25 -> 1 while section max stayed 75, because the
+  // checker only compared part points with each other.
+  const allWrong = clone();
+  for (const p of sectionById(allWrong, 'lv').parts) p.points = 1;
+  expectFailure(validateBlueprint(allWrong), /section\.points\.sum/, 'all part points reduced');
+
+  const oneWrong = clone();
+  sectionById(oneWrong, 'lv').parts[0].points = 10;
+  expectFailure(validateBlueprint(oneWrong), /section\.points\.sum|section\.part-points-vary/, 'one part point changed');
+
+  // ...and a consistent reduction that also updates every aggregate must still pass.
+  const consistent = clone();
+  for (const p of consistent.sections[0].parts) p.points = 1;
+  consistent.sections[0].points.raw = 1;
+  consistent.sections[0].points.max = 3;
+  consistent.writtenExam.writtenAggregatePoints = 153;
+  consistent.writtenExam.writtenWeightPercent = 51;
+  const r = validateBlueprint(consistent);
+  assert.equal(r.errors.some((e) => /section\.points\.sum/.test(e)), false, 'a fully consistent resize must not raise a point-sum error');
+});
+
+test('review R2: source integrity covers nested writing and aggregate sources', () => {
+  const inCriteria = clone();
+  inCriteria.sections[3].parts[0].criteria[0].sources = ['S99-p1-p1'];
+  expectFailure(validateBlueprint(inCriteria), /sources\.ref-unknown/, 'unknown source inside criteria');
+
+  const inBandToTotal = clone();
+  inBandToTotal.sections[3].parts[0].bandToTotal.sources = ['S99'];
+  expectFailure(validateBlueprint(inBandToTotal), /sources\.ref-unknown/, 'unknown source inside bandToTotal');
+
+  const inRating = clone();
+  inRating.sections[3].parts[0].ratingProcedure.sources = ['S99'];
+  expectFailure(validateBlueprint(inRating), /sources\.ref-unknown/, 'unknown source inside ratingProcedure');
+
+  const inWritten = clone();
+  inWritten.writtenExam.sources = ['S99'];
+  expectFailure(validateBlueprint(inWritten), /sources\.ref-unknown/, 'unknown source inside writtenExam');
+
+  const nestedTiming = clone();
+  nestedTiming.sections[0].timing.sources = ['S99'];
+  expectFailure(validateBlueprint(nestedTiming), /sources\.ref-unknown/, 'unknown source nested in timing');
+
+  // The top-level source *definition* list must not be mistaken for references.
+  assert.equal(validateBlueprint(clone()).ok, true, 'the real artifact must still pass');
+});
+
+test('review R3: a null section or part never throws', () => {
+  const nullSection = clone();
+  nullSection.sections[2] = null;
+  let r;
+  assert.doesNotThrow(() => { r = validateBlueprint(nullSection); }, 'null section must not throw');
+  assert.equal(r.ok, false);
+
+  const nullPart = clone();
+  nullPart.sections[0].parts[1] = null;
+  assert.doesNotThrow(() => { r = validateBlueprint(nullPart); }, 'null part must not throw');
+  assert.equal(r.ok, false);
+});
+
+test('review R4: writing arithmetic inputs must exist before arithmetic is attempted', () => {
+  for (const field of ['multiplier', 'rawCriterionMax', 'subtestMax']) {
+    const bp = clone();
+    delete bp.sections[3].parts[0].bandToTotal[field];
+    expectFailure(validateBlueprint(bp), /band-to-total\.missing-field/, `missing bandToTotal.${field}`);
+  }
+
+  const noFormula = clone();
+  delete noFormula.sections[3].parts[0].bandToTotal.formula;
+  expectFailure(validateBlueprint(noFormula), /band-to-total\.formula-missing/, 'missing formula');
+
+  const noRating = clone();
+  delete noRating.sections[3].parts[0].ratingProcedure;
+  expectFailure(validateBlueprint(noRating), /part\.rating-procedure/, 'missing ratingProcedure');
+
+  const wrongRaters = clone();
+  wrongRaters.sections[3].parts[0].ratingProcedure.independentRaters = 1;
+  expectFailure(validateBlueprint(wrongRaters), /part\.rating-procedure-raters/, 'wrong rater count');
+});
+
+test('review R5: written pass-rule inputs must exist', () => {
+  for (const field of ['writtenPassPoints', 'writtenPassPercent', 'oralPassPoints', 'oralPassPercent',
+    'writtenAggregatePoints', 'totalPointsAllParts', 'writtenWeightPercent', 'oralWeightPercent', 'totalMinutes']) {
+    const bp = clone();
+    delete bp.writtenExam[field];
+    expectFailure(validateBlueprint(bp), /writtenExam\.missing-field/, `missing writtenExam.${field}`);
+  }
+
+  const flags = clone();
+  delete flags.writtenExam.thresholdAppliesPerPart;
+  expectFailure(validateBlueprint(flags), /writtenExam\.missing-flag/, 'missing threshold flag');
+});
+
 test('CLI exits nonzero on a corrupt file and zero on the real artifact', async () => {
   const { runCli } = await import('./exam-blueprint-check.mjs');
   const quiet = { log() {}, error() {} };

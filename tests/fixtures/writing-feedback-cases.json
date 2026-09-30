@@ -64,7 +64,9 @@
     "stale-lease-no-double-complete",
     "superseded-submission-not-assessed",
     "no-duplicate-debit",
-    "text-preserved-on-failure"
+    "text-preserved-on-failure",
+    "topic-missed-all-criteria",
+    "content-credit-withdrawn-for-leitpunkt-shortfall"
   ],
   "errorClassifications": [
     "none",
@@ -117,7 +119,17 @@
         "kind": "learner-text",
         "taskType": "informal or semi-formal e-mail",
         "requiredContentPoints": 4,
-        "learnerText": "Hallo Anna, ich komme am Samstag zu deiner Party. Bis dann!"
+        "learnerText": "Hallo Anna, ich komme am Samstag zu deiner Party. Bis dann!",
+        "task": {
+          "prompt": "Eine Freundin lädt dich zu einer Party ein. Antworte ihr.",
+          "register": "informal (du)",
+          "leitpunkte": [
+            "accept the invitation",
+            "say what you will bring",
+            "ask about the time",
+            "ask who else is coming"
+          ]
+        }
       },
       "provider": {
         "behaviour": "normal"
@@ -148,15 +160,25 @@
     {
       "id": "WFC-02",
       "scenario": "off-topic-response",
-      "title": "Letter on an unrelated subject",
+      "title": "Letter on an unrelated subject (topic missed)",
       "synthetic": true,
       "source": "C2; B2",
-      "rationale": "The official rule sets all criteria to D when the text has no or hardly any connection to the writing task, and the assessment must say so rather than scoring it as a weak attempt.",
+      "rationale": "Topic-missed is distinct from a wrong communicative situation. When the text has no or hardly any connection to the writing task, criterion I is D and the language criteria are set to zero as well; a wrong situation (for example answering as the wrong party) leaves the language criteria assessed. This case asserts the topic-missed branch.",
       "input": {
         "kind": "learner-text",
         "taskType": "informal or semi-formal e-mail",
         "requiredContentPoints": 4,
-        "learnerText": "Sehr geehrte Damen und Herren, ich schreibe Ihnen wegen meines Stromvertrags. Bitte senden Sie mir die aktuelle Rechnung und bestaetigen Sie den Zaehlerstand."
+        "learnerText": "Sehr geehrte Damen und Herren, ich schreibe Ihnen wegen meines Stromvertrags. Bitte senden Sie mir die aktuelle Rechnung und bestaetigen Sie den Zaehlerstand.",
+        "task": {
+          "prompt": "Du hast eine Anzeige für ein Zimmer gelesen. Schreibe dem Vermieter.",
+          "register": "semi-formal (Sie)",
+          "leitpunkte": [
+            "say which room you mean",
+            "ask about the price",
+            "ask when you can visit",
+            "say how long you want to stay"
+          ]
+        }
       },
       "provider": {
         "behaviour": "normal"
@@ -165,15 +187,14 @@
         "outcome": "assessed",
         "errorClassification": "none",
         "invariants": [
-          "wrong-situation-routing",
-          "register-not-conflated-with-role",
-          "language-credit-preserved-on-content-zero",
+          "topic-missed-all-criteria",
           "criterion-evidence-required"
         ],
-        "wrongSituation": true,
+        "wrongSituation": false,
         "contentScoreCreditPreserved": false,
-        "languageCriteriaStillAssessed": true,
-        "numericScorePermitted": false
+        "languageCriteriaStillAssessed": false,
+        "numericScorePermitted": false,
+        "topicMissed": true
       },
       "judgement": "mixed",
       "decidability": {
@@ -181,11 +202,10 @@
           "criterion-evidence-required"
         ],
         "linguisticHuman": [
-          "wrong-situation-routing",
-          "register-not-conflated-with-role",
-          "language-credit-preserved-on-content-zero"
+          "topic-missed-all-criteria"
         ]
-      }
+      },
+      "leitpunktShortfall": false
     },
     {
       "id": "WFC-03",
@@ -244,7 +264,17 @@
           "offer to bring something",
           "ask for the address"
         ],
-        "learnerText": "Hallo Tom, vielen Dank fuer die Einladung, ich komme sehr gern. Wann fängt es an? Ich kann gern einen Salat mitbringen."
+        "learnerText": "Hallo Tom, vielen Dank fuer die Einladung, ich komme sehr gern. Wann fängt es an? Ich kann gern einen Salat mitbringen.",
+        "task": {
+          "prompt": "Dein Freund Tom lädt dich zum Essen ein. Antworte ihm.",
+          "register": "informal (du)",
+          "leitpunkte": [
+            "accept the invitation",
+            "ask about the time",
+            "offer to bring something",
+            "ask for the address"
+          ]
+        }
       },
       "provider": {
         "behaviour": "normal"
@@ -255,11 +285,15 @@
         "invariants": [
           "content-point-coverage-accuracy",
           "no-fabricated-points",
-          "criterion-evidence-required"
+          "criterion-evidence-required",
+          "content-credit-withdrawn-for-leitpunkt-shortfall",
+          "language-credit-preserved-on-content-zero"
         ],
         "missingContentPointsNamed": true,
         "wrongSituation": false,
-        "numericScorePermitted": false
+        "numericScorePermitted": false,
+        "contentScoreCreditPreserved": false,
+        "languageCriteriaStillAssessed": true
       },
       "judgement": "mixed",
       "decidability": {
@@ -268,9 +302,12 @@
         ],
         "linguisticHuman": [
           "content-point-coverage-accuracy",
-          "no-fabricated-points"
+          "no-fabricated-points",
+          "content-credit-withdrawn-for-leitpunkt-shortfall",
+          "language-credit-preserved-on-content-zero"
         ]
-      }
+      },
+      "leitpunktShortfall": true
     },
     {
       "id": "WFC-05",
@@ -284,7 +321,17 @@
         "taskType": "semi-formal e-mail",
         "requiredContentPoints": 4,
         "registerExpectation": "semi-formal (Sie)",
-        "learnerText": "Hallo, ich hab deine Anzeige gelesen und will das Zimmer buchen. Ich komme am 3. Mai an und bleib bis zum 7. Kannst du mir noch sagen, ob Fruehstueck dabei ist und was es kostet?"
+        "learnerText": "Hallo, ich hab deine Anzeige gelesen und will das Zimmer buchen. Ich komme am 3. Mai an und bleib bis zum 7. Kannst du mir noch sagen, ob Fruehstueck dabei ist und was es kostet?",
+        "task": {
+          "prompt": "Du möchtest ein Zimmer in einer Pension buchen. Schreibe an die Pension.",
+          "register": "semi-formal (Sie)",
+          "leitpunkte": [
+            "give your arrival date",
+            "give your departure date",
+            "ask whether breakfast is included",
+            "ask about the price"
+          ]
+        }
       },
       "provider": {
         "behaviour": "normal"
@@ -312,7 +359,8 @@
           "no-double-penalty",
           "wrong-situation-routing"
         ]
-      }
+      },
+      "leitpunktShortfall": false
     },
     {
       "id": "WFC-06",

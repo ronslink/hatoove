@@ -411,8 +411,16 @@ export function validateBlueprint(blueprint) {
           if (!isPlainObject(b2t)) {
             err('part.band-to-total', `${plabel}.bandToTotal is required for a writing task`);
           } else {
-            if (!isPositiveInteger(b2t.multiplier)) err('band-to-total.multiplier', `${plabel}.bandToTotal.multiplier must be a positive integer`);
-            if (!isPositiveInteger(b2t.rawCriterionMax)) err('band-to-total.raw-max', `${plabel}.bandToTotal.rawCriterionMax must be a positive integer`);
+            // Every arithmetic input must be present before any arithmetic is attempted; a
+            // missing field must not silently skip the consistency check.
+            for (const field of ['multiplier', 'rawCriterionMax', 'subtestMax']) {
+              if (!isPositiveInteger(b2t[field])) {
+                err('band-to-total.missing-field', `${plabel}.bandToTotal.${field} must be a positive integer`);
+              }
+            }
+            if (!isNonEmptyString(b2t.formula)) {
+              err('band-to-total.formula-missing', `${plabel}.bandToTotal.formula is required`);
+            }
             if (isPositiveInteger(b2t.rawCriterionMax) && critSum !== b2t.rawCriterionMax) {
               err('band-to-total.raw-mismatch', `${plabel}: criterion maxima sum to ${critSum} but bandToTotal.rawCriterionMax is ${b2t.rawCriterionMax}`);
             }
@@ -424,9 +432,25 @@ export function validateBlueprint(blueprint) {
                 err('band-to-total.points-mismatch', `${plabel}: bandToTotal.subtestMax ${b2t.subtestMax} != part points ${part.points}`);
               }
             }
-            if (b2t.formula !== `(k1 + k2 + k3) * ${b2t.multiplier}`) {
+            if (isNonEmptyString(b2t.formula) && isPositiveInteger(b2t.multiplier) && b2t.formula !== `(k1 + k2 + k3) * ${b2t.multiplier}`) {
               err('band-to-total.formula', `${plabel}.bandToTotal.formula "${b2t.formula}" does not match the three-criterion multiplier`);
             }
+            checkSources(b2t.sources, `${plabel}.bandToTotal.sources`);
+          }
+          // Rating procedure is part of the verified writing rules and must cite its source.
+          if (!isPlainObject(part.ratingProcedure)) {
+            err('part.rating-procedure', `${plabel}.ratingProcedure is required for a writing task`);
+          } else {
+            if (part.ratingProcedure.independentRaters !== 2) {
+              err('part.rating-procedure-raters', `${plabel}.ratingProcedure.independentRaters must be 2 per the verified rule`);
+            }
+            if (part.ratingProcedure.secondRatingOverridesFirstOnDifference !== true) {
+              err('part.rating-procedure-override', `${plabel}.ratingProcedure.secondRatingOverridesFirstOnDifference must be true`);
+            }
+            if (part.ratingProcedure.finalRatingByPublisher !== true) {
+              err('part.rating-procedure-final', `${plabel}.ratingProcedure.finalRatingByPublisher must be true`);
+            }
+            checkSources(part.ratingProcedure.sources, `${plabel}.ratingProcedure.sources`);
           }
         }
       }
@@ -444,13 +468,20 @@ export function validateBlueprint(blueprint) {
         err('section.items.range-count', `${label}: section range ${secItems.first}-${secItems.last} does not match count ${secItems.count}`);
       }
     }
-    // Objective parts inside one section share a per-part maximum in this blueprint.
-    if (section.objective === true && partPoints.length > 1) {
+    // Objective parts inside one section share a per-part maximum in this blueprint, and the
+    // declared section maximum must equal the actual sum of those part points. Checking only
+    // that the per-part values agree with each other would let every part change to the same
+    // wrong value while the section maximum stayed put.
+    if (section.objective === true && partPoints.length > 0) {
       const values = [...new Set(partPoints.map((p) => p.points))];
       if (values.length > 1) {
         err('section.part-points-vary', `${label}: objective parts declare differing points (${values.join(', ')}); the source gives one per-part maximum per subtest`);
       }
-      if (isPlainObject(points) && isPositiveInteger(points.max) && isPositiveInteger(points.raw)) {
+      const actualSum = partPoints.reduce((sum, p) => sum + p.points, 0);
+      if (isPlainObject(points) && isPositiveInteger(points.max) && actualSum !== points.max) {
+        err('section.points.sum', `${label}: part points sum to ${actualSum} but the section declares max ${points.max}`);
+      }
+      if (isPlainObject(points) && isPositiveInteger(points.raw) && isPositiveInteger(points.max)) {
         const expected = points.raw * section.parts.length;
         if (expected !== points.max) {
           err('section.points.sum', `${label}: raw ${points.raw} x ${section.parts.length} parts = ${expected} but max is ${points.max}`);
@@ -544,6 +575,20 @@ export function validateBlueprint(blueprint) {
   if (!isPlainObject(we)) {
     err('writtenExam.missing', 'writtenExam object is required');
   } else {
+    // These are the arithmetic inputs behind the written pass rule. A missing field must be
+    // reported, not silently skipped, or a blueprint could drop its threshold entirely.
+    for (const field of ['totalMinutes', 'writtenAggregatePoints', 'totalPointsAllParts', 'oralPoints',
+      'writtenWeightPercent', 'oralWeightPercent', 'writtenPassPoints', 'writtenPassPercent',
+      'oralPassPoints', 'oralPassPercent']) {
+      if (!isPositiveInteger(we[field])) {
+        err('writtenExam.missing-field', `writtenExam.${field} must be a positive integer`);
+      }
+    }
+    for (const flag of ['thresholdAppliesPerPart', 'thresholdAppliesPerSubtest']) {
+      if (typeof we[flag] !== 'boolean') {
+        err('writtenExam.missing-flag', `writtenExam.${flag} must be a boolean`);
+      }
+    }
     const minutesFromSections = blueprint.sections.reduce((sum, s) => {
       if (!isPlainObject(s) || !isPlainObject(s.timing) || !isPositiveInteger(s.timing.minutes)) return sum;
       return sum + (s.timing.kind === 'shared-block' ? 0 : s.timing.minutes);
@@ -661,7 +706,30 @@ export function validateBlueprint(blueprint) {
   summary.objectivePoints = objectivePoints;
   summary.writtenPoints = writtenPoints;
 
+  /* ------------------------------------------- recursive source integrity */
+  // Source references may appear in nested blocks (timing, points, criteria, bandToTotal,
+  // ratingProcedure, writtenExam, gates). Anything called `sources` anywhere in the payload is
+  // checked, so a reference cannot hide in a block the per-section passes do not visit.
+  walkSourceRefs(blueprint, 'blueprint');
+
   return { ok: errors.length === 0, errors, warnings, summary };
+
+  /** Recursively validate every `sources` array found in the payload. */
+  function walkSourceRefs(node, at, depth = 0) {
+    if (depth > 8 || node === null || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      node.forEach((child, i) => walkSourceRefs(child, `${at}[${i}]`, depth + 1));
+      return;
+    }
+    for (const [key, value] of Object.entries(node)) {
+      // `blueprint.sources` is the source *definition* list, not a reference list.
+      if (key === 'sources' && at !== 'blueprint' && Array.isArray(value)) {
+        checkSources(value, `${at}.sources`, { optional: true });
+      } else if (value && typeof value === 'object') {
+        walkSourceRefs(value, `${at}.${key}`, depth + 1);
+      }
+    }
+  }
 
   /* ------------------------------------------------------------- helper */
   function checkSources(refs, at, opts = {}) {

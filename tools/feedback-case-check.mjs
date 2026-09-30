@@ -133,7 +133,11 @@ export function validateFeedbackCases(fixture) {
 
   fixture.cases.forEach((c, ci) => {
     const at = `cases[${ci}]`;
-    if (!isPlainObject(c)) return err('case.type', `${at} must be an object`);
+    if (!isPlainObject(c)) {
+      // A null or primitive entry must be reported, never dereferenced.
+      err('case.type', `${at} must be an object`);
+      return;
+    }
     const label = isNonEmptyString(c.id) ? c.id : at;
 
     /* stable case ID */
@@ -275,11 +279,34 @@ export function validateFeedbackCases(fixture) {
     if (exp.wrongSituation === true && exp.contentScoreCreditPreserved === true) {
       err('case.register-coherence', `${label}: a wrong situation withdraws content credit, so contentScoreCreditPreserved must not be true`);
     }
+    // Content credit may also be withdrawn WITHOUT a wrong situation, in two legitimate ways:
+    // (a) topic-missed — no connection to the task, so criterion I is D and the language criteria
+    //     are zeroed as well; (b) a Leitpunkt shortfall — only one or no Leitpunkt is handled, so
+    //     criterion I is D while the language criteria remain assessable. Both must be declared
+    //     explicitly rather than left to inference.
+    const topicMissed = exp.topicMissed === true;
+    const leitpunktShortfall = c.leitpunktShortfall === true
+      || (isPlainObject(c.input) && c.input.leitpunktShortfall === true);
+    if (topicMissed && leitpunktShortfall) {
+      err('case.topic-missed-conflated', `${label}: topic-missed and a Leitpunkt shortfall are different branches; declare only one`);
+    }
+    if (exp.wrongSituation === false && exp.contentScoreCreditPreserved === false && !leitpunktShortfall && !topicMissed) {
+      err('case.content-credit-unexplained', `${label}: content credit is withdrawn without a wrong situation, so either topic-missed or the Leitpunkt shortfall behind it must be stated`);
+    }
+    if (topicMissed && exp.contentScoreCreditPreserved !== false) {
+      err('case.topic-missed-credit', `${label}: a topic-missed text cannot retain content credit`);
+    }
+    if (topicMissed && exp.languageCriteriaStillAssessed === true) {
+      err('case.topic-missed-language', `${label}: topic-missed sets the language criteria to zero, so languageCriteriaStillAssessed must not be true`);
+    }
+    if (leitpunktShortfall && exp.contentScoreCreditPreserved !== false) {
+      err('case.leitpunkt-credit', `${label}: a Leitpunkt shortfall must withdraw content credit`);
+    }
+    if (leitpunktShortfall && exp.wrongSituation === true) {
+      err('case.leitpunkt-wrong-situation', `${label}: a Leitpunkt shortfall and a wrong situation are different cases; do not merge them`);
+    }
     if (exp.wrongSituation === true && exp.invariants && exp.invariants.includes('register-not-conflated-with-role') === false) {
       warn('case.register-invariant', `${label} asserts a wrong situation without the register/role invariant; confirm that is intended`);
-    }
-    if (exp.wrongSituation === false && exp.contentScoreCreditPreserved === false) {
-      err('case.register-coherence', `${label}: content credit may only be withdrawn for a genuine wrong situation`);
     }
 
     /* judgement class */
@@ -356,7 +383,7 @@ export function validateFeedbackCases(fixture) {
     }
   }
   for (const scenario of seenScenarios) {
-    const count = fixture.cases.filter((c) => c.scenario === scenario).length;
+    const count = fixture.cases.filter((c) => isPlainObject(c) && c.scenario === scenario).length;
     if (count > 1) {
       warn('coverage.duplicate-scenario', `scenario "${scenario}" has ${count} cases`);
     }

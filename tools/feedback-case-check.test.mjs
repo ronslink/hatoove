@@ -278,15 +278,35 @@ test('rejects an unassessed outcome that creates an assessment or debits usage',
 /* ---------------------------------------- register/role regression rules */
 
 test('rejects content credit being preserved through a wrong situation', () => {
+  // WFC-03 is the genuine role reversal, so the wrong-situation branch applies to it.
   const fx = clone();
-  caseById(fx, 'WFC-02').expected.contentScoreCreditPreserved = true;
-  expectFailure(validateFeedbackCases(fx), /case\.register-coherence/, 'content kept under wrong situation');
+  caseById(fx, 'WFC-03').expected.contentScoreCreditPreserved = true;
+  expectFailure(validateFeedbackCases(fx), /case\.register-coherence/, 'content kept through a role reversal');
 });
 
-test('rejects content credit being withdrawn without a wrong situation', () => {
+test('rejects content credit being withdrawn without a declared reason', () => {
+  // Neither a wrong situation, nor topic-missed, nor a Leitpunkt shortfall is declared.
   const fx = clone();
-  caseById(fx, 'WFC-05').expected.contentScoreCreditPreserved = false;
-  expectFailure(validateFeedbackCases(fx), /case\.register-coherence/, 'content withdrawn for register alone');
+  const c = caseById(fx, 'WFC-05');
+  c.expected.contentScoreCreditPreserved = false;
+  delete c.leitpunktShortfall;
+  delete c.input.leitpunktShortfall;
+  delete c.expected.topicMissed;
+  expectFailure(validateFeedbackCases(fx), /case\.content-credit-unexplained/, 'unexplained withdrawal');
+});
+
+test('rejects a topic-missed text that keeps content credit or language credit', () => {
+  const credit = clone();
+  caseById(credit, 'WFC-02').expected.contentScoreCreditPreserved = true;
+  expectFailure(validateFeedbackCases(credit), /case\.topic-missed-credit/, 'topic-missed keeping content credit');
+
+  const language = clone();
+  caseById(language, 'WFC-02').expected.languageCriteriaStillAssessed = true;
+  expectFailure(validateFeedbackCases(language), /case\.topic-missed-language/, 'topic-missed keeping language credit');
+
+  const conflated = clone();
+  caseById(conflated, 'WFC-02').leitpunktShortfall = true;
+  expectFailure(validateFeedbackCases(conflated), /case\.topic-missed-conflated/, 'both branches declared');
 });
 
 test('the register-only case asserts exactly the corrected behaviour', () => {
@@ -349,6 +369,89 @@ test('rejects a case with no rationale or no provider behaviour', () => {
 });
 
 /* ----------------------------------------------------------- CLI surface */
+
+/* ==================================================================== */
+/* Independent-review regressions (CURRENT.md final additions)          */
+/* ==================================================================== */
+
+test('review F1: a null or primitive case is reported, never dereferenced', () => {
+  const nul = clone();
+  nul.cases[3] = null;
+  let r;
+  assert.doesNotThrow(() => { r = validateFeedbackCases(nul); }, 'a null case must not throw');
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => /case\.type/.test(e)), 'expected a case.type error');
+
+  const prim = clone();
+  prim.cases[3] = 'WFC-04';
+  assert.doesNotThrow(() => { validateFeedbackCases(prim); }, 'a primitive case must not throw');
+
+  // A null case must not break the scenario-coverage pass either.
+  const nulFirst = clone();
+  nulFirst.cases[0] = null;
+  assert.doesNotThrow(() => { validateFeedbackCases(nulFirst); });
+});
+
+test('review F2: content credit may be withdrawn for a Leitpunkt shortfall, not only a wrong situation', () => {
+  // Before: any wrongSituation=false with content credit withdrawn was rejected, which wrongly
+  // forbade the verified rule that criterion I is D when only one or no Leitpunkt is handled.
+  const unexplained = clone();
+  delete caseById(unexplained, 'WFC-04').leitpunktShortfall;
+  delete caseById(unexplained, 'WFC-04').input.leitpunktShortfall;
+  caseById(unexplained, 'WFC-04').expected.contentScoreCreditPreserved = false;
+  expectFailure(validateFeedbackCases(unexplained), /case\.content-credit-unexplained/, 'unexplained credit withdrawal');
+
+  const declared = clone();
+  const declaredCase = caseById(declared, 'WFC-04');
+  declaredCase.leitpunktShortfall = true;
+  declaredCase.expected.contentScoreCreditPreserved = false;
+  declaredCase.expected.wrongSituation = false;
+  declaredCase.expected.languageCriteriaStillAssessed = true;
+  assert.equal(validateFeedbackCases(declared).ok, true, 'a declared Leitpunkt shortfall must be accepted');
+
+  // The shortfall must not be conflated with a wrong situation, and it must withdraw credit.
+  const conflated = clone();
+  caseById(conflated, 'WFC-04').expected.wrongSituation = true;
+  expectFailure(validateFeedbackCases(conflated), /case\.leitpunkt-wrong-situation/, 'shortfall merged with wrong situation');
+
+  const noWithdrawal = clone();
+  const noWithdrawalCase = caseById(noWithdrawal, 'WFC-04');
+  noWithdrawalCase.expected.contentScoreCreditPreserved = true;
+  expectFailure(validateFeedbackCases(noWithdrawal), /case\.leitpunkt-credit/, 'shortfall without credit withdrawal');
+});
+
+test('review F3: the fixture distinguishes topic-missed from a wrong situation', () => {
+  const c = caseById(raw, 'WFC-02');
+  assert.equal(c.expected.topicMissed, true, 'WFC-02 must assert the topic-missed branch');
+  assert.equal(c.expected.wrongSituation, false, 'topic-missed is not a wrong communicative situation');
+  assert.equal(c.expected.languageCriteriaStillAssessed, false, 'topic-missed zeroes the language criteria too');
+  assert.equal(c.expected.contentScoreCreditPreserved, false);
+  assert.ok(c.expected.invariants.includes('topic-missed-all-criteria'));
+
+  // The role-reversal control remains a wrong situation with language credit assessed.
+  const role = caseById(raw, 'WFC-03');
+  assert.equal(role.expected.wrongSituation, true);
+  assert.equal(role.expected.languageCriteriaStillAssessed, true);
+});
+
+test('review F4: the reviewed cases carry their synthetic task and four Leitpunkte', () => {
+  for (const id of ['WFC-01', 'WFC-02', 'WFC-04', 'WFC-05']) {
+    const c = caseById(raw, id);
+    assert.ok(c.input.task, `${id} must carry its synthetic task`);
+    assert.ok(Array.isArray(c.input.task.leitpunkte), `${id} task needs Leitpunkte`);
+    assert.equal(c.input.task.leitpunkte.length, 4, `${id} task must have exactly four Leitpunkte`);
+    assert.ok(c.input.task.prompt.length > 10, `${id} task needs a real prompt`);
+    assert.equal(c.input.requiredContentPoints, 4, `${id} must require four points`);
+    assert.ok(c.input.learnerText, `${id} needs synthetic learner text`);
+  }
+});
+
+test('review F5: a Leitpunkt-shortfall case states that language is still assessed', () => {
+  const c = caseById(raw, 'WFC-04');
+  assert.equal(c.leitpunktShortfall, true);
+  assert.equal(c.expected.languageCriteriaStillAssessed, true, 'language credit must survive a content shortfall');
+  assert.equal(c.expected.wrongSituation, false, 'a shortfall is not a wrong situation');
+});
 
 test('CLI exits zero on the real fixtures and nonzero on a missing file', async () => {
   const { runCli } = await import('./feedback-case-check.mjs');
