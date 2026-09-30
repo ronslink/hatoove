@@ -48,6 +48,31 @@ const PROGRESS_PATH = process.env.B1PREP_PROGRESS_FILE
 const PROGRESS_REV_PATH = `${PROGRESS_PATH}.rev`;
 // The revision of a server that has never accepted a write or a delete.
 const INITIAL_REV = 0;
+// F-4: account-scoped records. A request may name an account with the header below; its
+// record then lives in its own file beside the legacy one. A request without the header
+// keeps the legacy unscoped path byte-for-byte, which is what a pre-account install still
+// uses. This is attribution/isolation of accounts that share one machine, NOT an
+// authentication boundary - see work/implementation/F4-SCOPE-01.md.
+const ACCOUNT_HEADER = 'x-b1prep-account';
+// An opaque account id. No dots, so it can never collide with the .bak/.tmp/.rev suffixes.
+const ACCOUNT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,63}$/;
+// The unscoped paths: the legacy single-user record.
+const LEGACY_PATHS = Object.freeze({ accountId: null, progress: PROGRESS_PATH, rev: PROGRESS_REV_PATH });
+
+/**
+ * Resolve the progress paths for a request. An invalid account token is a 400 rather than
+ * a silent fallback, so a malformed scope can never be mistaken for the legacy record.
+ */
+function accountPaths(req) {
+  const raw = req.headers[ACCOUNT_HEADER];
+  if (raw === undefined) return LEGACY_PATHS;
+  const value = Array.isArray(raw) ? raw[0] : String(raw);
+  const id = value.trim();
+  if (!ACCOUNT_ID_RE.test(id)) {
+    throw Object.assign(new Error('Invalid account scope'), { status: 400, code: 'invalid_account' });
+  }
+  return { accountId: id, progress: `${PROGRESS_PATH}.${id}`, rev: `${PROGRESS_PATH}.${id}.rev` };
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -284,17 +309,17 @@ function validateBaseUrl(raw) {
 /* --------------------------------------------------------------- progress */
 
 /** Write atomically: a partial write must never destroy a week of study. */
-async function writeProgress(data) {
-  const tmp = `${PROGRESS_PATH}.tmp`;
+async function writeProgress(data, paths = LEGACY_PATHS) {
+  const tmp = `${paths.progress}.tmp`;
   const body = JSON.stringify(data);
   await fsp.writeFile(tmp, body, 'utf8');
   try {
     // Keep one generation back, so a bad save is always recoverable.
-    await fsp.copyFile(PROGRESS_PATH, `${PROGRESS_PATH}.bak`);
+    await fsp.copyFile(paths.progress, `${paths.progress}.bak`);
   } catch {
     /* no previous file yet */
   }
-  await fsp.rename(tmp, PROGRESS_PATH);
+  await fsp.rename(tmp, paths.progress);
   return body.length;
 }
 
@@ -307,12 +332,12 @@ async function writeProgress(data) {
  * of the progress is not at risk; only the one-generation backup is dropped, because
  * keeping it would keep exactly the entries the learner deleted.
  */
-async function writeProgressScoped(data) {
-  const tmp = `${PROGRESS_PATH}.tmp`;
+async function writeProgressScoped(data, paths = LEGACY_PATHS) {
+  const tmp = `${paths.progress}.tmp`;
   const body = JSON.stringify(data);
   await fsp.writeFile(tmp, body, 'utf8');
-  await fsp.rename(tmp, PROGRESS_PATH);
-  await fsp.rm(`${PROGRESS_PATH}.bak`, { force: true });
+  await fsp.rename(tmp, paths.progress);
+  await fsp.rm(`${paths.progress}.bak`, { force: true });
   return body.length;
 }
 
@@ -320,10 +345,10 @@ async function writeProgressScoped(data) {
  * Read the revision marker. Missing or unreadable means the initial state (revision 0,
  * no delete yet), so a progress.json written before this change keeps working.
  */
-async function readRevision() {
+async function readRevision(paths = LEGACY_PATHS) {
   const whole = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.floor(Number(v))) : 0);
   try {
-    const parsed = JSON.parse(await fsp.readFile(PROGRESS_REV_PATH, 'utf8'));
+    const parsed = JSON.parse(await fsp.readFile(paths.rev, 'utf8'));
     return { rev: whole(parsed?.rev), deletedThrough: whole(parsed?.deletedThrough) };
   } catch {
     return { rev: INITIAL_REV, deletedThrough: 0 };
@@ -331,10 +356,10 @@ async function readRevision() {
 }
 
 /** Persist the revision marker atomically, so a crash cannot leave it half-written. */
-async function writeRevision(marker) {
-  const tmp = `${PROGRESS_REV_PATH}.tmp`;
+async function writeRevision(marker, paths = LEGACY_PATHS) {
+  const tmp = `${paths.rev}.tmp`;
   await fsp.writeFile(tmp, JSON.stringify({ rev: marker.rev, deletedThrough: marker.deletedThrough }), 'utf8');
-  await fsp.rename(tmp, PROGRESS_REV_PATH);
+  await fsp.rename(tmp, paths.rev);
 }
 
 /**
@@ -368,13 +393,13 @@ function classifyWrite(rawRev, marker) {
   return { accept: true, revision: rev };
 }
 
-async function readProgress() {
-  for (const p of [PROGRESS_PATH, `${PROGRESS_PATH}.bak`]) {
+async function readProgress(paths = LEGACY_PATHS) {
+  for (const p of [paths.progress, `${paths.progress}.bak`]) {
     try {
       const raw = await fsp.readFile(p, 'utf8');
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object' && parsed.nodes && typeof parsed.nodes === 'object') {
-        return { found: true, source: p === PROGRESS_PATH ? 'primary' : 'backup', state: parsed };
+        return { found: true, source: p === paths.progress ? 'primary' : 'backup', state: parsed };
       }
     } catch {
       /* try the next candidate */
@@ -524,11 +549,18 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/progress' && method === 'GET') {
-    const { found, source, state } = await readProgress();
+    const paths = accountPaths(req);
+    const { found, source, state } = await readProgress(paths);
     // A GET only reports the revision; it never advances it, so a client can learn the
     // value it must send with its next write without disturbing anyone else.
-    const { rev } = await readRevision();
-    sendJSON(res, 200, found ? { ok: true, found: true, source, rev, state } : { ok: true, found: false, rev });
+    const { rev } = await readRevision(paths);
+    sendJSON(
+      res,
+      200,
+      found
+        ? { ok: true, found: true, source, rev, state, accountId: paths.accountId }
+        : { ok: true, found: false, rev, accountId: paths.accountId }
+    );
     return true;
   }
 
@@ -542,7 +574,8 @@ async function handleApi(req, res, pathname) {
     }
     // SEC-05: refuse a write that left before the last delete. The revision the client
     // believes it is updating travels with the write; a stale one gets 409 and no write.
-    const marker = await readRevision();
+    const paths = accountPaths(req);
+    const marker = await readRevision(paths);
     const verdict = classifyWrite(body?.rev, marker);
     if (!verdict.accept) {
       sendJSON(res, 409, {
@@ -562,14 +595,14 @@ async function handleApi(req, res, pathname) {
       // Merge rather than overwrite. Saves are debounced and can arrive from more than
       // one tab; a plain overwrite let a tab holding an older snapshot erase newer
       // answers after the fact. Merging is monotonic, so that cannot happen.
-      const existing = await readProgress();
+      const existing = await readProgress(paths);
       const merged = existing.found ? mergeProgress(existing.state, state) : state;
-      const bytes = await writeProgress(merged);
+      const bytes = await writeProgress(merged, paths);
       // Every accepted write advances the revision, so a later delete always outranks
       // every write that left before it. `max` keeps it monotonic even for a client that
       // somehow arrived with a higher revision than this server has issued.
       const rev = Math.max(marker.rev, verdict.revision) + 1;
-      await writeRevision({ rev, deletedThrough: marker.deletedThrough });
+      await writeRevision({ rev, deletedThrough: marker.deletedThrough }, paths);
 
       const payload = { ok: true, bytes, savedAt: Date.now(), merged: existing.found, rev };
       // Only send the state back when the merge actually recovered something the
@@ -594,6 +627,7 @@ async function handleApi(req, res, pathname) {
     } catch {
       /* unreachable: the pathname was parsed from the same URL */
     }
+    const paths = accountPaths(req);
 
     if (scope === 'all') {
       // SEC-05: leave a tombstone before removing anything. The revision is recorded
@@ -603,19 +637,19 @@ async function handleApi(req, res, pathname) {
       // and is refused instead of restoring the record.
       let rev;
       try {
-        const marker = await readRevision();
+        const marker = await readRevision(paths);
         rev = marker.rev + 1;
-        await writeRevision({ rev, deletedThrough: rev });
+        await writeRevision({ rev, deletedThrough: rev }, paths);
       } catch (err) {
         sendJSON(res, 500, { ok: false, error: `Could not record the reset: ${err.message}` });
         return true;
       }
       try {
-        await fsp.rm(PROGRESS_PATH, { force: true });
-        await fsp.rm(`${PROGRESS_PATH}.bak`, { force: true });
+        await fsp.rm(paths.progress, { force: true });
+        await fsp.rm(`${paths.progress}.bak`, { force: true });
         // A leftover temp file from an interrupted write would otherwise be renamed
         // into place by the next save and resurrect the record.
-        await fsp.rm(`${PROGRESS_PATH}.tmp`, { force: true });
+        await fsp.rm(`${paths.progress}.tmp`, { force: true });
       } catch {
         /* already gone */
       }
@@ -624,14 +658,14 @@ async function handleApi(req, res, pathname) {
     }
 
     if (scope === 'errors') {
-      const existing = await readProgress();
+      const existing = await readProgress(paths);
       // The notebook clear moves the revision too: an in-flight save still carrying the
       // cleared entries must not merge them back.
       let rev;
       try {
-        const marker = await readRevision();
+        const marker = await readRevision(paths);
         rev = marker.rev + 1;
-        await writeRevision({ rev, deletedThrough: rev });
+        await writeRevision({ rev, deletedThrough: rev }, paths);
       } catch (err) {
         sendJSON(res, 500, { ok: false, error: `Could not clear the notebook: ${err.message}` });
         return true;
@@ -641,7 +675,7 @@ async function handleApi(req, res, pathname) {
         return true;
       }
       try {
-        await writeProgressScoped({ ...existing.state, errors: [], updatedAt: Date.now() });
+        await writeProgressScoped({ ...existing.state, errors: [], updatedAt: Date.now() }, paths);
       } catch (err) {
         sendJSON(res, 500, { ok: false, error: `Could not clear the notebook: ${err.message}` });
         return true;
