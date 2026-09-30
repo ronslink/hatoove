@@ -29,3 +29,57 @@ jobs:
         run: node tools/writing-check.js
       - name: Feedback regression checks
         run: node tools/feedback-check.js
+  contracts:
+    name: Server and owned API contracts (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      # Full history: revision-check, progress-equal-check and keymask --prefix-commit
+      # materialize the pre-fix tree with `git show <sha>:<file>` and fail on a shallow clone.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Same-origin guard on state-changing routes
+        run: node tools/server-origin-check.mjs
+      # No --legacy-root: with no value it compares the candidate against itself.
+      - name: Progress reset contract
+        run: node tools/reset-check.mjs
+      - name: Reset invalidates older writes, discriminated against the pre-fix tree
+        run: node tools/revision-check.mjs
+      - name: Key never disclosed by any route
+        run: node tools/keymask-check.mjs
+      - name: Key masking discriminates against the pre-fix server
+        run: node tools/keymask-check.mjs --prefix-commit 8a71f718ee534851a98d19eece07dab933b56479
+      - name: Key-order-insensitive progress equality, discriminated against the pre-fix tree
+        run: node tools/progress-equal-check.mjs
+      - name: Draft session contract
+        run: node tools/draft-session-check.mjs
+      - name: Owned API suite (memory backend)
+        run: node tools/owned-api-check.mjs
+      - name: Owned API client contract
+        run: node tools/owned-client-check.mjs
+  fixtures:
+    name: Exam and feedback fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Feedback case fixtures
+        run: node tools/feedback-case-check.mjs
+      - name: Objective scoring fixtures
+        run: node tools/objective-fixture-check.mjs
+      - name: Written exam blueprint consistency
+        run: node tools/exam-blueprint-check.mjs
