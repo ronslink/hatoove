@@ -147,6 +147,46 @@ check('the-shell-is-the-view-host', () => {
   }
 });
 
+/**
+ * Ron, 2026-10-01: "language refers to the explanation language; the menu and the content remain german."
+ *
+ * That is easy to get wrong in exactly one way, so it is worth a mechanical guard: a "language" setting that is
+ * wired into the app's own chrome or into content presentation turns a German exam trainer into a translated
+ * interface, which is not what was asked for.
+ *
+ * This check refuses a LANGUAGE SETTING THAT DRIVES THE INTERFACE. It cannot (and does not claim to) prove that
+ * explanations arrive in the chosen language - that needs a rendered check and a stubbed provider, because it is a
+ * property of a provider response rather than of this repository.
+ *
+ * Deliberately permissive about the field existing: storing `language` in the account-settings contract is the
+ * plan, and a settings UI offering it is the point. What is forbidden is the setting reaching the shell, the
+ * navigation, or content rendering.
+ */
+check('language-is-an-explanation-setting-not-an-interface-setting', () => {
+  const shell = read(SHELL_PATH);
+  if (/\blanguage\b/i.test(shell)) {
+    throw new Error('shell.js references `language`; the language setting must not drive the interface, the navigation or the app chrome - the menu stays German');
+  }
+
+  // The German navigation labels are the exam trainer's own voice. If one of them ever becomes a lookup, the
+  // interface has become translatable by accident.
+  const app = read(APP_PATH);
+  const labels = [...app.matchAll(/id:\s*'[a-z0-9-]+',\s*label:\s*'([^']+)'/g)].map((m) => m[1]);
+  if (!labels.length) throw new Error('no navigation labels found to check; this guard is not measuring what it claims');
+  const dynamic = labels.filter((label) => /[${}]/.test(label));
+  if (dynamic.length) {
+    throw new Error(`navigation label(s) are computed rather than literal: ${dynamic.join(', ')} - the menu is German and must not be language-dependent`);
+  }
+
+  // Exam content is the exam. A language switch must never reach it.
+  for (const file of ['guides.js', 'blueprint.js']) {
+    const source = read(path.join(ROOT, 'public', 'js', file));
+    if (/\blanguage\b/i.test(source)) {
+      warnings.push(`public/js/${file} references \`language\` - check by hand that the language setting is not being used to swap or translate exam content (advisory: this file may legitimately mention a language as exam subject matter)`);
+    }
+  }
+});
+
 export async function runDesignChecks() {
   warnings.length = 0;
   const results = [];
