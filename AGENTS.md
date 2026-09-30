@@ -8,11 +8,33 @@ Preserve the previous learner app in `public/` as the visual foundation after lo
 
 ## Coordination
 
-The local Codex coordinator owns architecture, shared contracts, major learner journeys, integration and user updates. The Hetzner OpenClaw agent and local Docker Hermes agent take bounded assignments and independent reviews. Read `docs/AGENT_WORKFLOW.md` and the assigned task before editing.
+**Coordinator ownership (2026-09-30, issue [#27](https://github.com/ronslink/hatoove/issues/27)).** Ron
+appointed his locally controlled agent as coordinator, taking over coordination between the Hetzner OpenClaw
+agent and the local Docker Hermes agent. That instruction **supersedes earlier wording that only the original
+Codex chat could coordinate**. The coordinator owns architecture, shared contracts, major learner journeys,
+bounded task assignment, scope/lease decisions, central records, integration and user updates, and may
+implement work directly. The original coordinator's own implementation is paused; its unfinished changes stay
+preserved and unmerged. Coordination continues until Ron changes it, but **each worker execution still needs
+its own explicit bounded lease**.
 
-Only the coordinator assigns tasks, changes the central board and determines merge order. A task has one active owner and an execution ID, base commit, branch, allowed paths, acceptance criteria and next checkpoint. Workers acknowledge the assignment before editing. A stale assignment does not authorize continued edits or a merge. Preserve work and report blockers; do not silently abandon or overwrite it.
+The Hetzner OpenClaw agent and local Docker Hermes agent take bounded assignments and independent reviews.
+Read `docs/AGENT_WORKFLOW.md` and the assigned task before editing.
 
-Start with at most four active agents across all hosts, counting coordinator, parents, children and reviewers. Hermes child spawning is disabled for this project until capability checks succeed and the coordinator allocates a slot. No recursive delegation by workers. A child that edits files gets a separate checkout/worktree and branch, even when its container is shared. Never assume conversation isolation means filesystem isolation.
+Only the coordinator assigns tasks, changes the central board and determines merge order. A task has one
+active owner and an execution ID, base commit, branch, allowed paths, acceptance criteria and next checkpoint.
+Workers acknowledge the assignment before editing. A stale assignment does not authorize continued edits or a
+merge. Preserve work and report blockers; do not silently abandon or overwrite it.
+
+**A reviewer must not be the author of the slice under review.** The coordinator maintains `CURRENT.md` and
+`QUEUE.md` in the shared handoff every five minutes without sending repetitive chat updates, and updates
+`IMPLEMENTATION_PLAN.md` and `work/BOARD.md` together after meaningful transitions. Keep status labels
+distinct: **delivered ≠ independently reviewed ≠ green CI ≠ merged ≠ product accepted.**
+
+Start with at most four active agents across all hosts, counting coordinator, parents, children and reviewers.
+Hermes child spawning is disabled for this project until capability checks succeed and the coordinator
+allocates a slot. No recursive delegation by workers. A child that edits files gets a separate
+checkout/worktree and branch, even when its container is shared. Never assume conversation isolation means
+filesystem isolation.
 
 ## Git and file ownership
 

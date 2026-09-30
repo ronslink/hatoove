@@ -1,6 +1,11 @@
+# Agent runbook
+
+> **Supervising workers?** Read [AGENT_SUPERVISION.md](AGENT_SUPERVISION.md) first: how to detect a stalled
+> agent, harvest its work before discarding it, make inputs reachable, and verify that a new check actually
+> discriminates.
 # Dispatch and handoff commands
 
-Read [AGENT_WORKFLOW.md](AGENT_WORKFLOW.md) first. These are bounded worker dispatch commands. Ron requested continuous coordination: the active Codex thread heartbeat `continue-hatoove-implementation` resumes the coordinator every ten minutes and reports meaningful changes, completion, failures or required action. It does not make workers autonomous beyond their task leases. The coordinator records the task/lease on GitHub and verifies the worktree/branch/base before a worker edits. Never reuse an active worker's checkout for another assignment.
+Read [AGENT_WORKFLOW.md](AGENT_WORKFLOW.md) first. These are bounded worker dispatch commands. Ron requested continuous coordination: the active Codex thread heartbeat `continue-hatoove-implementation` resumes the coordinator every five minutes and reports meaningful changes, completion, failures or required action. It does not make workers autonomous beyond their task leases. The coordinator records the task/lease on GitHub and verifies the worktree/branch/base before a worker edits. Never reuse an active worker's checkout for another assignment.
 
 ## OpenClaw on Hetzner
 
@@ -21,10 +26,10 @@ Container: `hermes-agent`. Persistent source clone: `/opt/data/workspaces/hatoov
 The installed one-shot interface is:
 
 ```text
-docker exec hermes-agent hermes chat --in /absolute/task/worktree --query-file /projects/hatoove-handoff/task.md --oneshot --max-turns 16 --run-budget 240 -t terminal,file -Q
+docker exec hermes-agent hermes chat --in /absolute/task/worktree --query-file /projects/hatoove-handoff/task.md --oneshot --max-turns 160 --run-budget 2400 -t terminal,file -Q
 ```
 
-This parent-only toolset does not include delegation. Do not use `--yolo` or blanket hook approval. The configured Hermes host allows more child concurrency and depth than this project; the project allocation remains authoritative. A child exercise requires a separately recorded grant and evidence of its actual lifecycle. Context isolation is not filesystem isolation.
+Ron requested increased Hermes run limits: new implementation runs may use 160 iterations and 2400 seconds (40 minutes), within an active task lease. Already-running processes retain their startup limits; inspect and preserve partial work before resuming after termination. Keep 15-minute checkpoints. These limits are distinct from account quotas and the four-agent concurrency cap. This parent-only toolset does not include delegation. Do not use `--yolo` or blanket hook approval. The configured Hermes host allows more child concurrency and depth than this project; the project allocation remains authoritative. A child exercise requires a separately recorded grant and evidence of its actual lifecycle. Context isolation is not filesystem isolation.
 
 Hermes has no working GitHub login in this setup. Exchange commits without transferring credentials:
 
@@ -35,3 +40,5 @@ Hermes has no working GitHub login in this setup. Exchange commits without trans
 5. Coordinator pushes that branch, opens and attaches the PR, relays the worker's acknowledgement/results to the issue, and obtains independent review before merging.
 
 The baseline clone and task branches can persist between sessions. Bundles and local logs are not canonical completion records: the reviewed GitHub PR, task issue and board are. Record blocked or timed-out runs honestly and stop the old process before issuing a replacement execution.
+
+Coordinator transfer: see issue27. The original Codex heartbeat is paused to conserve credits; Ron's appointed agent now owns the five-minute CURRENT.md loop and remote dispatch. Its handoff is at <user-home>/.codex/hatoove-handoff/ron-agent/COORDINATOR-HANDOFF.md.
