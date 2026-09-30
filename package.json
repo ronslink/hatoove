@@ -13,7 +13,6 @@
     "tts": "node tools/tts-check.js",
     "ai:live": "node tools/ai-live.js",
     "icon": "node tools/make-icon.js",
-    "recover": "node tools/recover-progress.js",
     "mock:ai": "node tools/mock-deepseek.js"
   },
   "engines": {
