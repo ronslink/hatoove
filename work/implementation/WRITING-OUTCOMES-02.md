@@ -2,11 +2,30 @@
 
 - **Task:** `writing-outcomes-02-openclaw-20260930-a` (slot 3, OpenClaw/Hetzner)
 - **Coordinator:** `COORD-TAKEOVER-20260930`
-- **Branch:** `codex/writing-outcomes-02`
+- **Branch:** requested `codex/writing-outcomes-02`; **that ref was already occupied** by another commit
+  (`ef888ff`, authored 2026-09-30 21:32 UTC, same base), so this work is pushed as
+  `codex/writing-outcomes-02-openclaw-a` to avoid overwriting another owner's branch. See “Branch
+  collision” below.
+- **Commit:** `0dd9d5bd0b35e03960d0cacfe48a92d1e1211201`
+- **Draft PR:** https://github.com/ronslink/hatoove/pull/54
 - **Base used:** `origin/main` @ `41b5efb3b967dc529b6a05c4ff47d99fb757fb94`
   — re-checked on this host (`git rev-parse origin/main` = `41b5efb3b967dc529b6a05c4ff47d99fb757fb94`).
 - **Seed material:** the adopted `writing-outcomes-01` draft (`SEED-exam-lf.patch`, `SEED-mock-outcome.js`),
   treated as an untested draft, not as correct.
+
+## Branch collision (coordinator decision needed)
+
+`origin/codex/writing-outcomes-02` already contained commit `ef888ff` (“stop claiming writing
+outcomes the mock cannot support”, same base `41b5efb`) — a **different, complete implementation**
+of this task, and one that predates this dispatch. This was discovered only at push time.
+
+- I did **not** force-push, merge or rebase over it (AGENTS.md: never overwrite another worker's
+  branch).
+- My work was pushed under `codex/writing-outcomes-02-openclaw-a` and opened as draft PR #54 so both
+  efforts are preserved and comparable.
+- `ef888ff` was checked out and run here: `node --test tools/mock-outcome-check.test.mjs` → 20/20 and
+  its discrimination run is green. It does **not** contain the “Neuer Mocktest” wiring defect below.
+- The coordinator owns merge order and should choose which implementation (or which parts) lands.
 
 ## What changed
 
