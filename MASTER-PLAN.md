@@ -1,8 +1,10 @@
 # Hatoove master plan — delivery tracker
 
 **Owner:** coordinator (`COORD-TAKEOVER-20260930`, issue [#27](https://github.com/ronslink/hatoove/issues/27))
-**Last updated:** 2026-09-30 19:25 UTC · **Base:** `origin/main` @ `074aebf`
+**Last updated:** 2026-10-01 · **Base:** `origin/main` @ `5a63429949275f4cb27cd7f64565afe8cf029511`
 **Update cadence:** with `work/BOARD.md` and `IMPLEMENTATION_PLAN.md` after meaningful transitions.
+**Dispatch mechanics:** the per-worker setup, delivery and verification facts live in the coordinator handoff
+folder's `WORKSPACE-SETUP.md` (recorded 2026-10-01) so a handoff stops re-deriving them.
 
 This is the **single consolidated progress tracker** for the programme. Read it first, then go to the
 authoritative source for detail.
@@ -48,32 +50,44 @@ migration, no hosting change.
 | F-04 / PILOT-01 CSS bounding | #12 `bb30267` | **Only D5/D6 reproduced and changed.** D2/D3/D8 were false positives; 200% zoom filenames unreliable as proof |
 | C-01 discovery | #20 `a9ed166` | `7e24229`: 24 sets / 180 slots / 6 writing prompts, **0 tracked fixed audio**, rights/review unknown |
 | Master-plan alignment | #22 `074aebf` | plan + board + discovery |
+| Integration stack (USER-03 + USER-04) | #35 `82ae9c2` | 13 files added, 6589 insertions, **0 deletions** — a real three-way merge, not a hand rebuild. PR #33 (hand rebuild) rejected by independent review and retained as the rejection record |
+| F-1 origin/authorization gate | #38 `9c57ffd` | `server-origin-check.mjs` 16/16; the reviewer's own probe showed pre-fix `82ae9c2` returned 200 **and rewrote the env file**, fixed head returns 403 `origin_rejected`; 14 bypass classes, 78 assertions, zero bypasses |
+| Owned client transport | #41 `de4ecb6` | `owned-client-check.mjs` **31/31**; generation fencing holds even when the transport ignores `AbortSignal` |
+| F-2 reset actually deletes | #42 `675a3f6` | `reset-check.mjs` 9/9; independent review then found the **in-flight-save race** |
+| F-3 AI disclosure | #44 `0ee7e13` | learner-facing copy; flagged for human C-06 review |
+| SEC-02 race correction | #45 `258f200`… | `progressEqual` compared `JSON.stringify` against a differently-ordered `mergeProgress` output, so identical records compared unequal and the server shipped a full payload on **every** POST |
+| F-2 race: revision fence | #47 `8a71f71` | `revision-check.mjs` **8/8 including pre-fix discrimination**; a `DELETE` now invalidates older in-flight writes with `409 stale_revision` |
+| OWNAPI-01 owned API | #48 `2974359` | `owned-api-check.mjs` **24/24** driven by the real client over real HTTP |
+| F-7 key exposure | #50 `616e1e5` | `keymask-check.mjs` **12/12**; pre-fix disclosed exactly **5 runs of ≥3 key characters**, fixed discloses none |
+| F-8 account name | #46 `fa53e30` | machine paths and OS account name removed from tracked docs |
+| PM-01 `progressEqual` | #49 `2f892d2` | `progress-equal-check.mjs` **10/10** with pre-fix discrimination |
+| **DRAFT-SESSION-01 draft service** | **#51 `c8bf97a`** | 4 files added, **0 deletions**, `exam.js` byte-identical; checker **17/17**, tests **21/21**; **independent review: accept-with-notes, no blocking defect** |
+| **OWNAPI-02 PostgreSQL adapter + RLS evidence** | **#52 `5a63429`** | own package scope (`pg` 8.23.1) so the root app stays dependency-free; coordinator ran the proof on real PostgreSQL — **6/6** isolation tests and **24/24** the same suite on the pg backend; **discrimination proven by mutation** (granting the learner role `BYPASSRLS` makes it fail with "leaked a cross-owner row") |
 
 ## Workstream tracker (12 items from the coordinator handoff)
 
 | # | Workstream | State | Evidence / blocker | Next action |
 |---|---|---|---|---|
-| 1 | **Takeover and reconcile live work** | **delivered** | ACK + checkpoint written; origin/main and both remote processes verified; coordinator established in AGENTS/workflow/runbook/board/plan via PR | Independent review of this coordination PR |
-| 2 | **Finish USER04 acceptance; integrate source/fixture stack** | **in progress** | USER04 stack `cba0f0c` delivered + self-checked (**127 tests**), 20 review corrections applied. PR26's verdicts are **stale** (`562902b`). OpenClaw `user04r2b` reviewing `cba0f0c` now | Await independent verdict; then build one integration candidate from `origin/main` carrying both PR17 and PR21 corrections — never the known-broken intermediate tree |
-| 3 | **Accept and integrate Hermes owned API client** | **delivered, awaiting review** | Bundle `009d931`; coordinator verified exactly the 3 allowed paths, `git bundle verify`, its checker **28/28**, baseline **101+9+14** on the returned tree, clean boundaries | Dispatch independent review (account-generation fencing, ignored AbortSignal, stale vs current 401, sign-out failure, payload allowlists, no automatic POST retries) |
-| 4 | **Truthful mock outcomes** | **planned — paused code preserved** | issue #25; `codex/writing-outcomes-01` @ `074aebf` holds an **incomplete, untested** exam.js diff + `mock-outcome.js`. `renderMockResult` still assumes the old score shape | Adopt as a fresh bounded execution with **exactly one `exam.js` writer**; complete unassessed-writing behaviour, remove heuristic mark/pass claim/grade band |
-| 5 | **Account-scoped draft state** | **planned** | No module yet | Record the versioned decision against contract 0.1.0 first; then `owned-draft.js` + checker + contract doc. **No `exam.js` writer until this boundary is accepted** |
-| 6 | **Connect writing UI to durable attempts/drafts** | **blocked on 5** | `public/js/exam.js` reserved | Serialise behind workstream 5 |
-| 7 | **Account/session entry flow + browser-to-server fixture** | **planned** | Runtime spike exists but is not production-deployed | Scope to separate assigned files; keep `exam.js` exclusive; synthetic loopback server, ephemeral secrets |
-| 8 | **Durable submission/result/retry/revision UI** | **planned** | Server contract already proves idempotency, lease fencing, one debit | Serialise behind 6; use provider stubs |
-| 9 | **Server-side objective marking** | **planned** | Fixtures prepared in USER04 (36 cases; not yet accepted) | Assign a pure authoritative-marking slice **only after** fixture acceptance; keep private keys out of learner payloads |
+| 1 | **Takeover and reconcile live work** | **merged** | `41b5efb` (PR #29) | — |
+| 2 | **Finish USER04 acceptance; integrate source/fixture stack** | **merged** | Integration stack `82ae9c2`; the hand-refusal (#33) is retained as the rejection record | Independent review of the accepted stack's known guard limits (`rationale`/top-level/family gaps) is documented, not closed |
+| 3 | **Accept and integrate Hermes owned API client** | **merged** | `de4ecb6` (31/31) and the owned API `2974359` (24/24) | — |
+| 4 | **Truthful mock outcomes** | **delivered twice, under independent review** | Two complete implementations exist: **#53** `72994ad` (16/16 checker, 20/20 tests, browser check cannot run unattended) and **#54** `793f3c6` (19/19, 21/21, self-contained browser proof **11/11**, plus a restart-button defect fix). Measured comparison published on `origin/codex/wo02-impl-compare` | **Hermes `wo02-verify-hermes-20261001-a` is adjudicating and verifying now.** Merge waits on that verdict; #53 would then be closed as superseded |
+| 5 | **Account-scoped draft state** | **delivered, merged** | `public/js/draft-session.js` in `c8bf97a`; IDs only, keyed by account+task, never learner text; reviewer found one **non-blocking** discriminator gap (the module's own generation fence is redundancy today, not an independently proven control) | Wire it into the app (workstream 6) once Ron releases `exam.js` |
+| 6 | **Connect writing UI to durable attempts/drafts** | **blocked on Ron's `exam.js` release** | The original hold is gone (the paused `writing-outcomes-01` no longer owns the file — WRITING-OUTCOMES-02 rewrote it), so the hold now means only "no second concurrent writer" | Confirm release, then wire `draft-session.js` in as its own bounded slice |
+| 7 | **Account/session entry flow + browser-to-server fixture** | **planned** | The owned client and owned API are both merged, but **nothing in `public/**` calls them** — the audit's premise correction still stands | Next product slice after 6; synthetic loopback server, ephemeral secrets |
+| 8 | **Durable submission/result/retry/revision UI** | **planned** | Server contract already proves idempotency, lease fencing, one debit | Serialise behind 6 and 7; provider stubs |
+| 9 | **Server-side objective marking** | **planned** | Fixtures prepared (36 cases); **no authoritative marking implemented** | Bounded slice after 6; keep private keys out of learner payloads |
 | 10 | **Fixed-audio delivery + content provenance** | **planned** | Discovery reports **0 tracked fixed audio**; rights unknown | Asset manifest/schema + local delivery fixture with synthetic/licensed audio only |
-| 11 | **Independently verify the internal learner journey** | **blocked on 5–8** | — | Fresh synthetic checkout, isolated ports; record real-device checks as **pending**, never passing-by-emulation |
-| 12 | **Close plan gaps; prepare next bounded batch** | **ongoing** | — | Update plan/board states with links; keep human/device gates visible |
+| 11 | **Independently verify the internal learner journey** | **blocked on 6–8** | — | Fresh synthetic checkout, isolated ports; real-device evidence stays **pending**, never passing-by-emulation |
+| 12 | **Close plan gaps; prepare next bounded batch** | **ongoing** | Baseline `101 / 9 / 14` plus checkers 16 · 9 · 8 · 31 · 24 · 12 · 10 · 17 re-measured 2026-10-01 | **Wire the ungated checkers into CI** (`ci-gates-01-claude-20261001-a` running); F-4 (`f4-scope-01` OpenClaw) and F-5 (`f5-deletion-01` Clawdbot) running |
 
 ## Open review and integration queue
 
 | PR | Content | State | Action |
 |---|---|---|---|
-| #17 | USER-03 source register + blueprint checker | open, draft | Fold into the integration candidate after review |
-| #21 | USER-04 fixture/checker stack @ `cba0f0c` | open, draft (stacked on #17) | Accept via `user04r2b`; then integrate both sequences together |
-| #26 | PR26 review report @ `562902b` | open, draft | **Stale** — superseded by `user04r2b`; keep as history |
-| coordination PR | Coordinator transfer records | open | Independent review |
+| #54 | WRITING-OUTCOMES-02 implementation B @ `793f3c6` | open, draft | **Awaiting Hermes's independent verdict and adjudication**; the author must not review it |
+| #53 | WRITING-OUTCOMES-02 implementation A @ `72994ad` | open, draft | Close as superseded if the reviewer confirms B |
+| #33 | Hand-rebuilt integration stack @ `7f1ffd7` | open, draft | **Do not merge.** Retained as the record of the rejection; review is #34 |
 
 ## Human and device gates (open — no agent may close these)
 
@@ -97,6 +111,18 @@ counts. No hosting or framework migration.
 
 ## Concurrency
 
-Global cap **4 active agents** including the coordinator, all parents, children and reviewers. Default
-allocation: coordinator + Hermes + OpenClaw + at most one independent reviewer. No recursive spawning. **A
-reviewer must not be the author of the slice under review.**
+**Ron authorised all four workers (Hermes, OpenClaw, Clawdbot, Claude) plus the coordinator on 2026-09-30**, which
+supersedes the earlier "four including the coordinator" reading. A reviewer occupies the reviewer role; it does
+not add a fifth worker. No recursive spawning. **A reviewer must not be the author of the slice under review.**
+
+## Verification gaps recorded, not closed
+
+1. **Five checkers were ungated by CI** (`revision`, `keymask`, `progress-equal`, `draft-session`, `owned-api`)
+   because `.github/**` had never been in a worker's allowed paths. `ci-gates-01-claude-20261001-a` is fixing it.
+2. **`reset-check.mjs --legacy-root` with no value silently compares the candidate against itself** and reports a
+   false negative. Never wire it into CI without a real path.
+3. **The `draft-session` checker does not discriminate the module's own generation/account fence** — deleting the
+   guard still yields 17/17 (verified by independent mutation). Correct in shipped code; **redundancy today, not a
+   proven control.**
+4. **`owned-api-pg-check` is now gated in CI** and was executed locally on real PostgreSQL; the mutation proving
+   it fails under `BYPASSRLS` was run by the coordinator, not by an independent reviewer.
