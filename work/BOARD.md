@@ -37,10 +37,10 @@ Global cap: **4 active agents including the coordinator and all children/reviewe
 
 | Slot | Execution | Current assignment/status |
 |---|---|---|
-| 1 | f02-20260930-a | Coordinator [F02/A01](implementation/F02-A01.md), issue #13, `codex/f02-a01-local-isolation`, base a9a4cfd; real-role SQL isolation implementation; expires19:15 UTC |
-| 2 | c01d-20260930-a | Hermes [content discovery](implementation/C01-DISCOVERY.md), issue #14; two earlier processes ended incomplete; coordinator-reviewed corrections dispatched18:35, lease19:15 UTC. No children |
-| 3 | user03r-20260930-a / f02r2-20260930-a | Local read-only USER03 review completed with corrections for USER04; slot reserved for final F02 follow-up review. OpenClaw final report PR15 complete and process ended; no active remote reviewer |
-| 4 | user04-20260930-a | Ron-controlled agent [five-task batch](implementation/USER-04.md), issue #19; branch codex/user04-source-fixtures, base7030a66; expires20:31 UTC. USER03 delivered PR17, independent corrections pending; USER02 merged PR12 atbb30267 |
+| 1 | f02-20260930-a completed; progress-20260930 | Coordinator SQL slice merged PR18 ata58f6fb; independent review/final CI passed; updating master plan/board and preparing owned-client/draft slice. Dedicated synthetic DB stopped |
+| 2 | c01d-20260930-a completed | Hermes runs ended; coordinator independently checked/package-reviewed the corrected two-file source7e24229 and merged PR20 on green CI. Slot free; no live Hermes task |
+| 3 | user04r-20260930-a | Local read-only acceptance review of exact USER04 daaf55f/PR21, checkpoint19:00, expires19:15. Prior SQL270e1b8 review approved; OpenClaw PR15 closed and remote process ended |
+| 4 | user04-20260930-a | Ron-controlled agent [five-task batch](implementation/USER-04.md), issue #19; branch codex/user04-source-fixtures, base7030a66; expires20:31 UTC. Five deliverables reported in PR21; checker edits still in progress and acceptance corrections in CURRENT. Preserve branch; no new grant until clean reviewed handoff |
 
 The advisory reviewer supplied failure cases (idempotency races, transactional rollback, lease fencing, allowance reservation and deletion precedence); those are test advice, not diff approval. See [USER-01 disposition and next slices](implementation/PILOT-01-CSS.md). `public/js/exam.js` is reserved for coordinator-owned draft integration, with no active edits yet.
 
@@ -50,4 +50,4 @@ Coordinator preparation closes with the merge of [PR #6](https://github.com/rons
 
 Update this board and IMPLEMENTATION_PLAN.md progress together after meaningful transitions. Update status only from observed evidence. Distinguish a tooling inventory, a successful agent exercise, and a verified product behavior.
 
-PRE-05 PR #11 merged at a9a4cfd. CSS PR #12 merged after independent review/CI; issue10 closed. Next integration: F-02/A-01 SQL isolation PR18 with PR15 review, corrected content/source reports, then coordinator-owned PILOT-02-DRAFT. The original CSS review overstated tablet/focus defects; only reproduced D5/D6 received changes. No real-device acceptance or complete learner journey is claimed.
+PRE-05 PR #11 merged ata9a4cfd; CSS PR #12 atbb30267; SQL PR #18 ata58f6fb; discovery PR #20 includes7e24229. Issues10/13/14 closed after acceptance of their bounded slices. Next: independently review USER04 corrections to source/fixtures PR17, then coordinator-owned client/draft recovery. The original CSS review overstated tablet/focus defects; only reproduced D5/D6 received changes. Text zoom, real-device acceptance and complete learner journey remain open.
