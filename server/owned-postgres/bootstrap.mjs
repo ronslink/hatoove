@@ -20,7 +20,7 @@
 
 import pg from 'pg';
 import { randomBytes } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { accountSettingsSql, deletionRoleSql, contentCatalogueSql, examScopeSql } from './provisioning-sql.mjs';
 
 const SPIKE = new URL('../../spikes/auth-runtime/', import.meta.url);
@@ -124,21 +124,29 @@ export async function createFixture(overrides = {}) {
     // no `exam_package` at all while the product did.
     await pools.migration.query(examScopeSql({ schema, roles }));
     /*
-     * OBJECTIVE-SEED-01. The objective corpus migration is APPLIED FROM THE TRACKED FILE rather than
-     * duplicated here, and the difference matters at this size: `contentCatalogueSql` can hand-mirror
-     * 0006 because it is a page of SQL, but 0010 is ~80 KB of generated inserts. Hand-mirroring that
-     * would guarantee the fixture and the product drift, and the drift would be invisible until a
-     * learner was marked against the wrong key.
+     * LIBRARY-SEED — every TRACKED content migration from 0010 onward, applied from the file.
      *
-     * The placeholders are the same three the persistent renderer substitutes, so the fixture gets
-     * the SAME 24 sets and 180 answers an installation gets -- which is the point of the fixture.
-     * Regenerate with `node tools/build-objective-migration.mjs`; the fixture follows automatically.
+     * This used to name 0010 explicitly, which made the fixture correct for exactly one migration and
+     * silently stale for the next four. Now every content migration is picked up automatically, so the
+     * fixture gains vocab, nouns, the guides and whatever comes next WITHOUT another edit here -- and
+     * the failure mode of forgetting is gone rather than merely postponed.
+     *
+     * The hand-mirrored generators above stop at 0009 (`contentCatalogueSql` mirrors 0006 because it
+     * is a page of SQL). From 0010 the files are large generated inserts, so hand-mirroring them would
+     * guarantee the fixture and the product drift -- invisibly, until a learner was marked against the
+     * wrong key. 0010+ are therefore APPLIED, not duplicated.
      */
-    const objectiveSql = (await readFile(new URL('../migrations/0010-objective-catalogue.sql', import.meta.url), 'utf8'))
-      .replaceAll('__SCHEMA__', schema)
-      .replaceAll('__LEARNER__', roles.learner)
-      .replaceAll('__WORKER__', roles.worker);
-    await pools.migration.query(objectiveSql);
+    const migrationDir = new URL('../migrations/', import.meta.url);
+    const contentMigrations = (await readdir(migrationDir))
+      .filter((file) => /^\d{4}-.*\.sql$/.test(file) && file >= '0010-')
+      .sort();
+    for (const file of contentMigrations) {
+      const text = await readFile(new URL(file, migrationDir), 'utf8');
+      await pools.migration.query(text
+        .replaceAll('__SCHEMA__', schema)
+        .replaceAll('__LEARNER__', roles.learner)
+        .replaceAll('__WORKER__', roles.worker));
+    }
 
     return { schema, roles, config, admin, ...pools, cleanup };
   } catch (error) {

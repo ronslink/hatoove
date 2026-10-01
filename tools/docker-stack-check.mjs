@@ -277,8 +277,8 @@ try{
   assert.equal((await request('GET','/api/v1/guides')).status,401,'/api/v1/guides must require a session');
   const guides=await request('GET','/api/v1/guides',undefined,cookie);
   assert.equal(guides.status,200,guides.text);
-  assert.equal(guides.json.length,5,'five guides expected, got '+guides.json.length);
-  assert.equal(guides.json.reduce((n,g)=>n+g.section_count,0),101,'101 sections expected across the five guides, got '+guides.json.reduce((n,g)=>n+g.section_count,0));
+  assert.equal(guides.json.length,7,'seven guides expected, got '+guides.json.length);
+  assert.equal(guides.json.reduce((n,g)=>n+g.section_count,0),123,'123 sections expected across the seven guides, got '+guides.json.reduce((n,g)=>n+g.section_count,0));
   const grammar=await request('GET','/api/v1/guides/grammar-guide',undefined,cookie);
   assert.equal(grammar.status,200,grammar.text);
   assert.equal(grammar.json.sections.length,14,'grammar-guide holds 14 topics, got '+grammar.json.sections.length);
@@ -292,6 +292,24 @@ try{
   assert.ok(Array.isArray(table.payload.rows)&&table.payload.rows.length>0,'the declension table rows must survive');
   assert.ok(cases.json.intro&&cases.json.watch_out.length>0,'a guide that has an intro and watch-outs must carry them');
   assert.equal((await request('GET','/api/v1/guides/not-a-guide',undefined,cookie)).status,404,'an unknown guide must be 404');
+
+  // LIBRARY-SEED-04 — writing and speaking, added as a SECOND migration because 0013 is applied.
+  const writing=await request('GET','/api/v1/guides/writing-guide',undefined,cookie);
+  assert.equal(writing.status,200,writing.text);
+  assert.equal(writing.json.sections.length,19,'writing-guide holds 19 sections (6 steps, 8 phrase groups, 4 letters, 1 checklist), got '+writing.json.sections.length);
+  const checklist=writing.json.sections.find((s)=>s.kind==='checklist');
+  assert.ok(checklist&&checklist.payload.items.length===8&&checklist.payload.itemsEn.length===8,
+    'the checklist must carry both languages; a learner reading Ukrainian needs the glossary translated, not just the guide');
+  const letter=writing.json.sections.find((s)=>s.kind==='example_letter');
+  assert.ok(letter&&Array.isArray(letter.payload.leitpunkte)&&letter.payload.text,
+    'an example letter must carry its Leitpunkte and its text, not just a title');
+  // Speaking is seeded as REFERENCE PROSE. AGENTS.md puts speaking and STT outside the pilot, so this
+  // asserts the document is served and asserts NOTHING about speaking practice.
+  const speaking=await request('GET','/api/v1/guides/speaking-guide',undefined,cookie);
+  assert.equal(speaking.status,200);
+  assert.equal(speaking.json.sections.length,3,'speaking-guide holds 3 parts, got '+speaking.json.sections.length);
+  assert.ok(speaking.json.sections[0].payload.minutes>0,'a speaking part must carry its timing');
+  passed('writing and speaking guides are served (19 + 3 sections) with both languages on the checklist');
   passed('the guide library serves 5 documents / 101 sections as an index plus one document, structure intact');
   /*
    * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them
