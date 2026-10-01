@@ -183,9 +183,100 @@ browser accepts that. Recorded as a configuration item, not a blocker.
 
 ## F3 — how many real accounts exist on any persistent installation
 
-**Verdict.** _pending_
+**Verdict. [V] `zero, as far as any evidence in this repository or on this host shows`.** Every
+account-creation site in the tracked tree is a **checker**, every address used is **synthetic**, and
+every installation the records describe is **disposable**. **This materially simplifies F1: with no
+real `account.password` rows to preserve, adopting Better Auth needs no compatibility shim at all.**
 
-**Established by.** _pending_
+**Established by** `node tools/auth-spike-f3-accounts.mjs`. Verbatim (tail):
+
+```
+files scanned: 263
+
+=== 2. Every email literal, classified ===
+synthetic  'alice@example.test   (spikes/auth-runtime/isolation.test.mjs:51)
+synthetic  'bob@example.test   (spikes/auth-runtime/isolation.test.mjs:51)
+synthetic  'synthetic.account-ui@example.invalid   (tools/account-ui-browser-check.mjs:47)
+synthetic  'x@accounts.example.invalid   (tools/accounts-http-check.mjs:146)
+... (22 distinct literals, all listed by the probe) ...
+synthetic  'a@pg.example.invalid   (tools/owned-api-pg-check.mjs:108)
+synthetic  'learner@example.com   (tools/owned-client-check.mjs:82)
+synthetic  'ron@example.com   (tools/owned-client-check.mjs:188)
+
+synthetic: 22   real-looking: 0
+
+=== 3. What the records say about the installations those writers ran against ===
+work/implementation/OWNAPI-03.md
+  | ## Evidence — executed against real PostgreSQL 17 (disposable container, synthetic rows)
+work/implementation/COORD-REEXECUTION-e126d8c.md
+  | | Database | a **fresh disposable** database `hatoove_rev` on a labelled disposable container (`postgres:17-alpine`), synthetic accounts only. **No production access of any kind** |
+work/implementation/CONFIG-ANON-01.md
+  | | Method | ... a throwaway `B1PREP_ENV_FILE`, a disposable PostgreSQL database ... Synthetic data only |
+
+=== VERDICT (F3) ===
+account-creation sites   : 83
+real-looking emails      : 0
+=> every writer that exists is a checker; every address is synthetic.
+```
+
+The probe also found **83 account-creation sites**, all of them inside `tools/**` checkers or
+`spikes/**` tests. The only writer inside `server/**` is `sessions.mjs`'s `signUp`, which is reached
+only through those checkers (`server.js`'s owned-API mount is a recent A-01 change and no deployment
+of it exists). The one `ron@example.com` literal is a **synthetic test fixture** in
+`owned-client-check.mjs`, not a person.
+
+**Four independent lines of evidence agree:**
+
+1. **No real address exists in the tree.** 22 distinct email literals, **0** real-looking; a broader
+   grep for ordinary `@gmail.com`-style addresses across `*.mjs/*.js/*.json/*.md` returns **nothing**.
+2. **Every described installation is disposable.** `OWNAPI-03` proved persistence against a
+   "disposable container, synthetic rows"; `COORD-REEXECUTION-e126d8c` against a "fresh disposable
+   database"; `DECISION-saas-runtime-merge` against "a fresh disposable `postgres:17-alpine`".
+3. **CI's database is ephemeral.** `.github/workflows/ci.yml:101-129` runs a `postgres:17-alpine`
+   **service container** (`OWNAPI_PG_DATABASE: hatoove_ci`) that is destroyed with the job.
+4. **This host holds none.** On this machine's local PostgreSQL there is **no** `hatoove`/`ownapi`
+   schema and no application `"user"` table; the only `public."user"` is the disposable
+   `authspike_spike` database these probes created. (Queried: `pg_namespace` where `nspname like
+   '%hatoove%' or '%ownapi%'` → `[]`.)
+
+**The one installation that is *not* disposable is `D:\B1_Prep`** — Ron's live single-user copy on
+Windows. It predates the owned API, keeps no `account` rows (its persistence is `progress.json` plus
+a `localStorage` blob, `AUTH-USER-AUDIT.md` §1), and this programme is forbidden to touch it. So it
+cannot hold Better Auth credential rows, and no evidence contradicts "zero".
+
+**How confident, and the limit.** Confident that **no real account exists in this repository's
+history, in CI, or on this host.** I **cannot** see every installation: I cannot read `D:\B1_Prep`, any
+operator's workstation, any cloud droplet, or CI secrets, and there is no fleet-wide inventory to
+read. The claim is therefore "zero on every installation there is evidence for", not "zero in the
+universe". If Ron knows of a running install with real sign-ups, that single fact re-opens F1's
+consequence — and the shim above is already proven, so even then the migration is one hook.
+
+---
+
+## Addendum — what Better Auth would change in the production schema
+
+Not asked for directly, but it decides the "schema" consequence, so it was measured.
+`node tools/auth-spike-schema-diff.mjs`, against a database holding **exactly** the production shape
+(`spikes/auth-runtime/auth-schema.sql` = migration `0001`):
+
+```
+=== 1. tables BEFORE (the production shape, migration 0001) ===
+account, session, user, verification
+
+=== 2. Better Auth compileMigrations() with rateLimit.storage="database" ===
+create table "rateLimit" ("id" text not null primary key, "key" text not null unique, "count" integer not null, "lastRequest" bigint not null);
+
+=== 3. compileMigrations() with the DEFAULT (memory) rate limiter ===
+;
+
+=== 4. run the database-storage migrations, then list tables AFTER ===
+account, rateLimit, session, user, verification
+```
+
+**So adoption adds at most ONE table and alters nothing.** With database rate limiting it emits a
+single `create table "rateLimit"`; with the default memory limiter it emits **no SQL at all**. It
+issues **no `ALTER`** against `user`, `session`, `account` or `verification`, so **no existing session
+or account row breaks** — a statement now backed by execution, not by hope.
 
 ---
 
