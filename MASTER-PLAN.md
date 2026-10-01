@@ -96,6 +96,16 @@ There are two local milestones, and the objective needs both. LM-1 makes the **p
 
 1. `node tools/journey-api-check.mjs` reports **0 failed**, and every leg that is not yet implemented prints `PENDING <slice>` and **does not count as a pass** — the counter already behaves this way, which is why it is the programme's measure of "functional".
 2. A browser run of the same journey on a fresh profile, on desktop and a 390 px viewport, with the old client retired from `/`.
+   > **Progress, 2 October 2026 — PARTLY MET, and the part that is met is the part that was missing.**
+   > `node tools/app-browser-check.mjs` (56 legs, 56 passing) now executes a browser run of this journey on
+   > a disposable Compose stack, on a fresh profile, at **1440×900 and 390×844, in light and dark**, with
+   > screenshots. The old client's page IS retired from `/`: `/` serves the brand site and the learner
+   > application is `/app/`. **What is NOT yet in that run:** the writing half of the journey
+   > (write → submit → saved feedback → revise → export → delete) is not built in the client at all, so it
+   > cannot be in the browser evidence. The run is also headless Chromium on a desktop OS: it does not
+   > discharge the real-device gate. Both limits are asserted in the check's own output, not just here.
+   > The old client's remaining files (`public/js/**`, `public/styles.css`) are PILOT-17 and are still
+   > served-or-load-bearing; "retired from `/`" is true of the route, not yet of the tree.
 3. The bring-up sequence executed from a clean state, including a deliberate failure leg: missing configuration exits non-zero **before** `listen()`.
 4. **LM-2 only:** the second exam's legs run the same assertions against the same runtime, and a check proves the first exam's learner records are untouched by the second exam's presence — the pairing that fails if exam identity leaks into global keys (§6).
 

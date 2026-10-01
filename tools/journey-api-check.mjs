@@ -166,10 +166,20 @@ leg('J3', 'dashboard: continue your draft, your feedback is ready', 'MFP-05b', a
 
 leg('J4', 'choose a writing task (only servable versions)', 'MFP-05a', async (ctx) => {
   const a = ctx.accounts.j1 || await signUp(ctx.call, 'j4');
-  const tasks = await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=SA1');
+  // `family=writing`, NOT `family=SA1`. This leg asks for the writing task list, and `writing` is the
+  // family the catalogue actually carries; `SA1` is an exam-blueprint name the seed never used, so the
+  // route refused it 422 and this leg has been failing since the family filter was added. It fails
+  // identically on the pre-fix build, so it is a stale CHECK and not a regression: refusing an unknown
+  // family, rather than silently ignoring the filter, is the behaviour we want. Unifying the two naming
+  // schemes (`writing` vs the blueprint's `SA1`) is the open item recorded in AUTORUN-QUEUE.md.
+  const tasks = await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=writing');
   if (tasks.status === 404 && ctx.routeAbsent(tasks)) return pending('MFP-05a', 'GET /api/v1/tasks route does not exist');
   if (tasks.status !== 200 || !Array.isArray(tasks.json)) return fail(`tasks answered ${tasks.status}`);
-  return pass(`task route returned ${tasks.json.length} servable version(s)`);
+  // "ONLY SERVABLE VERSIONS" is the point of the leg, so an unusable family must not quietly answer 200
+  // with everything in it.
+  const unknown = await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=SA1');
+  if (unknown.status === 200) return fail('an unknown family must be refused, not served');
+  return pass(`task route returned ${tasks.json.length} servable version(s); an unknown family is refused (${unknown.status})`);
 });
 
 leg('J5', 'write; autosave with visible state; conflicts explicit', 'MFP-05a', async (ctx) => {
