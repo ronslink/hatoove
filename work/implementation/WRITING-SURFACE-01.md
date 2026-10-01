@@ -48,14 +48,24 @@ The boundary gives them a caller; this slice gives the writing surface a reason 
 
 ## The check, and the property it must discriminate
 
-`tools/writing-draft-check.mjs`, following the real-server-process pattern of `tools/accounts-http-check.mjs`:
+**SPLIT, 2026-10-01, on an independent audit's advice.** The first version of this list required "another device
+opens the draft" — but that depends on **S6's enumeration route, which does not exist**, so bundling them would have
+made this slice's acceptance unmeetable and hidden which half was missing. Two separately tracked sets:
 
-- **leave and return**: text written, the screen left, the screen re-entered → the text is there;
-- **another device**: the same account on a second simulated session opens the draft;
+**A. Same-browser draft integration — THIS slice's acceptance:**
+
+- **leave and return**: text written, the screen left, the screen re-entered → the text is there. **This is the
+  property to write the check around first**, and the one `close()`'s drop behaviour would break;
+- **flush before close**: leaving with unsaved text must save it, or the check must fail. `close()` drops local
+  text, so a view that closes without flushing is a data-loss defect;
 - **the fence**: a stale save is **refused** and the text is **proven unchanged** — assert the stored value, not the
   status code;
 - **single-user path unchanged**: accounts off → the local behaviour, byte-identical, exactly as asserted today;
 - **discrimination**: break the restore in a scratch copy and watch the check fail.
+
+**B. Fresh-browser / second-device resume — S6's acceptance, explicitly NOT this slice's:** a second page or device
+discovers the account's saved work. **Blocked on the enumeration route and on stable task identity/version binding**,
+both server-side work in `S6-SPEC.md`. Do not accept this slice as delivering it, and do not let its absence block A.
 
 ## The exact call signatures — read from the code, so the next attempt starts here
 
@@ -66,14 +76,28 @@ That is the kind of gap that costs a session.
 `OwnedClientError('unauthenticated')` if the page is not signed in**, which a caller must handle rather than let
 escape into a view render. On success it returns a **draft session** and registers it so a sign-out can close it.
 
-**What a draft session exposes** (`public/js/draft-session.js`), and the four that matter here:
+**What a draft session exposes** (`public/js/draft-session.js`).
 
-| Member | Purpose |
-|---|---|
-| `open()` | called by `openDraft` already; resolves the server's current draft |
-| `saveNow(text)` | `async`; the write, taking the text |
-| `drop()` | called internally on a scope change; it **refuses with `stale_session`** rather than writing |
-| the pointer helpers at `:143` | the local pointer, so a return can find the draft again |
+> **CORRECTION, 2026-10-01 07:38, from an independent static audit.** The first version of this section **named two
+> private methods as public** — `saveNow(text)` and `drop()`. Neither is on the returned object, so a worker
+> following this brief would have called methods it cannot reach. Below is the **actual**
+> `Object.freeze({ open, save, resolveConflict, submit, readResult, snapshot, close, signOut })`, with line numbers.
+
+| Method | Line | What a writing view does with it |
+|---|---|---|
+| `open()` | `:153` | already called by `openDraft`; resolves the server's current draft |
+| **`save(text)`** | `:203` | **the write.** Rejects on invalid input, on a network failure (leaving the text in memory as unsaved), or on a conflict that needs `resolveConflict()` |
+| `resolveConflict(choice)` | `:256` | required after a conflict; without it local text is kept and nothing is resolved |
+| `submit()` | `:272` | `async`; submits the draft as an attempt |
+| `readResult()` | `:304` | `async`; reads the marked result |
+| **`snapshot()`** | `:319` | **the read.** Synchronous state — use this rather than assuming what is in memory |
+| **`close()`** | `:340` | **`close() { drop(); }` — it DROPS LOCAL TEXT without contacting the server**, for leaving the task |
+| `signOut()` | `:348` | drops local text and invalidates the client before telling the server |
+
+**Two consequences that decide the implementation.** **`saveNow` and `drop` are private** — the public write is
+**`save(text)`** and state is read with **`snapshot()`**. And **`close()` discards unsaved local text**, so a view
+must **flush before closing**, or leaving the writing screen loses what the learner typed — a data-loss path of
+exactly the kind N-2 was, and the most likely mistake in this slice.
 
 **The three refusals a view must render honestly rather than swallow** — each is a distinct learner-facing
 situation, not an error to log:

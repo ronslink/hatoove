@@ -57,9 +57,21 @@ The owned API's current route table, for reference:
 - **A stable order**: the same list twice returns the same sequence.
 - **A bound**: `limit` above the maximum is refused, not silently clamped *and not silently honoured*.
 - **No owner parameter anywhere** in the request surface.
-- **The discrimination test**: with the `owner_id` predicate removed the check **fails**. Without that, the check
-  passes for the wrong reason — which is the defect this programme has now found **four times**, including two
-  instances where the code was conditional and the check was unconditional.
+- **Test the owner predicate and RLS INDEPENDENTLY, as well as together.** This corrects the first version of this
+  document, which said "remove the `owner_id` predicate and the check must fail". **That expectation is wrong**, and
+  an independent audit caught it: with `FORCE ROW LEVEL SECURITY` still active, removing an explicit SQL owner
+  filter does **not** leak another account's rows — RLS is the second line and it holds. Three separate checks:
+  1. **the predicate alone** — with RLS **disabled** for the test role, removing the predicate leaks, so the check
+     fails and the predicate is proven load-bearing;
+  2. **RLS alone** — with the predicate removed but RLS **active**, the query still returns only the owner's rows,
+     which is the defence working as designed;
+  3. **together** — the normal path returns exactly the owner's rows.
+  **A safe result from the remaining protection is the expected outcome, not a reason to weaken it.** A check that
+  demanded a leak from a correctly-configured database would be a broken check.
+- **Stable task identity and version in the contract.** A discovered draft must be able to recover **its actual
+  prompt**, so the task id and version are part of what enumeration returns. Without that, a fresh browser can find
+  that a draft exists and not what it was about, and the milestone sentence — resume its account's saved work —
+  would be only half met.
 
 ## Why this is not in the same slice as the session boundary
 
