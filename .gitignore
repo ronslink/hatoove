@@ -29,3 +29,10 @@ research/mistral-feasibility/study-summary.json
 *.tar.gz
 *.bundle
 # hatoove-site/dist is maintained site source and MUST remain tracked.
+
+# Worker scratch space. `.openclaw/` is the local agent workspace - run logs, temp trees and the
+# screenshots the browser checkers write. It is NOT application source, and it WAS tracked: 17 binary
+# files, which meant every browser run modified tracked files and any commit that happened to run one
+# silently swept new screenshots in. Found when a CI-gates commit carried three changed PNGs it had no
+# business touching. The checkers still write there; they just no longer write into the repository.
+.openclaw/
