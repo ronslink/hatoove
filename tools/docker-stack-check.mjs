@@ -339,6 +339,36 @@ try{
   // answer is not silently recorded as a wrong one.
   assert.equal(evidenceAfter-evidenceBefore,2,'two accepted answers must leave exactly two rows and a refused one none, got '+(evidenceAfter-evidenceBefore));
   passed('objective answers are marked server-side and recorded append-only, and an unknown item is refused');
+
+  /*
+   * PILOT-22b — what to practise next, chosen by RULES over the evidence above.
+   *
+   * These legs assert the INVARIANTS rather than a specific set id: the exact choice follows a
+   * documented ranking (unstarted sections first for breadth, then weakest accuracy, then fewest
+   * attempts, then name), and pinning the test to today's winner would make a legitimate tuning change
+   * look like a regression. What must never change: it is deterministic, it names a real servable set,
+   * it carries the EVIDENCE for its own claim, and it never leaks a key.
+   */
+  assert.equal((await request('GET','/api/v1/practice/next')).status,401,'/api/v1/practice/next must require a session');
+  const next=await request('GET','/api/v1/practice/next',undefined,cookie);
+  assert.equal(next.status,200,next.text);
+  assert.ok(next.json.set&&typeof next.json.set.set_id==='string','a choice must name a real set, got '+JSON.stringify(next.json).slice(0,160));
+  assert.ok(next.json.set.item_count>0,'the chosen set must have items');
+  assert.equal(typeof next.json.reason,'string','the choice must state its reason');
+  assert.ok(next.json.evidence&&Number.isInteger(next.json.evidence.attempts),
+    'the choice must carry the evidence for its own claim, so the learner can be told WHY');
+  {
+    const serialised=JSON.stringify(next.json);
+    for(const leak of ['"answer"','"why"','objective_key','"script"']){
+      assert.ok(!serialised.includes(leak),'the selection must not leak '+leak);
+    }
+  }
+  // DETERMINISM. The same evidence must yield the same choice: a plan that varies between two
+  // identical requests is a bug, not personalisation, and it is the property that makes this route
+  // explainable where a model call would not be.
+  const nextAgain=await request('GET','/api/v1/practice/next',undefined,cookie);
+  assert.equal(JSON.stringify(nextAgain.json),JSON.stringify(next.json),'two identical requests must produce the same choice');
+  passed('practice/next chooses deterministically from recorded evidence and carries its reason and evidence');
   passed('the guide library serves 5 documents / 101 sections as an index plus one document, structure intact');
   /*
    * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them

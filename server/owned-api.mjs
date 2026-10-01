@@ -92,7 +92,7 @@ const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'listVocab', 'listN
  * in-memory datastore that cannot mark objective items should lose the PRACTICE routes, not the
  * product.
  */
-const PRACTICE_METHODS = ['answerObjectiveItem'];
+const PRACTICE_METHODS = ['answerObjectiveItem', 'nextPractice'];
 /** `/api/v1/objective-sets/{setId}/answers` — the set id is dotted (`telc-deutsch-b1.lv1.01`). */
 const OBJECTIVE_ANSWER_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})\/answers$/;
 /** `/api/v1/guides/{guideId}` — a closed slug shape, so an id can never reach SQL as anything else. */
@@ -532,6 +532,26 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
           setId: answerMatch[1], version, itemId: body.itemId, answer: body.answer, latencyMs,
         }));
       }
+    }
+    if (pathname === '/api/v1/practice/next' && method === 'GET') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      /*
+       * PILOT-22b -- what to practise next. RULES CHOOSE; AI DOES NOT CHOOSE (MASTER-PLAN section 14).
+       *
+       * The response carries the EVIDENCE for its own claim, so the client can tell the learner "LV,
+       * 2 of 5 correct" instead of handing over an item with no reason. A deterministic choice over
+       * recorded evidence is repeatable and explainable; a model call is neither, costs tokens on
+       * every request, and cannot be justified to the person it is deciding for.
+       */
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      const next = await datastore.nextPractice(owner, { examId: exam, serveReview });
+      // Nothing servable is NOT an error: it means the catalogue is empty for this deployment, and the
+      // client shows its honest empty state rather than an error page.
+      if (!next) return reply(200, { reason: 'nothing_available', section: null, evidence: null, set: null });
+      return reply(200, next);
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId']);

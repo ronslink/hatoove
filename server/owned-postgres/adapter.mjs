@@ -395,6 +395,102 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       });
     },
     /**
+     * PILOT-22b — what should this learner practise next, chosen by RULES over recorded evidence.
+     *
+     * ## Why the rules are here and not in a model call
+     *
+     * AI selection is unrepeatable (the same learner, asked twice, gets a different plan),
+     * unauditable (nobody can say why), costs tokens on every request, and cannot be explained to the
+     * learner. A deterministic choice over `item_evidence` can be — and the response carries the
+     * EVIDENCE FOR ITS OWN CLAIM, so the learner is told "LV, 2 of 5 correct", not handed an item with
+     * no reason. That is the difference between an adaptive product and an unpredictable one.
+     *
+     * ## The ordering, and why it is total
+     *
+     * Sections are ranked by: unstarted first (breadth before depth), then weakest accuracy, then
+     * fewest attempts, then section name. Every tie is broken, so the same evidence always yields the
+     * same choice — a plan that changes between two identical requests is a bug, not personalisation.
+     *
+     * Within the chosen section, sets are ordered by how much evidence they already have, so an
+     * unattempted set is preferred and a started one is returned only when the section is exhausted.
+     */
+    async nextPractice(owner, { examId = null, serveReview = 'approved+unreviewed' } = {}) {
+      note('nextPractice');
+      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+
+      const sections = (await settle(owner, async (client) => (await client.query(
+        `SELECT s.section, min(s.family) AS family
+           FROM objective_set s
+           JOIN content_version c ON c.content_version_id = s.content_version_id
+          WHERE s.media_required = false
+            AND s.exam_id = COALESCE($1, s.exam_id)
+            AND c.review_status = ANY($2::text[])
+          GROUP BY s.section`,
+        [examId, statuses])).rows));
+
+      if (!sections.length) return null;
+
+      const stats = await settle(owner, async (client) => (await client.query(
+        `SELECT section, count(*)::int AS attempts, count(*) FILTER (WHERE correct)::int AS correct
+           FROM item_evidence
+          WHERE owner_id = $1
+          GROUP BY section`,
+        [owner])).rows);
+      const bySection = new Map(stats.map((row) => [row.section, row]));
+
+      const ranked = sections.map((section) => {
+        const seen = bySection.get(section.section);
+        const attempts = seen ? seen.attempts : 0;
+        return {
+          section: section.section,
+          family: section.family,
+          attempts,
+          correct: seen ? seen.correct : 0,
+          // `null` means NOT STARTED, which is not the same as 0% and must not be sorted as if it
+          // were: a learner who has never seen a section has no accuracy, not a bad one.
+          accuracy: attempts ? (seen.correct / attempts) : null,
+        };
+      }).sort((a, b) => {
+        const av = a.accuracy === null ? -1 : a.accuracy;
+        const bv = b.accuracy === null ? -1 : b.accuracy;
+        if (av !== bv) return av - bv;
+        if (a.attempts !== b.attempts) return a.attempts - b.attempts;
+        return a.section < b.section ? -1 : (a.section > b.section ? 1 : 0);
+      });
+
+      const chosen = ranked[0];
+      // `first()` reads a query RESULT (`result.rows[0]`) and is deliberately unguarded, so the
+      // callback must return the RESULT and not the row. Handing it `rows[0]` made `first` evaluate
+      // `row.rows[0]` on a plain object and throw, which surfaced as a 500 on this route -- a failure
+      // that looked like "the selector is broken" and was a misuse of a helper.
+      const set = first(await settle(owner, async (client) => client.query(
+        `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count,
+                (SELECT count(*)::int FROM item_evidence e
+                  WHERE e.owner_id = $3 AND e.set_id = s.set_id) AS seen
+           FROM objective_set s
+           JOIN content_version c ON c.content_version_id = s.content_version_id
+          WHERE s.section = $1
+            AND s.media_required = false
+            AND s.exam_id = COALESCE($4, s.exam_id)
+            AND c.review_status = ANY($2::text[])
+          ORDER BY seen, s.part, s.set_id
+          LIMIT 1`,
+        [chosen.section, statuses, owner, examId])));
+
+      if (!set) return null;
+      return {
+        reason: chosen.attempts === 0 ? 'section_not_started' : 'weakest_section',
+        section: chosen.section,
+        family: chosen.family,
+        // The evidence for the claim, so the client can say WHY rather than just handing over an item.
+        evidence: { attempts: chosen.attempts, correct: chosen.correct, accuracy: chosen.accuracy },
+        set: {
+          set_id: set.set_id, version: set.version, title: set.title, family: set.family,
+          section: set.section, part: set.part, item_count: set.item_count, seen_items: set.seen,
+        },
+      };
+    },
+    /**
      * Create an owned attempt bound to an exact task/rubric version (SAAS-MODEL-01 Step 1).
      * `binding` defaults to the canonical writing task (`content-seed.mjs`); a caller that has
      * a task-selection route (SAAS-RESUME-01) can pass the chosen one. The composite foreign
