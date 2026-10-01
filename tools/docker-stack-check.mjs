@@ -212,6 +212,77 @@ try{
   assert.ok(/HttpOnly/i.test(setCookie),'the session cookie must be HttpOnly, got: '+setCookie);
   assert.ok(/SameSite=/i.test(setCookie),'the session cookie must scope SameSite, got: '+setCookie);
   passed('the session cookie is HttpOnly and SameSite-scoped (Secure is a TLS-deployment switch)');
+  /*
+   * PILOT-04 — the exam-scoped catalogue and its serving policy.
+   *
+   * The shell's Ueben view has been an honest empty state because NO learner-facing route could
+   * reach the catalogue: `GET /api/v1/tasks` did not exist. These legs define what it must do, and
+   * they are the reason the route cannot be faked.
+   *
+   * L4 and L5 are a PAIR and neither is sufficient alone. Every seeded row is `unreviewed`, so the
+   * fail-closed default must serve NOTHING — a check expecting six rows there would be asserting a
+   * leak. But "returns an empty array" is also satisfied by a route that ALWAYS returns an empty
+   * array, so L5 re-runs the same route under the pilot policy and requires the seeded versions to
+   * appear. One leg without the other measures nothing.
+   */
+  const pkg=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    "SELECT exam_id||'|'||exam||'|'||level||'|'||exam_language FROM hatoove.exam_package ORDER BY exam_id"]).trim();
+  assert.ok(pkg.length>0,'exam_package must hold at least the first exam package, got: '+JSON.stringify(pkg));
+  passed('exam_package exists and names the first exam package: '+pkg.split('\n')[0]);
+
+  for(const table of ['content_version','rubric_version','task_version']){
+    const unscoped=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+      'SELECT count(*) FROM hatoove.'+table+' WHERE exam_id IS NULL']).trim();
+    assert.equal(unscoped,'0',table+' must have no row without an exam_id');
+  }
+  passed('every content row carries an exam_id: nothing is exam-agnostic and can leak across exams');
+
+  assert.equal((await request('GET','/api/v1/tasks')).status,401,'/api/v1/tasks must require a session');
+
+  const closed=await request('GET','/api/v1/tasks?family=writing',undefined,cookie);
+  assert.equal(closed.status,200,'the task route must exist and answer a signed-in learner, got '+closed.status);
+  assert.ok(Array.isArray(closed.json),'the task list must be a JSON array');
+  assert.equal(closed.json.length,0,'with the fail-closed policy and only unreviewed rows the list must be EMPTY, got '+closed.json.length);
+  passed('the fail-closed default serves NOTHING while every seeded row is unreviewed');
+
+  // The same route under the pilot policy, in a separate container so the default stays fail-closed.
+  const probePort=await freePort();
+  const probeName='hatoove-p04-'+process.pid;
+  const appImage=project+'-app';
+  spawnSync('docker',['rm','-f',probeName],{encoding:'utf8',windowsHide:true});
+  spawnSync('docker',['run','-d','--name',probeName,'--network',project+'_default',
+    '-p','127.0.0.1:'+probePort+':4321',
+    '-e','B1PREP_BIND=0.0.0.0','-e','B1PREP_SAAS=1','-e','B1PREP_ACCOUNTS=1','-e','B1PREP_PORT=4321',
+    '-e','B1PREP_PUBLIC_ORIGIN=http://127.0.0.1:'+probePort,
+    '-e','B1PREP_SERVE_REVIEW=approved+unreviewed',
+    '-e','OWNAPI_PG_HOST=db','-e','OWNAPI_PG_PORT=5432','-e','OWNAPI_PG_DATABASE=hatoove','-e','OWNAPI_PG_USER=postgres',
+    appImage,'node','server.js'],{encoding:'utf8',windowsHide:true});
+  try{
+    const probeBase='http://127.0.0.1:'+probePort;
+    const deadline=Date.now()+60000;
+    let up=false;
+    while(Date.now()<deadline){
+      try{ if((await fetch(probeBase+'/api/ready',{signal:AbortSignal.timeout(4000)})).ok){ up=true; break; } }catch{}
+      await new Promise(r=>setTimeout(r,500));
+    }
+    assert.ok(up,'the permissive-policy probe did not become ready');
+    const signIn=await fetch(probeBase+'/api/auth/sign-in/email',{method:'POST',headers:{'content-type':'application/json',origin:probeBase},body:JSON.stringify({email:credentials.email,password:credentials.password}),signal:AbortSignal.timeout(10000)});
+    assert.equal(signIn.status,200,'sign-in against the probe failed');
+    const probeCookie=signIn.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
+    const open=await fetch(probeBase+'/api/v1/tasks?family=writing',{headers:{cookie:probeCookie},signal:AbortSignal.timeout(10000)});
+    assert.equal(open.status,200);
+    const listed=await open.json();
+    assert.ok(Array.isArray(listed)&&listed.length>0,'under approved+unreviewed the seeded task versions must appear, got '+JSON.stringify(listed).slice(0,200));
+    assert.ok(listed.every(t=>typeof t.review_status==='string'),'every listed task must carry its review_status so a learner can be told the truth');
+    // Keys are never served with a task: they live in a table granted to no runtime role.
+    const serialised=JSON.stringify(listed);
+    for(const leak of ['leitpunkte_answers','answer_key','answerKey','correctAnswer']){
+      assert.ok(!serialised.includes(leak),'a task payload must not carry '+leak);
+    }
+    passed('the same route under the pilot policy serves '+listed.length+' task version(s), each with its review_status and no answer key');
+  } finally {
+    spawnSync('docker',['rm','-f',probeName],{encoding:'utf8',windowsHide:true});
+  }
   compose(['restart','app','worker']);
   await ready();
   const login=await request('POST','/api/auth/sign-in/email',{email:credentials.email,password:credentials.password});
