@@ -1,17 +1,18 @@
 # B1 preparation pilot build plan
 
-## Direction update — 1 October 2026
+## First-release direction — 1 October 2026
 
-Ron selected `D:\B1_Prep\design` for the learner application and required removal of the previous single-user schema and associated functionality. [DESIGN-WIRE-01](work/implementation/DESIGN-WIRE-01.md) maps all 14 screens to server contracts and the removal sequence; [MASTER-PLAN.md](MASTER-PLAN.md) tracks delivery. This supersedes older appearance-preservation and local sync/offline-install assumptions below, without changing the Node/PostgreSQL hosting direction.
+[FUNCTIONAL-ROADMAP.md](work/implementation/FUNCTIONAL-ROADMAP.md) governs the **writing-first minimum functional product**. It supersedes broader scope and old-client preservation below. [MFP-DESIGN-DECISIONS.md](work/implementation/MFP-DESIGN-DECISIONS.md) defines the design/state contract; [MASTER-PLAN.md](MASTER-PLAN.md) records progress. The remaining sections retain broader product rationale, not first-release commitments to study plans, listening or a full written mock.
 
-Adopt the new orange/rising-oo visual system consistently. German interface/exam content stay German; explanation languages are de/en/uk/ar/tr with scoped RTL and human review. The service has one shared schema, account-owned private records and shared versioned reviewed content. No default user, per-account progress files, global localStorage progress document or local-runtime fallback remains at cutover. Safe forward migrations preserve retained records; no implicit import into the first account and no live learner-data deletion are authorized here.
+Build the small new vanilla client from `D:\B1_Prep\design`, with the orange/rising-oo identity, German interface/exam content and de/en/uk/ar/tr explanations. Include script-capable licensed fonts and scoped Arabic RTL for shipping feedback. Ron confirmed the logo was AI-generated for this project. The fourteen-screen inventory is a reference/backlog, not a launch checklist.
 
-Mockup readiness forecasts, two-model claims, illustrative pricing/allowances and offline promises do not establish capability or approval. Use actual saved evidence and configured commercial contracts. The internal journey must run through real owned APIs and survive fresh-browser resume without legacy local state.
+Use one shared PostgreSQL schema with session-owned private records and versioned content. Remove local fallback, progress files/blob sync and browser grading through MFP-02b/11; no implicit import into the first account or live data deletion. The internal writing journey must survive fresh-browser resume from server records.
 
+First-release defaults: password plus invite signup, criterion practice grades without a /45 total, no daily-time setting. Resolve R11's three-versus-four rubric contract explicitly. No readiness/streak/study-plan/reminder/purchase UI or unsupported model/storage/retention claims. Pending/failed/unassessed feedback, reset, history/revision, export/delete, legal and error states are required. Objective practice remains conditional MFP-13; broader human review and production authorization gates stay open.
 
 Prepared 30 September 2026 from the current development checkout and the research in this chat.
 
-The [implementation plan](IMPLEMENTATION_PLAN.md) is the authoritative executable revision of the later 36-package agent-swarm proposal. Use it for current package dependencies, ownership, acceptance and release gates; this document retains the product and architecture rationale. Agent assignments and handoffs follow the [workflow](docs/AGENT_WORKFLOW.md) and [board](work/BOARD.md).
+The [implementation plan](IMPLEMENTATION_PLAN.md) preserves the broader 36-package programme and release gates; the functional roadmap takes precedence for the first-release dependencies, scope and retirement rules. This document retains the product and architecture rationale. Agent assignments and handoffs follow the [workflow](docs/AGENT_WORKFLOW.md) and [board](work/BOARD.md).
 
 The owner has confirmed that employment permission and ownership of the project are verified. Treat those matters as resolved. Following the owner's poor experience with speech features, the pilot now focuses on listening and written exam sections. The product is standalone, self-service exam preparation for people who already have the relevant language foundation. It must work without a school, teacher, class or institutional account. The next milestone is a private pilot in which a learner can sign in, select an exam and date, complete reviewed objective tasks and a writing response, receive appropriately limited feedback and reopen saved work on another device.
 

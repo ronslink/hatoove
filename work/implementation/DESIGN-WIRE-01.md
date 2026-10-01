@@ -1,5 +1,8 @@
 # DESIGN-WIRE-01 — new designs and the SaaS cutover
 
+**First-release override (1 October 2026):** [FUNCTIONAL-ROADMAP](FUNCTIONAL-ROADMAP.md) and [MFP-DESIGN-DECISIONS](MFP-DESIGN-DECISIONS.md) supersede the delivery sequence below. This document preserves the full reference inventory and broader domain ideas, not the next-release feature list. MFP-07/08/09 build the small new writing-first client; MFP-02b/11 implement retirement. Listening/mock/review/plan/upgrade are deferred, reading/language conditional. Daily time and readiness/streaks are out. Use the newer state matrix, password/invite default and grades-only practice feedback; R11 remains explicit. No new lease is created here.
+
+
 ## Authority, scope and evidence
 
 Ron requested this plan update on 1 October 2026 after identifying `D:\B1_Prep\design`, then explicitly required removal of the prior single-user schema and associated functionality. Execution `design-saas-plan-20261001-a` is documentation only, based on candidate `e126d8c4b18a2beaf58eca2d279fe8d191e825ae`. Implementation remains planned unless a linked PR supplies evidence.
@@ -11,7 +14,7 @@ The source contains **14 screen HTML files plus an index, one CSS file, three SV
 ## Product and design decisions
 
 - Adopt the rising-oo orange identity, warm-paper surfaces, Bricolage Grotesque headings, Source Sans body, consistent cards, desktop sidebar and mobile navigation shown in the supplied screens. Use one shared design system across the learner app, including screens absent from the mockups.
-- Keep the current vanilla ES-module application and route lifecycle; the index's phrase “React app” is reference copy, not a framework decision. Preserve useful exam logic through explicit server contracts, not by retaining the local-install runtime.
+- Use a small new vanilla ES-module client under `public/app/` for MFP. The index's phrase “React app” is reference copy, not a framework decision. Preserve useful exam logic through explicit server contracts, not the old route lifecycle or local-install runtime.
 - Translate English chrome in the mockups to German. Explanation-language changes must not change navigation, exam material, rubric or marks. Implement all five selected languages; development can use labelled fixtures while native-review gates remain open for each. No further shipping-order approval is needed to start implementation; do not silently drop Arabic or Turkish from the agreed target.
 - Arabic direction applies to explanation blocks, not the German shell or exam prompt. Use `lang`, scoped `dir`, bidi isolation around German examples, logical layout properties and a verified glyph-capable font/fallback. Verify Ukrainian and Turkish glyph coverage too; retain actual font licence notices when assets are imported.
 - Sample learner names, dates, totals, streaks, quotas and charts are fixtures, never production defaults. Empty, loading, pending, failed, offline, session-expired and conflict states are first-class screens.
@@ -27,14 +30,14 @@ Minimum domain records and relationships:
 | Domain | Authority and boundary |
 |---|---|
 | Identity/session | Maintained auth adapter; authenticated server identity, expiry/revocation/recovery and public auth routes. Test identities remain test-only |
-| Profile/preferences | One owned record per account: exam/date, explanation language, daily goal and appropriate display preferences; no machine-global EXAM_DATE or shared settings file |
+| Profile/preferences | One owned record per account: exam/date, explanation language and appropriate display preferences; no daily goal in MFP, machine-global EXAM_DATE or shared settings file |
 | Task/content/audio/rubric | Immutable versioned shared records with rights/review status; attempt binds exact task/prompt/content/rubric versions; answer keys remain server-side |
 | Attempt/draft/submission/revision | Owned records with server revision, immutable submitted text and revision lineage; list/discovery plus lookup; no synthetic task constant in normal runtime |
 | Assessment/job/usage | Owned submission and job, server prompt/provider versions, persistent result/failure, bounded retry, reservation and single successful debit |
 | Progress/review/study plan | Derive from owned attempts/results/review events, with bounded server queries; do not store the entire old `freshState()` document as the new account schema or trust browser-computed grades |
 | Catalogue/order/entitlement | Shared server catalogue plus owned purchase/allowance records; server-issued price snapshots and usage, never illustrative counters |
 
-**SAAS-RETIRE-01 is a required cutover, not an optional cleanup.** Inventory every old writer/reader, record its replacement and delete the old runtime path after its replacement is verified:
+**The retirement below is required; MFP-02b/11 supersede the separate SAAS-RETIRE-01 dispatch.** Inventory every old writer/reader, record its replacement and delete the old runtime path after its replacement is verified:
 
 - Remove `progress.json` and backup/revision/account-selected file stores from application persistence, `/api/progress` callers/handlers, full-blob `mergeProgress` synchronization and legacy reset/export/recovery flows. Renaming each file by owner is not the target architecture.
 - Remove the `single-user`/`legacy` account state, anonymous learner fallback, implicit local-data adoption, automatic migration to the first signed-in user, and the startup option that silently runs a local app when accounts/DB are absent. The SaaS entry point must fail closed without its required account/database configuration, including when a mode flag is omitted.
@@ -52,7 +55,7 @@ Removal refers to code/schema assumptions, not deleting Ron's live install or er
 |---|---|---|
 | login | account entry / A-01, W-01 | Real auth adapter; method availability, validation, refused/rate-limited/expired states; magic-link/Google only when implemented |
 | check-email | verification status / A-01, W-01 | Mail-request status, expiry/resend/recovery without account enumeration; stub delivery in tests |
-| onboarding | first-run setup / W-03 | Server preferences for exam/date/language/daily goal; resume incomplete setup; no global settings |
+| onboarding | first-run setup / W-03 | Server preferences for exam/date/language; no MFP daily goal; resume incomplete setup; no global settings |
 | dashboard | home / W-03, E-03 | Owned saved-work list, next activity, factual counts, sparse/empty history; no invented readiness chart |
 | practice | reading runner / W-02, A-02, E-02 | Versioned tasks, answered/flagged question map, authoritative marking, timer and interruption recovery; no answer keys before allowed feedback |
 | language | Sprachbausteine / W-02, C-06 | Owned answer/result, saved or reviewed explanation in the chosen language, language unavailable state; German exam text unchanged |
@@ -65,9 +68,9 @@ Removal refers to code/schema assumptions, not deleting Ron's live install or er
 | settings | account preferences/data / A-05, W-01 | Server settings, save conflict/error, sign-out, owned export and hard delete; no provider key/local synchronization/reset controls |
 | upgrade | offer/entitlement / P-01/P-02, W-05 | Real catalogue and allowance/expiry, checkout test mode, success/failure/cancel states; not a dependency of the internal first journey |
 
-Keep useful vocabulary and reference/grammar/writing-guide views in the same shell/component system, with owned learning state where they record activity. Speaking/STT and speaking-guide routes stay outside the pilot. A missing mockup does not justify a second design system or an accidental feature removal.
+Vocabulary/reference/grammar/guide views belong to the later backlog unless needed explicitly by the MFP journey. Any later retained view uses the same component system and owned records. Speaking/STT remain outside the pilot. First-release removals follow the functional roadmap's explicit drop list.
 
-## Ordered delivery slices
+## Historical broader delivery slices — superseded for the first release
 
 These are planned slices, not active worker leases. The coordinator selects exact allowed paths and the latest reviewed base at dispatch. Existing writing/session/deletion PRs must be reconciled first where they overlap; one owner at a time for `exam.js` and other shared files.
 

@@ -1,5 +1,14 @@
 # FUNCTIONAL-ROADMAP — the shortest path to a functional product, and what that lets us stop doing
 
+## Design reconciliation addendum — 1 October 2026
+
+The original audit below is pinned to `08acb21`; it is not a current progress report. [MASTER-PLAN](../../MASTER-PLAN.md) records the inspected integration checkpoint at `199dc0b`, with 5 API journey legs passed and 6 pending, and PR #89 still unverified. Recheck heads and live leases before dispatch.
+
+[MFP-DESIGN-DECISIONS](MFP-DESIGN-DECISIONS.md) now governs interpretation of the supplied designs: German chrome, five explanation languages, first-release password/invite and grades-only defaults, no daily-time setting, explicit missing state coverage and truthful async feedback. Ron confirmed the logo is AI-generated for this project. The font subsets need additional language coverage; matching original licence notices already exist in the repository. R11 remains an explicit three-versus-four criterion contract decision. This addendum does not claim runtime implementation, owner approval of unanswered defaults or closure of human gates.
+
+MFP-07a owns the asset/CSS foundation and auth/legal/error screens; MFP-08 owns the complete asynchronous writing states; MFP-09 owns factual history/export/deletion. The matrix adds required states within these slices, not new parallel leases. The fourteen-screen programme stays deferred outside MFP scope.
+
+
 | | |
 |---|---|
 | Author | Claude, as architect and planner (not implementer). Brief: `BRIEF.md`, round 2 |
@@ -18,7 +27,7 @@
 1. **Stop retrofitting the single-user SPA. Build a small new client for the product's journey, then delete the old one.** Most of the programme's recent effort has gone into fencing a localStorage-blob client across identity changes: five SESSION-BOUNDARY/FENCE records, PRs #66, #67, #77 and #79, `progress-merge`, `progress-scope` and `progress-equal`. That whole class of work goes away when there's no blob. **[R]**
 2. **The minimum functional product (MFP) is writing-first.** You sign up with an invite, set an exam date and explanation language, pick a writing task, and the draft is saved on the server. You submit and leave. A server worker writes feedback. You come back on another browser to find it, revise, and see a factual history. You can export and delete your account. **Objective practice is a conditional add-on (MFP-13).** Only 15 of the "24 sets" can be served, because the 9 listening sets have no audio. And all of it depends on a rights decision Ron can make in minutes.
 3. **Ron's blockers (a), (b) and (c) are real, but they aren't the critical path.** The critical path is **(b) plus a blocker missing from the brief: no learner-facing code submits writing to the server at all.** `draft-session.submit()` has no caller in `public/js/` **[V]**, so the client has to be rebuilt around submission. (a) can run in parallel after a half-day spike. (c) is a **decision**, not a build.
-4. **What we can stop doing (§4):** local single-user mode and both flags, `/api/config`, `/api/ai` (**delete it, don't meter it**: AI-METER-01 is dropped), `/api/progress` and its five file stores, `progress-merge` and its checks, the `freshState()` blob, the adaptive engine, SRS, vocab/core trainers, guides, mock exam, listening, speaking, the five-language pipeline, DESIGN-02..07 as fourteen screens, legacy import, practice-event/SRS/plan schema, C-02 generation and about 13 CI steps.
+4. **What we can stop doing (§4):** local single-user mode and both flags, `/api/config`, `/api/ai` (**delete it, don't meter it**: AI-METER-01 is dropped), `/api/progress` and its five file stores, `progress-merge` and its checks, the `freshState()` blob, the adaptive engine, SRS, vocab/core trainers, guides, mock exam, listening, speaking, the full static five-language corpus pipeline (not the selected feedback languages), DESIGN-02..07 as fourteen screens, legacy import, practice-event/SRS/plan schema, C-02 generation and about 13 CI steps.
 5. **What we can't drop (§4.3):** ownership and FORCE RLS, the origin gate, key non-disclosure, immutable submissions, one debit, hard delete and its completeness, the stale-write fence, honest "unassessed" states, no pass prediction, and the human gates.
 6. **Q1's rule in one sentence:** *if a learner of the new product could observe a violation of the property, retarget or replace the check; if they couldn't, delete it **in the same commit that deletes the implementation**, with a ledger row.*
 7. **PR #82's red job:** delete the `mock-outcome-browser-check` CI step with a ledger row. The node-level `mock-outcome-check.mjs` keeps guarding the logic until the mock view itself is deleted. The rendered "unassessed" property comes back in MFP-08 against the new writing screen.
@@ -111,7 +120,7 @@ Three prohibitions:
 
 ### 2.1 Challenging the assumption
 
-Ron's sketch: sign up → set exam date → practise a reviewed task → server-marked answer with explanation → write with durable feedback → resume on another browser → factual progress. Whole-exam simulation, speaking/STT, five languages, checkout and legacy import are out.
+Ron's sketch: sign up → set exam date → practise a reviewed task → server-marked answer with explanation → write with durable feedback → resume on another browser → factual progress. Whole-exam simulation, speaking/STT, the full static translated corpus, checkout and legacy import are out. The five selected explanation languages for writing feedback remain in scope.
 
 **The exclusions are right.** Three things in the sketch are off.
 
@@ -162,7 +171,7 @@ Ron's sketch: sign up → set exam date → practise a reviewed task → server-
 | Speaking / STT | Already outside the pilot (AGENTS.md:5) | agreed |
 | Listening practice | 0 tracked audio, and TTS substitution is forbidden (`IMPLEMENTATION_PLAN.md:234`). It only comes back with C-04 | **new** |
 | Objective practice (Lesen/SB) | Conditional, MFP-13. Not on the critical path (§2.1) | **changed** |
-| Five-language **reviewed** explanation corpus and pipeline | The language **setting** stays (Ron decision 4) and is honoured where text is generated on the server: the writing feedback prompt carries it. Static explanation translations, the RTL corpus and native review are C-06 and post-MFP. Output gets labelled "not reviewed" until C-06 (R12) | agreed, narrowed |
+| Full static five-language explanation corpus and pipeline | The de/en/uk/ar/tr setting, worker language snapshot, usable fonts and scoped Arabic RTL/shaping remain in MFP. Static corpus expansion is deferred. C-06 for shipped language output remains an open release gate; fixtures or provisional output must be labelled unreviewed, not declared approved or automatically deferred past launch | agreed, narrowed |
 | Commercial checkout (DESIGN-07, P-01/P-02) | Invite-only free pilot with a configured allowance | agreed |
 | Legacy `progress.json` / blob import | No defensible automatic attribution (round-1 §4.2). Pending R7/R8, possibly no real accounts at all | agreed |
 | Adaptive engine, SRS, vocab/core trainers, Satzbau, gender drills, dictation | They depend on client-generated items and keys that the server never sees. That makes them unmarkable, so they'd need the `self_reported` authority decision (ALIGNMENT §3.2). Dropping them makes that decision moot | **new** |
@@ -189,7 +198,7 @@ Ron's sketch: sign up → set exam date → practise a reviewed task → server-
 | (d) | **The client.** The shipped SPA is about 12k lines built on `freshState()`/localStorage. The one part that touches the server (drafts) never submits. Retrofitting it is what produced the session-fence series | `wc -l public/js/*.js` = 12,035 total **[V]**. `exam.js:825-857` **[V]** | **Build new, small** (MFP-07/08/09), reusing `owned-client.js` and `draft-session.js` (both proven) | About 5 d across 3–4 slices |
 | (e) | **The generic LLM proxy `/api/ai`** is the content generator *and* the grader. It's unmetered and session-gated, with open sign-up (ALIGNMENT §1) | `server.js:950-986` **[V]** | **Delete** (MFP-02b), don't meter. Its replacement is the worker (J7) | Included in MFP-02b |
 | (f) | **Recovery needs email**, and email is a processor decision (P-03) | J11 | **Decide** (R5). Build against a stub port | 1 d with the stub |
-| (g) | **Rubric disagreement.** The code has 4 criteria summing to 45 (`ai.js:760-765`). E-01 says three criteria (`IMPLEMENTATION_PLAN.md:151`) | round-1 V12 | **Decide** (R11): ship as "formative feedback, internal criteria, not a telc score", seeded as `unreviewed` | 0 d engineering |
+| (g) | **Rubric disagreement.** The legacy code has four criteria summing to 45 (`ai.js:760-765`); the unreviewed E-01 draft describes three | round-1 V12 | **Decide R11**: new versioned three-criterion contract or honestly labelled internal four-criterion feedback. MFP-06b/08 must agree; never relabel saved results | Re-estimate after R11; a rubric/schema change is not zero engineering |
 | (h) | **No CI job runs the new journey.** The browser job has no PostgreSQL, and the PG job has no browser | `ci.yml:102-197` **[V]** | **Build**: one CI job with both a `postgres` service and Chrome (MFP-07 step 1) | 0.5 d |
 | (i) | **Operational path to a stranger**: hosting, TLS, backups, secrets, a bind address that isn't hard-coded `127.0.0.1` (`server.js:1159`) | — | Bind address: **build** (MFP-02b). Everything else is **decide** and human-gated (F-02, L-01). Not authorized here | — |
 
@@ -220,7 +229,7 @@ Stated plainly: **the engineering path to "functional" is about 3 weeks of seria
 | D9 | **Speaking/STT**: `speech.js`'s STT parts, `speaking-guide.json` serving, `genSpeakingTask`/`gradeSpeaking` | — | Already outside the pilot |
 | D10 | **Listening and the TTS-as-listening path** | — | No audio. C-04 brings it back |
 | D11 | **Adaptive engine, SRS, vocab/core trainers, Satzbau, gender drills, dictation** (`engine.js`, `generators.js`, `satzbau.js`, parts of `ui.js`), and the `practice_event`/`srs_card`/`plan_mark` schema and its Ron decision (ALIGNMENT §3.2) | The highest-volume activity in the old app | Unmarkable by the server. Keeping them forces either forgeable progress figures or a new authority model. Removing them deletes the question |
-| D12 | **The five-language pipeline before launch** (static explanation translations, the RTL corpus, the review workflow) | Reviewed non-German explanations | The setting still works for server-generated feedback. C-06 stays open and is labelled |
+| D12 | **The full static five-language content pipeline** (corpus translations and the larger review workflow) | Reviewed non-German static explanations | The five-language setting still works for server-generated feedback. Font coverage, Arabic shaping/scoped RTL and fixtures for shipped feedback are required in MFP-07/08; they are not deferred with the corpus. C-06 stays open and is labelled |
 | D13 | **DESIGN-02..07 as a 14-screen build-out**, and **DESIGN-07 commercial** entirely | Upgrade screen, plan, review, listening, mock and language screens | About 7 screens cover the MFP. Checkout is replaced by an invite allowance |
 | D14 | **Legacy import** (`POST /api/v1/imports`) | Carrying any old history | Pending R7/R8. The plan already makes it optional |
 | D15 | **C-02 server-side generation into a review queue** before launch | Content volume | Human-authored prompts are faster to get approved (§3.1 c) |
@@ -261,7 +270,7 @@ Stated plainly: **the engineering path to "functional" is about 3 weeks of seria
 - **Branch naming:** `codex/mfp-NN-<slug>`. PR target: `codex/integration-01`. Never `main`.
 - **Exact base:** the SHA stated below. If a later slice says "head of integration-01 after MFP-xx merges", the dispatcher writes that SHA into the dispatch at dispatch time. A slice never starts on an unrecorded base.
 - **Push after every step.** Each step is one commit that leaves its checks green, **or** is a "checker first (failing on base)" commit whose failure is the expected, recorded one, which is this programme's established pattern (`433a73f`, `8e5b478`). A dying run must leave a green or explained head on `origin`.
-- **Shared-file ownership (one writer at a time):** `server.js`, `.github/workflows/ci.yml`, `server/owned-api.mjs`, `server/owned-postgres/provisioning-sql.mjs`, `server/owned-postgres/provision.mjs`, `server/migrations/**`, `public/js/owned-client.js`, `public/index.html`. Each slice's ALLOWED PATHS names which of these it holds, and **no two concurrently dispatched slices hold the same one.**
+- **Shared-file ownership (one writer at a time):** `server.js`, `.github/workflows/ci.yml`, `server/owned-api.mjs`, `server/owned-postgres/adapter.mjs`, `server/owned-postgres/settings.mjs`, `server/owned-postgres/provisioning-sql.mjs`, `server/owned-postgres/provision.mjs`, `server/migrations/**`, `public/js/owned-client.js`, `public/index.html`. Each slice's ALLOWED PATHS names which of these it holds, and **no two concurrently dispatched slices hold the same one.**
 - **Every slice record** (`work/implementation/MFP-NN.md`) contains: base, verbatim check output, the discrimination leg's output, RETIRED-CHECKS rows touched, and LIMITS.
 - **No slice:** deploys, sends email, calls a live model, uses live payments, reads or writes `D:\B1_Prep` (except its `design/` folder, read-only, by MFP-07 only), or uses non-synthetic data.
 - **Effort figures are guesses [G].** Every slice has been kept to about a day or less.
@@ -545,7 +554,7 @@ Steps:
 | Discrimination | Let the job read the language from current settings instead of the snapshot → `language-change-after-submit-does-not-regrade` fails |
 | Dependencies | MFP-05a, MFP-06a. Blocks MFP-08 |
 | Must NOT | Make a live model call; claim feedback quality; seed the rubric as anything but `unreviewed` (R11) |
-| Needs Ron? | **R10** (when may the worker use the live provider: a human gate, not needed for this slice) and **R11** (rubric labelling) |
+| Needs Ron? | **R10** (live provider is a human gate, not needed for this slice) and **R11** (three-versus-four criterion contract, not just labelling). Other prompt/version infrastructure can proceed with explicit fixtures; final result schema waits for R11 |
 
 ---
 
@@ -557,7 +566,7 @@ Split into 07a (CI job + shell + auth screens) and 07b (setup/settings/dashboard
 |---|---|
 | Purpose | A new client under `public/app/` (served at `/app/` until MFP-11a swaps the entry) lets a stranger sign up, sign in, sign out, complete setup (exam date + explanation language) and change settings, using only `owned-client.js`. It holds **no learner state in `localStorage`/`sessionStorage`/IndexedDB**, keeps German chrome invariant under the language setting, and uses the design tokens |
 | Base | integration-01 head after MFP-02b |
-| ALLOWED PATHS | `public/app/**` (new), `public/assets/design/**` (new: curated fonts/logos with licence files copied from `D:\B1_Prep\design`, **read-only source**), `.github/workflows/ci.yml` (**holds**; a new job `Journey (PostgreSQL + headless Chrome)`), `tools/app-browser-check.mjs` (new), `tools/design-check.mjs` (retarget to `public/app/**` tokens), `work/implementation/MFP-07.md` |
+| ALLOWED PATHS | `public/app/**` (new), `public/assets/design/**` (new: curated fonts/logos, provenance and verified licence notices; `D:\B1_Prep\design` is **read-only source**, and missing language coverage needs additional licensed fonts), `.github/workflows/ci.yml` (**holds**; a new job `Journey (PostgreSQL + headless Chrome)`), `tools/app-browser-check.mjs` (new), `tools/design-check.mjs` (retarget to `public/app/**` tokens), `work/implementation/MFP-07.md` |
 | Effort | 07a 1 d, 07b 1 d **[G]** |
 
 Steps:
@@ -567,7 +576,9 @@ Steps:
   - `nav-identical-across-language`
   - `settings-has-no-provider-field`
   - `exam-date-survives-fresh-profile` (the §0.1 correction's test)
-  - `refusal-states-render` (401/expired/offline)
+  - `refusal-states-render` (401/expired/offline plus the design decision matrix's applicable validation/rate-limit/conflict states)
+  - `five-language-font-and-direction` (glyph coverage plus rendered uk/tr/ar shaping and mixed-direction text)
+  - `design-state-contract` (German password/invite/reset surfaces; no unused daily-time or unsupported settings claims; responsive/reduced-motion/focus evidence)
   
   Failing. Push.
 - **07a.2** Shell + auth screens. Push. *Proven: the auth legs.*
@@ -581,7 +592,7 @@ Steps:
 | Dependencies | MFP-02b (configured runtime only). The dashboard leg depends on MFP-05b |
 | Parallel | MFP-05a/05b, MFP-06a/06b, MFP-04a. **Disjoint paths**, except `owned-client.js`, which this slice does **not** edit |
 | Must NOT | Import `store.js`, `account.js`, `exam.js`, `ui.js` or `app.js`; build plan/review/progress/mock/listening/upgrade screens; show sample data; add a framework |
-| Needs Ron? | **R13 (light):** "Fonts/logos from `D:\B1_Prep\design` get copied into the repository with their licence files. Confirm you hold the right to the logo artwork." |
+| Needs Ron? | Logo provenance answered: **AI-generated for this project**. Proceed with asset/font curation under [MFP-DESIGN-DECISIONS](MFP-DESIGN-DECISIONS.md); do not assume missing design-folder licence files will copy themselves. R14/R16 are recorded planning defaults |
 
 ### MFP-08 — CLIENT-WRITING: the writing journey end to end
 
@@ -601,6 +612,8 @@ Steps:
   - `retry-after-failure-one-debit`
   - `revise-creates-linked-attempt`
   - `account-switch-shows-none-of-A`
+  - `criterion-version-matches-saved-feedback` (R11 contract; no silent conversion of saved results)
+  - `no-score-or-validity-claims` (R15: no aggregate /45, pass band, automatic Leitpunkt tick or two-model claim)
   
   The worker runs with the stub provider in the CI job. Push.
 - **08b.2** Implement. Push.
@@ -610,7 +623,7 @@ Steps:
 |---|---|
 | Discrimination | Render a heuristic score when `assessment === null` → `failed-or-pending-assessment-renders-unassessed` fails. Cache the attempt id only in memory and open a fresh profile → `fresh-profile-sees-exact-text-and-feedback` must still pass (it uses the list route). Then break the list route → the leg fails |
 | Dependencies | MFP-05b, MFP-06b, MFP-07a. Blocks MFP-11a |
-| Must NOT | Grade in the browser; call any `/api/ai`; store text in web storage; claim a telc score |
+| Must NOT | Grade in the browser; call any `/api/ai`; store text in web storage; claim a telc score; show any criterion grade for pending/failed/missing feedback |
 | Needs Ron? | No |
 
 ### MFP-09 — PROGRESS-LITE + EXPORT
@@ -645,21 +658,22 @@ Then implement and record.
 |---|---|
 | Purpose | `/` serves the new client. The old SPA modules, their data serving and their checks are deleted in the same commits, each with a ledger row. A reachable-code inventory shows no import of a deleted module |
 | Base | after MFP-08 and MFP-09 |
-| ALLOWED PATHS | `public/index.html` (**holds**), `public/js/**` (deletions; `owned-client.js` and `draft-session.js` kept), `public/css/**` (deletions), `data/**` (stop serving: move to `content/source/` or leave unserved by static filter; **no content deleted from git history**), `server.js` (**holds**; static allow-list), `tools/check.js`, `tools/writing-check.js`, `tools/feedback-check.js`, `tools/progress-equal-check.mjs` (+test), `tools/progress-scope-check.mjs` (+test), `tools/mock-outcome-check.mjs` (+test), `tools/writing-surface-check.mjs` (+test), `tools/session-boundary-check.mjs`, `tools/session-boundary-browser-check.mjs`, `tools/writing-surface-browser-check.mjs`, `.github/workflows/ci.yml` (**holds**), `work/implementation/RETIRED-CHECKS.md`, `work/implementation/MFP-11.md` |
+| ALLOWED PATHS | `public/index.html` (**holds**), `public/js/**` (deletions; `owned-client.js` and `draft-session.js` kept), `public/css/**` (deletions), `data/**` (stop serving: move to `content/source/` or leave unserved by static filter; **no content deleted from git history**), `server.js` (**holds**; static allow-list), `tools/check.js`, `tools/writing-check.js`, `tools/feedback-check.js`, `tools/progress-equal-check.mjs` (+test), `tools/progress-scope-check.mjs` (+test), `tools/mock-outcome-check.mjs` (+test), `tools/writing-surface-check.mjs` (+test), `tools/session-boundary-check.mjs`, `tools/session-boundary-browser-check.mjs`, `tools/writing-surface-browser-check.mjs`, `.github/workflows/ci.yml` (**holds**), `work/implementation/RETIRED-CHECKS.md`, `work/implementation/MFP-11.md`; R16 retirement only: `server/owned-api.mjs` (**holds**), `server/owned-postgres/settings.mjs` (**holds**), `docs/contracts/OWNED-CLIENT.md`, `tools/accounts-http-check.mjs`, `tools/deletion-check.mjs`, `tools/owned-api-check.mjs`, `tools/retired-surface-check.mjs` |
 | Effort | 1 d **[G]** |
 
 Steps:
 1. **Checker first:** `retired-surface-check` gains `static-serves-only-allowlist` (`/data/seed.json`, `/js/store.js`, `/js/ai.js` → 404) and `no-import-of-deleted-modules` (parses `public/app/**` imports). Push.
 2. Swap the entry. Push. *Proven: MFP-07/08/09 browser legs green at `/`.*
 3. Delete the old modules + `progress-equal`/`progress-scope`/`mock-outcome`/`writing-check`/`feedback-check`/`writing-surface-check`, the legacy browser steps, and the `check.js` sections for deleted modules. Keep the `blueprint` section if `blueprint.js` is retained for `exam-blueprint-check`; otherwise delete it. One commit per group, each with ledger rows. Push each.
-4. Record. Push.
+4. Retire R16's `dailyGoal` from the served settings shape, defaults and API write allowlist in both validators; 07b already omits the field from client payloads. Extend focused settings/deletion checks to prove exam date/theme/language still save and resume, and a submitted `dailyGoal` is refused. Update the owned-client contract. Inventory stored values and the `daily_goal` column: keep applied migration 0004 immutable; retain values until a reviewed forward migration explicitly governs their disposition. Allocate that migration's exact path/owner separately before editing if needed; no schema or learner-data deletion is authorized by this UI default. Record the residual column and its disposition rather than claiming it vanished.
+5. Record. Push.
 
 | | |
 |---|---|
 | Discrimination | Restore `public/js/store.js` and import it from `public/app/` → `no-import-of-deleted-modules` fails. Request `/js/store.js` → must be 404 |
 | Dependencies | MFP-08, MFP-09. Blocks MFP-12 |
 | Must NOT | Delete learner records; delete `data/**` from history; delete `exam-blueprint-check`, `objective-fixture-check` or `feedback-case-check` (content fixtures keep their value for MFP-13 and C-05) |
-| Needs Ron? | **R0 confirmation** that the old SPA's features in §4.1 D8–D11 disappear from the product at this point |
+| Needs Ron? | R0 is already authorized by the user's retirement direction. No repeat confirmation; preserve actual learner records under the migration boundary |
 
 ### MFP-11b — tooling cleanup (parallel-safe, small)
 
@@ -729,7 +743,7 @@ MFP-14 (parallel from t=0; catalogue check gates MFP-09 export leg and every lat
 - {MFP-00, MFP-03, MFP-14}
 - {MFP-01, MFP-03, MFP-14}
 - {MFP-05a, MFP-06a, MFP-07a}, but MFP-07a holds `ci.yml`, so MFP-06a/05a add no CI step until it merges
-- {MFP-05b, MFP-06b, MFP-07b}
+- MFP-07b may overlap either MFP-05b or MFP-06b. **MFP-05b and MFP-06b both hold `server/owned-postgres/adapter.mjs`; serialize them** (or approve an explicit file/interface split before dispatch), then rebase the later slice. They are not a disjoint parallel set.
 - MFP-04a and MFP-04b alongside the 05/06/07 group, **except** that `server/owned-api.mjs` is serialised: 04a's auth-block edit merges before 05a's route edit is dispatched, or 05a is dispatched first and 04a rebases. The coordinator picks one and writes it into both dispatches.
 
 ### 5.2 The critical path
@@ -797,7 +811,7 @@ Steps:
 | MFP-04a/04b (auth build) | **MFP-03's facts + Ron R4 (dependency), R6 (invite-only)**. MFP-04b's real provider waits on R5 (the stub doesn't) |
 | MFP-13 objective practice | **R1 (rights) and R3 (in or out of MFP)** |
 | Any live-provider evaluation or C-05 run | **R10:** live AI is not authorized |
-| DESIGN-02..07 beyond MFP-07/08/09's screens; the 5-language pipeline; RTL corpus | Not in the MFP (D12, D13). Restart after MFP-12 with a content plan |
+| DESIGN-02..07 beyond MFP-07/08/09's screens; full static five-language corpus/review pipeline | Not in the MFP (D12, D13). Restart after MFP-12 with a content plan. Do not defer font coverage or Arabic RTL/shaping needed by the feedback shipping in MFP |
 | Legacy import | R7/R8 |
 | practice_event / SRS / plan schema, the "self_reported authority" decision | D11. The features are dropped, so the decision is moot |
 | Any deployment, DNS, email or payment configuration | Not authorized (brief). Human gate |
@@ -830,9 +844,13 @@ Each is cheap, fails before the harm, and none needs a decision:
 | **R4** | (after MFP-03) Adopt Better Auth, ending "the root app has no dependencies", or harden our own session code (about 0.5–1 d more, and more security-sensitive)? | Auth build path | Wait. MFP-04 doesn't start |
 | **R5** | Which email provider will eventually send reset/verification mail? (It's a data processor for P-03.) Or will the pilot use operator-assisted resets? | J11 | Build against the stub; no real provider |
 | **R10** | When may the worker call the live model (DeepSeek via GreenPT, per `IMPLEMENTATION_PLAN.md:224`) for real learners? | Without it, feedback is a stub | Stubs only |
-| **R11** | Ship writing feedback labelled "formative feedback, not a telc score", using the current 4 internal criteria marked `unreviewed`, until E-01 settles the official 3 criteria? | Avoids blocking on E-01 while staying honest | Yes, labelled |
-| **R12** | Explanation-language setting: offer all five (de/en/uk/ar/tr) for model-written feedback, labelled "not natively reviewed" until C-06? Or only de + en at first? | Ron decision 4 says the setting must work. C-06 gates the wording | All five, labelled |
-| **R0 / R13** | Confirmations: the repository's old single-user app stops working at MFP-02b and its features (§4.1 D8–D11) leave the product at MFP-11a. The logo/font assets from `D:\B1_Prep\design` are ours to copy with their licences | Acknowledging the drops | Proceed, recorded as acknowledged-by-instruction |
+| **R11** | New separately versioned three-criterion implementation, or provisional four-criterion internal practice feedback? | The design and legacy 15/10/12/8 schema differ. Decide before finalizing MFP-06b/08; preserve saved versions and E-01/C-05 review | Open. Recommend the three-criterion implementation; no silent conversion or assumption of approval. Infrastructure may use labelled fixtures |
+| **R12** | **Confirmed language set:** de/en/uk/ar/tr for explanations; German chrome/exam text remains fixed | Implement all five for model-written feedback, with language snapshot and scoped typography/direction. C-06 review remains open | Do not reopen a de/en-only option; label unreviewed fixtures/output honestly, without closing C-06 |
+| **R0** | Retire the old single-user app through MFP-02b/11 and the recorded drop list | Explicit user direction; not deletion of the live install or actual learner records | Proceed within bounded slices; no repeated scope approval needed |
+| **R13** | Logo provenance and multilingual font curation | Ron answered **AI-generated for this project**. Record provenance and actual font licences; additional script-capable fonts are part of MFP-07a | Proceed with curation; provenance is not independent legal clearance |
+| **R14** | Password + invite registration versus the mockup's magic link/Google | Auth spike supports password; reset delivery still needs R5 | Password + invite, planning default; do not render unsupported alternatives |
+| **R15** | Total out of 45 versus criterion grades only | A total would imply scoring validity the product has not established | Grades only, labelled practice feedback; no pass band or total |
+| **R16** | Daily practice time in onboarding/settings | Nothing consumes it after the study-plan drop | MFP-07b omits it from UI/payload; MFP-11a owns API/default retirement and recorded stored-value/column disposition |
 
 ---
 

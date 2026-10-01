@@ -1,5 +1,10 @@
 # DESIGN LANGUAGE — target and migration contract
 
+**First-release acceptance:** [MFP-DESIGN-DECISIONS](MFP-DESIGN-DECISIONS.md) is the current design/state contract. MFP-07a curates licensed assets, script-complete fonts, tokens, responsive CSS and the retargeted design check together. MFP-08/09 use it for asynchronous writing/history states. The earlier DESIGN-01..07 sequence and the historical inventory below do not restore dropped features or the old client. German chrome is invariant; Arabic RTL/shaping and Ukrainian/Turkish glyphs for shipped feedback cannot be deferred with a future translated corpus.
+
+The source contains 112 inline style attributes across its fourteen screens and no reduced-motion rule. The existing design checker does not inspect those files or reject all inline styles; it warns for raw corner radii. Import acceptance must explicitly cover shared classes/tokens, scoped dynamic exceptions, reduced motion, visible focus and desktop/mobile rendering. Font name alone is not glyph/shaping evidence. See the decision record for the corrected licence provenance and R13 logo answer.
+
+
 ## Direction superseded on 1 October 2026
 
 Ron selected the designs in `D:\B1_Prep\design` to replace the previous visual language. [DESIGN-WIRE-01](DESIGN-WIRE-01.md) and its manifest are the target reference: orange rising-oo, warm-paper surfaces, Bricolage Grotesque headings, Source Sans body, consistent desktop/mobile shell and both themes. German chrome/content stay German; explanations support de/en/uk/ar/tr, with scoped Arabic RTL and verified font coverage/licences.

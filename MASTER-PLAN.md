@@ -1,63 +1,63 @@
 # Hatoove master plan — delivery tracker
 
-**Updated:** 1 October 2026 for Ron's new design and single-user retirement direction.
-**Coordinator:** Ron's locally controlled agent; transfer recorded in [issue #27](https://github.com/ronslink/hatoove/issues/27). This documentation slice does not reassign live work.
-**Planning base:** SaaS candidate `e126d8c4b18a2beaf58eca2d279fe8d191e825ae`, [PR #60](https://github.com/ronslink/hatoove/pull/60). Remote `main` was `4f76b9428aacfc2ef670bdd3bdf5e43fa316222e` at inspection. Recheck heads before dispatch; candidate integration is not a merge to main.
+**Updated:** 1 October 2026 for the writing-first product and design reconciliation.
+**Coordinator:** Ron's locally controlled agent, per [issue #27](https://github.com/ronslink/hatoove/issues/27); this documentation slice does not reassign live work.
+**Inspected integration base:** `199dc0b99f91d06f402f084757ecf586e03631ce`, [PR #81](https://github.com/ronslink/hatoove/pull/81). Runtime-composition [PR #89](https://github.com/ronslink/hatoove/pull/89) was at `74fb15841699891384adcb0a5f304d7f2edc86b2`; its latest work was archived unverified. Main was `4f76b9428aacfc2ef670bdd3bdf5e43fa316222e`. Recheck heads and leases before dispatch.
 
 ## Direction now in force
 
-Build a multi-user server application using the designs in `D:\B1_Prep\design`: orange rising-oo identity, warm-paper surfaces, Bricolage Grotesque headings, Source Sans body and the supplied desktop/mobile layouts. These designs replace the earlier visual preservation constraint. Keep the current Node/PostgreSQL and vanilla-client direction; a mockup's React label does not authorize a rewrite.
+Build a writing-first, multi-user server product using the orange/rising-oo design in `D:\B1_Prep\design`. Build the small new vanilla client under `public/app/` around owned server records, then retire the old single-user SPA. Keep Node/PostgreSQL; no framework or hosting migration is implied. The fourteen mockups are references, not fourteen launch commitments.
 
-**Remove the old single-user schema and functionality.** The new screens use authenticated, owned server records. No shared progress file, local-user fallback, full-state browser blob or file-sync compatibility path remains in the completed SaaS runtime. Keep ownership/isolation per learner; do not delete actual existing learner records as an incidental cleanup.
+**Remove the old single-user schema and functionality:** shared progress files, local-user fallback, browser state blobs, file sync and generic browser grading. Keep one shared schema with session-derived ownership per learner and versioned shared content. Retire obsolete consumers through MFP-02b/11 with safe forward migrations; this does not authorize deleting the live install or actual learner records.
 
-Menu/interface and exam content stay German. The selected explanation languages are **de, en, uk, ar, tr**, with scoped Arabic RTL and native-review gates. Speaking/STT and whole-exam pass prediction remain outside the pilot. Mockup data, readiness forecasts, prices and two-model claims are not accepted product behavior.
+Interface and exam material stay German. Explanation languages are **de/en/uk/ar/tr**, including working glyphs and scoped Arabic RTL. First-release planning defaults are email/password plus invite signup, per-criterion practice feedback without a `/45` total, and no daily-time setting. R11's three-versus-four criterion contract remains explicit, never a silent relabel. Ron confirmed the logo was AI-generated for this project; asset curation records provenance and font licences.
+
+No first-release readiness/pass predictions, streaks, study plan, reminders, purchase UI, magic links/Google, two-model claims or automatic Leitpunkt correctness ticks. Writing pending/failed/unassessed states are required. Storage-region and retention claims wait for actual approved policy.
 
 ## Authoritative records
 
 | Question | Record |
 |---|---|
-| Packages, acceptance and gates | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) |
-| Screen mapping, backend dependencies, legacy removal and ordered slices | [DESIGN-WIRE-01.md](work/implementation/DESIGN-WIRE-01.md) |
-| Exact inspected design bytes | [DESIGN-REFERENCE-MANIFEST.json](work/implementation/DESIGN-REFERENCE-MANIFEST.json) |
+| First-release scope, dependency order, drops and retirement rules | [FUNCTIONAL-ROADMAP.md](work/implementation/FUNCTIONAL-ROADMAP.md) |
+| Design decisions R11/R13–R16, missing screens/states and asset/CSS acceptance | [MFP-DESIGN-DECISIONS.md](work/implementation/MFP-DESIGN-DECISIONS.md) |
+| Broader package requirements and human gates | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), subordinate to the first-release roadmap where scope differs |
+| Reference screen inventory and exact design bytes | [DESIGN-WIRE-01.md](work/implementation/DESIGN-WIRE-01.md), [manifest](work/implementation/DESIGN-REFERENCE-MANIFEST.json) |
 | Product/exam/architecture rationale | [PILOT_BUILD_PLAN.md](PILOT_BUILD_PLAN.md) |
-| Active owners/leases | [work/BOARD.md](work/BOARD.md) and the coordinator's current issue/dispatch |
-| Running status and next bounded assignments | shared handoff `CURRENT.md`, `START-HERE.md` and task briefs; verify timestamps |
+| Live owners and running status | [work/BOARD.md](work/BOARD.md), coordinator dispatches and the latest shared handoff; verify timestamps and expiry |
 
-The implementation plan governs package scope; later user instructions take precedence. `planned`, `delivered`, `reviewed`, `CI green`, `merged into candidate`, `merged to main` and `accepted` are distinct states.
+`HANDOFF-NEXT-SESSION.md` supersedes the older shared `START-HERE.md`. Treat stale `CURRENT.md` as a historical checkpoint. `Planned`, `delivered`, `reviewed`, `CI green`, `integrated`, `merged to main` and `accepted` are distinct states. [#63](https://github.com/ronslink/hatoove/issues/63) is the SaaS audit **issue**, not a pull request.
 
-## Current progress and integration checkpoint
+## Current progress and blockers
 
-- The candidate contains account/RLS and durable draft/submission infrastructure, provider-configuration restrictions, session-boundary work and hosted runtime safeguards. These are building blocks, not a completed SaaS journey.
-- The review-coverage task is [PR #74](https://github.com/ronslink/hatoove/pull/74). Earlier component reviews do not automatically approve the later combined head.
-- Writing wiring is delivered for review in [PR #75](https://github.com/ronslink/hatoove/pull/75); deletion wiring and session-fence changes are tracked in [#76](https://github.com/ronslink/hatoove/pull/76), [#77](https://github.com/ronslink/hatoove/pull/77), [#78](https://github.com/ronslink/hatoove/pull/78) and [#79](https://github.com/ronslink/hatoove/pull/79). These were open when inspected. Resolve superseded attempts and ownership before another writer touches their paths.
-- Production auth, saved-task discovery/version binding, the real assessment worker, server-owned prompts/usage and objective marking remain required. New designs make these dependencies visible; static rendering does not close them.
-- This change is **plan updated**, not designs implemented or legacy schema removed. Runtime evidence must be recorded against the final integration head.
+- Integration `199dc0b` contains the platform/writing/session fixes, the prior design-plan commit `2e656fa`, content/task schema, auth spike, migration and table-class checks, and worker process wiring. PR #80 was closed but its plan commit is included; it was not discarded.
+- The coordinator recorded eight green CI jobs and an executed API journey of **5 passed, 6 pending, 0 failed**. The worker leg uses a real child process/restricted DB role with a **stub grader** and one debit. Those facts do not establish a finished learner UI, real model quality or production auth.
+- **Next technical blocker: PR #89 / MFP-02a** needs current-head validation and independent review. Resolve account/session provisioning failure behavior and exclude tracked agent memory before integration. Then MFP-02b can remove the local-mode routes and fallback behavior.
+- **Product wiring blockers:** learner task discovery, a client caller of durable submit, server-owned validated prompt/rubric output, authentication/recovery, factual history/export/delete UI and the complete fresh-browser flow. Existing backend primitives do not close these journeys.
+- **Decision/release blockers:** R11 rubric contract; content rights and review policy; auth/recovery provider choices; human security/legal/native-language/device review; real provider and production authorization. Defaults are documented separately from confirmed decisions.
+- This change updates planning only. No design screen, multilingual font or SaaS removal is implemented by it.
 
 ## Delivery order
 
-| Order / slice | State | Outcome / dependency |
+| Order / slice | State at inspection | Required outcome |
 |---|---|---|
-| 0 — integrate reviewed platform fixes | In progress | Coordinator resolves the review/deletion/session/writing queue and records combined-head evidence; retain one owner of shared files |
-| 1 — DESIGN-01 | Planned | Version design assets/licences and one shared token/component system; update visual contract and design gate together |
-| 1 — SAAS-MODEL-01 | Planned; parallel with DESIGN-01 | Production auth and owned domain/route contracts; inventory every old single-user schema consumer and its replacement |
-| 2 — DESIGN-02 | Planned | German shell, account entry, check-email, onboarding, settings and dashboard connected to real owned records |
-| 2 — SAAS-RESUME-01 | Planned | Owned discovery and stable task identity; server-authoritative draft conflict and fresh-browser resume |
-| 3 — DESIGN-03 | Planned; adopt reviewed writing work | Writing, durable job/feedback/retry/revision and actual usage; no browser-controlled prompts or grading |
-| 3 — DESIGN-04 | Planned | Reading, language elements, fixed listening audio and written mock with authoritative server marking |
-| 4 — DESIGN-05 | Planned; language pipeline may start alongside 3 | Owned mistake review, calendar, factual progress and all five explanation languages including RTL |
-| 5 — SAAS-RETIRE-01 | Required cutover | Remove old schema/runtime/client persistence and compatibility paths after replacements are verified; forward migrations, no silent data destruction |
-| 6 — DESIGN-06 | Planned | Independent full learner journey and two-account isolation; desktop/mobile evidence and explicit remaining real-device/human gates |
-| 7 — DESIGN-07 | Separate commercial track | Upgrade/entitlement UI with real catalogue and test checkout; not a dependency of the internal journey |
+| MFP-00 / 01 / 03 / 14 and worker wiring | Integrated component evidence | Maintain combined-head checks; auth spike is not production auth; pending journey legs do not count as passes |
+| MFP-02a → MFP-02b | 02a WIP/unverified; 02b next | Runtime composition, then mandatory SaaS startup and deletion of old progress/config/AI routes; negative checks prove their absence |
+| MFP-07a foundation + MFP-04a/b auth | Planned; disjoint backend work can overlap | Curated logo/licensed fonts, shared responsive tokens, German shell, invite/password signup/sign-in/reset and error/legal surfaces; no new framework |
+| MFP-05a/b + MFP-06b | Required backend dependencies | Servable versioned task list, owned discovery/resume and validated durable feedback; resolve R11 and snapshot language/version provenance |
+| MFP-07b → MFP-08 → MFP-09 | Planned; serialize shared client writers | Setup/settings/factual dashboard; writing/save/submit/pending/result/failure/retry/revise; history/export/delete with no invented scores |
+| MFP-11a/b → MFP-12 | Required cutover and integration proof | Retire old client/schema consumers with a test ledger, then prove the two-account/fresh-browser journey on the actual runtime |
+| MFP-13 | Conditional, outside default writing-first release | Reading/language elements only after rights and scope decisions; no listening without reviewed fixed audio |
+| Broader DESIGN-02..07 backlog | Deferred beyond first-release scope | Listening, mock, review/study plan and commercial upgrade require later contracts/evidence; the old fourteen-screen schedule is superseded |
 
-Detailed acceptance and mapping of all 14 screens are in DESIGN-WIRE-01. Each row becomes a bounded assignment with execution ID, exact base, allowed paths, checkpoint and expiry; this table is not a lease.
+Missing designs are explicit work in the [screen/state matrix](work/implementation/MFP-DESIGN-DECISIONS.md): invite signup, password reset, writing task list, pending/failed feedback, history/revise, delete confirmation, legal pages and error states. Each dispatched slice still needs one owner, execution ID, exact base, paths, checkpoint and expiry.
 
-## Internal milestone that proves the application is connected
+## Internal milestone
 
-Sign in -> finish setup -> start owned reviewed practice -> receive server-marked answers and the chosen explanation -> write and save -> submit -> leave while pending -> return to saved feedback -> revise -> sign in on a fresh browser and resume the exact task and work. Repeat with a second learner, failed requests, duplicate clicks, stale writes, account switching and deletion. No local progress file or legacy browser record is required or consulted. Use provider/email/payment stubs in development.
+An invited learner signs up, signs in, saves exam date/language, selects a servable writing task, saves a draft, submits, leaves while pending and returns on a fresh browser to the exact submitted text and saved feedback or explicit unassessed failure. They can retry, revise, view history, export, reset access and delete the account. Repeat with a second learner, stale writes, duplicate clicks, account switching and late worker completion. No legacy local record is required. Development uses email/provider stubs; this is not production release acceptance.
 
 ## Release gates still open
 
-Qualified exam/content/audio/native-language review, security/privacy/legal review, real iPhone/Android keyboard/audio/recovery evidence, operational recovery/permissions and explicit production authorization remain separate. No unsupported readiness, overall-exam pass or model-agreement validity claims. Pricing/terms come from the approved commercial contract, not sample markup.
+Content rights and qualified exam/native-language review, security/privacy/legal review, real iPhone/Android keyboard/touch/recovery evidence, operations and explicit production authorization. Audio evidence becomes relevant when listening enters scope. No sample design or green CI run approves those gates.
 
 ## Historical merged-slice evidence
 
