@@ -92,7 +92,9 @@ client cannot be *seen*. The shell now exists, so PILOT-04's task list has somew
   **Missing: the task list, the objective runner, writing, the result view with the explanation, and
   history** — each blocked on PILOT-04/05/06/07. The shell is a frame; the journey is not in it.
 - **The old SPA still exists** in `public/` and is still reachable by its own paths for an
-  authenticated learner. `/` no longer serves it, but retiring it is PILOT-11a and has not happened.
+  authenticated learner. `/` no longer serves it, but retiring it is **PILOT-17** and has not
+  happened. (Earlier text called this "PILOT-11a", which collided with PILOT-11 — the second exam,
+  an unrelated slice.)
 - **The invite code is not implemented.** Sign-up is open to anyone who can reach the server
   (`/api/auth/sign-up/email` has no invite check and no throttle) — R6, and the reason the pilot is
   intended to be invite-only.

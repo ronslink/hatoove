@@ -17,14 +17,17 @@ Ron, 1 October 2026, verbatim:
 
 > "lets stick to the pilot plan and remove the other"
 
-Four consequences:
+> "we need to remove the local run version of the app completely as we are running the docker server based version only there are no two version of the app"
+
+Five consequences:
 
 1. **The pilot plan governs.** `PILOT_BUILD_PLAN.md` is the product requirement again, and the writing-first minimum functional product is withdrawn as a plan. This matters beyond bookkeeping: the MFP deferred objective practice, listening, a study plan and the full written mock to *after* its own end, and it narrowed the client to about seven screens. The pilot plan treats reading, language elements, listening and writing as one written-section product (`PILOT_BUILD_PLAN.md:21`).
 2. **The product is multi-exam, not a German app.** telc Deutsch B1 is the **first exam package**, not the product. The pilot plan already states the rule: *"Keep the exam package, exam language, instruction language and purchasing market independent"* (`:58`), and *"Similar proficiency levels do not make telc, DTZ, Goethe and IELTS interchangeable"* (`:35`).
 3. **First-language explanation is the differentiator**, and it is a core-offer requirement, not an upsell: *"Native-language instruction belongs in the core offer; it is not a premium surcharge"* (`:62`).
 4. **"Working locally" is the acceptance target** — a complete SaaS running on this machine, ahead of any hosting question.
+5. **There is ONE version of the application, and it is the Docker server.** The host/local run is removed entirely, not deprecated or kept as a fallback. This is the answer to the question the relocation PR left open, and it settles decision D11.
 
-**One assumption, flagged.** The relocation PR records an unresolved question: *"Ron subsequently requested a working local model with all bells and whistles. Clarification is pending whether that means the complete local application, on-device AI or both"* (`handoff/ron-agent/WORKSPACE-RELOCATION-PR.md:11`). This plan assumes **the complete local application with provider stubs**; on-device or live AI is **not** required for the local milestone and remains unauthorized pending R10. If that reading is wrong, §7 reorders.
+**The D11 question is closed.** The relocation PR recorded it unresolved: *"Clarification is pending whether that means the complete local application, on-device AI or both"* (`handoff/ron-agent/WORKSPACE-RELOCATION-PR.md:11`). The answer arrived as the runtime direction in consequence 5 above: **the complete application, served by Docker Compose, with provider stubs** — and **no on-device AI**, which is not in scope. Built by DOCKER-ONLY-01; see §1 "Architecture: DECIDED".
 
 ---
 
@@ -43,24 +46,39 @@ Four axes stay independent (`PILOT_BUILD_PLAN.md:58`):
 
 The commercial hypothesis on record is a direct-to-learner, fixed-duration exam pass initially tested as an eight-week term (`:31`), with a regional price catalogue by market, exam package, pass duration and allowance (`:64`). **None of that is in the local milestone.**
 
-### Architecture now in force
+### Architecture: DECIDED, and running
 
 **Docker-only execution (Ron, 1 October 2026):** the server stack is started with Docker Compose. The separate host Node setup and local installer are retired by DOCKER-ONLY-01. This does not delete existing database volumes or authorize deployment. See [DOCKER-ONLY-01.md](work/implementation/DOCKER-ONLY-01.md).
 
 **The API is the product and the whole stack runs in containers.** The client is thin: it holds no
 state, no provider key and no grading logic, and it submits a reference and receives a result.
 
-**A single-user app's integrations cannot be adapted, because the assumption they were built on is
-gone.** In a single-user app an integration is a convenience the local user configures; in a
-multi-user app it is a shared, costed, owner-attributed resource that must be bounded, reviewable and
-revocable per account. The full mapping is in [INTEGRATIONS-01.md](work/implementation/INTEGRATIONS-01.md);
-the rules that follow are: no integration call without an owner, without an allowance check and a
-ledger row, without being asynchronous when it costs money, without pooling its output, and none of
-it configurable from a learner session.
+**There are no two versions of the application.** There is one runtime, it is the containerised
+server, and nothing starts a host process alongside it by accident (`npm start` delegates to
+Compose). This is a settled decision, not a transition state.
 
-**Generated content is pooled, not generated per learner.** Cost scales with pool size instead of
-with usage, and a finite set can be reviewed where an infinite stream cannot. See
-[CONTENT-POOL-01.md](work/implementation/CONTENT-POOL-01.md).
+Four things are decided, built and verified rather than proposed:
+
+1. **One runtime, and it is Docker Compose** — no host launcher, no installer, no parallel local app.
+2. **The page surface is auth-gated.** Only `/signin`, `/assets/design/**`, `/api/auth/**` and
+   liveness are public; everything else needs a verified session. Before this, `data/seed.json`
+   served all 180 answer keys to anyone.
+3. **The supplied design is the driver and it is tracked** — byte-pinned in `public/assets/design/`
+   with its licences, and `/` serves the Hatoove shell built from it.
+4. **Interface German, explanations per learner** (§4 rule 6).
+
+### Architecture: PROPOSED, and awaiting a decision
+
+Neither of these is in force, and neither may be cited as settled. They are recorded so the options
+are visible, and each names the decision it waits on.
+
+- **The multi-user integration layer** — inference, speech, email, payments and object storage behind
+  one port each, owner-attributed, allowance-bounded and ledger-debited. The *principle* follows from
+  being multi-user rather than single-user and is not really optional; the *implementation and its
+  providers* are unbuilt and unauthorized. [INTEGRATIONS-01.md](work/implementation/INTEGRATIONS-01.md), **D5/D6/D8/D10**.
+- **The generated-content pool** — generate once into a shared, reviewable pool instead of per
+  learner, with explanations cached per `(item, language)`. The economics are compelling; the fill
+  policy, the target size and the reviewer are Ron's. [CONTENT-POOL-01.md](work/implementation/CONTENT-POOL-01.md), **D12/D13**.
 
 ---
 
@@ -137,7 +155,7 @@ This is the feature Ron named, and the pilot plan already constrains it correctl
 3. **Each explanation is versioned content keyed by (task/rubric version, criterion or item, language)** — not a per-request model call. This is the load-bearing design decision: it makes quality reviewable once per language instead of once per view, makes cost one-time instead of per-render, makes results deterministic, and lets speech synthesis reuse the same bytes.
 4. **Review status is per (item, language) and visible.** The ladder is `unreviewed` → natively reviewed, surfaced as a plain label; the MFP's `Übungsfeedback – keine telc-Bewertung` treatment generalises to a "not natively reviewed" label for any language. C-06 stays open until a native speaker signs a language.
 5. **A missing or failed explanation is not a grade.** A pending or failed assessment stays explicitly unassessed, with the learner's text preserved.
-6. **Exam material is never translated.** Only the explanation layer moves. The retired plan's "German chrome" invariant is superseded by the pilot plan's four-axis rule: the *interface* language may follow the learner, but the **exam text must not**.
+6. **Exam material is never translated, and the interface stays German.** Only the explanation layer moves. The retired plan's "German chrome" invariant was superseded by the pilot plan's four-axis rule, which left the interface language open — but the decision has since been made **and built**: `public/app/` is German chrome (Heute, Üben, Fortschritt, Einstellungen), and the only per-learner language is the explanation setting. So of the four independent axes, three are settled here: exam package (telc B1 first), exam language (the exam's own), instruction language (German chrome, per-learner explanations). Only the purchasing market is still open.
 
 **Where it plugs in:** the worker already carries `task_version`/`rubric_version` on the job and stores `model_version`/`prompt_version`/`rubric_version` on the assessment (`worker.mjs:124,138-139,166-168`). The explanation entity is a sibling of `assessments`, not a rewrite of it.
 
@@ -160,7 +178,23 @@ The repository's rule, stated twice, and both are correct:
 | Any scored listening item, diagnostic or mock listening section | **Forbidden** — needs fixed reviewed recordings and C-04 |
 | A "generated examiner voice" | **Out of budget** (`PILOT_BUILD_PLAN.md:72`) |
 
-**Implementation constraints to decide.** `public/js/speech.js` already drives the Web Speech API (`:14,175-190`) with a German-only voice filter (`:23`) and a German-only voice picker (`ui.js:892-916`). Browser voices for **uk, ar and tr are uneven or absent**, which would make the differentiator work for German learners and silently fail for exactly the learners it exists to help. Server-side synthesis is consistent but is a paid processor (P-03) with a per-play cost. **Recommendation: browser synthesis first, with an explicit "no voice available for this language" state and never a silent fallback to German** — and decide server TTS only after measuring real voice availability.
+**Implementation: synthesis is two different jobs, and they need different answers.** This record
+previously said "browser first" while `INTEGRATIONS-01.md` said "server-side". Both were right about
+a different job, and neither generalises to the other:
+
+| Job | Mechanism | Why |
+|---|---|---|
+| Reading a learner's **own on-screen text** aloud — an explanation being read, a word pronounced | **Browser synthesis**, with an honest "no voice for this language yet" state | Free, private, instant, never leaves the device. Its weaknesses — per-device inconsistency and absent uk/ar/tr voices — do not matter for a one-learner, one-view rendering |
+| Anything **pooled, reviewed, shared or scored** | **Server-side synthesis**, cached per `(text, language, voice)` | The bytes must be identical for every learner, reviewable once and reproducible. A browser voice cannot be reviewed, cannot be cached for anyone else, and varies by device |
+
+So **D8 is not "browser versus server"**. It is: which provider gives the *pooled* role its voice,
+and whether a server-side voice for uk/ar/tr is worth its per-play cost (P-03, a data processor) at
+all. The browser role needs no decision — it is the cheap default for on-screen text.
+
+`public/js/speech.js` already drives the Web Speech API (`:14,175-190`) with a German-only voice
+filter (`:23`) and a German-only picker (`ui.js:892-916`). Whatever is chosen, **there is never a
+silent fallback to German**: a learner who asked for Ukrainian and hears German has been told
+something false about their own product.
 
 ---
 
@@ -184,7 +218,7 @@ The codebase has **no exam entity at all** — a repo-wide search for `exam_id|e
 
 ## 7. Delivery order
 
-Ordered to **LM-1 and LM-2**. The state column is what is true at `59b1929`.
+Ordered to **LM-1 and LM-2**. The state column records what was true at `812408c` (the docker-only head) unless a row says otherwise; the stack has moved on since `59b1929`, and the delivered rows below were each re-verified when their PR was opened.
 
 | Slice | Purpose | State | Depends on |
 |---|---|---|---|
@@ -207,6 +241,8 @@ Ordered to **LM-1 and LM-2**. The state column is what is true at `59b1929`.
 | **PILOT-14** | **Canonical, platform-independent migration digests.** `applyMigrations` hashes the working tree's **raw bytes**, so the ledger is a function of the checkout's line endings: a database migrated from a Windows checkout refuses to advance from a Linux clone with *"refusing to apply a migration that is not the one that was reviewed"* — a false tamper alarm. A fix must accept the legacy digest for rows already applied, never rewrite them | **Defect, measured, not fixed** | — |
 | **PILOT-15** | **The content pool** ([CONTENT-POOL-01.md](work/implementation/CONTENT-POOL-01.md)): `pool_spec` + the deficit loop, batched generation off the request path, dedup by `content_sha256`, explanations cached per `(item_version, language)`, and generation provenance. Provable against a **stub generator** under R10 | **Proposal — needs two decisions** | PILOT-04 |
 | **PILOT-16** | **The multi-user integration layer** ([INTEGRATIONS-01.md](work/implementation/INTEGRATIONS-01.md)): inference, speech, email, payments and object storage behind one port each, owner-attributed, allowance-bounded, ledger-debited, stubbed for development. The data ports already prove the pattern; this is the external half | **Proposal — needs R5/R10 and owner authorization** | PILOT-06 |
+| **PILOT-17** | **Retire the old SPA and its consumers**: delete `public/index.html`, `public/js/**`, the `data/**` route they use and the checks that exist only to serve them, each with a `RETIRED-CHECKS.md` row, once the shell covers the journey. **This is what the earlier text called "PILOT-11a" — that label collided with PILOT-11, the second exam, which is a different slice entirely** | Planned | PILOT-08 complete |
+| **PILOT-18** | **Invite-only sign-up**: an invite code required, validated and consumed at registration, with a per-account throttle. **`/api/auth/sign-up/email` today has no verification, no invite check and no throttle — anyone who can reach the server can create an account and spend the worker's allowance.** Named as a gap in review, and owned by no slice until now | **Unowned gap — newly assigned** | D7 (R6) |
 
 **Not yet, and each has a named blocker:** commercial checkout and market pricing (P-01/P-02/P-03 plus owner authorization); any hosting, DNS, TLS, email provider or payment configuration; live model calls (R10); on-device or embedded AI; speaking and STT (outside the pilot); a full written mock (needs reviewed content, timing and playback rules for every included section); institutional or teacher features.
 
@@ -230,7 +266,9 @@ Ordered to **LM-1 and LM-2**. The state column is what is true at `59b1929`.
 | **D8** | **Speech-synthesis scope (§5):** browser-only with honest unavailability, or server-side TTS (paid processor, per-play cost)? | PILOT-09 | Browser-first |
 | **D9** | **First English exam target**, and confirmation that we teach its *format* with original items rather than reproducing any board's bank | PILOT-11 | telc first only |
 | **D10** | **Live model calls (R10):** when may the worker call a live provider for real learners? | Real feedback quality | Stubs only |
-| **D11** | **"Working local model"** (`WORKSPACE-RELOCATION-PR.md:11`): the complete local application with stubs, or also on-device AI? | §0's assumption and PILOT-01's definition | Complete local app, stubs |
+| **D11** | ~~"Working local model": the complete local application with stubs, or also on-device AI?~~ **ANSWERED, 1 October 2026.** The answer arrived as a runtime direction rather than a label: **the Docker server is the only version of the application** — the host/local run is removed entirely — and on-device AI is not in scope. Recorded in §1 "Architecture: DECIDED", built by DOCKER-ONLY-01, and verified at 10/10 | — | **Resolved** |
+| **D12** | **Content-pool fill policy** ([CONTENT-POOL-01](work/implementation/CONTENT-POOL-01.md) §7): batch-to-target with starvation jumping the queue, or fill-on-demand? | PILOT-15 | Batch-to-target |
+| **D13** | **Pool target size, and who reviews a batch.** Pooling means a bad item reaches every learner at once, so this is the gate that matters — distinct from D2, which is whether an *invite-only pilot* may see `unreviewed` content | PILOT-15, and the review policy in D2 | Unset — blocks filling |
 
 ---
 

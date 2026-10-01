@@ -50,7 +50,7 @@ None of that is a defect *in a single-user app*. All of it is fatal in a multi-u
 | **Identity** | the file *was* the user; an optional account header | session-derived ownership, one shared schema, **FORCE RLS**; no default local user |
 | **Persistence** | `progress.json` + localStorage blob + file sync | PostgreSQL only; no file store, no sync engine, no blob |
 | **Content** | static JSON, publicly served, keys included | versioned shared content, delivered **per entitlement**, keys in a table granted to no runtime role |
-| **Speech / TTS** | browser voice, per device, unreviewable | **server-side synthesis**, cached per `(text, language, voice)` and pooled, so every learner hears the same reviewed audio; a browser voice only as an explicitly labelled fallback |
+| **Speech / TTS** | browser voice, per device, unreviewable | **Two jobs, two answers.** A learner's *own on-screen text* may use the browser voice — free, private, and its per-device inconsistency does not matter for a single view. Anything **pooled, shared, reviewed or scored** must be **server-side**, cached per `(text, language, voice)`, because the bytes have to be identical for every learner and reviewable once. MASTER-PLAN §5 reconciles this with the master plan's earlier "browser first" |
 | **Email** | none | a provider **port** (invite, verify, reset), stubbed in development; a data processor for P-03 |
 | **Payments / entitlement** | none | a provider port plus an owned ledger — and this is the thing that *bounds the inference cost* |
 | **Secrets / config** | `.env` read **and written** through a route | deployment-scoped environment only; **no route may read or write provider configuration** |
