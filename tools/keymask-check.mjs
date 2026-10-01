@@ -295,9 +295,20 @@ export function materializePreFixServer(targetDir, { commit = PREFIX_COMMIT, roo
   if (!/function maskKey\(/.test(blob)) {
     throw new Error(`${commit}:server.js does not contain the pre-fix maskKey; refusing to use it as a pre-fix source`);
   }
-  // server.js imports ./public/js/progress-merge.js relative to its own directory.
+  /*
+   * The pre-fix server imports `./public/js/progress-merge.js` relative to its own directory, and that
+   * import belongs to the PRE-FIX TREE — the current server no longer has it, because PILOT-17a deleted
+   * the file store. So the module is taken from the SAME COMMIT as the blob rather than copied from the
+   * working tree: a retired module must not have to survive on disk for a historical comparison to stay
+   * honest, and this check must not be the reason the SPA cannot be removed.
+   */
   fs.mkdirSync(path.join(targetDir, 'public/js'), { recursive: true });
-  fs.copyFileSync(path.join(path.resolve(root), 'public/js/progress-merge.js'), path.join(targetDir, 'public/js/progress-merge.js'));
+  const moduleBlob = execFileSync('git', ['-C', path.resolve(root), 'show', `${commit}:public/js/progress-merge.js`], {
+    encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  fs.writeFileSync(path.join(targetDir, 'public/js/progress-merge.js'), moduleBlob, 'utf8');
   const file = path.join(targetDir, 'server.js');
   fs.writeFileSync(file, blob, 'utf8');
   return { file, source: `git blob ${commit}:server.js`, preFix: true };

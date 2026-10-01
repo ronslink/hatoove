@@ -855,6 +855,84 @@ async function main() {
 
     /* --------------------------------------------------- the design components */
 
+    /*
+     * TWO REPLACEMENTS FOR THE RETIRED SPA BROWSER CHECKS, written BEFORE those checks are deleted —
+     * the ledger forbids deleting a check whose property has no new vehicle.
+     *
+     * (1) `provider-config-browser-check` asserted "the Settings view offers no provider field". The
+     *     property survives the SPA; the vehicle is the shell's own settings screen.
+     * (2) `account-ui-browser-check` asserted "the explanation-language setting does not translate the
+     *     German menu". Same property, new screen — and it is asserted where it can actually break: the
+     *     nav labels are read before and after a real change through the real form, and the shell must
+     *     stay LTR even when Arabic is chosen.
+     */
+    await clickSel(cdp, '[data-view="einstellungen"]');
+    await softWait(cdp, "location.hash === '#/einstellungen'", 8000, 'Einstellungen');
+    await sleep(400);
+    const providerField = await cdp.evaluate(`
+      const view = document.getElementById('view-einstellungen');
+      const fields = [...view.querySelectorAll('input, select, textarea')].map((el) => ({
+        id: el.id, name: el.getAttribute('name') || '', type: el.type,
+        label: (view.querySelector('label[for="' + el.id + '"]')?.innerText || '').trim(),
+        placeholder: el.getAttribute('placeholder') || '',
+      }));
+      const text = view.innerText.toLowerCase();
+      const banned = ['provider', 'api-key', 'api key', 'apiKey', 'schlüssel', 'model', 'modell'];
+      return {
+        fields,
+        offenders: fields.filter((f) => banned.some((b) => (f.id + ' ' + f.name + ' ' + f.label + ' ' + f.placeholder + ' ' + f.type).toLowerCase().includes(b.toLowerCase()))),
+        textOffenders: banned.filter((b) => text.includes(b.toLowerCase())),
+      };
+    `);
+    record('L31 the settings screen offers no provider, key or model field',
+      providerField.offenders.length === 0 && providerField.textOffenders.length === 0,
+      `${providerField.fields.length} field(s): ${JSON.stringify(providerField.fields.map((f) => f.id))}; offenders ${JSON.stringify(providerField.offenders)} ${JSON.stringify(providerField.textOffenders)}`);
+
+    const navBefore = await cdp.evaluate(`
+      return [...document.querySelectorAll('.side .nav a, .tabbar a')].map((a) => a.innerText.trim());
+    `);
+    await cdp.evaluate(`
+      const sel = document.getElementById('language');
+      sel.value = 'ar';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    `);
+    await clickSel(cdp, '#save-settings');
+    await softWait(cdp, "document.getElementById('settings-state').innerText.includes('Gespeichert')", 10000, 'the settings save');
+    await sleep(400);
+    const afterLanguage = await cdp.evaluate(`
+      const sel = document.getElementById('language');
+      const arOption = [...sel.options].find((o) => o.value === 'ar');
+      return {
+        saved: sel.value,
+        htmlDir: document.documentElement.getAttribute('dir'),
+        bodyDir: getComputedStyle(document.body).direction,
+        nav: [...document.querySelectorAll('.side .nav a, .tabbar a')].map((a) => a.innerText.trim()),
+        langLabel: (document.getElementById('lang-label')?.innerText || '').trim(),
+        optionLang: arOption ? arOption.getAttribute('lang') : null,
+        optionDir: arOption ? arOption.getAttribute('dir') : null,
+      };
+    `);
+    await shot(cdp, '20-einstellungen-arabic-desktop-light');
+    record('L32 choosing Arabic changes the EXPLANATION language and leaves the German menu alone',
+      afterLanguage.saved === 'ar' && JSON.stringify(afterLanguage.nav) === JSON.stringify(navBefore)
+        && afterLanguage.bodyDir === 'ltr' && afterLanguage.htmlDir === null
+        && afterLanguage.optionLang === 'ar' && afterLanguage.optionDir === 'rtl'
+        // ...and the topbar says so, without waiting for a navigation: the label is the learner's only
+        // confirmation that the change took effect. It did NOT update, which this leg caught.
+        && afterLanguage.langLabel.includes('العربية'),
+      `saved=${afterLanguage.saved}; nav identical=${JSON.stringify(afterLanguage.nav) === JSON.stringify(navBefore)}; `
+        + `body direction=${afterLanguage.bodyDir}; html dir=${afterLanguage.htmlDir}; ar option lang/dir=${afterLanguage.optionLang}/${afterLanguage.optionDir}; lang-label="${afterLanguage.langLabel}"`);
+    // Put it back, so the dark-mode and mobile legs below see the default German explanation language.
+    await cdp.evaluate(`
+      const sel = document.getElementById('language');
+      sel.value = 'de';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    `);
+    await clickSel(cdp, '#save-settings');
+    await sleep(600);
+
     await clickSel(cdp, '[data-view="heute"]');
     await softWait(cdp, "location.hash === '#/heute'", 8000, 'Heute');
     const components = await cdp.evaluate(`

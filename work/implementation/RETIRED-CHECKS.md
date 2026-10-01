@@ -61,6 +61,23 @@ removal instead of this slice. It has no server-side caller and no route; it goe
 `docs/openapi.yaml` no longer documents `/api/progress` (a spec that names a deleted route is how one
 comes back), and `tools/api-spec-check.mjs` now asserts its ABSENCE where it used to require its presence.
 
+### 2 October 2026 — the four SPA browser checks, and the CI job that ran them
+
+The **Rendered behaviour (headless Chrome)** job is deleted, not emptied. All four of its steps drove the
+retired Certa client, whose page is no longer served at `/` (the front door is the brand site), so the job
+could not have passed; and a job whose only remaining step is a checkout would report GREEN for having done
+nothing — the failure mode this file already records once, one level up. Their properties did not vanish:
+their vehicles did, and every one now has a named home. **Nothing in CI renders the client today** —
+`tools/app-browser-check.mjs` needs Docker and a browser and is a developer-run gate; that trade is
+recorded here rather than implied.
+
+| Check | Leg(s) | Property | Decision | Replacement | Commit | Slice |
+|---|---|---|---|---|---|---|
+| `tools/provider-config-browser-check.mjs` | 13 | the Settings view offers no provider field | **REPLACE** | `tools/app-browser-check.mjs` **L31** — enumerates the new settings screen's fields (exam date, explanation language) and its text against provider / key / model, so a field or a label that names one fails the leg. Green and discriminating: it fails if such a field is added | this commit | SPA-RETIRE |
+| `tools/account-ui-browser-check.mjs` | 25 | the explanation-language setting does not translate the German menu (also: no learner state in web storage, theme handling) | **REPLACE** | **L32** — reads every nav label before and after a real change through the real form, requires them identical, requires the shell to stay `ltr` when Arabic is chosen, and requires the Arabic option to carry `lang`/`dir`. **L30** covers the web-storage half. L32 found a real defect while being written: the topbar kept saying "Erklärungen: Deutsch" after the change until a navigation, now fixed and asserted | this commit | SPA-RETIRE |
+| `tools/session-boundary-browser-check.mjs` | 70 | a second tab cannot re-create the account record | **server half KEEP (new vehicle); client half DELETE (property void)** | **server:** `tools/deletion-check.mjs` — after account deletion the cookie is 401 on account and attempt reads and a repeated DELETE changes nothing (green). **client:** void, because the new client holds no client-side record at all — **L30** asserts exactly that | this commit | SPA-RETIRE |
+| `tools/writing-surface-browser-check.mjs` | (a) an account draft restores; (b) the single-user path is untouched | (a) a saved draft comes back; (b) local mode is untouched | **(a) UNPROVEN; (b) DELETE** | (b) the single-user path is gone. **(a) has NO vehicle until the writing surface exists in the new client** — the same honest gap this file already records for MFP-08, and the reason `writing-surface-check.mjs` (node level) is KEPT for now: it holds the draft/revision contract at the API level, which is the half that can still be tested | this commit | SPA-RETIRE |
+
 ---
 
 ### Earlier retirements

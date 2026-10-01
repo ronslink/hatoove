@@ -740,6 +740,10 @@ el('settings-form').addEventListener('submit', async (event) => {
     state.settings = res.data?.settings || wanted;
     state.revision = res.data?.revision ?? state.revision;
     renderSettings();
+    // The topbar summarises two settings (the exam pill and the explanation language), so it has to be
+    // re-rendered when they change. It was only rendered from route(): the button kept saying
+    // "Erklärungen: Deutsch" after the learner had chosen Arabic, until they navigated somewhere.
+    renderChrome();
     status.textContent = 'Gespeichert.';
     setTimeout(() => { if (status.textContent === 'Gespeichert.') status.textContent = ''; }, 4000);
   } catch (err) {
