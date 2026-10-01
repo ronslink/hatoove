@@ -27,6 +27,7 @@ const PATHS = Object.freeze({
   account: '/api/v1/account',
   settings: '/api/v1/settings',
   tasks: '/api/v1/tasks',
+  objectiveSets: '/api/v1/objective-sets',
 });
 
 /**
@@ -81,6 +82,24 @@ export const api = Object.freeze({
       if (family) query.set('family', family);
       const suffix = query.toString();
       return call('GET', suffix ? `${PATHS.tasks}?${suffix}` : PATHS.tasks);
+    },
+  }),
+
+  /**
+   * The seeded reading and language-elements sets (LV/SB).
+   *
+   * The response carries NO answers, and that is not a convention this client is trusting: the server
+   * does not select the key table AND the learner database role is not granted it, so a mistake here
+   * could not leak one. `media_required` sets are absent by design — the listening families have
+   * transcripts but no audio, and offering one would be a Hören task with nothing to hear.
+   */
+  objectiveSets: Object.freeze({
+    list: ({ exam = null, family = null } = {}) => {
+      const query = new URLSearchParams();
+      if (exam) query.set('exam', exam);
+      if (family) query.set('family', family);
+      const suffix = query.toString();
+      return call('GET', suffix ? `${PATHS.objectiveSets}?${suffix}` : PATHS.objectiveSets);
     },
   }),
 });

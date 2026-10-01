@@ -34,3 +34,22 @@ code {
 
 /* A saving state must be visible without shifting the layout. */
 #settings-state { min-height: 1.2em; }
+
+/*
+ * Ueben groups the catalogue by section (Schreiben / Lesen und Sprachbausteine).
+ *
+ * This rule lives in the SHELL's stylesheet and not in `assets/design/hatoove.css`, which is a
+ * PINNED artifact: its digest is the reviewed contract and editing it would break the pin (a mistake
+ * already made once this project by adding font-coverage rules to it). New chrome belongs in a new
+ * layer, so the curated design stays byte-exact.
+ */
+.section-head {
+  margin: 1.4rem 0 0.6rem;
+  font-family: var(--display, inherit);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.section-head:first-child { margin-top: 0; }

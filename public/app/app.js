@@ -108,25 +108,43 @@ async function renderTasks() {
   const box = el('task-list');
   if (!box) return;
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
-  const res = await api.tasks.list({ family: 'writing' });
-  if (!res) return; // a 401 already redirected us to the sign-in page
-  if (!res.ok) {
+  const [writing, objective] = await Promise.all([
+    api.tasks.list({ family: 'writing' }),
+    api.objectiveSets.list(),
+  ]);
+  if (!writing || !objective) return; // a 401 already redirected us to the sign-in page
+  if (!writing.ok || !objective.ok) {
     box.innerHTML = '';
-    showError('Aufgaben konnten nicht geladen werden (' + res.status + ').');
+    showError('Aufgaben konnten nicht geladen werden (' + writing.status + '/' + objective.status + ').');
     return;
   }
-  const tasks = Array.isArray(res.data) ? res.data : [];
-  if (!tasks.length) {
+  const tasks = Array.isArray(writing.data) ? writing.data : [];
+  const sets = Array.isArray(objective.data) ? objective.data : [];
+  const card = (title, chip, line, meta) => '<div class="card"><div class="card-head"><h3>'
+    + title + '</h3><span class="chip">' + chip + '</span></div>'
+    + '<p class="muted">' + line + '</p>'
+    + '<p class="small muted">' + meta + '</p></div>';
+  const groups = [];
+  if (tasks.length) {
+    groups.push('<h3 class="section-head">Schreiben</h3>' + tasks.map((t) => card(
+      t.topic, t.family, t.situation,
+      'Anrede: ' + t.adressat + ' &middot; Register: ' + t.register
+        + ' &middot; Fassung ' + t.version + ' &middot; Prüfstatus: ' + t.review_status,
+    )).join(''));
+  }
+  if (sets.length) {
+    groups.push('<h3 class="section-head">Lesen und Sprachbausteine</h3>' + sets.map((s) => card(
+      s.title, s.family, s.item_count + ' Aufgaben',
+      'Teil ' + s.part + ' &middot; Fassung ' + s.version + ' &middot; Prüfstatus: ' + s.review_status,
+    )).join(''));
+  }
+  if (!groups.length) {
     box.innerHTML = '<div class="card"><h3>Zurzeit keine Aufgaben freigegeben</h3>'
       + '<p class="muted">Der Server hat für dieses Angebot gerade nichts Servierbares. Das ist eine '
       + 'Aussage des Servers, keine leere Seite.</p></div>';
     return;
   }
-  box.innerHTML = tasks.map((t) => '<div class="card"><div class="card-head"><h3>'
-    + t.topic + '</h3><span class="chip">' + t.family + '</span></div>'
-    + '<p class="muted">' + t.situation + '</p>'
-    + '<p class="small muted">Anrede: ' + t.adressat + ' &middot; Register: ' + t.register
-    + ' &middot; Fassung ' + t.version + ' &middot; Prüfstatus: ' + t.review_status + '</p></div>').join('');
+  box.innerHTML = groups.join('');
 }
 
 function route() {
