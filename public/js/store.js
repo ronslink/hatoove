@@ -165,14 +165,46 @@ function readScopeMarker() {
   }
 }
 
-function writeScopeMarker() {
+/**
+ * The scope marker is shared by every tab of this browser, so it is also how one tab tells
+ * the others that it signed out or switched account (SESSION-BOUNDARY-04, review finding
+ * N-1). `forget` records that the transition removed account records, so a tab that follows
+ * it removes what it may have written itself (see followScopeChange). It holds no learner
+ * text.
+ */
+function writeScopeMarker({ forget = false } = {}) {
   const s = storage();
   if (!s) return;
   try {
     if (scopeMode === 'legacy') s.removeItem(SCOPE_KEY);
-    else s.setItem(SCOPE_KEY, JSON.stringify({ mode: scopeMode, accountId: accountId || null }));
+    else s.setItem(SCOPE_KEY, JSON.stringify({ mode: scopeMode, accountId: accountId || null, ...(forget ? { forget: true } : {}) }));
   } catch {
-    /* private mode or quota: the in-memory mode still applies for this session */
+    // Private mode or quota: the in-memory mode still applies for this session. A sign-in
+    // must not leave an older signed-out marker behind, or the write fence below would
+    // refuse every save of the account that just signed in; a removal needs no quota.
+    if (scopeMode === 'scoped') {
+      try { s.removeItem(SCOPE_KEY); } catch { /* nothing more to do */ }
+    }
+  }
+}
+
+/**
+ * The write fence (N-1). True when this page holds an account scope in memory but the shared
+ * marker POSITIVELY says otherwise: another tab signed out or switched account. A missing or
+ * unreadable marker does not fence, so a browser whose storage refuses the marker can still
+ * save.
+ */
+function scopeSupersededElsewhere() {
+  if (scopeMode !== 'scoped' || !accountId) return false;
+  const s = storage();
+  if (!s) return false;
+  try {
+    const raw = s.getItem(SCOPE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return !(parsed && parsed.mode === 'scoped' && parsed.accountId === accountId);
+  } catch {
+    return false;
   }
 }
 
@@ -208,7 +240,6 @@ export function setAccountScope(id, { adoptLegacy = true, forgetOthers = false }
   if (typeof id !== 'string' || !ACCOUNT_ID_RE.test(id)) {
     throw new Error('setAccountScope expects an account id matching [A-Za-z0-9][A-Za-z0-9-]{0,63}');
   }
-  if (forgetOthers) forgetAccountRecords(id);
   // A queued save/reset belongs to the scope it was queued under; drop the timers so a
   // debounced write cannot land under the account that is being switched in.
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
@@ -223,7 +254,11 @@ export function setAccountScope(id, { adoptLegacy = true, forgetOthers = false }
   serverRev = 0;
   state = freshState();
   invalidateAbilityCache();
-  writeScopeMarker();
+  // The marker goes down BEFORE the sweep (N-1): from here another tab still holding the
+  // previous account is fenced, so it cannot re-create a key the sweep is about to remove.
+  // It also replaces a signed-out marker, which is what lets this account save at all.
+  writeScopeMarker({ forget: forgetOthers });
+  if (forgetOthers) forgetAccountRecords(id);
   load({ adoptLegacy }); // loads this account's cache, or adopts the legacy blob once
   return { mode: scopeMode, accountId, legacyAdopted: lastAdoption };
 }
@@ -264,7 +299,6 @@ function forgetAccountRecords(keep = null) {
 export function clearAccountScope({ forget = false } = {}) {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   if (serverTimer) { clearTimeout(serverTimer); serverTimer = null; }
-  if (forget) forgetAccountRecords();
   scopeLoaded = true;
   scopeMode = 'signed-out';
   accountId = null;
@@ -275,7 +309,10 @@ export function clearAccountScope({ forget = false } = {}) {
   state = freshState();
   loaded = true;
   invalidateAbilityCache();
-  writeScopeMarker();
+  // Marker first, then the sweep (N-1): every other tab's write path is fenced by the marker
+  // before the records it could re-create are removed.
+  writeScopeMarker({ forget });
+  if (forget) forgetAccountRecords();
   return getAccountScope();
 }
 
@@ -311,8 +348,14 @@ function writeLocal() {
   const key = activeStorageKey();
   // Signed out: never persist learner-derived text (fail closed).
   if (!s || !key) return;
+  // Another tab signed out or switched account: this page's record is no longer the
+  // browser's to keep (N-1). Writing it would re-create the key that tab's forget removed.
+  if (scopeSupersededElsewhere()) return;
   try {
     s.setItem(key, JSON.stringify(state));
+    // The marker may have moved between the check and the write (another tab, another
+    // process): if it did, take back what was just written.
+    if (scopeSupersededElsewhere()) s.removeItem(key);
   } catch {
     /* quota or private mode: the server copy is still authoritative */
   }
@@ -511,6 +554,9 @@ async function sendProgress() {
   if (typeof fetch !== 'function') return false;
   // Signed out: no learner text leaves the browser in any direction.
   if (!progressServerEnabled()) return false;
+  // Another tab signed out or switched account (N-1): this page no longer speaks for the
+  // account, so it does not write the account's record either.
+  if (scopeSupersededElsewhere()) return false;
   state.updatedAt = Date.now();
   // Captured before the request leaves: if either moves while it is in flight, the state
   // has been replaced (a reset) and the answer must not be folded back.
