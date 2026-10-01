@@ -5,7 +5,7 @@
 | Slice | MFP-03 (FUNCTIONAL-ROADMAP §5.3) — auth library vs. harden, decided by measurement |
 | Base | `codex/integration-01` @ **`36163d8e0a8d8dddbfbb270eb05ddacfa7a3b172`** (printed by `git rev-parse origin/codex/integration-01`) |
 | Branch | `codex/auth-01-spike` |
-| Status | **IN PROGRESS — skeleton committed before the first probe** |
+| Status | **COMPLETE — F1, F2 and F3 all executed, each with a verdict; recommendation below.** No production wiring, no schema migration, no root dependency, no email/OAuth, no client change |
 | Environment | Linux, Node v22.23.2, npm 10.9.8, PostgreSQL 17 (local, disposable schema, synthetic data only) |
 | Scratch | `/root/workspaces/authspike-scratch/` (outside the checkout; tracked tree stays clean) |
 | Probes | `tools/auth-spike-*.mjs` (committed, runnable) |
@@ -191,7 +191,7 @@ real `account.password` rows to preserve, adopting Better Auth needs no compatib
 **Established by** `node tools/auth-spike-f3-accounts.mjs`. Verbatim (tail):
 
 ```
-files scanned: 263
+files scanned: 264
 
 === 2. Every email literal, classified ===
 synthetic  'alice@example.test   (spikes/auth-runtime/isolation.test.mjs:51)
@@ -214,16 +214,18 @@ work/implementation/CONFIG-ANON-01.md
   | | Method | ... a throwaway `B1PREP_ENV_FILE`, a disposable PostgreSQL database ... Synthetic data only |
 
 === VERDICT (F3) ===
-account-creation sites   : 83
+account-creation sites   : 79
 real-looking emails      : 0
 => every writer that exists is a checker; every address is synthetic.
 ```
 
-The probe also found **83 account-creation sites**, all of them inside `tools/**` checkers or
-`spikes/**` tests. The only writer inside `server/**` is `sessions.mjs`'s `signUp`, which is reached
-only through those checkers (`server.js`'s owned-API mount is a recent A-01 change and no deployment
-of it exists). The one `ron@example.com` literal is a **synthetic test fixture** in
-`owned-client-check.mjs`, not a person.
+The probe counts **79 account-creation sites in code** (`tools/` 68, `spikes/` 3, `server/` 3,
+`server/owned-postgres/` 3, `public/js/` 2). Every one is either a checker (`tools/**`, `spikes/**`)
+or a code path *reached by* a checker: the owned-API route (`owned-api.mjs:271`) calls
+`sessions.mjs:111`'s `signUp`, and the client's own call (`public/js/account.js:668` →
+`owned-client.js:90`) needs that same mounted server. `server.js`'s owned-API mount is a recent A-01
+change and **no deployment of any of it exists**. The one `ron@example.com` literal is a **synthetic
+test fixture** in `owned-client-check.mjs`, not a person.
 
 **Four independent lines of evidence agree:**
 
@@ -282,16 +284,164 @@ or account row breaks** — a statement now backed by execution, not by hope.
 
 ## Recommendation (conditional on F1–F3)
 
-_pending_
+**Adopt Better Auth 1.7.6 over the existing tables.** The recommendation is a consequence of the
+three measurements, not a preference:
+
+- **F1 says the one real risk is surmountable, and F3 says we do not even need to surmount it.** The
+default password check is incompatible, but the hook is proven, and **no real `account.password` row
+exists to preserve** — so adoption needs **no shim today**; if a real account ever appears, the already
+executed hook covers it without rewriting a single row.
+- **F2 says the three integration requirements are all met, two of them for free.** It mounts on bare
+  `node:http` behind the origin gate; the rate limit is genuinely database-backed across instances;
+  the cookie is `HttpOnly` + `SameSite=Lax`, with `Secure` a config switch.
+- **The schema is already the library's shape.** Adoption is **at most one additive table** and issues
+  no `ALTER` — so no session or account row breaks, and migration `0001` stops being a coincidence and
+  becomes the asset the roadmap called it.
+
+**Hardening `sessions.mjs` is the fallback, not the default.** It is a defensible choice only if the
+"root app is dependency-free" property is worth more than the ~8 capabilities below, all of which would
+have to be written and each of which is easy to get subtly wrong.
+
+### Consequences — dependencies
+
+**The root `package.json` does not have to change.** Better Auth belongs in
+`server/owned-postgres/package.json`, whose description already says it exists *"so the root app stays
+dependency-free"* and which already carries `pg`. Adoption therefore **enlarges an already-dependent
+server scope, not the root app** — CI today already runs `npm ci --prefix server/owned-postgres`
+(`ci.yml:139`). The honest cost, measured in the scratch tree:
+
+| | |
+|---|---|
+| added top-level packages | 28 (total tree), incl. `zod`, `kysely`, `jose`, `@noble/*`, `nanostores` |
+| installed size | ~35 MB of `node_modules` |
+| install time | ~24 s (`added 37 packages in 24s`, better-auth + pg) |
+| lockfile | `server/owned-postgres/package-lock.json` grows |
+| Node floor | root says `>=20`; the spike pins `>=22.16` — the **server scope's** floor rises to 22.16 (this host runs 22.23.2) |
+| CI time | the scope already installs; the delta is the install itself |
+
+**The caveat, stated plainly:** the property survives *only because the dependency is scoped*. If the
+runtime is ever expected to run from a single root install, the property ends. It should be a conscious
+decision, not an accident.
+
+### Consequences — schema
+
+**One additive migration, and only if database rate limiting is chosen.** Executed evidence (addendum
+above): against the production shape the compiler emits exactly `create table "rateLimit" (...)`, or
+`;` (nothing) with the memory limiter. **No `ALTER`, no existing session or account row breaks.** If a
+compatibility shim for real hashes is ever needed, it changes only application code, not the schema.
+
+### Consequences — capability by capability
+
+| Capability | Adopt Better Auth | Harden `sessions.mjs` |
+|---|---|---|
+| `Secure` cookie | **config** (`advanced.useSecureCookies`, or an https `baseURL` decides it) | **build** |
+| `HttpOnly` + `SameSite` | **free** (`HttpOnly; SameSite=Lax` observed) | **build** |
+| Session expiry, sliding | **free** (`updateAge`) | build |
+| **Session token rotation** | **build** — refresh re-issues the same token (`session.mjs:199`) | build |
+| Revocation on password change | **config** (`revokeOtherSessions: true`; `revokeSessionsOnPasswordReset`) | build |
+| Password reset | **free API + email decision** (`requestPasswordReset`/`resetPassword`) | build |
+| Email verification | **free API + email decision** (`sendVerificationEmail`) | build |
+| Enumeration-safe **sign-in** | **free** (generic `INVALID_EMAIL_OR_PASSWORD` observed) | build |
+| Enumeration-safe **sign-up** | **config** (`requireEmailVerification` or `autoSignIn:false`; otherwise `USER_ALREADY_EXISTS` leaks) | build |
+| Per-IP throttling | **free**, database-backed (proven) | build |
+| **Per-account throttling** | **build** — library key is `ip|path` (`@better-auth/core/utils/ip.mjs`) | build |
+| **Session sweep** | **build** — expired rows are deleted lazily when presented (`session.mjs:158-166`); no background sweep | build |
+| Revoke-all-sessions | **free** (`revokeSessions`) | build |
+
+**Reading the table:** adoption turns ~8 of 13 capabilities from *build-and-might-get-it-wrong* into
+**free or configuration**. The three that remain build-yourself (rotation, per-account throttle, sweep)
+are also build-yourself under hardening — so adoption is **strictly less work**, and the things left to
+build are the small, well-understood ones.
+
+**One `__Host-` note.** The library defines `HOST_COOKIE_PREFIX = "__Host-"` but never applies it — it
+only prepends `__Secure-`. If the plan wants `__Host-`, name the cookie explicitly via
+`advanced.cookies.session_token.name`; with `Path=/` and no `Domain` that is valid.
+
+### Consequences — the sign-up gate
+
+**Recommendation: invite-only for the pilot.**
+
+Fail-closed is already right (the runtime refuses learner routes until accounts load), **but "closed to
+un-ready" is not "closed to strangers"**: `POST /api/auth/sign-up/email` (`owned-api.mjs:270-274`) has
+**no email verification, no invite check and no throttle**, and `POST /api/ai` (`server.js:977`) is
+session-gated **but unmetered** — a grep finds **no rate limiting anywhere in the server** (the only
+`429` in `server.js` is a mapping of an *upstream* code). Open sign-up therefore gives any stranger
+**unlimited use of the operator's provider key and budget** — the highest-value abuse in the product.
+
+- **Open** is only safe once sign-up has verification + throttling *and* `/api/ai` is metered or deleted.
+- **Invite-only** is the right pilot gate: the pilot is free with a configured allowance, so invites are
+  enough, and the client already models an invite on the sign-up form. It converts an unbounded cost
+  risk into a bounded one.
+- **Waitlist-gated** adds a marketing step without changing the security picture; choose it only if
+demand is expected to exceed invites.
+
+### Consequences — email (a decision, not a provider)
+
+No provider is chosen here. The decision email **forces** is: **which data processor may receive
+learners' email addresses, verification links and reset tokens, in which region, under which DPA** —
+because those are personal data, which is why this touches **`P-03`**. That decision in turn determines:
+(a) the processor terms and sub-processors; (b) the sending-domain DNS work (SPF/DKIM/DMARC on the
+sending domain — a DNS change, therefore Ron's); (c) the token TTL the provider's latency allows; and
+(d) whether `check-email` is a **hard gate** (verification required before use) or a soft prompt.
+
+### What this recommendation does NOT authorize
+
+No production wiring, no dependency added, no migration applied, no email provider, no OAuth/Google
+credentials, no client change, no `D:\B1_Prep`. `Secure`-cookie/rotation/recovery work is `MFP-04a`,
+after the decision.
 
 ---
 
 ## The three questions for Ron
 
-_pending_
+1. **Do we adopt Better Auth over the existing tables, or harden `sessions.mjs` ourselves?**
+   *(Recommend: adopt — F1/F2/F3 all favour it, and it is strictly less work.)*
+2. **For the pilot, is sign-up open, invite-only, or waitlist-gated?**
+   *(Recommend: invite-only — open sign-up today is an unmetered key to your provider budget.)*
+3. **Which email provider may hold learners' addresses, verification links and reset tokens, and in
+   which region?** *(This is `P-03`; no provider is chosen here — your answer sets the processor, the
+   DNS work and whether `check-email` is a hard gate.)*
 
 ---
 
 ## LIMITS
 
-_pending_
+**Executed (not read):** F1's four sign-in/sign-up paths and both verify calls; F2's mount, 403/200
+gate, database rate-limit rows, cross-instance 429, and both cookie variants; F3's tree walk; the schema
+diff's `compileMigrations()` output and `runMigrations()`. All against better-auth **1.7.6** and
+pg **8.23.1** on Node v22.23.2, with PostgreSQL 17.
+
+**Read, not executed — could be wrong:**
+
+- The **absence of session-token rotation** and of a **background session sweep** is a reading of
+  `dist/api/routes/session.mjs` and `update-session.mjs`, not a probe. A probe that forces expiry would
+  be the confirmation.
+- The **per-account-throttling gap** is a reading of `createRateLimitKey(ip, path)`; I did not attempt
+  to make the library throttle one account.
+- The **enumeration-safe sign-up** configuration (`requireEmailVerification` / `autoSignIn:false`) is a
+  reading of `sign-up.mjs:158-205`; I did not execute a duplicate-sign-up.
+- The **DDL parameter values** (`r=16, dkLen=64, NFKC`) are a reading of
+  `@better-auth/utils/dist/password.node.mjs`; the probe proves the *effect* (mismatch), not those
+  literals.
+- Better Auth's behaviour for **email verification, reset and OAuth** was read, not run — none of those
+  paths was configured (by instruction).
+
+**Could not test at all:**
+
+- **A `Secure` cookie over TLS.** There is no TLS endpoint here; I proved the *attribute* is settable
+  over an http origin and that `baseURL` scheme decides it, but the browser-acceptance path over HTTPS
+  (and `__Host-` semantics) is untested.
+- **A genuine second instance.** "Cross-instance" was two Better Auth objects in **one process** sharing
+  one database — which is sufficient to show the counter is not per-instance memory, but it is **not**
+  two hosts, a load balancer, or a real multi-instance deployment.
+- **Real email delivery**, **OAuth**, **a live model provider** — all deliberately unconfigured.
+- **The live installation and any installation I cannot see.** `D:\B1_Prep` is off-limits and unread; I
+  cannot enumerate a fleet. F3's zero is "zero on every installation there is evidence for".
+- **Rendered/browser behaviour.** No browser was used; nothing here is a UI or device claim.
+- **Anything version-specific.** All results are for **better-auth 1.7.6** as pinned; a later release may
+  change the default hash, the cookie prefix, or the limiter's key shape.
+
+**Reproducibility.** The probes import `better-auth`/`pg` from an installed tree **outside** the checkout
+(`AUTHSPIKE_DEPS`, default `/root/workspaces/authspike-scratch`), so the tracked tree stays clean and the
+root app stays dependency-free. `spikes/auth-runtime/package-lock.json` pins the same tree if a reviewer
+prefers `npm ci` there.

@@ -21,7 +21,8 @@ import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const SKIP = new Set(['.git', 'node_modules', '.openclaw', 'worktrees']);
-const EXT = new Set(['.mjs', '.js', '.cjs', '.md', '.json', '.html']);
+const CODE = new Set(['.mjs', '.js', '.cjs']);
+const EXT = new Set([...CODE, '.md', '.json', '.html']);
 const line = (t) => console.log(`\n=== ${t} ===`);
 
 function* walk(dir) {
@@ -44,12 +45,14 @@ const emails = new Map();
 let scanned = 0;
 for (const file of walk(ROOT)) {
   const rel = file.slice(ROOT.length);
-  if (rel.startsWith('tools/auth-spike-')) { /* include, it is evidence */ }
+  const isCode = CODE.has(rel.slice(rel.lastIndexOf('.')));
   let text;
   try { text = readFileSync(file, 'utf8'); } catch { continue; }
   scanned += 1;
   text.split('\n').forEach((l, i) => {
-    if (CREATION.test(l)) creationSites.push(`${rel}:${i + 1}`);
+    // Creation sites are counted in CODE only: a markdown record quotes code verbatim, so scanning
+    // documents would let the count drift as the record is edited.
+    if (isCode && CREATION.test(l)) creationSites.push(`${rel}:${i + 1}`);
     for (const m of l.match(EMAIL) || []) {
       const key = m.toLowerCase();
       emails.set(key, { synthetic: SYNTHETIC.test(key), where: emails.get(key)?.where ?? `${rel}:${i + 1}` });
