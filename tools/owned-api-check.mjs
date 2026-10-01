@@ -31,9 +31,11 @@
  *   node tools/owned-api-check.mjs --backend=postgres  (real PostgreSQL + FORCE RLS)
  */
 import http from 'node:http';
+import net from 'node:net';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 import { randomUUID, scryptSync, randomBytes, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -896,6 +898,54 @@ check('attempt-binds-an-exact-task-and-rubric-version', async () => {
 });
 
 /* ============================================ server.js mount (HTTP layer) */
+
+/*
+ * SAAS-MODEL-01 Step 2, at the real entry point: `node server.js` with no account/database
+ * configuration. The OLD behaviour was a working single-user app beside 404 owned routes. The
+ * new contract is a refusal: readiness is false, learner routes answer 503, and the single-user
+ * path is not served. Bounded - the child is always reaped, every request has a timeout.
+ */
+check('entry-point-fails-closed-without-accounts-config', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'owned-api-failclosed-'));
+  const port = await new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.on('error', reject);
+    probe.listen(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); });
+  });
+  const env = { ...process.env, B1PREP_PORT: String(port), B1PREP_FORCE_OFFLINE: '1',
+    B1PREP_ENV_FILE: path.join(dir, 'e.env'), B1PREP_PROGRESS_FILE: path.join(dir, 'p.json') };
+  for (const key of Object.keys(env)) if (key === 'B1PREP_ACCOUNTS' || key === 'B1PREP_SAAS' || key.startsWith('OWNAPI_PG_')) delete env[key];
+  const child = spawn(process.execPath, ['server.js'], { cwd: path.resolve(fileURLToPath(import.meta.url), '..', '..'), env, stdio: ['ignore', 'pipe', 'pipe'] });
+  let log = '';
+  child.stdout.on('data', (c) => { log += String(c); });
+  child.stderr.on('data', (c) => { log += String(c); });
+  const get = async (p) => {
+    const res = await fetch(`http://127.0.0.1:${port}${p}`, { signal: AbortSignal.timeout(8000) });
+    return { status: res.status, json: await res.json().catch(() => null) };
+  };
+  try {
+    const deadline = Date.now() + 20000;
+    for (;;) {
+      if (child.exitCode !== null) throw new Error(`server exited early (${child.exitCode}): ${log.slice(-300)}`);
+      try { if ((await get('/api/health')).status === 200) break; } catch { /* not listening yet */ }
+      if (Date.now() > deadline) throw new Error(`server did not answer: ${log.slice(-300)}`);
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    const ready = await get('/api/ready');
+    assert.equal(ready.status, 503, 'readiness must fail closed');
+    assert.equal(ready.json?.ready, false);
+    assert.ok(/B1PREP_ACCOUNTS/.test(String(ready.json?.reason || '')), `reason must name the missing configuration, got ${ready.json?.reason}`);
+    for (const p of ['/api/v1/account', '/api/progress']) {
+      assert.equal((await get(p)).status, 503, `${p} must be refused while unconfigured`);
+    }
+    assert.ok(!/runs single-user/.test(log), `the entry point must not report a single-user fallback:\n${log}`);
+    assert.ok(!fs.existsSync(path.join(dir, 'p.json')), 'no unscoped progress file may be created');
+  } finally {
+    if (child.exitCode === null && !child.signalCode) { child.kill('SIGKILL'); }
+    await new Promise((r) => child.once('exit', r) || setTimeout(r, 500));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 // server.js resolves its .env and progress paths once, at first import, so the
 // throwaway directory is created once per run and removed after the last check.
