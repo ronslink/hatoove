@@ -32,6 +32,8 @@
     <nav class="nav" aria-label="Hauptnavigation">
       <a href="#/heute" data-view="heute" aria-current="page">Heute</a>
       <a href="#/ueben" data-view="ueben">Üben</a>
+      <a href="#/woerterbuch" data-view="woerterbuch">Wörterbuch</a>
+      <a href="#/nachschlagen" data-view="nachschlagen">Nachschlagen</a>
       <a href="#/fortschritt" data-view="fortschritt">Fortschritt</a>
       <p class="nav-label kicker">Konto</p>
       <a href="#/einstellungen" data-view="einstellungen">Einstellungen</a>
@@ -107,7 +109,39 @@
             <p>Aufgaben mit serverseitiger Bewertung.</p>
           </div>
         </div>
+        <div class="stack" id="practice-next"></div>
         <div class="stack" id="task-list"><div class="card"><h3>Wird geladen ...</h3></div></div>
+      </section>
+
+      <!-- Wörterbuch -->
+      <section class="view" id="view-woerterbuch" hidden>
+        <div class="page-head">
+          <div>
+            <h2>Wörterbuch</h2>
+            <p>Wortschatz und Nomen mit Genus-Regel — vom Server, nicht aus einer Datei.</p>
+          </div>
+        </div>
+        <div class="card">
+          <label for="dict-q">Suche</label>
+          <input class="input" id="dict-q" type="search" placeholder="Deutsch oder Englisch, mindestens zwei Buchstaben" autocomplete="off">
+          <div class="row" style="margin-top:.75rem">
+            <button class="btn" id="dict-mode-vocab" type="button">Wortschatz</button>
+            <button class="btn" id="dict-mode-nouns" type="button">Nomen</button>
+          </div>
+        </div>
+        <div class="stack" id="dict-results"><div class="card"><h3>Wird geladen ...</h3></div></div>
+      </section>
+
+      <!-- Nachschlagen -->
+      <section class="view" id="view-nachschlagen" hidden>
+        <div class="page-head">
+          <div>
+            <h2>Nachschlagen</h2>
+            <p>Grammatik, Fälle, Genus, Redemittel und Briefe.</p>
+          </div>
+        </div>
+        <div class="stack" id="guide-index"><div class="card"><h3>Wird geladen ...</h3></div></div>
+        <div class="stack" id="guide-body" hidden></div>
       </section>
 
       <!-- Fortschritt -->
@@ -191,6 +225,8 @@
 <nav class="tabbar" aria-label="Navigation">
   <a href="#/heute" data-view="heute">Heute</a>
   <a href="#/ueben" data-view="ueben">Üben</a>
+  <a href="#/woerterbuch" data-view="woerterbuch">Wörterbuch</a>
+  <a href="#/nachschlagen" data-view="nachschlagen">Nachschlagen</a>
   <a href="#/fortschritt" data-view="fortschritt">Fortschritt</a>
   <a href="#/einstellungen" data-view="einstellungen">Konto</a>
 </nav>

@@ -17,6 +17,9 @@ import { api } from './api.js';
 
 const el = (id) => document.getElementById(id);
 
+/** Escape text before it is concatenated into markup. */
+const esc = (value) => String(value ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
 const LANGUAGE_NAMES = { de: 'Deutsch', en: 'English', uk: 'Українська', ar: 'العربية', tr: 'Türkçe' };
 /**
  * The explanation languages the shell offers. It is the same list as the `<option>` elements in
@@ -26,7 +29,10 @@ const LANGUAGE_NAMES = { de: 'Deutsch', en: 'English', uk: 'Українська
  */
 const EXPLANATION_LANGUAGES = ['de', 'en', 'uk', 'ar', 'tr'];
 const RTL_LANGUAGES = ['ar'];
-const VIEW_TITLES = { heute: 'Heute', ueben: 'Üben', fortschritt: 'Fortschritt', einstellungen: 'Einstellungen' };
+const VIEW_TITLES = {
+  heute: 'Heute', ueben: 'Üben', woerterbuch: 'Wörterbuch', nachschlagen: 'Nachschlagen',
+  fortschritt: 'Fortschritt', einstellungen: 'Einstellungen',
+};
 
 /** Server state, held in memory only. */
 const state = { account: null, settings: null, revision: null };
@@ -147,12 +153,111 @@ async function renderTasks() {
   box.innerHTML = groups.join('');
 }
 
+
+/**
+ * WOERTERBUCH -- the 300-word list and the 240-noun lexicon, from the API.
+ *
+ * Two corpora in one view because they answer one question ("what does this word mean and how do I use
+ * it"), and because a learner does not care which table a word lives in. The server bounds the response
+ * and refuses a one-character search, so the view must not fire one either.
+ */
+let dictMode = 'vocab';
+async function renderDictionary() {
+  const box = el('dict-results');
+  if (!box) return;
+  const q = (el('dict-q')?.value || '').trim();
+  if (q.length === 1) { box.innerHTML = '<div class="card"><p class="muted">Mindestens zwei Buchstaben.</p></div>'; return; }
+  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  const res = dictMode === 'nouns' ? await api.nouns.list({ q: q || null }) : await api.vocab.list({ q: q || null });
+  if (!res) return; // a 401 already redirected
+  if (!res.ok) { box.innerHTML = ''; showError('Nachschlagen fehlgeschlagen (' + res.status + ').'); return; }
+  const rows = Array.isArray(res.data) ? res.data : [];
+  if (!rows.length) {
+    box.innerHTML = '<div class="card"><h3>Nichts gefunden</h3><p class="muted">Der Server hat zu dieser Suche keinen Eintrag.</p></div>';
+    return;
+  }
+  box.innerHTML = rows.map((w) => (dictMode === 'nouns'
+    ? '<div class="card"><div class="card-head"><h3>' + esc(w.de) + '</h3><span class="chip">' + esc(w.gender) + '</span></div>'
+      + '<p class="muted">' + esc(w.en) + '</p>'
+      + '<p class="small muted">Plural: ' + esc(w.plural) + ' &middot; Thema: ' + esc(w.theme) + '</p>'
+      + '<p class="small muted">Regel: ' + esc(w.rule) + '</p>'
+      + (w.example ? '<p class="small">' + esc(w.example) + '</p>' : '') + '</div>'
+    : '<div class="card"><div class="card-head"><h3>' + esc(w.de) + '</h3><span class="chip">' + esc(w.pos) + '</span></div>'
+      + '<p class="muted">' + esc(w.en) + '</p>'
+      + (w.plural ? '<p class="small muted">Plural: ' + esc(w.plural) + '</p>' : '')
+      + (w.example ? '<p class="small">' + esc(w.example) + '</p>' : '') + '</div>')).join('');
+}
+
+/** NACHSCHLAGEN -- the guide index, then one document's sections. */
+async function renderGuides() {
+  const box = el('guide-index');
+  if (!box) return;
+  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  const res = await api.guides.list();
+  if (!res) return;
+  if (!res.ok) { box.innerHTML = ''; showError('Nachschlagen fehlgeschlagen (' + res.status + ').'); return; }
+  const guides = Array.isArray(res.data) ? res.data : [];
+  if (!guides.length) {
+    box.innerHTML = '<div class="card"><h3>Zurzeit keine Nachschlagewerke</h3><p class="muted">Der Server hat gerade nichts Servierbares.</p></div>';
+    return;
+  }
+  box.innerHTML = guides.map((g) => '<div class="card"><div class="card-head"><h3>' + esc(g.title)
+    + '</h3><span class="chip">' + g.section_count + ' Abschnitte</span></div>'
+    + (g.intro ? '<p class="muted">' + esc(g.intro) + '</p>' : '')
+    + '<button class="btn" type="button" data-guide="' + esc(g.guide_id) + '">Öffnen</button></div>').join('');
+}
+
+/** One guide, rendered. */
+async function openGuide(guideId) {
+  const box = el('guide-body');
+  const index = el('guide-index');
+  if (!box || !index) return;
+  index.hidden = true;
+  box.hidden = false;
+  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  const res = await api.guides.read(guideId);
+  if (!res) return;
+  if (!res.ok) { box.innerHTML = ''; showError('Das Nachschlagewerk konnte nicht geladen werden (' + res.status + ').'); return; }
+  const g = res.data;
+  const sections = Array.isArray(g.sections) ? g.sections : [];
+  box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(g.title)
+    + '</h3><span class="chip">' + sections.length + '</span></div>'
+    + '<button class="btn" type="button" id="guide-back">Zurück</button></div>'
+    + sections.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(s.title)
+      + '</h3><span class="chip">' + esc(s.kind) + '</span></div>'
+      + (s.summary ? '<p class="muted">' + esc(s.summary) + '</p>' : '')
+      + '<pre class="small">' + esc(JSON.stringify(s.payload, null, 1)) + '</pre></div>').join('');
+  el('guide-back').addEventListener('click', () => { box.hidden = true; index.hidden = false; });
+}
+
+/** UEBEN's adaptive recommendation, above the catalogue. */
+async function renderPracticeNext() {
+  const box = el('practice-next');
+  if (!box) return;
+  const res = await api.practice.next();
+  if (!res) return;
+  if (!res.ok) return; // the catalogue below still renders; a failed suggestion is not an error page
+  const data = res.data || {};
+  if (!data.set) { box.innerHTML = ''; return; }
+  const e = data.evidence || {};
+  const why = data.reason === 'section_not_started'
+    ? 'Dieser Bereich ist noch neu für dich.'
+    : (e.attempts ? e.correct + ' von ' + e.attempts + ' richtig (' + Math.round((e.accuracy || 0) * 100) + '%).' : '');
+  box.innerHTML = '<div class="card"><div class="card-head"><h3>Deine nächste Aufgabe</h3><span class="chip">'
+    + esc(data.section) + '</span></div>'
+    + '<p><strong>' + esc(data.set.title) + '</strong> &middot; ' + data.set.item_count + ' Aufgaben</p>'
+    + (why ? '<p class="muted">' + esc(why) + '</p>' : '')
+    + '<p class="small muted">Vom Server gewählt aus deinen bisherigen Antworten &mdash; nicht geraten.</p></div>';
+}
+
 function route() {
   const key = (location.hash || '#/heute').replace(/^#\/?/, '') || 'heute';
   const view = VIEW_TITLES[key] ? key : 'heute';
   for (const name of Object.keys(VIEW_TITLES)) el(`view-${name}`).hidden = name !== view;
   el('page-title').textContent = VIEW_TITLES[view];
-  if (view === 'ueben') void renderTasks();
+  if (view === 'ueben') { void renderPracticeNext(); void renderTasks(); }
+  if (view === 'woerterbuch') void renderDictionary();
+  if (view === 'nachschlagen') void renderGuides();
   for (const link of document.querySelectorAll('[data-view]')) {
     if (link.dataset.view === view) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
@@ -253,6 +358,13 @@ window.addEventListener('hashchange', route);
   // boot decides for itself.
   const session = await api.session();
   if (!session || !session.ok) { location.replace('/signin'); return; }
+  el('dict-q')?.addEventListener('input', () => void renderDictionary());
+  el('dict-mode-vocab')?.addEventListener('click', () => { dictMode = 'vocab'; void renderDictionary(); });
+  el('dict-mode-nouns')?.addEventListener('click', () => { dictMode = 'nouns'; void renderDictionary(); });
+  el('guide-index')?.addEventListener('click', (event) => {
+    const id = event.target?.dataset?.guide;
+    if (id) void openGuide(id);
+  });
   route();
   await refresh();
 })();

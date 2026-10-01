@@ -28,6 +28,10 @@ const PATHS = Object.freeze({
   settings: '/api/v1/settings',
   tasks: '/api/v1/tasks',
   objectiveSets: '/api/v1/objective-sets',
+  vocab: '/api/v1/vocab',
+  nouns: '/api/v1/nouns',
+  guides: '/api/v1/guides',
+  practiceNext: '/api/v1/practice/next',
 });
 
 /**
@@ -101,5 +105,47 @@ export const api = Object.freeze({
       const suffix = query.toString();
       return call('GET', suffix ? `${PATHS.objectiveSets}?${suffix}` : PATHS.objectiveSets);
     },
+  }),
+
+  /** The B1 word list. A reference lexicon: no answers, so nothing to withhold. */
+  vocab: Object.freeze({
+    list: ({ q = null, pos = null } = {}) => {
+      const query = new URLSearchParams();
+      if (q) query.set('q', q);
+      if (pos) query.set('pos', pos);
+      const suffix = query.toString();
+      return call('GET', suffix ? `${PATHS.vocab}?${suffix}` : PATHS.vocab);
+    },
+  }),
+
+  /**
+   * The noun lexicon: gender, plural and the RULE that decides the gender. This is the content Ron
+   * named as "Nomen & Genus", and until now no view could reach it.
+   */
+  nouns: Object.freeze({
+    list: ({ q = null, gender = null, theme = null } = {}) => {
+      const query = new URLSearchParams();
+      if (q) query.set('q', q);
+      if (gender) query.set('gender', gender);
+      if (theme) query.set('theme', theme);
+      const suffix = query.toString();
+      return call('GET', suffix ? `${PATHS.nouns}?${suffix}` : PATHS.nouns);
+    },
+  }),
+
+  /** The reference guides: an index, then one document. 64 KB is not fetched to list a title. */
+  guides: Object.freeze({
+    list: () => call('GET', PATHS.guides),
+    read: (guideId) => call('GET', `${PATHS.guides}/${encodeURIComponent(guideId)}`),
+  }),
+
+  /**
+   * The adaptive loop. next() is a DETERMINISTIC choice the server makes from recorded evidence and
+   * returns with the evidence for its own claim; answer() records one attempt, marked server-side.
+   * The client never decides what to practise and never marks anything.
+   */
+  practice: Object.freeze({
+    next: () => call('GET', PATHS.practiceNext),
+    answer: (setId, payload) => call('POST', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}/answers`, payload),
   }),
 });
