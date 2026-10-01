@@ -62,7 +62,7 @@ export async function loadOwnedApi({ env = process.env } = {}) {
   // instead of answering a refusal. Attach a listener that logs a secret-free line and lets
   // the request path return its own 5xx. Guarding every pool closes the idle-client case
   // (sockets dropped with nothing in flight) as well as the in-flight one.
-  for (const key of ['migration', 'auth', 'learner', 'worker', 'admin']) {
+  for (const key of ['migration', 'auth', 'learner', 'worker', 'deletion', 'admin']) {
     const pool = persistent[key];
     if (pool && typeof pool.on === 'function') {
       pool.on('error', (error) => {
@@ -76,6 +76,10 @@ export async function loadOwnedApi({ env = process.env } = {}) {
     learner: persistent.learner,
     auth: persistent.auth,
     worker: persistent.worker,
+    // The deletion port's pool, so `createPostgresWorld` wires `DELETE /api/v1/account` into
+    // the api the running server mounts (HARD-DELETE-01 §6). Without this the route is a 503
+    // in every configuration this repository can ship.
+    deletion: persistent.deletion,
     admin: persistent.admin,
     // Account settings are part of the account, so they run on the same restricted learner
     // pool; `createPostgresWorld` would otherwise build its own, which would be a second

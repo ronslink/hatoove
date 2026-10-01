@@ -10,7 +10,7 @@
  */
 
 import { createFixture } from './bootstrap.mjs';
-import { createPostgresDatastore } from './adapter.mjs';
+import { createPostgresDatastore, createPostgresAccountDeletion } from './adapter.mjs';
 import { createPostgresSessions } from './sessions.mjs';
 import { createPostgresSettings } from './settings.mjs';
 import { createOwnedApi } from '../../server/owned-api.mjs';
@@ -22,10 +22,17 @@ const FINGERPRINT_TABLES = [
 ];
 
 /**
- * @param {{allowance?: number, fixture?: object}} options
- * @returns {Promise<{store: object, sessions: object, api: object, fixture: object, teardown: Function}>}
+ * @param {{allowance?: number, fixture?: object, deletion?: object}} options
+ *   `deletion` is the pool the account-deletion port runs as. It is the seam the running
+ *   server needs: `server/accounts.mjs` passes the pool `provisionPersistent()` built for the
+ *   `<prefix>_deletion` role, so the api this world returns (the one `server.js` mounts) has
+ *   the deletion wired. A fixture that carries its own `deletion` pool (a disposable
+ *   `bootstrap.mjs` fixture does) is used when the option is omitted. When neither exists the
+ *   API is built without the deletion port, exactly as an installation that has not migrated
+ *   would be — the route then answers 503 rather than pretending.
+ * @returns {Promise<{store: object, sessions: object, settings: object, api: object, deletion: object|null, fixture: object, teardown: Function}>}
  */
-export async function createPostgresWorld({ allowance = 10, fixture } = {}) {
+export async function createPostgresWorld({ allowance = 10, fixture, deletion } = {}) {
   const db = fixture ?? await createFixture();
   const calls = [];
   const port = createPostgresDatastore({ pool: db.learner, onCall: (name) => calls.push(name) });
@@ -33,7 +40,9 @@ export async function createPostgresWorld({ allowance = 10, fixture } = {}) {
   // Account settings are part of the same account, so the world builds them from the same
   // restricted learner pool. An injected fixture may supply its own.
   const settings = db.settings ?? createPostgresSettings({ pool: db.learner });
-  const api = createOwnedApi({ datastore: port, sessions, settings });
+  const deletionPool = deletion ?? db.deletion ?? null;
+  const accountDeletion = deletionPool ? createPostgresAccountDeletion({ pool: deletionPool }) : null;
+  const api = createOwnedApi({ datastore: port, sessions, settings, accountDeletion });
 
   async function one(sql, params) {
     return (await db.admin.query(sql, params)).rows[0];
@@ -140,6 +149,9 @@ export async function createPostgresWorld({ allowance = 10, fixture } = {}) {
     sessions,
     settings,
     api,
+    // The port the api above was built with, so a caller can exercise the port directly
+    // (idempotence, failure injection) without assembling a second, differently-wired api.
+    deletion: accountDeletion,
     fixture: db,
     // A disposable fixture drops its schema/roles; a *persistent* installation (OWNAPI-03,
     // built by provision.mjs) has no cleanup and must keep its rows, so teardown only

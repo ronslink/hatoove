@@ -1,12 +1,15 @@
 /**
  * Disposable PostgreSQL fixture bootstrap for OWNAPI-02 (source-only).
  *
- * Creates a random `ownapi_<hex>` schema and four real LOGIN roles
- * (`_migration`, `_auth`, `_learner`, `_worker`), then applies the SAME proven SQL
+ * Creates a random `ownapi_<hex>` schema and five real LOGIN roles
+ * (`_migration`, `_auth`, `_learner`, `_worker`, `_deletion`), then applies the SAME proven SQL
  * as the isolation spike, reused verbatim from `spikes/auth-runtime/`:
  *   - `auth-schema.sql`  the tracked pinned-library auth schema
  *   - `schema.sql`       attempts/drafts/submissions/jobs/entitlements/assessments/usage_ledger
  *   - `isolation.sql`    role grants, ENABLE + FORCE ROW LEVEL SECURITY, owner policies
+ *   - `accountSettingsSql` + `deletionRoleSql` from `provisioning-sql.mjs` — the SAME builders
+ *     `provision.mjs` records as migrations `0004` and `0005`, so this fixture is a real
+ *     installation's schema and least-privilege grants, not an approximation of them.
  *
  * It is never run automatically and never against a shared database: the target
  * defaults to the documented disposable fixture (127.0.0.1:55435, database
@@ -17,6 +20,7 @@
 import pg from 'pg';
 import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { accountSettingsSql, deletionRoleSql } from './provisioning-sql.mjs';
 
 const SPIKE = new URL('../../spikes/auth-runtime/', import.meta.url);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
@@ -60,7 +64,7 @@ export function rolePool(config, schema, user, max = 2) {
 export async function createFixture(overrides = {}) {
   const config = { ...pgConfig(), ...overrides };
   const schema = `ownapi_${randomBytes(8).toString('hex')}`;
-  const roles = Object.fromEntries(['migration', 'auth', 'learner', 'worker'].map((k) => [k, `${schema}_${k}`]));
+  const roles = Object.fromEntries(['migration', 'auth', 'learner', 'worker', 'deletion'].map((k) => [k, `${schema}_${k}`]));
   const admin = new pg.Pool({
     ...connection(config, { user: config.user }), max: 4, application_name: schema,
     options: `-c search_path=${schema},pg_catalog`,
@@ -100,6 +104,7 @@ export async function createFixture(overrides = {}) {
     pools.auth = rolePool(config, schema, roles.auth, 2);
     pools.learner = rolePool(config, schema, roles.learner, 1);
     pools.worker = rolePool(config, schema, roles.worker, 2);
+    pools.deletion = rolePool(config, schema, roles.deletion, 2);
 
     await pools.migration.query(await readFile(new URL('auth-schema.sql', SPIKE), 'utf8'));
     await pools.migration.query(await readFile(new URL('schema.sql', SPIKE), 'utf8'));
@@ -108,6 +113,9 @@ export async function createFixture(overrides = {}) {
       isolation = isolation.replaceAll(`__${key}__`, value);
     }
     await pools.migration.query(isolation);
+    // Migrations 0004 and 0005 of a persistent installation, from the one shared builder.
+    await pools.migration.query(accountSettingsSql({ schema, roles }));
+    await pools.migration.query(deletionRoleSql({ schema, roles }));
 
     return { schema, roles, config, admin, ...pools, cleanup };
   } catch (error) {

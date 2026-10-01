@@ -11,13 +11,18 @@
  * the rows are gone. Each "zero rows" result is paired with a precondition that the same
  * query found rows before.
  *
- * The deletion runs as a dedicated, NON-superuser, NOBYPASSRLS role this checker creates
- * in the disposable schema with exactly the grants and owner-scoped policies the deletion
- * needs. That role does NOT exist in a provisioned installation yet (see
- * work/implementation/HARD-DELETE-01.md §6); it is created here so the proof is made under
- * row-level security rather than as a superuser.
+ * The deletion runs as the NON-superuser, NOBYPASSRLS role `bootstrap.mjs` creates from the
+ * SAME builders (`provisioning-sql.mjs`) that `provision.mjs` records as migrations 0004 and
+ * 0005 — so the grants and owner-scoped policies proved here are the ones a real installation
+ * gets. (Before this, the only role with those rights was one this checker invented for
+ * itself, which proved nothing about any installation that exists.)
  *
- * Discrimination: on e621618 (no deletion route, no deletion port) this checker fails.
+ * Discrimination: the world this file drives is built by `createPostgresWorld()` — the same
+ * call `server/accounts.mjs` makes — so a tree that does not wire the deletion port into the
+ * world fails the "RUNNING-SERVER wiring" check below. The file's old claim, that this checker
+ * fails on e621618, was wrong: e621618 predates this file, so the failure there is
+ * `Cannot find module`, not the discrimination criterion 7 asks for. A tree in which the
+ * deletion is unreachable now scores worse than this one, not the same.
  *
  * Requires the package `server/owned-postgres` installed (pg 8.23.1) and a DISPOSABLE
  * database (OWNAPI_PG_*, default 127.0.0.1:55435/hatoove_spike). These checks delete rows.
@@ -29,13 +34,11 @@
 import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 
-import * as ownedApi from '../server/owned-api.mjs';
 import * as adapter from '../server/owned-postgres/adapter.mjs';
-import { createFixture, rolePool } from '../server/owned-postgres/bootstrap.mjs';
+import { createOwnedApi } from '../server/owned-api.mjs';
+import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
-import { MIGRATIONS } from '../server/owned-postgres/provision.mjs';
 
-const { createOwnedApi } = ownedApi;
 const createDeletion = typeof adapter.createPostgresAccountDeletion === 'function'
   ? adapter.createPostgresAccountDeletion : null;
 
@@ -61,48 +64,19 @@ async function check(name, fn) {
 
 /* ------------------------------------------------------------- the world */
 
+// `createFixture()` builds the same schema, roles and least-privilege grants an installation
+// has: the deletion role, its owner-scoped policies and the account-settings table all come
+// from `provisioning-sql.mjs`, the builders migrations 0004/0005 also use.
 const db = await createFixture();
-let deletionRole = null;
-let deletionPool = null;
+const deletionRole = db.roles.deletion;
+const deletionPool = db.deletion;
 let world = null;
 
-async function provisionDeletionRole() {
-  // Account settings are migration 0004 of a persistent installation; the disposable fixture
-  // does not apply it, so it is applied here or step 9 of the deletion has no table to act on.
-  const settingsMigration = MIGRATIONS.find((m) => m.id === '0004-account-settings');
-  await db.migration.query(settingsMigration.sql({ schema: db.schema, roles: db.roles }));
-
-  deletionRole = `${db.schema}_deletion`;
-  const role = `"${deletionRole}"`;
-  const owner = "nullif(current_setting('hatoove.owner_id', true), '')";
-  await db.admin.query(
-    `CREATE ROLE ${role} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 5`);
-  await db.admin.query(`GRANT USAGE ON SCHEMA "${db.schema}" TO ${role}`);
-  await db.admin.query(`GRANT SELECT, DELETE ON attempts, drafts, submissions, jobs, assessments, usage_ledger,
-    entitlements, learner_settings, session, account, "user" TO ${role}`);
-  await db.admin.query(`GRANT UPDATE(parent_submission_id) ON attempts TO ${role}`);
-  // FOR UPDATE on "user" needs UPDATE on at least one column; nothing in the deletion updates it.
-  await db.admin.query(`GRANT UPDATE("updatedAt") ON "user" TO ${role}`);
-  for (const table of ['attempts', 'submissions', 'jobs', 'assessments', 'usage_ledger', 'entitlements']) {
-    await db.admin.query(`CREATE POLICY deletion_${table} ON ${table} TO ${role} USING (owner_id = ${owner})`);
-  }
-  await db.admin.query(`CREATE POLICY deletion_learner_settings ON learner_settings TO ${role} USING (user_id = ${owner})`);
-  await db.admin.query(`CREATE POLICY deletion_drafts ON drafts TO ${role}
-    USING (EXISTS (SELECT 1 FROM attempts a WHERE a.id = attempt_id AND a.owner_id = ${owner}))`);
-  deletionPool = rolePool(db.config, db.schema, deletionRole, 2);
-}
-
 async function teardown() {
-  if (deletionPool) await deletionPool.end().catch(() => {});
+  // The fixture's `cleanup()` drops the schema (and with it every grant and policy) and then
+  // every role it created, including the deletion role. No checker-owned role to clean up.
   if (world) await world.teardown().catch(() => {});
   else await db.cleanup().catch(() => {});
-  if (deletionRole) {
-    // The fixture's admin pool is closed by cleanup(); the schema (and with it every grant and
-    // policy naming the role) is gone, so the role can now be dropped.
-    const admin = rolePool(db.config, db.schema, db.config.user, 1);
-    await admin.query(`DROP ROLE IF EXISTS "${deletionRole}"`).catch(() => {});
-    await admin.end().catch(() => {});
-  }
 }
 
 /* --------------------------------------------------------------- helpers */
@@ -211,11 +185,13 @@ function assertPopulated(snap, label) {
 /* ---------------------------------------------------------------- checks */
 
 try {
-  await provisionDeletionRole();
   world = await createPostgresWorld({ fixture: db });
-  const deletion = createDeletion ? createDeletion({ pool: deletionPool }) : null;
+  // The whole suite drives the world's own api — the one `server/accounts.mjs` hands to
+  // `server.js` — rather than an api this checker assembles. The `deletion` port likewise
+  // comes from the world, so no second wiring exists.
+  const deletion = world.deletion;
   const ports = { datastore: world.store.port, sessions: world.sessions, settings: world.settings };
-  const api = createOwnedApi({ ...ports, accountDeletion: deletion });
+  const api = world.api;
   const call = caller(api);
 
   const superuser = (await rows('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user'))[0];

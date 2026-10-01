@@ -16,6 +16,8 @@
  *   <prefix>_auth       the pinned-library auth tables (user/session/account/verification)
  *   <prefix>_learner    serves learner routes; NON-superuser, NOBYPASSRLS, so RLS applies
  *   <prefix>_worker     claims and completes assessment jobs
+ *   <prefix>_deletion   runs the one hard account-deletion transaction (HARD-DELETE-01 §6);
+ *                       NON-superuser, NOBYPASSRLS, owner-scoped policies, no other route
  *
  * What this does NOT do, stated plainly:
  *   - It does not deploy anything and does not create the *database* itself; the operator
@@ -51,42 +53,28 @@
 
 import pg from 'pg';
 import { readFile } from 'node:fs/promises';
+import { accountSettingsSql, deletionRoleSql } from './provisioning-sql.mjs';
 
 const SPIKE = new URL('../../spikes/auth-runtime/', import.meta.url);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
-const ROLES = ['migration', 'auth', 'learner', 'worker'];
+// `deletion` is the account-deletion port's role (HARD-DELETE-01 §6): least privilege for the
+// one ordered transaction that removes an account, never used by a learner route.
+const ROLES = ['migration', 'auth', 'learner', 'worker', 'deletion'];
 
 /** The tracked SQL applied in order, once each, and recorded by id. */
 export const MIGRATIONS = Object.freeze([
   { id: '0001-auth-schema', file: new URL('auth-schema.sql', SPIKE) },
   { id: '0002-owned-schema', file: new URL('schema.sql', SPIKE) },
   { id: '0003-isolation', file: new URL('isolation.sql', SPIKE) },
-  // Inline because it is Hatoove's own table, not part of the reused spike SQL. It must be
-  // idempotent on its own: an installation created before this migration exists already holds
-  // the tracked tables, and only this one is added.
-  {
-    id: '0004-account-settings',
-    sql: (config) => `
-      CREATE TABLE IF NOT EXISTS ${ident(config.schema)}.learner_settings (
-        user_id     text PRIMARY KEY REFERENCES ${ident(config.schema)}."user"(id) ON DELETE CASCADE,
-        exam_date   text NOT NULL DEFAULT '',
-        daily_goal  integer NOT NULL DEFAULT 20,
-        model       text NOT NULL DEFAULT 'deepseek-chat',
-        theme       text NOT NULL DEFAULT 'system',
-        language    text NOT NULL DEFAULT '',
-        revision    integer NOT NULL DEFAULT 0,
-        updated_at  timestamptz NOT NULL DEFAULT now()
-      );
-      ALTER TABLE ${ident(config.schema)}.learner_settings ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE ${ident(config.schema)}.learner_settings FORCE ROW LEVEL SECURITY;
-      DROP POLICY IF EXISTS learner_settings_owner ON ${ident(config.schema)}.learner_settings;
-      CREATE POLICY learner_settings_owner ON ${ident(config.schema)}.learner_settings
-        USING (user_id = current_setting('hatoove.owner_id', true))
-        WITH CHECK (user_id = current_setting('hatoove.owner_id', true));
-      REVOKE ALL ON ${ident(config.schema)}.learner_settings FROM PUBLIC;
-      GRANT SELECT, INSERT, UPDATE ON ${ident(config.schema)}.learner_settings TO ${ident(config.roles.learner)};
-    `,
-  },
+  // Hatoove's own table, not part of the reused spike SQL, so it is built in JS rather than
+  // shipped as a file — but from the same builder `bootstrap.mjs` uses, so the disposable
+  // fixture and a real installation cannot drift apart. Idempotent on its own: an installation
+  // created before this migration exists already holds the tracked tables, and only this one
+  // is added.
+  { id: '0004-account-settings', sql: (config) => accountSettingsSql(config) },
+  // The account-deletion role's grants and owner-scoped policies (HARD-DELETE-01 §6). Without
+  // this, a provisioned installation has no role that can run the deletion at all.
+  { id: '0005-account-deletion', sql: (config) => deletionRoleSql(config) },
 ]);
 
 const ident = (name) => {
@@ -242,6 +230,9 @@ export async function provisionPersistent({ config = persistentConfig() } = {}) 
       auth: persistentRolePool(config, 'auth'),
       learner: persistentRolePool(config, 'learner', { max: 4 }),
       worker: persistentRolePool(config, 'worker'),
+      // The account-deletion port's own connection pool. Built here so every consumer
+      // (`server/accounts.mjs`, the checks) takes it from the one provisioning path.
+      deletion: persistentRolePool(config, 'deletion'),
       ...result,
       admin,
     };
@@ -256,7 +247,7 @@ export async function provisionPersistent({ config = persistentConfig() } = {}) 
 /** Close every pool `provisionPersistent()` opened. Idempotent. */
 export async function closePersistent(pools) {
   if (!pools) return;
-  for (const key of ['migration', 'auth', 'learner', 'worker', 'admin']) {
+  for (const key of ['migration', 'auth', 'learner', 'worker', 'deletion', 'admin']) {
     const pool = pools[key];
     if (pool && typeof pool.end === 'function') await pool.end().catch(() => {});
   }
