@@ -31,6 +31,9 @@ const EXPLANATION_LANGUAGES = ['de', 'en', 'uk', 'ar', 'tr'];
 const RTL_LANGUAGES = ['ar'];
 const VIEW_TITLES = {
   heute: 'Heute', ueben: 'Üben', woerterbuch: 'Wörterbuch', nachschlagen: 'Nachschlagen',
+  // The design organises practice by SKILL. Each maps to a section the catalogue already carries.
+  lesen: 'Leseverstehen', sprachbausteine: 'Sprachbausteine',
+  hoeren: 'Hörverstehen', schreiben: 'Schreiben',
   fehler: 'Fehler', fortschritt: 'Fortschritt', einstellungen: 'Einstellungen',
 };
 
@@ -390,6 +393,57 @@ async function renderMistakes() {
     + '<span class="chip chip-orange">deine Antwort: ' + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('');
 }
 
+
+/** The skill views, and the section each one asks the server for. */
+const SKILL_SECTIONS = { lesen: 'LV', sprachbausteine: 'SB', hoeren: 'HV', schreiben: 'writing' };
+
+/**
+ * One skill's practice, from the catalogue.
+ *
+ * THE LIST IS THE SERVER'S ANSWER, including when it is empty. Hoeren is empty ON PURPOSE: the nine
+ * listening sets exist, carry transcripts, and are marked media_required because there is no audio.
+ * Serving their items would make a Hoeren task a Lesen task wearing a Hoeren label, so this view says
+ * so rather than showing something to fill the space.
+ */
+async function renderSkill(view) {
+  const section = SKILL_SECTIONS[view];
+  const box = el('skill-' + view);
+  if (!box || !section) return;
+  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+
+  if (section === 'writing') {
+    const res = await api.tasks.list({ family: 'writing' });
+    if (!res) return;
+    if (!res.ok) { box.innerHTML = ''; showError('Aufgaben konnten nicht geladen werden (' + res.status + ').'); return; }
+    const tasks = Array.isArray(res.data) ? res.data : [];
+    box.innerHTML = tasks.length
+      ? tasks.map((t) => '<div class="card"><div class="card-head"><h3>' + esc(t.topic)
+        + '</h3><span class="chip">' + esc(t.family) + '</span></div>'
+        + '<p class="muted">' + esc(t.situation) + '</p>'
+        + '<p class="small muted">Anrede: ' + esc(t.adressat) + ' &middot; Prüfstatus: ' + esc(t.review_status) + '</p></div>').join('')
+      : '<div class="card"><h3>Zurzeit keine Schreibaufgaben</h3><p class="muted">Der Server hat gerade nichts Servierbares.</p></div>';
+    return;
+  }
+
+  const res = await api.objectiveSets.list();
+  if (!res) return;
+  if (!res.ok) { box.innerHTML = ''; showError('Aufgaben konnten nicht geladen werden (' + res.status + ').'); return; }
+  const sets = (Array.isArray(res.data) ? res.data : []).filter((s) => s.section === section);
+  if (!sets.length) {
+    box.innerHTML = section === 'HV'
+      ? '<div class="card"><h3>Hörverstehen braucht Ton</h3><p class="muted">Die Aufgaben sind vorhanden, '
+        + 'aber es gibt noch kein Audio. Sie werden deshalb nicht angezeigt — eine Höraufgabe ohne Ton '
+        + 'wäre eine Leseaufgabe mit falschem Etikett.</p></div>'
+      : '<div class="card"><h3>Zurzeit keine Aufgaben</h3><p class="muted">Der Server hat für diesen '
+        + 'Bereich gerade nichts Servierbares.</p></div>';
+    return;
+  }
+  box.innerHTML = sets.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(s.title)
+    + '</h3><span class="chip">' + esc(s.family) + '</span></div>'
+    + '<p class="muted">' + s.item_count + ' Aufgaben &middot; Teil ' + s.part + '</p>'
+    + '<p class="small muted">Prüfstatus: ' + esc(s.review_status) + '</p></div>').join('');
+}
+
 function route() {
   const key = (location.hash || '#/heute').replace(/^#\/?/, '') || 'heute';
   const view = VIEW_TITLES[key] ? key : 'heute';
@@ -398,6 +452,7 @@ function route() {
   renderChrome();
   if (view === 'heute') void renderDashboard();
   if (view === 'ueben') { void renderPracticeNext(); void renderTasks(); }
+  if (SKILL_SECTIONS[view]) void renderSkill(view);
   if (view === 'fehler') void renderMistakes();
   if (view === 'woerterbuch') void renderDictionary();
   if (view === 'nachschlagen') void renderGuides();

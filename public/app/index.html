@@ -39,7 +39,10 @@
       <a href="#/fortschritt" data-view="fortschritt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>Fortschritt</span></a>
       <a href="#/fehler" data-view="fehler"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Fehler</span><span class="count" id="mistake-count" hidden>0</span></a>
       <p class="kicker nav-label">Lernen</p>
-      <a href="#/ueben" data-view="ueben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span>Üben</span></a>
+      <a href="#/lesen" data-view="lesen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span>Leseverstehen</span></a>
+      <a href="#/sprachbausteine" data-view="sprachbausteine"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg><span>Sprachbausteine</span></a>
+      <a href="#/hoeren" data-view="hoeren"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span>Hörverstehen</span></a>
+      <a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 21h8"/><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></svg><span>Schreiben</span></a>
       <a href="#/woerterbuch" data-view="woerterbuch"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg><span>Wörterbuch</span></a>
       <a href="#/nachschlagen" data-view="nachschlagen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 21h8"/><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></svg><span>Nachschlagen</span></a>
       <p class="kicker nav-label">Konto</p>
@@ -147,6 +150,54 @@
         </div>
         <div class="stack" id="practice-next"></div>
         <div class="stack" id="task-list"><div class="card"><h3>Wird geladen ...</h3></div></div>
+      </section>
+
+      <!-- Leseverstehen -->
+      <section class="view" id="view-lesen" hidden>
+        <div class="page-head">
+          <div>
+            <p class="kicker">Üben</p>
+            <h1>Leseverstehen</h1>
+            <p>Anzeigen, Briefe und Texte lesen und das Passende zuordnen.</p>
+          </div>
+        </div>
+        <div class="stack" id="skill-lesen"><div class="card"><h3>Wird geladen &hellip;</h3></div></div>
+      </section>
+
+      <!-- Sprachbausteine -->
+      <section class="view" id="view-sprachbausteine" hidden>
+        <div class="page-head">
+          <div>
+            <p class="kicker">Üben</p>
+            <h1>Sprachbausteine</h1>
+            <p>Lücken in einem Brief füllen: Konnektoren, Präpositionen, Verbformen.</p>
+          </div>
+        </div>
+        <div class="stack" id="skill-sprachbausteine"><div class="card"><h3>Wird geladen &hellip;</h3></div></div>
+      </section>
+
+      <!-- Hörverstehen -->
+      <section class="view" id="view-hoeren" hidden>
+        <div class="page-head">
+          <div>
+            <p class="kicker">Üben</p>
+            <h1>Hörverstehen</h1>
+            <p>Hören braucht Ton. Sobald es Audio gibt, erscheinen hier Aufgaben.</p>
+          </div>
+        </div>
+        <div class="stack" id="skill-hoeren"><div class="card"><h3>Wird geladen &hellip;</h3></div></div>
+      </section>
+
+      <!-- Schreiben -->
+      <section class="view" id="view-schreiben" hidden>
+        <div class="page-head">
+          <div>
+            <p class="kicker">Üben</p>
+            <h1>Schreiben</h1>
+            <p>Briefe schreiben mit serverseitiger Rückmeldung.</p>
+          </div>
+        </div>
+        <div class="stack" id="skill-schreiben"><div class="card"><h3>Wird geladen &hellip;</h3></div></div>
       </section>
 
       <!-- Fehler (Mistakes) -->
@@ -281,7 +332,10 @@
 
 <nav class="tabbar" aria-label="Navigation">
   <a href="#/heute" data-view="heute">Heute</a>
-  <a href="#/ueben" data-view="ueben">Üben</a>
+  <a href="#/lesen" data-view="lesen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span>Leseverstehen</span></a>
+  <a href="#/sprachbausteine" data-view="sprachbausteine"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg><span>Sprachbausteine</span></a>
+  <a href="#/hoeren" data-view="hoeren"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span>Hörverstehen</span></a>
+  <a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 21h8"/><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></svg><span>Schreiben</span></a>
   <a href="#/woerterbuch" data-view="woerterbuch">Wörterbuch</a>
   <a href="#/nachschlagen" data-view="nachschlagen">Nachschlagen</a>
   <a href="#/fortschritt" data-view="fortschritt">Fortschritt</a>
