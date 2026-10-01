@@ -13,6 +13,16 @@
  * Offline: no browser, database, provider or `.env`. The scratch copy lives in a temp
  * directory and is removed as soon as the mutant run ends; the checkout is never modified.
  *
+ * LINE ENDINGS (fixed 2026-10-01, CI `Offline baseline (windows-latest)`):
+ *   The first version matched RESTORE_BLOCK literally against the file as read. On a
+ *   Windows checkout git writes CRLF, so `String.replace` matched NOTHING, the "mutant"
+ *   was byte-identical to the original, and the discrimination suite failed on Windows
+ *   while passing on Linux. That is the defect this programme keeps finding - a check
+ *   whose *mutation* silently did not happen, so it could not discriminate - and the
+ *   guard for it is now in place and asserted below: the mutation is applied to an
+ *   LF-normalised copy AND the result is asserted to differ. The mutant is written back
+ *   with LF, which is what the module itself is committed as.
+ *
  * Run: node --test tools/writing-surface-check.test.mjs
  */
 import test from 'node:test';
@@ -50,8 +60,20 @@ export const RESTORE_BLOCK = "    reason = '';\n    const snap = session.snapsho
 /** Mutant: keep the text the view passed in; the saved draft is never restored. */
 export const MUTANT_BLOCK = "    reason = '';\n    const snap = session.snapshot();\n    if (snap && typeof snap.text === 'string') text = String(initialText ?? '');";
 
+/** CRLF-safe comparison: the checkout's line endings are git's business, not the check's. */
+export const toLf = (text) => String(text).replace(/\r\n/g, '\n');
+
 const original = fs.readFileSync(DEFAULT_MODULE, 'utf8');
-const mutantSource = original.replace(RESTORE_BLOCK, MUTANT_BLOCK);
+const originalLf = toLf(original);
+const mutantSource = originalLf.replace(RESTORE_BLOCK, MUTANT_BLOCK);
+
+/** The mutation must actually have happened, or the discrimination is vacuous. A
+ *  mutation that silently no-ops is a check that cannot fail - the exact defect shape
+ *  this programme has recorded five times, and this file's own Windows failure. */
+if (mutantSource === originalLf) {
+  throw new Error('the restore-block mutation did not apply: RESTORE_BLOCK does not appear in '
+    + `${DEFAULT_MODULE} (line endings or a moved block). Without it the discrimination leg is vacuous.`);
+}
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'writing-surface-mutant-'));
 let mutantReport;
@@ -69,9 +91,9 @@ const failedNames = (r) => r.results.filter((x) => !x.ok).map((x) => x.name);
 const resultOf = (r, name) => r.results.find((x) => x.name === name);
 
 test('the scratch mutant really differs from the module, and only on the restore line', () => {
-  assert.equal(original.split(RESTORE_BLOCK).length, 2, 'the restore block exists exactly once');
-  assert.notEqual(mutantSource, original);
-  assert.equal(mutantSource.replace(MUTANT_BLOCK, RESTORE_BLOCK), original);
+  assert.equal(originalLf.split(RESTORE_BLOCK).length, 2, 'the restore block exists exactly once');
+  assert.notEqual(mutantSource, originalLf, 'the mutation must change the module');
+  assert.equal(mutantSource.replace(MUTANT_BLOCK, RESTORE_BLOCK), originalLf);
   assert.ok(!fs.existsSync(scratch), 'the scratch copy was removed');
   assert.equal(fs.readFileSync(DEFAULT_MODULE, 'utf8'), original, 'the checkout was not modified');
 });
