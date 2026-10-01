@@ -625,9 +625,17 @@ export async function writingView(el, params = {}) {
   renderWritingTask(el);
 }
 
+/** One writing surface per page: re-rendering the view must not create a second one, or a
+ *  task switch could race the previous leave() and drop text. */
+function writingDraftSurface() {
+  if (!writingSurface) {
+    writingSurface = createWritingSurface({ openDraft: (id) => session().openDraft(id) });
+  }
+  return writingSurface;
+}
+
 function renderWritingTask(el) {
-  const task = writingTask;
-  const st = store.getState().settings;
+  const task = writingTask;  const st = store.getState().settings;
 
   el.innerHTML = `
     <div class="card">
@@ -698,7 +706,7 @@ function renderWritingTask(el) {
      the boundary refuses, this paints nothing and the view behaves exactly as before. */
   const draftStatus = el.querySelector('#w-draft-status');
   const renderToken = writingRender;
-  let surface = null;
+  const surface = writingDraftSurface();
   const paintDraftStatus = () => {
     const s = surface.state();
     if (s.mode !== 'draft') {
@@ -726,8 +734,7 @@ function renderWritingTask(el) {
     }
     draftStatus.textContent = s.dirty ? 'Entwurf: noch nicht gespeichert.' : 'Entwurf gespeichert.';
   };
-  surface = createWritingSurface({ openDraft: (id) => session().openDraft(id), onState: paintDraftStatus });
-  writingSurface = surface;
+  surface.setOnState(paintDraftStatus);
   on(textarea, 'input', () => { updateCount(); surface.change(textarea.value); });
   surface.enter(writingTaskId(writingSlot), { initialText: textarea.value }).then((entered) => {
     if (renderToken !== writingRender) return; // a newer render already took over
@@ -1695,6 +1702,13 @@ export function teardownExamViews() {
   mockCleanup = null;
   writingRender += 1; // a late AI response must not replace another view
   speakingRender += 1;
+  // Leaving the writing screen must FLUSH the draft before the session is closed: close()
+  // drops local text, so a view that closed without flushing would lose what was typed
+  // (WRITING-SURFACE-01B). The surface keeps the text if the flush cannot complete.
+  if (writingSurface) {
+    writingSurface.setOnState(null);
+    void writingSurface.leave().catch(() => {});
+  }
   stopSpeaking();
   if (writingTimer) {
     writingTimer();

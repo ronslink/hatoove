@@ -19,7 +19,8 @@
  *     `save()` resolves to {status:'saved'|'unchanged'|'conflict'}; it REJECTS on invalid
  *     input, on a network failure (text kept in memory as unsaved) or with
  *     `already_submitted` when the attempt was frozen elsewhere.
- *   - `close()` drops local text without contacting the server - never close while dirty.
+ *   - `close()` drops local text without contacting the server - NEVER close while dirty,
+ *     which is exactly the N-2 data-loss shape this slice must not reintroduce.
  */
 export const WRITING_TASK_PREFIX = 'writing-sa1-';
 
@@ -43,16 +44,20 @@ export function createWritingSurface(options = {}) {
   const debounceMs = Number.isFinite(options.debounceMs) ? options.debounceMs : 1200;
   const setTimeoutFn = typeof options.setTimeoutFn === 'function' ? options.setTimeoutFn : (fn, ms) => setTimeout(fn, ms);
   const clearTimeoutFn = typeof options.clearTimeoutFn === 'function' ? options.clearTimeoutFn : (id) => clearTimeout(id);
-  const onState = typeof options.onState === 'function' ? options.onState : null;
+
+  // Mutable so a view can re-attach its own repaint across renders without a new surface
+  // (one surface per page: a task switch must wait for the previous leave to settle).
+  let onState = typeof options.onState === 'function' ? options.onState : null;
 
   let session = null;   // the draft session while signed in and open
-  let mode = 'local';   // 'draft' (account) | 'local' (single-user / unavailable)
+  let mode = 'local';   // 'draft' (account) | 'local' (single-user / unavailable / left)
   let reason = '';      // why 'local', when 'local'
   let taskId = null;
   let text = '';
   let lastError = null;
   let timer = null;     // pending debounced autosave
   let saving = null;    // in-flight save promise
+  let pending = null;   // an in-flight leave, so a later enter() waits for it
 
   /** A copy of the current surface state, for the view and for a check. */
   function state() {
@@ -80,6 +85,9 @@ export function createWritingSurface(options = {}) {
     if (timer !== null) { clearTimeoutFn(timer); timer = null; }
   }
 
+  /** The view re-attaches its repaint on each render; `null` detaches it. */
+  function setOnState(fn) { onState = typeof fn === 'function' ? fn : null; }
+
   /**
    * Enter the writing task. On the account path this opens the account's draft and returns
    * the SAVED text, which the view puts into the textarea. On the single-user path - or any
@@ -87,8 +95,26 @@ export function createWritingSurface(options = {}) {
    * behaviour is exactly what it was before this slice.
    */
   async function enter(nextTaskId, { initialText = '' } = {}) {
+    if (pending) { try { await pending; } catch { /* leave() owns its own failure */ } }
     clearTimer();
     const id = String(nextTaskId);
+
+    if (session && mode === 'draft') {
+      const snap = session.snapshot();
+      if (taskId === id && snap) {
+        // Same task, re-entered: reuse the open session so its in-memory text survives.
+        text = String(initialText ?? '');
+        if (typeof snap.text === 'string') text = snap.text;
+        notify();
+        return { mode, reason, taskId: id, text };
+      }
+      // A different task: flush what we have first, and close only when it is safe.
+      await flush();
+      const after = session ? session.snapshot() : null;
+      if (session && (!after || !after.dirty)) { try { session.close(); } catch { /* drops text only */ } }
+      session = null;
+    }
+
     text = String(initialText ?? '');
     lastError = null;
     let opened;
@@ -178,5 +204,33 @@ export function createWritingSurface(options = {}) {
     return { ok: true, text, revision: snap ? snap.revision : null };
   }
 
-  return Object.freeze({ enter, change, flush, resolveConflict, state });
+  /**
+   * Leave the task. FLUSH FIRST, CLOSE ONLY IF THE TEXT IS SAFE: `close()` discards
+   * unsaved local text, so a leave that closed while dirty would be the N-2 data-loss
+   * defect. If the flush cannot complete (offline, or an unresolved conflict) the
+   * session is deliberately left open - and the text with it - rather than dropped.
+   */
+  async function leave() {
+    clearTimer();
+    if (pending) { try { return await pending; } catch { return { ok: false, reason: 'error' }; } }
+    if (mode !== 'draft' || !session) return { ok: true, mode };
+    pending = (async () => {
+      const result = await flush();
+      if (result && result.ok && mode === 'draft' && session) {
+        try { session.close(); } catch { /* closing only drops memory */ }
+        session = null;
+        mode = 'local';
+        reason = 'left';
+      }
+      notify();
+      return result;
+    })();
+    try {
+      return await pending;
+    } finally {
+      pending = null;
+    }
+  }
+
+  return Object.freeze({ enter, change, flush, resolveConflict, leave, setOnState, state });
 }

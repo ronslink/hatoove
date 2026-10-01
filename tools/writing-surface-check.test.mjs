@@ -44,13 +44,14 @@ test('every writing-surface check ran and passed', () => {
 
 /* ------------------------------------------------------- discrimination */
 
-/** The exact line that lets the server's saved text win on entering a task. */
-export const RESTORE_LINE = '    if (snap && typeof snap.text === \'string\') text = snap.text;';
+/** The span that lets the server's saved text win on entering a task (unique: the block
+ *  right after `reason = '';`, which appears only in enter()). */
+export const RESTORE_BLOCK = "    reason = '';\n    const snap = session.snapshot();\n    if (snap && typeof snap.text === 'string') text = snap.text;";
 /** Mutant: keep the text the view passed in; the saved draft is never restored. */
-export const MUTANT_LINE = '    if (snap && typeof snap.text === \'string\') text = String(initialText ?? \'\');';
+export const MUTANT_BLOCK = "    reason = '';\n    const snap = session.snapshot();\n    if (snap && typeof snap.text === 'string') text = String(initialText ?? '');";
 
 const original = fs.readFileSync(DEFAULT_MODULE, 'utf8');
-const mutantSource = original.replace(RESTORE_LINE, MUTANT_LINE);
+const mutantSource = original.replace(RESTORE_BLOCK, MUTANT_BLOCK);
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'writing-surface-mutant-'));
 let mutantReport;
@@ -63,14 +64,14 @@ try {
 }
 
 /** The checks that depend on restore; nothing else may fail on the mutant. */
-const EXPECTED_FAILURES = ['enter-restores-the-saved-text-on-return', 'a-failed-save-does-not-drop-the-text'];
+const EXPECTED_FAILURES = ['enter-restores-the-saved-text-on-return'];
 const failedNames = (r) => r.results.filter((x) => !x.ok).map((x) => x.name);
 const resultOf = (r, name) => r.results.find((x) => x.name === name);
 
 test('the scratch mutant really differs from the module, and only on the restore line', () => {
-  assert.equal(original.split(RESTORE_LINE).length, 2, 'the restore line exists exactly once');
+  assert.equal(original.split(RESTORE_BLOCK).length, 2, 'the restore block exists exactly once');
   assert.notEqual(mutantSource, original);
-  assert.equal(mutantSource.replace(MUTANT_LINE, RESTORE_LINE), original);
+  assert.equal(mutantSource.replace(MUTANT_BLOCK, RESTORE_BLOCK), original);
   assert.ok(!fs.existsSync(scratch), 'the scratch copy was removed');
   assert.equal(fs.readFileSync(DEFAULT_MODULE, 'utf8'), original, 'the checkout was not modified');
 });
