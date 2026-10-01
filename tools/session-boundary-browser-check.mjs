@@ -764,6 +764,36 @@ async function main(argv) {
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
     shots.push(await screenshot(cdp, 'desktop-konto-signed-out.png'));
 
+    /* --- F-C: A BROWSER THAT NEVER SIGNED IN KEEPS ITS RECORD ON A 500 (SESSION-FENCE-02) --- */
+    // The reviewer's F-C: a browser with NO account history that gets a 500 (or a malformed body)
+    // from /api/v1/account was moved to signed-out permanently. Its single-user record stayed on
+    // disk but was never shown again - not even after a reload - and signing up did not restore
+    // it. The fix is a coordinator product decision: a browser with no account history is never
+    // failed closed, because the local single-user learner is the population that cannot recover.
+    // The origin is cleared first so the page really starts with no account marker (`legacy`).
+    const FC_MARKER = `SYNTH-SB-FC-${RUN}`;
+    await cdp.evaluate(`localStorage.clear(); return true`);
+    await cdp.send('Page.reload', {});
+    await cdp.waitFor(`!!document.querySelector('#view .card')`, 20000, 'app boot (F-C, cleared browser)');
+    await cdp.waitFor(`import('/js/store.js').then((m) => m.getAccountScope().mode === 'legacy')`, 15000, 'F-C precondition: no account marker');
+    const fcPhase = await cdp.evaluate(`return import('/js/account.js').then((m) => m.session().phase)`);
+    record('f-c-precondition-the-browser-never-signed-in', (await scopeOf(cdp)).mode === 'legacy' && fcPhase === 'single-user', `scope mode=legacy, boundary phase=${fcPhase}`);
+    await recordMarkedAttempt(cdp, FC_MARKER);
+    await cdp.evaluate(`return import('/js/store.js').then((m) => m.flushNow())`);
+    await openView(cdp, 'notebook', 'Fehlerheft');
+    record('f-c-precondition-the-local-record-is-shown', (await viewText(cdp)).includes(FC_MARKER), 'the single-user notebook shows its own entry');
+    // A transient deploy failure: the account endpoint answers 500 (mapped to `server_error`).
+    enabled.stub((req) => req.method === 'GET' && new URL(req.url, 'http://x').pathname === '/api/v1/account',
+      (req, res) => reply(res, 500, { error: 'internal_error' }));
+    await cdp.send('Page.reload', {});
+    await cdp.waitFor(`!!document.querySelector('#view .card')`, 20000, 'app boot (F-C, account endpoint 500)');
+    await openView(cdp, 'notebook', 'Fehlerheft');
+    const fcNotebook = await viewText(cdp);
+    record('f-c-a-500-does-not-hide-the-never-signed-in-record', fcNotebook.includes(FC_MARKER), `the notebook shows the entry after a 500: ${fcNotebook.includes(FC_MARKER)}`);
+    record('f-c-a-500-does-not-move-the-browser-to-signed-out', (await scopeOf(cdp)).mode === 'legacy', `scope mode: ${(await scopeOf(cdp)).mode}`);
+    record('f-c-the-record-is-still-in-storage', await storageHas(cdp, FC_MARKER), 'localStorage scanned for the marker after a 500');
+    enabled.clearStubs();
+
     const errors = cdp.consoleErrors();
     record('no-console-errors-during-the-run', errors.length === 0, errors.slice(0, 2).join(' | ') || 'clean');
     console.log(`\nScreenshots: ${shots.join(', ')}`);

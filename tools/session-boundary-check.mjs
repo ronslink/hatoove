@@ -410,6 +410,45 @@ check('another page of the same browser cannot re-create the record after a sign
   } finally { await server.stop(); }
 });
 
+/*
+ * N-2 follow-up (SESSION-FENCE-02 F-B). The discard notice on the EXPIRY path was a field, but
+ * `enterSignedOut` RECOMPUTED it on every call - and the Konto view always performs one more
+ * resolve after the tab return - so the learner was told nothing. This drives the REAL boundary
+ * and the REAL store over real HTTP: a change is held on the wire so it is genuinely unsaved
+ * ('pending'), the session is expired, the boundary resolves (the tab-return path), then resolves
+ * AGAIN (exactly what the Konto view does). The notice and the reason must survive.
+ */
+check('expiry: the discard notice survives the Konto view\u2019s own second resolve', async () => {
+  const server = await startServer(4495, { accounts: true });
+  try {
+    const { browser, store, boundary, account } = await seedAccountA(4495, 'expiry-notice');
+    // Hold the account's progress POST so a change is genuinely unsaved when the session is
+    // refused. The store's own 1200 ms debounce fires it; wait for the hold to be reached.
+    const held = browser.hold((e) => e.method === 'POST' && e.path === '/api/progress' && e.scope === account.id);
+    store.recordAttempt({ partId: 'SB1', tags: ['praepositionen'], difficulty: 50, correct: false, detail: { prompt: `${MARK.notebookA}-PENDING`, yourAnswer: 'x', correctAnswer: 'y' } });
+    await held.arrived;
+    assert.equal(store.syncStatus().state, 'pending', 'precondition: a change is genuinely unsaved');
+    // Expire the session server-side while this page still holds the cookie.
+    const cookie = [...browser.jar].map(([k, v]) => `${k}=${v}`).join('; ');
+    const killed = await realFetch('http://127.0.0.1:4495/api/auth/sign-out', {
+      method: 'POST', headers: { cookie, origin: 'http://127.0.0.1:4495', 'content-type': 'application/json' }, body: '{}',
+    });
+    assert.equal(killed.status, 200);
+    // The tab-return resolve: the session is refused and the unsaved change is discarded.
+    const first = await boundary.resolve();
+    assert.equal(first.phase, 'signed-out');
+    assert.equal(first.reason, 'expired');
+    assert.equal(first.discardedUnsaved, true, 'the first resolve did not report the discarded change');
+    // The Konto view resolves again - the resolve that used to erase the notice.
+    const second = await boundary.resolve();
+    assert.equal(second.phase, 'signed-out');
+    assert.equal(second.discardedUnsaved, true, 'the Konto view\u2019s second resolve erased the discard notice');
+    assert.equal(second.reason, 'expired', `the second resolve changed the reason to ${second.reason}`);
+    held.release();
+    await sleep(300);
+  } finally { await server.stop(); }
+});
+
 check('account switch: B never sees A, and late responses for A do not land', async () => {
   const server = await startServer(4483, { accounts: true });
   try {
