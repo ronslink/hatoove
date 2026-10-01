@@ -35,8 +35,12 @@
  *   <prefix>_deletion     runs the one hard account-deletion transaction (HARD-DELETE-01 §6)
  *   <prefix>_provisioner  the narrow stopgap for the sign-up allowance insert (MFP-01 §2.4):
  *                         NOSUPERUSER, NOBYPASSRLS, and its only right is INSERT on
- *                         `entitlements`. The durable replacement is a `SECURITY DEFINER`
- *                         `provision_learner` function, owned by MFP-02a — recorded as a finding.
+ *                         `entitlements`. **MFP-02a replaced it for the runtime**: the running
+ *                         server no longer opens this pool, and sign-up goes through the
+ *                         migration-owned `SECURITY DEFINER` `provision_learner`
+ *                         (`0008-provision-learner`). The role and its grants are still created
+ *                         by the provisioner/migration path; nothing in the runtime uses them,
+ *                         and removing them is a later slice's job (recorded in MFP-02a.md).
  *
  * What this does NOT do, stated plainly:
  *   - It does not deploy anything and does not create the *database* itself; the operator
@@ -307,10 +311,13 @@ export async function applyMigrations(pool, config) {
 /**
  * The narrow stopgap for the sign-up allowance insert (MFP-01 §2.4, finding: owner MFP-02a).
  *
- * `sessions.mjs:129-131` inserts an `entitlements` row at sign-up; the restricted roles have no
- * INSERT on `entitlements`, so the runtime used to borrow a **superuser** pool for it. Until
- * MFP-02a adds the `SECURITY DEFINER` `provision_learner` function, the runtime uses this role
- * instead. Its whole surface: `INSERT` on `entitlements`, `SELECT(owner_id)` on `entitlements`
+ * `sessions.mjs:129-131` inserted an `entitlements` row at sign-up; the restricted roles have no
+ * INSERT on `entitlements`, so the runtime used to borrow a **superuser** pool, and then this
+ * role. MFP-02a replaced it: the runtime calls `provision_learner` (migration `0008`) and opens
+ * no provisioner pool. This function stays because the *provisioner/checker* path still grants
+ * it; nothing in the running server uses it any more, and revoking it is a later slice's job.
+ *
+ * Its whole surface: `INSERT` on `entitlements`, `SELECT(owner_id)` on `entitlements`
  * and nothing else — no UPDATE/DELETE, no other table, no CREATEROLE/CREATEDB, NOBYPASSRLS.
  *
  * Why the read side is needed: `sessions.mjs` writes `ON CONFLICT (owner_id) DO NOTHING`.
@@ -318,7 +325,8 @@ export async function applyMigrations(pool, config) {
  * a bare INSERT grant fails with `permission denied` (no SELECT) and then
  * `new row violates row-level security policy` (a SELECT grant but no visible row). The
  * column-level grant plus the read policy is the minimum that makes the existing statement work
- * without editing `sessions.mjs`; MFP-02a removes the need for both.
+ * without editing `sessions.mjs`; MFP-02a replaced that need with `provision_learner` and the
+ * runtime no longer opens this pool.
  */
 export async function grantProvisionerRights(pool, config) {
   const s = ident(config.schema);
@@ -423,10 +431,11 @@ export async function schemaBehind(pool, config) {
 }
 
 /**
- * The **runtime** pools: restricted roles only. No `admin`, no `migration`, so a running server
- * cannot change the schema and does not hold a superuser. `provisioner` is the narrow sign-up
- * stopgap (see `grantProvisionerRights`); `behind` says whether `/api/ready` must answer
- * `schema_behind`.
+ * The **runtime** pools: restricted roles only. No `admin`, no `migration`, and — as of MFP-02a —
+ * no `provisioner` either: sign-up's allowance insert goes through the migration-owned
+ * `SECURITY DEFINER` `provision_learner` function (migration `0008-provision-learner`), which the
+ * auth role may execute, so the runtime has no pool that can write `entitlements` directly.
+ * `behind` says whether `/api/ready` must answer `schema_behind`.
  */
 export async function openRuntimePools({ config = persistentConfig() } = {}) {
   const runtime = {
@@ -435,13 +444,11 @@ export async function openRuntimePools({ config = persistentConfig() } = {}) {
     learner: persistentRolePool(config, 'learner', { max: 4 }),
     worker: persistentRolePool(config, 'worker', { max: 4 }),
     deletion: persistentRolePool(config, 'deletion', { max: 4 }),
-    provisioner: persistentRolePool(config, 'provisioner', { max: 2 }),
     poolRoles: {
       auth: config.roles.auth,
       learner: config.roles.learner,
       worker: config.roles.worker,
       deletion: config.roles.deletion,
-      provisioner: config.roles.provisioner,
     },
   };
   runtime.behind = await schemaBehind(runtime.learner, config);

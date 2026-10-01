@@ -12,10 +12,19 @@
  * role, which can touch only `"user"`, `session`, `account` and `verification`.
  * It cannot read `attempts`, `drafts` or `submissions`.
  *
- * The only privileged step is provisioning a synthetic entitlement allowance at
- * sign-up, which mirrors `spikes/auth-runtime/test.mjs`'s `account()` helper and
- * `isolation.test.mjs`'s `register()`. That runs through the fixture's admin pool
- * because the restricted roles have no INSERT right on `entitlements`.
+ * TWO PROVISIONING PATHS, and they are not the same thing (MFP-02a):
+ *
+ *   - **the runtime path** injects `provision(userId, allowance)`, which calls the migration-owned
+ *     `SECURITY DEFINER` function `provision_learner` on the restricted auth pool. The running
+ *     server holds no privileged pool at all (`server/runtime.mjs`, `server/accounts.mjs`).
+ *   - **the disposable fixture path** (`fixture.mjs`, `owned-api-pg-check.mjs`) still passes
+ *     `adminPool` and inserts the allowance row through it. The fixture's `bootstrap.mjs` schema
+ *     is built from `spikes/` plus the shared builders and does not carry `provision_learner`;
+ *     it is a checker's world, and it keeps its own privileged step.
+ *
+ * A world that still uses an admin pool while the runtime does not is exactly the drift this
+ * slice removes — so the check `runtime-composition-check` asserts the ROLES the runtime's pools
+ * connect as, and `sign-up-provisions-allowance-without-admin` drives the runtime's own path.
  */
 
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
@@ -48,15 +57,19 @@ function tokenFrom(headers, cookieName) {
 }
 
 /**
- * @param {{pool: object, adminPool: object, allowance?: number, sessionTtlSeconds?: number, cookieName?: string}} options
- *   `pool` connects as the restricted auth role; `adminPool` is the fixture's
- *   privileged pool used only to provision a synthetic entitlement allowance.
+ * @param {{pool: object, adminPool?: object, provision?: Function, allowance?: number, sessionTtlSeconds?: number, cookieName?: string}} options
+ *   `pool` connects as the restricted auth role. Exactly one provisioning path is used: the
+ *   injected `provision(userId, allowance)` (the runtime's, which calls `provision_learner`), or
+ *   `adminPool` (the disposable fixture's). Neither is required when `allowance` is null.
  */
 export function createPostgresSessions({
-  pool, adminPool, allowance = 10, sessionTtlSeconds = 3600, cookieName = COOKIE_DEFAULT,
+  pool, adminPool = null, provision = null, allowance = 10, sessionTtlSeconds = 3600, cookieName = COOKIE_DEFAULT,
 } = {}) {
   if (!pool || typeof pool.connect !== 'function') throw new TypeError('createPostgresSessions requires a pg Pool');
-  if (!adminPool || typeof adminPool.query !== 'function') throw new TypeError('createPostgresSessions requires an admin Pool');
+  if (allowance !== null && allowance !== undefined
+    && typeof provision !== 'function' && (!adminPool || typeof adminPool.query !== 'function')) {
+    throw new TypeError('createPostgresSessions requires a provisioning path: provision(userId, allowance) or an admin Pool');
+  }
 
   async function inTransaction(work) {
     const client = await pool.connect();
@@ -89,8 +102,12 @@ export function createPostgresSessions({
      * Fixture-only count of session rows. On a **persistent** installation (OWNAPI-03) the
      * table keeps every earlier run's sessions, so pass a `userId` to scope the count to one
      * account; without one this is the absolute total across the whole installation.
+     *
+     * This is a test hook, so it needs the privileged pool a check (never the runtime) supplies;
+     * the runtime has none and does not call it.
      */
     async liveSessions(userId) {
+      if (!adminPool) throw new Error('liveSessions is a fixture-only hook and needs an admin pool; the runtime holds none');
       const row = userId === undefined
         ? (await adminPool.query('SELECT count(*)::int AS n FROM session')).rows[0]
         : (await adminPool.query('SELECT count(*)::int AS n FROM session WHERE "userId" = $1', [userId])).rows[0];
@@ -124,11 +141,17 @@ export function createPostgresSessions({
           const cookie = await issueSession(client, id);
           return { ...cookie, userId: id };
         }).then(async (created) => {
-          // Synthetic allowance, provisioned as the fixture's privileged step.
+          // The allowance: through the runtime's `provision_learner`, or through the fixture's
+          // privileged pool. Never both, and never the restricted roles (they have no INSERT on
+          // `entitlements`, which is the point).
           if (allowance !== null && allowance !== undefined) {
-            await adminPool.query(
-              'INSERT INTO entitlements(owner_id, allowance) VALUES($1, $2) ON CONFLICT (owner_id) DO NOTHING',
-              [id, allowance]);
+            if (typeof provision === 'function') {
+              await provision(id, allowance);
+            } else {
+              await adminPool.query(
+                'INSERT INTO entitlements(owner_id, allowance) VALUES($1, $2) ON CONFLICT (owner_id) DO NOTHING',
+                [id, allowance]);
+            }
           }
           return { setCookie: created.setCookie };
         });
