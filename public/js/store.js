@@ -279,6 +279,21 @@ export function clearAccountScope({ forget = false } = {}) {
   return getAccountScope();
 }
 
+/**
+ * The current account scope, as an opaque token. A view that awaits something outside the
+ * store (an AI round trip) takes one before the await and writes learner state afterwards
+ * only if `isScopeCurrent(token)`: a sign-out, expiry or switch in between moves the scope,
+ * and the answer then belongs to the previous learner (SESSION-BOUNDARY-02 F2).
+ */
+export function scopeToken() {
+  ensureScopeLoaded();
+  return scopeEpoch;
+}
+
+export function isScopeCurrent(token) {
+  return token === scopeEpoch;
+}
+
 /** True when progress may be read from / written to the server in the current mode. */
 function progressServerEnabled() {
   return scopeMode !== 'signed-out';
@@ -1010,6 +1025,10 @@ export function unexploredTags(allTags, limit = 4) {
 /* ----------------------------------------------------------- error notebook */
 
 export function addError(e) {
+  // Signed out, the page holds no learner text: a notebook entry is refused, so a late
+  // writer that is not fenced itself still cannot put text where the notebook renders it.
+  load();
+  if (scopeMode === 'signed-out') return null;
   const item = {
     id: `e${Date.now()}${Math.floor(Math.random() * 1000)}`,
     t: Date.now(),

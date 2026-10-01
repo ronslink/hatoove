@@ -13,6 +13,9 @@
  *     on the two unconfirmed branches the learner is told (SESSION-BOUNDARY-02 F1);
  *   * NO LATE REPAINT: a progress response for the account that arrives AFTER the page signed
  *     out does not repaint the account's work (view, badge, Konto state or storage);
+ *   * NO LATE WRITING FEEDBACK: with a STUBBED AI provider, a writing grading held across a
+ *     sign-out or an account switch puts no text in the notebook, records no attempt and
+ *     reaches no storage; a signed-out page refuses a notebook entry (SESSION-BOUNDARY-02 F2);
  *   * the single-user path is unchanged with accounts disabled (the record shows, 12 views);
  *   * no console errors; desktop 1440 px and phone 390 px screenshots.
  *
@@ -48,7 +51,13 @@ const A = Object.freeze({
   password: 'synthetic-pass-a-123',
   marker: `SYNTH-SB-NOTEBOOK-${RUN}`,
 });
+const B = Object.freeze({
+  email: `synthetic.sb-b.${RUN}@example.invalid`,
+  password: 'synthetic-pass-b-123',
+});
 const LEGACY_MARKER = `SYNTH-SB-LEGACY-${RUN}`;
+// The learner's own text as the stubbed grading's correction quotes it (F2).
+const W_MARKER = `SYNTH-SB-WRITING-${RUN}`;
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
@@ -192,8 +201,13 @@ async function startInProcessServer({ copyRoot, port, ownedApi }) {
   const handlers = server.listeners('request');
   server.removeAllListeners('request');
   const gate = { match: null, held: null, release: null };
+  // Synthetic answers that replace the real handler while set (the stubbed AI provider).
+  const stubs = [];
   server.on('request', (req, res) => {
-    const pass = () => { for (const handler of handlers) handler.call(server, req, res); };
+    const stub = stubs.find((s) => s.match(req));
+    const pass = stub
+      ? () => stub.answer(req, res)
+      : () => { for (const handler of handlers) handler.call(server, req, res); };
     if (gate.match && gate.match(req)) {
       gate.match = null;
       // Hold the RESPONSE: let the real handler compute it, delay delivering it.
@@ -213,6 +227,8 @@ async function startInProcessServer({ copyRoot, port, ownedApi }) {
   return {
     gate,
     holdNext(match) { gate.reached = false; gate.match = match; },
+    stub(match, answer) { stubs.push({ match, answer }); },
+    clearStubs() { stubs.length = 0; },
     cleanup: () => new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); }),
   };
 }
@@ -284,6 +300,56 @@ const viewText = (cdp) => cdp.evaluate(`return document.getElementById('view').i
 const badge = (cdp) => cdp.evaluate(`return (document.querySelector('[data-badge="notebook"]') || {}).textContent || ''`);
 const storageHasExpr = (text) => `Array.from({ length: localStorage.length }, (_, i) => localStorage.getItem(localStorage.key(i)) || '').some((v) => v.includes(${JSON.stringify(text)}))`;
 const storageHas = (cdp, text) => cdp.evaluate(`return ${storageHasExpr(text)}`);
+
+/**
+ * A stubbed AI provider for the writing view: `/api/config` says an operator key exists and
+ * `/api/ai` answers a fixed grading whose correction carries `marker` as the learner's own
+ * text. No provider is called.
+ */
+function stubWritingProvider(server, markerOf) {
+  server.stub((req) => req.method === 'GET' && req.url.startsWith('/api/config'), (req, res) => reply(res, 200, { configured: true, examDate: '' }));
+  const grading = {
+    criteria: [
+      { key: 'aufgabe', score: 60, points: 9, comment: 'synthetic' },
+      { key: 'kommunikation', score: 60, points: 6, comment: 'synthetic' },
+      { key: 'richtigkeit', score: 50, points: 6, comment: 'synthetic' },
+      { key: 'ausdruck', score: 50, points: 4, comment: 'synthetic' },
+    ],
+    total: 25, band: 'ausreichend', leitpunkteCovered: [true, true, false, false],
+    corrections: [{ original: '', corrected: 'synthetic correction', explanation: 'synthetic' }],
+    strengths: ['synthetic'], priorities: ['synthetic'], modelAnswer: 'synthetic model answer',
+  };
+  server.stub((req) => req.method === 'POST' && req.url.startsWith('/api/ai'), (req, res) => {
+    req.resume();
+    req.on('end', () => {
+      const answer = { ...grading, corrections: [{ ...grading.corrections[0], original: markerOf() }] };
+      reply(res, 200, { ok: true, content: JSON.stringify(answer), finishReason: 'stop' });
+    });
+  });
+}
+
+/** Open the writing view as the current learner, ask for a grading and hold its answer. */
+async function startHeldWritingGrade(cdp, server, marker) {
+  await openView(cdp, 'writing', 'Schreiben');
+  await cdp.waitFor(`!!document.querySelector('#writing-text')`, 15000, 'writing view');
+  await cdp.evaluate(`return import('/js/ai.js').then((m) => m.refreshStatus()).then((s) => s.configured === true)`);
+  server.holdNext((req) => req.method === 'POST' && req.url.startsWith('/api/ai'));
+  const text = Array.from({ length: 12 }, (_, i) => `Ich schreibe dir heute Satz ${i + 1} ${marker}.`).join(' ');
+  await cdp.evaluate(`
+    const t = document.querySelector('#writing-text');
+    t.value = ${JSON.stringify(text)};
+    t.dispatchEvent(new Event('input'));
+    document.querySelector('[data-grade]').click(); return true;`);
+  const deadline = Date.now() + 15000;
+  while (!server.gate.reached && Date.now() < deadline) await sleep(100);
+  return server.gate.reached === true;
+}
+
+/** What the page's store holds from the writing feedback path. */
+const writingTrace = (cdp, marker) => cdp.evaluate(`return import('/js/store.js').then((m) => ({
+  notebook: m.listErrors({ includeResolved: true }).some((e) => JSON.stringify(e).includes(${JSON.stringify(marker)})),
+  writingAttempts: m.getState().history.filter((h) => h.source === 'writing').length,
+}))`);
 
 /** Wait until no debounced progress save is still queued in the page. */
 async function saveSettled(cdp) {
@@ -450,6 +516,51 @@ async function main(argv) {
     await cdp.waitFor(`!!document.querySelector('[data-signout]')`, 15000, 'A resolved again once online');
     await cdp.click('[data-signout]');
     await cdp.waitFor(`!!document.querySelector('#account-signup-form')`, 15000, 'signed out online');
+
+    /* ------------------- LATE WRITING FEEDBACK (SESSION-BOUNDARY-02 F2) */
+    // The writing view writes learner state after an AI round trip. With a stubbed provider,
+    // its answer is held across a sign-out and across a switch; neither may land.
+    let writingMarker = `${W_MARKER}-control`;
+    stubWritingProvider(enabled, () => writingMarker);
+    await signInThroughKonto(cdp, A);
+    // Control: with nothing changing while it is held, the same stubbed grading DOES land -
+    // so the checks below cannot pass merely because the stub or the view failed.
+    const controlHeld = await startHeldWritingGrade(cdp, enabled, writingMarker);
+    enabled.gate.release?.();
+    await sleep(1500);
+    const control = await writingTrace(cdp, writingMarker);
+    record('late-writing-control-feedback-lands-when-nothing-changes', controlHeld && control.notebook && control.writingAttempts > 0, JSON.stringify(control));
+    writingMarker = W_MARKER;
+    record('late-writing-scenario-holds-the-grading-before-sign-out', await startHeldWritingGrade(cdp, enabled, W_MARKER), 'stubbed /api/ai answer held, A signed in');
+    await cdp.evaluate(`return import('/js/account.js').then((m) => m.session().signOut()).then(() => true)`);
+    enabled.gate.release?.();
+    await sleep(1500);
+    const afterSignOutWriting = await writingTrace(cdp, W_MARKER);
+    record('late-writing-feedback-puts-no-text-in-the-notebook-after-sign-out', !afterSignOutWriting.notebook, JSON.stringify(afterSignOutWriting));
+    record('late-writing-feedback-records-no-attempt-after-sign-out', afterSignOutWriting.writingAttempts === 0, JSON.stringify(afterSignOutWriting));
+    await openView(cdp, 'notebook', 'Fehlerheft');
+    record('late-writing-feedback-is-not-painted-in-the-signed-out-notebook', !(await viewText(cdp)).includes(W_MARKER), 'notebook view text scanned');
+    // Defence in depth: the store itself refuses a notebook entry on a signed-out page.
+    const refused = await cdp.evaluate(`return import('/js/store.js').then((m) => { m.addError({ prompt: ${JSON.stringify(`${W_MARKER}-direct`)}, source: 'writing' }); return m.listErrors({ includeResolved: true }).length; })`);
+    record('a-signed-out-page-refuses-a-notebook-entry', refused === 0, `notebook entries after a direct addError: ${refused}`);
+
+    await signInThroughKonto(cdp, A);
+    record('late-writing-scenario-holds-the-grading-before-a-switch', await startHeldWritingGrade(cdp, enabled, W_MARKER), 'stubbed /api/ai answer held, A signed in');
+    // The switch: B signs up on the same page while A's grading is still on the wire.
+    await cdp.evaluate(`return import('/js/account.js').then((m) => m.session().signUp({ name: 'SYNTHETIC B', email: ${JSON.stringify(B.email)}, password: ${JSON.stringify(B.password)} })).then(() => true)`);
+    enabled.gate.release?.();
+    await sleep(1500);
+    const afterSwitchWriting = await writingTrace(cdp, W_MARKER);
+    const nowB = await cdp.evaluate(`return import('/js/store.js').then((m) => m.getAccountScope().accountId)`);
+    record('late-writing-feedback-for-a-does-not-land-in-b', nowB === synthetic.idOf(B.email) && !afterSwitchWriting.notebook && afterSwitchWriting.writingAttempts === 0, `scope is B: ${nowB === synthetic.idOf(B.email)}; ${JSON.stringify(afterSwitchWriting)}`);
+    await saveSettled(cdp);
+    record('late-writing-feedback-for-a-does-not-reach-storage', !(await storageHas(cdp, W_MARKER)), 'localStorage scanned after the switch');
+    enabled.clearStubs();
+    await cdp.evaluate(`return import('/js/ai.js').then((m) => m.refreshStatus()).then(() => true)`);
+    await openView(cdp, 'account', 'Konto');
+    await cdp.waitFor(`!!document.querySelector('[data-signout]')`, 15000, 'sign-out (B)');
+    await cdp.click('[data-signout]');
+    await cdp.waitFor(`!!document.querySelector('#account-signup-form')`, 15000, 'signed out (B)');
 
     /* ------------------------- the single-user exam date never reaches an account */
     const sharedDate = '2030-05-05';
