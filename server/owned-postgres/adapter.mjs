@@ -176,6 +176,51 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       });
     },
     /**
+     * LIBRARY-SEED-01 — the B1 core vocabulary.
+     *
+     * There is no secret side to withhold here and no split to perform: unlike the objective corpus,
+     * a lexicon holds no answers. A learner-facing dictionary is the entire content, which is why this
+     * method returns every column of its table and the table has no sibling.
+     *
+     * `q` is a SEARCH, not a filter expression: it is matched with `ILIKE` against the German headword
+     * and the English gloss and is bounded by `limit`, so a learner cannot ask the server to
+     * materialise all 300 rows on every keystroke. The parameter is passed as a VALUE through the
+     * driver, never interpolated into the SQL.
+     */
+    async listVocab(owner, { examId = null, pos = null, q = null, limit = 50, serveReview = 'approved+unreviewed' } = {}) {
+      note('listVocab');
+      // The lexicon's review status lives on its ONE provenance row, so the serving policy is
+      // honoured by a join rather than by a column on every word. An explicit `approved` therefore
+      // serves nothing, exactly as for the task and objective catalogues.
+      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      return settle(owner, async (client) => {
+        const rows = (await client.query(
+          `SELECT v.entry_id, v.exam_id, v.de, v.en, v.pos, v.plural, v.example, v.example_en,
+                  c.review_status, c.rights_status
+             FROM vocab_entry v
+             JOIN content_version c ON c.content_version_id = v.content_version_id
+            WHERE v.exam_id = COALESCE($1, v.exam_id)
+              AND ($2::text IS NULL OR v.pos = $2)
+              AND ($3::text IS NULL OR v.de ILIKE '%' || $3 || '%' OR v.en ILIKE '%' || $3 || '%')
+              AND c.review_status = ANY($4::text[])
+            ORDER BY v.ordinal
+            LIMIT $5`,
+          [examId, pos, q, statuses, limit])).rows;
+        return rows.map((row) => ({
+          entry_id: row.entry_id,
+          exam_id: row.exam_id,
+          de: row.de,
+          en: row.en,
+          pos: row.pos,
+          plural: row.plural,
+          example: row.example,
+          example_en: row.example_en,
+          review_status: row.review_status,
+          rights_status: row.rights_status,
+        }));
+      });
+    },
+    /**
      * Create an owned attempt bound to an exact task/rubric version (SAAS-MODEL-01 Step 1).
      * `binding` defaults to the canonical writing task (`content-seed.mjs`); a caller that has
      * a task-selection route (SAAS-RESUME-01) can pass the chosen one. The composite foreign

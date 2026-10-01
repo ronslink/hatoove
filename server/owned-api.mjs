@@ -83,7 +83,7 @@ const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry'
  * An absent catalogue must disable the CATALOGUE, in the way an absent settings port disables
  * settings and an absent deletion port disables deletion, and leave the rest of the product alone.
  */
-const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets'];
+const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'listVocab'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -421,6 +421,27 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
       return reply(200, await datastore.listObjectiveSets(owner, { examId: exam, family, serveReview }));
+    }
+    if (pathname === '/api/v1/vocab' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
+      /*
+       * LIBRARY-SEED-01 — the B1 core vocabulary, 300 entries.
+       *
+       * `q` is bounded and `limit` is fixed by the server. A learner may narrow the lexicon; the
+       * server decides how much of it one response may carry, so a crafted request cannot ask for the
+       * whole table on every keystroke.
+       */
+      const pos = query.get('pos');
+      if (pos !== null && !/^(noun|verb|adj|adv|phrase)$/.test(pos)) fault(422, 'invalid_pos');
+      const q = query.get('q');
+      if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      return reply(200, await datastore.listVocab(owner, {
+        examId: exam, pos, q: q === null ? null : q.trim(), serveReview,
+      }));
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId']);

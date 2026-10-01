@@ -229,6 +229,24 @@ try{
   assert.equal(listening.json.length,0,'HV must serve NOTHING while audio does not exist, got '+listening.json.length);
   assert.equal((await request('GET','/api/v1/objective-sets?family=lv1',undefined,cookie)).status,422,'a lowercase family must be refused, not silently accepted');
   passed('the objective route serves 15 sets / 120 items with NO key, and withholds listening until audio exists');
+
+  // LIBRARY-SEED-01 — the vocabulary lexicon. 300 entries are authored; the SERVER decides how many
+  // one response may carry, so a crafted request cannot ask for the whole table on every keystroke.
+  assert.equal((await request('GET','/api/v1/vocab')).status,401,'/api/v1/vocab must require a session');
+  const vocab=await request('GET','/api/v1/vocab',undefined,cookie);
+  assert.equal(vocab.status,200,vocab.text);
+  assert.ok(Array.isArray(vocab.json)&&vocab.json.length===50,'the lexicon must be bounded to 50 per response, got '+(vocab.json&&vocab.json.length));
+  assert.ok(vocab.json.every((e)=>typeof e.de==='string'&&typeof e.en==='string'&&typeof e.review_status==='string'),'every entry must carry its German headword, gloss and review_status');
+  const search=await request('GET','/api/v1/vocab?q=erziehung',undefined,cookie);
+  assert.equal(search.status,200);
+  assert.equal(search.json.length,1,'searching "erziehung" must find exactly the one headword, got '+search.json.length);
+  assert.ok(/Erziehung/.test(search.json[0].de),'the search must match on the German headword');
+  const nouns=await request('GET','/api/v1/vocab?pos=noun',undefined,cookie);
+  assert.equal(nouns.status,200);
+  assert.ok(nouns.json.every((e)=>e.pos==='noun'),'a pos filter must return only that part of speech');
+  assert.equal((await request('GET','/api/v1/vocab?q=v',undefined,cookie)).status,422,'a one-character search must be refused rather than run');
+  assert.equal((await request('GET','/api/v1/vocab?pos=bogus',undefined,cookie)).status,422,'an unknown part of speech must be refused');
+  passed('the lexicon serves up to 300 words, server-bounded, searchable, filterable, and refuses bad input');
   /*
    * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them
    * was tested wrongly.
