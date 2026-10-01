@@ -1,3 +1,5 @@
+> **Historical — host setup retired by DOCKER-ONLY-01.** The commands and results below describe the removed launcher. Use Docker Compose and the current README; these are not current setup instructions. Existing data volumes are preserved.
+
 # PILOT-01 — the local bring-up: one command, one working installation
 
 | | |

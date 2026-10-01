@@ -1,3 +1,5 @@
+> **Historical local-interface record.** The installer and host launch path described below are retired by DOCKER-ONLY-01. Use Docker Compose and README.md for the current server. Do not execute historical installation steps.
+
 # Certa Academy interface — 23 September 2026
 
 The chosen direction is a modern exam academy: white study surfaces, a deep navy navigation rail, restrained blue actions and clear, readable typography. The existing Certa name is retained as the working identity.

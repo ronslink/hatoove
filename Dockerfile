@@ -22,7 +22,10 @@ WORKDIR /app
 COPY server/owned-postgres/package.json server/owned-postgres/package-lock.json ./server/owned-postgres/
 RUN npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
 
-COPY . .
+COPY package.json server.js ./
+COPY server/ ./server/
+COPY public/ ./public/
+COPY data/ ./data/
 
 # Run as the unprivileged `node` user that the base image already provides. The runtime must hold
 # restricted database roles; it should not also be root inside its own container.
@@ -31,9 +34,5 @@ USER node
 
 EXPOSE 4321
 
-# The container binds 0.0.0.0 so the published port reaches it; loopback is still one of its own
-# interfaces, so this probe works without leaving the container.
-HEALTHCHECK --interval=10s --timeout=4s --start-period=20s --retries=6 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.B1PREP_PORT||4321)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-
+# Health probes belong to the service: the worker and migrator do not listen on HTTP.
 CMD ["node", "server.js"]

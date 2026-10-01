@@ -26,6 +26,9 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+DOCKER-ONLY-01 retires tools/local-bringup-check.mjs with tools/local-bringup.mjs. Its host process/container orchestration is removed, not counted as a pass. The persistent-server properties (migrations, restricted roles, seeded catalogue, idempotency, readiness, worker and account persistence) are retargeted to the isolated Compose acceptance recorded in DOCKER-ONLY-01.md. Full product-journey acceptance remains pending and is not claimed by a server bring-up test.
+
+
 | Check | Leg(s) | Property | Decision | Reason | Replacement | Commit | Slice |
 |---|---|---|---|---|---|---|---|
 | `tools/mock-outcome-browser-check.mjs` (**CI step removed**) | `no-fabricated-score-when-unassessed` (P1), `submitted-text-stays-accessible` (P2), `no-pass-or-grade-band-claim` (P3), `no-horizontal-overflow` (P4) | **P1** — when the assessment is unavailable the writing shows as `unbewertet` and never a fabricated score. **P2** — submitted text stays accessible. **P3** — no "Bestanden?"/grade-band/readiness claim. **P4** — the mock layout does not scroll horizontally | **P1–P3 REPLACE; P4 DELETE** | The check spawns `node server.js` as a **local single-user** server (`mock-outcome-browser-check.mjs:115-126`, `B1PREP_PROGRESS_FILE`, no account configuration). The new direction **removes local single-user mode**, so the check cannot boot its server — this is the red `Rendered behaviour` job on PR #82. Keeping local mode alive to feed one check is exactly what the new direction ends | **P1–P3** → `tools/writing-result-browser-check.mjs` leg `failed-or-pending-assessment-renders-unassessed` (**slice MFP-08**, not yet written). **P4** → none; the mock view is deleted in MFP-11a | `MFP-00` (this row's commit) | MFP-00 |

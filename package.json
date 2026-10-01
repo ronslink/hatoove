@@ -3,17 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Adaptive AI coach for the telc Deutsch B1 exam - all five subtests, dynamic questions, weakness tracking.",
+  "description": "Hatoove multi-user exam preparation server, run with Docker Compose.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
     "check": "node tools/check.js",
     "test:e2e": "node tools/e2e.js",
     "test:ai": "node tools/e2e-ai.js",
     "tts": "node tools/tts-check.js",
     "ai:live": "node tools/ai-live.js",
     "icon": "node tools/make-icon.js",
-    "mock:ai": "node tools/mock-deepseek.js"
+    "mock:ai": "node tools/mock-deepseek.js",
+    "start": "docker compose up -d --build"
   },
   "engines": {
     "node": ">=20"

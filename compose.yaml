@@ -1,10 +1,10 @@
-# PILOT-01b — the local server stack.
+# DOCKER-ONLY-01 — the server stack; Docker Compose is the supported launcher.
 #
 #   docker compose up -d --build      bring the whole server up
 #   docker compose ps                 see it
 #   docker compose logs -f app        follow the API
 #   docker compose down               stop it (keep the database)
-#   docker compose down -v            stop it and DESTROY the local database
+# Database volumes are retained by down. Removing them is a separate data-deletion action.
 #
 # The whole product runs in containers. The host needs Docker and nothing else — no Node install,
 # no `npm install`, no "works on my machine". That is the difference between a local single-user
@@ -80,6 +80,12 @@ services:
         condition: service_completed_successfully
     ports:
       - "127.0.0.1:${HATOVE_APP_PORT:-4300}:4321"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4321/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      start_period: 20s
+      retries: 6
     restart: unless-stopped
 
   # The worker is a separate container on purpose: the runtime must not carry the worker's

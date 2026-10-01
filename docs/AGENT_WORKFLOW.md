@@ -6,6 +6,8 @@ Use the [revised implementation plan](../IMPLEMENTATION_PLAN.md), [board](../wor
 
 The [dispatch runbook](AGENT_RUNBOOK.md) records the installed one-shot interfaces, persistent paths, non-root Hermes ownership requirement and credential-free Git bundle handoff.
 
+**Runtime:** use Docker Compose for the server stack. Host-only installation/bootstrap scripts are retired; test against isolated Compose projects and synthetic records. Never remove an existing volume as setup.
+
 ## Canonical local location
 
 New local work uses `D:\Hatoove`; coordinator tasks/results use `D:\Hatoove\handoff\ron-agent`. Follow [WORKSPACE_LOCATION](WORKSPACE_LOCATION.md) for relocated designs and recovery evidence. The original heartbeat remains paused, and no old lease is renewed by the move. Independent remote/container checkouts remain independent.

@@ -4,6 +4,8 @@
 
 Ron relocated local work to **D:\Hatoove** on 1 October 2026. Use this repository for new local work; read `docs/WORKSPACE_LOCATION.md`. The design reference is `D:\Hatoove\design`, and the shared coordinator handoff is `D:\Hatoove\handoff\ron-agent`. Earlier OneDrive/D-drive paths in historical records are recovery references. Keep local handoffs, design originals and `.qa` recovery material out of commits. Relocation does not resume paused work or renew any lease.
 
+**Runtime direction (Ron, 1 October 2026):** Docker Compose is the supported execution path for the server, worker, migrations and PostgreSQL. Do not restore the retired host launcher or installer. Preserve existing data volumes; this change does not authorize production deployment.
+
 ## Product and design
 
 Hatoove is standalone exam preparation, initially for telc Deutsch B1 reading, language elements, listening and writing. Speaking, STT, school administration and overall-exam pass predictions are outside the pilot. **`PILOT_BUILD_PLAN.md` governs scope**, [MASTER-PLAN.md](MASTER-PLAN.md) sets delivery order and records progress, and `work/implementation/MFP-DESIGN-DECISIONS.md` supplies design/state acceptance. The writing-first minimum functional product and its `FUNCTIONAL-ROADMAP.md` are withdrawn — see MASTER-PLAN §10. **The product is multi-exam:** telc Deutsch B1 is the first exam package and recognised English tests are the next candidate, so keep the exam package, exam language, instruction language and purchasing market independent. Build the small new vanilla client under `public/app/`, then retire the old SPA. No framework or hosting migration is implied.

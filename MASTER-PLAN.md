@@ -45,6 +45,8 @@ The commercial hypothesis on record is a direct-to-learner, fixed-duration exam 
 
 ### Architecture now in force
 
+**Docker-only execution (Ron, 1 October 2026):** the server stack is started with Docker Compose. The separate host Node setup and local installer are retired by DOCKER-ONLY-01. This does not delete existing database volumes or authorize deployment. See [DOCKER-ONLY-01.md](work/implementation/DOCKER-ONLY-01.md).
+
 **The API is the product and the whole stack runs in containers.** The client is thin: it holds no
 state, no provider key and no grading logic, and it submits a reference and receives a result.
 
@@ -186,8 +188,8 @@ Ordered to **LM-1 and LM-2**. The state column is what is true at `59b1929`.
 
 | Slice | Purpose | State | Depends on |
 |---|---|---|---|
-| **PILOT-01** | **Local bring-up**: one command — a persistent local PostgreSQL, migrations through the single provisioning path, then API + worker on stubs. See [PILOT-01.md](work/implementation/PILOT-01.md) | **Delivered** — check 10/10, not reviewed, not merged | — |
-| **PILOT-01b** | **The local SERVER runs in containers**: one image for API/worker/migrate, `compose.yaml` with db → migrate → app + worker, and the bind host from config. The host needs Docker and nothing else | **Delivered** — verified by execution, not reviewed, not merged | PILOT-01 |
+| **PILOT-01** | Historical host bring-up; launcher and checker retired by DOCKER-ONLY-01 | **Retired** — earlier 10/10 is historical only | — |
+| **PILOT-01b / DOCKER-ONLY-01** | Docker Compose is the supported server launcher: db → migrate → app + worker; persistent volume; explicit runtime build context | **Under review** — see DOCKER-ONLY-01 for executed evidence | — |
 | **PILOT-01c** | **The page surface is auth-gated.** Before it, `GET /` served the app and `GET /data/seed.json` served **180 answer keys** to anyone. Public is only `/signin`, `/assets/design/**`, `/api/auth/**` and liveness | **Delivered** — 8/8 legs, not reviewed, not merged | PILOT-01b |
 | **PILOT-02** | **Runtime composition**: the server builds its API from `server/runtime.mjs`; sign-up provisions entitlements/settings through a `SECURITY DEFINER` function; the runtime opens **no** admin or migration pool. This is the unmerged PR #89 work, which must be re-verified rather than assumed | `74fb158`, **unverified** | PILOT-01 |
 | **PILOT-03** | **One runtime**: either removed flag present → refuse to start; required config missing → exit non-zero before `listen()`; `createServer()` defaults to not-ready; `/api/config`, `/api/progress`, `/api/ai`, `/api/ai/test` answer **404**; bind host from config | Planned | PILOT-02 |
@@ -208,7 +210,7 @@ Ordered to **LM-1 and LM-2**. The state column is what is true at `59b1929`.
 
 **Not yet, and each has a named blocker:** commercial checkout and market pricing (P-01/P-02/P-03 plus owner authorization); any hosting, DNS, TLS, email provider or payment configuration; live model calls (R10); on-device or embedded AI; speaking and STT (outside the pilot); a full written mock (needs reviewed content, timing and playback rules for every included section); institutional or teacher features.
 
-**First three dispatches.** *(1)* **PILOT-01** — **delivered** on `codex/pilot-01-local-bringup`: `node tools/local-bringup.mjs` brings a persistent local installation up and serves it at `http://127.0.0.1:4300`, with `tools/local-bringup-check.mjs` at 10 legs green. It is not independently reviewed and not merged. *(2)* **PILOT-02** — re-run PR #89's own checker against `74fb158` and establish what is actually true before trusting any of it, since the archived commit was never verified. *(3)* **PILOT-04** — the exam-scoping seam, because every later slice is cheaper if it lands before the objective and client work.
+**Next integration order.** Review DOCKER-ONLY-01 and the current shell/auth findings, then re-verify PILOT-02 runtime composition. Complete PILOT-03 before dependent PILOT-04 implementation; exam contract design may proceed independently. The retired host launcher is no longer an acceptance path.
 
 **Conventions carried forward from the retired plan, because they earned their place:** one writer per shared file; a check that fails on the base before the fix; push after every step and commit the checker **early even while it is failing**; a check that never completes is not evidence; when a check fails, suspect the check first; record the discrimination leg and not just the pass; set a record's status to what is true.
 
