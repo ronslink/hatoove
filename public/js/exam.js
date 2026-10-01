@@ -692,15 +692,13 @@ function renderWritingTask(el) {
     const ok = words >= 80 && words <= 140;
     count.innerHTML = `${words} Wörter ${ok ? '<span style="color:var(--good)">· im Zielbereich</span>' : words < 80 ? '<span class="dim">· noch zu kurz (Ziel ab 80)</span>' : '<span style="color:var(--warn)">· recht lang</span>'}`;
   };
-  on(textarea, 'input', updateCount);
   updateCount();
 
   /* Recoverable account draft (WRITING-SURFACE-01B). On the single-user path, or whenever
      the boundary refuses, this paints nothing and the view behaves exactly as before. */
   const draftStatus = el.querySelector('#w-draft-status');
   const renderToken = writingRender;
-  const surface = createWritingSurface({ openDraft: (id) => session().openDraft(id) });
-  writingSurface = surface;
+  let surface = null;
   const paintDraftStatus = () => {
     const s = surface.state();
     if (s.mode !== 'draft') {
@@ -713,6 +711,9 @@ function renderWritingTask(el) {
       ? 'Entwurf: auf dem Server liegt eine neuere Fassung – dein Text wurde nicht überschrieben.'
       : s.dirty ? 'Entwurf: noch nicht gespeichert.' : 'Entwurf gespeichert.';
   };
+  surface = createWritingSurface({ openDraft: (id) => session().openDraft(id), onState: paintDraftStatus });
+  writingSurface = surface;
+  on(textarea, 'input', () => { updateCount(); surface.change(textarea.value); });
   surface.enter(writingTaskId(writingSlot), { initialText: textarea.value }).then((entered) => {
     if (renderToken !== writingRender) return; // a newer render already took over
     if (typeof entered.text === 'string' && entered.text !== textarea.value) {

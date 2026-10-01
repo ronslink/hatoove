@@ -16,7 +16,9 @@
  *     `OwnedClientError('unauthenticated')` when the page is not signed in; that is a
  *     VIEW STATE, not a crash, so `enter()` resolves with `mode: 'local'`.
  *   - the public write is `save(text)`; state is read with `snapshot()` (synchronous).
- *   - `snapshot().status` is one of saved | unsaved | conflict | submitted | submit_pending.
+ *     `save()` resolves to {status:'saved'|'unchanged'|'conflict'}; it REJECTS on invalid
+ *     input, on a network failure (text kept in memory as unsaved) or with
+ *     `already_submitted` when the attempt was frozen elsewhere.
  *   - `close()` drops local text without contacting the server - never close while dirty.
  */
 export const WRITING_TASK_PREFIX = 'writing-sa1-';
@@ -33,6 +35,7 @@ export function writingTaskId(index) {
  * @param {number}   [options.debounceMs]  idle time before an autosave (default 1200)
  * @param {Function} [options.setTimeoutFn] injected scheduler (checks drive it by hand)
  * @param {Function} [options.clearTimeoutFn]
+ * @param {Function} [options.onState]     called with `state()` after every change
  */
 export function createWritingSurface(options = {}) {
   const openDraft = options.openDraft;
@@ -40,6 +43,7 @@ export function createWritingSurface(options = {}) {
   const debounceMs = Number.isFinite(options.debounceMs) ? options.debounceMs : 1200;
   const setTimeoutFn = typeof options.setTimeoutFn === 'function' ? options.setTimeoutFn : (fn, ms) => setTimeout(fn, ms);
   const clearTimeoutFn = typeof options.clearTimeoutFn === 'function' ? options.clearTimeoutFn : (id) => clearTimeout(id);
+  const onState = typeof options.onState === 'function' ? options.onState : null;
 
   let session = null;   // the draft session while signed in and open
   let mode = 'local';   // 'draft' (account) | 'local' (single-user / unavailable)
@@ -47,6 +51,8 @@ export function createWritingSurface(options = {}) {
   let taskId = null;
   let text = '';
   let lastError = null;
+  let timer = null;     // pending debounced autosave
+  let saving = null;    // in-flight save promise
 
   /** A copy of the current surface state, for the view and for a check. */
   function state() {
@@ -65,6 +71,15 @@ export function createWritingSurface(options = {}) {
     };
   }
 
+  function notify() {
+    if (!onState) return;
+    try { onState(state()); } catch { /* a view listener must not break the surface */ }
+  }
+
+  function clearTimer() {
+    if (timer !== null) { clearTimeoutFn(timer); timer = null; }
+  }
+
   /**
    * Enter the writing task. On the account path this opens the account's draft and returns
    * the SAVED text, which the view puts into the textarea. On the single-user path - or any
@@ -72,6 +87,7 @@ export function createWritingSurface(options = {}) {
    * behaviour is exactly what it was before this slice.
    */
   async function enter(nextTaskId, { initialText = '' } = {}) {
+    clearTimer();
     const id = String(nextTaskId);
     text = String(initialText ?? '');
     lastError = null;
@@ -84,6 +100,7 @@ export function createWritingSurface(options = {}) {
       reason = error && error.code === 'unauthenticated' ? 'single-user' : 'unavailable';
       lastError = error || null;
       taskId = id;
+      notify();
       return { mode, reason, taskId: id, text };
     }
     session = opened;
@@ -92,13 +109,61 @@ export function createWritingSurface(options = {}) {
     reason = '';
     const snap = session.snapshot();
     if (snap && typeof snap.text === 'string') text = snap.text;
+    notify();
     return { mode, reason, taskId: id, text };
   }
 
-  /** The learner typed: record the text. Saving is added in the next step. */
+  /**
+   * The learner typed. On the account path this schedules a debounced save; on the
+   * single-user path it only records the text, exactly as before this slice.
+   */
   function change(nextText) {
     text = String(nextText ?? '');
+    if (mode !== 'draft' || !session) { notify(); return; }
+    clearTimer();
+    const snap = session.snapshot();
+    const alreadySaved = snap && !snap.dirty && text === snap.text;
+    if (alreadySaved) { notify(); return; }
+    timer = setTimeoutFn(() => { timer = null; void flush(); }, debounceMs);
+    notify();
   }
 
-  return Object.freeze({ enter, change, state });
+  /**
+   * Write the learner's text through the boundary, now. Returns
+   *   {ok:true, status}                     the server holds the text (or already did)
+   *   {ok:false, reason:'conflict', ...}    a 409: nothing written, local text kept
+   *   {ok:false, reason:<code>}             invalid input, a network failure, already_submitted
+   */
+  async function flush() {
+    if (mode !== 'draft' || !session) return { ok: true, mode };
+    clearTimer();
+    if (saving) {
+      try { await saving; } catch { /* the outcome of the in-flight save is below */ }
+    }
+    if (mode !== 'draft' || !session) return { ok: true, mode };
+    const snap = session.snapshot();
+    if (!snap) return { ok: false, reason: 'closed' };
+    if (!snap.dirty && text === snap.text) { notify(); return { ok: true, status: snap.status }; }
+    const run = (async () => {
+      const outcome = await session.save(text);
+      if (outcome && outcome.status === 'conflict') {
+        return { ok: false, reason: 'conflict', conflict: outcome };
+      }
+      return { ok: true, status: outcome ? outcome.status : 'saved' };
+    })();
+    saving = run.then(
+      (result) => { saving = null; return result; },
+      (error) => { saving = null; throw error; },
+    );
+    try {
+      const result = await saving;
+      notify();
+      return result;
+    } catch (error) {
+      notify();
+      return { ok: false, reason: (error && error.code) || 'error', error };
+    }
+  }
+
+  return Object.freeze({ enter, change, flush, state });
 }

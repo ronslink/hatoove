@@ -110,6 +110,18 @@ async function signUp(t, tag) {
 }
 
 /**
+ * A second tab of the same browser profile. A freshly constructed client holds no account
+ * until it asks the server, exactly as a reloaded page does at boot; the boundary in
+ * account.js resolves identity before any learner data is read, so the check does too.
+ */
+async function reloadedTab(w, prof) {
+  const t = tab(w, prof);
+  const account = await t.client.refreshAccount();
+  assert.ok(account, 'the shared session cookie resolves the account in the second tab');
+  return t;
+}
+
+/**
  * The `openDraft` contract account.js exposes: throw `OwnedClientError('unauthenticated')`
  * unless the page is signed in, otherwise return an opened draft session.
  */
@@ -179,7 +191,7 @@ check('enter-restores-the-saved-text-on-return', async (ctx) => {
 
   // The learner leaves the screen: the view is rendered again with a fresh surface and a
   // fresh client (a "re-entry"), sharing only the browser profile (cookie jar + pointers).
-  const t2 = tab(w, prof);
+  const t2 = await reloadedTab(w, prof);
   const s2 = makeSurface(ctx, t2, prof, scheduler());
   const back = await s2.enter(TASK, { initialText: '' });
   assert.equal(back.mode, 'draft');
@@ -238,7 +250,7 @@ check('stale-save-is-refused-and-stored-text-unchanged', async (ctx) => {
   const attemptId = s1.state().attemptId;
 
   // A second tab of the same browser opens the SAME attempt at the same revision.
-  const t2 = tab(w, prof);
+  const t2 = await reloadedTab(w, prof);
   const s2 = makeSurface(ctx, t2, prof, scheduler());
   await s2.enter(TASK, { initialText: '' });
   assert.equal(s2.state().attemptId, attemptId, 'both tabs share the same attempt');
@@ -271,7 +283,7 @@ check('resolving-the-conflict-locally-writes-the-kept-text', async (ctx) => {
   const s1 = makeSurface(ctx, t1, prof, scheduler());
   await s1.enter(TASK, { initialText: '' });
   const attemptId = s1.state().attemptId;
-  const t2 = tab(w, prof);
+  const t2 = await reloadedTab(w, prof);
   const s2 = makeSurface(ctx, t2, prof, scheduler());
   await s2.enter(TASK, { initialText: '' });
   s1.change(TEXT_A);
