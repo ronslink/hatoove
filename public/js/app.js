@@ -8,7 +8,7 @@ import * as ai from './ai.js';
 import { icon } from './icons.js';
 import { examCountdown } from './engine.js';
 import { dashboardView, drillView, vocabView, vocabDrillView, notebookView, planView, settingsView } from './ui.js';
-import { accountView, accountNavHtml } from './account.js';
+import { accountView, accountNavHtml, session } from './account.js';
 import { paperView, writingView, speakingView, mockView, teardownExamViews } from './exam.js';
 import {
   referenceHubView,
@@ -233,8 +233,21 @@ function navigate(id, params = {}) {
   });
 }
 
+/**
+ * Repaint after an identity transition (sign-in, sign-out, account switch, expiry). The
+ * boundary has already replaced or cleared the learner record; what is on screen may still
+ * show the previous learner, so the badges and the open view are drawn again from the new
+ * state. The Konto view paints its own outcome.
+ */
+function onSessionChange() {
+  refreshBadges();
+  const current = shell.currentViewId();
+  if (current && current !== 'account') navigate(current);
+}
+
 async function boot() {
-  store.load();
+  // No learner data is read here: the store is opened by the session boundary below, only
+  // once the server has said who (if anyone) is signed in (SESSION-BOUNDARY-01).
 
   shell.registerView('home', { title: 'Übersicht', render: dashboardView });
   shell.registerView('drill', { title: 'Adaptive Übungen', render: drillView });
@@ -263,10 +276,15 @@ async function boot() {
   buildThemeToggle();
   buildDrawer();
 
-  // Progress is kept on disk by the server; localStorage is only a local cache.
-  // Reconcile BEFORE the first render so the app always opens on the true state,
-  // whichever browser or port you happen to use.
-  const sync = await store.syncFromServer();
+  // Identity first, then learner data. The boundary asks the server who is signed in, opens
+  // the matching progress scope and reconciles it with the server - all BEFORE the first
+  // render, so the app opens on the true state and never paints a stale or foreign record
+  // that is swapped a moment later. Without accounts (or never signed in) this is exactly
+  // the old single-user `syncFromServer()`.
+  const boundary = session();
+  const resolved = await boundary.resolve();
+  const sync = resolved.sync || { adopted: false, reachable: true };
+  boundary.subscribe(onSessionChange);
 
   // Server config next: it decides whether AI features are advertised.
   const cfg = await ai.refreshStatus();
@@ -299,6 +317,9 @@ async function boot() {
     if (document.visibilityState === 'hidden') {
       store.flushNow();
     } else {
+      // Another tab may have signed out or switched account meanwhile; the boundary
+      // notices, clears and repaints through onSessionChange.
+      await boundary.resolve();
       await ai.refreshStatus();
       refreshBadges();
     }
