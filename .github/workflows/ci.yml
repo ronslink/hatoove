@@ -149,6 +149,12 @@ jobs:
         run: node tools/session-boundary-check.mjs
       - name: The hosted runtime refuses by default
         run: node tools/saas-runtime-check.mjs
+      # CONFIG-ANON-01. The machine-global /api/config write (and its read) is gone from the
+      # hosted runtime. Four legs against a real server with NO cookie: anonymous POST and GET
+      # must be 404, the env file must not be rewritten, and an anonymous learner route must
+      # still refuse 401 (so the 404 is the route being gone, not a dead runtime).
+      - name: The unauthenticated machine-global config write is gone
+        run: node tools/coord-config-anon-probe.mjs
   # THE RENDERED CLAIMS WERE UNGATED TOO. Four browser checkers existed and CI ran none of them, so
   # everything they assert - that a refused sign-in does not paint a signed-in state, that the
   # Settings view offers no provider field, that changing the explanation language does NOT translate
