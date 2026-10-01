@@ -45,19 +45,24 @@ The commercial hypothesis on record is a direct-to-learner, fixed-duration exam 
 
 ---
 
-## 2. The immediate objective: a working SaaS application locally
+## 2. The immediate objective: a working multi-exam SaaS application locally
 
-**Local milestone LM-1.** On this machine, with PostgreSQL available, one documented sequence brings the product up — disposable database, migrations applied by the migration command only, the telc B1 written package seeded, API and worker running, provider/email/payment as stubs — and a learner can:
+There are two local milestones, and the objective needs both. LM-1 makes the **product** work locally; LM-2 makes the **platform** work locally. A single-exam local app would satisfy neither the multi-exam framing nor the claim that a second exam is additive.
+
+**LM-1 — the product works locally.** On this machine, with PostgreSQL available, one documented sequence brings the product up — disposable database, migrations applied by the migration command only, the telc B1 written package seeded, API and worker running, provider/email/payment as stubs — and a learner can:
 
 > register with an invite → sign in → set exam date and explanation language → see the servable task list → answer reading and language-element items marked **on the server** → write and submit a response → leave → return **on a fresh browser profile** to the exact saved text and saved feedback **with a first-language explanation** → revise → see factual history → export → delete the account.
 
-**Evidence standard for LM-1** (executed output, never a claim):
+**LM-2 — the platform works locally.** A second exam package (PILOT-11) completes the same journey through the same code, with **no change to application source** and **no migration of learner data**. That is what makes the result multi-exam rather than a German app, and §6 exists to keep this cheap: if the exam-scoping seams land *after* the client is written, LM-2 becomes a rewrite instead of a content pack.
+
+**Evidence standard for LM-1 and LM-2** (executed output, never a claim):
 
 1. `node tools/journey-api-check.mjs` reports **0 failed**, and every leg that is not yet implemented prints `PENDING <slice>` and **does not count as a pass** — the counter already behaves this way, which is why it is the programme's measure of "functional".
 2. A browser run of the same journey on a fresh profile, on desktop and a 390 px viewport, with the old client retired from `/`.
 3. The bring-up sequence executed from a clean state, including a deliberate failure leg: missing configuration exits non-zero **before** `listen()`.
+4. **LM-2 only:** the second exam's legs run the same assertions against the same runtime, and a check proves the first exam's learner records are untouched by the second exam's presence — the pairing that fails if exam identity leaks into global keys (§6).
 
-LM-1 is a *functional* milestone on stubs. It closes no human gate and establishes no exam validity, model quality or production readiness.
+Both are *functional* milestones on stubs. They close no human gate and establish no exam validity, model quality or production readiness.
 
 ---
 
@@ -79,7 +84,7 @@ The platform substrate is real, and it is why a local milestone is reachable at 
 
 **Content on hand:** 24 objective sets / 180 keyed slots / 6 writing prompts, each slot carrying an inline German `why`; **0 tracked audio files**, so the 9 listening sets are unservable (`docs/content/DISCOVERY.md:89`). No `data/*.json` file carries `rights_status` or `review_status` — governance exists only as database columns, and every seeded row is `unreviewed` / `unknown`.
 
-**What does not exist yet — each of these is on the path to LM-1:**
+**What does not exist yet — each of these is on the path to LM-1 and LM-2:**
 
 | Missing | Consequence |
 |---|---|
@@ -160,7 +165,7 @@ The codebase has **no exam entity at all** — a repo-wide search for `exam_id|e
 
 ## 7. Delivery order
 
-Ordered to **LM-1**. The state column is what is true at `59b1929`.
+Ordered to **LM-1 and LM-2**. The state column is what is true at `59b1929`.
 
 | Slice | Purpose | State | Depends on |
 |---|---|---|---|
@@ -174,9 +179,9 @@ Ordered to **LM-1**. The state column is what is true at `59b1929`.
 | **PILOT-08** | **The new client** under `public/app/`: shell, invite/password auth screens, setup, task list, objective runner, writing, result with explanation, history, settings, plus error/offline/conflict states. No learner state in `localStorage` | Planned — `public/app/` does not exist | PILOT-05, 06, 07 |
 | **PILOT-09** | **Speech synthesis** for explanations and pronunciation (§5), with a real per-language availability state | Planned | PILOT-07, 08 |
 | **PILOT-10** | **Listening package**: audio asset model with rights/checksum/duration, plus fixed reviewed recordings, play counts and failure recovery. **Gated on C-04**; TTS is not a substitute | Blocked | C-04 |
-| **PILOT-11** | **Second exam package** — a small English reading pack, to prove exam-scoped identity end to end without touching learner data | Planned | PILOT-05, 08 |
+| **PILOT-11** | **Second exam package** — a small English reading pack. Delivers **LM-2**: the same journey through the same code, with no source change and no learner-data migration | Planned | PILOT-05, 08 |
 | **PILOT-12** | **Account lifecycle**: export, hard delete, retention, late-job-after-deletion. Largely built (`DELETE /api/v1/account`; `ACCOUNT_DELETION_STEPS` at `adapter.mjs:228-240`) | Mostly built | PILOT-08 |
-| **PILOT-13** | **LM-1 acceptance run**: two learners, fresh browser, stale writes, duplicate clicks, account switching, slow/failed/malformed provider output, and a late job after deletion | Planned | PILOT-12 |
+| **PILOT-13** | **LM-1 + LM-2 acceptance run**: two learners, fresh browser, stale writes, duplicate clicks, account switching, slow/failed/malformed provider output, and a late job after deletion | Planned | PILOT-12 |
 
 **Not yet, and each has a named blocker:** commercial checkout and market pricing (P-01/P-02/P-03 plus owner authorization); any hosting, DNS, TLS, email provider or payment configuration; live model calls (R10); on-device or embedded AI; speaking and STT (outside the pilot); a full written mock (needs reviewed content, timing and playback rules for every included section); institutional or teacher features.
 
