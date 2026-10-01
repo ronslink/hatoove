@@ -346,6 +346,55 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       });
     },
     /**
+     * PILOT-22 — record one answered objective item, marked server-side.
+     *
+     * MARKING IS NOT DONE HERE, and deliberately: this connection is the LEARNER role, which is NOT
+     * granted `objective_key`. The comparison happens inside `mark_objective_item`, a SECURITY DEFINER
+     * function that reads the key as its owner and returns ONE BOOLEAN. Granting this role SELECT on
+     * the key to make marking possible would have undone the isolation the objective seed exists for.
+     *
+     * Evidence is APPEND-ONLY. Answering again adds a row; it does not rewrite the last one, because
+     * this table is the raw signal adaptive selection reads and a mutable score would be a claim
+     * rather than a record.
+     */
+    async answerObjectiveItem(owner, { setId, version = 'v1', itemId, answer, latencyMs = null } = {}) {
+      note('answerObjectiveItem');
+      const statuses = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? ['approved'] : ['approved', 'unreviewed'];
+      return settle(owner, async (client) => {
+        // The set must be one the deployment serves, and this also yields the exam/section the
+        // evidence is attributed to. A set that is withheld or absent is 404, not a silent record.
+        const set = first(await client.query(
+          `SELECT s.exam_id, s.family, s.section, s.version
+             FROM objective_set s
+             JOIN content_version c ON c.content_version_id = s.content_version_id
+            WHERE s.set_id = $1 AND s.version = $2 AND c.review_status = ANY($3::text[])`,
+          [setId, version, statuses]));
+        if (!set) fail(404, 'not_found');
+
+        let marked;
+        try {
+          marked = first(await client.query(
+            'SELECT mark_objective_item($1, $2, $3, $4::jsonb) AS correct',
+            [setId, version, itemId, JSON.stringify(answer)]));
+        } catch (error) {
+          // The function raises `unknown_item` rather than returning false, so a bad item id cannot
+          // be recorded as "the learner got it wrong".
+          if (/unknown_item/.test(error && error.message)) fail(422, 'unknown_item');
+          throw error;
+        }
+
+        const evidenceId = randomUUID();
+        await client.query(
+          `INSERT INTO item_evidence
+             (evidence_id, owner_id, exam_id, set_id, version, item_id, family, section, answer, correct, latency_ms)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)`,
+          [evidenceId, owner, set.exam_id, setId, version, itemId, set.family, set.section,
+            JSON.stringify(answer), marked.correct, latencyMs]);
+        return { evidence_id: evidenceId, item_id: itemId, correct: marked.correct };
+      });
+    },
+    /**
      * Create an owned attempt bound to an exact task/rubric version (SAAS-MODEL-01 Step 1).
      * `binding` defaults to the canonical writing task (`content-seed.mjs`); a caller that has
      * a task-selection route (SAAS-RESUME-01) can pass the chosen one. The composite foreign

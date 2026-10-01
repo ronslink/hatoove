@@ -310,6 +310,35 @@ try{
   assert.equal(speaking.json.sections.length,3,'speaking-guide holds 3 parts, got '+speaking.json.sections.length);
   assert.ok(speaking.json.sections[0].payload.minutes>0,'a speaking part must carry its timing');
   passed('writing and speaking guides are served (19 + 3 sections) with both languages on the checklist');
+
+  /*
+   * PILOT-22 — answering an objective item, marked SERVER-SIDE without the learner role ever seeing
+   * the key. This is the spine adaptive selection will read.
+   */
+  const answerSet = 'telc-deutsch-b1.lv1.01';
+  const post = (payload) => request('POST', `/api/v1/objective-sets/${answerSet}/answers`, payload, cookie);
+  assert.equal((await request('POST', `/api/v1/objective-sets/${answerSet}/answers`, { itemId: '1', answer: 'b' })).status,
+    401, 'answering must require a session');
+  const evidenceBefore = Number(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    'SELECT count(*) FROM hatoove.item_evidence']).trim());
+  const right = await post({ itemId: '1', answer: 'b', latencyMs: 1200 });
+  assert.equal(right.status,201,right.text);
+  assert.equal(right.json.correct,true,'the authored key for item 1 is b, so b must mark correct');
+  const wrong = await post({ itemId: '1', answer: 'c', latencyMs: 1300 });
+  assert.equal(wrong.status,201,wrong.text);
+  assert.equal(wrong.json.correct,false,'c is not the key for item 1 and must mark wrong');
+  // An unknown item RAISES rather than returning false: "wrong" and "no such item" must not look the
+  // same, or a bug in an item id would silently mark a learner down.
+  assert.equal((await post({ itemId: '999', answer: 'b' })).status,422,'an unknown item must be refused, not marked wrong');
+  assert.equal((await post({ itemId: '1' })).status,422,'an answer is required');
+  const evidenceAfter = Number(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    'SELECT count(*) FROM hatoove.item_evidence']).trim());
+  // TWO rows for the two ACCEPTED answers, and the refused 422 left NONE. That single number proves
+  // both properties at once: the same item answered twice is kept twice (append-only -- evidence is a
+  // record, not a score, and correcting a mistake must not erase having made it), AND a refused
+  // answer is not silently recorded as a wrong one.
+  assert.equal(evidenceAfter-evidenceBefore,2,'two accepted answers must leave exactly two rows and a refused one none, got '+(evidenceAfter-evidenceBefore));
+  passed('objective answers are marked server-side and recorded append-only, and an unknown item is refused');
   passed('the guide library serves 5 documents / 101 sections as an index plus one document, structure intact');
   /*
    * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them

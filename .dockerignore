@@ -8,8 +8,6 @@
 !server/**
 !public/
 !public/**
-!data/
-!data/**
 
 # Never include host dependencies, private state or credentials, even below a runtime directory.
 **/node_modules

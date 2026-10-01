@@ -84,6 +84,17 @@ const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry'
  * settings and an absent deletion port disables deletion, and leave the rest of the product alone.
  */
 const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'listVocab', 'listNouns', 'listGuides', 'readGuide'];
+/**
+ * PRACTICE is its own optional capability, for the same reason the catalogue is.
+ *
+ * It is NOT in `DATASTORE_METHODS`, because that list gates the ENTIRE owned API: adding one method to
+ * it once turned five checks that use an in-memory fake from green to "503 on every call". An
+ * in-memory datastore that cannot mark objective items should lose the PRACTICE routes, not the
+ * product.
+ */
+const PRACTICE_METHODS = ['answerObjectiveItem'];
+/** `/api/v1/objective-sets/{setId}/answers` — the set id is dotted (`telc-deutsch-b1.lv1.01`). */
+const OBJECTIVE_ANSWER_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})\/answers$/;
 /** `/api/v1/guides/{guideId}` — a closed slug shape, so an id can never reach SQL as anything else. */
 const GUIDE_RE = /^\/api\/v1\/guides\/([a-z][a-z0-9-]{0,63})$/;
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
@@ -272,6 +283,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
   const settingsWired = implementsAll(settings, SETTINGS_METHODS);
   const deletionWired = implementsAll(accountDeletion, DELETION_METHODS);
   const catalogueWired = implementsAll(datastore, CATALOGUE_METHODS);
+  const practiceWired = implementsAll(datastore, PRACTICE_METHODS);
 
   async function identify(headers) {
     const session = await sessions.getSession(headers);
@@ -493,6 +505,32 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         // endpoint is not an oracle for what exists but is withheld.
         if (!guide) fault(404, 'not_found');
         return reply(200, guide);
+      }
+    }
+    {
+      /*
+       * PILOT-22 -- answer one objective item. Marking happens SERVER-SIDE inside a SECURITY DEFINER
+       * function, because this connection is the learner role and is NOT granted the answer key.
+       * The response is the single boolean the function returns; the expected answer never leaves it.
+       *
+       * The evidence row is APPEND-ONLY: answering again records a new row rather than rewriting the
+       * last, because this is the raw signal adaptive selection reads.
+       */
+      const answerMatch = OBJECTIVE_ANSWER_RE.exec(pathname);
+      if (answerMatch && method === 'POST') {
+        if (!practiceWired) fault(503, 'practice_unavailable');
+        onlyFields(body, ['itemId', 'answer', 'version', 'latencyMs']);
+        if (typeof body.itemId !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(body.itemId)) fault(422, 'invalid_item');
+        if (body.answer === undefined) fault(422, 'invalid_answer');
+        const version = body.version === undefined ? 'v1' : body.version;
+        if (typeof version !== 'string' || !/^v[0-9]{1,4}$/.test(version)) fault(422, 'invalid_version');
+        const latencyMs = body.latencyMs === undefined ? null : body.latencyMs;
+        if (latencyMs !== null && (!Number.isSafeInteger(latencyMs) || latencyMs < 0 || latencyMs > 3600000)) {
+          fault(422, 'invalid_latency');
+        }
+        return reply(201, await datastore.answerObjectiveItem(owner, {
+          setId: answerMatch[1], version, itemId: body.itemId, answer: body.answer, latencyMs,
+        }));
       }
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {

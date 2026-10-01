@@ -25,7 +25,11 @@ RUN npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
 COPY package.json server.js ./
 COPY server/ ./server/
 COPY public/ ./public/
-COPY data/ ./data/
+# NOTE: `data/` is deliberately NOT copied into the image. Every authored corpus is in the database
+# (migrations 0010-0014) and served by the API; the image used to carry 557 KB of JSON that NOTHING in
+# the container read. Removing it means a re-added static route could not serve the corpus even by
+# mistake -- the files are not there. `tools/check.js`, which does read them, runs from the repo
+# checkout in CI, not inside this image.
 
 # Run as the unprivileged `node` user that the base image already provides. The runtime must hold
 # restricted database roles; it should not also be root inside its own container.
