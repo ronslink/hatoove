@@ -521,6 +521,46 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       };
     },
     /**
+     * PILOT-22c — the learner's own practice evidence, aggregated by section.
+     *
+     * THIS RETURNS COUNTS, NOT A SCORE, and that is a product decision rather than a missing feature.
+     * The supplied design's dashboard shows "Written estimate 152 / 225", a "Range 142–162" and a
+     * "pass line 135". AGENTS.md and MASTER-PLAN forbid exactly that: provisional formative feedback,
+     * NOT calibrated readiness scores, and no pass prediction. So this exposes what is TRUE — how many
+     * items were answered, how many were right, per section — and the dashboard renders that.
+     *
+     * `accuracy` is `null` for a section with no attempts, not 0: never-seen is not the same as failed.
+     */
+    async practiceProgress(owner, { examId = null } = {}) {
+      note('practiceProgress');
+      const rows = await settle(owner, async (client) => (await client.query(
+        `SELECT e.section,
+                count(*)::int AS attempts,
+                count(*) FILTER (WHERE e.correct)::int AS correct
+           FROM item_evidence e
+          WHERE e.owner_id = $1 AND e.exam_id = COALESCE($2, e.exam_id)
+          GROUP BY e.section
+          ORDER BY e.section`,
+        [owner, examId])).rows);
+      const totals = rows.reduce(
+        (acc, row) => ({ attempts: acc.attempts + row.attempts, correct: acc.correct + row.correct }),
+        { attempts: 0, correct: 0 });
+      return {
+        totals: {
+          attempts: totals.attempts,
+          correct: totals.correct,
+          accuracy: totals.attempts ? totals.correct / totals.attempts : null,
+          sections: rows.length,
+        },
+        sections: rows.map((row) => ({
+          section: row.section,
+          attempts: row.attempts,
+          correct: row.correct,
+          accuracy: row.attempts ? row.correct / row.attempts : null,
+        })),
+      };
+    },
+    /**
      * Create an owned attempt bound to an exact task/rubric version (SAAS-MODEL-01 Step 1).
      * `binding` defaults to the canonical writing task (`content-seed.mjs`); a caller that has
      * a task-selection route (SAAS-RESUME-01) can pass the chosen one. The composite foreign

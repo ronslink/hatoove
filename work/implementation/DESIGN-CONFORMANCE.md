@@ -111,3 +111,48 @@ markup and grepping a stylesheet. **No screen has been rendered, at any breakpoi
 Conformance cannot be *claimed* by matching class names; it has to be seen. Until a browser renders
 these screens, this document records an intention, not a result — and steps 1–2 in particular should be
 verified visually before steps 3–5 build on them.
+
+---
+
+## 8. Step 2 — the dashboard, and the THREE THINGS THE DESIGN ASKS FOR THAT WE MUST NOT BUILD
+
+The supplied `dashboard.html` asserts, verbatim:
+
+```
+<div class="gauge-top"><span>Written estimate</span><span><b>152</b> / 225</span></div>
+<div class="gauge-foot"><span>Range 142–162 · from 418 answers</span><span>pass line 135 (60 %)</span></div>
+<div class="stat"><span class="num">9</span><span>day streak</span></div>
+<div class="stat"><span class="num">14</span><span>mistakes due</span></div>
+```
+
+**A calibrated score estimate, a confidence range, a pass line and a streak.** AGENTS.md and
+MASTER-PLAN forbid every one of them: *"provisional formative feedback, not calibrated readiness
+scores"*; *"no readiness, streaks, study-plan, reminder/purchase UI"*; no pass prediction. The design's
+own `.hint` even says *"Practice estimate from your answers, not an exam result"* — the designer knew it
+was an estimate, and the product decided not to ship estimates at all.
+
+**So the layout, the components and the hierarchy were adopted and the claims were not.** What the
+dashboard shows instead, all of it from `item_evidence` and `state.settings`:
+
+| Design | Built | Why |
+|---|---|---|
+| `Written estimate 152 / 225` | **count of answered items** | a projection of a mark is exactly the forbidden thing |
+| `Range 142–162` | *omitted* | a confidence interval is a pass prediction wearing a statistic |
+| `pass line 135 (60 %)` | *omitted*, and **no `warn` colour** | the design's `.mini warn` class keys off that same 60 %, so using it would smuggle the pass line back in through a colour |
+| `9 day streak` | *omitted* | streaks are excluded by name |
+| `14 mistakes due` | **counts of answered / correct** | "due" implies a scheduling claim nothing here makes |
+| `.parts` per-part scores (54/75 …) | **per-section `correct / attempts`** | the learner's own record rather than a scaled exam score |
+
+`.hint` is kept and states the position plainly: *"Das ist deine Übungsbilanz, kein Prüfungsergebnis.
+Eine Note oder eine Bestehensprognose gibt es hier bewusst nicht."*
+
+**A deviation from a design is a decision that must be visible.** If a future session "restores" the
+gauge to match the mock-up, it will be reintroducing a pass prediction, and this section is where that
+is discoverable rather than a matter of taste.
+
+### The route the dashboard needed
+
+`GET /api/v1/practice/progress` — per-section counts from `item_evidence`, plus totals. **Counts, not a
+score**, and `accuracy` is `null` for a section with no attempts rather than 0: never-seen is not the
+same as failed. Verified: a fresh learner gets `{attempts: 0, accuracy: null, sections: []}`; after two
+answers, `{attempts: 2, correct: 1, accuracy: 0.5, sections: [{section: "LV", …}]}`.

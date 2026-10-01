@@ -92,7 +92,7 @@ const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'readObjectiveSet',
  * in-memory datastore that cannot mark objective items should lose the PRACTICE routes, not the
  * product.
  */
-const PRACTICE_METHODS = ['answerObjectiveItem', 'nextPractice'];
+const PRACTICE_METHODS = ['answerObjectiveItem', 'nextPractice', 'practiceProgress'];
 /** `/api/v1/objective-sets/{setId}` — read ONE set, payload included. The list is an index. */
 const OBJECTIVE_SET_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})$/;
 /** `/api/v1/objective-sets/{setId}/answers` — the set id is dotted (`telc-deutsch-b1.lv1.01`). */
@@ -572,6 +572,19 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         if (!set) fault(404, 'not_found');
         return reply(200, set);
       }
+    }
+    if (pathname === '/api/v1/practice/progress' && method === 'GET') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      /*
+       * PILOT-22c -- what the learner has actually done, per section.
+       *
+       * COUNTS, NOT A SCORE. The supplied design's dashboard carries a calibrated estimate and a pass
+       * line; the product forbids both. This is the truthful substitute, and the dashboard renders it
+       * without inventing a number to fill the gauge.
+       */
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      return reply(200, await datastore.practiceProgress(owner, { examId: exam }));
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId']);

@@ -277,12 +277,78 @@ function renderChrome() {
   if (lang) lang.textContent = 'Erklärungen: ' + (LANGUAGE_NAMES[settings.language] || 'Deutsch');
 }
 
+
+/**
+ * HEUTE -- the design's dashboard, filled with FACTS.
+ *
+ * THREE DEVIATIONS FROM THE SUPPLIED SCREEN, all deliberate and all recorded in
+ * work/implementation/DESIGN-CONFORMANCE.md:
+ *   1. NO SCORE ESTIMATE. The design shows "Written estimate 152 / 225". The product forbids calibrated
+ *      readiness scores, so the gauge counts ANSWERED ITEMS instead of projecting a mark.
+ *   2. NO PASS LINE and no range. The design draws a "pass line 135" and a "Range 142-162". Both are
+ *      pass prediction, which is explicitly out of scope.
+ *   3. NO STREAK and NO "mistakes due". Streaks are excluded by AGENTS.md; "due" implies a scheduling
+ *      claim nothing here makes.
+ * The layout, the components and the hierarchy are the design's. The numbers are the learner's own.
+ */
+async function renderDashboard() {
+  const pct = (value) => Math.round((value || 0) * 100) + '%';
+  const [next, progress] = await Promise.all([api.practice.next(), api.practice.progress()]);
+  if (!next || !progress) return; // a 401 already redirected
+
+  if (next.ok && next.data && next.data.set) {
+    const d = next.data;
+    const e = d.evidence || {};
+    el('next-kicker').textContent = 'Als Nächstes · ' + d.section;
+    el('next-title').textContent = d.set.title;
+    el('next-detail').textContent = d.set.item_count + ' Aufgaben'
+      + (d.reason === 'section_not_started'
+        ? ' · dieser Bereich ist neu für dich'
+        : (e.attempts ? ' · bisher ' + e.correct + ' von ' + e.attempts + ' richtig' : ''));
+  } else {
+    el('next-kicker').textContent = 'Als Nächstes';
+    el('next-title').textContent = 'Zurzeit nichts freigegeben';
+    el('next-detail').textContent = 'Der Server hat gerade nichts Servierbares. Das ist eine Aussage des Servers, keine leere Seite.';
+  }
+
+  const totals = (progress.ok && progress.data && progress.data.totals) || { attempts: 0, correct: 0, accuracy: null };
+  el('gauge-count').textContent = String(totals.attempts);
+  el('gauge-bar').style.width = pct(totals.accuracy);
+  el('gauge-foot').textContent = totals.attempts
+    ? 'aus ' + totals.attempts + (totals.attempts === 1 ? ' Antwort' : ' Antworten')
+    : 'Noch keine Antworten';
+  el('gauge-acc').textContent = totals.accuracy === null ? '–' : totals.correct + ' von ' + totals.attempts + ' richtig';
+  el('stat-answers').textContent = String(totals.attempts);
+  el('stat-correct').textContent = String(totals.correct);
+
+  // No `warn` class: the design uses it against a 60% PASS THRESHOLD, and importing that threshold
+  // would smuggle the pass line back in through a colour.
+  const sections = (progress.ok && Array.isArray(progress.data.sections)) ? progress.data.sections : [];
+  el('parts').innerHTML = sections.length
+    ? sections.map((s) => '<div class="part"><span>' + esc(s.section) + '</span>'
+      + '<div class="mini"><i style="width:' + pct(s.accuracy) + '"></i></div>'
+      + '<b>' + s.correct + ' / ' + s.attempts + '</b></div>').join('')
+    : '<p class="small muted">Sobald du Aufgaben beantwortest, erscheint hier deine Bilanz je Bereich.</p>';
+
+  const settings = state.settings || {};
+  if (settings.examDate) {
+    const exam = new Date(settings.examDate + 'T00:00:00');
+    const days = Math.round((exam - new Date(new Date().toDateString())) / 86400000);
+    el('countdown').textContent = days >= 0
+      ? exam.toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }) + ' · ' + days + (days === 1 ? ' Tag' : ' Tage')
+      : exam.toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }) + ' · liegt in der Vergangenheit';
+  } else {
+    el('countdown').textContent = 'Kein Prüfungsdatum gesetzt';
+  }
+}
+
 function route() {
   const key = (location.hash || '#/heute').replace(/^#\/?/, '') || 'heute';
   const view = VIEW_TITLES[key] ? key : 'heute';
   for (const name of Object.keys(VIEW_TITLES)) el(`view-${name}`).hidden = name !== view;
   el('page-title').textContent = VIEW_TITLES[view];
   renderChrome();
+  if (view === 'heute') void renderDashboard();
   if (view === 'ueben') { void renderPracticeNext(); void renderTasks(); }
   if (view === 'woerterbuch') void renderDictionary();
   if (view === 'nachschlagen') void renderGuides();
