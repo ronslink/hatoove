@@ -64,6 +64,8 @@ const FOREIGN_ORIGIN = 'https://attacker.example';
 /** Synthetic operator model - a forged request must never be able to replace it. */
 const OPERATOR_MODEL = 'operator-model-synthetic';
 const SYNTHETIC_KEY = 'saas-runtime-check-synthetic-value-not-a-real-key';
+/** Synthetic operator token for the `/api/ai/test` diagnostic. Not a real credential. */
+const OPERATOR_TEST_TOKEN = 'saas-runtime-check-operator-token-synthetic';
 
 const checks = [];
 const check = (name, run) => checks.push({ name, run });
@@ -197,6 +199,8 @@ async function startServer(port, options = {}) {
   if (options.accounts) env.B1PREP_ACCOUNTS = '1';
   if (options.saas) env.B1PREP_PUBLIC_ORIGIN = options.publicOrigin || PUBLIC_ORIGIN;
   if (options.forceOffline) env.B1PREP_FORCE_OFFLINE = '1';
+  if (options.aiTest) env.B1PREP_AI_TEST = '1';
+  if (options.aiTestToken) env.B1PREP_AI_TEST_TOKEN = options.aiTestToken;
   if (options.database) Object.assign(env, dbEnv(options.dbPortOverride));
   if (options.provider) {
     env.DEEPSEEK_API_KEY = options.provider.key;
@@ -540,6 +544,58 @@ check('ai-test-is-not-reachable-in-saas', async () => {
       `a signed-in learner must not reach the diagnostic, got ${learner.status}`);
     assert.equal(stub.calls.length, before, 'the diagnostic must never spend a provider call');
     return `anonymous=${anonymous.status}, learner=${learner.status}, provider calls=0`;
+  } finally { await server.stop(); await stub.close(); }
+});
+
+check('ai-test-is-operator-only-with-the-flag-set', async () => {
+  // F1. This is the case the first version missed: the opt-in flag **is set**, so the old
+  // gate (`B1PREP_AI_TEST !== '1'`) let the request through. The diagnostic must still be
+  // unreachable by an anonymous caller and by a signed-in learner, and the stub - not the
+  // status code - proves zero provider calls. The real operator credential reaches it exactly
+  // once, so the refusal is a gate and not a dead route.
+  const port = await freePort();
+  const stub = await startProviderStub();
+  const server = await startServer(port, {
+    saas: true, accounts: true, database: true,
+    aiTest: true, aiTestToken: OPERATOR_TEST_TOKEN,
+    provider: { key: SYNTHETIC_KEY, model: OPERATOR_MODEL, baseUrl: `http://127.0.0.1:${stub.port}` },
+  });
+  try {
+    await waitForReady(port, true);
+    const before = stub.calls.length;
+
+    const anonymous = await request(port, { method: 'POST', requestPath: '/api/ai/test', headers: jsonHeaders() });
+    must(anonymous.status === 403, `flag-set anonymous must be refused, got ${anonymous.status}`);
+
+    const jar = cookieJar();
+    const signUp = await request(port, {
+      method: 'POST', requestPath: '/api/auth/sign-up/email',
+      headers: jsonHeaders(), body: { name: 'E', email: `saas-test-on-${RUN_ID}@example.invalid`, password: 'pw-synthetic-1' },
+    });
+    assert.equal(signUp.status, 200, `sign-up failed: ${signUp.text.slice(0, 200)}`);
+    jar.absorb(signUp.setCookie);
+
+    const learner = await request(port, {
+      method: 'POST', requestPath: '/api/ai/test',
+      headers: jsonHeaders({ Cookie: jar.header() }),
+    });
+    must(learner.status === 403, `flag-set learner must be refused, got ${learner.status}`);
+
+    const wrongToken = await request(port, {
+      method: 'POST', requestPath: '/api/ai/test',
+      headers: jsonHeaders({ Cookie: jar.header(), 'x-b1prep-operator-token': 'not-the-operator-token' }),
+    });
+    must(wrongToken.status === 403, `a wrong operator token must be refused, got ${wrongToken.status}`);
+
+    assert.equal(stub.calls.length, before, `no refusal may spend a provider call (saw ${stub.calls.length - before})`);
+
+    const operator = await request(port, {
+      method: 'POST', requestPath: '/api/ai/test',
+      headers: jsonHeaders({ 'x-b1prep-operator-token': OPERATOR_TEST_TOKEN }),
+    });
+    assert.equal(operator.status, 200, `the operator diagnostic must work: ${operator.text.slice(0, 160)}`);
+    assert.equal(stub.calls.length, before + 1, 'the operator call spends exactly one provider call');
+    return `flag-set anonymous=${anonymous.status}, learner=${learner.status}, wrong-token=${wrongToken.status}, 0 calls; operator=200 (1 call)`;
   } finally { await server.stop(); await stub.close(); }
 });
 

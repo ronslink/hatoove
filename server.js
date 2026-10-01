@@ -13,6 +13,7 @@
  */
 
 import http from 'node:http';
+import { timingSafeEqual } from 'node:crypto';
 import { mergeProgress, progressEqual } from './public/js/progress-merge.js';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -615,6 +616,50 @@ const AI_MAX_TOKENS = 4096;
 const AI_MIN_TIMEOUT_MS = 1000;
 const AI_MAX_TIMEOUT_MS = 120000;
 
+// F1. `/api/ai/test` is operator-only, and *operator* is not a learner session. The first
+// version gated it on `B1PREP_AI_TEST` alone, so with that single variable set an anonymous
+// same-origin caller - or any signed-in learner - reached the provider with the operator's
+// key and spent the operator's credits. A flag must never be the only thing between a learner
+// and a credit-spending route, and this runtime's session port has no operator principal, so a
+// learner cookie cannot be one. The diagnostic therefore needs two independent operator facts:
+// the opt-in flag AND a dedicated operator token that only the server operator holds. Neither a
+// learner session nor an anonymous caller can present it, in every configuration.
+const AI_TEST_TOKEN_HEADER = 'x-b1prep-operator-token';
+
+/** The operator token, from the dedicated header or `Authorization: Bearer`. */
+function operatorTokenFrom(req) {
+  const header = req.headers[AI_TEST_TOKEN_HEADER];
+  if (typeof header === 'string' && header !== '') return header;
+  const match = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
+  return match ? match[1].trim() : null;
+}
+
+/** Constant-time comparison; a missing on either side is never a match. */
+function operatorTokenMatches(provided, expected) {
+  if (typeof provided !== 'string' || provided === '' || typeof expected !== 'string' || expected === '') return false;
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * The refusal for `POST /api/ai/test`, or null when the operator credential is present. It
+ * deliberately never consults a session: a verified learner session is not an operator.
+ */
+function aiTestRefusal(req, env = process.env) {
+  const message = 'POST /api/ai/test is operator-only. A learner session is never sufficient.';
+  if (env.B1PREP_AI_TEST !== '1') {
+    return { status: 403, code: 'ai_test_operator_only', error: `${message} Set B1PREP_AI_TEST=1 in the server environment to enable the diagnostic.` };
+  }
+  if (!env.B1PREP_AI_TEST_TOKEN) {
+    return { status: 403, code: 'ai_test_operator_only', error: `${message} No operator token is configured.` };
+  }
+  if (!operatorTokenMatches(operatorTokenFrom(req), env.B1PREP_AI_TEST_TOKEN)) {
+    return { status: 403, code: 'ai_test_operator_only', error: `${message} Present the operator token.` };
+  }
+  return null;
+}
+
 /**
  * Validate and bound an `/api/ai` body. The model is deliberately absent: it is operator
  * configuration (`DEEPSEEK_MODEL`), and a caller-supplied model is discarded, not honoured.
@@ -908,14 +953,13 @@ async function handleApi(req, res, pathname, ctx = {}) {
   }
 
   if (pathname === '/api/ai/test' && method === 'POST') {
-    // A2.4: a diagnostic that spends the operator's credits is operator-only. It is off
-    // unless the operator explicitly opts in; a learner session is never enough for it.
-    if (process.env.B1PREP_AI_TEST !== '1') {
-      sendJSON(res, 403, {
-        ok: false,
-        code: 'ai_test_operator_only',
-        error: 'POST /api/ai/test is operator-only. Set B1PREP_AI_TEST=1 in the server environment to enable the diagnostic.',
-      });
+    // A2.4 / F1: a diagnostic that spends the operator's credits is operator-only, and an
+    // operator is not a learner session. Both the opt-in flag and a dedicated operator token
+    // are required; an anonymous caller and a signed-in learner are both refused, in every
+    // configuration, before any provider call.
+    const refusal = aiTestRefusal(req);
+    if (refusal) {
+      sendJSON(res, refusal.status, { ok: false, code: refusal.code, error: refusal.error });
       return true;
     }
     try {
