@@ -358,11 +358,25 @@ check('auth-cannot-mint-allowance-directly-but-can-through-the-function', async 
       const path = (fn.proconfig || []).find((c) => c.startsWith('search_path='));
       assert.ok(path && path.includes(leg), `provision_learner must pin search_path to the schema (got ${path})`);
 
-      const grantees = (await admin.query(
-        `SELECT grantee FROM information_schema.routine_privileges
-          WHERE routine_schema = $1 AND routine_name = 'provision_learner' AND privilege_type = 'EXECUTE'
-            AND grantee <> $2`, [leg, config.roles.auth])).rows.map((r) => r.grantee);
-      assert.deepEqual(grantees, [], `EXECUTE must be granted to the auth role only (also granted to: ${grantees.join(', ') || 'none'})`);
+      const roles = ['auth', 'learner', 'worker', 'deletion'].map((r) => config.roles[r]);
+      const granted = (await admin.query(
+        `SELECT r.rolname AS role, has_function_privilege(r.rolname, p.oid, 'EXECUTE') AS can
+           FROM pg_proc p CROSS JOIN pg_roles r
+          WHERE p.proname = 'provision_learner' AND p.pronamespace = $1::regnamespace
+            AND r.rolname = ANY($2::text[])`, [`"${leg}"`, roles])).rows;
+      assert.equal(granted.find((g) => g.role === config.roles.auth)?.can, true,
+        'the auth role must be able to EXECUTE provision_learner');
+      for (const row of granted) {
+        if (row.role === config.roles.auth) continue;
+        assert.equal(row.can, false, `${row.role} must not be able to EXECUTE provision_learner`);
+      }
+      // ...and not to PUBLIC either (a `=X/` entry in the ACL).
+      const acl = (await admin.query(
+        `SELECT proacl FROM pg_proc WHERE proname = 'provision_learner' AND pronamespace = $1::regnamespace`,
+        [`"${leg}"`])).rows[0];
+      assert.ok(acl && acl.proacl, 'provision_learner must carry an explicit ACL (not the PUBLIC default)');
+      const publicEntry = String(acl.proacl).split(',').find((entry) => entry.startsWith('='));
+      assert.ok(!publicEntry, `PUBLIC must not have any privilege on provision_learner (acl: ${acl.proacl})`);
     });
 
     /* ---- D4, executed for real: make the direct path work and leg 4's half one must fail ---- */
@@ -417,10 +431,10 @@ check('discrimination-a-fixture-exposing-runtime-fails-leg-2', async () => {
 
 /* ==================================================================== run */
 
-function select(names) {
+function select(list) {
   const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice('--only='.length);
-  if (!only) return names;
-  return names.filter((name) => name.includes(only));
+  if (!only) return list;
+  return list.filter((item) => item.name.includes(only));
 }
 
 export async function runRuntimeCompositionChecks() {
