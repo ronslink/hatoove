@@ -100,7 +100,13 @@ let serverRev = 0;
 // deleted record back into the browser cache. That is the single-tab F-2 race the SEC-02
 // report wrongly claimed was closed.
 let stateEpoch = 0;
-let sync = { state: 'idle', lastSavedAt: 0, lastError: '', lastLoadedSource: null };
+// Bumped on every account-scope transition (SESSION-BOUNDARY-01). A progress request
+// captures it before it leaves; an answer that arrives after a sign-out or an account
+// switch belongs to the previous learner and is dropped instead of being folded into the
+// next one's state. `stateEpoch` alone cannot do this: setAccountScope() does not replace
+// the state through it.
+let scopeEpoch = 0;
+let sync ={ state: 'idle', lastSavedAt: 0, lastError: '', lastLoadedSource: null };
 
 function storage() {
   try {
@@ -186,9 +192,15 @@ export function accountScopeStatus() {
  * Enter the account scope. If this account has no cache yet and the legacy unscoped blob
  * exists and was not already adopted by another account, adopt it once: copy it into the
  * account namespace and leave the legacy key untouched as the learner's backup copy.
+ *
+ * `adoptLegacy: false` skips that adoption. The application session boundary passes it:
+ * issue #63 forbids assigning the local single-user blob to an account automatically, so
+ * the boundary leaves it where it is (untouched) until there is an explicit migration
+ * decision.
  * @param {string} id an opaque account id (the owned-auth account id)
+ * @param {{adoptLegacy?: boolean}} [options]
  */
-export function setAccountScope(id) {
+export function setAccountScope(id, { adoptLegacy = true } = {}) {
   if (typeof id !== 'string' || !ACCOUNT_ID_RE.test(id)) {
     throw new Error('setAccountScope expects an account id matching [A-Za-z0-9][A-Za-z0-9-]{0,63}');
   }
@@ -201,9 +213,13 @@ export function setAccountScope(id) {
   accountId = id;
   lastAdoption = null;
   loaded = false;
+  scopeEpoch += 1;
+  // The revision belongs to the previous scope's record, not to this one.
+  serverRev = 0;
   state = freshState();
+  invalidateAbilityCache();
   writeScopeMarker();
-  load(); // loads this account's cache, or adopts the legacy blob once
+  load({ adoptLegacy }); // loads this account's cache, or adopts the legacy blob once
   return { mode: scopeMode, accountId, legacyAdopted: lastAdoption };
 }
 
@@ -220,6 +236,8 @@ export function clearAccountScope() {
   accountId = null;
   lastAdoption = null;
   stateEpoch += 1;
+  scopeEpoch += 1;
+  serverRev = 0;
   state = freshState();
   loaded = true;
   invalidateAbilityCache();
@@ -341,7 +359,7 @@ function parseIntoState(raw) {
   }
 }
 
-export function load() {
+export function load({ adoptLegacy = true } = {}) {
   if (loaded) return state;
   loaded = true;
   ensureScopeLoaded();
@@ -361,7 +379,7 @@ export function load() {
     if (scopeMode === 'scoped' && accountId) {
       const legacyRaw = s.getItem(STORAGE_KEY);
       const owner = s.getItem(LEGACY_OWNER_KEY);
-      if (legacyRaw && (!owner || owner === accountId)) {
+      if (adoptLegacy && legacyRaw && (!owner || owner === accountId)) {
         parseIntoState(legacyRaw);
         lastAdoption = { accountId, at: Date.now() };
         s.setItem(LEGACY_OWNER_KEY, accountId);
@@ -412,9 +430,13 @@ export async function flushToServer() {
  * revision exists to prevent.
  */
 async function adoptServerAfterConflict() {
+  const scope = scopeEpoch;
   try {
-    const res = await fetch('/api/progress');
+    // The re-read carries the scope header too: without it a signed-in account's 409 used
+    // to adopt the legacy single-user record into that account.
+    const res = await fetch('/api/progress', { headers: progressHeaders() });
     const data = await res.json();
+    if (scope !== scopeEpoch) return false;
     if (Number.isFinite(Number(data.rev))) serverRev = Number(data.rev);
     if (data.found && data.state) {
       state = { ...freshState(), ...data.state };
@@ -444,6 +466,7 @@ async function sendProgress() {
   // Captured before the request leaves: if either moves while it is in flight, the state
   // has been replaced (a reset) and the answer must not be folded back.
   const epoch = stateEpoch;
+  const scope = scopeEpoch;
   const sentRev = serverRev;
   try {
     const res = await fetch('/api/progress', {
@@ -452,6 +475,9 @@ async function sendProgress() {
       body: JSON.stringify({ state, rev: sentRev }),
     });
     const data = await res.json().catch(() => ({}));
+    // The scope changed while the write was on the wire: the answer is the previous
+    // learner's record and must not touch this one, not even its revision.
+    if (scope !== scopeEpoch) return false;
     if (res.status === 409 || data.code === 'stale_revision') {
       // Do not retry: retrying with the new revision would restore what the reset
       // deleted. Re-read and adopt instead.
@@ -491,9 +517,11 @@ async function deleteServerProgress(scope = 'all') {
   // write, or the merge it started from would put the record back.
   if (inflight) await inflight.catch(() => {});
   const query = scope === 'all' ? '' : `?scope=${encodeURIComponent(scope)}`;
+  const sentScope = scopeEpoch;
   try {
     const res = await fetch(`/api/progress${query}`, { method: 'DELETE', headers: progressHeaders() });
     const data = await res.json().catch(() => ({}));
+    if (sentScope !== scopeEpoch) return false;
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     // The delete moved the revision, so this client now knows the post-delete value: its
     // next ordinary save carries it and is accepted, and a write that left before the
@@ -536,9 +564,13 @@ export async function syncFromServer({ timeoutMs = 5000 } = {}) {
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const scope = scopeEpoch;
   try {
     const res = await fetch('/api/progress', { signal: controller.signal, headers: progressHeaders() });
     const data = await res.json();
+    // A sign-out or account switch happened while the read was in flight: this record is
+    // the previous learner's, so it is dropped rather than adopted (SESSION-BOUNDARY-01).
+    if (scope !== scopeEpoch) return { adopted: false, reachable: true, superseded: true };
     if (Number.isFinite(Number(data.rev))) serverRev = Number(data.rev);
     if (!data.found || !data.state) {
       const hasLocal = (state.counters?.attempts || 0) > 0 || Object.keys(state.nodes || {}).length > 0;
