@@ -1153,7 +1153,14 @@ if (invokedDirectly) {
         if (loaded) {
           server.ownedApi = loaded.api;
           summary = accountsSummary(loaded, config);
-          server.saasReadiness = { ready: true, reason: 'ready' };
+          // MFP-01: the runtime never migrates. If the applied head is behind what this code
+          // expects, readiness is `schema_behind` -- /api/ready refuses (503) and names it, so
+          // an operator runs `node server/migrate.mjs`. /api/health keeps answering (liveness
+          // is not readiness). The runtime holds no migration credentials, so it CANNOT apply
+          // the pending migration even by accident.
+          server.saasReadiness = loaded.schemaBehind && loaded.schemaBehind.behind
+            ? { ready: false, reason: 'schema_behind' }
+            : { ready: true, reason: 'ready' };
           const shutdown = () => { loaded.close().finally(() => process.exit(0)); };
           process.once('SIGINT', shutdown);
           process.once('SIGTERM', shutdown);
