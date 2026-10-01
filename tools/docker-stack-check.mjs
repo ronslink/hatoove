@@ -208,6 +208,27 @@ try{
     "SELECT has_table_privilege('hatoove_learner','hatoove.objective_key','SELECT')"]).trim();
   assert.equal(learnerKey,'f','the learner role MUST NOT be able to read objective_key, got '+learnerKey);
   passed('24 objective sets and 180 answers are seeded, no payload carries a secret, and the learner role cannot read the key table');
+
+  // The route that SERVES the corpus, and must never serve the key side of it.
+  assert.equal((await request('GET','/api/v1/objective-sets')).status,401,'/api/v1/objective-sets must require a session');
+  const objective=await request('GET','/api/v1/objective-sets',undefined,cookie);
+  assert.equal(objective.status,200,'the objective route must answer a signed-in learner, got '+objective.status);
+  assert.ok(Array.isArray(objective.json),'the objective list must be a JSON array');
+  // 24 sets exist, 9 are media-gated (HV has a transcript but no audio) -> 15 servable, 120 of 180 items.
+  assert.equal(objective.json.length,15,'15 servable objective sets expected (24 minus 9 media-gated), got '+objective.json.length);
+  assert.equal(objective.json.reduce((n,s)=>n+s.item_count,0),120,'120 servable scored items expected, got '+objective.json.reduce((n,s)=>n+s.item_count,0));
+  {
+    const serialised=JSON.stringify(objective.json);
+    for(const leak of ['"answer"','"why"','"grammar"','"script"','objective_key']){
+      assert.ok(!serialised.includes(leak),'the objective payload must not carry '+leak);
+    }
+  }
+  // The media gate is a real filter, not a hope: asking for listening returns nothing until audio exists.
+  const listening=await request('GET','/api/v1/objective-sets?family=HV1',undefined,cookie);
+  assert.equal(listening.status,200);
+  assert.equal(listening.json.length,0,'HV must serve NOTHING while audio does not exist, got '+listening.json.length);
+  assert.equal((await request('GET','/api/v1/objective-sets?family=lv1',undefined,cookie)).status,422,'a lowercase family must be refused, not silently accepted');
+  passed('the objective route serves 15 sets / 120 items with NO key, and withholds listening until audio exists');
   /*
    * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them
    * was tested wrongly.

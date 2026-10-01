@@ -129,6 +129,53 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       });
     },
     /**
+     * OBJECTIVE-SEED-01 — the servable objective sets (reading and language elements).
+     *
+     * WHY THIS DOES NOT JOIN `objective_key`, and why that is a design property rather than a
+     * convention: the answers sit INLINE in the authored source, so the only thing standing between a
+     * learner and 180 answer keys is that this query does not ask for them AND the learner role is not
+     * granted the table. The first is a promise; the second is enforced by PostgreSQL. If a future
+     * edit adds the join, the query fails with a permission error rather than leaking — which is the
+     * failure mode to want.
+     *
+     * WHY `media_required` SETS ARE EXCLUDED: the HV families carry `script`, the transcript of audio
+     * that does not exist yet. Listing them would offer a learner a listening task with no audio,
+     * which is a Hören task wearing a Hören label while actually being a Lesen task. They stay in the
+     * database, marked, until there is something to hear.
+     */
+    async listObjectiveSets(owner, { examId = null, family = null, serveReview = 'approved+unreviewed' } = {}) {
+      note('listObjectiveSets');
+      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      return settle(owner, async (client) => {
+        const rows = (await client.query(
+          `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title,
+                  s.payload, s.item_count, s.media_required,
+                  c.review_status, c.rights_status
+             FROM objective_set s
+             JOIN content_version c ON c.content_version_id = s.content_version_id
+            WHERE s.exam_id = COALESCE($1, s.exam_id)
+              AND ($2::text IS NULL OR s.family = $2)
+              AND c.review_status = ANY($3::text[])
+              AND s.media_required = false
+            ORDER BY s.family, s.part, s.set_id`,
+          [examId, family, statuses])).rows;
+        return rows.map((row) => ({
+          set_id: row.set_id,
+          version: row.version,
+          exam_id: row.exam_id,
+          family: row.family,
+          section: row.section,
+          part: row.part,
+          title: row.title,
+          payload: row.payload,
+          item_count: row.item_count,
+          media_required: row.media_required,
+          review_status: row.review_status,
+          rights_status: row.rights_status,
+        }));
+      });
+    },
+    /**
      * Create an owned attempt bound to an exact task/rubric version (SAAS-MODEL-01 Step 1).
      * `binding` defaults to the canonical writing task (`content-seed.mjs`); a caller that has
      * a task-selection route (SAAS-RESUME-01) can pass the chosen one. The composite foreign

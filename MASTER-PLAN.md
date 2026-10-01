@@ -382,3 +382,68 @@ This table records earlier integration history. It does not restore superseded r
 | PM-01 `progressEqual` | #49 `2f892d2` | `progress-equal-check.mjs` **10/10** with pre-fix discrimination |
 | **DRAFT-SESSION-01 draft service** | **#51 `c8bf97a`** | 4 files added, **0 deletions**, `exam.js` byte-identical; checker **17/17**, tests **21/21**; **independent review: accept-with-notes, no blocking defect** |
 | **OWNAPI-02 PostgreSQL adapter + RLS evidence** | **#52 `5a63429`** | own package scope (`pg` 8.23.1) so the root app stays dependency-free; coordinator ran the proof on real PostgreSQL — **6/6** isolation tests and **24/24** the same suite on the pg backend; **discrimination proven by mutation** (granting the learner role `BYPASSRLS` makes it fail with "leaked a cross-owner row") |
+
+---
+
+## 14. The wider library, and adaptive learning on a database
+
+Ron, 2 October 2026: *"apart from mock exams there is adaptive learning, exercises, words and other aspects of the library, sentence building — these are features related to actual features that were offered in the b1_prep previous version that we still need to incorporate including the seed data needed in the database to serve the content. The adaptive learning requires interaction with ai and an active monitoring of user performance since we are not using flat files but a database now we need to find a way to achieve this."*
+
+### The inventory as measured
+
+| Corpus | Size | Shape | In the database? |
+|---|---|---|---|
+| `seed.json` | 93 KB | LV1-3, SB1-2, HV1-3: 24 sets, 180 answers | **YES — migration `0010`** |
+| `vocab.json` | 80 KB | `words` | no |
+| `noun-lexicon.json` | 98 KB | `nouns` | no |
+| `grammar-guide.json` | 64 KB | `topics` | no |
+| `core-phrases.json` | 55 KB | `tiers` | no |
+| `core-grammar.json` | 54 KB | `tiers` | no |
+| `speaking-guide.json` | 52 KB | `parts` | no |
+| `writing-guide.json` | 35 KB | `sections`, `phrases`, `examples`, `checklist` | no |
+| `gender-rules.json` | 27 KB | `rules`, `exceptions`, `doubleGender` | no |
+| `cases-guide.json` | 17 KB | `tables`, `triggers`, `examples` | no |
+
+**About 483 KB of authored content is currently served to nobody**: it is not in the database, and the `/data/**` route it used to travel by is retired. Every one of these needs its own table. They do **not** share a shape, and flattening them into one "content" table would be the same mistake as flattening the objective families into one multiple-choice row — it would destroy the authored structure.
+
+### Adaptive learning: why the flat-file version cannot be ported, and what replaces it
+
+The previous version was adaptive **in the browser, over files**: it read `progress.json` beside the app plus the content JSON, and chose what to show next inside the page. Three of its assumptions are now false: there is no file, there is no single user, and the browser is not trusted with the decision.
+
+**What stays the same:** adaptivity is a *selection* problem over recorded evidence.
+
+**What replaces it — the loop, with the parts that must be server-side marked:**
+
+1. **Evidence is recorded per item, per learner, in the database.** A new table, roughly
+   `item_evidence(owner_id, exam_id, set_id, item_id, family, skill, correct, answered_at, latency_ms)`.
+   This is the raw signal and it is the thing the flat file was standing in for. **It must be server-side**:
+   a decision made from browser state cannot see the learner's history on another device, and cannot be
+   audited or corrected.
+2. **Mastery is DERIVED, not stored.** Per-skill accuracy is an aggregate over `item_evidence`
+   (`GROUP BY skill`). For the pilot scale this is computed on read, which means it can never be stale
+   and never disagrees with the evidence. A materialised `skill_state` is a later optimisation and would
+   need an invalidation story; today it would only add a way to be wrong.
+3. **Selection is a ROUTE, and it is deterministic.** `GET /api/v1/practice/next` reads the derived
+   accuracy, picks the weakest skill with headroom, and returns the next unserved set from the
+   catalogue. **Rules choose; AI does not choose.** AI selection is unrepeatable, unauditable and costs
+   tokens per request, and a learner cannot be told *why* they were given an item.
+4. **AI is used where it is actually needed:** explanations in the learner's own language, and
+   evaluating free writing. Both are **queued through the worker** — never in the request path —
+   costed, and cached per `(item_version, language)` so the same explanation is not paid for twice
+   (`CONTENT-POOL-01`).
+5. **"Active monitoring" is a job over recorded evidence, not a per-request call.** The worker already
+   owns leases, one debit, idempotency and retry; a monitoring job that reads evidence and writes an
+   insight reuses all of it. It produces a **claim with its evidence attached** ("Perfekt auxiliaries:
+   4 of 5 missed"), never a bare verdict, and never a pass prediction.
+
+**The one thing this design deliberately does not do** is let a model decide what a learner studies.
+That is the difference between an adaptive product and an unpredictable one, and it is also what makes
+the choice explainable to the learner and cheap enough to run for every account.
+
+### Slices this creates
+
+| | Slice | Note |
+|---|---|---|
+| **PILOT-21** | Library corpora into the database | vocab, noun lexicon, guides, sentence building. Generated seeds, one table per shape, on the `0010` pattern |
+| **PILOT-22** | `item_evidence` + `GET /api/v1/practice/next` | Deterministic adaptive selection over recorded performance |
+| **PILOT-23** | AI monitoring job | Evidence → insight, queued through the worker, with its evidence attached |

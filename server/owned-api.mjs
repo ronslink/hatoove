@@ -71,7 +71,7 @@ const RETRY_RE = new RegExp(`^/api/v1/submissions/(${UUID})/retry$`, 'i');
 const TOKEN_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
 
-const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry', 'remove', 'listTasks'];
+const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry', 'remove', 'listTasks', 'listObjectiveSets'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -378,6 +378,34 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
       return reply(200, await datastore.listTasks(owner, { examId: exam, family, serveReview }));
+    }
+    if (pathname === '/api/v1/objective-sets' && method === 'GET') {
+      /*
+       * OBJECTIVE-SEED-01 — the reading and language-elements catalogue.
+       *
+       * The payload is the AUTHORED structure for each family, verbatim, because the families are NOT
+       * one shape: LV1 matches texts to headlines, LV3 matches situations to ads, SB1/SB2 are
+       * gap-fills (SB2 from a bank). Flattening them into one synthetic multiple-choice row would
+       * destroy the authored task.
+       *
+       * NO ANSWERS ARE IN THIS RESPONSE, and that is doubly true: the query does not select
+       * `objective_key`, and the learner role is not granted that table, so a future edit that added
+       * the join would fail with a permission error rather than leak.
+       *
+       * `family` may only NARROW, exactly as for `/tasks`: the serving policy is deployment
+       * configuration and a query string must not be able to unlock what the deployment withheld.
+       *
+       * NOTE the naming inconsistency, recorded rather than hidden: the writing family is `writing`
+       * (lowercase word) while these are codes (`LV1`, `HV3`). Both are accepted by their own route;
+       * unifying them is a follow-up, and guessing a unified form now would break one of them.
+       */
+      const family = query.get('family');
+      if (family !== null && !/^[A-Z]{2}[0-9]$/.test(family)) fault(422, 'invalid_family');
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      return reply(200, await datastore.listObjectiveSets(owner, { examId: exam, family, serveReview }));
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId']);
