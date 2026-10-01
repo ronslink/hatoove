@@ -92,7 +92,14 @@ try{
   compose(['run','--rm','--no-deps','migrate']);
   assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.hatoove_migrations']).trim(),String(migrationCount));
   passed('re-running migrations leaves the ledger at '+migrationCount+' entries');
-  assert.equal((await request('GET','/')).status,401);
+  // `/` IS THE PUBLIC LANDING PAGE (Ron, 2 October 2026: "index.html should be the landing page").
+  // It carries no learner data and reads none, so it is public for the same reason `/signin` is.
+  const landing = await request('GET','/');
+  assert.equal(landing.status,200,'/ must serve the public landing page, got '+landing.status);
+  assert.ok(landing.text.includes('Know the exam'),'/ must actually BE the landing page');
+  assert.ok(!/\/api\/|objective_key/.test(landing.text),'the landing page must carry no API path or learner data');
+  // The APP is still gated, and it is now at /app/ rather than /.
+  assert.equal((await request('GET','/app/')).status,401);
   const credentials={name:'Docker check',email:project+'@example.invalid',password:'Synthetic-password-2026'};
   const signup=await request('POST','/api/auth/sign-up/email',credentials);
   assert.equal(signup.status,200,signup.text);
@@ -381,14 +388,18 @@ try{
    * important one. Both are asserted now, and the form is fetched to prove the redirect lands
    * somewhere real.
    */
-  const nav=await fetch(base+'/',{headers:{accept:'text/html,application/xhtml+xml'},redirect:'manual',signal:AbortSignal.timeout(10000)});
-  assert.equal(nav.status,302,'a logged-out navigation must be REDIRECTED, not refused; a 401 shows a browser a blank page');
+  // `/app/` is the gated application; `/` is the public landing page and must NOT redirect, or a
+  // visitor to the product's own address would be bounced to a sign-in form without being told what
+  // they are signing in to.
+  const nav=await fetch(base+'/app/',{headers:{accept:'text/html,application/xhtml+xml'},redirect:'manual',signal:AbortSignal.timeout(10000)});
+  assert.equal(nav.status,302,'a logged-out navigation to the APP must be REDIRECTED, not refused; a 401 shows a browser a blank page');
   assert.ok((nav.headers.get('location')||'').endsWith('/signin'),'the redirect must target /signin, got '+nav.headers.get('location'));
   const signinPage=await request('GET','/signin');
   assert.equal(signinPage.status,200);
   assert.ok(signinPage.text.includes('id="form-signin"'),'the redirect target must actually serve the sign-in form');
-  assert.equal((await request('GET','/')).status,401,'a script must still be refused 401 rather than handed HTML');
-  passed('a logged-out browser is redirected to a real sign-in form; a script is refused 401');
+  assert.equal((await request('GET','/app/')).status,401,'a script must still be refused 401 rather than handed HTML');
+  assert.equal((await request('GET','/')).status,200,'the landing page must stay public');
+  passed('a logged-out browser is redirected from the APP to a real sign-in form; the landing page stays public');
 
   // Sign-out must END the session, not merely navigate away from it.
   const session=await request('POST','/api/auth/sign-in/email',{email:credentials.email,password:credentials.password});

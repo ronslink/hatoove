@@ -603,9 +603,23 @@ const PUBLIC_FILES = Object.freeze([
   path.join(PUBLIC_DIR, 'favicon.ico'),
 ]);
 const PUBLIC_PREFIX = path.join(PUBLIC_DIR, 'assets', 'design') + path.sep;
+/*
+ * THE LANDING PAGE IS PUBLIC, and it is the front door.
+ *
+ * Ron, 2 October 2026: "index.html should be the landing page which we should have". `/` used to
+ * serve the AUTHENTICATED shell, so a logged-out visitor to the product's own address was bounced
+ * straight to a sign-in form with no idea what they were signing in to. The landing page is the
+ * brand site from `hatoove-site/dist`, copied verbatim into `public/landing/` so it stays the
+ * deployable artifact.
+ *
+ * It carries no learner data and reads none, so it is public for the same reason `/signin` is: a
+ * front door that requires the key is not a front door.
+ */
+const PUBLIC_PREFIX_LANDING = path.join(PUBLIC_DIR, 'landing') + path.sep;
 
 function isPublicTarget(target) {
   if (target.startsWith(PUBLIC_PREFIX)) return true;
+  if (target.startsWith(PUBLIC_PREFIX_LANDING)) return true;
   return PUBLIC_FILES.includes(target) || PUBLIC_FILES.includes(`${target}.html`);
 }
 
@@ -615,7 +629,7 @@ function isPublicTarget(target) {
  * from "there is nothing there" (404) while both remain refusals.
  */
 async function resolveStaticFile(decodedPath) {
-  let target = resolveStatic(decodedPath === '/' ? '/app/index.html' : decodedPath);
+  let target = resolveStatic(decodedPath === '/' ? '/landing/index.html' : decodedPath);
   if (!target) return { status: 403 };
   let stat;
   try {
@@ -1286,7 +1300,7 @@ export function createServer({ ownedApi = null } = {}) {
         res.end('Not found');
         return;
       }
-      const resolved = resolveStatic(decodedPath === '/' ? '/app/index.html' : decodedPath);
+      const resolved = resolveStatic(decodedPath === '/' ? '/landing/index.html' : decodedPath);
       if (!resolved) {
         /*
          * THE DATA FILE STORE IS RETIRED (Ron, 2 October 2026: "no longer needing files to serve
