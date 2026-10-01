@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
+import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -102,6 +103,35 @@ try{
   const saved=await request('PUT','/api/v1/settings',{expectedRevision:settings.json.revision,settings:{examDate:'2026-12-01',language:'en'}},cookie);
   assert.equal(saved.status,200,saved.text);
   passed('synthetic signup, protected shell and owned settings work at configured origin');
+  // LOOPBACK ALIASES ARE THE SAME ORIGIN. On a LOCAL server `localhost` and `127.0.0.1` name the
+  // same machine, so a deployment configured with one and browsed at the other must not refuse the
+  // learner with an unexplained "cross-origin request rejected" on sign-up. This is the leg that
+  // catches it: the request below carries the ALIAS in both Host and Origin, exactly as a browser
+  // at that address would send it, while being routed over the IPv4 socket the stack publishes on.
+  const aliasHost=base.includes('localhost')?'127.0.0.1':'localhost';
+  const aliasOrigin='http://'+aliasHost+':'+appPort;
+  // A request carrying an arbitrary Host and Origin, routed over the IPv4 socket the stack
+  // publishes on. This is how a browser at that address presents itself to the server.
+  const postAs=(hostHeader,originHeader,email)=>new Promise((resolve,reject)=>{
+    const payload=JSON.stringify({name:'Origin check',email,password:'Synthetic-password-2026'});
+    const req=http.request({host:'127.0.0.1',port:appPort,path:'/api/auth/sign-up/email',method:'POST',headers:{host:hostHeader,origin:originHeader,'content-type':'application/json','content-length':Buffer.byteLength(payload)}},res=>{
+      let text='';res.on('data',d=>{text+=d;});res.on('end',()=>resolve({status:res.statusCode,text}));
+    });
+    req.on('error',reject);req.write(payload);req.end();
+  });
+  const aliasResult=await postAs(aliasHost+':'+appPort,aliasOrigin,'alias-'+project+'@example.invalid');
+  assert.equal(aliasResult.status,200,'a request from the loopback alias '+aliasOrigin+' must be accepted when the configured origin is '+base+': '+aliasResult.text);
+  passed('the same origin reached by its loopback alias is accepted, not refused as cross-origin');
+  // THE BOUNDARY OF THAT EXCEPTION, which matters more than the exception itself: a FOREIGN host is
+  // still refused even though a loopback alias is now accepted. These two legs passed before the
+  // change as well, and they are here to keep passing -- the relaxation must not widen into a real
+  // deployment's trust, so it is guarded rather than merely intended.
+  const foreignOrigin='http://evil.example:'+appPort;
+  const foreignA=await postAs(aliasHost+':'+appPort,foreignOrigin,'foreign-origin-'+project+'@example.invalid');
+  assert.equal(foreignA.status,403,'a foreign Origin must still be refused: '+foreignA.status+' '+foreignA.text);
+  const foreignB=await postAs('evil.example:'+appPort,foreignOrigin,'foreign-host-'+project+'@example.invalid');
+  assert.equal(foreignB.status,403,'a foreign Host must still be refused: '+foreignB.status+' '+foreignB.text);
+  passed('a foreign Origin and a foreign Host are still refused: the loopback exception is bounded');
   compose(['restart','app','worker']);
   await ready();
   const login=await request('POST','/api/auth/sign-in/email',{email:credentials.email,password:credentials.password});

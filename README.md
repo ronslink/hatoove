@@ -16,6 +16,8 @@ docker compose logs --tail=100 app worker migrate
 
 Open http://localhost:4300. The published ports bind only to loopback. The worker uses a deterministic grading stub: the current app is an incomplete development server, not a production deployment or evidence of assessment quality.
 
+`http://127.0.0.1:4300` works identically: the server treats a loopback alias of a loopback origin as the same origin, so which of the two addresses you type does not decide whether sign-up succeeds. A **non-loopback** origin is matched exactly — a deployed hostname does not accept an alias, and the stack check guards that boundary.
+
 Compose starts PostgreSQL, runs the numbered migrations, then starts the API and worker. Only the API has an HTTP readiness probe; the worker is supervised as a separate process.
 
 ## Stop and restart
@@ -29,7 +31,7 @@ Stopping retains the named database volume and account data. Do not remove volum
 
 ## Configuration
 
-The defaults are HATOVE_APP_PORT=4300, HATOVE_DB_PORT=55440 and HATOVE_PUBLIC_ORIGIN=http://localhost:4300. If the app port or browser hostname changes, set the public origin to that exact address as well; mutations reject a mismatched origin. Set these as operator environment variables consumed by Compose. Provider configuration belongs on the server and is never learner editable.
+The defaults are HATOVE_APP_PORT=4300, HATOVE_DB_PORT=55440 and HATOVE_PUBLIC_ORIGIN=http://localhost:4300. If the app port or browser hostname changes, set the public origin to that exact address as well; mutations reject a mismatched origin. A loopback alias of a loopback origin is the one tolerated difference, so `localhost` and `127.0.0.1` are interchangeable **only** while the configured origin is itself loopback. Set these as operator environment variables consumed by Compose. Provider configuration belongs on the server and is never learner editable.
 
 The database trust configuration is for this isolated development stack only. Production authentication, secrets, provider access, content review and deployment authorization remain open gates. Publishing ports publicly or deploying is a separate task.
 

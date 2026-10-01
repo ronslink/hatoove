@@ -323,6 +323,27 @@ function isLoopbackHostname(hostname) {
   return LOOPBACK_HOSTNAMES.has(hostname) || hostname === '::ffff:127.0.0.1';
 }
 
+/** The default port for a scheme, so an omitted port and an explicit default compare equal. */
+function defaultPortFor(protocol) {
+  return protocol === 'https:' ? '443' : '80';
+}
+
+/**
+ * Two URLs that both name a loopback host name the SAME ORIGIN.
+ *
+ * On a local server `localhost`, `127.0.0.1` and `::1` are one machine, so an origin configured as
+ * one must accept another. Without this, which address the learner happened to type decided whether
+ * sign-up worked, and the refusal was an unexplained `origin_rejected` — measured, not supposed.
+ *
+ * This is deliberately NOT applied to a non-loopback configured origin: a public deployment must
+ * never accept an alias of its own hostname, so exact matching stays the rule there. The loopback
+ * list is consulted only when BOTH sides are loopback, which is why this cannot widen a real
+ * deployment's trust.
+ */
+function isLoopbackOriginPair(configured, url) {
+  return isLoopbackHostname(configured.hostname) && isLoopbackHostname(url.hostname);
+}
+
 /**
  * True only when a state-changing API request comes from this server's own origin.
  * `ownPort` is the local socket port, so this also works on an ephemeral test port.
@@ -387,21 +408,34 @@ function hasUnparseableOriginCharacters(raw) {
 function originMatches(configured, value) {
   if (hasUnparseableOriginCharacters(value)) return false;
   const url = parseOriginLike(String(value));
-  return Boolean(url) && `${url.protocol}//${url.host}` === `${configured.protocol}//${configured.host}`;
+  if (!url) return false;
+  if (`${url.protocol}//${url.host}` === `${configured.protocol}//${configured.host}`) return true;
+  // Otherwise the only tolerated difference is a loopback alias on the same scheme and port.
+  return url.protocol === configured.protocol
+    && isLoopbackOriginPair(configured, url)
+    && (url.port || defaultPortFor(url.protocol)) === (configured.port || defaultPortFor(configured.protocol));
 }
 
 /**
  * The Host header names the configured origin's host. An explicit port must match the
  * configured one; a Host without a port matches, because a reverse proxy usually forwards
  * `Host: app.example.com` for an https origin on its default port.
+ *
+ * A loopback alias is accepted too, but only with an EXPLICIT matching port: there is no
+ * reverse-proxy case to tolerate for an alias, so it does not inherit the omitted-port allowance.
  */
 function hostMatchesOrigin(configured, hostHeader) {
   const raw = String(hostHeader || '');
   if (hasUnparseableOriginCharacters(`http://${raw}`)) return false;
   const url = parseOriginLike(`http://${raw}`);
-  if (!url || url.hostname !== configured.hostname) return false;
-  if (!url.port) return true;
-  return url.port === (configured.port || (configured.protocol === 'https:' ? '443' : '80'));
+  if (!url) return false;
+  const configuredPort = configured.port || defaultPortFor(configured.protocol);
+  if (url.hostname === configured.hostname) {
+    if (!url.port) return true;
+    return url.port === configuredPort;
+  }
+  if (!isLoopbackOriginPair(configured, url)) return false;
+  return (url.port || '80') === configuredPort;
 }
 
 /** Tolerates parameters such as "; charset=utf-8", rejects anything else. */
