@@ -24,19 +24,25 @@
 <a class="skip" href="#main">Zum Inhalt springen</a>
 
 <div class="app">
-  <aside class="side">
+  <aside class="side" aria-label="Hauptnavigation">
     <a class="logo" href="#/heute" aria-label="Hatoove – Startseite">
       <img src="/assets/design/hatoove-logo.svg" alt="Hatoove">
     </a>
 
-    <nav class="nav" aria-label="Hauptnavigation">
-      <a href="#/heute" data-view="heute" aria-current="page">Heute</a>
-      <a href="#/ueben" data-view="ueben">Üben</a>
-      <a href="#/woerterbuch" data-view="woerterbuch">Wörterbuch</a>
-      <a href="#/nachschlagen" data-view="nachschlagen">Nachschlagen</a>
-      <a href="#/fortschritt" data-view="fortschritt">Fortschritt</a>
-      <p class="nav-label kicker">Konto</p>
-      <a href="#/einstellungen" data-view="einstellungen">Einstellungen</a>
+    <div class="exam-pill">
+      <strong>telc Deutsch B1</strong>
+      <span id="exam-countdown">Kein Prüfungsdatum gesetzt</span>
+    </div>
+
+    <nav class="nav" aria-label="App">
+      <a href="#/heute" data-view="heute"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg><span>Heute</span></a>
+      <a href="#/fortschritt" data-view="fortschritt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>Fortschritt</span></a>
+      <p class="kicker nav-label">Lernen</p>
+      <a href="#/ueben" data-view="ueben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span>Üben</span></a>
+      <a href="#/woerterbuch" data-view="woerterbuch"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg><span>Wörterbuch</span></a>
+      <a href="#/nachschlagen" data-view="nachschlagen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 21h8"/><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></svg><span>Nachschlagen</span></a>
+      <p class="kicker nav-label">Konto</p>
+      <a href="#/einstellungen" data-view="einstellungen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Einstellungen</span></a>
     </nav>
 
     <div class="side-foot">
@@ -50,8 +56,17 @@
 
   <div class="main" id="main">
     <header class="topbar">
-      <h1 id="page-title">Heute</h1>
+      <div class="row mobile-bar">
+        <img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="120" height="22">
+      </div>
+      <!-- The design puts the CURRENT VIEW and the date in crumbs, not a bare page title. The <b> keeps
+           the id app.js already writes to, so route() does not have to change to stay conformant. -->
+      <p class="crumbs"><b id="page-title">Heute</b> · <span id="crumb-date">–</span></p>
       <div class="top-actions">
+        <button class="lang-btn" type="button" id="lang-btn" title="Erklärungssprache in den Einstellungen ändern">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20"/></svg><span id="lang-label">Erklärungen: Deutsch</span>
+        </button>
+        <a class="icon-btn" href="#/einstellungen" aria-label="Einstellungen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
         <button type="button" class="btn btn-ghost" id="signout">Abmelden</button>
       </div>
     </header>

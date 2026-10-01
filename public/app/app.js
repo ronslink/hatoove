@@ -250,11 +250,39 @@ async function renderPracticeNext() {
     + '<p class="small muted">Vom Server gewählt aus deinen bisherigen Antworten &mdash; nicht geraten.</p></div>';
 }
 
+
+/**
+ * The design's chrome: the exam countdown pill, the crumb date, and the explanation-language button.
+ * All three are facts the server already stores -- nothing here is invented to fill a space, and a
+ * missing exam date says so rather than showing a plausible-looking countdown.
+ */
+function renderChrome() {
+  const settings = state.settings || {};
+  const crumb = el('crumb-date');
+  if (crumb) crumb.textContent = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  const countdown = el('exam-countdown');
+  if (countdown) {
+    if (settings.examDate) {
+      const exam = new Date(settings.examDate + 'T00:00:00');
+      const today = new Date(new Date().toDateString());
+      const days = Math.round((exam - today) / 86400000);
+      countdown.textContent = days >= 0
+        ? 'Prüfung am ' + exam.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }) + ' · ' + days + (days === 1 ? ' Tag' : ' Tage')
+        : 'Prüfungsdatum liegt in der Vergangenheit';
+    } else {
+      countdown.textContent = 'Kein Prüfungsdatum gesetzt';
+    }
+  }
+  const lang = el('lang-label');
+  if (lang) lang.textContent = 'Erklärungen: ' + (LANGUAGE_NAMES[settings.language] || 'Deutsch');
+}
+
 function route() {
   const key = (location.hash || '#/heute').replace(/^#\/?/, '') || 'heute';
   const view = VIEW_TITLES[key] ? key : 'heute';
   for (const name of Object.keys(VIEW_TITLES)) el(`view-${name}`).hidden = name !== view;
   el('page-title').textContent = VIEW_TITLES[view];
+  renderChrome();
   if (view === 'ueben') { void renderPracticeNext(); void renderTasks(); }
   if (view === 'woerterbuch') void renderDictionary();
   if (view === 'nachschlagen') void renderGuides();
