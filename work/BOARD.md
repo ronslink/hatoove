@@ -2,7 +2,15 @@
 
 The local coordinator owns this board. Detailed assignments live on linked GitHub issues; PRs and merged source provide completion evidence. Follow the [workflow](../docs/AGENT_WORKFLOW.md), [task template](TASK_TEMPLATE.md) and [handoff template](HANDOFF_TEMPLATE.md).
 
-Repository: **[private `ronslink/hatoove`](https://github.com/ronslink/hatoove)**. Curated baseline `2feaba6` is published and its Linux/Windows CI passed. Remote assignments are linked below. No production deployment is scheduled. Ron-authorized coordinator heartbeat `continue-hatoove-implementation` is active every five minutes; worker runs remain bounded.
+Repository: **[private `ronslink/hatoove`](https://github.com/ronslink/hatoove)**. Curated baseline `2feaba6` is published and its Linux/Windows CI passed. Remote assignments are linked below. No production deployment is scheduled. The original Codex heartbeat `continue-hatoove-implementation` was paused on coordinator transfer; this documentation update does not resume it. Current coordination cadence belongs to the appointed coordinator; worker runs remain bounded.
+
+## Planning update — DESIGN-SAAS-PLAN-01, 1 October 2026
+
+Ron requested the new design integration and retirement of the previous single-user schema/functionality. [MASTER-PLAN.md](../MASTER-PLAN.md) and [DESIGN-WIRE-01](implementation/DESIGN-WIRE-01.md) now define DESIGN-01–07 plus SAAS-MODEL-01, SAAS-RESUME-01 and mandatory SAAS-RETIRE-01. **State: planned; no implementation lease or slot is assigned by these rows.** Existing writing/session/deletion owners must finish or hand off before overlapping work.
+
+Documentation execution `design-saas-plan-20261001-a`: branch `codex/design-saas-master-plan`, base `e126d8c4b18a2beaf58eca2d279fe8d191e825ae`; scope is linked planning documents and reference hashes only. Acceptance: all 14 screens mapped, owned data dependencies and explicit legacy removal checks, existing product/human/device boundaries retained. Checkpoint: documentation PR by 08:30 UTC; expires 09:30 UTC on 1 October. Ron's appointed coordinator remains dispatch/integration owner. No runtime/data change is claimed.
+
+Earlier preparation and execution records below are historical; verify live leases with the appointed coordinator rather than reviving them from this board.
 
 ## Preparation
 

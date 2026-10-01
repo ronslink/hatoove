@@ -1,12 +1,33 @@
 # Hatoove implementation plan
 
-Revised 30 September 2026. This is the authoritative executable revision of the pasted **36-package agent-swarm plan**. It supersedes that plan's calendar, platform assumptions, package ownership and acceptance rules. The [pilot plan](PILOT_BUILD_PLAN.md) supplies product, examination and architecture rationale. Follow the user's later decisions if a document conflicts with them.
+Revised 1 October 2026 for the supplied designs and the SaaS-only data/runtime direction. This is the authoritative executable revision of the pasted **36-package agent-swarm plan**. It supersedes that plan's calendar, platform assumptions, package ownership and acceptance rules. The [pilot plan](PILOT_BUILD_PLAN.md) supplies product, examination and architecture rationale. Follow the user's later decisions if a document conflicts with them.
 
-**Start here for a quick programme view:** [`MASTER-PLAN.md`](MASTER-PLAN.md) is the consolidated delivery tracker — milestones with merge evidence, the twelve coordination workstreams, the review/integration queue and the open human/device gates. It is a **summary that may lag**; this plan stays authoritative for package scope and acceptance. For what is running right now, see [`work/BOARD.md`](work/BOARD.md).
+**Start here for a quick programme view:** [`MASTER-PLAN.md`](MASTER-PLAN.md) is the consolidated delivery tracker — milestones with merge evidence, the design/SaaS delivery sequence, the review/integration queue and the open human/device gates. It is a **summary that may lag**; this plan stays authoritative for package scope and acceptance. For what is running right now, see [`work/BOARD.md`](work/BOARD.md).
 
-The next outcome is a dependable, mobile-capable learner journey in the previous app's visual style. Prepare and integrate source through the private `ronslink/hatoove` repository. This plan does not authorize publishing a site, sending invitations, configuring live domain traffic or deploying production services.
+The next outcome is a dependable, mobile-capable, multi-user SaaS journey using the supplied Hatoove designs. Remove the former single-user schema/runtime as part of this delivery. Prepare and integrate source through the private `ronslink/hatoove` repository. This plan does not authorize publishing a site, sending invitations, configuring live domain traffic or deploying production services.
 
-## Verified progress — 1 October 2026
+## Current direction and design integration — 1 October 2026
+
+Ron selected `D:\B1_Prep\design` as the design source and explicitly required removing the former single-user schema and associated functionality. [DESIGN-WIRE-01](work/implementation/DESIGN-WIRE-01.md) is the detailed screen-to-contract map, replacement/removal contract and delivery sequence; its [manifest](work/implementation/DESIGN-REFERENCE-MANIFEST.json) identifies the inspected design bytes. This changes F-04 and W-01–W-05 acceptance; it does not create a new framework or hosting migration.
+
+The target is one service/shared PostgreSQL schema with session-derived ownership for each learner, versioned shared content and server-owned attempts, settings, results, plans and entitlements. Renaming the old progress blob or file per account does not complete this migration. **SAAS-RETIRE-01 must remove** the old schema consumers, file persistence, anonymous/local learner fallback, browser-authoritative state and full-blob sync after verified replacements. Required auth/database configuration must fail closed by default, not only behind an optional hosted-mode flag. Development uses the same contract with synthetic data; obsolete single-user compatibility is no longer an acceptance requirement.
+
+Adopt the new orange/rising-oo, warm-paper design and typography; German interface/content stay German, and explanation support targets **de, en, uk, ar, tr**, including scoped RTL. Keep unreviewed language fixtures clearly identified while implementation proceeds; native approval remains a release gate for all five. Design sample prices, two-model claims and readiness forecasts are not requirements to implement or publish.
+
+| Ordered slice | Parent packages | Acceptance summary |
+|---|---|---|
+| DESIGN-01 + SAAS-MODEL-01 | F-03/F-04, A-01/A-02, W-01 | Version assets/licences and design contract/gate; define owned domain contracts plus an explicit single-user removal matrix. These may run in parallel |
+| DESIGN-02 + SAAS-RESUME-01 | A-01/A-02/A-04, W-01/W-03 | Real account/setup/settings/dashboard plus saved-task discovery/version binding; no legacy local-user branch |
+| DESIGN-03 + DESIGN-04 | A-03, E-02, C-04/C-05, W-02/W-04 | Durable writing worker/feedback/revision and server-marked objective/fixed-audio practice; adopt existing reviewed writing changes under one exam.js owner |
+| DESIGN-05 | E-03/E-04, C-06, W-03 | Owned review/calendar/factual progress and five-language explanations, preserving saved assessments and German chrome |
+| SAAS-RETIRE-01 -> DESIGN-06 | F-03, A-04/A-05, Q-01 | Delete old runtime/schema paths safely, then prove the complete two-account/fresh-browser journey and actual absence of fallback/file-state dependencies |
+| DESIGN-07 | P-01/P-02, W-05 | Catalogue-backed offer/upgrade and test checkout; separate from internal learner-journey acceptance |
+
+At inspection remote main was `4f76b9428aacfc2ef670bdd3bdf5e43fa316222e`; the planning base is candidate `e126d8c4b18a2beaf58eca2d279fe8d191e825ae` (PR #60). Open PRs #74–#79 contain ongoing review/wiring/fence work; their current heads, review coverage and overlap must be reconciled at dispatch. No runtime feature is marked complete by this documentation update. The current milestone/queue summary is [MASTER-PLAN.md](MASTER-PLAN.md).
+
+## Historical progress snapshot — early 1 October 2026
+
+The following snapshot is retained as recorded history. Its main/head, active workers and next actions are superseded by the current tracker and live coordinator dispatch; it must not be used as a current lease or completion claim.
 
 `origin/main` = **`5a63429949275f4cb27cd7f64565afe8cf029511`**. Everything here was measured on a fresh worktree at
 that commit on 2026-10-01, not carried over. Baseline unchanged and re-confirmed: `check.js` **101/0** ·
@@ -35,7 +56,7 @@ passes (277 tracked files, 206 text blobs screened — explicitly **not** a comp
 (exam fidelity E-01, content/audio rights C-04, native language C-06, security/privacy/legal P-03, real devices)
 remains open, and no agent may close one.
 
-## Verified progress — 30 September 2026, 18:46 UTC
+## Historical progress snapshot — 30 September 2026, 18:46 UTC
 
 This is the master progress record. Package acceptance below remains authoritative: a finished subtask, passing test or worker report does not close the entire package. The [board](work/BOARD.md) carries exact owners/leases; linked PRs carry review and integration evidence. No overall completion percentage or launch date is inferred from task counts.
 
@@ -65,11 +86,11 @@ Ron authorized an active five-minute Codex coordinator heartbeat (`continue-hato
 
 ## Decisions that govern every package
 
-1. Preserve the **previous `public/` app's logged-in appearance**: its dashboard, layout, cards, spacing and navigation style are the starting point. Use the [design reference](docs/design/REFERENCE_UI.md). Incorporate Hatoove's orange identity and preferred `oo` branding without treating this as permission for a wholesale redesign. The marketing preview is a separate visual reference.
+1. Use the supplied Hatoove designs and [integration contract](work/implementation/DESIGN-WIRE-01.md) for the learner app. The new orange/rising-oo identity, typography, shared components and responsive layouts supersede old appearance-preservation rules. The [previous-app reference](docs/design/REFERENCE_UI.md) is historical regression context, not the target palette. Update the design contract and gate together when implementing the new tokens; preserve useful behavior through owned server contracts.
 2. Phone and tablet support starts with the first components and practice screens. Desktop parity, touch interaction, the onscreen keyboard, audio and recovery are acceptance requirements, not a final polish pass.
 3. Deliver standalone telc Deutsch B1 preparation for reading, language elements, listening and writing. Speaking, STT, microphone capture, schools and teacher administration are excluded. Preserve deferred source without exposing its routes or oral-score assumptions in the pilot.
 4. Retain the current Node API/background-worker and PostgreSQL direction. DigitalOcean App Platform and reuse of a separate logical database on the existing cluster remain conditional on region, permissions, capacity, connection and recovery checks. Cloudflare can remain domain/DNS/CDN. Hosting does not determine interface quality. Do not introduce Workers/D1, React, a monorepo migration or a new cluster merely to match the superseded plan.
-5. Useful native-language explanations belong in the core offer. The examination language, explanation language and purchasing market are separate fields. Regional prices require a server-controlled catalogue and purchase snapshots, not language-based assumptions or currency conversion alone.
+5. The interface and exam content stay German. The selected explanation-language set is de/en/uk/ar/tr; Arabic direction is scoped to explanations. Useful native-language explanations belong in the core offer. The examination language, explanation language and purchasing market are separate fields. Regional prices require a server-controlled catalogue and purchase snapshots, not language-based assumptions or currency conversion alone.
 6. Objective marking is deterministic and authoritative on the server. Writing feedback is provisional and formative. Do not display a whole-exam pass prediction, uncalibrated readiness percentage or substitute a heuristic mark for missing writing evidence.
 7. The local coordinator owns major architecture, contracts, implementation and integration. OpenClaw on Hetzner and Hermes in Docker receive bounded tasks or independent checks. More agents are useful only when task boundaries and review capacity support them.
 8. Human experts approve educational content and supported-language explanations. Agents may draft, validate and flag; they cannot give themselves final approval. Product, payment, privacy and launch decisions retain the required human signoff.
@@ -91,7 +112,7 @@ Use the [agent workflow](docs/AGENT_WORKFLOW.md), [live board](work/BOARD.md), [
 
 ## Contracts before parallel feature work
 
-F-03 is a small integration spike followed by versioned contracts, not an attempt to freeze an assumed 13-table schema. Validate the selected authentication library, PostgreSQL adapter, Node runtime and migration approach first. If Better Auth is selected, account for its actual user, session, account and verification records and library-version requirements. Inventory the remaining records for profiles, versioned content/assets, attempts, drafts, immutable submissions, assessments, jobs, usage, sync/deletion, products, prices, orders and entitlements.
+F-03 is a small integration spike followed by versioned contracts, not an attempt to freeze an assumed 13-table schema. Validate the selected authentication library, PostgreSQL adapter, Node runtime and migration approach first. If Better Auth is selected, account for its actual user, session, account and verification records and library-version requirements. Inventory the remaining records for profiles, versioned content/assets, attempts, drafts, immutable submissions, assessments, jobs, usage, cross-device concurrency/deletion, products, prices, orders and entitlements. Remove legacy singleton/file/blob schema consumers through SAAS-MODEL-01 and SAAS-RETIRE-01; maintain forward migration history and preserve explicitly retained records.
 
 The initial contract covers:
 
@@ -100,7 +121,7 @@ The initial contract covers:
 | Auth and routes | Public-route allowlist; authenticated learner routes; ownership; callback, webhook and anonymous-tool authentication; session/CSRF/Origin handling; input limits and errors |
 | Exam and content | Versioned task shapes, item counts, timings, assistance/playback rules, weights, answer rules, rubric, rights/source and human review records |
 | Writing | Draft concurrency; immutable submitted text; revision lineage; saved result/evidence; model/prompt/rubric versions; status transitions; job lease/retry/idempotency and quota semantics |
-| Sync and privacy | Stable event IDs, server revisions, conflict behavior, deletion precedence, tombstone/retention rules, export shape and account-scoped cache clearing |
+| Concurrency and privacy | Owned server revisions, explicit conflicts, deletion precedence, export shape and account-scoped cache clearing; no local-install/file synchronization or automatic legacy adoption. Keep hard deletion and backup-restoration policy distinct |
 | Commercial | Market/exam/duration/allowance, price and currency snapshots, order/entitlement lifecycle, successful-assessment debit and refund/dispute behavior |
 | Languages and analytics | Declared supported explanation languages and RTL; safe translation of saved feedback; data-minimized event names without learner text or direct identifiers |
 
@@ -121,7 +142,7 @@ There are no overlapping promised week ranges. A package starts only after its l
 | F-01 | Curated baseline, repository, task guidance and CI / C | None | Private source baseline is reviewed; exclusions/source guard work; the three offline suites have recorded current results; CI runs applicable checks without live provider calls; worker handoff exercises are queued |
 | F-02 | Local runtime and environment/infrastructure readiness / C, H | F-01 | API/worker/database development path is documented and reproducible; read-only infrastructure findings and unresolved conditions are recorded; environment/secrets boundaries and backup plan exist. Local work can continue with a clearly marked provisional hosting target; this does not certify production readiness |
 | F-03 | Auth/runtime spike and pilot contracts / C, R | F-01 | Selected auth/database path is exercised locally; schemas, route controls and state contracts above are versioned with meaningful fixtures; conflicting assumptions are resolved before consumer implementation |
-| F-04 | Previous-app design baseline and responsive components / C, W, R | F-01 | Existing logged-in appearance is the reference; phone/tablet/desktop layouts, touch targets, focus, contrast and RTL are specified and demonstrated; a framework change is not required |
+| F-04 | Supplied Hatoove design system and responsive components / C, W, R | F-01 | DESIGN-01 versions approved reference assets/licences and one token/component system; update design contract and checks together; all retained screens cover phone/tablet/desktop, themes, focus, contrast, touch and scoped RTL; no framework rewrite |
 
 ### Exam specification and reviewed content
 
@@ -144,9 +165,9 @@ There are no overlapping promised week ranges. A package starts only after its l
 | A-01 | Authentication and ownership boundary / C, R | F-02, F-03 | Maintained auth integration works locally/staging as permitted; two accounts are isolated; sessions, logout, CSRF/Origin, abuse controls and public-route exceptions have negative tests |
 | A-02 | Owned learning/attempt/content routes / C, W, R | A-01, E-02, C-03 | Approved/entitled content is served safely; authoritative marking and attempt saving work; unauthorized cross-account reads/writes fail; historical content/rubric references remain immutable |
 | A-03 | Durable assessment jobs and provider adapter / C, W, R | A-01, C-05 | Saved submissions precede dispatch; idempotency, transactional enqueue, bounded retries, job leases, result persistence and allowance accounting withstand injected failures; fixtures cover slow, malformed and unavailable providers |
-| A-04 | Cross-device resume and bounded sync / C, W, R | A-02, A-03 | Server revisions, stable event IDs and explicit draft conflict behavior converge without silently overwriting newer work; completed feedback reopens without regeneration; stale events cannot recreate a deleted attempt |
-| A-05 | Export, deletion and retention / C, W, H, R | A-04 | Owned data exports accurately; deletion covers records, assets, caches and jobs according to the reviewed policy; stale-client sync and late worker completion cannot restore deleted work; backup retention/restoration and legally retained records are handled honestly |
-| W-01 | Existing-app shell, client boundary and languages / C, W, R | F-03, F-04 | Familiar navigation and styling are preserved; account states and route/client contracts work; de/en/uk/ar language structure and RTL are supported, with only reviewed language/content sets enabled |
+| A-04 | Server-owned discovery, resume and draft concurrency / C, W, R | A-02, A-03 | Owned list/discovery and exact task/content identity work in a fresh browser without local pointers; revisions refuse stale writes explicitly; feedback reopens without regeneration; stale clients cannot recreate deleted work. No file/blob sync engine |
+| A-05 | Export, deletion and retention / C, W, H, R | A-04 | Owned data exports accurately; deletion covers records, assets, caches and jobs according to the reviewed policy; stale client writes and late worker completion cannot restore deleted work; backup retention/restoration and legally retained records are handled honestly |
+| W-01 | Supplied-design shell, client boundary and languages / C, W, R | F-03, F-04 | DESIGN-01/02 replace the old visual language consistently; German chrome and content, account entry/refusal states and owned route contracts work; de/en/uk/ar/tr explanation structure and scoped RTL are implemented, with native-review release gates recorded |
 | W-02 | Objective item runners with audio / C, W, R | W-01, A-02, C-04, C-06 | Reviewed short practice runs end to end on phone/desktop; deterministic feedback, guided versus timed assistance, timer/playback rules, interruptions and audio failures are verified |
 | W-03 | Onboarding, dashboard and study plan / C, W, R | W-01, A-02, E-04, C-06 | A learner selects exam/date/explanation language and reaches relevant practice; dashboard resumes real saved work, not illustrated values or an unsupported forecast; scripted checks and observed usability are reported separately |
 | W-04 | Writing, saved feedback and revision / C, W, R | W-01, A-03, A-04, C-06 | Drafts survive navigation/reload; immutable submission, pending/failure/retry, leave-and-return and revision flows work with the mobile keyboard; feedback cites evidence and stays linked to the original text/version |
@@ -175,7 +196,7 @@ Tests and threat review begin within each preceding package; Q-01 and X-01 close
 | ID | Deliverable / ownership | Prerequisites | Done when |
 |---|---|---|---|
 | Q-01 | Integrated journey, mobile and accessibility verification / R, C | W-03, W-04, W-05, A-05, P-02 | Core journeys, checkout, isolation, deletion, failure/recovery and mock behavior pass against the integration candidate; axe plus manual keyboard/screen-reader/touch checks and iPhone/Android evidence have recorded results; no serious unresolved accessibility defect |
-| X-01 | Security and privacy review closure / R, C, H | A-05, A-03, P-01, S-01 | Threat model, auth/ownership, public endpoints, answer-key access, sync/deletion, jobs, prompt injection, payments, logs and secrets controls are checked; material findings are fixed or explicitly accepted by the responsible human; known cross-user access/data-loss issues block release |
+| X-01 | Security and privacy review closure / R, C, H | A-05, A-03, P-01, S-01 | Threat model, auth/ownership, public endpoints, answer-key access, concurrency/deletion, jobs, prompt injection, payments, logs and secrets controls are checked; material findings are fixed or explicitly accepted by the responsible human; known cross-user access/data-loss issues block release |
 | B-01 | Controlled beta tooling and recruitment readiness / C, W, H | W-05, O-01, Q-01, X-01 | Invite/report/survey mechanisms work in tests; consent, support/triage and participant criteria are ready; early journey and review gates have evidence. Issuing codes is not participant recruitment or proof of usability; sending invitations is separately authorized |
 | B-02 | Observed beta improvements and final hardening / C, W, R, H | B-01 | Actual learner observations on phone/desktop and supported explanation languages inform fixes; no open data-loss/access-isolation bugs; performance is measured on a stated device/network/cache configuration; relevant checks are rerun for changes |
 | L-01 | Production readiness, restore rehearsal and launch decision / C, H, R | B-02, Q-01, X-01, P-02, P-03, O-01, F-02 | All release gates below pass on the release candidate, including reviewed content, actual infrastructure readiness, database/audio recovery and rollback rehearsal. Owner explicitly approves production release before live keys, traffic or publication change |
@@ -188,7 +209,7 @@ These IDs remain in the plan but are not hidden prerequisites for demonstrating 
 |---|---|---|---|
 | C-02 | Scalable generation and validation / C, W, H | C-01, C-03 | Generation model/provider is selected using task-specific evidence and cost controls; recorded fixtures exercise validators; generated items enter draft/checked status and the human queue. Writing benchmark results do not establish generation quality |
 | S-02 | Search content and public practice tools / C, W, H, R | S-01, E-01, C-03, C-06, A-03 | Original/authorized pages and tools match the exam and supported languages; anonymous AI tools have explicit quotas/abuse/privacy controls; quality and usefulness determine page count, not a promise of ten pages in every language |
-| W-06 | Optional offline installation and reminders / C, W, R | W-05, A-04, A-05 | Account-scoped offline data and sync/deletion/conflict recovery work; unsupported/offline states are clear; any reminder feature has appropriate consent and verified platform behavior. Android push success alone is not iPhone/mobile readiness |
+| W-06 | Deferred installability/reminders / C, W, R | Separate future scope decision | Single-user installation and file synchronization are retired, not deferred launch dependencies. Any future installation/reminders proposal must use the authenticated SaaS service and define consent/platform evidence; it must not revive the old offline runtime |
 
 ## Acceptance rules that protect the product
 
@@ -224,7 +245,7 @@ Machine checks and back-translation prioritize review; they cannot replace nativ
 
 ### Mobile, usability and accessibility
 
-Each UI task identifies its previous-app reference and covers narrow phones, larger phones, tablet and desktop. Verify no clipped content or accidental horizontal scrolling, legible task text, usable touch controls and focus, sensible navigation and RTL with German exam content. For writing, verify prompt access and save/submission controls with the onscreen keyboard open. For listening, verify actual device audio behavior and clear recovery.
+Each UI task identifies its supplied-design screen/component and covers 320/390 px phones, 768/1024/1180 px tablets and 1440 px desktop in both themes. Retained views without a mockup use the same design system. Verify no clipped content or accidental horizontal scrolling, legible task text, usable touch controls and focus, sensible navigation and RTL with German exam content. For writing, verify prompt access and save/submission controls with the onscreen keyboard open. For listening, verify actual device audio behavior and clear recovery.
 
 Use browser viewport tests for repeatable layouts plus iPhone Safari and Android Chrome checks for actual behavior. Record unavailable device evidence rather than implying emulation establishes it. Axe checks are supplemented by keyboard, screen-reader and touch review. Observe a small number of representative learners attempting the complete journey; a scripted two-minute path is not evidence that a new learner understands it.
 
@@ -232,7 +253,7 @@ Performance acceptance specifies the device, network shaping, cache state, route
 
 ### Accounts, commerce and operational privacy
 
-Test two learners in the same browser and through direct API calls. Isolate drafts, attempts, assets, assessments, caches, exports and jobs. Sign-out clears private browser state. Sync uses server revisions and explicit conflicts; deletion wins against stale clients and late jobs. Keep deletion, retention, backup expiry and any required financial retention distinct, with a documented restore procedure that reapplies deletions. Do not promise instantaneous physical removal from immutable backups.
+Test two learners in the same browser and through direct API calls. Isolate drafts, attempts, assets, assessments, caches, exports and jobs. Sign-out clears private browser state. Concurrent server writes use revisions and explicit conflicts; deletion wins against stale clients and late jobs. The legacy singleton/file/blob persistence and local fallback paths must be removed, not hidden behind a flag. Keep deletion, retention, backup expiry and any required financial retention distinct, with a documented restore procedure that reapplies deletions. Do not promise instantaneous physical removal from immutable backups.
 
 Regional catalogue entries include market, exam, duration, allowance, currency and price. Persist the agreed purchase snapshot and server-controlled entitlements. Allow legitimate market correction; instruction language and IP location alone do not establish purchasing market. Check affordability and unit economics for the actual package, including full included usage. No unsupported global euro price list or premium surcharge for native explanations.
 
@@ -243,7 +264,7 @@ Payment, auth, email and AI providers are stubbed or use expressly configured te
 | Gate | Evidence required |
 |---|---|
 | Foundation | F-01–F-04 acceptance, reviewed blueprint, current contracts, proven assigned-worker handoff and source exclusions |
-| Internal first journey | Reviewed sample set and supported explanations; W-02/W-03/W-04 with owned persistence and cross-device resume; slow/failed/repeated submission and audio recovery demonstrated; no numerical validity claims from stubs |
+| Internal first journey | Reviewed sample set and supported explanations; supplied-design W-01–W-04 with real owned persistence, discovery and cross-device resume; SAAS-RETIRE-01 proves no single-user schema/runtime dependency remains; slow/failed/repeated submission and audio recovery demonstrated; no numerical validity claims from stubs |
 | Public waitlist | P-03 applicable notices/consent, S-01 security/accessibility/abuse checks, reviewed content and owner approval to publish/collect data; no early public collection while legal work waits |
 | Controlled beta | Q-01, X-01, truthful supported scope, human-reviewed content/audio/languages, usable reporting/support and authorization to invite participants; a code count is not beta evidence |
 | Paid production | **Q-01, P-01/P-02, P-03, X-01, B-02 and O-01** complete on the release candidate; content coverage signed off; native/audio/exam review complete; actual F-02 infrastructure conditions satisfied; retention/deletion/export verified; database and audio restore plus rollback rehearsed; owner launch approval |
