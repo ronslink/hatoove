@@ -16,6 +16,11 @@
  *   * NO LATE WRITING FEEDBACK: with a STUBBED AI provider, a writing grading held across a
  *     sign-out or an account switch puts no text in the notebook, records no attempt and
  *     reaches no storage; a signed-out page refuses a notebook entry (SESSION-BOUNDARY-02 F2);
+ *   * ANOTHER TAB (SESSION-BOUNDARY-04, review finding N-1): with two REAL pages of one browser
+ *     profile, a sign-out in one tab is followed by the other - it does not re-create the
+ *     account's record in localStorage (S17: a later answer and flush; S7b: a 250 ms save
+ *     already queued) and it stops showing the account's data. Controls: a sign-in after the
+ *     forget still saves, locally and to the server, in either tab;
  *   * the single-user path with accounts disabled: the record shows, 12 views; a tab return
  *     re-checks identity but does not reconcile again or replace the record (F3);
  *   * no console errors; desktop 1440 px and phone 390 px screenshots.
@@ -38,7 +43,7 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { connectToPage, sleep } from './cdp.js';
+import { CDP, connectToPage, sleep } from './cdp.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // SESSION_BOUNDARY_ROOT lets the discrimination run copy a scratch tree instead.
@@ -250,6 +255,41 @@ async function launchChromium(debugPort) {
     },
   };
 }
+
+/**
+ * Open a SECOND real page in the same headless browser - same profile, so the same cookie jar
+ * and the same localStorage, exactly what another tab of the learner's browser shares.
+ */
+async function openSecondTab(debugPort, url) {
+  const target = await (await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`, { method: 'PUT' })).json();
+  const ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {
+    ws.addEventListener('open', resolve, { once: true });
+    ws.addEventListener('error', () => reject(new Error('second tab: WebSocket connection failed')), { once: true });
+  });
+  const tab = new CDP(ws);
+  await tab.send('Runtime.enable');
+  await tab.send('Page.enable');
+  await tab.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
+  await tab.send('Page.navigate', { url });
+  tab.close = async () => {
+    try { ws.close(); } catch { /* ignore */ }
+    await fetch(`http://127.0.0.1:${debugPort}/json/close/${target.id}`).catch(() => {});
+  };
+  return tab;
+}
+
+/** The account-namespace keys (`b1prep.state.v1::<id>`) whose value contains `text`. */
+const accountKeysHolding = (cdp, text) => cdp.evaluate(`return Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
+  .filter((k) => k && k.startsWith('b1prep.state.v1::') && (localStorage.getItem(k) || '').includes(${JSON.stringify(text)}))`);
+
+/** Record one wrong answer carrying `marker` as a notebook entry, as a learner action would. */
+const recordMarkedAttempt = (cdp, marker) => cdp.evaluate(`return import('/js/store.js').then((m) => {
+  m.recordAttempt({ partId: 'SB1', tags: [], difficulty: 50, correct: false, detail: { prompt: ${JSON.stringify(marker)}, yourAnswer: 'x', correctAnswer: 'y' } });
+  return Date.now();
+})`);
+
+const scopeOf = (cdp) => cdp.evaluate(`return import('/js/store.js').then((m) => m.getAccountScope())`);
 
 async function screenshot(cdp, name) {
   fs.mkdirSync(SHOTS, { recursive: true });
@@ -607,6 +647,111 @@ async function main(argv) {
     await cdp.waitFor(`!!document.querySelector('[data-signout]')`, 15000, 'sign-out (C)');
     await cdp.click('[data-signout]');
     await cdp.waitFor(`!!document.querySelector('#account-signin-form')`, 15000, 'signed out (C)');
+
+    /* ------- N-1: ANOTHER TAB OF THE SAME BROWSER AFTER A SIGN-OUT (SESSION-BOUNDARY-04) */
+    // The review's S17 and S7b, with two REAL pages of one browser profile: one cookie jar, one
+    // localStorage. Tab 1 signs out and forgets; tab 2 still holds A's record in memory. Before
+    // the fix, tab 2's ordinary write path re-created A's key with A's text in it, and tab 2
+    // went on showing A's notebook.
+    const accountKey = `b1prep.state.v1::${accountId}`;
+    const bId = synthetic.idOf(B.email);
+    const NEXT_MARKER = `SYNTH-SB-NEXT-${RUN}`;
+    await signInThroughKonto(cdp, A);
+    await cdp.waitFor(storageHasExpr(A.marker), 15000, 'A copy in localStorage (N-1 precondition)');
+    const tab2 = await openSecondTab(debugPort, `http://127.0.0.1:${portAccounts}/`);
+    try {
+      await tab2.waitFor(`!!document.querySelector('#view .card')`, 20000, 'tab 2 boot');
+      await tab2.waitFor(`import('/js/store.js').then((m) => m.getAccountScope().accountId === ${JSON.stringify(accountId)})`, 15000, 'tab 2 resolved as A');
+      await openView(tab2, 'notebook', 'Fehlerheft');
+      const tab2Before = await viewText(tab2);
+      record('n1-precondition-a-second-real-tab-shows-the-accounts-notebook', tab2Before.includes(A.marker), `tab 2 notebook shows A: ${tab2Before.includes(A.marker)}`);
+      await saveSettled(cdp);
+      await saveSettled(tab2);
+
+      // S17: tab 1 signs out through the Konto button. Then tab 2 records an answer and
+      // flushes - what its next learner action and its visibilitychange/pagehide handler do.
+      await openView(cdp, 'account', 'Konto');
+      await cdp.click('[data-signout]');
+      await cdp.waitFor(`!!document.querySelector('#account-signin-form') && !document.querySelector('[data-account-email]')`, 15000, 'tab 1 signed out');
+      const rightAfter = await accountKeysHolding(cdp, A.marker);
+      await recordMarkedAttempt(tab2, `${A.marker}-TAB2`);
+      await tab2.evaluate(`return import('/js/store.js').then((m) => { m.saveNow(); m.flushNow(); return true; })`);
+      await sleep(1500);
+      const afterTab2 = await accountKeysHolding(cdp, A.marker);
+      record('n1-s17-the-second-tab-does-not-re-create-the-account-record', rightAfter.length === 0 && afterTab2.length === 0, `account keys holding A's text right after the sign-out: [${rightAfter}]; after tab 2 wrote: [${afterTab2}]`);
+      record('n1-s17-no-account-text-anywhere-in-storage', !(await storageHas(cdp, A.marker)), 'every localStorage key scanned for A\'s marker');
+
+      // The other half: tab 2 must not go on DISPLAYING A's data. Read what is on screen
+      // without navigating, then the store and the Konto view.
+      const tab2Scope = await scopeOf(tab2);
+      record('n1-the-second-tab-goes-to-the-signed-out-state', tab2Scope.mode === 'signed-out' && tab2Scope.accountId === null, JSON.stringify(tab2Scope));
+      const tab2Screen = await viewText(tab2);
+      record('n1-the-second-tab-no-longer-shows-the-accounts-notebook', !tab2Screen.includes(A.marker), `A marker on tab 2's screen: ${tab2Screen.includes(A.marker)}`);
+      record('n1-the-second-tab-badge-is-cleared', (await badge(tab2)) === '', `badge="${await badge(tab2)}"`);
+      await openView(tab2, 'account', 'Konto');
+      await sleep(500);
+      const tab2Konto = await tab2.evaluate(`return { signedIn: !!document.querySelector('[data-account-email]'), form: !!document.querySelector('#account-signin-form') }`);
+      record('n1-the-second-tab-konto-is-signed-out', !tab2Konto.signedIn && tab2Konto.form, JSON.stringify(tab2Konto));
+
+      // S7b: tab 2 holds A again, and its 250 ms local save is still QUEUED when tab 1 signs out.
+      await signInThroughKonto(cdp, A);
+      await tab2.send('Page.reload', {});
+      await tab2.waitFor(`!!document.querySelector('#view .card')`, 20000, 'tab 2 reload');
+      await tab2.waitFor(`import('/js/store.js').then((m) => m.getAccountScope().accountId === ${JSON.stringify(accountId)})`, 15000, 'tab 2 resolved as A again');
+      await saveSettled(cdp);
+      await saveSettled(tab2);
+      const queuedAt = await recordMarkedAttempt(tab2, `${A.marker}-QUEUED`);
+      const forgotAt = await cdp.evaluate(`return import('/js/account.js').then((m) => m.session().signOut()).then(() => Date.now())`);
+      await sleep(2000);
+      const afterQueued = await accountKeysHolding(cdp, A.marker);
+      record('n1-s7b-a-queued-save-in-the-second-tab-does-not-re-create-the-account-record', forgotAt - queuedAt < 250 && afterQueued.length === 0, `sign-out finished ${forgotAt - queuedAt} ms after tab 2 queued its 250 ms save; account keys holding A's text afterwards: [${afterQueued}]`);
+      record('n1-s7b-the-second-tab-is-signed-out', (await scopeOf(tab2)).mode === 'signed-out', JSON.stringify(await scopeOf(tab2)));
+
+      // THE CONTROL THAT MATTERS MOST: after those forgets, a fresh sign-in must still SAVE -
+      // locally and to the server. A fix that blocks every write is worse than the bug.
+      await signInThroughKonto(cdp, A);
+      await recordMarkedAttempt(cdp, `${NEXT_MARKER}-A`);
+      const savedA = await cdp.evaluate(`return import('/js/store.js').then((m) => m.flushNow())`);
+      const localA = await accountKeysHolding(cdp, `${NEXT_MARKER}-A`);
+      const serverA = await (await fetch(`http://127.0.0.1:${portAccounts}/api/progress`, { headers: { 'x-b1prep-account': accountId } })).text();
+      record('n1-control-a-sign-in-after-the-forget-saves-locally-and-to-the-server', savedA === true && localA.length === 1 && localA[0] === accountKey && serverA.includes(`${NEXT_MARKER}-A`), `flushNow=${savedA}; local keys: [${localA}]; server record holds it: ${serverA.includes(`${NEXT_MARKER}-A`)}`);
+
+      // The next learner, in the tab that only HEARD about the sign-out: B signs in on tab 2.
+      // Through the boundary's own signIn (what the Konto form calls), so the step does not
+      // depend on which phase tab 2 is showing.
+      await tab2.evaluate(`return import('/js/account.js').then((m) => m.session().signIn({ email: ${JSON.stringify(B.email)}, password: ${JSON.stringify(B.password)} })).then((r) => r.phase)`);
+      await recordMarkedAttempt(tab2, `${NEXT_MARKER}-B`);
+      const savedB = await tab2.evaluate(`return import('/js/store.js').then((m) => m.flushNow())`);
+      const localB = await accountKeysHolding(tab2, `${NEXT_MARKER}-B`);
+      const serverB = await (await fetch(`http://127.0.0.1:${portAccounts}/api/progress`, { headers: { 'x-b1prep-account': bId } })).text();
+      record('n1-control-the-next-learner-in-the-other-tab-saves-locally-and-to-the-server', savedB === true && localB.length === 1 && localB[0] === `b1prep.state.v1::${bId}` && serverB.includes(`${NEXT_MARKER}-B`), `flushNow=${savedB}; local keys: [${localB}]; server record holds it: ${serverB.includes(`${NEXT_MARKER}-B`)}`);
+
+      // That sign-in switched the browser to B, so tab 1 (still A in memory) must leave A too.
+      await cdp.waitFor(`import('/js/store.js').then((m) => m.getAccountScope().accountId !== ${JSON.stringify(accountId)})`, 8000, 'tab 1 leaves A').catch(() => false);
+      await recordMarkedAttempt(cdp, `${A.marker}-LATE`);
+      await cdp.evaluate(`return import('/js/store.js').then((m) => { m.flushNow(); return true; })`);
+      await sleep(1500);
+      const tab1After = await scopeOf(cdp);
+      const aKeys = await accountKeysHolding(cdp, A.marker);
+      const aSecondKeys = await accountKeysHolding(cdp, `${NEXT_MARKER}-A`);
+      record('n1-a-switch-in-the-other-tab-the-first-tab-leaves-the-previous-account', tab1After.accountId !== accountId && aKeys.length === 0 && aSecondKeys.length === 0, `tab 1 scope ${JSON.stringify(tab1After)}; keys holding A's text: [${[...aKeys, ...aSecondKeys]}]`);
+
+      // B signs out on tab 2; tab 1 must not put B's text back either.
+      await openView(tab2, 'account', 'Konto');
+      await tab2.click('[data-signout]');
+      await tab2.waitFor(`!!document.querySelector('#account-signin-form')`, 15000, 'tab 2 signed out (B)');
+      await recordMarkedAttempt(cdp, `${NEXT_MARKER}-B-LATE`);
+      await cdp.evaluate(`return import('/js/store.js').then((m) => { m.flushNow(); return true; })`);
+      await sleep(1500);
+      const bKeys = await accountKeysHolding(cdp, NEXT_MARKER);
+      record('n1-the-reverse-direction-tab-1-does-not-re-create-the-next-learners-record', bKeys.length === 0 && (await scopeOf(cdp)).mode === 'signed-out', `keys holding B's text: [${bKeys}]; tab 1 scope ${JSON.stringify(await scopeOf(cdp))}`);
+      const tab2Errors = tab2.consoleErrors();
+      record('n1-no-console-errors-in-the-second-tab', tab2Errors.length === 0, tab2Errors.slice(0, 2).join(' | ') || 'clean');
+    } finally {
+      await tab2.close();
+    }
+    await openView(cdp, 'account', 'Konto');
+    await cdp.waitFor(`!!document.querySelector('#account-signin-form')`, 15000, 'signed out after N-1');
 
     /* ------------------------------------------------------- phone evidence */
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
