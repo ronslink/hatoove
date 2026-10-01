@@ -321,6 +321,13 @@ try {
     const backups = body.notRemoved.find((item) => item.what === 'operator_backups');
     assert.ok(backups, 'the reply does not name the operator backups');
     assert.match(backups.detail, /No retention period/);
+    // F8: a provider that processed the account's text is as far out of reach as a backup, and
+    // is named for the same reason. No period for it either.
+    const provider = body.notRemoved.find((item) => item.what === 'model_provider');
+    assert.ok(provider, 'the reply does not name the model provider');
+    assert.match(provider.detail, /no retention period for them is known/i);
+    // F7: absence is proved by the port's read-back, not by the delete's own counts.
+    assert.equal(body.verifiedAbsent, true, 'the reply does not report the read-back as the proof');
     const text = JSON.stringify(body);
     assert.doesNotMatch(text, /\b\d+\s*(?:day|days|week|weeks|month|months|year|years)\b/i, 'a retention period was stated');
     assert.doesNotMatch(text, /permanently|all (?:of )?your data|completely|irrecoverabl/i, 'a total-erasure claim');
@@ -364,10 +371,14 @@ try {
 
   await check('idempotent at the port: an already-deleted or never-existing account reports existed=false and removes 0', async () => {
     assert.ok(createDeletion, 'no createPostgresAccountDeletion');
+    // The stronger form (the brief's F11): every named step must report exactly 0, which also
+    // pins the step list against the port. The old assertion filtered `removed: {}` to [] and
+    // passed vacuously, so a port that stopped reporting a step would not have been caught.
+    const zeroes = Object.fromEntries(adapter.ACCOUNT_DELETION_STEPS.map(([name]) => [name, 0]));
     for (const id of [A.userId, `user-${randomUUID()}`]) {
       const outcome = await deletion.deleteAccount(id);
       assert.equal(outcome.existed, false);
-      assert.deepEqual(Object.values(outcome.removed).filter((n) => n !== 0), []);
+      assert.deepEqual(outcome.removed, zeroes, `removed must name every step with 0, got ${JSON.stringify(outcome.removed)}`);
     }
     assert.equal(asJson((await snapshot(B.userId)).state), asJson(beforeB.state));
   });
@@ -389,50 +400,50 @@ try {
     assert.equal((await call('GET', `/api/v1/attempts/${A.revisionAttemptId}`, { cookie: cookieOf(again) })).status, 404);
   });
   /*
-   * The forced-failure check, which the brief named as the acceptance criterion most likely to be
-   * skipped and which was indeed missing from the first run. Without it the "one transaction" claim
-   * rests on reading the code; with it the claim is demonstrated.
+   * The forced-failure check: without it the "one transaction" claim rests on reading the code;
+   * with it the claim is demonstrated. The port takes an `afterStep` hook so a test can fail it
+   * part-way; the hook THROWS mid-transaction, which is the ordinary case a real error produces,
+   * and the check asserts the account is intact afterwards.
    *
-   * The deletion port takes an `afterStep` hook precisely so a test can fail it part-way. Two ways
-   * are exercised, because they fail for different reasons:
-   *   1. the hook THROWS mid-transaction - the ordinary case a real error would produce;
-   *   2. the hook makes one later step a no-op, so the step SUCCEEDS but the pre-COMMIT read-back
-   *      finds rows the account still owns. That second one is the port's own defence, and it is
-   *      worth proving independently: it catches a partial delete that did not raise.
+   * The mode that used to live here (a hook that "made one later step a no-op" so the port's own
+   * pre-COMMIT read-back would find a leftover) has been DELETED, because it could not pass for
+   * the reason it claimed. Its INSERT ... SELECT $1, NULL hit a NOT NULL column (or, as this role
+   * is actually granted, failed with 42501 first) - a throw, which the old assertion accepted,
+   * making it indistinguishable from the `throw` mode. And the read-back it claimed to exercise
+   * is unreachable from a hook in this schema, which the programme verified by construction:
+   *   - `learner_settings` and `session` cascade from `"user"`, so a row re-inserted late is
+   *     removed by step 11 and the read-back legitimately finds 0 (no exception);
+   *   - every other owned table has an `NO ACTION` key into `"user"` or into a table already
+   *     deleted, so a re-inserted row makes a LATER STEP fail with 23503 (a throw) before the
+   *     read-back ever runs.
+   * So the read-back stays as defensive code, and the guarantee that a partial delete cannot
+   * commit comes from the FK backstop and the step ordering - which is what the comment in
+   * adapter.mjs now says. Keeping a mode that passed for an unrelated reason would have been
+   * worse than having no mode at all.
    */
   await check('a failure part-way through the deletion leaves the account INTACT, not half-deleted', async () => {
     const victim = await seed(call, 'FORCED'); // its own account, seeded through the API
     const snapshotBefore = await snapshot(victim.userId, [victim.revisionAttemptId]);
     assertPopulated(snapshotBefore, 'forced-failure victim');
 
-    for (const mode of ['throw', 'no-op-step']) {
-      const hooked = createDeletion({
-        pool: deletionPool,
-        afterStep: async (index, name, client) => {
-          if (mode === 'throw' && index === 5) {
-            throw new Error(`forced failure after step 5 (${name})`);
-          }
-          if (mode === 'no-op-step' && name === 'learner_settings') {
-            // Undo the last step's effect inside the still-open transaction, so the COMMIT would
-            // leave a row behind if the read-back did not stop it.
-            await client.query('INSERT INTO learner_settings(user_id, exam_date) SELECT $1, NULL WHERE NOT EXISTS (SELECT 1 FROM learner_settings WHERE user_id = $1)', [victim.userId]);
-          }
-        },
-      });
-
-      let threw = null;
-      try {
-        await hooked.deleteAccount(victim.userId);
-      } catch (error) {
-        threw = error;
-      }
-      assert.notEqual(threw, null, `[${mode}] the deletion must FAIL rather than report success`);
-
-      const after = await snapshot(victim.userId, [victim.revisionAttemptId]);
-      assert.deepEqual(after.counts, snapshotBefore.counts, `[${mode}] every table must still hold exactly what it held before the failed deletion`);
+    let threw = null;
+    const hooked = createDeletion({
+      pool: deletionPool,
+      afterStep: async (index, name) => {
+        if (index === 5) throw new Error(`forced failure after step 5 (${name})`);
+      },
+    });
+    try {
+      await hooked.deleteAccount(victim.userId);
+    } catch (error) {
+      threw = error;
     }
+    assert.notEqual(threw, null, 'the deletion must FAIL rather than report success');
 
-    return 'both forced failures rolled back: row counts identical to before, per table';
+    const after = await snapshot(victim.userId, [victim.revisionAttemptId]);
+    assert.deepEqual(after.counts, snapshotBefore.counts, 'every table must still hold exactly what it held before the failed deletion');
+
+    return 'the forced failure rolled back: row counts identical to before, per table';
   });
 
 } catch (error) {
@@ -445,5 +456,5 @@ try {
 const passed = results.filter((r) => r.ok).length;
 const failed = results.length - passed;
 console.log(`\n${passed} passed, ${failed} failed`);
-console.log('NOTE disposable PostgreSQL, synthetic accounts; deletion as a checker-provisioned restricted role (no such role is provisioned in an installation yet).');
+console.log('NOTE disposable PostgreSQL, synthetic accounts; the deletion role and its policies come from the same builders an installation provisions (migrations 0004/0005).');
 process.exit(failed ? 1 : 0);
