@@ -1,6 +1,6 @@
 # Hatoove agent workflow
 
-The local coordinator owns architecture, contracts, integration and the major learner journey. OpenClaw on Hetzner and Hermes in Docker perform bounded tasks and independent checks. The objective is a durable pilot that preserves the previous logged-in appearance and works on mobile.
+The local coordinator owns architecture, contracts, integration and the major learner journey. OpenClaw on Hetzner and Hermes in Docker perform bounded tasks and independent checks. The objective is a multi-user SaaS pilot using the supplied Hatoove designs, with mobile support and removal of the old single-user schema/runtime. Follow [DESIGN-WIRE-01](../work/implementation/DESIGN-WIRE-01.md) for the screen/contract map and cutover acceptance.
 
 Use the [revised implementation plan](../IMPLEMENTATION_PLAN.md), [board](../work/BOARD.md), [task template](../work/TASK_TEMPLATE.md) and [handoff template](../work/HANDOFF_TEMPLATE.md). Product requirements remain in the [pilot plan](../PILOT_BUILD_PLAN.md). This workflow does not authorize publication, deployment or live domain changes.
 
@@ -45,7 +45,7 @@ These are session operating rules, not a request to create timers, recurring job
 
 At the start of a work session, the coordinator refreshes the board and main branch, checks host availability and assigns ready work. During the session, workers report checkpoints, blockers and review readiness; the coordinator handles contract questions and PR review as they arrive. At the end, record completed work, live executions, blockers and the next ready tasks.
 
-Every PR links its task and execution ID, reports changed paths and actual test results, and distinguishes verified behavior from limitations. UI PRs include desktop and phone evidence against the approved previous-app reference. An agent does not approve its own implementation. The coordinator merges in dependency order after independent review, current-base checks and resolution of required findings, then updates the board. Workers do not push directly to main.
+Every PR links its task and execution ID, reports changed paths and actual test results, and distinguishes verified behavior from limitations. UI PRs include desktop and phone evidence against the supplied design reference and declared functional states. An agent does not approve its own implementation. The coordinator merges in dependency order after independent review, current-base checks and resolution of required findings, then updates the board. Workers do not push directly to main.
 
 GitHub's branch-protection API returned HTTP 403 on 30 September 2026: this private repository needs GitHub Pro for that feature. Keep the repository private. CI is active, but PR-only integration, review, assignment leases and concurrency are coordinator-enforced operating rules, not GitHub-enforced permissions. No account upgrade or visibility change is part of setup. Existing host credentials are not claimed to be narrowly scoped worker identities.
 
@@ -53,7 +53,7 @@ Do not run live AI, email or payment calls to prove ordinary changes. Use fixtur
 
 ## Product work after preparation
 
-Begin each implementation task when its dependencies and concrete specification are ready. Keep the previous learner app's visual foundation, adapt it for phones/tablets, and retain the Node/Postgres pilot direction. Do not start a framework migration or restore the older Workers/D1 proposal as an incidental task choice.
+Begin each implementation task when its dependencies and concrete specification are ready. Adopt the new shared design system, adapt every retained view for phones/tablets, and retain the Node/Postgres pilot direction. Remove old singleton/file/blob persistence and local-user compatibility through the ordered SaaS cutover; do not copy those assumptions into new screens. Do not start a framework migration or restore the older Workers/D1 proposal as an incidental task choice.
 
 The coordinator owns the complete journey: account and exam/date/language setup, reviewed objective practice and fixed audio, saved writing drafts, durable feedback, revision and return on another device. Workers can supply scoped responsive fixes, reviewed fixtures, content audits and independent recovery checks. Avoid simultaneous changes to the same legacy module.
 

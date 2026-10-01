@@ -1,45 +1,68 @@
 # Hatoove master plan — delivery tracker
 
-**Owner:** coordinator (`COORD-TAKEOVER-20260930`, issue [#27](https://github.com/ronslink/hatoove/issues/27))
-**Last updated:** 2026-10-01 · **Base:** `origin/main` @ `5a63429949275f4cb27cd7f64565afe8cf029511`
-**Update cadence:** with `work/BOARD.md` and `IMPLEMENTATION_PLAN.md` after meaningful transitions.
-**Dispatch mechanics:** the per-worker setup, delivery and verification facts live in the coordinator handoff
-folder's `WORKSPACE-SETUP.md` (recorded 2026-10-01) so a handoff stops re-deriving them.
+**Updated:** 1 October 2026 for Ron's new design and single-user retirement direction.
+**Coordinator:** Ron's locally controlled agent; transfer recorded in [issue #27](https://github.com/ronslink/hatoove/issues/27). This documentation slice does not reassign live work.
+**Planning base:** SaaS candidate `e126d8c4b18a2beaf58eca2d279fe8d191e825ae`, [PR #60](https://github.com/ronslink/hatoove/pull/60). Remote `main` was `4f76b9428aacfc2ef670bdd3bdf5e43fa316222e` at inspection. Recheck heads before dispatch; candidate integration is not a merge to main.
 
-This is the **single consolidated progress tracker** for the programme. Read it first, then go to the
-authoritative source for detail.
+## Direction now in force
 
-## Where the authoritative detail lives
+Build a multi-user server application using the designs in `D:\B1_Prep\design`: orange rising-oo identity, warm-paper surfaces, Bricolage Grotesque headings, Source Sans body and the supplied desktop/mobile layouts. These designs replace the earlier visual preservation constraint. Keep the current Node/PostgreSQL and vanilla-client direction; a mockup's React label does not authorize a rewrite.
 
-| Question | Authoritative record |
+**Remove the old single-user schema and functionality.** The new screens use authenticated, owned server records. No shared progress file, local-user fallback, full-state browser blob or file-sync compatibility path remains in the completed SaaS runtime. Keep ownership/isolation per learner; do not delete actual existing learner records as an incidental cleanup.
+
+Menu/interface and exam content stay German. The selected explanation languages are **de, en, uk, ar, tr**, with scoped Arabic RTL and native-review gates. Speaking/STT and whole-exam pass prediction remain outside the pilot. Mockup data, readiness forecasts, prices and two-model claims are not accepted product behavior.
+
+## Authoritative records
+
+| Question | Record |
 |---|---|
-| Which packages exist and their acceptance criteria? | [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) — the 36 packages, milestones and gates |
-| What is running right now, on which slot and lease? | [`work/BOARD.md`](work/BOARD.md) — live slot table |
-| What is authorized next? | coordinator handoff `QUEUE.md` (12 ordered workstreams) |
-| What is the current coordination status? | coordinator handoff `CURRENT.md` |
-| Handoff folder (outside the repo; communication files only) | `<user-home>/.codex/hatoove-handoff/ron-agent/` |
-| Why is the product built this way? | [`PILOT_BUILD_PLAN.md`](PILOT_BUILD_PLAN.md) |
-| How do agents/hosts/handoffs work? | [`docs/AGENT_WORKFLOW.md`](docs/AGENT_WORKFLOW.md), [`docs/AGENT_RUNBOOK.md`](docs/AGENT_RUNBOOK.md) |
+| Packages, acceptance and gates | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) |
+| Screen mapping, backend dependencies, legacy removal and ordered slices | [DESIGN-WIRE-01.md](work/implementation/DESIGN-WIRE-01.md) |
+| Exact inspected design bytes | [DESIGN-REFERENCE-MANIFEST.json](work/implementation/DESIGN-REFERENCE-MANIFEST.json) |
+| Product/exam/architecture rationale | [PILOT_BUILD_PLAN.md](PILOT_BUILD_PLAN.md) |
+| Active owners/leases | [work/BOARD.md](work/BOARD.md) and the coordinator's current issue/dispatch |
+| Running status and next bounded assignments | shared handoff `CURRENT.md`, `START-HERE.md` and task briefs; verify timestamps |
 
-If this tracker and `IMPLEMENTATION_PLAN.md` disagree, **the plan wins** — this file is a summary and may lag.
+The implementation plan governs package scope; later user instructions take precedence. `planned`, `delivered`, `reviewed`, `CI green`, `merged into candidate`, `merged to main` and `accepted` are distinct states.
 
-## Status legend
+## Current progress and integration checkpoint
 
-`planned` → `in progress` → `delivered` → `independently reviewed` → `green CI` → `merged` → `accepted`
+- The candidate contains account/RLS and durable draft/submission infrastructure, provider-configuration restrictions, session-boundary work and hosted runtime safeguards. These are building blocks, not a completed SaaS journey.
+- The review-coverage task is [PR #74](https://github.com/ronslink/hatoove/pull/74). Earlier component reviews do not automatically approve the later combined head.
+- Writing wiring is delivered for review in [PR #75](https://github.com/ronslink/hatoove/pull/75); deletion wiring and session-fence changes are tracked in [#76](https://github.com/ronslink/hatoove/pull/76), [#77](https://github.com/ronslink/hatoove/pull/77), [#78](https://github.com/ronslink/hatoove/pull/78) and [#79](https://github.com/ronslink/hatoove/pull/79). These were open when inspected. Resolve superseded attempts and ownership before another writer touches their paths.
+- Production auth, saved-task discovery/version binding, the real assessment worker, server-owned prompts/usage and objective marking remain required. New designs make these dependencies visible; static rendering does not close them.
+- This change is **plan updated**, not designs implemented or legacy schema removed. Runtime evidence must be recorded against the final integration head.
 
-**These are not synonyms.** A passing test count means *internal shape only*; it is not exam validity,
-security, accessibility or product acceptance. Delivered ≠ reviewed ≠ merged ≠ accepted. Human gates
-(exam/content/language/security/legal) are separate from all of the above.
+## Delivery order
 
-## Programme objective
+| Order / slice | State | Outcome / dependency |
+|---|---|---|
+| 0 — integrate reviewed platform fixes | In progress | Coordinator resolves the review/deletion/session/writing queue and records combined-head evidence; retain one owner of shared files |
+| 1 — DESIGN-01 | Planned | Version design assets/licences and one shared token/component system; update visual contract and design gate together |
+| 1 — SAAS-MODEL-01 | Planned; parallel with DESIGN-01 | Production auth and owned domain/route contracts; inventory every old single-user schema consumer and its replacement |
+| 2 — DESIGN-02 | Planned | German shell, account entry, check-email, onboarding, settings and dashboard connected to real owned records |
+| 2 — SAAS-RESUME-01 | Planned | Owned discovery and stable task identity; server-authoritative draft conflict and fresh-browser resume |
+| 3 — DESIGN-03 | Planned; adopt reviewed writing work | Writing, durable job/feedback/retry/revision and actual usage; no browser-controlled prompts or grading |
+| 3 — DESIGN-04 | Planned | Reading, language elements, fixed listening audio and written mock with authoritative server marking |
+| 4 — DESIGN-05 | Planned; language pipeline may start alongside 3 | Owned mistake review, calendar, factual progress and all five explanation languages including RTL |
+| 5 — SAAS-RETIRE-01 | Required cutover | Remove old schema/runtime/client persistence and compatibility paths after replacements are verified; forward migrations, no silent data destruction |
+| 6 — DESIGN-06 | Planned | Independent full learner journey and two-account isolation; desktop/mobile evidence and explicit remaining real-device/human gates |
+| 7 — DESIGN-07 | Separate commercial track | Upgrade/entitlement UI with real catalogue and test checkout; not a dependency of the internal journey |
 
-A dependable, mobile-capable **internal learner journey** in the existing `public/` app's visual style:
-account/exam/date/language setup → owned attempt/task identity and draft → submission with pending, failed or
-unassessed feedback → return, revision and second device → honest objective practice with fixed, reviewed
-audio. **Speaking/STT is outside the pilot.** Preserve the navy/orange Hatoove identity; no framework
-migration, no hosting change.
+Detailed acceptance and mapping of all 14 screens are in DESIGN-WIRE-01. Each row becomes a bounded assignment with execution ID, exact base, allowed paths, checkpoint and expiry; this table is not a lease.
 
-## Closed milestones (merged, with evidence)
+## Internal milestone that proves the application is connected
+
+Sign in -> finish setup -> start owned reviewed practice -> receive server-marked answers and the chosen explanation -> write and save -> submit -> leave while pending -> return to saved feedback -> revise -> sign in on a fresh browser and resume the exact task and work. Repeat with a second learner, failed requests, duplicate clicks, stale writes, account switching and deletion. No local progress file or legacy browser record is required or consulted. Use provider/email/payment stubs in development.
+
+## Release gates still open
+
+Qualified exam/content/audio/native-language review, security/privacy/legal review, real iPhone/Android keyboard/audio/recovery evidence, operational recovery/permissions and explicit production authorization remain separate. No unsupported readiness, overall-exam pass or model-agreement validity claims. Pricing/terms come from the approved commercial contract, not sample markup.
+
+## Historical merged-slice evidence
+
+This retained table records earlier integration history only. It does not restore superseded design/local-runtime requirements, close a whole package, or certify the current candidate.
+
 
 | Slice | Merge | Evidence |
 |---|---|---|
@@ -64,65 +87,7 @@ migration, no hosting change.
 | **DRAFT-SESSION-01 draft service** | **#51 `c8bf97a`** | 4 files added, **0 deletions**, `exam.js` byte-identical; checker **17/17**, tests **21/21**; **independent review: accept-with-notes, no blocking defect** |
 | **OWNAPI-02 PostgreSQL adapter + RLS evidence** | **#52 `5a63429`** | own package scope (`pg` 8.23.1) so the root app stays dependency-free; coordinator ran the proof on real PostgreSQL — **6/6** isolation tests and **24/24** the same suite on the pg backend; **discrimination proven by mutation** (granting the learner role `BYPASSRLS` makes it fail with "leaked a cross-owner row") |
 
-## Workstream tracker (12 items from the coordinator handoff)
 
-| # | Workstream | State | Evidence / blocker | Next action |
-|---|---|---|---|---|
-| 1 | **Takeover and reconcile live work** | **merged** | `41b5efb` (PR #29) | — |
-| 2 | **Finish USER04 acceptance; integrate source/fixture stack** | **merged** | Integration stack `82ae9c2`; the hand-refusal (#33) is retained as the rejection record | Independent review of the accepted stack's known guard limits (`rationale`/top-level/family gaps) is documented, not closed |
-| 3 | **Accept and integrate Hermes owned API client** | **merged** | `de4ecb6` (31/31) and the owned API `2974359` (24/24) | — |
-| 4 | **Truthful mock outcomes** | **delivered twice, under independent review** | Two complete implementations exist: **#53** `72994ad` (16/16 checker, 20/20 tests, browser check cannot run unattended) and **#54** `793f3c6` (19/19, 21/21, self-contained browser proof **11/11**, plus a restart-button defect fix). Measured comparison published on `origin/codex/wo02-impl-compare` | **Hermes `wo02-verify-hermes-20261001-a` is adjudicating and verifying now.** Merge waits on that verdict; #53 would then be closed as superseded |
-| 5 | **Account-scoped draft state** | **delivered, merged** | `public/js/draft-session.js` in `c8bf97a`; IDs only, keyed by account+task, never learner text; reviewer found one **non-blocking** discriminator gap (the module's own generation fence is redundancy today, not an independently proven control) | Wire it into the app (workstream 6) once Ron releases `exam.js` |
-| 6 | **Connect writing UI to durable attempts/drafts** | **blocked on Ron's `exam.js` release** | The original hold is gone (the paused `writing-outcomes-01` no longer owns the file — WRITING-OUTCOMES-02 rewrote it), so the hold now means only "no second concurrent writer" | Confirm release, then wire `draft-session.js` in as its own bounded slice |
-| 7 | **Account/session entry flow + browser-to-server fixture** | **planned** | The owned client and owned API are both merged, but **nothing in `public/**` calls them** — the audit's premise correction still stands | Next product slice after 6; synthetic loopback server, ephemeral secrets |
-| 8 | **Durable submission/result/retry/revision UI** | **planned** | Server contract already proves idempotency, lease fencing, one debit | Serialise behind 6 and 7; provider stubs |
-| 9 | **Server-side objective marking** | **planned** | Fixtures prepared (36 cases); **no authoritative marking implemented** | Bounded slice after 6; keep private keys out of learner payloads |
-| 10 | **Fixed-audio delivery + content provenance** | **planned** | Discovery reports **0 tracked fixed audio**; rights unknown | Asset manifest/schema + local delivery fixture with synthetic/licensed audio only |
-| 11 | **Independently verify the internal learner journey** | **blocked on 6–8** | — | Fresh synthetic checkout, isolated ports; real-device evidence stays **pending**, never passing-by-emulation |
-| 12 | **Close plan gaps; prepare next bounded batch** | **ongoing** | Baseline `101 / 9 / 14` plus checkers 16 · 9 · 8 · 31 · 24 · 12 · 10 · 17 re-measured 2026-10-01 | **Wire the ungated checkers into CI** (`ci-gates-01-claude-20261001-a` running); F-4 (`f4-scope-01` OpenClaw) and F-5 (`f5-deletion-01` Clawdbot) running |
+## Coordination and evidence
 
-## Open review and integration queue
-
-| PR | Content | State | Action |
-|---|---|---|---|
-| #54 | WRITING-OUTCOMES-02 implementation B @ `793f3c6` | open, draft | **Awaiting Hermes's independent verdict and adjudication**; the author must not review it |
-| #53 | WRITING-OUTCOMES-02 implementation A @ `72994ad` | open, draft | Close as superseded if the reviewer confirms B |
-| #33 | Hand-rebuilt integration stack @ `7f1ffd7` | open, draft | **Do not merge.** Retained as the record of the rejection; review is #34 |
-
-## Human and device gates (open — no agent may close these)
-
-- **Educational/exam fidelity** (E-01): requires qualified expert signoff; the source register is unreviewed.
-- **Content and audio rights**: public availability is *not* permission to copy. Audio review (C-04) unfulfilled.
-- **Native-language explanations** (C-06): none reviewed.
-- **Writing feedback**: provisional/formative. Never calibrated readiness, never a whole-exam pass — the oral
-  part is unassessed, so no overall result may be computed.
-- **Real devices**: iPhone Safari and Android Chrome keyboard/audio/tab-discard/process-kill evidence is
-  **pending**. Viewport emulation cannot close it.
-- **Security/privacy/legal** (X-01, P-03): open.
-
-## Boundaries in force
-
-No production publication, deployment, DNS, live payments, new production access, invitations or live AI
-evaluations. Provider stubs and synthetic progress only. Browser checks only on a source-only disposable
-checkout with isolated ports and **no `.env`**. No learner records, credentials, raw provider logs, browser
-profiles, machine config, bundles or agent memory in commits. Source guard + `git diff --cached --check`
-before each push, staged names inspected. Baseline `101 + 9 + 14` is historical until rerun — report actual
-counts. No hosting or framework migration.
-
-## Concurrency
-
-**Ron authorised all four workers (Hermes, OpenClaw, Clawdbot, Claude) plus the coordinator on 2026-09-30**, which
-supersedes the earlier "four including the coordinator" reading. A reviewer occupies the reviewer role; it does
-not add a fifth worker. No recursive spawning. **A reviewer must not be the author of the slice under review.**
-
-## Verification gaps recorded, not closed
-
-1. **Five checkers were ungated by CI** (`revision`, `keymask`, `progress-equal`, `draft-session`, `owned-api`)
-   because `.github/**` had never been in a worker's allowed paths. `ci-gates-01-claude-20261001-a` is fixing it.
-2. **`reset-check.mjs --legacy-root` with no value silently compares the candidate against itself** and reports a
-   false negative. Never wire it into CI without a real path.
-3. **The `draft-session` checker does not discriminate the module's own generation/account fence** — deleting the
-   guard still yields 17/17 (verified by independent mutation). Correct in shipped code; **redundancy today, not a
-   proven control.**
-4. **`owned-api-pg-check` is now gated in CI** and was executed locally on real PostgreSQL; the mutation proving
-   it fails under `BYPASSRLS` was run by the coordinator, not by an independent reviewer.
+The appointed coordinator owns live dispatch, integration order and CURRENT updates. Preserve the active global slot cap and single-writer boundaries; no automatic new worker allocation is created here. No live deployment, DNS, payment, email/AI evaluation or new production access is authorized by this plan. D:\B1_Prep remains a live install: only its design folder is a read-only reference. Use isolated source-only checkouts and synthetic records for verification.

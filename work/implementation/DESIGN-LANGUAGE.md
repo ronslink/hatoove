@@ -1,16 +1,24 @@
-# DESIGN LANGUAGE — the app's one page design, and the rules for keeping it consistent
+# DESIGN LANGUAGE — target and migration contract
+
+## Direction superseded on 1 October 2026
+
+Ron selected the designs in `D:\B1_Prep\design` to replace the previous visual language. [DESIGN-WIRE-01](DESIGN-WIRE-01.md) and its manifest are the target reference: orange rising-oo, warm-paper surfaces, Bricolage Grotesque headings, Source Sans body, consistent desktop/mobile shell and both themes. German chrome/content stay German; explanations support de/en/uk/ar/tr, with scoped Arabic RTL and verified font coverage/licences.
+
+DESIGN-01 must migrate the tokens/components, stylesheet consumers and `tools/design-check.mjs` together with the first implemented screen. Keep the gate effective with negative checks; preserve its language invariant. The current runtime token inventory below remains a baseline for that migration, **not an instruction to preserve the old palette or block the redesign**. This documentation update alone does not change runtime CSS or claim the new visuals are implemented. All retained reference/vocabulary views must join the same system; no parallel theme is the end state.
+
+## Historical runtime baseline before DESIGN-01
 
 | | |
 |---|---|
 | Asked by | Ron, 2026-10-01: *"we need to ensure we have a consistent page design or a design language that is consistent throughout the app and is mobile friendly"* |
-| Status | the app **already has** a design language. This document names it, so new work follows it instead of inventing a second one |
+| Status | Existing runtime baseline; target superseded by the direction above. DESIGN-01 updates this inventory and the gate with implementation |
 | Source | `public/styles.css` (32 KB) and `public/js/shell.js`, read on 2026-10-01 — not a proposal, a description of what exists |
-| Governs | **every new view, including the account surface.** A view that does not use these tokens and components is a defect, not a style preference |
+| Scope | Existing components to migrate; new target views follow DESIGN-WIRE-01 rather than introducing a second independent system |
 
 ## 1. The identity
 
 A warm paper background, deep navy for structure and primary action, gold as the accent, and a serif face for
-headings against a sans body. **Preserve it.** No framework migration, no redesign, no new palette.
+headings against a sans body. This describes the old baseline; the new approved design replaces these choices without a framework migration.
 
 ## 2. Design tokens — the only source of colour, shape and type
 
@@ -52,7 +60,7 @@ Errors are shown through `.hint`/`--bad` and status through `.pill`, not through
 The stylesheet already adapts at **1100 px, 860 px, 600 px and 480 px**, and honours
 `prefers-reduced-motion: reduce`. New work must hold these rules:
 
-1. **Design narrow first.** The smallest supported width is **390 px** (an iPhone-class viewport) and no view may
+1. **Design narrow first.** The target checks include **320 px and 390 px** (an iPhone-class viewport) and no view may
    scroll horizontally at that width — assert `scrollWidth <= clientWidth`, as the existing browser checks do.
 2. **Touch targets are at least 44 × 44 px**, and controls are never closer than 8 px.
 3. **Text scales to 200 %** without clipping or overlap, and no layout depends on a fixed pixel height.

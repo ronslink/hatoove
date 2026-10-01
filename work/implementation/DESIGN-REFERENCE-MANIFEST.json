@@ -1,0 +1,118 @@
+{
+  "purpose": "Read-only design reference inventory; no live-install files imported or executed",
+  "source": "D:/B1_Prep/design",
+  "observed_date": "2026-10-01",
+  "implementation_base": "e126d8c4b18a2beaf58eca2d279fe8d191e825ae",
+  "files": [
+    {
+      "path": "assets/fonts/bricolage-grotesque.woff2",
+      "bytes": 76888,
+      "sha256": "a79fdb52d4a5c76552452f69202add96e287401fff03d3e8c0e38b4dcb5a99cd"
+    },
+    {
+      "path": "assets/fonts/source-sans-3.woff2",
+      "bytes": 28740,
+      "sha256": "7a19a7027e125257d310c6dbd78ae3a30b5ea1e3794d60b12bb28227a003bfda"
+    },
+    {
+      "path": "assets/hatoove-logo-white.svg",
+      "bytes": 16716,
+      "sha256": "b8dba6f7266f99773cad0495e68f0c837f026ea4ec459474f352eea4c3b3dfab"
+    },
+    {
+      "path": "assets/hatoove-logo.svg",
+      "bytes": 16716,
+      "sha256": "8c46bebaec83b858ec77e5b27c0564f03ce25a66cce20b6499908f12e0d9c1a0"
+    },
+    {
+      "path": "assets/hatoove-mark.svg",
+      "bytes": 8077,
+      "sha256": "bf8bab44199b38993d6953400d3fd154b1352e6af8feb7bca63d0d57754f1e95"
+    },
+    {
+      "path": "assets/hatoove.css",
+      "bytes": 21210,
+      "sha256": "36af5c8f190b37008d35fc954515c3503658a052ca2c29ae9963d701ccca2fdc"
+    },
+    {
+      "path": "build.py",
+      "bytes": 46221,
+      "sha256": "f089451f2def16443cbe7ff923a65c2e32702ec2e14adf2cc77cd4ba86638717"
+    },
+    {
+      "path": "index.html",
+      "bytes": 3265,
+      "sha256": "589619fdb231b959e29981f178c034cd3a5da9e684ace889ba5ff0a75bd8a5ca"
+    },
+    {
+      "path": "screens/check-email.html",
+      "bytes": 1387,
+      "sha256": "7dfcfcc57f4aede790adc215bda83de1ee06f95e714aa4d7dcbb99aab5e8ca6a"
+    },
+    {
+      "path": "screens/dashboard.html",
+      "bytes": 11244,
+      "sha256": "b406efa03421f93d3953bbced6cc6162463748373c021984f157de74ccff087b"
+    },
+    {
+      "path": "screens/language.html",
+      "bytes": 4855,
+      "sha256": "2b8ca44d5314a2473a442c16047c60532e2451380f2612112357a7eabe27c465"
+    },
+    {
+      "path": "screens/listening.html",
+      "bytes": 3128,
+      "sha256": "8c599ea105e5d0ee7d211e1cb56f6d1c54547511a723da3e30789c505a313476"
+    },
+    {
+      "path": "screens/login.html",
+      "bytes": 3558,
+      "sha256": "b581b085ca871d9fea4d043bf27cd94c621bec968189876debbbb0444c55cf37"
+    },
+    {
+      "path": "screens/mock.html",
+      "bytes": 7804,
+      "sha256": "5ff83ecbdd7382d9521b52686eca31730472772731f63fc5f15efe8f38b51f50"
+    },
+    {
+      "path": "screens/onboarding.html",
+      "bytes": 3266,
+      "sha256": "70a5d4c3867f986bd2834f0cd2c68998efab65c5b6f4ec87a2c9afc0341d9ad7"
+    },
+    {
+      "path": "screens/plan.html",
+      "bytes": 8227,
+      "sha256": "8db5ea0edcda88dbc20c8b16d9f9053fdb2e3ef94667d2d6a698cd4bccd57508"
+    },
+    {
+      "path": "screens/practice.html",
+      "bytes": 3583,
+      "sha256": "8293c63b448ffd6b68c043fd1504ac2a92e22c32dce5d1ab331601f2cc267473"
+    },
+    {
+      "path": "screens/progress.html",
+      "bytes": 8932,
+      "sha256": "3ffdaa252a4fd385b86a27023a3625bcbb9f35a08c637d58c6d7b8380086c06b"
+    },
+    {
+      "path": "screens/review.html",
+      "bytes": 8033,
+      "sha256": "cb1c40e40f7da378b62912b8303d2b86c2c6cf0e146d915287507055f48bc318"
+    },
+    {
+      "path": "screens/settings.html",
+      "bytes": 8492,
+      "sha256": "6028412d970b8108eb8eaf527f6d8125b9397a728f01c369d5086dabbe40ffd3"
+    },
+    {
+      "path": "screens/upgrade.html",
+      "bytes": 8782,
+      "sha256": "837192fb918b32804608ce7f6b4f4129fef1cb8a4ccf1c25edd0da8fc75e35f7"
+    },
+    {
+      "path": "screens/writing.html",
+      "bytes": 9342,
+      "sha256": "34e781882749d01c42e4b9ec1f1254aae0148fdc90a2f9656c3be0313f83d4e4"
+    }
+  ]
+}

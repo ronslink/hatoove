@@ -4,7 +4,9 @@
 
 Hatoove is standalone exam preparation, initially for telc Deutsch B1 reading, language elements, listening and writing. Speaking, STT, school administration and overall-exam pass predictions are outside the pilot. Follow `IMPLEMENTATION_PLAN.md` for delivery and `PILOT_BUILD_PLAN.md` for product direction. The revised implementation plan supersedes the pasted 36-package proposal; it is not an instruction to migrate hosting or rewrite the app.
 
-Preserve the previous learner app in `public/` as the visual foundation after login. The user likes its appearance. Adapt it for phone and tablet use; do not replace it with the marketing page. Keep the orange Hatoove and preferred oo identity. Each UI change needs desktop and mobile evidence; emulated viewports do not replace iPhone/Android keyboard and audio checks.
+Use the supplied designs in `D:\B1_Prep\design` as the new learner-app visual direction (Ron, 1 October 2026), following `work/implementation/DESIGN-WIRE-01.md`. The orange/rising-oo design replaces the former palette/type preservation rule; keep one consistent system across all retained views. German interface and exam content remain German; explanation languages are de/en/uk/ar/tr with scoped Arabic RTL. Each UI change needs desktop/mobile evidence; emulation does not replace iPhone/Android keyboard/audio checks. Read only the design folder of the live install; curate assets/licences into the repository rather than importing the older checkout.
+
+**SaaS-only data/runtime (Ron, 1 October 2026):** remove the prior single-user schema and linked functionality. Use session-derived ownership in one shared PostgreSQL schema; no default local user, progress files, global browser-state blob, file-sync engine or startup fallback to the single-user app. Removing code/schema assumptions does not authorize deleting existing learner records or the live install. SAAS-MODEL-01/SAAS-RETIRE-01 map replacements, safe forward migrations and negative acceptance checks. Retain useful exam behavior through the new contracts; old single-user compatibility assertions are superseded.
 
 ## Coordination
 

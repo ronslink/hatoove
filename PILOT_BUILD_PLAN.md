@@ -1,5 +1,14 @@
 # B1 preparation pilot build plan
 
+## Direction update — 1 October 2026
+
+Ron selected `D:\B1_Prep\design` for the learner application and required removal of the previous single-user schema and associated functionality. [DESIGN-WIRE-01](work/implementation/DESIGN-WIRE-01.md) maps all 14 screens to server contracts and the removal sequence; [MASTER-PLAN.md](MASTER-PLAN.md) tracks delivery. This supersedes older appearance-preservation and local sync/offline-install assumptions below, without changing the Node/PostgreSQL hosting direction.
+
+Adopt the new orange/rising-oo visual system consistently. German interface/exam content stay German; explanation languages are de/en/uk/ar/tr with scoped RTL and human review. The service has one shared schema, account-owned private records and shared versioned reviewed content. No default user, per-account progress files, global localStorage progress document or local-runtime fallback remains at cutover. Safe forward migrations preserve retained records; no implicit import into the first account and no live learner-data deletion are authorized here.
+
+Mockup readiness forecasts, two-model claims, illustrative pricing/allowances and offline promises do not establish capability or approval. Use actual saved evidence and configured commercial contracts. The internal journey must run through real owned APIs and survive fresh-browser resume without legacy local state.
+
+
 Prepared 30 September 2026 from the current development checkout and the research in this chat.
 
 The [implementation plan](IMPLEMENTATION_PLAN.md) is the authoritative executable revision of the later 36-package agent-swarm proposal. Use it for current package dependencies, ownership, acceptance and release gates; this document retains the product and architecture rationale. Agent assignments and handoffs follow the [workflow](docs/AGENT_WORKFLOW.md) and [board](work/BOARD.md).
@@ -14,7 +23,7 @@ The first complete pilot should provide an exam-date study plan, reviewed readin
 
 Show objective-section marks separately from estimated writing assessment. A short diagnostic is not a full mock. Only offer a written-examination simulation once all included sections, timing and playback rules are reviewed. Do not present a whole-exam score, pass prediction or complete preparation claim while the oral component is unassessed. No teacher dashboard, class assignments or school administration belongs in the launch scope. DTZ, Goethe and any later English examination require their own task and rubric packages. Continue using the existing responsive interface and useful authored exercises.
 
-The owner specifically prefers the previous `public/` app's logged-in appearance. Preserve its dashboard, layout, cards, spacing and navigation style as the visual foundation, incorporating Hatoove branding without a wholesale redesign. Phone and tablet support is required from the first learner flow: test touch navigation, reading space, writing with the onscreen keyboard, audio playback and interrupted-session recovery as well as desktop behavior. Browser viewport checks and actual iPhone Safari/Android Chrome evidence must be distinguished.
+The owner selected the supplied Hatoove designs to replace the previous logged-in visual language. Apply the shared orange/rising-oo palette, typography, components and layouts throughout the retained learner views, following DESIGN-WIRE-01. Phone and tablet support is required from the first learner flow: test touch navigation, reading space, writing with the onscreen keyboard, audio playback and interrupted-session recovery as well as desktop behavior. Browser viewport checks and actual iPhone Safari/Android Chrome evidence must be distinguished.
 
 The local coordinating agent owns larger architecture, feature and integration work. OpenClaw on Hetzner and Hermes in Docker receive bounded tasks and independent checks through separate clones/worktrees and reviewed PRs. The global concurrency cap is four active agents including coordinator, reviewers, parents and children; Hermes starts with no child budget until verified and explicitly allocated a slot. Product work begins when its dependencies and concrete specification are ready, following the assignment and lease protocol linked above.
 
@@ -67,7 +76,7 @@ Evaluate local price experiments using paid conversion, meaningful practice comp
 
 ## Current baseline
 
-Development checkout: `<user-home>\OneDrive\Documents\ChatGPT\B1_Prep`. The installed application on D: is a separate copy; account for any differences before synchronising application files. Keep learner records separate from source-code changes.
+Development checkout: `<user-home>\OneDrive\Documents\ChatGPT\B1_Prep`. The installed application on D: is a separate copy; read only the explicitly identified design reference; do not synchronize the installed application into the source repository. Keep learner records separate from source-code changes.
 
 The three offline suites passed on 30 September 2026:
 
@@ -99,7 +108,7 @@ The exam corrections follow the [official telc Deutsch B1 model examination](htt
 
 ## Proposed deployment architecture
 
-Use one Node codebase for the application API and a background assessment worker. Preserve the existing browser interface. The owner already has a DigitalOcean PostgreSQL cluster serving another production application. Prefer reusing that cluster through a separate logical database named `b1prep`, subject to confirming its EU region, capacity and existing permissions. A separate database gives the applications a clearer boundary for migrations, permissions and logical exports than two schemas within the same database. It still shares CPU, memory, storage, connection capacity, maintenance and outages.
+Use one Node codebase for the application API and a background assessment worker. Use the supplied design system in the existing vanilla browser application, with owned server contracts replacing local-only state. The owner already has a DigitalOcean PostgreSQL cluster serving another production application. Prefer reusing that cluster through a separate logical database named `b1prep`, subject to confirming its EU region, capacity and existing permissions. A separate database gives the applications a clearer boundary for migrations, permissions and logical exports than two schemas within the same database. It still shares CPU, memory, storage, connection capacity, maintenance and outages.
 
 Prefer DigitalOcean App Platform for the Node processes in the same EU region and VPC as the database, if the existing cluster passes inspection. Use a maintained authentication library with server-side sessions and object storage for authored listening audio, with authorised delivery where content access is restricted. These functions must be added explicitly; ordinary PostgreSQL does not provide an authentication and storage bundle. Use an ordinary Postgres jobs table for the writing-feedback queue. Keep audio generation and educational review in the content-authoring workflow. No additional database cluster, Redis service, vector database or learner-media upload service is needed for this design at pilot scale.
 
@@ -151,7 +160,7 @@ Use provider stubs for repeatable local integration tests before enabling live c
 | 1 | Reviewed source baseline and written-section package | Curated source in version control; personal records excluded; oral features gated out of the pilot; written task shapes, answer keys and scoring reviewed; historical attempts retain their original rubric |
 | 2 | Authentication and owned attempts | Two accounts cannot access each other's records; cache is scoped by account; sign-out clears private state; one saved attempt can be reopened on another device |
 | 3 | Reliable listening, reading and language-element practice | Fixed reviewed audio; supported browsers receive the same recording; server-side marking matches reviewed answer keys; interrupted sessions recover |
-| 4 | Writing feedback, revisions and trustworthy progress | Complete the first journey above; official writing criteria; interrupted jobs recover; invalid model responses never become scores; writing estimates benchmarked with human raters; deletion survives stale-client sync |
+| 4 | Writing feedback, revisions and trustworthy progress | Complete the first journey above; official writing criteria; interrupted jobs recover; invalid model responses never become scores; writing estimates benchmarked with human raters; deletion survives stale client writes and late jobs |
 | 5 | Self-service paid pilot and commercial entitlements | An individual can discover the offer, try the diagnostic, purchase a regional exam pass and practise without staff setup; access has a defined allowance and expiry; payment activation has an audit trail |
 
 Correct the exam package while the account and persistence boundary is being built. Add tests for the educational rules, not merely for the consistency of existing constants.
@@ -177,7 +186,7 @@ Legacy progress import should be explicit, previewable and idempotent. Preserve 
 3. **Writing integrity:** test missing, malformed, truncated and contradictory provider results. Preserve an explicit unassessed state, exact text/content/rubric/model versions and criterion evidence. Reopening feedback or changing its explanation language must not silently produce another grade. Revisions retain their own lineage.
 4. **Objective marking and audio:** hand-reviewed cases cover every task type, blank answers, no-match options and invalid/reused selections. Verify answer keys and totals. Bind each task to a reviewed recording and checksum. Test identical audio across supported browsers, the permitted playback controls and recovery from audio-loading failures without consuming a paid attempt.
 5. **Truthful results:** distinguish assistance and practice from exam-mode evidence, use the correct written-section denominator, keep pending writing unassessed and never infer an overall examination pass from missing oral results. Check adaptive difficulty boundaries against the chosen target success rate.
-6. **Retention and deletion:** expire retained drafts and written responses according to policy, delete an attempt and exercise a stale browser sync. Deleted work must not reappear. Verify recovery of authored content independently from database recovery.
+6. **Retention and deletion:** expire retained drafts and written responses according to policy, delete an attempt and exercise stale client writes and delayed jobs. Deleted work must not reappear. Verify recovery of authored content independently from database recovery.
 
 Retain the existing offline suites as regression checks during implementation. Add a real browser test of fixed-audio playback, objective marking, writing feedback, revision and resume. Compare writing estimates with independently rated learner samples, including repeated model runs and translated explanations, before making accuracy or consistency claims. A pinned model and validated schema alone do not establish correct assessment.
 
