@@ -525,6 +525,12 @@ async function main(argv) {
     const offlineNotice = await cdp.evaluate(`const e = document.querySelector('[data-account-error]'); return e && !e.hidden ? e.textContent : ''`);
     record('offline-sign-out-tells-the-learner', offlineNotice.includes('nicht erreicht'), `notice="${offlineNotice.slice(0, 80)}"`);
     shots.push(await screenshot(cdp, 'desktop-konto-signed-out-offline.png'));
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+    await sleep(300);
+    const phoneNotice = await cdp.evaluate(`return { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }`);
+    record('offline-sign-out-notice-no-overflow-at-390', phoneNotice.scrollWidth <= phoneNotice.clientWidth + 8, `scrollWidth ${phoneNotice.scrollWidth} vs clientWidth ${phoneNotice.clientWidth}`);
+    shots.push(await screenshot(cdp, 'phone-konto-signed-out-offline.png'));
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await cdp.send('Network.disable');
     // The server never heard that sign-out, and the HttpOnly session cookie cannot be dropped
