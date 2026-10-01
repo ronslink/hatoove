@@ -1,0 +1,10 @@
+# Pinned artifacts must survive a clone BYTE-FOR-BYTE.
+#
+# The curated design assets and the imported reference screens are pinned by SHA-256 in
+# work/implementation/DESIGN-REFERENCE-MANIFEST.json and verified by tools/design-assets-check.mjs.
+# The supplied design files are LF, and this repository is used on Windows with core.autocrlf=true,
+# so without these rules git checks them out as CRLF: the digest would then differ from the reviewed
+# artifact on every Windows clone, and the check would pass on one machine and fail on the next.
+# `-text` disables end-of-line conversion in both directions, so the bytes are the artifact.
+public/assets/design/**   -text
+work/design-reference/**  -text
