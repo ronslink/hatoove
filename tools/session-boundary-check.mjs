@@ -22,7 +22,9 @@
  *   4. fresh browser: a clean profile that signs in resumes the account's notebook, ability
  *      record and settings from the server with no local file imported;
  *   5. expiry / a refused session fails closed to signed-out, not to the single-user record;
- *   6. the single-user path (accounts off, or never signed in) is unchanged.
+ *   6. the single-user path (accounts off, or never signed in) reconciles once at boot as
+ *      before; a tab return re-checks identity but does not reconcile again or replace the
+ *      in-memory record, and still notices another tab signing in (SESSION-BOUNDARY-02 F3).
  *
  * Safety: synthetic accounts only, no provider call (B1PREP_FORCE_OFFLINE=1), a disposable
  * database that may not be `postgres`, `template0` or `template1`. This is the synthetic
@@ -52,6 +54,7 @@ const MARK = Object.freeze({
   draftA: `SYNTH-A-DRAFT-${RUN_ID}`,
   examDateA: '2031-03-14',
   legacy: `SYNTH-LEGACY-${RUN_ID}`,
+  newer: `SYNTH-NEWER-${RUN_ID}`,
   lateSettings: '2032-02-02',
 });
 
@@ -547,6 +550,60 @@ check('single-user path: accounts off, or never signed in, behaves as before', a
     assert.equal(result.phase, 'single-user', 'a browser that never signed in left the single-user path');
     assert.ok(visible(store).includes(MARK.legacy));
   } finally { await onServer.stop(); }
+});
+
+/*
+ * SESSION-BOUNDARY-02 F3. A tab return calls resolve() again. On a single-user page that must
+ * re-check identity (the hardening) WITHOUT re-reconciling the record: the old app reconciled
+ * once, at boot, and never replaced the in-memory record mid-session.
+ */
+check('single-user: a second resolve (tab return) neither reconciles again nor replaces the in-memory record', async () => {
+  const server = await startServer(4492, { accounts: false });
+  try {
+    const browser = createBrowser(4492);
+    browser.storage.setItem('b1prep.state.v1', JSON.stringify({ version: 1, updatedAt: 1, nodes: {}, history: [], errors: [{ id: 'e1', t: 1, prompt: MARK.legacy, tags: [], resolved: false }], settings: {}, counters: { attempts: 1 } }));
+    const { store, boundary } = await browser.page();
+    const first = await boundary.resolve();
+    assert.equal(first.phase, 'single-user');
+    assert.ok(first.sync && first.sync.reachable, 'precondition: the boot-time reconcile ran');
+    const before = store.getState();
+
+    // Another browser saves a NEWER single-user record to the server meanwhile.
+    const base = 'http://127.0.0.1:4492';
+    const current = await (await realFetch(`${base}/api/progress`)).json();
+    const newer = { version: 1, createdAt: 1, updatedAt: Date.now() + 1000, settings: {}, nodes: {}, history: [], srs: {}, days: {}, planDone: {},
+      errors: [{ id: 'e-newer', t: Date.now(), prompt: MARK.newer, tags: [], resolved: false }], counters: { attempts: 2 } };
+    const posted = await realFetch(`${base}/api/progress`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base }, body: JSON.stringify({ state: newer, rev: current.rev }) });
+    assert.equal(posted.status, 200, 'precondition: the newer record reached the server');
+
+    const mark = browser.log.length;
+    const second = await boundary.resolve();
+    const after = browser.log.slice(mark);
+    assert.equal(second.phase, 'single-user');
+    assert.ok(after.some((e) => e.kind === 'request' && e.path === '/api/v1/account'), 'the tab return no longer re-checks identity');
+    const progress = after.filter((e) => e.kind === 'request' && e.at === 'start' && e.path === '/api/progress').map((e) => e.method);
+    assert.deepEqual(progress, [], `the tab return reconciled the single-user record again (${progress.join(', ')})`);
+    assert.equal(store.getState(), before, 'the in-memory record was replaced mid-session');
+    assert.ok(!visible(store).includes(MARK.newer), 'the newer server record was adopted mid-session');
+  } finally { await server.stop(); }
+});
+
+check('single-user: a tab return still notices another tab signing in (the hardening is kept)', async () => {
+  const server = await startServer(4493, { accounts: true });
+  try {
+    const browser = createBrowser(4493);
+    const tab1 = await browser.page();
+    assert.equal((await tab1.boundary.resolve()).phase, 'single-user', 'precondition: never signed in');
+    // Another tab of the same browser (same cookies and storage) signs up.
+    const tab2 = await browser.page();
+    await tab2.boundary.resolve();
+    const signedUp = await tab2.boundary.signUp({ name: 'T', email: email('tab-return'), password: password('tab-return') });
+    // Back to the first tab.
+    const back = await tab1.boundary.resolve();
+    assert.equal(back.phase, 'signed-in', `the single-user tab stayed ${back.phase} after another tab signed in`);
+    assert.equal(back.account.id, signedUp.account.id);
+    assert.equal(tab1.store.getAccountScope().accountId, signedUp.account.id, 'the first tab still writes the single-user record');
+  } finally { await server.stop(); }
 });
 
 /* ====================================================================== run */

@@ -14,9 +14,11 @@
  *     this browser's copy of it, whether or not the last save landed - and late responses
  *     are fenced: owned-API calls by the client's generation (`owned-client.js`), progress
  *     requests by the store's scope epoch;
- *   - a browser that was never signed in keeps the single-user path exactly as before;
- *     a browser that WAS signed in and is refused fails closed to signed-out, never back to
- *     the single-user record;
+ *   - a browser that was never signed in keeps the single-user path: its record is
+ *     reconciled once at boot, as before, and never replaced mid-session; the one addition
+ *     is that a tab return asks `/api/v1/account` again, so the page notices another tab
+ *     signing in. A browser that WAS signed in and is refused fails closed to signed-out,
+ *     never back to the single-user record;
  *   - the settings page and writing drafts reach the account through the boundary
  *     (`saveSettings`, `openDraft`), never by constructing their own client.
  *
@@ -119,6 +121,21 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
   }
 
   /**
+   * The single-user path reconciles its record with the server ONCE, when the page first
+   * resolves - exactly the old boot-time `syncFromServer()`. A later resolve (a tab return)
+   * still re-checks identity, so a page notices another tab signing in, but a page that
+   * was single-user and stays so is not reconciled again: its in-memory record is never
+   * replaced mid-session (SESSION-BOUNDARY-02 F3).
+   */
+  async function singleUser(why) {
+    const already = phase === 'single-user';
+    enterSingleUser(why);
+    if (already) return snapshot();
+    const sync = await store.syncFromServer();
+    return { ...snapshot(), sync };
+  }
+
+  /**
    * Fail closed: drop the account's text and record, and persist nothing learner-derived.
    * When the server has said the session is gone (any 401: expired, or signed out
    * elsewhere), this browser's copy of every account is forgotten too. Offline, a refused
@@ -195,9 +212,7 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
       const scoped = store.getAccountScope().mode !== 'legacy';
       if (phase === 'signed-in' && isOffline(code)) return { ...snapshot(), offline: true };
       if (!scoped && (code === 'not_found' || isOffline(code))) {
-        enterSingleUser(code === 'not_found' ? 'accounts_off' : 'offline');
-        const sync = await store.syncFromServer();
-        return { ...snapshot(), sync };
+        return singleUser(code === 'not_found' ? 'accounts_off' : 'offline');
       }
       // This browser held an account: anything but a verified identity fails closed.
       enterSignedOut(code === 'not_found' ? 'accounts_off' : isOffline(code) ? 'offline' : 'refused');
@@ -207,11 +222,7 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
     // 401. A browser that never signed in stays on the single-user path, unchanged; one that
     // was signed in has expired and fails closed.
     const mode = store.getAccountScope().mode;
-    if (mode === 'legacy' && phase !== 'signed-in') {
-      enterSingleUser('anonymous');
-      const sync = await store.syncFromServer();
-      return { ...snapshot(), sync };
-    }
+    if (mode === 'legacy' && phase !== 'signed-in') return singleUser('anonymous');
     enterSignedOut(mode === 'signed-out' && phase !== 'signed-in' ? 'signed_out' : 'expired');
     return snapshot();
   }

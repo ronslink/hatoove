@@ -16,7 +16,8 @@
  *   * NO LATE WRITING FEEDBACK: with a STUBBED AI provider, a writing grading held across a
  *     sign-out or an account switch puts no text in the notebook, records no attempt and
  *     reaches no storage; a signed-out page refuses a notebook entry (SESSION-BOUNDARY-02 F2);
- *   * the single-user path is unchanged with accounts disabled (the record shows, 12 views);
+ *   * the single-user path with accounts disabled: the record shows, 12 views; a tab return
+ *     re-checks identity but does not reconcile again or replace the record (F3);
  *   * no console errors; desktop 1440 px and phone 390 px screenshots.
  *
  * The server is the disposable copy's real `createServer` (so /api/progress is the real
@@ -56,6 +57,7 @@ const B = Object.freeze({
   password: 'synthetic-pass-b-123',
 });
 const LEGACY_MARKER = `SYNTH-SB-LEGACY-${RUN}`;
+const NEWER_MARKER = `SYNTH-SB-NEWER-${RUN}`;
 // The learner's own text as the stubbed grading's correction quotes it (F2).
 const W_MARKER = `SYNTH-SB-WRITING-${RUN}`;
 
@@ -282,17 +284,17 @@ const INSTRUMENT = `
   };
 `;
 
-async function postProgress(port, accountId, marker) {
+async function postProgress(port, accountId, marker, rev = 0) {
   const headers = { 'content-type': 'application/json', origin: `http://127.0.0.1:${port}` };
   if (accountId) headers['x-b1prep-account'] = accountId;
   const state = {
     version: 1, createdAt: 1, updatedAt: Date.now(), settings: {},
     nodes: { 'skill:SB1': { theta: 40, n: 1, correct: 0, last: Date.now(), streak: 0 } },
     history: [{ t: Date.now(), partId: 'SB1', tags: [], difficulty: 50, correct: false, source: 'drill', ms: 0, itemRef: null }],
-    errors: [{ id: `e-${RUN}`, t: Date.now(), partId: 'SB1', tags: [], difficulty: 50, prompt: marker, yourAnswer: 'x', correctAnswer: 'y', explanation: '', reviewed: 0, resolved: false, source: 'drill' }],
+    errors: [{ id: `e-${marker}`, t: Date.now(), partId: 'SB1', tags: [], difficulty: 50, prompt: marker, yourAnswer: 'x', correctAnswer: 'y', explanation: '', reviewed: 0, resolved: false, source: 'drill' }],
     srs: {}, days: {}, planDone: {}, counters: { attempts: 1, correct: 0, aiCalls: 0, aiFailures: 0, lastAiError: '' },
   };
-  const response = await fetch(`http://127.0.0.1:${port}/api/progress`, { method: 'POST', headers, body: JSON.stringify({ state, rev: 0 }) });
+  const response = await fetch(`http://127.0.0.1:${port}/api/progress`, { method: 'POST', headers, body: JSON.stringify({ state, rev }) });
   if (!response.ok) throw new Error(`seeding progress failed: HTTP ${response.status}`);
 }
 
@@ -407,6 +409,21 @@ async function main(argv) {
     record('single-user-boots-unchanged-with-accounts-off', title === 'Übersicht' && navCount === 12, `title="${title}", #nav items=${navCount}`);
     await openView(cdp, 'notebook', 'Fehlerheft');
     record('single-user-record-still-shows-with-accounts-off', (await viewText(cdp)).includes(LEGACY_MARKER), 'the unscoped record is shown');
+
+    /* ------------- TAB RETURN ON THE SINGLE-USER PATH (SESSION-BOUNDARY-02 F3) */
+    // Another browser saves a newer single-user record; then this tab becomes visible again.
+    // The app's own visibilitychange handler must re-check identity but must not reconcile
+    // the record again or replace the in-memory state mid-session.
+    const current = await (await fetch(`http://127.0.0.1:${portDisabled}/api/progress`)).json();
+    await postProgress(portDisabled, null, NEWER_MARKER, current.rev);
+    const sinceTabReturn = (await cdp.evaluate(`return window.__sb.length`));
+    await cdp.evaluate(`document.dispatchEvent(new Event('visibilitychange')); return document.visibilityState`);
+    await sleep(2000);
+    const tabReturn = (await cdp.evaluate(`return window.__sb`)).slice(sinceTabReturn).filter((e) => e.kind === 'request' && e.at === 'start');
+    const reconciled = tabReturn.filter((e) => e.path === '/api/progress').map((e) => e.method);
+    const adopted = await cdp.evaluate(`return import('/js/store.js').then((m) => JSON.stringify(m.getState()).includes(${JSON.stringify(NEWER_MARKER)}))`);
+    record('single-user-tab-return-rechecks-identity', tabReturn.some((e) => e.path === '/api/v1/account'), `requests: ${tabReturn.map((e) => `${e.method} ${e.path}`).join(', ')}`);
+    record('single-user-tab-return-does-not-replace-the-record', reconciled.length === 0 && !adopted, `/api/progress on tab return: [${reconciled.join(', ')}], newer record adopted: ${adopted}`);
 
     /* ---------------------------------------------- accounts on: sign in as A */
     await cdp.send('Page.navigate', { url: `http://127.0.0.1:${portAccounts}/` });

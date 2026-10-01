@@ -319,8 +319,10 @@ async function boot() {
     if (document.visibilityState === 'hidden') {
       store.flushNow();
     } else {
-      // Another tab may have signed out or switched account meanwhile; the boundary
-      // notices, clears and repaints through onSessionChange.
+      // Another tab may have signed in, out or switched account meanwhile; the boundary
+      // notices, clears and repaints through onSessionChange. A page that is single-user
+      // and stays so is NOT reconciled again here (only identity is re-checked), so its
+      // in-memory record is never replaced mid-session.
       await boundary.resolve();
       await ai.refreshStatus();
       refreshBadges();
