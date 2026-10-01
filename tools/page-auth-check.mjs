@@ -127,8 +127,13 @@ try {
   if (seed.status === 200) {
     fail('A3-answer-keys-gated', 'data/seed.json (180 answer keys) is not public',
       `answered 200 with ${seed.body.length} bytes — the answer keys are downloadable by anyone`);
-  } else {
+  } else if ([401, 403, 404].includes(seed.status)) {
     pass('A3-answer-keys-gated', 'data/seed.json (180 answer keys) is not public', `${seed.status}`);
+  } else {
+    // A 5xx is a broken server, NOT a refusal. Without this branch a crashed static handler would
+    // have "passed" this leg, which is how a check stops meaning anything.
+    fail('A3-answer-keys-gated', 'data/seed.json (180 answer keys) is not public',
+      `${seed.status} is not a refusal — a server error must not read as "gated"`);
   }
 
   // A4 — the shell needed to sign in must be reachable, or nobody can ever authenticate.

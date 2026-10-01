@@ -529,8 +529,35 @@ function resolveStatic(urlPath) {
   return target;
 }
 
+/*
+ * PILOT-01c — the application surface is auth-gated (Ron, 1 October 2026: "the pages should be
+ * auth gated so only authenticated users are allowed").
+ *
+ * Only the shell needed to SIGN IN is public. Everything else requires a verified session, and
+ * that includes `data/**` — which carried **180 answer keys** to anyone who asked. Gating the API
+ * alone was never a gate: the content is on the page surface.
+ *
+ * `/signin` itself must be public, or nobody could ever authenticate. `/assets/design/**` is the
+ * design system the sign-in page renders with, and it holds no learner data.
+ */
+const PUBLIC_STATIC_PATHS = new Set(['/signin', '/signin.html', '/favicon.ico']);
+const PUBLIC_STATIC_PREFIXES = Object.freeze(['/assets/design/']);
+
+function isPublicStatic(pathname) {
+  if (PUBLIC_STATIC_PATHS.has(pathname)) return true;
+  return PUBLIC_STATIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+/**
+ * A browser navigation can be redirected to the sign-in page; a fetch must get 401, because a
+ * client that follows a redirect would parse the login page as the content it asked for.
+ */
+function isNavigation(req) {
+  return String(req.headers.accept || '').includes('text/html');
+}
+
 async function serveStatic(req, res, pathname) {
-  const target = resolveStatic(pathname === '/' ? '/index.html' : pathname);
+  let target = resolveStatic(pathname === '/' ? '/index.html' : pathname);
   if (!target) {
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Forbidden');
@@ -540,9 +567,23 @@ async function serveStatic(req, res, pathname) {
   try {
     stat = await fsp.stat(target);
   } catch {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Not found');
-    return;
+    // `/signin` NAMES A PAGE, so try `/signin.html` before giving up. The auth gate redirects a
+    // browser to the extension-less path, and a 404 there would be a sign-in page nobody can load.
+    // Only extension-less paths get the fallback, so `/data/seed.json.` style probes cannot wander.
+    if (path.extname(target)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Not found');
+      return;
+    }
+    const html = `${target}.html`;
+    try {
+      stat = await fsp.stat(html);
+      target = html;
+    } catch {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Not found');
+      return;
+    }
   }
   const file = stat.isDirectory() ? path.join(target, 'index.html') : target;
   try {
@@ -1112,6 +1153,31 @@ export function createServer({ ownedApi = null } = {}) {
         res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end('Method not allowed');
         return;
+      }
+      /*
+       * PILOT-01c — the page surface is auth-gated.
+       *
+       * Gated on `saas && owned` deliberately, and not unconditionally: with accounts unmounted
+       * there is no identity source at all, so nothing could ever authenticate. The legacy
+       * single-user mode therefore keeps serving its own app until PILOT-03 removes that mode —
+       * at which point this condition becomes unconditional, because there will be no mode left
+       * in which an unauthenticated page is legitimate.
+       */
+      // Resolve the owned API here rather than reusing the `/api/` branch's `owned`, which is
+      // scoped to that branch. Same accessor, one identity source.
+      const ownedApi = resolveOwnedApi(serverRef);
+      if (saas && ownedApi && !isPublicStatic(pathname)) {
+        const identity = await requestIdentity(ownedApi, req);
+        if (!identity) {
+          if (isNavigation(req)) {
+            // 302 and not 401: a browser navigation should land on a sign-in form, not on JSON.
+            res.writeHead(302, { Location: '/signin', 'Cache-Control': 'no-store' });
+            res.end();
+          } else {
+            sendJSON(res, 401, { ok: false, error: 'unauthenticated' });
+          }
+          return;
+        }
       }
       await serveStatic(req, res, pathname);
     } catch (err) {

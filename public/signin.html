@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Anmelden · Hatoove</title>
+<link rel="icon" type="image/svg+xml" href="/assets/design/hatoove-mark.svg">
+<link rel="stylesheet" href="/assets/design/hatoove.css">
+<!--
+  The ONLY public page (PILOT-01c). Every other page, script, stylesheet and data file requires a
+  verified session, because `data/**` carries the answer keys and gating the API alone never gated
+  the content. This page must stay public or nobody could ever authenticate.
+
+  It uses the curated design system at /assets/design/. German chrome, per the recorded decision:
+  the interface is German and only the EXPLANATION language follows the learner.
+-->
+</head>
+<body>
+
+<main class="auth">
+  <section class="auth-art">
+    <img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="168" height="32">
+    <div class="stack">
+      <h2>Bereit für deine <span>Prüfung</span>?</h2>
+      <p class="muted">Übe mit echten Prüfungsaufgaben und bekomme jede Erklärung in deiner eigenen
+        Sprache — nicht nur „richtig“ oder „falsch“.</p>
+    </div>
+    <p class="small muted">telc Deutsch B1 · weitere Prüfungen folgen</p>
+  </section>
+
+  <section class="auth-form">
+    <div class="auth-box">
+      <div class="card">
+        <div class="stack">
+          <div class="spread">
+            <button type="button" class="btn btn-ghost" id="tab-signin" aria-pressed="true">Anmelden</button>
+            <button type="button" class="btn btn-ghost" id="tab-signup" aria-pressed="false">Registrieren</button>
+          </div>
+
+          <!-- Sign in -->
+          <form class="stack" id="form-signin" novalidate>
+            <div class="field">
+              <label for="si-email">E-Mail</label>
+              <input class="input" id="si-email" name="email" type="email" autocomplete="email" required>
+            </div>
+            <div class="field">
+              <label for="si-password">Passwort</label>
+              <input class="input" id="si-password" name="password" type="password" autocomplete="current-password" required>
+            </div>
+            <button class="btn btn-primary btn-block" type="submit" id="si-submit">Anmelden</button>
+          </form>
+
+          <!-- Register -->
+          <form class="stack" id="form-signup" hidden novalidate>
+            <div class="field">
+              <label for="su-name">Name</label>
+              <input class="input" id="su-name" name="name" type="text" autocomplete="name" required>
+            </div>
+            <div class="field">
+              <label for="su-email">E-Mail</label>
+              <input class="input" id="su-email" name="email" type="email" autocomplete="email" required>
+            </div>
+            <div class="field">
+              <label for="su-password">Passwort</label>
+              <input class="input" id="su-password" name="password" type="password" autocomplete="new-password" required>
+            </div>
+            <button class="btn btn-primary btn-block" type="submit" id="su-submit">Konto erstellen</button>
+          </form>
+
+          <p class="err" id="error" role="alert" hidden></p>
+        </div>
+      </div>
+
+      <p class="small muted">
+        Formatives Übungsfeedback, keine offizielle Prüfungsbewertung. Teilnahme nur mit Einladung.
+      </p>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+const errorEl = document.getElementById('error');
+
+/** One message source. The server's own error codes are shown, never a fabricated success. */
+function showError(message) {
+  errorEl.textContent = message;
+  errorEl.hidden = !message;
+}
+
+function setBusy(form, busy) {
+  for (const el of form.querySelectorAll('button, input')) el.disabled = busy;
+}
+
+function selectTab(which) {
+  const signin = which === 'signin';
+  document.getElementById('form-signin').hidden = !signin;
+  document.getElementById('form-signup').hidden = signin;
+  document.getElementById('tab-signin').setAttribute('aria-pressed', String(signin));
+  document.getElementById('tab-signup').setAttribute('aria-pressed', String(!signin));
+  showError('');
+  document.getElementById(signin ? 'si-email' : 'su-name').focus();
+}
+document.getElementById('tab-signin').addEventListener('click', () => selectTab('signin'));
+document.getElementById('tab-signup').addEventListener('click', () => selectTab('signup'));
+
+/** The server reports `{ error }` or `{ code }`; surface it rather than inventing a nicer story. */
+function messageFrom(status, payload) {
+  const code = payload && (payload.error || payload.code);
+  if (status === 401) return 'E-Mail oder Passwort ist falsch.';
+  if (status === 422 && code === 'user_exists') return 'Für diese E-Mail gibt es bereits ein Konto.';
+  if (status === 422) return 'Bitte prüfe deine Eingaben.';
+  if (status === 403) return 'Diese Adresse ist für die Anmeldung nicht freigegeben (Serverkonfiguration).';
+  if (status === 429) return 'Zu viele Versuche. Bitte warte einen Moment.';
+  if (status >= 500) return 'Der Server ist gerade nicht erreichbar. Bitte später erneut versuchen.';
+  return code ? String(code) : `Anmeldung fehlgeschlagen (${status}).`;
+}
+
+async function post(path, body, form) {
+  setBusy(form, true);
+  showError('');
+  try {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let payload = null;
+      try { payload = await res.json(); } catch { /* a non-JSON refusal is still a refusal */ }
+      showError(messageFrom(res.status, payload));
+      return false;
+    }
+    // The session cookie is set by the server. Land on the app; the server re-checks the session.
+    location.replace('/');
+    return true;
+  } catch {
+    showError('Keine Verbindung zum Server.');
+    return false;
+  } finally {
+    setBusy(form, false);
+  }
+}
+
+const signinForm = document.getElementById('form-signin');
+signinForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  void post('/api/auth/sign-in/email', {
+    email: document.getElementById('si-email').value.trim(),
+    password: document.getElementById('si-password').value,
+  }, signinForm);
+});
+
+const signupForm = document.getElementById('form-signup');
+signupForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  void post('/api/auth/sign-up/email', {
+    name: document.getElementById('su-name').value.trim(),
+    email: document.getElementById('su-email').value.trim(),
+    password: document.getElementById('su-password').value,
+  }, signupForm);
+});
+</script>
+</body>
+</html>
