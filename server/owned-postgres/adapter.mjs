@@ -255,9 +255,10 @@ export const ACCOUNT_TABLES = Object.freeze([
  * UPDATE(parent_submission_id) on attempts and an owner-scoped policy for each. No such
  * role is provisioned yet; see work/implementation/HARD-DELETE-01.md §6.
  *
- * @param {{pool: object, afterStep?: (index: number, name: string) => (void|Promise<void>)}} options
+ * @param {{pool: object, afterStep?: (index: number, name: string, client: object) => (void|Promise<void>)}} options
  *   `afterStep` is a test hook (failure injection); it runs inside the transaction after
- *   each step, and a throw from it rolls the whole deletion back.
+ *   each step (with the transaction's client, so a test can observe the in-flight state),
+ *   and a throw from it rolls the whole deletion back.
  */
 export function createPostgresAccountDeletion({ pool, afterStep } = {}) {
   if (!pool || typeof pool.connect !== 'function') {
@@ -276,7 +277,7 @@ export function createPostgresAccountDeletion({ pool, afterStep } = {}) {
         const removed = {};
         for (const [index, [name, sql]] of ACCOUNT_DELETION_STEPS.entries()) {
           removed[name] = (await client.query(sql, [owner])).rowCount;
-          if (hook) await hook(index + 1, name);
+          if (hook) await hook(index + 1, name, client);
         }
         for (const [table, column] of ACCOUNT_TABLES) {
           const left = first(await client.query(`SELECT count(*)::int AS n FROM ${table} WHERE ${column} = $1`, [owner])).n;
