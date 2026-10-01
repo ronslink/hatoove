@@ -1,6 +1,6 @@
 # Hatoove implementation plan
 
-Revised 1 October 2026. This preserves the broader 36-package programme and its human/technical gates. **For the next release, [FUNCTIONAL-ROADMAP.md](work/implementation/FUNCTIONAL-ROADMAP.md) takes precedence on scope, dependency order, the new client and retirement of obsolete behavior/checks.** [MFP-DESIGN-DECISIONS.md](work/implementation/MFP-DESIGN-DECISIONS.md) supplies design interpretation and state acceptance. Later user instructions take precedence over all plans.
+Revised 1 October 2026. This preserves the broader 36-package programme and its human/technical gates. **For the next release, [PILOT_BUILD_PLAN.md](PILOT_BUILD_PLAN.md) governs scope, and [MASTER-PLAN.md](MASTER-PLAN.md) sets dependency order, the new client and retirement of obsolete behavior/checks; the writing-first `FUNCTIONAL-ROADMAP.md` is withdrawn (MASTER-PLAN §10).** [MFP-DESIGN-DECISIONS.md](work/implementation/MFP-DESIGN-DECISIONS.md) supplies design interpretation and state acceptance. Later user instructions take precedence over all plans.
 
 [MASTER-PLAN.md](MASTER-PLAN.md) is the current delivery summary; live assignments remain on the [board](work/BOARD.md) and coordinator dispatches. The historical snapshots and package tables below are not live leases or a requirement to restore dropped first-release features.
 

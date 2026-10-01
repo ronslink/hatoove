@@ -1,6 +1,6 @@
 # MFP design decisions and implementation acceptance
 
-Updated 1 October 2026. Execution `mfp-design-decisions-20261001-a`, documentation only, based on integration commit `199dc0b99f91d06f402f084757ecf586e03631ce`. The [functional roadmap](FUNCTIONAL-ROADMAP.md) governs first-release scope; this record resolves its design interpretation and names outstanding decisions. The [14-screen map](DESIGN-WIRE-01.md) remains a reference inventory and later backlog, not a first-release checklist. No live assignment or release gate is closed here.
+Updated 1 October 2026. Execution `mfp-design-decisions-20261001-a`, documentation only, based on integration commit `199dc0b99f91d06f402f084757ecf586e03631ce`. [PILOT_BUILD_PLAN.md](../../PILOT_BUILD_PLAN.md) governs scope and [MASTER-PLAN.md](../../MASTER-PLAN.md) sets delivery order; this record supplies the design interpretation and state acceptance, which outlive the withdrawn functional roadmap (MASTER-PLAN §10). Its MFP-07/08/09 slice IDs no longer order the work. The [14-screen map](DESIGN-WIRE-01.md) remains a reference inventory and later backlog, not a first-release checklist. No live assignment or release gate is closed here.
 
 ## Decisions and defaults
 

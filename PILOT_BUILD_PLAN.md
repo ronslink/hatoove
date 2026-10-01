@@ -2,7 +2,7 @@
 
 ## First-release direction — 1 October 2026
 
-[FUNCTIONAL-ROADMAP.md](work/implementation/FUNCTIONAL-ROADMAP.md) governs the **writing-first minimum functional product**. It supersedes broader scope and old-client preservation below. [MFP-DESIGN-DECISIONS.md](work/implementation/MFP-DESIGN-DECISIONS.md) defines the design/state contract; [MASTER-PLAN.md](MASTER-PLAN.md) records progress. The remaining sections retain broader product rationale, not first-release commitments to study plans, listening or a full written mock.
+**This plan governs scope.** [MASTER-PLAN.md](MASTER-PLAN.md) turns it into delivery order and records progress, and [MFP-DESIGN-DECISIONS.md](work/implementation/MFP-DESIGN-DECISIONS.md) defines the design/state contract. The writing-first `FUNCTIONAL-ROADMAP.md` that previously superseded this section is withdrawn — see [MASTER-PLAN.md](MASTER-PLAN.md) §10. The sections below are the first-release commitment, sequenced to a working **local** application first. Study plans, listening and a full written mock stay in scope, but after that milestone and only behind their review gates.
 
 Build the small new vanilla client from `D:\B1_Prep\design`, with the orange/rising-oo identity, German interface/exam content and de/en/uk/ar/tr explanations. Include script-capable licensed fonts and scoped Arabic RTL for shipping feedback. Ron confirmed the logo was AI-generated for this project. The fourteen-screen inventory is a reference/backlog, not a launch checklist.
 
@@ -77,7 +77,7 @@ Evaluate local price experiments using paid conversion, meaningful practice comp
 
 ## Current baseline
 
-Development checkout: `<user-home>\OneDrive\Documents\ChatGPT\B1_Prep`. The installed application on D: is a separate copy; read only the explicitly identified design reference; do not synchronize the installed application into the source repository. Keep learner records separate from source-code changes.
+Development checkout: `D:\Hatoover` (relocated 1 October 2026; see [WORKSPACE_LOCATION](docs/WORKSPACE_LOCATION.md)). The installed application on D: is a separate copy; read only the explicitly identified design reference; do not synchronize the installed application into the source repository. Keep learner records separate from source-code changes.
 
 The three offline suites passed on 30 September 2026:
 
@@ -87,7 +87,7 @@ The three offline suites passed on 30 September 2026:
 | `node tools/writing-check.js` | 9 passed |
 | `node tools/feedback-check.js` | 14 passed |
 
-These 124 checks establish the current offline regression baseline. They do not establish exam accuracy, browser compatibility, deployed security or model quality. The Git repository currently has no commits, so establishing a reviewed source baseline belongs in the first implementation milestone.
+These 124 checks establish the current offline regression baseline. They do not establish exam accuracy, browser compatibility, deployed security or model quality. The reviewed source baseline now exists in Git (relocated to `D:\Hatoover`); keeping those suites green remains an implementation requirement.
 
 Current source findings supersede stale details in the earlier review:
 
