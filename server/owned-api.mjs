@@ -71,7 +71,19 @@ const RETRY_RE = new RegExp(`^/api/v1/submissions/(${UUID})/retry$`, 'i');
 const TOKEN_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
 
-const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry', 'remove', 'listTasks', 'listObjectiveSets'];
+const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry', 'remove'];
+/**
+ * The shared-content catalogue is an OPTIONAL CAPABILITY, not part of ownership.
+ *
+ * It is deliberately NOT in `DATASTORE_METHODS`. That list gates the ENTIRE owned API, so putting a
+ * catalogue method in it disables EVERY route for any datastore that does not implement one — which
+ * is exactly what happened: adding `listTasks` turned five checks that use an in-memory fake from
+ * green to "503 on every call", and the fail-closed gate was working correctly while doing it.
+ *
+ * An absent catalogue must disable the CATALOGUE, in the way an absent settings port disables
+ * settings and an absent deletion port disables deletion, and leave the rest of the product alone.
+ */
+const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -257,6 +269,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
   const configured = implementsAll(datastore, DATASTORE_METHODS) && implementsAll(sessions, SESSION_METHODS);
   const settingsWired = implementsAll(settings, SETTINGS_METHODS);
   const deletionWired = implementsAll(accountDeletion, DELETION_METHODS);
+  const catalogueWired = implementsAll(datastore, CATALOGUE_METHODS);
 
   async function identify(headers) {
     const session = await sessions.getSession(headers);
@@ -360,6 +373,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       fault(404, 'not_found');
     }
     if (pathname === '/api/v1/tasks' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
       /*
        * PILOT-04 -- the servable task catalogue. This is the route the Ueben view has been waiting
        * for: without it no learner-facing code could reach the seeded content at all, which is why
@@ -380,6 +394,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       return reply(200, await datastore.listTasks(owner, { examId: exam, family, serveReview }));
     }
     if (pathname === '/api/v1/objective-sets' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
       /*
        * OBJECTIVE-SEED-01 — the reading and language-elements catalogue.
        *

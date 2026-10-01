@@ -1216,6 +1216,22 @@ export function createServer({ ownedApi = null } = {}) {
          * direction for the mistake to point.
          */
         if (pathname !== '/api/health' && pathname !== '/api/ready') {
+          /*
+           * AN UNMOUNTED VERSIONED SURFACE DOES NOT EXIST, and must say 404 rather than 401.
+           *
+           * The wrap below was added for every /api route, and it turned this case into a 401 --
+           * which is a CLAIM that the route exists and merely needs a session. With accounts off,
+           * /api/v1 is not mounted at all, so there is nothing to sign in to. `fail-closed` here
+           * means "does not exist", not "exists but locked". Found by `owned-api-check
+           * --backend=postgres` (`server-mount-off-by-default`), which is a developer check and not
+           * in CI -- which is why a change of mine could break it without CI noticing.
+           */
+          if (pathname === '/api/v1' || pathname.startsWith('/api/v1/')) {
+            if (!owned) {
+              sendJSON(res, 404, { ok: false, error: `Unknown endpoint ${pathname}` });
+              return;
+            }
+          }
           const identity = await requestIdentity(owned, req);
           if (!identity) {
             sendJSON(res, 401, { ok: false, error: 'unauthenticated' });

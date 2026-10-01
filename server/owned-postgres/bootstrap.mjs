@@ -123,6 +123,22 @@ export async function createFixture(overrides = {}) {
     // disposable fixture has the same exam scope an installation has. Without this the fixture had
     // no `exam_package` at all while the product did.
     await pools.migration.query(examScopeSql({ schema, roles }));
+    /*
+     * OBJECTIVE-SEED-01. The objective corpus migration is APPLIED FROM THE TRACKED FILE rather than
+     * duplicated here, and the difference matters at this size: `contentCatalogueSql` can hand-mirror
+     * 0006 because it is a page of SQL, but 0010 is ~80 KB of generated inserts. Hand-mirroring that
+     * would guarantee the fixture and the product drift, and the drift would be invisible until a
+     * learner was marked against the wrong key.
+     *
+     * The placeholders are the same three the persistent renderer substitutes, so the fixture gets
+     * the SAME 24 sets and 180 answers an installation gets -- which is the point of the fixture.
+     * Regenerate with `node tools/build-objective-migration.mjs`; the fixture follows automatically.
+     */
+    const objectiveSql = (await readFile(new URL('../migrations/0010-objective-catalogue.sql', import.meta.url), 'utf8'))
+      .replaceAll('__SCHEMA__', schema)
+      .replaceAll('__LEARNER__', roles.learner)
+      .replaceAll('__WORKER__', roles.worker);
+    await pools.migration.query(objectiveSql);
 
     return { schema, roles, config, admin, ...pools, cleanup };
   } catch (error) {
