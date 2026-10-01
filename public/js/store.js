@@ -100,7 +100,13 @@ let serverRev = 0;
 // deleted record back into the browser cache. That is the single-tab F-2 race the SEC-02
 // report wrongly claimed was closed.
 let stateEpoch = 0;
-let sync = { state: 'idle', lastSavedAt: 0, lastError: '', lastLoadedSource: null };
+// Bumped on every account-scope transition (SESSION-BOUNDARY-01). A progress request
+// captures it before it leaves; an answer that arrives after a sign-out or an account
+// switch belongs to the previous learner and is dropped instead of being folded into the
+// next one's state. `stateEpoch` alone cannot do this: setAccountScope() does not replace
+// the state through it.
+let scopeEpoch = 0;
+let sync ={ state: 'idle', lastSavedAt: 0, lastError: '', lastLoadedSource: null };
 
 function storage() {
   try {
@@ -186,12 +192,23 @@ export function accountScopeStatus() {
  * Enter the account scope. If this account has no cache yet and the legacy unscoped blob
  * exists and was not already adopted by another account, adopt it once: copy it into the
  * account namespace and leave the legacy key untouched as the learner's backup copy.
+ *
+ * `adoptLegacy: false` skips that adoption. The application session boundary passes it:
+ * issue #63 forbids assigning the local single-user blob to an account automatically, so
+ * the boundary leaves it where it is (untouched) until there is an explicit migration
+ * decision.
+ *
+ * `forgetOthers: true` first removes every OTHER account's namespaced record from this
+ * browser (see forgetAccountRecords). The session boundary passes it, so an account switch
+ * never leaves the previous account's text behind.
  * @param {string} id an opaque account id (the owned-auth account id)
+ * @param {{adoptLegacy?: boolean, forgetOthers?: boolean}} [options]
  */
-export function setAccountScope(id) {
+export function setAccountScope(id, { adoptLegacy = true, forgetOthers = false } = {}) {
   if (typeof id !== 'string' || !ACCOUNT_ID_RE.test(id)) {
     throw new Error('setAccountScope expects an account id matching [A-Za-z0-9][A-Za-z0-9-]{0,63}');
   }
+  if (forgetOthers) forgetAccountRecords(id);
   // A queued save/reset belongs to the scope it was queued under; drop the timers so a
   // debounced write cannot land under the account that is being switched in.
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
@@ -201,30 +218,80 @@ export function setAccountScope(id) {
   accountId = id;
   lastAdoption = null;
   loaded = false;
+  scopeEpoch += 1;
+  // The revision belongs to the previous scope's record, not to this one.
+  serverRev = 0;
   state = freshState();
+  invalidateAbilityCache();
   writeScopeMarker();
-  load(); // loads this account's cache, or adopts the legacy blob once
+  load({ adoptLegacy }); // loads this account's cache, or adopts the legacy blob once
   return { mode: scopeMode, accountId, legacyAdopted: lastAdoption };
 }
 
 /**
- * Sign out: hold nothing learner-derived and persist nothing. The account's namespaced
- * cache is left on disk (so that account can resume) but is unreadable by any other
- * account, which only ever reads its own namespace.
+ * Remove every account's namespaced learner record from this browser except `keep`'s.
+ * Pending-reset flags stay: they hold no learner text, and dropping one would cancel a
+ * reset the learner asked for before it reached the server.
  */
-export function clearAccountScope() {
+function forgetAccountRecords(keep = null) {
+  const s = storage();
+  if (!s) return;
+  try {
+    const prefix = `${STORAGE_KEY}::`;
+    const kept = keep ? scopedStorageKey(keep) : null;
+    const doomed = [];
+    for (let i = 0; i < s.length; i += 1) {
+      const key = s.key(i);
+      if (key && key.startsWith(prefix) && key !== kept) doomed.push(key);
+    }
+    for (const key of doomed) s.removeItem(key);
+  } catch {
+    /* storage unavailable: nothing was persisted there either */
+  }
+}
+
+/**
+ * Sign out: hold nothing learner-derived and persist nothing. By default the account's
+ * namespaced cache is left on disk (so that account can resume) but is unreadable by any
+ * other account, which only ever reads its own namespace.
+ *
+ * `forget: true` also removes every account's namespaced record from this browser,
+ * whether or not its last save reached the server. The session boundary passes it on
+ * sign-out and on expiry, so no account's text stays behind in a shared browser; the
+ * server copy is what the next sign-in resumes from.
+ * @param {{forget?: boolean}} [options]
+ */
+export function clearAccountScope({ forget = false } = {}) {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   if (serverTimer) { clearTimeout(serverTimer); serverTimer = null; }
+  if (forget) forgetAccountRecords();
   scopeLoaded = true;
   scopeMode = 'signed-out';
   accountId = null;
   lastAdoption = null;
   stateEpoch += 1;
+  scopeEpoch += 1;
+  serverRev = 0;
   state = freshState();
   loaded = true;
   invalidateAbilityCache();
   writeScopeMarker();
   return getAccountScope();
+}
+
+/**
+ * The current account scope, as an opaque token. A view that awaits something outside the
+ * store (an AI round trip) takes one before the await and writes learner state afterwards
+ * only if `isScopeCurrent(token)`: a sign-out, expiry or switch in between moves the scope,
+ * and the answer then belongs to the previous learner (SESSION-BOUNDARY-02 F2).
+ */
+export function scopeToken() {
+  ensureScopeLoaded();
+  return scopeEpoch;
+}
+
+export function isScopeCurrent(token) {
+  return token === scopeEpoch;
 }
 
 /** True when progress may be read from / written to the server in the current mode. */
@@ -341,7 +408,7 @@ function parseIntoState(raw) {
   }
 }
 
-export function load() {
+export function load({ adoptLegacy = true } = {}) {
   if (loaded) return state;
   loaded = true;
   ensureScopeLoaded();
@@ -361,7 +428,7 @@ export function load() {
     if (scopeMode === 'scoped' && accountId) {
       const legacyRaw = s.getItem(STORAGE_KEY);
       const owner = s.getItem(LEGACY_OWNER_KEY);
-      if (legacyRaw && (!owner || owner === accountId)) {
+      if (adoptLegacy && legacyRaw && (!owner || owner === accountId)) {
         parseIntoState(legacyRaw);
         lastAdoption = { accountId, at: Date.now() };
         s.setItem(LEGACY_OWNER_KEY, accountId);
@@ -412,9 +479,13 @@ export async function flushToServer() {
  * revision exists to prevent.
  */
 async function adoptServerAfterConflict() {
+  const scope = scopeEpoch;
   try {
-    const res = await fetch('/api/progress');
+    // The re-read carries the scope header too: without it a signed-in account's 409 used
+    // to adopt the legacy single-user record into that account.
+    const res = await fetch('/api/progress', { headers: progressHeaders() });
     const data = await res.json();
+    if (scope !== scopeEpoch) return false;
     if (Number.isFinite(Number(data.rev))) serverRev = Number(data.rev);
     if (data.found && data.state) {
       state = { ...freshState(), ...data.state };
@@ -444,6 +515,7 @@ async function sendProgress() {
   // Captured before the request leaves: if either moves while it is in flight, the state
   // has been replaced (a reset) and the answer must not be folded back.
   const epoch = stateEpoch;
+  const scope = scopeEpoch;
   const sentRev = serverRev;
   try {
     const res = await fetch('/api/progress', {
@@ -452,6 +524,9 @@ async function sendProgress() {
       body: JSON.stringify({ state, rev: sentRev }),
     });
     const data = await res.json().catch(() => ({}));
+    // The scope changed while the write was on the wire: the answer is the previous
+    // learner's record and must not touch this one, not even its revision.
+    if (scope !== scopeEpoch) return false;
     if (res.status === 409 || data.code === 'stale_revision') {
       // Do not retry: retrying with the new revision would restore what the reset
       // deleted. Re-read and adopt instead.
@@ -491,9 +566,11 @@ async function deleteServerProgress(scope = 'all') {
   // write, or the merge it started from would put the record back.
   if (inflight) await inflight.catch(() => {});
   const query = scope === 'all' ? '' : `?scope=${encodeURIComponent(scope)}`;
+  const sentScope = scopeEpoch;
   try {
     const res = await fetch(`/api/progress${query}`, { method: 'DELETE', headers: progressHeaders() });
     const data = await res.json().catch(() => ({}));
+    if (sentScope !== scopeEpoch) return false;
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     // The delete moved the revision, so this client now knows the post-delete value: its
     // next ordinary save carries it and is accepted, and a write that left before the
@@ -536,9 +613,13 @@ export async function syncFromServer({ timeoutMs = 5000 } = {}) {
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const scope = scopeEpoch;
   try {
     const res = await fetch('/api/progress', { signal: controller.signal, headers: progressHeaders() });
     const data = await res.json();
+    // A sign-out or account switch happened while the read was in flight: this record is
+    // the previous learner's, so it is dropped rather than adopted (SESSION-BOUNDARY-01).
+    if (scope !== scopeEpoch) return { adopted: false, reachable: true, superseded: true };
     if (Number.isFinite(Number(data.rev))) serverRev = Number(data.rev);
     if (!data.found || !data.state) {
       const hasLocal = (state.counters?.attempts || 0) > 0 || Object.keys(state.nodes || {}).length > 0;
@@ -944,6 +1025,10 @@ export function unexploredTags(allTags, limit = 4) {
 /* ----------------------------------------------------------- error notebook */
 
 export function addError(e) {
+  // Signed out, the page holds no learner text: a notebook entry is refused, so a late
+  // writer that is not fenced itself still cannot put text where the notebook renders it.
+  load();
+  if (scopeMode === 'signed-out') return null;
   const item = {
     id: `e${Date.now()}${Math.floor(Math.random() * 1000)}`,
     t: Date.now(),

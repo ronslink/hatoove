@@ -984,43 +984,40 @@ export async function settingsView(el) {
     const voiceSel = el.querySelector('#voice-name');
     if (voiceSel) settings.voiceName = voiceSel.value;
     store.saveNow();
-    try {
-      await ai.saveExamDate(settings.examDate);
-    } catch {
-      /* the date still works locally */
+    const { session } = await import('./account.js');
+    // The server-config exam date is shared by everyone on this server: only the single-user
+    // path writes it. An account keeps its date in its own settings record below.
+    if (session().phase === 'single-user') {
+      try {
+        await ai.saveExamDate(settings.examDate);
+      } catch {
+        /* the date still works locally */
+      }
     }
     /*
-     * Account-scoped settings. Attempted only when signed in, and never silently: a signed-out
-     * learner keeps the local behaviour exactly as before, and a refused save is reported rather
-     * than swallowed, because a settings page that claims to save and does not is the defect this
-     * whole slice exists to remove.
+     * Account-scoped settings, through the session boundary (SESSION-BOUNDARY-01) - never a
+     * client of this page's own. Attempted only when signed in, and never silently: without an
+     * account the local behaviour is exactly as before, and a refused save is reported rather
+     * than swallowed, because a settings page that claims to save and does not is the defect
+     * this exists to remove.
      */
     try {
-      const { ownedClient } = await import('./account.js');
-      const client = ownedClient();
-      if (client.getAccount()) {
-        const current = await client.readSettings();
-        const saved = await client.saveSettings({
-          expectedRevision: current.revision,
-          settings: {
-            examDate: settings.examDate,
-            dailyGoal: settings.dailyGoal,
-            theme: settings.theme || 'system',
-            language: settings.language || 'de',
-          },
-        });
-        settings.settingsRevision = saved.revision;
-      }
-    } catch (error) {
+      const outcome = await session().saveSettings({
+        examDate: settings.examDate,
+        dailyGoal: settings.dailyGoal,
+        language: settings.language || 'de',
+      });
       // A 409 means another device moved the record; say so instead of pretending it saved.
-      const code = error && error.code;
-      if (code === 'conflict') {
+      if (outcome.reason === 'conflict') {
         toast('Die Einstellungen wurden auf einem anderen Gerät geändert. Bitte neu laden.', 'warn', 6000);
         return;
       }
-      if (code !== 'unauthenticated' && code !== 'not_open') {
-        toast('Einstellungen lokal gespeichert; die Kontospeicherung ist fehlgeschlagen.', 'warn', 6000);
+      if (outcome.reason === 'expired') {
+        toast('Die Sitzung ist abgelaufen. Bitte melde dich erneut an.', 'warn', 6000);
+        return;
       }
+    } catch {
+      toast('Einstellungen lokal gespeichert; die Kontospeicherung ist fehlgeschlagen.', 'warn', 6000);
     }
     toast('Einstellungen gespeichert.', 'good');
     navigate('settings');

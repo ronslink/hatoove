@@ -705,7 +705,10 @@ export function createOwnedClient(config = {}) {
   function saveSettings(options) {
     rejectExtraArguments(arguments, 1, 'saveSettings');
     const { expectedRevision, settings } = allowlist(options, ['expectedRevision', 'settings'], 'saveSettings');
-    const revision = requireRevision(expectedRevision, 'expectedRevision');
+    // A settings record starts at revision 0 (readSettingsShape accepts it and the server's
+    // first write is expectedRevision 0), unlike a draft, which starts at 1. Requiring >= 1
+    // here made an account's FIRST settings save impossible (SESSION-BOUNDARY-01).
+    const revision = expectedRevision === 0 ? 0 : requireRevision(expectedRevision, 'expectedRevision');
     if (!isPlainObject(settings)) fail('invalid_request', { message: 'settings must be an object' });
     const unknown = Object.keys(settings).filter((key) => !SETTINGS_FIELDS.includes(key));
     if (unknown.length) fail('invalid_request', { message: `unsupported setting(s): ${unknown.join(', ')}` });

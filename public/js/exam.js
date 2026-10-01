@@ -754,9 +754,14 @@ function renderWritingTask(el) {
       return;
     }
 
+    // The grading is a network round trip outside the session boundary. A sign-out, expiry or
+    // account switch while it is on the wire moves the store's scope; the answer then belongs
+    // to the previous learner and is neither shown nor recorded (SESSION-BOUNDARY-02 F2).
+    const scope = store.scopeToken();
     try {
       const graded = await ai.gradeWriting({ task, text, analysis });
       clearSpinner();
+      if (!store.isScopeCurrent(scope)) return;
       out.insertAdjacentHTML('beforeend', renderAiGrading(graded, task, analysis));
 
       // Feed the writing-specific weakness tags.
