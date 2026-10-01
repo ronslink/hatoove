@@ -13,7 +13,7 @@
 
 The supplied Hatoove design is the product's visual driver. It was:
 
-1. **intact** — all 22 files verified byte-for-byte against the pinned manifest at `D:\Hatoover\design`
+1. **intact** — all 22 files verified byte-for-byte against the pinned manifest at `D:\Hatoove\design`
    (22/22, 0 mismatches), with the relocation from `D:/B1_Prep/design` recorded in the manifest;
 2. **untracked** — `/design/` is in `.gitignore`, so **zero** files were in git: invisible to CI,
    invisible to the Hetzner and Docker workers, and one disk failure from gone;

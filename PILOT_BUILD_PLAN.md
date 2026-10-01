@@ -77,7 +77,7 @@ Evaluate local price experiments using paid conversion, meaningful practice comp
 
 ## Current baseline
 
-Development checkout: `D:\Hatoover` (relocated 1 October 2026; see [WORKSPACE_LOCATION](docs/WORKSPACE_LOCATION.md)). The installed application on D: is a separate copy; read only the explicitly identified design reference; do not synchronize the installed application into the source repository. Keep learner records separate from source-code changes.
+Development checkout: `D:\Hatoove` (relocated 1 October 2026; see [WORKSPACE_LOCATION](docs/WORKSPACE_LOCATION.md)). The installed application on D: is a separate copy; read only the explicitly identified design reference; do not synchronize the installed application into the source repository. Keep learner records separate from source-code changes.
 
 The three offline suites passed on 30 September 2026:
 
@@ -87,7 +87,7 @@ The three offline suites passed on 30 September 2026:
 | `node tools/writing-check.js` | 9 passed |
 | `node tools/feedback-check.js` | 14 passed |
 
-These 124 checks establish the current offline regression baseline. They do not establish exam accuracy, browser compatibility, deployed security or model quality. The reviewed source baseline now exists in Git (relocated to `D:\Hatoover`); keeping those suites green remains an implementation requirement.
+These 124 checks establish the current offline regression baseline. They do not establish exam accuracy, browser compatibility, deployed security or model quality. The reviewed source baseline now exists in Git (relocated to `D:\Hatoove`); keeping those suites green remains an implementation requirement.
 
 Current source findings supersede stale details in the earlier review:
 

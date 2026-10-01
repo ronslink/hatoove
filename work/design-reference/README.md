@@ -1,6 +1,6 @@
 # Design reference screens — READ THE WARNING BEFORE USING ANYTHING HERE
 
-These 15 files are the supplied Hatoove design, copied from `D:\Hatoover\design` so that a worker on
+These 15 files are the supplied Hatoove design, copied from `D:\Hatoove\design` so that a worker on
 another host does not need a Windows drive letter. They are **reference material for the design
 language**, not a specification of the product.
 

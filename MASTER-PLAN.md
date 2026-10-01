@@ -1,6 +1,6 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
-**Regenerated:** 1 October 2026, after the workspace relocation to `D:\Hatoover` and Ron's direction change.
+**Regenerated:** 1 October 2026, after the workspace relocation to `D:\Hatoove` and Ron's direction change.
 **Base inspected:** `59b1929` (`codex/workspace-relocation`, pushed to `origin/codex/workspace-relocation`), working tree clean.
 **Governing product requirement:** [PILOT_BUILD_PLAN.md](PILOT_BUILD_PLAN.md). This document is its delivery order and progress record.
 **Supersedes:** `work/implementation/FUNCTIONAL-ROADMAP.md` — the writing-first minimum functional product. The removal is recorded in §10.
@@ -289,7 +289,7 @@ The appointed coordinator owns live dispatch, integration order and CURRENT upda
 - **No effort estimates are given, deliberately.** The retired plan's "15–17 engineer-days" was calibrated on a narrower product than the pilot plan describes, and re-using it would be false precision.
 - **The relocation is not fully verified either.** It reports 10,311 copied files size/hash-verified, 22 design hashes preserved and seven archive refs, with **no application, browser or device tests** run for it. `.qa/migration/20261001/` is recovery evidence and must stay out of commits.
 - **One stale record was found and not fixed:** `docs/exam/LEGACY-GAP-MAP.md:80-82` cites defects G1/G2 at `exam.js:1484` and `:1497-1498`, which the current tree no longer contains. It should be closed or re-anchored.
-- **The folder name is a known defect.** The canonical workspace is `D:\Hatoover` because `D:\Hatoove` was occupied when the relocation ran; Ron intends to rename it to match the website. See the relocation PR body.
+- **The folder name is fixed.** The canonical workspace is `D:\Hatoove`, matching the website. The 1 October relocation created `D:\Hatoover` (the correct spelling plus a trailing `r`) because an earlier clone of this repository held the right path; that clone was deleted and the workspace renamed on the same day. `D:\Hatoover` no longer exists, and only untracked historical handoff records still carry the old spelling.
 
 ---
 

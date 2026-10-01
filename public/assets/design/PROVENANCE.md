@@ -8,7 +8,7 @@ the SHA-256 pinned in [`DESIGN-REFERENCE-MANIFEST.json`](../../../work/implement
 |---|---|
 | Supplied by | Ron, 1 October 2026 |
 | Original location | `D:\B1_Prep\design` (the live install; **read-only**) |
-| Relocated to | `D:\Hatoover\design` on 1 October 2026 |
+| Relocated to | `D:\Hatoove\design` on 1 October 2026 |
 | Manifest | `work/implementation/DESIGN-REFERENCE-MANIFEST.json` — 22 files pinned, 22 verified byte-for-byte at relocation |
 | Curated here | 6 files, on 1 October 2026 |
 | Check | `node tools/design-assets-check.mjs` — 6 legs, including a tamper leg |

@@ -1,6 +1,6 @@
 {
   "purpose": "Read-only design reference inventory; no live-install files imported or executed",
-  "source": "D:/Hatoover/design",
+  "source": "D:/Hatoove/design",
   "observed_date": "2026-10-01",
   "implementation_base": "e126d8c4b18a2beaf58eca2d279fe8d191e825ae",
   "files": [
@@ -117,5 +117,6 @@
   ],
   "original_source": "D:/B1_Prep/design",
   "relocated_date": "2026-10-01",
-  "relocation_note": "All original manifest entries verified byte-for-byte at the new location; original input files retained."
+  "relocation_note": "All original manifest entries verified byte-for-byte at the new location; original input files retained. The workspace was subsequently RENAMED the same day from D:/Hatoover to D:/Hatoove (to match the website); the design tree moved with it and the digests below were re-verified by tools/design-assets-check.mjs at the new path. The spelled-with-an-r path no longer exists.",
+  "source_note": "The `source` key names where the design inputs live NOW. `original_source` is where they were authored/supplied. Neither is hashed; the 22 `files[].sha256` digests are the artifact."
 }

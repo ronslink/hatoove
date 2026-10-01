@@ -1,6 +1,6 @@
 # Hatoove exam preparation
 
-**Local workspace:** use `D:\Hatoover` for code, `D:\Hatoover\design` for the original design reference and `D:\Hatoover\handoff\ron-agent` for coordination. [Workspace location and recovery](docs/WORKSPACE_LOCATION.md) supersedes historical checkout paths below.
+**Local workspace:** use `D:\Hatoove` for code, `D:\Hatoove\design` for the original design reference and `D:\Hatoove\handoff\ron-agent` for coordination. [Workspace location and recovery](docs/WORKSPACE_LOCATION.md) supersedes historical checkout paths below.
 
 
 The canonical development repository is [ronslink/hatoove](https://github.com/ronslink/hatoove). Start with the [master plan](MASTER-PLAN.md) for the consolidated progress view, then the [revised implementation plan](IMPLEMENTATION_PLAN.md), [agent instructions](AGENTS.md), [work cadence](docs/AGENT_WORKFLOW.md), [task board](work/BOARD.md) and [pilot product plan](PILOT_BUILD_PLAN.md).
