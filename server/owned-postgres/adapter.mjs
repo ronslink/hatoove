@@ -561,6 +561,54 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       };
     },
     /**
+     * PILOT-22d — the items this learner is currently getting wrong.
+     *
+     * THE DEFINITION IS "THE MOST RECENT ANSWER WAS WRONG", not "was ever wrong". A mistake therefore
+     * CLEARS ITSELF the moment the learner gets that item right, without a separate "mark as learned"
+     * action and without a scheduler deciding when they have earned it. That is a plain fact about
+     * their own record rather than a spaced-repetition claim.
+     *
+     * IT DOES NOT RETURN THE CORRECT ANSWER, and it must not: `objective_key` is not readable by this
+     * role at all, and a mistakes list that revealed the key would hand over exactly what the practice
+     * loop withholds. What comes back is what the LEARNER answered, so they can try again.
+     */
+    async listMistakes(owner, { examId = null, limit = 50 } = {}) {
+      note('listMistakes');
+      return settle(owner, async (client) => {
+        const rows = (await client.query(
+          `WITH latest AS (
+             SELECT DISTINCT ON (e.set_id, e.item_id)
+                    e.set_id, e.version, e.item_id, e.family, e.section, e.answer, e.correct, e.answered_at
+               FROM item_evidence e
+              WHERE e.owner_id = $1 AND e.exam_id = COALESCE($2, e.exam_id)
+              ORDER BY e.set_id, e.item_id, e.answered_at DESC
+           )
+           SELECT l.set_id, l.version, l.item_id, l.family, l.section, l.answer, l.answered_at,
+                  s.title, s.item_count
+             FROM latest l
+             JOIN objective_set s ON s.set_id = l.set_id AND s.version = l.version
+            WHERE l.correct = false
+            ORDER BY l.answered_at DESC
+            LIMIT $3`,
+          [owner, examId, limit])).rows;
+        return {
+          count: rows.length,
+          items: rows.map((row) => ({
+            set_id: row.set_id,
+            version: row.version,
+            set_title: row.title,
+            item_id: row.item_id,
+            family: row.family,
+            section: row.section,
+            set_item_count: row.item_count,
+            // What the learner answered -- NOT what the key says.
+            your_answer: row.answer,
+            answered_at: row.answered_at,
+          })),
+        };
+      });
+    },
+    /**
      * Create an owned attempt bound to an exact task/rubric version (SAAS-MODEL-01 Step 1).
      * `binding` defaults to the canonical writing task (`content-seed.mjs`); a caller that has
      * a task-selection route (SAAS-RESUME-01) can pass the chosen one. The composite foreign

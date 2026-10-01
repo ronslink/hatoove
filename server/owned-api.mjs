@@ -92,7 +92,7 @@ const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'readObjectiveSet',
  * in-memory datastore that cannot mark objective items should lose the PRACTICE routes, not the
  * product.
  */
-const PRACTICE_METHODS = ['answerObjectiveItem', 'nextPractice', 'practiceProgress'];
+const PRACTICE_METHODS = ['answerObjectiveItem', 'nextPractice', 'practiceProgress', 'listMistakes'];
 /** `/api/v1/objective-sets/{setId}` — read ONE set, payload included. The list is an index. */
 const OBJECTIVE_SET_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})$/;
 /** `/api/v1/objective-sets/{setId}/answers` — the set id is dotted (`telc-deutsch-b1.lv1.01`). */
@@ -585,6 +585,17 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
       return reply(200, await datastore.practiceProgress(owner, { examId: exam }));
+    }
+    if (pathname === '/api/v1/practice/mistakes' && method === 'GET') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      /*
+       * PILOT-22d -- the items whose MOST RECENT answer was wrong. No correct answer is returned: the
+       * key is not readable by this role, and a mistakes list that revealed it would hand over exactly
+       * what the practice loop withholds.
+       */
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      return reply(200, await datastore.listMistakes(owner, { examId: exam }));
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId']);
