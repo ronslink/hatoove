@@ -38,6 +38,19 @@ Recorded per check below.
 
 - (filled in at completion)
 
-## Baseline re-run
+## Baseline re-run (at base `e126d8c`, before any change)
 
-- (filled in at completion)
+Command environment: `OWNAPI_PG_HOST=127.0.0.1 OWNAPI_PG_PORT=55436 OWNAPI_PG_DATABASE=hatoove_fence02
+OWNAPI_PG_USER=postgres`; disposable `postgres:17-alpine` container; `CHROME_PATH=/usr/bin/chromium-browser`.
+
+```text
+node tools/check.js                             101 passed, 0 failed
+node tools/design-check.mjs                     11 passed, 0 failed  (exit 0)
+node tools/repository-check.mjs                 Repository check passed: 326 tracked files; 255 text blobs screened.
+node tools/draft-session-check.mjs              18 passed, 0 failed
+node tools/owned-client-check.mjs               31 passed, 0 failed
+node tools/session-boundary-check.mjs           13 passed, 0 failed
+node tools/session-boundary-browser-check.mjs   52 passed, 0 failed  (headless Chromium, emulated viewports)
+```
+
+All seven match the dispatch's required baseline exactly.
