@@ -6,8 +6,50 @@
 | Source of the design | **`D:\B1_Prep\design`** — read as a reference in this session. **`D:\B1_Prep` is Ron's live install and was not modified**; the design folder is the only thing read from it |
 | What is there | 15 HTML files, 1 stylesheet (21 KB), 3 SVG logos, 2 woff2 fonts, and a 46 KB `build.py` — **0.29 MB, 14 screens plus an index** |
 | Target | `public/` in `ronslink/hatoove`, on top of the candidate `codex/ownapi-03-persistent` @ `e126d8c` (PR #60) |
-| Status | **TASK DEFINITION. Not started.** Five decisions in §2 are Ron's and precede any code |
-| Relationship to existing work | **Supersedes nothing.** `work/implementation/DESIGN-LANGUAGE.md` governs the *existing* app; this is a new visual identity that **contradicts** parts of it. §2.1 says exactly how |
+| Status | **DECIDED AND DISPATCHABLE.** Ron answered all four blocking questions on 2026-10-01 — see §0.5. Phases 1–4 below are approved in shape; **the shipping order for `ar` and `tr` is the only recommendation still awaiting a yes** |
+| Relationship to existing work | **It REPLACES the existing design language** (Ron's decision, D3). `work/implementation/DESIGN-LANGUAGE.md` must be rewritten in the same commit as the first screen — §2.1 says exactly what that costs |
+
+---
+
+## 0.5 THE DECISIONS — Ron, 2026-10-01. Read these first; they unblock the work.
+
+| # | Question | **Decision** |
+|---|---|---|
+| **D1** | Does the design's English chrome replace German? | **No. German chrome, German content; explanations in the learner's language.** The design's layout and flows are adopted, its **copy is translated to German**, and Ukrainian joins the explanation-language setting. **The `design-check.mjs` language guard and the five browser checks that prove the German navigation is byte-identical after a language switch stay exactly as they are.** |
+| **D2** | What are the go-live languages? | **FINAL, Ron, 2026-10-01: English, Ukrainian, Arabic, Turkish** — plus German, which is the chrome and the default. So the **explanation-language set is `de`, `en`, `uk`, `ar`, `tr`** — five, not eight. `ru`, `ro` and `fa` from `D:\B1_Prep\PRODUCTION_STRATEGY.md:295`'s candidate-population line are **out of the go-live list**; that line is a population judgement, not the go-live decision, and it must not be read as one |
+| **D3** | Does this design replace the existing design language? | **Yes. Replace it, and rewrite `DESIGN-LANGUAGE.md` with it.** One stylesheet, one token set, `design-check.mjs`'s token/font/breakpoint rules moved in the **same commit**. See §2.1 |
+
+**Where the list came from, and what it is not.** The six names at `PRODUCTION_STRATEGY.md:295` are a
+candidate-population judgement; **Ron's go-live list is the narrower five-language set above and it supersedes
+them for that purpose.** I searched the repository, the handoff folder and the live install's markdown for a ranked
+frequency table and **there is no such table in any of the three** — so no ordering claim attaches to either list.
+If a separate frequency study exists elsewhere, **point me at it and I will reconcile it**; it would not change the
+five, only the order they are shown in.
+
+**Two things to know about the five, and one of them is a real piece of work nobody has costed:**
+
+1. **Turkish has no evidence behind it at all.** The feasibility studies probed **Arabic and Ukrainian** only
+   (`research/deepseek-feasibility/README.md:16`, `research/mistral-feasibility/README.md:15`). **Turkish was never
+   probed**, so `tr` starts from zero — it is not "the same as Arabic".
+2. **Arabic is right-to-left, and this app has never rendered RTL text.** Everything in `public/` assumes
+   left-to-right; there is no `dir` attribute anywhere and no logical-property CSS. An Arabic explanation is
+   therefore not "one more option in a `<select>`": it needs `dir="rtl"` scoped to the explanation element, mirrored
+   layout where the text is inline, correct punctuation and numerals, and a font that actually has Arabic glyphs —
+   **`Source Sans 3` and `Bricolage Grotesque` do not.** This is the single largest hidden cost in the whole design
+   task and it belongs in the estimate, not in a surprise.
+
+**Native review is still open, and the research says so in writing.** `docs/assessment/FEEDBACK-CASES.md:170`:
+*"Arabic/Ukrainian samples needed glossary and native review."* `research/deepseek-feasibility/semantic-review.md:66`
+adds that the **Arabic** case terms *"need review against an agreed German-learning glossary by a qualified
+Arabic-language educator; Arabic grammatical categories do not map mechanically to German case terminology. This
+review provides no native-expert translation signoff."* And
+`research/mistral-feasibility/RESULTS-2026-09-30.md:63` is the sharpest: *"A language code and valid JSON cannot
+establish translation quality… No native-speaker acceptance study was performed."*
+
+**So the honest shipping order, and it is a recommendation the coordinator is making rather than a decision Ron has
+taken:** `de` and `en` as today; **`uk` next** (probed, and the design already draws it); then `ar` and `tr` **behind
+their `C-06`-equivalent native sign-off**, which is open for both. **Exposing five options is cheap; claiming reviewed
+explanation quality for `ar` and `tr` is not, and that claim is what a selector option makes by existing.**
 
 ---
 
@@ -94,33 +136,34 @@ condition Ron asked for the design language to prevent.
 3. **`@font-face` self-hosting has a licence question** for `Bricolage Grotesque`, which is OFL — record the licence
    in the repository next to the files rather than in someone's head.
 
-### 2.2 — DECISION (Ron): the design's interface is in **English**, and the app's is not
+### 2.2 — ANSWERED (Ron, D1 + D2): German chrome, and **five** explanation languages
 
-The design's navigation reads *"Today, Study plan, Reading, Language elements, Listening, Writing, Mistakes, Mock
-exam, Progress, Settings"*, and its explanation-language control reads *"Explanations: Українська"*. The app's
-navigation is German (`Übersicht`, `Adaptive Übungen`, `Wortschatz`, `Fehlerheft`, `Prüfungsteile`,
-`Hörverstehen`, `Schreiben`, `Sprechen`, `Nachschlagen`, `Mocktest`, `Lernplan`, `Einstellungen`, `Konto`).
+**D1 = German chrome and German content; explanations in the learner's language.** **D2 = the go-live explanation
+set is `de`, `en`, `uk`, `ar`, `tr`.**
 
-**A standing decision points the other way, and a gate enforces it.** Ron, 2026-10-01: *"language refers to the
-explanation language; **the menu and the content remain german**."* `tools/design-check.mjs` refuses a language
-setting that drives the interface, and five browser checks in `tools/account-ui-browser-check.mjs` prove the German
-navigation is byte-identical after the explanation language is switched.
+**The design's Ukrainian explanation is therefore the feature, not a mockup flourish — keep it. Its English chrome
+is not: translate it.** The five browser checks that prove the German navigation is byte-identical after a language
+switch **stay green and stay in place**, and `design-check.mjs`'s language guard **is not touched**.
 
-So the design as drawn **fails that gate**, and it is not a bug in the design — it is a **different product
-decision**: an English app chrome with Ukrainian explanations. Three ways forward, and this needs Ron:
+**But the code does not support the set yet, and one of the five needs work that has nothing to do with styling.**
 
-- **(a) German chrome, German content, Ukrainian explanations** *(what was decided)* — the design's layout is
-  adopted and its **copy is translated to German**. The `lang="de"`/`lang="uk"` tagging in the design is already
-  good practice and should be kept.
-- **(b) English chrome, Ukrainian explanations** — a deliberate reversal of the 2026-10-01 decision. Then the
-  `design-check` language guard and five browser checks must be **removed or inverted in the same commit**, and the
-  change recorded as a decision, not slipped in.
-- **(c) English chrome with a full UI translation for German learners** — the largest of the three, and it makes
-  the app bilingual in a way nothing in the current codebase supports.
+| | Today | For five explanation languages to be go-live |
+|---|---|---|
+| The setting's options | `public/js/ui.js:919-921` offers exactly **two**: `de` (Deutsch), `en` (English) | add `uk` (`Українська`), `ar` (`العربية`), `tr` (`Türkçe`) — each labelled in its own script, as the design does with `Українська` |
+| The stored value | free text, `SETTINGS_TOKEN_RE`, ≤ 16 chars (`server/owned-api.mjs:110,141-146`) | **no server change needed**; the field is already open |
+| The help text | `ui.js:924`: *"Gilt nur für Erklärungen und Rückmeldungen zu deinen Antworten. **Menü und Prüfungsinhalte bleiben Deutsch.**"* | **stays true** — D1 is exactly this |
+| Does the setting reach anything? | **No.** `language` is stored and shown; **every provider prompt in `public/js/ai.js` is hardcoded German** (`:725` *"Kurze deutsche Erklärung der Regel"*, `:1191`, `:1247`). `RON-DECISIONS-20261001.md` records this as the D2 remainder | **this is the real work**, it is server-side, and it is item 1 of Phase 3 |
+| **Arabic (RTL)** | **the app has never rendered right-to-left text**: no `dir` attribute anywhere in `public/`, no logical-property CSS, and neither `Source Sans 3` nor `Bricolage Grotesque` has Arabic glyphs | **`dir="rtl"` scoped to the explanation element**, mirrored inline layout, correct numerals and punctuation, and **a font that has Arabic glyphs** — see §0.5 item 2 |
+| `lang` attributes | not used for explanations | the design already tags them (`lang="de"`, `lang="uk"`) — **keep that**, and extend it per language with the matching `dir` |
+| Native review | `en` is gated by `C-06`; `uk` and `ar` were probed and **not** signed off; `tr` was never probed | see §0.5 item 2 — **`uk` next, `ar` and `tr` behind their own sign-off** |
 
-**Until this is answered, do not touch `public/index.html`'s navigation labels, `shell.js`'s titles, or the
-language guard.** A worker that translates the chrome to match the design without an answer will break five
-green browser checks and the gate, and it will look like a regression rather than a decision.
+**What is needed to proceed, and it is one thing: the shipping order.** §0.5 recommends `de`+`en` as today, `uk`
+next, and `ar`+`tr` gated behind native review. **If that is right, say so and Phase 3 item 1 can start
+immediately.**
+
+**Do not touch `public/index.html`'s navigation labels, `shell.js`'s titles, or the language guard.** D1 makes that
+a decision rather than a preference: a worker who translates the chrome to match the design will break five green
+browser checks and the gate, and it will look like a regression rather than a reversal.
 
 ### 2.3 — DECISION (Ron): the design shows paid plans, quotas and an upgrade screen
 
@@ -187,6 +230,21 @@ whom, with the design folder's commit or hash if it is ever versioned.
 **Phase 3 — the data the new screens need, as its own slices.** Each of these is server or store work, not styling,
 and each gets a checker:
 
+- **The go-live explanation languages (`de`, `en`, `uk`, `ar`, `tr`) — this one can start now, and it is the
+  smallest complete slice.** Today `ui.js:919-921` offers `de` and `en`, and the choice reaches nothing: **every
+  provider prompt in `public/js/ai.js` is hardcoded German** (`:725`, `:1191`, `:1247`). The slice is four parts:
+  1. **add the options**, each labelled in its own script (`Українська`, `العربية`, `Türkçe`), and extend the
+     existing five navigation checks so they keep proving the German chrome is unaffected;
+  2. **carry the chosen language into the provider prompt** — the D2 remainder. **This is a server-side change to
+     the AI prompt path**, so it needs the prompt to move server-side (issue #63) or a bounded, recorded exception.
+     Do **not** let a client-controlled language string reach the provider unchecked, and do not let it select a
+     *model*: the model is operator configuration (`provider-config-check` 11/11 exists to keep it that way);
+  3. **handle Arabic's direction.** `dir="rtl"` on the explanation element only, mirrored inline layout, and a font
+     carrying Arabic glyphs. **`design-check.mjs` must be extended to catch a missing `dir` on an RTL explanation**,
+     in the same style as its other rules — otherwise the day someone adds a sixth language without direction, the
+     layout breaks silently;
+  4. **gate `ar` and `tr` behind native review.** Both are unreviewed (`uk` was probed too, and is the one to ship
+     first). A selector option is a quality claim; **do not make it for a language nobody has signed off.**
 - **Leitpunkt coverage** for the writing screen: how many of the four task points the current text covers, and by
   what rule. **If it is a model judgement, say so in the UI** — a "covered" tick the server did not verify is a
   false claim.
@@ -212,7 +270,8 @@ stays open: nothing here may be reported as real-device evidence.
    the app. Assert on a real value the app produced.
 3. **390 px, both themes, no horizontal overflow, no console errors, focus visible, touch ≥ 44 px** — per screen,
    in CI, with the counters quoted in the record.
-4. **`lang` attributes are correct** on German and Ukrainian text, as the design already does.
+4. **`lang` and `dir` attributes are correct** on German, Ukrainian, Arabic and Turkish text. Arabic explanations
+   carry `dir="rtl"`, and `design-check.mjs` fails when an RTL language is added without it.
 5. **No copy that claims a capability the system lacks** (§2.4), and **no price or plan name** before §2.3 is
    decided.
 6. **The German-navigation browser checks still pass** — or the decision that removed them is recorded with the
