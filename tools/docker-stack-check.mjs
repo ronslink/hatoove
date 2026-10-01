@@ -162,6 +162,27 @@ try{
     assert.equal(res.status,404,gone+' must be GONE (404), not merely refused, got '+res.status);
   }
   passed('the data file store is retired: learner data is served by the API, not from files');
+
+  /*
+   * EVERY API ROUTE IS AUTH-WRAPPED, as convention (Ron, 2 October 2026).
+   *
+   * Only liveness is public, because a supervisor or a container healthcheck has no session and must
+   * still be able to ask whether the process is alive. Everything else refuses an anonymous caller.
+   * The LEGACY routes are in the list deliberately: /api/progress, /api/config, /api/ai and
+   * /api/ai/test used to answer with no identity at all, and /api/progress even served a file.
+   */
+  for(const p of ['/api/health','/api/ready']){
+    const res=await fetch(base+p,{redirect:'manual',signal:AbortSignal.timeout(10000)});
+    assert.equal(res.status,200,p+' is liveness and must stay public, got '+res.status);
+  }
+  const gated=[['GET','/api/progress'],['GET','/api/config'],['POST','/api/ai'],['POST','/api/ai/test'],
+    ['GET','/api/v1/account'],['GET','/api/v1/settings'],['GET','/api/v1/tasks'],['POST','/api/v1/attempts']];
+  for(const [m,p] of gated){
+    const res=await fetch(base+p,{method:m,headers:{origin:base,'content-type':'application/json'},
+      body:m==='POST'?'{}':undefined,redirect:'manual',signal:AbortSignal.timeout(10000)});
+    assert.equal(res.status,401,m+' '+p+' must be auth-wrapped, got '+res.status);
+  }
+  passed('every API route is auth-wrapped: only /api/health and /api/ready answer anonymously');
   /*
    * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them
    * was tested wrongly.

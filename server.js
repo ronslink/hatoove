@@ -1199,6 +1199,27 @@ export function createServer({ ownedApi = null } = {}) {
         // or a rejected request would be handled twice.
         const owned = resolveOwnedApi(req.socket.server);
         if (owned && owned.matches(pathname)) return void (await owned.handleNode(req, res, { originChecked: true }));
+        /*
+         * EVERY /api ROUTE IS AUTH-WRAPPED, as convention (Ron, 2 October 2026). The owned API
+         * already requires a verified session on `/api/v1/**`; what remained was the LEGACY surface
+         * below — `/api/progress`, `/api/config`, `/api/ai` and `/api/ai/test` answered without any
+         * identity at all. `/api/progress` even served a file.
+         *
+         * Only two routes are public, and both are liveness for a supervisor or a container
+         * healthcheck: `/api/health` and `/api/ready`. `/api/auth/**` is handled above by the owned
+         * API and must stay reachable, or nobody could ever sign in.
+         *
+         * Placed BEFORE `handleApi`, so it cannot be bypassed by adding a route later: a new API
+         * route is auth-wrapped by default and has to be argued OUT of it, which is the right
+         * direction for the mistake to point.
+         */
+        if (pathname !== '/api/health' && pathname !== '/api/ready') {
+          const identity = await requestIdentity(owned, req);
+          if (!identity) {
+            sendJSON(res, 401, { ok: false, error: 'unauthenticated' });
+            return;
+          }
+        }
         const handled = await handleApi(req, res, pathname, { owned, saas, origin, readiness });
         if (!handled) sendJSON(res, 404, { ok: false, error: `Unknown endpoint ${pathname}` });
         return;

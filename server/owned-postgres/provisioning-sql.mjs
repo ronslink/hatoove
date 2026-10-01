@@ -215,6 +215,70 @@ ${taskRows}
   `;
 }
 
+/**
+ * PILOT-04 — exam-scoped content identity, for the DISPOSABLE FIXTURE.
+ *
+ * This mirrors `server/migrations/0009-exam-scope.sql` deliberately, and it has to exist here
+ * separately: the fixture path applies the GENERATED SQL rather than the tracked migration files, so
+ * a migration added in one place only is a trap — the fixture would silently lack a column the
+ * persistent path has, and a check could pass on one while the product was broken on the other.
+ *
+ * The backfill is NOT an UPDATE. `content_version` carries a BEFORE UPDATE immutability trigger, so
+ * `UPDATE ... SET exam_id` is refused; the column arrives NOT NULL with a DEFAULT (DDL fires no row
+ * trigger) and the default is then dropped, so a future insert must name its exam explicitly.
+ */
+export function examScopeSql({ schema, roles }) {
+  const s = ident(schema);
+  return `
+    CREATE TABLE IF NOT EXISTS ${s}.exam_package (
+      exam_id           text PRIMARY KEY,
+      exam              text NOT NULL,
+      level             text NOT NULL,
+      exam_language     text NOT NULL,
+      blueprint_version text NOT NULL,
+      created_at        timestamptz NOT NULL DEFAULT now()
+    );
+
+    INSERT INTO ${s}.exam_package (exam_id, exam, level, exam_language, blueprint_version)
+    VALUES ('telc-deutsch-b1', 'telc Deutsch B1', 'B1', 'de', 'telc-b1-written-draft@2026-10-01')
+    ON CONFLICT (exam_id) DO NOTHING;
+
+    ALTER TABLE ${s}.content_version ADD COLUMN IF NOT EXISTS exam_id text NOT NULL DEFAULT 'telc-deutsch-b1';
+    ALTER TABLE ${s}.rubric_version  ADD COLUMN IF NOT EXISTS exam_id text NOT NULL DEFAULT 'telc-deutsch-b1';
+    ALTER TABLE ${s}.task_version    ADD COLUMN IF NOT EXISTS exam_id text NOT NULL DEFAULT 'telc-deutsch-b1';
+
+    ALTER TABLE ${s}.content_version ALTER COLUMN exam_id DROP DEFAULT;
+    ALTER TABLE ${s}.rubric_version  ALTER COLUMN exam_id DROP DEFAULT;
+    ALTER TABLE ${s}.task_version    ALTER COLUMN exam_id DROP DEFAULT;
+
+    DO $do$
+    BEGIN
+      ALTER TABLE ${s}.content_version ADD CONSTRAINT content_version_exam_fk
+        FOREIGN KEY (exam_id) REFERENCES ${s}.exam_package(exam_id);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $do$;
+    DO $do$
+    BEGIN
+      ALTER TABLE ${s}.rubric_version ADD CONSTRAINT rubric_version_exam_fk
+        FOREIGN KEY (exam_id) REFERENCES ${s}.exam_package(exam_id);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $do$;
+    DO $do$
+    BEGIN
+      ALTER TABLE ${s}.task_version ADD CONSTRAINT task_version_exam_fk
+        FOREIGN KEY (exam_id) REFERENCES ${s}.exam_package(exam_id);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $do$;
+
+    CREATE INDEX IF NOT EXISTS content_version_exam_idx ON ${s}.content_version (exam_id);
+    CREATE INDEX IF NOT EXISTS rubric_version_exam_idx  ON ${s}.rubric_version (exam_id);
+    CREATE INDEX IF NOT EXISTS task_version_exam_idx    ON ${s}.task_version (exam_id);
+
+    REVOKE ALL ON ${s}.exam_package FROM PUBLIC;
+    GRANT SELECT ON ${s}.exam_package TO ${ident(roles.learner)}, ${ident(roles.worker)};
+  `;
+}
+
 export function deletionRoleSql({ schema, roles }) {
   const s = ident(schema);
   const role = ident(roles.deletion);

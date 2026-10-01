@@ -21,7 +21,7 @@
 import pg from 'pg';
 import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { accountSettingsSql, deletionRoleSql, contentCatalogueSql } from './provisioning-sql.mjs';
+import { accountSettingsSql, deletionRoleSql, contentCatalogueSql, examScopeSql } from './provisioning-sql.mjs';
 
 const SPIKE = new URL('../../spikes/auth-runtime/', import.meta.url);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
@@ -119,6 +119,10 @@ export async function createFixture(overrides = {}) {
     await pools.migration.query(accountSettingsSql({ schema, roles }));
     await pools.migration.query(deletionRoleSql({ schema, roles }));
     await pools.migration.query(contentCatalogueSql({ schema, roles }));
+    // PILOT-04. Applied AFTER the catalogue, mirroring 0006 -> 0009 in the persistent path, so the
+    // disposable fixture has the same exam scope an installation has. Without this the fixture had
+    // no `exam_package` at all while the product did.
+    await pools.migration.query(examScopeSql({ schema, roles }));
 
     return { schema, roles, config, admin, ...pools, cleanup };
   } catch (error) {
