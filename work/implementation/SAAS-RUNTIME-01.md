@@ -181,3 +181,35 @@ the checker.
   only"** while the count (24) matches the baseline; I did not chase that note's wording.
 - Nothing here requires or touches `D:\B1_Prep`, and no deployment, DNS or production access was
   used.
+
+---
+
+## Correction (SAAS-RUNTIME-02, F2) — the local install is **not** byte-identical
+
+The independent review rejected the general claim that "the local install (flag unset) is
+unchanged" as false as written, and it is right. That claim is true of the **file-based progress
+record** and of the shipped client's path, but it is **not** true of the server's observable
+behaviour. With `B1PREP_SAAS` unset, five behaviours differ from the branch's own parent
+(`93c9b73~1`, the pre-slice server). All five are the A2 hardening; none is reachable from the
+shipped client. This was a defect in the **record**, not in the code, and the hardening was
+**not** weakened to make a sentence true.
+
+Derived by a differential probe — in-process, both servers, `B1PREP_SAAS` unset, a stubbed
+provider that records every request body, synthetic requests (`.openclaw/tmp/local-diff.mjs`):
+
+| # | request, local mode (`B1PREP_SAAS` unset) | parent | this branch | why it changed |
+|---|---|---|---|---|
+| 1 | `POST /api/ai`, a session port mounted, anonymous | `200` | `401 unauthenticated` | A2.1 — a mounted session port is the only identity source, so the AI route requires it |
+| 2 | `POST /api/ai` with a caller-supplied `model` | provider receives `caller-chosen-model` | provider receives `operator-model-synthetic` | A2.2 — the model is operator configuration |
+| 3 | `POST /api/ai` with an invalid or oversized message list (empty, 41 messages, 70 000-char message) | `200`/`400` | `422 invalid_messages` | A2.3 — input is validated and bounded server-side |
+| 4 | `POST /api/ai` with a body over 256 KB | `200` | `413` (connection closed) | A2.3 — the AI body cap is 256 KB, down from the 2 MB default |
+| 5 | `POST /api/ai/test`, flag unset | `200` + 1 provider call | `403`, 0 provider calls | A2.4/F1 — the diagnostic is operator-only |
+
+One further difference is **additive, not hardening**: `GET /api/ready` is a new route (`404` →
+`200`) used by the readiness checks and a supervisor. It is read-only and reveals only
+`ready`/`mode`/`reason`.
+
+The shipped client (`public/`) sends none of the shapes in rows 1–4 — it sends a valid `/api/ai`
+body with no `model` field, and it never calls `/api/ai/test` — so no learner-visible behaviour
+changes. The file-based progress record and the single-user AI path are preserved exactly; the
+`B1PREP_SAAS` flag remains the only switch between them.

@@ -79,8 +79,13 @@ function accountPaths(req) {
 
 /**
  * SAAS-RUNTIME-01 (issue #63 step A). The hosted runtime is opt-in and **off by default**
- * (`B1PREP_SAAS=1`). A plain `node server.js` stays the local single-user install, and none of
- * the refusals below apply to it.
+ * (`B1PREP_SAAS=1`). A plain `node server.js` keeps the local single-user install - the
+ * file-based progress record and the single-user AI path - but it is **not byte-identical** to
+ * the pre-slice server. The A2 hardenings below apply in every mode by design: `/api/ai`
+ * requires a session whenever a session port is mounted, the caller's model is discarded, the
+ * input is bounded, the AI body is capped at 256 KB, and `/api/ai/test` needs the operator
+ * opt-in **and** an operator token. `GET /api/ready` is new. None of them is reachable from the
+ * shipped client; the five observable differences are listed in `work/implementation/SAAS-RUNTIME-01.md`.
  *
  * Hosted mode changes four things, and they are all refusals rather than features:
  *   * the legacy file-based progress routes - the `x-b1prep-account` owner selector and its

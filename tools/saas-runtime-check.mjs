@@ -8,9 +8,12 @@
  *   A1  the legacy progress routes (`/api/progress`) are unavailable in the hosted runtime,
  *       so a caller-supplied `x-b1prep-account` header - or none at all - cannot read or
  *       delete another account's record, nor the shared unscoped one. The local install
- *       (no `B1PREP_SAAS`, off by default) is unchanged;
+ *       (no `B1PREP_SAAS`, off by default) keeps the file-based record - but it is **not
+ *       byte-identical** to the pre-slice server: five observable behaviours are hardened in
+ *       every mode. They are listed in `work/implementation/SAAS-RUNTIME-01.md`;
  *   A2  `/api/ai` requires a verified session, ignores the caller's model (the model is the
- *       operator's), bounds the prompt server-side, and `/api/ai/test` is not reachable;
+ *       operator's), bounds the prompt server-side, and `/api/ai/test` needs the operator
+ *       opt-in **and** an operator token - a learner session is never sufficient;
  *   A3  the hosted runtime fails closed: a missing database or a failed initialisation leaves
  *       learner routes at 503 with `ready:false`, and a **database interruption at runtime**
  *       is a refusal - never a silent anonymous path, and never a crash of the whole runtime;
