@@ -71,7 +71,7 @@ const RETRY_RE = new RegExp(`^/api/v1/submissions/(${UUID})/retry$`, 'i');
 const TOKEN_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
 
-const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry', 'remove'];
+const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry', 'remove', 'listTasks'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -264,7 +264,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
     return { userId: session.userId, email: typeof session.email === 'string' ? session.email : null };
   }
 
-  async function route(method, pathname, headers, body) {
+  async function route(method, pathname, headers, body, query = new URLSearchParams()) {
     // Auth routes: exact allowlist, as the spike does for the library handler.
     if (pathname.startsWith('/api/auth/')) {
       const key = `${method} ${pathname}`;
@@ -359,6 +359,26 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       }
       fault(404, 'not_found');
     }
+    if (pathname === '/api/v1/tasks' && method === 'GET') {
+      /*
+       * PILOT-04 -- the servable task catalogue. This is the route the Ueben view has been waiting
+       * for: without it no learner-facing code could reach the seeded content at all, which is why
+       * that view has been an honest empty state rather than a broken one.
+       *
+       * THE SERVING POLICY IS DEPLOYMENT CONFIGURATION, NOT A REQUEST PARAMETER. Ron, 2 October
+       * 2026: "we will assume for now all are approved until we have built the approval process."
+       * The default therefore SERVES unreviewed content, and an explicit `approved` is the
+       * fail-closed value. A learner may NARROW the list (exam, family) and may never widen it --
+       * a query string must not be able to unlock unreviewed content.
+       */
+      const family = query.get('family');
+      if (family !== null && !/^[a-z][a-z0-9_-]{0,31}$/.test(family)) fault(422, 'invalid_family');
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      return reply(200, await datastore.listTasks(owner, { examId: exam, family, serveReview }));
+    }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId']);
       const parent = body.parentSubmissionId === undefined ? null : requireUuid(body.parentSubmissionId, 'invalid_parent');
@@ -411,7 +431,12 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
     try {
       const method = String(request && request.method || 'GET').toUpperCase();
       let pathname;
-      try { pathname = new URL(String(request.path), 'http://owned.invalid').pathname; } catch { fault(404, 'not_found'); }
+      let query;
+      try {
+        const url = new URL(String(request.path), 'http://owned.invalid');
+        pathname = url.pathname;
+        query = url.searchParams;
+      } catch { fault(404, 'not_found'); }
       if (!isOwnedPath(pathname)) fault(404, 'not_found');
       const mutation = method !== 'GET' && method !== 'HEAD';
       // Origin precedes routing (contract), so an unchecked mutation is 403 even
@@ -424,7 +449,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         if (!hasJsonContentType(headers)) fault(415, 'json_required');
         body = parseJsonObject(decodeBody(request.body));
       }
-      return await route(method, pathname, headers, body);
+      return await route(method, pathname, headers, body, query);
     } catch (error) {
       if (error instanceof Fault) return errorReply(error.status, error.code);
       // Unexpected failure: redacted. No message, SQL or provider text leaves.

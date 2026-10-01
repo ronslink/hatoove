@@ -545,13 +545,11 @@ async function readProgress(paths = LEGACY_PATHS) {
   return { found: false, source: null, state: null };
 }
 
-const ALLOWED_STATIC_ROOTS = [PUBLIC_DIR, DATA_DIR];
-
 /**
  * Decode a request path EXACTLY ONCE. Returns null when it cannot be decoded, so a malformed
  * escape is a refusal rather than an exception.
  *
- * This is the fix for a real hole, not a tidy-up. The public-path test used to run on the still
+ * This is a fix for a real hole, not a tidy-up. The public-path test used to run on the still
  * encoded pathname while `resolveStatic()` decoded afterwards, so
  * `/assets/design/..%2f..%2f..%2fdata%2fseed.json` passed the test as "public" and then decoded
  * into `data/seed.json` — **180 answer keys, to an unauthenticated caller**, reachable from an
@@ -566,13 +564,22 @@ function decodePathOnce(pathname) {
   }
 }
 
-/** Resolve a DECODED path to an absolute file under one of the two roots, or null if it escapes. */
+/**
+ * Only the application SHELL is served as a file.
+ *
+ * Ron, 2 October 2026: "no longer needing files to serve data". `data/**` used to be a second static
+ * root, which is how the old single-user client read its content -- and how the 180 answer keys were
+ * downloadable. Learner-facing data now comes from the API under a verified session, so the file
+ * route is retired rather than merely gated: a gated file store is still a file store, and one
+ * forgotten prefix would reopen it.
+ */
+const ALLOWED_STATIC_ROOTS = [PUBLIC_DIR];
+
+/** Resolve a DECODED path to an absolute file under the shell root, or null if it escapes. */
 function resolveStatic(decodedPath) {
   if (decodedPath.includes('\0') || decodedPath.includes('\\')) return null;
   const rel = decodedPath.replace(/^\/+/, '');
-  const base = rel.startsWith('data/') ? DATA_DIR : PUBLIC_DIR;
-  const sub = rel.startsWith('data/') ? rel.slice('data/'.length) : rel;
-  const target = path.resolve(base, sub || 'index.html');
+  const target = path.resolve(PUBLIC_DIR, rel || 'index.html');
   if (!ALLOWED_STATIC_ROOTS.some((root) => target === root || target.startsWith(root + path.sep))) return null;
   return target;
 }
@@ -1225,10 +1232,32 @@ export function createServer({ ownedApi = null } = {}) {
         res.end('Bad request');
         return;
       }
+      /*
+       * THE DATA FILE STORE IS RETIRED (Ron, 2 October 2026: "no longer needing files to serve
+       * data"). This must be decided BEFORE resolution, not after: `/data/seed.json` resolves quite
+       * happily to `public/data/seed.json`, which is inside the shell root, so it fell through to
+       * the auth gate and answered 401.
+       *
+       * 401 IS THE WRONG ANSWER HERE, and misleadingly so: it says "sign in and you can have this",
+       * and no session would ever produce those bytes. Nothing under `/data/` is served to anybody
+       * now. Learner data comes from the API under a verified session.
+       */
+      if (decodedPath === '/data' || decodedPath.startsWith('/data/')) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Not found');
+        return;
+      }
       const resolved = resolveStatic(decodedPath === '/' ? '/app/index.html' : decodedPath);
       if (!resolved) {
-        res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('Forbidden');
+        /*
+         * THE DATA FILE STORE IS RETIRED (Ron, 2 October 2026: "no longer needing files to serve
+         * data"). Answer 404 EXPLICITLY rather than letting `/data/**` fall through to the auth gate,
+         * because a 401 would say "sign in and you can have this" -- which is false, and misleading
+         * in exactly the way that makes a learner keep trying. Nothing under `/data/` is served to
+         * anybody now; learner data comes from the API under a verified session.
+         */
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Not found');
         return;
       }
       // The owned API is resolved here rather than reusing the `/api/` branch's binding, which is

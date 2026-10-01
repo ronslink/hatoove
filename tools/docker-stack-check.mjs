@@ -152,6 +152,16 @@ try{
     assert.ok([401,403,404].includes(res.status),'encoded traversal '+p+' must be refused, got '+res.status);
   }
   passed('encoded path traversal reaches nothing: the gate sees the resolved file, not the URL');
+
+  // THE FILE STORE IS RETIRED, not merely gated. Ron, 2 October 2026: "no longer needing files to
+  // serve data". data/** was a second static root -- how the old client read its content, and how
+  // the answer keys were downloadable. Learner data now comes from the API, so these must be 404:
+  // GONE, not 401. A gated file store is still a file store, and one forgotten prefix reopens it.
+  for(const gone of ['/data/seed.json','/data/vocab.json','/data/writing-guide.json']){
+    const res=await fetch(base+gone,{redirect:'manual',signal:AbortSignal.timeout(10000)});
+    assert.equal(res.status,404,gone+' must be GONE (404), not merely refused, got '+res.status);
+  }
+  passed('the data file store is retired: learner data is served by the API, not from files');
   /*
    * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them
    * was tested wrongly.

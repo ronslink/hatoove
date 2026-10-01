@@ -78,6 +78,57 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
 
   return Object.freeze({
     /**
+     * PILOT-04 — the servable task catalogue.
+     *
+     * WHY IT LIVES ON THIS PORT, and the compromise that is: tasks are SHARED CONTENT, not owned
+     * records, so a separate `catalogue` port would be the tidier shape. It is here because this
+     * port already holds the learner connection, which is exactly the role granted SELECT on the
+     * content tables by `0006`, so no new wiring was needed to reach it. If a catalogue port is ever
+     * split out, this method moves and the route does not change.
+     *
+     * THE POLICY IS AN ARGUMENT, NOT A QUERY PARAMETER. A learner must never be able to ask for
+     * unreviewed content by editing a URL, so the caller passes what the DEPLOYMENT allows and the
+     * request can only narrow the result (exam, family).
+     *
+     * `rights_status` IS RETURNED, NOT FILTERED ON. Every seeded row is `rights_status='unknown'`,
+     * which is an open question for Ron (D1). Filtering on it here would silently serve nothing and
+     * make the route look broken; carrying the field means the gate can be added later without a
+     * schema change or a change to this signature.
+     */
+    async listTasks(owner, { examId = null, family = null, serveReview = 'approved+unreviewed' } = {}) {
+      note('listTasks');
+      // An explicit `approved` is the fail-closed value; anything else is the pilot policy.
+      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      return settle(owner, async (client) => {
+        const rows = (await client.query(
+          `SELECT t.task_id, t.version, t.family, t.register, t.topic, t.situation, t.adressat,
+                  t.leitpunkte, t.rubric_id, t.rubric_version, t.exam_id,
+                  c.review_status, c.rights_status
+             FROM task_version t
+             JOIN content_version c ON c.content_version_id = t.content_version_id
+            WHERE t.exam_id = COALESCE($1, t.exam_id)
+              AND ($2::text IS NULL OR t.family = $2)
+              AND c.review_status = ANY($3::text[])
+            ORDER BY t.task_id, t.version`,
+          [examId, family, statuses])).rows;
+        return rows.map((row) => ({
+          task_id: row.task_id,
+          version: row.version,
+          exam_id: row.exam_id,
+          family: row.family,
+          register: row.register,
+          topic: row.topic,
+          situation: row.situation,
+          adressat: row.adressat,
+          leitpunkte: row.leitpunkte,
+          rubric_id: row.rubric_id,
+          rubric_version: row.rubric_version,
+          review_status: row.review_status,
+          rights_status: row.rights_status,
+        }));
+      });
+    },
+    /**
      * Create an owned attempt bound to an exact task/rubric version (SAAS-MODEL-01 Step 1).
      * `binding` defaults to the canonical writing task (`content-seed.mjs`); a caller that has
      * a task-selection route (SAAS-RESUME-01) can pass the chosen one. The composite foreign
