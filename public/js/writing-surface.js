@@ -70,7 +70,9 @@ export function createWritingSurface(options = {}) {
       attemptId: snap ? snap.attemptId : null,
       revision: snap ? snap.revision : null,
       text,
-      dirty: snap ? Boolean(snap.dirty) : false,
+      // Dirty when the session has unsaved changes OR the learner has typed something the
+      // session has not been told about yet (the surface holds the newest text between saves).
+      dirty: snap ? Boolean(snap.dirty) || text !== snap.text : false,
       conflict: snap ? snap.conflict : null,
       error: lastError ? lastError.code || lastError.name || 'error' : null,
     };

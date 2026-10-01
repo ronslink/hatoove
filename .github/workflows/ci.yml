@@ -31,6 +31,10 @@ jobs:
         run: node tools/check.js
       - name: Writing regression checks
         run: node tools/writing-check.js
+      - name: Writing surface draft integration
+        run: node tools/writing-surface-check.mjs
+      - name: Writing surface checks discriminate against a broken restore
+        run: node --test tools/writing-surface-check.test.mjs
       - name: Feedback regression checks
         run: node tools/feedback-check.js
       # DESIGN-LANGUAGE.md: no raw colour or font family in a rule, the required tokens present,
@@ -189,6 +193,8 @@ jobs:
         run: node tools/account-ui-browser-check.mjs --port 4347
       - name: A second tab cannot re-create the account record
         run: node tools/session-boundary-browser-check.mjs --port 4350
+      - name: The writing surface restores an account draft, and leaves the single-user path alone
+        run: node tools/writing-surface-browser-check.mjs --port 4353
   fixtures:
     name: Exam and feedback fixtures
     runs-on: ubuntu-latest
