@@ -162,12 +162,27 @@ async function main(argv) {
     cdp = await connectToPage(debugPort);
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
     await cdp.send('Page.navigate', { url: `http://127.0.0.1:${port}/` });
-    await cdp.waitFor(`!!document.querySelector('#view')`, 20000, 'app boot');
+    /*
+ * CI FLAKE, fixed here rather than tolerated. This suite failed once with
+ * "Timed out waiting for: mock intro" and passed on an immediate re-run of the SAME commit, so the
+ * cause was a slow runner, not a defect - but a gate that fails for a reason unrelated to the change
+ * is worse than no gate, because it teaches everyone to re-run instead of read.
+ *
+ * The shape of the problem: `cdp.waitFor` polls every 150 ms INSIDE its timeout budget, and a single
+ * `evaluate` on an overloaded runner can cost hundreds of milliseconds, so a 15 s budget buys far
+ * fewer attempts than it looks. The boot and navigation steps below are the ones that wait on the
+ * whole SPA - app shell, then nav, then this view - so they are the ones a slow runner exhausts.
+ *
+ * Raised to 60 s for boot/navigation only. This does NOT hide real breakage: a genuinely broken page
+ * never renders, so it still fails, and now fails with a clearer message after a longer wait. The
+ * tighter waits further down are deliberate and stay as they are - a real assertion that a rendered
+ * page is slow to react should still be a failure.
+ */await cdp.waitFor(`!!document.querySelector('#view')`, 60000, 'app boot');
 
     // Reach the mock view and start it offline.
-    await cdp.waitFor(`!!document.querySelector('[data-view="mock"]')`, 20000, 'nav ready');
+    await cdp.waitFor(`!!document.querySelector('[data-view="mock"]')`, 60000, 'nav ready');
     await cdp.click('[data-view="mock"]');
-    await cdp.waitFor(`!!document.querySelector('[data-start-mock]')`, 15000, 'mock intro');
+    await cdp.waitFor(`!!document.querySelector('[data-start-mock]')`, 60000, 'mock intro');
     await cdp.click('[data-start-mock]');
     await cdp.waitFor(`!!document.querySelector('#mock-parts')`, 40000, 'first mock block');
 
