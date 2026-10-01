@@ -256,6 +256,12 @@ try {
         `${runtime.url} health 200; ready 200 mode=saas reason=${ready.json.reason}`);
     } catch (error) {
       fail('L7-runtime-answers-ready', 'the runtime answers ready in SaaS mode', error.message);
+    } finally {
+      // STOP THE RUNTIME BEFORE L8. The journey harness starts a worker of its own against the
+      // same database, and two workers competing for one job makes its reservation assertion
+      // race — which is a defect in THIS check, not in the product. Measured, not assumed:
+      // running both at once produced `4 passed, 6 pending, 1 failed`.
+      if (runtime) { await runtime.stop().catch(() => {}); runtime = null; }
     }
   }
 
@@ -271,9 +277,12 @@ try {
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { out += d; });
     const code = await new Promise((resolve) => child.on('close', resolve));
-    const summary = out.split('\n').filter((l) => /passed,.*pending,.*failed/.test(l)).pop();
-    if (code !== 0) fail('L8-counter-runs', 'the product journey counter runs at zero failures', `exit ${code}; ${summary || out.slice(-200)}`);
-    else if (!summary || !/0 failed/.test(summary)) fail('L8-counter-runs', 'the product journey counter runs at zero failures', summary || 'no summary line printed');
+    const lines = out.split('\n');
+    const summary = lines.filter((l) => /passed,.*pending,.*failed/.test(l)).pop();
+    const at = lines.findIndex((l) => /^FAIL/.test(l.trim()));
+    const failing = at >= 0 ? `${lines[at].trim()} :: ${(lines[at + 1] || '').trim()}` : null;
+    if (code !== 0) fail('L8-counter-runs', 'the product journey counter runs at zero failures', `exit ${code}; ${failing || summary || out.slice(-200)}`);
+    else if (!summary || !/0 failed/.test(summary)) fail('L8-counter-runs', 'the product journey counter runs at zero failures', failing || summary || 'no summary line printed');
     else pass('L8-counter-runs', 'the product journey counter runs at zero failures', summary.trim());
   }
 
@@ -284,18 +293,19 @@ try {
     if (runtime) { await runtime.stop().catch(() => {}); runtime = null; }
     await admin.end().catch(() => {});
     admin = null;
+    // Remove the container outright, then point the SAME provisioning path at it. If this
+    // reported success the leg would be measuring nothing, which is the whole point of D1.
     await mod.stopDatabase(cfg, { wipe: false });
     let threw = false;
+    let why = '';
     try {
-      await mod.ensureDatabase({ ...cfg, startTimeoutMs: 4000 });
-      // ensureDatabase may legitimately recreate the container; the discrimination is on
-      // provisioning against a database that is not there.
-      await mod.provisionLocal({ ...cfg, port: CHECK_PORT + 1000 });
-    } catch {
+      await mod.provisionLocal(cfg);
+    } catch (error) {
       threw = true;
+      why = error.message.split('\n')[0].slice(0, 140);
     }
     if (threw) pass('D1-fails-loudly', 'a stopped database makes bring-up fail rather than report success',
-      'provisioning against an absent database threw, as required');
+      `provisioning against the removed database threw: ${why}`);
     else fail('D1-fails-loudly', 'a stopped database makes bring-up fail rather than report success',
       'provisioning reported success against a database that is not running — the leg cannot fail');
   }
