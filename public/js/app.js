@@ -289,7 +289,9 @@ async function boot() {
   // Server config next: it decides whether AI features are advertised.
   const cfg = await ai.refreshStatus();
   const settings = store.getState().settings;
-  if (!settings.examDate && cfg.examDate) {
+  // The server-config exam date is the single-user install's; an account (or a signed-out
+  // page) never inherits it, or one account's date would surface in another's record.
+  if (boundary.phase === 'single-user' && !settings.examDate && cfg.examDate) {
     settings.examDate = cfg.examDate;
     store.saveNow();
   }

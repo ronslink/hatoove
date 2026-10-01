@@ -394,6 +394,29 @@ async function main(argv) {
     record('late-response-does-not-repaint-the-notebook', !afterLate.includes(A.marker), `A marker shown: ${afterLate.includes(A.marker)}`);
     record('late-response-does-not-reach-storage', !(await storageHas(cdp, A.marker)), 'localStorage scanned after the late answer');
 
+    /* ------------------------- the single-user exam date never reaches an account */
+    const sharedDate = '2030-05-05';
+    const configured = await fetch(`http://127.0.0.1:${portAccounts}/api/config`, {
+      method: 'POST', headers: { 'content-type': 'application/json', origin: `http://127.0.0.1:${portAccounts}` }, body: JSON.stringify({ examDate: sharedDate }),
+    });
+    record('shared-exam-date-scenario-is-set-on-the-server', configured.ok, `POST /api/config -> ${configured.status}`);
+    await openView(cdp, 'account', 'Konto');
+    await cdp.waitFor(`!!document.querySelector('#account-signup-form')`, 15000, 'sign-up form (C)');
+    await cdp.evaluate(`
+      document.querySelector('#signup-name').value = 'SYNTHETIC C';
+      document.querySelector('#signup-email').value = ${JSON.stringify(`synthetic.sb-c.${RUN}@example.invalid`)};
+      document.querySelector('#signup-password').value = 'synthetic-pass-c-123';
+      document.querySelector('[data-signup]').click(); return true;`);
+    await cdp.waitFor(`!!document.querySelector('[data-account-email]')`, 15000, 'signed in as C');
+    await cdp.send('Page.reload', {});
+    await cdp.waitFor(`!!document.querySelector('#view .card')`, 20000, 'reload as C');
+    const examDateC = await cdp.evaluate(`return import('/js/store.js').then((m) => m.getState().settings.examDate)`);
+    record('an-account-does-not-inherit-the-single-user-exam-date', examDateC !== sharedDate, `account exam date="${examDateC}"`);
+    await openView(cdp, 'account', 'Konto');
+    await cdp.waitFor(`!!document.querySelector('[data-signout]')`, 15000, 'sign-out (C)');
+    await cdp.click('[data-signout]');
+    await cdp.waitFor(`!!document.querySelector('#account-signin-form')`, 15000, 'signed out (C)');
+
     /* ------------------------------------------------------- phone evidence */
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
     await openView(cdp, 'account', 'Konto');

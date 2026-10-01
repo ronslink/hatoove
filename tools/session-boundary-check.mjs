@@ -310,6 +310,11 @@ check('account switch: B never sees A, and late responses for A do not land', as
     const { store, boundary } = await browser.page();
     await boundary.signIn({ email: email('switch-a'), password: password('switch-a') });
     assert.ok(visible(store).includes(MARK.notebookA), 'precondition: A is signed in and sees A');
+    // Make A's server record the NEWEST one, so an unfenced late answer would be adopted
+    // (an older record is ignored by the timestamp rule and would prove nothing).
+    await sleep(20);
+    store.recordAttempt({ partId: 'SB1', tags: [], difficulty: 50, correct: true });
+    assert.equal(await store.flushNow(), true);
     const lateProgress = browser.hold((e) => e.method === 'GET' && e.path === '/api/progress' && e.scope === accountA);
     const reloadA = await browser.page();
     const resolvingA = reloadA.boundary.resolve();

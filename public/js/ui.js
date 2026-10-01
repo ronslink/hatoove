@@ -984,10 +984,15 @@ export async function settingsView(el) {
     const voiceSel = el.querySelector('#voice-name');
     if (voiceSel) settings.voiceName = voiceSel.value;
     store.saveNow();
-    try {
-      await ai.saveExamDate(settings.examDate);
-    } catch {
-      /* the date still works locally */
+    const { session } = await import('./account.js');
+    // The server-config exam date is shared by everyone on this server: only the single-user
+    // path writes it. An account keeps its date in its own settings record below.
+    if (session().phase === 'single-user') {
+      try {
+        await ai.saveExamDate(settings.examDate);
+      } catch {
+        /* the date still works locally */
+      }
     }
     /*
      * Account-scoped settings, through the session boundary (SESSION-BOUNDARY-01) - never a
@@ -997,7 +1002,6 @@ export async function settingsView(el) {
      * this exists to remove.
      */
     try {
-      const { session } = await import('./account.js');
       const outcome = await session().saveSettings({
         examDate: settings.examDate,
         dailyGoal: settings.dailyGoal,
