@@ -209,7 +209,10 @@ function settings() {
  *
  * The two read routes therefore carry only non-key state:
  *   * GET /api/health carries a bare liveness payload (`ok`, `node`) for supervision;
- *   * GET /api/config carries the learner's own non-provider preference (`examDate`).
+ *   * GET /api/config carries the learner's own non-provider preference (`examDate`), and only
+ *     on the local single-user install - on a hosted runtime the whole route is absent
+ *     (CONFIG-ANON-01, see the route comment in handleApi), because a machine-global examDate
+ *     is readable by every visitor.
  * Do not add a key-derived field back here - not a length, not a fingerprint, not a
  * presence flag (see work/implementation/PROVIDER-CONFIG-01.md, D1.2).
  */
@@ -917,6 +920,28 @@ async function handleApi(req, res, pathname, ctx = {}) {
 
     sendJSON(res, 400, { ok: false, code: 'invalid_scope', error: `Unknown delete scope: ${scope}` });
     return true;
+  }
+
+  // CONFIG-ANON-01. The machine-global config route is not served on a hosted runtime.
+  //
+  // POST /api/config required no identity: it refused only the provider field *names* and then
+  // handed everything else to saveEnv, which wrote the shared .env file and assigned it into
+  // process.env. With B1PREP_SAAS=1 and no cookie at all, {"examDate":"2099-01-01"} returned
+  // 200, rewrote EXAM_DATE=2099-01-01 in the env file, and every visitor then read the
+  // attacker's date from GET /api/config. The same-origin gate is satisfied by design (a
+  // browser supplies Origin) and the handler never consulted identity - while the learner
+  // route one line away refused. GET /api/config reports the same machine-global value to
+  // every visitor, so the read goes with the write.
+  //
+  // On a hosted runtime neither method is handled: the request falls through to the generic
+  // 404, exactly like any other unknown endpoint (this is deletion, not an identity gate on a
+  // machine-global write). The learner's exam date lives in GET/PUT /api/v1/settings, per
+  // account under the session-derived owner. The local single-user install (B1PREP_SAAS off)
+  // keeps the route: it has no visitors to protect it from, its only write consumer is its own
+  // settings view, and removing it belongs to the local-install cutover, not this slice.
+  // See work/implementation/CONFIG-ANON-01.md.
+  if (saas && pathname === '/api/config') {
+    return false;
   }
 
   if (pathname === '/api/config' && method === 'GET') {
