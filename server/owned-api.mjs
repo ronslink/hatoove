@@ -5,7 +5,7 @@
  *
  *   POST /api/auth/sign-up/email   POST /api/auth/sign-in/email
  *   POST /api/auth/sign-out        GET  /api/auth/get-session
- *   GET  /api/v1/account
+ *   GET/DELETE /api/v1/account
  *   POST /api/v1/attempts          GET/PUT/DELETE /api/v1/attempts/:id
  *   POST /api/v1/attempts/:id/submissions
  *   GET  /api/v1/submissions/:id   POST /api/v1/submissions/:id/retry
@@ -74,6 +74,32 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
 const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry', 'remove'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
+const DELETION_METHODS = ['deleteAccount'];
+
+/**
+ * What an account deletion does NOT remove (HARD-DELETE-01 §3). Returned with every
+ * deletion, because "deletion is not total, and saying so is part of the fix" (SEC-02).
+ * No retention period is stated for backups: none has been decided, and inventing one
+ * here would be a false promise.
+ */
+export const DELETION_NOT_REMOVED = Object.freeze([
+  Object.freeze({
+    what: 'operator_backups',
+    detail: 'Copies of the database made before this deletion (backups, write-ahead log archives, replicas) '
+      + 'are outside the application\'s reach. A restore from one of them could bring these records back. '
+      + 'No retention period for those copies has been decided, so this response cannot say when they expire.',
+  }),
+  Object.freeze({
+    what: 'copies_outside_the_service',
+    detail: 'Anything you copied, exported or downloaded yourself, and anything this browser or device still '
+      + 'holds locally, is not reachable by the server.',
+  }),
+  Object.freeze({
+    what: 'legacy_progress_file',
+    detail: 'A server running the older single-user mode keeps progress in a file outside this account '
+      + 'database; this deletion does not touch it. Hosted mode refuses that file route.',
+  }),
+]);
 /**
  * The closed allowlist for account settings. Validation lives here rather than in the port so
  * the HTTP contract is the contract, whatever datastore implements it. Unknown keys are
@@ -209,16 +235,19 @@ const errorReply = (status, code) => reply(status, { error: TOKEN_RE.test(code) 
 
 /**
  * Build the owned API.
- * @param {{datastore?: object, sessions?: object, settings?: object}} ports
+ * @param {{datastore?: object, sessions?: object, settings?: object, accountDeletion?: object}} ports
  *   `settings` is optional: an installation that does not wire it answers 503 on the settings
  *   routes only, so the account boundary is unaffected by a missing optional port.
+ *   `accountDeletion` is optional in the same way: `deleteAccount(owner) -> {existed, removed}`;
+ *   unwired, `DELETE /api/v1/account` answers 503 `deletion_unavailable` and deletes nothing.
  * @returns {{handle: Function, handleNode: Function, matches: Function, configured: boolean}}
  */
-export function createOwnedApi({ datastore, sessions, settings = null } = {}) {
+export function createOwnedApi({ datastore, sessions, settings = null, accountDeletion = null } = {}) {
   // Fail closed: without both ports wired, every owned route answers 503 and no
   // port method is ever reached, so nothing can be served without an identity.
   const configured = implementsAll(datastore, DATASTORE_METHODS) && implementsAll(sessions, SESSION_METHODS);
   const settingsWired = implementsAll(settings, SETTINGS_METHODS);
+  const deletionWired = implementsAll(accountDeletion, DELETION_METHODS);
 
   async function identify(headers) {
     const session = await sessions.getSession(headers);
@@ -259,6 +288,30 @@ export function createOwnedApi({ datastore, sessions, settings = null } = {}) {
 
     if (pathname === '/api/v1/account' && method === 'GET') {
       return reply(200, { contractVersion: CONTRACT_VERSION, id: owner, email: who.email });
+    }
+
+    /*
+     * Hard account deletion (HARD-DELETE-02; Ron: "delete is a hard delete"). DELETE on the
+     * same resource the GET above reads, so the account is named by the session and nothing
+     * else: no owner field, header or query parameter is read, and an empty body is the only
+     * body accepted. The port runs the whole deletion in one transaction, including every
+     * session of the account, so the cookie that asked is refused from the next request on.
+     */
+    if (pathname === '/api/v1/account' && method === 'DELETE') {
+      onlyFields(body, []);
+      if (!deletionWired) fault(503, 'deletion_unavailable');
+      const outcome = await accountDeletion.deleteAccount(owner);
+      // The session rows are already gone with the account; this only clears the cookie, and
+      // its failure must not turn a committed deletion into an error reply.
+      let setCookie;
+      try { setCookie = (await sessions.signOut(headers))?.setCookie; } catch { setCookie = undefined; }
+      return reply(200, {
+        deleted: true,
+        accountExisted: Boolean(outcome && outcome.existed),
+        removed: outcome && isPlainObject(outcome.removed) ? outcome.removed : {},
+        completeErasure: false,
+        notRemoved: DELETION_NOT_REMOVED,
+      }, setCookie);
     }
 
     /*
