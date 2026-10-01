@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hatoove</title>
+<link rel="icon" type="image/svg+xml" href="/assets/design/hatoove-mark.svg">
+<link rel="stylesheet" href="/assets/design/hatoove.css">
+<link rel="stylesheet" href="/app/app.css">
+<!--
+  The Hatoove app shell (PILOT-08).
+
+  Built ONLY from the curated design system at /assets/design/ — the same tokens the sign-in page
+  and the reference screens use. It holds no learner state of its own: everything on screen comes
+  from the server through the owned API, and a fresh browser recovers by signing in again.
+
+  German chrome, per the recorded decision. Only EXPLANATION text follows the learner's language,
+  and exam material never does.
+-->
+</head>
+<body>
+
+<a class="skip" href="#main">Zum Inhalt springen</a>
+
+<div class="app">
+  <aside class="side">
+    <a class="logo" href="#/heute" aria-label="Hatoove – Startseite">
+      <img src="/assets/design/hatoove-logo.svg" alt="Hatoove">
+    </a>
+
+    <nav class="nav" aria-label="Hauptnavigation">
+      <a href="#/heute" data-view="heute" aria-current="page">Heute</a>
+      <a href="#/ueben" data-view="ueben">Üben</a>
+      <a href="#/fortschritt" data-view="fortschritt">Fortschritt</a>
+      <p class="nav-label kicker">Konto</p>
+      <a href="#/einstellungen" data-view="einstellungen">Einstellungen</a>
+    </nav>
+
+    <div class="side-foot">
+      <span class="avatar" id="avatar" aria-hidden="true">–</span>
+      <div>
+        <strong id="account-email">–</strong>
+        <span id="account-exam">Kein Prüfungsdatum</span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main" id="main">
+    <header class="topbar">
+      <h1 id="page-title">Heute</h1>
+      <div class="top-actions">
+        <button type="button" class="btn btn-ghost" id="signout">Abmelden</button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- Heute -->
+      <section class="view" id="view-heute">
+        <div class="page-head">
+          <div>
+            <h2 id="greeting">Willkommen</h2>
+            <p>Dein Überblick. Alle Angaben hier kommen aus deinem gespeicherten Konto — nichts ist
+              geschätzt und nichts ist erfunden.</p>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card-peach">
+            <p class="kicker">Nächste Prüfung</p>
+            <h2 id="countdown">Kein Prüfungsdatum gesetzt</h2>
+            <p class="muted" id="countdown-note">Trage dein Prüfungsdatum in den Einstellungen ein, damit
+              der Countdown läuft.</p>
+          </div>
+
+          <div class="grid-dash">
+            <div class="card">
+              <div class="card-head">
+                <h3>Deine Aufgaben</h3>
+              </div>
+              <p class="muted">Der Aufgabenkatalog wird gerade angebunden. Sobald er verfügbar ist,
+                erscheint hier die nächste Aufgabe für deine Prüfung.</p>
+              <p class="small muted">Noch offen: die Katalog-Route
+                (<code>GET /api/v1/tasks</code>) existiert im Server noch nicht.</p>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h3>Deine Einstellungen</h3>
+              </div>
+              <div class="stack">
+                <div class="spread"><span class="muted">Prüfungsdatum</span><strong id="fact-exam">–</strong></div>
+                <div class="spread"><span class="muted">Erklärungssprache</span><strong id="fact-language">–</strong></div>
+                <div class="spread"><span class="muted">Angemeldet als</span><strong id="fact-email">–</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Üben -->
+      <section class="view" id="view-ueben" hidden>
+        <div class="page-head">
+          <div>
+            <h2>Üben</h2>
+            <p>Aufgaben mit serverseitiger Bewertung.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Noch keine Aufgaben verfügbar</h3></div>
+          <p class="muted">Dieser Bereich ist bewusst leer statt mit Beispieldaten gefüllt. Der
+            Aufgabenkatalog ist noch nicht angebunden; sobald er es ist, wählst du hier eine Aufgabe
+            und sie wird auf dem Server bewertet — nicht im Browser.</p>
+        </div>
+      </section>
+
+      <!-- Fortschritt -->
+      <section class="view" id="view-fortschritt" hidden>
+        <div class="page-head">
+          <div>
+            <h2>Fortschritt</h2>
+            <p>Deine eigene, tatsächliche Übungshistorie.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Noch keine Einträge</h3></div>
+          <p class="muted">Hier stehen später nur Dinge, die wirklich passiert sind: eingereichte
+            Texte, gespeicherte Rückmeldungen und Zählungen aus deinen eigenen Versuchen.</p>
+          <p class="small muted">Keine Prognose, keine Bestehensquote und keine geschätzte Punktzahl —
+            solange nicht alle Prüfungsteile bewertet sind, wäre das eine Behauptung.</p>
+        </div>
+      </section>
+
+      <!-- Einstellungen -->
+      <section class="view" id="view-einstellungen" hidden>
+        <div class="page-head">
+          <div>
+            <h2>Einstellungen</h2>
+            <p>Wird auf dem Server gespeichert und ist in jedem Browser wieder da.</p>
+          </div>
+        </div>
+
+        <div class="stack">
+          <form class="card" id="settings-form">
+            <div class="card-head"><h3>Prüfung</h3></div>
+            <div class="stack">
+              <div class="field">
+                <label for="examDate">Prüfungsdatum</label>
+                <input class="input" type="date" id="examDate" name="examDate">
+              </div>
+              <div class="field">
+                <label for="language">Erklärungssprache</label>
+                <select class="select" id="language" name="language">
+                  <option value="de">Deutsch</option>
+                  <option value="en">English</option>
+                  <option value="uk" disabled>Українська — Schriftzeichen folgen</option>
+                  <option value="ar" disabled>العربية — Schriftzeichen folgen</option>
+                  <option value="tr" disabled>Türkçe — Schriftzeichen folgen</option>
+                </select>
+                <p class="small muted">Die Menüführung und die Prüfungsinhalte bleiben Deutsch. Diese
+                  Einstellung ändert nur die Sprache der Erklärungen. Ukrainisch, Arabisch und Türkisch
+                  sind vorgesehen, aber die mitgelieferten Schriftschnitte enthalten ihre Zeichen noch
+                  nicht — deshalb sind sie hier noch nicht wählbar und nicht stillschweigend entfernt.</p>
+              </div>
+              <div class="spread">
+                <button type="submit" class="btn btn-primary" id="save-settings">Speichern</button>
+                <span class="muted small" id="settings-state" role="status"></span>
+              </div>
+            </div>
+          </form>
+
+          <div class="card">
+            <div class="card-head"><h3>Konto</h3></div>
+            <div class="stack">
+              <div class="spread"><span class="muted">E-Mail</span><strong id="account-email-2">–</strong></div>
+              <div class="spread">
+                <span class="muted">Konto endgültig löschen</span>
+                <button type="button" class="btn btn-danger" id="delete-account">Konto löschen</button>
+              </div>
+              <p class="small muted">Löschen entfernt deine eigenen Datensätze wirklich. Das kann nicht
+                rückgängig gemacht werden.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="err" id="error" role="alert" hidden></p>
+    </div>
+  </div>
+</div>
+
+<nav class="tabbar" aria-label="Navigation">
+  <a href="#/heute" data-view="heute">Heute</a>
+  <a href="#/ueben" data-view="ueben">Üben</a>
+  <a href="#/fortschritt" data-view="fortschritt">Fortschritt</a>
+  <a href="#/einstellungen" data-view="einstellungen">Konto</a>
+</nav>
+
+<script type="module" src="/app/app.js"></script>
+</body>
+</html>
