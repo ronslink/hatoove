@@ -169,3 +169,30 @@ export function createCompletionGate() {
     return pending;
   };
 }
+
+/**
+ * The identity-scope fence for a write that follows an `await` (an AI round trip). Take the
+ * token with the store's `scopeToken()` BEFORE the call and ask this AFTER the answer: a
+ * sign-out, an expiry or an account switch bumps the store's `scopeEpoch`, so `scopeCurrent`
+ * turns false and the answer - which belongs to the previous learner - is dropped
+ * (SESSION-BOUNDARY-02 F2). `stillMounted` is the caller's own view test.
+ *
+ * Factored once so the writing, speaking and mock writers cannot drift apart (SESSION-FENCE-03
+ * F-A: the mock gate compared the session to ITSELF, so it stayed true across an identity
+ * change and committed into the next account's record).
+ */
+export function withinScope(token, scopeCurrent, stillMounted = () => true) {
+  return scopeCurrent(token) && stillMounted();
+}
+
+/**
+ * The `isCurrent` guard for ONE mock block's completion gate. True only while the SAME mock
+ * session is still on the SAME block AND the identity scope has not moved. The scope test is
+ * what the old guard lacked: `mockState === session && session.phase === 'exam' &&
+ * session.blockIndex === index` compares the resumed session to itself, so a sign-out or a
+ * switch left every operand true and the gate committed after the grading `await`.
+ */
+export function mockBlockGuard({ token, scopeCurrent, session, currentSession, index }) {
+  return () => withinScope(token, scopeCurrent, () =>
+    currentSession() === session && session.phase === 'exam' && session.blockIndex === index);
+}
