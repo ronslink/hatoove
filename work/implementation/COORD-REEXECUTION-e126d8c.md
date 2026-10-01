@@ -164,6 +164,44 @@ even if `accounts.mjs` wanted to: its options are `{allowance, fixture}` and its
 `db.settings`. The wiring gap is not one forgotten argument; the world builder has no seam for a deletion port at
 all."*
 
+**FIXED AND RE-VERIFIED BY THE SAME PROBE, 2026-10-01.** On `codex/deletion-wire-01` @ `77cca13`, against a **fresh
+disposable database provisioned from scratch**, the probe that failed here now passes **5 passed, 0 failed**:
+
+```
+DELETE /api/v1/account -> 200 {"deleted":true,"accountExisted":true,
+  "removed":{...,"entitlements":1,"session":1,"user":1},
+  "verifiedAbsent":true,"completeErasure":false,"notRemoved":[operator_backups,
+  copies_outside_the_service, legacy_progress_file, model_provider]}
+the same cookie afterwards -> 401
+```
+
+Four things about that output are worth more than the pass itself, because each is a claim this document made about
+what was missing now being satisfied by *execution* rather than by reading the diff:
+
+1. **`200` instead of `503`** — the running server now performs the deletion. `createPostgresWorld` gained a real
+   `deletion` **seam** (`fixture.mjs:28,42-44`), `accounts.mjs:79` passes `persistent.deletion` into it, and
+   `provision.mjs` adds `'deletion'` to `ROLES` (`:62`) and applies a tracked migration
+   **`0005-account-deletion`** (`:77`). **That closes the second HERMES half too**: the run above is a learner
+   deleting itself through a role the *provisioner* created, not one a checker invented. The ledger on the fresh
+   database reads `0001-auth-schema … 0005-account-deletion`, and `hatoove_deletion` is `rolsuper=f`,
+   `rolbypassrls=f` — least privilege, as the review required.
+2. **`verifiedAbsent: true`** — a field that can only be true because the port's own pre-COMMIT read-back ran, which
+   is the fix for the reviewer's F7. **The `removed` counts are still the delete's own `rowCount`s**, which is why
+   the honest label matters and the reply now carries both.
+3. **`legacy_progress_file` no longer over-claims.** The old text asserted *"Hosted mode refuses that file route"*
+   while `/api/progress` is refused only under `B1PREP_SAAS=1` — so there was a real configuration in which the
+   reply said the server refused something it accepted. The new wording states the conditional and says the
+   response cannot promise the refusal. **F9 closed, and closed in the honest direction rather than by weakening
+   the code.**
+4. **A fourth item, `model_provider`**, names the provider that processed the submitted text and says no retention
+   period is known. **F8 closed, and it invented no period** — the same rule that produced the correct backup
+   wording.
+
+**What this does NOT establish.** The probe exercises one account deleting itself over real HTTP; it does not
+re-exercise the eleven-step transaction's per-table read-back, the forced-failure legs, or another owner's rows —
+those are `tools/deletion-check.mjs`'s job, and its own re-run belongs to the branch's record. **The verification
+here is narrow and stated as narrow.**
+
 ### 4.2 `owned-api-check --backend=postgres-persistent` prints the **memory** note
 
 `tools/owned-api-check.mjs:956-958`:
@@ -279,13 +317,33 @@ independent reader.** That condition is now **met** — both were read independe
 their job.** The head is not ready to propose for merge until:
 
 1. **`§4.1` is fixed and re-executed** — hard delete is unreachable from a hosted install;
+   **✅ DONE, 2026-10-01.** `codex/deletion-wire-01` @ `77cca13`; re-executed by this document's own probe against a
+   fresh provisioned database: **`DELETE /api/v1/account → 200 deleted:true`**, the cookie refused afterwards
+   (`401`), `verifiedAbsent: true`. See §4.1's *"FIXED AND RE-VERIFIED"* block.
 2. **the deletion review's F1–F3 are closed**, including a provisioned deletion role, without which the fix to (1)
    produces a `500`;
+   **✅ F1 and F2 DONE and re-executed** — migration `0005-account-deletion` is applied, `hatoove_deletion` exists
+   with `rolsuper=f, rolbypassrls=f`, and the deletion ran through it. **F3 is closed on the branch by dropping the
+   mode that passed for the wrong reason** (`01b5316`) rather than by making it pass — the honest resolution
+   §4.3 of the deletion review allowed. The branch's own re-run of `deletion-check` belongs to its record, and the
+   reviewer's F5/F6/F7/F8/F9/F10/F11/F12 landed in `4810ad1`, `8bf629b`, `01b5316` and `77cca13`.
 3. **the fence review's F-A and F-C are closed** — one is a cross-account text leak, the other takes away the local
    record of a learner who never signed in;
+   **◐ PARTIAL.** **F-C is done** and **F-B with it**, on `codex/session-fence-02` @ `2633ffe` — and that run
+   **honestly left its record's Status at `working`** rather than claiming the slice. **F-A is not started**: the run
+   died at turn 112 on the third of three findings, and `public/js/exam.js` and `public/js/mock-outcome.js` are
+   untouched on that branch. **Dispatched as `SESSION-FENCE-03`**, based on `2633ffe` so the two findings travel
+   with it.
 4. **`§4.3` (N-2 recurring) is closed**, with a test on the expiry branch at last;
+   **✅ DONE on `codex/session-fence-02`** — `discardedUnsaved` is now a **latch** (`||=`) rather than a recomputed
+   assignment, and the expiry reason is no longer downgraded to `signed_out` by the Konto view's own second resolve.
+   The record must still show a test on the expiry branch, which is part of that branch's deliverable.
 5. **the combined head is re-reviewed or freshly re-executed after those fixes**, because every fix moves the head
    and this document is pinned to `e126d8c`.
+   **⏳ NOT YET.** Four branches now move the head — `deletion-wire-01`, `session-fence-02`, `session-fence-03` and
+   `writing-surface-01b` — and **condition 5 is the reconciliation step that was item 1 of this whole objective, so it
+   must be done again on the head that actually gets proposed.** Do not read this document's green
+   results as covering a head it was not run against.
 
 **The merge to `main` remains deliberately undone and is Ron's call**, as is S5 (production authentication). Nothing
 in this document authorises a merge, and `main` is still `4f76b94`.
