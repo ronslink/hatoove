@@ -1,0 +1,24 @@
+# The build context is the repository, so everything the image must NOT carry is listed here.
+#
+# `node_modules` is excluded and reinstalled from the lockfile inside the image: a host install is
+# platform-specific and must never be baked in.
+.git
+.gitattributes
+.gitignore
+node_modules
+**/node_modules
+
+# Local-only material that is deliberately untracked (see .gitignore): design originals, agent
+# handoffs, recovery evidence and the imported reference screens. None of it is runtime.
+design
+handoff
+.qa
+work/design-reference
+
+# Secrets and local state are never part of an image.
+.env
+.env.*
+!.env.example
+*.log
+*.pem
+*.key

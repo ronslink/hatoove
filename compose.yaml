@@ -1,0 +1,98 @@
+# PILOT-01b — the local server stack.
+#
+#   docker compose up -d --build      bring the whole server up
+#   docker compose ps                 see it
+#   docker compose logs -f app        follow the API
+#   docker compose down               stop it (keep the database)
+#   docker compose down -v            stop it and DESTROY the local database
+#
+# The whole product runs in containers. The host needs Docker and nothing else — no Node install,
+# no `npm install`, no "works on my machine". That is the difference between a local single-user
+# program and a local server.
+#
+# Shape: db (healthy) -> migrate (runs once, exits) -> app + worker.
+# The runtime never migrates: a web process holding migration credentials is the wrong shape, and a
+# runtime that migrates at start hides a schema that is behind. `migrate` is the only thing that
+# changes the schema and it must SUCCEED before either long-running service starts.
+#
+# Ports are published on 127.0.0.1 only, and are parameterised so a check can run a disposable
+# stack beside the real one without a collision.
+
+name: hatoove
+
+x-ownapi-env: &ownapi-env
+  OWNAPI_PG_HOST: db
+  OWNAPI_PG_PORT: "5432"
+  OWNAPI_PG_DATABASE: hatoove
+  OWNAPI_PG_USER: postgres
+  OWNAPI_PG_SCHEMA: hatoove
+  OWNAPI_PG_ROLE_PREFIX: hatoove
+
+services:
+  db:
+    image: postgres:17-alpine
+    # Loopback trust is correct HERE and nowhere else: the container is not published beyond
+    # 127.0.0.1 and hosts no real data. This is a local installation, not a deployment.
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: hatoove
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hatoove"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    ports:
+      - "127.0.0.1:${HATOVE_DB_PORT:-55440}:5432"
+    restart: unless-stopped
+
+  # Applies the frozen migrations, then exits. `OWNAPI_PG_ALLOW=1` is required by the command itself
+  # so it can never be pointed at a database by accident; it name refusals `postgres`/`template*`.
+  migrate:
+    build: .
+    command: ["node", "server/migrate.mjs"]
+    environment:
+      <<: *ownapi-env
+      OWNAPI_PG_ALLOW: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build: .
+    command: ["node", "server.js"]
+    environment:
+      <<: *ownapi-env
+      B1PREP_SAAS: "1"
+      B1PREP_ACCOUNTS: "1"
+      B1PREP_PORT: "4321"
+      # A container that binds its own loopback is unreachable through a published port, so the
+      # server must bind 0.0.0.0. The publish address above still keeps it on 127.0.0.1.
+      B1PREP_BIND: "0.0.0.0"
+      # The origin gate refuses mutating /api/* requests that do not match the deployment's own
+      # public origin. Without this, sign-up answers 403 origin_rejected and NOTHING works for a
+      # learner - measured, not assumed. It must match the address the browser actually uses.
+      B1PREP_PUBLIC_ORIGIN: "${HATOVE_PUBLIC_ORIGIN:-http://localhost:4300}"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${HATOVE_APP_PORT:-4300}:4321"
+    restart: unless-stopped
+
+  # The worker is a separate container on purpose: the runtime must not carry the worker's
+  # privileges, and it connects with the restricted `<prefix>_worker` role. No model provider is
+  # called - the grader is the deterministic stub until PILOT-06 injects a real one.
+  worker:
+    build: .
+    command: ["node", "server/worker.mjs"]
+    environment: *ownapi-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  db-data:

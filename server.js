@@ -1130,6 +1130,11 @@ if (invokedDirectly) {
   const server = createServer();
   // A portable launcher can choose its own port without rewriting the saved .env.
   const PORT = Number(process.env.B1PREP_PORT) || Number(process.env.PORT) || 4321;
+  // PILOT-01b: the bind host comes from configuration. It defaults to loopback, so running on a
+  // developer's machine is unchanged and nothing is exposed by accident. A container must set
+  // `B1PREP_BIND=0.0.0.0`, because a process listening on a container's own loopback cannot be
+  // reached through a published port at all - the container would answer nothing.
+  const BIND_HOST = String(process.env.B1PREP_BIND || '').trim() || '127.0.0.1';
   // Fail closed from the first request (SAAS-MODEL-01 Step 2). The runtime is NOT ready until
   // its account/database configuration has loaded, in EVERY mode - the old `!isSaasMode()`
   // default is gone, because omitting `B1PREP_SAAS` must no longer re-open a single-user app.
@@ -1188,13 +1193,13 @@ if (invokedDirectly) {
     console.log(`  Accounts: wiring unavailable (${error && error.message ? error.message : error})`);
   });
 
-  server.listen(PORT, '127.0.0.1', () => {
+  server.listen(PORT, BIND_HOST, () => {
     const s = settings();
     const line = '='.repeat(58);
     console.log(line);
     console.log('  B1 Prep  -  telc Deutsch B1 adaptive trainer');
     console.log(line);
-    console.log(`  App:      http://127.0.0.1:${PORT}`);
+    console.log(`  App:      http://${BIND_HOST === '0.0.0.0' || BIND_HOST === '::' ? 'localhost' : BIND_HOST}:${PORT}`);
     // SEC-04: the banner used to echo <first 5>...<last 4> of the key. A console line does
     // not need key characters either, so it only reports that one is set. This is the
     // operator's console, not a route: the learner UI is told nothing about the key (D1).
