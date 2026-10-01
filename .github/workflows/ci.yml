@@ -30,11 +30,20 @@ jobs:
       - name: Feedback regression checks
         run: node tools/feedback-check.js
       # DESIGN-LANGUAGE.md: no raw colour or font family in a rule, the required tokens present,
-      # the dark override present, the mobile breakpoints and reduced motion honoured, and every
-      # view registered through the shell. This gate is RED until the pre-existing font-family
-      # debt is cleared - which is the point: the debt is visible instead of hidden.
+      # the dark override present, the mobile breakpoints and reduced motion honoured, every view
+      # registered through the shell, and the language setting NOT reaching the interface. This gate
+      # WAS red on a false count - the original regex matched the rules that already said var(--serif)
+      # plus the @font-face descriptors, which cannot use var() at all; the true count was zero. It is
+      # green now and the check fails on a genuinely raw family, verified by reintroducing one.
       - name: Design language consistency
         run: node tools/design-check.mjs
+      # Not PostgreSQL-backed, so they belong on both OSes with the rest of the offline set.
+      - name: Mock writing outcomes, discriminated against the pre-fix tree
+        run: node tools/mock-outcome-check.mjs
+      - name: Account-scoped progress store, discriminated against the pre-fix tree
+        run: node tools/progress-scope-check.mjs
+      - name: The provider is operator-only and invisible
+        run: node tools/provider-config-check.mjs
   contracts:
     name: Server and owned API contracts (${{ matrix.os }})
     strategy:
@@ -72,9 +81,68 @@ jobs:
         run: node tools/owned-api-check.mjs
       - name: Owned API client contract
         run: node tools/owned-client-check.mjs
-  fixtures:
-    name: Exam and feedback fixtures
+  # THE DURABLE CLAIMS WERE UNGATED, and that is what this job fixes. Until now CI had NO PostgreSQL
+  # service at all, so the persistent installation, the mounted account API, the account-scoped
+  # settings, the runtime refusals, the session boundary and the account deletion were all verified
+  # only by hand, in one session, on one machine - and an ungated check rots. This is also the ONLY
+  # gate that can prove the durable properties: a memory backend cannot show that a draft survives a
+  # server restart.
+  #
+  # ubuntu only, deliberately: a GitHub service container is a Linux container, and the point here is
+  # real PostgreSQL, not a second OS. The offline set above still runs on both.
+  postgres:
+    name: Durable and hosted runtime contracts (real PostgreSQL)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: hatoove_ci
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        # Without this the first step races the database's own startup and fails intermittently,
+        # which is the worst kind of gate: one that fails for a reason unrelated to the change.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      OWNAPI_PG_HOST: 127.0.0.1
+      OWNAPI_PG_PORT: '5432'
+      OWNAPI_PG_DATABASE: hatoove_ci
+      OWNAPI_PG_SCHEMA: hatoove
+      OWNAPI_PG_USER: postgres
+      # The provisioning check deliberately refuses to create schema and roles without this explicit
+      # confirmation, so that nobody points it at a real database by accident. The service container
+      # above IS disposable, which is exactly what this flag is asking about.
+      OWNAPI_PG_ALLOW: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Install the PostgreSQL client the owned server uses
+        run: npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
+      - name: Persistent installation is idempotent and a draft survives re-provisioning
+        run: node tools/postgres-provision-check.mjs
+      - name: The account API over real HTTP, including the restart property
+        run: node tools/accounts-http-check.mjs
+      - name: The owned API on the persistent backend
+        run: node tools/owned-api-check.mjs --backend=postgres-persistent
+      - name: Account deletion removes every row and is one transaction
+        run: node tools/deletion-check.mjs
+      - name: One session boundary, ordering and response fencing
+        run: node tools/session-boundary-check.mjs
+      - name: The hosted runtime refuses by default
+        run: node tools/saas-runtime-check.mjs
+  fixtures:
+    name: Exam and feedback fixtures    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
