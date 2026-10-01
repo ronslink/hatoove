@@ -46,24 +46,30 @@ export function accountsConfig(env = process.env) {
  * (`{schema, roles, learner, auth, worker, admin, close}`), so the world that the checks and
  * the running server use is built by the same code - there is no second, untested wiring.
  *
- * @returns {Promise<{api: object, pools: object, close: Function} | null>} null when accounts are off
+ * MFP-01: the runtime does **not** apply migrations and holds no `admin` or `migration` pool.
+ * `applied`/`skipped` are gone; `schemaBehind` says whether the database is behind the code.
+ *
+ * @returns {Promise<{api: object, pools: object, fixture: object, schemaBehind: object, close: Function} | null>} null when accounts are off
  */
 export async function loadOwnedApi({ env = process.env } = {}) {
   const config = accountsConfig(env);
   if (!config.enabled) return null;
 
-  const { provisionPersistent, closePersistent, persistentConfig } = await import('./owned-postgres/provision.mjs');
+  // MFP-01: the runtime opens **restricted pools only** — no `admin`, no `migration` — and
+  // never applies a migration. It reports whether the applied head is behind what the code
+  // expects (`schemaBehind`), which `server.js` maps to `ready:false reason:'schema_behind'`.
+  const { openRuntimePools, closeRuntimePools, persistentConfig } = await import('./owned-postgres/provision.mjs');
   const { createPostgresWorld } = await import('./owned-postgres/fixture.mjs');
   const { createPostgresSettings } = await import('./owned-postgres/settings.mjs');
 
-  const persistent = await provisionPersistent({ config: persistentConfig(env) });
+  const runtime = await openRuntimePools({ config: persistentConfig(env) });
   // A3: a `pg` pool whose backend disappears emits `error` on the *pool*; with no listener
   // Node aborts the process, so a database blink would take the whole hosted runtime down
   // instead of answering a refusal. Attach a listener that logs a secret-free line and lets
   // the request path return its own 5xx. Guarding every pool closes the idle-client case
   // (sockets dropped with nothing in flight) as well as the in-flight one.
-  for (const key of ['migration', 'auth', 'learner', 'worker', 'deletion', 'admin']) {
-    const pool = persistent[key];
+  for (const key of ['auth', 'learner', 'worker', 'deletion', 'provisioner']) {
+    const pool = runtime[key];
     if (pool && typeof pool.on === 'function') {
       pool.on('error', (error) => {
         console.error(`  DB pool ${key}: ${error && error.message ? error.message : String(error)}`);
@@ -71,21 +77,25 @@ export async function loadOwnedApi({ env = process.env } = {}) {
     }
   }
   const fixture = {
-    schema: persistent.config.schema,
-    roles: persistent.config.roles,
-    learner: persistent.learner,
-    auth: persistent.auth,
-    worker: persistent.worker,
+    schema: runtime.config.schema,
+    roles: runtime.config.roles,
+    learner: runtime.learner,
+    auth: runtime.auth,
+    worker: runtime.worker,
     // The deletion port's pool, so `createPostgresWorld` wires `DELETE /api/v1/account` into
     // the api the running server mounts (HARD-DELETE-01 §6). Without this the route is a 503
     // in every configuration this repository can ship.
-    deletion: persistent.deletion,
-    admin: persistent.admin,
+    deletion: runtime.deletion,
+    // NOT an `admin`/superuser pool (MFP-01 §2.4). `sessions.mjs:129-131` needs a pool that can
+    // INSERT the one synthetic `entitlements` row it writes at sign-up; the restricted learner
+    // role has no INSERT there. This is the narrow `_provisioner` role (NOSUPERUSER,
+    // NOBYPASSRLS, INSERT on `entitlements` only). Finding: MFP-02a replaces it with the
+    // `SECURITY DEFINER` `provision_learner` function — a narrower grant, never a superuser.
+    admin: runtime.provisioner,
     // Account settings are part of the account, so they run on the same restricted learner
     // pool; `createPostgresWorld` would otherwise build its own, which would be a second
     // wiring of the same thing.
-    settings: createPostgresSettings({ pool: persistent.learner }),
-    close: () => closePersistent(persistent),
+    settings: createPostgresSettings({ pool: runtime.learner }),
   };
   const world = await createPostgresWorld({ fixture });
   // `world.api` is built by the same code the checks use, so the running server and the tests
@@ -95,13 +105,12 @@ export async function loadOwnedApi({ env = process.env } = {}) {
 
   return {
     api,
-    pools: persistent,
+    pools: runtime,
     fixture,
-    applied: persistent.applied,
-    skipped: persistent.skipped,
+    schemaBehind: runtime.behind,
     close: async () => {
       await world.teardown().catch(() => {});
-      await closePersistent(persistent);
+      await closeRuntimePools(runtime);
     },
   };
 }
@@ -110,7 +119,9 @@ export async function loadOwnedApi({ env = process.env } = {}) {
 export function accountsSummary(loaded, { enabled, reason } = {}) {
   if (!loaded) return `accounts: off (${reason || 'not enabled'})`;
   const schema = loaded.fixture && loaded.fixture.schema ? loaded.fixture.schema : 'unknown';
-  const applied = Array.isArray(loaded.applied) ? loaded.applied.length : 0;
-  const skipped = Array.isArray(loaded.skipped) ? loaded.skipped.length : 0;
-  return `accounts: on (schema ${schema}; ${applied} migration(s) applied, ${skipped} already present)`;
+  const behind = loaded.schemaBehind;
+  if (behind && behind.behind) {
+    return `accounts: on (schema ${schema}; SCHEMA BEHIND - expected head ${behind.expectedHead}, applied ${behind.appliedHead || 'none'}; run node server/migrate.mjs)`;
+  }
+  return `accounts: on (schema ${schema}; schema at the expected head)`;
 }

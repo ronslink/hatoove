@@ -310,16 +310,26 @@ export async function applyMigrations(pool, config) {
  * `sessions.mjs:129-131` inserts an `entitlements` row at sign-up; the restricted roles have no
  * INSERT on `entitlements`, so the runtime used to borrow a **superuser** pool for it. Until
  * MFP-02a adds the `SECURITY DEFINER` `provision_learner` function, the runtime uses this role
- * instead: it may INSERT into `entitlements` and nothing else — no SELECT, no UPDATE/DELETE, no
- * other table, no CREATEROLE/CREATEDB, NOBYPASSRLS.
+ * instead. Its whole surface: `INSERT` on `entitlements`, `SELECT(owner_id)` on `entitlements`
+ * and nothing else — no UPDATE/DELETE, no other table, no CREATEROLE/CREATEDB, NOBYPASSRLS.
+ *
+ * Why the read side is needed: `sessions.mjs` writes `ON CONFLICT (owner_id) DO NOTHING`.
+ * Under `FORCE ROW LEVEL SECURITY`, PostgreSQL needs to SEE the conflicting row to skip it, so
+ * a bare INSERT grant fails with `permission denied` (no SELECT) and then
+ * `new row violates row-level security policy` (a SELECT grant but no visible row). The
+ * column-level grant plus the read policy is the minimum that makes the existing statement work
+ * without editing `sessions.mjs`; MFP-02a removes the need for both.
  */
 export async function grantProvisionerRights(pool, config) {
   const s = ident(config.schema);
   const role = ident(config.roles.provisioner);
   await pool.query(`GRANT USAGE ON SCHEMA ${s} TO ${role}`);
   await pool.query(`GRANT INSERT ON ${s}.entitlements TO ${role}`);
+  await pool.query(`GRANT SELECT(owner_id) ON ${s}.entitlements TO ${role}`);
   await pool.query(`DROP POLICY IF EXISTS provisioner_entitlements ON ${s}.entitlements`);
   await pool.query(`CREATE POLICY provisioner_entitlements ON ${s}.entitlements FOR INSERT TO ${role} WITH CHECK (true)`);
+  await pool.query(`DROP POLICY IF EXISTS provisioner_entitlements_read ON ${s}.entitlements`);
+  await pool.query(`CREATE POLICY provisioner_entitlements_read ON ${s}.entitlements FOR SELECT TO ${role} USING (true)`);
 }
 
 /**
