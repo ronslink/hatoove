@@ -125,9 +125,11 @@ The platform substrate is real, and it is why a local milestone is reachable at 
 | Migrations applied only by `server/migrate.mjs`, sha256 ledger, tamper refusal, runtime never migrates | `migrate.mjs:10-12,29-42`; `provision.mjs:216-222,267-305` | Works |
 | Worker: `FOR UPDATE SKIP LOCKED` claim with `lease_token`/`lease_until`, lease-fenced completion, expired-lease reclaim, one debit, `tries < 3` | `server/owned-postgres/worker.mjs:107-120,153-191,205-232` | Works. A real child-process worker was proven end to end (journey leg J7) |
 | Versioned, immutable, shared-content tables carrying rights/review status | `server/migrations/0006-content-and-catalogue.sql:2-37,86-103` | Exists — **writing-only and not exam-scoped** |
-| Journey harness as the functional counter | `tools/journey-api-check.mjs` | **5 passed, 6 pending, 0 failed** |
+| Journey harness as the functional counter | `tools/journey-api-check.mjs` | **5 passed, 5 pending, 1 failed** — J4 is a REAL defect, see below |
 | Offline regression baseline | `tools/check.js`, `writing-check.js`, `feedback-check.js` | 101 / 9 / 14 |
 | Table-class guard: an unclassified table fails | `tools/table-class-check.mjs` + `tools/lib/catalogue.mjs:20,23,30` | Works: 18 tables, 0 failures |
+
+**Why J4 fails, measured 2 October 2026 — it is the product, not the check.** The leg asks for the writing task list with `family=SA1`, the exam model's own writing part id (`public/js/blueprint.js:76-77`, listed in `SUBTEST_ORDER`). `GET /api/v1/tasks` validates `family` as `/^[a-z][a-z0-9_-]{0,31}$/` (`server/owned-api.mjs:405`) and refuses it; its sibling `GET /api/v1/objective-sets` requires exactly those UPPERCASE ids and refuses lowercase. Two routes, one query parameter, opposite conventions, neither matching the blueprint. PILOT-04 turned this leg from PENDING into FAIL when it implemented the route, and nobody saw it because the CI job SKIPS `journey-api-check` (the session-boundary step fails first). One convention is needed — the evidence favours the blueprint — and until it is chosen the counter cannot be green.
 
 **Content on hand:** 24 objective sets / 180 keyed slots / 6 writing prompts, each slot carrying an inline German `why`; **0 tracked audio files**, so the 9 listening sets are unservable (`docs/content/DISCOVERY.md:89`). No `data/*.json` file carries `rights_status` or `review_status` — governance exists only as database columns, and every seeded row is `unreviewed` / `unknown`.
 
