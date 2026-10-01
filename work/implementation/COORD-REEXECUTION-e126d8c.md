@@ -289,3 +289,64 @@ their job.** The head is not ready to propose for merge until:
 
 **The merge to `main` remains deliberately undone and is Ron's call**, as is S5 (production authentication). Nothing
 in this document authorises a merge, and `main` is still `4f76b94`.
+
+---
+
+## 8. ADDENDUM — the combined-head re-review landed, and it agrees where it matters
+
+The third reader's report and its finding-by-finding table were received while this document was being written.
+They are `reports/review-head-e126d8c/report.md` and `reconciliation.md`, and they are **copied into this
+repository** beside this file so that the evidence travels with the merge it justifies. Three things about its
+outcome belong in the merge record.
+
+### 8.1 It reproduced this document's coverage map and corrected two of my expectations
+
+- **All four counts in `REVIEW-COVERAGE.md` reproduce exactly** — 60/35, 54/34, 47/38, 42/37 commits and files
+  behind. The map is accurate.
+- **All four reviewed heads *are* objects in the bundle.** I had told the reviewer to report it if they were not,
+  expecting they might not be. They are, and the reviewer therefore **re-derived** each review's claim where it
+  could be re-derived instead of inheriting it. **The programme's evidence is stronger than I recorded**, and the
+  record should say so.
+- **`REVIEW-COVERAGE.md` was absent from the candidate.** It existed only on `codex/review-coverage`, so the
+  document that justifies the integration decision would not have travelled with the merge it justifies. **Fixed by
+  this branch**: it is now on `codex/coord-verify-e126d8c`, which merges into the candidate.
+
+### 8.2 Its reconciliation is the finding-by-finding answer this item asked for
+
+**37 findings, one bucket each: 22 closed-and-still-closed, 1 closed-but-at-risk, 5 known-good by CI re-execution,
+9 not covered.** The single item that moved into *at risk* is the claim that **the CSRF/origin gate is
+byte-identical to `main`** — it was true at `90d9860` and is **not** true at the head, because `93c9b73` added the
+hosted branch and `8f3bf97` rewrote its admission rule. The reviewer re-derived the property rather than accepting
+the transfer. **That is exactly why the item was on the list**, and it is the second time in this programme that a
+claim which was true when written stopped being true without anyone noticing.
+
+The reviewer's bucketing also states the caveat I would have had to add myself, and states it better: `on every
+push` is **not** literally true for this branch, because `ci.yml` triggers on `pull_request` and on pushes to
+`main` only. Every "known-good by CI" row therefore means *the check exists, is wired to a job, and that job runs on
+a PR against this head* — **not** *a green run was observed*. It also verified both halves of the CI change by
+reading the YAML (the workflow parses; every `node tools/…` step is wired to a job whose file exists), which is the
+rule this programme paid two cycles for.
+
+### 8.3 Five findings of its own, and two of them change the list of what blocks a merge
+
+| # | Sev | Finding | Effect |
+|---|---|---|---|
+| **X-A** | **HIGH** | **The shipped runtime never wires the account-deletion port** — the same defect this document found by execution (§4.1). The reviewer reached it from the wiring it owns, and added the two halves this document missed: **`provision.mjs` creates no deletion role either**, and both source comments that record the deferral cite `HARD-DELETE-01.md` **§6, which does not exist**. | **Independent corroboration of §4.1**, from reading rather than execution. Both halves are in the `DELETION-WIRE-01` dispatch |
+| **X-B** | low | **The F3 fix over-refuses, and disables a documented fallback.** `Origin: https://<configured>/` (trailing slash) and **any `Referer` carrying a path** are now **refused**, where the earlier review recorded both as **accepted**. So `server.js:298-301`'s *"we fall back to Referer"* is **dead for every value a browser can send**. The blast radius is a proxy that strips `Origin`; no checker covers it | **Not a security defect — it fails closed.** But it is a control doing something different from what its own comment says, which is the class this programme treats as a defect. **Recorded as open, not dispatched** |
+| **X-C** | medium | `REVIEW-COVERAGE.md` was absent from the candidate | **Closed by this branch** (§8.1) |
+| **X-D** | low | Two live SHA citations in the tree are not objects in the bundle (`72994ad(444b3cdd…)`, `ef888ff`), from an audit of all 123 SHA-like strings in the records. **Caveat stated exactly as the reviewer stated it:** absent from *that bundle*, which is not proof of absence from the repository | Recorded. Same class as the two *declared-dead* citations |
+| **X-E** | info/low | **`/api/ready` ignores the origin configuration:** with `B1PREP_SAAS=1`, accounts loaded and `B1PREP_PUBLIC_ORIGIN` unset, it answers **200 `{ready:true, mode:'saas'}`** while the origin gate refuses **every** non-GET — **including sign-in**. Disclosed in the startup banner only, invisible to a supervisor | **A readiness surface that says ready while refusing service.** Recorded as open |
+
+### 8.4 The merge conditions, restated with §8 included
+
+The five conditions in §7 stand, with two additions:
+
+6. **`X-B` is closed or explicitly accepted**: a control whose comment describes a fallback that its own regex has
+   made unreachable is the defect shape this programme keeps finding, even when the failure direction is safe.
+7. **`X-E` is closed or explicitly accepted**: `/api/ready` must not report `ready:true` in the configuration where
+   every mutating route, including sign-in, is refused.
+
+**And one process condition, which is the only one that is about this programme rather than about the product:**
+`REVIEW-COVERAGE.md` and this document live on `codex/coord-verify-e126d8c` and **must reach `main` with the
+candidate**. An integration decision that does not travel with the merge it justifies is the defect that item
+`X-C` records, and it is the reason item 1 of this whole objective was uncomfortable in the first place.
