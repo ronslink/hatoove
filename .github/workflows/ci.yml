@@ -145,6 +145,50 @@ jobs:
         run: node tools/session-boundary-check.mjs
       - name: The hosted runtime refuses by default
         run: node tools/saas-runtime-check.mjs
+  # THE RENDERED CLAIMS WERE UNGATED TOO. Four browser checkers existed and CI ran none of them, so
+  # everything they assert - that a refused sign-in does not paint a signed-in state, that the
+  # Settings view offers no provider field, that changing the explanation language does NOT translate
+  # the menu, that a second tab goes signed-out - was verified only by hand. Those are exactly the
+  # properties a code reading cannot confirm, which makes them the ones worth gating.
+  #
+  # ubuntu only, and only for CHROME: the runner ships Chrome at a documented path, and a browser that
+  # cannot be found would turn every check here into a setup failure rather than a result. The first
+  # step therefore asserts the browser exists BEFORE the checks run, so a missing Chrome is one clear
+  # message instead of four identical "No Chromium found" errors.
+  browser:
+    name: Rendered behaviour (headless Chrome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Assert the browser this job depends on actually exists
+        run: |
+          set -euo pipefail
+          for candidate in /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium /usr/bin/chromium-browser; do
+            if [ -x "$candidate" ]; then
+              echo "CHROME_PATH=$candidate" >> "$GITHUB_ENV"
+              echo "using $candidate"
+              exit 0
+            fi
+          done
+          echo "no Chrome at any known path; this job cannot run" >&2
+          exit 1
+      # Distinct ports: two of these suites start servers at port, port+1 and port+2, so a shared
+      # default would collide. Each is far from the learner ports (4321 and 4381) and from the others.
+      - name: Honest mock writing outcomes in a real page
+        run: node tools/mock-outcome-browser-check.mjs --port 4341
+      - name: The Settings view offers no provider field
+        run: node tools/provider-config-browser-check.mjs --port 4344
+      - name: The Konto surface, and the language setting not translating the menu
+        run: node tools/account-ui-browser-check.mjs --port 4347
+      - name: A second tab cannot re-create the account record
+        run: node tools/session-boundary-browser-check.mjs --port 4350
   fixtures:
     name: Exam and feedback fixtures
     runs-on: ubuntu-latest
