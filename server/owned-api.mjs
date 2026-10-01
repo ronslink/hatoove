@@ -83,7 +83,7 @@ const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry'
  * An absent catalogue must disable the CATALOGUE, in the way an absent settings port disables
  * settings and an absent deletion port disables deletion, and leave the rest of the product alone.
  */
-const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'listVocab'];
+const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'listVocab', 'listNouns'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -441,6 +441,30 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         ? 'approved' : 'approved+unreviewed';
       return reply(200, await datastore.listVocab(owner, {
         examId: exam, pos, q: q === null ? null : q.trim(), serveReview,
+      }));
+    }
+    if (pathname === '/api/v1/nouns' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
+      /*
+       * LIBRARY-SEED-02 — the B1 noun lexicon, 240 nouns with gender, plural and the gender rule.
+       *
+       * `gender` and `theme` are closed exact filters: a learner drills one article or browses one
+       * theme, and an unknown value is REFUSED rather than silently returning nothing, because an
+       * empty list and a typo look identical to a learner and only one of them is their fault.
+       */
+      const gender = query.get('gender');
+      if (gender !== null && !/^(der|die|das)$/.test(gender)) fault(422, 'invalid_gender');
+      const theme = query.get('theme');
+      if (theme !== null && (theme.trim().length < 2 || theme.length > 64)) fault(422, 'invalid_theme');
+      const q = query.get('q');
+      if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      return reply(200, await datastore.listNouns(owner, {
+        examId: exam, theme: theme === null ? null : theme.trim(), gender,
+        q: q === null ? null : q.trim(), serveReview,
       }));
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {

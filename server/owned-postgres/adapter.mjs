@@ -221,6 +221,50 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       });
     },
     /**
+     * LIBRARY-SEED-02 — the B1 noun lexicon (gender, plural, the rule that decides the gender, theme).
+     *
+     * A sibling of `listVocab`, not a generalisation of it: the two corpora are the same KIND of thing
+     * and not the same SHAPE, and one query with five nullable columns plus a "which corpus is this"
+     * condition would be harder to read and easier to get wrong than two honest queries.
+     *
+     * `gender` and `theme` are exact filters (a learner drills `die` nouns, or browses "Personen");
+     * `q` is a bounded substring search. All three are passed as VALUES through the driver.
+     */
+    async listNouns(owner, { examId = null, theme = null, gender = null, q = null, limit = 50, serveReview = 'approved+unreviewed' } = {}) {
+      note('listNouns');
+      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      return settle(owner, async (client) => {
+        const rows = (await client.query(
+          `SELECT n.entry_id, n.exam_id, n.de, n.en, n.gender, n.plural, n.rule, n.rule_en, n.theme,
+                  n.example, n.example_en, c.review_status, c.rights_status
+             FROM noun_entry n
+             JOIN content_version c ON c.content_version_id = n.content_version_id
+            WHERE n.exam_id = COALESCE($1, n.exam_id)
+              AND ($2::text IS NULL OR n.theme = $2)
+              AND ($3::text IS NULL OR n.gender = $3)
+              AND ($4::text IS NULL OR n.de ILIKE '%' || $4 || '%' OR n.en ILIKE '%' || $4 || '%')
+              AND c.review_status = ANY($5::text[])
+            ORDER BY n.ordinal
+            LIMIT $6`,
+          [examId, theme, gender, q, statuses, limit])).rows;
+        return rows.map((row) => ({
+          entry_id: row.entry_id,
+          exam_id: row.exam_id,
+          de: row.de,
+          en: row.en,
+          gender: row.gender,
+          plural: row.plural,
+          rule: row.rule,
+          rule_en: row.rule_en,
+          theme: row.theme,
+          example: row.example,
+          example_en: row.example_en,
+          review_status: row.review_status,
+          rights_status: row.rights_status,
+        }));
+      });
+    },
+    /**
      * Create an owned attempt bound to an exact task/rubric version (SAAS-MODEL-01 Step 1).
      * `binding` defaults to the canonical writing task (`content-seed.mjs`); a caller that has
      * a task-selection route (SAAS-RESUME-01) can pass the chosen one. The composite foreign

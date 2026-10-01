@@ -247,6 +247,25 @@ try{
   assert.equal((await request('GET','/api/v1/vocab?q=v',undefined,cookie)).status,422,'a one-character search must be refused rather than run');
   assert.equal((await request('GET','/api/v1/vocab?pos=bogus',undefined,cookie)).status,422,'an unknown part of speech must be refused');
   passed('the lexicon serves up to 300 words, server-bounded, searchable, filterable, and refuses bad input');
+
+  // LIBRARY-SEED-02 — the noun lexicon: gender, plural and the rule that decides the gender.
+  assert.equal((await request('GET','/api/v1/nouns')).status,401,'/api/v1/nouns must require a session');
+  const nounsLex=await request('GET','/api/v1/nouns',undefined,cookie);
+  assert.equal(nounsLex.status,200,nounsLex.text);
+  assert.equal(nounsLex.json.length,50,'the noun lexicon must be bounded to 50 per response, got '+nounsLex.json.length);
+  assert.ok(nounsLex.json.every((e)=>typeof e.gender==='string'&&typeof e.plural==='string'&&typeof e.rule==='string'),
+    'every noun must carry its gender, plural and the gender rule -- that is the content Ron named as Nomen und Genus');
+  const dieOnly=await request('GET','/api/v1/nouns?gender=die',undefined,cookie);
+  assert.equal(dieOnly.status,200);
+  assert.ok(dieOnly.json.length>0&&dieOnly.json.every((e)=>e.gender==='die'),'a gender filter must return only that article');
+  const themed=await request('GET','/api/v1/nouns?theme=Personen',undefined,cookie);
+  assert.equal(themed.status,200);
+  assert.ok(themed.json.length>0&&themed.json.every((e)=>e.theme==='Personen'),'a theme filter must return only that theme');
+  // An unknown value is REFUSED, not silently empty: an empty list and a typo look identical to a
+  // learner, and only one of them is their fault.
+  assert.equal((await request('GET','/api/v1/nouns?gender=xxx',undefined,cookie)).status,422,'an unknown article must be refused, not silently return nothing');
+  assert.equal((await request('GET','/api/v1/nouns?q=n',undefined,cookie)).status,422,'a one-character search must be refused');
+  passed('the noun lexicon serves 240 nouns with gender, plural and rule, filterable by article and theme');
   /*
    * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them
    * was tested wrongly.
