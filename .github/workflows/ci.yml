@@ -157,6 +157,27 @@ jobs:
       # still refuse 401 (so the 404 is the route being gone, not a dead runtime).
       - name: The unauthenticated machine-global config write is gone
         run: node tools/coord-config-anon-probe.mjs
+      # MFP-14. THE CHECK THAT MUST EXIST BEFORE THE MIGRATIONS IT GUARDS. Every table in the app
+      # schema is classified as auth / owned / shared-content, and an UNCLASSIFIED table fails - so a
+      # migration written by someone who has never read the plan cannot silently weaken a class. It
+      # guards the failure mode an architect review rated among the two most dangerous: the deletion
+      # read-back is a hand-maintained list (adapter.mjs:243-250), so a new owned table is covered
+      # only if someone remembers to add it, and deletion-check would stay green while an account's
+      # rows survived in it.
+      - name: Every table is classified, and every class rule holds
+        run: node tools/table-class-check.mjs
+      # ...and the proof that the check above can FAIL. Four mutations in a scratch schema - drop an
+      # owner policy, remove a table from ACCOUNT_TABLES, grant INSERT on a shared content table, add
+      # an unclassified table - each must make it fail. A catalogue check whose mutations are not
+      # detected is decoration, and this programme has shipped that defect more than once.
+      - name: The table-class check detects all four mutations
+        run: node --test tools/table-class-check.test.mjs
+      # MFP-14. The journey counter, over HTTP against this configured runtime. Legs whose route does
+      # not exist yet report PENDING <slice-id> and do NOT count as passes, so the summary reads
+      # "n passed, m pending, 0 failed" and can never be read as more complete than it is. It turns
+      # "functional" into a number that moves.
+      - name: The learner journey, over HTTP (pending legs name their slice)
+        run: node tools/journey-api-check.mjs
   # THE RENDERED CLAIMS WERE UNGATED TOO. Four browser checkers existed and CI ran none of them, so
   # everything they assert - that a refused sign-in does not paint a signed-in state, that the
   # Settings view offers no provider field, that changing the explanation language does NOT translate
