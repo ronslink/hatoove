@@ -88,7 +88,62 @@ records and their integrity are the deliverable; serving them is `SAAS-RESUME-01
 
 ## 3. Step 2 — the entry point fails closed
 
-_(flag table)_
+**Change.** `node server.js` now starts **not ready** in every mode
+(`server.saasReadiness = { ready:false, reason:'starting' }`), and the account/database
+configuration is **required**. The request-path gate is no longer conditioned on `B1PREP_SAAS`:
+while the runtime is not ready, every `/api/*` route except `/api/health` and `/api/ready`
+answers `503 {code:'not_ready'}`. `/api/ready` answers `503 {ready:false, mode:'unconfigured',
+reason:'<the missing configuration>'}`. When the configuration loads, the runtime becomes ready
+and the owned routes mount.
+
+Observed, no configuration at all (`node server.js`, `B1PREP_ACCOUNTS` unset):
+
+```
+GET /api/ready   503 {"ok":false,"ready":false,"mode":"unconfigured","reason":"B1PREP_ACCOUNTS is not set"}
+GET /api/v1/account  503 {"ok":false,"code":"not_ready","error":"The hosted runtime is not ready (B1PREP_ACCOUNTS is not set)."}
+GET /api/progress    503 {"ok":false,"code":"not_ready",...}
+GET /api/health      200 {"ok":true,"node":"v22.23.2"}
+```
+
+**The banner says so in one line, naming the missing configuration and printing no credential:**
+
+```
+  Accounts: accounts: off (B1PREP_ACCOUNTS is not set) - the runtime refuses learner routes (503)
+  Readiness: NOT READY (B1PREP_ACCOUNTS is not set)
+  Progress: file record disabled (account-scoped attempts)
+```
+
+**What each flag now means.**
+
+| Flag / setting | Before this slice | After this slice |
+|---|---|---|
+| `B1PREP_ACCOUNTS=1` | opt-in that mounted accounts; absent ⇒ a working single-user app | **required**. Absent ⇒ the entry point is NOT READY and refuses learner routes. Still the flag that enables the owned API wiring. |
+| `OWNAPI_PG_*` (e.g. `OWNAPI_PG_DATABASE`) | needed only once accounts were on | **required** alongside the flag; absent ⇒ NOT READY, reason names the missing setting |
+| `B1PREP_SAAS=1` | **the switch that decided whether learner data was protected**: the legacy file route was refused only when it was set, and the fail-closed gate ran only when it was set | **a distinction only.** It selects the trusted-origin policy (`B1PREP_PUBLIC_ORIGIN` vs loopback) and the banner line. It **no longer** decides whether learner data is protected; the fail-closed gate now runs in every mode. |
+
+**Which checks the change broke, and how they were updated (not deleted).**
+
+- `saas-runtime-check`: the check whose whole purpose was *"the local install is unchanged"*
+  (`legacy-progress-local-install-unchanged`) is **retired** — that mode no longer exists. It is
+  replaced by `entry-point-fails-closed-when-the-mode-flag-is-omitted` (the refusal, with the
+  negative control that the single-user write is not served). A new
+  `fail-closed-no-longer-depends-on-the-mode-flag` proves the gate no longer keys off
+  `B1PREP_SAAS`. **10 → 11 checks.**
+- `accounts-http-check`: `accounts-are-off-by-default` asserted `404` for the owned routes; the
+  new contract is `503`. Updated to `unconfigured-entry-point-fails-closed`. **6 → 6** (renamed,
+  not removed).
+- `session-boundary-check`: two checks asserted the single-user server path with accounts off.
+  Updated: `accounts off` now proves the **server refuses** (`/api/progress` GET/POST `503`); a
+  browser keeps only its **local** copy, and the tab-return check now runs on a configured
+  runtime. **19 → 19** (no check removed).
+- `B1PREP_SAAS`-gated `/api/progress` refusal is **unchanged** in this slice. Removing the route
+  (and its header selector, file, backups and revision handling) is `SAAS-RETIRE-01`; see the
+  matrix. This slice changes only the entry point.
+
+**A client fact this exposed (recorded in LIMITS):** `public/js/store.js`'s `/api/progress`
+reader does not check the HTTP status, so it misreads a `503` refusal as an **empty** server
+record and reports `reachable: true`. A refusal alone is therefore not enough — the route must
+be removed, which is exactly why the removal matrix exists.
 
 ## 4. Step 3 — the removal matrix
 
