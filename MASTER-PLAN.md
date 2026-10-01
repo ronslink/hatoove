@@ -43,6 +43,23 @@ Four axes stay independent (`PILOT_BUILD_PLAN.md:58`):
 
 The commercial hypothesis on record is a direct-to-learner, fixed-duration exam pass initially tested as an eight-week term (`:31`), with a regional price catalogue by market, exam package, pass duration and allowance (`:64`). **None of that is in the local milestone.**
 
+### Architecture now in force
+
+**The API is the product and the whole stack runs in containers.** The client is thin: it holds no
+state, no provider key and no grading logic, and it submits a reference and receives a result.
+
+**A single-user app's integrations cannot be adapted, because the assumption they were built on is
+gone.** In a single-user app an integration is a convenience the local user configures; in a
+multi-user app it is a shared, costed, owner-attributed resource that must be bounded, reviewable and
+revocable per account. The full mapping is in [INTEGRATIONS-01.md](work/implementation/INTEGRATIONS-01.md);
+the rules that follow are: no integration call without an owner, without an allowance check and a
+ledger row, without being asynchronous when it costs money, without pooling its output, and none of
+it configurable from a learner session.
+
+**Generated content is pooled, not generated per learner.** Cost scales with pool size instead of
+with usage, and a finite set can be reviewed where an infinite stream cannot. See
+[CONTENT-POOL-01.md](work/implementation/CONTENT-POOL-01.md).
+
 ---
 
 ## 2. The immediate objective: a working multi-exam SaaS application locally
@@ -170,18 +187,24 @@ Ordered to **LM-1 and LM-2**. The state column is what is true at `59b1929`.
 | Slice | Purpose | State | Depends on |
 |---|---|---|---|
 | **PILOT-01** | **Local bring-up**: one command — a persistent local PostgreSQL, migrations through the single provisioning path, then API + worker on stubs. See [PILOT-01.md](work/implementation/PILOT-01.md) | **Delivered** — check 10/10, not reviewed, not merged | — |
+| **PILOT-01b** | **The local SERVER runs in containers**: one image for API/worker/migrate, `compose.yaml` with db → migrate → app + worker, and the bind host from config. The host needs Docker and nothing else | **Delivered** — verified by execution, not reviewed, not merged | PILOT-01 |
+| **PILOT-01c** | **The page surface is auth-gated.** Before it, `GET /` served the app and `GET /data/seed.json` served **180 answer keys** to anyone. Public is only `/signin`, `/assets/design/**`, `/api/auth/**` and liveness | **Delivered** — 8/8 legs, not reviewed, not merged | PILOT-01b |
 | **PILOT-02** | **Runtime composition**: the server builds its API from `server/runtime.mjs`; sign-up provisions entitlements/settings through a `SECURITY DEFINER` function; the runtime opens **no** admin or migration pool. This is the unmerged PR #89 work, which must be re-verified rather than assumed | `74fb158`, **unverified** | PILOT-01 |
 | **PILOT-03** | **One runtime**: either removed flag present → refuse to start; required config missing → exit non-zero before `listen()`; `createServer()` defaults to not-ready; `/api/config`, `/api/progress`, `/api/ai`, `/api/ai/test` answer **404**; bind host from config | Planned | PILOT-02 |
 | **PILOT-04** | **Exam-scoped identity** (§6) + `GET /api/v1/tasks?exam=&family=` honouring a serving policy (`approved` fail-closed, or `approved+unreviewed`). Every seeded row is `unreviewed`, so serving under `approved` must return an **empty** list — a check that always returned six rows would be wrong | Planned | PILOT-03 |
 | **PILOT-05** | **Objective package served and marked on the server**: LV1–3 and SB1–2 (15 sets, 180 keyed slots) as task versions; keys in a table granted to **no** runtime role; marking through `SECURITY DEFINER`; answer and `why` revealed only after submission | Planned | PILOT-04 |
 | **PILOT-06** | **Writing → worker → validated feedback**: task binding, server-owned prompt and rubric, structured-output validation, one debit, honest unassessed failure. The substrate already works (leg J7); it needs the catalogue binding and **R11** resolved before the result schema is fixed | Partly built | PILOT-04 |
 | **PILOT-07** | **First-language explanations** (§4): the explanation entity, generation from the saved assessment, versioning by (task/rubric, criterion, language), review labels, and the snapshot rule | Planned | PILOT-06 |
+| **PILOT-08a** | **The design foundation**: the supplied design curated into the repository — `public/assets/design/` (tokens, fonts, logos, OFL notices) and `work/design-reference/` for reading. `.gitattributes` keeps the pinned bytes intact through a clone. See [PILOT-08A.md](work/implementation/PILOT-08A.md) | **Delivered** — 6/6 legs, not reviewed, not merged | PILOT-01c |
 | **PILOT-08** | **The new client** under `public/app/`: shell, invite/password auth screens, setup, task list, objective runner, writing, result with explanation, history, settings, plus error/offline/conflict states. No learner state in `localStorage` | Planned — `public/app/` does not exist | PILOT-05, 06, 07 |
 | **PILOT-09** | **Speech synthesis** for explanations and pronunciation (§5), with a real per-language availability state | Planned | PILOT-07, 08 |
 | **PILOT-10** | **Listening package**: audio asset model with rights/checksum/duration, plus fixed reviewed recordings, play counts and failure recovery. **Gated on C-04**; TTS is not a substitute | Blocked | C-04 |
 | **PILOT-11** | **Second exam package** — a small English reading pack. Delivers **LM-2**: the same journey through the same code, with no source change and no learner-data migration | Planned | PILOT-05, 08 |
 | **PILOT-12** | **Account lifecycle**: export, hard delete, retention, late-job-after-deletion. Largely built (`DELETE /api/v1/account`; `ACCOUNT_DELETION_STEPS` at `adapter.mjs:228-240`) | Mostly built | PILOT-08 |
 | **PILOT-13** | **LM-1 + LM-2 acceptance run**: two learners, fresh browser, stale writes, duplicate clicks, account switching, slow/failed/malformed provider output, and a late job after deletion | Planned | PILOT-12 |
+| **PILOT-14** | **Canonical, platform-independent migration digests.** `applyMigrations` hashes the working tree's **raw bytes**, so the ledger is a function of the checkout's line endings: a database migrated from a Windows checkout refuses to advance from a Linux clone with *"refusing to apply a migration that is not the one that was reviewed"* — a false tamper alarm. A fix must accept the legacy digest for rows already applied, never rewrite them | **Defect, measured, not fixed** | — |
+| **PILOT-15** | **The content pool** ([CONTENT-POOL-01.md](work/implementation/CONTENT-POOL-01.md)): `pool_spec` + the deficit loop, batched generation off the request path, dedup by `content_sha256`, explanations cached per `(item_version, language)`, and generation provenance. Provable against a **stub generator** under R10 | **Proposal — needs two decisions** | PILOT-04 |
+| **PILOT-16** | **The multi-user integration layer** ([INTEGRATIONS-01.md](work/implementation/INTEGRATIONS-01.md)): inference, speech, email, payments and object storage behind one port each, owner-attributed, allowance-bounded, ledger-debited, stubbed for development. The data ports already prove the pattern; this is the external half | **Proposal — needs R5/R10 and owner authorization** | PILOT-06 |
 
 **Not yet, and each has a named blocker:** commercial checkout and market pricing (P-01/P-02/P-03 plus owner authorization); any hosting, DNS, TLS, email provider or payment configuration; live model calls (R10); on-device or embedded AI; speaking and STT (outside the pilot); a full written mock (needs reviewed content, timing and playback rules for every included section); institutional or teacher features.
 
