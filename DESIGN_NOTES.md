@@ -1,4 +1,10 @@
 > **Historical local-interface record.** The installer and host launch path described below are retired by DOCKER-ONLY-01. Use Docker Compose and README.md for the current server. Do not execute historical installation steps.
+>
+> **Also superseded, 2 October 2026:** the interface described here is the retired **Certa** application.
+> `public/shell-refresh.css` and `public/studio.css` were deleted with the Certa page, `public/index.html`
+> is now the brand site (served at `/`), and the learner application is the shell at `public/app/`
+> (`/app/`) using the curated design system in `public/assets/design/`. This file is kept as the record
+> of a past direction, not as a description of the current one.
 
 # Certa Academy interface — 23 September 2026
 

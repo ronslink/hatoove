@@ -16,6 +16,29 @@
   It uses the curated design system at /assets/design/. German chrome, per the recorded decision:
   the interface is German and only the EXPLANATION language follows the learner.
 -->
+<!--
+  Two rules the pinned stylesheet cannot carry and this page cannot take from /app/app.css, because
+  `/app/**` is auth-gated and this page has to work while signed out.
+
+  `[hidden]` FIRST: the pinned `.stack{display:grid}` outranks the browser's own
+  `[hidden]{display:none}`, so the registration form rendered VISIBLY beside the sign-in form and the
+  Anmelden/Registrieren tabs changed only `aria-pressed`. Measured in a real browser by
+  tools/app-browser-check.mjs; app.css carries the same rule for the application shell.
+
+  `.err` SECOND: the pinned stylesheet defines `mark.err` and not `.err`, so this page's only error
+  surface ("E-Mail oder Passwort ist falsch.") was indistinguishable from ordinary body text.
+-->
+<style>
+  [hidden] { display: none !important; }
+  .err {
+    color: var(--red);
+    background: var(--red-bg);
+    border: 1px solid color-mix(in srgb, var(--red) 28%, transparent);
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+</style>
 </head>
 <body>
 
@@ -132,8 +155,11 @@ async function post(path, body, form) {
       showError(messageFrom(res.status, payload));
       return false;
     }
-    // The session cookie is set by the server. Land on the app; the server re-checks the session.
-    location.replace('/');
+    // The session cookie is set by the server. Land IN THE APPLICATION: `/` is the public marketing
+    // landing page, so `location.replace('/')` dropped a learner who had just registered back on the
+    // front page with no sign that anything had happened. `/app/` re-checks the session server-side.
+    // Measured by tools/app-browser-check.mjs (L6).
+    location.replace('/app/');
     return true;
   } catch {
     showError('Keine Verbindung zum Server.');

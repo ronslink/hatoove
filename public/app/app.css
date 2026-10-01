@@ -10,6 +10,68 @@
 /* One view at a time. `hidden` is the shell's own state, not the design system's. */
 .view[hidden] { display: none; }
 
+/*
+ * `hidden` MUST WIN — and by default it does not.
+ *
+ * The pinned stylesheet defines `.stack{display:grid}`. An author `display` declaration outranks the
+ * browser's own `[hidden]{display:none}`, so `<form class="stack" id="form-signup" hidden>` rendered
+ * VISIBLY: the sign-in page showed the registration form underneath the sign-in form, and the
+ * Anmelden/Registrieren tabs changed only `aria-pressed`. The same cascade put `#guide-body` on screen
+ * before any guide was opened, so "Öffnen" appeared to append below the index and "Zurück" to do
+ * nothing. Measured in a real browser by tools/app-browser-check.mjs.
+ */
+[hidden] { display: none !important; }
+
+/*
+ * `.err` is used by this shell and by /signin, but the pinned stylesheet only defines `mark.err`, so
+ * every alert ("Aufgaben konnten nicht geladen werden …", the settings conflict notice) rendered as
+ * ordinary body text: no colour, no separation from the content around it.
+ */
+.err {
+  color: var(--red);
+  background: var(--red-bg);
+  border: 1px solid color-mix(in srgb, var(--red) 28%, transparent);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+/* The mistakes badge in the phone tabbar. The pinned rule is `.nav a .count`, which does not match
+ * `nav.tabbar > a > .count`, so the badge needs its own treatment here. */
+.tabbar a .count {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--orange);
+  color: var(--orange-ink);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+/*
+ * THE PHONE TABBAR CARRIES EVERY DESTINATION IN ONE ROW.
+ *
+ * The pinned stylesheet lays the tabbar out as `repeat(5, minmax(0,1fr))`, because the design's tabbar
+ * has five items. This shell has ten, so five columns wrapped them into a SECOND fixed row: the bar
+ * grew to about 112px against the 96px of bottom padding the stylesheet reserves, covering the end of
+ * every view, with three labels wrapped inside ~20%-wide cells.
+ *
+ * The pinned file must stay byte-exact, so the override lives here, in the shell's own layer: one row,
+ * scrolled sideways when it does not fit. Every destination stays reachable and the bar stays one row
+ * tall. Grouping ten destinations into five tabs is an information-architecture decision, and it is
+ * recorded for Ron rather than taken here.
+ */
+@media (max-width: 860px) {
+  .tabbar {
+    display: flex;
+    grid-template-columns: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .tabbar::-webkit-scrollbar { display: none; }
+  .tabbar a { flex: 0 0 auto; min-width: 74px; padding: 8px 10px; }
+}
+
 /* The router marks where you are. The design system already styles [aria-current=page] in the
  * sidebar; the tabbar needs the same emphasis so the mobile shell reads as one place. */
 .tabbar a[aria-current="page"] { color: var(--orange-dark); font-weight: 700; }

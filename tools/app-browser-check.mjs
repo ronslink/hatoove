@@ -1,0 +1,974 @@
+#!/usr/bin/env node
+/**
+ * APP-BROWSER-01 — the FIRST rendered evidence for the Hatoove learner app.
+ *
+ * WHY THIS EXISTS
+ * Every visual claim in this repository until now was markup-and-endpoint evidence: the right classes
+ * in the served HTML, the right JSON from the endpoint. Nothing had ever been RENDERED. That is a
+ * different claim, and it is the one a learner experiences. Reading the source cannot tell you that a
+ * script threw on boot, that `api.practice.progress()` does not exist, or that nine tabs are being laid
+ * out in a five-column grid.
+ *
+ * WHAT IT DOES
+ * Brings up a DISPOSABLE Compose stack (own project name, own volume, own free ports — never the
+ * learner's stack), launches headless Chromium over the shared CDP harness in `tools/cdp.js`, and walks
+ * the real journey in a real browser:
+ *
+ *   landing -> sign-in -> the app -> Heute -> Leseverstehen -> open a set -> answer it -> Fehler
+ *
+ * at desktop (1440x900) and phone (390x844) widths, in light and dark, writing screenshots to
+ * `.qa/browser/<stamp>/` (gitignored). Assertions are about what is ON SCREEN: visible text, non-zero
+ * boxes, no horizontal overflow, no console exception, and the DOM agreeing with the API.
+ *
+ * HONEST LIMITS, stated rather than implied: headless Chromium on a desktop OS is not an iPhone or an
+ * Android device. It proves rendering and layout; it does not replace a real-device keyboard, audio or
+ * Safari check, and it cannot see a font fallback that only that device has.
+ *
+ * Usage: node tools/app-browser-check.mjs [--keep] [--shots <dir>]
+ */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import net from 'node:net';
+import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+import { launchBrowser, connectToPage, sleep } from './cdp.js';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const KEEP = process.argv.includes('--keep');
+const shotsArg = process.argv.indexOf('--shots');
+const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+const SHOTS = shotsArg === -1 ? path.join(ROOT, '.qa', 'browser', stamp) : path.resolve(process.argv[shotsArg + 1]);
+
+/** A learner's plausible name for the synthetic account this run creates. */
+const SYNTHETIC = { name: 'Browser Evidence', password: 'synthetic-browser-pass-1' };
+
+const project = `hatoove-browser-${Date.now()}-${process.pid}`;
+const scratch = fs.mkdtempSync(path.join(os.tmpdir(), `${project}-`));
+const envFile = path.join(scratch, 'compose.env');
+
+const results = [];
+function record(name, ok, detail = '') {
+  results.push({ name, ok, detail });
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  [${detail}]` : ''}`);
+}
+const note = (name, detail) => console.log(`NOTE  ${name}${detail ? `  [${detail}]` : ''}`);
+
+/* ------------------------------------------------------------------ docker */
+
+let appPort = 0;
+let dbPort = 0;
+let base = '';
+
+function docker(args) {
+  const r = spawnSync('docker', args, {
+    cwd: ROOT,
+    env: { ...process.env, HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base },
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 300000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  if (r.error || r.status !== 0) {
+    throw new Error(`docker ${args[0]}: ${(r.error?.message || r.stderr || r.stdout || '').slice(-2000)}`);
+  }
+  return (r.stdout || '').trim();
+}
+const compose = (args) => docker(['compose', '--env-file', envFile, '-p', project, '-f', path.join(ROOT, 'compose.yaml'), ...args]);
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const s = net.createServer();
+    s.once('error', reject);
+    s.listen(0, '127.0.0.1', () => {
+      const port = s.address().port;
+      s.close(() => resolve(port));
+    });
+  });
+}
+
+async function waitForReady(url, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      if (res.ok) return true;
+    } catch {
+      /* not up yet */
+    }
+    await sleep(500);
+  }
+  return false;
+}
+
+/* ------------------------------------------------------------------- page  */
+
+/** Navigate and wait for the document to finish loading. */
+async function nav(cdp, url) {
+  await cdp.send('Page.navigate', { url });
+  await cdp.waitFor("document.readyState === 'complete'", 25000, url);
+}
+
+async function viewport(cdp, width, height, mobile) {
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: mobile ? 2 : 1, mobile });
+  // `maxTouchPoints` must be 1..16, so touch emulation is switched on with a count and switched off
+  // without one.
+  await cdp.send('Emulation.setTouchEmulationEnabled', mobile ? { enabled: true, maxTouchPoints: 5 } : { enabled: false });
+}
+
+async function theme(cdp, value) {
+  await cdp.send('Emulation.setEmulatedMedia', {
+    media: 'screen',
+    features: value ? [{ name: 'prefers-color-scheme', value }] : [],
+  });
+}
+
+/** A viewport screenshot (what the learner sees), not a full-page strip. */
+async function shot(cdp, name) {
+  fs.mkdirSync(SHOTS, { recursive: true });
+  const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
+  const file = path.join(SHOTS, `${name}.png`);
+  fs.writeFileSync(file, Buffer.from(data, 'base64'));
+  return file;
+}
+
+function errorsSince(cdp, mark) {
+  const out = [];
+  for (const e of cdp.events.slice(mark)) {
+    if (e.method === 'Runtime.exceptionThrown') {
+      out.push(`exception: ${e.params.exceptionDetails.exception?.description || e.params.exceptionDetails.text}`);
+    }
+    if (e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error') {
+      out.push(`console.error: ${e.params.args.map((a) => a.value ?? a.description ?? '?').join(' ')}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Same-origin requests the server REFUSED while the page was loading.
+ *
+ * This is the leg that would have caught the front door on its own: `/` served the brand site, whose
+ * relative asset URLs resolved to `/styles.css`, `/app.js` and `/assets/hatoove-logo.svg` — two of
+ * them auth-gated (401) and one absent (404). The page had text, an h1 and a font stack, so a
+ * presence-only assertion passed while the browser drew unstyled HTML.
+ */
+function networkFailuresSince(cdp, mark) {
+  const out = [];
+  for (const e of cdp.events.slice(mark)) {
+    if (e.method !== 'Network.responseReceived') continue;
+    const { url, status } = e.params.response;
+    if (status >= 400 && url.startsWith(base)) out.push(`${status} ${url.slice(base.length)}`);
+  }
+  return out;
+}
+
+/**
+ * Elements that extend past the right edge of the VIEWPORT.
+ *
+ * An element inside a horizontal scroll container is SUPPOSED to be past the edge: the phone tabbar is
+ * a scrollable row, so its later tabs are legitimately outside the viewport. The first version of this
+ * helper reported all of them as overflow — 30 "offenders" on a page whose `scrollWidth` exactly
+ * equalled `innerWidth`, i.e. a defect invented by looking in the wrong place. Anything with a
+ * scrolling ancestor is skipped; what remains is real page overflow.
+ */
+async function overflow(cdp) {
+  return cdp.evaluate(`
+    const width = window.innerWidth;
+    const inScroller = (el) => {
+      for (let p = el.parentElement; p && p !== document.documentElement; p = p.parentElement) {
+        const ox = getComputedStyle(p).overflowX;
+        if (ox === 'auto' || ox === 'scroll' || ox === 'hidden') return true;
+      }
+      return false;
+    };
+    const offenders = [];
+    for (const el of document.querySelectorAll('body *')) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && r.right > width + 2 && !inScroller(el)) {
+        offenders.push((el.tagName.toLowerCase()) + '.' + String(el.getAttribute('class') || '').split(' ')[0] + '@' + Math.round(r.right));
+      }
+    }
+    return {
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: width,
+      offenders: offenders.slice(0, 6),
+      offenderCount: offenders.length,
+    };
+  `);
+}
+
+async function visible(cdp, selector) {
+  return cdp.evaluate(`
+    const el = document.querySelector(${JSON.stringify(selector)});
+    if (!el) return { present: false };
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    const opts = { display: cs.display, visibility: cs.visibility, opacity: cs.opacity };
+    return {
+      present: true,
+      shown: !el.hidden && opts.display !== 'none' && opts.visibility !== 'hidden' && Number(opts.opacity) > 0.05,
+      width: Math.round(r.width), height: Math.round(r.height),
+      text: (el.innerText || '').trim().slice(0, 200),
+    };
+  `);
+}
+
+async function setInputs(cdp, values) {
+  return cdp.evaluate(`
+    const values = ${JSON.stringify(values)};
+    for (const [id, value] of Object.entries(values)) {
+      const el = document.getElementById(id);
+      if (!el) return 'missing:' + id;
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    return 'ok';
+  `);
+}
+
+async function clickSel(cdp, selector) {
+  return cdp.evaluate(`
+    const el = document.querySelector(${JSON.stringify(selector)});
+    if (!el) return false;
+    el.click();
+    return true;
+  `);
+}
+
+/**
+ * Wait for an expression, and REPORT the timeout instead of throwing.
+ *
+ * One broken leg must not hide the rest of the journey: the first run of this check aborted at the
+ * practice form and never reached Fehler, the mobile layout or the accessibility legs. A journey check
+ * that stops at the first defect measures one thing per fix cycle.
+ */
+async function softWait(cdp, expression, timeoutMs, label) {
+  try {
+    await cdp.waitFor(expression, timeoutMs, label);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The session cookie the BROWSER holds, so Node can ask the API the same question. */
+async function browserCookie(cdp) {
+  const { cookies } = await cdp.send('Network.getCookies', { urls: [base] });
+  return cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+}
+
+async function apiGet(cookie, route) {
+  const res = await fetch(base + route, { headers: { cookie, accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+  let body = null;
+  try {
+    body = await res.json();
+  } catch {
+    /* a refusal may carry no JSON */
+  }
+  return { status: res.status, body };
+}
+
+/* ------------------------------------------------------------------- main  */
+
+async function main() {
+  appPort = await freePort();
+  dbPort = await freePort();
+  while (dbPort === appPort) dbPort = await freePort();
+  base = `http://127.0.0.1:${appPort}`;
+  const email = `browser-${Date.now()}@example.test`;
+  const debugPort = await freePort();
+
+  console.log(`\n=== APP-BROWSER-01: rendered evidence (${project}) ===`);
+  console.log(`app ${base}   db 127.0.0.1:${dbPort}   screenshots ${SHOTS}\n`);
+
+  if (appPort === 4300 || dbPort === 55440) throw new Error('refusing to run on a live learner port');
+  fs.writeFileSync(envFile, `HATOVE_APP_PORT=${appPort}\nHATOVE_DB_PORT=${dbPort}\nHATOVE_PUBLIC_ORIGIN=${base}\n`);
+
+  /*
+   * TWO STATIC GUARDS, before anything is built.
+   *
+   * P0 — the design reference and the SERVED copy must both still match the pinned digests. This
+   * project has already edited the pinned stylesheet once and re-pinned the manifest to match, which
+   * defeats the pin; the second half of this leg (manifest == public/assets/design) is what catches
+   * exactly that.
+   *
+   * P1 — `public/landing/` is the brand site copied verbatim from `hatoove-site/dist`, so an edit to
+   * one and not the other is silent drift between the site we ship and the site we serve.
+   */
+  const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'work/implementation/DESIGN-REFERENCE-MANIFEST.json'), 'utf8'));
+  const referenceDrift = [];
+  const servedDrift = [];
+  for (const entry of manifest.files || []) {
+    const reference = path.join(ROOT, 'design', entry.path);
+    if (!fs.existsSync(reference)) referenceDrift.push(`${entry.path}: absent`);
+    else if (sha256(reference) !== entry.sha256) referenceDrift.push(`${entry.path}: digest changed`);
+    if (!entry.path.startsWith('assets/')) continue;
+    const served = path.join(ROOT, 'public', 'assets', 'design', entry.path.slice('assets/'.length));
+    if (!fs.existsSync(served)) servedDrift.push(`${entry.path}: not served`);
+    else if (sha256(served) !== entry.sha256) servedDrift.push(`${entry.path}: served copy differs from the pin`);
+  }
+  record('P0 the design reference still matches the pinned digests',
+    referenceDrift.length === 0, referenceDrift.join('; ') || `${(manifest.files || []).length} files`);
+  record('P0b the SERVED copy of every pinned design asset is byte-exact',
+    servedDrift.length === 0, servedDrift.join('; ') || 'stylesheets, logos, mark and fonts all match');
+
+  const landingDrift = [];
+  for (const [served, artifact] of [['index.html', 'index.html'], ['site.css', 'site.css'], ['site.js', 'site.js'], ['favicon.ico', 'favicon.ico']]) {
+    const site = path.join(ROOT, 'hatoove-site', 'dist', artifact);
+    const landing = path.join(ROOT, 'public', served);
+    if (!fs.existsSync(site) || !fs.existsSync(landing)) landingDrift.push(`${served}: missing on one side`);
+    else if (sha256(site) !== sha256(landing)) landingDrift.push(served);
+  }
+  const siteAssets = fs.existsSync(path.join(ROOT, 'hatoove-site', 'dist', 'assets'))
+    ? fs.readdirSync(path.join(ROOT, 'hatoove-site', 'dist', 'assets'))
+    : [];
+  for (const name of siteAssets) {
+    const site = path.join(ROOT, 'hatoove-site', 'dist', 'assets', name);
+    const served = path.join(ROOT, 'public', 'assets', name);
+    if (!fs.existsSync(served)) landingDrift.push(`assets/${name}: absent`);
+    else if (sha256(site) !== sha256(served)) landingDrift.push(`assets/${name}: differs`);
+  }
+  record('P1 the front door IS the site artifact, copied verbatim to the root',
+    landingDrift.length === 0 && siteAssets.length > 0,
+    landingDrift.length ? `drifted: ${landingDrift.join(', ')}` : `hatoove-site/dist == public/ (${siteAssets.length + 4} files)`);
+  record('P1b the retired SPA page is gone from the root',
+    !fs.existsSync(path.join(ROOT, 'public', 'landing')) && !fs.existsSync(path.join(ROOT, 'public', 'studio.css'))
+      && !/Certa/i.test(fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8')),
+    'no public/landing/, no public/studio.css, and the root page carries no "Certa"');
+
+  let browser = null;
+  let cdp = null;
+  let started = false;
+  try {
+    console.log('Building and starting the disposable stack ...');
+    compose(['up', '-d', '--build', '--wait', '--wait-timeout', '180']);
+    started = true;
+    record('B1 disposable stack is ready', await waitForReady(`${base}/api/ready`, 60000), `${base}/api/ready`);
+    console.log('  seeded: ' + compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-tAc',
+      "SELECT 'objective_sets=' || (SELECT count(*) FROM hatoove.objective_set) || ' keys=' || (SELECT count(*) FROM hatoove.objective_key) || ' vocab=' || (SELECT count(*) FROM hatoove.vocab_entry)"]));
+
+    browser = await launchBrowser(debugPort);
+    cdp = await connectToPage(debugPort);
+    await cdp.send('Network.enable');
+
+    /* ---------------------------------------------------------------- desktop */
+
+    await viewport(cdp, 1440, 900, false);
+    await theme(cdp, 'light');
+
+    // L1 — the front door renders, in a browser, with its stylesheet applied.
+    let mark = cdp.events.length;
+    await nav(cdp, `${base}/`);
+    const landingText = await cdp.evaluate('return document.body.innerText');
+    const landingStyle = await cdp.evaluate(`
+      const h1 = document.querySelector('h1, h2');
+      const sheets = [...document.styleSheets].map((s) => {
+        try { return { href: s.href, rules: s.cssRules.length }; } catch { return { href: s.href, rules: -1 }; }
+      });
+      const body = getComputedStyle(document.body);
+      const btn = document.querySelector('.button');
+      return {
+        textLength: document.body.innerText.trim().length,
+        title: document.title,
+        path: location.pathname,
+        h1: h1 ? h1.innerText.trim().slice(0, 80) : null,
+        font: body.fontFamily,
+        bodyBg: body.backgroundColor,
+        sheets,
+        styledButton: btn ? { radius: getComputedStyle(btn).borderRadius, bg: getComputedStyle(btn).backgroundColor } : null,
+        brokenImages: [...document.images].filter((i) => i.complete && i.naturalWidth === 0).map((i) => i.getAttribute('src')),
+      };
+    `);
+    const landingFile = await shot(cdp, '01-landing-desktop-light');
+    record('L1 the front door serves the landing page at / and it renders',
+      landingStyle.path === '/' && landingStyle.textLength > 300 && landingStyle.h1 !== null,
+      `served at ${landingStyle.path}: "${landingStyle.h1}" ${landingStyle.textLength} chars; ${path.basename(landingFile)}`);
+    // RENDERED, not merely present: a stylesheet with actual rules, styled elements, no broken images.
+    record('L1b the landing page is actually STYLED, and every asset it asks for loaded',
+      landingStyle.sheets.some((s) => s.rules > 0) && landingStyle.styledButton !== null
+        && landingStyle.brokenImages.length === 0,
+      `${landingStyle.sheets.length} stylesheet(s) [${landingStyle.sheets.map((s) => `${(s.href || '').split('/').pop()}:${s.rules}`).join(', ')}]; `
+        + `button ${JSON.stringify(landingStyle.styledButton)}; broken images ${JSON.stringify(landingStyle.brokenImages)}`);
+    const landingFailures = networkFailuresSince(cdp, mark);
+    record('L1c nothing the landing page requested was refused',
+      landingFailures.length === 0, landingFailures.join('; ') || 'no 4xx/5xx from this origin');
+    const landingErrors = errorsSince(cdp, mark);
+    record('L2 the landing page runs without a console exception', landingErrors.length === 0, landingErrors[0] || 'clean');
+
+    await theme(cdp, 'dark');
+    await shot(cdp, '02-landing-desktop-dark');
+    await theme(cdp, 'light');
+
+    // L3 — THE FRONT DOOR MUST HAVE A DOOR. Is there any way from the landing page into the product?
+    const doorways = await cdp.evaluate(`
+      const links = [...document.querySelectorAll('a[href], button')].map((el) => ({
+        tag: el.tagName.toLowerCase(),
+        href: el.getAttribute('href') || '',
+        text: (el.innerText || '').trim().slice(0, 40),
+      }));
+      const into = links.filter((l) => /^\\/(app|signin)/.test(l.href) || /signin|anmeld|login|register|start|app/i.test(l.text));
+      return { total: links.length, intos: into, hrefs: [...new Set(links.map((l) => l.href))].slice(0, 20) };
+    `);
+    record('L3 the landing page links into the application or the sign-in form',
+      doorways.intos.some((l) => /^\/(app|signin)/.test(l.href)),
+      doorways.intos.length ? JSON.stringify(doorways.intos) : `${doorways.total} links/buttons, none to /app or /signin: ${JSON.stringify(doorways.hrefs)}`);
+
+    // L4 — a signed-out browser asking for the app is sent to a real sign-in form.
+    mark = cdp.events.length;
+    await nav(cdp, `${base}/app/`);
+    await softWait(cdp, "location.pathname === '/signin'", 15000, 'redirect to /signin');
+    const signinView = await cdp.evaluate(`
+      const form = document.getElementById('form-signin');
+      const email = document.getElementById('si-email');
+      const pass = document.getElementById('si-password');
+      const signup = document.getElementById('form-signup');
+      const box = (el) => (el ? el.getBoundingClientRect() : null);
+      const r = box(signup);
+      return {
+        path: location.pathname,
+        formShown: form ? !form.hidden : false,
+        emailShown: email ? email.getBoundingClientRect().height > 0 : false,
+        passType: pass ? pass.type : null,
+        head: (document.querySelector('h2')?.innerText || '').trim(),
+        // hidden= must actually HIDE. The pinned .stack{display:grid} used to beat it, which showed
+        // both forms at once and made the tabs decorative.
+        signupVisible: Boolean(r && r.height > 0 && r.width > 0),
+        visibleFields: [...document.querySelectorAll('input')].filter((i) => i.getBoundingClientRect().height > 0).length,
+        errStyled: (() => {
+          const e = document.getElementById('error');
+          if (!e) return null;
+          const cs = getComputedStyle(e);
+          return { color: cs.color, padding: cs.paddingTop, background: cs.backgroundColor };
+        })(),
+      };
+    `);
+    await shot(cdp, '03-signin-desktop-light');
+    record('L4 a signed-out browser at /app/ lands on a real sign-in form',
+      signinView.path === '/signin' && signinView.formShown && signinView.emailShown && signinView.passType === 'password',
+      JSON.stringify(signinView));
+    record('L4b the sign-in page shows ONE form: `hidden` beats the design system\'s `display:grid`',
+      signinView.signupVisible === false && signinView.visibleFields === 2,
+      `signup visible=${signinView.signupVisible}; ${signinView.visibleFields} visible input(s)`);
+    record('L4c the alert area is styled as an alert, not as body text',
+      Boolean(signinView.errStyled) && signinView.errStyled.padding !== '0px' && signinView.errStyled.color !== 'rgb(36, 35, 32)',
+      JSON.stringify(signinView.errStyled));
+
+    // The tabs must actually switch which form is shown.
+    await clickSel(cdp, '#tab-signup');
+    await sleep(250);
+    const tabbed = await cdp.evaluate(`
+      const shown = (id) => { const r = document.getElementById(id).getBoundingClientRect(); return r.height > 0; };
+      return { signin: shown('form-signin'), signup: shown('form-signup') };
+    `);
+    record('L4d the Anmelden/Registrieren tabs switch the visible form',
+      tabbed.signin === false && tabbed.signup === true, JSON.stringify(tabbed));
+
+    // L5/L6 — register THROUGH THE FORM, then see where the learner actually ends up.
+    await clickSel(cdp, '#tab-signup');
+    const filled = await setInputs(cdp, { 'su-name': SYNTHETIC.name, 'su-email': email, 'su-password': SYNTHETIC.password });
+    record('L5 the registration form accepts input', filled === 'ok', filled);
+    await clickSel(cdp, '#su-submit');
+    await sleep(1500);
+    await softWait(cdp, "location.pathname !== '/signin'", 15000, 'leaving the sign-in page');
+    const afterSignup = await cdp.evaluate(`
+      return {
+        path: location.pathname,
+        err: (document.getElementById('error')?.innerText || '').trim(),
+        title: document.title,
+        shell: Boolean(document.querySelector('.side .nav')) || document.body.innerText.includes('Know the exam'),
+      };
+    `);
+    await shot(cdp, '04-after-signup-desktop-light');
+    record('L6 registering lands the learner INSIDE the app, not back on the marketing page',
+      afterSignup.path.startsWith('/app'),
+      `ended on ${afterSignup.path} "${afterSignup.title}"${afterSignup.err ? ` err="${afterSignup.err}"` : ''}`);
+    record('L6b the page the learner lands on is the application shell, not the brand site',
+      afterSignup.shell === true, `shell markup present=${afterSignup.shell}`);
+
+    // L7 — the app boots: Heute is the first view, and it is filled from the server.
+    mark = cdp.events.length;
+    await nav(cdp, `${base}/app/`);
+    await softWait(cdp, "document.querySelector('#view-heute') && !document.querySelector('#view-heute').hidden", 15000, 'Heute view');
+    await cdp.waitFor("!document.querySelector('#next-title').innerText.includes('Wird geladen')", 12000, 'the next-task card').catch(() => {});
+    const heute = await cdp.evaluate(`
+      const t = (id) => (document.getElementById(id)?.innerText || '').trim();
+      return {
+        path: location.href,
+        greeting: t('greeting'), nextTitle: t('next-title'), nextDetail: t('next-detail'),
+        nextKicker: t('next-kicker'), crumb: t('crumb-date'), pageTitle: t('page-title'),
+        examPill: t('exam-countdown'), gauge: t('gauge-count'), gaugeFoot: t('gauge-foot'),
+        countdown: t('countdown'), statAnswers: t('stat-answers'),
+        heroBox: (() => { const r = document.querySelector('.hero-next')?.getBoundingClientRect(); return r ? { w: Math.round(r.width), h: Math.round(r.height) } : null; })(),
+      };
+    `);
+    const heuteFile = await shot(cdp, '05-heute-desktop-light');
+    record('L7 Heute renders the server\'s real recommendation (not a placeholder)',
+      Boolean(heute.nextTitle) && !heute.nextTitle.includes('Wird geladen') && heute.heroBox !== null && heute.heroBox.h > 60,
+      `"${heute.nextTitle}" / "${heute.nextDetail}" ${path.basename(heuteFile)}`);
+    record('L8 Heute is the open view and the chrome knows where we are',
+      heute.pageTitle === 'Heute' && heute.crumb.length > 4 && heute.examPill.length > 4,
+      `title="${heute.pageTitle}" crumb="${heute.crumb}" exam="${heute.examPill}"`);
+    const bootErrors = errorsSince(cdp, mark);
+    record('L9 the app boots with no console exception and no unhandled rejection',
+      bootErrors.length === 0, bootErrors[0] || 'clean');
+
+    // L10 — the sidebar identity is the signed-in account.
+    const identity = await cdp.evaluate(`
+      const t = (id) => (document.getElementById(id)?.innerText || '').trim();
+      return { email: t('account-email'), avatar: t('avatar'), settingsEmail: t('account-email-2'), greeting: t('greeting') };
+    `);
+    record('L10 the shell shows the signed-in learner, not a placeholder',
+      identity.email === email && identity.settingsEmail === email && identity.avatar === email[0].toUpperCase(),
+      JSON.stringify(identity));
+    record('L11 no horizontal overflow at 1440px',
+      (await overflow(cdp)).offenderCount === 0, JSON.stringify(await overflow(cdp)));
+
+    /* ------------------------------------------------------- the skill views */
+
+    await clickSel(cdp, '[data-view="lesen"]');
+    await softWait(cdp, "location.hash === '#/lesen'", 8000, 'the Leseverstehen route');
+    await softWait(cdp, "document.querySelector('#skill-lesen .card h3') && !document.querySelector('#skill-lesen').innerText.includes('Wird geladen')", 12000, 'the set list');
+    const lesen = await cdp.evaluate(`
+      const box = document.getElementById('skill-lesen');
+      const cards = [...box.querySelectorAll('.card')];
+      return {
+        shown: !document.getElementById('view-lesen').hidden,
+        pageTitle: (document.getElementById('page-title')?.innerText || '').trim(),
+        count: cards.length,
+        titles: cards.slice(0, 4).map((c) => (c.querySelector('h3')?.innerText || '').trim()),
+        buttons: box.querySelectorAll('button[data-open]').length,
+        current: document.querySelectorAll('[data-view="lesen"][aria-current="page"]').length,
+      };
+    `);
+    await shot(cdp, '06-lesen-desktop-light');
+    record('L12 Leseverstehen lists real sets from the catalogue, from the server',
+      lesen.shown && lesen.pageTitle === 'Leseverstehen' && lesen.buttons >= 3,
+      `${lesen.count} cards, ${lesen.buttons} Üben buttons: ${JSON.stringify(lesen.titles)}`);
+    record('L13 the navigation marks the current view', lesen.current >= 1, `${lesen.current} element(s) with aria-current=page`);
+    // Nine seeded sets carry a generated placeholder title (`LV3 1`, `SB1 2`) because the corpus has no
+    // authored one. A learner must not be shown a database convenience as the name of their task.
+    record('L13b no set is titled with a seed placeholder',
+      !lesen.titles.some((t) => /^(LV|SB|HV)\d+\s+\d+$/.test(t.trim())),
+      JSON.stringify(lesen.titles));
+
+    // The DOM must agree with the API, not merely be non-empty.
+    const cookie = await browserCookie(cdp);
+    const apiSets = await apiGet(cookie, '/api/v1/objective-sets');
+    const apiLv = (Array.isArray(apiSets.body) ? apiSets.body : []).filter((s) => s.section === 'LV');
+    record('L14 the rendered list is the API\'s own list (endpoint vs screen)',
+      apiLv.length > 0 && lesen.titles.includes(apiLv[0].title),
+      `API LV[0]="${apiLv[0]?.title}" screen=${JSON.stringify(lesen.titles.slice(0, 2))}`);
+
+    /* --------------------------------------------------- open a set and answer */
+
+    mark = cdp.events.length;
+    const clickedOpen = await clickSel(cdp, '#skill-lesen button[data-open]');
+    const openedForm = await softWait(cdp, "document.querySelector('#practice-items [data-item]')", 15000, 'the practice form');
+    const form = await cdp.evaluate(`
+      const box = document.querySelector('.view:not([hidden]) .skill-practice');
+      if (!box) return { missing: true, pageError: (document.getElementById('error')?.innerText || '').trim() };
+      const items = [...box.querySelectorAll('[data-item]')];
+      return {
+        hidden: box.hidden,
+        items: items.length,
+        choices: items.length ? items[0].querySelectorAll('button[data-answer]').length : 0,
+        firstPrompt: (items[0]?.querySelector('p:not(.kicker)')?.innerText || '').trim().slice(0, 90),
+        passage: (box.querySelector('section.card p')?.innerText || '').trim().slice(0, 60),
+        pageError: (document.getElementById('error')?.innerText || '').trim(),
+      };
+    `);
+    await shot(cdp, '07-set-open-desktop-light');
+    record('L15 opening a set renders a real task form (passage + items + lettered choices)',
+      clickedOpen && openedForm && form.hidden === false && form.items >= 1 && form.choices >= 2,
+      `click handled=${clickedOpen}; ${form.items ?? 0} items, first has ${form.choices ?? 0} choices`
+        + `; prompt "${form.firstPrompt || ''}"${form.pageError ? `; error on screen: "${form.pageError}"` : ''}`);
+
+    /*
+     * THE ASSERTION THE FIRST VERSION WAS MISSING.
+     *
+     * L15 passed while the task was invisible: the form was rendered after nine cards, below the
+     * fold, so "Üben" LOOKED like it did nothing. "The elements are present" is not "the learner can
+     * see them" — this leg asks where the form is on the screen, and whether the list moved out of
+     * the way.
+     */
+    const placement = await cdp.evaluate(`
+      const host = document.querySelector('.view:not([hidden]) .skill-practice');
+      const list = document.querySelector('.view:not([hidden]) .stack[id^="skill-"]');
+      const r = host.getBoundingClientRect();
+      return {
+        top: Math.round(r.top), height: Math.round(r.height),
+        inViewport: r.top >= -4 && r.top < window.innerHeight * 0.75,
+        listHidden: Boolean(list && list.hidden),
+        listHeight: list ? Math.round(list.getBoundingClientRect().height) : null,
+        scrollY: Math.round(window.scrollY),
+      };
+    `);
+    record('L15b the opened task is ON SCREEN, and the list it came from is out of the way',
+      placement.inViewport === true && placement.listHidden === true,
+      `form top ${placement.top}px of ${844}px viewport; list hidden=${placement.listHidden} (height ${placement.listHeight})`);
+
+    // Answer the first item's choices in turn until the SERVER says "Richtig." — which also exercises
+    // the mistakes path, because every wrong answer must be recorded. The loop runs out here in Node
+    // because `cdp.evaluate` does not admit `await` inside the page (it is not an async function).
+    const choices = await cdp.evaluate(`
+      return [...document.querySelectorAll('#practice-items [data-item] button[data-answer]')].map((b) => b.dataset.answer);
+    `);
+    const seen = [];
+    let verdict = '';
+    for (const choice of choices) {
+      await cdp.evaluate(`
+        const b = document.querySelector('#practice-items [data-item] button[data-answer=${JSON.stringify(choice)}]');
+        if (!b) return false;
+        b.click();
+        return true;
+      `);
+      await cdp.waitFor("document.querySelector('#practice-items [data-item] .result').innerText.indexOf('Wird gepr') === -1", 10000, 'the server verdict').catch(() => {});
+      verdict = await cdp.evaluate("return document.querySelector('#practice-items [data-item] .result').innerText.trim()");
+      seen.push(`${choice}:${verdict}`);
+      if (verdict === 'Richtig.') break;
+    }
+    const answerRun = await cdp.evaluate(`
+      const item = document.querySelector('#practice-items [data-item]');
+      return { pressed: item.querySelectorAll('[aria-pressed="true"]').length };
+    `);
+    await shot(cdp, '08-answered-desktop-light');
+    record('L16 an answer is marked by the server and the verdict is shown on screen',
+      /^(Richtig\.|Noch nicht richtig)/.test(verdict) && answerRun.pressed >= 1 && seen.length >= 1,
+      `${JSON.stringify(seen)}`);
+    const answerErrors = errorsSince(cdp, mark);
+    record('L17 answering produces no console exception', answerErrors.length === 0, answerErrors[0] || 'clean');
+
+    /*
+     * Leave ONE mistake deliberately open, so the badge legs have something true to show. The badge is
+     * a promise that the number is real, and the promise is only testable when the number is not zero.
+     */
+    const correctChoice = (seen.find((s) => s.endsWith(':Richtig.')) || '').split(':')[0];
+    const wrongChoice = choices.find((c) => c !== correctChoice);
+    if (wrongChoice) {
+      await cdp.evaluate(`
+        const b = document.querySelector('#practice-items [data-item] button[data-answer=${JSON.stringify(wrongChoice)}]');
+        if (b) b.click();
+        return true;
+      `);
+      await softWait(cdp, "document.querySelector('#practice-items [data-item] .result').innerText.indexOf('Wird gepr') === -1", 10000, 'the second verdict');
+      await sleep(400);
+    }
+    const badges = await cdp.evaluate(`
+      const read = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { text: el.innerText.trim(), hidden: el.hidden, width: Math.round(r.width), background: getComputedStyle(el).backgroundColor };
+      };
+      return { side: read('mistake-count'), tab: read('mistake-count-tab') };
+    `);
+    record('L17b BOTH mistakes badges exist, are distinct ids, and show the same number',
+      Boolean(badges.side) && Boolean(badges.tab) && badges.side.text === badges.tab.text && badges.side.hidden === false,
+      JSON.stringify(badges));
+    record('L17c the phone badge is styled as a badge, not as bare text',
+      Boolean(badges.tab) && badges.tab.background !== 'rgba(0, 0, 0, 0)', JSON.stringify(badges.tab));
+
+    /* ------------------------------------------------------------ mistakes  */
+
+    await clickSel(cdp, '[data-view="fehler"]');
+    await softWait(cdp, "location.hash === '#/fehler'", 8000, 'the Fehler route');
+    await softWait(cdp, "!document.getElementById('mistake-list').innerText.includes('Wird geladen')", 12000, 'the mistakes list');
+    const fehler = await cdp.evaluate(`
+      const badge = document.getElementById('mistake-count');
+      const rows = [...document.querySelectorAll('#mistake-list .list-item')];
+      const list = document.querySelector('#mistake-list .list');
+      return {
+        badgeHidden: badge.hidden, badge: badge.innerText.trim(),
+        rows: rows.length,
+        listWrapper: Boolean(list),
+        first: (rows[0]?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 120),
+        empty: document.getElementById('mistake-list').innerText.includes('Nichts offen'),
+        note: (document.getElementById('mistake-note')?.innerText || '').trim().slice(0, 80),
+      };
+    `);
+    await shot(cdp, '09-fehler-desktop-light');
+    const apiMistakes = await apiGet(cookie, '/api/v1/practice/mistakes');
+    const apiCount = Number(apiMistakes.body?.count ?? -1);
+    record('L18 Fehler shows exactly what the server recorded, and its badge agrees',
+      fehler.badgeHidden === (apiCount === 0) && fehler.rows === apiCount,
+      `screen badge=${fehler.badgeHidden ? 'hidden' : fehler.badge} rows=${fehler.rows}; API count=${apiCount}; "${fehler.note}"`);
+    record('L19 a missed item is listed with the LEARNER\'s answer and no correct answer',
+      apiCount === 0 || (fehler.first.length > 0 && !/richtig:/i.test(fehler.first)),
+      fehler.first || 'no mistakes recorded yet');
+    // The design puts the border and radius on `.list`; bare `.list-item` rows render as detached boxes.
+    record('L19b the mistake rows sit inside the design\'s list wrapper',
+      apiCount === 0 || fehler.listWrapper === true,
+      `rows=${fehler.rows} wrapper=${fehler.listWrapper}`);
+
+    /* --------------------------------------------------------- other views  */
+
+    const viewChecks = [
+      ['woerterbuch', '#/woerterbuch', '#dict-results', '10-woerterbuch'],
+      ['nachschlagen', '#/nachschlagen', '#guide-index', '11-nachschlagen'],
+      ['fortschritt', '#/fortschritt', '#view-fortschritt', '12-fortschritt'],
+      ['einstellungen', '#/einstellungen', '#settings-form', '13-einstellungen'],
+    ];
+    for (const [view, hash, selector, name] of viewChecks) {
+      await clickSel(cdp, `[data-view="${view}"]`);
+      await softWait(cdp, `location.hash === '${hash}'`, 8000, hash);
+      await softWait(cdp, `!document.querySelector('${selector}').innerText.includes('Wird geladen')`, 10000, selector);
+      const state = await cdp.evaluate(`
+        const view = document.getElementById('view-${view}');
+        const box = document.querySelector('${selector}');
+        const h = [...view.querySelectorAll('h1,h2,h3')].map((e) => e.innerText.trim()).slice(0, 3);
+        return { shown: !view.hidden, text: box.innerText.trim().slice(0, 160), headings: h, height: Math.round(box.getBoundingClientRect().height) };
+      `);
+      await shot(cdp, `${name}-desktop-light`);
+      record(`L20.${view} the ${view} view renders with content`, state.shown && state.height > 40 && state.text.length > 20,
+        `${state.headings.join(' | ')}`);
+    }
+
+    /*
+     * NACHSCHLAGEN — the index, then one document, then back.
+     *
+     * This is the leg that catches `hidden` losing to the design system's `display:grid`: before the
+     * fix, `#guide-body` was on screen from the moment the view opened, "Öffnen" looked like it
+     * appended a document below the index, and "Zurück" looked like it did nothing.
+     */
+    await clickSel(cdp, '[data-view="nachschlagen"]');
+    await softWait(cdp, "location.hash === '#/nachschlagen'", 8000, 'Nachschlagen');
+    await softWait(cdp, "document.querySelector('#guide-index button[data-guide]')", 12000, 'the guide index');
+    const guidesBefore = await cdp.evaluate(`
+      const body = document.getElementById('guide-body');
+      const index = document.getElementById('guide-index');
+      const h = (el) => Math.round(el.getBoundingClientRect().height);
+      return { bodyHidden: body.hidden, bodyHeight: h(body), indexHidden: index.hidden, indexHeight: h(index) };
+    `);
+    await clickSel(cdp, '#guide-index button[data-guide]');
+    await softWait(cdp, "document.querySelector('#guide-body .card h3') && !document.querySelector('#guide-body').innerText.includes('Wird geladen')", 12000, 'the guide document');
+    const guidesAfter = await cdp.evaluate(`
+      const body = document.getElementById('guide-body');
+      const index = document.getElementById('guide-index');
+      const h = (el) => Math.round(el.getBoundingClientRect().height);
+      return { bodyHidden: body.hidden, bodyHeight: h(body), indexHidden: index.hidden, indexHeight: h(index),
+        sections: body.querySelectorAll('.card').length, back: Boolean(document.getElementById('guide-back')) };
+    `);
+    await shot(cdp, '11b-guide-open-desktop-light');
+    record('L20b one guide opens at a time: the body is hidden until it has something to show',
+      guidesBefore.bodyHidden === true && guidesBefore.bodyHeight === 0 && guidesBefore.indexHeight > 0
+        && guidesAfter.bodyHeight > 0 && guidesAfter.sections > 0 && guidesAfter.back,
+      `before ${JSON.stringify(guidesBefore)} -> after ${JSON.stringify(guidesAfter)}`);
+    record('L20c opening a guide hides the index (the design\'s one-document view)',
+      guidesAfter.indexHidden === true && guidesAfter.indexHeight === 0,
+      `index hidden=${guidesAfter.indexHidden} height=${guidesAfter.indexHeight}`);
+    await clickSel(cdp, '#guide-back');
+    await sleep(300);
+    const guidesBack = await cdp.evaluate(`
+      const h = (id) => Math.round(document.getElementById(id).getBoundingClientRect().height);
+      return { body: h('guide-body'), index: h('guide-index') };
+    `);
+    record('L20d Zurück brings the index back and removes the document',
+      guidesBack.index > 0 && guidesBack.body === 0, JSON.stringify(guidesBack));
+
+    /* --------------------------------------------------- the design components */
+
+    await clickSel(cdp, '[data-view="heute"]');
+    await softWait(cdp, "location.hash === '#/heute'", 8000, 'Heute');
+    const components = await cdp.evaluate(`
+      const stats = [...document.querySelectorAll('#view-heute .stat-row .stat')];
+      const tops = new Set(stats.map((s) => Math.round(s.getBoundingClientRect().top)));
+      const gauge = document.querySelector('#view-heute .gauge .bar');
+      return {
+        statCount: stats.length,
+        statRows: tops.size,
+        statRowClass: Boolean(document.querySelector('#view-heute .stat-row')),
+        // The design's pass-line/band markers must NOT be present: no pass prediction.
+        band: Boolean(document.querySelector('.bar.band, .bar s')),
+        warn: Boolean(document.querySelector('.mini.warn')),
+        heroKicker: (document.getElementById('next-kicker')?.innerText || '').trim(),
+      };
+    `);
+    record('L20e the answer tiles use the design\'s stat row (side by side, not stacked)',
+      components.statRowClass && components.statCount === 2 && components.statRows === 1,
+      JSON.stringify(components));
+    record('L20f nothing renders a pass line, a band or a warn threshold',
+      components.band === false && components.warn === false, JSON.stringify(components));
+    record('L20g the section chip is German, not the database code',
+      !/\\b(LV|SB|HV)\\b/.test(components.heroKicker), `kicker="${components.heroKicker}"`);
+
+    /* --------------------------------------------------------------- mobile */
+
+    await viewport(cdp, 390, 844, true);
+    mark = cdp.events.length;
+    await nav(cdp, `${base}/app/`);
+    await softWait(cdp, "document.querySelector('#view-heute') && !document.querySelector('#view-heute').hidden", 15000, 'Heute on mobile');
+    await sleep(600);
+    const mobile = await cdp.evaluate(`
+      const side = document.querySelector('.side');
+      const tabbar = document.querySelector('.tabbar');
+      const links = [...tabbar.querySelectorAll('a')];
+      const rows = new Set(links.map((a) => Math.round(a.getBoundingClientRect().top)));
+      const tb = tabbar.getBoundingClientRect();
+      const style = getComputedStyle(tabbar);
+      const content = document.querySelector('.content').getBoundingClientRect();
+      const badge = document.getElementById('mistake-count-tab');
+      return {
+        sideShown: side.getBoundingClientRect().width > 0,
+        tabbarShown: style.display !== 'none' && tb.height > 0,
+        tabbarHeight: Math.round(tb.height),
+        tabbarLinks: links.length,
+        tabbarRows: rows.size,
+        display: style.display,
+        scrollable: style.overflowX === 'auto' || style.overflowX === 'scroll',
+        scrollWidth: Math.round(tabbar.scrollWidth),
+        clientWidth: Math.round(tabbar.clientWidth),
+        // A fixed bar must not sit on top of the content it is meant to leave room for.
+        contentBottom: Math.round(content.bottom + window.scrollY),
+        barTop: Math.round(tb.top + window.scrollY),
+        // Every tab needs a real tap target and a label that is not clipped away.
+        minTapHeight: Math.min(...links.map((a) => Math.round(a.getBoundingClientRect().height))),
+        clippedLabels: links.filter((a) => a.scrollWidth > a.clientWidth + 1).map((a) => a.innerText.trim()),
+        badgeHeight: badge ? Math.round(badge.getBoundingClientRect().height) : null,
+        hrefs: links.map((a) => a.getAttribute('href')),
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+        viewport: window.innerWidth + 'x' + window.innerHeight,
+      };
+    `);
+    await shot(cdp, '14-heute-mobile-light');
+    record('L21 on a phone the sidebar is replaced by the bottom tabbar',
+      mobile.sideShown === false && mobile.tabbarShown === true, JSON.stringify(mobile));
+    record('L22 the phone tabbar is ONE row that carries every destination without clipping',
+      mobile.tabbarRows === 1 && mobile.tabbarHeight <= 80 && mobile.tabbarLinks === 10
+        && new Set(mobile.hrefs).size === 10 && mobile.clippedLabels.length === 0,
+      `${mobile.tabbarLinks} links in ${mobile.tabbarRows} row(s), ${mobile.tabbarHeight}px tall, ${mobile.display}`
+        + `${mobile.scrollable ? ' scrollable' : ''} (${mobile.scrollWidth}/${mobile.clientWidth}px); `
+        + `min tap height ${mobile.minTapHeight}px; clipped labels ${JSON.stringify(mobile.clippedLabels)}`);
+    /*
+     * A FIXED bar always sits "inside" the content's document box, so comparing the two document
+     * rectangles proves nothing (the first version of this leg did exactly that and failed on a
+     * correct layout). What matters is whether the END of the content can be reached: scroll to the
+     * bottom and check that the last visible block stops above the bar.
+     */
+    await cdp.evaluate('window.scrollTo(0, document.body.scrollHeight); return true;');
+    await sleep(400);
+    const barOverlap = await cdp.evaluate(`
+      const bar = document.querySelector('.tabbar').getBoundingClientRect();
+      const kids = [...document.querySelector('.content').children].filter((el) => el.getBoundingClientRect().height > 0);
+      const last = kids[kids.length - 1];
+      const box = last ? last.getBoundingClientRect() : null;
+      return {
+        barTop: Math.round(bar.top), barHeight: Math.round(bar.height),
+        lastBlock: last ? (last.id || last.getAttribute('class') || last.tagName) : null,
+        lastBottom: box ? Math.round(box.bottom) : null,
+        scrolledToEnd: Math.abs(window.scrollY + window.innerHeight - document.documentElement.scrollHeight) < 4,
+      };
+    `);
+    record('L22b the end of the content is not hidden behind the fixed bar',
+      barOverlap.lastBottom !== null && barOverlap.lastBottom <= barOverlap.barTop,
+      `last block ${barOverlap.lastBlock} ends at ${barOverlap.lastBottom}px, bar starts at ${barOverlap.barTop}px (${barOverlap.barHeight}px tall)`);
+    record('L22c the mistakes badge is visible in the phone tabbar when the count is not zero',
+      mobile.badgeHeight !== null && mobile.badgeHeight > 0,
+      `badge height ${mobile.badgeHeight}px (the sidebar, which carries the other badge, is hidden at this width)`);
+    const mobileOverflow = await overflow(cdp);
+    record('L23 no horizontal overflow at 390px', mobileOverflow.offenderCount === 0 && mobileOverflow.scrollWidth <= mobileOverflow.innerWidth + 1,
+      JSON.stringify(mobileOverflow));
+
+    await clickSel(cdp, '.tabbar [data-view="lesen"]');
+    await softWait(cdp, "location.hash === '#/lesen'", 8000, 'mobile Leseverstehen');
+    await sleep(900);
+    await shot(cdp, '15-lesen-mobile-light');
+    const mobileLesen = await overflow(cdp);
+    record('L24 the Leseverstehen list does not overflow a phone screen', mobileLesen.offenderCount === 0, JSON.stringify(mobileLesen));
+
+    await clickSel(cdp, '.tabbar [data-view="fehler"]');
+    await softWait(cdp, "location.hash === '#/fehler'", 8000, 'mobile Fehler');
+    await sleep(900);
+    await shot(cdp, '16-fehler-mobile-light');
+    const mobileErrors = errorsSince(cdp, mark);
+    record('L25 the mobile walk raises no console exception', mobileErrors.length === 0, mobileErrors[0] || 'clean');
+
+    /* ----------------------------------------------------------- dark mode  */
+
+    await theme(cdp, 'dark');
+    await sleep(400);
+    const dark = await cdp.evaluate(`
+      const body = getComputedStyle(document.body);
+      const card = document.querySelector('.card');
+      const text = card ? getComputedStyle(card).color : null;
+      return { bg: body.backgroundColor, color: body.color, cardColor: text };
+    `);
+    await shot(cdp, '17-heute-mobile-dark');
+    await viewport(cdp, 1440, 900, false);
+    await clickSel(cdp, '[data-view="heute"]');
+    await sleep(700);
+    const darkDesktop = await cdp.evaluate(`
+      const body = getComputedStyle(document.body);
+      return { bg: body.backgroundColor, color: body.color, canvas: getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim() };
+    `);
+    await shot(cdp, '18-heute-desktop-dark');
+    await theme(cdp, 'light');
+    record('L26 dark mode is a real theme, not the light one relabelled',
+      dark.bg !== 'rgb(255, 255, 255)' && dark.bg !== 'rgba(0, 0, 0, 0)' && darkDesktop.bg !== 'rgb(255, 255, 255)',
+      `mobile bg=${dark.bg} color=${dark.color}; desktop bg=${darkDesktop.bg}`);
+
+    /* --------------------------------------------------------- legibility   */
+
+    const a11y = await cdp.evaluate(`
+      const ids = {};
+      const dupes = [];
+      for (const el of document.querySelectorAll('[id]')) {
+        if (ids[el.id]) dupes.push(el.id);
+        ids[el.id] = true;
+      }
+      const unlabelled = [...document.querySelectorAll('input:not([type=hidden]), select, textarea')]
+        .filter((el) => !el.labels || el.labels.length === 0)
+        .map((el) => el.id || el.name || el.tagName);
+      const noAlt = [...document.querySelectorAll('img')].filter((img) => !img.hasAttribute('alt')).map((img) => img.getAttribute('src'));
+      const tiny = [...document.querySelectorAll('p, span, a, button, label, li')]
+        .filter((el) => el.innerText && el.innerText.trim().length > 3 && el.getBoundingClientRect().height > 0)
+        .map((el) => parseFloat(getComputedStyle(el).fontSize))
+        .filter((px) => px < 11).length;
+      return { dupes: [...new Set(dupes)], unlabelled, noAlt, tinyText: tiny };
+    `);
+    record('L27 no duplicate element ids in the rendered document', a11y.dupes.length === 0, JSON.stringify(a11y.dupes));
+    record('L28 every input has a label and every image has alt text',
+      a11y.unlabelled.length === 0 && a11y.noAlt.length === 0,
+      `unlabelled=${JSON.stringify(a11y.unlabelled)} noAlt=${JSON.stringify(a11y.noAlt)}`);
+    record('L29 no visible text below 11px', a11y.tinyText === 0, `${a11y.tinyText} element(s)`);
+
+    note('screenshots', SHOTS);
+    note('device honesty', 'headless Chromium on desktop is not iPhone Safari or Android Chrome; the real-device gate stays open');
+    void landingText;
+  } finally {
+    if (cdp) { try { cdp.ws.close(); } catch { /* ignore */ } }
+    if (browser) await browser.cleanup();
+    if (started && !KEEP) {
+      try {
+        compose(['down', '-v', '--remove-orphans']);
+        console.log(`Removed disposable project ${project}`);
+      } catch (err) {
+        console.log(`WARNING: could not remove ${project}: ${err.message}`);
+      }
+    } else if (started) {
+      console.log(`Kept ${project} running on ${base} (--keep)`);
+    }
+    try {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const failed = results.filter((r) => !r.ok);
+  console.log(`\n${results.length - failed.length} passed, ${failed.length} failed, ${results.length} legs`);
+  if (failed.length) {
+    console.log('\nFAILED:');
+    for (const f of failed) console.log(`  - ${f.name}: ${f.detail}`);
+  }
+  process.exit(failed.length ? 1 : 0);
+}
+
+main().catch((err) => {
+  console.error(`\nAPP-BROWSER-01 could not complete: ${err.stack || err.message}`);
+  process.exit(2);
+});

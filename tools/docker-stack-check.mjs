@@ -92,12 +92,31 @@ try{
   compose(['run','--rm','--no-deps','migrate']);
   assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.hatoove_migrations']).trim(),String(migrationCount));
   passed('re-running migrations leaves the ledger at '+migrationCount+' entries');
-  // `/` IS THE PUBLIC LANDING PAGE (Ron, 2 October 2026: "index.html should be the landing page").
-  // It carries no learner data and reads none, so it is public for the same reason `/signin` is.
-  const landing = await request('GET','/');
-  assert.equal(landing.status,200,'/ must serve the public landing page, got '+landing.status);
-  assert.ok(landing.text.includes('Know the exam'),'/ must actually BE the landing page');
-  assert.ok(!/\/api\/|objective_key/.test(landing.text),'the landing page must carry no API path or learner data');
+  // `/` IS THE PUBLIC FRONT DOOR (Ron, 2 October 2026: "index.html should be the landing page",
+  // and "we need landing/index or just index" → just index).
+  //
+  // It is served AT `/`, from the root of `public/`: the brand site's asset URLs are relative
+  // (`site.css`, `site.js`, `assets/…`), so under a `landing/` subdirectory they resolved to
+  // `/styles.css` (401, auth-gated), `/app.js` (401) and `/assets/hatoove-logo.svg` (404) and the
+  // front page rendered as unstyled HTML with broken images. At the root every relative URL resolves
+  // to its own file. tools/app-browser-check.mjs renders it and fails on any refused request.
+  const landing = await request('GET', '/');
+  assert.equal(landing.status, 200, '/ must serve the public landing page, got ' + landing.status);
+  assert.ok(landing.text.includes('Know the exam'), '/ must actually BE the landing page');
+  assert.ok(!/\/api\/|objective_key/.test(landing.text), 'the landing page must carry no API path or learner data');
+  // The assets the page itself asks for, at the paths its relative URLs resolve to.
+  for (const asset of ['site.css', 'site.js', 'assets/hatoove-logo.svg', 'assets/source-sans-3.woff2', 'favicon.ico']) {
+    const res = await request('GET', '/' + asset);
+    assert.equal(res.status, 200, '/' + asset + ' must be served to the landing page, got ' + res.status);
+  }
+  // The retired SPA's page is gone from the root: the landing page is not a different product's name.
+  assert.ok(!/Certa/i.test(landing.text), 'the front page must not carry the retired product name');
+  // `/landing/` is not a second copy of the front door. It is REFUSED before resolution like every
+  // other non-public path (401, deliberately: a refusal must not reveal whether a gated file exists),
+  // so the assertion is "not served", not a particular status.
+  const oldLanding = await request('GET', '/landing/');
+  assert.notEqual(oldLanding.status, 200, '/landing/ must not be a second front door, got ' + oldLanding.status);
+  assert.ok(!oldLanding.text.includes('Know the exam'), '/landing/ must not serve the brand site');
   // The APP is still gated, and it is now at /app/ rather than /.
   assert.equal((await request('GET','/app/')).status,401);
   const credentials={name:'Docker check',email:project+'@example.invalid',password:'Synthetic-password-2026'};
@@ -149,7 +168,7 @@ try{
   // is reachable without a special client. It must refuse, and 200 here means the leak is back.
   const traversals=[
     '/assets/design/..%2f..%2f..%2fdata%2fseed.json',
-    '/assets/design/..%2f..%2findex.html',
+    '/assets/design/..%2f..%2fstyles.css',
     '/assets/design/..%2f..%2fapp%2fapp.js',
     '/assets/design/%2e%2e/%2e%2e/data/seed.json',
     '/data%2fseed.json',
@@ -158,6 +177,19 @@ try{
     const res=await fetch(base+p,{redirect:'manual',signal:AbortSignal.timeout(10000)});
     assert.ok([401,403,404].includes(res.status),'encoded traversal '+p+' must be refused, got '+res.status);
   }
+  // A traversal that resolves to a file which is PUBLIC BY DECISION is not a bypass — it must answer
+  // exactly what that file answers directly and carry nothing extra. `/index.html` became public when
+  // the landing page moved to the root, so the invariant is asserted instead of a refusal: the leg
+  // would otherwise have been deleted the moment it stopped failing, which is how a security check
+  // quietly disappears.
+  const viaTraversal=await fetch(base+'/assets/design/..%2f..%2findex.html',{redirect:'manual',signal:AbortSignal.timeout(10000)});
+  const direct=await request('GET','/index.html');
+  assert.equal(viaTraversal.status,direct.status,'an encoded traversal must not out-rank the file it resolves to');
+  const traversalBody=await viaTraversal.text();
+  // Byte for byte the same document, and no more. (A first version of this line grepped the body for
+  // "answer" and failed on the landing page's own marketing copy — the check was wrong, not the code.)
+  assert.equal(traversalBody,direct.text,'an encoded traversal must serve exactly the file it resolves to, byte for byte');
+  assert.ok(!/objective_key|"why"|"correct"/.test(traversalBody),'the traversal must not carry answer-key material');
   passed('encoded path traversal reaches nothing: the gate sees the resolved file, not the URL');
 
   // THE FILE STORE IS RETIRED, not merely gated. Ron, 2 October 2026: "no longer needing files to
@@ -388,9 +420,9 @@ try{
    * important one. Both are asserted now, and the form is fetched to prove the redirect lands
    * somewhere real.
    */
-  // `/app/` is the gated application; `/` is the public landing page and must NOT redirect, or a
-  // visitor to the product's own address would be bounced to a sign-in form without being told what
-  // they are signing in to.
+  // `/app/` is the gated application; `/` is the public front door and must NOT redirect to sign-in,
+  // or a visitor to the product's own address would be bounced to a form without being told what they
+  // are signing in to.
   const nav=await fetch(base+'/app/',{headers:{accept:'text/html,application/xhtml+xml'},redirect:'manual',signal:AbortSignal.timeout(10000)});
   assert.equal(nav.status,302,'a logged-out navigation to the APP must be REDIRECTED, not refused; a 401 shows a browser a blank page');
   assert.ok((nav.headers.get('location')||'').endsWith('/signin'),'the redirect must target /signin, got '+nav.headers.get('location'));
@@ -398,7 +430,7 @@ try{
   assert.equal(signinPage.status,200);
   assert.ok(signinPage.text.includes('id="form-signin"'),'the redirect target must actually serve the sign-in form');
   assert.equal((await request('GET','/app/')).status,401,'a script must still be refused 401 rather than handed HTML');
-  assert.equal((await request('GET','/')).status,200,'the landing page must stay public');
+  assert.equal((await request('GET','/')).status,200,'the front door must stay public');
   passed('a logged-out browser is redirected from the APP to a real sign-in form; the landing page stays public');
 
   // Sign-out must END the session, not merely navigate away from it.

@@ -29,6 +29,32 @@ const LANGUAGE_NAMES = { de: 'Deutsch', en: 'English', uk: 'Українська
  */
 const EXPLANATION_LANGUAGES = ['de', 'en', 'uk', 'ar', 'tr'];
 const RTL_LANGUAGES = ['ar'];
+/**
+ * The exam's own section codes, in the interface's language.
+ *
+ * `item_evidence.section` and the catalogue carry `LV`/`SB`/`HV`/`writing`. Those are identifiers, not
+ * German words, and printing them at a learner puts the database's vocabulary on the screen: measured
+ * on `Heute` ("Als Nächstes · LV") and in the per-section tally. MASTER-PLAN §4 rule 6 makes the
+ * interface German, so every place a section reaches the screen goes through this map.
+ */
+const SECTION_NAMES = { LV: 'Leseverstehen', SB: 'Sprachbausteine', HV: 'Hörverstehen', writing: 'Schreiben' };
+const sectionName = (code) => SECTION_NAMES[code] || String(code ?? '');
+
+/**
+ * What to CALL a set on screen.
+ *
+ * Nine of the twenty-four seeded sets carry no authored title, so the seed generator wrote a
+ * placeholder (`LV3 1`, `SB1 2`, …) into `objective_set.title`. A learner must not be shown a
+ * database convenience as if it were the name of their task, so a placeholder becomes the section and
+ * its part instead — true, and readable. The missing authored titles are recorded for Ron: they are
+ * content, and content is not mine to invent.
+ */
+const setLabel = (set) => {
+  const title = String(set?.title ?? '').trim();
+  if (title && !/^(LV|SB|HV)\d+\s+\d+$/.test(title)) return title;
+  const part = set?.part === undefined || set?.part === null ? '' : ` · Teil ${set.part}`;
+  return `${sectionName(set?.section)}${part}`;
+};
 const VIEW_TITLES = {
   heute: 'Heute', ueben: 'Üben', woerterbuch: 'Wörterbuch', nachschlagen: 'Nachschlagen',
   // The design organises practice by SKILL. Each maps to a section the catalogue already carries.
@@ -46,6 +72,16 @@ function showError(message) {
   const box = el('error');
   box.textContent = message || '';
   box.hidden = !message;
+}
+
+/**
+ * Run a promise and SURFACE a failure rather than discarding it.
+ *
+ * `void someAsync()` is a promise whose rejection nobody handles: the learner sees a control that did
+ * nothing and the console sees an exception. Every fire-and-forget call goes through here instead.
+ */
+function guard(promise) {
+  promise.catch((err) => showError('Etwas ist schiefgelaufen: ' + (err && err.message ? err.message : err)));
 }
 
 
@@ -71,7 +107,6 @@ function renderAccount() {
   const email = state.account?.email || '–';
   el('account-email').textContent = email;
   el('account-email-2').textContent = email;
-  el('fact-email').textContent = email;
   el('avatar').textContent = (email[0] || '?').toUpperCase();
   el('greeting').textContent = email.startsWith('–') ? 'Willkommen' : `Willkommen, ${email.split('@')[0]}`;
 }
@@ -84,8 +119,6 @@ function renderSettings() {
   el('examDate').value = examDate;
   el('language').value = EXPLANATION_LANGUAGES.includes(language) ? language : 'de';
 
-  el('fact-exam').textContent = examDate || 'nicht gesetzt';
-  el('fact-language').textContent = LANGUAGE_NAMES[language] || language || '–';
   el('account-exam').textContent = examDate ? `Prüfung am ${examDate}` : 'Kein Prüfungsdatum';
 
   // Arabic is the one explanation language that runs right to left. The shell stays LTR; `dir`
@@ -136,15 +169,15 @@ async function renderTasks() {
   const groups = [];
   if (tasks.length) {
     groups.push('<h3 class="section-head">Schreiben</h3>' + tasks.map((t) => card(
-      t.topic, t.family, t.situation,
-      'Anrede: ' + t.adressat + ' &middot; Register: ' + t.register
-        + ' &middot; Fassung ' + t.version + ' &middot; Prüfstatus: ' + t.review_status,
+      esc(t.topic), esc(t.family), esc(t.situation),
+      'Anrede: ' + esc(t.adressat) + ' &middot; Register: ' + esc(t.register)
+        + ' &middot; Fassung ' + esc(t.version) + ' &middot; Prüfstatus: ' + esc(t.review_status),
     )).join(''));
   }
   if (sets.length) {
     groups.push('<h3 class="section-head">Lesen und Sprachbausteine</h3>' + sets.map((s) => card(
-      s.title, s.family, s.item_count + ' Aufgaben',
-      'Teil ' + s.part + ' &middot; Fassung ' + s.version + ' &middot; Prüfstatus: ' + s.review_status,
+      esc(s.title), esc(s.family), s.item_count + ' Aufgaben',
+      'Teil ' + s.part + ' &middot; Fassung ' + esc(s.version) + ' &middot; Prüfstatus: ' + esc(s.review_status),
     )).join(''));
   }
   if (!groups.length) {
@@ -247,8 +280,8 @@ async function renderPracticeNext() {
     ? 'Dieser Bereich ist noch neu für dich.'
     : (e.attempts ? e.correct + ' von ' + e.attempts + ' richtig (' + Math.round((e.accuracy || 0) * 100) + '%).' : '');
   box.innerHTML = '<div class="card"><div class="card-head"><h3>Deine nächste Aufgabe</h3><span class="chip">'
-    + esc(data.section) + '</span></div>'
-    + '<p><strong>' + esc(data.set.title) + '</strong> &middot; ' + data.set.item_count + ' Aufgaben</p>'
+    + esc(sectionName(data.section)) + '</span></div>'
+    + '<p><strong>' + esc(setLabel(data.set)) + '</strong> &middot; ' + data.set.item_count + ' Aufgaben</p>'
     + (why ? '<p class="muted">' + esc(why) + '</p>' : '')
     + '<p class="small muted">Vom Server gewählt aus deinen bisherigen Antworten &mdash; nicht geraten.</p></div>';
 }
@@ -302,8 +335,8 @@ async function renderDashboard() {
   if (next.ok && next.data && next.data.set) {
     const d = next.data;
     const e = d.evidence || {};
-    el('next-kicker').textContent = 'Als Nächstes · ' + d.section;
-    el('next-title').textContent = d.set.title;
+    el('next-kicker').textContent = 'Als Nächstes · ' + sectionName(d.section);
+    el('next-title').textContent = setLabel(d.set);
     el('next-detail').textContent = d.set.item_count + ' Aufgaben'
       + (d.reason === 'section_not_started'
         ? ' · dieser Bereich ist neu für dich'
@@ -328,7 +361,7 @@ async function renderDashboard() {
   // would smuggle the pass line back in through a colour.
   const sections = (progress.ok && Array.isArray(progress.data.sections)) ? progress.data.sections : [];
   el('parts').innerHTML = sections.length
-    ? sections.map((s) => '<div class="part"><span>' + esc(s.section) + '</span>'
+    ? sections.map((s) => '<div class="part"><span>' + esc(sectionName(s.section)) + '</span>'
       + '<div class="mini"><i style="width:' + pct(s.accuracy) + '"></i></div>'
       + '<b>' + s.correct + ' / ' + s.attempts + '</b></div>').join('')
     : '<p class="small muted">Sobald du Aufgaben beantwortest, erscheint hier deine Bilanz je Bereich.</p>';
@@ -358,7 +391,11 @@ async function renderDashboard() {
  * meaningful.
  */
 async function renderMistakes() {
-  const badge = el('mistake-count');
+  // TWO badges, ONE truth: the sidebar and the phone tabbar each carry the count, and the ids are
+  // distinct. The first version repeated `id="mistake-count"`, so `getElementById` only ever found the
+  // sidebar one: at <=860px the sidebar is `display:none`, and the badge a phone learner needs was the
+  // one that never updated.
+  const badges = [el('mistake-count'), el('mistake-count-tab')].filter(Boolean);
   const box = el('mistake-list');
   const res = await api.practice.mistakes();
   if (!res) return; // a 401 already redirected
@@ -370,7 +407,7 @@ async function renderMistakes() {
   const items = Array.isArray(data.items) ? data.items : [];
   const count = Number.isInteger(data.count) ? data.count : items.length;
 
-  if (badge) {
+  for (const badge of badges) {
     badge.textContent = String(count);
     // A badge reading 0 is noise, and it is also the one number a learner does not need told.
     badge.hidden = count === 0;
@@ -387,10 +424,12 @@ async function renderMistakes() {
       + 'Servers über deine eigenen Antworten, keine leere Seite.</p></div>';
     return;
   }
-  box.innerHTML = items.map((m) => '<div class="list-item"><div><strong>' + esc(m.set_title)
-    + '</strong><span class="sub">Bereich ' + esc(m.section) + ' &middot; Aufgabe ' + esc(m.item_id)
+  // The design's `.list` carries the border and the radius, and only `.list-item:first-child` drops its
+  // top border; bare `.list-item` rows therefore rendered as detached, separately bordered boxes.
+  box.innerHTML = '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>' + esc(m.set_title)
+    + '</strong><span class="sub">' + esc(setLabel({ title: m.set_title, section: m.section, part: null })) + ' &middot; Aufgabe ' + esc(m.item_id)
     + ' von ' + m.set_item_count + '</span></div>'
-    + '<span class="chip chip-orange">deine Antwort: ' + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('');
+    + '<span class="chip chip-orange">deine Antwort: ' + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('') + '</div>';
 }
 
 
@@ -409,6 +448,14 @@ async function renderSkill(view) {
   const section = SKILL_SECTIONS[view];
   const box = el('skill-' + view);
   if (!box || !section) return;
+  /*
+   * Entering a skill view starts at the LIST, and a set opened earlier is closed. Without this the
+   * practice host kept the previous set on screen while the list re-rendered underneath it, so a
+   * learner who switched skill saw the wrong task above the right catalogue.
+   */
+  const host = practiceHost(box);
+  if (host) { host.hidden = true; host.innerHTML = ''; }
+  box.hidden = false;
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
 
   if (section === 'writing') {
@@ -438,14 +485,14 @@ async function renderSkill(view) {
         + 'Bereich gerade nichts Servierbares.</p></div>';
     return;
   }
-  box.innerHTML = sets.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(s.title)
+  box.innerHTML = sets.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(setLabel(s))
     + '</h3><span class="chip">' + esc(s.family) + '</span></div>'
     + '<p class="muted">' + s.item_count + ' Aufgaben &middot; Teil ' + s.part + '</p>'
     + '<p class="small muted">Prüfstatus: ' + esc(s.review_status) + '</p>'
     + '<button class="btn btn-primary" type="button" data-open="' + esc(s.set_id) + '">Üben</button></div>').join('');
   box.onclick = (event) => {
     const id = event.target?.dataset?.open;
-    if (id) void openSet(id);
+    if (id) guard(openSet(id));
   };
 }
 
@@ -529,7 +576,15 @@ async function answerItem(setId, card, itemId, answer) {
   if (button) button.setAttribute('aria-pressed', String(correct));
   out.textContent = correct ? 'Richtig.' : 'Noch nicht richtig — die Aufgabe bleibt bei deinen Fehlern.';
   // The badge is a promise; refresh it so it stays true after every answer.
-  void renderMistakes();
+  guard(renderMistakes());
+}
+
+/**
+ * The practice host of a skill view — a SIBLING of the list, so `renderSkill`'s innerHTML cannot
+ * delete it, and per-view, so a set opened in Leseverstehen can never render into Schreiben.
+ */
+function practiceHost(box) {
+  return box?.parentElement?.querySelector('.skill-practice') || null;
 }
 
 /** Open one set of the skill currently on screen. */
@@ -540,23 +595,47 @@ async function openSet(setId) {
   // have caught.
   const box = document.querySelector('.view:not([hidden]) .skill-practice');
   if (!box) return;
+  /*
+   * ONE THING AT A TIME, as the design does: the list is REPLACED by the set, not followed by it.
+   *
+   * The form was rendered after the list, so a learner who pressed "Üben" saw nothing happen: the task
+   * was below nine cards, off the bottom of the screen. The DOM was correct and every class-name
+   * assertion passed — the SCREENSHOT is what showed it.
+   */
+  const list = box.parentElement?.querySelector('.stack[id^="skill-"]');
+  if (list) list.hidden = true;
   box.hidden = false;
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  window.scrollTo(0, 0);
   const res = await api.objectiveSets.read(setId);
   if (!res) return;
-  if (!res.ok) { box.innerHTML = ''; showError('Die Aufgaben konnten nicht geladen werden (' + res.status + ').'); return; }
+  if (!res.ok) {
+    box.innerHTML = '';
+    if (list) list.hidden = false;
+    showError('Die Aufgaben konnten nicht geladen werden (' + res.status + ').');
+    return;
+  }
   const set = res.data;
-  box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(set.title)
+  box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(setLabel(set))
     + '</h3><span class="chip">' + esc(set.family) + '</span></div>'
     + '<button class="btn" type="button" id="practice-close">Schließen</button></div>'
     + '<div class="stack" id="practice-items"></div>';
   renderObjectiveForm(set, el('practice-items'));
-  box.addEventListener('click', (event) => {
+  /*
+   * ASSIGNMENT, not addEventListener. `box` is the same element for the whole life of the view, so an
+   * added listener accumulated one per set opened: opening a second set made one answer POST twice,
+   * and the evidence table would record the learner answering once and being charged twice.
+   */
+  box.onclick = (event) => {
     const answer = event.target?.dataset?.answer;
     const card = event.target?.closest('[data-item]');
-    if (answer && card) void answerItem(set.set_id, card, card.dataset.item, answer);
+    if (answer && card) guard(answerItem(set.set_id, card, card.dataset.item, answer));
+  };
+  el('practice-close')?.addEventListener('click', () => {
+    box.hidden = true;
+    box.innerHTML = '';
+    if (list) list.hidden = false;
   });
-  el('practice-close')?.addEventListener('click', () => { box.hidden = true; box.innerHTML = ''; });
 }
 
 function route() {
@@ -565,12 +644,22 @@ function route() {
   for (const name of Object.keys(VIEW_TITLES)) el(`view-${name}`).hidden = name !== view;
   el('page-title').textContent = VIEW_TITLES[view];
   renderChrome();
-  if (view === 'heute') void renderDashboard();
-  if (view === 'ueben') { void renderPracticeNext(); void renderTasks(); }
-  if (SKILL_SECTIONS[view]) void renderSkill(view);
-  if (view === 'fehler') void renderMistakes();
-  if (view === 'woerterbuch') void renderDictionary();
-  if (view === 'nachschlagen') void renderGuides();
+  // A message from the view you just left describes the wrong screen when it stays on the next one.
+  showError('');
+  /*
+   * Every render is a promise that can reject, and `void renderX()` would throw the rejection away:
+   * the view then sits on "Wird geladen …" with an empty console-shaped silence and nothing on screen
+   * explains it. One wrapper, so a failure is always visible where it happened.
+   */
+  const run = (render) => {
+    void render().catch((err) => showError('Die Ansicht konnte nicht geladen werden: ' + (err && err.message ? err.message : err)));
+  };
+  if (view === 'heute') run(renderDashboard);
+  if (view === 'ueben') { run(renderPracticeNext); run(renderTasks); }
+  if (SKILL_SECTIONS[view]) run(() => renderSkill(view));
+  if (view === 'fehler') run(renderMistakes);
+  if (view === 'woerterbuch') run(renderDictionary);
+  if (view === 'nachschlagen') run(renderGuides);
   for (const link of document.querySelectorAll('[data-view]')) {
     if (link.dataset.view === view) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
@@ -663,22 +752,34 @@ window.addEventListener('hashchange', route);
 // ---------------------------------------------------------------- boot
 
 (async () => {
-  // Tag the options before the first settings read, so the language tags and `dir` are never
-  // missing while the request is in flight.
-  applyExplanationDirection();
-  // The session comes through the same API layer as everything else. A 401 here is NOT auto-
-  // redirected by the layer (auth paths are excluded, because sign-in itself returns 401), so the
-  // boot decides for itself.
-  const session = await api.session();
-  if (!session || !session.ok) { location.replace('/signin'); return; }
-  el('dict-q')?.addEventListener('input', () => void renderDictionary());
-  el('dict-mode-vocab')?.addEventListener('click', () => { dictMode = 'vocab'; void renderDictionary(); });
-  el('dict-mode-nouns')?.addEventListener('click', () => { dictMode = 'nouns'; void renderDictionary(); });
-  el('guide-index')?.addEventListener('click', (event) => {
-    const id = event.target?.dataset?.guide;
-    if (id) void openGuide(id);
-  });
-  route();
-  await refresh();
-  void renderMistakes();
+  /*
+   * The whole boot is guarded, and that guard is not decoration. A single missing element id in
+   * `renderAccount()` threw here, which silently skipped `renderSettings()` and the mistakes badge
+   * after it: the screen looked half-alive and nothing said why. Nothing reaches the learner now
+   * except through a message they can read.
+   */
+  try {
+    // Tag the options before the first settings read, so the language tags and `dir` are never
+    // missing while the request is in flight.
+    applyExplanationDirection();
+    // The session comes through the same API layer as everything else. A 401 here is NOT auto-
+    // redirected by the layer (auth paths are excluded, because sign-in itself returns 401), so the
+    // boot decides for itself. NOTE: `get-session` answers 200 with a null body when signed out, so
+    // this guard cannot fire on its own — the static gate on /app/ and the 401 from the first owned
+    // call are what actually refuse an anonymous visitor.
+    const session = await api.session();
+    if (!session || !session.ok) { location.replace('/signin'); return; }
+    el('dict-q')?.addEventListener('input', () => guard(renderDictionary()));
+    el('dict-mode-vocab')?.addEventListener('click', () => { dictMode = 'vocab'; guard(renderDictionary()); });
+    el('dict-mode-nouns')?.addEventListener('click', () => { dictMode = 'nouns'; guard(renderDictionary()); });
+    el('guide-index')?.addEventListener('click', (event) => {
+      const id = event.target?.dataset?.guide;
+      if (id) guard(openGuide(id));
+    });
+    route();
+    await refresh();
+    guard(renderMistakes());
+  } catch (err) {
+    showError('Die Ansicht konnte nicht geladen werden: ' + (err && err.message ? err.message : err));
+  }
 })();

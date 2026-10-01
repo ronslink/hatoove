@@ -32,6 +32,7 @@ const PATHS = Object.freeze({
   nouns: '/api/v1/nouns',
   guides: '/api/v1/guides',
   practiceNext: '/api/v1/practice/next',
+  practiceProgress: '/api/v1/practice/progress',
   practiceMistakes: '/api/v1/practice/mistakes',
 });
 
@@ -40,11 +41,22 @@ const PATHS = Object.freeze({
  * happens here so no view can get it wrong, and callers receive `null` to mean "we are leaving".
  */
 async function call(method, path, body) {
-  const res = await fetch(path, {
-    method,
-    headers: body === undefined ? {} : { 'content-type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(path, {
+      method,
+      headers: body === undefined ? {} : { 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    /*
+     * A transport failure is an ANSWER, not an exception. Without this the promise rejects, no caller
+     * catches it, and the learner is left looking at "Wird geladen …" for ever with no message — the
+     * module's own contract (above) says it returns a result rather than throwing, and this is what
+     * makes that true. `status: 0` means "the request never reached the server".
+     */
+    return { ok: false, status: 0, data: null, error: 'network' };
+  }
   if (res.status === 401 && !path.startsWith('/api/auth/')) {
     location.replace('/signin');
     return null;
@@ -149,6 +161,14 @@ export const api = Object.freeze({
    */
   practice: Object.freeze({
     next: () => call('GET', PATHS.practiceNext),
+    /**
+     * This learner's own totals and per-section tallies, aggregated by the server from item_evidence.
+     *
+     * It was missing from this layer while `renderDashboard()` already called it, which is the exact
+     * class of defect that only a browser finds: `node --check` passes, the endpoint exists, and the
+     * first screen silently stays on "Wird geladen …". Measured by tools/app-browser-check.mjs (L7/L9).
+     */
+    progress: () => call('GET', PATHS.practiceProgress),
     answer: (setId, payload) => call('POST', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}/answers`, payload),
     /**
      * The items whose MOST RECENT answer was wrong. A mistake clears itself when the learner gets the

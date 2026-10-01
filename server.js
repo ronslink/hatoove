@@ -601,25 +601,23 @@ function resolveStatic(decodedPath) {
 const PUBLIC_FILES = Object.freeze([
   path.join(PUBLIC_DIR, 'signin.html'),
   path.join(PUBLIC_DIR, 'favicon.ico'),
+  // THE FRONT DOOR, AT THE ROOT (Ron, 2 October 2026: "we need landing/index or just index" → just
+  // index). These three are the brand site copied from `hatoove-site/dist`; everything else the old
+  // application used to serve from `/` lives at `/app/` and stays behind the session gate.
+  path.join(PUBLIC_DIR, 'index.html'),
+  path.join(PUBLIC_DIR, 'site.css'),
+  path.join(PUBLIC_DIR, 'site.js'),
 ]);
-const PUBLIC_PREFIX = path.join(PUBLIC_DIR, 'assets', 'design') + path.sep;
 /*
- * THE LANDING PAGE IS PUBLIC, and it is the front door.
- *
- * Ron, 2 October 2026: "index.html should be the landing page which we should have". `/` used to
- * serve the AUTHENTICATED shell, so a logged-out visitor to the product's own address was bounced
- * straight to a sign-in form with no idea what they were signing in to. The landing page is the
- * brand site from `hatoove-site/dist`, copied verbatim into `public/landing/` so it stays the
- * deployable artifact.
- *
- * It carries no learner data and reads none, so it is public for the same reason `/signin` is: a
- * front door that requires the key is not a front door.
+ * The whole `assets/` tree is public, and it holds no learner data: `assets/design/**` is the pinned
+ * design system the sign-in page already served publicly, and `assets/<name>` are the landing page's
+ * own images and fonts. The retired SPA's answer keys were never here — they were in `data/**`, which
+ * answers 404 by decision (see below).
  */
-const PUBLIC_PREFIX_LANDING = path.join(PUBLIC_DIR, 'landing') + path.sep;
+const PUBLIC_PREFIX_ASSETS = path.join(PUBLIC_DIR, 'assets') + path.sep;
 
 function isPublicTarget(target) {
-  if (target.startsWith(PUBLIC_PREFIX)) return true;
-  if (target.startsWith(PUBLIC_PREFIX_LANDING)) return true;
+  if (target.startsWith(PUBLIC_PREFIX_ASSETS)) return true;
   return PUBLIC_FILES.includes(target) || PUBLIC_FILES.includes(`${target}.html`);
 }
 
@@ -629,7 +627,7 @@ function isPublicTarget(target) {
  * from "there is nothing there" (404) while both remain refusals.
  */
 async function resolveStaticFile(decodedPath) {
-  let target = resolveStatic(decodedPath === '/' ? '/landing/index.html' : decodedPath);
+  let target = resolveStatic(decodedPath);
   if (!target) return { status: 403 };
   let stat;
   try {
@@ -1300,7 +1298,7 @@ export function createServer({ ownedApi = null } = {}) {
         res.end('Not found');
         return;
       }
-      const resolved = resolveStatic(decodedPath === '/' ? '/landing/index.html' : decodedPath);
+      const resolved = resolveStatic(decodedPath);
       if (!resolved) {
         /*
          * THE DATA FILE STORE IS RETIRED (Ron, 2 October 2026: "no longer needing files to serve
