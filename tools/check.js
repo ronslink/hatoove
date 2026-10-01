@@ -14,7 +14,6 @@ import { generateDrill, OFFLINE_TAGS, vocabDrill, finalizeCard, withVocabDistrac
 import * as engine from '../public/js/engine.js';
 import * as store from '../public/js/store.js';
 import { parseScript, chunkForSpeech, startDictation } from '../public/js/speech.js';
-import { mergeProgress } from '../public/js/progress-merge.js';
 import { analyseSentence } from '../public/js/satzbau.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -762,104 +761,6 @@ check('ability: estimates follow the recorded attempts for every part', () => {
   return true;
 });
 
-/* ------------------------------------------------------- progress merging */
-
-const blank = (extra = {}) => ({
-  updatedAt: 1,
-  counters: {},
-  nodes: {},
-  history: [],
-  errors: [],
-  srs: {},
-  days: {},
-  settings: {},
-  ...extra,
-});
-
-check('merge: a stale save cannot erase newer attempts', () => {
-  // The real incident: a later save carried 356 attempts after one with 424.
-  const newer = blank({ updatedAt: 2000, counters: { attempts: 424, correct: 290 } });
-  const stale = blank({ updatedAt: 1000, counters: { attempts: 356, correct: 237 } });
-  eq(mergeProgress(newer, stale).counters.attempts, 424, 'merge(newer, stale)');
-  eq(mergeProgress(stale, newer).counters.attempts, 424, 'merge(stale, newer) - order must not matter');
-  return true;
-});
-
-check('merge: identical same-millisecond attempts are all kept', () => {
-  // A part's items are logged within one millisecond, so they look identical. Collapsing
-  // them once destroyed real attempts, so this is the regression that matters most.
-  const item = { t: 1789906581184, partId: 'HV1', difficulty: 58, correct: false, source: 'part', ms: 0, tags: ['hv_global'] };
-  const a = blank({ updatedAt: 1, history: [item, item, item, item, item] });
-  const b = blank({ updatedAt: 2, history: [] });
-  eq(mergeProgress(a, b).history.length, 5, 'five distinct questions must survive');
-  eq(mergeProgress(a, a).history.length, 5, 'merging a state with itself must not shrink it');
-  return true;
-});
-
-check('merge: history is a union, not a concatenation', () => {
-  const mk = (t) => ({ t, partId: 'SB1', difficulty: 54, correct: true, source: 'drill', ms: 5 });
-  const a = blank({ updatedAt: 1, history: [mk(1), mk(2), mk(3)] });
-  const b = blank({ updatedAt: 2, history: [mk(3), mk(4)] });
-  eq(mergeProgress(a, b).history.length, 4, 'the shared attempt must not be double counted');
-  return true;
-});
-
-check('merge: history never shrinks for any pair of same-lineage states', () => {
-  const mk = (t) => ({ t, partId: 'LV2', difficulty: 56, correct: t % 2 === 0, source: 'drill', ms: 3 });
-  const small = blank({ history: [mk(1), mk(2)] });
-  const big = blank({ history: [mk(1), mk(2), mk(3), mk(4), mk(5)] });
-  eq(mergeProgress(small, big).history.length, 5, 'superset wins');
-  eq(mergeProgress(big, small).history.length, 5, 'and order still does not matter');
-  return true;
-});
-
-check('merge: ability estimates keep the better-supported node', () => {
-  const a = blank({ updatedAt: 1, nodes: { 'tag:x': { theta: 70, n: 20, correct: 14, last: 5 } } });
-  const b = blank({ updatedAt: 2, nodes: { 'tag:x': { theta: 40, n: 3, correct: 1, last: 9 } } });
-  eq(mergeProgress(a, b).nodes['tag:x'].n, 20, 'more evidence wins');
-  eq(mergeProgress(b, a).nodes['tag:x'].n, 20, 'regardless of order');
-  return true;
-});
-
-check('merge: notebook, srs and daily activity all take the union', () => {
-  const a = blank({
-    updatedAt: 1,
-    errors: [{ id: 'e1', t: 1 }, { id: 'e2', t: 2 }],
-    srs: { card1: { reps: 2, box: 2 }, card2: { reps: 1, box: 1 } },
-    days: { '2026-09-21': { attempts: 10, correct: 6, ms: 100, byPart: { SB1: 10 } } },
-  });
-  const b = blank({
-    updatedAt: 2,
-    errors: [{ id: 'e2', t: 2 }, { id: 'e3', t: 3 }],
-    srs: { card1: { reps: 5, box: 4 } },
-    days: { '2026-09-21': { attempts: 14, correct: 9, ms: 50, byPart: { SB1: 9, LV1: 5 } } },
-  });
-  const m = mergeProgress(a, b);
-  eq(m.errors.length, 3, 'notebook is the union');
-  eq(m.srs.card1.reps, 5, 'the further-along card wins');
-  eq(m.srs.card2.reps, 1, 'and the other card is not dropped');
-  eq(m.days['2026-09-21'].attempts, 14, 'daily totals are monotonic');
-  eq(m.days['2026-09-21'].byPart.LV1, 5, 'per-part totals are merged');
-  return true;
-});
-
-check('merge: the newer settings win, and createdAt is the earlier one', () => {
-  const a = blank({ updatedAt: 10, createdAt: 5, settings: { examDate: '2026-09-26', dailyGoal: 20 } });
-  const b = blank({ updatedAt: 20, createdAt: 7, settings: { dailyGoal: 40 } });
-  const m = mergeProgress(a, b);
-  eq(m.settings.dailyGoal, 40, 'newer setting wins');
-  eq(m.settings.examDate, '2026-09-26', 'but older keys are not lost');
-  eq(m.createdAt, 5, 'the earlier creation time is the true one');
-  eq(m.updatedAt, 20, 'the later update is kept');
-  return true;
-});
-
-check('merge: handles a missing or empty side', () => {
-  const a = blank({ counters: { attempts: 7 } });
-  eq(mergeProgress(a, null), a, 'merging with nothing returns the original');
-  eq(mergeProgress(null, a), a, 'in either order');
-  return true;
-});
 
 /* ------------------------------------------------------ plan completion */
 
@@ -929,20 +830,6 @@ check('plan: day progress counts what is finished', () => {
   return true;
 });
 
-check('merge: a manual tick survives a merge', () => {
-  const day = '2026-09-22';
-  const key = 'review||Fehlerheft';
-  const a = blank({ updatedAt: 1, planDone: { [day]: { [key]: true } } });
-  const b = blank({ updatedAt: 2, planDone: {} });
-  eq(mergeProgress(a, b).planDone[day][key], true, 'tick kept');
-  eq(mergeProgress(b, a).planDone[day][key], true, 'and kept in either order');
-
-  // Two different days must not bleed into each other.
-  const c = blank({ updatedAt: 3, planDone: { '2026-09-23': { other: true } } });
-  const m = mergeProgress(a, c);
-  ok(m.planDone[day][key] && m.planDone['2026-09-23'].other, 'both days survive');
-  return true;
-});
 
 /* -------------------------------------------------------- reference guides */
 

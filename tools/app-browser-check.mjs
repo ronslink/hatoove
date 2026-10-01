@@ -828,6 +828,31 @@ async function main() {
       !ueben.headings.some((t) => /^(LV|SB|HV)\d+\s+\d+$/.test(t)) && !/^(LV|SB|HV)\d+\s+\d+$/.test(ueben.full),
       JSON.stringify(ueben.headings));
 
+    /* ------------------------------------------- no learner state in the browser */
+
+    /*
+     * THE REPLACEMENT VEHICLE for `progress-scope-check`, which tested that the retired FILE blob was
+     * account-scoped and is deleted with the route it drove (see RETIRED-CHECKS.md). In the new
+     * architecture the property to hold is different and stronger: the client keeps NO learner state in
+     * the browser at all, so there is no blob left to scope, to leak between accounts, or to disagree
+     * with the database. Checked here, at the END of the journey, after a registration, a sign-in, an
+     * answered item and several view changes — the point where a caching client would have written
+     * something. `indexedDB` cannot be enumerated synchronously and is NOT inspected; the shell names
+     * no web-storage API at all, which `tools/app-shell-check.mjs` S4 asserts from the source side.
+     */
+    const storage = await cdp.evaluate(`
+      const dump = (store) => {
+        const out = {};
+        for (let i = 0; i < store.length; i++) { const k = store.key(i); out[k] = String(store.getItem(k)).slice(0, 40); }
+        return out;
+      };
+      return { local: dump(localStorage), session: dump(sessionStorage), localCount: localStorage.length, sessionCount: sessionStorage.length };
+    `);
+    await shot(cdp, '19-heute-desktop-light-after-journey');
+    record('L30 the client kept NOTHING in web storage across the whole journey',
+      storage.localCount === 0 && storage.sessionCount === 0,
+      JSON.stringify(storage));
+
     /* --------------------------------------------------- the design components */
 
     await clickSel(cdp, '[data-view="heute"]');

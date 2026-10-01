@@ -14,7 +14,6 @@
 
 import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
-import { mergeProgress, progressEqual } from './public/js/progress-merge.js';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
@@ -27,55 +26,33 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 // yet been migrated into `task_version` (see the file audit), but nothing serves it.
 // .env holds the provider key and the saved settings. B1PREP_ENV_FILE lets the
 // origin/authorization tests write to a throwaway path, so a test run can never touch
-// the learner's real .env (the same idea as B1PREP_PROGRESS_FILE below).
+// the learner's real .env.
 const ENV_PATH = process.env.B1PREP_ENV_FILE
   ? path.resolve(process.env.B1PREP_ENV_FILE)
   : path.join(ROOT, '.env');
-// Learner progress is kept here, on disk, as the durable source of truth. The browser's
-// localStorage is only a fast local cache: it dies with site data, a different browser,
-// or a changed port, which is exactly what you do not want days before an exam.
-// B1PREP_PROGRESS_FILE lets a test instance write somewhere else, so running the test
-// suite can never clobber real progress.
-const PROGRESS_PATH = process.env.B1PREP_PROGRESS_FILE
-  ? path.resolve(process.env.B1PREP_PROGRESS_FILE)
-  : path.join(ROOT, 'progress.json');
-// SEC-05 (finding F-2 race): a monotonic revision, persisted *beside* the progress
-// record. Ordinary POSTs still merge - that protection is deliberate and stays - but a
-// reset has to be able to invalidate a write that left before it. The revision, plus the
-// high-water mark of the last delete (`deletedThrough`), is what a stale write is refused
-// against.
-//
-// It lives in its own file rather than inside progress.json because a full reset deletes
-// progress.json: a revision stored inside the record would be destroyed by exactly the
-// delete it exists to survive. Beside the record it survives the delete and a restart.
-const PROGRESS_REV_PATH = `${PROGRESS_PATH}.rev`;
-// The revision of a server that has never accepted a write or a delete.
-const INITIAL_REV = 0;
-// F-4: account-scoped records. A request may name an account with the header below; its
-// record then lives in its own file beside the legacy one. A request without the header
-// keeps the legacy unscoped path byte-for-byte, which is what a pre-account install still
-// uses. This is attribution/isolation of accounts that share one machine, NOT an
-// authentication boundary - see work/implementation/F4-SCOPE-01.md.
-const ACCOUNT_HEADER = 'x-b1prep-account';
-// An opaque account id. No dots, so it can never collide with the .bak/.tmp/.rev suffixes.
-const ACCOUNT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,63}$/;
-// The unscoped paths: the legacy single-user record.
-const LEGACY_PATHS = Object.freeze({ accountId: null, progress: PROGRESS_PATH, rev: PROGRESS_REV_PATH });
 
-/**
- * Resolve the progress paths for a request. An invalid account token is a 400 rather than
- * a silent fallback, so a malformed scope can never be mistaken for the legacy record.
+/*
+ * THE FILE-BASED PROGRESS STORE IS GONE (2 October 2026), and this comment is the marker.
+ *
+ * It lived here: `PROGRESS_PATH`, a `.rev` marker beside it, an `x-b1prep-account` HEADER as the
+ * account selector, and `/api/progress` GET/POST/DELETE with an atomic write, a one-generation backup
+ * and a revision race guard — about 350 lines. It was attributed by a HEADER rather than a session and
+ * fell back to one SHARED record when the header was absent, which is why hosted mode answered its own
+ * refusal code instead of serving it (the string is deliberately not repeated here:
+ * `tools/retired-surface-check.mjs` fails if it survives anywhere in this file, comment included, so
+ * that a future reader cannot mistake a comment for a live route).
+ * Learner records live in PostgreSQL, owned by the session-derived account, and are served by
+ * `GET /api/v1/practice/progress` and the attempt routes.
+ *
+ * A file store also cannot exist on a platform with an ephemeral filesystem (Ron, 2 October 2026: the
+ * operator's provider key comes from `.env` or from the platform's environment variables), so removing
+ * it is a portability fix as well as a security one.
+ *
+ * `tools/retired-surface-check.mjs` is the negative check that keeps it gone: no handler in this file,
+ * no trace of the hosted refusal code anywhere (including a comment), no progress file opened by a
+ * server run, no `public/js/progress-merge.js`, and no path to it in the shipped client. It needs no
+ * database, no browser and no Docker, so it is a CI step on any runner.
  */
-function accountPaths(req) {
-  const raw = req.headers[ACCOUNT_HEADER];
-  if (raw === undefined) return LEGACY_PATHS;
-  const value = Array.isArray(raw) ? raw[0] : String(raw);
-  const id = value.trim();
-  if (!ACCOUNT_ID_RE.test(id)) {
-    throw Object.assign(new Error('Invalid account scope'), { status: 400, code: 'invalid_account' });
-  }
-  return { accountId: id, progress: `${PROGRESS_PATH}.${id}`, rev: `${PROGRESS_PATH}.${id}.rev` };
-}
 
 /* ------------------------------------------------------- hosted (SaaS) mode */
 
@@ -118,16 +95,6 @@ function configuredPublicOrigin(env = process.env) {
   return url;
 }
 
-/**
- * A1. The legacy progress record is refused in hosted mode. Deliberately a 403 with a code
- * rather than a 404: the route exists in the code and its removal is planned with the
- * persistence migration, so an operator should be able to tell "disabled" from "typo".
- */
-const LEGACY_PROGRESS_REFUSAL = Object.freeze({
-  status: 403,
-  code: 'legacy_progress_disabled',
-  error: 'The file-based progress record is not available on a hosted deployment. Learner progress is served by the account-scoped attempt routes.',
-});
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -443,108 +410,6 @@ function hostMatchesOrigin(configured, hostHeader) {
 /** Tolerates parameters such as "; charset=utf-8", rejects anything else. */
 function hasJsonContentType(req) {
   return /^application\/json\s*(?:;|$)/i.test(String(req.headers['content-type'] || '').trim());
-}
-
-/* --------------------------------------------------------------- progress */
-
-/** Write atomically: a partial write must never destroy a week of study. */
-async function writeProgress(data, paths = LEGACY_PATHS) {
-  const tmp = `${paths.progress}.tmp`;
-  const body = JSON.stringify(data);
-  await fsp.writeFile(tmp, body, 'utf8');
-  try {
-    // Keep one generation back, so a bad save is always recoverable.
-    await fsp.copyFile(paths.progress, `${paths.progress}.bak`);
-  } catch {
-    /* no previous file yet */
-  }
-  await fsp.rename(tmp, paths.progress);
-  return body.length;
-}
-
-/**
- * Replace the stored record without keeping the previous generation.
- *
- * Used by the scoped delete (clearing the error notebook): the learner asked for that
- * text to be gone, and `writeProgress` would copy the record that still contains it to
- * `progress.json.bak`. The write itself stays atomic (temp file + rename), so the rest
- * of the progress is not at risk; only the one-generation backup is dropped, because
- * keeping it would keep exactly the entries the learner deleted.
- */
-async function writeProgressScoped(data, paths = LEGACY_PATHS) {
-  const tmp = `${paths.progress}.tmp`;
-  const body = JSON.stringify(data);
-  await fsp.writeFile(tmp, body, 'utf8');
-  await fsp.rename(tmp, paths.progress);
-  await fsp.rm(`${paths.progress}.bak`, { force: true });
-  return body.length;
-}
-
-/**
- * Read the revision marker. Missing or unreadable means the initial state (revision 0,
- * no delete yet), so a progress.json written before this change keeps working.
- */
-async function readRevision(paths = LEGACY_PATHS) {
-  const whole = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.floor(Number(v))) : 0);
-  try {
-    const parsed = JSON.parse(await fsp.readFile(paths.rev, 'utf8'));
-    return { rev: whole(parsed?.rev), deletedThrough: whole(parsed?.deletedThrough) };
-  } catch {
-    return { rev: INITIAL_REV, deletedThrough: 0 };
-  }
-}
-
-/** Persist the revision marker atomically, so a crash cannot leave it half-written. */
-async function writeRevision(marker, paths = LEGACY_PATHS) {
-  const tmp = `${paths.rev}.tmp`;
-  await fsp.writeFile(tmp, JSON.stringify({ rev: marker.rev, deletedThrough: marker.deletedThrough }), 'utf8');
-  await fsp.rename(tmp, paths.rev);
-}
-
-/**
- * Decide whether an incoming write may be applied.
- *
- * The monotonic merge must stay: a partial write from one tab must never erase newer
- * answers from another, so an ordinary write that is merely behind the current revision
- * is still merged. The one case that must be refused is a write that left *before a
- * delete*: `deletedThrough` is the revision the last delete produced, and a snapshot older
- * than that would restore the record the learner just deleted (the F-2 race).
- *
- * Deliberate choices, so they are not re-litigated by accident:
- *   * Missing `rev` (a lean client that only posts `{state}`): accepted while no delete
- *     has ever happened, so an existing simple client keeps working; refused once a
- *     delete has advanced the revision, because such a write cannot be proven newer than
- *     the delete and silently accepting it would reopen exactly this hole.
- *   * `rev` ahead of the stored one: accepted. It means this server lost its marker (a
- *     restored backup, a copied progress.json), and refusing would discard learner
- *     evidence. It cannot cross a delete, because the comparison is against
- *     `deletedThrough`, not against `rev`.
- */
-function classifyWrite(rawRev, marker) {
-  const hasRev = typeof rawRev === 'number' && Number.isFinite(rawRev);
-  if (!hasRev) {
-    return marker.deletedThrough > 0
-      ? { accept: false, reason: 'missing_revision_after_delete', revision: INITIAL_REV }
-      : { accept: true, revision: INITIAL_REV };
-  }
-  const rev = Math.max(0, Math.floor(rawRev));
-  if (rev < marker.deletedThrough) return { accept: false, reason: 'older_than_delete', revision: rev };
-  return { accept: true, revision: rev };
-}
-
-async function readProgress(paths = LEGACY_PATHS) {
-  for (const p of [paths.progress, `${paths.progress}.bak`]) {
-    try {
-      const raw = await fsp.readFile(p, 'utf8');
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object' && parsed.nodes && typeof parsed.nodes === 'object') {
-        return { found: true, source: p === paths.progress ? 'primary' : 'backup', state: parsed };
-      }
-    } catch {
-      /* try the next candidate */
-    }
-  }
-  return { found: false, source: null, state: null };
 }
 
 /**
@@ -880,158 +745,6 @@ async function handleApi(req, res, pathname, ctx = {}) {
     return true;
   }
 
-  // A1 / HOSTED-BLOCKERS B5. The file-based progress routes are attributed by a caller header,
-  // never authenticated, and a request without the header falls back to a shared record. In the
-  // hosted runtime they are unavailable - refused before any path is resolved, so neither another
-  // account's file nor the shared one can be named, read, written or deleted by an anonymous
-  // caller. (Removal of the routes themselves - with the `x-b1prep-account` selector, the file,
-  // its backups and its revision handling - is SAAS-RETIRE-01; this slice only makes the entry
-  // point fail closed without its account/database configuration, see below.)
-  if (saas && pathname === '/api/progress') {
-    sendJSON(res, LEGACY_PROGRESS_REFUSAL.status, { ok: false, code: LEGACY_PROGRESS_REFUSAL.code, error: LEGACY_PROGRESS_REFUSAL.error });
-    return true;
-  }
-
-  if (pathname === '/api/progress' && method === 'GET') {
-    const paths = accountPaths(req);
-    const { found, source, state } = await readProgress(paths);
-    // A GET only reports the revision; it never advances it, so a client can learn the
-    // value it must send with its next write without disturbing anyone else.
-    const { rev } = await readRevision(paths);
-    sendJSON(
-      res,
-      200,
-      found
-        ? { ok: true, found: true, source, rev, state, accountId: paths.accountId }
-        : { ok: true, found: false, rev, accountId: paths.accountId }
-    );
-    return true;
-  }
-
-  if (pathname === '/api/progress' && method === 'POST') {
-    // Generous limit: history plus the error notebook can legitimately reach a megabyte.
-    const body = await readJSON(req, 16 * 1024 * 1024);
-    const state = body?.state;
-    if (!state || typeof state !== 'object' || !state.nodes || typeof state.nodes !== 'object') {
-      sendJSON(res, 400, { ok: false, error: 'state.nodes is required' });
-      return true;
-    }
-    // SEC-05: refuse a write that left before the last delete. The revision the client
-    // believes it is updating travels with the write; a stale one gets 409 and no write.
-    const paths = accountPaths(req);
-    const marker = await readRevision(paths);
-    const verdict = classifyWrite(body?.rev, marker);
-    if (!verdict.accept) {
-      sendJSON(res, 409, {
-        ok: false,
-        code: 'stale_revision',
-        reason: verdict.reason,
-        error:
-          verdict.reason === 'missing_revision_after_delete'
-            ? 'A reset has happened and this write carries no revision. Re-read /api/progress before saving.'
-            : 'A reset invalidated this write. Re-read /api/progress before saving.',
-        rev: marker.rev,
-        deletedThrough: marker.deletedThrough,
-      });
-      return true;
-    }
-    try {
-      // Merge rather than overwrite. Saves are debounced and can arrive from more than
-      // one tab; a plain overwrite let a tab holding an older snapshot erase newer
-      // answers after the fact. Merging is monotonic, so that cannot happen.
-      const existing = await readProgress(paths);
-      const merged = existing.found ? mergeProgress(existing.state, state) : state;
-      const bytes = await writeProgress(merged, paths);
-      // Every accepted write advances the revision, so a later delete always outranks
-      // every write that left before it. `max` keeps it monotonic even for a client that
-      // somehow arrived with a higher revision than this server has issued.
-      const rev = Math.max(marker.rev, verdict.revision) + 1;
-      await writeRevision({ rev, deletedThrough: marker.deletedThrough }, paths);
-
-      const payload = { ok: true, bytes, savedAt: Date.now(), merged: existing.found, rev };
-      // Only send the state back when the merge actually recovered something the
-      // caller was missing, so ordinary saves stay cheap.
-      if (!progressEqual(state, merged)) payload.state = merged;
-      sendJSON(res, 200, payload);
-    } catch (err) {
-      sendJSON(res, 500, { ok: false, error: `Could not save progress: ${err.message}` });
-    }
-    return true;
-  }
-
-  if (pathname === '/api/progress' && method === 'DELETE') {
-    // SEC-02 fix for finding F-2: a user-visible reset must really delete.
-    // POST keeps merging on purpose (a partial write must never erase a week of study),
-    // so deletion is a separate, explicitly scoped operation. `scope` defaults to 'all'
-    // for the existing reset path. An unrecognised scope is rejected instead of
-    // guessing, so a typo can never delete more (or less) than the caller asked for.
-    let scope = 'all';
-    try {
-      scope = new URL(req.url, 'http://127.0.0.1').searchParams.get('scope') || 'all';
-    } catch {
-      /* unreachable: the pathname was parsed from the same URL */
-    }
-    const paths = accountPaths(req);
-
-    if (scope === 'all') {
-      // SEC-05: leave a tombstone before removing anything. The revision is recorded
-      // *first*, so a crash between the two steps leaves it high (which only costs the
-      // next writer a re-read) rather than low (which would let a pre-delete write
-      // through). Every write that left before this delete is now below `deletedThrough`
-      // and is refused instead of restoring the record.
-      let rev;
-      try {
-        const marker = await readRevision(paths);
-        rev = marker.rev + 1;
-        await writeRevision({ rev, deletedThrough: rev }, paths);
-      } catch (err) {
-        sendJSON(res, 500, { ok: false, error: `Could not record the reset: ${err.message}` });
-        return true;
-      }
-      try {
-        await fsp.rm(paths.progress, { force: true });
-        await fsp.rm(`${paths.progress}.bak`, { force: true });
-        // A leftover temp file from an interrupted write would otherwise be renamed
-        // into place by the next save and resurrect the record.
-        await fsp.rm(`${paths.progress}.tmp`, { force: true });
-      } catch {
-        /* already gone */
-      }
-      sendJSON(res, 200, { ok: true, scope: 'all', deleted: true, rev });
-      return true;
-    }
-
-    if (scope === 'errors') {
-      const existing = await readProgress(paths);
-      // The notebook clear moves the revision too: an in-flight save still carrying the
-      // cleared entries must not merge them back.
-      let rev;
-      try {
-        const marker = await readRevision(paths);
-        rev = marker.rev + 1;
-        await writeRevision({ rev, deletedThrough: rev }, paths);
-      } catch (err) {
-        sendJSON(res, 500, { ok: false, error: `Could not clear the notebook: ${err.message}` });
-        return true;
-      }
-      if (!existing.found) {
-        sendJSON(res, 200, { ok: true, scope: 'errors', existed: false, cleared: 0, rev });
-        return true;
-      }
-      try {
-        await writeProgressScoped({ ...existing.state, errors: [], updatedAt: Date.now() }, paths);
-      } catch (err) {
-        sendJSON(res, 500, { ok: false, error: `Could not clear the notebook: ${err.message}` });
-        return true;
-      }
-      const cleared = Array.isArray(existing.state.errors) ? existing.state.errors.length : 0;
-      sendJSON(res, 200, { ok: true, scope: 'errors', existed: true, cleared, rev });
-      return true;
-    }
-
-    sendJSON(res, 400, { ok: false, code: 'invalid_scope', error: `Unknown delete scope: ${scope}` });
-    return true;
-  }
 
   // CONFIG-ANON-01. The machine-global config route is not served on a hosted runtime.
   //

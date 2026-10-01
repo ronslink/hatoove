@@ -103,10 +103,21 @@ for (const op of gatedOps) {
 }
 
 // The retired surface must be DOCUMENTED, not merely absent: an undocumented retired route is how a
-// route quietly comes back. This asserts the two conventions Ron set are visible in the document.
-for (const required of ['/api/progress', '/api/config', '/api/ai', 'deprecated: true']) {
+// route quietly comes back. This asserts those conventions are visible in the document.
+//
+// `/api/progress` LEFT THIS LIST ON 2 OCTOBER 2026 because it stopped being a retired-but-present route
+// and became an ABSENT one: its handlers, its account header, its revision marker and its file writes
+// are deleted from server.js, and `tools/retired-surface-check.mjs` is the negative check that keeps
+// them gone. Documenting a route that no longer exists is the opposite mistake — a spec that names a
+// route an operator could still call.
+for (const required of ['/api/config', '/api/ai', 'deprecated: true']) {
   if (text.includes(required)) pass(`S-documented ${required}`, 'present in the spec');
   else fail(`S-documented ${required}`, 'missing from the spec: a retired route that is not documented is how it comes back');
+}
+if (text.includes('/api/progress')) {
+  fail('S-documented /api/progress', 'the spec still documents a route that is deleted: remove it, and let retired-surface-check guard its absence');
+} else {
+  pass('S-absent /api/progress', 'not documented, because it no longer exists');
 }
 
 const failed = results.filter((r) => r === 'FAIL').length;

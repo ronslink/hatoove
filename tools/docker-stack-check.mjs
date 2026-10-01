@@ -208,8 +208,10 @@ try{
    *
    * Only liveness is public, because a supervisor or a container healthcheck has no session and must
    * still be able to ask whether the process is alive. Everything else refuses an anonymous caller.
-   * The LEGACY routes are in the list deliberately: /api/progress, /api/config, /api/ai and
-   * /api/ai/test used to answer with no identity at all, and /api/progress even served a file.
+   * The LEGACY routes are in the list deliberately: /api/config, /api/ai and /api/ai/test used to answer
+   * with no identity at all. **`/api/progress` is in the list as a ROUTE THAT NO LONGER EXISTS**: the
+   * gate answers 401 before any handler, so an anonymous caller cannot tell the difference — which is
+   * exactly why the difference is asserted WITH A SESSION, in the leg below.
    */
   for(const p of ['/api/health','/api/ready']){
     const res=await fetch(base+p,{redirect:'manual',signal:AbortSignal.timeout(10000)});
@@ -223,6 +225,26 @@ try{
     assert.equal(res.status,401,m+' '+p+' must be auth-wrapped, got '+res.status);
   }
   passed('every API route is auth-wrapped: only /api/health and /api/ready answer anonymously');
+
+  /*
+   * THE RETIRED FILE STORE IS ABSENT, PROVEN WITH A SESSION.
+   *
+   * This is the leg `tools/retired-surface-check.mjs` cannot write: that check runs with no database, so
+   * every request it makes is refused by the auth wrap before a handler is reached, and "route absent"
+   * is indistinguishable from "route present but refused". Here there is a real account, so a request
+   * that PASSES identity must reach the router and find nothing: 404, with no `legacy_progress_disabled`
+   * and no record served. The 200 that this route answered before the removal is what makes this leg
+   * discriminating — it is the difference between a route that is gone and a route that is merely rude.
+   */
+  for (const [m, p] of [['GET', '/api/progress'], ['POST', '/api/progress'], ['DELETE', '/api/progress?scope=all']]) {
+    const res = await fetch(base + p, { method: m, headers: { origin: base, 'content-type': 'application/json', cookie },
+      body: m === 'POST' ? JSON.stringify({ rev: 1, state: { nodes: {}, history: [] } }) : undefined,
+      redirect: 'manual', signal: AbortSignal.timeout(10000) });
+    assert.equal(res.status, 404, m + ' ' + p + ' with a SESSION must be 404 (gone), got ' + res.status);
+    const body = await res.text();
+    assert.ok(!/legacy_progress_disabled/.test(body), 'the retired refusal code must not survive anywhere');
+  }
+  passed('the retired file store is absent: authenticated GET, POST and DELETE /api/progress answer 404');
 
   /*
    * OBJECTIVE-SEED-01 -- the authored corpus is IN THE DATABASE, and its answers are not.

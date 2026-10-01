@@ -26,6 +26,45 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — the file-based progress store (PILOT-17a, the stage that fits)
+
+`server.js` carried the single-user store: `PROGRESS_PATH`, a `.rev` marker beside it, an
+`x-b1prep-account` HEADER as the account selector, and `/api/progress` GET/POST/DELETE with an atomic
+write, a one-generation backup and a revision race guard — about 350 lines, removed in one commit. It was
+attributed by a HEADER rather than a session and fell back to ONE SHARED record when the header was
+absent, which is why hosted mode answered its own refusal code instead of serving it. A file store also
+cannot exist where the filesystem is ephemeral (Ron, 2 October 2026: the operator's provider key comes
+from `.env` or the platform's environment variables), so the removal is a portability fix as well.
+
+**The negative check exists now:** `tools/retired-surface-check.mjs` — *"no `/api/progress` route, no
+progress file opened"*, promised in this file twice and written at last. It was run BEFORE the removal and
+was RED on the three legs that observe it, which is the discrimination this ledger demands. It needs no
+database, no browser and no Docker, so it is a CI step on any runner, and it fails if the handler, the
+refusal code, the file write, the server-side import or a client path to the store comes back.
+`tools/docker-stack-check.mjs` asserts the half that needs a session: an AUTHENTICATED GET/POST/DELETE
+`/api/progress` answers **404**, because the auth wrap makes an absent route indistinguishable from a
+refused one to an anonymous caller.
+
+| Check | Leg(s) | Property | Decision | Reason | Replacement | Commit | Slice |
+|---|---|---|---|---|---|---|---|
+| `tools/progress-equal-check.mjs` (+ `.test.mjs`) | all 10 | `progressEqual` compares two progress blobs independent of key order | **DELETE** | its subject is the retired blob: the assertions drive `/api/progress` over HTTP and it went red the moment the route did (measured: 2 of 10 failed). The FUNCTION still exists for the browser-side legacy store and retires with the SPA | `tools/retired-surface-check.mjs` (`R1`–`R4`) for the route and the file; the blob's remaining life is the SPA removal | this commit | PILOT-17a |
+| `tools/progress-scope-check.mjs` (+ `.test.mjs`) | all 7 | the blob store is account-scoped | **DELETE** | the store it scopes is gone (measured: 4 of 7 failed after the removal). The heading it belonged to — one learner's records must not reach another's — is now a SERVER property, held by RLS and the owned attempt routes, and a CLIENT property, held by the leg below | **client half:** `tools/app-browser-check.mjs` leg `L30 the client kept NOTHING in web storage across the whole journey` — stronger than the property it replaces: there is no client-side blob left to scope. **server half:** FORCE RLS in `owned-api-check.mjs` and `deletion-check.mjs`, already green | this commit | PILOT-17a |
+| `tools/reset-check.mjs` (+ `.test.mjs`) | all 8, incl. the pre-fix discrimination | a delete really deletes, and a late write cannot resurrect it | **DELETE** | measured 6 of 8 failed after the route left. The owned equivalent was written FIRST, as this ledger requires | `tools/owned-api-check.mjs` leg `delete-is-a-tombstone`: delete → tombstone recorded → read, stale `saveDraft`, submit, read-result, retry, re-create and a second delete all answer 404; plus `tools/deletion-check.mjs` lines 359–368 (after account deletion the cookie is 401 and a repeated DELETE changes nothing) | this commit | PILOT-17a |
+| `tools/revision-check.mjs` (+ `.test.mjs`) | all 8, incl. the pre-fix discrimination | a reset invalidates writes that left before it | **DELETE** | measured 6 of 8 failed after the route left; same owned replacement as the row above | as above | this commit | PILOT-17a |
+
+**What kept its file on purpose.** `public/js/progress-merge.js` was NOT deleted here, and the check says
+so in a NOTE leg rather than pretending: it is imported by the BROWSER-side legacy store
+(`public/js/store.js`), which eleven checks still drive, so deleting it now would cascade through the SPA
+removal instead of this slice. It has no server-side caller and no route; it goes with the SPA.
+
+**Also changed in the same commit, because the route's absence is documented state:**
+`docs/openapi.yaml` no longer documents `/api/progress` (a spec that names a deleted route is how one
+comes back), and `tools/api-spec-check.mjs` now asserts its ABSENCE where it used to require its presence.
+
+---
+
+### Earlier retirements
+
 DOCKER-ONLY-01 retires tools/local-bringup-check.mjs with tools/local-bringup.mjs. Its host process/container orchestration is removed, not counted as a pass. The persistent-server properties (migrations, restricted roles, seeded catalogue, idempotency, readiness, worker and account persistence) are retargeted to the isolated Compose acceptance recorded in DOCKER-ONLY-01.md. Full product-journey acceptance remains pending and is not claimed by a server bring-up test.
 
 
@@ -45,6 +84,23 @@ result screen ships.
 ---
 
 ## Pending — identified, not yet executed
+
+### MEASURED 2 October 2026: three of these are RED *now*, not "later"
+
+`server-origin-check.mjs` (7 of 16), `keymask-check.mjs` (5 of 12) and `provider-config-check.mjs`
+(7 of 11) all fail **on the committed tree**, and they fail for one reason: the auth wrap added to
+`server.js` makes `/api/config` answer **401 `unauthenticated`** to an anonymous caller, while these
+three still drive `/api/config` anonymously and expect 200/403. Verified against a clean worktree at
+`HEAD` before this slice, with the SAME numbers, so this is not a regression from the file-store removal.
+
+**CI shows only one of them.** The contracts job stops at `Same-origin guard on state-changing routes`, so
+`keymask`, `provider-config`, `draft-session`, `owned-api` and `owned-client` are **SKIPPED** in the same
+job and never report. The visible red is therefore smaller than the real red: a job that stops at its
+first failure hides every step behind it. Read the step list, not the conclusion — `gh run view <id>
+--json jobs | jq '.jobs[].steps[] | select(.conclusion=="failure" or .conclusion=="skipped")'`.
+
+This makes the RETARGET rows below (server-origin, keymask, provider-config) the next repair after the SPA
+removal, not a tidying task.
 
 These were identified by the same review and are **not** retired yet, because their implementations are still
 reachable. Each names the slice that retires it.

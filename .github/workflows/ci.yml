@@ -48,8 +48,14 @@ jobs:
       # Not PostgreSQL-backed, so they belong on both OSes with the rest of the offline set.
       - name: Mock writing outcomes, discriminated against the pre-fix tree
         run: node tools/mock-outcome-check.mjs
-      - name: Account-scoped progress store, discriminated against the pre-fix tree
-        run: node tools/progress-scope-check.mjs
+      # THE NEGATIVE CHECK FOR THE RETIRED FILE STORE. `progress-scope-check` used to sit here and is
+      # gone with the route it drove (see work/implementation/RETIRED-CHECKS.md); this is its
+      # replacement vehicle: no `/api/progress` handler, no refusal code, no progress file opened, no
+      # server-side import of the merge module, and no path to it in the shipped client. The
+      # client-side half of that property — no learner state in web storage — is a leg of
+      # tools/app-browser-check.mjs, which needs Docker and a browser and is not a runner gate.
+      - name: The retired single-user store cannot come back
+        run: node tools/retired-surface-check.mjs
       - name: The provider is operator-only and invisible
         run: node tools/provider-config-check.mjs
   contracts:
@@ -61,8 +67,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
-      # Full history: revision-check, progress-equal-check and keymask --prefix-commit
-      # materialize the pre-fix tree with `git show <sha>:<file>` and fail on a shallow clone.
+      # Full history: keymask --prefix-commit materializes the pre-fix tree with
+      # `git show <sha>:<file>` and fails on a shallow clone. (revision-check and
+      # progress-equal-check used to need it too; both are retired with the file store.)
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -72,17 +79,10 @@ jobs:
           node-version: '24'
       - name: Same-origin guard on state-changing routes
         run: node tools/server-origin-check.mjs
-      # No --legacy-root: with no value it compares the candidate against itself.
-      - name: Progress reset contract
-        run: node tools/reset-check.mjs
-      - name: Reset invalidates older writes, discriminated against the pre-fix tree
-        run: node tools/revision-check.mjs
       - name: Key never disclosed by any route
         run: node tools/keymask-check.mjs
       - name: Key masking discriminates against the pre-fix server
         run: node tools/keymask-check.mjs --prefix-commit 8a71f718ee534851a98d19eece07dab933b56479
-      - name: Key-order-insensitive progress equality, discriminated against the pre-fix tree
-        run: node tools/progress-equal-check.mjs
       - name: Draft session contract
         run: node tools/draft-session-check.mjs
       - name: Owned API suite (memory backend)

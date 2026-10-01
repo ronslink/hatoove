@@ -360,19 +360,12 @@ paths:
         '202': { description: 'Requeued.' }
         '409': { description: 'Not retryable (`retry_unavailable`) — the job is not failed, has exhausted its tries, or is already exhausted.' }
 
-  /api/progress:
-    get:
-      tags: [attempts]
-      summary: RETIRED — the file-based progress record
-      deprecated: true
-      description: |
-        The single-user file store. Retired with the Docker-only runtime; it is auth-wrapped like
-        every other route, and in hosted mode it answers `403 legacy_progress_disabled`. Learner
-        progress is served by the owned attempt routes. Kept in this document so the retirement is
-        visible rather than implied by absence.
-      responses:
-        '401': { description: 'No verified session — the convention applies to retired routes too.' }
-        '403': { description: '`legacy_progress_disabled` in hosted mode.' }
+  # /api/progress REMOVED 2 October 2026. It was documented here as a retired-but-PRESENT route; it is
+  # now an ABSENT one. The handlers, the `x-b1prep-account` selector, the `.rev` marker and the file
+  # writes are deleted from `server.js`, and `tools/retired-surface-check.mjs` is the negative check that
+  # keeps them gone. Its absence is asserted twice: 404 to an AUTHENTICATED caller in
+  # `tools/docker-stack-check.mjs`, and "no handler, no refusal code, no file opened" in the negative
+  # check. Documenting a deleted route is how one comes back.
 
   /api/config:
     get:
