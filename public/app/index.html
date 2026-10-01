@@ -26,7 +26,17 @@
 <div class="app">
   <aside class="side" aria-label="Hauptnavigation">
     <a class="logo" href="#/heute" aria-label="Hatoove – Startseite">
-      <img src="/assets/design/hatoove-logo.svg" alt="Hatoove">
+      <!--
+        THE LOGO HAS A DARK-MODE COUNTERPART, and the pinned stylesheet does not swap it: `.side .logo img`
+        has one rule and no `filter` and no dark-theme override. On the dark surface the ink logo is all but
+        invisible — measured in a rendered dark screenshot, not inferred. `<picture>` with a
+        `prefers-color-scheme` source is the standard fix and needs no stylesheet change (the pinned file
+        must stay byte-exact); `hatoove-logo-white.svg` is the curated dark-surface variant.
+      -->
+      <picture>
+        <source srcset="/assets/design/hatoove-logo-white.svg" media="(prefers-color-scheme: dark)">
+        <img src="/assets/design/hatoove-logo.svg" alt="Hatoove">
+      </picture>
     </a>
 
     <div class="exam-pill">
@@ -61,7 +71,11 @@
   <div class="main">
     <header class="topbar">
       <div class="row mobile-bar">
-        <img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="120" height="22">
+        <!-- Same dark-surface counterpart as the sidebar logo, for the same measured reason. -->
+        <picture>
+          <source srcset="/assets/design/hatoove-logo-white.svg" media="(prefers-color-scheme: dark)">
+          <img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="120" height="22">
+        </picture>
       </div>
       <!-- The design puts the CURRENT VIEW and the date in crumbs, not a bare page title. The <b> keeps
            the id app.js already writes to, so route() does not have to change to stay conformant. -->

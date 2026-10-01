@@ -296,8 +296,8 @@ async function main() {
    * defeats the pin; the second half of this leg (manifest == public/assets/design) is what catches
    * exactly that.
    *
-   * P1 — `public/landing/` is the brand site copied verbatim from `hatoove-site/dist`, so an edit to
-   * one and not the other is silent drift between the site we ship and the site we serve.
+   * P1 — the front door IS the brand site from `hatoove-site/dist`, copied to the ROOT of `public/`, so
+   * an edit to one and not the other is silent drift between the site we ship and the site we serve.
    */
   const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'work/implementation/DESIGN-REFERENCE-MANIFEST.json'), 'utf8'));
@@ -480,7 +480,12 @@ async function main() {
         path: location.pathname,
         err: (document.getElementById('error')?.innerText || '').trim(),
         title: document.title,
-        shell: Boolean(document.querySelector('.side .nav')) || document.body.innerText.includes('Know the exam'),
+        // NO brand-page fallback clause. The first version of this was
+        //   shell = Boolean(document.querySelector('.side .nav')) || document.body.innerText.includes('Know the exam')
+        // and that second clause is the MARKETING PAGE'S OWN HEADLINE — so the very defect this leg is
+        // named for (sign-up dropping the learner back on the brand site) made it pass. A leg must not
+        // accept the failure it exists to catch.
+        shell: Boolean(document.querySelector('.side .nav')) && !document.body.innerText.includes('Know the exam'),
       };
     `);
     await shot(cdp, '04-after-signup-desktop-light');
@@ -658,6 +663,12 @@ async function main() {
       await softWait(cdp, "document.querySelector('#practice-items [data-item] .result').innerText.indexOf('Wird gepr') === -1", 10000, 'the second verdict');
       await sleep(400);
     }
+    /*
+     * The badge exists twice and both copies must carry the same number. This runs at DESKTOP width, so
+     * it can only assert the sidebar copy is visible: the tabbar's is `display:none` here and reporting
+     * its zero width as a pass is the weak version of this leg. The phone copy is asserted where it can
+     * actually be seen — see the mobile block's badge-height leg.
+     */
     const badges = await cdp.evaluate(`
       const read = (id) => {
         const el = document.getElementById(id);
@@ -668,10 +679,31 @@ async function main() {
       return { side: read('mistake-count'), tab: read('mistake-count-tab') };
     `);
     record('L17b BOTH mistakes badges exist, are distinct ids, and show the same number',
-      Boolean(badges.side) && Boolean(badges.tab) && badges.side.text === badges.tab.text && badges.side.hidden === false,
+      Boolean(badges.side) && Boolean(badges.tab) && badges.side.text === badges.tab.text
+        && badges.side.hidden === false && badges.side.width > 0,
       JSON.stringify(badges));
-    record('L17c the phone badge is styled as a badge, not as bare text',
-      Boolean(badges.tab) && badges.tab.background !== 'rgba(0, 0, 0, 0)', JSON.stringify(badges.tab));
+    record('L17c both badges are styled as badges, not as bare text',
+      Boolean(badges.side) && badges.side.background !== 'rgba(0, 0, 0, 0)'
+        && Boolean(badges.tab) && badges.tab.background !== 'rgba(0, 0, 0, 0)',
+      `sidebar ${badges.side && badges.side.background} / tabbar ${badges.tab && badges.tab.background}`);
+
+    /*
+     * A CONTROL STYLED AS A BUTTON MUST NOT BE PAINTED AS A LINK. `.lang-btn` is an `<a>` now (it
+     * navigates to Einstellungen), and the pinned stylesheet only removes the underline for `.btn` — so
+     * it rendered underlined until the shell's own layer said otherwise. Computed style, not markup.
+     */
+    const controls = await cdp.evaluate(`
+      const read = (sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        const cs = getComputedStyle(el);
+        return { decoration: cs.textDecorationLine, tag: el.tagName.toLowerCase(), height: Math.round(el.getBoundingClientRect().height) };
+      };
+      return { lang: read('#lang-btn'), gear: read('.icon-btn') };
+    `);
+    record('L17d the topbar controls are not underlined like links',
+      Boolean(controls.lang) && controls.lang.decoration === 'none' && Boolean(controls.gear) && controls.gear.decoration === 'none',
+      JSON.stringify(controls));
 
     /* ------------------------------------------------------------ mistakes  */
 
@@ -769,6 +801,32 @@ async function main() {
     `);
     record('L20d Zurück brings the index back and removes the document',
       guidesBack.index > 0 && guidesBack.body === 0, JSON.stringify(guidesBack));
+
+    /*
+     * UEBEN — reached from the dashboard's hero link, and the ONE view the first version of this check
+     * never opened. That gap mattered: nine seeded sets carry the generator's placeholder title, and this
+     * catalogue was the place where one still reached the screen after the skill views were fixed.
+     */
+    await nav(cdp, `${base}/app/#/ueben`);
+    await softWait(cdp, "document.querySelector('#task-list') && !document.querySelector('#task-list').innerText.includes('Wird geladen')", 12000, 'the Üben catalogue');
+    await sleep(300);
+    const ueben = await cdp.evaluate(`
+      const box = document.getElementById('task-list');
+      return {
+        shown: !document.getElementById('view-ueben').hidden,
+        cards: box.querySelectorAll('.card').length,
+        headings: [...box.querySelectorAll('h3')].map((h) => h.innerText.trim()).slice(0, 10),
+        full: box.innerText.trim(),
+        recommendation: (document.getElementById('practice-next')?.innerText || '').replace(/\\\\s+/g, ' ').trim().slice(0, 140),
+      };
+    `);
+    await shot(cdp, '13b-ueben-desktop-light');
+    record('L20h Üben renders the whole catalogue, from the server',
+      ueben.shown && ueben.cards >= 2 && ueben.full.length > 40,
+      `${ueben.cards} cards; recommendation "${ueben.recommendation}"; headings ${JSON.stringify(ueben.headings.slice(0, 4))}`);
+    record('L20i no catalogue entry is titled with a seed placeholder',
+      !ueben.headings.some((t) => /^(LV|SB|HV)\d+\s+\d+$/.test(t)) && !/^(LV|SB|HV)\d+\s+\d+$/.test(ueben.full),
+      JSON.stringify(ueben.headings));
 
     /* --------------------------------------------------- the design components */
 
@@ -906,10 +964,25 @@ async function main() {
       return { bg: body.backgroundColor, color: body.color, canvas: getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim() };
     `);
     await shot(cdp, '18-heute-desktop-dark');
+    const darkLogo = await cdp.evaluate(`
+      const read = (sel) => {
+        const img = document.querySelector(sel);
+        return img ? { current: img.currentSrc.split('/').pop(), visible: img.getBoundingClientRect().width > 0 } : null;
+      };
+      return { side: read('.side .logo img'), bar: read('.mobile-bar img') };
+    `);
     await theme(cdp, 'light');
     record('L26 dark mode is a real theme, not the light one relabelled',
       dark.bg !== 'rgb(255, 255, 255)' && dark.bg !== 'rgba(0, 0, 0, 0)' && darkDesktop.bg !== 'rgb(255, 255, 255)',
       `mobile bg=${dark.bg} color=${dark.color}; desktop bg=${darkDesktop.bg}`);
+    /*
+     * THE DARK SURFACE NEEDS THE LIGHT LOGO. The pinned stylesheet has one rule for `.side .logo img` and
+     * no dark variant, so the ink logo was all but invisible on the dark background — visible in the
+     * screenshot, invisible to every markup assertion. This asserts the browser CHOSE the white file.
+     */
+    record('L26b the sidebar logo switches to its dark-surface variant in dark mode',
+      Boolean(darkLogo.side) && darkLogo.side.visible && darkLogo.side.current.includes('white'),
+      JSON.stringify(darkLogo));
 
     /* --------------------------------------------------------- legibility   */
 

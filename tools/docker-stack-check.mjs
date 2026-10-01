@@ -97,9 +97,10 @@ try{
   //
   // It is served AT `/`, from the root of `public/`: the brand site's asset URLs are relative
   // (`site.css`, `site.js`, `assets/…`), so under a `landing/` subdirectory they resolved to
-  // `/styles.css` (401, auth-gated), `/app.js` (401) and `/assets/hatoove-logo.svg` (404) and the
-  // front page rendered as unstyled HTML with broken images. At the root every relative URL resolves
-  // to its own file. tools/app-browser-check.mjs renders it and fails on any refused request.
+  // `/styles.css` and `/app.js` — both refused 401 by the shell's gate, which decides BEFORE resolution
+  // and therefore answers 401 whether or not the file exists — and the front page rendered as unstyled
+  // HTML with missing images. At the root every relative URL resolves to its own file.
+  // tools/app-browser-check.mjs renders it and fails on any refused request.
   const landing = await request('GET', '/');
   assert.equal(landing.status, 200, '/ must serve the public landing page, got ' + landing.status);
   assert.ok(landing.text.includes('Know the exam'), '/ must actually BE the landing page');

@@ -66,12 +66,28 @@ const VIEW_TITLES = {
 /** Server state, held in memory only. */
 const state = { account: null, settings: null, revision: null };
 
+/** The view currently on screen, so a late failure from the previous one is not painted over it. */
+let currentView = 'heute';
+
 // ---------------------------------------------------------------- plumbing
 
 function showError(message) {
   const box = el('error');
   box.textContent = message || '';
   box.hidden = !message;
+}
+
+/**
+ * How to describe a failed call to a learner.
+ *
+ * `status === 0` means the request never reached the server (see `api.js`), and printing "(0)" for a
+ * dropped connection tells the learner nothing — every message that used to interpolate the raw status
+ * goes through here instead.
+ */
+function failure(res) {
+  if (!res) return 'Keine Verbindung zum Server.';
+  if (res.status === 0) return 'Keine Verbindung zum Server.';
+  return 'Fehler ' + res.status + (res.error ? ' (' + res.error + ')' : '');
 }
 
 /**
@@ -157,7 +173,7 @@ async function renderTasks() {
   if (!writing || !objective) return; // a 401 already redirected us to the sign-in page
   if (!writing.ok || !objective.ok) {
     box.innerHTML = '';
-    showError('Aufgaben konnten nicht geladen werden (' + writing.status + '/' + objective.status + ').');
+    showError('Aufgaben konnten nicht geladen werden: ' + failure(writing.ok ? objective : writing) + '.');
     return;
   }
   const tasks = Array.isArray(writing.data) ? writing.data : [];
@@ -175,8 +191,10 @@ async function renderTasks() {
     )).join(''));
   }
   if (sets.length) {
+    // setLabel(), not s.title: nine seeded sets have no authored title and the generator wrote
+    // `LV3 1` into the column. This view was the one place it still reached the screen.
     groups.push('<h3 class="section-head">Lesen und Sprachbausteine</h3>' + sets.map((s) => card(
-      esc(s.title), esc(s.family), s.item_count + ' Aufgaben',
+      esc(setLabel(s)), esc(s.family), s.item_count + ' Aufgaben',
       'Teil ' + s.part + ' &middot; Fassung ' + esc(s.version) + ' &middot; Prüfstatus: ' + esc(s.review_status),
     )).join(''));
   }
@@ -206,7 +224,7 @@ async function renderDictionary() {
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
   const res = dictMode === 'nouns' ? await api.nouns.list({ q: q || null }) : await api.vocab.list({ q: q || null });
   if (!res) return; // a 401 already redirected
-  if (!res.ok) { box.innerHTML = ''; showError('Nachschlagen fehlgeschlagen (' + res.status + ').'); return; }
+  if (!res.ok) { box.innerHTML = ''; showError('Nachschlagen fehlgeschlagen: ' + failure(res) + '.'); return; }
   const rows = Array.isArray(res.data) ? res.data : [];
   if (!rows.length) {
     box.innerHTML = '<div class="card"><h3>Nichts gefunden</h3><p class="muted">Der Server hat zu dieser Suche keinen Eintrag.</p></div>';
@@ -231,7 +249,7 @@ async function renderGuides() {
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
   const res = await api.guides.list();
   if (!res) return;
-  if (!res.ok) { box.innerHTML = ''; showError('Nachschlagen fehlgeschlagen (' + res.status + ').'); return; }
+  if (!res.ok) { box.innerHTML = ''; showError('Nachschlagen fehlgeschlagen: ' + failure(res) + '.'); return; }
   const guides = Array.isArray(res.data) ? res.data : [];
   if (!guides.length) {
     box.innerHTML = '<div class="card"><h3>Zurzeit keine Nachschlagewerke</h3><p class="muted">Der Server hat gerade nichts Servierbares.</p></div>';
@@ -253,7 +271,7 @@ async function openGuide(guideId) {
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
   const res = await api.guides.read(guideId);
   if (!res) return;
-  if (!res.ok) { box.innerHTML = ''; showError('Das Nachschlagewerk konnte nicht geladen werden (' + res.status + ').'); return; }
+  if (!res.ok) { box.innerHTML = ''; showError('Das Nachschlagewerk konnte nicht geladen werden: ' + failure(res) + '.'); return; }
   const g = res.data;
   const sections = Array.isArray(g.sections) ? g.sections : [];
   box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(g.title)
@@ -400,7 +418,7 @@ async function renderMistakes() {
   const res = await api.practice.mistakes();
   if (!res) return; // a 401 already redirected
   if (!res.ok) {
-    if (box) { box.innerHTML = ''; showError('Fehler konnten nicht geladen werden (' + res.status + ').'); }
+    if (box) { box.innerHTML = ''; showError('Fehler konnten nicht geladen werden: ' + failure(res) + '.'); }
     return;
   }
   const data = res.data || {};
@@ -426,8 +444,13 @@ async function renderMistakes() {
   }
   // The design's `.list` carries the border and the radius, and only `.list-item:first-child` drops its
   // top border; bare `.list-item` rows therefore rendered as detached, separately bordered boxes.
-  box.innerHTML = '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>' + esc(m.set_title)
-    + '</strong><span class="sub">' + esc(setLabel({ title: m.set_title, section: m.section, part: null })) + ' &middot; Aufgabe ' + esc(m.item_id)
+  //
+  // TWO LINES, TWO JOBS: the title is the SET, the sub-line says which SECTION and which item. They both
+  // printed the title for a moment (setLabel returns an authored title unchanged), which duplicated it
+  // and dropped the section.
+  box.innerHTML = '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>'
+    + esc(setLabel({ title: m.set_title, section: m.section, part: null }))
+    + '</strong><span class="sub">' + esc(sectionName(m.section)) + ' &middot; Aufgabe ' + esc(m.item_id)
     + ' von ' + m.set_item_count + '</span></div>'
     + '<span class="chip chip-orange">deine Antwort: ' + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('') + '</div>';
 }
@@ -461,7 +484,7 @@ async function renderSkill(view) {
   if (section === 'writing') {
     const res = await api.tasks.list({ family: 'writing' });
     if (!res) return;
-    if (!res.ok) { box.innerHTML = ''; showError('Aufgaben konnten nicht geladen werden (' + res.status + ').'); return; }
+    if (!res.ok) { box.innerHTML = ''; showError('Aufgaben konnten nicht geladen werden: ' + failure(res) + '.'); return; }
     const tasks = Array.isArray(res.data) ? res.data : [];
     box.innerHTML = tasks.length
       ? tasks.map((t) => '<div class="card"><div class="card-head"><h3>' + esc(t.topic)
@@ -474,7 +497,7 @@ async function renderSkill(view) {
 
   const res = await api.objectiveSets.list();
   if (!res) return;
-  if (!res.ok) { box.innerHTML = ''; showError('Aufgaben konnten nicht geladen werden (' + res.status + ').'); return; }
+  if (!res.ok) { box.innerHTML = ''; showError('Aufgaben konnten nicht geladen werden: ' + failure(res) + '.'); return; }
   const sets = (Array.isArray(res.data) ? res.data : []).filter((s) => s.section === section);
   if (!sets.length) {
     box.innerHTML = section === 'HV'
@@ -569,7 +592,7 @@ async function answerItem(setId, card, itemId, answer) {
   if (!res.ok) {
     out.textContent = res.status === 422 && res.error === 'unknown_item'
       ? 'Diese Aufgabe gibt es im Schlüssel nicht — der Server hat sie nicht bewertet.'
-      : 'Bewertung fehlgeschlagen (' + res.status + ').';
+      : 'Bewertung fehlgeschlagen: ' + failure(res) + '.';
     return;
   }
   const correct = res.data && res.data.correct === true;
@@ -612,7 +635,7 @@ async function openSet(setId) {
   if (!res.ok) {
     box.innerHTML = '';
     if (list) list.hidden = false;
-    showError('Die Aufgaben konnten nicht geladen werden (' + res.status + ').');
+    showError('Die Aufgaben konnten nicht geladen werden: ' + failure(res) + '.');
     return;
   }
   const set = res.data;
@@ -641,18 +664,27 @@ async function openSet(setId) {
 function route() {
   const key = (location.hash || '#/heute').replace(/^#\/?/, '') || 'heute';
   const view = VIEW_TITLES[key] ? key : 'heute';
+  /*
+   * Which view is on screen, so a SLOW failure cannot paint on the wrong one.
+   *
+   * Clearing the message here is not enough on its own: a render from the view the learner just left can
+   * still reject a second later, and its message would appear over the new screen — describing something
+   * that is no longer on display. The token is checked before anything is written.
+   */
+  currentView = view;
   for (const name of Object.keys(VIEW_TITLES)) el(`view-${name}`).hidden = name !== view;
   el('page-title').textContent = VIEW_TITLES[view];
   renderChrome();
-  // A message from the view you just left describes the wrong screen when it stays on the next one.
   showError('');
   /*
    * Every render is a promise that can reject, and `void renderX()` would throw the rejection away:
    * the view then sits on "Wird geladen …" with an empty console-shaped silence and nothing on screen
    * explains it. One wrapper, so a failure is always visible where it happened.
    */
-  const run = (render) => {
-    void render().catch((err) => showError('Die Ansicht konnte nicht geladen werden: ' + (err && err.message ? err.message : err)));
+  const run = (render, token = view) => {
+    void render().catch((err) => {
+      if (token === currentView) showError('Die Ansicht konnte nicht geladen werden: ' + (err && err.message ? err.message : err));
+    });
   };
   if (view === 'heute') run(renderDashboard);
   if (view === 'ueben') { run(renderPracticeNext); run(renderTasks); }
@@ -669,7 +701,7 @@ function route() {
 async function refresh() {
   const account = await api.account.read();
   if (!account) return;
-  if (!account.ok) { showError(`Konto konnte nicht geladen werden (${account.status}).`); return; }
+  if (!account.ok) { showError('Konto konnte nicht geladen werden: ' + failure(account) + '.'); return; }
   state.account = account.data;
 
   const settings = await api.settings.read();
@@ -677,7 +709,7 @@ async function refresh() {
     state.settings = settings.data.settings || {};
     state.revision = settings.data.revision;
   } else if (settings) {
-    showError(`Einstellungen konnten nicht geladen werden (${settings.status}).`);
+    showError('Einstellungen konnten nicht geladen werden: ' + failure(settings) + '.');
   }
   renderAccount();
   renderSettings();
@@ -704,12 +736,17 @@ el('settings-form').addEventListener('submit', async (event) => {
       await refresh();
       return;
     }
-    if (!res.ok) { status.textContent = ''; showError(`Speichern fehlgeschlagen (${res.status}).`); return; }
+    if (!res.ok) { status.textContent = ''; showError('Speichern fehlgeschlagen: ' + failure(res) + '.'); return; }
     state.settings = res.data?.settings || wanted;
     state.revision = res.data?.revision ?? state.revision;
     renderSettings();
     status.textContent = 'Gespeichert.';
     setTimeout(() => { if (status.textContent === 'Gespeichert.') status.textContent = ''; }, 4000);
+  } catch (err) {
+    // `finally` alone left the button re-enabled but the learner staring at "Wird gespeichert …": the
+    // handler had no catch, so a rejection was silent. Same shape as the boot guard above.
+    status.textContent = '';
+    showError('Speichern fehlgeschlagen: ' + (err && err.message ? err.message : 'unbekannter Fehler'));
   } finally {
     button.disabled = false;
   }
@@ -722,7 +759,7 @@ el('signout').addEventListener('click', async () => {
   try {
     const res = await api.auth.signOut();
     if (!res || !res.ok) {
-      showError(`Abmelden fehlgeschlagen (${res ? res.status : 'abgebrochen'}). Die Sitzung ist möglicherweise noch aktiv.`);
+      showError('Abmelden fehlgeschlagen: ' + failure(res) + ' Die Sitzung ist möglicherweise noch aktiv.');
       return;
     }
     location.replace('/signin');
@@ -741,7 +778,7 @@ el('delete-account').addEventListener('click', async () => {
     const res = await api.account.remove();
     if (!res) return;
     if (res.ok || res.status === 204) { location.replace('/signin'); return; }
-    showError(`Löschen fehlgeschlagen (${res.status}). Das Konto wurde nicht entfernt.`);
+    showError('Löschen fehlgeschlagen: ' + failure(res) + ' Das Konto wurde nicht entfernt.');
   } catch {
     showError('Löschen fehlgeschlagen: keine Verbindung zum Server. Das Konto wurde nicht entfernt.');
   }

@@ -48,6 +48,19 @@
 }
 
 /*
+ * THE TOPBAR CONTROLS ARE CONTROLS, NOT LINKS.
+ *
+ * `.lang-btn` and `.icon-btn` are styled as buttons in the pinned stylesheet, which carries
+ * `text-decoration:none` for `.btn` only. Turning the explanation-language control into an `<a>` (it
+ * navigates to Einstellungen) made it render UNDERLINED — measured in a browser: computed
+ * `text-decoration-line: underline`, and the pixels differ from the button it replaced.
+ */
+.lang-btn,
+.icon-btn {
+  text-decoration: none;
+}
+
+/*
  * THE PHONE TABBAR CARRIES EVERY DESTINATION IN ONE ROW.
  *
  * The pinned stylesheet lays the tabbar out as `repeat(5, minmax(0,1fr))`, because the design's tabbar
