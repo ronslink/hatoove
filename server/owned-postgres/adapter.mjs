@@ -23,11 +23,10 @@
 
 import { randomUUID } from 'node:crypto';
 import { Fault } from '../../server/owned-api.mjs';
+import { DEFAULT_TASK_BINDING } from './content-seed.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
-const TASK_VERSION = 'synthetic-writing-v1';
-const RUBRIC_VERSION = 'formative-fixture-v1';
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = (result) => result.rows[0];
@@ -78,8 +77,16 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
   }
 
   return Object.freeze({
-    async create(owner, parent = null) {
+    /**
+     * Create an owned attempt bound to an exact task/rubric version (SAAS-MODEL-01 Step 1).
+     * `binding` defaults to the canonical writing task (`content-seed.mjs`); a caller that has
+     * a task-selection route (SAAS-RESUME-01) can pass the chosen one. The composite foreign
+     * keys added by migration `0006` make the binding a real, checked reference — an unknown
+     * task id/version fails here instead of silently storing an unreviewed claim.
+     */
+    async create(owner, parent = null, binding = DEFAULT_TASK_BINDING) {
       note('create');
+      const b = binding || DEFAULT_TASK_BINDING;
       return settle(owner, async (client) => {
         if (parent) {
           const parentRow = first(await client.query(
@@ -89,8 +96,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
         }
         const id = randomUUID();
         await client.query(
-          `INSERT INTO attempts(id, owner_id, task_version, rubric_version, parent_submission_id)
-           VALUES($1, $2, $3, $4, $5)`, [id, owner, TASK_VERSION, RUBRIC_VERSION, parent]);
+          `INSERT INTO attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version, parent_submission_id)
+           VALUES($1, $2, $3, $4, $5, $6, $7)`,
+          [id, owner, b.taskId, b.taskVersion, b.rubricId, b.rubricVersion, parent]);
         await client.query('INSERT INTO drafts(attempt_id, revision, text) VALUES($1, 1, \'\')', [id]);
         return { id, revision: 1, text: '' };
       });

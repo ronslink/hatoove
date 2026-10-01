@@ -5,12 +5,12 @@
  * modules sit beside active single-user paths. This checker proves the three "refuse" moves
  * that must land before anything later in the review's order can be trusted:
  *
- *   A1  the legacy progress routes (`/api/progress`) are unavailable in the hosted runtime,
- *       so a caller-supplied `x-b1prep-account` header - or none at all - cannot read or
- *       delete another account's record, nor the shared unscoped one. The local install
- *       (no `B1PREP_SAAS`, off by default) keeps the file-based record - but it is **not
- *       byte-identical** to the pre-slice server: five observable behaviours are hardened in
- *       every mode. They are listed in `work/implementation/SAAS-RUNTIME-01.md`;
+ *   A1  the legacy progress routes (`/api/progress`) are unavailable in the hosted runtime, so a
+ *       caller-supplied `x-b1prep-account` header - or none at all - cannot read or delete
+ *       another account's record, nor the shared unscoped one. SAAS-MODEL-01 Step 2 then makes
+ *       the ENTRY POINT fail closed without its account/database configuration, so omitting the
+ *       `B1PREP_SAAS` mode flag can no longer start a local single-user app (removal of the
+ *       route itself is SAAS-RETIRE-01);
  *   A2  `/api/ai` requires a verified session, ignores the caller's model (the model is the
  *       operator's), bounds the prompt server-side, and `/api/ai/test` needs the operator
  *       opt-in **and** an operator token - a learner session is never sufficient;
@@ -190,6 +190,7 @@ function dbEnv(portOverride) {
  *   dbPortOverride-> point the database at a proxy port instead
  *   publicOrigin  -> B1PREP_PUBLIC_ORIGIN (defaults to PUBLIC_ORIGIN when saas)
  *   forceOffline  -> B1PREP_FORCE_OFFLINE=1
+ *   dropDatabase  -> remove every OWNAPI_PG_* key, even those inherited from the parent env
  *   provider      -> { key, model, baseUrl } injected as DEEPSEEK_*
  *
  * Without an explicit provider stub the child never sees a provider key: the real
@@ -198,6 +199,9 @@ function dbEnv(portOverride) {
  */
 async function startServer(port, options = {}) {
   const env = baseEnv(port);
+  if (options.dropDatabase) {
+    for (const key of Object.keys(env)) if (key.startsWith('OWNAPI_PG_')) delete env[key];
+  }
   if (options.saas) env.B1PREP_SAAS = '1';
   if (options.accounts) env.B1PREP_ACCOUNTS = '1';
   if (options.saas) env.B1PREP_PUBLIC_ORIGIN = options.publicOrigin || PUBLIC_ORIGIN;
@@ -390,23 +394,57 @@ check('legacy-progress-refused-anonymous-in-saas', async () => {
   } finally { await server.stop(); }
 });
 
-check('legacy-progress-local-install-unchanged', async () => {
-  // `B1PREP_SAAS` is the explicit, off-by-default flag that preserves the local install: a
-  // plain `node server.js` (no flag) keeps the file-based record byte-for-byte. There is no
-  // "re-open the legacy path inside the hosted runtime" flag on purpose - that would put the
-  // hole back behind an operator setting on the very deployment the slice hardens.
+check('entry-point-fails-closed-when-the-mode-flag-is-omitted', async () => {
+  // SAAS-MODEL-01 Step 2. With no `B1PREP_SAAS` and no account/database configuration the OLD
+  // behaviour was a working single-user app. The new contract is a refusal: the absence of the
+  // configuration is an error, not a local mode. This REPLACES the retired
+  // `legacy-progress-local-install-unchanged` check, whose purpose ("the local install is
+  // unchanged") no longer exists. The negative control is that the single-user path is NOT served.
   const port = await freePort();
   const server = await startServer(port, { forceOffline: true });
   try {
+    const ready = await request(port, { requestPath: '/api/ready' });
+    assert.equal(ready.status, 503, `readiness must fail closed, got ${ready.status}`);
+    assert.equal(ready.json?.ready, false);
+    assert.equal(ready.json?.mode, 'unconfigured');
+    must(/B1PREP_ACCOUNTS/.test(String(ready.json?.reason || '')),
+      `the readiness reason must name the missing configuration, got ${ready.json?.reason}`);
+    for (const path of ['/api/v1/account', '/api/progress']) {
+      const res = await request(port, { requestPath: path });
+      assert.equal(res.status, 503, `${path} must be refused while unconfigured, got ${res.status}`);
+    }
+    // Negative control: a single-user progress WRITE must not be served, and no file appears.
     const write = await request(port, {
       method: 'POST', requestPath: '/api/progress',
       headers: localJsonHeaders(port), body: { rev: 0, state: { nodes: { b: { ok: true } } } },
     });
-    assert.equal(write.status, 200, `the local install must keep working, got ${write.status}`);
-    const read = await request(port, { requestPath: '/api/progress' });
-    assert.equal(read.status, 200);
-    assert.equal(read.json?.found, true, 'the record written locally is readable');
-    return 'B1PREP_SAAS unset => local file-based path works; the flag is the only switch';
+    must(write.status !== 200, `the single-user progress write must not be served (got ${write.status})`);
+    must(!fs.existsSync(server.env.B1PREP_PROGRESS_FILE), 'no shared progress file may be created');
+    must(!/runs single-user/.test(server.log()), `the entry point must not report the single-user fallback:\n${server.log()}`);
+    return `ready 503/false (${ready.json.reason}); learner routes 503; single-user path not served`;
+  } finally { await server.stop(); }
+});
+
+check('fail-closed-no-longer-depends-on-the-mode-flag', async () => {
+  // The plan: `B1PREP_SAAS` may still exist as a distinction, but it must no longer decide
+  // whether learner data is protected. The OLD code ran a single-user app whenever B1PREP_SAAS
+  // was unset AND accounts were not enabled. Here `B1PREP_ACCOUNTS=1` is set but the database
+  // configuration is absent, and `B1PREP_SAAS` is deliberately omitted: the new contract is a
+  // refusal, not a single-user fallback.
+  const port = await freePort();
+  const server = await startServer(port, { accounts: true, dropDatabase: true, forceOffline: true });
+  try {
+    const ready = await request(port, { requestPath: '/api/ready' });
+    assert.equal(ready.status, 503, `readiness must fail closed, got ${ready.status}`);
+    assert.equal(ready.json?.ready, false);
+    must(/OWNAPI_PG_DATABASE/.test(String(ready.json?.reason || '')),
+      `the reason must name the missing database configuration, got ${ready.json?.reason}`);
+    const account = await request(port, { requestPath: '/api/v1/account' });
+    assert.equal(account.status, 503, `learner route must be 503, got ${account.status}`);
+    const legacy = await request(port, { requestPath: '/api/progress' });
+    must(legacy.status === 503 || legacy.status === 403, `no single-user fallback, got ${legacy.status}`);
+    must(!/runs single-user/.test(server.log()), `the entry point must not report the single-user fallback:\n${server.log()}`);
+    return `accounts flag set, no database config, B1PREP_SAAS unset => ready 503 (${ready.json.reason}); learner 503`;
   } finally { await server.stop(); }
 });
 

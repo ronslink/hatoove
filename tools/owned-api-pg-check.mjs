@@ -271,6 +271,131 @@ check('pg-datastore-failure-is-500-never-success', async () => {
   } finally { await ctx.fixture.cleanup(); }
 });
 
+/* ===================================== content records (SAAS-MODEL-01 Step 1) */
+
+/**
+ * A versioned shared content record is immutable. The passing test is only evidence if the
+ * same UPDATE succeeds when the trigger is off - otherwise the assertion could pass against a
+ * table nobody can write for some unrelated reason (a missing privilege, a typo). The
+ * discrimination runs inside a transaction that is rolled back, so the fixture is untouched.
+ */
+check('pg-content-records-are-immutable-with-discrimination', async () => {
+  const ctx = await buildContext();
+  const { admin, schema } = ctx.fixture;
+  try {
+    const taskId = 'writing.du.besuch-einer-freundin';
+    const original = (await admin.query(`SELECT situation FROM ${schema}.task_version WHERE task_id = $1`, [taskId])).rows[0].situation;
+
+    // 1. The real assertion: an update attempt must fail.
+    await assert.rejects(
+      admin.query(`UPDATE ${schema}.task_version SET situation = 'tampered' WHERE task_id = $1`, [taskId]),
+      (e) => e.code === '23000' || /immutable/.test(e.message),
+      'updating an immutable task version must fail',
+    );
+    await assert.rejects(
+      admin.query(`DELETE FROM ${schema}.task_version WHERE task_id = $1`, [taskId]),
+      (e) => e.code === '23000' || /immutable/.test(e.message),
+      'deleting an immutable task version must fail',
+    );
+    assert.equal((await admin.query(`SELECT situation FROM ${schema}.task_version WHERE task_id = $1`, [taskId])).rows[0].situation, original, 'the refused update changed nothing');
+
+    // 2. Discrimination: with the trigger off, the SAME statement succeeds. One client, so
+    //    BEGIN/ALTER/UPDATE/ROLLBACK run on one connection.
+    const client = await admin.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`ALTER TABLE ${schema}.task_version DISABLE TRIGGER task_version_immutable`);
+      const changed = await client.query(`UPDATE ${schema}.task_version SET situation = 'tampered' WHERE task_id = $1`, [taskId]);
+      assert.equal(changed.rowCount, 1, 'with the trigger disabled the update must succeed, or this check is vacuous');
+      await client.query('ROLLBACK');
+    } finally { client.release(); }
+
+    // 3. Rolled back: the trigger and the row are exactly as they were.
+    await assert.rejects(
+      admin.query(`UPDATE ${schema}.task_version SET situation = 'tampered' WHERE task_id = $1`, [taskId]),
+      /immutable/, 'the trigger must be back after the rollback',
+    );
+    assert.equal((await admin.query(`SELECT situation FROM ${schema}.task_version WHERE task_id = $1`, [taskId])).rows[0].situation, original);
+  } finally { await ctx.fixture.cleanup(); }
+});
+
+/**
+ * Rights/review status must round-trip truthfully. C-01 measured the corpus as unreviewed with
+ * unknown rights, so the seeded rows say exactly that - and the immutability trigger means a
+ * later UI CANNOT silently flip them to "reviewed".
+ */
+check('pg-rights-and-review-status-round-trip-truthfully', async () => {
+  const ctx = await buildContext();
+  const { admin, schema } = ctx.fixture;
+  try {
+    const id = 'writing.du.besuch-einer-freundin@v1';
+    const read = async () => (await admin.query(`SELECT review_status, rights_status FROM ${schema}.content_version WHERE content_version_id = $1`, [id])).rows[0];
+    assert.deepEqual(await read(), { review_status: 'unreviewed', rights_status: 'unknown' });
+    // The upgrade a UI would need is refused, and the value is still truthful afterwards.
+    await assert.rejects(
+      admin.query(`UPDATE ${schema}.content_version SET review_status = 'reviewed' WHERE content_version_id = $1`, [id]),
+      /immutable/,
+    );
+    assert.equal((await read()).review_status, 'unreviewed', 'review status must not be silently upgraded');
+  } finally { await ctx.fixture.cleanup(); }
+});
+
+/**
+ * An attempt's binding is a real, CHECKED reference: an unknown task version cannot be stored.
+ * Together with the shared binding check this makes the version column a claim about content
+ * that exists, not a free-text string.
+ */
+check('pg-an-attempt-cannot-bind-content-that-does-not-exist', async () => {
+  const ctx = await buildContext();
+  const { admin, schema } = ctx.fixture;
+  try {
+    const owner = `user-${randomUUID()}`;
+    await admin.query('INSERT INTO "user"(id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES($1, $2, $3, false, now(), now())',
+      [owner, 'Synthetic', `${owner}@pg.example.invalid`]);
+    await assert.rejects(
+      admin.query(
+        `INSERT INTO ${schema}.attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version)
+         VALUES($1, $2, 'writing.no.such.task', 'v9', 'writing.formative', 'v1')`,
+        [randomUUID(), owner]),
+      (e) => e.code === '23503',
+      'a task version that does not exist must be rejected by the foreign key',
+    );
+    // And the real ones are accepted (the negative control that the FK is not simply broken).
+    const ok = await admin.query(
+      `INSERT INTO ${schema}.attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version)
+       VALUES($1, $2, 'writing.du.besuch-einer-freundin', 'v1', 'writing.formative', 'v1')`,
+      [randomUUID(), owner]);
+    assert.equal(ok.rowCount, 1);
+  } finally { await ctx.fixture.cleanup(); }
+});
+
+/**
+ * No per-account DDL: adding learners creates ROWS, never a schema, table or role. This is the
+ * cheap, strong check for the property the plan states. It is measured on the real schema the
+ * learner paths run against.
+ */
+check('pg-creating-learners-adds-no-table-and-no-role', async () => {
+  const ctx = await buildContext();
+  const { admin, schema } = ctx.fixture;
+  try {
+    const counts = async () => ({
+      tables: (await admin.query(
+        `SELECT count(*)::int AS n FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace
+         WHERE ns.nspname = $1 AND c.relkind = 'r'`, [schema])).rows[0].n,
+      roles: (await admin.query('SELECT count(*)::int AS n FROM pg_roles WHERE rolname LIKE $1', [`${schema}_%`])).rows[0].n,
+    });
+    const before = await counts();
+    assert.ok(before.tables > 0 && before.roles > 0, 'precondition: the fixture has tables and roles');
+    for (const tag of ['ddl-a', 'ddl-b']) {
+      const b = browser(ctx.api);
+      await b.client.signUp({ name: tag, email: `${tag}@pg.example.invalid`, password: 'pw-ddl-synthetic' });
+      const attempt = await b.client.createAttempt();
+      assert.ok(attempt.id, 'the learner can create an attempt');
+    }
+    assert.deepEqual(await counts(), before, 'two learners must add no table and no role');
+  } finally { await ctx.fixture.cleanup(); }
+});
+
 /* ================================================================== run */
 
 export const REQUIRED_CHECKS = checks.map((c) => c.name);

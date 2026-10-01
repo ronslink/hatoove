@@ -22,9 +22,11 @@
  *   4. fresh browser: a clean profile that signs in resumes the account's notebook, ability
  *      record and settings from the server with no local file imported;
  *   5. expiry / a refused session fails closed to signed-out, not to the single-user record;
- *   6. the single-user path (accounts off, or never signed in) reconciles once at boot as
- *      before; a tab return re-checks identity but does not reconcile again or replace the
- *      in-memory record, and still notices another tab signing in (SESSION-BOUNDARY-02 F3).
+ *   6. the single-user path is RETIRED server-side (SAAS-MODEL-01 Step 2): with accounts off
+ *      the entry point refuses, so an unscoped browser keeps only its LOCAL copy and gets no
+ *      server sync. On a configured runtime a tab return still re-checks identity but does not
+ *      reconcile the unscoped record again or replace the in-memory record, and still notices
+ *      another tab signing in (SESSION-BOUNDARY-02 F3).
  *
  * Safety: synthetic accounts only, no provider call (B1PREP_FORCE_OFFLINE=1), a disposable
  * database that may not be `postgres`, `template0` or `template1`. This is the synthetic
@@ -610,19 +612,35 @@ check('expiry and a refused session fail closed to signed-out, not to the single
   }
 });
 
-check('single-user path: accounts off, or never signed in, behaves as before', async () => {
+check('single-user path: accounts off is retired, and a configured runtime serves no unscoped sync to a full client', async () => {
+  // SAAS-MODEL-01 Step 2. This check used to assert that `accounts off` behaved as the
+  // pre-account single-user app: the account endpoint answered 404, the client resolved
+  // `single-user` with reason `accounts_off`, and it SYNCED an unscoped record to
+  // `/api/progress`. The entry point now fails closed, so the server answers 503 and the
+  // unscoped record is never served; the browser keeps its LOCAL copy (a client-side fallback
+  // this slice does not touch) but gets no server sync. The purpose of the old assertion is
+  // retired; what replaces it is the refusal below.
   const offServer = await startServer(4486, { accounts: false });
   try {
     const browser = createBrowser(4486);
     browser.storage.setItem('b1prep.state.v1', JSON.stringify({ version: 1, updatedAt: 1, nodes: {}, history: [], errors: [{ id: 'e1', t: 1, prompt: MARK.legacy, tags: [], resolved: false }], settings: {}, counters: { attempts: 1 } }));
     const { store, boundary } = await browser.page();
     const result = await boundary.resolve();
-    assert.equal(result.phase, 'single-user');
-    assert.equal(result.reason, 'accounts_off');
-    assert.ok(visible(store).includes(MARK.legacy), 'the single-user record is not shown with accounts off');
+    assert.equal(result.phase, 'single-user', 'an unscoped browser keeps its local record (client-side, unchanged)');
+    assert.equal(result.reason, 'unavailable', 'the account endpoint now REFUSES (503), not 404-accounts-off');
+    assert.ok(visible(store).includes(MARK.legacy), 'the local record is still shown');
     assert.equal(store.getAccountScope().mode, 'legacy');
-    assert.ok(browser.log.some((e) => e.kind === 'request' && e.path === '/api/progress' && e.scope === null), 'the single-user record was not synced with the server');
-    assert.ok(result.sync && result.sync.reachable, 'the single-user sync did not run');
+    // The SERVER refuses the unscoped record, whatever the client believes. Note: the client's
+    // `/api/progress` reader does not check the HTTP status, so it misreads this 503 as an
+    // EMPTY server record and reports `reachable: true` - which is precisely why SAAS-RETIRE-01
+    // must REMOVE the route rather than refuse it. The evidence here is the server side.
+    const get = await realFetch('http://127.0.0.1:4486/api/progress');
+    assert.equal(get.status, 503, 'the unscoped progress GET must be refused while unconfigured');
+    const post = await realFetch('http://127.0.0.1:4486/api/progress', {
+      method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:4486' },
+      body: JSON.stringify({ rev: 0, state: { nodes: {} } }),
+    });
+    assert.equal(post.status, 503, 'the unscoped progress POST must be refused while unconfigured');
   } finally { await offServer.stop(); }
 
   const onServer = await startServer(4487, { accounts: true });
@@ -642,7 +660,11 @@ check('single-user path: accounts off, or never signed in, behaves as before', a
  * once, at boot, and never replaced the in-memory record mid-session.
  */
 check('single-user: a second resolve (tab return) neither reconciles again nor replaces the in-memory record', async () => {
-  const server = await startServer(4492, { accounts: false });
+  // Exercised on a CONFIGURED runtime with a browser that never signed in: the unscoped record
+  // is still served by /api/progress there (its removal is SAAS-RETIRE-01), so the tab-return
+  // property is still testable. With accounts off the entry point now refuses, so the
+  // server-backed record this check needs no longer exists.
+  const server = await startServer(4492, { accounts: true });
   try {
     const browser = createBrowser(4492);
     browser.storage.setItem('b1prep.state.v1', JSON.stringify({ version: 1, updatedAt: 1, nodes: {}, history: [], errors: [{ id: 'e1', t: 1, prompt: MARK.legacy, tags: [], resolved: false }], settings: {}, counters: { attempts: 1 } }));

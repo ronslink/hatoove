@@ -758,21 +758,23 @@ async function handleApi(req, res, pathname, ctx = {}) {
   // A3 readiness. /api/health must keep answering while the process is up; this route says
   // whether learner traffic can be served at all, so a supervisor never has to guess from 503s.
   if (pathname === '/api/ready' && method === 'GET') {
-    const readiness = ctx.readiness || { ready: !saas, reason: saas ? 'starting' : 'local' };
+    const readiness = ctx.readiness || { ready: false, reason: 'starting' };
     sendJSON(res, readiness.ready ? 200 : 503, {
       ok: readiness.ready,
       ready: readiness.ready,
-      mode: saas ? 'saas' : 'local',
+      mode: readiness.ready ? (saas ? 'saas' : 'local') : 'unconfigured',
       reason: readiness.reason || (readiness.ready ? 'ready' : 'not_ready'),
     });
     return true;
   }
 
   // A1 / HOSTED-BLOCKERS B5. The file-based progress routes are attributed by a caller header,
-  // never authenticated, and a request without the header falls back to a shared record. In
-  // hosted mode they are unavailable - refused before any path is resolved, so neither another
+  // never authenticated, and a request without the header falls back to a shared record. In the
+  // hosted runtime they are unavailable - refused before any path is resolved, so neither another
   // account's file nor the shared one can be named, read, written or deleted by an anonymous
-  // caller. (Removal of the routes themselves belongs to the persistence migration.)
+  // caller. (Removal of the routes themselves - with the `x-b1prep-account` selector, the file,
+  // its backups and its revision handling - is SAAS-RETIRE-01; this slice only makes the entry
+  // point fail closed without its account/database configuration, see below.)
   if (saas && pathname === '/api/progress') {
     sendJSON(res, LEGACY_PROGRESS_REFUSAL.status, { ok: false, code: LEGACY_PROGRESS_REFUSAL.code, error: LEGACY_PROGRESS_REFUSAL.error });
     return true;
@@ -1044,12 +1046,12 @@ export function createServer({ ownedApi = null } = {}) {
       const saas = isSaasMode();
       const origin = configuredPublicOrigin();
       const serverRef = req.socket.server;
-      // A3 readiness. In local mode the app is always ready in its own terms; in hosted mode
-      // it is ready only once accounts have loaded, and the startup block below keeps this
-      // current. An unset value means "still starting", which fails closed.
-      const readiness = saas
-        ? (serverRef && serverRef.saasReadiness ? serverRef.saasReadiness : { ready: false, reason: 'starting' })
-        : { ready: true, reason: 'local' };
+      // Fail closed (SAAS-MODEL-01 Step 2). The runtime is a multi-user service: it is ready
+      // only once its account/database configuration has loaded. `node server.js` ALWAYS sets
+      // `saasReadiness`; an unset value (an in-process `createServer()` used by a unit check)
+      // keeps the library default. The gate below is no longer conditioned on `B1PREP_SAAS`:
+      // omitting the mode flag must not re-open the single-user path.
+      const readiness = (serverRef && serverRef.saasReadiness) || { ready: true, reason: 'unset' };
       if (pathname.startsWith('/api/')) {
         const method = req.method || 'GET';
         if (method !== 'GET' && method !== 'HEAD') {
@@ -1062,10 +1064,11 @@ export function createServer({ ownedApi = null } = {}) {
             return;
           }
         }
-        // A3 fail closed. While the hosted runtime is not ready, every API route except
-        // liveness and readiness refuses. It never answers as a single-user app, and the
-        // refusal is a 503 with a reason token rather than an anonymous fallback.
-        if (saas && !readiness.ready && pathname !== '/api/health' && pathname !== '/api/ready') {
+        // Fail closed, in every mode. While the runtime is not ready - the account/database
+        // configuration is missing, still loading, or failed - every API route except liveness
+        // and readiness refuses. It never answers as a single-user app, and the refusal is a
+        // 503 with a short reason token rather than an anonymous fallback.
+        if (!readiness.ready && pathname !== '/api/health' && pathname !== '/api/ready') {
           sendJSON(res, 503, { ok: false, code: 'not_ready', error: `The hosted runtime is not ready (${readiness.reason || 'starting'}).` });
           return;
         }
@@ -1102,17 +1105,18 @@ if (invokedDirectly) {
   const server = createServer();
   // A portable launcher can choose its own port without rewriting the saved .env.
   const PORT = Number(process.env.B1PREP_PORT) || Number(process.env.PORT) || 4321;
-  // A3. In hosted mode the runtime is *not* ready until accounts have loaded; the request path
-  // reads this and refuses with 503 in the meantime. In local mode it is always ready.
-  server.saasReadiness = { ready: !isSaasMode(), reason: isSaasMode() ? 'starting' : 'local' };
+  // Fail closed from the first request (SAAS-MODEL-01 Step 2). The runtime is NOT ready until
+  // its account/database configuration has loaded, in EVERY mode - the old `!isSaasMode()`
+  // default is gone, because omitting `B1PREP_SAAS` must no longer re-open a single-user app.
+  server.saasReadiness = { ready: false, reason: 'starting' };
 
   /*
-   * Accounts (A-01 mount). Off unless B1PREP_ACCOUNTS=1. Loading is deliberately *after* the
-   * socket starts, so the socket exists before a slow database is ready - but in hosted mode
-   * (B1PREP_SAAS=1) a failure does NOT downgrade to single-user: readiness stays false and every
-   * learner route answers 503 until accounts load. In local mode the app still comes up
-   * single-user when the database is slow, unreachable or misconfigured, and an account request
-   * answers 404 exactly as it did before. No credential or connection string is ever printed.
+   * Accounts (A-01 mount). The account/database configuration is now REQUIRED: the absence of
+   * `B1PREP_ACCOUNTS`/`OWNAPI_PG_DATABASE` is an error, not a local mode. Loading is deliberately
+   * *after* the socket starts, so the socket exists before a slow database is ready - but until it
+   * loads, readiness stays false and every learner route answers 503. A failure never downgrades
+   * to single-user; it stays not-ready and names the missing or failed configuration. No
+   * credential or connection string is ever printed.
    */
   import('./server/accounts.mjs').then(async ({ loadOwnedApi, accountsConfig, accountsSummary }) => {
     const config = accountsConfig();
@@ -1124,7 +1128,7 @@ if (invokedDirectly) {
         if (loaded) {
           server.ownedApi = loaded.api;
           summary = accountsSummary(loaded, config);
-          if (saas) server.saasReadiness = { ready: true, reason: 'ready' };
+          server.saasReadiness = { ready: true, reason: 'ready' };
           const shutdown = () => { loaded.close().finally(() => process.exit(0)); };
           process.once('SIGINT', shutdown);
           process.once('SIGTERM', shutdown);
@@ -1136,21 +1140,17 @@ if (invokedDirectly) {
         // host and database but not the password. The detail goes to the operator console only;
         // the readiness reason stays a short token that is safe on an anonymous route.
         const detail = error && error.message ? error.message : error;
-        if (saas) {
-          server.saasReadiness = { ready: false, reason: 'accounts_failed' };
-          summary = `accounts: FAILED to load (${detail}) - hosted mode refuses learner routes (503)`;
-        } else {
-          summary = `accounts: FAILED to load (${detail}) - the app runs single-user`;
-        }
+        server.saasReadiness = { ready: false, reason: 'accounts_failed' };
+        summary = `accounts: FAILED to load (${detail}) - the runtime refuses learner routes (503)`;
       }
-    } else if (saas) {
-      // Hosted mode with accounts disabled (the flag is absent, or the database configuration is
-      // missing) is a misconfiguration, not a single-user install. Fail closed and say so.
-      server.saasReadiness = { ready: false, reason: 'accounts_disabled' };
-      summary = `accounts: off (${config.reason}) - hosted mode refuses learner routes (503)`;
+    } else {
+      // The configuration is absent. That is a misconfiguration of the entry point, not a
+      // single-user install. Fail closed and name the missing configuration (never a credential).
+      server.saasReadiness = { ready: false, reason: config.reason };
+      summary = `accounts: off (${config.reason}) - the runtime refuses learner routes (503)`;
     }
     console.log(`  Accounts: ${summary}`);
-    if (saas) console.log(`  Readiness: ${server.saasReadiness.ready ? 'ready' : `NOT READY (${server.saasReadiness.reason})`}`);
+    console.log(`  Readiness: ${server.saasReadiness.ready ? 'ready' : `NOT READY (${server.saasReadiness.reason})`}`);
   }).catch((error) => {
     server.saasReadiness = { ready: false, reason: 'accounts_unavailable' };
     console.log(`  Accounts: wiring unavailable (${error && error.message ? error.message : error})`);
@@ -1171,10 +1171,10 @@ if (invokedDirectly) {
     if (isSaasMode()) {
       const o = configuredPublicOrigin();
       console.log(`  SaaS:     hosted runtime - trusted origin ${o ? o.origin : 'NOT CONFIGURED (mutations are refused)'}`);
-      console.log(`  Progress: file record disabled (account-scoped attempts)`);
-    } else {
-      console.log(`  Progress: ${PROGRESS_PATH}`);
     }
+    // The single-user file record is retired in every mode: the runtime is a multi-user service
+    // that fails closed without its account/database configuration (SAAS-MODEL-01 Step 2).
+    console.log(`  Progress: file record disabled (account-scoped attempts)`);
     console.log(line);
     console.log('  Ctrl+C to stop.');
   });

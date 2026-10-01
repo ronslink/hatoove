@@ -31,15 +31,18 @@
  *   node tools/owned-api-check.mjs --backend=postgres  (real PostgreSQL + FORCE RLS)
  */
 import http from 'node:http';
+import net from 'node:net';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 import { randomUUID, scryptSync, randomBytes, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 import { createOwnedApi, Fault, CONTRACT_VERSION } from '../server/owned-api.mjs';
 import { createOwnedClient, OwnedClientError } from '../public/js/owned-client.js';
+import { DEFAULT_TASK_BINDING, WRITING_TASKS, WRITING_RUBRIC } from '../server/owned-postgres/content-seed.mjs';
 
 /* ================================================== in-memory ports (TEST ONLY) */
 
@@ -84,12 +87,14 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
   const attemptView = (attempt) => ({ ...attempt, ...drafts.get(attempt.id) });
 
   const port = {
-    async create(owner, parent = null) {
+    async create(owner, parent = null, binding = DEFAULT_TASK_BINDING) {
       calls.push('create');
       if (parent) ownedSubmission(owner, parent);
+      const b = binding || DEFAULT_TASK_BINDING;
       const id = randomUUID();
       attempts.set(id, {
-        id, owner_id: owner, task_version: 'synthetic-writing-v1', rubric_version: 'formative-fixture-v1',
+        id, owner_id: owner, task_id: b.taskId, task_version: b.taskVersion,
+        rubric_id: b.rubricId, rubric_version: b.rubricVersion,
         parent_submission_id: parent, created_at: new Date().toISOString(), deleted_at: null,
       });
       drafts.set(id, { revision: 1, text: '' });
@@ -821,7 +826,126 @@ check('garbage-session-port-output-is-401', async () => {
   }
 });
 
+/* =================================== content records (SAAS-MODEL-01 Step 1) */
+
+/*
+ * The seed in `server/owned-postgres/content-seed.mjs` is a literal copy of the writing
+ * prompts in `public/js/ai.js`. A literal copy drifts. This check re-imports the real client
+ * module and compares field-for-field, so a change to the prompts fails HERE rather than
+ * silently leaving the database claiming one thing and the app showing another.
+ */
+check('content-seed-matches-the-client', async () => {
+  const { offlineWritingTask } = await import('../public/js/ai.js');
+  const { WRITING_TASKS, WRITING_RUBRIC, DEFAULT_TASK_BINDING } = await import('../server/owned-postgres/content-seed.mjs');
+  assert.equal(WRITING_TASKS.length, 6, 'the writing family is 6 prompts (3 du + 3 Sie)');
+  let seen = 0;
+  for (const register of ['du', 'Sie']) {
+    for (let variantIndex = 0; variantIndex < 3; variantIndex += 1) {
+      const live = offlineWritingTask({ register, variantIndex });
+      const seeded = WRITING_TASKS[seen];
+      seen += 1;
+      assert.equal(seeded.register, register, `task ${seen}: register`);
+      assert.equal(seeded.topic, live.topic, `task ${seen}: topic`);
+      assert.equal(seeded.situation, live.situation, `task ${seen}: situation drifted from public/js/ai.js`);
+      assert.equal(seeded.adressat, live.adressat, `task ${seen}: adressat`);
+      assert.deepEqual([...seeded.leitpunkte], [...live.leitpunkte], `task ${seen}: leitpunkte`);
+      assert.equal(seeded.version, 'v1');
+    }
+  }
+  const liveRubric = offlineWritingTask({ register: 'du', variantIndex: 0 }).criteria;
+  assert.deepEqual(
+    WRITING_RUBRIC.criteria.map((c) => [c.key, c.label, c.max]),
+    liveRubric.map((c) => [c.key, c.label, c.max]),
+    'the seeded rubric drifted from WRITING_CRITERIA in public/js/ai.js',
+  );
+  // The default binding must be one of the real tasks and must name the real rubric.
+  assert.ok(WRITING_TASKS.some((t) => t.taskId === DEFAULT_TASK_BINDING.taskId && t.version === DEFAULT_TASK_BINDING.taskVersion));
+  assert.equal(DEFAULT_TASK_BINDING.rubricId, WRITING_RUBRIC.rubricId);
+  return `6 prompts and ${liveRubric.length} rubric criteria match public/js/ai.js`;
+});
+
+/*
+ * An attempt must bind an EXACT task and rubric version, and reading it back must return the
+ * same versions — not the two synthetic constants every attempt carried before this slice.
+ * The submission snapshot copies the attempt's versions, so the claim survives the grade.
+ */
+check('attempt-binds-an-exact-task-and-rubric-version', async () => {
+  const w = await world();
+  const who = await learner(w, 'bind');
+  const attempt = await who.client.createAttempt();
+  const read = await who.client.readAttempt(attempt.id);
+  assert.equal(read.task_version, DEFAULT_TASK_BINDING.taskVersion, 'the attempt binds the default task version');
+  assert.equal(read.rubric_version, DEFAULT_TASK_BINDING.rubricVersion, 'and the real rubric version');
+  assert.equal(read.task_id, DEFAULT_TASK_BINDING.taskId);
+  assert.notEqual(read.task_version, 'synthetic-writing-v1', 'the synthetic constant must be gone from new attempts');
+
+  // An explicit binding for a different real task is honoured and reads back unchanged.
+  const other = WRITING_TASKS.find((t) => t.taskId.endsWith('sprachkurs'));
+  const bound = await w.store.port.create(who.account.id, null, {
+    taskId: other.taskId, taskVersion: other.version,
+    rubricId: WRITING_RUBRIC.rubricId, rubricVersion: WRITING_RUBRIC.version,
+  });
+  const readBound = await w.store.port.read(who.account.id, bound.id);
+  assert.equal(readBound.task_id, other.taskId);
+  assert.equal(readBound.task_version, other.version);
+
+  const draft = await who.client.saveDraft(attempt.id, { expectedRevision: attempt.revision, text: 'Sehr geehrte Damen und Herren, ich schreibe wegen des Kurses.' });
+  const receipt = await who.client.submit(attempt.id, { expectedRevision: draft.revision, eventId: randomUUID() });
+  const result = await who.client.readResult(receipt.submissionId);
+  assert.equal(result.submission.task_version, DEFAULT_TASK_BINDING.taskVersion, 'the submission snapshots the bound version');
+  assert.equal(result.submission.rubric_version, DEFAULT_TASK_BINDING.rubricVersion);
+  return `bound ${DEFAULT_TASK_BINDING.taskId}@${DEFAULT_TASK_BINDING.taskVersion} / ${DEFAULT_TASK_BINDING.rubricId}@${DEFAULT_TASK_BINDING.rubricVersion} and read it back`;
+});
+
 /* ============================================ server.js mount (HTTP layer) */
+
+/*
+ * SAAS-MODEL-01 Step 2, at the real entry point: `node server.js` with no account/database
+ * configuration. The OLD behaviour was a working single-user app beside 404 owned routes. The
+ * new contract is a refusal: readiness is false, learner routes answer 503, and the single-user
+ * path is not served. Bounded - the child is always reaped, every request has a timeout.
+ */
+check('entry-point-fails-closed-without-accounts-config', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'owned-api-failclosed-'));
+  const port = await new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.on('error', reject);
+    probe.listen(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); });
+  });
+  const env = { ...process.env, B1PREP_PORT: String(port), B1PREP_FORCE_OFFLINE: '1',
+    B1PREP_ENV_FILE: path.join(dir, 'e.env'), B1PREP_PROGRESS_FILE: path.join(dir, 'p.json') };
+  for (const key of Object.keys(env)) if (key === 'B1PREP_ACCOUNTS' || key === 'B1PREP_SAAS' || key.startsWith('OWNAPI_PG_')) delete env[key];
+  const child = spawn(process.execPath, ['server.js'], { cwd: path.resolve(fileURLToPath(import.meta.url), '..', '..'), env, stdio: ['ignore', 'pipe', 'pipe'] });
+  let log = '';
+  child.stdout.on('data', (c) => { log += String(c); });
+  child.stderr.on('data', (c) => { log += String(c); });
+  const get = async (p) => {
+    const res = await fetch(`http://127.0.0.1:${port}${p}`, { signal: AbortSignal.timeout(8000) });
+    return { status: res.status, json: await res.json().catch(() => null) };
+  };
+  try {
+    const deadline = Date.now() + 20000;
+    for (;;) {
+      if (child.exitCode !== null) throw new Error(`server exited early (${child.exitCode}): ${log.slice(-300)}`);
+      try { if ((await get('/api/health')).status === 200) break; } catch { /* not listening yet */ }
+      if (Date.now() > deadline) throw new Error(`server did not answer: ${log.slice(-300)}`);
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    const ready = await get('/api/ready');
+    assert.equal(ready.status, 503, 'readiness must fail closed');
+    assert.equal(ready.json?.ready, false);
+    assert.ok(/B1PREP_ACCOUNTS/.test(String(ready.json?.reason || '')), `reason must name the missing configuration, got ${ready.json?.reason}`);
+    for (const p of ['/api/v1/account', '/api/progress']) {
+      assert.equal((await get(p)).status, 503, `${p} must be refused while unconfigured`);
+    }
+    assert.ok(!/runs single-user/.test(log), `the entry point must not report a single-user fallback:\n${log}`);
+    assert.ok(!fs.existsSync(path.join(dir, 'p.json')), 'no unscoped progress file may be created');
+  } finally {
+    if (child.exitCode === null && !child.signalCode) { child.kill('SIGKILL'); }
+    await new Promise((r) => child.once('exit', r) || setTimeout(r, 500));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 // server.js resolves its .env and progress paths once, at first import, so the
 // throwaway directory is created once per run and removed after the last check.

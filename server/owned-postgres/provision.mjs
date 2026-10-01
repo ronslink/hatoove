@@ -53,7 +53,7 @@
 
 import pg from 'pg';
 import { readFile } from 'node:fs/promises';
-import { accountSettingsSql, deletionRoleSql } from './provisioning-sql.mjs';
+import { accountSettingsSql, deletionRoleSql, contentCatalogueSql } from './provisioning-sql.mjs';
 
 const SPIKE = new URL('../../spikes/auth-runtime/', import.meta.url);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
@@ -75,6 +75,10 @@ export const MIGRATIONS = Object.freeze([
   // The account-deletion role's grants and owner-scoped policies (HARD-DELETE-01 §6). Without
   // this, a provisioned installation has no role that can run the deletion at all.
   { id: '0005-account-deletion', sql: (config) => deletionRoleSql(config) },
+  // SAAS-MODEL-01 Step 1: the writing task family as versioned shared content records, plus
+  // the forward-only binding columns on `attempts`. Additive and non-destructive: it rewrites
+  // no existing row. See `provisioning-sql.mjs` and `content-seed.mjs`.
+  { id: '0006-content-and-catalogue', sql: (config) => contentCatalogueSql(config) },
 ]);
 
 const ident = (name) => {

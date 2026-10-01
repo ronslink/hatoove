@@ -8,8 +8,8 @@
  * there.
  *
  * What it proves
- *   1. accounts are OFF by default: with `B1PREP_ACCOUNTS` unset the owned routes answer 404
- *      exactly as they always did, and the single-user app is unaffected;
+ *   1. the entry point fails closed: with `B1PREP_ACCOUNTS` unset the owned routes and
+ *      `/api/ready` answer 503 (not 404 beside a working single-user app) - SAAS-MODEL-01 Step 2;
  *   2. with the flag on, a learner can sign up, is served their own account, and can create an
  *      attempt, save a draft, submit and read the result over HTTP with a real cookie;
  *   3. **the restart property**: stop the server, start it again, and the same session cookie
@@ -129,17 +129,25 @@ const email = (tag) => `${tag}-${RUN_ID}@accounts.example.invalid`;
 
 /* =================================================================== checks */
 
-check('accounts-are-off-by-default', async () => {
+check('unconfigured-entry-point-fails-closed', async () => {
+  // SAAS-MODEL-01 Step 2. Before this slice, `B1PREP_ACCOUNTS` unset started a working
+  // single-user app and the owned routes answered 404 ("they do not exist"). The absence of
+  // the configuration is now an error: the runtime is not ready and every learner route is
+  // refused with 503. This updates the old `accounts-are-off-by-default` assertion to the new
+  // contract rather than deleting it (the plan: do not delete failing tests).
   const server = await startServer(4471, { accounts: false });
   try {
+    const ready = await fetch('http://127.0.0.1:4471/api/ready');
+    assert.equal(ready.status, 503, 'without accounts configuration /api/ready must be 503');
+    assert.equal((await ready.json()).ready, false, 'and must report ready:false');
     const signUp = await fetch('http://127.0.0.1:4471/api/auth/sign-up/email', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://127.0.0.1:4471' },
       body: JSON.stringify({ name: 'X', email: 'x@accounts.example.invalid', password: 'pw-synthetic-1' }),
     });
-    assert.equal(signUp.status, 404, 'with accounts off the owned routes must not exist');
+    assert.equal(signUp.status, 503, 'with accounts off the owned routes must be refused, not 404');
     const account = await fetch('http://127.0.0.1:4471/api/v1/account');
-    assert.equal(account.status, 404, 'and neither must the account route');
+    assert.equal(account.status, 503, 'and neither must the account route be served');
   } finally { await server.stop(); }
 });
 
