@@ -233,6 +233,24 @@ try {
     return `A before: ${countLine(beforeA.counts)}\n     B before: ${countLine(beforeB.counts)}`;
   });
 
+  await check('the RUNNING-SERVER wiring performs the deletion: DELETE through createPostgresWorld\'s own api is 200', async () => {
+    // The running server does not build an api of its own: `server/accounts.mjs` gets it from
+    // `createPostgresWorld()`. This drives THAT api, so a world that never received the
+    // deletion port fails here even though every other check in this file would still pass.
+    const worldCall = caller(world.api);
+    const email = `wired-${randomUUID().slice(0, 8)}@deletion-check.invalid`;
+    const password = `pw-${randomUUID()}`;
+    const created = await worldCall('POST', '/api/auth/sign-up/email', { body: { name: 'Synthetic Wired', email, password } });
+    assert.equal(created.status, 200, `sign-up: ${created.status}`);
+    const cookie = cookieOf(created);
+    const reply = await worldCall('DELETE', '/api/v1/account', { cookie, body: {} });
+    assert.equal(reply.status, 200,
+      `the world's own api must perform the deletion; got ${reply.status} ${JSON.stringify(reply.json)}`);
+    assert.equal(reply.json.deleted, true);
+    assert.equal((await worldCall('GET', '/api/v1/account', { cookie })).status, 401, 'the cookie survived the deletion');
+    return 'createPostgresWorld wired the deletion port; DELETE returned 200 and the cookie died';
+  });
+
   await check('the deletion role is a restricted role: NOSUPERUSER, NOBYPASSRLS, FORCE RLS on the owned tables', async () => {
     const r = (await rows('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = $1', [deletionRole]))[0];
     assert.equal(r.rolsuper, false); assert.equal(r.rolbypassrls, false);
