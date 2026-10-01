@@ -57,6 +57,34 @@ The boundary gives them a caller; this slice gives the writing surface a reason 
 - **single-user path unchanged**: accounts off → the local behaviour, byte-identical, exactly as asserted today;
 - **discrimination**: break the restore in a scratch copy and watch the check fail.
 
+## The exact call signatures — read from the code, so the next attempt starts here
+
+This section was added after the plan above, because the plan said "use `openDraft`" without saying what it returns.
+That is the kind of gap that costs a session.
+
+**`session().openDraft(taskId)`** (`public/js/account.js:376`) — `async`, and it **throws
+`OwnedClientError('unauthenticated')` if the page is not signed in**, which a caller must handle rather than let
+escape into a view render. On success it returns a **draft session** and registers it so a sign-out can close it.
+
+**What a draft session exposes** (`public/js/draft-session.js`), and the four that matter here:
+
+| Member | Purpose |
+|---|---|
+| `open()` | called by `openDraft` already; resolves the server's current draft |
+| `saveNow(text)` | `async`; the write, taking the text |
+| `drop()` | called internally on a scope change; it **refuses with `stale_session`** rather than writing |
+| the pointer helpers at `:143` | the local pointer, so a return can find the draft again |
+
+**The three refusals a view must render honestly rather than swallow** — each is a distinct learner-facing
+situation, not an error to log:
+
+- **`stale_session`** (`:132`, `:187`) — the account or session changed; **the local draft was dropped**;
+- **`already_submitted`** (`:226`) — the attempt was submitted elsewhere; **start a new revision**;
+- **the conflict path** (`enterConflict`, `:237`) — a `409`, and the text must **not** be silently discarded.
+
+**No screen calls any of this yet.** That is the whole of objective item 3: `openDraft` and the draft session have
+no production caller, which is exactly issue #63's S4 complaint, one layer further out.
+
 ## What this deliberately does NOT include
 
 - **No account list or resume route.** A fresh browser cannot list an account's drafts because **the server has no
