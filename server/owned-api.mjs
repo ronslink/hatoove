@@ -79,8 +79,9 @@ const DELETION_METHODS = ['deleteAccount'];
 /**
  * What an account deletion does NOT remove (HARD-DELETE-01 §3). Returned with every
  * deletion, because "deletion is not total, and saying so is part of the fix" (SEC-02).
- * No retention period is stated for backups: none has been decided, and inventing one
- * here would be a false promise.
+ * No retention period is stated for any of them: none has been decided, and inventing one
+ * here would be a false promise. The model provider is named for the same reason as the
+ * backups — this application cannot reach what it keeps either.
  */
 export const DELETION_NOT_REMOVED = Object.freeze([
   Object.freeze({
@@ -96,8 +97,16 @@ export const DELETION_NOT_REMOVED = Object.freeze([
   }),
   Object.freeze({
     what: 'legacy_progress_file',
-    detail: 'A server running the older single-user mode keeps progress in a file outside this account '
-      + 'database; this deletion does not touch it. Hosted mode refuses that file route.',
+    detail: 'A server that is not running in hosted mode also keeps learner progress in a file outside '
+      + 'this account database, and serves it at /api/progress. This deletion removes the account '
+      + 'database rows only; it does not touch that file. Whether that route is served depends on how '
+      + 'the deployment is configured, so this response cannot promise it is refused.',
+  }),
+  Object.freeze({
+    what: 'model_provider',
+    detail: 'Text you submitted for assessment was sent to the model provider configured for this '
+      + 'installation. Copies that provider keeps, and for how long, are outside the application\'s '
+      + 'reach, and no retention period for them is known. This response cannot say when they expire.',
   }),
 ]);
 /**
@@ -305,10 +314,21 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       // its failure must not turn a committed deletion into an error reply.
       let setCookie;
       try { setCookie = (await sessions.signOut(headers))?.setCookie; } catch { setCookie = undefined; }
+      /*
+       * FOOTGUN for the future deletion UI (F10): a bodyless DELETE still demands
+       * `Content-Type: application/json` (the mutation gate above answers 415 `json_required`
+       * otherwise), and the shipped client (`public/js/owned-client.js`) has no method that
+       * issues this request yet. The contract is left as-is deliberately — every mutation in
+       * this API takes a JSON body, and special-casing DELETE would add a second rule — but a
+       * caller must send `{}` with that header, not an empty body of another type.
+       */
       return reply(200, {
         deleted: true,
         accountExisted: Boolean(outcome && outcome.existed),
+        // The delete statements' OWN row counts. They are not the proof of absence: that is
+        // `verifiedAbsent`, set only because the port read every account table back first.
         removed: outcome && isPlainObject(outcome.removed) ? outcome.removed : {},
+        verifiedAbsent: Boolean(outcome && outcome.verifiedAbsent === true),
         completeErasure: false,
         notRemoved: DELETION_NOT_REMOVED,
       }, setCookie);

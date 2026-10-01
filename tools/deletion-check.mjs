@@ -11,13 +11,18 @@
  * the rows are gone. Each "zero rows" result is paired with a precondition that the same
  * query found rows before.
  *
- * The deletion runs as a dedicated, NON-superuser, NOBYPASSRLS role this checker creates
- * in the disposable schema with exactly the grants and owner-scoped policies the deletion
- * needs. That role does NOT exist in a provisioned installation yet (see
- * work/implementation/HARD-DELETE-01.md §6); it is created here so the proof is made under
- * row-level security rather than as a superuser.
+ * The deletion runs as the NON-superuser, NOBYPASSRLS role `bootstrap.mjs` creates from the
+ * SAME builders (`provisioning-sql.mjs`) that `provision.mjs` records as migrations 0004 and
+ * 0005 — so the grants and owner-scoped policies proved here are the ones a real installation
+ * gets. (Before this, the only role with those rights was one this checker invented for
+ * itself, which proved nothing about any installation that exists.)
  *
- * Discrimination: on e621618 (no deletion route, no deletion port) this checker fails.
+ * Discrimination: the world this file drives is built by `createPostgresWorld()` — the same
+ * call `server/accounts.mjs` makes — so a tree that does not wire the deletion port into the
+ * world fails the "RUNNING-SERVER wiring" check below. The file's old claim, that this checker
+ * fails on e621618, was wrong: e621618 predates this file, so the failure there is
+ * `Cannot find module`, not the discrimination criterion 7 asks for. A tree in which the
+ * deletion is unreachable now scores worse than this one, not the same.
  *
  * Requires the package `server/owned-postgres` installed (pg 8.23.1) and a DISPOSABLE
  * database (OWNAPI_PG_*, default 127.0.0.1:55435/hatoove_spike). These checks delete rows.
@@ -29,13 +34,11 @@
 import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 
-import * as ownedApi from '../server/owned-api.mjs';
 import * as adapter from '../server/owned-postgres/adapter.mjs';
-import { createFixture, rolePool } from '../server/owned-postgres/bootstrap.mjs';
+import { createOwnedApi } from '../server/owned-api.mjs';
+import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
-import { MIGRATIONS } from '../server/owned-postgres/provision.mjs';
 
-const { createOwnedApi } = ownedApi;
 const createDeletion = typeof adapter.createPostgresAccountDeletion === 'function'
   ? adapter.createPostgresAccountDeletion : null;
 
@@ -61,48 +64,19 @@ async function check(name, fn) {
 
 /* ------------------------------------------------------------- the world */
 
+// `createFixture()` builds the same schema, roles and least-privilege grants an installation
+// has: the deletion role, its owner-scoped policies and the account-settings table all come
+// from `provisioning-sql.mjs`, the builders migrations 0004/0005 also use.
 const db = await createFixture();
-let deletionRole = null;
-let deletionPool = null;
+const deletionRole = db.roles.deletion;
+const deletionPool = db.deletion;
 let world = null;
 
-async function provisionDeletionRole() {
-  // Account settings are migration 0004 of a persistent installation; the disposable fixture
-  // does not apply it, so it is applied here or step 9 of the deletion has no table to act on.
-  const settingsMigration = MIGRATIONS.find((m) => m.id === '0004-account-settings');
-  await db.migration.query(settingsMigration.sql({ schema: db.schema, roles: db.roles }));
-
-  deletionRole = `${db.schema}_deletion`;
-  const role = `"${deletionRole}"`;
-  const owner = "nullif(current_setting('hatoove.owner_id', true), '')";
-  await db.admin.query(
-    `CREATE ROLE ${role} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 5`);
-  await db.admin.query(`GRANT USAGE ON SCHEMA "${db.schema}" TO ${role}`);
-  await db.admin.query(`GRANT SELECT, DELETE ON attempts, drafts, submissions, jobs, assessments, usage_ledger,
-    entitlements, learner_settings, session, account, "user" TO ${role}`);
-  await db.admin.query(`GRANT UPDATE(parent_submission_id) ON attempts TO ${role}`);
-  // FOR UPDATE on "user" needs UPDATE on at least one column; nothing in the deletion updates it.
-  await db.admin.query(`GRANT UPDATE("updatedAt") ON "user" TO ${role}`);
-  for (const table of ['attempts', 'submissions', 'jobs', 'assessments', 'usage_ledger', 'entitlements']) {
-    await db.admin.query(`CREATE POLICY deletion_${table} ON ${table} TO ${role} USING (owner_id = ${owner})`);
-  }
-  await db.admin.query(`CREATE POLICY deletion_learner_settings ON learner_settings TO ${role} USING (user_id = ${owner})`);
-  await db.admin.query(`CREATE POLICY deletion_drafts ON drafts TO ${role}
-    USING (EXISTS (SELECT 1 FROM attempts a WHERE a.id = attempt_id AND a.owner_id = ${owner}))`);
-  deletionPool = rolePool(db.config, db.schema, deletionRole, 2);
-}
-
 async function teardown() {
-  if (deletionPool) await deletionPool.end().catch(() => {});
+  // The fixture's `cleanup()` drops the schema (and with it every grant and policy) and then
+  // every role it created, including the deletion role. No checker-owned role to clean up.
   if (world) await world.teardown().catch(() => {});
   else await db.cleanup().catch(() => {});
-  if (deletionRole) {
-    // The fixture's admin pool is closed by cleanup(); the schema (and with it every grant and
-    // policy naming the role) is gone, so the role can now be dropped.
-    const admin = rolePool(db.config, db.schema, db.config.user, 1);
-    await admin.query(`DROP ROLE IF EXISTS "${deletionRole}"`).catch(() => {});
-    await admin.end().catch(() => {});
-  }
 }
 
 /* --------------------------------------------------------------- helpers */
@@ -211,11 +185,13 @@ function assertPopulated(snap, label) {
 /* ---------------------------------------------------------------- checks */
 
 try {
-  await provisionDeletionRole();
   world = await createPostgresWorld({ fixture: db });
-  const deletion = createDeletion ? createDeletion({ pool: deletionPool }) : null;
+  // The whole suite drives the world's own api — the one `server/accounts.mjs` hands to
+  // `server.js` — rather than an api this checker assembles. The `deletion` port likewise
+  // comes from the world, so no second wiring exists.
+  const deletion = world.deletion;
   const ports = { datastore: world.store.port, sessions: world.sessions, settings: world.settings };
-  const api = createOwnedApi({ ...ports, accountDeletion: deletion });
+  const api = world.api;
   const call = caller(api);
 
   const superuser = (await rows('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user'))[0];
@@ -231,6 +207,24 @@ try {
   await check('precondition: A, B and C each have rows in all 11 account tables, the cycle and a soft-deleted attempt', async () => {
     assertPopulated(beforeA, 'A'); assertPopulated(beforeB, 'B'); assertPopulated(beforeC, 'C');
     return `A before: ${countLine(beforeA.counts)}\n     B before: ${countLine(beforeB.counts)}`;
+  });
+
+  await check('the RUNNING-SERVER wiring performs the deletion: DELETE through createPostgresWorld\'s own api is 200', async () => {
+    // The running server does not build an api of its own: `server/accounts.mjs` gets it from
+    // `createPostgresWorld()`. This drives THAT api, so a world that never received the
+    // deletion port fails here even though every other check in this file would still pass.
+    const worldCall = caller(world.api);
+    const email = `wired-${randomUUID().slice(0, 8)}@deletion-check.invalid`;
+    const password = `pw-${randomUUID()}`;
+    const created = await worldCall('POST', '/api/auth/sign-up/email', { body: { name: 'Synthetic Wired', email, password } });
+    assert.equal(created.status, 200, `sign-up: ${created.status}`);
+    const cookie = cookieOf(created);
+    const reply = await worldCall('DELETE', '/api/v1/account', { cookie, body: {} });
+    assert.equal(reply.status, 200,
+      `the world's own api must perform the deletion; got ${reply.status} ${JSON.stringify(reply.json)}`);
+    assert.equal(reply.json.deleted, true);
+    assert.equal((await worldCall('GET', '/api/v1/account', { cookie })).status, 401, 'the cookie survived the deletion');
+    return 'createPostgresWorld wired the deletion port; DELETE returned 200 and the cookie died';
   });
 
   await check('the deletion role is a restricted role: NOSUPERUSER, NOBYPASSRLS, FORCE RLS on the owned tables', async () => {
@@ -327,6 +321,13 @@ try {
     const backups = body.notRemoved.find((item) => item.what === 'operator_backups');
     assert.ok(backups, 'the reply does not name the operator backups');
     assert.match(backups.detail, /No retention period/);
+    // F8: a provider that processed the account's text is as far out of reach as a backup, and
+    // is named for the same reason. No period for it either.
+    const provider = body.notRemoved.find((item) => item.what === 'model_provider');
+    assert.ok(provider, 'the reply does not name the model provider');
+    assert.match(provider.detail, /no retention period for them is known/i);
+    // F7: absence is proved by the port's read-back, not by the delete's own counts.
+    assert.equal(body.verifiedAbsent, true, 'the reply does not report the read-back as the proof');
     const text = JSON.stringify(body);
     assert.doesNotMatch(text, /\b\d+\s*(?:day|days|week|weeks|month|months|year|years)\b/i, 'a retention period was stated');
     assert.doesNotMatch(text, /permanently|all (?:of )?your data|completely|irrecoverabl/i, 'a total-erasure claim');
@@ -370,10 +371,14 @@ try {
 
   await check('idempotent at the port: an already-deleted or never-existing account reports existed=false and removes 0', async () => {
     assert.ok(createDeletion, 'no createPostgresAccountDeletion');
+    // The stronger form (the brief's F11): every named step must report exactly 0, which also
+    // pins the step list against the port. The old assertion filtered `removed: {}` to [] and
+    // passed vacuously, so a port that stopped reporting a step would not have been caught.
+    const zeroes = Object.fromEntries(adapter.ACCOUNT_DELETION_STEPS.map(([name]) => [name, 0]));
     for (const id of [A.userId, `user-${randomUUID()}`]) {
       const outcome = await deletion.deleteAccount(id);
       assert.equal(outcome.existed, false);
-      assert.deepEqual(Object.values(outcome.removed).filter((n) => n !== 0), []);
+      assert.deepEqual(outcome.removed, zeroes, `removed must name every step with 0, got ${JSON.stringify(outcome.removed)}`);
     }
     assert.equal(asJson((await snapshot(B.userId)).state), asJson(beforeB.state));
   });
@@ -395,50 +400,50 @@ try {
     assert.equal((await call('GET', `/api/v1/attempts/${A.revisionAttemptId}`, { cookie: cookieOf(again) })).status, 404);
   });
   /*
-   * The forced-failure check, which the brief named as the acceptance criterion most likely to be
-   * skipped and which was indeed missing from the first run. Without it the "one transaction" claim
-   * rests on reading the code; with it the claim is demonstrated.
+   * The forced-failure check: without it the "one transaction" claim rests on reading the code;
+   * with it the claim is demonstrated. The port takes an `afterStep` hook so a test can fail it
+   * part-way; the hook THROWS mid-transaction, which is the ordinary case a real error produces,
+   * and the check asserts the account is intact afterwards.
    *
-   * The deletion port takes an `afterStep` hook precisely so a test can fail it part-way. Two ways
-   * are exercised, because they fail for different reasons:
-   *   1. the hook THROWS mid-transaction - the ordinary case a real error would produce;
-   *   2. the hook makes one later step a no-op, so the step SUCCEEDS but the pre-COMMIT read-back
-   *      finds rows the account still owns. That second one is the port's own defence, and it is
-   *      worth proving independently: it catches a partial delete that did not raise.
+   * The mode that used to live here (a hook that "made one later step a no-op" so the port's own
+   * pre-COMMIT read-back would find a leftover) has been DELETED, because it could not pass for
+   * the reason it claimed. Its INSERT ... SELECT $1, NULL hit a NOT NULL column (or, as this role
+   * is actually granted, failed with 42501 first) - a throw, which the old assertion accepted,
+   * making it indistinguishable from the `throw` mode. And the read-back it claimed to exercise
+   * is unreachable from a hook in this schema, which the programme verified by construction:
+   *   - `learner_settings` and `session` cascade from `"user"`, so a row re-inserted late is
+   *     removed by step 11 and the read-back legitimately finds 0 (no exception);
+   *   - every other owned table has an `NO ACTION` key into `"user"` or into a table already
+   *     deleted, so a re-inserted row makes a LATER STEP fail with 23503 (a throw) before the
+   *     read-back ever runs.
+   * So the read-back stays as defensive code, and the guarantee that a partial delete cannot
+   * commit comes from the FK backstop and the step ordering - which is what the comment in
+   * adapter.mjs now says. Keeping a mode that passed for an unrelated reason would have been
+   * worse than having no mode at all.
    */
   await check('a failure part-way through the deletion leaves the account INTACT, not half-deleted', async () => {
     const victim = await seed(call, 'FORCED'); // its own account, seeded through the API
     const snapshotBefore = await snapshot(victim.userId, [victim.revisionAttemptId]);
     assertPopulated(snapshotBefore, 'forced-failure victim');
 
-    for (const mode of ['throw', 'no-op-step']) {
-      const hooked = createDeletion({
-        pool: deletionPool,
-        afterStep: async (index, name, client) => {
-          if (mode === 'throw' && index === 5) {
-            throw new Error(`forced failure after step 5 (${name})`);
-          }
-          if (mode === 'no-op-step' && name === 'learner_settings') {
-            // Undo the last step's effect inside the still-open transaction, so the COMMIT would
-            // leave a row behind if the read-back did not stop it.
-            await client.query('INSERT INTO learner_settings(user_id, exam_date) SELECT $1, NULL WHERE NOT EXISTS (SELECT 1 FROM learner_settings WHERE user_id = $1)', [victim.userId]);
-          }
-        },
-      });
-
-      let threw = null;
-      try {
-        await hooked.deleteAccount(victim.userId);
-      } catch (error) {
-        threw = error;
-      }
-      assert.notEqual(threw, null, `[${mode}] the deletion must FAIL rather than report success`);
-
-      const after = await snapshot(victim.userId, [victim.revisionAttemptId]);
-      assert.deepEqual(after.counts, snapshotBefore.counts, `[${mode}] every table must still hold exactly what it held before the failed deletion`);
+    let threw = null;
+    const hooked = createDeletion({
+      pool: deletionPool,
+      afterStep: async (index, name) => {
+        if (index === 5) throw new Error(`forced failure after step 5 (${name})`);
+      },
+    });
+    try {
+      await hooked.deleteAccount(victim.userId);
+    } catch (error) {
+      threw = error;
     }
+    assert.notEqual(threw, null, 'the deletion must FAIL rather than report success');
 
-    return 'both forced failures rolled back: row counts identical to before, per table';
+    const after = await snapshot(victim.userId, [victim.revisionAttemptId]);
+    assert.deepEqual(after.counts, snapshotBefore.counts, 'every table must still hold exactly what it held before the failed deletion');
+
+    return 'the forced failure rolled back: row counts identical to before, per table';
   });
 
 } catch (error) {
@@ -451,5 +456,5 @@ try {
 const passed = results.filter((r) => r.ok).length;
 const failed = results.length - passed;
 console.log(`\n${passed} passed, ${failed} failed`);
-console.log('NOTE disposable PostgreSQL, synthetic accounts; deletion as a checker-provisioned restricted role (no such role is provisioned in an installation yet).');
+console.log('NOTE disposable PostgreSQL, synthetic accounts; the deletion role and its policies come from the same builders an installation provisions (migrations 0004/0005).');
 process.exit(failed ? 1 : 0);
