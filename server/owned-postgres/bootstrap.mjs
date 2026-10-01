@@ -7,9 +7,10 @@
  *   - `auth-schema.sql`  the tracked pinned-library auth schema
  *   - `schema.sql`       attempts/drafts/submissions/jobs/entitlements/assessments/usage_ledger
  *   - `isolation.sql`    role grants, ENABLE + FORCE ROW LEVEL SECURITY, owner policies
- *   - `accountSettingsSql` + `deletionRoleSql` from `provisioning-sql.mjs` — the SAME builders
- *     `provision.mjs` records as migrations `0004` and `0005`, so this fixture is a real
- *     installation's schema and least-privilege grants, not an approximation of them.
+ *   - `accountSettingsSql` + `deletionRoleSql` + `contentCatalogueSql` from `provisioning-sql.mjs`
+ *     — the SAME builders `provision.mjs` records as migrations `0004`, `0005` and `0006`, so
+ *     this fixture is a real installation's schema and least-privilege grants, not an
+ *     approximation of them.
  *
  * It is never run automatically and never against a shared database: the target
  * defaults to the documented disposable fixture (127.0.0.1:55435, database
@@ -20,7 +21,7 @@
 import pg from 'pg';
 import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { accountSettingsSql, deletionRoleSql } from './provisioning-sql.mjs';
+import { accountSettingsSql, deletionRoleSql, contentCatalogueSql } from './provisioning-sql.mjs';
 
 const SPIKE = new URL('../../spikes/auth-runtime/', import.meta.url);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
@@ -113,9 +114,11 @@ export async function createFixture(overrides = {}) {
       isolation = isolation.replaceAll(`__${key}__`, value);
     }
     await pools.migration.query(isolation);
-    // Migrations 0004 and 0005 of a persistent installation, from the one shared builder.
+    // Migrations 0004, 0005 and 0006 of a persistent installation, from the one shared
+    // builder — so the disposable fixture has the SAME schema and content an installation has.
     await pools.migration.query(accountSettingsSql({ schema, roles }));
     await pools.migration.query(deletionRoleSql({ schema, roles }));
+    await pools.migration.query(contentCatalogueSql({ schema, roles }));
 
     return { schema, roles, config, admin, ...pools, cleanup };
   } catch (error) {

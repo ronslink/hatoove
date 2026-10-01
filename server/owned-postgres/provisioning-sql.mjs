@@ -12,12 +12,21 @@
  * two callers.
  */
 
+import {
+  WRITING_FAMILY, WRITING_RUBRIC, WRITING_TASKS, contentVersionRows,
+} from './content-seed.mjs';
+
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
 
 const ident = (name) => {
   if (!IDENTIFIER.test(name)) throw new Error(`Unsafe identifier: ${String(name)}`);
   return `"${name}"`;
 };
+
+/** Single-quoted SQL literal for seeded text. These values are trusted constants, but escape
+ *  anyway so a future edit to a prompt cannot break (or inject into) the migration. */
+const lit = (value) => `'${String(value).replaceAll("'", "''")}'`;
+const jsonLit = (value) => `${lit(JSON.stringify(value))}::jsonb`;
 
 /** The verified owner of the current transaction, or '' when none was pinned. */
 const OWNER = "nullif(current_setting('hatoove.owner_id', true), '')";
@@ -67,6 +76,145 @@ export function accountSettingsSql({ schema, roles }) {
  * the attempt id was pinned for this transaction (the deletion captures the account's attempt
  * ids before it deletes them, so its own pre-COMMIT read-back can still see a draft it left).
  */
+/**
+ * Migration `0006-content-and-catalogue`: the writing task family as versioned shared content
+ * records, plus the columns that let an attempt bind an exact task and rubric version.
+ *
+ * Three record types, exactly as the dispatch asks for:
+ *   - `task_version`   the task/prompt record: stable `task_id` + a `version`, the prompt
+ *                      (`situation`), the `leitpunkte`, the addressee and the register;
+ *   - `rubric_version` its rubric (`criteria`, `max_total`);
+ *   - `content_version` the **content-version record carrying rights/review status**, one row
+ *                      per versioned artefact, with a sha256 of the payload and its source
+ *                      path. Every task/rubric row points at one.
+ *
+ * All three are IMMUTABLE: a `BEFORE UPDATE OR DELETE` trigger refuses any change, so a version
+ * is a durable claim. A correction is a NEW version (a new row), never an edit.
+ *
+ * EXISTING ROWS: this migration does NOT touch one row of `attempts` or `submissions`. It only
+ * ADDS two nullable columns (`task_id`, `rubric_id`) and two composite foreign keys. PostgreSQL
+ * foreign keys default to `MATCH SIMPLE`, so a row whose `task_id` is NULL is not checked at
+ * all — which is exactly what an already-stored attempt needs. An old attempt therefore keeps
+ * its literal `task_version = 'synthetic-writing-v1'` / `rubric_version = 'formative-fixture-v1'`
+ * and stays readable; the migration never rewrites it into a claim about content that was never
+ * reviewed. New attempts written by the datastore bind real versions (`content-seed.mjs`), and
+ * those ARE checked by the foreign keys.
+ *
+ * No RLS: these are shared reference rows, not learner rows — they carry no owner and are the
+ * same for every account. The learner and worker roles get SELECT.
+ */
+export function contentCatalogueSql({ schema, roles }) {
+  const s = ident(schema);
+  const contentRows = contentVersionRows()
+    .map((row) => `    (${lit(row.contentVersionId)}, ${lit(row.kind)}, ${lit(row.family)}, `
+      + `${lit(row.sourcePath)}, ${lit(row.reviewStatus)}, ${lit(row.rightsStatus)}, ${lit(row.sha256)})`)
+    .join(',\n');
+  const rubricRows = [
+    `    (${lit(WRITING_RUBRIC.rubricId)}, ${lit(WRITING_RUBRIC.version)}, ${lit(WRITING_FAMILY)}, `
+    + `${jsonLit(WRITING_RUBRIC.criteria)}, `
+    + `${WRITING_RUBRIC.criteria.reduce((sum, c) => sum + c.max, 0)}, `
+    + `${lit(`${WRITING_RUBRIC.rubricId}@${WRITING_RUBRIC.version}`)})`,
+  ].join(',\n');
+  const taskRows = WRITING_TASKS
+    .map((task) => `    (${lit(task.taskId)}, ${lit(task.version)}, ${lit(WRITING_FAMILY)}, ${lit(task.register)}, `
+      + `${lit(task.topic)}, ${lit(task.situation)}, ${lit(task.adressat)}, ${jsonLit(task.leitpunkte)}, `
+      + `${lit(WRITING_RUBRIC.rubricId)}, ${lit(WRITING_RUBRIC.version)}, ${lit(`${task.taskId}@${task.version}`)})`)
+    .join(',\n');
+  return `
+    CREATE TABLE IF NOT EXISTS ${s}.content_version (
+      content_version_id text PRIMARY KEY,
+      kind             text NOT NULL,
+      family           text NOT NULL,
+      source_path      text NOT NULL,
+      review_status    text NOT NULL,
+      rights_status    text NOT NULL,
+      content_sha256   text NOT NULL,
+      created_at       timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS ${s}.rubric_version (
+      rubric_id          text NOT NULL,
+      version            text NOT NULL,
+      family             text NOT NULL,
+      criteria           jsonb NOT NULL,
+      max_total          integer NOT NULL,
+      content_version_id text NOT NULL REFERENCES ${s}.content_version(content_version_id),
+      created_at         timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (rubric_id, version)
+    );
+    CREATE TABLE IF NOT EXISTS ${s}.task_version (
+      task_id            text NOT NULL,
+      version            text NOT NULL,
+      family             text NOT NULL,
+      register           text NOT NULL,
+      topic              text NOT NULL,
+      situation          text NOT NULL,
+      adressat           text NOT NULL,
+      leitpunkte         jsonb NOT NULL,
+      rubric_id          text NOT NULL,
+      rubric_version     text NOT NULL,
+      content_version_id text NOT NULL REFERENCES ${s}.content_version(content_version_id),
+      created_at         timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (task_id, version),
+      FOREIGN KEY (rubric_id, rubric_version) REFERENCES ${s}.rubric_version(rubric_id, version)
+    );
+
+    -- Forward-only binding on the EXISTING tables. Nullable, MATCH SIMPLE, so stored rows keep
+    -- their literal synthetic versions and are never rewritten.
+    ALTER TABLE ${s}.attempts ADD COLUMN IF NOT EXISTS task_id text;
+    ALTER TABLE ${s}.attempts ADD COLUMN IF NOT EXISTS rubric_id text;
+    DO $do$
+    BEGIN
+      ALTER TABLE ${s}.attempts ADD CONSTRAINT attempts_task_version_fk
+        FOREIGN KEY (task_id, task_version) REFERENCES ${s}.task_version(task_id, version);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $do$;
+    DO $do$
+    BEGIN
+      ALTER TABLE ${s}.attempts ADD CONSTRAINT attempts_rubric_version_fk
+        FOREIGN KEY (rubric_id, rubric_version) REFERENCES ${s}.rubric_version(rubric_id, version);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $do$;
+
+    -- Seed the six writing prompts and the one rubric. Idempotent: re-running changes nothing.
+    INSERT INTO ${s}.content_version
+      (content_version_id, kind, family, source_path, review_status, rights_status, content_sha256)
+    VALUES
+${contentRows}
+    ON CONFLICT (content_version_id) DO NOTHING;
+    INSERT INTO ${s}.rubric_version
+      (rubric_id, version, family, criteria, max_total, content_version_id)
+    VALUES
+${rubricRows}
+    ON CONFLICT (rubric_id, version) DO NOTHING;
+    INSERT INTO ${s}.task_version
+      (task_id, version, family, register, topic, situation, adressat, leitpunkte,
+       rubric_id, rubric_version, content_version_id)
+    VALUES
+${taskRows}
+    ON CONFLICT (task_id, version) DO NOTHING;
+
+    -- Immutability. A versioned shared record is append-only: a correction is a new version.
+    CREATE OR REPLACE FUNCTION ${s}.content_immutable() RETURNS trigger LANGUAGE plpgsql AS $fn$
+    BEGIN
+      RAISE EXCEPTION 'content records are immutable (%.%); create a new version instead',
+        TG_TABLE_SCHEMA, TG_TABLE_NAME USING ERRCODE = 'integrity_constraint_violation';
+    END $fn$;
+    DROP TRIGGER IF EXISTS content_version_immutable ON ${s}.content_version;
+    CREATE TRIGGER content_version_immutable BEFORE UPDATE OR DELETE ON ${s}.content_version
+      FOR EACH ROW EXECUTE FUNCTION ${s}.content_immutable();
+    DROP TRIGGER IF EXISTS rubric_version_immutable ON ${s}.rubric_version;
+    CREATE TRIGGER rubric_version_immutable BEFORE UPDATE OR DELETE ON ${s}.rubric_version
+      FOR EACH ROW EXECUTE FUNCTION ${s}.content_immutable();
+    DROP TRIGGER IF EXISTS task_version_immutable ON ${s}.task_version;
+    CREATE TRIGGER task_version_immutable BEFORE UPDATE OR DELETE ON ${s}.task_version
+      FOR EACH ROW EXECUTE FUNCTION ${s}.content_immutable();
+
+    REVOKE ALL ON ${s}.content_version, ${s}.rubric_version, ${s}.task_version FROM PUBLIC;
+    GRANT SELECT ON ${s}.content_version, ${s}.rubric_version, ${s}.task_version
+      TO ${ident(roles.learner)}, ${ident(roles.worker)};
+  `;
+}
+
 export function deletionRoleSql({ schema, roles }) {
   const s = ident(schema);
   const role = ident(roles.deletion);
