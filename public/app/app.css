@@ -1,0 +1,36 @@
+/* The app shell's own layer (PILOT-08).
+ *
+ * Everything visual comes from the curated design system at /assets/design/hatoove.css — tokens,
+ * the .app/.side/.nav/.topbar/.content layout, the responsive rules at 1100 and 860 px, dark mode.
+ * This file adds ONLY what a single-page shell needs, and it uses tokens rather than raw values,
+ * so the design language stays in one place. `tools/design-check.mjs` holds public/styles.css to
+ * that rule; this file follows the same rule deliberately.
+ */
+
+/* One view at a time. `hidden` is the shell's own state, not the design system's. */
+.view[hidden] { display: none; }
+
+/* The router marks where you are. The design system already styles [aria-current=page] in the
+ * sidebar; the tabbar needs the same emphasis so the mobile shell reads as one place. */
+.tabbar a[aria-current="page"] { color: var(--orange-dark); font-weight: 700; }
+
+/* The countdown is the one figure on the first screen, so it carries the display face. */
+#countdown { font-family: var(--display); letter-spacing: -.03em; }
+
+/* An email address is arbitrary length: it must not widen the sidebar. */
+.side-foot div { min-width: 0; }
+.side-foot div strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* A route name appears in prose when something is not built yet. It should read as a code
+ * reference rather than as a UI control. */
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .9em;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 5px;
+}
+
+/* A saving state must be visible without shifting the layout. */
+#settings-state { min-height: 1.2em; }

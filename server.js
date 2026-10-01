@@ -557,7 +557,9 @@ function isNavigation(req) {
 }
 
 async function serveStatic(req, res, pathname) {
-  let target = resolveStatic(pathname === '/' ? '/index.html' : pathname);
+  // PILOT-08: `/` is the NEW client. The old single-user SPA is superseded and is retired by
+  // PILOT-11a; it is no longer the entry point.
+  let target = resolveStatic(pathname === '/' ? '/app/index.html' : pathname);
   if (!target) {
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Forbidden');
