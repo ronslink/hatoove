@@ -266,6 +266,33 @@ try{
   assert.equal((await request('GET','/api/v1/nouns?gender=xxx',undefined,cookie)).status,422,'an unknown article must be refused, not silently return nothing');
   assert.equal((await request('GET','/api/v1/nouns?q=n',undefined,cookie)).status,422,'a one-character search must be refused');
   passed('the noun lexicon serves 240 nouns with gender, plural and rule, filterable by article and theme');
+
+  /*
+   * LIBRARY-SEED-03 — the five reference guides, as an INDEX and then one document.
+   *
+   * `grammar-guide` alone is 64 KB across 14 topics, so the list must not carry the content. And the
+   * authored structure must SURVIVE the round trip: a declension table is a headers array plus a rows
+   * array, and flattening it into columns would have destroyed it.
+   */
+  assert.equal((await request('GET','/api/v1/guides')).status,401,'/api/v1/guides must require a session');
+  const guides=await request('GET','/api/v1/guides',undefined,cookie);
+  assert.equal(guides.status,200,guides.text);
+  assert.equal(guides.json.length,5,'five guides expected, got '+guides.json.length);
+  assert.equal(guides.json.reduce((n,g)=>n+g.section_count,0),101,'101 sections expected across the five guides, got '+guides.json.reduce((n,g)=>n+g.section_count,0));
+  const grammar=await request('GET','/api/v1/guides/grammar-guide',undefined,cookie);
+  assert.equal(grammar.status,200,grammar.text);
+  assert.equal(grammar.json.sections.length,14,'grammar-guide holds 14 topics, got '+grammar.json.sections.length);
+  assert.ok(grammar.json.sections[0].payload.rule&&grammar.json.sections[0].payload.pattern,
+    'a topic must carry its rule and pattern, not just a title');
+  const cases=await request('GET','/api/v1/guides/cases-guide',undefined,cookie);
+  assert.equal(cases.status,200);
+  const table=cases.json.sections.find((s)=>s.kind==='table');
+  assert.ok(table&&Array.isArray(table.payload.headers)&&table.payload.headers.length===5,
+    'the declension table headers must survive as an array of 5');
+  assert.ok(Array.isArray(table.payload.rows)&&table.payload.rows.length>0,'the declension table rows must survive');
+  assert.ok(cases.json.intro&&cases.json.watch_out.length>0,'a guide that has an intro and watch-outs must carry them');
+  assert.equal((await request('GET','/api/v1/guides/not-a-guide',undefined,cookie)).status,404,'an unknown guide must be 404');
+  passed('the guide library serves 5 documents / 101 sections as an index plus one document, structure intact');
   /*
    * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them
    * was tested wrongly.

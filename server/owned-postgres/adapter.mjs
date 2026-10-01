@@ -265,6 +265,87 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       });
     },
     /**
+     * LIBRARY-SEED-03 — the reference guides, as an index and then one document.
+     *
+     * WHY TWO METHODS and not one that returns everything: `grammar-guide` alone is 64 KB across 14
+     * topics. A learner opening the guide list should not download five documents to find out what is
+     * in them. The index carries titles and section counts; `readGuide` fetches one guide's sections.
+     */
+    async listGuides(owner, { examId = null, serveReview = 'approved+unreviewed' } = {}) {
+      note('listGuides');
+      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      return settle(owner, async (client) => {
+        const rows = (await client.query(
+          `SELECT g.guide_id, g.family, g.title, g.intro, g.section_count,
+                  c.review_status, c.rights_status
+             FROM guide g
+             JOIN content_version c ON c.content_version_id = g.content_version_id
+            WHERE g.exam_id = COALESCE($1, g.exam_id)
+              AND c.review_status = ANY($2::text[])
+            ORDER BY g.guide_id`,
+          [examId, statuses])).rows;
+        return rows.map((row) => ({
+          guide_id: row.guide_id,
+          family: row.family,
+          title: row.title,
+          intro: row.intro,
+          section_count: row.section_count,
+          review_status: row.review_status,
+          rights_status: row.rights_status,
+        }));
+      });
+    },
+    /**
+     * One guide with its sections, or `null` when it does not exist OR is not servable.
+     *
+     * Returning `null` rather than an empty section list is deliberate: an empty array cannot
+     * distinguish "this guide has no sections" from "no such guide", and the route turns those into
+     * answers a learner can act on — 404 versus 200 with an empty list — only if the difference
+     * survives this far.
+     */
+    async readGuide(owner, { guideId, serveReview = 'approved+unreviewed' } = {}) {
+      note('readGuide');
+      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      return settle(owner, async (client) => {
+        const head = (await client.query(
+          `SELECT g.guide_id, g.family, g.title, g.intro, g.intro_en, g.watch_out, g.watch_out_en,
+                  g.section_count, c.review_status, c.rights_status
+             FROM guide g
+             JOIN content_version c ON c.content_version_id = g.content_version_id
+            WHERE g.guide_id = $1 AND c.review_status = ANY($2::text[])`,
+          [guideId, statuses])).rows[0];
+        if (!head) return null;
+        const sections = (await client.query(
+          `SELECT section_id, ordinal, kind, title, title_en, summary, summary_en, payload
+             FROM guide_section
+            WHERE guide_id = $1
+            ORDER BY ordinal`,
+          [guideId])).rows;
+        return {
+          guide_id: head.guide_id,
+          family: head.family,
+          title: head.title,
+          intro: head.intro,
+          intro_en: head.intro_en,
+          watch_out: head.watch_out,
+          watch_out_en: head.watch_out_en,
+          section_count: head.section_count,
+          review_status: head.review_status,
+          rights_status: head.rights_status,
+          sections: sections.map((row) => ({
+            section_id: row.section_id,
+            ordinal: row.ordinal,
+            kind: row.kind,
+            title: row.title,
+            title_en: row.title_en,
+            summary: row.summary,
+            summary_en: row.summary_en,
+            payload: row.payload,
+          })),
+        };
+      });
+    },
+    /**
      * Create an owned attempt bound to an exact task/rubric version (SAAS-MODEL-01 Step 1).
      * `binding` defaults to the canonical writing task (`content-seed.mjs`); a caller that has
      * a task-selection route (SAAS-RESUME-01) can pass the chosen one. The composite foreign

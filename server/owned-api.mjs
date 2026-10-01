@@ -83,7 +83,9 @@ const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry'
  * An absent catalogue must disable the CATALOGUE, in the way an absent settings port disables
  * settings and an absent deletion port disables deletion, and leave the rest of the product alone.
  */
-const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'listVocab', 'listNouns'];
+const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'listVocab', 'listNouns', 'listGuides', 'readGuide'];
+/** `/api/v1/guides/{guideId}` — a closed slug shape, so an id can never reach SQL as anything else. */
+const GUIDE_RE = /^\/api\/v1\/guides\/([a-z][a-z0-9-]{0,63})$/;
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -466,6 +468,32 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         examId: exam, theme: theme === null ? null : theme.trim(), gender,
         q: q === null ? null : q.trim(), serveReview,
       }));
+    }
+    if (pathname === '/api/v1/guides' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
+      /*
+       * LIBRARY-SEED-03 — the reference guides. The INDEX only: 5 documents, 101 sections between
+       * them, and `grammar-guide` alone is 64 KB, so the list carries titles and section counts and
+       * one guide is fetched by id.
+       */
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      return reply(200, await datastore.listGuides(owner, { examId: exam, serveReview }));
+    }
+    {
+      const guideMatch = GUIDE_RE.exec(pathname);
+      if (guideMatch && method === 'GET') {
+        if (!catalogueWired) fault(503, 'catalogue_unavailable');
+        const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+          ? 'approved' : 'approved+unreviewed';
+        const guide = await datastore.readGuide(owner, { guideId: guideMatch[1], serveReview });
+        // A guide that does not exist and a guide the deployment will not serve are BOTH 404, so the
+        // endpoint is not an oracle for what exists but is withheld.
+        if (!guide) fault(404, 'not_found');
+        return reply(200, guide);
+      }
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId']);
