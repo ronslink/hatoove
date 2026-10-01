@@ -83,7 +83,7 @@ const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry'
  * An absent catalogue must disable the CATALOGUE, in the way an absent settings port disables
  * settings and an absent deletion port disables deletion, and leave the rest of the product alone.
  */
-const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'listVocab', 'listNouns', 'listGuides', 'readGuide'];
+const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'readObjectiveSet', 'listVocab', 'listNouns', 'listGuides', 'readGuide'];
 /**
  * PRACTICE is its own optional capability, for the same reason the catalogue is.
  *
@@ -93,6 +93,8 @@ const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'listVocab', 'listN
  * product.
  */
 const PRACTICE_METHODS = ['answerObjectiveItem', 'nextPractice'];
+/** `/api/v1/objective-sets/{setId}` — read ONE set, payload included. The list is an index. */
+const OBJECTIVE_SET_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})$/;
 /** `/api/v1/objective-sets/{setId}/answers` — the set id is dotted (`telc-deutsch-b1.lv1.01`). */
 const OBJECTIVE_ANSWER_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})\/answers$/;
 /** `/api/v1/guides/{guideId}` — a closed slug shape, so an id can never reach SQL as anything else. */
@@ -552,6 +554,24 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       // client shows its honest empty state rather than an error page.
       if (!next) return reply(200, { reason: 'nothing_available', section: null, evidence: null, set: null });
       return reply(200, next);
+    }
+    {
+      /*
+       * One objective set, WITH its payload. The list is an INDEX and carries no payload: fetching 15
+       * titles used to ship all fifteen full task texts to the browser. A learner opening a set gets
+       * that one set.
+       */
+      const setMatch = OBJECTIVE_SET_RE.exec(pathname);
+      if (setMatch && method === 'GET') {
+        if (!catalogueWired) fault(503, 'catalogue_unavailable');
+        const version = query.get('version') === null ? 'v1' : query.get('version');
+        if (typeof version !== 'string' || !/^v[0-9]{1,4}$/.test(version)) fault(422, 'invalid_version');
+        const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+          ? 'approved' : 'approved+unreviewed';
+        const set = await datastore.readObjectiveSet(owner, { setId: setMatch[1], version, serveReview });
+        if (!set) fault(404, 'not_found');
+        return reply(200, set);
+      }
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId']);

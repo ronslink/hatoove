@@ -138,6 +138,11 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * edit adds the join, the query fails with a permission error rather than leaking — which is the
      * failure mode to want.
      *
+     * WHY IT DOES NOT RETURN `payload`: this is the INDEX. It used to carry every set's authored
+     * structure, which meant listing 15 titles shipped all fifteen full task texts to the browser.
+     * A list needs titles and counts; `readObjectiveSet` fetches one set when a learner actually opens
+     * it. The distinction is the same one the guide index makes for 64 KB of grammar.
+     *
      * WHY `media_required` SETS ARE EXCLUDED: the HV families carry `script`, the transcript of audio
      * that does not exist yet. Listing them would offer a learner a listening task with no audio,
      * which is a Hören task wearing a Hören label while actually being a Lesen task. They stay in the
@@ -149,7 +154,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title,
-                  s.payload, s.item_count, s.media_required,
+                  s.item_count, s.media_required,
                   c.review_status, c.rights_status
              FROM objective_set s
              JOIN content_version c ON c.content_version_id = s.content_version_id
@@ -167,13 +172,38 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
           section: row.section,
           part: row.part,
           title: row.title,
-          payload: row.payload,
           item_count: row.item_count,
           media_required: row.media_required,
           review_status: row.review_status,
           rights_status: row.rights_status,
         }));
       });
+    },
+    /**
+     * One servable objective set, WITH its authored payload. `null` when it does not exist or the
+     * deployment will not serve it — the route turns both into 404, so it is not an oracle for what
+     * exists but is withheld.
+     */
+    async readObjectiveSet(owner, { setId, version = 'v1', serveReview = 'approved+unreviewed' } = {}) {
+      note('readObjectiveSet');
+      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      const row = first(await settle(owner, async (client) => client.query(
+        `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title, s.payload,
+                s.item_count, s.media_required, c.review_status, c.rights_status
+           FROM objective_set s
+           JOIN content_version c ON c.content_version_id = s.content_version_id
+          WHERE s.set_id = $1 AND s.version = $2
+            AND c.review_status = ANY($3::text[])
+            AND s.media_required = false
+            AND s.exam_id = COALESCE($4, s.exam_id)`,
+        [setId, version, statuses, null])));
+      if (!row) return null;
+      return {
+        set_id: row.set_id, version: row.version, exam_id: row.exam_id, family: row.family,
+        section: row.section, part: row.part, title: row.title, payload: row.payload,
+        item_count: row.item_count, media_required: row.media_required,
+        review_status: row.review_status, rights_status: row.rights_status,
+      };
     },
     /**
      * LIBRARY-SEED-01 — the B1 core vocabulary.
