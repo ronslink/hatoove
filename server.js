@@ -355,8 +355,34 @@ function isSameOriginRequest(req, ownPort, { saas = false, origin = null } = {})
   return Boolean(originUrl) && originUrl.protocol === 'http:' && isLoopbackHostname(originUrl.hostname) && (originUrl.port || '80') === port;
 }
 
+/**
+ * F3 (independent review `saas-runtime-review-hermes-20261001-a`). Strict admission check on a
+ * value that is about to be parsed as an origin.
+ *
+ * `new URL()` follows WHATWG normalisation, which treats a BACKSLASH in a special-scheme URL as a
+ * path separator. So `https://app.example.test\@attacker.example` parses with the host
+ * `app.example.test` and the rest as a path, i.e. it is **accepted as an exact match** against a
+ * configured origin. A browser cannot produce such an `Origin` header — it serialises
+ * `scheme://host[:port]` — and a non-browser client that forges headers was never constrained by
+ * this check, so this is **not an exploit path**. It is fixed anyway because the check *claims*
+ * exact equality, and a security control should refuse input it cannot interpret literally rather
+ * than lean on the parser's leniency.
+ *
+ * Deliberately narrow: it rejects only characters that can change how the value parses. A hostname
+ * is letters, digits, dots and hyphens (and brackets for IPv6); a port is digits.
+ */
+function hasUnparseableOriginCharacters(raw) {
+  const value = String(raw || '');
+  // Control characters, whitespace inside the value, and the backslash WHATWG turns into a path break.
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u0020\u007f\\]/.test(value)) return true;
+  // The value must look like scheme://host[:port] with nothing after the authority.
+  return !/^[A-Za-z][A-Za-z0-9+.-]*:\/\/[A-Za-z0-9.\-[\]:]+$/.test(value);
+}
+
 /** scheme+host+port equality against the configured origin (default ports normalised by URL). */
 function originMatches(configured, value) {
+  if (hasUnparseableOriginCharacters(value)) return false;
   const url = parseOriginLike(String(value));
   return Boolean(url) && `${url.protocol}//${url.host}` === `${configured.protocol}//${configured.host}`;
 }
@@ -367,7 +393,9 @@ function originMatches(configured, value) {
  * `Host: app.example.com` for an https origin on its default port.
  */
 function hostMatchesOrigin(configured, hostHeader) {
-  const url = parseOriginLike(`http://${hostHeader || ''}`);
+  const raw = String(hostHeader || '');
+  if (hasUnparseableOriginCharacters(`http://${raw}`)) return false;
+  const url = parseOriginLike(`http://${raw}`);
   if (!url || url.hostname !== configured.hostname) return false;
   if (!url.port) return true;
   return url.port === (configured.port || (configured.protocol === 'https:' ? '443' : '80'));
