@@ -394,6 +394,53 @@ try {
     assert.notEqual(who.json.id, A.userId);
     assert.equal((await call('GET', `/api/v1/attempts/${A.revisionAttemptId}`, { cookie: cookieOf(again) })).status, 404);
   });
+  /*
+   * The forced-failure check, which the brief named as the acceptance criterion most likely to be
+   * skipped and which was indeed missing from the first run. Without it the "one transaction" claim
+   * rests on reading the code; with it the claim is demonstrated.
+   *
+   * The deletion port takes an `afterStep` hook precisely so a test can fail it part-way. Two ways
+   * are exercised, because they fail for different reasons:
+   *   1. the hook THROWS mid-transaction - the ordinary case a real error would produce;
+   *   2. the hook makes one later step a no-op, so the step SUCCEEDS but the pre-COMMIT read-back
+   *      finds rows the account still owns. That second one is the port's own defence, and it is
+   *      worth proving independently: it catches a partial delete that did not raise.
+   */
+  await check('a failure part-way through the deletion leaves the account INTACT, not half-deleted', async () => {
+    const victim = await seed(call, 'FORCED'); // its own account, seeded through the API
+    const snapshotBefore = await snapshot(victim.userId, [victim.revisionAttemptId]);
+    assertPopulated(snapshotBefore, 'forced-failure victim');
+
+    for (const mode of ['throw', 'no-op-step']) {
+      const hooked = createDeletion({
+        pool: deletionPool,
+        afterStep: async (index, name, client) => {
+          if (mode === 'throw' && index === 5) {
+            throw new Error(`forced failure after step 5 (${name})`);
+          }
+          if (mode === 'no-op-step' && name === 'learner_settings') {
+            // Undo the last step's effect inside the still-open transaction, so the COMMIT would
+            // leave a row behind if the read-back did not stop it.
+            await client.query('INSERT INTO learner_settings(user_id, exam_date) SELECT $1, NULL WHERE NOT EXISTS (SELECT 1 FROM learner_settings WHERE user_id = $1)', [victim.userId]);
+          }
+        },
+      });
+
+      let threw = null;
+      try {
+        await hooked.deleteAccount(victim.userId);
+      } catch (error) {
+        threw = error;
+      }
+      assert.notEqual(threw, null, `[${mode}] the deletion must FAIL rather than report success`);
+
+      const after = await snapshot(victim.userId, [victim.revisionAttemptId]);
+      assert.deepEqual(after.counts, snapshotBefore.counts, `[${mode}] every table must still hold exactly what it held before the failed deletion`);
+    }
+
+    return 'both forced failures rolled back: row counts identical to before, per table';
+  });
+
 } catch (error) {
   results.push({ name: 'setup', ok: false });
   console.log(`FAIL setup\n     ${error && error.stack || error}`);
