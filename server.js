@@ -3,7 +3,7 @@
  *
  * Zero dependencies on purpose: only Node built-ins, so `node server.js` always works.
  * Responsibilities:
- *   1. serve ./public (the app) and ./data (content packs)
+ *   1. serve ./public (the app shell) — learner data comes from the API, never from files
  *   2. hold the DeepSeek API key server-side so it never lands in browser storage
  *   3. proxy generation/grading requests to DeepSeek
  *   4. reject cross-origin state changes, so a page the learner visits cannot retarget
@@ -22,7 +22,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, 'public');
-const DATA_DIR = path.join(ROOT, 'data');
+// `data/` is deliberately NOT a static root any more: learner data is served by the API under a
+// verified session, never from files. The directory still exists because the objective corpus has not
+// yet been migrated into `task_version` (see the file audit), but nothing serves it.
 // .env holds the provider key and the saved settings. B1PREP_ENV_FILE lets the
 // origin/authorization tests write to a throwaway path, so a test run can never touch
 // the learner's real .env (the same idea as B1PREP_PROGRESS_FILE below).
