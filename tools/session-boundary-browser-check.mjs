@@ -8,7 +8,9 @@
  *     instrumentation script installed before any page script runs;
  *   * SIGN-OUT CLEARS: after signing out through the Konto page, the notebook view, the
  *     notebook badge and the dashboard no longer show the account's work, and this browser's
- *     localStorage holds none of its text;
+ *     localStorage holds none of its text - on all three branches: the final save confirmed,
+ *     the final save held past the sign-out budget (before and after it lands), and offline;
+ *     on the two unconfirmed branches the learner is told (SESSION-BOUNDARY-02 F1);
  *   * NO LATE REPAINT: a progress response for the account that arrives AFTER the page signed
  *     out does not repaint the account's work (view, badge, Konto state or storage);
  *   * the single-user path is unchanged with accounts disabled (the record shows, 12 views);
@@ -280,9 +282,25 @@ async function postProgress(port, accountId, marker) {
 
 const viewText = (cdp) => cdp.evaluate(`return document.getElementById('view').innerText`);
 const badge = (cdp) => cdp.evaluate(`return (document.querySelector('[data-badge="notebook"]') || {}).textContent || ''`);
-const storageHas = (cdp, text) => cdp.evaluate(`
-  for (let i = 0; i < localStorage.length; i++) { if ((localStorage.getItem(localStorage.key(i)) || '').includes(${JSON.stringify(text)})) return true; }
-  return false;`);
+const storageHasExpr = (text) => `Array.from({ length: localStorage.length }, (_, i) => localStorage.getItem(localStorage.key(i)) || '').some((v) => v.includes(${JSON.stringify(text)}))`;
+const storageHas = (cdp, text) => cdp.evaluate(`return ${storageHasExpr(text)}`);
+
+/** Wait until no debounced progress save is still queued in the page. */
+async function saveSettled(cdp) {
+  await sleep(300);
+  await cdp.waitFor(`import('/js/store.js').then((m) => m.syncStatus().state !== 'pending')`, 15000, 'queued save settled');
+}
+
+/** Sign in through the Konto form and wait for the signed-in Konto. */
+async function signInThroughKonto(cdp, who) {
+  await openView(cdp, 'account', 'Konto');
+  await cdp.waitFor(`!!document.querySelector('#account-signin-form')`, 15000, 'sign-in form');
+  await cdp.evaluate(`
+    document.querySelector('#signin-email').value = ${JSON.stringify(who.email)};
+    document.querySelector('#signin-password').value = ${JSON.stringify(who.password)};
+    document.querySelector('[data-signin]').click(); return true;`);
+  await cdp.waitFor(`!!document.querySelector('[data-account-email]')`, 15000, `signed in as ${who.email}`);
+}
 
 async function openView(cdp, id, title) {
   await cdp.evaluate(`document.querySelector('[data-view="${id}"], [data-shell-view="${id}"]').click(); return true`);
@@ -369,7 +387,7 @@ async function main(argv) {
     record('sign-out-clears-the-visible-notebook', !afterSignOut.includes(A.marker) && !afterSignOut.includes(LEGACY_MARKER), `A marker shown: ${afterSignOut.includes(A.marker)}`);
     shots.push(await screenshot(cdp, 'desktop-notebook-signed-out.png'));
     await openView(cdp, 'home', 'Übersicht');
-    record('sign-out-leaves-no-account-text-in-storage', !(await storageHas(cdp, A.marker)), 'localStorage scanned for the account marker');
+    record('sign-out-confirmed-save-leaves-no-account-text-in-storage', !(await storageHas(cdp, A.marker)), 'final save reached the server; localStorage scanned for the account marker');
 
     /* --------------------------------------------- LATE RESPONSE AFTER SIGN-OUT */
     await openView(cdp, 'account', 'Konto');
@@ -393,6 +411,45 @@ async function main(argv) {
     const afterLate = await viewText(cdp);
     record('late-response-does-not-repaint-the-notebook', !afterLate.includes(A.marker), `A marker shown: ${afterLate.includes(A.marker)}`);
     record('late-response-does-not-reach-storage', !(await storageHas(cdp, A.marker)), 'localStorage scanned after the late answer');
+
+    /* ------- SIGN-OUT WHEN THE FINAL SAVE DOES NOT LAND (SESSION-BOUNDARY-02 F1) */
+    // The confirmed branch is above. These are the two ordinary branches it does not cover:
+    // the final save held past the sign-out budget, and a sign-out while offline. The account
+    // copy must be gone from localStorage either way, and the learner must be told.
+    await signInThroughKonto(cdp, A);
+    await cdp.waitFor(storageHasExpr(A.marker), 15000, 'A copy back in localStorage (held-save precondition)');
+    record('held-save-precondition-the-account-copy-is-in-storage', await storageHas(cdp, A.marker), 'signed in as A, record synced');
+    await saveSettled(cdp); // so the held POST is the sign-out's own final save, not a queued one
+    enabled.holdNext((req) => req.method === 'POST' && req.url.startsWith('/api/progress') && req.headers['x-b1prep-account'] === accountId);
+    await cdp.click('[data-signout]');
+    await cdp.waitFor(`!!document.querySelector('#account-signin-form')`, 20000, 'signed out with the save held');
+    const heldReached = enabled.gate.reached === true;
+    record('held-save-sign-out-leaves-no-account-text-in-storage', heldReached && !(await storageHas(cdp, A.marker)), `final save held: ${heldReached}; localStorage scanned`);
+    const heldNotice = await cdp.evaluate(`const e = document.querySelector('[data-account-error]'); return e && !e.hidden ? e.textContent : ''`);
+    record('held-save-sign-out-tells-the-learner', heldNotice.includes('nicht erreicht'), `notice="${heldNotice.slice(0, 80)}"`);
+    enabled.gate.release?.();
+    await sleep(1500);
+    record('held-save-still-no-account-text-after-the-answer-lands', !(await storageHas(cdp, A.marker)), 'localStorage scanned after the held answer');
+
+    await signInThroughKonto(cdp, A);
+    await cdp.waitFor(storageHasExpr(A.marker), 15000, 'A copy back in localStorage (offline precondition)');
+    record('offline-precondition-the-account-copy-is-in-storage', await storageHas(cdp, A.marker), 'signed in as A, record synced');
+    await cdp.send('Network.enable');
+    await cdp.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await cdp.click('[data-signout]');
+    await cdp.waitFor(`!!document.querySelector('#account-signin-form')`, 20000, 'signed out offline');
+    record('offline-sign-out-leaves-no-account-text-in-storage', !(await storageHas(cdp, A.marker)), 'localStorage scanned while still offline');
+    const offlineNotice = await cdp.evaluate(`const e = document.querySelector('[data-account-error]'); return e && !e.hidden ? e.textContent : ''`);
+    record('offline-sign-out-tells-the-learner', offlineNotice.includes('nicht erreicht'), `notice="${offlineNotice.slice(0, 80)}"`);
+    shots.push(await screenshot(cdp, 'desktop-konto-signed-out-offline.png'));
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await cdp.send('Network.disable');
+    // The server never heard that sign-out, and the HttpOnly session cookie cannot be dropped
+    // by the page, so back online the Konto resolves to A again. Sign out for real.
+    await openView(cdp, 'account', 'Konto');
+    await cdp.waitFor(`!!document.querySelector('[data-signout]')`, 15000, 'A resolved again once online');
+    await cdp.click('[data-signout]');
+    await cdp.waitFor(`!!document.querySelector('#account-signup-form')`, 15000, 'signed out online');
 
     /* ------------------------- the single-user exam date never reaches an account */
     const sharedDate = '2030-05-05';

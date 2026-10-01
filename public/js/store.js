@@ -197,13 +197,18 @@ export function accountScopeStatus() {
  * issue #63 forbids assigning the local single-user blob to an account automatically, so
  * the boundary leaves it where it is (untouched) until there is an explicit migration
  * decision.
+ *
+ * `forgetOthers: true` first removes every OTHER account's namespaced record from this
+ * browser (see forgetAccountRecords). The session boundary passes it, so an account switch
+ * never leaves the previous account's text behind.
  * @param {string} id an opaque account id (the owned-auth account id)
- * @param {{adoptLegacy?: boolean}} [options]
+ * @param {{adoptLegacy?: boolean, forgetOthers?: boolean}} [options]
  */
-export function setAccountScope(id, { adoptLegacy = true } = {}) {
+export function setAccountScope(id, { adoptLegacy = true, forgetOthers = false } = {}) {
   if (typeof id !== 'string' || !ACCOUNT_ID_RE.test(id)) {
     throw new Error('setAccountScope expects an account id matching [A-Za-z0-9][A-Za-z0-9-]{0,63}');
   }
+  if (forgetOthers) forgetAccountRecords(id);
   // A queued save/reset belongs to the scope it was queued under; drop the timers so a
   // debounced write cannot land under the account that is being switched in.
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
@@ -224,28 +229,42 @@ export function setAccountScope(id, { adoptLegacy = true } = {}) {
 }
 
 /**
- * Sign out: hold nothing learner-derived and persist nothing. The account's namespaced
- * cache is left on disk (so that account can resume) but is unreadable by any other
- * account, which only ever reads its own namespace.
+ * Remove every account's namespaced learner record from this browser except `keep`'s.
+ * Pending-reset flags stay: they hold no learner text, and dropping one would cancel a
+ * reset the learner asked for before it reached the server.
+ */
+function forgetAccountRecords(keep = null) {
+  const s = storage();
+  if (!s) return;
+  try {
+    const prefix = `${STORAGE_KEY}::`;
+    const kept = keep ? scopedStorageKey(keep) : null;
+    const doomed = [];
+    for (let i = 0; i < s.length; i += 1) {
+      const key = s.key(i);
+      if (key && key.startsWith(prefix) && key !== kept) doomed.push(key);
+    }
+    for (const key of doomed) s.removeItem(key);
+  } catch {
+    /* storage unavailable: nothing was persisted there either */
+  }
+}
+
+/**
+ * Sign out: hold nothing learner-derived and persist nothing. By default the account's
+ * namespaced cache is left on disk (so that account can resume) but is unreadable by any
+ * other account, which only ever reads its own namespace.
  *
- * `forget: true` also removes that namespaced cache (and its pending-reset flag) from this
- * browser. The session boundary passes it on a sign-out whose final save reached the
- * server, so the account's text does not stay behind in a shared browser; the server copy
- * is what the next sign-in resumes from.
+ * `forget: true` also removes every account's namespaced record from this browser,
+ * whether or not its last save reached the server. The session boundary passes it on
+ * sign-out and on expiry, so no account's text stays behind in a shared browser; the
+ * server copy is what the next sign-in resumes from.
  * @param {{forget?: boolean}} [options]
  */
 export function clearAccountScope({ forget = false } = {}) {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   if (serverTimer) { clearTimeout(serverTimer); serverTimer = null; }
-  if (forget && scopeMode === 'scoped' && accountId) {
-    const s = storage();
-    try {
-      s?.removeItem(scopedStorageKey(accountId));
-      s?.removeItem(`${RESET_FLAG_KEY}::${accountId}`);
-    } catch {
-      /* storage unavailable: nothing was persisted there either */
-    }
-  }
+  if (forget) forgetAccountRecords();
   scopeLoaded = true;
   scopeMode = 'signed-out';
   accountId = null;

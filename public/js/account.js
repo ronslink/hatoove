@@ -10,9 +10,10 @@
  *     scope, so a stale or foreign record is never rendered and then swapped;
  *   - sign-out, an account switch and an expired/refused session clear private state:
  *     open draft sessions drop their text, the store drops the previous account's record
- *     (`clearAccountScope` / `setAccountScope`), and late responses are fenced - owned-API
- *     calls by the client's generation (`owned-client.js`), progress requests by the
- *     store's scope epoch;
+ *     (`clearAccountScope` / `setAccountScope`) - on sign-out, a switch and expiry also
+ *     this browser's copy of it, whether or not the last save landed - and late responses
+ *     are fenced: owned-API calls by the client's generation (`owned-client.js`), progress
+ *     requests by the store's scope epoch;
  *   - a browser that was never signed in keeps the single-user path exactly as before;
  *     a browser that WAS signed in and is refused fails closed to signed-out, never back to
  *     the single-user record;
@@ -36,7 +37,7 @@ const ACCOUNT_ICON = '<svg class="ico-svg" viewBox="0 0 24 24" fill="none" strok
 /** Settings fields the account record owns and the boundary mirrors into the store. */
 const ACCOUNT_SETTINGS = ['examDate', 'dailyGoal', 'language'];
 const DRAFT_POINTER_KEY = 'b1prep.draft-pointers.v1';
-/** How long a sign-out waits for the learner's last save before clearing anyway. */
+/** How long a sign-out waits for the learner's last save before clearing (and forgetting) anyway. */
 const SIGN_OUT_FLUSH_MS = 4000;
 
 /**
@@ -117,10 +118,16 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
     reason = why;
   }
 
-  /** Fail closed: drop the account's text and record, and persist nothing learner-derived. */
+  /**
+   * Fail closed: drop the account's text and record, and persist nothing learner-derived.
+   * When the server has said the session is gone (any 401: expired, or signed out
+   * elsewhere), this browser's copy of every account is forgotten too. Offline, a refused
+   * answer or accounts switched off say nothing about the session, so the copy is kept,
+   * unread, for the same account to resume; the next 401, sign-out or switch removes it.
+   */
   function enterSignedOut(why) {
     closeDrafts();
-    store.clearAccountScope();
+    store.clearAccountScope({ forget: why === 'expired' || why === 'signed_out' });
     if (client.getAccount()) client.clear();
     account = null;
     settingsRevision = null;
@@ -165,7 +172,8 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
       closeDrafts();
       settingsRevision = null;
       // issue #63: the single-user blob is never assigned to an account automatically.
-      store.setAccountScope(verified.id, { adoptLegacy: false });
+      // A switch forgets every other account's copy in this browser.
+      store.setAccountScope(verified.id, { adoptLegacy: false, forgetOthers: true });
       phase = 'signed-in';
       reason = '';
       sync = await store.syncFromServer();
@@ -236,26 +244,35 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
 
   /**
    * Sign out. The learner's last change is sent first, under THEIR scope and bounded in
-   * time; when it reached the server, this browser's copy of the account is forgotten too.
-   * Then every piece of private state is dropped locally BEFORE the server is told, so a
-   * failed sign-out cannot leave the previous account readable.
+   * time. Then every piece of private state is dropped locally - including this browser's
+   * copy of the account, WHETHER OR NOT that last save reached the server - BEFORE the
+   * server is told, so neither a failed save nor a failed sign-out leaves the account
+   * readable here. Resolves to the snapshot plus `lastSaveReached` (null when no account
+   * was signed in); a failed server sign-out rejects with the same field on the error, so
+   * the caller can tell the learner the truth about the discarded change either way.
    */
   async function signOut() {
-    let flushed = false;
+    let lastSaveReached = null;
     if (phase === 'signed-in') {
       let timer = null;
       const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(false), SIGN_OUT_FLUSH_MS); });
-      flushed = (await Promise.race([Promise.resolve(store.flushNow()).catch(() => false), timeout])) === true;
+      lastSaveReached = (await Promise.race([Promise.resolve(store.flushNow()).catch(() => false), timeout])) === true;
       clearTimeout(timer);
     }
     closeDrafts();
-    store.clearAccountScope({ forget: flushed });
+    store.clearAccountScope({ forget: true });
     account = null;
     settingsRevision = null;
     phase = 'signed-out';
     reason = 'signed_out';
     notify();
-    await client.signOut();
+    try {
+      await client.signOut();
+    } catch (error) {
+      if (error && typeof error === 'object') error.lastSaveReached = lastSaveReached;
+      throw error;
+    }
+    return { ...snapshot(), lastSaveReached };
   }
 
   /**
@@ -416,8 +433,10 @@ function workCardHtml() {
         Konto übernommen und auch nicht gelöscht.
       </p>
       <p class="muted small">
-        Nach dem Abmelden zeigt die App nichts mehr aus deinem Konto an. Was du dann übst, wird
-        nicht gespeichert, bis du dich wieder anmeldest.
+        Nach dem Abmelden zeigt die App nichts mehr aus deinem Konto an, und die Kopie in diesem
+        Browser wird gelöscht – auch wenn die letzte Speicherung den Server nicht erreicht hat;
+        das wird dir dann angezeigt. Was du danach übst, wird nicht gespeichert, bis du dich
+        wieder anmeldest.
       </p>
     </div>`;
 }
@@ -569,17 +588,23 @@ async function handleSignUp(view) {
   }
 }
 
+/** Said when the sign-out had to discard a change the server never confirmed. */
+const UNSAVED_DISCARDED = 'Deine letzte Speicherung hat den Server nicht erreicht. Änderungen seit der letzten '
+  + 'erfolgreichen Speicherung wurden zum Schutz deiner Daten aus diesem Browser gelöscht.';
+
 async function handleSignOut(view) {
   setBusy(view, 'Abmeldung läuft…');
-  let message = '';
+  const messages = [];
   try {
-    await session().signOut();
+    const result = await session().signOut();
+    if (result.lastSaveReached === false) messages.push(UNSAVED_DISCARDED);
   } catch (err) {
     // The boundary clears every piece of private state before it talks to the server, so a
     // failed sign-out still leaves the page signed out - report the real failure, do not pretend.
-    message = messageForError(err);
+    if (err && err.lastSaveReached === false) messages.push(UNSAVED_DISCARDED);
+    messages.push(messageForError(err));
   }
-  paintSignedOut(view, message);
+  paintSignedOut(view, messages.join(' '));
 }
 
 /**

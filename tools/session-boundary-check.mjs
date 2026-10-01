@@ -14,7 +14,9 @@
  *   1. order: no learner record is read (storage or /api/progress) before /api/v1/account
  *      has answered;
  *   2. sign-out: the previous account's text, notebook entry and settings are unreadable
- *      afterwards - in the store, in the draft session, and in this browser's storage;
+ *      afterwards - in the store, in the draft session, and in this browser's storage -
+ *      whether the final save confirmed, was held past the budget or could not leave
+ *      (offline); expiry and an account switch also remove the copy (SESSION-BOUNDARY-02 F1);
  *   3. account switch: account B never sees account A's record, and an in-flight response
  *      for A (progress AND owned settings) that resolves after the switch does not land;
  *   4. fresh browser: a clean profile that signs in resumes the account's notebook, ability
@@ -141,11 +143,17 @@ function createBrowser(port) {
   const storage = memoryStorage(log);
   const holds = [];
   const base = `http://127.0.0.1:${port}`;
+  // `profile.offline = true` makes every request fail the way a browser's fetch does offline.
+  const profile = { offline: false };
 
   async function fetchImpl(url, init = {}) {
     const href = String(url).startsWith('http') ? String(url) : `${base}${url}`;
     const pathname = new URL(href).pathname;
     const method = init.method || 'GET';
+    if (profile.offline) {
+      log.push({ kind: 'request', method, path: pathname, at: 'offline' });
+      throw new TypeError('Failed to fetch');
+    }
     const headers = {};
     for (const [k, v] of Object.entries(init.headers || {})) headers[k.toLowerCase()] = v;
     if (jar.size) headers.cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
@@ -208,7 +216,13 @@ function createBrowser(port) {
     return { store, client, boundary };
   }
 
-  return { jar, log, storage, hold, activate, page, fetchImpl };
+  return { jar, log, storage, hold, activate, page, fetchImpl, profile };
+}
+
+/** The keys of this profile's storage whose value contains any of `markers`. */
+function storageKeysHolding(browser, ...markers) {
+  return [...browser.storage.data.entries()]
+    .filter(([, value]) => markers.some((m) => value.includes(m))).map(([key]) => key);
 }
 
 /** Everything a store could expose about the learner, as one searchable string. */
@@ -285,6 +299,81 @@ check('sign-out: the previous account text, notebook and settings are unreadable
     assert.equal(result.phase, 'signed-out');
     assert.ok(!visible(reload.store).includes(MARK.notebookA), 'a reload after sign-out shows the account notebook');
     assert.ok(!browser.log.some((e) => e.kind === 'request' && e.path === '/api/progress'), 'a signed-out reload requested a progress record');
+  } finally { await server.stop(); }
+});
+
+/*
+ * SESSION-BOUNDARY-02 F1. The check above only covers a sign-out whose final save reached the
+ * server. These cover the branches it does not: the browser's copy of the account must be gone
+ * whether or not that save landed, and after expiry and an account switch too.
+ */
+check('sign-out while offline: the account copy is gone from this browser and the learner is told', async () => {
+  const server = await startServer(4488, { accounts: true });
+  try {
+    const { browser, store, boundary } = await seedAccountA(4488, 'offline-signout');
+    assert.ok(storageKeysHolding(browser, MARK.notebookA).length > 0, 'precondition: the account copy is in this browser storage');
+    browser.profile.offline = true;
+    const outcome = await boundary.signOut().then((r) => r, (e) => e);
+    assert.equal(boundary.phase, 'signed-out');
+    const leaking = storageKeysHolding(browser, MARK.notebookA, MARK.draftA);
+    assert.deepEqual(leaking, [], `an offline sign-out left the account text in this browser storage under ${leaking.join(', ')}`);
+    assert.ok(!visible(store).includes(MARK.notebookA), 'the notebook entry is still readable after an offline sign-out');
+    assert.equal(outcome && outcome.lastSaveReached, false, 'the caller is not told that the last save did not reach the server');
+  } finally { await server.stop(); }
+});
+
+check('sign-out with the final save held past the budget: the account copy is gone, before and after the answer lands', async () => {
+  const server = await startServer(4489, { accounts: true });
+  try {
+    const { browser, store, boundary, account } = await seedAccountA(4489, 'held-signout');
+    assert.ok(storageKeysHolding(browser, MARK.notebookA).length > 0, 'precondition: the account copy is in this browser storage');
+    const held = browser.hold((e) => e.method === 'POST' && e.path === '/api/progress' && e.scope === account.id);
+    const signingOut = boundary.signOut();
+    await held.arrived;
+    const outcome = await signingOut; // resolves only after the 4 s budget, the save still held
+    assert.equal(boundary.phase, 'signed-out');
+    let leaking = storageKeysHolding(browser, MARK.notebookA, MARK.draftA);
+    assert.deepEqual(leaking, [], `a sign-out with the save held left the account text in this browser storage under ${leaking.join(', ')}`);
+    assert.equal(outcome.lastSaveReached, false, 'the caller is not told that the last save did not reach the server');
+    held.release();
+    await sleep(300);
+    leaking = storageKeysHolding(browser, MARK.notebookA, MARK.draftA);
+    assert.deepEqual(leaking, [], `the held answer wrote the account text back under ${leaking.join(', ')}`);
+    assert.ok(!visible(store).includes(MARK.notebookA), 'the held answer put the notebook entry back in the store');
+  } finally { await server.stop(); }
+});
+
+check('expiry: a refused session forgets the account copy in this browser', async () => {
+  const server = await startServer(4490, { accounts: true });
+  try {
+    const { browser, boundary } = await seedAccountA(4490, 'expiry-forget');
+    assert.ok(storageKeysHolding(browser, MARK.notebookA).length > 0, 'precondition: the account copy is in this browser storage');
+    // Expire the session on the server while this page still holds the cookie.
+    const cookie = [...browser.jar].map(([k, v]) => `${k}=${v}`).join('; ');
+    const killed = await realFetch('http://127.0.0.1:4490/api/auth/sign-out', {
+      method: 'POST', headers: { cookie, origin: 'http://127.0.0.1:4490', 'content-type': 'application/json' }, body: '{}',
+    });
+    assert.equal(killed.status, 200);
+    // Mid-session: the next account call is refused.
+    const saved = await boundary.saveSettings({ dailyGoal: 41 });
+    assert.equal(saved.reason, 'expired');
+    assert.equal(boundary.phase, 'signed-out');
+    const leaking = storageKeysHolding(browser, MARK.notebookA, MARK.draftA);
+    assert.deepEqual(leaking, [], `expiry left the account text in this browser storage under ${leaking.join(', ')}`);
+  } finally { await server.stop(); }
+});
+
+check('account switch: the previous account copy is gone from this browser', async () => {
+  const server = await startServer(4491, { accounts: true });
+  try {
+    const { browser, boundary, account } = await seedAccountA(4491, 'switch-forget-a');
+    assert.ok(storageKeysHolding(browser, MARK.notebookA).length > 0, 'precondition: the account copy is in this browser storage');
+    // The switch: B signs up on the same page with no sign-out in between.
+    const toB = await boundary.signUp({ name: 'B', email: email('switch-forget-b'), password: password('switch-forget-b') });
+    assert.equal(toB.phase, 'signed-in');
+    assert.notEqual(toB.account.id, account.id);
+    const leaking = storageKeysHolding(browser, MARK.notebookA, MARK.draftA);
+    assert.deepEqual(leaking, [], `a switch left the previous account text in this browser storage under ${leaking.join(', ')}`);
   } finally { await server.stop(); }
 });
 
