@@ -36,3 +36,7 @@ research/mistral-feasibility/study-summary.json
 # silently swept new screenshots in. Found when a CI-gates commit carried three changed PNGs it had no
 # business touching. The checkers still write there; they just no longer write into the repository.
 .openclaw/
+
+# Local project inputs, coordination and recovery are not application source.
+/design/
+/handoff/

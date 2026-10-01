@@ -4,9 +4,13 @@
 **Coordinator:** Ron's locally controlled agent, per [issue #27](https://github.com/ronslink/hatoove/issues/27); this documentation slice does not reassign live work.
 **Inspected integration base:** `199dc0b99f91d06f402f084757ecf586e03631ce`, [PR #81](https://github.com/ronslink/hatoove/pull/81). Runtime-composition [PR #89](https://github.com/ronslink/hatoove/pull/89) was at `74fb15841699891384adcb0a5f304d7f2edc86b2`; its latest work was archived unverified. Main was `4f76b9428aacfc2ef670bdd3bdf5e43fa316222e`. Recheck heads and leases before dispatch.
 
+## Working location
+
+The canonical local repository is now **D:\Hatoover**, with design inputs in `design/` and the coordinator handoff in `handoff/ron-agent/`. See [WORKSPACE_LOCATION](docs/WORKSPACE_LOCATION.md). Previous checkout paths are recovery references; relocation changes no product acceptance or PR integration status.
+
 ## Direction now in force
 
-Build a writing-first, multi-user server product using the orange/rising-oo design in `D:\B1_Prep\design`. Build the small new vanilla client under `public/app/` around owned server records, then retire the old single-user SPA. Keep Node/PostgreSQL; no framework or hosting migration is implied. The fourteen mockups are references, not fourteen launch commitments.
+Build a writing-first, multi-user server product using the orange/rising-oo design in `D:\Hatoover\design`. Build the small new vanilla client under `public/app/` around owned server records, then retire the old single-user SPA. Keep Node/PostgreSQL; no framework or hosting migration is implied. The fourteen mockups are references, not fourteen launch commitments.
 
 **Remove the old single-user schema and functionality:** shared progress files, local-user fallback, browser state blobs, file sync and generic browser grading. Keep one shared schema with session-derived ownership per learner and versioned shared content. Retire obsolete consumers through MFP-02b/11 with safe forward migrations; this does not authorize deleting the live install or actual learner records.
 

@@ -1,6 +1,6 @@
 {
   "purpose": "Read-only design reference inventory; no live-install files imported or executed",
-  "source": "D:/B1_Prep/design",
+  "source": "D:/Hatoover/design",
   "observed_date": "2026-10-01",
   "implementation_base": "e126d8c4b18a2beaf58eca2d279fe8d191e825ae",
   "files": [
@@ -114,5 +114,8 @@
       "bytes": 9342,
       "sha256": "34e781882749d01c42e4b9ec1f1254aae0148fdc90a2f9656c3be0313f83d4e4"
     }
-  ]
+  ],
+  "original_source": "D:/B1_Prep/design",
+  "relocated_date": "2026-10-01",
+  "relocation_note": "All original manifest entries verified byte-for-byte at the new location; original input files retained."
 }
