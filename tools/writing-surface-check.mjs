@@ -262,9 +262,9 @@ check('stale-save-is-refused-and-stored-text-unchanged', async (ctx) => {
 
   // Tab 2 is now stale: its save must be refused and must write nothing.
   s2.change(TEXT_B);
-  const left = await s2.leave();
-  assert.equal(left.ok, false, 'the stale leave is not reported as saved');
-  assert.equal(left.reason, 'conflict', `expected a conflict, got ${left.reason}`);
+  const saved = await s2.flush();
+  assert.equal(saved.ok, false, 'the stale save is not reported as saved');
+  assert.equal(saved.reason, 'conflict', `expected a conflict, got ${saved.reason}`);
   // Assert the STORED value, not the status code: the newer text survived.
   assert.equal(w.store.inspect.attempt(attemptId).draft.text, TEXT_A, 'the stale save did NOT overwrite the newer text');
   assert.equal(w.store.inspect.fingerprint(), fingerprint, 'the refused save wrote nothing');
@@ -272,7 +272,8 @@ check('stale-save-is-refused-and-stored-text-unchanged', async (ctx) => {
   const snap = s2.state();
   assert.equal(snap.text, TEXT_B, "the learner's text was not discarded");
   assert.ok(snap.conflict, 'the conflict is surfaced to the caller');
-  assert.ok(snap.conflict.server && snap.conflict.server.text === TEXT_A, 'the conflict carries the re-read server copy');
+  assert.equal(snap.conflict.text, TEXT_A, 'the conflict carries the re-read server copy');
+  assert.equal(snap.conflict.revision, 2, 'and the server revision the next save must build on');
 });
 
 check('resolving-the-conflict-locally-writes-the-kept-text', async (ctx) => {
@@ -289,7 +290,7 @@ check('resolving-the-conflict-locally-writes-the-kept-text', async (ctx) => {
   s1.change(TEXT_A);
   await s1.flush();
   s2.change(TEXT_B);
-  await s2.leave();
+  await s2.flush();
 
   s2.resolveConflict('local');
   const after = await s2.flush();

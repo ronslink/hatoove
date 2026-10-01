@@ -165,5 +165,18 @@ export function createWritingSurface(options = {}) {
     }
   }
 
-  return Object.freeze({ enter, change, flush, state });
+  /**
+   * Resolve a 409 the way the draft service models it. 'local' keeps the learner's text
+   * (unsaved, based on the re-read revision) so the next save overwrites the server copy;
+   * 'server' adopts the server text. Nothing is discarded on the learner's behalf.
+   */
+  function resolveConflict(choice) {
+    if (mode !== 'draft' || !session) return { ok: false, reason: 'local' };
+    const snap = session.resolveConflict(choice);
+    if (snap && typeof snap.text === 'string') text = snap.text;
+    notify();
+    return { ok: true, text, revision: snap ? snap.revision : null };
+  }
+
+  return Object.freeze({ enter, change, flush, resolveConflict, state });
 }

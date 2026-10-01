@@ -707,9 +707,24 @@ function renderWritingTask(el) {
         : '';
       return;
     }
-    draftStatus.textContent = s.status === 'conflict'
-      ? 'Entwurf: auf dem Server liegt eine neuere Fassung – dein Text wurde nicht überschrieben.'
-      : s.dirty ? 'Entwurf: noch nicht gespeichert.' : 'Entwurf gespeichert.';
+    if (s.status === 'conflict') {
+      // A 409 is never swallowed: the learner chooses what the draft service already models.
+      draftStatus.innerHTML = `<span>Auf dem Server liegt eine neuere Fassung. Dein Text wurde nicht überschrieben.</span>
+        <span class="btn-row" style="display:inline-flex;gap:8px;margin-left:8px">
+          <button class="sm" data-conflict-local>Meinen Text behalten</button>
+          <button class="sm" data-conflict-server>Server-Fassung übernehmen</button>
+        </span>`;
+      on(draftStatus.querySelector('[data-conflict-local]'), 'click', async () => {
+        surface.resolveConflict('local');
+        await surface.flush();
+      });
+      on(draftStatus.querySelector('[data-conflict-server]'), 'click', () => {
+        const resolved = surface.resolveConflict('server');
+        if (typeof resolved.text === 'string') { textarea.value = resolved.text; updateCount(); }
+      });
+      return;
+    }
+    draftStatus.textContent = s.dirty ? 'Entwurf: noch nicht gespeichert.' : 'Entwurf gespeichert.';
   };
   surface = createWritingSurface({ openDraft: (id) => session().openDraft(id), onState: paintDraftStatus });
   writingSurface = surface;
