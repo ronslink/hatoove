@@ -183,6 +183,31 @@ try{
     assert.equal(res.status,401,m+' '+p+' must be auth-wrapped, got '+res.status);
   }
   passed('every API route is auth-wrapped: only /api/health and /api/ready answer anonymously');
+
+  /*
+   * OBJECTIVE-SEED-01 -- the authored corpus is IN THE DATABASE, and its answers are not.
+   *
+   * The answers sit INLINE in data/seed.json, in the same arrays as the learner-facing text, so a
+   * seed that copied the source wholesale would ship every key in the task payload. The split is
+   * enforced by a GRANT rather than by a route remembering to strip a field, and these legs prove the
+   * grant is real: has_table_privilege asks PostgreSQL, not the code.
+   */
+  const scored=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    'SELECT sum(item_count) FROM hatoove.objective_set']).trim();
+  assert.equal(scored,'180','the corpus must hold exactly the 180 authored answers as scored items, got '+scored);
+  const sets=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    'SELECT count(*) FROM hatoove.objective_set']).trim();
+  assert.equal(sets,'24','the corpus must hold the 24 authored sets, got '+sets);
+  // `jsonb_path_exists` with a recursive wildcard, not a `LIKE` on the JSON text: it DESCENDS into
+  // the nested arrays where the answers actually live, so a secret one level deeper than the check
+  // still fails it. It also needs no quote-escaping, which is its own small mercy.
+  const leaks=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    "SELECT count(*) FROM hatoove.objective_set WHERE jsonb_path_exists(payload, '$.**.answer') OR jsonb_path_exists(payload, '$.**.why') OR jsonb_path_exists(payload, '$.**.grammar') OR jsonb_path_exists(payload, '$.**.script')"]).trim();
+  assert.equal(leaks,'0','no learner payload may carry a secret field, found '+leaks);
+  const learnerKey=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    "SELECT has_table_privilege('hatoove_learner','hatoove.objective_key','SELECT')"]).trim();
+  assert.equal(learnerKey,'f','the learner role MUST NOT be able to read objective_key, got '+learnerKey);
+  passed('24 objective sets and 180 answers are seeded, no payload carries a secret, and the learner role cannot read the key table');
   /*
    * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them
    * was tested wrongly.
