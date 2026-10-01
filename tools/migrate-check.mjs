@@ -129,7 +129,9 @@ async function startServer(leg, port) {
 const configFor = (leg) => persistentConfig({ ...process.env, ...legEnv(leg) });
 
 async function withAdmin(leg, run) {
-  const pool = createAdminPool(configFor(leg));
+  // A distinct application_name, so the live leg can tell the checker's own observer
+  // connection apart from any pool the running server opened.
+  const pool = createAdminPool(configFor(leg), { applicationName: `${leg}:checker` });
   try { return await run(pool); } finally { await pool.end().catch(() => {}); }
 }
 
@@ -310,7 +312,7 @@ check('runtime-holds-no-superuser-or-migration-pool', async () => {
     const open = await withAdmin(leg, async (admin) => (await admin.query(
       `SELECT a.application_name AS app, r.rolsuper, r.rolbypassrls
          FROM pg_stat_activity a JOIN pg_roles r ON r.rolname = a.usename
-        WHERE a.application_name LIKE $1`, [`${leg}:%`])).rows);
+        WHERE a.application_name LIKE $1 AND a.application_name <> $2`, [`${leg}:%`, `${leg}:checker`])).rows);
     assert.ok(open.length > 0, 'the running server must have opened at least one backend');
     for (const row of open) {
       assert.equal(row.rolsuper, false, `runtime backend ${row.app} must not be SUPERUSER`);
