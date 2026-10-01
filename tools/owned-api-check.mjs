@@ -942,6 +942,29 @@ export async function runOwnedApiChecks({ backend = 'memory' } = {}) {
   return { ok: results.every((r) => r.ok), backend, results };
 }
 
+/**
+ * The sentence a reader takes away from a run. It must describe the backend that actually ran.
+ *
+ * DEFECT FIXED 2026-10-01 (coordinator, from the combined-head re-execution): this was
+ * `report.backend === 'postgres' ? <postgres note> : <memory note>`. `postgres-persistent` is a
+ * THIRD backend (`:922` admits it), and it is the one the CI `postgres` job runs
+ * (`.github/workflows/ci.yml:141`) — so the run that proves the durable property on real
+ * PostgreSQL printed `in-memory datastore and session fakes only; no PostgreSQL/RLS evidence`.
+ * The checks were all correct; the sentence told the reader the opposite of what happened.
+ *
+ * Unknown backends are named rather than defaulted, so a fourth backend added later cannot
+ * inherit a true-sounding sentence it did not earn.
+ */
+export function backendNote(backend) {
+  if (backend === 'postgres' || backend === 'postgres-persistent') {
+    return 'NOTE real PostgreSQL datastore as the restricted learner role with FORCE RLS; synthetic sessions.';
+  }
+  if (backend === 'memory') {
+    return 'NOTE in-memory datastore and session fakes only; no PostgreSQL/RLS evidence. Add --backend=postgres for that.';
+  }
+  return `NOTE unrecognised backend "${backend}": this run makes NO claim about PostgreSQL or RLS.`;
+}
+
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
   const backendArg = process.argv.find((a) => a.startsWith('--backend='));
@@ -953,8 +976,6 @@ if (invokedDirectly) {
   }
   const failed = report.results.filter((r) => !r.ok).length;
   console.log(`\n${report.results.length - failed} passed, ${failed} failed (backend: ${report.backend})`);
-  console.log(report.backend === 'postgres'
-    ? 'NOTE real PostgreSQL datastore as the restricted learner role with FORCE RLS; synthetic sessions.'
-    : 'NOTE in-memory datastore and session fakes only; no PostgreSQL/RLS evidence. Add --backend=postgres for that.');
+  console.log(backendNote(report.backend));
   process.exitCode = failed ? 1 : 0;
 }
