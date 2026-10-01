@@ -32,11 +32,17 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
+import { persistentConfig, persistentRolePool } from '../server/owned-postgres/provision.mjs';
+import { stubGrade } from '../server/owned-postgres/worker.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FORBIDDEN = new Set(['postgres', 'template0', 'template1']);
 const PORT = Number(process.env.MFP14_JOURNEY_PORT || 4481);
 const TEMP = fs.mkdtempSync(path.join(os.tmpdir(), 'mfp14-journey-'));
 const RUN_ID = `${process.pid.toString(36)}${Date.now().toString(36)}`;
+/** Bounded waits for J7's worker process. A check that never completes is not evidence. */
+const WORKER_START_MS = Number(process.env.MFP14_WORKER_START_MS || 15000);
+const WORKER_DEADLINE_MS = Number(process.env.MFP14_WORKER_DEADLINE_MS || 30000);
 
 /* ------------------------------------------------------------ server process */
 
@@ -202,23 +208,64 @@ leg('J6', 'submit; see pending; leave (and duplicate clicks are idempotent)', 'M
 });
 
 leg('J7', 'worker produces feedback in the chosen language (recoverable, one debit)', 'MFP-06a', async (ctx) => {
-  const a = await signUp(ctx.call, 'j7');
-  const created = await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} });
-  if (created.status !== 201) return createdAtFail(ctx, created, 'MFP-06a');
-  const id = created.json.id;
-  await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${id}`, { body: { expectedRevision: 1, text: 'Text für die Bewertung durch den Worker.' } });
-  const sent = await ctx.call(a.jar, 'POST', `/api/v1/attempts/${id}/submissions`, { body: { expectedRevision: 2, eventId: randomUUID() } });
-  if (sent.status !== 202) return fail(`submit answered ${sent.status}`);
-  // The submission route EXISTS (asserted); the worker that fills the assessment is the missing slice.
-  const deadline = Date.now() + 5000;
-  for (;;) {
-    const result = await ctx.call(a.jar, 'GET', `/api/v1/submissions/${sent.json.submissionId}`);
-    if (result.status !== 200) return fail(`result answered ${result.status}`);
-    if (result.json.assessment) return pass(`the runtime graded the submission (assessment present, job ${result.json.job.status})`);
-    if (Date.now() > deadline) break;
-    await new Promise((r) => setTimeout(r, 250));
+  // The composition: a REAL, separate `node server/worker.mjs` process against the same
+  // disposable database. The child is killed in `finally` and its absence is proved, so a
+  // failing leg cannot leak a process into the next leg or CI.
+  const worker = await ctx.startWorker();
+  try {
+    if (!worker.ok) return fail(`the worker process did not come up: ${worker.detail}`);
+
+    const a = await signUp(ctx.call, 'j7');
+    const created = await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} });
+    if (created.status !== 201) return createdAtFail(ctx, created, 'MFP-06a');
+    const id = created.json.id;
+    await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${id}`, { body: { expectedRevision: 1, text: 'Text für die Bewertung durch den Worker.' } });
+
+    const before = await ctx.entitlement(a.userId);
+    const sent = await ctx.call(a.jar, 'POST', `/api/v1/attempts/${id}/submissions`, { body: { expectedRevision: 2, eventId: randomUUID() } });
+    if (sent.status !== 202) return fail(`submit answered ${sent.status}`);
+    const submissionId = sent.json.submissionId;
+    const reserved = await ctx.entitlement(a.userId);
+    if (reserved.reserved !== before.reserved + 1) {
+      return fail(`submit must reserve exactly one: reserved ${before.reserved} -> ${reserved.reserved}`);
+    }
+
+    // Bounded poll: a timeout is a FAILED leg with the last observed status, never a hang.
+    const deadline = Date.now() + WORKER_DEADLINE_MS;
+    let last = null;
+    for (;;) {
+      const result = await ctx.call(a.jar, 'GET', `/api/v1/submissions/${submissionId}`);
+      if (result.status !== 200) return fail(`result answered ${result.status}`);
+      last = result.json;
+      if (last.job && last.job.status === 'failed') return fail(`the job failed: ${JSON.stringify(last.job)}`);
+      if (last.job && last.job.status === 'succeeded' && last.assessment) break;
+      if (Date.now() > deadline) {
+        return fail(`the job did not reach succeeded within ${WORKER_DEADLINE_MS}ms; last status=${last.job && last.job.status}; worker log: ${worker.log().slice(-300)}`);
+      }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    // The assessment is the DETERMINISTIC STUB's, which no provider call could produce.
+    const expected = stubGrade();
+    if (last.assessment.model_version !== expected.modelVersion) {
+      return fail(`the assessment was not produced by the stub grader (model_version=${last.assessment.model_version}); a provider call is unproven`);
+    }
+    if (JSON.stringify(last.assessment.feedback) !== JSON.stringify(expected.feedback)) {
+      return fail(`the served feedback is not the stub's: ${JSON.stringify(last.assessment.feedback)}`);
+    }
+    if (await ctx.assessmentCount(submissionId) !== 1) return fail('expected exactly one assessment row');
+    const debits = await ctx.ledgerUnits(submissionId);
+    if (debits !== 1) return fail(`expected exactly one debit, got ${debits}`);
+
+    const after = await ctx.entitlement(a.userId);
+    if (after.used !== before.used + 1) return fail(`used must rise by exactly one: ${before.used} -> ${after.used}`);
+    if (after.reserved !== before.reserved) return fail(`reserved must return to its start: ${before.reserved} -> ${after.reserved}`);
+
+    return pass(`child process ${worker.detail}; submit reserved 1 -> 0; job ${last.job.status}; assessment=stub model_version=${last.assessment.model_version}; used ${before.used}->${after.used}; exactly one debit`);
+  } finally {
+    const gone = await worker.stop();
+    if (!gone) throw new Error('the worker process was not gone after SIGKILL (pg_stat_activity still shows its backend)');
   }
-  return pending('MFP-06a', 'GET /api/v1/submissions/:id exists and answered, but the job stayed queued for 5s: this runtime mounts no worker (server.js runs none), so no assessment is produced');
 });
 
 leg('J8', 'return on a fresh browser; see the exact text and feedback', 'MFP-05b', async (ctx) => {
@@ -269,6 +316,70 @@ export async function runJourneyApiCheck() {
   const call = makeCaller(PORT);
   const server = await startServer();
   const report = [];
+
+  // ------------------------------------------------------------------ J7 wiring
+  // The composition under test: a SEPARATE worker PROCESS against the same disposable
+  // database, connecting as the restricted `<prefix>_worker` role. This check reads the
+  // database through that same role as an inspection path (the worker role is the only
+  // non-superuser role granted a cross-owner SELECT on entitlements, isolation.sql:18-23);
+  // `pid <> pg_backend_pid()` keeps this checker's own connection out of the way so the
+  // application_name below matches the CHILD process, not this pool.
+  const pg = persistentConfig();
+  const inspectPool = persistentRolePool(pg, 'worker', { max: 1 });
+  const workerIdentity = `${pg.schema}:worker`;
+  const workerRole = pg.roles.worker;
+  const workerBackends = async () => (await inspectPool.query(
+    'SELECT count(*)::int AS n FROM pg_stat_activity WHERE application_name = $1 AND usename = $2 AND pid <> pg_backend_pid()',
+    [workerIdentity, workerRole])).rows[0].n;
+  const entitlement = async (owner) => {
+    const row = (await inspectPool.query('SELECT allowance, used, reserved FROM entitlements WHERE owner_id = $1', [owner])).rows[0];
+    return row ? { allowance: row.allowance, used: row.used, reserved: row.reserved } : { allowance: 0, used: 0, reserved: 0 };
+  };
+  const assessmentCount = async (submissionId) => (await inspectPool.query(
+    'SELECT count(*)::int AS n FROM assessments WHERE submission_id = $1', [submissionId])).rows[0].n;
+  const ledgerUnits = async (submissionId) => (await inspectPool.query(
+    'SELECT coalesce(sum(units),0)::int AS n FROM usage_ledger WHERE submission_id = $1', [submissionId])).rows[0].n;
+
+  /**
+   * Start `node server/worker.mjs` as a REAL child process against the same disposable
+   * database, and bound the startup wait: success is the child's own backend appearing in
+   * `pg_stat_activity` as `<schema>:worker` / `<prefix>_worker`. No provider credential is
+   * passed, and the runtime is forced offline, so no provider call is even reachable.
+   */
+  const startWorker = async () => {
+    const env = { ...process.env, B1PREP_FORCE_OFFLINE: '1' };
+    for (const key of ['DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY']) delete env[key];
+    const child = spawn(process.execPath, ['server/worker.mjs', '--interval=100'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '';
+    child.stdout.on('data', (c) => { out += String(c); });
+    child.stderr.on('data', (c) => { out += String(c); });
+    let exited = null;
+    child.on('exit', (code, signal) => { exited = { code, signal }; });
+
+    let ok = false;
+    let detail = '';
+    const deadline = Date.now() + WORKER_START_MS;
+    for (;;) {
+      if (exited) { detail = `the worker exited early (code ${exited.code}, signal ${exited.signal}): ${out.slice(-300)}`; break; }
+      try {
+        if (await workerBackends() > 0) { ok = true; detail = `worker connected as ${workerRole} (application_name ${workerIdentity})`; break; }
+      } catch (error) { detail = `inspection failed: ${error.message}`; }
+      if (Date.now() > deadline) { detail = `the worker did not connect within ${WORKER_START_MS}ms; output: ${out.slice(-300)}`; break; }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+
+    const stop = async () => {
+      if (!exited) { child.kill('SIGKILL'); await new Promise((r) => child.once('exit', r)); }
+      const goneDeadline = Date.now() + 5000;
+      for (;;) {
+        try { if (await workerBackends() === 0) return true; } catch { /* keep trying to prove it is gone */ }
+        if (Date.now() > goneDeadline) return false;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    };
+    return { ok, detail, log: () => out, exited: () => exited, stop };
+  };
+
   try {
     // A sentinel request for a path that cannot exist gives the runtime's "no such route"
     // signature. It must carry a session: every `/api/v1/*` path answers 401 before routing, so
@@ -279,7 +390,7 @@ export async function runJourneyApiCheck() {
       : { status: 404, text: '{"error":"not_found"}' };
     const routeAbsent = (res) => res.status === sentinel.status && res.text === sentinel.text;
 
-    const ctx = { call, routeAbsent, accounts: {}, sentinel };
+    const ctx = { call, routeAbsent, accounts: {}, sentinel, startWorker, entitlement, assessmentCount, ledgerUnits };
     for (const { id, title, slice, run } of legs) {
       let outcome;
       try {
@@ -290,6 +401,7 @@ export async function runJourneyApiCheck() {
       report.push({ id, title, slice, ...outcome });
     }
   } finally {
+    await inspectPool.end().catch(() => {});
     await server.stop().catch(() => {});
     fs.rmSync(TEMP, { recursive: true, force: true });
   }
