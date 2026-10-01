@@ -18,7 +18,10 @@
  *       learner routes at 503 with `ready:false`, and a **database interruption at runtime**
  *       is a refusal - never a silent anonymous path, and never a crash of the whole runtime;
  *   A4  the trusted origin is configuration: the deployment's exact public origin is accepted
- *       and a foreign origin is still refused.
+ *       and a foreign origin is still refused. CONFIG-ANON-01 additionally removes the
+ *       machine-global `/api/config` route from this runtime (a 404, like any unknown
+ *       endpoint); the old "POST /api/config -> 200" origin-acceptance assertion is superseded
+ *       and replaced by an acceptance assertion on a route that still exists.
  *
  * Method: the **real server process** over real HTTP, synthetic accounts, a fully **stubbed
  * provider** (a local HTTP server that records every request body), and a disposable
@@ -710,12 +713,28 @@ check('configured-public-origin-accepted-and-foreign-refused', async () => {
   const server = await startServer(port, { saas: true, accounts: true, database: true, forceOffline: true });
   try {
     await waitForReady(port, true);
-    // The deployment's own origin is accepted.
-    const allowed = await request(port, {
+    // The deployment's own origin is accepted: a same-origin sign-up reaches the account API.
+    // CONFIG-ANON-01: this acceptance used to be shown with POST /api/config, which is now
+    // gone on a hosted runtime (below). The gate itself is unchanged, so acceptance is shown on
+    // a route that still exists.
+    const accepted = await request(port, {
+      method: 'POST', requestPath: '/api/auth/sign-up/email',
+      headers: jsonHeaders(), body: { name: 'O', email: `saas-origin-${RUN_ID}@example.invalid`, password: 'pw-synthetic-1' },
+    });
+    assert.equal(accepted.status, 200, `the deployment origin must be accepted, got ${accepted.status} ${accepted.text.slice(0, 120)}`);
+
+    // CONFIG-ANON-01. SUPERSEDED ASSERTION, not deleted: this check used to require
+    // `POST /api/config -> 200` ("the deployment origin must be accepted"). POST /api/config
+    // wrote the machine-global EXAM_DATE for any visitor, and GET /api/config read it back, so
+    // on a hosted runtime neither is served now - both answer 404 like any other unknown
+    // endpoint. The origin acceptance it carried is asserted above, on a route that exists.
+    const configWrite = await request(port, {
       method: 'POST', requestPath: '/api/config',
       headers: jsonHeaders(), body: { examDate: '2027-01-09' },
     });
-    assert.equal(allowed.status, 200, `the deployment origin must be accepted, got ${allowed.status} ${allowed.text.slice(0, 120)}`);
+    assert.equal(configWrite.status, 404, `anonymous POST /api/config must be gone, got ${configWrite.status}`);
+    const configRead = await request(port, { requestPath: '/api/config' });
+    assert.equal(configRead.status, 404, `anonymous GET /api/config must be gone, got ${configRead.status}`);
 
     // A foreign origin is refused, even with the deployment's Host header.
     const foreign = await request(port, {
@@ -733,7 +752,7 @@ check('configured-public-origin-accepted-and-foreign-refused', async () => {
       body: { examDate: '2027-01-09' },
     });
     assert.equal(rebound.status, 403, `a mismatched Host must be refused, got ${rebound.status}`);
-    return `allowed=${allowed.status}, foreign=${foreign.status}, rebound=${rebound.status}`;
+    return `sign-up accepted=${accepted.status}, POST /api/config=${configWrite.status}, GET /api/config=${configRead.status}, foreign=${foreign.status}, rebound=${rebound.status}`;
   } finally { await server.stop(); }
 });
 

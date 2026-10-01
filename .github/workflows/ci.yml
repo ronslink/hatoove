@@ -149,6 +149,12 @@ jobs:
         run: node tools/session-boundary-check.mjs
       - name: The hosted runtime refuses by default
         run: node tools/saas-runtime-check.mjs
+      # CONFIG-ANON-01. The machine-global /api/config write (and its read) is gone from the
+      # hosted runtime. Four legs against a real server with NO cookie: anonymous POST and GET
+      # must be 404, the env file must not be rewritten, and an anonymous learner route must
+      # still refuse 401 (so the 404 is the route being gone, not a dead runtime).
+      - name: The unauthenticated machine-global config write is gone
+        run: node tools/coord-config-anon-probe.mjs
   # THE RENDERED CLAIMS WERE UNGATED TOO. Four browser checkers existed and CI ran none of them, so
   # everything they assert - that a refused sign-in does not paint a signed-in state, that the
   # Settings view offers no provider field, that changing the explanation language does NOT translate
@@ -185,8 +191,19 @@ jobs:
           exit 1
       # Distinct ports: two of these suites start servers at port, port+1 and port+2, so a shared
       # default would collide. Each is far from the learner ports (4321 and 4381) and from the others.
-      - name: Honest mock writing outcomes in a real page
-        run: node tools/mock-outcome-browser-check.mjs --port 4341
+      #
+      # RETIRED 2026-10-01 (MFP-00): "Honest mock writing outcomes in a real page" is gone, with a
+      # row in work/implementation/RETIRED-CHECKS.md. It spawned `node server.js` as a LOCAL
+      # SINGLE-USER server (mock-outcome-browser-check.mjs:115-126, B1PREP_PROGRESS_FILE, no account
+      # configuration), and the product direction now removes local single-user mode - so it could
+      # not boot its server, which is the red browser job on PR #82. Keeping local mode alive to
+      # feed one check is exactly what the new direction ends.
+      #
+      # What guards those properties now: `tools/mock-outcome-check.mjs` stays in the offline job
+      # below and still guards the LOGIC (assessMockWriting never fabricates a score), including its
+      # discrimination against the pre-fix exam.js. The RENDERED property is unproven until MFP-08
+      # writes `writing-result-browser-check`'s `failed-or-pending-assessment-renders-unassessed`
+      # leg. That gap is recorded in the ledger rather than hidden.
       - name: The Settings view offers no provider field
         run: node tools/provider-config-browser-check.mjs --port 4344
       - name: The Konto surface, and the language setting not translating the menu

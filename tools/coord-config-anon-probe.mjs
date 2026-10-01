@@ -1,134 +1,285 @@
 /**
- * COORD PROBE — V2 of Claude's SAAS-MODEL-01 recommendations.
+ * CONFIG-ANON-01 — the unauthenticated machine-global config write (the probe).
  *
- * Claim: in hosted mode an ANONYMOUS same-origin caller can rewrite the server's
- * machine-global EXAM_DATE through POST /api/config, and every later visitor then reads it.
+ * The defect this probe reproduces on the pre-fix tree, against a REAL hosted runtime
+ * (`B1PREP_SAAS=1`, a throwaway env file, and **no cookie at all**):
  *
- * If that reproduces, it is a LIVE defect that belongs to the deletion/config slice, not to
- * SAAS-RETIRE-01 — and `tools/saas-runtime-check.mjs:676-680` currently ASSERTS the 200.
+ *   POST /api/config {"examDate":"2099-01-01"}
+ *     -> 200 {"ok":true,"examDate":"2099-01-01","saved":["EXAM_DATE"]}
+ *   the env file was rewritten: EXAM_DATE=2099-01-01
+ *   GET  /api/config (still anonymous) -> 200 {"examDate":"2099-01-01"}
  *
- * Real server process, real HTTP, synthetic data, throwaway env file. Read-only with respect to
- * the repository: every file it touches lives in a temp directory.
+ * Every visitor to the installation then reads the attacker's date. The same-origin gate is
+ * satisfied by design (a browser supplies `Origin`), and the handler never consulted identity —
+ * while the learner route one line away (`GET /api/v1/account`) correctly refuses.
  *
- * Usage: node tools/coord-config-anon-probe.mjs
+ * The four legs, and what the fix makes them:
+ *
+ *   1. anonymous POST /api/config   -> 404 (was 200)          [FAILS on the pre-fix tree]
+ *   2. the env file keeps no EXAM_DATE=2099-01-01 (was rewritten) [FAILS on the pre-fix tree]
+ *   3. anonymous GET  /api/config   -> 404 (was 200, exposing the date) [FAILS on the pre-fix tree]
+ *   4. control: anonymous GET /api/v1/account -> 401 (unchanged; proves the runtime really
+ *      does refuse an anonymous learner route, so leg 1's 404 is the route being gone, not a
+ *      dead runtime)                                          [PASSES on the pre-fix tree]
+ *
+ * Three of the four legs fail on the pre-fix tree. A check that cannot fail is not evidence:
+ * `--server <path>` re-runs the same probe against another `server.js`, which is how the
+ * pre-fix tree is shown to fail (see work/implementation/CONFIG-ANON-01.md).
+ *
+ * Method: the real `node server.js` over real HTTP, a disposable PostgreSQL database, a
+ * throwaway B1PREP_ENV_FILE / B1PREP_PROGRESS_FILE, and an operator-shaped request. No real
+ * credential, no live AI, no real learner record. Bounded throughout: every request carries a
+ * timeout and a server process is always reaped, so a stall is a FAILED LEG, never a hang.
+ *
+ * Safety: requires a disposable database in OWNAPI_PG_DATABASE and refuses `postgres`,
+ * `template0` and `template1`.
+ *
+ * Usage:
+ *   OWNAPI_PG_DATABASE=<disposable> node tools/coord-config-anon-probe.mjs
+ *   ... node tools/coord-config-anon-probe.mjs --server /path/to/pre-fix/server.js
  */
-import http from 'node:http';
+
 import fs from 'node:fs';
+import http from 'node:http';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = Number(process.env.PROBE_PORT || 4491);
-const PUBLIC_ORIGIN = 'https://app.probe.invalid';
-const HOST = 'app.probe.invalid';
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'coord-config-probe-'));
-const envFile = path.join(tmp, 'throwaway.env');
-const progressFile = path.join(tmp, 'progress.json');
-fs.writeFileSync(envFile, 'EXAM_DATE=\n');
+const FORBIDDEN = new Set(['postgres', 'template0', 'template1']);
+const DATABASE = process.env.OWNAPI_PG_DATABASE || '';
+const TEMP = fs.mkdtempSync(path.join(os.tmpdir(), 'b1prep-config-anon-'));
 
-const results = [];
-const check = (name, ok, detail = '') => {
-  results.push({ name, ok });
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `\n     ${detail}` : ''}`);
-};
+const REQUEST_TIMEOUT_MS = 20000;
+const SERVER_READY_DEADLINE_MS = 30000;
 
-function request(method, pathname, headers = {}, body = null) {
+/** The deployment's own public origin the hosted runtime is configured for. */
+const PUBLIC_ORIGIN = 'https://app.hatoove.example.test';
+const PUBLIC_HOST = 'app.hatoove.example.test';
+/** The attacker's date. Synthetic, and chosen only to be obviously not a real exam date. */
+const ATTACKER_DATE = '2099-01-01';
+/** The learner control route. */
+const CONTROL_PATH = '/api/v1/account';
+
+/* ------------------------------------------------------------------ helpers */
+
+function freePort() {
   return new Promise((resolve, reject) => {
-    const req = http.request({ host: '127.0.0.1', port: PORT, method, path: pathname, headers }, (res) => {
-      let text = '';
-      res.on('data', (c) => { text += c; });
-      res.on('end', () => {
-        let json = null;
-        try { json = JSON.parse(text); } catch { /* not json */ }
-        resolve({ status: res.statusCode, json, text });
-      });
+    const probe = net.createServer();
+    probe.on('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const port = probe.address().port;
+      probe.close(() => resolve(port));
     });
-    req.on('error', reject);
-    req.setTimeout(10000, () => req.destroy(new Error('request timed out')));
-    if (body !== null) req.write(body);
+  });
+}
+
+/** A real HTTP request with full Host/Origin control and a hard timeout. No cookie is ever sent. */
+function request(port, { method = 'GET', requestPath = '/', headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const finalHeaders = { ...headers };
+    const payload = body === undefined ? undefined : (typeof body === 'string' ? body : JSON.stringify(body));
+    if (payload !== undefined && !Object.keys(finalHeaders).some((k) => k.toLowerCase() === 'content-length')) {
+      finalHeaders['Content-Length'] = Buffer.byteLength(payload);
+    }
+    let settled = false;
+    const finish = (fn) => (value) => { if (settled) return; settled = true; clearTimeout(timer); fn(value); };
+    const req = http.request({ host: '127.0.0.1', port, method, path: requestPath, headers: finalHeaders }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', finish(() => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        let json = null;
+        try { json = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
+        resolve({ status: res.statusCode, headers: res.headers, text, json });
+      }));
+    });
+    const timer = setTimeout(() => {
+      req.destroy(new Error(`request timed out after ${REQUEST_TIMEOUT_MS}ms (${method} ${requestPath})`));
+    }, REQUEST_TIMEOUT_MS);
+    req.on('error', finish(reject));
+    if (payload !== undefined) req.write(payload);
     req.end();
   });
 }
 
-async function waitForServer(timeoutMs = 30000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const res = await request('GET', '/api/health');
-      if (res.status) return true;
-    } catch { /* not up */ }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error('server did not come up');
-}
+/* ---------------------------------------------------------- server process */
 
-const server = spawn(process.execPath, [path.join(ROOT, 'server.js')], {
-  cwd: ROOT,
-  stdio: ['ignore', 'pipe', 'pipe'],
-  env: {
+async function startServer(port, serverPath) {
+  const env = {
     ...process.env,
-    PORT: String(PORT),
+    B1PREP_PORT: String(port),
     B1PREP_SAAS: '1',
     B1PREP_ACCOUNTS: '1',
-    B1PREP_FORCE_OFFLINE: '1',
     B1PREP_PUBLIC_ORIGIN: PUBLIC_ORIGIN,
-    B1PREP_ENV_FILE: envFile,
-    B1PREP_PROGRESS_FILE: progressFile,
-  },
-});
-let log = '';
-server.stdout.on('data', (d) => { log += d.toString(); });
-server.stderr.on('data', (d) => { log += d.toString(); });
+    B1PREP_FORCE_OFFLINE: '1',
+    B1PREP_ENV_FILE: path.join(TEMP, `env-${port}`),
+    B1PREP_PROGRESS_FILE: path.join(TEMP, `progress-${port}.json`),
+    OWNAPI_PG_HOST: process.env.OWNAPI_PG_HOST || '127.0.0.1',
+    OWNAPI_PG_PORT: String(process.env.OWNAPI_PG_PORT || 5432),
+    OWNAPI_PG_DATABASE: DATABASE,
+    OWNAPI_PG_USER: process.env.OWNAPI_PG_USER || 'postgres',
+    ...(process.env.OWNAPI_PG_PASSWORD ? { OWNAPI_PG_PASSWORD: process.env.OWNAPI_PG_PASSWORD } : {}),
+    ...(process.env.OWNAPI_PG_SCHEMA ? { OWNAPI_PG_SCHEMA: process.env.OWNAPI_PG_SCHEMA } : {}),
+    ...(process.env.OWNAPI_PG_ROLE_PREFIX ? { OWNAPI_PG_ROLE_PREFIX: process.env.OWNAPI_PG_ROLE_PREFIX } : {}),
+  };
+  delete env.DEEPSEEK_API_KEY;
+  delete env.DEEPSEEK_BASE_URL;
 
-function stop() {
-  return new Promise((resolve) => {
-    if (server.exitCode !== null || server.signalCode !== null) return resolve();
-    server.once('exit', () => resolve());
-    server.kill('SIGTERM');
-    setTimeout(() => { try { server.kill('SIGKILL'); } catch { /* gone */ } resolve(); }, 4000);
-  });
+  const child = spawn(process.execPath, [serverPath], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = '';
+  child.stdout.on('data', (c) => { out += String(c); });
+  child.stderr.on('data', (c) => { out += String(c); });
+
+  const deadline = Date.now() + SERVER_READY_DEADLINE_MS;
+  for (;;) {
+    if (child.exitCode !== null) throw new Error(`server exited early (${child.exitCode}): ${out.slice(-400)}`);
+    try {
+      const response = await request(port, { requestPath: '/api/ready' });
+      if (response.status === 200 && response.json?.ready === true) break;
+    } catch { /* not listening yet */ }
+    if (Date.now() > deadline) throw new Error(`server did not become ready on ${port}: ${out.slice(-400)}`);
+    await new Promise((r) => setTimeout(r, 200));
+  }
+
+  return {
+    port,
+    env,
+    log: () => out,
+    stop: () => new Promise((resolve) => {
+      let done = false;
+      let killTimer = null;
+      let forceTimer = null;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        if (killTimer) clearTimeout(killTimer);
+        if (forceTimer) clearTimeout(forceTimer);
+        resolve();
+      };
+      if (child.exitCode !== null || child.signalCode) return finish();
+      killTimer = setTimeout(() => { try { child.kill('SIGKILL'); } catch { finish(); } }, 4000);
+      forceTimer = setTimeout(finish, 8000);
+      child.once('exit', finish);
+      child.once('error', finish);
+      try { child.kill(); } catch { finish(); }
+    }),
+  };
 }
 
-try {
-  await waitForServer();
+/* ------------------------------------------------------------------- probe */
 
-  const before = fs.readFileSync(envFile, 'utf8');
-  const attackerDate = '2099-01-01';
+const sameOriginJson = { Origin: PUBLIC_ORIGIN, Host: PUBLIC_HOST, 'Content-Type': 'application/json' };
 
-  // ANONYMOUS: no cookie at all. Same-origin, so the SEC-01 gate is satisfied by design.
-  const write = await request('POST', '/api/config',
-    { 'content-type': 'application/json', host: HOST, origin: PUBLIC_ORIGIN },
-    JSON.stringify({ examDate: attackerDate }));
+async function runProbe({ serverPath, label }) {
+  const port = await freePort();
+  const server = await startServer(port, serverPath);
+  const legs = [];
+  const record = async (name, fn) => {
+    try {
+      legs.push({ name, ok: true, detail: await fn() });
+    } catch (err) {
+      legs.push({ name, ok: false, detail: err && err.message ? String(err.message).split('\n')[0] : String(err) });
+    }
+  };
 
-  check('V2: an ANONYMOUS same-origin POST /api/config is refused (expected 401/403/404)',
-    write.status >= 400,
-    `status ${write.status} body ${write.text.slice(0, 200)}`);
+  try {
+    const envPath = server.env.B1PREP_ENV_FILE;
 
-  const after = fs.readFileSync(envFile, 'utf8');
-  check('V2: the server\'s env file was NOT rewritten by an anonymous caller',
-    !after.includes(attackerDate),
-    after.trim() ? `env file now: ${after.trim().slice(0, 200)}` : 'env file unchanged');
+    // Leg 4 (control) first: the runtime really is up and really does refuse an anonymous
+    // learner route, so a 404 below is the route being gone rather than a dead process.
+    await record('control-anonymous-learner-route-refuses', async () => {
+      const res = await request(port, { requestPath: CONTROL_PATH });
+      if (res.status !== 401) throw new Error(`expected 401 for an anonymous ${CONTROL_PATH}, got ${res.status} (${res.text.slice(0, 120)})`);
+      return `GET ${CONTROL_PATH} (no cookie) -> 401`;
+    });
 
-  const read = await request('GET', '/api/config', { host: HOST, origin: PUBLIC_ORIGIN });
-  check('V2: a later anonymous GET /api/config does not report the attacker\'s date',
-    !(read.json && read.json.examDate === attackerDate),
-    `status ${read.status} body ${read.text.slice(0, 200)}`);
+    await record('anonymous-post-config-is-404', async () => {
+      const res = await request(port, {
+        method: 'POST', requestPath: '/api/config', headers: sameOriginJson,
+        body: { examDate: ATTACKER_DATE },
+      });
+      if (res.status !== 404) throw new Error(`expected 404 for an anonymous POST /api/config, got ${res.status} (${res.text.slice(0, 140)})`);
+      return `POST /api/config (no cookie) -> 404`;
+    });
 
-  check('V2 control: an anonymous GET of a learner route is still refused (401)',
-    (await request('GET', '/api/v1/account', { host: HOST, origin: PUBLIC_ORIGIN })).status === 401,
-    'GET /api/v1/account');
-} catch (error) {
-  check('probe completed', false, String(error && error.stack || error));
-  console.log(log.split('\n').slice(-15).join('\n'));
-} finally {
-  await stop();
-  fs.rmSync(tmp, { recursive: true, force: true });
+    await record('anonymous-post-config-writes-no-env', async () => {
+      const text = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+      if (new RegExp(`^EXAM_DATE=${ATTACKER_DATE}$`, 'm').test(text)) {
+        throw new Error(`the env file was rewritten with EXAM_DATE=${ATTACKER_DATE}`);
+      }
+      return `no EXAM_DATE=${ATTACKER_DATE} in ${path.basename(envPath)}`;
+    });
+
+    await record('anonymous-get-config-is-404', async () => {
+      const res = await request(port, { requestPath: '/api/config' });
+      if (res.status !== 404) {
+        throw new Error(`expected 404 for an anonymous GET /api/config, got ${res.status} (${res.text.slice(0, 140)})`);
+      }
+      return `GET /api/config (no cookie) -> 404`;
+    });
+  } finally {
+    await server.stop();
+  }
+
+  return { label, modulePath: serverPath, legs };
 }
 
-const passed = results.filter((r) => r.ok).length;
-console.log(`\n${passed} passed, ${results.length - passed} failed`);
-console.log('A FAIL here means the defect is REAL: the route must be deleted, not gated.');
-process.exit(results.every((r) => r.ok) ? 0 : 1);
+function printRun(report, io) {
+  io.log(`  ${report.label} server @ ${report.modulePath}`);
+  for (const leg of report.legs) {
+    io.log(`  ${leg.ok ? 'PASS' : 'FAIL'}  ${leg.name}  [${leg.detail}]`);
+  }
+}
+
+export async function runProbeCli(argv = process.argv.slice(2), io = console) {
+  if (FORBIDDEN.has(DATABASE)) throw new Error(`refusing to run against ${DATABASE}; set OWNAPI_PG_DATABASE to a disposable database`);
+  if (!DATABASE) throw new Error('OWNAPI_PG_DATABASE must name a disposable database');
+
+  const serverIndex = argv.indexOf('--server');
+  const explicitServer = serverIndex === -1 ? null : path.resolve(argv[serverIndex + 1] || '');
+
+  io.log('coord-config-anon-probe: the unauthenticated machine-global config write (CONFIG-ANON-01)');
+  io.log('  real hosted runtime (B1PREP_SAAS=1), throwaway env, disposable database, NO cookie sent.');
+  const tree = await runProbe({ serverPath: path.join(ROOT, 'server.js'), label: 'tree' });
+  printRun(tree, io);
+
+  let failed = tree.legs.filter((l) => !l.ok).length;
+  if (tree.legs.length !== 4) failed += 1;
+
+  if (explicitServer) {
+    if (!fs.existsSync(explicitServer)) throw new Error(`no such file: ${explicitServer}`);
+    io.log('');
+    io.log(`  BEFORE/AFTER - same probe, source ${explicitServer}`);
+    const scratch = await runProbe({ serverPath: explicitServer, label: 'scratch' });
+    printRun(scratch, io);
+    const scratchFailed = scratch.legs.filter((l) => !l.ok).length;
+    io.log(`  ${scratchFailed > 0 ? 'OK   ' : 'FAIL '} discrimination: ${scratchFailed}/${scratch.legs.length} legs fail on the source above ` +
+      `(a fix whose probe cannot fail on the pre-fix tree is not evidence).`);
+    if (scratchFailed === 0) failed += 1;
+  } else {
+    io.log('  NOTE  add --server <path> to run the same probe against the pre-fix tree and show it fail.');
+  }
+
+  if (failed) {
+    io.error(`  FAIL  ${tree.legs.filter((l) => !l.ok).length} of ${tree.legs.length} leg(s) failed on this tree.`);
+    return 1;
+  }
+  io.log(`  OK    ${tree.legs.length} leg(s) passed.`);
+  return 0;
+}
+
+const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+if (invokedDirectly) {
+  let code = 1;
+  try {
+    code = await runProbeCli();
+  } catch (error) {
+    console.error(`ERROR ${error && error.message ? error.message : error}`);
+  } finally {
+    fs.rmSync(TEMP, { recursive: true, force: true });
+  }
+  process.exit(code);
+}
