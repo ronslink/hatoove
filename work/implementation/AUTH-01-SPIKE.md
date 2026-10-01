@@ -13,6 +13,12 @@
 **Rule observed throughout.** Every claim below is labelled **[V]** (executed here, output quoted
 verbatim) or **[R]** (read in source, not executed). A negative result is reported as found.
 
+**CI.** All 8 checks pass on the head (`d974a1a`, run `36833339934`). One earlier run of *identical
+content* failed the `Rendered behaviour` leg on an account-draft sign-up step and passed on re-run —
+an environment flake of exactly the kind `FUNCTIONAL-ROADMAP.md` §0.1 already records ("the browser job
+is fragile as well"). No CI step references any `tools/auth-spike-*` file, so the failure cannot
+originate in this slice.
+
 ---
 
 ## F1 — password-hash compatibility
