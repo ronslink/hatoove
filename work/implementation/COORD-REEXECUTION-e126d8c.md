@@ -1,0 +1,291 @@
+# COORD-REEXECUTION — the combined head `e126d8c` re-executed, and what that does and does not prove
+
+| | |
+|---|---|
+| Why | `work/implementation/REVIEW-COVERAGE.md` recorded that **no review covered the current head** and set the integration decision: *"re-review the combined head, or record explicitly which findings are known-good by **re-execution rather than by reading** — and state that limitation in the merge decision."* This is that re-execution and that statement. **It is not a merge approval** |
+| Written by | the coordinator, on the candidate's own behalf — **which is why it is evidence of behaviour and not a review** |
+| Candidate re-executed | `codex/ownapi-03-persistent` @ **`e126d8c4b18a2beaf58eca2d279fe8d191e825ae`** (PR #60) |
+| Baseline | `origin/main` @ `4f76b9428aacfc2ef670bdd3bdf5e43fa316222e` — **untouched.** Nothing has been merged to it |
+| Machine | the coordinator's host: Node v24.4.1, npm 11.7.0, Docker 29.7.2, `postgres:17-alpine`, headless Chrome at `C:\Program Files\Google\Chrome\Application\chrome.exe` |
+| Database | a **fresh disposable** database `hatoove_rev` on a labelled disposable container (`postgres:17-alpine`), synthetic accounts only. **No production access of any kind** |
+
+---
+
+## 1. The honest boundary of this document
+
+**This is re-execution, not independent review.** The distinction was already recorded and it is not a formality:
+
+- CI re-running a behaviour on every push is **stronger than a one-off review for regression**;
+- it is **weaker than a review for whether the check tests the right thing** — and every checker in this tree was
+  written by the same author as the code it checks.
+
+So this document can say *"the behaviour is what it was claimed to be, today, on a fresh database, at this SHA"*.
+It cannot say *"the check is the right check"*. **Only an independent reader says that**, and three were dispatched
+for exactly this head (see §6).
+
+---
+
+## 2. What was re-executed, and what it produced
+
+**Every suite CI runs, plus the four browser suites, plus the discrimination legs, all at `e126d8c`.** Run from a
+detached worktree at that SHA. Counters are as observed, not as recorded elsewhere.
+
+### 2.1 The offline baseline
+
+| Suite | Result |
+|---|---|
+| `repository-check.mjs` | passed — 325 tracked files, 254 text blobs screened |
+| `check.js` | **101 passed, 0 failed** |
+| `writing-check.js` | **9 passed, 0 failed** |
+| `feedback-check.js` | **14 passed, 0 failed** |
+| `design-check.mjs` | **11 passed, 0 failed**, exit 0 |
+| `mock-outcome-check.mjs` | **19 checks passed**, including discrimination against the pre-fix `exam.js` (15/15 defect checks fail and 4 controls pass on the pre-fix tree) |
+| `progress-scope-check.mjs` | **7 checks passed**, including discrimination against the pre-fix tree |
+| `provider-config-check.mjs` | **11 checks passed** |
+
+### 2.2 The server and owned-API contracts
+
+| Suite | Result |
+|---|---|
+| `server-origin-check.mjs` | **16 checks passed** |
+| `reset-check.mjs` | **8 checks passed** |
+| `revision-check.mjs` | **8 checks passed**, including discrimination against the pre-fix tree |
+| `keymask-check.mjs` | **12 checks passed** |
+| `keymask-check.mjs --prefix-commit 8a71f718…` | **12 checks passed** |
+| `progress-equal-check.mjs` | **10 checks passed**, including discrimination against the pre-fix tree |
+| `draft-session-check.mjs` | **18 passed, 0 failed** |
+| `owned-api-check.mjs` (memory) | **24 passed, 0 failed** |
+| `owned-client-check.mjs` | **31 passed, 0 failed** |
+| `feedback-case-check.mjs`, `objective-fixture-check.mjs`, `exam-blueprint-check.mjs` | structurally sound; blueprint consistent, 0 warnings |
+
+### 2.3 The durable and hosted contracts, on real PostgreSQL
+
+The database was created fresh and then provisioned by the checks themselves, exactly as CI's `postgres` job does.
+
+| Suite | Result |
+|---|---|
+| `postgres-provision-check.mjs` | **5 passed, 0 failed** — including `second-run-applies-nothing-and-changes-no-role` and `a-fresh-world-still-sees-the-rows-and-the-policy` |
+| `accounts-http-check.mjs` | **6 passed, 0 failed** — including **the restart property**: the session and the draft survive a real server restart |
+| `owned-api-check.mjs --backend=postgres-persistent` | **24 passed, 0 failed** |
+| `deletion-check.mjs` | **17 passed, 0 failed** |
+| `session-boundary-check.mjs` | **13 passed, 0 failed** |
+| `saas-runtime-check.mjs` | **10 passed, 0 failed** |
+
+**Two of these are worth naming, because they are the properties the conversion exists to deliver.** The restart
+property proves a draft survives a server restart **as the restricted learner role with FORCE RLS in force** — a
+memory backend cannot show that at all. And `saas-runtime-check` re-proves, on a fresh database, that the legacy
+progress route and the AI provider are **refused** unauthenticated, that `B1PREP_AI_TEST` is operator-only **with the
+flag set** (the case the first review found open), and that a database interruption is a **refusal** rather than a
+fallback to single-user.
+
+### 2.4 The rendered behaviour, in real headless Chrome
+
+| Suite | Result |
+|---|---|
+| `mock-outcome-browser-check.mjs --port 4341` | **11 passed, 0 failed** |
+| `provider-config-browser-check.mjs --port 4344` | **13 passed, 0 failed** |
+| `account-ui-browser-check.mjs --port 4347` | **25 passed, 0 failed** |
+| `session-boundary-browser-check.mjs --port 4350` | **52 passed, 0 failed** |
+
+Each asserts **no console errors** along the way. The counts are **higher than any record states** — 52 for the
+session-boundary browser suite where `REVIEW-0600.md` §2.7 records 38, and 13 for the Node session-boundary suite
+where §2.7c records 12 — because the N-1 and N-2 fixes added records after those reports were written. **The
+documents are behind the code; the code is green.**
+
+**The suite's own limit, quoted rather than paraphrased:** *"headless Chromium, emulated viewports: no real phone,
+keyboard or audio was exercised."* A 390 px emulated viewport is not a phone, and the human gates
+(`E-01`, `C-04`, `C-06`, `P-03`/`X-01`, real-device evidence) remain **open**.
+
+---
+
+## 3. What this re-execution establishes about the five review findings
+
+This is the part `REVIEW-COVERAGE.md` asked for: **known-good by re-execution rather than by reading.** Each of the
+five findings below was a real defect at the head it was found. The behaviour that the defect consisted of is now
+**executed and correct at `e126d8c`**.
+
+| Finding | Original defect | Re-executed at `e126d8c` | Verdict |
+|---|---|---|---|
+| **Runtime F1** | with `B1PREP_AI_TEST=1` an **anonymous same-origin caller reached the provider with zero session** | `saas-runtime-check` **`ai-test-is-operator-only-with-the-flag-set`**: anonymous 403, learner 403, wrong-token 403, **zero provider calls**; operator 200 with exactly one call | **closed, re-executed** |
+| **Runtime F2** | the claim *"leaving the local install unchanged"* was **false** — five observable behaviours differ | `saas-runtime-check` **`legacy-progress-local-install-unchanged`** passes; the claim is corrected in the record rather than the hardening weakened | **closed, re-executed** |
+| **Runtime F3** | `https://app.hatoove.example.test\@attacker.example` was **accepted** | `saas-runtime-check` **`configured-public-origin-accepted-and-foreign-refused`** — allowed 200, foreign 403, **rebound 403** | **closed, re-executed** |
+| **Session F1** | *"sign-out clears private state"* was **conditional** (`forget: flushed`), so a held save or an offline sign-out left **plaintext in `localStorage`**; and `session-boundary-browser-check.mjs:372` asserted the property **unconditionally** while exercising one branch | `session-boundary-check` **`sign-out with the final save held past the budget`** and **`sign-out while offline`** both pass; the browser suite's `sign-out-*-leaves-no-account-text-in-storage` family passes | **closed, re-executed** |
+| **Session F2** | a late response **landed through the writing view** — `exam.js:757-786` wrote after `await ai.gradeWriting(...)` with no fence | `session-boundary-browser-check`'s whole `late-writing-*` family passes, including `late-writing-feedback-puts-no-text-in-the-notebook-after-sign-out` and `late-writing-feedback-for-a-does-not-land-in-b` | **closed for the writing path, re-executed** |
+| **Session F3** | a `resolve()` in the `visibilitychange` handler re-reconciled the single-user record on every tab return | `session-boundary-check` **`single-user: a second resolve (tab return) neither reconciles again nor replaces the in-memory record`** and **`…still notices another tab signing in (the hardening is kept)`** both pass | **closed, re-executed** |
+| **N-2** | the unconditional forget destroyed unsaved work on the **expiry/refused** path and told the learner nothing | `session-boundary-check` carries the discard signal; **the browser suite does not exercise an expiry**, which is a finding in its own right — see §4.3 | **partly closed — see §4.3** |
+| **N-1** | **another page of the same browser re-created the account record, with its text, after the sign-out forget** | `session-boundary-check` **`another page of the same browser cannot re-create the record after a sign-out, and the next sign-in still saves`** passes; the record also states that the **browser** half of this check cannot discriminate the fence and that the fence rests on the Node check alone | **closed, re-executed — with the discrimination limit recorded** |
+| **N-3, N-4, N-5** | low: a `signed-out` marker on a single-user page; a coverage gap; dispatch files in the branch | **not addressed at `e126d8c`** | **open** |
+
+**So: nine of the findings that made this head unreviewed are now correct by execution, one (N-2) is only partly
+covered by execution, and the three lows are open.** That is the strongest statement re-execution can make, and it is
+still not a review.
+
+---
+
+## 4. Three defects this re-execution found. All three are in the *evidence*, not in the behaviour.
+
+Every one is the same family, which is the family this programme keeps finding: **the artefact that reports the
+result does not report what it did.**
+
+### 4.1 The hard-delete port is **not wired into the running server** — the production route is a permanent `503`
+
+**This one is behaviour, and it is the most serious thing in this document.**
+
+`tools/deletion-check.mjs` is **17/17** and every line of it is true *of the code it drives* — but it drives its own
+`createOwnedApi({ ...ports, accountDeletion: deletion })` (`deletion-check.mjs:218`). The **running server** gets its
+api from `server/accounts.mjs:86` → `createPostgresWorld()` → **`server/owned-postgres/fixture.mjs:36`
+`createOwnedApi({ datastore: port, sessions, settings })` — with no `accountDeletion`.** So in hosted mode
+`deletionWired` is false (`owned-api.mjs:250`) and `DELETE /api/v1/account` answers `503 deletion_unavailable`
+forever. **Ron's "hard delete" cannot be reached by any learner.**
+
+**Found empirically, not by reading.** `tools/coord-deletion-mount-probe.mjs` (added on
+`codex/coord-verify-e126d8c`, **PR #76**) starts a **real server process** against a **real disposable database**,
+signs a synthetic account up over HTTP, and asks it to delete itself:
+
+```
+PASS the running server accepts a sign-up over real HTTP (accounts really are mounted)
+PASS the running server serves GET /api/v1/account for that session
+     DELETE /api/v1/account -> 503 {"error":"deletion_unavailable"}
+     the same cookie afterwards -> 200
+FAIL the RUNNING SERVER actually performs the hard delete (200 deleted:true)
+FAIL the account is really gone from the running server (the cookie stops working)
+FAIL the running server reports the deletion honestly when it ran (completeErasure:false)
+2 passed, 3 failed
+```
+
+**Why no check caught it:** every deletion check assembles its own API, so **a tree in which the deletion is
+unreachable scores exactly the same as this one**. The one check that would catch it is the inverse of
+`deletion-check.mjs:302` — assert that the API built by `createPostgresWorld` *deletes*, not only that an API built
+without the port *refuses*.
+
+**Dispatched as `DELETION-WIRE-01`.** Independent corroboration: the Hermes deletion review reached the same
+conclusion from reading alone and added the second half — *"`createPostgresWorld` cannot be passed a deletion port
+even if `accounts.mjs` wanted to: its options are `{allowance, fixture}` and its only injection seam is
+`db.settings`. The wiring gap is not one forgotten argument; the world builder has no seam for a deletion port at
+all."*
+
+### 4.2 `owned-api-check --backend=postgres-persistent` prints the **memory** note
+
+`tools/owned-api-check.mjs:956-958`:
+
+```js
+console.log(report.backend === 'postgres'
+  ? 'NOTE real PostgreSQL datastore as the restricted learner role with FORCE RLS; synthetic sessions.'
+  : 'NOTE in-memory datastore and session fakes only; no PostgreSQL/RLS evidence. Add --backend=postgres for that.');
+```
+
+The CI `postgres` job runs `--backend=postgres-persistent` (`.github/workflows/ci.yml:141`), and that value is not
+`'postgres'`, so **the run that proves the durable property on real PostgreSQL prints a note telling the reader it
+proved nothing.** The check itself is 24/24 and correct; the sentence is false. Observed verbatim in this
+re-execution:
+
+```
+24 passed, 0 failed (backend: postgres-persistent)
+NOTE in-memory datastore and session fakes only; no PostgreSQL/RLS evidence. Add --backend=postgres for that.
+```
+
+**Not yet dispatched.** It is a one-line fix plus a check that the note matches the backend, and it should not ride
+along inside the deletion brief.
+
+### 4.3 The N-2 discard notice is dropped on the path that needed it — its own branch has no test
+
+**This is the same defect shape as the F1 it was written to fix, one slice later.** The N-2 fix moved the signal from
+`signOut()`'s return value into a boundary field because a caller reading `lastSaveReached` on the expiry path got
+`undefined`. The field it moved to (`account.js:167`) is an **assignment**, not a latch:
+
+```js
+discardedUnsaved = discards && phase === 'signed-in' && store.syncStatus().state === 'pending';
+```
+
+`accountView` performs a **second** resolve unless the reason is exactly `'signed_out_elsewhere'`
+(`account.js:685-687`); that second resolve re-enters `enterSignedOut` and **clears the flag** (`account.js:249-251`),
+and also rewrites the reason from `'expired'` to `'signed_out'`. So the notice is not painted. And **`discardedUnsaved`
+appears in no file under `tools/`**: the browser suite asserts the rendered notice on the two *sign-out* branches and
+contains **no expiry scenario at all** — no synthetic 401, no `signed_out_elsewhere`.
+
+**Found by the independent fence review (its F-B), not by this re-execution**, and recorded here because it is the
+clearest instance in the tree of the defect this document exists to name: **the code is conditional and the check is
+unconditional — or, here, absent.**
+
+### 4.4 The writing-surface discrimination leg was **vacuous on a Windows checkout**
+
+CI's `Offline baseline (windows-latest)` job failed on PR #75 on exactly the check that exists to prove the suite can
+fail: `the restore block exists exactly once` and `the leave-and-return check must catch a surface that cannot restore`.
+Cause: `tools/writing-surface-check.test.mjs` read the module as raw bytes and matched an **LF** constant against it,
+while git writes **CRLF** on a Windows checkout (`core.autocrlf=true` on this host). `String.replace` matched
+**nothing**, so the "mutant" the suite ran against was the unmodified module. The leg passed for the wrong reason on
+Linux and could not run at all on Windows.
+
+Proved on this host before fixing, and fixed in **`fc02cc2`** on `codex/writing-surface-01b` (PR #75):
+
+```
+module on disk has CRLF: true
+OLD (literal replace on the raw file) mutated anything: false
+NEW (toLf, then replace) mutated something:            true
+```
+
+The fix normalises line endings before matching **and asserts the mutation actually happened**, failing with that
+message if it did not. `node --test tools/writing-surface-check.test.mjs` → **10 pass, 0 fail** on this CRLF
+checkout, with the mutant failing only `enter-restores-the-saved-text-on-return`.
+
+---
+
+## 5. The limitation, stated in the words the merge decision should quote
+
+> **This head was re-executed, not re-reviewed.** Every suite CI runs passed at `e126d8c`, on a fresh disposable
+> PostgreSQL and in headless Chrome, including the discrimination legs that make the checks capable of failing — with
+> the exception of the four defects recorded in §4, one of which (`§4.1`) is a production behaviour and not a
+> reporting one. **The checkers remain the work of the same authors as the code they check**, so this document
+> establishes what the software *does* and not that the checks *ask the right question*. Two of the four reviews in
+> this programme looked at an artefact written by its own author and found five defects that the author's own checks
+> had passed. **Nothing here should be read as a merge approval**, and `main` remains at `4f76b94`.
+
+Consequences that follow, stated so they cannot be discovered later:
+
+- **`§4.1` blocks the claim that "hard delete" is delivered.** It is dispatched (`DELETION-WIRE-01`) and must be
+  re-executed through `tools/coord-deletion-mount-probe.mjs` (PR #76) before that claim is made again.
+- **`§4.2` is a false statement in a CI log.** Cheap to fix; until it is, a reader of the `postgres` job is told the
+  opposite of what happened.
+- **`§4.3` is an open product defect** (`N-2` recurring) dispatched as `SESSION-FENCE-02` together with two HIGH
+  findings of the same review.
+- **A 390 px emulated viewport is not a phone**, and the human gates `E-01`, `C-04`, `C-06`, `P-03`/`X-01` and
+  real-device evidence remain open.
+- **Issue #63 is not a production-security approval.** S5 — production authentication — is still the synthetic
+  session port, with no `Secure` cookie, no rotation, no recovery and no abuse controls, **and there is no design for
+  it.** That is Ron's decision, not an agent's.
+
+---
+
+## 6. What is running against this head, and where its output goes
+
+| Reviewer / worker | Slice | Output |
+|---|---|---|
+| Hermes `review-deletion-e126d8c` | `server/owned-api.mjs`, `server/owned-postgres/adapter.mjs`, `tools/deletion-check.mjs` | `reports/review-deletion-e126d8c/` — **received**: 12 findings, F1–F3 HIGH, corroborating §4.1 and adding F2 (no provisioned role) |
+| Hermes `review-fence-e126d8c` | `public/js/store.js`, `account.js`, `app.js`, `exam.js`, `mock-outcome.js` and both session-boundary checkers | `reports/review-fence-e126d8c/` — **received**: F-A HIGH (the mock late writer crosses into the next account), F-C HIGH (a never-signed-in browser is permanently locked out of its own record), F-B MEDIUM (N-2 recurring), F-H MEDIUM (five records that cannot fail for the property they name) |
+| Hermes `review-head-e126d8c` | the **combined head**: `server.js`, `server/accounts.mjs`, `public/js/app.js`, and the finding-by-finding reconciliation of all four earlier reviews | `reports/review-head-e126d8c/` — **in progress** |
+| OpenClaw `SESSION-FENCE-02` | fixes F-A, F-C and F-B | `codex/session-fence-02` |
+| OpenClaw `DELETION-WIRE-01` | fixes F1–F12 of the deletion review, including §4.1 | `codex/deletion-wire-01` |
+| OpenClaw `WRITING-SURFACE-01B` | objective item 3, delivered | `codex/writing-surface-01b`, **PR #75** — CI green except the Windows leg of §4.4, now fixed |
+
+---
+
+## 7. The integration decision, restated with this evidence in hand
+
+`REVIEW-COVERAGE.md` said: **not merged, and not proposed for merge until the two unreviewed safety slices have an
+independent reader.** That condition is now **met** — both were read independently, and between them they found
+**four HIGH and three MEDIUM defects in slices that had passed every check.**
+
+**So the answer to the merge question is still no, and for a better reason than before: the independent reviews did
+their job.** The head is not ready to propose for merge until:
+
+1. **`§4.1` is fixed and re-executed** — hard delete is unreachable from a hosted install;
+2. **the deletion review's F1–F3 are closed**, including a provisioned deletion role, without which the fix to (1)
+   produces a `500`;
+3. **the fence review's F-A and F-C are closed** — one is a cross-account text leak, the other takes away the local
+   record of a learner who never signed in;
+4. **`§4.3` (N-2 recurring) is closed**, with a test on the expiry branch at last;
+5. **the combined head is re-reviewed or freshly re-executed after those fixes**, because every fix moves the head
+   and this document is pinned to `e126d8c`.
+
+**The merge to `main` remains deliberately undone and is Ron's call**, as is S5 (production authentication). Nothing
+in this document authorises a merge, and `main` is still `4f76b94`.
