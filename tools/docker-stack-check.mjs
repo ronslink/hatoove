@@ -149,6 +149,69 @@ try{
     assert.ok([401,403,404].includes(res.status),'encoded traversal '+p+' must be refused, got '+res.status);
   }
   passed('encoded path traversal reaches nothing: the gate sees the resolved file, not the URL');
+  /*
+   * THE AUTH CONTRACT. Everything below was previously assumed rather than tested, and one of them
+   * was tested wrongly.
+   *
+   * A BROWSER AND A SCRIPT GET DIFFERENT, CORRECT ANSWERS. A navigation must be REDIRECTED to the
+   * form, because a 401 renders as a blank error page in a browser and nobody could sign in; a fetch
+   * must be refused 401, because a client that followed a redirect would parse the login page as the
+   * content it asked for. The check asserted only the 401 -- the non-browser case, and the less
+   * important one. Both are asserted now, and the form is fetched to prove the redirect lands
+   * somewhere real.
+   */
+  const nav=await fetch(base+'/',{headers:{accept:'text/html,application/xhtml+xml'},redirect:'manual',signal:AbortSignal.timeout(10000)});
+  assert.equal(nav.status,302,'a logged-out navigation must be REDIRECTED, not refused; a 401 shows a browser a blank page');
+  assert.ok((nav.headers.get('location')||'').endsWith('/signin'),'the redirect must target /signin, got '+nav.headers.get('location'));
+  const signinPage=await request('GET','/signin');
+  assert.equal(signinPage.status,200);
+  assert.ok(signinPage.text.includes('id="form-signin"'),'the redirect target must actually serve the sign-in form');
+  assert.equal((await request('GET','/')).status,401,'a script must still be refused 401 rather than handed HTML');
+  passed('a logged-out browser is redirected to a real sign-in form; a script is refused 401');
+
+  // Sign-out must END the session, not merely navigate away from it.
+  const session=await request('POST','/api/auth/sign-in/email',{email:credentials.email,password:credentials.password});
+  assert.equal(session.status,200,session.text);
+  const liveCookie=session.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
+  assert.equal((await request('GET','/api/v1/account',undefined,liveCookie)).status,200);
+  const signedOut=await request('POST','/api/auth/sign-out',{},liveCookie);
+  assert.equal(signedOut.status,200,signedOut.text);
+  assert.equal((await request('GET','/api/v1/account',undefined,liveCookie)).status,401,'the cookie must be dead after sign-out');
+  passed('sign-out ends the session: the same cookie is refused afterwards');
+
+  // NO ACCOUNT ENUMERATION. A wrong password and an unknown email must be indistinguishable, or the
+  // endpoint becomes an oracle for "does this person have an account here".
+  const wrongPassword=await request('POST','/api/auth/sign-in/email',{email:credentials.email,password:'definitely-not-the-password'});
+  const unknownEmail=await request('POST','/api/auth/sign-in/email',{email:'nobody-'+project+'@example.invalid',password:'definitely-not-the-password'});
+  assert.equal(wrongPassword.status,401,wrongPassword.text);
+  assert.equal(unknownEmail.status,401,unknownEmail.text);
+  assert.equal(wrongPassword.text,unknownEmail.text,'a wrong password and an unknown email must not be distinguishable');
+  passed('a wrong password and an unknown email are refused with the identical response');
+
+  // A duplicate registration is refused AND must not disturb the account that already exists.
+  const duplicate=await request('POST','/api/auth/sign-up/email',credentials);
+  assert.notEqual(duplicate.status,200,'a second sign-up with the same email must be refused, got '+duplicate.status);
+  const stillWorks=await request('POST','/api/auth/sign-in/email',{email:credentials.email,password:credentials.password});
+  assert.equal(stillWorks.status,200,'the original account must still work after a duplicate attempt');
+  passed('a duplicate sign-up is refused and leaves the existing account intact');
+
+  // EXPIRY IS ENFORCED, proved by AGEING a real session rather than by waiting an hour for it.
+  const fresh=await request('POST','/api/auth/sign-in/email',{email:credentials.email,password:credentials.password});
+  const setCookie=fresh.headers.getSetCookie()[0]||'';
+  const token=setCookie.split(';')[0].split('=').slice(1).join('=');
+  assert.ok(token,'could not read the session token from the cookie');
+  compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-c',
+    "UPDATE hatoove.session SET \"expiresAt\" = now() - interval '1 hour' WHERE token = '"+token.replace(/'/g,"''")+"'"]);
+  const agedCookie=fresh.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
+  assert.equal((await request('GET','/api/v1/account',undefined,agedCookie)).status,401,'an expired session must be refused');
+  passed('an aged session is refused: expiry is enforced, not merely recorded');
+
+  // Cookie flags. `Secure` is deliberately NOT required here: this stack is plain HTTP on loopback
+  // and a Secure cookie would never be sent, so demanding it would break local sign-in. It is a
+  // switch for a TLS deployment, and asserting it on HTTP would be asserting the wrong thing.
+  assert.ok(/HttpOnly/i.test(setCookie),'the session cookie must be HttpOnly, got: '+setCookie);
+  assert.ok(/SameSite=/i.test(setCookie),'the session cookie must scope SameSite, got: '+setCookie);
+  passed('the session cookie is HttpOnly and SameSite-scoped (Secure is a TLS-deployment switch)');
   compose(['restart','app','worker']);
   await ready();
   const login=await request('POST','/api/auth/sign-in/email',{email:credentials.email,password:credentials.password});
