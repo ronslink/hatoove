@@ -90,7 +90,23 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
   const listeners = new Set();
   const drafts = new Set();
 
-  const snapshot = () => ({ phase, reason, account: account ? { ...account } : null });
+  /*
+   * N-2 (`session-boundary-02-review-hermes-20261001-a`). The unconditional forget on the
+   * expired/signed-out path destroys unsaved work exactly as a sign-out does, and that path used to
+   * tell the learner NOTHING - the discard notice existed only in `handleSignOut`.
+   *
+   * This has to be a field rather than a caller-side check, and that is the whole trap: `signOut()`
+   * returns `lastSaveReached`, but `resolve()` returns only this snapshot, so a caller asking
+   * `result.lastSaveReached` in the expiry path gets `undefined` and the notice can never fire. A
+   * notice that cannot fire is the same defect class as a check that cannot fail.
+   *
+   * Set in `enterSignedOut` at the moment the discard happens, because that is synchronous and
+   * clears the scope before any await could observe it. Cleared by the next successful sign-in, so a
+   * later signed-out view cannot re-report an old discard.
+   */
+  let discardedUnsaved = false;
+
+  const snapshot = () => ({ phase, reason, discardedUnsaved, account: account ? { ...account } : null });
   function notify() {
     const view = snapshot();
     for (const listener of listeners) {
@@ -143,8 +159,14 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
    * unread, for the same account to resume; the next 401, sign-out or switch removes it.
    */
   function enterSignedOut(why) {
+    const discards = why === 'expired' || why === 'signed_out';
+    // Read the pending signal BEFORE clearing: `clearAccountScope` is synchronous and drops the
+    // scope, so afterwards there is nothing left to ask. Only a page that was actually signed in
+    // can have work to lose - a fresh browser that never signed in discards nothing, and claiming
+    // otherwise would train the learner to ignore the notice.
+    discardedUnsaved = discards && phase === 'signed-in' && store.syncStatus().state === 'pending';
     closeDrafts();
-    store.clearAccountScope({ forget: why === 'expired' || why === 'signed_out' });
+    store.clearAccountScope({ forget: discards });
     if (client.getAccount()) client.clear();
     account = null;
     settingsRevision = null;
@@ -184,6 +206,9 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
     const scope = store.getAccountScope();
     const switching = phase !== 'signed-in' || !account || account.id !== verified.id || scope.accountId !== verified.id;
     let sync = { adopted: false, reachable: true };
+    // A successful sign-in supersedes any earlier discard, so a previous notice cannot be
+    // re-reported against this account's signed-out view later.
+    discardedUnsaved = false;
     account = { id: verified.id, email: verified.email };
     if (switching) {
       closeDrafts();
@@ -632,7 +657,7 @@ export async function accountView(el) {
     if (result.phase === 'signed-in') paintSignedIn(view, result.account);
     else if (result.reason === 'accounts_off') paintUnavailable(view, result.phase === 'signed-out');
     else if (result.reason === 'offline') paintOffline(view);
-    else paintSignedOut(view, '');
+    else paintSignedOut(view, result.discardedUnsaved ? UNSAVED_DISCARDED : '');
   } catch (err) {
     paintSignedOut(view, messageForError(err));
   }
