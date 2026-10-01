@@ -5,7 +5,7 @@
 | Authority | **Ron, 2026-10-01: "delete is a hard delete."** Recorded in `RON-DECISIONS-20261001.md` §3 |
 | Why it is not a one-liner | the owned schema has **no `ON DELETE CASCADE` on the ownership keys** and contains a **foreign-key cycle**. `DELETE FROM "user"` fails today |
 | Read from | `spikes/auth-runtime/schema.sql` and `server/owned-postgres/provision.mjs` at `31f85f3` |
-| Status | **specification complete, implementation NOT started** — no code has been changed for D3 |
+| Status | **specification complete; implemented** — the deletion port, its role/migration and its wiring are in `server/owned-postgres/`, `server/accounts.mjs` and `server/owned-api.mjs`. See §6 |
 
 ## 1. The deletion graph, as the schema actually declares it
 
@@ -64,6 +64,7 @@ the fix."** Stated here so an implementation cannot quietly claim completeness:
 | **A write-ahead log / replica** | same class of problem | state it; do not imply otherwise |
 | **The legacy `progress.json`** | the file-based record still exists for local installs | on a hosted deployment it is not used at all — verify that, do not assume it |
 | **Any copy the app did not create** — a learner's export, a browser download | physically unreachable | already documented as out of scope by the F-5 re-scope |
+| **The model provider that processed the account's text** | submitted text is sent to the configured provider for assessment; what that provider retains, and for how long, is outside the application's reach — exactly like a backup | state it; **no retention period is known or stated.** Until Ron gives one, the deletion response may not imply the provider's copies are gone |
 
 ## 4. Acceptance criteria
 
@@ -84,3 +85,47 @@ the fix."** Stated here so an implementation cannot quietly claim completeness:
 only a retention policy can bound that, and it is a product and possibly legal decision rather than an engineering
 one. This record therefore does not invent one, and criterion 6 exists so the application tells the truth until Ron
 gives it.
+
+## 6. The deletion role, and how the port reaches a running server (HARD-DELETE-02)
+
+§2's transaction needs DELETE rights the restricted learner role does not have. Two things were missing, and both
+are recorded here because for a while the only two places that admitted "this cannot run in an installation" pointed
+at this section, which did not exist.
+
+**The role.** A provisioned installation now creates a fifth least-privilege role, `<prefix>_deletion`
+(`provision.mjs`, `ROLES`), `LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`
+`CONNECTION LIMIT 10` — the same shape as the other four. **Migration `0005-account-deletion`** grants it:
+
+- `USAGE` on the schema;
+- `SELECT, DELETE` on `"user"`, `session`, `account`, `attempts`, `drafts`, `submissions`, `jobs`, `assessments`,
+  `usage_ledger`, `entitlements`, `learner_settings`;
+- `UPDATE(parent_submission_id)` on `attempts` (step 1 of §2 decides the cycle);
+- `UPDATE(reserved)` on `entitlements` and `UPDATE("updatedAt")` on `"user"` — not to change a value, but because
+  PostgreSQL requires UPDATE on at least one column for the `FOR UPDATE` row locks the port takes (`SELECT 1 FROM
+  entitlements … FOR UPDATE`, and the `"user"` lock). The writer paths (`submit`, `retry`) take the entitlements
+  lock first, so the deletion takes it first too and the order is entitlements → attempts on both sides;
+- an owner-scoped policy (`USING (owner_id = nullif(current_setting('hatoove.owner_id', true), ''))`) for each of the
+  seven FORCE-RLS tables, a `user_id` policy for `learner_settings`, and a `drafts` policy that admits a row when its
+  attempt is the owner's **or** the attempt id was pinned transaction-locally for this deletion (drafts has no owner
+  column, so the port captures the account's attempt ids before deleting them). `"user"`, `session` and `account`
+  carry no RLS, so the grants above are the whole boundary there.
+
+The SQL lives in `server/owned-postgres/provisioning-sql.mjs` (`deletionRoleSql`), and the **same builder** is used by
+`bootstrap.mjs`: the disposable fixture a checker builds is therefore an installation's schema and grants, not an
+approximation. Before this, the only role with those rights was one `tools/deletion-check.mjs` invented for itself,
+so acceptance criterion 1 of §4 was not demonstrated for any installation that existed.
+
+**The wiring.** `createPostgresWorld()` — the function `server/accounts.mjs` calls to obtain the api `server.js`
+mounts — accepted `{ allowance, fixture }` and had no seam for a deletion port, so every `DELETE /api/v1/account` a
+provisioned server could serve answered `503 deletion_unavailable` (`owned-api.mjs`, `deletionWired === false`), in
+every configuration this repository can ship. It now takes a `deletion` pool (or a fixture that carries one) and
+builds the port with `createPostgresAccountDeletion`; `accounts.mjs` passes the pool `provisionPersistent()` built for
+`<prefix>_deletion`. `tools/coord-deletion-mount-probe.mjs` is the acceptance check: a real server process over real
+HTTP, which returned `503` before the fix and `200 {"deleted":true,…}` after.
+
+**What the read-back is, and is not.** The port reads `ACCOUNT_TABLES` back before COMMIT and refuses a deletion that
+left a row. In the current schema this is defensive and cannot trigger: every owned table either cascades from
+`"user"` (so the row is gone) or has a `NO ACTION` key that makes a later step fail with `23503` first (so the
+transaction throws before the read-back). The guarantee against a silent partial delete is the step order plus those
+foreign keys; the read-back is there for a future table that has neither. `drafts` was added to the list so the
+account's own drafts are counted too.
