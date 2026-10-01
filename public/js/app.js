@@ -9,7 +9,7 @@ import { icon } from './icons.js';
 import { examCountdown } from './engine.js';
 import { dashboardView, drillView, vocabView, vocabDrillView, notebookView, planView, settingsView } from './ui.js';
 import { accountView, accountNavHtml, session } from './account.js';
-import { paperView, writingView, speakingView, mockView, teardownExamViews } from './exam.js';
+import { paperView, writingView, speakingView, mockView, teardownExamViews, forgetMockSession } from './exam.js';
 import {
   referenceHubView,
   speakingGuideView,
@@ -240,6 +240,10 @@ function navigate(id, params = {}) {
  * state. The Konto view paints its own outcome.
  */
 function onSessionChange() {
+  // The previous learner's mock session is dropped BEFORE the repaint: it belongs to them, and
+  // repainting it - or letting its in-flight block gate commit - would carry their work into the
+  // next account or a signed-out page (SESSION-FENCE-03 F-A, the DOM half).
+  forgetMockSession();
   refreshBadges();
   const current = shell.currentViewId();
   if (current && current !== 'account') navigate(current);

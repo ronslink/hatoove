@@ -164,7 +164,12 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
     // scope, so afterwards there is nothing left to ask. Only a page that was actually signed in
     // can have work to lose - a fresh browser that never signed in discards nothing, and claiming
     // otherwise would train the learner to ignore the notice.
-    discardedUnsaved = discards && phase === 'signed-in' && store.syncStatus().state === 'pending';
+    //
+    // F-B (SESSION-FENCE-02): this is a LATCH (`||=`), not an assignment. The expiry path calls
+    // `enterSignedOut` twice - the tab-return resolve, then the Konto view's own resolve - and the
+    // second call runs with `phase === 'signed-out'`, so a recomputed value would be `false` and
+    // the notice would never paint. Cleared only on a successful sign-in (`enterAccount`).
+    discardedUnsaved ||= discards && phase === 'signed-in' && store.syncStatus().state === 'pending';
     closeDrafts();
     store.clearAccountScope({ forget: discards });
     if (client.getAccount()) client.clear();
@@ -236,8 +241,15 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
       if (code === 'stale_session') return { ...snapshot(), superseded: true };
       const scoped = store.getAccountScope().mode !== 'legacy';
       if (phase === 'signed-in' && isOffline(code)) return { ...snapshot(), offline: true };
-      if (!scoped && (code === 'not_found' || isOffline(code))) {
-        return singleUser(code === 'not_found' ? 'accounts_off' : 'offline');
+      // F-C (SESSION-FENCE-02). A browser that NEVER signed in has no server-side account to
+      // restore from, so ANY non-401 answer from the account endpoint - a 500, a malformed body,
+      // an unsupported contract - is treated as "accounts unavailable", exactly as the 404 case
+      // already is: the local single-user record is the only copy and it is kept and shown. A
+      // browser that DID hold an account still fails closed below. Coordinator product decision:
+      // the local single-user learner is the population that cannot recover.
+      if (!scoped) {
+        if (isOffline(code)) return singleUser('offline');
+        return singleUser(code === 'not_found' ? 'accounts_off' : 'unavailable');
       }
       // This browser held an account: anything but a verified identity fails closed.
       enterSignedOut(code === 'not_found' ? 'accounts_off' : isOffline(code) ? 'offline' : 'refused');
@@ -248,7 +260,11 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
     // was signed in has expired and fails closed.
     const mode = store.getAccountScope().mode;
     if (mode === 'legacy' && phase !== 'signed-in') return singleUser('anonymous');
-    enterSignedOut(mode === 'signed-out' && phase !== 'signed-in' ? 'signed_out' : 'expired');
+    // F-B (SESSION-FENCE-02). A second resolve after an expiry - and the Konto view always makes
+    // one - must not downgrade the reason to a plain `signed_out`: the reason is the learner's
+    // only account of what happened, and the discard notice is latched independently.
+    const expiredAgain = phase === 'signed-out' && reason === 'expired';
+    enterSignedOut(expiredAgain ? 'expired' : mode === 'signed-out' && phase !== 'signed-in' ? 'signed_out' : 'expired');
     return snapshot();
   }
 
@@ -581,16 +597,21 @@ function paintAuthenticated(view, result) {
   else paintSignedOut(view, '');
 }
 
-function paintUnavailable(view, signedOut = false) {
+function paintUnavailable(view, signedOut = false, why = 'accounts_off') {
   // A browser that was signed in is NOT handed back to the single-user record (fail closed).
   const detail = signedOut
     ? 'Dieser Browser war mit einem Konto angemeldet; die App zeigt deshalb keine gespeicherten Daten an.'
     : 'Die App läuft weiter wie bisher im Einzelplatz-Modus; dein Fortschritt bleibt in diesem Browser gespeichert.';
+  // 'unavailable' is a refused/failed account endpoint (F-C), not accounts being switched off;
+  // the learner is told which, because "not activated" would be a different claim.
+  const intro = why === 'unavailable'
+    ? 'Der Kontodienst hat gerade nicht geantwortet.'
+    : 'Konten sind auf diesem Server nicht aktiviert.';
   view.el.innerHTML = `
     <div class="card">
       <h3>Konto</h3>
       <p class="muted small">
-        Konten sind auf diesem Server nicht aktiviert. ${detail}
+        ${intro} ${detail}
       </p>
       <div class="btn-row"><button data-account-retry>Erneut prüfen</button></div>
     </div>
@@ -686,7 +707,8 @@ export async function accountView(el) {
     const followed = current.phase === 'signed-out' && current.status().reason === 'signed_out_elsewhere';
     const result = followed ? current.status() : await current.resolve();
     if (result.phase === 'signed-in') paintSignedIn(view, result.account);
-    else if (result.reason === 'accounts_off') paintUnavailable(view, result.phase === 'signed-out');
+    else if (result.reason === 'accounts_off') paintUnavailable(view, result.phase === 'signed-out', 'accounts_off');
+    else if (result.reason === 'unavailable') paintUnavailable(view, result.phase === 'signed-out', 'unavailable');
     else if (result.reason === 'offline') paintOffline(view);
     else paintSignedOut(view, result.discardedUnsaved ? UNSAVED_DISCARDED : '');
   } catch (err) {

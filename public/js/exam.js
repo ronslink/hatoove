@@ -13,7 +13,7 @@ import {
 import * as store from './store.js';
 import * as engine from './engine.js';
 import * as ai from './ai.js';
-import { assessMockWriting, createCompletionGate, summarizeMockOutcome, WRITING_MAX, WRITING_REASONS } from './mock-outcome.js';
+import { assessMockWriting, createCompletionGate, mockBlockGuard, summarizeMockOutcome, withinScope, WRITING_MAX, WRITING_REASONS } from './mock-outcome.js';
 import { PARTS, GROUPS, SUBTEST_ORDER, groupOf, tagInfo } from './blueprint.js';
 import { speak, speakScript, stopSpeaking, ttsSupported, germanVoices, waitForVoices, startDictation, sttSupported, speakingRate, beep } from './speech.js';
 import { session } from './account.js';
@@ -819,11 +819,12 @@ function renderWritingTask(el) {
     // The grading is a network round trip outside the session boundary. A sign-out, expiry or
     // account switch while it is on the wire moves the store's scope; the answer then belongs
     // to the previous learner and is neither shown nor recorded (SESSION-BOUNDARY-02 F2).
+    // `withinScope` is the shared fence the speaking and mock writers use too (FENCE-03 F-A).
     const scope = store.scopeToken();
     try {
       const graded = await ai.gradeWriting({ task, text, analysis });
       clearSpinner();
-      if (!store.isScopeCurrent(scope)) return;
+      if (!withinScope(scope, store.isScopeCurrent)) return;
       out.insertAdjacentHTML('beforeend', renderAiGrading(graded, task, analysis));
 
       // Feed the writing-specific weakness tags.
@@ -1175,8 +1176,13 @@ function renderSpeakingTask(el, partId, part) {
           <div class="why">Für eine Bewertung deines Beitrags brauchst du einen API-Schlüssel. Vergleiche solange deinen Text mit der Musterantwort.</div></div>`;
         return;
       }
+      // The grading is a network round trip outside the session boundary: take the scope token
+      // before it and drop the answer if the learner's identity moved meanwhile. The re-render
+      // counter alone used to do this job by accident; it must not be silently load-bearing
+      // (SESSION-FENCE-03 F-A).
+      const scope = store.scopeToken();
       const graded = await ai.gradeSpeaking({ task, transcript: text, partId, durationSec: seconds });
-      if (renderToken !== speakingRender || !out.isConnected) return;
+      if (!withinScope(scope, store.isScopeCurrent, () => renderToken === speakingRender && out.isConnected)) return;
       out.innerHTML = renderSpeakingFeedback(graded, wpm);
 
       const diff = engine.PART_DIFFICULTY[partId] ?? 56;
@@ -1436,8 +1442,20 @@ function renderMockBlock(el) {
     const toggleBtn = el.querySelector('[data-toggle-mock]');
     if (endBtn) endBtn.disabled = true;
     if (toggleBtn) toggleBtn.disabled = true;
+    // The identity scope the block was started in. The gate re-tests `isCurrent` after the
+    // grading `await`, so a sign-out, an expiry or a switch while the writing feedback is on
+    // the wire retires the block instead of committing it into the next account's record.
+    // The old guard compared the resumed session to ITSELF, so it stayed true throughout
+    // (SESSION-FENCE-03 F-A).
+    const scope = store.scopeToken();
     return session.completeBlock({
-      isCurrent: () => mockState === session && session.phase === 'exam' && session.blockIndex === index,
+      isCurrent: mockBlockGuard({
+        token: scope,
+        scopeCurrent: store.isScopeCurrent,
+        session,
+        currentSession: () => mockState,
+        index,
+      }),
       collect: async () => {
         const entries = [];
         for (const partId of available) {
@@ -1714,4 +1732,21 @@ export function teardownExamViews() {
     writingTimer();
     writingTimer = null;
   }
+}
+
+/**
+ * Called by the session boundary on an IDENTITY transition (sign-in, sign-out, account switch,
+ * expiry) - and only then. The mock session in memory belongs to the learner who started it, so
+ * it is dropped rather than resumed under the next account or a signed-out page: otherwise the
+ * block gate could still write, and `renderMockBlock` would repaint the previous account's
+ * writing text into the textarea (SESSION-FENCE-03 F-A, the DOM half).
+ *
+ * This deliberately does NOT live in `teardownExamViews()`: that fires on EVERY view leave, and
+ * `mockState` resuming across an ordinary re-render is deliberate (`mockView` resumes a running
+ * exam). Dropping it there breaks resume - the reason this is a separate, narrow seam.
+ */
+export function forgetMockSession() {
+  mockCleanup?.();
+  mockCleanup = null;
+  mockState = null;
 }

@@ -65,6 +65,13 @@ const LEGACY_MARKER = `SYNTH-SB-LEGACY-${RUN}`;
 const NEWER_MARKER = `SYNTH-SB-NEWER-${RUN}`;
 // The learner's own text as the stubbed grading's correction quotes it (F2).
 const W_MARKER = `SYNTH-SB-WRITING-${RUN}`;
+// SESSION-FENCE-03 F-A: the mock and speaking writers. A distinct second account, because the
+// F2 section above has already created `B`.
+const FA_MARKER = `SYNTH-SB-FA-${RUN}`;
+const FA_B = Object.freeze({
+  email: `synthetic.sb-fa-b.${RUN}@example.invalid`,
+  password: 'synthetic-pass-fa-b-123',
+});
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
@@ -393,6 +400,101 @@ const writingTrace = (cdp, marker) => cdp.evaluate(`return import('/js/store.js'
   writingAttempts: m.getState().history.filter((h) => h.source === 'writing').length,
 }))`);
 
+/* ------------------------------- SESSION-FENCE-03 F-A: mock + speaking writers */
+
+/**
+ * Walk the mock exam to its writing block (block 3) from ANY state: the intro, a finished
+ * result, or a block already in progress. Each objective block is submitted; the writing block
+ * is left untouched, so the caller can type into it.
+ */
+async function openMockWritingBlock(cdp) {
+  await openView(cdp, 'mock', 'Mocktest');
+  for (let step = 0; step < 6; step += 1) {
+    if (await cdp.evaluate(`return !!document.querySelector('#mock-writing')`)) return;
+    if (await cdp.evaluate(`return !!document.querySelector('[data-new-mock]')`)) { await cdp.click('[data-new-mock]'); await sleep(400); continue; }
+    if (await cdp.evaluate(`return !!document.querySelector('[data-start-mock]')`)) {
+      await cdp.click('[data-start-mock]');
+      await cdp.waitFor(`!!document.querySelector('#mock-parts')`, 40000, 'first mock block');
+      continue;
+    }
+    if (await cdp.evaluate(`return !!document.querySelector('#mock-parts') && !!document.querySelector('[data-end-block]')`)) {
+      await cdp.click('[data-end-block]');
+      await sleep(700);
+      continue;
+    }
+    await sleep(300);
+  }
+  await cdp.waitFor(`!!document.querySelector('#mock-writing')`, 30000, 'writing block');
+}
+
+/** Type a >=40-word synthetic brief (assessMockWriting needs it) into the mock writing area. */
+const typeMockBrief = (cdp, marker) => cdp.evaluate(`{
+  const brief = Array.from({ length: 8 }, (_, i) => 'Ich schreibe dir heute Satz ' + (i + 1) + ' ' + ${JSON.stringify(marker)} + ' und noch etwas mehr Text dazu.').join(' ');
+  const ta = document.querySelector('#mock-writing');
+  ta.value = brief;
+  ta.dispatchEvent(new Event('input'));
+  return ta.value.includes(${JSON.stringify(marker)});
+}`);
+
+/** Wait until a `server.holdNext(...)` response has been reached, or time out. */
+async function waitGate(server) {
+  const deadline = Date.now() + 20000;
+  while (!server.gate.reached && Date.now() < deadline) await sleep(100);
+  return server.gate.reached === true;
+}
+
+/** Sign out through the boundary (the call the Konto button makes), then let the page settle. */
+async function signOutViaBoundary(cdp) {
+  await cdp.evaluate(`return import('/js/account.js').then((m) => m.session().signOut()).then(() => true)`);
+  await sleep(800);
+}
+
+/** What the page's store holds from the mock and speaking feedback paths, printed together. */
+const mockSpeakingTrace = (cdp, marker) => cdp.evaluate(`return import('/js/store.js').then((m) => ({
+  notebook: m.listErrors({ includeResolved: true }).some((e) => JSON.stringify(e).includes(${JSON.stringify(marker)})),
+  mockAttempts: m.getState().history.filter((h) => h.source === 'mock').length,
+  speakingAttempts: m.getState().history.filter((h) => h.source === 'speaking').length,
+}))`);
+
+/** The previous account's text still sitting in the mock writing textarea, if any. */
+const mockTextareaHas = (cdp, marker) => cdp.evaluate(`return ((document.querySelector('#mock-writing') || {}).value || '').includes(${JSON.stringify(marker)})`);
+
+/**
+ * A stubbed AI provider for the SPEAKING view: the writing stub's answer is the wrong shape for
+ * `validSpeakingFeedback`, so speaking needs its own. No provider is called.
+ */
+function stubSpeakingProvider(server, markerOf) {
+  server.stub((req) => req.method === 'GET' && req.url.startsWith('/api/config'), (req, res) => reply(res, 200, { configured: true, examDate: '' }));
+  const feedback = {
+    criteria: [
+      { key: 'struktur', score: 60, comment: 'synthetic' },
+      { key: 'wortschatz', score: 60, comment: 'synthetic' },
+      { key: 'fluessigkeit', score: 55, comment: 'synthetic' },
+      { key: 'interaktion', score: 65, comment: 'synthetic' },
+      { key: 'aussprache', score: null, comment: 'synthetic' },
+    ],
+    points: 17, band: 'befriedigend',
+    corrections: [{ original: '', corrected: 'synthetic correction', explanation: 'synthetic' }],
+    betterPhrases: [{ said: 'synthetic', better: 'synthetic' }],
+    strengths: ['synthetic'], priorities: ['synthetic'],
+  };
+  server.stub((req) => req.method === 'POST' && req.url.startsWith('/api/ai'), (req, res) => {
+    req.resume();
+    req.on('end', () => {
+      const answer = { ...feedback, corrections: [{ ...feedback.corrections[0], original: markerOf() }] };
+      reply(res, 200, { ok: true, content: JSON.stringify(answer), finishReason: 'stop' });
+    });
+  });
+}
+
+/** Type a >=15-word transcript into the speaking view and ask for feedback. */
+const typeSpeakingTranscript = (cdp, marker) => cdp.evaluate(`{
+  const text = Array.from({ length: 6 }, (_, i) => 'Ich möchte Ihnen heute etwas über mein Thema ' + (i + 1) + ' ' + ${JSON.stringify(marker)} + ' sagen.').join(' ');
+  const ta = document.querySelector('#spoken-text');
+  ta.value = text;
+  return ta.value.includes(${JSON.stringify(marker)});
+}`);
+
 /** Wait until no debounced progress save is still queued in the page. */
 async function saveSettled(cdp) {
   await sleep(300);
@@ -502,6 +604,11 @@ async function main(argv) {
     /* ------------------------------------------------------------ SIGN-OUT */
     await openView(cdp, 'account', 'Konto');
     await cdp.waitFor(`!!document.querySelector('[data-signout]')`, 15000, 'sign-out button');
+    // Containment precondition (SESSION-FENCE-03, reviewer-named coverage gap): the sibling
+    // checks at :544 and :559 wait for the copy first. Without it this record asserts an
+    // absence and cannot tell "the forget worked" from "nothing was ever written".
+    await cdp.waitFor(storageHasExpr(A.marker), 15000, 'A copy in localStorage (confirmed sign-out precondition)');
+    record('sign-out-confirmed-precondition-the-account-copy-is-in-storage', await storageHas(cdp, A.marker), 'signed in as A, record synced before the sign-out');
     await cdp.click('[data-signout]');
     await cdp.waitFor(`!!document.querySelector('#account-signin-form') && !document.querySelector('[data-account-email]')`, 15000, 'signed out');
     record('sign-out-badge-is-cleared', (await badge(cdp)) === '', `badge="${await badge(cdp)}"`);
@@ -624,6 +731,132 @@ async function main(argv) {
     await cdp.waitFor(`!!document.querySelector('[data-signout]')`, 15000, 'sign-out (B)');
     await cdp.click('[data-signout]');
     await cdp.waitFor(`!!document.querySelector('#account-signup-form')`, 15000, 'signed out (B)');
+
+    /* ========= F-A: LATE MOCK/SPEAKING ANSWERS ACROSS A TRANSITION (SESSION-FENCE-03) ========= */
+    // The mock block gate and the speaking writer both write learner state AFTER an `await` with
+    // no identity-scope fence, so an answer for A that resolves after a sign-out or a same-page
+    // switch lands in the NEXT account's record - and the mock's in-memory writing text is
+    // repainted on a signed-out page. The existing F-H check counts only `source === 'writing'`,
+    // so the `mock` and `speaking` sources were invisible. These records were committed FAILING.
+    let faMarker = `${FA_MARKER}-control`;
+    stubWritingProvider(enabled, () => faMarker);
+    await signInThroughKonto(cdp, A);
+    await cdp.evaluate(`return import('/js/ai.js').then((m) => m.refreshStatus()).then((s) => s.configured === true)`);
+
+    // CONTROL: nothing changes while the mock grading is held, so the SAME held write DOES land.
+    // Without it every check below could pass because the grading never ran at all.
+    await openMockWritingBlock(cdp);
+    await typeMockBrief(cdp, faMarker);
+    enabled.holdNext((req) => req.method === 'POST' && req.url.startsWith('/api/ai'));
+    await cdp.click('[data-end-block]');
+    const mockControlHeld = await waitGate(enabled);
+    enabled.gate.release?.();
+    await sleep(1500);
+    const mockControl = await mockSpeakingTrace(cdp, faMarker);
+    record('f-a-control-a-held-mock-write-lands-when-nothing-changes', mockControlHeld && mockControl.mockAttempts > 0 && mockControl.notebook, `held: ${mockControlHeld}; ${JSON.stringify(mockControl)}`);
+
+    // RESUME GUARD (2.2): an ordinary navigation away and back must still RESUME the block. This
+    // is why any `mockState` drop must NOT live in teardownExamViews(), which fires on every view
+    // leave. It must also keep passing after the drop, which fires only on an identity transition.
+    await openMockWritingBlock(cdp);
+    const resumeMarker = `${FA_MARKER}-resume`;
+    await typeMockBrief(cdp, resumeMarker);
+    await openView(cdp, 'home', 'Übersicht');
+    await openView(cdp, 'mock', 'Mocktest');
+    const resumed = await cdp.evaluate(`return { has: !!document.querySelector('#mock-writing'), value: ((document.querySelector('#mock-writing') || {}).value || '') }`);
+    record('f-a-mid-exam-navigation-away-and-back-resumes-the-block', resumed.has && resumed.value.includes(resumeMarker), `textarea present: ${resumed.has}, kept the text: ${resumed.value.includes(resumeMarker)}`);
+
+    // (1) SWITCH: A's mock grading is on the wire when B takes over the page.
+    faMarker = `${FA_MARKER}-switch`;
+    await typeMockBrief(cdp, faMarker);
+    enabled.holdNext((req) => req.method === 'POST' && req.url.startsWith('/api/ai'));
+    await cdp.click('[data-end-block]');
+    const switchHeld = await waitGate(enabled);
+    await cdp.evaluate(`return import('/js/account.js').then((m) => m.session().signUp({ name: 'SYNTHETIC FA-B', email: ${JSON.stringify(FA_B.email)}, password: ${JSON.stringify(FA_B.password)} })).then(() => true)`);
+    enabled.gate.release?.();
+    await sleep(1500);
+    await saveSettled(cdp);
+    const faBId = synthetic.idOf(FA_B.email);
+    const traceSwitch = await mockSpeakingTrace(cdp, faMarker);
+    record('f-a-mock-write-does-not-cross-a-switch', switchHeld && traceSwitch.mockAttempts === 0 && !traceSwitch.notebook, `held: ${switchHeld}; ${JSON.stringify(traceSwitch)}`);
+    record('f-a-mock-write-does-not-reach-b-storage', !(await storageHas(cdp, faMarker)), 'localStorage scanned after the switch');
+    const bRecord = await (await fetch(`http://127.0.0.1:${portAccounts}/api/progress`, { headers: { 'x-b1prep-account': faBId } })).text();
+    record('f-a-mock-write-does-not-reach-b-server-record', !bRecord.includes(faMarker), "B's server progress scanned for the marker");
+    await saveSettled(cdp);
+    await signOutViaBoundary(cdp);
+
+    // (2) SIGN-OUT, and the DOM half: the writing textarea must not be repainted from A's
+    // in-memory mock session on the signed-out page.
+    await signInThroughKonto(cdp, A);
+    await openMockWritingBlock(cdp);
+    faMarker = `${FA_MARKER}-signout`;
+    await typeMockBrief(cdp, faMarker);
+    enabled.holdNext((req) => req.method === 'POST' && req.url.startsWith('/api/ai'));
+    await cdp.click('[data-end-block]');
+    const signOutHeld = await waitGate(enabled);
+    await cdp.evaluate(`return import('/js/account.js').then((m) => m.session().signOut()).then(() => true)`);
+    await sleep(1200);
+    record('f-a-mock-writing-textarea-is-not-repainted-after-sign-out', !(await mockTextareaHas(cdp, faMarker)), `signed-out mock page; textarea carried A's text: ${await mockTextareaHas(cdp, faMarker)}`);
+    enabled.gate.release?.();
+    await sleep(1500);
+    const traceSignOut = await mockSpeakingTrace(cdp, faMarker);
+    record('f-a-mock-write-does-not-cross-a-sign-out', signOutHeld && traceSignOut.mockAttempts === 0 && !traceSignOut.notebook, `held: ${signOutHeld}; ${JSON.stringify(traceSignOut)}`);
+    record('f-a-mock-write-does-not-reach-storage-after-sign-out', !(await storageHas(cdp, faMarker)), 'localStorage scanned after the sign-out');
+
+    // (3) SPEAKING: the same fence, proven at the page level. A fresh speaking stub, because the
+    // writing stub's answer is the wrong SHAPE for validSpeakingFeedback.
+    enabled.clearStubs();
+    let spMarker = `${FA_MARKER}-sp-control`;
+    stubSpeakingProvider(enabled, () => spMarker);
+    await signInThroughKonto(cdp, A);
+    await cdp.evaluate(`return import('/js/ai.js').then((m) => m.refreshStatus()).then((s) => s.configured === true)`);
+    const speakingReady = async () => {
+      await openView(cdp, 'speaking', 'Sprechen');
+      await cdp.waitFor(`!!document.querySelector('#spoken-text')`, 15000, 'speaking transcript field');
+    };
+    await speakingReady();
+    await typeSpeakingTranscript(cdp, spMarker);
+    enabled.holdNext((req) => req.method === 'POST' && req.url.startsWith('/api/ai'));
+    await cdp.click('[data-grade-speak]');
+    const spControlHeld = await waitGate(enabled);
+    enabled.gate.release?.();
+    await sleep(1500);
+    const spControl = await mockSpeakingTrace(cdp, spMarker);
+    record('f-a-speaking-control-a-held-write-lands-when-nothing-changes', spControlHeld && spControl.speakingAttempts > 0 && spControl.notebook, `held: ${spControlHeld}; ${JSON.stringify(spControl)}`);
+
+    // Speaking across a switch (B already exists, so this is a sign-in).
+    await speakingReady();
+    spMarker = `${FA_MARKER}-sp-switch`;
+    await typeSpeakingTranscript(cdp, spMarker);
+    enabled.holdNext((req) => req.method === 'POST' && req.url.startsWith('/api/ai'));
+    await cdp.click('[data-grade-speak]');
+    const spSwitchHeld = await waitGate(enabled);
+    await cdp.evaluate(`return import('/js/account.js').then((m) => m.session().signIn({ email: ${JSON.stringify(FA_B.email)}, password: ${JSON.stringify(FA_B.password)} })).then(() => true)`);
+    enabled.gate.release?.();
+    await sleep(1500);
+    await saveSettled(cdp);
+    const spSwitch = await mockSpeakingTrace(cdp, spMarker);
+    record('f-a-speaking-write-does-not-cross-a-switch', spSwitchHeld && spSwitch.speakingAttempts === 0 && !spSwitch.notebook, `held: ${spSwitchHeld}; ${JSON.stringify(spSwitch)}`);
+    record('f-a-speaking-write-does-not-reach-storage-after-switch', !(await storageHas(cdp, spMarker)), 'localStorage scanned after the switch');
+    await signOutViaBoundary(cdp);
+
+    // Speaking across a sign-out.
+    await signInThroughKonto(cdp, A);
+    await speakingReady();
+    spMarker = `${FA_MARKER}-sp-signout`;
+    await typeSpeakingTranscript(cdp, spMarker);
+    enabled.holdNext((req) => req.method === 'POST' && req.url.startsWith('/api/ai'));
+    await cdp.click('[data-grade-speak]');
+    const spSignOutHeld = await waitGate(enabled);
+    await cdp.evaluate(`return import('/js/account.js').then((m) => m.session().signOut()).then(() => true)`);
+    enabled.gate.release?.();
+    await sleep(1500);
+    const spSignOut = await mockSpeakingTrace(cdp, spMarker);
+    record('f-a-speaking-write-does-not-cross-a-sign-out', spSignOutHeld && spSignOut.speakingAttempts === 0 && !spSignOut.notebook, `held: ${spSignOutHeld}; ${JSON.stringify(spSignOut)}`);
+    enabled.clearStubs();
+    await cdp.evaluate(`return import('/js/ai.js').then((m) => m.refreshStatus()).then(() => true)`);
+    await openView(cdp, 'account', 'Konto');
+    await cdp.waitFor(`!!document.querySelector('#account-signin-form')`, 15000, 'signed out after F-A');
 
     /* ------------------------- the single-user exam date never reaches an account */
     const sharedDate = '2030-05-05';
@@ -763,6 +996,36 @@ async function main(argv) {
     shots.push(await screenshot(cdp, 'phone-konto-signed-out.png'));
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
     shots.push(await screenshot(cdp, 'desktop-konto-signed-out.png'));
+
+    /* --- F-C: A BROWSER THAT NEVER SIGNED IN KEEPS ITS RECORD ON A 500 (SESSION-FENCE-02) --- */
+    // The reviewer's F-C: a browser with NO account history that gets a 500 (or a malformed body)
+    // from /api/v1/account was moved to signed-out permanently. Its single-user record stayed on
+    // disk but was never shown again - not even after a reload - and signing up did not restore
+    // it. The fix is a coordinator product decision: a browser with no account history is never
+    // failed closed, because the local single-user learner is the population that cannot recover.
+    // The origin is cleared first so the page really starts with no account marker (`legacy`).
+    const FC_MARKER = `SYNTH-SB-FC-${RUN}`;
+    await cdp.evaluate(`localStorage.clear(); return true`);
+    await cdp.send('Page.reload', {});
+    await cdp.waitFor(`!!document.querySelector('#view .card')`, 20000, 'app boot (F-C, cleared browser)');
+    await cdp.waitFor(`import('/js/store.js').then((m) => m.getAccountScope().mode === 'legacy')`, 15000, 'F-C precondition: no account marker');
+    const fcPhase = await cdp.evaluate(`return import('/js/account.js').then((m) => m.session().phase)`);
+    record('f-c-precondition-the-browser-never-signed-in', (await scopeOf(cdp)).mode === 'legacy' && fcPhase === 'single-user', `scope mode=legacy, boundary phase=${fcPhase}`);
+    await recordMarkedAttempt(cdp, FC_MARKER);
+    await cdp.evaluate(`return import('/js/store.js').then((m) => m.flushNow())`);
+    await openView(cdp, 'notebook', 'Fehlerheft');
+    record('f-c-precondition-the-local-record-is-shown', (await viewText(cdp)).includes(FC_MARKER), 'the single-user notebook shows its own entry');
+    // A transient deploy failure: the account endpoint answers 500 (mapped to `server_error`).
+    enabled.stub((req) => req.method === 'GET' && new URL(req.url, 'http://x').pathname === '/api/v1/account',
+      (req, res) => reply(res, 500, { error: 'internal_error' }));
+    await cdp.send('Page.reload', {});
+    await cdp.waitFor(`!!document.querySelector('#view .card')`, 20000, 'app boot (F-C, account endpoint 500)');
+    await openView(cdp, 'notebook', 'Fehlerheft');
+    const fcNotebook = await viewText(cdp);
+    record('f-c-a-500-does-not-hide-the-never-signed-in-record', fcNotebook.includes(FC_MARKER), `the notebook shows the entry after a 500: ${fcNotebook.includes(FC_MARKER)}`);
+    record('f-c-a-500-does-not-move-the-browser-to-signed-out', (await scopeOf(cdp)).mode === 'legacy', `scope mode: ${(await scopeOf(cdp)).mode}`);
+    record('f-c-the-record-is-still-in-storage', await storageHas(cdp, FC_MARKER), 'localStorage scanned for the marker after a 500');
+    enabled.clearStubs();
 
     const errors = cdp.consoleErrors();
     record('no-console-errors-during-the-run', errors.length === 0, errors.slice(0, 2).join(' | ') || 'clean');

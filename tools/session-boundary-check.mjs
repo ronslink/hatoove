@@ -56,6 +56,12 @@ const MARK = Object.freeze({
   legacy: `SYNTH-LEGACY-${RUN_ID}`,
   newer: `SYNTH-NEWER-${RUN_ID}`,
   lateSettings: '2032-02-02',
+  mockLate: `SYNTH-MOCK-LATE-${RUN_ID}`,
+  mockLateOut: `SYNTH-MOCK-LATE-OUT-${RUN_ID}`,
+  mockControl: `SYNTH-MOCK-CONTROL-${RUN_ID}`,
+  speakLate: `SYNTH-SPEAK-LATE-${RUN_ID}`,
+  speakLateOut: `SYNTH-SPEAK-LATE-OUT-${RUN_ID}`,
+  speakControl: `SYNTH-SPEAK-CONTROL-${RUN_ID}`,
 });
 
 const checks = [];
@@ -120,6 +126,11 @@ function retirePages() {
 }
 const accountModule = await import(pathToFileURL(path.join(SUT, 'public/js/account.js')).href);
 const ownedModule = await import(pathToFileURL(path.join(SUT, 'public/js/owned-client.js')).href);
+// The mock exam's outcome module carries the completion gate AND the identity-scope fence the
+// three exam writers share (SESSION-FENCE-03 F-A). It is a NAMESPACE import on purpose: before
+// the fix the guard does not exist yet, and a named import would abort the whole FILE instead of
+// failing the individual checks that need it.
+const outcomeModule = await import(pathToFileURL(path.join(SUT, 'public/js/mock-outcome.js')).href);
 
 /** A Map-backed localStorage that logs every read. */
 function memoryStorage(log) {
@@ -281,6 +292,10 @@ check('sign-out: the previous account text, notebook and settings are unreadable
     const { browser, store, boundary, draft } = await seedAccountA(4482, 'signout');
     assert.ok(visible(store).includes(MARK.notebookA), 'precondition: the notebook entry is visible while signed in');
     assert.equal(draft.snapshot().text, MARK.draftA, 'precondition: the draft text is held while signed in');
+    // Containment precondition (SESSION-FENCE-03, reviewer-named coverage gap): without it this
+    // check asserts an absence and cannot tell "the forget worked" from "nothing was ever
+    // written". The four later Node checks already have it - this one did not.
+    assert.ok(storageKeysHolding(browser, MARK.notebookA).length > 0, 'precondition: the account copy is in this browser storage before the sign-out');
 
     await boundary.signOut();
     assert.equal(boundary.phase, 'signed-out');
@@ -407,6 +422,45 @@ check('another page of the same browser cannot re-create the record after a sign
     tab1.recordAttempt({ partId: 'SB1', tags: [], difficulty: 50, correct: false, detail: { prompt: `${MARK.notebookA}-AGAIN`, yourAnswer: 'x', correctAnswer: 'y' } });
     assert.equal(await tab1.flushNow(), true, 'a sign-in after the forget could not save to the server');
     assert.deepEqual(storageKeysHolding(browser, `${MARK.notebookA}-AGAIN`), [`b1prep.state.v1::${account.id}`], 'a sign-in after the forget could not save locally');
+  } finally { await server.stop(); }
+});
+
+/*
+ * N-2 follow-up (SESSION-FENCE-02 F-B). The discard notice on the EXPIRY path was a field, but
+ * `enterSignedOut` RECOMPUTED it on every call - and the Konto view always performs one more
+ * resolve after the tab return - so the learner was told nothing. This drives the REAL boundary
+ * and the REAL store over real HTTP: a change is held on the wire so it is genuinely unsaved
+ * ('pending'), the session is expired, the boundary resolves (the tab-return path), then resolves
+ * AGAIN (exactly what the Konto view does). The notice and the reason must survive.
+ */
+check('expiry: the discard notice survives the Konto view\u2019s own second resolve', async () => {
+  const server = await startServer(4495, { accounts: true });
+  try {
+    const { browser, store, boundary, account } = await seedAccountA(4495, 'expiry-notice');
+    // Hold the account's progress POST so a change is genuinely unsaved when the session is
+    // refused. The store's own 1200 ms debounce fires it; wait for the hold to be reached.
+    const held = browser.hold((e) => e.method === 'POST' && e.path === '/api/progress' && e.scope === account.id);
+    store.recordAttempt({ partId: 'SB1', tags: ['praepositionen'], difficulty: 50, correct: false, detail: { prompt: `${MARK.notebookA}-PENDING`, yourAnswer: 'x', correctAnswer: 'y' } });
+    await held.arrived;
+    assert.equal(store.syncStatus().state, 'pending', 'precondition: a change is genuinely unsaved');
+    // Expire the session server-side while this page still holds the cookie.
+    const cookie = [...browser.jar].map(([k, v]) => `${k}=${v}`).join('; ');
+    const killed = await realFetch('http://127.0.0.1:4495/api/auth/sign-out', {
+      method: 'POST', headers: { cookie, origin: 'http://127.0.0.1:4495', 'content-type': 'application/json' }, body: '{}',
+    });
+    assert.equal(killed.status, 200);
+    // The tab-return resolve: the session is refused and the unsaved change is discarded.
+    const first = await boundary.resolve();
+    assert.equal(first.phase, 'signed-out');
+    assert.equal(first.reason, 'expired');
+    assert.equal(first.discardedUnsaved, true, 'the first resolve did not report the discarded change');
+    // The Konto view resolves again - the resolve that used to erase the notice.
+    const second = await boundary.resolve();
+    assert.equal(second.phase, 'signed-out');
+    assert.equal(second.discardedUnsaved, true, 'the Konto view\u2019s second resolve erased the discard notice');
+    assert.equal(second.reason, 'expired', `the second resolve changed the reason to ${second.reason}`);
+    held.release();
+    await sleep(300);
   } finally { await server.stop(); }
 });
 
@@ -633,6 +687,192 @@ check('single-user: a tab return still notices another tab signing in (the harde
     assert.equal(back.phase, 'signed-in', `the single-user tab stayed ${back.phase} after another tab signed in`);
     assert.equal(back.account.id, signedUp.account.id);
     assert.equal(tab1.store.getAccountScope().accountId, signedUp.account.id, 'the first tab still writes the single-user record');
+  } finally { await server.stop(); }
+});
+
+/* ==================================================== SESSION-FENCE-03 F-A */
+/*
+ * A late mock-test or speaking answer crossing into the NEXT account's record.
+ *
+ * The exam writers write learner state AFTER an `await` (the grading round trip). Their guard
+ * is the store's identity scope: take an opaque token with `store.scopeToken()` before the
+ * await and re-test it with `store.isScopeCurrent()` after. The mock block gate's old guard
+ * compared the resumed session to ITSELF (`mockState === session && ... session.blockIndex`),
+ * so a sign-out or a same-page switch left it true and the gate committed into whatever
+ * account was current by then. The fence is factored into `mock-outcome.js` once
+ * (`mockBlockGuard`, `withinScope`) and shared by the writing, speaking and mock writers.
+ *
+ * These checks drive the REAL store over real HTTP and the REAL gate/guard modules. They assert
+ * on the `mock` and `speaking` sources explicitly - the existing F-H check counts only
+ * `source === 'writing'`, which is exactly how F-A stayed invisible.
+ */
+
+/** The shared scope fence, or a clear failure when the module does not export it yet. */
+function scopeFenceGuard() {
+  if (typeof outcomeModule.withinScope !== 'function') {
+    throw new Error('mock-outcome.js exports no `withinScope`: the F-A identity-scope fence is not implemented');
+  }
+  return outcomeModule.withinScope;
+}
+
+/**
+ * Drive ONE mock block's completion gate exactly as `exam.js` does: the shared `mockBlockGuard`
+ * over the real store's scope, a `collect` held open to stand in for the writing grading round
+ * trip, and the same two writes the real `commit` makes - a `source: 'mock'` notebook entry and
+ * a `source: 'mock'` attempt.
+ */
+function startMockBlockGate(store, { marker, held }) {
+  if (typeof outcomeModule.mockBlockGuard !== 'function') {
+    throw new Error('mock-outcome.js exports no `mockBlockGuard`: the F-A mock gate fence is not implemented');
+  }
+  // The resumed session is the SAME object for the block and for "what is current" - the shape
+  // the reviewer named: the old guard compared the session to itself.
+  const session = { phase: 'exam', blockIndex: 0, blockResults: [] };
+  const guard = outcomeModule.mockBlockGuard({
+    token: store.scopeToken(),
+    scopeCurrent: store.isScopeCurrent,
+    session,
+    currentSession: () => session,
+    index: 0,
+  });
+  const gate = outcomeModule.createCompletionGate();
+  return gate({
+    isCurrent: guard,
+    collect: async () => { await held; return marker; },
+    commit: (m) => {
+      store.addError({ partId: 'SA1', tags: ['sa_grammatik'], difficulty: 60, prompt: m, yourAnswer: m, correctAnswer: 'c', explanation: 'e', source: 'mock' });
+      store.recordAttempt({ partId: 'SB1', tags: ['praepositionen'], difficulty: 50, correct: false, source: 'mock', detail: { prompt: m, yourAnswer: 'x', correctAnswer: 'y' } });
+      session.blockResults.push(m);
+    },
+  });
+}
+
+/** The speaking writer's fence: the token is taken before the await and tested after it. */
+async function runSpeakingWriter(store, { marker, held, withinScope }) {
+  const token = store.scopeToken();
+  await held;
+  if (!withinScope(token, store.isScopeCurrent)) return false;
+  store.recordAttempt({ partId: 'SB1', tags: ['sp_struktur'], difficulty: 50, correct: true, source: 'speaking', detail: { prompt: marker } });
+  store.addError({ partId: 'SB1', tags: ['sp_wortschatz'], difficulty: 50, prompt: marker, yourAnswer: 'a', correctAnswer: 'b', explanation: 'e', source: 'speaking' });
+  return true;
+}
+
+const held = () => { let release; const gate = new Promise((resolve) => { release = resolve; }); return { gate, release }; };
+const mockAttempts = (store) => store.getState().history.filter((h) => h.source === 'mock').length;
+const speakingAttempts = (store) => store.getState().history.filter((h) => h.source === 'speaking').length;
+
+check('F-A mock gate: a held block write does not cross a SWITCH into the next account', async () => {
+  const server = await startServer(4451, { accounts: true });
+  try {
+    const browser = createBrowser(4451);
+    const { store, boundary } = await browser.page();
+    await boundary.resolve();
+    await boundary.signUp({ name: 'A', email: email('fa-mock-switch-a'), password: password('fa-mock-switch-a') });
+    const h = held();
+    const pending = startMockBlockGate(store, { marker: MARK.mockLate, held: h.gate });
+    // The switch: B signs up on this page while A's mock grading is still on the wire.
+    const b = await boundary.signUp({ name: 'B', email: email('fa-mock-switch-b'), password: password('fa-mock-switch-b') });
+    assert.equal(b.phase, 'signed-in');
+    h.release();
+    const committed = await pending;
+    assert.equal(committed, false, 'the mock gate committed a block that belonged to the previous account');
+    assert.ok(!visible(store).includes(MARK.mockLate), "A's late mock writing is in B's notebook");
+    assert.equal(mockAttempts(store), 0, "A's late mock attempt is in B's attempt history");
+    assert.equal(await store.flushNow(), true, 'precondition: B can save its own record');
+    assert.deepEqual(storageKeysHolding(browser, MARK.mockLate), [], `A's late mock text is in this browser storage under ${storageKeysHolding(browser, MARK.mockLate).join(', ')}`);
+    const record = await (await realFetch('http://127.0.0.1:4451/api/progress', { headers: { 'x-b1prep-account': b.account.id, origin: 'http://127.0.0.1:4451' } })).text();
+    assert.ok(!record.includes(MARK.mockLate), "A's late mock text reached B's server progress record");
+  } finally { await server.stop(); }
+});
+
+check('F-A mock gate: a held block write does not cross a SIGN-OUT', async () => {
+  const server = await startServer(4452, { accounts: true });
+  try {
+    const browser = createBrowser(4452);
+    const { store, boundary } = await browser.page();
+    await boundary.resolve();
+    await boundary.signUp({ name: 'A', email: email('fa-mock-signout'), password: password('fa-mock-signout') });
+    const h = held();
+    const pending = startMockBlockGate(store, { marker: MARK.mockLateOut, held: h.gate });
+    await boundary.signOut();
+    assert.equal(boundary.phase, 'signed-out');
+    h.release();
+    const committed = await pending;
+    assert.equal(committed, false, 'the mock gate committed a block that belonged to the signed-out account');
+    // On a sign-out the store refuses the notebook entry and the storage write, but a
+    // `recordAttempt` still grows the in-memory history (the reviewer's execution). So the
+    // history is the discriminator here.
+    assert.equal(mockAttempts(store), 0, "A's late mock attempt grew the signed-out attempt history");
+    assert.equal(store.listErrors().length, 0, "A's late mock writing entered the signed-out notebook");
+  } finally { await server.stop(); }
+});
+
+check('F-A speaking gate: a held write does not cross a SWITCH into the next account', async () => {
+  const server = await startServer(4453, { accounts: true });
+  try {
+    const browser = createBrowser(4453);
+    const { store, boundary } = await browser.page();
+    await boundary.resolve();
+    await boundary.signUp({ name: 'A', email: email('fa-speak-switch-a'), password: password('fa-speak-switch-a') });
+    // Take the guard synchronously: a missing export must FAIL this check, never float a
+    // rejected promise that Node would report as an unhandled rejection.
+    const withinScope = scopeFenceGuard();
+    const h = held();
+    const pending = runSpeakingWriter(store, { marker: MARK.speakLate, held: h.gate, withinScope });
+    const b = await boundary.signUp({ name: 'B', email: email('fa-speak-switch-b'), password: password('fa-speak-switch-b') });
+    assert.equal(b.phase, 'signed-in');
+    h.release();
+    assert.equal(await pending, false, 'the speaking writer committed after the scope had switched');
+    assert.ok(!visible(store).includes(MARK.speakLate), "A's late speaking text is in B's notebook");
+    assert.equal(speakingAttempts(store), 0, "A's late speaking attempt is in B's history");
+    assert.equal(await store.flushNow(), true, 'precondition: B can save its own record');
+    assert.deepEqual(storageKeysHolding(browser, MARK.speakLate), [], `A's late speaking text is in this browser storage under ${storageKeysHolding(browser, MARK.speakLate).join(', ')}`);
+    const record = await (await realFetch('http://127.0.0.1:4453/api/progress', { headers: { 'x-b1prep-account': b.account.id, origin: 'http://127.0.0.1:4453' } })).text();
+    assert.ok(!record.includes(MARK.speakLate), "A's late speaking text reached B's server progress record");
+  } finally { await server.stop(); }
+});
+
+check('F-A speaking gate: a held write does not cross a SIGN-OUT', async () => {
+  const server = await startServer(4454, { accounts: true });
+  try {
+    const browser = createBrowser(4454);
+    const { store, boundary } = await browser.page();
+    await boundary.resolve();
+    await boundary.signUp({ name: 'A', email: email('fa-speak-signout'), password: password('fa-speak-signout') });
+    const withinScope = scopeFenceGuard();
+    const h = held();
+    const pending = runSpeakingWriter(store, { marker: MARK.speakLateOut, held: h.gate, withinScope });
+    await boundary.signOut();
+    h.release();
+    assert.equal(await pending, false, 'the speaking writer committed after the sign-out');
+    assert.equal(speakingAttempts(store), 0, "A's late speaking attempt grew the signed-out history");
+    assert.equal(store.listErrors().length, 0, "A's late speaking text entered the signed-out notebook");
+  } finally { await server.stop(); }
+});
+
+/*
+ * The CONTROL. Without it every check above could pass because the write never ran at all -
+ * the exact failure mode this programme has recorded repeatedly. Nothing changes while the
+ * grading is held, so the SAME held write must commit.
+ */
+check('F-A control: a held block write DOES commit when nothing changes', async () => {
+  const server = await startServer(4455, { accounts: true });
+  try {
+    const browser = createBrowser(4455);
+    const { store, boundary } = await browser.page();
+    await boundary.resolve();
+    await boundary.signUp({ name: 'A', email: email('fa-control'), password: password('fa-control') });
+    const h = held();
+    const pending = startMockBlockGate(store, { marker: MARK.mockControl, held: h.gate });
+    h.release();
+    assert.equal(await pending, true, 'the mock gate did NOT commit with nothing changing');
+    assert.ok(visible(store).includes(MARK.mockControl), 'the control mock write did not land');
+    assert.equal(mockAttempts(store), 1, 'the control mock attempt did not land');
+    const sh = held();
+    const speaking = runSpeakingWriter(store, { marker: MARK.speakControl, held: sh.gate, withinScope: scopeFenceGuard() });
+    sh.release();
+    assert.equal(await speaking, true, 'the speaking writer did NOT commit with nothing changing');
+    assert.equal(speakingAttempts(store), 1, 'the control speaking attempt did not land');
   } finally { await server.stop(); }
 });
 
