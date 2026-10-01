@@ -78,6 +78,9 @@ export function deletionRoleSql({ schema, roles }) {
       ${s}.assessments, ${s}.usage_ledger, ${s}.entitlements, ${s}.learner_settings
       TO ${role};
     GRANT UPDATE(parent_submission_id) ON ${s}.attempts TO ${role};
+    -- FOR UPDATE on entitlements (the lock the deletion and the writer paths both take first)
+    -- needs UPDATE on at least one column; the deletion never changes the row.
+    GRANT UPDATE(reserved) ON ${s}.entitlements TO ${role};
     -- FOR UPDATE on "user" (the transaction's first statement) needs UPDATE on at least one
     -- column; the deletion never changes a "user" column.
     GRANT UPDATE("updatedAt") ON ${s}."user" TO ${role};

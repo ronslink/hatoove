@@ -231,29 +231,51 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
   ['user', 'DELETE FROM "user" WHERE id = $1'],
 ].map((step) => Object.freeze(step)));
 
-/** Every table that holds an account's rows, and its ownership column, for the read-back. */
+/**
+ * Every table that holds an account's rows, with the `WHERE` predicate that selects exactly
+ * this account's rows for the pre-COMMIT read-back. Each entry is `[table, predicate, bind]`;
+ * the predicate always binds one parameter (`$1`) whose value is `bind === 'attempts'` ? the
+ * account's attempt ids : the verified owner.
+ *
+ * `drafts` is here because it holds account rows: it has no owner column and is owned through
+ * `attempts`, so it is selected by the attempt ids rather than by the owner (see the port).
+ */
 export const ACCOUNT_TABLES = Object.freeze([
-  ['attempts', 'owner_id'], ['submissions', 'owner_id'], ['jobs', 'owner_id'],
-  ['assessments', 'owner_id'], ['usage_ledger', 'owner_id'], ['entitlements', 'owner_id'],
-  ['learner_settings', 'user_id'], ['session', '"userId"'], ['account', '"userId"'], ['"user"', 'id'],
+  ['attempts', 'owner_id = $1', 'owner'], ['submissions', 'owner_id = $1', 'owner'],
+  ['jobs', 'owner_id = $1', 'owner'], ['assessments', 'owner_id = $1', 'owner'],
+  ['usage_ledger', 'owner_id = $1', 'owner'], ['entitlements', 'owner_id = $1', 'owner'],
+  ['learner_settings', 'user_id = $1', 'owner'], ['session', '"userId" = $1', 'owner'],
+  ['account', '"userId" = $1', 'owner'], ['drafts', 'attempt_id = ANY($1::uuid[])', 'attempts'],
+  ['"user"', 'id = $1', 'owner'],
 ].map((entry) => Object.freeze(entry)));
 
 /**
- * Build the account-deletion port: `deleteAccount(owner) -> {existed, removed}`.
+ * Build the account-deletion port: `deleteAccount(owner) -> {existed, removed, verifiedAbsent}`.
  *
- * The whole deletion is ONE transaction, so a failure at any step leaves the account
- * intact rather than half-removed. The `"user"` row is locked first: a concurrent sign-in
- * or attempt insert needs a key-share lock on it (its foreign key), so it waits for this
- * transaction and then fails on the missing row instead of re-creating data mid-deletion.
- * Before COMMIT the transaction reads every account table back and refuses (rolls back)
- * if any row of the owner is left - a schema change that adds an owned table without
- * adding it here fails loudly instead of leaving data behind.
+ * The whole deletion is ONE transaction, so a failure at any step leaves the account intact
+ * rather than half-removed. Two locks are taken first, in the order the writer paths take them
+ * (`submit`/`retry` lock `entitlements` first, then an attempt row):
+ *   - `entitlements FOR UPDATE`, so an in-flight `submit()` cannot insert a submission after the
+ *     earlier steps have run and make a later step fail on the now-orphaned reference;
+ *   - `"user" FOR UPDATE`, so a concurrent sign-in or attempt insert that needs a key-share lock
+ *     on the row waits, and then fails on the missing row instead of re-creating data.
+ * Lock order is entitlements -> attempts on both sides, so this introduces no deadlock.
  *
- * PRIVILEGES: this cannot run as the restricted learner role. `isolation.sql` grants that
- * role DELETE on `drafts` only, and no row-level-security policy allows DELETE on the
- * owned tables, so `pool` must be a role granted SELECT/DELETE on the account tables,
- * UPDATE(parent_submission_id) on attempts and an owner-scoped policy for each. No such
- * role is provisioned yet; see work/implementation/HARD-DELETE-01.md §6.
+ * Before COMMIT the transaction reads the account tables back (`ACCOUNT_TABLES`) and refuses
+ * (rolls back) if any row of the owner is left, and reports `verifiedAbsent: true` when it
+ * returns. This is defensive: in the current schema it cannot be the thing that prevents a
+ * silent partial delete, because every owned table either cascades from `"user"` or has a
+ * `NO ACTION` key that makes a later step fail first — the guarantee comes from the step order
+ * and those foreign keys. It is kept because a future migration that adds an owned table with
+ * no such backstop is exactly the case it is meant to catch, and `drafts` is listed so the
+ * account's own draft rows are counted too.
+ *
+ * PRIVILEGES: this cannot run as the restricted learner role. A provisioned installation gets
+ * the rights from migration `0005-account-deletion` (`server/owned-postgres/provisioning-sql.mjs`),
+ * which grants a `<prefix>_deletion` role SELECT/DELETE on the account tables,
+ * UPDATE(parent_submission_id) on `attempts`, the column UPDATE privileges the two `FOR UPDATE`
+ * statements need, and an owner-scoped policy for each FORCE-RLS table. See
+ * work/implementation/HARD-DELETE-01.md §6.
  *
  * @param {{pool: object, afterStep?: (index: number, name: string, client: object) => (void|Promise<void>)}} options
  *   `afterStep` is a test hook (failure injection); it runs inside the transaction after
@@ -273,18 +295,30 @@ export function createPostgresAccountDeletion({ pool, afterStep } = {}) {
       try {
         await client.query('BEGIN');
         await client.query("SELECT set_config('hatoove.owner_id', $1, true)", [owner]);
+        // Same lock the writer paths take first, in the same order (F6).
+        await client.query('SELECT 1 FROM entitlements WHERE owner_id = $1 FOR UPDATE', [owner]);
+        // `drafts` is owned through `attempts`, and every attempt will be gone by the time the
+        // read-back runs. Capture the ids now and pin them transaction-locally so the read-back
+        // (and the drafts policy) can still recognise a draft this account owns.
+        const attemptIds = (await client.query('SELECT id FROM attempts WHERE owner_id = $1', [owner]))
+          .rows.map((row) => row.id);
+        await client.query("SELECT set_config('hatoove.deleting_attempts', $1, true)", [attemptIds.join(',')]);
         const existed = (await client.query('SELECT id FROM "user" WHERE id = $1 FOR UPDATE', [owner])).rowCount > 0;
         const removed = {};
         for (const [index, [name, sql]] of ACCOUNT_DELETION_STEPS.entries()) {
           removed[name] = (await client.query(sql, [owner])).rowCount;
           if (hook) await hook(index + 1, name, client);
         }
-        for (const [table, column] of ACCOUNT_TABLES) {
-          const left = first(await client.query(`SELECT count(*)::int AS n FROM ${table} WHERE ${column} = $1`, [owner])).n;
+        for (const [table, predicate, bind] of ACCOUNT_TABLES) {
+          const params = bind === 'attempts' ? [attemptIds] : [owner];
+          const left = first(await client.query(
+            `SELECT count(*)::int AS n FROM ${table} WHERE ${predicate}`, params)).n;
           if (left !== 0) throw new Error(`account deletion left ${left} row(s) in ${table}`);
         }
         await client.query('COMMIT');
-        return { existed, removed };
+        // Only true because the read-back above ran and found nothing: it is the proof, while
+        // `removed` is the delete statements' own counts and is not.
+        return { existed, removed, verifiedAbsent: true };
       } catch (error) {
         try { await client.query('ROLLBACK'); } catch { /* preserve the original failure */ }
         throw error;
