@@ -299,6 +299,10 @@ function forgetAccountRecords(keep = null) {
 export function clearAccountScope({ forget = false } = {}) {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   if (serverTimer) { clearTimeout(serverTimer); serverTimer = null; }
+  ensureScopeLoaded();
+  // A page that is ALREADY signed out does not overwrite another tab's newer sign-in (N-1):
+  // the shared marker and the record a sweep would remove then belong to that tab.
+  const yieldToOtherTab = scopeMode === 'signed-out' && sharedScope().mode === 'scoped';
   scopeLoaded = true;
   scopeMode = 'signed-out';
   accountId = null;
@@ -311,9 +315,84 @@ export function clearAccountScope({ forget = false } = {}) {
   invalidateAbilityCache();
   // Marker first, then the sweep (N-1): every other tab's write path is fenced by the marker
   // before the records it could re-create are removed.
-  writeScopeMarker({ forget });
-  if (forget) forgetAccountRecords();
+  if (!yieldToOtherTab) {
+    writeScopeMarker({ forget });
+    if (forget) forgetAccountRecords();
+  }
   return getAccountScope();
+}
+
+/** The scope marker as stored - shared by every tab of this browser - or `{}`. */
+function sharedScope() {
+  const s = storage();
+  if (!s) return {};
+  try {
+    const parsed = JSON.parse(s.getItem(SCOPE_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Follow a scope change another tab of this browser made (SESSION-BOUNDARY-04, review
+ * finding N-1). If the shared marker no longer names the account this page holds, drop the
+ * record from memory and cancel its queued writes - exactly what a sign-out does here -
+ * WITHOUT writing the marker, which is the other tab's. If that tab forgot account records,
+ * this page's own key is removed again, in case a write of ours landed after its sweep.
+ *
+ * Returns null when nothing changed for this page, otherwise what the other tab did:
+ * `{mode: 'signed-out'|'scoped', accountId, forget, hadPending}` (`hadPending`: this page
+ * had a change that had not reached the server, and it is now discarded).
+ */
+export function followScopeChange() {
+  ensureScopeLoaded();
+  if (!scopeSupersededElsewhere()) return null;
+  const next = sharedScope();
+  const previousKey = activeStorageKey();
+  const hadPending = Boolean(saveTimer || serverTimer) || sync.state === 'pending';
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  if (serverTimer) { clearTimeout(serverTimer); serverTimer = null; }
+  scopeMode = 'signed-out';
+  accountId = null;
+  lastAdoption = null;
+  stateEpoch += 1;
+  scopeEpoch += 1;
+  serverRev = 0;
+  state = freshState();
+  loaded = true;
+  invalidateAbilityCache();
+  sync = { ...sync, state: 'idle', lastError: '' };
+  if (next.forget && previousKey) {
+    try { storage().removeItem(previousKey); } catch { /* nothing was persisted there */ }
+  }
+  const scoped = next.mode === 'scoped' && typeof next.accountId === 'string';
+  return { mode: scoped ? 'scoped' : 'signed-out', accountId: scoped ? next.accountId : null, forget: next.forget === true, hadPending };
+}
+
+/**
+ * Listen for another tab changing the shared scope marker (the `storage` event fires in
+ * every OTHER page of the origin), and on a back/forward-cache restore, when this page may
+ * have been frozen through the change. `onChange` receives followScopeChange()'s answer.
+ * Returns a function that removes the listeners.
+ */
+export function watchScopeChanges(onChange) {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return () => {};
+  const follow = () => {
+    const change = followScopeChange();
+    if (change && onChange) onChange(change);
+  };
+  const onStorage = (event) => {
+    // key === null: storage was cleared; re-read rather than guess.
+    if (event.key === SCOPE_KEY || event.key === null) follow();
+  };
+  const onPageShow = (event) => { if (event.persisted) follow(); };
+  window.addEventListener('storage', onStorage);
+  window.addEventListener('pageshow', onPageShow);
+  return () => {
+    window.removeEventListener('storage', onStorage);
+    window.removeEventListener('pageshow', onPageShow);
+  };
 }
 
 /**

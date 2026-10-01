@@ -717,8 +717,10 @@ async function main(argv) {
       record('n1-control-a-sign-in-after-the-forget-saves-locally-and-to-the-server', savedA === true && localA.length === 1 && localA[0] === accountKey && serverA.includes(`${NEXT_MARKER}-A`), `flushNow=${savedA}; local keys: [${localA}]; server record holds it: ${serverA.includes(`${NEXT_MARKER}-A`)}`);
 
       // The next learner, in the tab that only HEARD about the sign-out: B signs in on tab 2.
+      // Tab 1 is A, with one more answer of A's still queued as that happens.
       // Through the boundary's own signIn (what the Konto form calls), so the step does not
       // depend on which phase tab 2 is showing.
+      await recordMarkedAttempt(cdp, `${A.marker}-LATE`);
       await tab2.evaluate(`return import('/js/account.js').then((m) => m.session().signIn({ email: ${JSON.stringify(B.email)}, password: ${JSON.stringify(B.password)} })).then((r) => r.phase)`);
       await recordMarkedAttempt(tab2, `${NEXT_MARKER}-B`);
       const savedB = await tab2.evaluate(`return import('/js/store.js').then((m) => m.flushNow())`);
@@ -726,15 +728,14 @@ async function main(argv) {
       const serverB = await (await fetch(`http://127.0.0.1:${portAccounts}/api/progress`, { headers: { 'x-b1prep-account': bId } })).text();
       record('n1-control-the-next-learner-in-the-other-tab-saves-locally-and-to-the-server', savedB === true && localB.length === 1 && localB[0] === `b1prep.state.v1::${bId}` && serverB.includes(`${NEXT_MARKER}-B`), `flushNow=${savedB}; local keys: [${localB}]; server record holds it: ${serverB.includes(`${NEXT_MARKER}-B`)}`);
 
-      // That sign-in switched the browser to B, so tab 1 (still A in memory) must leave A too.
+      // That sign-in switched the browser to B, so tab 1 (still A in memory, A's answer queued)
+      // must leave A too, and A's text must not come back under any key.
       await cdp.waitFor(`import('/js/store.js').then((m) => m.getAccountScope().accountId !== ${JSON.stringify(accountId)})`, 8000, 'tab 1 leaves A').catch(() => false);
-      await recordMarkedAttempt(cdp, `${A.marker}-LATE`);
-      await cdp.evaluate(`return import('/js/store.js').then((m) => { m.flushNow(); return true; })`);
       await sleep(1500);
       const tab1After = await scopeOf(cdp);
       const aKeys = await accountKeysHolding(cdp, A.marker);
       const aSecondKeys = await accountKeysHolding(cdp, `${NEXT_MARKER}-A`);
-      record('n1-a-switch-in-the-other-tab-the-first-tab-leaves-the-previous-account', tab1After.accountId !== accountId && aKeys.length === 0 && aSecondKeys.length === 0, `tab 1 scope ${JSON.stringify(tab1After)}; keys holding A's text: [${[...aKeys, ...aSecondKeys]}]`);
+      record('n1-a-switch-in-the-other-tab-the-first-tab-leaves-the-previous-account', tab1After.accountId === bId && aKeys.length === 0 && aSecondKeys.length === 0, `tab 1 scope ${JSON.stringify(tab1After)}; keys holding A's text: [${[...aKeys, ...aSecondKeys]}]`);
 
       // B signs out on tab 2; tab 1 must not put B's text back either.
       await openView(tab2, 'account', 'Konto');
