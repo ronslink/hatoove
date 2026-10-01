@@ -1,0 +1,38 @@
+/* Script-coverage font layer (PILOT-08a extension) — ADDITIVE, and deliberately NOT part of
+   hatoove.css.
+
+   Why this is a separate file: `hatoove.css` is a SUPPLIED design artifact whose bytes are pinned
+   in work/implementation/DESIGN-REFERENCE-MANIFEST.json and verified by tools/design-assets-check.mjs
+   leg D2. Editing it to make five languages render broke that pin — the file no longer matched the
+   reviewed artifact, and D2 correctly failed. A curated asset is not a scratch pad. So the coverage
+   goes here, the pinned file stays byte-exact, and a future change to the design language has to be
+   a new reviewed asset with a new digest rather than a quiet edit.
+
+   Source Sans 3 and Bricolage Grotesque are Latin-1 subsets: measured, 231 and 226 mapped
+   codepoints, no Cyrillic, no Arabic, and `ı` without `ĞğİŞş`. The agreed explanation languages are
+   de/en/uk/ar/tr, so three Noto subsets carry the scripts the branding faces cannot:
+   noto-sans-latin-ext (de/en/tr, including the Turkish dotted/dotless I and G-breve/S-cedilla),
+   noto-sans-cyrillic (uk) and noto-sans-arabic (ar). Each is SIL OFL 1.1; see licences/ and
+   PROVENANCE.md. The unicode-range values are the codepoint sets those files actually map, so a
+   browser fetches only the subset a string needs, and tools/design-assets-check.mjs D7 re-reads
+   each font's cmap to confirm the coverage is real. */
+
+@font-face{font-family:"Noto Sans";src:url("fonts/noto-sans-latin-ext.woff2") format("woff2");font-weight:200 900;font-display:swap;unicode-range:U+20-7E,U+A0-24F,U+259,U+2BB-2BC,U+2C6,U+2DA-2DC,U+304,U+308,U+329,U+1E00-1EFF,U+2018-2019,U+201C-201D,U+2020-2026,U+2030,U+2039-203A,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD}
+@font-face{font-family:"Noto Sans";src:url("fonts/noto-sans-cyrillic.woff2") format("woff2");font-weight:200 900;font-display:swap;unicode-range:U+301,U+400-52F,U+1C80-1C88,U+2018-2019,U+201C-201D,U+2020-2026,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}
+@font-face{font-family:"Noto Sans Arabic";src:url("fonts/noto-sans-arabic.woff2") format("woff2");font-weight:200 900;font-display:swap;unicode-range:U+600-6FF,U+750-77F,U+870-891,U+898-8FF,U+200C-2011,U+204F,U+2E41,U+FB50-FBC2,U+FBD3-FD8F,U+FD92-FDC7,U+FDCF,U+FDF0-FDFF,U+FE70-FEFC}
+
+/* Extend the two stacks rather than replace them: the branding faces stay first and keep Latin, and
+   the coverage faces are reached only for the codepoints they actually carry. */
+:root{
+  --display:"Bricolage Grotesque","Noto Sans",system-ui,sans-serif;
+  --font:"Source Sans","Noto Sans",system-ui,sans-serif;
+}
+
+/* Explanation text follows the learner's language; the shell stays German and LTR.
+   `[lang=ar]` swaps in the Arabic face and its own line height — segment extents differ from the
+   Latin faces. `dir`/`dir=rtl` on the text element is set by the client, not here: no check in this
+   repository proves shaping or bidirectional layout, and a CSS rule cannot. */
+[lang=uk]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
+[lang=tr]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
+[lang=ar]{font-family:"Noto Sans Arabic","Segoe UI","Geeza Pro",system-ui,sans-serif;line-height:1.75}
+[lang=ar] .num{font-family:"Noto Sans Arabic",system-ui,sans-serif}

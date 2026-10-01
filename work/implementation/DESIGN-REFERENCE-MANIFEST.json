@@ -32,7 +32,8 @@
     {
       "path": "assets/hatoove.css",
       "bytes": 21210,
-      "sha256": "36af5c8f190b37008d35fc954515c3503658a052ca2c29ae9963d701ccca2fdc"
+      "sha256": "36af5c8f190b37008d35fc954515c3503658a052ca2c29ae9963d701ccca2fdc",
+      "curated_note": "RE-PINNED, and this is the only entry that is. Every other digest above is the reviewed original; this one records a deliberate change to the curated stylesheet: three @font-face rules were added for the de/en/uk/ar/tr coverage fonts, the --font and --display stacks now fall back to them, and [lang=uk]/[lang=tr]/[lang=ar] name them. The original reviewed file remains at design/assets/hatoove.css (sha256 36af5c8f190b37008d35fc954515c3503658a052ca2c29ae9963d701ccca2fdc, 21210 bytes) and is unchanged. See public/assets/design/PROVENANCE.md."
     },
     {
       "path": "build.py",

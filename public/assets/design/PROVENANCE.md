@@ -59,3 +59,33 @@ as "the glyph is covered"** — computed `font-family` is not evidence; rendered
 2. Do not add an asset here without a licence notice and a pinned digest.
 3. Rendered evidence at 320/390, 768/1024/1180 and 1440 px in both themes is still required, and
    **emulation is not a real device**. Nothing here has been rendered by a check.
+
+## The script-coverage layer — ADDITIVE, and NOT a supplied design original
+
+`fonts-coverage.css` and the three Noto subsets are **ours**, not Ron's design inputs. They are
+therefore deliberately **not** in `DESIGN-REFERENCE-MANIFEST.json`, which pins the supplied
+originals only:
+
+| File | Why |
+|---|---|
+| `fonts-coverage.css` | `@font-face` rules and `[lang=uk/tr/ar]` stacks for the scripts the branding faces cannot render |
+| `fonts/noto-sans-latin-ext.woff2` | Turkish: `ĞğİŞş`, which Source Sans 3 lacks while containing `ı` |
+| `fonts/noto-sans-cyrillic.woff2` | Ukrainian |
+| `fonts/noto-sans-arabic.woff2` | Arabic |
+| `licences/OFL-NotoSans.txt`, `licences/OFL-NotoSansArabic.txt` | SIL OFL 1.1 notices |
+
+**Why these are in a separate file, and the rule that follows.** An earlier attempt put the
+`@font-face` rules and the extended font stacks **directly into `hatoove.css`** and then updated its
+manifest digest to match. That defeats the pin: a curated asset stops being the reviewed artifact the
+moment it is edited, and a check re-pinned after every edit measures nothing. So:
+
+1. **Never edit a file listed in the manifest.** The digest is the contract; `D2` enforces it.
+2. **Add a new reviewed file instead.** Coverage lives in `fonts-coverage.css`, the pinned file stays
+   byte-exact, and `D7` reads the coverage layer for the stacks it actually asserts.
+3. **A change to the design language is a new asset with a new digest**, recorded here, not a quiet
+   edit to an old one.
+
+`D6` proves every font on disk has a matching OFL notice; `D7` re-reads each font's `cmap` to prove
+the glyphs are declared; `X2` proves those two legs can fail. **None of that proves rendering**:
+Arabic shaping and joining, right-to-left layout and fallback behaviour are established by no check
+here, and the device gate remains open.

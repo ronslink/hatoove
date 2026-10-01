@@ -126,24 +126,42 @@ export function licenceKey(name) {
 }
 
 /**
- * Every `.woff2` in `fonts/` that does NOT have an OFL notice naming it in `licences/`.
+ * A font's own name carries qualifiers the licence's family name does not: the Noto subsets are
+ * `noto-sans-latin-ext` and `noto-sans-cyrillic` while the notice is `OFL-NotoSans.txt`. Strip the
+ * script qualifier so the two can be compared at all. `noto-sans-arabic` keeps `arabic`, because
+ * Noto Sans Arabic really is a different family from Noto Sans and has its own notice.
+ */
+const SCRIPT_QUALIFIERS = ['latinext', 'cyrillic'];
+
+/**
+ * Every `.woff2` in `fonts/` that does NOT have an OFL notice covering it in `licences/`.
  *
- * Shared by D3 (the manifest's fonts) and D6 (every font actually on disk). Matching is on the
- * normalised name, so `source-sans-3` finds `OFL-SourceSans3.txt` and a notice is never "missing"
- * merely because of capitalisation or dashes.
+ * Shared by D3 (the manifest's fonts) and D6 (every font actually on disk). Names are compared
+ * normalised, so `source-sans-3` finds `OFL-SourceSans3.txt` and a notice is never "missing" merely
+ * because of capitalisation or dashes.
+ *
+ * Matching tries the notice naming the font and the font naming the notice, after the script
+ * qualifier is stripped. That is what lets one `OFL-NotoSans.txt` legitimately cover both Noto Sans
+ * subsets. A notice that is not an OFL notice satisfies neither, so a wrong licence still fails.
  */
 export function findUnlicensedFonts(fontFiles, noticeDir) {
   const notices = existsSync(noticeDir)
-    ? readdirSync(noticeDir).map((name) => ({ name, key: licenceKey(name) }))
+    ? readdirSync(noticeDir).map((name) => ({
+      name,
+      key: licenceKey(name),
+      text: readFileSync(path.join(noticeDir, name), 'utf8'),
+    }))
     : [];
   const problems = [];
   for (const font of fontFiles) {
     const base = path.basename(font, '.woff2');
     const key = licenceKey(base);
-    const notice = notices.find((n) => n.key.includes(key));
+    const family = SCRIPT_QUALIFIERS.reduce((k, q) => k.replace(q, ''), key);
+    const notice = notices.find((n) => n.key.startsWith('ofl') && n.key.includes(family))
+      || notices.find((n) => key.includes(n.key))
+      || notices.find((n) => n.key.startsWith('ofl') && n.key.includes(key));
     if (!notice) { problems.push(`${base}: no licence notice in licences/`); continue; }
-    const text = readFileSync(path.join(noticeDir, notice.name), 'utf8');
-    if (!/SIL Open Font License/i.test(text)) problems.push(`${base}: ${notice.name} is not an OFL notice`);
+    if (!/SIL Open Font License/i.test(notice.text)) problems.push(`${base}: ${notice.name} is not an OFL notice`);
   }
   return problems;
 }
@@ -273,12 +291,33 @@ for (const [fontFile, spec] of Object.entries(FONT_COVERAGE)) {
     if (missing.length) coverageProblems.push(`${fontFile}: no glyph for ${missing.map((c) => `${c} U+${c.codePointAt(0).toString(16).toUpperCase()}`).join(', ')}`);
     coverageLines.push(`${fontFile} ${[...spec.languages].join('/')} ${codePoints.size} codepoints (${container})`);
     // The stylesheet has to name the family, or the font is present and never used.
-    const css = readFileSync(path.join(CURATED, 'hatoove.css'), 'utf8');
+    const css = readFileSync(path.join(CURATED, 'fonts-coverage.css'), 'utf8');
     for (const lang of spec.languages) {
       const wanted = LANGUAGE_STACK[lang];
       if (!wanted) continue;
       const rule = new RegExp(`\\[lang=${lang}\\][^{]*\\{[^}]*${wanted.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
-      if (!rule.test(css)) coverageProblems.push(`hatoove.css has no font stack naming ${JSON.stringify(wanted)} for [lang=${lang}]`);
+      if (!rule.test(css)) coverageProblems.push(`fonts-coverage.css has no font stack naming ${JSON.stringify(wanted)} for [lang=${lang}]`);
+    }
+    // The @font-face `unicode-range` decides which subset a browser fetches, and it is hand-copied
+    // text, so it is the one part of this that can drift. Compare it with the font's real coverage.
+    const face = css.match(new RegExp(`@font-face\\{[^}]*${fontFile.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^}]*\\}`));
+    if (!face) {
+      coverageProblems.push(`fonts-coverage.css has no @font-face rule loading ${fontFile}`);
+    } else {
+      const declared = face[0].match(/unicode-range:([^;}]+)/);
+      if (!declared) {
+        coverageProblems.push(`fonts-coverage.css @font-face for ${fontFile} declares no unicode-range`);
+      } else {
+        const wanted = new Set(declared[1].split(',').map((s) => s.trim().toUpperCase()));
+        // The descriptor only needs the codepoints a text run can contain; C0 controls and NUL are
+        // never rendered, so a font may map them without the stylesheet having to declare them.
+        const printable = new Set([...codePoints].filter((c) => c >= 0x20 && c !== 0x7f));
+        const actual = new Set(toUnicodeRange(printable).split(','));
+        const undeclared = [...actual].filter((r) => !wanted.has(r));
+        const extra = [...wanted].filter((r) => !actual.has(r) && r.includes('-'));
+        if (undeclared.length) coverageProblems.push(`fonts-coverage.css omits ${undeclared.join(',')} from the unicode-range of ${fontFile}`);
+        if (extra.length) coverageProblems.push(`fonts-coverage.css claims ${extra.join(',')} for ${fontFile}, which its cmap does not map`);
+      }
     }
     void subtables;
   } catch (error) {
