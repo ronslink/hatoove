@@ -34,6 +34,9 @@ async function freePort(){
   await new Promise(resolve=>s.close(resolve));
   return port;
 }
+// Derived, NOT hardcoded: a count pinned to today's number breaks on legitimate work, which is
+// its own defect class. The ledger must hold exactly the migrations on disk.
+const migrationCount=fs.readdirSync(path.join(root,'server','migrations')).filter(f=>/^\d{4}-.*\.sql$/.test(f)).length;
 const appPort=await freePort();
 let dbPort=await freePort();
 while(dbPort===appPort) dbPort=await freePort();
@@ -74,11 +77,11 @@ try{
   await ready();
   passed('db -> migrations -> API and worker start in isolated containers');
   const rows=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.hatoove_migrations']).trim();
-  assert.equal(rows,'6');
+  assert.equal(rows,String(migrationCount),'the ledger must hold exactly the migrations on disk');
   assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.task_version']).trim(),'6');
   const elevated=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',"SELECT count(*) FROM pg_roles WHERE rolname LIKE 'hatoove_%' AND (rolsuper OR rolbypassrls)"]).trim();
   assert.equal(elevated,'0');
-  passed('six numbered migrations and six task versions; application roles not superuser/BYPASSRLS');
+  passed(String(migrationCount)+' migrations applied and 6 task versions; application roles not superuser/BYPASSRLS');
   const rejected=['/app/.git','/app/work','/app/research','/app/tools','/app/handoff','/app/.env',...sentinels.map(p=>'/app/'+p)];
   const audit="const fs=require('node:fs');const bad="+JSON.stringify(rejected)+".filter(p=>fs.existsSync(p));if(bad.length)throw Error('private/unneeded image paths: '+bad.join(','));";
   compose(['exec','-T','app','node','-e',audit]);
@@ -87,8 +90,8 @@ try{
   assert.equal(JSON.parse(docker(['inspect',workerId]))[0].Config.Healthcheck,undefined);
   passed('built image excludes synthetic private files; worker inherits no HTTP probe');
   compose(['run','--rm','--no-deps','migrate']);
-  assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.hatoove_migrations']).trim(),'6');
-  passed('re-running migrations leaves the ledger at six entries');
+  assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.hatoove_migrations']).trim(),String(migrationCount));
+  passed('re-running migrations leaves the ledger at '+migrationCount+' entries');
   assert.equal((await request('GET','/')).status,401);
   const credentials={name:'Docker check',email:project+'@example.invalid',password:'Synthetic-password-2026'};
   const signup=await request('POST','/api/auth/sign-up/email',credentials);
@@ -212,19 +215,7 @@ try{
   assert.ok(/HttpOnly/i.test(setCookie),'the session cookie must be HttpOnly, got: '+setCookie);
   assert.ok(/SameSite=/i.test(setCookie),'the session cookie must scope SameSite, got: '+setCookie);
   passed('the session cookie is HttpOnly and SameSite-scoped (Secure is a TLS-deployment switch)');
-  /*
-   * PILOT-04 — the exam-scoped catalogue and its serving policy.
-   *
-   * The shell's Ueben view has been an honest empty state because NO learner-facing route could
-   * reach the catalogue: `GET /api/v1/tasks` did not exist. These legs define what it must do, and
-   * they are the reason the route cannot be faked.
-   *
-   * L4 and L5 are a PAIR and neither is sufficient alone. Every seeded row is `unreviewed`, so the
-   * fail-closed default must serve NOTHING — a check expecting six rows there would be asserting a
-   * leak. But "returns an empty array" is also satisfied by a route that ALWAYS returns an empty
-   * array, so L5 re-runs the same route under the pilot policy and requires the seeded versions to
-   * appear. One leg without the other measures nothing.
-   */
+  // The exam scope itself, before the route that serves it.
   const pkg=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     "SELECT exam_id||'|'||exam||'|'||level||'|'||exam_language FROM hatoove.exam_package ORDER BY exam_id"]).trim();
   assert.ok(pkg.length>0,'exam_package must hold at least the first exam package, got: '+JSON.stringify(pkg));
@@ -239,13 +230,37 @@ try{
 
   assert.equal((await request('GET','/api/v1/tasks')).status,401,'/api/v1/tasks must require a session');
 
-  const closed=await request('GET','/api/v1/tasks?family=writing',undefined,cookie);
-  assert.equal(closed.status,200,'the task route must exist and answer a signed-in learner, got '+closed.status);
-  assert.ok(Array.isArray(closed.json),'the task list must be a JSON array');
-  assert.equal(closed.json.length,0,'with the fail-closed policy and only unreviewed rows the list must be EMPTY, got '+closed.json.length);
-  passed('the fail-closed default serves NOTHING while every seeded row is unreviewed');
+  /*
+   * THE SERVING POLICY. Ron, 2 October 2026: "we will assume for now all are approved until we have
+   * built the approval process that needs to be an item."
+   *
+   * So the default policy SERVES the seeded content today, and the approval workflow becomes a slice
+   * of its own. What is deliberately NOT done is writing `approved` into the rows: that would record
+   * a qualified review that has not happened, and AGENTS.md forbids marking content approved. The
+   * rows keep their TRUE status and the policy is what changes, so a learner is served the content
+   * while being told the truth about it -- and the approval slice later changes a label rather than
+   * having to unpick a false one.
+   *
+   * The pair still discriminates, and now in the opposite direction from before:
+   *   default  -> the seeded versions ARE listed, each with its real review_status
+   *   approved -> the SAME route returns EMPTY, proving the policy is genuinely consulted and the
+   *               fail-closed value still works
+   * Without the second leg the first could be satisfied by a route that ignores the policy entirely.
+   */
+  const listed=await request('GET','/api/v1/tasks?family=writing',undefined,cookie);
+  assert.equal(listed.status,200,'the task route must exist and answer a signed-in learner, got '+listed.status);
+  assert.ok(Array.isArray(listed.json),'the task list must be a JSON array');
+  assert.ok(listed.json.length>0,'the default policy serves the seeded task versions, got '+listed.json.length);
+  assert.ok(listed.json.every(t=>typeof t.review_status==='string'),'every listed task must carry its review_status so a learner can be told the truth');
+  {
+    const serialised=JSON.stringify(listed.json);
+    for(const leak of ['leitpunkte_answers','answer_key','answerKey','correctAnswer']){
+      assert.ok(!serialised.includes(leak),'a task payload must not carry '+leak);
+    }
+  }
+  passed('the default policy serves '+listed.json.length+' task version(s), each with its review_status and no answer key');
 
-  // The same route under the pilot policy, in a separate container so the default stays fail-closed.
+  // The fail-closed value, in its own container so the default stays as Ron directed.
   const probePort=await freePort();
   const probeName='hatoove-p04-'+process.pid;
   const appImage=project+'-app';
@@ -254,7 +269,7 @@ try{
     '-p','127.0.0.1:'+probePort+':4321',
     '-e','B1PREP_BIND=0.0.0.0','-e','B1PREP_SAAS=1','-e','B1PREP_ACCOUNTS=1','-e','B1PREP_PORT=4321',
     '-e','B1PREP_PUBLIC_ORIGIN=http://127.0.0.1:'+probePort,
-    '-e','B1PREP_SERVE_REVIEW=approved+unreviewed',
+    '-e','B1PREP_SERVE_REVIEW=approved',
     '-e','OWNAPI_PG_HOST=db','-e','OWNAPI_PG_PORT=5432','-e','OWNAPI_PG_DATABASE=hatoove','-e','OWNAPI_PG_USER=postgres',
     appImage,'node','server.js'],{encoding:'utf8',windowsHide:true});
   try{
@@ -265,21 +280,16 @@ try{
       try{ if((await fetch(probeBase+'/api/ready',{signal:AbortSignal.timeout(4000)})).ok){ up=true; break; } }catch{}
       await new Promise(r=>setTimeout(r,500));
     }
-    assert.ok(up,'the permissive-policy probe did not become ready');
+    assert.ok(up,'the fail-closed probe did not become ready');
     const signIn=await fetch(probeBase+'/api/auth/sign-in/email',{method:'POST',headers:{'content-type':'application/json',origin:probeBase},body:JSON.stringify({email:credentials.email,password:credentials.password}),signal:AbortSignal.timeout(10000)});
     assert.equal(signIn.status,200,'sign-in against the probe failed');
     const probeCookie=signIn.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
-    const open=await fetch(probeBase+'/api/v1/tasks?family=writing',{headers:{cookie:probeCookie},signal:AbortSignal.timeout(10000)});
-    assert.equal(open.status,200);
-    const listed=await open.json();
-    assert.ok(Array.isArray(listed)&&listed.length>0,'under approved+unreviewed the seeded task versions must appear, got '+JSON.stringify(listed).slice(0,200));
-    assert.ok(listed.every(t=>typeof t.review_status==='string'),'every listed task must carry its review_status so a learner can be told the truth');
-    // Keys are never served with a task: they live in a table granted to no runtime role.
-    const serialised=JSON.stringify(listed);
-    for(const leak of ['leitpunkte_answers','answer_key','answerKey','correctAnswer']){
-      assert.ok(!serialised.includes(leak),'a task payload must not carry '+leak);
-    }
-    passed('the same route under the pilot policy serves '+listed.length+' task version(s), each with its review_status and no answer key');
+    const closed=await fetch(probeBase+'/api/v1/tasks?family=writing',{headers:{cookie:probeCookie},signal:AbortSignal.timeout(10000)});
+    assert.equal(closed.status,200);
+    const strict=await closed.json();
+    assert.ok(Array.isArray(strict),'the task list must be a JSON array');
+    assert.equal(strict.length,0,'under an explicit approved-only policy and only unreviewed rows the list must be EMPTY, got '+strict.length);
+    passed('an explicit approved-only policy serves NOTHING: the policy is consulted, not hardcoded');
   } finally {
     spawnSync('docker',['rm','-f',probeName],{encoding:'utf8',windowsHide:true});
   }
