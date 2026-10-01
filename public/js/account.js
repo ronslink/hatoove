@@ -488,6 +488,17 @@ function paintSignedIn(view, account) {
   view.el.querySelector('[data-signout]').addEventListener('click', () => handleSignOut(view));
 }
 
+/**
+ * Paint the outcome of a sign-in or sign-up. A sign-out (or another account) that overtook
+ * it while it was in flight wins: the superseded result is painted as signed out, never as
+ * the account that was being opened.
+ */
+function paintAuthenticated(view, result) {
+  const now = result && !result.superseded ? result : session().status();
+  if (now.phase === 'signed-in' && now.account) paintSignedIn(view, now.account);
+  else paintSignedOut(view, '');
+}
+
 function paintUnavailable(view, signedOut = false) {
   // A browser that was signed in is NOT handed back to the single-user record (fail closed).
   const detail = signedOut
@@ -539,7 +550,7 @@ async function handleSignIn(view) {
   setBusy(view, 'Anmeldung läuft…');
   try {
     const result = await session().signIn({ email, password });
-    paintSignedIn(view, result.account);
+    paintAuthenticated(view, result);
   } catch (err) {
     paintSignedOut(view, messageForError(err), email);
   }
@@ -552,7 +563,7 @@ async function handleSignUp(view) {
   setBusy(view, 'Konto wird erstellt…');
   try {
     const result = await session().signUp({ name, email, password });
-    paintSignedIn(view, result.account);
+    paintAuthenticated(view, result);
   } catch (err) {
     paintSignedOut(view, messageForError(err), email);
   }
