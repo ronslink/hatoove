@@ -16,6 +16,8 @@ import * as ai from './ai.js';
 import { assessMockWriting, createCompletionGate, summarizeMockOutcome, WRITING_MAX, WRITING_REASONS } from './mock-outcome.js';
 import { PARTS, GROUPS, SUBTEST_ORDER, groupOf, tagInfo } from './blueprint.js';
 import { speak, speakScript, stopSpeaking, ttsSupported, germanVoices, waitForVoices, startDictation, sttSupported, speakingRate, beep } from './speech.js';
+import { session } from './account.js';
+import { createWritingSurface, writingTaskId } from './writing-surface.js';
 
 const ALL_PARTS = ['LV1', 'LV2', 'LV3', 'SB1', 'SB2', 'HV1', 'HV2', 'HV3'];
 
@@ -595,6 +597,8 @@ function formatAnswer(partId, set, value) {
 /* ================================================================ writing */
 
 let writingTask = null;
+let writingSlot = 0;
+let writingSurface = null;
 let writingTimer = null;
 // Same overlap guard as the speaking view: two generations can race, and without a
 // token the slower answer lands last and overwrites the newer view.
@@ -613,6 +617,9 @@ export async function writingView(el, params = {}) {
     if (token !== writingRender) return; // a newer render already took over
     if (generated.fallbackReason) toast('KI nicht verfügbar – eingebaute Aufgabe wird verwendet.', 'warn');
     writingTask = generated;
+    // The draft's task identity: one attempt per rotation slot, stable across re-entry and
+    // changes only when the learner asks for a new task (exam.js nextWritingTask increments it).
+    writingSlot = store.getState().settings.writingTaskIndex;
   }
 
   renderWritingTask(el);
@@ -654,6 +661,7 @@ function renderWritingTask(el) {
         </div>
       </div>
       <textarea id="writing-text" class="mt" style="min-height:240px" placeholder="${esc(task.register === 'Sie' ? 'Sehr geehrte/r …,' : 'Liebe/r …,')}\n\n…"></textarea>
+      <div id="w-draft-status" class="dim small mt"></div>
       <div class="btn-row mt" style="justify-content:space-between">
         <span class="dim small" id="w-count">0 Wörter</span>
         <div class="btn-row">
@@ -686,6 +694,37 @@ function renderWritingTask(el) {
   };
   on(textarea, 'input', updateCount);
   updateCount();
+
+  /* Recoverable account draft (WRITING-SURFACE-01B). On the single-user path, or whenever
+     the boundary refuses, this paints nothing and the view behaves exactly as before. */
+  const draftStatus = el.querySelector('#w-draft-status');
+  const renderToken = writingRender;
+  const surface = createWritingSurface({ openDraft: (id) => session().openDraft(id) });
+  writingSurface = surface;
+  const paintDraftStatus = () => {
+    const s = surface.state();
+    if (s.mode !== 'draft') {
+      draftStatus.textContent = s.error === 'stale_session'
+        ? 'Der Entwurf gehört zu einer anderen Sitzung. Dein Text bleibt hier sichtbar.'
+        : '';
+      return;
+    }
+    draftStatus.textContent = s.status === 'conflict'
+      ? 'Entwurf: auf dem Server liegt eine neuere Fassung – dein Text wurde nicht überschrieben.'
+      : s.dirty ? 'Entwurf: noch nicht gespeichert.' : 'Entwurf gespeichert.';
+  };
+  surface.enter(writingTaskId(writingSlot), { initialText: textarea.value }).then((entered) => {
+    if (renderToken !== writingRender) return; // a newer render already took over
+    if (typeof entered.text === 'string' && entered.text !== textarea.value) {
+      textarea.value = entered.text;
+      updateCount();
+    }
+    paintDraftStatus();
+  }, (error) => {
+    if (renderToken !== writingRender) return;
+    draftStatus.textContent = 'Der Entwurf konnte nicht geladen werden.';
+    console.error(error);
+  });
 
   /* timer */
   let remaining = 30 * 60;
