@@ -38,6 +38,8 @@ export async function loadDeps(root = process.env.AUTHSPIKE_DEPS || DEFAULT_DEPS
     crypto: cryptoMod,
     pg,
     Pool: pg.Pool,
+    // Load any additional subpath (e.g. 'better-auth/node') from the SAME installed tree.
+    load: (spec) => import(pathToFileURL(require.resolve(spec)).href),
   };
 }
 

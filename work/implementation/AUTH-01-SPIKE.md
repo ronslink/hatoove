@@ -109,9 +109,75 @@ file itself.
 
 ## F2 — mount on bare `node:http`, behind the origin gate, with database-backed rate limiting
 
-**Verdict.** _pending_
+**Verdict. [V] `mounts, and all three requirements are met`.**
 
-**Executed.** _pending_
+- **It mounts on a bare `node:http` server.** `toNodeHandler(auth)` (the `better-auth/node`
+adapter) dispatches `POST /api/auth/sign-in/email` from inside `http.createServer`, and it sits
+**behind** a stand-in for the SEC-01 `isSameOriginRequest` gate: a foreign `Origin` is refused
+**before** the library is reached (403), a same-origin request reaches it (200).
+- **Rate limiting can live in the database.** With `rateLimit: { enabled: true, storage:
+'database' }` the library **creates its own `rateLimit` table** via `getMigrations`, the counter is
+visible in that table, and a **second, independent instance over the same database refused a
+request it had never counted in its own memory (429)** — which is only possible if the counter is
+in the database. This is exactly the property memory-backed limiting fails on a multi-instance
+service.
+- **Cookie flags: `HttpOnly` yes, `SameSite=Lax` yes, `Secure` host-decided and configurable.**
+Over an `http` origin the session cookie is `HttpOnly; SameSite=Lax` with **no `Secure`** (correct
+for loopback); setting `advanced.useSecureCookies: true` adds `Secure` **and** the `__Secure-`
+name prefix on the same http origin. So the plan's `Secure`-in-hosted requirement is a config
+switch, not a build.
+
+**Executed.** `node tools/auth-spike-f2-mount.mjs`. Verbatim output:
+
+```
+=== A. Library-created schema with rateLimit.storage="database" ===
+tables now present: account, rateLimit, session, user, verification
+rateLimit table present: true
+node:http server listening on http://127.0.0.1:41533
+
+=== B. Mount proof — same-origin request reaches the library, foreign origin does not ===
+POST /api/auth/sign-in/email  Origin: http://evil.example -> 403 {"error":"forbidden_origin"}
+POST /api/auth/sign-in/email  Origin: http://127.0.0.1:41533 -> 200
+Set-Cookie: ["better-auth.session_token=L0rGo0vAeFbUmgp5nhD3W58rdjSi9Mnc.dLQEmy5UixN4eJo2%2B1%2FuQOdd9fDeZyvxQISLgK43tCo%3D; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax"]
+
+=== C. Rate limit is DATABASE-backed (not memory) ===
+4 same-origin sign-ins on one bucket in one window -> statuses [200,200,200,429] (expect 200,200,200,429)
+rateLimit rows in the database: [{"key":"203.0.113.7|/sign-in/email","count":1},{"key":"198.51.100.9|/sign-in/email","count":3}]
+a SECOND instance (empty memory, same DB) sign-in -> 429 (429 proves the counter is in the database)
+
+=== D. Cookie flags and their configurability ===
+default (http) session cookie: better-auth.session_token=L0rGo0vAeFbUmgp5nhD3W58rdjSi9Mnc.dLQEmy5UixN4eJo2%2B1%2FuQOdd9fDeZyvxQISLgK43tCo%3D; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax
+  host decided Secure via baseURL http         -> false
+  HttpOnly                                     -> true
+  SameSite                                     -> Lax
+advanced.useSecureCookies:true over the SAME http origin:
+  cookie: __Secure-better-auth.session_token=Xm2fKW5xzdBcLORYLJza60NuBb0LD56F.%2FNp%2FK3ZxHrFyjACewiz2hbaLuvBuavF6wsE4GSjQV7o%3D; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax
+  __Secure- name prefix -> true | Secure flag -> true
+
+=== VERDICT (F2) ===
+mounts on bare node:http : YES (same-origin 200, foreign 403)
+db-backed rate limiting  : YES (rateLimit table + cross-instance 429)
+Secure over http         : host-decided, NOT set (correct over http); settable with useSecureCookies
+HttpOnly                 : YES
+SameSite                 : Lax
+```
+
+**Two limits on the rate limiter, found by reading the source (not executed):**
+
+1. **It is per-IP per-path, not per-account.** `createRateLimitKey(ip, path)`
+(`@better-auth/core/dist/utils/ip.mjs`) yields `"<ip>|<path>"` — visible above as
+`"198.51.100.9|/sign-in/email"`. There is therefore **no built-in per-account throttle**; an
+attacker spraying one known account from many IPs is not slowed. Per-account throttling needs
+`rateLimit.customRules` plus a custom storage, or an application-level counter.
+2. **The special sign-in/sign-up rule is `window 10s, max 3`**
+(`dist/api/rate-limiter/index.mjs:302-313`). The custom `window:60, max:100` becomes the default
+for other paths; the auth paths keep the stricter 3-per-10s. This is what produced the 429 above.
+
+**`__Host-` is defined but never applied.** The library exports `HOST_COOKIE_PREFIX = "__Host-"`
+and strips such a prefix when *reading* a cookie, but `createCookieGetter` only ever prepends
+`__Secure-`. So the roadmap's J1 `Secure`/`__Host-` ambition is reachable only by naming the
+cookie yourself (`advanced.cookies.session_token.name`); with `Path=/` and no `Domain` the
+browser accepts that. Recorded as a configuration item, not a blocker.
 
 ---
 
