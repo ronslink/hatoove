@@ -79,10 +79,10 @@
               <div class="card-head">
                 <h3>Deine Aufgaben</h3>
               </div>
-              <p class="muted">Der Aufgabenkatalog wird gerade angebunden. Sobald er verfügbar ist,
-                erscheint hier die nächste Aufgabe für deine Prüfung.</p>
-              <p class="small muted">Noch offen: die Katalog-Route
-                (<code>GET /api/v1/tasks</code>) existiert im Server noch nicht.</p>
+              <p class="muted">Der Aufgabenkatalog ist angebunden. Deine verfügbaren Aufgaben stehen
+                unter <a href="#/ueben">Üben</a>.</p>
+              <p class="small muted">Serverseitig ausgewählt und über die API geliefert — nicht aus
+                einer Datei im Browser.</p>
             </div>
 
             <div class="card">
@@ -107,12 +107,7 @@
             <p>Aufgaben mit serverseitiger Bewertung.</p>
           </div>
         </div>
-        <div class="card">
-          <div class="card-head"><h3>Noch keine Aufgaben verfügbar</h3></div>
-          <p class="muted">Dieser Bereich ist bewusst leer statt mit Beispieldaten gefüllt. Der
-            Aufgabenkatalog ist noch nicht angebunden; sobald er es ist, wählst du hier eine Aufgabe
-            und sie wird auf dem Server bewertet — nicht im Browser.</p>
-        </div>
+        <div class="stack" id="task-list"><div class="card"><h3>Wird geladen ...</h3></div></div>
       </section>
 
       <!-- Fortschritt -->

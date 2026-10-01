@@ -13,6 +13,8 @@
  *      rather than filling the space with sample data that would read as a working product.
  */
 
+import { api } from './api.js';
+
 const el = (id) => document.getElementById(id);
 
 const LANGUAGE_NAMES = { de: 'Deutsch', en: 'English', uk: 'Українська', ar: 'العربية', tr: 'Türkçe' };
@@ -37,18 +39,6 @@ function showError(message) {
   box.hidden = !message;
 }
 
-/** A JSON call that treats an expired session as "go and sign in", not as an error to render. */
-async function api(method, path, body) {
-  const res = await fetch(path, {
-    method,
-    headers: body === undefined ? {} : { 'content-type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (res.status === 401) { location.replace('/signin'); return null; }
-  let payload = null;
-  try { payload = await res.json(); } catch { /* a refusal may carry no body; status still counts */ }
-  return { status: res.status, ok: res.ok, payload };
-}
 
 // ---------------------------------------------------------------- rendering
 
@@ -108,11 +98,43 @@ function renderSettings() {
   el('countdown-note').textContent = 'Nur eine Zählung bis zum Datum — kein Lernplan und keine Prognose.';
 }
 
+
+/**
+ * UEBEN -- the real catalogue, from the API. No sample data and no placeholder card: this lists what
+ * the server is willing to serve, and every row carries its ACTUAL review_status, so a learner is
+ * told the truth about the content instead of being shown an implied approval.
+ */
+async function renderTasks() {
+  const box = el('task-list');
+  if (!box) return;
+  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  const res = await api.tasks.list({ family: 'writing' });
+  if (!res) return; // a 401 already redirected us to the sign-in page
+  if (!res.ok) {
+    box.innerHTML = '';
+    showError('Aufgaben konnten nicht geladen werden (' + res.status + ').');
+    return;
+  }
+  const tasks = Array.isArray(res.data) ? res.data : [];
+  if (!tasks.length) {
+    box.innerHTML = '<div class="card"><h3>Zurzeit keine Aufgaben freigegeben</h3>'
+      + '<p class="muted">Der Server hat für dieses Angebot gerade nichts Servierbares. Das ist eine '
+      + 'Aussage des Servers, keine leere Seite.</p></div>';
+    return;
+  }
+  box.innerHTML = tasks.map((t) => '<div class="card"><div class="card-head"><h3>'
+    + t.topic + '</h3><span class="chip">' + t.family + '</span></div>'
+    + '<p class="muted">' + t.situation + '</p>'
+    + '<p class="small muted">Anrede: ' + t.adressat + ' &middot; Register: ' + t.register
+    + ' &middot; Fassung ' + t.version + ' &middot; Prüfstatus: ' + t.review_status + '</p></div>').join('');
+}
+
 function route() {
   const key = (location.hash || '#/heute').replace(/^#\/?/, '') || 'heute';
   const view = VIEW_TITLES[key] ? key : 'heute';
   for (const name of Object.keys(VIEW_TITLES)) el(`view-${name}`).hidden = name !== view;
   el('page-title').textContent = VIEW_TITLES[view];
+  if (view === 'ueben') void renderTasks();
   for (const link of document.querySelectorAll('[data-view]')) {
     if (link.dataset.view === view) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
@@ -120,15 +142,15 @@ function route() {
 }
 
 async function refresh() {
-  const account = await api('GET', '/api/v1/account');
+  const account = await api.account.read();
   if (!account) return;
   if (!account.ok) { showError(`Konto konnte nicht geladen werden (${account.status}).`); return; }
-  state.account = account.payload;
+  state.account = account.data;
 
-  const settings = await api('GET', '/api/v1/settings');
+  const settings = await api.settings.read();
   if (settings && settings.ok) {
-    state.settings = settings.payload.settings || {};
-    state.revision = settings.payload.revision;
+    state.settings = settings.data.settings || {};
+    state.revision = settings.data.revision;
   } else if (settings) {
     showError(`Einstellungen konnten nicht geladen werden (${settings.status}).`);
   }
@@ -147,7 +169,7 @@ el('settings-form').addEventListener('submit', async (event) => {
   showError('');
   try {
     const wanted = { examDate: el('examDate').value, language: el('language').value };
-    const res = await api('PUT', '/api/v1/settings', { expectedRevision: state.revision ?? 0, settings: wanted });
+    const res = await api.settings.write(state.revision ?? 0, wanted);
     if (!res) return;
     if (res.status === 409) {
       // The server keeps a revision per account. A conflict is not a failure to hide: the learner
@@ -158,8 +180,8 @@ el('settings-form').addEventListener('submit', async (event) => {
       return;
     }
     if (!res.ok) { status.textContent = ''; showError(`Speichern fehlgeschlagen (${res.status}).`); return; }
-    state.settings = res.payload?.settings || wanted;
-    state.revision = res.payload?.revision ?? state.revision;
+    state.settings = res.data?.settings || wanted;
+    state.revision = res.data?.revision ?? state.revision;
     renderSettings();
     status.textContent = 'Gespeichert.';
     setTimeout(() => { if (status.textContent === 'Gespeichert.') status.textContent = ''; }, 4000);
@@ -173,7 +195,7 @@ el('signout').addEventListener('click', async () => {
   // and the learner would then land on the sign-in page believing the session had ended while the
   // cookie was still valid — a false success about a security action, which is the worst kind.
   try {
-    const res = await api('POST', '/api/auth/sign-out', {});
+    const res = await api.auth.signOut();
     if (!res || !res.ok) {
       showError(`Abmelden fehlgeschlagen (${res ? res.status : 'abgebrochen'}). Die Sitzung ist möglicherweise noch aktiv.`);
       return;
@@ -191,7 +213,7 @@ el('delete-account').addEventListener('click', async () => {
   try {
     // `{}` and not no body: the server requires `application/json` on every mutating route, so a
     // bodyless DELETE is refused with 415 and account deletion could never succeed from the UI.
-    const res = await api('DELETE', '/api/v1/account', {});
+    const res = await api.account.remove();
     if (!res) return;
     if (res.ok || res.status === 204) { location.replace('/signin'); return; }
     showError(`Löschen fehlgeschlagen (${res.status}). Das Konto wurde nicht entfernt.`);
@@ -208,8 +230,11 @@ window.addEventListener('hashchange', route);
   // Tag the options before the first settings read, so the language tags and `dir` are never
   // missing while the request is in flight.
   applyExplanationDirection();
-  const session = await fetch('/api/auth/get-session', { headers: { accept: 'application/json' } });
-  if (!session.ok) { location.replace('/signin'); return; }
+  // The session comes through the same API layer as everything else. A 401 here is NOT auto-
+  // redirected by the layer (auth paths are excluded, because sign-in itself returns 401), so the
+  // boot decides for itself.
+  const session = await api.session();
+  if (!session || !session.ok) { location.replace('/signin'); return; }
   route();
   await refresh();
 })();
