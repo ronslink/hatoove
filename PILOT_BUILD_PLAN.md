@@ -8,7 +8,7 @@ Build the small new vanilla client from `D:\B1_Prep\design`, with the orange/ris
 
 Use one shared PostgreSQL schema with session-owned private records and versioned content. Remove local fallback, progress files/blob sync and browser grading through MFP-02b/11; no implicit import into the first account or live data deletion. The internal writing journey must survive fresh-browser resume from server records.
 
-First-release defaults: password plus invite signup, criterion practice grades without a /45 total, no daily-time setting. Resolve R11's three-versus-four rubric contract explicitly. No readiness/streak/study-plan/reminder/purchase UI or unsupported model/storage/retention claims. Pending/failed/unassessed feedback, reset, history/revision, export/delete, legal and error states are required. Objective practice remains conditional MFP-13; broader human review and production authorization gates stay open.
+First-release defaults: email/password signup, criterion practice grades without a /45 total, no daily-time setting. Resolve R11's three-versus-four rubric contract explicitly. No readiness/streak/study-plan/reminder/purchase UI or unsupported model/storage/retention claims. Pending/failed/unassessed feedback, reset, history/revision, export/delete, legal and error states are required. Objective practice remains conditional MFP-13; broader human review and production authorization gates stay open.
 
 Prepared 30 September 2026 from the current development checkout and the research in this chat.
 

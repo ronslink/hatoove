@@ -153,14 +153,17 @@
                 <select class="select" id="language" name="language">
                   <option value="de">Deutsch</option>
                   <option value="en">English</option>
-                  <option value="uk" disabled>Українська — Schriftzeichen folgen</option>
-                  <option value="ar" disabled>العربية — Schriftzeichen folgen</option>
-                  <option value="tr" disabled>Türkçe — Schriftzeichen folgen</option>
+                  <option value="uk">Українська</option>
+                  <option value="ar">العربية</option>
+                  <option value="tr">Türkçe</option>
                 </select>
                 <p class="small muted">Die Menüführung und die Prüfungsinhalte bleiben Deutsch. Diese
-                  Einstellung ändert nur die Sprache der Erklärungen. Ukrainisch, Arabisch und Türkisch
-                  sind vorgesehen, aber die mitgelieferten Schriftschnitte enthalten ihre Zeichen noch
-                  nicht — deshalb sind sie hier noch nicht wählbar und nicht stillschweigend entfernt.</p>
+                  Einstellung ändert nur die Sprache der Erklärungen. Alle fünf Sprachen sind wählbar,
+                  weil die mitgelieferten Schriftschnitte ihre Zeichen jetzt enthalten: die
+                  Zeichenabdeckung ist aus den <code>cmap</code>-Tabellen der Schriftdateien geprüft
+                  (<code>tools/design-assets-check.mjs</code>, Abschnitt D7). Das belegt, dass die
+                  Schriften die Zeichen <em>zuordnen</em> — nicht, dass sie auf jedem Gerät gleich
+                  dargestellt werden.</p>
               </div>
               <div class="spread">
                 <button type="submit" class="btn btn-primary" id="save-settings">Speichern</button>

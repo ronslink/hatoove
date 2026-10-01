@@ -132,6 +132,23 @@ try{
   const foreignB=await postAs('evil.example:'+appPort,foreignOrigin,'foreign-host-'+project+'@example.invalid');
   assert.equal(foreignB.status,403,'a foreign Host must still be refused: '+foreignB.status+' '+foreignB.text);
   passed('a foreign Origin and a foreign Host are still refused: the loopback exception is bounded');
+  // ENCODED TRAVERSAL. The public-path test used to run on the still-encoded path and resolution
+  // decoded afterwards, so `/assets/design/..%2f..%2f..%2fdata%2fseed.json` looked public and then
+  // resolved to `data/seed.json` — every one of the 180 answer keys, to an unauthenticated caller,
+  // from an ordinary fetch. A WHATWG URL parser does not normalise encoded dots or slashes, so this
+  // is reachable without a special client. It must refuse, and 200 here means the leak is back.
+  const traversals=[
+    '/assets/design/..%2f..%2f..%2fdata%2fseed.json',
+    '/assets/design/..%2f..%2findex.html',
+    '/assets/design/..%2f..%2fapp%2fapp.js',
+    '/assets/design/%2e%2e/%2e%2e/data/seed.json',
+    '/data%2fseed.json',
+  ];
+  for(const p of traversals){
+    const res=await fetch(base+p,{redirect:'manual',signal:AbortSignal.timeout(10000)});
+    assert.ok([401,403,404].includes(res.status),'encoded traversal '+p+' must be refused, got '+res.status);
+  }
+  passed('encoded path traversal reaches nothing: the gate sees the resolved file, not the URL');
   compose(['restart','app','worker']);
   await ready();
   const login=await request('POST','/api/auth/sign-in/email',{email:credentials.email,password:credentials.password});

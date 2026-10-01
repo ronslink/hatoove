@@ -16,6 +16,14 @@
 const el = (id) => document.getElementById(id);
 
 const LANGUAGE_NAMES = { de: 'Deutsch', en: 'English', uk: 'Українська', ar: 'العربية', tr: 'Türkçe' };
+/**
+ * The explanation languages the shell offers. It is the same list as the `<option>` elements in
+ * index.html and it is enforced here too: a stored value outside it is not silently displayed as
+ * the learner's choice. All five render — `noto-sans-latin-ext`, `noto-sans-cyrillic` and
+ * `noto-sans-arabic` carry the scripts the branding faces do not (tools/design-assets-check.mjs D7).
+ */
+const EXPLANATION_LANGUAGES = ['de', 'en', 'uk', 'ar', 'tr'];
+const RTL_LANGUAGES = ['ar'];
 const VIEW_TITLES = { heute: 'Heute', ueben: 'Üben', fortschritt: 'Fortschritt', einstellungen: 'Einstellungen' };
 
 /** Server state, held in memory only. */
@@ -44,6 +52,22 @@ async function api(method, path, body) {
 
 // ---------------------------------------------------------------- rendering
 
+/**
+ * Tag every explanation-language `<option>` with its own `lang`, and with `dir=rtl` for Arabic.
+ *
+ * The tags matter for two reasons. `lang` is what `hatoove.css` keys its font stacks on, so
+ * `[lang=ar]` is what puts the Arabic face on Arabic text; and `dir` is what stops a right-to-left
+ * language from being laid out as if it were left-to-right. Neither is set on `<html>` — the shell,
+ * the navigation and the exam material stay German and LTR.
+ */
+function applyExplanationDirection() {
+  for (const option of el('language').options) {
+    const code = option.value;
+    option.setAttribute('lang', code);
+    option.setAttribute('dir', RTL_LANGUAGES.includes(code) ? 'rtl' : 'ltr');
+  }
+}
+
 function renderAccount() {
   const email = state.account?.email || '–';
   el('account-email').textContent = email;
@@ -59,11 +83,15 @@ function renderSettings() {
   const language = settings.language || 'de';
 
   el('examDate').value = examDate;
-  el('language').value = ['de', 'en'].includes(language) ? language : 'de';
+  el('language').value = EXPLANATION_LANGUAGES.includes(language) ? language : 'de';
 
   el('fact-exam').textContent = examDate || 'nicht gesetzt';
   el('fact-language').textContent = LANGUAGE_NAMES[language] || language || '–';
   el('account-exam').textContent = examDate ? `Prüfung am ${examDate}` : 'Kein Prüfungsdatum';
+
+  // Arabic is the one explanation language that runs right to left. The shell stays LTR; `dir`
+  // belongs on the text that is actually Arabic, never on <html>.
+  applyExplanationDirection();
 
   // The countdown is arithmetic on a date the learner typed. It is not a study plan, a forecast or
   // a readiness estimate, and it must never be presented as one.
@@ -141,18 +169,35 @@ el('settings-form').addEventListener('submit', async (event) => {
 });
 
 el('signout').addEventListener('click', async () => {
-  await api('POST', '/api/auth/sign-out', {});
-  location.replace('/signin');
+  // Do NOT navigate on a refusal. The server's mutation origin gate can reject a sign-out (403),
+  // and the learner would then land on the sign-in page believing the session had ended while the
+  // cookie was still valid — a false success about a security action, which is the worst kind.
+  try {
+    const res = await api('POST', '/api/auth/sign-out', {});
+    if (!res || !res.ok) {
+      showError(`Abmelden fehlgeschlagen (${res ? res.status : 'abgebrochen'}). Die Sitzung ist möglicherweise noch aktiv.`);
+      return;
+    }
+    location.replace('/signin');
+  } catch {
+    showError('Abmelden fehlgeschlagen: keine Verbindung zum Server. Die Sitzung ist möglicherweise noch aktiv.');
+  }
 });
 
 el('delete-account').addEventListener('click', async () => {
   const sure = window.confirm(
     'Konto endgültig löschen?\n\nDeine eigenen Datensätze werden wirklich entfernt. Das kann nicht rückgängig gemacht werden.');
   if (!sure) return;
-  const res = await api('DELETE', '/api/v1/account');
-  if (!res) return;
-  if (res.ok || res.status === 204) { location.replace('/signin'); return; }
-  showError(`Löschen fehlgeschlagen (${res.status}). Das Konto wurde nicht entfernt.`);
+  try {
+    // `{}` and not no body: the server requires `application/json` on every mutating route, so a
+    // bodyless DELETE is refused with 415 and account deletion could never succeed from the UI.
+    const res = await api('DELETE', '/api/v1/account', {});
+    if (!res) return;
+    if (res.ok || res.status === 204) { location.replace('/signin'); return; }
+    showError(`Löschen fehlgeschlagen (${res.status}). Das Konto wurde nicht entfernt.`);
+  } catch {
+    showError('Löschen fehlgeschlagen: keine Verbindung zum Server. Das Konto wurde nicht entfernt.');
+  }
 });
 
 window.addEventListener('hashchange', route);
@@ -160,6 +205,9 @@ window.addEventListener('hashchange', route);
 // ---------------------------------------------------------------- boot
 
 (async () => {
+  // Tag the options before the first settings read, so the language tags and `dir` are never
+  // missing while the request is in flight.
+  applyExplanationDirection();
   const session = await fetch('/api/auth/get-session', { headers: { accept: 'application/json' } });
   if (!session.ok) { location.replace('/signin'); return; }
   route();

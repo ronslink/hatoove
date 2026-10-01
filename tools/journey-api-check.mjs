@@ -128,7 +128,7 @@ const fail = (detail) => ({ status: 'fail', detail });
 
 /* =================================================================== legs */
 
-leg('J1', 'open the invite link, sign up with email + password', 'MFP-04a', async (ctx) => {
+leg('J1', 'sign up with email and password', 'MFP-04a', async (ctx) => {
   const account = await signUp(ctx.call, 'j1');
   if (account.res.status === 404 && ctx.routeAbsent(account.res)) return pending('MFP-04a', 'sign-up route does not exist');
   if (!account.ok) return fail(`sign-up answered ${account.res.status}`);

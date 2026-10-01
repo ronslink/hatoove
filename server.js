@@ -547,15 +547,29 @@ async function readProgress(paths = LEGACY_PATHS) {
 
 const ALLOWED_STATIC_ROOTS = [PUBLIC_DIR, DATA_DIR];
 
-function resolveStatic(urlPath) {
-  let decoded;
+/**
+ * Decode a request path EXACTLY ONCE. Returns null when it cannot be decoded, so a malformed
+ * escape is a refusal rather than an exception.
+ *
+ * This is the fix for a real hole, not a tidy-up. The public-path test used to run on the still
+ * encoded pathname while `resolveStatic()` decoded afterwards, so
+ * `/assets/design/..%2f..%2f..%2fdata%2fseed.json` passed the test as "public" and then decoded
+ * into `data/seed.json` — **180 answer keys, to an unauthenticated caller**, reachable from an
+ * ordinary `fetch` because a WHATWG URL parser does not normalise encoded dots or slashes.
+ * Decoding once, before anything else looks at the path, removes the gap instead of patching it.
+ */
+function decodePathOnce(pathname) {
   try {
-    decoded = decodeURIComponent(urlPath);
+    return decodeURIComponent(pathname);
   } catch {
     return null;
   }
-  if (decoded.includes('\0')) return null;
-  const rel = decoded.replace(/^\/+/, '');
+}
+
+/** Resolve a DECODED path to an absolute file under one of the two roots, or null if it escapes. */
+function resolveStatic(decodedPath) {
+  if (decodedPath.includes('\0') || decodedPath.includes('\\')) return null;
+  const rel = decodedPath.replace(/^\/+/, '');
   const base = rel.startsWith('data/') ? DATA_DIR : PUBLIC_DIR;
   const sub = rel.startsWith('data/') ? rel.slice('data/'.length) : rel;
   const target = path.resolve(base, sub || 'index.html');
@@ -568,60 +582,49 @@ function resolveStatic(urlPath) {
  * auth gated so only authenticated users are allowed").
  *
  * Only the shell needed to SIGN IN is public. Everything else requires a verified session, and
- * that includes `data/**` — which carried **180 answer keys** to anyone who asked. Gating the API
- * alone was never a gate: the content is on the page surface.
+ * that includes `data/**`. `/signin` must be public or nobody could authenticate, and
+ * `/assets/design/**` is the design system the sign-in page renders with, carrying no learner data.
  *
- * `/signin` itself must be public, or nobody could ever authenticate. `/assets/design/**` is the
- * design system the sign-in page renders with, and it holds no learner data.
+ * PUBLICNESS IS DECIDED FROM THE RESOLVED FILE. An earlier version decided it from a path PREFIX on
+ * the raw URL, which is exactly how the `%2f` bypass above got in: a path can *look* public and
+ * resolve somewhere else. A resolved absolute path cannot argue.
  */
-const PUBLIC_STATIC_PATHS = new Set(['/signin', '/signin.html', '/favicon.ico']);
-const PUBLIC_STATIC_PREFIXES = Object.freeze(['/assets/design/']);
+const PUBLIC_FILES = Object.freeze([
+  path.join(PUBLIC_DIR, 'signin.html'),
+  path.join(PUBLIC_DIR, 'favicon.ico'),
+]);
+const PUBLIC_PREFIX = path.join(PUBLIC_DIR, 'assets', 'design') + path.sep;
 
-function isPublicStatic(pathname) {
-  if (PUBLIC_STATIC_PATHS.has(pathname)) return true;
-  return PUBLIC_STATIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+function isPublicTarget(target) {
+  if (target.startsWith(PUBLIC_PREFIX)) return true;
+  return PUBLIC_FILES.includes(target) || PUBLIC_FILES.includes(`${target}.html`);
 }
 
 /**
- * A browser navigation can be redirected to the sign-in page; a fetch must get 401, because a
- * client that follows a redirect would parse the login page as the content it asked for.
+ * The file a request actually names: the extension-less fallback (`/signin` -> `signin.html`) and
+ * the directory index applied. Returning a discriminated result keeps "you may not" (403) distinct
+ * from "there is nothing there" (404) while both remain refusals.
  */
-function isNavigation(req) {
-  return String(req.headers.accept || '').includes('text/html');
-}
-
-async function serveStatic(req, res, pathname) {
-  // PILOT-08: `/` is the NEW client. The old single-user SPA is superseded and is retired by
-  // PILOT-11a; it is no longer the entry point.
-  let target = resolveStatic(pathname === '/' ? '/app/index.html' : pathname);
-  if (!target) {
-    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Forbidden');
-    return;
-  }
+async function resolveStaticFile(decodedPath) {
+  let target = resolveStatic(decodedPath === '/' ? '/app/index.html' : decodedPath);
+  if (!target) return { status: 403 };
   let stat;
   try {
     stat = await fsp.stat(target);
   } catch {
-    // `/signin` NAMES A PAGE, so try `/signin.html` before giving up. The auth gate redirects a
-    // browser to the extension-less path, and a 404 there would be a sign-in page nobody can load.
-    // Only extension-less paths get the fallback, so `/data/seed.json.` style probes cannot wander.
-    if (path.extname(target)) {
-      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Not found');
-      return;
-    }
+    if (path.extname(target)) return { status: 404 };
     const html = `${target}.html`;
     try {
       stat = await fsp.stat(html);
       target = html;
     } catch {
-      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Not found');
-      return;
+      return { status: 404 };
     }
   }
-  const file = stat.isDirectory() ? path.join(target, 'index.html') : target;
+  return { file: stat.isDirectory() ? path.join(target, 'index.html') : target };
+}
+
+async function sendStaticFile(res, file) {
   try {
     const data = await fsp.readFile(file);
     res.writeHead(200, {
@@ -634,6 +637,14 @@ async function serveStatic(req, res, pathname) {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Not found');
   }
+}
+
+/**
+ * A browser navigation can be redirected to the sign-in page; a fetch must get 401, because a
+ * client that follows a redirect would parse the login page as the content it asked for.
+ */
+function isNavigation(req) {
+  return String(req.headers.accept || '').includes('text/html');
 }
 
 /* ---------------------------------------------------------------- deepseek */
@@ -1191,18 +1202,43 @@ export function createServer({ ownedApi = null } = {}) {
         return;
       }
       /*
-       * PILOT-01c — the page surface is auth-gated.
+       * PILOT-01c — the page surface is auth-gated, and the gate now sees the FINAL FILE.
        *
-       * Gated on `saas && owned` deliberately, and not unconditionally: with accounts unmounted
-       * there is no identity source at all, so nothing could ever authenticate. The legacy
-       * single-user mode therefore keeps serving its own app until PILOT-03 removes that mode —
-       * at which point this condition becomes unconditional, because there will be no mode left
-       * in which an unauthenticated page is legitimate.
+       * Three holes this closes, all found by an independent probe and all reproduced by execution:
+       *
+       *  1. The public test ran on the still-ENCODED path while resolution decoded afterwards, so
+       *     `/assets/design/..%2f..%2f..%2fdata%2fseed.json` looked public and resolved to
+       *     `data/seed.json`. The path is now decoded ONCE, and publicness is decided from the
+       *     resolved absolute file, which cannot be argued with.
+       *  2. The gate was conditioned on `saas`. With `B1PREP_SAAS` unset — or set to `true`, the
+       *     natural way to write it — a fully working account system served the pages and
+       *     `data/**` publicly, exactly as the old comment claimed it no longer could. A verified
+       *     session is now required in EVERY mode.
+       *  3. Readiness was enforced for `/api/*` only, so a restart, a cold database or a slow one
+       *     served the answer keys unauthenticated for as long as the load took. Static refuses
+       *     while the runtime is not ready, and refuses when accounts are not mounted, because
+       *     then there is no identity that could ever be verified.
        */
-      // Resolve the owned API here rather than reusing the `/api/` branch's `owned`, which is
+      const decodedPath = decodePathOnce(pathname);
+      if (decodedPath === null) {
+        res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Bad request');
+        return;
+      }
+      const resolved = resolveStatic(decodedPath === '/' ? '/app/index.html' : decodedPath);
+      if (!resolved) {
+        res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Forbidden');
+        return;
+      }
+      // The owned API is resolved here rather than reusing the `/api/` branch's binding, which is
       // scoped to that branch. Same accessor, one identity source.
       const ownedApi = resolveOwnedApi(serverRef);
-      if (saas && ownedApi && !isPublicStatic(pathname)) {
+      if (!isPublicTarget(resolved)) {
+        if (!readiness.ready || !ownedApi) {
+          sendJSON(res, 503, { ok: false, code: 'not_ready', error: `The hosted runtime is not ready (${readiness.reason || 'starting'}).` });
+          return;
+        }
         const identity = await requestIdentity(ownedApi, req);
         if (!identity) {
           if (isNavigation(req)) {
@@ -1215,7 +1251,14 @@ export function createServer({ ownedApi = null } = {}) {
           return;
         }
       }
-      await serveStatic(req, res, pathname);
+      // Resolution happens AFTER the gate, so a refusal never reveals whether a gated file exists.
+      const found = await resolveStaticFile(decodedPath);
+      if (!found.file) {
+        res.writeHead(found.status || 404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end(found.status === 403 ? 'Forbidden' : 'Not found');
+        return;
+      }
+      await sendStaticFile(res, found.file);
     } catch (err) {
       const payload = { ok: false, error: err.message };
       if (err && err.code) payload.code = err.code;

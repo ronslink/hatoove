@@ -195,7 +195,7 @@ correctness, and the pool must not be read as an answer to E-01.
    starvation jumping the queue. Fill-on-demand never converges and cannot be reviewed ahead of use.
 2. **What is the target, and who reviews?** A number per `pool_spec` (items per task type), and a
    reviewer who approves batches rather than a stream. `review_status` starts `unreviewed`; the
-   serving policy decides whether an invite-only pilot may see it, labelled.
+   serving policy decides whether the pilot may see it, labelled.
 
 And one dependency that is not a fork but a gate: **live generation is not authorized (R10)**. This
 proposal can be built and checked entirely against a **stub generator** that produces deterministic
