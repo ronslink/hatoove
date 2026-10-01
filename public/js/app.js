@@ -285,6 +285,14 @@ async function boot() {
   const resolved = await boundary.resolve();
   const sync = resolved.sync || { adopted: false, reachable: true };
   boundary.subscribe(onSessionChange);
+  // Another tab of this browser signed out or switched account (SESSION-BOUNDARY-04, review
+  // finding N-1). The store has already dropped this page's record and fenced its writes by
+  // the time this runs; the boundary follows, and onSessionChange repaints. The Konto view
+  // paints itself only for transitions made on this page, so it is drawn again here.
+  store.watchScopeChanges(async (change) => {
+    await boundary.followElsewhere(change);
+    if (shell.currentViewId() === 'account') navigate('account');
+  });
 
   // Server config next: it decides whether AI features are advertised.
   const cfg = await ai.refreshStatus();

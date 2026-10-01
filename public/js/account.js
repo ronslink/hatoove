@@ -268,6 +268,32 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
     return resolving;
   }
 
+  /**
+   * Another tab of this browser signed out or switched account (SESSION-BOUNDARY-04, review
+   * finding N-1). `change` is `store.followScopeChange()`'s answer: the store has already
+   * dropped this page's record and fenced its writes; this puts the page in the same state.
+   *
+   * A sign-out is followed WITHOUT asking the server. The other tab writes its marker before
+   * its own sign-out request reaches the server, and a resolve in that window would verify
+   * the old session and sign this page straight back in. A switch is then resolved with the
+   * server like a tab return: by the time the marker names the new account, its session
+   * cookie is already set.
+   */
+  function followElsewhere(change) {
+    if (!change) return Promise.resolve(snapshot());
+    const wasIn = phase === 'signed-in';
+    discardedUnsaved = wasIn && change.hadPending === true;
+    closeDrafts();
+    if (client.getAccount()) client.clear();
+    account = null;
+    settingsRevision = null;
+    phase = 'signed-out';
+    reason = 'signed_out_elsewhere';
+    if (wasIn) notify();
+    if (change.mode === 'scoped') return resolve();
+    return Promise.resolve(snapshot());
+  }
+
   async function authenticate(action) {
     const verified = await action();
     const result = await enterAccount(verified);
@@ -368,6 +394,7 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
     signOut,
     saveSettings,
     openDraft,
+    followElsewhere,
     subscribe,
     status: snapshot,
     get phase() { return phase; },
@@ -653,7 +680,11 @@ export async function accountView(el) {
   const view = { el };
   el.innerHTML = `<div class="card"><h3>Konto</h3>${spinnerRow('Kontostatus wird geladen…')}</div>`;
   try {
-    const result = await session().resolve();
+    // A sign-out followed from another tab is painted as it stands, without asking the
+    // server: that tab's sign-out request may not have reached it yet (see followElsewhere).
+    const current = session();
+    const followed = current.phase === 'signed-out' && current.status().reason === 'signed_out_elsewhere';
+    const result = followed ? current.status() : await current.resolve();
     if (result.phase === 'signed-in') paintSignedIn(view, result.account);
     else if (result.reason === 'accounts_off') paintUnavailable(view, result.phase === 'signed-out');
     else if (result.reason === 'offline') paintOffline(view);

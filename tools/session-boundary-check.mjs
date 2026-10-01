@@ -380,6 +380,36 @@ check('account switch: the previous account copy is gone from this browser', asy
   } finally { await server.stop(); }
 });
 
+check('another page of the same browser cannot re-create the record after a sign-out, and the next sign-in still saves', async () => {
+  // SESSION-BOUNDARY-04 (review finding N-1), the store half: the shared marker fences the
+  // write path of a page that still holds the account in memory. The cross-tab NOTICE needs
+  // a real browser's storage event and is proven in tools/session-boundary-browser-check.mjs.
+  const server = await startServer(4494, { accounts: true });
+  try {
+    const { browser, store: tab1, boundary: b1, account } = await seedAccountA(4494, 'n1-a');
+    const tab2 = await browser.page();
+    const resolved = await tab2.boundary.resolve();
+    assert.equal(resolved.account && resolved.account.id, account.id, 'precondition: the second page resolves to the same account');
+    await b1.signOut();
+    assert.deepEqual(storageKeysHolding(browser, MARK.notebookA), [], 'precondition: the sign-out forgot the account copy');
+    // The second page still believes it is A: a learner action, a debounced save and the
+    // flush its visibilitychange/pagehide handler makes.
+    tab2.store.recordAttempt({ partId: 'SB1', tags: [], difficulty: 50, correct: false, detail: { prompt: `${MARK.notebookA}-TAB2`, yourAnswer: 'x', correctAnswer: 'y' } });
+    tab2.store.saveNow();
+    const flushed = await tab2.store.flushNow();
+    await sleep(400);
+    const leaking = storageKeysHolding(browser, MARK.notebookA);
+    assert.deepEqual(leaking, [], `the second page re-created the account record under ${leaking.join(', ')}`);
+    assert.equal(flushed, false, 'the second page still sent the account record to the server after the sign-out');
+    // THE CONTROL: a fresh sign-in after the forget saves, locally and to the server.
+    const again = await b1.signIn({ email: email('n1-a'), password: password('n1-a') });
+    assert.equal(again.phase, 'signed-in');
+    tab1.recordAttempt({ partId: 'SB1', tags: [], difficulty: 50, correct: false, detail: { prompt: `${MARK.notebookA}-AGAIN`, yourAnswer: 'x', correctAnswer: 'y' } });
+    assert.equal(await tab1.flushNow(), true, 'a sign-in after the forget could not save to the server');
+    assert.deepEqual(storageKeysHolding(browser, `${MARK.notebookA}-AGAIN`), [`b1prep.state.v1::${account.id}`], 'a sign-in after the forget could not save locally');
+  } finally { await server.stop(); }
+});
+
 check('account switch: B never sees A, and late responses for A do not land', async () => {
   const server = await startServer(4483, { accounts: true });
   try {

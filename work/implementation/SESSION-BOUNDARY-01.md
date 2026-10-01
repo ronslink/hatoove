@@ -273,3 +273,75 @@ progress-scope 7 · design-check 11 passed, exit 0 · provider-config 11 · repo
 - The "500 on `/api/v1/account` makes a never-signed-in browser signed-out" finding and the bfcache/back-navigation
   risk (review §F6) are reasoned from code, not executed.
 - The speaking and mock late writers (F2 residual) are not fenced and not tested.
+
+## SESSION-BOUNDARY-04 — N-1: another tab re-created the account record after the forget
+
+Execution `session-boundary-04-claude-20261001-a`. Branch `codex/session-boundary-04`, base
+`origin/codex/ownapi-03-persistent` @ `c6bd889` (store/boundary code identical to `34c992c`). Draft PR #68.
+
+**The defect** (review `session-boundary-02-review-hermes-20261001-a`, `S7b`/`S17`): `forgetAccountRecords()` was a
+one-off sweep in the tab that ran it. Another tab still held the account in memory, and its ordinary write path
+called `setItem` for `b1prep.state.v1::<id>` again — re-creating the key with the learner's text — while it kept
+showing the account's notebook.
+
+**The fix, both halves.**
+
+1. **Marker + fence** (`store.js`). The scope marker `b1prep.scope.v1` was already shared by every tab; it is now
+   the durable signal. It is written **before** the sweep (sign-out and switch), carries `forget: true` when the
+   transition removed records, and holds no learner text. `writeLocal()` and `sendProgress()` refuse while the
+   marker **positively** contradicts the scope the page holds in memory; `writeLocal()` re-checks after `setItem`
+   and takes back a write that raced a marker change. A missing or unreadable marker does not fence.
+2. **Follow** (`store.watchScopeChanges` / `followScopeChange`, `account.js followElsewhere`, `app.js`). The
+   `storage` event (and a bfcache `pageshow`) makes the other tab drop the record and its queued writes, remove
+   its own key again if the other tab forgot, go to the signed-out state and repaint — badge, open view and
+   Konto. It never writes the marker (that is the other tab's).
+   - A **sign-out** is followed without asking the server: the signing-out tab writes its marker before its
+     sign-out request reaches the server, and a resolve in that window would verify the old session and sign the
+     page back in. The Konto view paints a followed sign-out as it stands for the same reason.
+   - A **switch** is resolved with the server like a tab return (the new cookie is set before the marker moves).
+   - A page that is **already** signed out no longer overwrites another tab's newer sign-in marker or sweeps its
+     record (`clearAccountScope`).
+3. **The primary risk — the next sign-in must still save.** `setAccountScope()` always replaces the signed-out
+   marker before anything is loaded or saved; if storage refuses that write, the marker is **removed** (a removal
+   needs no quota), so the fence cannot lock out the account that just signed in.
+
+### Evidence (actual output, this machine)
+
+Same setup as above (disposable `postgres:17-alpine` on 55435, local Chrome, synthetic accounts, stubbed provider).
+The browser check drives **two real pages of one headless Chromium profile** (second target via `/json/new`):
+one cookie jar, one `localStorage`.
+
+| Tree | `session-boundary-check` | `session-boundary-browser-check` | What fails |
+| --- | --- | --- | --- |
+| head `7b4d448` | **13 passed, 0 failed** | **52 passed, 0 failed** (three runs) | — |
+| base (`c6bd889` code) | 12 passed, 1 failed | 43 passed, 9 failed | every N-1 record; the 38 earlier records and both save controls pass |
+| step 2 `77c4f63` (marker, no follow) | 13 passed | 46 passed, 6 failed | tab 2 still scoped / shows A's notebook / badge "2"; tab 1 does not follow a switch |
+| m1: sign-in does not replace the marker | 10 passed, 3 failed | aborts: `A copy back in localStorage (held-save precondition)` | the save control: "a sign-in after the forget could not save to the server" |
+| m2: no write fence (follow kept) | 12 passed, 1 failed | 52 passed, 0 failed | node: "the second page re-created the account record" |
+
+m2 is worth reading: in a real browser the storage event arrives fast enough that the follow alone kept storage
+clean in this run — the fence is what holds when the event is late or absent (the Node check has no storage
+event, which is exactly that case). Each half is discriminated by one checker.
+
+Base detail (S17): `account keys holding A's text right after the sign-out: []; after tab 2 wrote:
+[b1prep.state.v1::<A>]`, tab 2 `{"mode":"scoped"}`, `A marker on tab 2's screen: true`, `badge="2"`. S7b:
+`sign-out finished 10 ms after tab 2 queued its 250 ms save; account keys holding A's text afterwards:
+[b1prep.state.v1::<A>]`. Head controls: `flushNow=true; local keys: [b1prep.state.v1::<A>]; server record holds
+it: true` (the tab that signed out) and the same for B signing in on the tab that only followed.
+
+Baseline at the head, unchanged: check.js 101 · writing 9 · feedback 14 · server-origin 16 · keymask 12 ·
+reset-check 8 · revision 8 · progress-equal 10 · owned-client 31 · owned-api 24 (memory) · draft-session 18 ·
+mock-outcome 19 · progress-scope 7 · design-check 11 passed, exit 0 · provider-config 11 · repository-check
+passed. Also run: account-ui-browser-check 25 passed.
+
+### What is NOT verified (N-1)
+
+- **No real phone, and no bfcache restore was exercised.** The `pageshow` follow is reasoned, not executed.
+  Headless Chromium only; no Safari/Firefox, whose storage-event timing may differ.
+- **Residual window:** a tab RETURN (or a page reload) in the few milliseconds between another tab's marker and
+  its server sign-out landing still resolves against the old session and signs that page back in. The follow
+  itself does not ask the server; the existing tab-return resolve does.
+- A single-user (never signed in) page is not fenced or followed: it writes only the unscoped legacy key, which
+  no forget removes. Not changed here.
+- Only the progress record is fenced. Draft pointers (`b1prep.draft-pointers.v1`) hold identifiers, not text.
+- Mine, on one Windows machine — not independently reproduced. Closes no gate; P-03/X-01 stay open.
