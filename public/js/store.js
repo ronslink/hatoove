@@ -227,10 +227,25 @@ export function setAccountScope(id, { adoptLegacy = true } = {}) {
  * Sign out: hold nothing learner-derived and persist nothing. The account's namespaced
  * cache is left on disk (so that account can resume) but is unreadable by any other
  * account, which only ever reads its own namespace.
+ *
+ * `forget: true` also removes that namespaced cache (and its pending-reset flag) from this
+ * browser. The session boundary passes it on a sign-out whose final save reached the
+ * server, so the account's text does not stay behind in a shared browser; the server copy
+ * is what the next sign-in resumes from.
+ * @param {{forget?: boolean}} [options]
  */
-export function clearAccountScope() {
+export function clearAccountScope({ forget = false } = {}) {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   if (serverTimer) { clearTimeout(serverTimer); serverTimer = null; }
+  if (forget && scopeMode === 'scoped' && accountId) {
+    const s = storage();
+    try {
+      s?.removeItem(scopedStorageKey(accountId));
+      s?.removeItem(`${RESET_FLAG_KEY}::${accountId}`);
+    } catch {
+      /* storage unavailable: nothing was persisted there either */
+    }
+  }
   scopeLoaded = true;
   scopeMode = 'signed-out';
   accountId = null;

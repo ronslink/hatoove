@@ -36,6 +36,8 @@ const ACCOUNT_ICON = '<svg class="ico-svg" viewBox="0 0 24 24" fill="none" strok
 /** Settings fields the account record owns and the boundary mirrors into the store. */
 const ACCOUNT_SETTINGS = ['examDate', 'dailyGoal', 'language'];
 const DRAFT_POINTER_KEY = 'b1prep.draft-pointers.v1';
+/** How long a sign-out waits for the learner's last save before clearing anyway. */
+const SIGN_OUT_FLUSH_MS = 4000;
 
 /**
  * Draft pointers for the draft service: identifiers only (`attemptId`, `submissionId`,
@@ -132,7 +134,9 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
     try {
       record = await client.readSettings();
     } catch (error) {
-      if (errorCode(error) === 'unauthenticated') { enterSignedOut('expired'); return false; }
+      const code = errorCode(error);
+      if (code === 'stale_session') return false; // a newer identity owns the page now
+      if (code === 'unauthenticated') { enterSignedOut('expired'); return false; }
       return true; // offline or refused: the account's cached settings stay in use
     }
     if (!live(gen, id)) return false;
@@ -231,15 +235,21 @@ export function createSessionBoundary({ client, store, pointers = localPointerSt
   const signUp = (details) => authenticate(() => client.signUp(details));
 
   /**
-   * Sign out. The learner's last change is sent first, under THEIR scope (the request is
-   * built synchronously, and its answer is fenced by the store's scope epoch); then every
-   * piece of private state is dropped locally BEFORE the server is told, so a failed
-   * sign-out cannot leave the previous account readable.
+   * Sign out. The learner's last change is sent first, under THEIR scope and bounded in
+   * time; when it reached the server, this browser's copy of the account is forgotten too.
+   * Then every piece of private state is dropped locally BEFORE the server is told, so a
+   * failed sign-out cannot leave the previous account readable.
    */
   async function signOut() {
-    if (phase === 'signed-in') Promise.resolve(store.flushNow()).catch(() => {});
+    let flushed = false;
+    if (phase === 'signed-in') {
+      let timer = null;
+      const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(false), SIGN_OUT_FLUSH_MS); });
+      flushed = (await Promise.race([Promise.resolve(store.flushNow()).catch(() => false), timeout])) === true;
+      clearTimeout(timer);
+    }
     closeDrafts();
-    store.clearAccountScope();
+    store.clearAccountScope({ forget: flushed });
     account = null;
     settingsRevision = null;
     phase = 'signed-out';
