@@ -31,7 +31,7 @@ const EXPLANATION_LANGUAGES = ['de', 'en', 'uk', 'ar', 'tr'];
 const RTL_LANGUAGES = ['ar'];
 const VIEW_TITLES = {
   heute: 'Heute', ueben: 'Üben', woerterbuch: 'Wörterbuch', nachschlagen: 'Nachschlagen',
-  fortschritt: 'Fortschritt', einstellungen: 'Einstellungen',
+  fehler: 'Fehler', fortschritt: 'Fortschritt', einstellungen: 'Einstellungen',
 };
 
 /** Server state, held in memory only. */
@@ -342,6 +342,54 @@ async function renderDashboard() {
   }
 }
 
+
+/**
+ * FEHLER -- the design's "Mistakes" screen, over item_evidence.
+ *
+ * THE COUNT IS THE POINT: the design puts a badge in the navigation ("Mistakes 14"), and a badge is a
+ * promise that the number is real. It comes from the server, and it is HIDDEN at zero rather than
+ * showing a "0" that looks like a claim about the learner.
+ *
+ * NO CORRECT ANSWER IS SHOWN, because the client cannot obtain one: the key is not readable by the
+ * learner's database role. Each row shows what the LEARNER answered, which is what makes a retry
+ * meaningful.
+ */
+async function renderMistakes() {
+  const badge = el('mistake-count');
+  const box = el('mistake-list');
+  const res = await api.practice.mistakes();
+  if (!res) return; // a 401 already redirected
+  if (!res.ok) {
+    if (box) { box.innerHTML = ''; showError('Fehler konnten nicht geladen werden (' + res.status + ').'); }
+    return;
+  }
+  const data = res.data || {};
+  const items = Array.isArray(data.items) ? data.items : [];
+  const count = Number.isInteger(data.count) ? data.count : items.length;
+
+  if (badge) {
+    badge.textContent = String(count);
+    // A badge reading 0 is noise, and it is also the one number a learner does not need told.
+    badge.hidden = count === 0;
+  }
+  if (el('mistake-heading')) el('mistake-heading').textContent = 'Deine offenen Fehler';
+  if (el('mistake-note')) {
+    el('mistake-note').textContent = count === 0
+      ? 'Zurzeit nichts offen. Aufgaben, die du zuletzt falsch hattest, erscheinen hier — und verschwinden, sobald du sie richtig hast.'
+      : 'Aufgaben, die du zuletzt falsch beantwortet hast. Sobald du eine richtig hast, verschwindet sie hier von selbst.';
+  }
+  if (!box) return;
+  if (!items.length) {
+    box.innerHTML = '<div class="card"><h3>Nichts offen</h3><p class="muted">Das ist eine Aussage des '
+      + 'Servers über deine eigenen Antworten, keine leere Seite.</p></div>';
+    return;
+  }
+  box.innerHTML = items.map((m) => '<div class="list-item"><div><strong>' + esc(m.set_title)
+    + '</strong><span class="sub">Bereich ' + esc(m.section) + ' &middot; Aufgabe ' + esc(m.item_id)
+    + ' von ' + m.set_item_count + '</span></div>'
+    + '<span class="chip chip-orange">deine Antwort: ' + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('');
+}
+
 function route() {
   const key = (location.hash || '#/heute').replace(/^#\/?/, '') || 'heute';
   const view = VIEW_TITLES[key] ? key : 'heute';
@@ -350,6 +398,7 @@ function route() {
   renderChrome();
   if (view === 'heute') void renderDashboard();
   if (view === 'ueben') { void renderPracticeNext(); void renderTasks(); }
+  if (view === 'fehler') void renderMistakes();
   if (view === 'woerterbuch') void renderDictionary();
   if (view === 'nachschlagen') void renderGuides();
   for (const link of document.querySelectorAll('[data-view]')) {
@@ -461,4 +510,5 @@ window.addEventListener('hashchange', route);
   });
   route();
   await refresh();
+  void renderMistakes();
 })();

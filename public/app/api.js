@@ -32,6 +32,7 @@ const PATHS = Object.freeze({
   nouns: '/api/v1/nouns',
   guides: '/api/v1/guides',
   practiceNext: '/api/v1/practice/next',
+  practiceMistakes: '/api/v1/practice/mistakes',
 });
 
 /**
@@ -147,5 +148,13 @@ export const api = Object.freeze({
   practice: Object.freeze({
     next: () => call('GET', PATHS.practiceNext),
     answer: (setId, payload) => call('POST', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}/answers`, payload),
+    /**
+     * The items whose MOST RECENT answer was wrong. A mistake clears itself when the learner gets the
+     * item right -- there is no "mark as learned" and no scheduler.
+     *
+     * NO CORRECT ANSWER IS RETURNED. It cannot be: the answer key is not readable by the learner's
+     * database role at all. What comes back is what the LEARNER answered, so they can try again.
+     */
+    mistakes: () => call('GET', PATHS.practiceMistakes),
   }),
 });
