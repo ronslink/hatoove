@@ -149,6 +149,13 @@ jobs:
         run: node tools/session-boundary-check.mjs
       - name: The hosted runtime refuses by default
         run: node tools/saas-runtime-check.mjs
+      # CONFIG-ANON-01. The probe that reproduced the defect (df1924a) as a permanent gate. Four
+      # legs against a real server with NO cookie: anonymous POST /api/config must be refused and
+      # write no env, a later anonymous GET must not report the attacker's date, and an anonymous
+      # learner route must still refuse 401 (so the refusal is the route being gone, not a dead
+      # runtime). Requires the disposable database above so the runtime is ready.
+      - name: The anonymous machine-global config write stays refused
+        run: node tools/coord-config-anon-probe.mjs
   # THE RENDERED CLAIMS WERE UNGATED TOO. Four browser checkers existed and CI ran none of them, so
   # everything they assert - that a refused sign-in does not paint a signed-in state, that the
   # Settings view offers no provider field, that changing the explanation language does NOT translate
