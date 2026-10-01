@@ -145,6 +145,8 @@ jobs:
         run: node tools/owned-api-check.mjs --backend=postgres-persistent
       - name: Account deletion removes every row and is one transaction
         run: node tools/deletion-check.mjs
+      - name: The worker runner claims, fences, retries and reclaims (stub grader; no provider call)
+        run: node tools/worker-runner-check.mjs
       - name: One session boundary, ordering and response fencing
         run: node tools/session-boundary-check.mjs
       - name: The hosted runtime refuses by default
