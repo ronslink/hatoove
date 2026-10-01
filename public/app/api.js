@@ -99,6 +99,8 @@ export const api = Object.freeze({
    * transcripts but no audio, and offering one would be a Hören task with nothing to hear.
    */
   objectiveSets: Object.freeze({
+    /** One set WITH its payload. The list is an index and carries none -- see the server's note. */
+    read: (setId, version = 'v1') => call('GET', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}?version=${encodeURIComponent(version)}`),
     list: ({ exam = null, family = null } = {}) => {
       const query = new URLSearchParams();
       if (exam) query.set('exam', exam);

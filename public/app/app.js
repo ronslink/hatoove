@@ -441,7 +441,122 @@ async function renderSkill(view) {
   box.innerHTML = sets.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(s.title)
     + '</h3><span class="chip">' + esc(s.family) + '</span></div>'
     + '<p class="muted">' + s.item_count + ' Aufgaben &middot; Teil ' + s.part + '</p>'
-    + '<p class="small muted">Prüfstatus: ' + esc(s.review_status) + '</p></div>').join('');
+    + '<p class="small muted">Prüfstatus: ' + esc(s.review_status) + '</p>'
+    + '<button class="btn btn-primary" type="button" data-open="' + esc(s.set_id) + '">Üben</button></div>').join('');
+  box.onclick = (event) => {
+    const id = event.target?.dataset?.open;
+    if (id) void openSet(id);
+  };
+}
+
+
+/**
+ * PRACTICE -- answer one item at a time, marked by the server.
+ *
+ * THE FAMILIES ARE NOT ONE SHAPE and the form says so. LV1 matches texts to headlines, LV3 matches
+ * situations to ads, SB1 and SB2 are gap-fills (SB2 from a bank), LV2 is multiple choice per question.
+ * They are normalised here into one honest shape -- a passage, a list of lettered options, and items --
+ * rather than one of them being flattened into another's mould.
+ *
+ * THE CLIENT NEVER MARKS ANYTHING. It posts the answer and shows the boolean the server returns, which
+ * comes from a SECURITY DEFINER function the learner's own database role could not replace.
+ */
+function objectiveForm(set) {
+  const p = set.payload || {};
+  const opts = (list, idKey, textKey) => (list || []).map((o) => ({
+    id: String(o[idKey]), label: String(o[textKey] ?? o.text ?? o.word ?? ''),
+  }));
+  const fromMap = (map) => Object.entries(map || {}).map(([id, label]) => ({ id, label: String(label) }));
+  switch (set.family) {
+    case 'LV1':
+      return { passages: [{ label: 'Überschriften', lines: (p.headlines || []).map((h) => h.id + ') ' + h.text) }],
+        options: opts(p.headlines, 'id', 'text'),
+        items: (p.texts || []).map((t) => ({ id: String(t.id), prompt: t.text, options: null })) };
+    case 'LV3':
+      return { passages: [{ label: 'Anzeigen', lines: (p.ads || []).map((a) => a.id + ') ' + a.text) }],
+        options: opts(p.ads, 'id', 'text'),
+        items: (p.situations || []).map((s) => ({ id: String(s.n), prompt: s.text, options: null })) };
+    case 'SB2':
+      return { passages: [{ label: 'Brief', lines: [p.letter] }],
+        options: opts(p.bank, 'id', 'word'),
+        items: (p.gaps || []).map((g) => ({ id: String(g.n), prompt: 'Lücke ' + g.n, options: null })) };
+    case 'LV2':
+      return { passages: [{ label: 'Text', lines: [p.text] }], options: null,
+        items: (p.questions || []).map((q) => ({ id: String(q.n), prompt: q.question, options: fromMap(q.options) })) };
+    case 'SB1':
+      return { passages: [{ label: 'Brief', lines: [p.letter] }], options: null,
+        items: (p.gaps || []).map((g) => ({ id: String(g.n), prompt: 'Lücke ' + g.n, options: fromMap(g.options) })) };
+    default:
+      return null;
+  }
+}
+
+/** Render the set, with a lettered choice per item. */
+function renderObjectiveForm(set, host) {
+  const form = objectiveForm(set);
+  if (!form) {
+    host.innerHTML = '<div class="card"><h3>Diese Aufgabenart wird noch nicht angezeigt</h3>'
+      + '<p class="muted">Der Inhalt ist vorhanden; die Ansicht für diese Familie fehlt noch.</p></div>';
+    return;
+  }
+  host.innerHTML =
+    (form.passages || []).map((passage) => '<section class="card"><div class="card-head"><h3>'
+      + esc(passage.label) + '</h3></div>' + passage.lines.map((l) => '<p>' + esc(l) + '</p>').join('') + '</section>').join('')
+    + form.items.map((item) => {
+      const options = item.options || form.options || [];
+      return '<section class="card" data-item="' + esc(item.id) + '"><p class="kicker">Aufgabe '
+        + esc(item.id) + '</p><p>' + esc(item.prompt) + '</p><div class="row">'
+        + options.map((o) => '<button class="btn" type="button" data-answer="' + esc(o.id) + '" title="'
+          + esc(o.label) + '">' + esc(o.id) + ') ' + esc(o.label.slice(0, 40)) + '</button>').join('')
+        + '</div><p class="small muted result"></p></section>';
+    }).join('');
+}
+
+/** Post one answer and show what the SERVER said, not what the client guessed. */
+async function answerItem(setId, card, itemId, answer) {
+  const out = card.querySelector('.result');
+  out.textContent = 'Wird geprüft ...';
+  const res = await api.practice.answer(setId, { itemId, answer });
+  if (!res) return;
+  const button = card.querySelector('[data-answer="' + answer + '"]');
+  if (!res.ok) {
+    out.textContent = res.status === 422 && res.error === 'unknown_item'
+      ? 'Diese Aufgabe gibt es im Schlüssel nicht — der Server hat sie nicht bewertet.'
+      : 'Bewertung fehlgeschlagen (' + res.status + ').';
+    return;
+  }
+  const correct = res.data && res.data.correct === true;
+  if (button) button.setAttribute('aria-pressed', String(correct));
+  out.textContent = correct ? 'Richtig.' : 'Noch nicht richtig — die Aufgabe bleibt bei deinen Fehlern.';
+  // The badge is a promise; refresh it so it stays true after every answer.
+  void renderMistakes();
+}
+
+/** Open one set of the skill currently on screen. */
+async function openSet(setId) {
+  // The container belongs to the VIEW THAT IS OPEN, not to one shared id. A single id put the form
+  // inside whichever section happened to contain it last, so a set opened from Leseverstehen rendered
+  // into the HIDDEN Schreiben section -- a form nobody could see, and a bug no class-name check would
+  // have caught.
+  const box = document.querySelector('.view:not([hidden]) .skill-practice');
+  if (!box) return;
+  box.hidden = false;
+  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  const res = await api.objectiveSets.read(setId);
+  if (!res) return;
+  if (!res.ok) { box.innerHTML = ''; showError('Die Aufgaben konnten nicht geladen werden (' + res.status + ').'); return; }
+  const set = res.data;
+  box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(set.title)
+    + '</h3><span class="chip">' + esc(set.family) + '</span></div>'
+    + '<button class="btn" type="button" id="practice-close">Schließen</button></div>'
+    + '<div class="stack" id="practice-items"></div>';
+  renderObjectiveForm(set, el('practice-items'));
+  box.addEventListener('click', (event) => {
+    const answer = event.target?.dataset?.answer;
+    const card = event.target?.closest('[data-item]');
+    if (answer && card) void answerItem(set.set_id, card, card.dataset.item, answer);
+  });
+  el('practice-close')?.addEventListener('click', () => { box.hidden = true; box.innerHTML = ''; });
 }
 
 function route() {
