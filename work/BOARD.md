@@ -2,7 +2,7 @@
 
 ## Integration in progress — 2 October 2026
 
-**INTEGRATE-20261002-A:** one combined candidate from completion `79a1659` and main `4f76b94`, reconciled by normal merge `a85d35d`. Delivered slices: account-context fence `f62e200` (core independently reviewed, UI verification pending); local-voice D8 `da970c2`/`b6291ca` (coordinator reviewed, adapter8 and combined synthetic browser24 pass); Claude submission preservation/export `e38b4a7`/`136afe2` (offline7 and API33 pass, independent real PostgreSQL review/checks running). Coordinator owns final integration, recovery UI, contracts and central records. Entry reviewer owns final account-context review; backend worker owns isolated PostgreSQL behavioral verification through11:40UTC; actual Claude has completed and holds no active slot. Exact combined browser/CI and final review precede merge. PR89/33 remain held; content, privacy/security, live-provider and physical-device gates remain open.
+**INTEGRATE-20261002-A:** delivered and independently reviewed; final CI/main integration pending. Candidate combines completion `79a1659` and main `4f76b94` through `a85d35d`, closes account-cookie and submitted-draft discard defects, restores writing close/reopen, and adds D8 matching local-voice controls. Complete browser132/132, read-aloud24/24, real PostgreSQL races9/9, deletion19/19, API33/33 and HTTP journeys11/11 pass. [Result and review pins](implementation/INTEGRATE-20261002-RESULT.md). All workers have delivered and hold no active writing slots; coordinator owns finalization. PR89/33 remain held. Product acceptance, content, privacy/security, live-provider and physical-device gates remain open.
 
 ## Current completion batch — 2 October 2026
 

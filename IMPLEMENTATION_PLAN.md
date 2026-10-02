@@ -2,7 +2,7 @@
 
 ## Integration in progress — 2 October 2026
 
-Execution **INTEGRATE-20261002-A** consolidates the reviewed completion stack into one candidate based on current main `4f76b94`; the normal merge `a85d35d` reconciles only historical plan/board records. Independent review found a stale-tab account-cookie defect and a cross-window submitted-draft discard defect. The coordinator delivered the expected-account fence (`f62e200`); Claude delivered submitted-writing preservation and complete retained export (`e38b4a7`, integrated as `136afe2`). The D8 worker delivered optional matching local-voice read-aloud (`da970c2`, adopted as `b6291ca`). Recovery UI and exact combined browser/PostgreSQL verification are in progress. Delivered and locally tested do not yet mean merged or product accepted. PR89 and PR33 remain held and outside this candidate. No live AI or production deployment.
+Execution **INTEGRATE-20261002-A** consolidates the reviewed completion stack into one candidate based on current main `4f76b94`; the normal merge `a85d35d` reconciles only historical plan/board records. Account-cookie fencing, submitted-writing preservation/export, optional matching local-voice read-aloud and writing close/reopen are delivered and independently reviewed. Combined browser132/132, read-aloud24/24, real PostgreSQL races9/9, deletion19/19, API33/33 and HTTP journeys11/11 pass. [The integration result](work/implementation/INTEGRATE-20261002-RESULT.md) records pins, evidence and limitations. Final CI/main integration is pending; product acceptance remains separate. PR89 and PR33 remain held and outside this candidate. No live AI or production deployment.
 
 ## Active completion — 2 October 2026
 

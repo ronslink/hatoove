@@ -171,6 +171,8 @@ jobs:
         run: node tools/accounts-http-check.mjs
       - name: The owned API on the persistent backend
         run: node tools/owned-api-check.mjs --backend=postgres-persistent
+      - name: Submitted writing survives real concurrent discard and exports retained history
+        run: node tools/submission-preservation-pg-check.mjs
       # The suite above resets the GLOBAL sign-up bucket per world; this proves the throttle still
       # refuses inside a world and that, without the reset, the exhaustion would be inherited.
       - name: The sign-up throttle is enforced per world and not accumulated across worlds
