@@ -117,10 +117,11 @@ try{
   // tools/app-browser-check.mjs renders it and fails on any refused request.
   const landing = await request('GET', '/');
   assert.equal(landing.status, 200, '/ must serve the public landing page, got ' + landing.status);
-  assert.ok(landing.text.includes('Know the exam'), '/ must actually BE the landing page');
+  assert.ok(/lang="de"/.test(landing.text) && /href="\/signin"/.test(landing.text)
+    && /href="\/signin\?mode=signup"/.test(landing.text), '/ must be the German landing page with real entry links');
   assert.ok(!/\/api\/|objective_key/.test(landing.text), 'the landing page must carry no API path or learner data');
   // The assets the page itself asks for, at the paths its relative URLs resolve to.
-  for (const asset of ['site.css', 'site.js', 'assets/hatoove-logo.svg', 'assets/source-sans-3.woff2', 'favicon.ico']) {
+  for (const asset of ['site.css', 'site.js', 'assets/design/hatoove-logo.svg', 'assets/design/hatoove.css', 'assets/design/fonts-coverage.css', 'favicon.ico']) {
     const res = await request('GET', '/' + asset);
     assert.equal(res.status, 200, '/' + asset + ' must be served to the landing page, got ' + res.status);
   }
@@ -131,7 +132,7 @@ try{
   // so the assertion is "not served", not a particular status.
   const oldLanding = await request('GET', '/landing/');
   assert.notEqual(oldLanding.status, 200, '/landing/ must not be a second front door, got ' + oldLanding.status);
-  assert.ok(!oldLanding.text.includes('Know the exam'), '/landing/ must not serve the brand site');
+  assert.ok(!oldLanding.text.includes('hero-start'), '/landing/ must not serve the brand site');
   // The APP is still gated, and it is now at /app/ rather than /.
   assert.equal((await request('GET','/app/')).status,401);
   const credentials={name:'Docker check',email:project+'@example.invalid',password:'Synthetic-password-2026'};

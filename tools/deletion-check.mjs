@@ -220,7 +220,9 @@ try {
       FROM objective_key k
       JOIN objective_set s USING (set_id, version)
       JOIN content_version c ON c.content_version_id = s.content_version_id
-     WHERE c.review_status IN ('approved', 'unreviewed')
+      LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+     WHERE c.review_status IN ('approved', 'unreviewed') AND s.media_required = false
+       AND COALESCE(cr.basis, c.rights_status) = 'generated'
      ORDER BY k.set_id, k.version LIMIT 1`))[0];
   assert.ok(evidenceItem && evidenceItem.itemId, 'the fixture serves no objective item to answer (vacuous evidence)');
 
