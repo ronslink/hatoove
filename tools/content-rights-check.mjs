@@ -27,6 +27,10 @@ import assert from 'node:assert/strict';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 
+// EXAM-S0: the seeded rows are `unreviewed` and the RIGHTS gate is what is under test here, so this standalone
+// check opts into the `internal-preview` review policy explicitly. The `public` default is covered by
+// tools/exam-s0-server-check.mjs and tools/exam-s0-server-pg-check.mjs.
+process.env.B1PREP_CONTENT_MODE = 'internal-preview';
 const db = await createFixture();
 const world = await createPostgresWorld({ fixture: db });
 const call = async (method, path, { cookie = null, body = undefined } = {}) => {
@@ -181,12 +185,12 @@ check('5. content with no rights basis is refused while generated content is ser
   assert.ok(!titles.includes('Probe unknown'), 'unaccepted content must be excluded from the catalogue');
   assert.ok(!titles.includes('Probe missing'), 'a missing rights decision must fail closed');
   assert.ok(!titles.includes('Probe licensed'), 'an unconfigured basis must fail closed');
-  const refused = await call('GET', `/api/v1/objective-sets/${suffix}.unknown`, { cookie: who.cookie });
+  const refused = await call('GET', `/api/v1/objective-sets/${suffix}.unknown?version=v1`, { cookie: who.cookie });
   assert.equal(refused.status, 404, 'a direct content URL must not bypass the rights gate');
-  const accepted = await call('GET', `/api/v1/objective-sets/${suffix}.generated`, { cookie: who.cookie });
+  const accepted = await call('GET', `/api/v1/objective-sets/${suffix}.generated?version=v1`, { cookie: who.cookie });
   assert.equal(accepted.status, 200, 'the generated control must remain readable');
   const marking = await call('POST', `/api/v1/objective-sets/${suffix}.unknown/answers`, {
-    cookie: who.cookie, body: { itemId: '1', answer: 'a' },
+    cookie: who.cookie, body: { version: 'v1', itemId: '1', answer: 'a' },
   });
   assert.equal(marking.status, 404, 'marking must reject a withheld set before looking up its key');
   const previous = process.env.B1PREP_SERVE_RIGHTS;

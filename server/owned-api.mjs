@@ -46,7 +46,7 @@
  * Forgetting the gate therefore fails closed instead of open.
  */
 
-import { contentIsServable } from './content-policy.mjs';
+import { contentIsServable, contentPolicy } from './content-policy.mjs';
 import { checkSentence, SENTENCE_TEXT_LIMIT } from './sentence-building.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
@@ -64,6 +64,15 @@ export class Fault extends Error {
 }
 
 const fault = (status, code) => { throw new Fault(status, code); };
+
+/**
+ * The legacy `serveReview` hint passed to catalogue ports, derived from the ONE deployment policy
+ * (`content-policy.mjs`). It is a hint only: every port re-derives its statuses from the same policy and
+ * may only narrow them, and every route below still filters rows with `contentIsServable`.
+ */
+const deploymentReview = () => (contentPolicy().review.includes('unreviewed') ? 'approved+unreviewed' : 'approved');
+/** An objective content version. Required wherever an exact objective set is read or marked. */
+const OBJECTIVE_VERSION_RE = /^v[0-9]{1,4}$/;
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const UUID_RE = new RegExp(`^${UUID}$`, 'i');
@@ -712,19 +721,18 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * for: without it no learner-facing code could reach the seeded content at all, which is why
        * that view has been an honest empty state rather than a broken one.
        *
-       * THE SERVING POLICY IS DEPLOYMENT CONFIGURATION, NOT A REQUEST PARAMETER. Ron, 2 October
-       * 2026: "we will assume for now all are approved until we have built the approval process."
-       * The default therefore SERVES unreviewed content, and an explicit `approved` is the
-       * fail-closed value. A learner may NARROW the list (exam, family) and may never widen it --
-       * a query string must not be able to unlock unreviewed content.
+       * THE SERVING POLICY IS DEPLOYMENT CONFIGURATION, NOT A REQUEST PARAMETER. EXAM-S0: one
+       * server-owned policy (`content-policy.mjs`). `B1PREP_CONTENT_MODE=public` (the default) serves
+       * approved content only; `internal-preview` explicitly retains the unreviewed pilot policy; an
+       * unknown mode serves nothing. A learner may NARROW the list (exam, family) and may never widen
+       * it -- a query string must not be able to unlock unreviewed content.
        */
       const family = query.get('family');
       const parsedFamily = family === null ? null : parseFamily(family);
       if (family !== null && !parsedFamily) fault(422, 'invalid_family');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
-      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
-        ? 'approved' : 'approved+unreviewed';
+      const serveReview = deploymentReview();
       // The KIND is what the task catalogue stores; the part id is the wire vocabulary (see parseFamily).
       const tasks = (await datastore.listTasks(owner, { examId: exam, family: parsedFamily ? parsedFamily.kind : null, serveReview })).filter((row) => contentIsServable(row));
       /*
@@ -779,8 +787,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (family !== null && !parsedFamily) fault(422, 'invalid_family');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
-      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
-        ? 'approved' : 'approved+unreviewed';
+      const serveReview = deploymentReview();
       return reply(200, (await datastore.listObjectiveSets(owner, {
         examId: exam,
         // An exact PART ID is the narrowest filter; a KIND narrows to the group. Both reach the same
@@ -806,8 +813,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
-      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
-        ? 'approved' : 'approved+unreviewed';
+      const serveReview = deploymentReview();
       return reply(200, (await datastore.listVocab(owner, {
         examId: exam, pos, q: q === null ? null : q.trim(), serveReview,
       })).filter((row) => contentIsServable(row)));
@@ -829,8 +835,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
-      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
-        ? 'approved' : 'approved+unreviewed';
+      const serveReview = deploymentReview();
       return reply(200, (await datastore.listNouns(owner, {
         examId: exam, theme: theme === null ? null : theme.trim(), gender,
         q: q === null ? null : q.trim(), serveReview,
@@ -845,8 +850,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        */
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
-      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
-        ? 'approved' : 'approved+unreviewed';
+      const serveReview = deploymentReview();
       return reply(200, (await datastore.listGuides(owner, { examId: exam, serveReview })).filter((row) => contentIsServable(row)));
     }
     {
@@ -882,8 +886,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const guideMatch = GUIDE_RE.exec(pathname);
       if (guideMatch && method === 'GET') {
         if (!catalogueWired) fault(503, 'catalogue_unavailable');
-        const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
-          ? 'approved' : 'approved+unreviewed';
+        const serveReview = deploymentReview();
         const guide = await datastore.readGuide(owner, { guideId: guideMatch[1], serveReview });
         // A guide that does not exist and a guide the deployment will not serve are BOTH 404, so the
         // endpoint is not an oracle for what exists but is withheld.
@@ -906,8 +909,10 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         onlyFields(body, ['itemId', 'answer', 'version', 'latencyMs']);
         if (typeof body.itemId !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(body.itemId)) fault(422, 'invalid_item');
         if (body.answer === undefined) fault(422, 'invalid_answer');
-        const version = body.version === undefined ? 'v1' : body.version;
-        if (typeof version !== 'string' || !/^v[0-9]{1,4}$/.test(version)) fault(422, 'invalid_version');
+        // EXPLICIT, never defaulted (EXAM-S0): v1 and v2 of one set may share item ids with different keys,
+        // so an answer without its version could be marked against the wrong key.
+        const { version } = body;
+        if (typeof version !== 'string' || !OBJECTIVE_VERSION_RE.test(version)) fault(422, 'invalid_version');
         const latencyMs = body.latencyMs === undefined ? null : body.latencyMs;
         if (latencyMs !== null && (!Number.isSafeInteger(latencyMs) || latencyMs < 0 || latencyMs > 3600000)) {
           fault(422, 'invalid_latency');
@@ -929,8 +934,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        */
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
-      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
-        ? 'approved' : 'approved+unreviewed';
+      const serveReview = deploymentReview();
       const next = await datastore.nextPractice(owner, { examId: exam, serveReview });
       // Nothing servable is NOT an error: it means the catalogue is empty for this deployment, and the
       // client shows its honest empty state rather than an error page.
@@ -946,10 +950,10 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const setMatch = OBJECTIVE_SET_RE.exec(pathname);
       if (setMatch && method === 'GET') {
         if (!catalogueWired) fault(503, 'catalogue_unavailable');
-        const version = query.get('version') === null ? 'v1' : query.get('version');
-        if (typeof version !== 'string' || !/^v[0-9]{1,4}$/.test(version)) fault(422, 'invalid_version');
-        const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
-          ? 'approved' : 'approved+unreviewed';
+        // The exact (set, version) pair is required: a missing version is 422, an unknown pair is 404.
+        const version = query.get('version');
+        if (version === null || !OBJECTIVE_VERSION_RE.test(version)) fault(422, 'invalid_version');
+        const serveReview = deploymentReview();
         const set = await datastore.readObjectiveSet(owner, { setId: setMatch[1], version, serveReview });
         if (!contentIsServable(set)) fault(404, 'not_found');
         return reply(200, set);

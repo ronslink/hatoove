@@ -27,6 +27,9 @@ x-ownapi-env: &ownapi-env
   OWNAPI_PG_USER: postgres
   OWNAPI_PG_SCHEMA: hatoove
   OWNAPI_PG_ROLE_PREFIX: hatoove
+  # The local pilot intentionally exposes labelled unreviewed practice. Standalone server policy
+  # defaults to public/approved-only; make this local preview choice explicit for app and worker.
+  B1PREP_CONTENT_MODE: "${HATOVE_CONTENT_MODE:-internal-preview}"
 
 services:
   db:

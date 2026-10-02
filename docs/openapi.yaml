@@ -292,11 +292,13 @@ paths:
         `rights_status`, so a learner is told the truth about the content rather than shown an
         implied approval.
 
-        **The serving policy is deployment configuration, not a request parameter.**
-        `B1PREP_SERVE_REVIEW=approved+unreviewed` (the default, per Ron 2 October 2026) serves
-        unreviewed content; `approved` serves only reviewed content and, today, returns an empty list
-        because every seeded row is `unreviewed`. A request may NARROW the list and may never widen
-        it: a query string must not be able to unlock content the deployment chose not to serve.
+        **The serving policy is deployment configuration, not a request parameter** (EXAM-S0, one
+        server-owned policy). `B1PREP_CONTENT_MODE=public` — the default when unset — serves approved
+        content only, and the legacy `B1PREP_SERVE_REVIEW` flag cannot widen it; today that is an empty
+        list because every seeded row is `unreviewed`. `B1PREP_CONTENT_MODE=internal-preview` explicitly
+        retains the unreviewed pilot policy (`B1PREP_SERVE_REVIEW=approved` still narrows it). Any other
+        mode fails closed and serves nothing. A task is listed only when its declared rubric is servable
+        too. A request may NARROW the list and may never widen it.
       parameters:
         - name: exam
           in: query
@@ -319,6 +321,64 @@ paths:
         '401': { description: 'No verified session.' }
         '422': { description: 'Invalid `exam` or `family` (`invalid_exam`, `invalid_family`).' }
         '503': { description: 'Catalogue port not wired (`catalogue_unavailable`).' }
+
+  /api/v1/objective-sets/{setId}:
+    parameters:
+      - name: setId
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[A-Za-z0-9._-]{1,128}$' }
+    get:
+      tags: [catalogue]
+      summary: Read one servable objective set at an exact version
+      description: |
+        The version is REQUIRED and never defaulted (EXAM-S0): two versions of one set may share item
+        ids with different keys, so the client must bind the exact `(set_id, version)` pair it took from
+        the catalogue. The response shape is unchanged and carries no answer key. The deployment content
+        policy applies, as for `/api/v1/tasks`.
+      parameters:
+        - name: version
+          in: query
+          required: true
+          schema: { type: string, pattern: '^v[0-9]{1,4}$' }
+      responses:
+        '200': { description: 'The set at that exact version, with its learner-visible payload.' }
+        '401': { description: 'No verified session.' }
+        '404': { description: 'No such servable `(set_id, version)` pair — unknown and withheld are indistinguishable.' }
+        '422': { description: 'Missing or invalid `version` (`invalid_version`).' }
+        '503': { description: 'Catalogue port not wired (`catalogue_unavailable`).' }
+
+  /api/v1/objective-sets/{setId}/answers:
+    parameters:
+      - name: setId
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[A-Za-z0-9._-]{1,128}$' }
+    post:
+      tags: [catalogue]
+      summary: Answer one objective item, marked server-side against the exact version's key
+      description: |
+        `version` is REQUIRED (EXAM-S0); an omitted version is refused rather than marked against v1.
+        The evidence row is append-only and records the exact version. Only the boolean is returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, itemId, answer]
+              properties:
+                version: { type: string, pattern: '^v[0-9]{1,4}$' }
+                itemId: { type: string, pattern: '^[A-Za-z0-9._-]{1,64}$' }
+                answer: {}
+                latencyMs: { type: integer, minimum: 0, maximum: 3600000 }
+      responses:
+        '201': { description: 'Recorded: `evidence_id`, `item_id`, `correct`.' }
+        '401': { description: 'No verified session.' }
+        '404': { description: 'No such servable `(set_id, version)` pair.' }
+        '422': { description: '`invalid_version`, `invalid_item`, `invalid_answer`, `invalid_latency`, `unknown_item` or `unknown_field`.' }
+        '503': { description: 'Practice port not wired (`practice_unavailable`).' }
 
   /api/v1/attempts:
     get:
@@ -365,7 +425,7 @@ paths:
       responses:
         '201': { description: 'Created at revision 1 with text, immutable task/rubric binding and parent_submission_id. Explicit binding requires all four fields.' }
         '404': { description: 'The parent is not this owner’s (`not_found`).' }
-        '422': { description: 'Invalid binding, parent_binding_mismatch, or task_not_servable under deployment review/rights policy.' }
+        '422': { description: 'Invalid binding, parent_binding_mismatch, or task_not_servable: the exact task AND its declared rubric must both be servable under the deployment content mode and rights policy. Submit and retry apply the same rule; saved history stays readable.' }
 
   /api/v1/export:
     get:

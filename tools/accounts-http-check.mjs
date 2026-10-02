@@ -52,6 +52,8 @@ async function startServer(port, { accounts }) {
     B1PREP_PORT: String(port),
     B1PREP_ENV_FILE: path.join(TEMP, `env-${port}`),
     B1PREP_FORCE_OFFLINE: '1',
+    // Preview is scoped to this synthetic test server, never the importing process.
+    B1PREP_CONTENT_MODE: 'internal-preview',
   };
   // Absent when accounts are off (not an empty string): the flag is read as `=== '1'`.
   if (accounts) env.B1PREP_ACCOUNTS = '1';

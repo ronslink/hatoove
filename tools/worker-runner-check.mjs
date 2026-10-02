@@ -673,6 +673,10 @@ export const REQUIRED_CHECKS = checks.map((c) => c.name);
 export async function runWorkerRunnerChecks({ only = null } = {}) {
   const selected = only ? checks.filter((c) => c.name.includes(only)) : checks;
   const report = [];
+  // EXAM-S0: the seeded writing content is `unreviewed`, so submitting it needs the `internal-preview`
+  // policy. Opted into explicitly for this run and restored after; the deployment default is `public`.
+  const previousMode = process.env.B1PREP_CONTENT_MODE;
+  process.env.B1PREP_CONTENT_MODE = 'internal-preview';
   try {
     world = await createPostgresWorld({ fixture: db });
     for (const { name, run } of selected) {
@@ -685,6 +689,8 @@ export async function runWorkerRunnerChecks({ only = null } = {}) {
     }
   } finally {
     await teardown();
+    if (previousMode === undefined) delete process.env.B1PREP_CONTENT_MODE;
+    else process.env.B1PREP_CONTENT_MODE = previousMode;
   }
   return { ok: report.every((r) => r.ok), results: report };
 }

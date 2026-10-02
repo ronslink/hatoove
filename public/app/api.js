@@ -148,7 +148,9 @@ return Object.freeze({
    */
   objectiveSets: Object.freeze({
     /** One set WITH its payload. The list is an index and carries none -- see the server's note. */
-    read: (setId, version = 'v1') => call('GET', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}?version=${encodeURIComponent(version)}`),
+    read: (setId, version) => typeof version !== 'string' || !version.trim()
+      ? Promise.resolve(refusal(422, 'invalid_version'))
+      : call('GET', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}?version=${encodeURIComponent(version)}`),
     list: ({ exam = null, family = null } = {}) => {
       const query = new URLSearchParams();
       if (exam) query.set('exam', exam);
@@ -235,7 +237,9 @@ return Object.freeze({
      * first screen silently stays on "Wird geladen …". Measured by tools/app-browser-check.mjs (L7/L9).
      */
     progress: () => call('GET', PATHS.practiceProgress),
-    answer: (setId, payload) => call('POST', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}/answers`, payload),
+    answer: (setId, payload) => typeof payload?.version !== 'string' || !payload.version.trim()
+      ? Promise.resolve(refusal(422, 'invalid_version'))
+      : call('POST', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}/answers`, payload),
     /**
      * The items whose MOST RECENT answer was wrong. A mistake clears itself when the learner gets the
      * item right -- there is no "mark as learned" and no scheduler.

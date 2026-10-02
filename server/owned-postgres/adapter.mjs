@@ -24,13 +24,19 @@
 import { randomUUID } from 'node:crypto';
 import { Fault } from '../../server/owned-api.mjs';
 import { DEFAULT_TASK_BINDING } from './content-seed.mjs';
-import { contentPolicy } from '../content-policy.mjs';
+import { contentPolicy, servableReview } from '../content-policy.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
+const OBJECTIVE_VERSION_RE = /^v[0-9]{1,4}$/;
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = (result) => result.rows[0];
+/** No default version (EXAM-S0): v1 and v2 of a set may share item ids with different keys. */
+const requireObjectiveVersion = (version) => {
+  if (typeof version !== 'string' || !OBJECTIVE_VERSION_RE.test(version)) fail(422, 'invalid_version');
+  return version;
+};
 
 /**
  * Build the owned-attempts datastore port over a pg Pool.
@@ -126,9 +132,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * content tables by `0006`, so no new wiring was needed to reach it. If a catalogue port is ever
      * split out, this method moves and the route does not change.
      *
-     * THE POLICY IS AN ARGUMENT, NOT A QUERY PARAMETER. A learner must never be able to ask for
-     * unreviewed content by editing a URL, so the caller passes what the DEPLOYMENT allows and the
-     * request can only narrow the result (exam, family).
+     * THE POLICY IS DEPLOYMENT CONFIGURATION, NOT AN OPTION. Every method re-derives its statuses from
+     * `content-policy.mjs`; `serveReview: 'approved'` may narrow them and any other value is ignored, so
+     * neither a URL nor an adapter option can widen what the deployment serves (EXAM-S0).
      *
      * `rights_status` IS NOW THE EFFECTIVE BASIS (D1 answered, 2 October 2026): the append-only decision in
      * `content_rights` when one exists, otherwise the row's own seed-time value — which for everything seeded
@@ -138,8 +144,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      */
     async listTasks(owner, { examId = null, family = null, serveReview = 'approved+unreviewed' } = {}) {
       note('listTasks');
-      // An explicit `approved` is the fail-closed value; anything else is the pilot policy.
-      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT t.task_id, t.version, t.family, t.register, t.topic, t.situation, t.adressat,
@@ -148,10 +153,17 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
              FROM task_version t
              JOIN content_version c ON c.content_version_id = t.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+             -- The declared rubric must be servable too (EXAM-S0), or the card would offer a task that
+             -- create() refuses. Same rule as requireServableBinding: task AND rubric.
+             JOIN rubric_version r ON r.rubric_id = t.rubric_id AND r.version = t.rubric_version
+             JOIN content_version rc ON rc.content_version_id = r.content_version_id
+                  LEFT JOIN content_rights rr ON rr.content_version_id = rc.content_version_id
             WHERE t.exam_id = COALESCE($1, t.exam_id)
               AND ($2::text IS NULL OR t.family = $2)
               AND c.review_status = ANY($3::text[])
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])
+              AND rc.review_status = ANY($3::text[])
+              AND COALESCE(rr.basis, rc.rights_status) = ANY($4::text[])
             ORDER BY t.task_id, t.version`,
           [examId, family, statuses, contentPolicy().rights])).rows;
         return rows.map((row) => ({
@@ -195,7 +207,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      */
     async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null, serveReview = 'approved+unreviewed' } = {}) {
       note('listObjectiveSets');
-      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title,
@@ -233,9 +245,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * deployment will not serve it — the route turns both into 404, so it is not an oracle for what
      * exists but is withheld.
      */
-    async readObjectiveSet(owner, { setId, version = 'v1', serveReview = 'approved+unreviewed' } = {}) {
+    async readObjectiveSet(owner, { setId, version, serveReview = 'approved+unreviewed' } = {}) {
       note('readObjectiveSet');
-      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      requireObjectiveVersion(version);
+      const statuses = servableReview(serveReview);
       const row = first(await settle(owner, async (client) => client.query(
         `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title, s.payload,
                 s.item_count, s.media_required, c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
@@ -273,7 +286,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       // The lexicon's review status lives on its ONE provenance row, so the serving policy is
       // honoured by a join rather than by a column on every word. An explicit `approved` therefore
       // serves nothing, exactly as for the task and objective catalogues.
-      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT v.entry_id, v.exam_id, v.de, v.en, v.pos, v.plural, v.example, v.example_en,
@@ -315,7 +328,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      */
     async listNouns(owner, { examId = null, theme = null, gender = null, q = null, limit = 50, serveReview = 'approved+unreviewed' } = {}) {
       note('listNouns');
-      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT n.entry_id, n.exam_id, n.de, n.en, n.gender, n.plural, n.rule, n.rule_en, n.theme,
@@ -358,7 +371,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      */
     async listGuides(owner, { examId = null, serveReview = 'approved+unreviewed' } = {}) {
       note('listGuides');
-      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT g.guide_id, g.family, g.title, g.intro, g.section_count,
@@ -404,7 +417,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      */
     async readRubric(owner, { rubricId, version, serveReview = 'approved+unreviewed' } = {}) {
       note('readRubric');
-      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
         const row = first(await client.query(
           `SELECT r.rubric_id, r.version, r.family, r.criteria, r.max_total, r.exam_id,
@@ -431,7 +444,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
     },
 
     async readGuide(owner, { guideId, serveReview = 'approved+unreviewed' } = {}) {      note('readGuide');
-      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
         const head = (await client.query(
           `SELECT g.guide_id, g.family, g.title, g.intro, g.intro_en, g.watch_out, g.watch_out_en,
@@ -485,10 +498,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * this table is the raw signal adaptive selection reads and a mutable score would be a claim
      * rather than a record.
      */
-    async answerObjectiveItem(owner, { setId, version = 'v1', itemId, answer, latencyMs = null } = {}) {
+    async answerObjectiveItem(owner, { setId, version, itemId, answer, latencyMs = null } = {}) {
       note('answerObjectiveItem');
-      const statuses = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
-        ? ['approved'] : ['approved', 'unreviewed'];
+      requireObjectiveVersion(version);
+      const statuses = servableReview();
       return settle(owner, async (client) => {
         // The set must be one the deployment serves, and this also yields the exam/section the
         // evidence is attributed to. A set that is withheld or absent is 404, not a silent record.
@@ -547,7 +560,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      */
     async nextPractice(owner, { examId = null, serveReview = 'approved+unreviewed' } = {}) {
       note('nextPractice');
-      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      const statuses = servableReview(serveReview);
 
       const sections = (await settle(owner, async (client) => (await client.query(
         `SELECT s.section, min(s.family) AS family
@@ -596,10 +609,11 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       // callback must return the RESULT and not the row. Handing it `rows[0]` made `first` evaluate
       // `row.rows[0]` on a plain object and throw, which surfaced as a 500 on this route -- a failure
       // that looked like "the selector is broken" and was a misuse of a helper.
+      // `seen` is per exact (set, version): evidence for v1 says nothing about what v2 asks.
       const set = first(await settle(owner, async (client) => client.query(
         `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count,
                 (SELECT count(*)::int FROM item_evidence e
-                  WHERE e.owner_id = $3 AND e.set_id = s.set_id) AS seen
+                  WHERE e.owner_id = $3 AND e.set_id = s.set_id AND e.version = s.version) AS seen
            FROM objective_set s
            JOIN content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
@@ -608,7 +622,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
             AND s.exam_id = COALESCE($4, s.exam_id)
             AND c.review_status = ANY($2::text[])
             AND COALESCE(cr.basis, c.rights_status) = ANY($5::text[])
-          ORDER BY seen, s.part, s.set_id
+          ORDER BY seen, s.part, s.set_id, s.version
           LIMIT 1`,
         [chosen.section, statuses, owner, examId, contentPolicy().rights])));
 
@@ -681,19 +695,22 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       note('listMistakes');
       return settle(owner, async (client) => {
         const rows = (await client.query(
+          // Latest per exact (set, version, item): a correct v2 answer does not clear a wrong v1 one,
+          // because the two versions may ask different questions under the same item id. Ties on the
+          // timestamp are broken by the evidence id, and the final order is total, so the list is stable.
           `WITH latest AS (
-             SELECT DISTINCT ON (e.set_id, e.item_id)
+             SELECT DISTINCT ON (e.set_id, e.version, e.item_id)
                     e.set_id, e.version, e.item_id, e.family, e.section, e.answer, e.correct, e.answered_at
                FROM item_evidence e
               WHERE e.owner_id = $1 AND e.exam_id = COALESCE($2, e.exam_id)
-              ORDER BY e.set_id, e.item_id, e.answered_at DESC
+              ORDER BY e.set_id, e.version, e.item_id, e.answered_at DESC, e.evidence_id DESC
            )
            SELECT l.set_id, l.version, l.item_id, l.family, l.section, l.answer, l.answered_at,
                   s.title, s.item_count
              FROM latest l
              JOIN objective_set s ON s.set_id = l.set_id AND s.version = l.version
             WHERE l.correct = false
-            ORDER BY l.answered_at DESC
+            ORDER BY l.answered_at DESC, l.set_id, l.version, l.item_id
             LIMIT $3`,
           [owner, examId, limit])).rows;
         return {

@@ -75,6 +75,9 @@ const state = { account: null, settings: null, revision: null };
 /** The view currently on screen, so a late failure from the previous one is not painted over it. */
 let currentView = 'heute';
 let sessionProblem = null;
+let bootReady = false;
+let bootLoading = false;
+let objectiveRequest = 0;
 
 // ---------------------------------------------------------------- plumbing
 
@@ -554,7 +557,7 @@ async function renderMistakes() {
   // and dropped the section.
   box.innerHTML = '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>'
     + esc(setLabel({ title: m.set_title, section: m.section, part: null }))
-    + '</strong><span class="sub">' + esc(sectionName(m.section)) + ' &middot; ' + (/^g_/.test(m.item_id) ? 'Grammatikübung' : 'Aufgabe ' + esc(m.item_id) + ' von ' + m.set_item_count) + '</span></div>'
+    + '</strong><span class="sub">' + esc(sectionName(m.section)) + ' &middot; Fassung ' + esc(m.version) + ' &middot; ' + (/^g_/.test(m.item_id) ? 'Grammatikübung' : 'Aufgabe ' + esc(m.item_id) + ' von ' + m.set_item_count) + '</span></div>'
     + '<span class="chip chip-orange">deine Antwort: ' + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('') + '</div>';
 }
 
@@ -626,12 +629,12 @@ async function renderSkill(view) {
   }
   box.innerHTML = sets.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(setLabel(s))
     + '</h3><span class="chip">' + esc(s.family) + '</span></div>'
-    + '<p class="muted">' + s.item_count + ' Aufgaben &middot; Teil ' + s.part + '</p>'
+    + '<p class="muted">' + s.item_count + ' Aufgaben &middot; Teil ' + s.part + ' &middot; Fassung ' + esc(s.version) + '</p>'
     + '<p class="small muted">Prüfstatus: ' + esc(s.review_status) + '</p>'
-    + '<button class="btn btn-primary" type="button" data-open="' + esc(s.set_id) + '">Üben</button></div>').join('');
+    + '<button class="btn btn-primary" type="button" data-open="' + esc(s.set_id) + '" data-version="' + esc(s.version) + '">Üben</button></div>').join('');
   box.onclick = (event) => {
-    const id = event.target?.dataset?.open;
-    if (id) guard(openSet(id));
+    const button = event.target?.closest?.('[data-open]');
+    if (button) guard(openSet(button.dataset.open, button.dataset.version));
   };
 }
 
@@ -699,10 +702,11 @@ function renderObjectiveForm(set, host) {
 }
 
 /** Post one answer and show what the SERVER said, not what the client guessed. */
-async function answerItem(setId, card, itemId, answer) {
+async function answerItem(set, card, itemId, answer) {
+  if (!bootReady || sessionProblem) return;
   const out = card.querySelector('.result');
   out.textContent = 'Wird geprüft ...';
-  const res = await api.practice.answer(setId, { itemId, answer });
+  const res = await api.practice.answer(set.set_id, { version: set.version, itemId, answer });
   if (!res) return;
   const button = card.querySelector('[data-answer="' + answer + '"]');
   if (!res.ok) {
@@ -727,7 +731,14 @@ function practiceHost(box) {
 }
 
 /** Open one set of the skill currently on screen. */
-async function openSet(setId) {
+async function openSet(setId, version) {
+  if (!bootReady || sessionProblem) return;
+  if (typeof version !== 'string' || !version.trim()) {
+    showError('Die Fassung dieser Aufgabe fehlt. Bitte lade die Aufgabenliste erneut.');
+    return;
+  }
+  const request = ++objectiveRequest;
+  const navigation = routing;
   // The container belongs to the VIEW THAT IS OPEN, not to one shared id. A single id put the form
   // inside whichever section happened to contain it last, so a set opened from Leseverstehen rendered
   // into the HIDDEN Schreiben section -- a form nobody could see, and a bug no class-name check would
@@ -746,8 +757,8 @@ async function openSet(setId) {
   box.hidden = false;
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
   window.scrollTo(0, 0);
-  const res = await api.objectiveSets.read(setId);
-  if (!res) return;
+  const res = await api.objectiveSets.read(setId, version);
+  if (!res || request !== objectiveRequest || navigation !== routing || sessionProblem) return;
   if (!res.ok) {
     box.innerHTML = '';
     if (list) list.hidden = false;
@@ -755,11 +766,17 @@ async function openSet(setId) {
     return;
   }
   const set = res.data;
+  if (set?.set_id !== setId || set?.version !== version) {
+    box.innerHTML = '';
+    if (list) list.hidden = false;
+    showError('Die geladene Fassung passt nicht zur ausgewählten Aufgabe. Bitte lade die Aufgabenliste erneut.');
+    return;
+  }
   box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(setLabel(set))
-    + '</h3><span class="chip">' + esc(set.family) + '</span></div>'
+    + '</h3><span class="chip">' + esc(set.family) + ' · Fassung ' + esc(set.version) + '</span></div>'
     + '<button class="btn" type="button" id="practice-close">Schließen</button></div>'
     + '<div class="stack" id="practice-items"></div>';
-  renderObjectiveForm(set, el('practice-items'));
+  renderObjectiveForm(set, box.querySelector('#practice-items'));
   /*
    * ASSIGNMENT, not addEventListener. `box` is the same element for the whole life of the view, so an
    * added listener accumulated one per set opened: opening a second set made one answer POST twice,
@@ -768,9 +785,10 @@ async function openSet(setId) {
   box.onclick = (event) => {
     const answer = event.target?.dataset?.answer;
     const card = event.target?.closest('[data-item]');
-    if (answer && card) guard(answerItem(set.set_id, card, card.dataset.item, answer));
+    if (answer && card) guard(answerItem(set, card, card.dataset.item, answer));
   };
-  el('practice-close')?.addEventListener('click', () => {
+  box.querySelector('#practice-close')?.addEventListener('click', () => {
+    objectiveRequest++;
     box.hidden = true;
     box.innerHTML = '';
     if (list) list.hidden = false;
@@ -842,6 +860,7 @@ async function renderHistory() {
 let routing = 0;
 
 async function route() {
+  if (!bootReady || sessionProblem) return;
   readAloud.stop();
   const request = ++routing;
   if (writing.active) {
@@ -897,26 +916,29 @@ async function route() {
 
 async function refresh() {
   const account = await api.account.read();
-  if (!account) return;
-  if (!account.ok) { showError('Konto konnte nicht geladen werden: ' + failure(account) + '.'); return; }
-  state.account = account.data;
+  if (!account?.ok) { showError('Konto konnte nicht geladen werden: ' + failure(account) + '.'); return false; }
 
   const settings = await api.settings.read();
-  if (settings && settings.ok) {
+  if (settings?.ok && settings.data?.settings && Number.isInteger(settings.data.revision)) {
+    if (sessionProblem) return false;
+    state.account = account.data;
     state.settings = settings.data.settings || {};
     state.revision = settings.data.revision;
-  } else if (settings) {
+  } else {
     showError('Einstellungen konnten nicht geladen werden: ' + failure(settings) + '.');
+    return false;
   }
   renderAccount();
   renderSettings();
+  renderChrome();
   /*
    * THE SESSION LIST IS LOADED WITH THE VIEW, and it is awaited by nobody: a slow or refused session list must
    * not hold up the settings the learner came for. `guard` is what turns a rejection into a message instead of
    * an unhandled promise — the defect this file has already met once, where one throw silently skipped every
    * later render.
    */
-  guard(renderSessions());
+  if (bootReady) guard(renderSessions());
+  return true;
 }
 
 // ---------------------------------------------------------------- actions
@@ -956,6 +978,7 @@ el('password-form').addEventListener('submit', async (event) => {
 
 el('settings-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!bootReady || sessionProblem || !Number.isInteger(state.revision)) return;
   const status = el('settings-state');
   const button = el('save-settings');
   status.textContent = 'Wird gespeichert …';
@@ -963,7 +986,7 @@ el('settings-form').addEventListener('submit', async (event) => {
   showError('');
   try {
     const wanted = { examDate: el('examDate').value, language: el('language').value };
-    const res = await api.settings.write(state.revision ?? 0, wanted);
+    const res = await api.settings.write(state.revision, wanted);
     if (!res) return;
     if (res.status === 409 && !sessionProblem) {
       // The server keeps a revision per account. A conflict is not a failure to hide: the learner
@@ -1045,32 +1068,51 @@ window.addEventListener('hashchange', route);
 
 // ---------------------------------------------------------------- boot
 
-(async () => {
-  /*
-   * The whole boot is guarded, and that guard is not decoration. A single missing element id in
-   * `renderAccount()` threw here, which silently skipped `renderSettings()` and the mistakes badge
-   * after it: the screen looked half-alive and nothing said why. Nothing reaches the learner now
-   * except through a message they can read.
-   */
+// The initial shell is hidden/inert until owned preferences are known. Capture also prevents
+// an early synthetic submit or keyboard event from writing a guessed revision/default value.
+for (const type of ['click', 'submit', 'change', 'input']) {
+  el('app-shell').addEventListener(type, (event) => {
+    if (!bootReady) { event.preventDefault(); event.stopImmediatePropagation(); }
+  }, true);
+}
+el('dict-q')?.addEventListener('input', () => guard(renderDictionary()));
+el('dict-mode-vocab')?.addEventListener('click', () => { dictMode = 'vocab'; guard(renderDictionary()); });
+el('dict-mode-nouns')?.addEventListener('click', () => { dictMode = 'nouns'; guard(renderDictionary()); });
+el('guide-index')?.addEventListener('click', (event) => {
+  const id = event.target?.dataset?.guide;
+  if (id) guard(openGuide(id));
+});
+
+async function boot() {
+  if (bootLoading || bootReady || sessionProblem) return;
+  bootLoading = true;
+  el('boot-retry').hidden = true;
+  el('boot-signin').hidden = true;
+  el('boot-message').textContent = 'Dein Konto und deine Einstellungen werden geladen …';
   try {
-    // Tag the options before the first settings read, so the language tags and `dir` are never
-    // missing while the request is in flight.
     applyExplanationDirection();
-    // Bind this page to the verified account before loading owned data. Only a fresh boot may
-    // redirect on missing identity; expiry in an active writing view preserves its unsaved text.
     const session = await api.session();
-    if (!session || !session.ok) { location.replace('/signin'); return; }
-    el('dict-q')?.addEventListener('input', () => guard(renderDictionary()));
-    el('dict-mode-vocab')?.addEventListener('click', () => { dictMode = 'vocab'; guard(renderDictionary()); });
-    el('dict-mode-nouns')?.addEventListener('click', () => { dictMode = 'nouns'; guard(renderDictionary()); });
-    el('guide-index')?.addEventListener('click', (event) => {
-      const id = event.target?.dataset?.guide;
-      if (id) guard(openGuide(id));
-    });
-    route();
-    await refresh();
+    if (session?.status === 401) { location.replace('/signin'); return; }
+    if (!session?.ok) throw new Error('Die Anmeldung konnte nicht geprüft werden. ' + failure(session));
+    if (!(await refresh())) throw new Error('Dein Konto und deine Einstellungen konnten nicht vollständig geladen werden.');
+    if (sessionProblem) throw new Error('Die Sitzung ist nicht mehr gültig.');
+    bootReady = true;
+    el('app-shell').inert = false;
+    el('app-shell').hidden = false;
+    el('app-shell').setAttribute('aria-busy', 'false');
+    el('boot-state').hidden = true;
+    await route(); // Read the latest hash, including navigation while preferences were loading.
     guard(renderMistakes());
   } catch (err) {
-    showError('Die Ansicht konnte nicht geladen werden: ' + (err && err.message ? err.message : err));
+    if (bootReady) { showError('Die Ansicht konnte nicht geladen werden: ' + (err?.message || err)); return; }
+    el('boot-message').textContent = sessionProblem
+      ? 'Die Sitzung ist nicht mehr gültig oder das Konto wurde gewechselt. Bitte melde dich erneut an.'
+      : (err?.message || 'Die Ansicht konnte nicht geladen werden.') + ' Bitte versuche es erneut.';
+    el('boot-retry').hidden = Boolean(sessionProblem);
+    el('boot-signin').hidden = !sessionProblem;
+  } finally {
+    bootLoading = false;
   }
-})();
+}
+el('boot-retry').addEventListener('click', () => guard(boot()));
+guard(boot());
