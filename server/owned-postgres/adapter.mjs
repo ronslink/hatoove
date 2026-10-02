@@ -90,10 +90,11 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * unreviewed content by editing a URL, so the caller passes what the DEPLOYMENT allows and the
      * request can only narrow the result (exam, family).
      *
-     * `rights_status` IS RETURNED, NOT FILTERED ON. Every seeded row is `rights_status='unknown'`,
-     * which is an open question for Ron (D1). Filtering on it here would silently serve nothing and
-     * make the route look broken; carrying the field means the gate can be added later without a
-     * schema change or a change to this signature.
+     * `rights_status` IS NOW THE EFFECTIVE BASIS (D1 answered, 2 October 2026): the append-only decision in
+     * `content_rights` when one exists, otherwise the row's own seed-time value — which for everything seeded
+     * before that decision is `unknown`, and `unknown` FAILS CLOSED in the route's policy. The content rows stay
+     * immutable, the decision is its own recorded row, and what a learner sees is what the deployment stands
+     * behind. The FILTER lives in the route beside `serveReview` so the policy has one home rather than seven.
      */
     async listTasks(owner, { examId = null, family = null, serveReview = 'approved+unreviewed' } = {}) {
       note('listTasks');
@@ -103,9 +104,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
         const rows = (await client.query(
           `SELECT t.task_id, t.version, t.family, t.register, t.topic, t.situation, t.adressat,
                   t.leitpunkte, t.rubric_id, t.rubric_version, t.exam_id, t.created_at,
-                  c.review_status, c.rights_status
+                  c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM task_version t
              JOIN content_version c ON c.content_version_id = t.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE t.exam_id = COALESCE($1, t.exam_id)
               AND ($2::text IS NULL OR t.family = $2)
               AND c.review_status = ANY($3::text[])
@@ -157,9 +159,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
         const rows = (await client.query(
           `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title,
                   s.item_count, s.media_required,
-                  c.review_status, c.rights_status
+                  c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM objective_set s
              JOIN content_version c ON c.content_version_id = s.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.exam_id = COALESCE($1, s.exam_id)
               AND ($2::text IS NULL OR s.family = $2)
               AND ($4::text IS NULL OR s.family LIKE $4 || '%')
@@ -193,9 +196,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
       const row = first(await settle(owner, async (client) => client.query(
         `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title, s.payload,
-                s.item_count, s.media_required, c.review_status, c.rights_status
+                s.item_count, s.media_required, c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
            FROM objective_set s
            JOIN content_version c ON c.content_version_id = s.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
           WHERE s.set_id = $1 AND s.version = $2
             AND c.review_status = ANY($3::text[])
             AND s.media_required = false
@@ -230,9 +234,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT v.entry_id, v.exam_id, v.de, v.en, v.pos, v.plural, v.example, v.example_en,
-                  c.review_status, c.rights_status
+                  c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM vocab_entry v
              JOIN content_version c ON c.content_version_id = v.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE v.exam_id = COALESCE($1, v.exam_id)
               AND ($2::text IS NULL OR v.pos = $2)
               AND ($3::text IS NULL OR v.de ILIKE '%' || $3 || '%' OR v.en ILIKE '%' || $3 || '%')
@@ -270,9 +275,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT n.entry_id, n.exam_id, n.de, n.en, n.gender, n.plural, n.rule, n.rule_en, n.theme,
-                  n.example, n.example_en, c.review_status, c.rights_status
+                  n.example, n.example_en, c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM noun_entry n
              JOIN content_version c ON c.content_version_id = n.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE n.exam_id = COALESCE($1, n.exam_id)
               AND ($2::text IS NULL OR n.theme = $2)
               AND ($3::text IS NULL OR n.gender = $3)
@@ -311,9 +317,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT g.guide_id, g.family, g.title, g.intro, g.section_count,
-                  c.review_status, c.rights_status
+                  c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM guide g
              JOIN content_version c ON c.content_version_id = g.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE g.exam_id = COALESCE($1, g.exam_id)
               AND c.review_status = ANY($2::text[])
             ORDER BY g.guide_id`,
@@ -355,9 +362,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       return settle(owner, async (client) => {
         const row = first(await client.query(
           `SELECT r.rubric_id, r.version, r.family, r.criteria, r.max_total, r.exam_id,
-                  c.review_status, c.rights_status
+                  c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM rubric_version r
              JOIN content_version c ON c.content_version_id = r.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE r.rubric_id = $1 AND r.version = $2 AND c.review_status = ANY($3::text[])`,
           [rubricId, version, statuses]));
         if (!row) return null;
@@ -380,9 +388,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       return settle(owner, async (client) => {
         const head = (await client.query(
           `SELECT g.guide_id, g.family, g.title, g.intro, g.intro_en, g.watch_out, g.watch_out_en,
-                  g.section_count, c.review_status, c.rights_status
+                  g.section_count, c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM guide g
              JOIN content_version c ON c.content_version_id = g.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE g.guide_id = $1 AND c.review_status = ANY($2::text[])`,
           [guideId, statuses])).rows[0];
         if (!head) return null;
@@ -439,6 +448,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
           `SELECT s.exam_id, s.family, s.section, s.version
              FROM objective_set s
              JOIN content_version c ON c.content_version_id = s.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.set_id = $1 AND s.version = $2 AND c.review_status = ANY($3::text[])`,
           [setId, version, statuses]));
         if (!set) fail(404, 'not_found');
@@ -493,6 +503,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
         `SELECT s.section, min(s.family) AS family
            FROM objective_set s
            JOIN content_version c ON c.content_version_id = s.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
           WHERE s.media_required = false
             AND s.exam_id = COALESCE($1, s.exam_id)
             AND c.review_status = ANY($2::text[])
@@ -540,6 +551,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
                   WHERE e.owner_id = $3 AND e.set_id = s.set_id) AS seen
            FROM objective_set s
            JOIN content_version c ON c.content_version_id = s.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
           WHERE s.section = $1
             AND s.media_required = false
             AND s.exam_id = COALESCE($4, s.exam_id)
@@ -676,6 +688,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
           const servable = first(await client.query(
             `SELECT 1 FROM task_version t
                JOIN content_version c ON c.content_version_id = t.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
               WHERE t.task_id = $1 AND t.version = $2
                 AND t.rubric_id = $3 AND t.rubric_version = $4
                 AND c.review_status = ANY($5::text[])`,
