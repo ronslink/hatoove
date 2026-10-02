@@ -205,6 +205,16 @@ export const api = Object.freeze({
      */
     openAttempts: () => call('GET', `${PATHS.attempts}?open=1`),
     createAttempt: (binding = null) => call('POST', PATHS.attempts, binding ? { ...binding } : {}),
+    /**
+     * Abandon a draft. The route is a TOMBSTONE, not an erase: the attempt stops being resumable and the
+     * letter is no longer served, which is what "start over" has to mean on the server as well as on
+     * screen.
+     *
+     * `{}` and not no body — the same rule the account deletion above states: the server requires
+     * `application/json` on EVERY mutating route, DELETE included. Omitting it answered `415 json_required`
+     * and the button did nothing, which the rendered leg caught immediately (W9b).
+     */
+    deleteAttempt: (attemptId) => call('DELETE', `${PATHS.attempts}/${encodeURIComponent(attemptId)}`, {}),
     readAttempt: (attemptId) => call('GET', `${PATHS.attempts}/${encodeURIComponent(attemptId)}`),
     saveDraft: (attemptId, expectedRevision, text) => call('PUT', `${PATHS.attempts}/${encodeURIComponent(attemptId)}`,
       { expectedRevision, text }),

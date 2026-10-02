@@ -1095,6 +1095,55 @@ async function main() {
       submittedAgain.value === '' || submittedAgain.value === null,
       `text area after reopening the submitted task: ${JSON.stringify((submittedAgain.value || '').slice(0, 40))}`);
 
+    /*
+     * W9 — A RESUMED DRAFT CAN BE ABANDONED.
+     *
+     * Automatic resume is a trap on its own: a learner who wants to start the letter again cannot, because
+     * the old text always comes back and the only way out is to overwrite it and submit. The affordance is
+     * small and the assertions are specific, because "a button exists" would be worthless here:
+     *   * the button is offered ONLY when a draft was resumed (a blank new attempt has nothing to abandon);
+     *   * pressing it empties the field;
+     *   * and the SERVER agrees: the abandoned attempt is gone from the open index and the fresh one is at
+     *     revision 1 with no text. A UI that only cleared the textarea would leave the old letter waiting
+     *     to be resumed again on the next reload — which is the bug, not the fix.
+     */
+    await openWritingTask(cdp, 1, 'W9 resumable draft again', { reload: true });
+    await sleep(400);
+    const beforeNew = await cdp.evaluate(`
+      const button = document.getElementById('writing-new');
+      return {
+        value: document.getElementById('writing-text')?.value || '',
+        offered: Boolean(button) && !button.hidden && button.getBoundingClientRect().width > 0,
+      };
+    `);
+    record('W9 a resumed draft offers a way to start over',
+      beforeNew.offered && beforeNew.value.length > 0,
+      `button offered=${beforeNew.offered} with ${beforeNew.value.length} char(s) resumed`);
+
+    await cdp.evaluate(`document.getElementById('writing-new').click(); return true;`);
+    await softWait(cdp, "document.getElementById('writing-text') && document.getElementById('writing-text').value === ''", 12000, 'the cleared field');
+    await sleep(900); // let the create land and the state settle
+    const afterNew = await cdp.evaluate(`
+      return (async () => {
+        const index = await fetch('/api/v1/attempts?open=1').then((r) => r.json()).catch(() => null);
+        const mine = index && Array.isArray(index.attempts)
+          ? index.attempts.filter((a) => a.task_id === 'writing.du.geburtstag-eines-freundes') : [];
+        const loaded = mine.length ? await fetch('/api/v1/attempts/' + mine[0].id).then((r) => r.json()).catch(() => null) : null;
+        return {
+          value: document.getElementById('writing-text')?.value || '',
+          state: document.getElementById('writing-state')?.innerText.trim().slice(0, 120) || '',
+          openForTask: mine.length,
+          serverText: loaded && typeof loaded.text === 'string' ? loaded.text : null,
+          serverRevision: mine.length ? mine[0].revision : null,
+        };
+      })();
+    `);
+    await shot(cdp, '13i-writing-start-fresh-desktop-light');
+    record('W9b starting over leaves the OLD letter unreachable on the server',
+      afterNew.value === '' && afterNew.serverText === '' && afterNew.openForTask === 1,
+      `field empty=${afterNew.value === ''}; server text=${JSON.stringify(afterNew.serverText)} at revision ${afterNew.serverRevision}; `
+        + `${afterNew.openForTask} open attempt(s) for the task; state "${afterNew.state}"`);
+
     /* ------------------------------------------- no learner state in the browser */
 
     /*

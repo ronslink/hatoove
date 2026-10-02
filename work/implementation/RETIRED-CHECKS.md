@@ -26,6 +26,35 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — PILOT-06: a resumed draft can be ABANDONED, and a client bug the leg caught
+
+**The trap the last slice created.** Resume became automatic, which means a learner who wanted to start the
+letter again could not: the old text always came back and the only way out was to overwrite it and submit.
+`openWriting` now reveals a **"Neu anfangen"** button **only when a draft was resumed** — a fresh attempt has
+nothing to abandon — and the handler is a **tombstone, not an erase**: the abandoned attempt is DELETED
+(`DELETE /api/v1/attempts/:id`, already held by `owned-api-check` leg `delete-is-a-tombstone`) and a fresh
+one is created at revision 1. Clearing the textarea alone would have left the old letter waiting to be
+resumed again on the next reload: the bug wearing the fix's clothes.
+
+**The leg asserts the SERVER, not the button.** `app-browser-check` **W9/W9b** with a screenshot (`13i`):
+the button is offered and visible **and** there is text to abandon; after pressing it the field is empty,
+the abandoned attempt is **gone from the open index**, and the fresh one holds an **empty text at revision
+1**. The counts are what make it discriminating: the leg filters the open index by task and requires
+**exactly one** entry, so a delete that silently did nothing (two entries) fails rather than passes.
+
+**A CLIENT BUG THE LEG CAUGHT IN ONE RUN.** The first `api.writing.deleteAttempt` sent no body, and the
+server answered **`415 json_required`** — the mutation gate requires `application/json` on **every** mutating
+route, DELETE included. The screen said so in plain German ("Der Entwurf konnte nicht verworfen werden
+(Fehler 415 (json_required))"), and the leg's evidence line showed the old letter still on the server at
+revision 2. `public/app/api.js` **already stated that rule** two calls above, for account deletion
+(*"`{}` and not no body"*) — the comment was there and I contradicted it. Fixed to `{}`, and the leg went
+green. This is the third time a rendered leg has been the thing that caught a defect the offline suite could
+not see, and the second time the defect was mine.
+
+**Guards:** app-browser **75/75** (was 73) · owned-api **30/30 memory AND 30/30 postgres** · docker-stack
+33/33 · owned-client 31/31 · api-spec 25/25 · retired-surface 10/10 · server-origin 8/8 · keymask 14/14 ·
+design 14/14 · repository-check (413 files).
+
 ### 2 October 2026 — PILOT-06: an unfinished letter survives a reload (and three defects found getting there)
 
 **The gap, and why the answer had to come from the server.** A learner who reloaded mid-letter got an empty

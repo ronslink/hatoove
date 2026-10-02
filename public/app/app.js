@@ -713,6 +713,7 @@ async function openWriting(box, task) {
     + ' aria-describedby="writing-state"></textarea>'
     + '<p class="small muted" id="writing-hint">Der Text wird während des Schreibens gespeichert.</p>'
     + '<div class="row"><button class="btn btn-primary" type="button" id="writing-submit" disabled>Abgeben</button>'
+    + '<button class="btn" type="button" id="writing-new" hidden>Neu anfangen</button>'
     + '<button class="btn" type="button" id="writing-close">Schließen</button></div>'
     + '<div id="writing-state" class="writing-state" role="status" aria-live="polite">'
     + '<p class="muted">Noch nichts abgegeben.</p></div></div>';
@@ -814,6 +815,13 @@ async function openWriting(box, task) {
     attempt = await api.writing.readAttempt(resumed.id);
     if (attempt?.ok) {
       if (area) area.value = typeof attempt.data?.text === 'string' ? attempt.data.text : '';
+      /*
+       * A RESUMED DRAFT MUST BE ABANDONABLE. Automatic resume turns into a trap otherwise: the old text
+       * always comes back and the only way out is to overwrite it and submit. The button is revealed HERE
+       * and not for a fresh attempt, where there is nothing to abandon.
+       */
+      const abandon = el('writing-new');
+      if (abandon) abandon.hidden = false;
       say('<p class="muted">Gespeicherter Entwurf fortgesetzt. Noch nichts abgegeben.</p>');
     }
   } else {
@@ -913,6 +921,36 @@ async function openWriting(box, task) {
     box.innerHTML = '';
     if (list) list.hidden = false;
   });
+
+  /*
+   * START OVER. The attempts route makes this a tombstone rather than an overwrite: the abandoned attempt
+   * is DELETED and a fresh one is created, so the old letter is not merely cleared from the screen but
+   * unreachable on the server. Clearing the textarea alone would have left it waiting to be resumed again
+   * on the next reload — the bug, wearing the fix's clothes.
+   */
+  el('writing-new')?.addEventListener('click', () => guard((async () => {
+    if (!attemptId) return;
+    if (timer) { clearTimeout(timer); timer = null; }
+    setReady(false);
+    const gone = await api.writing.deleteAttempt(attemptId);
+    if (!gone?.ok) {
+      say('<p class="err">Der Entwurf konnte nicht verworfen werden (' + esc(failure(gone)) + ').</p>', { reveal: true });
+      setReady(true);
+      return;
+    }
+    const fresh = await api.writing.createAttempt({
+      taskId: task.task_id, taskVersion: task.version, rubricId: task.rubric_id, rubricVersion: task.rubric_version,
+    });
+    if (!fresh?.ok) {
+      say('<p class="err">Ein neuer Entwurf konnte nicht begonnen werden (' + esc(failure(fresh)) + ').</p>', { reveal: true });
+      return;
+    }
+    attemptId = fresh.data.id;
+    revision = Number(fresh.data?.revision) || 1;
+    if (area) area.value = '';
+    setReady(true);
+    say('<p class="muted">Neu angefangen. Noch nichts abgegeben.</p>', { reveal: true });
+  })()));
 }
 
 function route() {
