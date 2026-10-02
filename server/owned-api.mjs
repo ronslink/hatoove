@@ -766,7 +766,21 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       onlyFields(body, ['expectedRevision', 'eventId']);
       const expected = requireRevision(body.expectedRevision, 'invalid_submission');
       const eventId = requireUuid(body.eventId, 'invalid_submission');
-      return reply(202, await datastore.submit(owner, match[1].toLowerCase(), expected, eventId));
+      /*
+       * THE EXPLANATION LANGUAGE IS SNAPSHOTTED HERE, at submit time, and never read again for this
+       * submission. `settings.language` is the learner's CURRENT preference; if the worker read that later,
+       * the feedback a learner reads would depend on when they read it. An unwired or unset language is
+       * 'de' — every seeded prompt and the whole interface are German.
+       */
+      let language = 'de';
+      if (settingsWired) {
+        try {
+          const stored = await settings.read(owner);
+          const value = stored && stored.settings ? stored.settings.language : '';
+          if (typeof value === 'string' && value.trim() !== '' && value.length <= 16) language = value.trim();
+        } catch { /* an unreadable preference must not block a submission; German is the honest default */ }
+      }
+      return reply(202, await datastore.submit(owner, match[1].toLowerCase(), expected, eventId, language));
     }
     match = RESULT_RE.exec(pathname);
     if (match && method === 'GET') return reply(200, await datastore.result(owner, match[1].toLowerCase()));

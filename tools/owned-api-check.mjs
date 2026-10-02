@@ -41,6 +41,7 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 import { createOwnedApi, Fault, CONTRACT_VERSION } from '../server/owned-api.mjs';
+import { stubGrade } from '../server/owned-postgres/worker.mjs';
 import { createOwnedClient, OwnedClientError } from '../public/js/owned-client.js';
 import {
   DEFAULT_TASK_BINDING, WRITING_TASKS, WRITING_RUBRIC, taskBindings,
@@ -235,8 +236,21 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
       const job = jobs.get(submissionId);
       const submission = submissions.get(submissionId);
       if (!job || job.status !== 'running' || attempts.get(submission.attempt_id).deleted_at) return false;
+      /*
+       * THE CURRENT CONTRACT, produced by the same function the shipped grader uses. The memory fixture used
+       * to write a one-comment `synthetic-formative` assessment; that stopped being the contract when the
+       * writing rubric became telc B1's three-criterion one, and a fixture that fabricates a shape the
+       * grader cannot produce is how a suite keeps asserting yesterday's contract. The `comment` argument is
+       * still honoured for the RETIRED rubric, so a legacy attempt can be completed as what it is.
+       */
+      // `rubric_id` is on the ATTEMPT; the submission carries the VERSIONS it froze.
+      const attemptRow = attempts.get(submission.attempt_id);
+      const currentRubric = attemptRow.rubric_id === TELC_B1_WRITING_RUBRIC.rubricId
+        && submission.rubric_version === TELC_B1_WRITING_RUBRIC.version;
       assessments.set(submissionId, Object.freeze({
-        feedback: { kind: 'synthetic-formative', comment },
+        feedback: currentRubric
+          ? stubGrade({ text: drafts.get(submission.attempt_id)?.text || '', explanationLanguage: 'de' }).feedback
+          : { kind: 'synthetic-formative', comment },
         model_version: 'fixture-v1', prompt_version: 'fixture-v1', rubric_version: submission.rubric_version,
       }));
       adjust(submission.owner_id, { reserved: -1, used: 1 });
@@ -746,7 +760,20 @@ check('result-never-regrades', async () => {
   const reads = [];
   for (let i = 0; i < 3; i += 1) reads.push(await s.client.readResult(id));
   assert.equal(reads[0].job.status, 'succeeded');
-  assert.deepEqual(reads[0].assessment.feedback, { kind: 'synthetic-formative', comment: 'Synthetic formative note.' });
+  /*
+   * THE BAND CONTRACT, READ BACK THREE TIMES. This assertion used to pin the one-comment shape; the contract
+   * is now telc B1's three criteria with a band each, evidence quoted from the letter and corrections — and
+   * it is asserted here as a SHAPE (kind, one band per criterion, no numbers) rather than as a fixed string,
+   * because the bands depend on the learner's text and a frozen expectation would be asserting the fixture.
+   */
+  const feedback = reads[0].assessment.feedback;
+  assert.equal(feedback.kind, 'telc-b1-bands', 'the result carries the band contract');
+  assert.deepEqual(feedback.criteria.map((c) => c.key).sort(), TELC_B1_WRITING_RUBRIC.criteria.map((c) => c.key).sort());
+  for (const criterion of feedback.criteria) {
+    assert.ok(['A', 'B', 'C', 'D'].includes(criterion.band), `${criterion.key} band`);
+    assert.ok(typeof criterion.comment === 'string' && criterion.comment.length > 0, `${criterion.key} comment`);
+  }
+  assert.ok(!JSON.stringify(feedback).match(/"(total|score|punkte)"\s*:/i), 'no numeric verdict may appear while R15 is open');
   assert.deepEqual(reads[1], reads[0]);
   assert.deepEqual(reads[2], reads[0]);
   assert.equal(await w.store.inspect.fingerprint(), fingerprint, 'reading a result writes nothing');

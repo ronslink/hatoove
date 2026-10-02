@@ -675,6 +675,24 @@ async function openSet(setId) {
 }
 
 /*
+ * THE LABEL AND THE CRITERION NAMES, in the interface language.
+ *
+ * The label is required by the decision that defined the band contract: this is practice feedback against
+ * telc's criteria and is NOT an official assessment. The criterion NAMES are the published structure's own
+ * names; the descriptors behind them are this product's own wording (see the rubric in
+ * `server/owned-postgres/content-seed.mjs`) and are deliberately not rendered here as if they were telc's.
+ *
+ * A key with no label falls back to the RAW KEY on screen: an unknown criterion must be VISIBLE rather than
+ * silently dropped, because a missing row looks like a criterion nobody marked.
+ */
+const TELC_FEEDBACK_LABEL = 'Übungsfeedback nach den telc-Kriterien – keine offizielle Bewertung';
+const CRITERION_LABELS = Object.freeze({
+  aufgabe: 'Aufgabenbewältigung',
+  kommunikation: 'Kommunikative Gestaltung',
+  richtigkeit: 'Formale Richtigkeit',
+});
+
+/*
  * ============================================================ writing (PILOT-05)
  *
  * THE FIRST SCREEN IN THIS CLIENT THAT CAN SUBMIT LEARNER TEXT. It exists because the gap was recorded
@@ -892,17 +910,43 @@ async function openWriting(box, task) {
     }
     if (job.status === 'succeeded' && assessment) {
       /*
-       * WHAT THE SERVER ACTUALLY SENDS: `assessment.feedback` and the versions it was produced with. The
-       * rubric has four internal criteria, but the worker does not return per-criterion results yet, so
-       * this renders the feedback it has and says plainly that it is formative — NO total, no /45, no
-       * pass line, and no invented criteria list. A UI that drew four rows from one comment would be
-       * showing a rubric result nobody produced.
+       * THE telc B1 CONTRACT, RENDERED (Ron's D4/R11 answer).
+       *
+       * One row per criterion: the criterion's name, its BAND, the comment written in the language the letter
+       * was submitted under, and the evidence QUOTED from the learner's own text — the quote is the reason
+       * the band is checkable by the person it is about.
+       *
+       * WHAT IS DELIBERATELY ABSENT: any total. R15 — whether to show bands only or also a sum out of 45 — is
+       * an OPEN decision, and the server stores nothing numeric precisely so this screen cannot settle it by
+       * accident. The label says what the feedback is and is not.
+       *
+       * THE RETIRED CONTRACT STILL RENDERS AS ITSELF: an assessment graded under `writing.formative` has one
+       * comment and no criteria, and it is shown as that comment. Relabelling it into bands would be the
+       * renormalisation the decision forbids, so the two shapes are rendered by two branches.
        */
       const feedback = assessment.feedback || {};
+      const criteria = Array.isArray(feedback.criteria) ? feedback.criteria : [];
+      if (feedback.kind === 'telc-b1-bands' && criteria.length) {
+        const corrections = Array.isArray(feedback.corrections) && feedback.corrections.length
+          ? '<p class="small muted">Korrekturen</p><ul class="corrections">'
+            + feedback.corrections.map((c) => '<li>' + esc(String(c)) + '</li>').join('') + '</ul>'
+          : '';
+        say('<p class="muted">' + esc(TELC_FEEDBACK_LABEL) + '</p>'
+          + '<ul class="criteria">' + criteria.map((criterion) => '<li class="criterion">'
+            + '<div class="criterion-head"><strong>' + esc(CRITERION_LABELS[criterion.key] || String(criterion.key))
+            + '</strong><span class="band" aria-label="Band ' + esc(String(criterion.band)) + '">' + esc(String(criterion.band)) + '</span></div>'
+            + (criterion.comment ? '<p class="small muted">' + esc(String(criterion.comment)) + '</p>' : '')
+            + (criterion.evidence ? '<blockquote class="evidence">' + esc(String(criterion.evidence)) + '</blockquote>' : '')
+            + '</li>').join('') + '</ul>'
+          + corrections
+          + '<p class="small muted">Rubrik ' + esc(String(assessment.rubric_version || '')) + '</p>'
+          + sent, { reveal: true });
+        return;
+      }
       say('<p class="muted">Bewertet — formative Rückmeldung, keine Punktzahl und kein Bestehen.</p>'
         + (feedback.comment ? '<p>' + esc(String(feedback.comment)) + '</p>' : '')
         + (assessment.rubric_version ? '<p class="small muted">Rubrik ' + esc(String(assessment.rubric_version)) + '</p>' : '')
-        + sent);
+        + sent, { reveal: true });
       return;
     }
     say('<p class="muted">Abgegeben. Noch keine Bewertung verfügbar.</p>' + sent, { reveal: true });

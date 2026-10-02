@@ -720,7 +720,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       });
     },
 
-    async submit(owner, id, expectedRevision, eventId) {
+    async submit(owner, id, expectedRevision, eventId, explanationLanguage = 'de') {
       note('submit');
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1 ||
           typeof eventId !== 'string' || !UUID_RE.test(eventId)) fail(422, 'invalid_submission');
@@ -742,9 +742,12 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
         if (!entitlement || entitlement.used + entitlement.reserved >= entitlement.allowance) fail(409, 'allowance_exhausted');
         const submissionId = randomUUID();
         await client.query(
-          `INSERT INTO submissions(id, attempt_id, owner_id, event_id, draft_revision, text, task_version, rubric_version)
-           VALUES($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [submissionId, id, owner, eventId, draft.revision, draft.text, attempt.task_version, attempt.rubric_version]);
+          `INSERT INTO submissions(id, attempt_id, owner_id, event_id, draft_revision, text, task_version, rubric_version, explanation_language)
+           VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [submissionId, id, owner, eventId, draft.revision, draft.text, attempt.task_version, attempt.rubric_version,
+            // SNAPSHOTTED, not looked up later: the language the letter was written under travels with it.
+            typeof explanationLanguage === 'string' && explanationLanguage.length <= 16 && explanationLanguage !== ''
+              ? explanationLanguage : 'de']);
         await client.query(
           "INSERT INTO jobs(id, submission_id, owner_id, status) VALUES($1, $2, $3, 'queued')",
           [randomUUID(), submissionId, owner]);

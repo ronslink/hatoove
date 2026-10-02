@@ -1159,6 +1159,56 @@ async function main() {
         + `${afterNew.openForTask} open attempt(s) for the task; state "${afterNew.state}"`);
 
     /*
+     * W11 — A GRADED LETTER SHOWS THE telc BANDS, THE REQUIRED LABEL, AND NO TOTAL.
+     *
+     * The worker's band contract landed in this slice; this is the half a learner actually sees. The stack's
+     * worker is RUNNING here (unlike W10, which stops it to arrange a failure), so the job is graded within
+     * the view's polling window.
+     *
+     * The assertions are the decision's own words: three criteria with a band each, evidence that appears in
+     * the letter the learner wrote, the label that says this is practice feedback and NOT an official
+     * assessment — and no total of 45 anywhere, because R15 is still open and the server stores nothing
+     * numeric so that this screen cannot settle it by accident.
+     */
+    await openWritingTask(cdp, 2, 'W11 a fourth task, graded');
+    await cdp.evaluate(`
+      const area = document.getElementById('writing-text');
+      area.value = ${JSON.stringify('Liebe Frau Berger, ich bedanke mich für den Kurs. Leider konnte ich zweimal nicht teilnehmen, weil ich krank war. Können Sie mir die Unterlagen schicken?')};
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    `);
+    await sleep(1400);
+    await cdp.evaluate(`document.getElementById('writing-submit').click(); return true;`);
+    // The view polls for the result; wait for the graded state rather than a fixed sleep.
+    await softWait(cdp, "/Übungsfeedback nach den telc-Kriterien/.test(document.getElementById('writing-state').innerText)",
+      30000, 'the graded band result');
+    await sleep(300);
+    const graded = await cdp.evaluate(`
+      const state = document.getElementById('writing-state');
+      const text = state ? state.innerText : '';
+      return {
+        state: text.replace(/\\s+/g, ' ').trim().slice(0, 400),
+        bands: [...document.querySelectorAll('#writing-state .band')].map((b) => b.innerText.trim()),
+        criteria: [...document.querySelectorAll('#writing-state .criterion')].length,
+        evidence: [...document.querySelectorAll('#writing-state .evidence')].map((e) => e.innerText.trim()),
+        body: document.body.innerText,
+      };
+    `);
+    await shot(cdp, '13l-writing-graded-bands-desktop-light');
+    record('W11 a graded letter renders one band per telc criterion, with the required label',
+      graded.criteria === 3 && graded.bands.length === 3
+        && graded.bands.every((b) => ['A', 'B', 'C', 'D'].includes(b))
+        && graded.state.includes('Übungsfeedback nach den telc-Kriterien – keine offizielle Bewertung'),
+      `${graded.criteria} criterion row(s), bands ${JSON.stringify(graded.bands)}; state "${graded.state.slice(0, 120)}"`);
+    record('W11b the evidence shown is the learner own sentence, quoted back',
+      graded.evidence.length === 3 && graded.evidence.every((quote) => quote.length > 0 && graded.body.includes(quote)),
+      `${graded.evidence.length} quote(s), first ${JSON.stringify((graded.evidence[0] || '').slice(0, 60))}`);
+    const fabricatedTotal = graded.body.match(/(\b\d{1,2}\s*\/\s*45\b)|(Bestanden)|(Nicht bestanden)|(\b\d{1,2}\s*von\s*15\b)/i);
+    record('W11c no total, no fraction and no pass line appears with the bands',
+      !fabricatedTotal,
+      fabricatedTotal ? `FABRICATED: ${fabricatedTotal[0]}` : 'no score, no fraction, no pass line');
+
+    /*
      * W10 — THE FAILED ASSESSMENT, RENDERED. The property the deleted `mock-outcome-browser-check` held, on
      * the real submission path — and it had never been SEEN: the view renders "Unbewertet" with the failure
      * code, keeps the text and offers a retry, while every previous leg ran against a stub grader that always

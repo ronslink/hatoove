@@ -31,6 +31,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { TELC_B1_WRITING_RUBRIC, FORMATIVE_WRITING_RUBRIC } from './content-seed.mjs';
 
 export const DEFAULT_LEASE_MS = 60000;
 export const DEFAULT_MAX_TRIES = 3;
@@ -43,15 +44,77 @@ const CODE_RE = /^[a-z][a-z0-9_]{0,63}$/;
 const first = (result) => result.rows[0];
 
 /**
- * The deterministic default grader. It is a synthetic assessment and makes **no**
- * provider call — the point of this slice is the queue and the debit, not the model.
- * @returns {{feedback: object, modelVersion: string, promptVersion: string}}
+ * The rubric an attempt was bound to, resolved from the SEED rather than from the request.
+ *
+ * `null` means "the retired formative contract" (one comment), which is what an old attempt being re-graded
+ * must still produce. `undefined` means the worker does not know the rubric at all, and the caller turns
+ * that into a refusal — a grader must not be able to pick a rubric the catalogue never declared.
  */
-export function stubGrade() {
+export function rubricFor(rubricId, rubricVersion) {
+  if (rubricId === TELC_B1_WRITING_RUBRIC.rubricId && rubricVersion === TELC_B1_WRITING_RUBRIC.version) {
+    return TELC_B1_WRITING_RUBRIC;
+  }
+  if (rubricId === FORMATIVE_WRITING_RUBRIC.rubricId && rubricVersion === FORMATIVE_WRITING_RUBRIC.version) {
+    return null; // the retired contract: shaped as one comment, validated as such
+  }
+  return undefined;
+}
+
+/**
+ * The deterministic default grader: a SYNTHETIC band assessment, and still no provider call.
+ *
+ * It has to produce the CURRENT contract, because the validator refuses anything else — and a stub that the
+ * validator rejects would make the one assessment the product ships a failure (the control-case trap that
+ * caught an over-strict `kind` pattern in the fabricated-assessment slice).
+ *
+ * The bands are derived from OBSERVABLE FEATURES of the text, not from a random generator, so the same
+ * letter always gets the same bands and a reviewer can see why: whether the letter addresses a recipient,
+ * and whether it has enough substance to have covered four Leitpunkte. The comments say what they are —
+ * synthetic, produced without a model — in the SNAPSHOTTED explanation language, and the evidence is a
+ * genuine slice of the learner's own text, which is what the validator checks it against.
+ */
+const SYNTHETIC_COMMENT = Object.freeze({
+  de: 'Vorläufige Rückmeldung ohne Modell (Übungsbetrieb).',
+  en: 'Provisional feedback without a model (practice mode).',
+  uk: 'Попередній відгук без моделі (режим практики).',
+  ar: 'ملاحظات مبدئية بدون نموذج (وضع التدريب).',
+  tr: 'Model olmadan geçici geri bildirim (alıştırma kipi).',
+});
+
+/** The first sentence of the text, as a slice — so the quote is guaranteed to be the learner's own words. */
+export function firstSentence(text) {
+  const value = String(text || '').trim();
+  if (!value) return '';
+  const match = /^[\s\S]*?[.!?](\s|$)/.exec(value);
+  const sentence = (match ? match[0] : value).trim();
+  return sentence.length > 0 ? sentence : value.slice(0, 60);
+}
+
+export function stubGrade({ text = '', explanationLanguage = 'de' } = {}) {
+  const body = String(text || '');
+  const comment = SYNTHETIC_COMMENT[String(explanationLanguage || 'de').slice(0, 2)] || SYNTHETIC_COMMENT.de;
+  const evidence = firstSentence(body);
+  // Two observable features, no model: does the letter address someone, and is there any substance?
+  const addressed = /(liebe|sehr geehrte|hallo|guten tag)/i.test(body);
+  const substantial = body.length >= 120;
+  const bands = {
+    aufgabe: substantial ? 'B' : 'C',
+    kommunikation: addressed ? 'B' : 'C',
+    richtigkeit: 'B',
+  };
   return {
-    feedback: { kind: 'synthetic-formative', comment: 'Synthetic stub feedback (no provider call).' },
-    modelVersion: 'stub-grader-v1',
-    promptVersion: 'stub-grader-v1',
+    feedback: {
+      kind: BAND_KIND,
+      criteria: TELC_B1_WRITING_RUBRIC.criteria.map((criterion) => ({
+        key: criterion.key,
+        band: bands[criterion.key] || 'C',
+        evidence,
+        comment,
+      })),
+      corrections: [],
+    },
+    modelVersion: 'stub-grader-v2',
+    promptVersion: 'stub-grader-v2',
   };
 }
 
@@ -85,9 +148,16 @@ export const INVALID_ASSESSMENT = 'invalid_assessment';
  * rather than a silent consequence of a provider changing its response shape.
  */
 const ASSESSMENT_FIELDS = ['feedback', 'modelVersion', 'promptVersion'];
-const FEEDBACK_FIELDS = ['kind', 'comment'];
+/** The RETIRED contract's feedback: one comment. Kept so an old attempt can still be re-graded. */
+const LEGACY_FEEDBACK_FIELDS = ['kind', 'comment'];
+/** The CURRENT contract's feedback: one band per criterion, plus quoted evidence and corrections. */
+const BAND_FEEDBACK_FIELDS = ['kind', 'criteria', 'corrections'];
 const COMMENT_LIMIT = 4000;
+const EVIDENCE_LIMIT = 2000;
 const VERSION_LIMIT = 120;
+const CORRECTION_LIMIT = 1000;
+const MAX_CORRECTIONS = 40;
+const BAND_KIND = 'telc-b1-bands';
 
 /**
  * A `kind` is a token WITH dashes allowed: the shipped stub reports `synthetic-formative`, and reusing the
@@ -97,7 +167,22 @@ const VERSION_LIMIT = 120;
  */
 const KIND_RE = /^[a-z][a-z0-9_-]{0,47}$/;
 
-export function validateAssessment(assessment) {
+/**
+ * THE BAND CONTRACT, VALIDATED AGAINST THE RUBRIC THE ATTEMPT WAS BOUND TO.
+ *
+ * Ron's D4/R11 answer: the writing feedback follows the exam's own marking structure — one BAND per
+ * criterion, with the evidence QUOTED from the learner's text and a comment in the language the letter was
+ * written under. Missing, duplicate or unknown criteria, a band outside A-D, or evidence that is not a quote
+ * make the result a CLASSIFIED FAILURE ("Unbewertet", text preserved, reservation refunded) — never a
+ * partial grade.
+ *
+ * TWO RULES THAT ARE EASY TO GET WRONG, AND ARE THEREFORE ASSERTED:
+ *   * the rubric comes from the ATTEMPT, not from the grader: a grader cannot mark against a rubric of its
+ *     own choosing, and a rubric this worker does not know is a failure rather than a free pass;
+ *   * NOTHING NUMERIC is allowed anywhere in the feedback, because R15 (bands only vs a total out of 45) is
+ *     still open and a number would decide it by accident.
+ */
+export function validateAssessment(assessment, { rubric = null, text = '' } = {}) {
   const bad = (detail) => {
     const error = new Error(`The assessment shape is not allowed: ${detail}`);
     error.code = INVALID_ASSESSMENT;
@@ -109,24 +194,89 @@ export function validateAssessment(assessment) {
   }
   const feedback = assessment.feedback;
   if (!feedback || typeof feedback !== 'object' || Array.isArray(feedback)) throw bad('feedback must be an object');
-  for (const key of Object.keys(feedback)) {
-    // `criteria`, `total`, `score`, `bestanden`… every one of them lands here, and the message names the
-    // field so the failure is diagnosable rather than mysterious.
-    if (!FEEDBACK_FIELDS.includes(key)) throw bad(`unknown feedback field "${key}"`);
-  }
-  if (feedback.kind !== undefined && (typeof feedback.kind !== 'string' || !KIND_RE.test(feedback.kind))) {
-    throw bad('feedback.kind must be a token');
-  }
-  if (feedback.comment !== undefined
-    && (typeof feedback.comment !== 'string' || feedback.comment.length > COMMENT_LIMIT)) {
-    throw bad(`feedback.comment must be a string of at most ${COMMENT_LIMIT} characters`);
-  }
+
   for (const field of ['modelVersion', 'promptVersion']) {
     const value = assessment[field];
     if (value !== undefined && (typeof value !== 'string' || value.length === 0 || value.length > VERSION_LIMIT)) {
       throw bad(`${field} must be a non-empty string of at most ${VERSION_LIMIT} characters`);
     }
   }
+
+  /*
+   * NO RUBRIC, NO BANDS. An attempt bound to a rubric this worker cannot resolve is marked "unbewertet"
+   * rather than accepted on trust: the whole point of the binding is that someone can say which contract a
+   * result was produced under.
+   */
+  if (!rubric) {
+    // The RETIRED contract, for an old attempt being re-graded: one comment, unchanged.
+    for (const key of Object.keys(feedback)) {
+      if (!LEGACY_FEEDBACK_FIELDS.includes(key)) throw bad(`unknown feedback field "${key}"`);
+    }
+    if (feedback.kind !== undefined && (typeof feedback.kind !== 'string' || !KIND_RE.test(feedback.kind))) {
+      throw bad('feedback.kind must be a token');
+    }
+    if (feedback.comment !== undefined
+      && (typeof feedback.comment !== 'string' || feedback.comment.length > COMMENT_LIMIT)) {
+      throw bad(`feedback.comment must be a string of at most ${COMMENT_LIMIT} characters`);
+    }
+    return assessment;
+  }
+
+  for (const key of Object.keys(feedback)) {
+    // `total`, `score`, `bestanden`, `punkte`… every one of them lands here, and the message names the
+    // field so the failure is diagnosable rather than mysterious.
+    if (!BAND_FEEDBACK_FIELDS.includes(key)) throw bad(`unknown feedback field "${key}"`);
+  }
+  if (feedback.kind !== BAND_KIND) throw bad(`feedback.kind must be "${BAND_KIND}" for this rubric`);
+  if (!Array.isArray(feedback.criteria)) throw bad('feedback.criteria must be an array');
+
+  const expected = rubric.criteria.map((criterion) => criterion.key);
+  const bands = Object.keys(rubric.criteria[0].bands || {});
+  const seen = new Set();
+  for (const [index, criterion] of feedback.criteria.entries()) {
+    if (!criterion || typeof criterion !== 'object' || Array.isArray(criterion)) throw bad(`criteria[${index}] must be an object`);
+    for (const key of Object.keys(criterion)) {
+      if (!['key', 'band', 'evidence', 'comment'].includes(key)) throw bad(`criteria[${index}]: unknown field "${key}"`);
+    }
+    if (!expected.includes(criterion.key)) throw bad(`criteria[${index}]: unknown criterion "${criterion.key}"`);
+    if (seen.has(criterion.key)) throw bad(`criteria[${index}]: "${criterion.key}" appears twice`);
+    seen.add(criterion.key);
+    if (!bands.includes(criterion.band)) throw bad(`criteria[${index}] (${criterion.key}): band must be one of ${bands.join('/')}, got ${JSON.stringify(criterion.band)}`);
+    if (typeof criterion.evidence !== 'string' || criterion.evidence.trim().length === 0 || criterion.evidence.length > EVIDENCE_LIMIT) {
+      throw bad(`criteria[${index}] (${criterion.key}): evidence must be a non-empty quote`);
+    }
+    /*
+     * THE QUOTE MUST BE FROM THE LEARNER'S TEXT. This is the rule that makes the evidence worth reading: a
+     * grader that invents a justification is inventing the reason for the band, and the learner sees the
+     * quote beside their own sentence.
+     */
+    if (!String(text).includes(criterion.evidence)) {
+      throw bad(`criteria[${index}] (${criterion.key}): evidence is not quoted from the submitted text`);
+    }
+    if (typeof criterion.comment !== 'string' || criterion.comment.trim().length === 0 || criterion.comment.length > COMMENT_LIMIT) {
+      throw bad(`criteria[${index}] (${criterion.key}): comment must be a non-empty string`);
+    }
+  }
+  const missing = expected.filter((key) => !seen.has(key));
+  if (missing.length) throw bad(`missing criterion/criteria: ${missing.join(', ')}`);
+
+  if (!Array.isArray(feedback.corrections)) throw bad('feedback.corrections must be an array');
+  if (feedback.corrections.length > MAX_CORRECTIONS) throw bad(`at most ${MAX_CORRECTIONS} corrections`);
+  for (const [index, correction] of feedback.corrections.entries()) {
+    if (typeof correction !== 'string' || correction.trim().length === 0 || correction.length > CORRECTION_LIMIT) {
+      throw bad(`corrections[${index}] must be a non-empty string`);
+    }
+  }
+
+  // R15 IS OPEN: a number here would answer it. Checked last so the message names the field it found.
+  const numeric = [];
+  const scan = (value, at) => {
+    if (typeof value === 'number') numeric.push(at);
+    else if (value && typeof value === 'object') for (const [key, inner] of Object.entries(value)) scan(inner, `${at}.${key}`);
+  };
+  scan(feedback, 'feedback');
+  if (numeric.length) throw bad(`nothing numeric may be stored while the score contract is open: ${numeric.join(', ')}`);
+
   return assessment;
 }
 
@@ -190,7 +340,7 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
 
     const submissionId = claimed.submission_id;
     const row = first(await pool.query(
-      `SELECT s.id, s.owner_id, s.text, s.task_version, s.rubric_version, a.deleted_at
+      `SELECT s.id, s.owner_id, s.text, s.task_version, s.rubric_version, s.explanation_language, a.rubric_id, a.deleted_at
        FROM submissions s JOIN attempts a ON a.id = s.attempt_id
        WHERE s.id = $1`, [submissionId]));
     // Mirror the fixture's `complete`/`fail`: a submission whose attempt is tombstoned is
@@ -205,7 +355,10 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
         submissionId,
         text: row.text,
         taskVersion: row.task_version,
+        rubricId: row.rubric_id,
         rubricVersion: row.rubric_version,
+        // SNAPSHOTTED at submit time (migration 0018), so the feedback does not change language later.
+        explanationLanguage: row.explanation_language,
         ownerId: row.owner_id,
       });
       /*
@@ -213,8 +366,15 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
        * `invalid_assessment` code, the reservation refunded, nothing written. Validating here rather than
        * in `completeSuccess` also means the refusal happens BEFORE the transaction that writes the row,
        * so there is no window in which a fabricated assessment exists.
+       *
+       * The rubric is resolved from the ATTEMPT. A rubric this worker does not know is a REFUSAL rather
+       * than a free pass — nobody may grade against a contract the catalogue never declared — and the
+       * retired formative contract still validates in its own one-comment shape, so an old attempt can be
+       * re-graded without being relabelled into the current one.
        */
-      validateAssessment(assessment);
+      const rubric = rubricFor(row.rubric_id, row.rubric_version);
+      if (rubric === undefined) throw Object.assign(new Error('unknown rubric'), { code: INVALID_ASSESSMENT });
+      validateAssessment(assessment, { rubric, text: row.text });
     } catch (error) {
       return completeFailure({ submissionId, token, code: failureCodeOf(error) });
     }

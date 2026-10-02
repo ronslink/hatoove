@@ -33,6 +33,7 @@ import path from 'node:path';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createWorker, stubGrade } from '../server/owned-postgres/worker.mjs';
+import { TELC_B1_WRITING_RUBRIC } from '../server/owned-postgres/content-seed.mjs';
 
 /* =============================================================== the world */
 
@@ -172,7 +173,13 @@ check('1. full pipeline: submit debits once, runOnce grades, result() returns th
   assert.equal(entBefore.used, 0);
   assert.equal(await assessmentCount(s.submissionId), 0, 'nothing is graded until the runner runs');
 
-  const worker = createWorker({ pool: db.worker });
+  /*
+   * THE STUB NEEDS ITS INPUT. `stubGrade()` with no arguments produces EMPTY evidence, and the band
+   * validator refuses evidence that is not a quote from the learner's text — correctly, since that is the
+   * rule that makes the evidence worth reading. So a grader in a test must be handed the input the worker
+   * passes, exactly as the shipped default is.
+   */
+  const worker = createWorker({ pool: db.worker, grade: (input) => stubGrade(input) });
   const outcome = await worker.runOnce();
   assert.deepEqual(outcome, { claimed: true, submissionId: s.submissionId, outcome: 'succeeded' });
 
@@ -190,7 +197,10 @@ check('1. full pipeline: submit debits once, runOnce grades, result() returns th
   const result = await call('GET', `/api/v1/submissions/${s.submissionId}`, { cookie: a.cookie });
   assert.equal(result.status, 200);
   assert.equal(result.json.job.status, 'succeeded');
-  assert.deepEqual(result.json.assessment.feedback, stubGrade().feedback, 'the injected stub grader is the source');
+  // The assertion below compares against the SAME shape the injected grader produced, from the same input.
+  assert.deepEqual(result.json.assessment.feedback,
+    stubGrade({ text: 'Liebe Frau Weber, ich schreibe Ihnen wegen eines Termins.' }).feedback,
+    'the injected stub grader is the source');
   return `queued->succeeded; reserved=1->0, used=0->1; assessment rows=1; result() served the stub assessment`;
 });
 
@@ -297,6 +307,151 @@ check('3b. an assessment carrying a score, a total or a pass band fails the job 
   return `refused ${refused.length} fabricated shapes (${seen.join(', ')}) with a refund and nothing stored; the shipped stub still succeeds`;
 });
 
+/*
+ * 3c. THE telc B1 RUBRIC, ON THE WIRE: ONE BAND PER CRITERION, EVIDENCE QUOTED, NO NUMBERS.
+ *
+ * Ron's D4/R11 answer made the writing feedback follow the exam's own marking structure. The stored
+ * assessment is therefore not a comment any more: it is one BAND per criterion, with the evidence QUOTED
+ * from the learner's own text, a comment in the language the letter was written under, and a list of
+ * corrections.
+ *
+ * TWO ASSERTIONS HERE ARE THE WHOLE CONTRACT:
+ *   * `evidence` must be a SUBSTRING of the submitted text. A grader that invents evidence is inventing the
+ *     reason for the band, and the learner can see the quote next to their own sentence.
+ *   * NOTHING NUMERIC may be stored. R15 — whether to show bands only or also a total out of 45 — is still
+ *     open, and storing a number would decide it by accident. The scan walks the whole feedback object.
+ */
+check('3c. the telc rubric: one band per criterion, evidence quoted from the text, and no numbers', async () => {
+  const call = caller(world.api);
+  await drain();
+  const a = await signUp(call, 'p3c');
+  const text = 'Liebe Anna, ich freue mich über deinen Besuch. Am Samstag habe ich Zeit. Wir können ins Museum gehen.';
+  const s = await submit(call, a.cookie, text);
+
+  const outcome = await createWorker({ pool: db.worker }).runOnce();
+  assert.equal(outcome.outcome, 'succeeded',
+    `the SHIPPED stub must produce the band shape (got ${outcome.outcome}${outcome.code ? ' ' + outcome.code : ''})`);
+
+  const row = await assessmentOf(s.submissionId);
+  const feedback = row.feedback;
+  assert.equal(feedback.kind, 'telc-b1-bands', 'the assessment names the contract it satisfies');
+  assert.deepEqual(row.rubric_version, 'v1');
+
+  const expected = TELC_B1_WRITING_RUBRIC.criteria.map((c) => c.key).sort();
+  const seen = feedback.criteria.map((c) => c.key).sort();
+  assert.deepEqual(seen, expected, `exactly the rubric's criteria, once each (got ${seen.join(', ')})`);
+  assert.equal(feedback.criteria.length, expected.length, 'no duplicate criterion');
+
+  for (const criterion of feedback.criteria) {
+    assert.ok(['A', 'B', 'C', 'D'].includes(criterion.band), `${criterion.key}: band must be A-D, got ${criterion.band}`);
+    assert.ok(typeof criterion.comment === 'string' && criterion.comment.trim().length > 0, `${criterion.key}: a comment`);
+    assert.ok(typeof criterion.evidence === 'string' && criterion.evidence.trim().length > 0, `${criterion.key}: evidence`);
+    assert.ok(text.includes(criterion.evidence),
+      `${criterion.key}: evidence must be QUOTED from the learner's text, got ${JSON.stringify(criterion.evidence)}`);
+  }
+  assert.ok(Array.isArray(feedback.corrections), 'a corrections list');
+  assert.ok(feedback.corrections.every((c) => typeof c === 'string' && c.trim().length > 0), 'corrections are non-empty strings');
+
+  const numbers = [];
+  const scan = (value, at) => {
+    if (typeof value === 'number') numbers.push(at);
+    else if (value && typeof value === 'object') for (const [key, inner] of Object.entries(value)) scan(inner, `${at}.${key}`);
+  };
+  scan(feedback, 'feedback');
+  assert.deepEqual(numbers, [], `nothing numeric may be stored while R15 is open; found ${numbers.join(', ')}`);
+
+  // AND THE LEARNER CAN READ IT: the same shape comes back from the API.
+  const result = await call('GET', `/api/v1/submissions/${s.submissionId}`, { cookie: a.cookie });
+  assert.equal(result.status, 200, result.text);
+  assert.equal(result.json.assessment.feedback.kind, 'telc-b1-bands');
+  assert.equal(result.json.assessment.feedback.criteria.length, expected.length);
+  return `bands ${feedback.criteria.map((c) => `${c.key}=${c.band}`).join(' ')}; evidence quoted from the text; ${feedback.corrections.length} correction(s); no numeric field`;
+});
+
+/*
+ * 3d. ANYTHING BUT ONE BAND PER CRITERION IS A CLASSIFIED FAILURE, NEVER A PARTIAL GRADE.
+ *
+ * The decision is explicit: "Missing, duplicate or unknown criteria, or a band outside A–D, makes the result
+ * a classified failure ('Unbewertet', text preserved), never a partial grade." The same must hold for
+ * evidence that is not a quote — an invented justification is as bad as an invented band — and for anything
+ * numeric, which would pre-empt R15.
+ */
+check('3d. a band assessment that breaks the contract fails the job and stores nothing', async () => {
+  const call = caller(world.api);
+  await drain();
+  const keys = TELC_B1_WRITING_RUBRIC.criteria.map((c) => c.key);
+  const quote = 'Am Samstag habe ich Zeit.';
+  const criterion = (key, band = 'B') => ({ key, band, evidence: quote, comment: 'Nachvollziehbar.' });
+  const full = () => keys.map((key) => criterion(key));
+  const cases = [
+    ['a missing criterion', () => ({ criteria: full().slice(0, 2), corrections: [] })],
+    ['a duplicated criterion', () => ({ criteria: [...full(), criterion(keys[0])], corrections: [] })],
+    ['an unknown criterion', () => ({ criteria: [...full().slice(0, 2), criterion('ausdruck')], corrections: [] })],
+    ['a band outside A-D', () => ({ criteria: [criterion(keys[0], 'E'), ...full().slice(1)], corrections: [] })],
+    ['a lowercase band', () => ({ criteria: [criterion(keys[0], 'b'), ...full().slice(1)], corrections: [] })],
+    ['a numeric band', () => ({ criteria: [{ ...criterion(keys[0]), band: 5 }, ...full().slice(1)], corrections: [] })],
+    ['evidence that is NOT in the text', () => ({ criteria: [{ ...criterion(keys[0]), evidence: 'Dieser Satz steht nicht im Text.' }, ...full().slice(1)], corrections: [] })],
+    ['a numeric total beside the bands', () => ({ ...{ criteria: full(), corrections: [] }, total: 35 })],
+    ['corrections that are not strings', () => ({ criteria: full(), corrections: [7] })],
+    ['a missing kind', () => ({ criteria: full(), corrections: [] })],
+  ];
+  const seen = [];
+  for (const [what, build] of cases) {
+    const a = await signUp(call, 'p3d');
+    const s = await submit(call, a.cookie, `Text für ${what}. Am Samstag habe ich Zeit.`);
+    const grade = () => ({ feedback: build(), modelVersion: 'test', promptVersion: 'test' });
+    const outcome = await createWorker({ pool: db.worker, grade }).runOnce();
+    assert.equal(outcome.outcome, 'failed', `${what}: must fail the job, got ${outcome.outcome}`);
+    assert.equal(outcome.code, 'invalid_assessment', `${what}: stable code, got ${outcome.code}`);
+    assert.equal(await assessmentCount(s.submissionId), 0, `${what}: nothing may be stored`);
+    assert.equal((await entitlement(a.userId)).reserved, 0, `${what}: the reservation is refunded`);
+    seen.push(what);
+  }
+  // THE CONTROL: the shipped stub passes the same gate, so this leg cannot be satisfied by refusing all.
+  const control = await signUp(call, 'p3d-control');
+  const controlSubmission = await submit(call, control.cookie, 'Kontrolltext. Am Samstag habe ich Zeit.');
+  const ok = await createWorker({ pool: db.worker }).runOnce();
+  assert.equal(ok.outcome, 'succeeded', `the shipped stub must still grade, got ${ok.outcome} ${ok.code || ''}`);
+  assert.equal(await assessmentCount(controlSubmission.submissionId), 1);
+  return `${cases.length} malformed assessments refused (${seen.length} distinct shapes) with nothing stored; the shipped stub still succeeds`;
+});
+
+/*
+ * 3e. THE EXPLANATION LANGUAGE IS SNAPSHOTTED AT SUBMIT TIME.
+ *
+ * The decision says the per-criterion comment is written "in the job's snapshotted explanation language".
+ * Snapshotted is the operative word: a learner who writes in Ukrainian and switches the setting to German
+ * tomorrow must still have their letter marked with the language it was written under — otherwise the
+ * feedback a learner reads depends on when they read it.
+ */
+check('3e. the explanation language is snapshotted at submit time and never rewritten', async () => {
+  const call = caller(world.api);
+  await drain();
+  const a = await signUp(call, 'p3e');
+  const settings = await call('GET', '/api/v1/settings', { cookie: a.cookie });
+  const set = await call('PUT', '/api/v1/settings', {
+    cookie: a.cookie, body: { expectedRevision: settings.json.revision, settings: { language: 'uk' } },
+  });
+  assert.equal(set.status, 200, `setting the explanation language: ${set.status} ${JSON.stringify(set.json)}`);
+
+  const s = await submit(call, a.cookie, 'Текст для перевірки. Am Samstag habe ich Zeit.');
+  let seen = null;
+  const grade = (input) => { seen = input; return stubGrade(input); };
+  const outcome = await createWorker({ pool: db.worker, grade }).runOnce();
+  assert.equal(outcome.outcome, 'succeeded', `${outcome.outcome} ${outcome.code || ''}`);
+  assert.equal(seen.explanationLanguage, 'uk', `the grader must receive the snapshotted language, got ${JSON.stringify(seen.explanationLanguage)}`);
+  assert.equal(seen.rubricId, TELC_B1_WRITING_RUBRIC.rubricId, 'and which rubric it is marking against');
+
+  // Switching the setting afterwards must not rewrite what the letter was written under.
+  const changed = await call('PUT', '/api/v1/settings', {
+    cookie: a.cookie, body: { expectedRevision: set.json.revision, settings: { language: 'de' } },
+  });
+  assert.equal(changed.status, 200, changed.text);
+  const stored = await one('SELECT explanation_language FROM submissions WHERE id = $1', [s.submissionId]);
+  assert.equal(stored.explanation_language, 'uk', 'the submission keeps the language it was submitted under');
+  return 'grader received uk; the stored snapshot stayed uk after the learner switched to de';
+});
+
 check('4. retry limit: retry() works at tries=2 and is refused at tries=3 (the boundary, not just the far side)', async () => {
   const call = caller(world.api);
   await drain();
@@ -343,21 +498,26 @@ check('5. lease fence: a worker whose lease lapsed cannot commit; the assessment
 
   // A's lease lapses and B reclaims, claims and completes the job with a distinguishable assessment.
   clock.advance(120000);
-  const workerB = createWorker({ pool: db.worker, now: clock.now, leaseMs: 60000, grade: () => ({ feedback: { kind: 'synthetic-formative', comment: 'B committed this.' }, modelVersion: 'stub-B', promptVersion: 'stub-B' }) });
+  const workerB = createWorker({ pool: db.worker, now: clock.now, leaseMs: 60000, grade: (input) => ({ ...stubGrade(input), modelVersion: 'stub-B', promptVersion: 'stub-B' }) });
   const reclaimed = await workerB.reclaimExpired();
   assert.equal(reclaimed.requeued, 1, 'the lapsed lease returns the job to queued');
   const bOutcome = await workerB.runOnce();
   assert.deepEqual(bOutcome, { claimed: true, submissionId: s.submissionId, outcome: 'succeeded' });
 
   // Now A's grade resolves. Its token is stale, so the fence must refuse the commit.
-  releaseA({ feedback: { kind: 'synthetic-formative', comment: 'A is stale and must not win.' }, modelVersion: 'stub-A', promptVersion: 'stub-A' });
+  /*
+   * A's assessment must still be a VALID one: the shape gate runs BEFORE the fence check, so an invalid
+   * shape would fail the job ('failed') instead of being refused as stale — and the leg would then be
+   * asserting the wrong refusal. Built from the same stub and the same text, so it is valid by construction.
+   */
+  releaseA({ ...stubGrade({ text: 'Text für die Lease-Fence.' }), modelVersion: 'stub-A', promptVersion: 'stub-A' });
   const aOutcome = await pendingA;
   assert.deepEqual(aOutcome, { claimed: true, submissionId: s.submissionId, outcome: 'stale' }, 'A must not commit');
 
   assert.equal(await assessmentCount(s.submissionId), 1, 'exactly one assessment');
   const assessment = await assessmentOf(s.submissionId);
-  assert.equal(assessment.feedback.comment, 'B committed this.', "the surviving assessment is B's, not A's");
-  assert.equal(assessment.model_version, 'stub-B');
+  assert.equal(assessment.model_version, 'stub-B', "the surviving assessment is B's, not A's");
+  assert.equal(assessment.feedback.kind, 'telc-b1-bands', 'and it is a complete band assessment');
   // And the debit is B's single one, not two.
   const ent = await entitlement(a.userId);
   assert.deepEqual([ent.reserved, ent.used], [0, 1]);

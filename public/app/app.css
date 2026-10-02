@@ -214,3 +214,20 @@ code {
 /* Two buttons in a row on a desktop card; they wrap rather than clip on a phone. */
 .writing-state .btn, .card .row { margin-top: 0.6rem; }
 .row { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+/*
+ * THE telc BAND RESULT (D4/R11). Shell layer, never the pinned design file: `assets/design/hatoove.css` is a
+ * reviewed artifact whose digest is the contract, and new chrome belongs beside it.
+ *
+ * NO TOTAL IS STYLED, and none may be added here: R15 — bands only, or also a sum out of 45 — is still an
+ * open decision, and the server stores nothing numeric so that the screen cannot settle it by accident.
+ */
+.criteria { list-style: none; margin: 0.5rem 0 0; padding: 0; }
+.criterion { margin: 0.75rem 0; padding: 0.6rem 0.75rem; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.criterion-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+/* The band is the mark: one letter, in the display face, with room around it so it reads as a mark rather than a word. */
+.band { font-family: var(--display, inherit); font-size: 1.15rem; font-weight: 700; min-width: 1.6em; text-align: center; }
+.criterion p { margin: 0.35rem 0 0; }
+/* The quote from the learner's own text: indented, plain, and never mistaken for interface copy. */
+.evidence { margin: 0.4rem 0 0; padding: 0.35rem 0 0.35rem 0.75rem; border-left: 3px solid var(--orange); font-style: italic; overflow-wrap: anywhere; }
+.corrections { margin: 0.3rem 0 0; padding-left: 1.2rem; }

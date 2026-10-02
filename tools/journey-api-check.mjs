@@ -235,7 +235,8 @@ leg('J7', 'worker produces feedback in the chosen language (recoverable, one deb
     const created = await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} });
     if (created.status !== 201) return createdAtFail(ctx, created, 'MFP-06a');
     const id = created.json.id;
-    await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${id}`, { body: { expectedRevision: 1, text: 'Text für die Bewertung durch den Worker.' } });
+    const submittedText = 'Text für die Bewertung durch den Worker.';
+    await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${id}`, { body: { expectedRevision: 1, text: submittedText } });
 
     const before = await ctx.entitlement(a.userId);
     const sent = await ctx.call(a.jar, 'POST', `/api/v1/attempts/${id}/submissions`, { body: { expectedRevision: 2, eventId: randomUUID() } });
@@ -261,12 +262,31 @@ leg('J7', 'worker produces feedback in the chosen language (recoverable, one deb
       await new Promise((r) => setTimeout(r, 200));
     }
 
-    // The assessment is the DETERMINISTIC STUB's, which no provider call could produce.
-    const expected = stubGrade();
+    /*
+     * The assessment is the DETERMINISTIC STUB's, which no provider call could produce.
+     *
+     * Compared from the SAME function and the SAME input the worker gives the grader (`stubGrade` takes the
+     * text so it can quote evidence), not from a frozen copy of the shape: a frozen expectation asserts
+     * yesterday's contract and would have to be edited every time the contract legitimately changes — which
+     * is exactly what happened when the writing rubric became telc B1's three-criterion one.
+     */
+    const expected = stubGrade({ text: submittedText });
     if (last.assessment.model_version !== expected.modelVersion) {
       return fail(`the assessment was not produced by the stub grader (model_version=${last.assessment.model_version}); a provider call is unproven`);
     }
-    if (JSON.stringify(last.assessment.feedback) !== JSON.stringify(expected.feedback)) {
+    /*
+     * CANONICAL COMPARISON, because `jsonb` does not keep the key order it was given: PostgreSQL sorts
+     * object keys by length then alphabetically, so `{key, band, evidence, comment}` comes back as
+     * `{key, band, comment, evidence}`. A `JSON.stringify` equality check therefore fails on a difference
+     * that is not one — the values are identical. Canonicalising both sides compares the CONTENT, which is
+     * what this leg is about.
+     */
+    const canonical = (value) => (Array.isArray(value)
+      ? value.map(canonical)
+      : (value && typeof value === 'object'
+        ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]))
+        : value));
+    if (JSON.stringify(canonical(last.assessment.feedback)) !== JSON.stringify(canonical(expected.feedback))) {
       return fail(`the served feedback is not the stub's: ${JSON.stringify(last.assessment.feedback)}`);
     }
     if (await ctx.assessmentCount(submissionId) !== 1) return fail('expected exactly one assessment row');

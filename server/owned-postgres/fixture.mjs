@@ -10,6 +10,7 @@
  */
 
 import { createFixture } from './bootstrap.mjs';
+import { stubGrade, rubricFor } from './worker.mjs';
 import { createPostgresDatastore, createPostgresAccountDeletion } from './adapter.mjs';
 import { createPostgresSessions } from './sessions.mjs';
 import { createPostgresSettings } from './settings.mjs';
@@ -115,16 +116,33 @@ export async function createPostgresWorld({ allowance = 10, fixture, deletion } 
     async complete(submissionId, comment) {
       return workerTransaction(async (client) => {
         const job = (await client.query(
-          `SELECT j.id, j.status, s.owner_id, s.attempt_id, s.rubric_version
+          // `rubric_id` lives on the ATTEMPT, not on the submission — the submission carries the VERSIONS it
+          // froze. Selecting `s.rubric_id` would be a column that does not exist (SQLSTATE 42703).
+          `SELECT j.id, j.status, s.owner_id, s.attempt_id, s.rubric_version, s.text, s.explanation_language,
+                  a.rubric_id
            FROM jobs j JOIN submissions s ON s.id = j.submission_id
+                       JOIN attempts a ON a.id = s.attempt_id
            WHERE j.submission_id = $1 FOR UPDATE OF j`, [submissionId])).rows[0];
         if (!job || job.status !== 'running') return false;
         const attempt = (await client.query('SELECT deleted_at FROM attempts WHERE id = $1', [job.attempt_id])).rows[0];
         if (!attempt || attempt.deleted_at) return false;
+        /*
+         * THE FIXTURE PRODUCES WHAT THE PRODUCT PRODUCES, from the same function the shipped stub uses.
+         *
+         * This used to write a one-comment `synthetic-formative` assessment, which stopped being the current
+         * contract when the writing rubric became telc B1's three-criterion one. A fixture that fabricates a
+         * shape the grader cannot produce is how a suite ends up asserting yesterday's contract: the
+         * `comment` argument is kept for the RETIRED rubric (an old attempt being completed), and the
+         * current rubric gets the band shape, built by `stubGrade` so there is one definition of it.
+         */
+        const rubric = rubricFor(job.rubric_id, job.rubric_version);
+        const feedback = rubric
+          ? stubGrade({ text: job.text, explanationLanguage: job.explanation_language }).feedback
+          : { kind: 'synthetic-formative', comment };
         await client.query(
           `INSERT INTO assessments(submission_id, owner_id, feedback, model_version, prompt_version, rubric_version)
            VALUES($1, $2, $3::jsonb, 'fixture-v1', 'fixture-v1', $4)`,
-          [submissionId, job.owner_id, JSON.stringify({ kind: 'synthetic-formative', comment }), job.rubric_version]);
+          [submissionId, job.owner_id, JSON.stringify(feedback), job.rubric_version]);
         await client.query('INSERT INTO usage_ledger(submission_id, owner_id, units) VALUES($1, $2, 1)', [submissionId, job.owner_id]);
         await client.query('UPDATE entitlements SET reserved = reserved - 1, used = used + 1 WHERE owner_id = $1', [job.owner_id]);
         await client.query("UPDATE jobs SET status = 'succeeded', lease_token = NULL, lease_until = NULL WHERE id = $1", [job.id]);
