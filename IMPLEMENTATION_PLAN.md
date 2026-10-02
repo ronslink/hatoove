@@ -1,10 +1,12 @@
 # Hatoove implementation plan
 
-## Multi-exam assessment — 2 October 2026
+## Adopted mock-preparation plan — 2 October 2026
 
-**Claude follow-up:** actual Claude Opus 5.5 reviewed the plan at `7a7caa0` with no repository tools. [Its recommendations and coordinator assessment](work/implementation/CLAUDE-MULTI-EXAM-REVIEW-20261002.md) favour a telc-first preparation journey, smaller release model and DTZ reading/writing/listening slices. These are recorded recommendations; the original proposal and runtime remain unchanged. The board records the same review transition.
+**Ron's fixed release rules:** DTZ releases with all supported written sections (reading, listening and writing) together; S3/S4 are internal milestones only. Each DTZ recording plays once per attempt in both practice and mock-exam mode. Credits belong to one selected exam package, with no pooling, transfer or refill when creating/switching preparations. S1 includes exam-scoped entitlements and preserved legacy balances; S6 verifies complete DTZ availability, playback and debit isolation before release.
 
-Execution **EXAM-ARCH-20261002-A** assesses DTZ A2–B1 alongside telc Deutsch B1 and future exam packages at base `c06a087`. The [architecture proposal](work/implementation/MULTI-EXAM-ARCHITECTURE-20261002.md) records official format differences, code gaps, the account → preparation → versioned package model, selection/resume UX, content publishing and proposed EXAM-01–06 slices. **State: assessed and proposed; no implementation or package release is authorised by this record.** The next engineering slice recommended is the package/preparation/blueprint contract, then scoped APIs. The [board](work/BOARD.md) records the same transition; existing pilot and human-review gates remain unchanged.
+**EXAM-ADOPT-20261002-A:** Ron clarified that Hatoove delivers mock exams for preparation, not official examinations, and adopted [Claude's recommendations](work/implementation/CLAUDE-MULTI-EXAM-REVIEW-20261002.md). Actual Claude Opus 5.5 reviewed the earlier plan at `7a7caa0` with no repository tools. [The revised architecture](work/implementation/MULTI-EXAM-ARCHITECTURE-20261002.md), pilot plan, master plan and D9 now adopt stable exam-bound preparations, exact versions on attempts/mock runs, one minimal release manifest, single-option chooser bypass, autosave-first switching and telc-first vertical delivery. Section practice is labelled honestly; complete written mocks require all target written sections including reviewed audio. No official result, certification, proctoring or overall pass prediction.
+
+**State: plan adopted; new runtime implementation, DTZ content approval and publication pending.** Next: **EXAM-S0** hardening, then S1 telc preparation journey, S2 release/importer and saved telc section mock, S3 DTZ reading, S4 DTZ writing, S5 fixed listening/complete written mocks, S6 integrated acceptance. S0–S6 supersede the original EXAM-01–06 proposal; English remains a later candidate. The [board](work/BOARD.md) records the same transition. Root owns this seven-document adoption diff in [PR #100](https://github.com/ronslink/hatoove/pull/100), with independent read-only architecture and UX reviewers. No worker implementation lease follows from the roadmap. Existing content, real-device, security/privacy and live-provider gates remain open; the running preview is unchanged.
 
 ## Integrated local pilot — 2 October 2026
 
@@ -20,7 +22,9 @@ Revised 1 October 2026. This preserves the broader 36-package programme and its 
 
 [MASTER-PLAN.md](MASTER-PLAN.md) is the current delivery summary; live assignments remain on the [board](work/BOARD.md) and coordinator dispatches. The historical snapshots and package tables below are not live leases or a requirement to restore dropped first-release features.
 
-## First-release direction — 1 October 2026
+## Historical first-release direction — 1 October 2026
+
+This snapshot records the earlier ordering. The adopted EXAM-S0–S6 direction above supersedes its conditional MFP-13 and deferred listening/mock statements; it must not be used as a current dispatch plan.
 
 The minimum functional product is a **multi-exam SaaS written-section product** — reading, language elements and writing, per [PILOT_BUILD_PLAN.md](PILOT_BUILD_PLAN.md), which governs scope. The earlier **writing-first** scope is withdrawn: it deferred objective practice, listening and the broader client to after its own end. Build the small new vanilla client under `public/app/` with the supplied orange/rising-oo design. Keep Node/PostgreSQL, and run it **only** through Docker Compose (DOCKER-ONLY-01). The fourteen-screen [design inventory](work/implementation/DESIGN-WIRE-01.md) is a reference and future backlog. No deployment, live invitations, email, AI or payments are authorized by a plan.
 

@@ -2,11 +2,15 @@
 
 Execution **EXAM-ARCH-CLAUDE-20261002-B**, 2 October 2026. Ron requested feedback and recommendations from Claude on [the architecture proposal](MULTI-EXAM-ARCHITECTURE-20261002.md), draft [PR100](https://github.com/ronslink/hatoove/pull/100).
 
+**Adopted afterwards — EXAM-ADOPT-20261002-A:** Ron said, "we are only delivering mock exams as part of a preparation effort not a true exam lets adopt the recommendations from claude". The linked plan now incorporates the recommendations with the recorded coordinator qualifications below, and the pilot/master plans, D9 and tracking records agree. This memo preserves what Claude actually reviewed; it is not a claim that Claude reviewed the later adoption diff. The coordinator added the minimal saved mock-form/run contract to fulfil Ron's clarified product intent.
+
+**Ron's subsequent decisions override the earlier defaults below:** "no we will release dtz fully , listening playback in practice once and exam mode once . Credit is for one exam only". Internal vertical development remains; DTZ releases with all supported written sections together. Each DTZ recording plays once per attempt in either mode. Credits are exam-package-specific, not an account-wide pool. Claude did not review these later user decisions.
+
 ## Provenance and scope
 
 The actual installed Claude Code CLI 2.1.286 reported model **claude-opus-5-5**. It successfully completed one plan-only review with all tools disabled; no repository source, databases or external sites were available to it. Input was the proposal at commit `7a7caa06acc6ed9b9e08e80504af19de42de2056`, SHA-256 `1316b4b4da6a24f04d1706484922ca1776f591531edb644731034cad7c250c26`. Claude explicitly acknowledged those limits. Its code references therefore refer to findings supplied in the proposal, not an independent code audit.
 
-This is a curated account of Claude's recommendations and the coordinator's response, not a raw provider log. The original proposal is unchanged. These recommendations do not implement features, grant educational approval or change the pilot's content policy.
+This is a curated account of Claude's recommendations and the coordinator's response, not a raw provider log. The original proposal was unchanged when this review was recorded; the later adoption updates it explicitly. Neither the review nor adoption implements features, grants educational approval or changes the running pilot's content policy.
 
 ## Claude's verdict
 
@@ -27,7 +31,7 @@ Claude supports one application, one PostgreSQL schema and the account/preparati
 | Define private answer-key/transcript storage; consider separate private or encrypted sources. | **Clarify the publishing boundary without adding unnecessary infrastructure.** The repository is private, and authoring source is distinct from browser-served content. Separate public payload and private key/transcript inputs in the importer and test deployment/DTO exclusion. A new encrypted store is not established as necessary by this review. |
 | Count and classify actual old records before building elaborate legacy mapping machinery. | **Adopt the proportional approach.** Use the simplest audited telc backfill where identity is provable. Keep an explicit safe outcome for ambiguous bindings; never guess or drop records. Build a special mapping path only if the inventory requires it. |
 
-## Proposed revised order
+## Claude's proposed revised order (now adopted as EXAM-S0–S6)
 
 1. **Hardening:** exact objective versions, version-specific evidence, bootstrap/context ordering and assessment-scale validation. Specify release visibility separately from the current internal content policy.
 2. **Telc preparation journey:** preparation/date model, safe legacy classification, verified-session bootstrap, explicit routes/API context, Start/Continue, history and account-wide export/delete. First validate in disposable fixtures.
@@ -36,13 +40,13 @@ Claude supports one application, one PostgreSQL schema and the account/preparati
 5. **DTZ writing:** exact selected prompt, four-criterion policy, preserved drafts/submissions/revisions, and clearly limited feedback. Live grading stays behind the existing evaluation/privacy/cost gates.
 6. **DTZ listening:** version-aware media access, reviewed fixed recordings, playback policy and recovery. Complete real-device/audio and cross-exam acceptance before the corresponding release.
 
-Responsive, keyboard, accessibility and applicable real-device checks belong to each learner-facing slice, not a final cleanup phase. Listening audio and qualified review remain independent dependencies; they need not block an accurately labelled internal reading/writing milestone. No schedule estimate is asserted from this review.
+Responsive, keyboard, accessibility and applicable real-device checks belong to each learner-facing slice, not a final cleanup phase. Listening audio and qualified review remain independent dependencies; they do not block internal reading/writing engineering, but all are mandatory before the complete DTZ learner release Ron selected. No schedule estimate is asserted from this review.
 
-## Product choices worth settling before release
+## Product choices and adopted defaults
 
-- **Partial DTZ availability:** whether a public offer may initially say "DTZ A2–B1: Lesen und Schreiben üben" before listening is available. Engineering can prove an internal slice without making that release promise.
-- **Listening assistance:** whether normal practice permits labelled replay while exam-format mode enforces the official rule. Those modes require separate evidence and honest labels.
-- **Shared allowance:** the proposal keeps the current account-wide allowance across preparations. Keep that default during the pilot; settle any package-specific charging before paid offers, not as a prerequisite for the architecture.
+- **Complete DTZ release:** Ron rejected a partial learner offer. Reading/writing increments remain internal; all supported written sections, including reviewed fixed listening, release together after full acceptance.
+- **Listening playback:** Ron chose one play per DTZ recording per attempt in both practice and mock-exam mode. Persist the allowance across interruption/return without introducing proctoring or claiming DRM.
+- **Exam-specific credit:** Ron rejected shared credit. Bind allowances/usage to the selected exam package; no pooling, transfer or refill on switching or creating preparations. Preserve existing balances during the exam-scoping migration. Offer pricing/quantities remain separate from this binding rule.
 
 These are release/experience choices. Ordinary module boundaries, SQL date storage, pagination and the importer design do not need another permission round.
 
@@ -50,4 +54,4 @@ These are release/experience choices. Ordinary module boundaries, SQL date stora
 
 No new application, framework or microservices. No account per exam. No automatic conversion between rubrics or reassessment after changing explanation language. No speaking/STT, whole-exam pass predictions, production deployment or live-provider activation. Original content needs qualified educational review and rights evidence; an AI review cannot supply either. Preserve historical migrations, learner records and immutable submissions.
 
-The next useful change to the original plan is to replace its horizontal delivery sequence with the smaller sequence above and simplify preparation/release bindings. This memo records recommendations; it does not silently amend the original contracts or open implementation leases.
+The adopted plan now replaces the horizontal sequence, simplifies preparation/release bindings and adds saved mock runs with exact versions and deferred feedback in timed mode. The next slice is EXAM-S0 hardening, under its own bounded assignment. No implementation lease or completed browser change follows from this review memo alone.
