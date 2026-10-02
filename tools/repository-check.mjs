@@ -67,6 +67,60 @@ try {
   }
 } catch { /* no package.json in this tree: nothing to check */ }
 
+/*
+ * NO WORKFLOW STEP MAY RUN A FILE THAT DOES NOT EXIST EITHER — the same defect as the stale npm scripts
+ * above, in a place that rots even more quietly.
+ *
+ * A renamed or deleted checker leaves the workflow referring to it, and the failure then appears as a red CI
+ * job on somebody else's pull request, or worse: a step inside a job whose earlier step is skipped reports
+ * green for having run nothing (this file has already recorded that failure mode once, in the SPA retirement).
+ * The package.json leg above catches the same class for npm; this catches it for `.github/workflows/*.yml`,
+ * which is where the rendered gate now lives.
+ *
+ * Text-level on purpose: the alternative is a YAML dependency in a checker whose whole value is that it has
+ * none, and the pattern being matched (`node tools/<file>`) is a convention this repository already enforces
+ * by hand everywhere else.
+ */
+const workflowPattern = /^\.github\/workflows\/.*\.ya?ml$/;
+const workflowRefs = [];
+for (const entry of entries) {
+  const file = entry.split('\t').pop().trim();
+  if (!workflowPattern.test(file)) continue;
+  /*
+   * THE STAGED BLOB, through `git show :path` — the same mechanism the package.json leg above uses, and the
+   * snapshot this whole checker is written against.
+   *
+   * THE FIRST VERSION OF THIS LEG USED `fs.readFileSync` AND DID NOTHING AT ALL: this file imports no `fs`, so
+   * the call threw `ReferenceError`, my own `catch { continue; }` swallowed it, and the leg reported nothing
+   * while looking like it passed. What exposed it was running the discrimination test PROPERLY — rename a
+   * checker in the workflow and require a failure. A check that cannot fail is decoration, which is why the
+   * test comes with the leg rather than after it.
+   *
+   * A workflow that cannot be read is a failure rather than a skip: it is a tracked file, and the reference it
+   * contains is exactly what this leg exists to verify.
+   */
+  let text = '';
+  try {
+    text = git('show', `:${file}`);
+  } catch (error) {
+    failures.push(`${file} is tracked but could not be read from the staged snapshot: ${error.message.split('\n')[0]}`);
+    continue;
+  }
+  for (const match of text.matchAll(/node\s+((?:tools|server)\/[\w./-]+\.mjs)/g)) {
+    workflowRefs.push({ file, target: match[1] });
+  }
+}
+for (const { file, target } of workflowRefs) {
+  if (!entries.some((entry) => entry.split('\t').pop().trim() === target)) {
+    failures.push(`${file} runs ${target}, which is not a tracked file`);
+  }
+}
+// A workflow that runs nothing is not a gate either: the rendered job must name at least one checker.
+const renderedWorkflow = workflowRefs.filter((ref) => ref.file === '.github/workflows/ci.yml');
+if (workflowRefs.length && !renderedWorkflow.length) {
+  failures.push('ci.yml references no node checker, so the legs it claims to run cannot be verified here');
+}
+
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exitCode = 1;

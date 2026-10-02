@@ -1,8 +1,27 @@
 name: Offline checks
+#
+# VALIDATE THIS FILE BEFORE PUSHING IT. Nothing in this repository parses YAML — `repository-check.mjs` is
+# deliberately dependency-free, and adding a parser to the root package would break the `"dependencies": {}`
+# property this project keeps on purpose. The consequence was measured on 2 October 2026: the new `rendered`
+# job contained `- name: The real stack: migrations, ...`, and an UNQUOTED COLON-SPACE inside a plain scalar
+# made the whole workflow INVALID YAML. Every job would have failed to start, and READING the file did not show
+# it — the error was visible only to a parser:
+#
+#   docker run --rm -i mikefarah/yq:4 -o=json '.jobs | keys' - < .github/workflows/ci.yml
+#
+# (That is what found it: L219.C29 "mapping values are not allowed in this context". Two step names were
+# reformatted to avoid the colon. `repository-check.mjs` now asserts that every `node tools/….mjs` a workflow
+# names is a TRACKED file, which catches the other half of this class — a step that outlives its script.)
 on:
   pull_request:
   push:
     branches: [main]
+  # The rendered gate (below) is the only job that needs a browser and Docker, so it runs on a schedule
+  # rather than on every push: 25 minutes of runner time per push would be paid by every unrelated change,
+  # and a slow required check is a check people learn to ignore.
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -165,28 +184,68 @@ jobs:
       # "functional" into a number that moves.
       - name: The learner journey, over HTTP (pending legs name their slice)
         run: node tools/journey-api-check.mjs
-  # THE RENDERED-BEHAVIOUR JOB IS RETIRED (2 October 2026, with the SPA).
+  # THE RENDERED-BEHAVIOUR JOB EXISTS AGAIN, FOR THE NEW CLIENT (2 October 2026).
   #
-  # It ran four headless-Chrome checkers against the retired Certa client. Two of them were already red
-  # or broken by the front-door move (the SPA page is no longer served at `/`), and a job whose every
-  # step is deleted must be DELETED rather than left as a stub -- a job with only a checkout in it
-  # reports green for having done nothing, which is the failure mode this file has already recorded once.
+  # The old one was retired with the Certa SPA and this file recorded the consequence: "Those legs live in
+  # tools/app-browser-check.mjs, which needs Docker and a browser and is therefore a DEVELOPER-RUN gate, not a
+  # runner gate. That trade is recorded, not hidden: nothing in CI renders the client today." Seventeen
+  # autonomous rounds produced 89 rendered legs and 35 real-stack legs, and EVERY ONE of them depended on a
+  # human remembering to run it. That is the trade this job ends.
   #
-  # Their properties did not disappear; their VEHICLE did, and each has a row in
-  # work/implementation/RETIRED-CHECKS.md:
-  #   * "the Settings view offers no provider field" -> tools/app-browser-check.mjs leg L31, which
-  #     enumerates the fields AND the screen text of the new settings view for provider/key/model.
-  #   * "the language setting does not translate the German menu" -> leg L32, which reads every nav
-  #     label before and after a real change through the real form and requires the shell to stay LTR.
-  #   * "a second tab cannot re-create the account record" -> the server half is deletion-check.mjs
-  #     (after deletion the cookie is 401 and a repeated DELETE changes nothing, green); the client half
-  #     is VOID, because the new client keeps no client-side record -- leg L30 asserts that.
-  #   * "the writing surface restores an account draft" -> UNPROVEN until the writing surface exists;
-  #     the ledger says so rather than implying coverage.
+  # WHY IT IS NOT A REQUIRED CHECK, AND WHY THAT IS THE POINT: it builds images, starts a Compose project and
+  # drives headless Chrome, so it needs a browser in the image, a Docker daemon, and ~20 minutes. The recorded
+  # plan is to make it required only after a stretch of green runs -- a rendered gate that is required from day
+  # one and flakes teaches people to ignore red, which is worse than a gate that is honest about being new.
+  # It therefore runs on the nightly schedule and on demand, never on every push.
   #
-  # Those legs live in tools/app-browser-check.mjs, which needs Docker and a browser and is therefore a
-  # DEVELOPER-RUN gate, not a runner gate. That trade is recorded, not hidden: nothing in CI renders the
-  # client today.
+  # WHY IT CAN FAIL FOR ENVIRONMENTAL REASONS, SAID OUT LOUD: the two checks need `docker compose` and a Chrome
+  # binary. Both are asserted in their own preflight steps, so a missing browser is a named failure rather than
+  # a mysterious one, and `CHROME_PATH` is the override that makes the browser's location a configuration value
+  # instead of a guess (the check's own candidate list is Windows-shaped plus /usr/bin).
+  rendered:
+    name: Rendered behaviour (Docker + headless Chrome)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: rendered-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      # PREFLIGHT: the two things this job needs that the offline jobs do not. A named failure here is worth
+      # more than a stack trace twenty minutes later, and it tells an operator whether to fix the runner or the
+      # code.
+      - name: Docker is available
+        run: |
+          docker version
+          docker compose version
+      - name: A Chrome binary is available
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: |
+          "${CHROME_PATH}" --version
+      - name: Real stack - migrations, API, worker and account lifecycle
+        timeout-minutes: 12
+        run: node tools/docker-stack-check.mjs
+      - name: Rendered client - 89 legs at desktop and mobile, light and dark
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/app-browser-check.mjs
+      # THE SCREENSHOTS ARE THE EVIDENCE, and they live in a gitignored directory that dies with the runner.
+      # They are listed on failure so the log says where to look and what was captured; uploading them as an
+      # artifact needs a pinned third-party action, which is a decision for the coordinator rather than one I
+      # should take by adding a floating tag to a file where every other action is pinned by SHA.
+      - name: Where the rendered evidence went
+        if: failure()
+        run: |
+          echo "Screenshots (if any) were written under .qa/browser/:"
+          find .qa/browser -type f -name '*.png' | sort | tail -40 || true
   fixtures:
     name: Exam and feedback fixtures
     runs-on: ubuntu-latest
