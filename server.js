@@ -410,6 +410,10 @@ function resolveStatic(decodedPath) {
  */
 const PUBLIC_FILES = Object.freeze([
   path.join(PUBLIC_DIR, 'signin.html'),
+  path.join(PUBLIC_DIR, 'reset-password.html'),
+  path.join(PUBLIC_DIR, 'verify-email.html'),
+  path.join(PUBLIC_DIR, 'auth', 'entry.js'),
+  path.join(PUBLIC_DIR, 'auth', 'entry.css'),
   path.join(PUBLIC_DIR, 'favicon.ico'),
   // THE FRONT DOOR, AT THE ROOT (Ron, 2 October 2026: "we need landing/index or just index" → just
   // index). These three are the brand site copied from `hatoove-site/dist`; everything else the old

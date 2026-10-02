@@ -1,131 +1,72 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hatoove — Know the exam. Practise what matters.</title>
-  <meta name="description" content="Focused, independent exam practice. Explore German B1 reading, language elements and writing with clear explanations from Hatoove.">
-  <meta name="theme-color" content="#ff6b2b">
-  <link rel="canonical" href="https://hatoove.com/">
-  <meta property="og:url" content="https://hatoove.com/"><meta property="og:site_name" content="Hatoove"><meta property="og:image" content="https://hatoove.com/assets/og-card.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Hatoove — Know the exam. Practise what matters.">
-  <meta name="twitter:card" content="summary_large_image">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Hatoove","url":"https://hatoove.com/","logo":"https://hatoove.com/assets/icon-512.png","slogan":"Know the exam. Practise what matters."}</script>
-  <meta property="og:title" content="Hatoove — Focused exam practice"><meta property="og:description" content="Know the exam. Practise what matters. Start with a short German B1 practice sample."><meta property="og:type" content="website">
-  <link rel="icon" href="favicon.ico" sizes="48x48"><link rel="icon" type="image/svg+xml" href="assets/hatoove-mark.svg"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <link rel="preload" href="assets/source-sans-3.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="assets/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="site.css"><script src="site.js" defer></script>
-</head>
-<body>
-  <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header"><div class="nav-wrap">
-    <a class="brand" href="#" aria-label="Hatoove home"><img src="assets/hatoove-logo.svg" alt="hatoove" width="217" height="40"></a>
-    <nav aria-label="Main navigation"><a href="#exam">Your exam</a><a href="#trainer">The trainer</a><a href="#how-it-works">Our approach</a><a href="#faq-title">FAQ</a><a href="/app/">Sign in</a></nav>
-    <a href="#practice" class="button button-small">Try a practice question</a>
-  </div></header>
-  <main id="main">
-    <section class="hero section-wrap" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <div class="eyebrow"><span class="eyebrow-line"></span> YOUR NEXT CHAPTER STARTS HERE</div>
-        <h1 id="hero-title">Know the exam.<br>Practise what<br><span>matters.</span></h1>
-        <p class="hero-intro">You’ve put in the work to learn the language.<br class="desktop-break"> Now put it to work for your exam.</p>
-        <p class="hero-description">Focused practice. Clear explanations. A better understanding of where you lose marks—and what to work on next.</p>
-        <div class="hero-actions"><a class="button" href="#practice" id="hero-start">Find your next small win</a><a class="text-link" href="#exam">Explore the exam</a></div>
-        <div class="hero-note"><span class="check-mini" aria-hidden="true">✓</span> No account needed for the preview</div>
-        <div class="hero-track"><span class="language-square">DE</span><div><strong>Starting with German B1</strong><span>Independent preparation for telc Deutsch B1</span></div></div>
-      </div>
-      <div class="practice-stage" id="practice">
-        <div class="stage-top"><span>SMALL PRACTICE. REAL UNDERSTANDING.</span><span class="spark" aria-hidden="true">✳</span></div>
-        <section class="practice-card" aria-labelledby="practice-title">
-          <div class="practice-top"><div><span class="section-kicker" id="practice-kicker">GERMAN B1 · PRACTICE PREVIEW</span><h2 id="practice-title">Your next small win.</h2></div><span class="mini-badge">Free sample</span></div>
-          <div class="practice-tabs" role="tablist" aria-label="Practice skill"><button id="tab-reading" type="button" role="tab" aria-selected="true" aria-controls="practice-panel" data-skill="reading">Reading</button><button id="tab-grammar" type="button" role="tab" aria-selected="false" aria-controls="practice-panel" tabindex="-1" data-skill="grammar">Language elements</button><button id="tab-writing" type="button" role="tab" aria-selected="false" aria-controls="practice-panel" tabindex="-1" data-skill="writing">Writing</button></div>
-          <div class="instruction-row"><span id="sample-label">01 / MATCH THE SITUATION</span><label>Explain in <select id="explanation-language" aria-label="Explanation language"><option value="en">English</option><option value="de">Deutsch</option></select></label></div>
-          <div id="practice-panel" role="tabpanel" aria-labelledby="tab-reading" tabindex="0">
-            <p id="task-instruction" class="task-instruction">Choose the advertisement that meets every requirement.</p>
-            <div id="task-stimulus" class="task-stimulus" lang="de"><p>Sie arbeiten bis 17:30 Uhr. Sie möchten Excel lernen und suchen einen Präsenzkurs am Abend.</p></div>
-            <form id="answer-form"><fieldset id="answer-options"><legend class="sr-only">Choose your answer</legend>
-              <label class="answer-option"><input type="radio" name="answer" value="a"><span class="option-letter">A</span><span><strong>Excel nach Feierabend</strong><span lang="de">Dienstags, 18:30–20:00 Uhr. In unseren Kursräumen am Bahnhof.</span></span></label>
-              <label class="answer-option"><input type="radio" name="answer" value="b"><span class="option-letter">B</span><span><strong>Excel am Wochenende</strong><span lang="de">Samstags, 09:00–12:00 Uhr. In unserem Schulungszentrum.</span></span></label>
-              <label class="answer-option"><input type="radio" name="answer" value="c"><span class="option-letter">C</span><span><strong>Excel von zu Hause</strong><span lang="de">Donnerstags, 19:00–20:30 Uhr. Online mit einer Lehrkraft.</span></span></label>
-            </fieldset><div class="answer-footer"><span id="answer-hint">One answer fits.</span><button id="check-answer" class="button button-dark" type="submit" disabled>Check my answer</button></div></form>
-            <div id="feedback" aria-live="polite" hidden></div>
-          </div>
-          <p class="sample-note">Original sample exercise. Not an official question or a complete exam.</p>
-        </section>
-        <div class="stage-bottom"><span class="check-mini" aria-hidden="true">✓</span> Understand the answer, not just the score.</div>
-      </div>
-    </section>
-    <section id="exam" class="exam-section" aria-labelledby="exam-title"><div class="section-wrap">
-      <div class="section-heading"><div><span class="eyebrow">ONE EXAM. A CLEARER FOCUS.</span><h2 id="exam-title">Every section has a strategy.</h2></div><p>Our starting point: the listening and written<br class="desktop-break"> sections of telc Deutsch B1.</p></div>
-      <div class="exam-grid">
-        <article><span class="skill-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span><h3>Reading</h3><p>Find the meaning.<br>Match every detail.</p><div><strong>75</strong><span>points</span></div></article>
-        <article><span class="skill-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/><path d="M9 12h.01M12 12h.01M15 12h.01"/></svg></span><h3>Language elements</h3><p>Choose the words<br>that fit the context.</p><div><strong>30</strong><span>points</span></div></article>
-        <article><span class="skill-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg></span><h3>Listening</h3><p>Catch the details<br>that change the answer.</p><div><strong>75</strong><span>points</span></div></article>
-        <article><span class="skill-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg></span><h3>Writing</h3><p>Cover every point.<br>Make your message clear.</p><div><strong>45</strong><span>points</span></div></article>
-      </div>
-      <div class="pass-strip" role="list">
-        <div role="listitem"><strong>225</strong><span>written points</span></div>
-        <div role="listitem"><strong>135</strong><span>needed to pass (60&nbsp;%)</span></div>
-        <div role="listitem"><strong>150</strong><span>minutes for reading, language elements &amp; writing</span></div>
-        <div role="listitem"><strong>2&times;</strong><span>written and oral must be passed separately</span></div>
-      </div>
-      <p class="exam-source">Speaking is not covered by Hatoove yet. <a href="https://www.telc.net/sprachpruefungen/deutsch/zertifikat-deutsch-telc-deutsch-b1/" target="_blank" rel="noopener noreferrer">See the official exam format</a>.</p>
-    </div></section>
-
-    <section id="trainer" class="trainer section-wrap" aria-labelledby="trainer-title">
-      <div class="trainer-copy">
-        <span class="eyebrow"><span class="eyebrow-line"></span> THE FULL TRAINER · EARLY ACCESS SOON</span>
-        <h2 id="trainer-title">Practice that knows<br>where your points are.</h2>
-        <p class="trainer-intro">Every answer you give tells Hatoove something. The trainer uses it to show where you stand against the pass mark—and to put the next question where it earns you the most.</p>
-        <ul class="feature-list">
-          <li><span class="feature-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><div><h3>See your points against the pass line.</h3><p>An estimate for every exam part, measured against the 60&nbsp;% mark. It sharpens as you practise.</p></div></li>
-          <li><span class="feature-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15.914 4a1.5 1.5 0 0 0-2.474-1.561l-9 9A1.5 1.5 0 0 0 5.5 14h4.002a.5.5 0 0 1 .471.666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l9-9A1.5 1.5 0 0 0 18.5 10h-3.997a.5.5 0 0 1-.472-.667z"/></svg></span><div><h3>Weak spots first.</h3><p>Connectors, cases, word order, covering every point in your letter—practice shifts toward whatever is costing you marks right now.</p></div></li>
-          <li><span class="feature-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></span><div><h3>Mistakes come back—on schedule.</h3><p>Every error returns with its explanation after 1, 3, 7, 16 and 35 days, until it sticks.</p></div></li>
-          <li><span class="feature-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><div><h3>A plan to your exam date.</h3><p>Day by day, sized to the time you have. Tasks tick themselves off, with a full timed mock before the day.</p></div></li>
-        </ul>
-        <p class="trainer-note">Forecasts are estimates from your practice answers, not exam results. The trainer covers reading, language elements, listening and writing; speaking is not included yet.</p>
-      </div>
-      <div class="trainer-visual" aria-hidden="true">
-        <div class="tv-card tv-main">
-          <div class="tv-head"><span class="tv-kicker">YOUR STAND · TELC DEUTSCH B1</span><span class="tv-days"><b>12</b> days to go</span></div>
-          <p class="tv-verdict">Written: on track.<br><em>Language elements</em> needs work.</p>
-          <div class="tv-gauge">
-            <div class="tv-gauge-top"><span>Written estimate</span><span><b>152</b> / 225</span></div>
-            <div class="tv-bar"><i style="width:67.5%"></i><s style="left:60%"></s></div>
-            <div class="tv-gauge-foot"><span></span><span>pass line 135</span></div>
-          </div>
-          <div class="tv-parts">
-            <div><span>Reading</span><div class="tv-mini"><i style="width:72%"></i></div><b>54</b></div>
-            <div><span>Language elements</span><div class="tv-mini warn"><i style="width:48%"></i></div><b>14</b></div>
-            <div><span>Listening</span><div class="tv-mini"><i style="width:70%"></i></div><b>53</b></div>
-            <div><span>Writing</span><div class="tv-mini"><i style="width:69%"></i></div><b>31</b></div>
-          </div>
-        </div>
-        <div class="tv-card tv-focus">
-          <span class="tv-kicker">FOCUS NEXT</span>
-          <div class="tv-chips"><span>deshalb · verb 2nd</span><span>Dativ-Präpositionen</span><span>Konjunktiv II</span></div>
-        </div>
-        <div class="tv-card tv-plan">
-          <span class="tv-kicker">TODAY · 3 OF 4 DONE</span>
-          <ul><li class="done">Language elements, part 2</li><li class="done">Weak-spot drill · 12 items</li><li class="done">Listening, part 1</li><li>Letter: cover every point</li></ul>
-        </div>
-      </div>
-    </section>
-    <section class="approach section-wrap" id="how-it-works" aria-labelledby="approach-title">
-      <div class="approach-art"><picture><source srcset="assets/orange-path-900.webp 900w, assets/orange-path-1400.webp 1400w" sizes="(max-width: 720px) 92vw, 45vw" type="image/webp"><img src="assets/orange-path-1400.jpg" width="1448" height="1086" loading="lazy" decoding="async" alt="An orange paper path rising in three small steps"></picture><div class="art-caption"><span>ONE STEP AT A TIME.</span><span>YOUR NEXT CHAPTER.</span></div></div>
-      <div class="approach-copy"><span class="eyebrow">A LITTLE MORE CLARITY. EVERY TIME.</span><h2 id="approach-title">A big goal.<br>Smaller next steps.</h2><p>Exam preparation starts with knowing what is expected of you. Then practising it with purpose.</p>
-        <ol class="steps"><li><span>01</span><div><h3>Know what earns the marks.</h3><p>Get familiar with the task, the instructions and what a good answer needs.</p></div></li><li><span>02</span><div><h3>Make every mistake useful.</h3><p>See why an answer fits—and why the tempting alternatives don’t.</p></div></li><li><span>03</span><div><h3>Try again with understanding.</h3><p>Apply the idea to another question. In writing, revise your answer against a clear checklist.</p></div></li></ol>
-      </div>
-    </section>
-    <section class="independent-section"><div class="section-wrap independent-inner"><div><span class="eyebrow">BUILT AROUND YOU</span><h2>Your exam.<br>Your next move.</h2></div><div><p>No classroom to join. No timetable to follow. Just focused preparation for people who already have a language foundation and want to use it well on exam day.</p><a class="button button-dark" href="#practice">Try the free practice preview</a></div></div></section>
-    <section class="faq section-wrap" aria-labelledby="faq-title"><div><span class="eyebrow">GOOD QUESTIONS</span><h2 id="faq-title">A few things<br>worth knowing.</h2><p>Clear expectations from the start.</p></div><div class="faq-list">
-      <details><summary>Is Hatoove a language course?</summary><p>Hatoove is focused on exam preparation. It is designed for people who already have a foundation in the language and want to understand the exam format, practise its tasks and work on the mistakes that cost marks.</p></details>
-      <details><summary>Which exam can I try here?</summary><p>This preview contains original, shortened practice samples for telc Deutsch B1: reading, language elements and writing. The broader product scope includes listening and written sections. The samples are not official telc questions or a full mock exam.</p></details>
-      <details><summary>Can I get explanations in my language?</summary><p>You can switch the practice instructions and explanations between English and German in this preview. The exercise text stays in German, as it should for a German exam. Further instruction languages are planned.</p></details>
-      <details><summary>Will my writing receive an AI score?</summary><p>This preview gives you a structured self-review checklist and a model response to compare with your own. It does not grade your writing or claim to predict your exam result.</p></details>
-      <details><summary>Does this prepare me for the speaking exam?</summary><p>Not yet. Automatic speech recognition is not reliable enough to judge spoken German fairly, so we would rather leave it out than give you misleading feedback. For telc Deutsch B1, you must pass the written and oral parts separately. Performance on these samples cannot establish whether you will pass the complete exam.</p></details>
-      <details><summary>Is the preview free? Do I need an account?</summary><p>The samples here are free, and no account or payment is required. Your draft stays in this page while it is open; it is not submitted for assessment or saved to an account. Reloading the page clears it. Paid packages and regional pricing are not available in this preview.</p></details>
-    </div></section>
-  </main>
-  <footer class="footer section-wrap"><a class="brand" href="#" aria-label="Hatoove home"><img src="assets/hatoove-logo.svg" alt="hatoove" width="217" height="40"></a><p>Know the exam. Practise what matters.</p><a class="footer-top" href="#main">Back to top</a><small>© 2026 Hatoove. Independent exam preparation. Not affiliated with or endorsed by telc.</small></footer>
-</body>
-</html>
+<html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hatoove · Deutsch B1 Schritt für Schritt üben</title>
+<meta name="description" content="Unabhängige Vorbereitung auf telc Deutsch B1: Lesen, Sprachbausteine und Schreiben üben. Kostenloser Pilot mit eigenem Konto und gespeicherten Entwürfen.">
+<meta name="theme-color" content="#ff6b2b">
+<meta property="og:title" content="Hatoove · Die Prüfung kennen. Schritt für Schritt üben.">
+<meta property="og:description" content="Entdecke den kostenlosen Pilot für deine Deutsch-B1-Vorbereitung."><meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="/assets/design/hatoove-mark.svg">
+<link rel="stylesheet" href="/assets/design/hatoove.css"><link rel="stylesheet" href="/assets/design/fonts-coverage.css">
+<link rel="stylesheet" href="/site.css"><script src="/site.js" defer></script>
+</head><body>
+<a class="skip" href="#main">Zum Inhalt</a>
+<header class="site-header"><div class="nav-wrap">
+<a class="brand" href="/" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="186" height="34"></a>
+<nav aria-label="Hauptnavigation"><a href="#angebot">Das übst du</a><a href="#fragen">Fragen</a><a href="/signin" id="nav-signin">Anmelden</a></nav>
+<a class="btn btn-primary" href="/signin?mode=signup" id="nav-start">Kostenlos starten</a>
+</div></header>
+<main id="main">
+<section class="hero section-wrap" aria-labelledby="hero-title">
+<div class="hero-copy">
+<p class="kicker">telc Deutsch B1 · Kostenloser Pilot</p>
+<h1 id="hero-title">Die Prüfung kennen.<br>Schritt für Schritt<br><span>üben.</span></h1>
+<p class="hero-intro">Du hast Deutsch gelernt.<br>Jetzt übst du, es in Prüfungsaufgaben anzuwenden.</p>
+<p class="hero-description">Lies genau, finde das passende Wort und schreibe eigene Texte. Mit deinem Konto kannst du Entwürfe speichern und später weiterarbeiten.</p>
+<div class="hero-actions"><a class="btn btn-primary" href="/signin?mode=signup" id="hero-start">Kostenlos starten</a><a class="text-link" href="#practice" id="sample-start">Erst einmal ausprobieren <span aria-hidden="true">↗</span></a></div>
+<p class="hero-note">Schon dabei? <a class="link" href="/app/">Zur App</a></p>
+<div class="hero-track"><span class="language-square" aria-hidden="true">DE</span><div><strong>Dein Fokus: Deutsch B1</strong><p>Unabhängige Vorbereitung auf telc Deutsch B1</p></div></div>
+</div>
+<div class="practice-stage" id="practice">
+<div class="stage-top"><span>DEIN ERSTER KLEINER SCHRITT</span><span class="spark" aria-hidden="true">✳</span></div>
+<section class="practice-card" aria-labelledby="practice-title">
+<div class="practice-top"><div><p class="kicker">Deutsch B1 · Zum Ausprobieren</p><h2 id="practice-title">Eine Aufgabe. Ein Aha.</h2></div><span class="chip chip-orange">Ohne Konto</span></div>
+<div class="practice-tabs" role="tablist" aria-label="Übungsbereich">
+<button id="tab-reading" type="button" role="tab" aria-selected="true" aria-controls="practice-panel" data-skill="reading">Lesen</button>
+<button id="tab-grammar" type="button" role="tab" aria-selected="false" aria-controls="practice-panel" tabindex="-1" data-skill="grammar">Sprachbausteine</button>
+<button id="tab-writing" type="button" role="tab" aria-selected="false" aria-controls="practice-panel" tabindex="-1" data-skill="writing">Schreiben</button>
+</div>
+<div class="instruction-row"><span id="sample-label">BEISPIEL 01 / 02</span></div>
+<div id="practice-panel" role="tabpanel" aria-labelledby="tab-reading" tabindex="0"><noscript><p>Aktiviere JavaScript, um die Beispielaufgabe auszuprobieren.</p></noscript></div>
+<p class="sample-note">Eigenes Übungsbeispiel, keine offizielle telc-Aufgabe. Die Vorschau wird nicht in deinem Konto gespeichert.</p>
+</section>
+<div class="stage-bottom">Verstehen, warum eine Antwort passt.</div>
+</div></section>
+<section class="offer-section" id="angebot" aria-labelledby="offer-title"><div class="section-wrap">
+<div class="section-heading"><div><p class="kicker">Ein Bereich nach dem anderen</p><h2 id="offer-title">Was möchtest du heute üben?</h2></div><p>Du entscheidest, womit du beginnst.<br>Der Pilot startet mit telc Deutsch B1.</p></div>
+<div class="exam-grid">
+<article><span class="skill-symbol" aria-hidden="true">Aa</span><h3>Lesen</h3><p>Situationen verstehen, Informationen finden und auf die entscheidenden Details achten.</p><a class="link" href="/app/">Leseaufgaben öffnen <span aria-hidden="true">→</span></a></article>
+<article><span class="skill-symbol" aria-hidden="true">[…]</span><h3>Sprachbausteine</h3><p>Wörter und Formen im Zusammenhang auswählen. Antworten werden anhand fester Lösungen geprüft.</p><a class="link" href="/app/">Sprachbausteine üben <span aria-hidden="true">→</span></a></article>
+<article><span class="skill-symbol" aria-hidden="true">✎</span><h3>Schreiben</h3><p>Aufgaben auswählen, eigene Antworten formulieren und gespeicherte Entwürfe wieder aufnehmen.</p><a class="link" href="/app/">Mit einem Text beginnen <span aria-hidden="true">→</span></a></article>
+<article class="coming"><span class="skill-symbol" aria-hidden="true">♫</span><h3>Hören</h3><p>Dieser Bereich wartet noch auf passende Aufnahmen. Hörübungen sind im Pilot derzeit nicht verfügbar.</p><span class="chip">Noch in Vorbereitung</span></article>
+</div>
+<p class="offer-note">Schreib-Rückmeldungen sind vorläufige Übungshilfen. Die automatische Rückmeldung nutzt im Pilot noch gekennzeichnete Beispiele; eine Live-KI-Bewertung ist nicht freigeschaltet.</p>
+</div></section>
+<section class="approach section-wrap" aria-labelledby="approach-title">
+<div class="approach-art"><picture><source srcset="/assets/orange-path-900.webp 900w, /assets/orange-path-1400.webp 1400w" sizes="(max-width: 720px) 90vw, 45vw" type="image/webp"><img src="/assets/orange-path-1400.jpg" width="1448" height="1086" loading="lazy" alt="Ein orangefarbener Weg aus Papier führt in kleinen Stufen nach oben."></picture><p>DEIN NÄCHSTER SCHRITT.</p></div>
+<div><p class="kicker">Mit einem klaren Anfang</p><h2 id="approach-title">Ein großes Ziel.<br>Kleine nächste Schritte.</h2>
+<ol class="steps"><li><span>01</span><div><h3>Dein Konto anlegen</h3><p>Mit E-Mail und Passwort starten. Der Pilot ist kostenlos.</p></div></li><li><span>02</span><div><h3>Eine Aufgabe wählen</h3><p>Lesen, Sprachbausteine oder Schreiben – passend zu dem, was du gerade üben möchtest.</p></div></li><li><span>03</span><div><h3>Später weiterarbeiten</h3><p>Deine gespeicherten Entwürfe bleiben in deinem Konto, auch wenn du das Gerät wechselst.</p></div></li></ol>
+</div></section>
+<section class="start-strip"><div class="section-wrap"><div><p class="kicker">In deinem Tempo</p><h2>Deine Prüfung.<br>Dein nächster Schritt.</h2></div><div><p>Probiere eine Aufgabe aus – oder lege dein Konto an und speichere deine Arbeit.</p><a class="btn btn-dark" href="/signin?mode=signup">Kostenlos starten</a></div></div></section>
+<section class="faq section-wrap" id="fragen" aria-labelledby="faq-title"><div><p class="kicker">Gut zu wissen</p><h2 id="faq-title">Noch Fragen?</h2><p>Das kann der Pilot heute.</p></div><div class="faq-list">
+<details><summary>Ist Hatoove ein Deutschkurs?</summary><p>Hatoove ist eine eigenständige Prüfungsvorbereitung für Menschen, die bereits Deutschkenntnisse mitbringen. Du übst Aufgaben und arbeitest an deinen Antworten.</p></details>
+<details><summary>Sind das offizielle telc-Aufgaben?</summary><p>Nein. Hatoove bietet eigene, KI-generierte Übungsinhalte. Die fachliche Prüfung dieser Inhalte ist noch offen. Hatoove ist unabhängig und nicht mit telc verbunden.</p></details>
+<details><summary>Wie wird mein Schreiben bewertet?</summary><p>Die Vorschau auf dieser Seite enthält eine Selbstkontrolle. In der App sind Rückmeldungen pro Kriterium vorgesehen; der Pilot nutzt dafür gekennzeichnete Beispiel-Rückmeldungen. Es gibt keine Gesamtpunktzahl und keine Aussage darüber, ob du die Prüfung bestehen wirst.</p></details>
+<details><summary>Was wird gespeichert?</summary><p>Aufgaben und Entwürfe, die du in deinem Konto bearbeitest, werden auf dem Server gespeichert. Die kleine Vorschau auf dieser Startseite bleibt nur geöffnet, bis du die Seite neu lädst.</p></details>
+<details><summary>Ist der Pilot kostenlos?</summary><p>Ja. Du brauchst keine Zahlungsdaten. Die Anzahl verfügbarer Schreib-Rückmeldungen ist begrenzt und wird in der App angezeigt.</p></details>
+<details><summary>Was ist noch nicht verfügbar?</summary><p>Hörübungen warten auf Aufnahmen. Sprechen gehört nicht zum Pilot. Live-KI-Bewertung und personalisierte mehrsprachige Erklärungen sind noch nicht freigeschaltet.</p></details>
+<details><summary>Ich habe mein Passwort vergessen. Was nun?</summary><p>Du kannst einen <a class="link" href="/reset-password">Link zum Zurücksetzen anfordern</a>. Im Pilot sendet eine Person aus dem Team den Link über den vereinbarten Kontaktweg. Es gibt keinen automatischen E-Mail-Versand.</p></details>
+</div></section>
+</main>
+<footer class="footer section-wrap"><a class="brand" href="/" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="168" height="32"></a><p>Die Prüfung kennen. Schritt für Schritt üben.</p><a class="link" href="/signin">Anmelden</a><small>© 2026 Hatoove · Unabhängige Prüfungsvorbereitung. Nicht mit telc verbunden.</small></footer>
+</body></html>

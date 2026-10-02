@@ -2,7 +2,7 @@
   'use strict';
   const $ = selector => document.querySelector(selector);
   const panel = $('#practice-panel');
-  const state = { skill: 'reading', locale: 'en', indices: { reading: 0, grammar: 0 }, answers: {}, checked: {}, draft: '', review: false, checks: [false, false, false, false, false], modelOpen: false };
+  const state = { skill: 'reading', locale: 'de', indices: { reading: 0, grammar: 0 }, answers: {}, checked: {}, draft: '', review: false, checks: [false, false, false, false, false], modelOpen: false };
   const escape = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   const copy = {
     en: {sample:'SAMPLE', reading:'Read the situation. Which course fits all the requirements?', grammar:'Choose the word that completes the sentence.', choose:'Choose one answer', hint:'One answer fits.', check:'Check my answer', checked:'Answer checked', correct:'Exactly. Every detail fits.', incorrect:'Let’s look at the detail that matters.', answer:'The correct answer is', next:'Next sample', retry:'Try this again', writing:'Read Mila’s message. Write a reply that addresses all four points below.', label:'Your reply in German', placeholder:'Liebe Mila, …', words:'words', draft:'Your draft stays here until you reload this page.', review:'Review my writing', reviewTitle:'Give your reply a second look.', reviewIntro:'This is a self-review, not an AI assessment or an exam score. Use the checklist to revise your answer.', model:'Compare with a model response', modelNote:'One possible response. Many different answers can meet the task.', checklist:['I addressed all four points with relevant information.','I used a suitable greeting and closing.','I addressed Mila consistently using “du”.','My ideas follow a clear order and connect naturally.','I checked verb positions, endings, spelling and punctuation.']},
@@ -71,8 +71,8 @@
       event.preventDefault(); tabs[target].focus(); selectSkill(tabs[target].dataset.skill);
     });
   });
-  $('#explanation-language').addEventListener('change', event => {state.locale = event.target.value === 'de' ? 'de' : 'en'; render();});
-  $('#hero-start').addEventListener('click', () => {setTimeout(() => panel.focus({preventScroll:true}),100);});
+
+  $('#sample-start').addEventListener('click', () => {setTimeout(() => panel.focus({preventScroll:true}),100);});
   render();
   // Optional browser-native action. It only opens a practice tab; it never answers or grades.
   if(document.modelContext && typeof document.modelContext.registerTool === 'function') {
