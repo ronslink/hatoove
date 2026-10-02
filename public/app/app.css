@@ -273,3 +273,7 @@ code {
 .guide-table table { border-collapse: collapse; width: 100%; }
 .guide-table th, .guide-table td { padding: .6rem; text-align: start; border-bottom: 1px solid var(--line); }
 #history-detail { scroll-margin-top: 5rem; margin-bottom: 1rem; }
+.read-aloud { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin-block: .5rem; }
+.read-aloud .btn { margin-top: 0; flex-shrink: 0; min-height: 44px; }
+.read-aloud-status { min-width: 0; overflow-wrap: anywhere; }
+.criterion > .read-aloud, .criterion > .evidence { grid-column: 1 / -1; }

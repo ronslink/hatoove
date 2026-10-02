@@ -1,6 +1,7 @@
 import { createWritingController } from './writing.js';
 import { guideContent } from './guide-content.js';
 import { bindSentenceCheck } from './sentence-check.js';
+import { createReadAloud } from './read-aloud.js';
 /**
  * The Hatoove app shell (PILOT-08).
  *
@@ -23,6 +24,7 @@ const el = (id) => document.getElementById(id);
 /** Escape text before it is concatenated into markup. */
 const esc = (value) => String(value ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 bindSentenceCheck({ api, esc });
+const readAloud = createReadAloud();
 
 const LANGUAGE_NAMES = { de: 'Deutsch', en: 'English', uk: 'Українська', ar: 'العربية', tr: 'Türkçe' };
 /**
@@ -295,13 +297,17 @@ async function renderTasks() {
  * and refuses a one-character search, so the view must not fire one either.
  */
 let dictMode = 'vocab';
+let dictionaryRequest = 0;
 async function renderDictionary() {
   const box = el('dict-results');
   if (!box) return;
+  const request = ++dictionaryRequest, mode = dictMode;
+  readAloud.clear(box);
   const q = (el('dict-q')?.value || '').trim();
   if (q.length === 1) { box.innerHTML = '<div class="card"><p class="muted">Mindestens zwei Buchstaben.</p></div>'; return; }
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
-  const res = dictMode === 'nouns' ? await api.nouns.list({ q: q || null }) : await api.vocab.list({ q: q || null });
+  const res = mode === 'nouns' ? await api.nouns.list({ q: q || null }) : await api.vocab.list({ q: q || null });
+  if (request !== dictionaryRequest) return;
   if (!res) return; // a 401 already redirected
   if (!res.ok) { box.innerHTML = ''; showError('Nachschlagen fehlgeschlagen: ' + failure(res) + '.'); return; }
   const rows = Array.isArray(res.data) ? res.data : [];
@@ -309,16 +315,18 @@ async function renderDictionary() {
     box.innerHTML = '<div class="card"><h3>Nichts gefunden</h3><p class="muted">Der Server hat zu dieser Suche keinen Eintrag.</p></div>';
     return;
   }
-  box.innerHTML = rows.map((w) => (dictMode === 'nouns'
+  readAloud.clear(box);
+  box.innerHTML = rows.map((w) => (mode === 'nouns'
     ? '<div class="card"><div class="card-head"><h3>' + esc(w.de) + '</h3><span class="chip">' + esc(w.gender) + '</span></div>'
       + (state.settings?.language === 'en' ? '<p class="muted" lang="en">' + esc(w.en) + '</p>' : '')
       + '<p class="small muted">Plural: ' + esc(w.plural) + ' &middot; Thema: ' + esc(w.theme) + '</p>'
       + '<p class="small muted">Regel: ' + esc(w.rule) + '</p>'
-      + (w.example ? '<p class="small">' + esc(w.example) + '</p>' : '') + '</div>'
+      + (w.example ? '<p class="small" lang="de" data-read-example>' + esc(w.example) + '</p>' : '') + '</div>'
     : '<div class="card"><div class="card-head"><h3>' + esc(w.de) + '</h3><span class="chip">' + esc(w.pos) + '</span></div>'
       + (state.settings?.language === 'en' ? '<p class="muted" lang="en">' + esc(w.en) + '</p>' : '')
       + (w.plural ? '<p class="small muted">Plural: ' + esc(w.plural) + '</p>' : '')
-      + (w.example ? '<p class="small">' + esc(w.example) + '</p>' : '') + '</div>')).join('');
+      + (w.example ? '<p class="small" lang="de" data-read-example>' + esc(w.example) + '</p>' : '') + '</div>')).join('');
+  for (const example of box.querySelectorAll('[data-read-example]')) readAloud.mount(example, { label: 'Beispielsatz', language: example.lang });
 }
 
 /** NACHSCHLAGEN -- the guide index, then one document's sections. */
@@ -793,7 +801,7 @@ const CRITERION_LABELS = Object.freeze({
  *   4. THE BINDING IS THE TASK THAT WAS OPENED, down to the version and the rubric the task declares.
  *      The server refuses anything else (422 task_not_servable), and the button carries it.
  */
-const writing = createWritingController({ api, esc, onChange: () => { if (currentView === 'fortschritt') guard(renderHistory()); } });
+const writing = createWritingController({ api, esc, readAloud, onChange: () => { if (currentView === 'fortschritt') guard(renderHistory()); } });
 async function openWriting(box, task, options = {}) { return writing.open(box, task, options); }
 async function renderHistory() {
   const host = el('history-list');
@@ -817,6 +825,7 @@ async function renderHistory() {
 let routing = 0;
 
 async function route() {
+  readAloud.stop();
   const request = ++routing;
   if (writing.active) {
     if (!(await writing.flush())) { history.replaceState(null, "", "#/" + currentView); return; }
@@ -968,6 +977,7 @@ el('settings-form').addEventListener('submit', async (event) => {
 });
 
 el('signout').addEventListener('click', async () => {
+  readAloud.stop();
   if (!(await writing.flush())) return;
   writing.dispose();
   // Do NOT navigate on a refusal. The server's mutation origin gate can reject a sign-out (403),

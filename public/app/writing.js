@@ -1,15 +1,16 @@
 /** Owned writing lifecycle. Drafts and submitted feedback stay on the server. */
-export function createWritingController({ api, esc, onChange = () => {} }) {
+export function createWritingController({ api, esc, readAloud = null, onChange = () => {} }) {
   let active = null;
   let serial = 0;
   const labels = { aufgabe: 'Aufgabenbewältigung', kommunikation: 'Kommunikative Gestaltung', richtigkeit: 'Formale Richtigkeit' };
   const message = (r) => r?.status === 0 ? 'Keine Verbindung zum Server.' : r?.status === 429 ? 'Bitte warte kurz und versuche es erneut.' : 'Die Anfrage konnte nicht abgeschlossen werden.';
   const current = (s) => active === s && s.host.isConnected;
-  const say = (s, html) => { if (current(s)) s.status.innerHTML = html; };
+  const say = (s, html) => { if (current(s)) { readAloud?.clear(s.status); s.status.innerHTML = html; } };
   const button = (id, text, primary = false) => `<button type="button" class="btn${primary ? ' btn-primary' : ''}" id="${id}">${text}</button>`;
   const prompt = (task) => `<div class="card-head"><h3>${esc(task.topic || 'Gespeicherter Text')}</h3><span class="chip">Schreiben</span></div><p>${esc(task.situation || '')}</p>${task.adressat ? `<p class="small muted">Anrede: ${esc(task.adressat)}</p>` : ''}<ul class="leitpunkte">${(task.leitpunkte || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>`;
   const dirty = (s) => Boolean(s?.area && !s.submission && s.area.value !== s.saved);
   function dispose() {
+    if (active) readAloud?.clear(active.host);
     if (active?.timer) clearTimeout(active.timer);
     if (active?.poll) clearTimeout(active.poll);
     if (active) { active.host.replaceChildren(); active.host.hidden = true; if (active.list) active.list.hidden = false; }
@@ -99,8 +100,8 @@ export function createWritingController({ api, esc, onChange = () => {} }) {
       const lang = ['de', 'en', 'uk', 'ar', 'tr'].includes(storedLanguage) ? storedLanguage : 'de';
       html = '<p class="muted"><strong>Übungsfeedback nach den telc-Kriterien – keine offizielle Bewertung</strong></p><p class="small muted">Lokaler Pilot: Die Rückmeldung stammt derzeit aus einer technischen Simulation. Sie bewertet deine Sprachleistung nicht verlässlich.</p>';
       html += f.kind === 'telc-b1-bands' && Array.isArray(f.criteria)
-        ? `<ul class="criteria">${f.criteria.map(c => `<li class="criterion"><div class="criterion-head"><strong>${esc(labels[c.key] || c.label || c.key)}</strong><span class="band" aria-label="Band ${esc(c.band)}">${esc(c.band)}</span></div><p lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(c.comment || '')}</p>${c.evidence ? `<blockquote class="evidence" lang="de" dir="ltr">${esc(c.evidence)}</blockquote>` : ''}</li>`).join('')}</ul>`
-        : `<p lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(f.comment || 'Noch keine Rückmeldung verfügbar.')}</p>`;
+        ? `<ul class="criteria">${f.criteria.map(c => `<li class="criterion"><div class="criterion-head"><strong>${esc(labels[c.key] || c.label || c.key)}</strong><span class="band" aria-label="Band ${esc(c.band)}">${esc(c.band)}</span></div><p data-read-comment lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(c.comment || '')}</p>${c.evidence ? `<blockquote class="evidence" lang="de" dir="ltr">${esc(c.evidence)}</blockquote>` : ''}</li>`).join('')}</ul>`
+        : `<p ${f.comment ? 'data-read-comment' : ''} lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(f.comment || 'Noch keine Rückmeldung verfügbar.')}</p>`;
       if (Array.isArray(f.corrections) && f.corrections.length) html += `<section lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}"><h4>Korrekturhinweise</h4><ul>${f.corrections.map(text => `<li>${esc(text)}</li>`).join('')}</ul></section>`;
       html += sent + button('writing-revise', 'Text überarbeiten', true);
     } else if (job.status === 'failed') {
@@ -110,6 +111,7 @@ export function createWritingController({ api, esc, onChange = () => {} }) {
       html = '<p class="muted">Abgegeben. Die Rückmeldung wird vorbereitet. Du kannst diese Seite verlassen und den Stand im Verlauf wieder öffnen.</p>' + sent + button('writing-refresh', 'Stand aktualisieren');
     }
     say(s, html);
+    for (const comment of s.status.querySelectorAll('[data-read-comment]')) readAloud?.mount(comment, { label: 'Kommentar', language: comment.lang });
     if (tries === 0) s.status.scrollIntoView({ block: 'nearest' });
     s.host.querySelector('#writing-refresh')?.addEventListener('click', () => showResult(s, submissionId));
     s.host.querySelector('#writing-retry')?.addEventListener('click', async (e) => {
