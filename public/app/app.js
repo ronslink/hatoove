@@ -847,6 +847,14 @@ async function openWriting(box, task) {
     }));
 
   const renderResult = async (submissionId, tries = 0) => {
+    /*
+     * THE SUBMISSION IS NAMED ON THE ELEMENT THAT SHOWS ITS STATE. It costs one attribute, and it means
+     * the rendered state can be tied to a specific submission — which is what a support question ("which
+     * one is this?") and a check that arranges a failed job both need. Without it, the only way to find the
+     * row is to guess from the database, and a check that guesses is a check that lies when the guess is
+     * close.
+     */
+    if (state) state.dataset.submissionId = submissionId;
     const res = await api.writing.result(submissionId);
     if (!res) return;
     if (!res.ok) { say('<p class="err">Der Stand konnte nicht geladen werden (' + esc(failure(res)) + ').</p>', { reveal: true }); return; }

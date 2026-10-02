@@ -1144,6 +1144,81 @@ async function main() {
       `field empty=${afterNew.value === ''}; server text=${JSON.stringify(afterNew.serverText)} at revision ${afterNew.serverRevision}; `
         + `${afterNew.openForTask} open attempt(s) for the task; state "${afterNew.state}"`);
 
+    /*
+     * W10 — THE FAILED ASSESSMENT, RENDERED. The property the deleted `mock-outcome-browser-check` held, on
+     * the real submission path — and it had never been SEEN: the view renders "Unbewertet" with the failure
+     * code, keeps the text and offers a retry, while every previous leg ran against a stub grader that always
+     * SUCCEEDS. Written, reviewed by eye, unproven.
+     *
+     * IT IS MADE DETERMINISTIC BY STOPPING THE WORKER FIRST. Otherwise the claim race decides the outcome:
+     * the worker could claim and grade the job while the check is arranging the failure, and the leg would
+     * flake in exactly the way that teaches people to distrust a suite. With the worker stopped the job stays
+     * `queued`, the database update is the only thing that can change it, and then the retry is queued and
+     * stays queued for the same reason.
+     *
+     * The submission is identified through the DOM (`data-submission-id` on the state element) rather than by
+     * guessing from the database: a check that guesses is a check that lies when the guess is close.
+     */
+    compose(['stop', 'worker']);
+    try {
+      await openWritingTask(cdp, 2, 'W10 third task (failed assessment)');
+      await cdp.evaluate(`
+        const area = document.getElementById('writing-text');
+        area.value = ${JSON.stringify('Sehr geehrte Damen und Herren, hiermit kündige ich meinen Vertrag.')};
+        area.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      `);
+      await sleep(1400); // past the autosave debounce so there is a revision to submit
+      await cdp.evaluate(`document.getElementById('writing-submit').click(); return true;`);
+      await softWait(cdp, "document.getElementById('writing-state')?.dataset.submissionId", 15000, 'a submission receipt');
+      const queuedState = await cdp.evaluate(`
+        const state = document.getElementById('writing-state');
+        return { submissionId: state ? state.dataset.submissionId : null, text: state ? state.innerText.trim().slice(0, 120) : '' };
+      `);
+      record('W10 a submission is named while it waits for assessment',
+        Boolean(queuedState.submissionId) && /läuft|geprüft|Abgegeben/i.test(queuedState.text),
+        `submission ${String(queuedState.submissionId).slice(0, 8)}…; state "${queuedState.text}"`);
+
+      // Arrange the failure in the database the stack itself uses.
+      compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-c',
+        `UPDATE hatoove.jobs SET status = 'failed', failure_code = 'grader_unavailable' WHERE submission_id = '${queuedState.submissionId}';`,
+        '-c',
+        `DELETE FROM hatoove.assessments WHERE submission_id = '${queuedState.submissionId}';`]);
+      // The view polls; give it one or two cycles to read the new state.
+      await softWait(cdp, "/Unbewertet/.test(document.getElementById('writing-state').innerText)", 20000, 'the unassessed state');
+      await sleep(300);
+      const failedState = await cdp.evaluate(`
+        const state = document.getElementById('writing-state');
+        const retry = document.getElementById('writing-retry');
+        return {
+          text: state ? state.innerText.trim() : '',
+          body: document.body.innerText,
+          retryOffered: Boolean(retry) && retry.getBoundingClientRect().width > 0,
+          submittedVisible: Boolean(document.querySelector('.submitted-text, .submitted')),
+        };
+      `);
+      await shot(cdp, '13j-writing-unbewertet-desktop-light');
+      const fabricatedFail = failedState.body.match(/(\b\d{1,2}\s*\/\s*45\b)|(\b\d{1,2}\s*\/\s*15\b)|(Bestanden)|(Nicht bestanden)|(Note\s*[:=]\s*\d)/i);
+      record('W10b a failed assessment renders UNBEWERTET, with the code and the text, and never a score',
+        /Unbewertet/.test(failedState.text) && /grader_unavailable/.test(failedState.text) && !fabricatedFail,
+        `state "${failedState.text.replace(/\s+/g, ' ').slice(0, 130)}"${fabricatedFail ? `; FABRICATED: ${fabricatedFail[0]}` : '; no score, no fraction, no pass line'}`);
+      record('W10c the failed assessment offers a retry and keeps the letter readable',
+        failedState.retryOffered && failedState.submittedVisible,
+        `retry button visible=${failedState.retryOffered}; submitted text visible=${failedState.submittedVisible}`);
+
+      // The retry re-queues: with the worker still stopped it must settle on "waiting", not on a verdict.
+      await cdp.evaluate(`document.getElementById('writing-retry').click(); return true;`);
+      await sleep(2500);
+      const afterRetry = await cdp.evaluate(`return { text: document.getElementById('writing-state')?.innerText.trim().slice(0, 140) || '' };`);
+      record('W10d retrying re-queues the assessment rather than inventing a result',
+        /läuft|geprüft|Abgegeben/i.test(afterRetry.text) && !/Unbewertet/.test(afterRetry.text) && !/\/\s*45/.test(afterRetry.text),
+        `state "${afterRetry.text.replace(/\s+/g, ' ')}"`);
+      await shot(cdp, '13k-writing-retry-desktop-light');
+    } finally {
+      // Leave the stack as it was found: a later leg must not inherit a stopped worker.
+      compose(['start', 'worker']);
+    }
+
     /* ------------------------------------------- no learner state in the browser */
 
     /*

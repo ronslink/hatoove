@@ -26,6 +26,39 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — PILOT-06: the FAILED assessment is finally SEEN
+
+**A property that was written, reviewed by eye, and unproven.** The writing view renders **"Unbewertet"**
+with the failure code, keeps the letter and offers **"Erneut bewerten"** — and no leg had ever exercised it,
+because every previous run used a stub grader that always **succeeds**. That is the same class of gap this
+ledger keeps recording: the code path exists, the screen was never looked at.
+
+**Made deterministic instead of flaky.** `app-browser-check` **W10–W10d** (+ screenshots `13j`/`13k`):
+**stop the worker container** (the check owns a disposable Compose project), submit a letter so the job stays
+`queued`, mark the job failed through the stack's own `psql`
+(`UPDATE hatoove.jobs SET status='failed', failure_code='grader_unavailable'`, and delete the assessment),
+then assert the rendered state. **Stopping the worker first is what makes it deterministic** — otherwise the
+claim race decides the outcome, and a leg that flakes in that way teaches people to distrust the suite.
+
+| Leg | Asserts |
+|---|---|
+| **W10** | a submission is **named while it waits** — the state element carries `data-submission-id` |
+| **W10b** | **"Unbewertet"**, the code (`grader_unavailable`), and **no score, no fraction, no pass line** — the failure-mode redundancy check is measured against the whole rendered body |
+| **W10c** | a working **retry** is offered **and** the submitted letter stays readable |
+| **W10d** | retrying **re-queues** ("Die Bewertung läuft") rather than inventing a result |
+
+The submission is identified **through the DOM**, not by guessing at the database: `renderResult` now sets
+`data-submission-id` on the state element. A check that guesses at a row is a check that lies when the guess
+is close, and this project has the receipt for that lesson twice over.
+
+*This closes the last of the writing-half gaps that could be closed without a decision. What remains for the
+writing view is **D4/R11** — the rubric contract — which is a decision, not work.*
+
+**Guards at the end of the run:** app-browser **79/79** (from 0 when the run began — there was no browser
+check at all) · owned-api **30/30 memory AND 30/30 postgres** · docker-stack 33/33 · deletion 18/18 ·
+worker-runner 11/11 · saas-runtime 6/6 · owned-client 31/31 · api-spec 25/25 · retired-surface 10/10 ·
+server-origin 8/8 · keymask 14/14 · design 14/14 · repository-check (413 files).
+
 ### 2 October 2026 — PILOT-06: a resumed draft can be ABANDONED, and a client bug the leg caught
 
 **The trap the last slice created.** Resume became automatic, which means a learner who wanted to start the
