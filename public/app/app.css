@@ -149,3 +149,68 @@ code {
   opacity: 0.75;
 }
 .section-head:first-child { margin-top: 0; }
+
+/*
+ * THE WRITING VIEW (PILOT-05) — the first surface in this client that takes a long piece of the
+ * learner's own text. In the SHELL layer, never in `assets/design/hatoove.css`: that file is a pinned
+ * artifact whose digest is the reviewed contract, and new chrome belongs beside it rather than inside it.
+ *
+ * Tokens only, no raw colour or face — `tools/design-check.mjs` D1/D2 enforce that mechanically, and a
+ * raw value here would fail the gate rather than merely look wrong.
+ */
+.field-label {
+  display: block;
+  margin: 1rem 0 0.35rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/*
+ * A writing surface, not a search box: 1.5 line-height, the body face (NOT the display face the headings
+ * use), a resize the learner controls, and a width that never exceeds its card — a 12 000-character text
+ * that widens the layout would push the submit button off a phone screen.
+ */
+.writing-text {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 12rem;
+  padding: 0.9rem 1rem;
+  font-family: var(--font, inherit);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: inherit;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  resize: vertical;
+}
+.writing-text:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+
+/* The task's Leitpunkte: numbered guidance, indented enough to read as a list rather than as prose. */
+.leitpunkte { margin: 0.6rem 0 0; padding-left: 1.2rem; }
+.leitpunkte li { margin: 0.25rem 0; }
+
+/* The state line must not shift the layout as it changes, and it is deliberately NOT a scoreboard. */
+.writing-state { min-height: 1.5em; margin-top: 0.9rem; }
+.writing-state p { margin: 0.35rem 0; }
+
+/* The submitted text is closed by default: it is reference material once the job has run. */
+.submitted { margin: 0.6rem 0; }
+.submitted summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+.submitted-text {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font, inherit);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+/* Two buttons in a row on a desktop card; they wrap rather than clip on a phone. */
+.writing-state .btn, .card .row { margin-top: 0.6rem; }
+.row { display: flex; flex-wrap: wrap; gap: 0.6rem; }

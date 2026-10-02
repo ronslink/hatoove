@@ -91,6 +91,19 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
       calls.push('create');
       if (parent) ownedSubmission(owner, parent);
       const b = binding || DEFAULT_TASK_BINDING;
+      /*
+       * THE SERVING POLICY, APPLIED HERE TOO — not only in the PostgreSQL adapter.
+       *
+       * The memory fixture mirrors the adapter's contract, so a rule the adapter enforces and this does
+       * not turns "passes on memory, fails on postgres" (or worse, the reverse) into a test-only
+       * disagreement. An explicit binding must name one of the seeded writing tasks AND that task's own
+       * rubric; omitting the binding keeps the canonical default.
+       */
+      if (binding) {
+        const declared = WRITING_TASKS.find((t) => t.taskId === b.taskId && t.version === b.taskVersion);
+        const rubricFits = b.rubricId === WRITING_RUBRIC.rubricId && b.rubricVersion === WRITING_RUBRIC.version;
+        if (!declared || !rubricFits) fail(422, 'task_not_servable');
+      }
       const id = randomUUID();
       attempts.set(id, {
         id, owner_id: owner, task_id: b.taskId, task_version: b.taskVersion,
@@ -696,6 +709,55 @@ check('model-is-not-a-learner-setting', async () => {
   assert.equal(saved.settings.examDate, legal);
   assert.ok(!('model' in saved.settings), 'and no response grows a model field back');
   return 'model refused by the client AND the server in both shapes (422) while a legal field in the same payload is left unwritten; examDate/language still save; no model in any response';
+});
+
+/*
+ * AN ATTEMPT MUST BE BINDABLE TO THE TASK THE LEARNER OPENED — added before the route could do it.
+ *
+ * `POST /api/v1/attempts` took no binding at all: the datastore created every attempt against
+ * `DEFAULT_TASK_BINDING`, so all six seeded writing prompts were unreachable as attempts and a writing
+ * view could only ever have submitted against ONE task while showing another. That is the "the DOM was
+ * correct and every class-name assertion passed" defect in a different costume — a screen that looks
+ * right and a database row that belongs to something else.
+ *
+ * The refusal half matters as much as the acceptance half: a client must not be able to bind an attempt
+ * to a task version the deployment does not serve, and it must not choose its own rubric. Both are
+ * `422`, and both are asserted to leave NO attempt behind.
+ */
+check('attempt-binds-the-servable-task-the-learner-opened', async () => {
+  const w = await world();
+  const a = await learner(w);
+  const servable = WRITING_TASKS[1];
+  assert.ok(servable, 'the fixture needs at least two seeded writing tasks to tell them apart');
+  const binding = {
+    taskId: servable.taskId,
+    taskVersion: servable.version,
+    rubricId: WRITING_RUBRIC.rubricId,
+    rubricVersion: WRITING_RUBRIC.version,
+  };
+  const attempt = await a.client.createAttempt(binding);
+  const read = await a.raw('GET', `/api/v1/attempts/${attempt.id}`);
+  assert.equal(read.json.task_id, binding.taskId, 'the attempt must be bound to the task that was opened');
+  assert.equal(read.json.task_version, binding.taskVersion, 'and to that VERSION, not to whichever is current');
+  assert.equal(read.json.rubric_id, binding.rubricId, 'the rubric is the one the task declares');
+  assert.notEqual(read.json.task_id, DEFAULT_TASK_BINDING.taskId, 'and not silently the default task');
+
+  const before = await w.store.inspect.fingerprint();
+  const unknown = await a.raw('POST', '/api/v1/attempts', { ...binding, taskId: 'writing.du.nicht-vorhanden' });
+  assert.equal(unknown.status, 422, `a task the deployment does not serve must be 422, got ${unknown.status}`);
+  assert.equal(unknown.json.error, 'task_not_servable', `refusal token: ${unknown.json.error}`);
+  const wrongRubric = await a.raw('POST', '/api/v1/attempts', { ...binding, rubricId: 'writing.own-rubric' });
+  assert.equal(wrongRubric.status, 422, `a client-chosen rubric must be refused, got ${wrongRubric.status}`);
+  const incomplete = await a.raw('POST', '/api/v1/attempts', { taskId: binding.taskId });
+  assert.equal(incomplete.status, 422, `a partial binding must be refused, got ${incomplete.status}`);
+  assert.equal(incomplete.json.error, 'invalid_binding', `refusal token: ${incomplete.json.error}`);
+  assert.equal(await w.store.inspect.fingerprint(), before, 'no refused binding may leave an attempt behind');
+
+  // Omitting the binding keeps the previous behaviour, so an existing caller does not break.
+  const fallback = await a.client.createAttempt();
+  const fallbackRead = await a.raw('GET', `/api/v1/attempts/${fallback.id}`);
+  assert.equal(fallbackRead.json.task_id, DEFAULT_TASK_BINDING.taskId, 'omitting the binding still uses the default task');
+  return `bound to ${binding.taskId}@${binding.taskVersion}; unknown task, foreign rubric and partial binding all refused (422) with nothing written`;
 });
 
 check('retry-only-eligible-failed-job-same-identity', async () => {

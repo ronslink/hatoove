@@ -106,6 +106,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 const SERVER_CODE_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
+/**
+ * A content identifier — a task id, task version, rubric id or rubric version. Seeded ids carry dots and
+ * dashes (`writing.du.besuch-einer-freundin`), which `SERVER_CODE_RE` would reject, so the binding needs
+ * its own shape rather than a borrowed one.
+ */
+const CONTENT_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const JOB_STATUSES = Object.freeze(['queued', 'running', 'succeeded', 'failed', 'cancelled']);
 
 /** Typed transport error: `code` is stable, `status` is the HTTP status or null. */
@@ -623,10 +629,32 @@ export function createOwnedClient(config = {}) {
 
   function createAttempt(options) {
     rejectExtraArguments(arguments, 1, 'createAttempt');
-    const allowed = allowlist(options, ['parentSubmissionId'], 'createAttempt');
+    const allowed = allowlist(options, ['parentSubmissionId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion'], 'createAttempt');
     const body = {};
     if (allowed.parentSubmissionId !== undefined) {
       body.parentSubmissionId = requireUuid(allowed.parentSubmissionId, 'parentSubmissionId');
+    }
+    /*
+     * PILOT-05 — the optional task binding. ALL FOUR OR NONE, validated here as well as on the server, so
+     * a caller cannot half-specify a task and have the server guess the rest: a partial binding is a bug
+     * in the caller, and guessing is how an attempt ends up bound to a task nobody opened.
+     *
+     * The client validates the SHAPE; the SERVER validates that the task version is one the deployment
+     * serves and that the rubric is the one that task declares (`422 task_not_servable`). A client cannot
+     * widen the serving policy by asking nicely, which is why this check is not the safeguard.
+     */
+    const BINDING_FIELDS = ['taskId', 'taskVersion', 'rubricId', 'rubricVersion'];
+    const given = BINDING_FIELDS.filter((field) => allowed[field] !== undefined);
+    if (given.length) {
+      if (given.length !== BINDING_FIELDS.length) {
+        fail('invalid_request', { message: `a task binding needs all of ${BINDING_FIELDS.join(', ')}; got ${given.join(', ')}` });
+      }
+      for (const field of BINDING_FIELDS) {
+        if (typeof allowed[field] !== 'string' || !CONTENT_TOKEN_RE.test(allowed[field])) {
+          fail('invalid_request', { message: `${field} must be a content identifier` });
+        }
+        body[field] = allowed[field];
+      }
     }
     return call({
       method: 'POST',

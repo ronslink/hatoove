@@ -153,6 +153,13 @@ export const DELETION_NOT_REMOVED = Object.freeze([
  * import server code — but `tools/owned-api-check.mjs` asserts the two agree on `model` being refused.
  */
 export const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'theme', 'language'];
+/**
+ * A content identifier: a task id, a task version, a rubric id or a rubric version. Deliberately wider
+ * than `SETTINGS_TOKEN_RE` (which is about tokens a learner types) because seeded ids carry dots and
+ * dashes — `writing.du.besuch-einer-freundin` — and the same character set the catalogue route accepts.
+ */
+const CONTENT_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
 const SETTINGS_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SETTINGS_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/;
 const SETTINGS_THEMES = ['system', 'light', 'dark'];
@@ -605,9 +612,32 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       return reply(200, await datastore.listMistakes(owner, { examId: exam }));
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
-      onlyFields(body, ['parentSubmissionId']);
+      onlyFields(body, ['parentSubmissionId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion']);
       const parent = body.parentSubmissionId === undefined ? null : requireUuid(body.parentSubmissionId, 'invalid_parent');
-      return reply(201, await datastore.create(owner, parent));
+      /*
+       * PILOT-05 — AN ATTEMPT IS BOUND TO THE TASK THE LEARNER OPENED.
+       *
+       * This route used to take no binding at all: every attempt was created against the one canonical
+       * writing task. So the six seeded prompts were unreachable as attempts, and a writing view could
+       * only have submitted against ONE task while showing another — a screen that looks right and a row
+       * that belongs to something else.
+       *
+       * ALL FOUR FIELDS OR NONE. A partial binding is a caller bug, not a request to guess the rest, and
+       * the datastore applies the serving policy and pins the rubric to the one the task declares (see
+       * `adapter.create`): the client selects from what the deployment serves, and cannot widen that or
+       * choose its own rubric.
+       */
+      const BINDING = { taskId: 'invalid_binding', taskVersion: 'invalid_binding', rubricId: 'invalid_binding', rubricVersion: 'invalid_binding' };
+      const given = Object.keys(BINDING).filter((field) => body[field] !== undefined);
+      let binding = null;
+      if (given.length) {
+        if (given.length !== Object.keys(BINDING).length) fault(422, 'invalid_binding');
+        for (const [field, code] of Object.entries(BINDING)) {
+          if (typeof body[field] !== 'string' || !CONTENT_TOKEN_RE.test(body[field])) fault(422, code);
+        }
+        binding = { taskId: body.taskId, taskVersion: body.taskVersion, rubricId: body.rubricId, rubricVersion: body.rubricVersion };
+      }
+      return reply(201, await datastore.create(owner, parent, binding || undefined));
     }
 
     let match = ATTEMPT_RE.exec(pathname);

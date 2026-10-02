@@ -490,8 +490,21 @@ async function renderSkill(view) {
       ? tasks.map((t) => '<div class="card"><div class="card-head"><h3>' + esc(t.topic)
         + '</h3><span class="chip">' + esc(t.family) + '</span></div>'
         + '<p class="muted">' + esc(t.situation) + '</p>'
-        + '<p class="small muted">Anrede: ' + esc(t.adressat) + ' &middot; Prüfstatus: ' + esc(t.review_status) + '</p></div>').join('')
+        + '<p class="small muted">Anrede: ' + esc(t.adressat) + ' &middot; Prüfstatus: ' + esc(t.review_status) + '</p>'
+        /*
+         * The binding travels WITH the button. A writing view that creates an attempt without it is bound
+         * to the canonical default task, so the learner would read task B and have task A marked — the
+         * failure mode where the screen is right and the record belongs to something else.
+         */
+        + '<button class="btn btn-primary" type="button" data-write="' + esc(t.task_id) + '"'
+        + ' data-version="' + esc(t.version) + '" data-rubric="' + esc(t.rubric_id) + '"'
+        + ' data-rubric-version="' + esc(t.rubric_version) + '">Schreiben</button></div>').join('')
       : '<div class="card"><h3>Zurzeit keine Schreibaufgaben</h3><p class="muted">Der Server hat gerade nichts Servierbares.</p></div>';
+    box.onclick = (event) => {
+      const button = event.target?.closest?.('[data-write]');
+      if (!button) return;
+      guard(openWriting(box, tasks.find((t) => t.task_id === button.dataset.write)));
+    };
     return;
   }
 
@@ -655,6 +668,200 @@ async function openSet(setId) {
     if (answer && card) guard(answerItem(set.set_id, card, card.dataset.item, answer));
   };
   el('practice-close')?.addEventListener('click', () => {
+    box.hidden = true;
+    box.innerHTML = '';
+    if (list) list.hidden = false;
+  });
+}
+
+/*
+ * ============================================================ writing (PILOT-05)
+ *
+ * THE FIRST SCREEN IN THIS CLIENT THAT CAN SUBMIT LEARNER TEXT. It exists because the gap was recorded
+ * and measurable: the Schreiben view listed the six seeded prompts and NOTHING could open one, so
+ * draft → submission → result had no UI at all. Four properties are the reason this function is written
+ * the way it is, and each is a defect this programme has already met once:
+ *
+ *   1. THE DRAFT IS SAVED AGAINST A REVISION. The API has no "submit text" route — a submission freezes
+ *      the revision it is given — so the view must save first and carry the revision it was told. A 409
+ *      means another device (or a stale tab) moved the draft: the learner is told, and their text is NOT
+ *      thrown away.
+ *   2. NOTHING IS INVENTED WHILE THE ASSESSMENT IS MISSING. A queued or failed job renders as
+ *      "unbewertet" or "wird geprüft" — never a score, never a total, never a pass line. That is the
+ *      property `mock-outcome-browser-check` used to hold before it was deleted with the SPA.
+ *   3. THE SUBMITTED TEXT STAYS ON SCREEN. The learner can still read what they sent, which is the
+ *      property the deleted check asserted as "submitted text stays accessible".
+ *   4. THE BINDING IS THE TASK THAT WAS OPENED, down to the version and the rubric the task declares.
+ *      The server refuses anything else (422 task_not_servable), and the button carries it.
+ */
+async function openWriting(box, task) {
+  if (!task) return;
+  const list = box.parentElement?.querySelector('.stack[id^="skill-"]');
+  if (list) list.hidden = true;
+  box.hidden = false;
+  window.scrollTo(0, 0);
+  const leitpunkte = Array.isArray(task.leitpunkte) ? task.leitpunkte : [];
+  box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(task.topic)
+    + '</h3><span class="chip">Schreiben</span></div>'
+    + '<p class="muted">' + esc(task.situation) + '</p>'
+    + '<p class="small muted">Anrede: ' + esc(task.adressat) + '</p>'
+    + (leitpunkte.length
+      ? '<ul class="leitpunkte">' + leitpunkte.map((p) => '<li>' + esc(p) + '</li>').join('') + '</ul>'
+      : '')
+    + '<label class="field-label" for="writing-text">Ihr Text</label>'
+    + '<textarea id="writing-text" class="writing-text" rows="12" spellcheck="false"'
+    + ' aria-describedby="writing-state"></textarea>'
+    + '<p class="small muted" id="writing-hint">Der Text wird während des Schreibens gespeichert.</p>'
+    + '<div class="row"><button class="btn btn-primary" type="button" id="writing-submit">Abgeben</button>'
+    + '<button class="btn" type="button" id="writing-close">Schließen</button></div>'
+    + '<div id="writing-state" class="writing-state" role="status" aria-live="polite">'
+    + '<p class="muted">Noch nichts abgegeben.</p></div></div>';
+
+  const state = el('writing-state');
+  const area = el('writing-text');
+  const submit = el('writing-submit');
+  /*
+   * `reveal` IS NOT COSMETIC, AND IT IS NOT ALWAYS TRUE.
+   *
+   * The screenshot showed it: after "Abgeben" the state and the buttons sat BELOW the fold at 1440x900,
+   * so the learner pressed the button and saw nothing happen — the same defect as the practice form that
+   * rendered after nine cards, found the same way. When the learner ACTS, the result must come into view.
+   *
+   * It must NOT happen on an autosave announcement: yanking the viewport while someone is typing is its
+   * own defect, and this client has already been bitten once by a scroll that fought the learner.
+   */
+  const say = (html, { reveal = false } = {}) => {
+    if (!state) return;
+    state.innerHTML = html;
+    if (reveal && typeof state.scrollIntoView === 'function') state.scrollIntoView({ block: 'nearest' });
+  };
+
+  const attempt = await api.writing.createAttempt({
+    taskId: task.task_id, taskVersion: task.version, rubricId: task.rubric_id, rubricVersion: task.rubric_version,
+  });
+  if (!attempt) return;
+  if (!attempt.ok) {
+    say('<p class="err">Das Schreiben konnte nicht begonnen werden: ' + esc(failure(attempt)) + '.</p>', { reveal: true });
+    if (submit) submit.disabled = true;
+    return;
+  }
+  let revision = Number(attempt.data?.revision);
+  if (!Number.isSafeInteger(revision) || revision < 1) revision = 1;
+  const attemptId = attempt.data.id;
+
+  /*
+   * AUTOSAVE, DEBOUNCED. One timer, cleared on every keystroke: a save per keystroke would be one HTTP
+   * request per character, and no save at all would lose the text on a closed tab. The timer is the only
+   * state this view keeps, and it is cancelled when the view closes.
+   */
+  let timer = null;
+  let saving = false;
+  const saveNow = async (announce) => {
+    if (saving || !area) return;
+    saving = true;
+    const res = await api.writing.saveDraft(attemptId, revision, area.value);
+    saving = false;
+    if (!res) return;
+    if (res.ok) {
+      revision = Number(res.data?.revision) || revision + 1;
+      if (announce) say('<p class="muted">Gespeichert. Noch nichts abgegeben.</p>');
+      return;
+    }
+    if (res.status === 409) {
+      /*
+       * A CONFLICT IS A STATE, NOT A CRASH. The server sends its own copy so the caller can reconcile
+       * rather than guess; adopting the server's revision and saving again is the honest resolution here,
+       * and the learner keeps their text — which is the part that must never be lost.
+       */
+      const serverRevision = Number(res.data?.current?.revision);
+      if (Number.isSafeInteger(serverRevision)) revision = serverRevision;
+      const again = await api.writing.saveDraft(attemptId, revision, area.value);
+      if (again?.ok) { revision = Number(again.data?.revision) || revision + 1; if (announce) say('<p class="muted">Gespeichert (nach Abgleich).</p>'); return; }
+    }
+    say('<p class="err">Der Text konnte nicht gespeichert werden (' + esc(failure(res)) + '). Ihr Text bleibt hier stehen.</p>');
+  };
+  area?.addEventListener('input', () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => { timer = null; guard(saveNow(false)); }, 800);
+  });
+
+  const eventId = () => (crypto.randomUUID ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      return (c === 'x' ? r : ((r & 0x3) | 0x8)).toString(16);
+    }));
+
+  const renderResult = async (submissionId, tries = 0) => {
+    const res = await api.writing.result(submissionId);
+    if (!res) return;
+    if (!res.ok) { say('<p class="err">Der Stand konnte nicht geladen werden (' + esc(failure(res)) + ').</p>', { reveal: true }); return; }
+    const job = res.data?.job || {};
+    const assessment = res.data?.assessment || null;
+    const submitted = typeof res.data?.submission?.text === 'string' ? res.data.submission.text : null;
+    /*
+     * THE SUBMITTED TEXT IS PART OF EVERY STATE, including the failures. It is the learner's own writing,
+     * it is frozen in the submission snapshot, and hiding it behind a job status would take it away from
+     * the person who wrote it.
+     */
+    const sent = submitted === null ? '' : '<details class="submitted"><summary>Ihr abgegebener Text</summary>'
+      + '<pre class="submitted-text">' + esc(submitted) + '</pre></details>';
+    if (job.status === 'queued' || job.status === 'running') {
+      say('<p class="muted">Abgegeben. Die Bewertung läuft — bis dahin gibt es keine Punktzahl.</p>' + sent, { reveal: true });
+      if (tries < 6) setTimeout(() => { if (state?.isConnected) guard(renderResult(submissionId, tries + 1)); }, 2000);
+      return;
+    }
+    if (job.status === 'failed') {
+      /*
+       * UNBEWERTET, AND SAID SO. A failed assessment is not a zero: the text is preserved and the learner
+       * is offered a retry. Rendering anything numeric here would be the fabricated score that the deleted
+       * browser check existed to prevent.
+       */
+      say('<p class="muted"><strong>Unbewertet.</strong> Die Bewertung ist fehlgeschlagen'
+        + (job.failure_code ? ' (' + esc(String(job.failure_code)) + ')' : '')
+        + '. Ihr Text bleibt erhalten.</p>' + sent
+        + '<button class="btn" type="button" id="writing-retry">Erneut bewerten</button>', { reveal: true });
+      el('writing-retry')?.addEventListener('click', () => guard((async () => {
+        await api.writing.retry(submissionId);
+        say('<p class="muted">Erneut abgegeben. Die Bewertung läuft.</p>' + sent, { reveal: true });
+        setTimeout(() => { if (state?.isConnected) guard(renderResult(submissionId, 0)); }, 1200);
+      })()));
+      return;
+    }
+    if (job.status === 'succeeded' && assessment) {
+      /*
+       * WHAT THE SERVER ACTUALLY SENDS: `assessment.feedback` and the versions it was produced with. The
+       * rubric has four internal criteria, but the worker does not return per-criterion results yet, so
+       * this renders the feedback it has and says plainly that it is formative — NO total, no /45, no
+       * pass line, and no invented criteria list. A UI that drew four rows from one comment would be
+       * showing a rubric result nobody produced.
+       */
+      const feedback = assessment.feedback || {};
+      say('<p class="muted">Bewertet — formative Rückmeldung, keine Punktzahl und kein Bestehen.</p>'
+        + (feedback.comment ? '<p>' + esc(String(feedback.comment)) + '</p>' : '')
+        + (assessment.rubric_version ? '<p class="small muted">Rubrik ' + esc(String(assessment.rubric_version)) + '</p>' : '')
+        + sent);
+      return;
+    }
+    say('<p class="muted">Abgegeben. Noch keine Bewertung verfügbar.</p>' + sent, { reveal: true });
+  };
+
+  submit?.addEventListener('click', () => guard((async () => {
+    if (!area) return;
+    if (timer) { clearTimeout(timer); timer = null; }
+    await saveNow(false);
+    submit.disabled = true;
+    const res = await api.writing.submit(attemptId, revision, eventId());
+    if (!res) return;
+    if (!res.ok) {
+      submit.disabled = false;
+      say('<p class="err">Die Abgabe ist fehlgeschlagen (' + esc(failure(res)) + '). Ihr Text bleibt hier stehen.</p>', { reveal: true });
+      return;
+    }
+    await renderResult(res.data.submissionId);
+  })()));
+
+  el('writing-close')?.addEventListener('click', () => {
+    if (timer) clearTimeout(timer);
     box.hidden = true;
     box.innerHTML = '';
     if (list) list.hidden = false;

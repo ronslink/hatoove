@@ -26,6 +26,58 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — PILOT-05: the writing journey gets a SCREEN, and its gap list shrinks
+
+**The gap, stated plainly.** Four ledger rows recorded writing as UNPROVEN — `draft-session`,
+`writing-surface`, the writing result screen and the mock-outcome view died with the SPA — and
+`public/app/` never had a writing view at all: the Schreiben section listed the six seeded prompts and
+**nothing could open one**. Draft → submission → result had no UI, and the API could not have supported
+one: `POST /api/v1/attempts` took no binding, so every attempt was created against
+`DEFAULT_TASK_BINDING` and a view could only have submitted against ONE task while showing another.
+
+**Contract first, and red first.** `owned-api-check` leg `attempt-binds-the-servable-task-the-learner-opened`
+was written before the route could satisfy it and observed **red**, then green on **both backends**
+(29/29 memory and 29/29 postgres). It asserts, in one leg:
+
+| Assertion | Why it is the property and not a detail |
+|---|---|
+| an explicit `{taskId, taskVersion, rubricId, rubricVersion}` binds the attempt to exactly that task **and version** | a learner who opens task B must not have task A marked |
+| it is not silently the default task | the defect being closed |
+| an unknown task id → **422 `task_not_servable`**, a foreign rubric → **422**, a partial binding → **422 `invalid_binding`** | a client must not widen the serving policy or choose its own rubric |
+| no refused binding leaves an attempt behind (fingerprint unchanged) | a refusal that writes is not a refusal |
+| omitting the binding still uses the default | an existing caller does not break |
+
+The serving policy is applied **in the datastore** (`adapter.create` queries `task_version` joined to
+`content_version` under the same `B1PREP_SERVE_REVIEW` policy as the catalogue route, and requires the
+task's own rubric), and the memory fixture mirrors it — a rule enforced in one backend and not the other
+is a test-only disagreement. The shipped client (`owned-client.js`) gained the same four optional fields
+with all-or-none validation, and `public/app/api.js` gained the `writing` group.
+
+**The screen.** `openWriting()` in `public/app/app.js`, in the SHELL's stylesheet layer (never in the
+pinned `assets/design/hatoove.css` — `design-check` D1/D2 enforce that and the pin stays byte-exact):
+attempt → debounced autosave against a revision → `Abgeben` → result polling, with the honest states:
+
+* **queued/running** → "Die Bewertung läuft — bis dahin gibt es keine Punktzahl."
+* **failed** → "**Unbewertet.**" plus `failure_code`, the text preserved, and a retry
+* **succeeded** → the formative comment the server actually sends, labelled as formative, with **no
+  total, no /45, no pass line, and no invented criteria list**
+* **a 409 on autosave** adopts the server's revision and saves again rather than discarding the text
+
+**Rendered evidence — and a defect the screenshot found.** Seven browser legs (W1–W7) with screenshots at
+desktop and phone widths: 71/71 (was 63). The FIRST version of the submitted-state leg asserted only that
+the state element had TEXT, and it passed while the state sat **below the fold** — the learner pressed
+"Abgeben" and saw nothing happen. That is the third occurrence of this project's own recorded lesson
+(*"the element is present" is not "the learner can see it"*). Both sides were fixed: `say()` now takes a
+`reveal` flag that scrolls the state into view **on a learner action only** (never on an autosave
+announcement, which would yank the viewport while someone types), and **W6** asserts the state's bounding
+box is inside the viewport — it reports `top=845px of 900px`.
+
+**STILL UNPROVEN, and not claimed:** the worker returns `{feedback, modelVersion, promptVersion,
+rubricVersion}` — ONE comment — while `WRITING_RUBRIC` declares four criteria. Per-criterion feedback is a
+rubric contract decision (R11) the server does not deliver, so the view renders what exists and says it is
+formative. Rendering four criterion rows from one comment would be showing a rubric result nobody
+produced. That remains a gap for the next writing slice, together with the listening view (no audio).
+
 ### 2 October 2026 — SPA-RETIRE 6: the legacy API is DELETED, and two lessons that cost real time
 
 **Deleted from `server.js`:** `GET /api/config` and `POST /api/config` (plus their hosted-mode gate),

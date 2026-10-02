@@ -34,6 +34,8 @@ const PATHS = Object.freeze({
   practiceNext: '/api/v1/practice/next',
   practiceProgress: '/api/v1/practice/progress',
   practiceMistakes: '/api/v1/practice/mistakes',
+  attempts: '/api/v1/attempts',
+  submissions: '/api/v1/submissions',
 });
 
 /**
@@ -178,5 +180,29 @@ export const api = Object.freeze({
      * database role at all. What comes back is what the LEARNER answered, so they can try again.
      */
     mistakes: () => call('GET', PATHS.practiceMistakes),
+  }),
+
+  /**
+   * WRITING: the draft → submission → result path, driven exactly as the owned API defines it.
+   *
+   * The order is not a convenience, it is the contract: an attempt is created (bound to the task the
+   * learner opened), the draft is saved against a REVISION, and a submission freezes the revision it was
+   * given. There is no route that submits text directly, which is why the view must save before it
+   * submits — and why a 409 on the draft is a real state the learner has to be told about rather than a
+   * silent overwrite.
+   *
+   * `eventId` is the caller's own idempotency key: the same event submitted twice is ONE submission, so
+   * a double-tap or a retried request cannot be charged twice. The view owns generating it and keeping it
+   * for the life of one submit attempt.
+   */
+  writing: Object.freeze({
+    createAttempt: (binding = null) => call('POST', PATHS.attempts, binding ? { ...binding } : {}),
+    readAttempt: (attemptId) => call('GET', `${PATHS.attempts}/${encodeURIComponent(attemptId)}`),
+    saveDraft: (attemptId, expectedRevision, text) => call('PUT', `${PATHS.attempts}/${encodeURIComponent(attemptId)}`,
+      { expectedRevision, text }),
+    submit: (attemptId, expectedRevision, eventId) => call('POST', `${PATHS.attempts}/${encodeURIComponent(attemptId)}/submissions`,
+      { expectedRevision, eventId }),
+    result: (submissionId) => call('GET', `${PATHS.submissions}/${encodeURIComponent(submissionId)}`),
+    retry: (submissionId) => call('POST', `${PATHS.submissions}/${encodeURIComponent(submissionId)}/retry`, {}),
   }),
 });

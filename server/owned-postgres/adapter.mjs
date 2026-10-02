@@ -619,6 +619,28 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       note('create');
       const b = binding || DEFAULT_TASK_BINDING;
       return settle(owner, async (client) => {
+        /*
+         * AN EXPLICIT BINDING MUST NAME A SERVABLE TASK VERSION — checked here, in the datastore, so both
+         * backends apply the same rule and neither the route nor a caller can bind an attempt to content
+         * the deployment does not serve, or to a rubric of its own choosing.
+         *
+         * The composite foreign keys from migration 0006 already make the reference real (an unknown pair
+         * fails), but they do NOT apply the serving policy and they do NOT pin the rubric: a caller could
+         * name a servable task with a rubric that task does not declare. This query closes both, using the
+         * same `review_status` policy as the catalogue route rather than a second interpretation of it.
+         */
+        if (binding) {
+          const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+            ? ['approved'] : ['approved', 'unreviewed'];
+          const servable = first(await client.query(
+            `SELECT 1 FROM task_version t
+               JOIN content_version c ON c.content_version_id = t.content_version_id
+              WHERE t.task_id = $1 AND t.version = $2
+                AND t.rubric_id = $3 AND t.rubric_version = $4
+                AND c.review_status = ANY($5::text[])`,
+            [b.taskId, b.taskVersion, b.rubricId, b.rubricVersion, serveReview]));
+          if (!servable) fail(422, 'task_not_servable');
+        }
         if (parent) {
           const parentRow = first(await client.query(
             `SELECT a.id FROM submissions s JOIN attempts a ON a.id = s.attempt_id

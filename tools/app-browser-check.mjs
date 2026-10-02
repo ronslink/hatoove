@@ -828,6 +828,141 @@ async function main() {
       !ueben.headings.some((t) => /^(LV|SB|HV)\d+\s+\d+$/.test(t)) && !/^(LV|SB|HV)\d+\s+\d+$/.test(ueben.full),
       JSON.stringify(ueben.headings));
 
+    /* ---------------------------------------------------------------- SCHREIBEN */
+
+    /*
+     * THE WRITING JOURNEY — the gap that had a NAME but no screen.
+     *
+     * Four ledger rows recorded writing as UNPROVEN: `draft-session`, `writing-surface`, the writing
+     * result screen and the mock-outcome view were deleted with the SPA, and `public/app/` had no writing
+     * view at all — the Schreiben section listed the six seeded prompts and nothing could open one. These
+     * legs are the rendered half of PILOT-05; the API half (an attempt bound to the task the learner
+     * opened, and `task_not_servable` for anything else) is `owned-api-check` leg
+     * `attempt-binds-the-servable-task-the-learner-opened`.
+     *
+     * What is asserted is what the learner must SEE, and the last leg is the one that matters most: an
+     * assessment that has not happened must never appear as a score. That is the property the deleted
+     * `mock-outcome-browser-check` held, tested there against the mock view and here against the real
+     * submission path.
+     */
+    await nav(cdp, `${base}/app/#/schreiben`);
+    await softWait(cdp, "document.querySelector('#skill-schreiben [data-write]')", 12000, 'the Schreiben catalogue');
+    await sleep(250);
+    const schreiben = await cdp.evaluate(`
+      const box = document.getElementById('skill-schreiben');
+      const button = box.querySelector('[data-write]');
+      return {
+        shown: !document.getElementById('view-schreiben').hidden,
+        tasks: box.querySelectorAll('[data-write]').length,
+        binding: button ? { task: button.dataset.write, version: button.dataset.version, rubric: button.dataset.rubric } : null,
+        text: box.innerText.trim().slice(0, 200),
+      };
+    `);
+    await shot(cdp, '13c-schreiben-catalogue-desktop-light');
+    record('W1 Schreiben lists writing tasks, each carrying its own task binding',
+      schreiben.shown && schreiben.tasks >= 1 && Boolean(schreiben.binding?.task) && Boolean(schreiben.binding?.version),
+      `${schreiben.tasks} task(s); first binding ${JSON.stringify(schreiben.binding)}`);
+    record('W2 no placeholder is shown as a writing task title',
+      !/^(LV|SB|HV)\d+\s+\d+$/.test(schreiben.text) && !/writing\.\w+@/.test(schreiben.text),
+      schreiben.text.slice(0, 90));
+
+    const openedWriting = await cdp.evaluate(`
+      const box = document.getElementById('skill-schreiben');
+      box.querySelector('[data-write]').click();
+      return true;
+    `);
+    await softWait(cdp, "document.querySelector('#writing-text')", 12000, 'the writing view');
+    await sleep(200);
+    const writingView = await cdp.evaluate(`
+      const area = document.getElementById('writing-text');
+      const state = document.getElementById('writing-state');
+      return {
+        clicked: ${openedWriting},
+        area: Boolean(area) && area.getBoundingClientRect().height > 40,
+        leitpunkte: document.querySelectorAll('.leitpunkte li').length,
+        state: state ? state.innerText.trim() : null,
+        submit: Boolean(document.getElementById('writing-submit')),
+      };
+    `);
+    await shot(cdp, '13d-writing-open-desktop-light');
+    record('W3 opening a writing task renders the task, its Leitpunkte and a text field',
+      writingView.area && writingView.leitpunkte >= 3 && writingView.submit,
+      `${writingView.leitpunkte} Leitpunkt(e); textarea visible=${writingView.area}; submit=${writingView.submit}`);
+
+    // Type a real text, then submit it. `setInputs`-style assignment so the input event fires and the
+    // view's autosave path is exercised rather than bypassed.
+    const typedText = 'Liebe Anna, ich freue mich sehr über deinen Besuch. Am Samstag habe ich Zeit.';
+    await cdp.evaluate(`
+      const area = document.getElementById('writing-text');
+      area.value = ${JSON.stringify(typedText)};
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+      return area.value.length;
+    `);
+    // Wait past the debounce so the draft is saved against a revision before submitting.
+    await sleep(1400);
+    const afterType = await cdp.evaluate(`return { hint: document.getElementById('writing-hint')?.innerText || '', state: document.getElementById('writing-state')?.innerText || '' };`);
+    record('W4 the text is saved while typing, and the learner is told so',
+      /gespeichert|Gespeichert/i.test(afterType.hint + ' ' + afterType.state) || afterType.hint.length > 0,
+      `hint "${afterType.hint.trim().slice(0, 60)}"; state "${afterType.state.trim().slice(0, 60)}"`);
+
+    await cdp.evaluate(`document.getElementById('writing-submit').click(); return true;`);
+    await softWait(cdp, "document.getElementById('writing-state') && !/Noch nichts abgegeben/.test(document.getElementById('writing-state').innerText)", 15000, 'the submitted state');
+    await sleep(400);
+    const afterSubmit = await cdp.evaluate(`
+      const state = document.getElementById('writing-state');
+      const text = state ? state.innerText : '';
+      const rect = state ? state.getBoundingClientRect() : null;
+      return {
+        state: text.trim().slice(0, 300),
+        bodyText: document.body.innerText,
+        submittedVisible: Boolean(document.querySelector('.submitted-text, .submitted')),
+        /*
+         * ON SCREEN, not merely in the DOM. The first version of this leg asserted only that the state
+         * had TEXT — and the screenshot showed it sitting BELOW THE FOLD, so the learner pressed Abgeben
+         * and saw nothing happen. "The element exists" is not "the learner can see it"; this project has
+         * that lesson recorded twice already, and it was learned a third time here.
+         */
+        onScreen: Boolean(rect) && rect.top < window.innerHeight && rect.bottom > 0,
+        rectTop: rect ? Math.round(rect.top) : null,
+        viewport: window.innerHeight,
+      };
+    `);
+    await shot(cdp, '13e-writing-submitted-desktop-light');
+    /*
+     * THE LEG THAT MATTERS. A queued or failed assessment must read as "wird geprüft" / "unbewertet" and
+     * NEVER as a number, a fraction or a verdict. The patterns are the ones a fabricated score would
+     * have to use, so this fails on the defect rather than on a spelling.
+     */
+    const fabricated = afterSubmit.bodyText.match(/(\b\d{1,2}\s*\/\s*45\b)|(\b\d{1,2}\s*\/\s*15\b)|(Bestanden)|(Nicht bestanden)|(Note\s*[:=]\s*\d)/i);
+    record('W5 a submitted text shows an unassessed state, never a score or a pass line',
+      afterSubmit.state.length > 0 && !fabricated,
+      `state "${afterSubmit.state.slice(0, 110)}"${fabricated ? `; FABRICATED: ${fabricated[0]}` : '; no score, no fraction, no pass line'}`);
+    record('W6 the submitted state is ON SCREEN, not below the fold',
+      afterSubmit.onScreen,
+      `state top=${afterSubmit.rectTop}px of ${afterSubmit.viewport}px viewport`);
+    record('W6b the submitted text stays readable by the learner',
+      afterSubmit.submittedVisible || afterSubmit.bodyText.includes(typedText.slice(0, 30)),
+      `submitted text on screen=${afterSubmit.submittedVisible}`);
+
+    await viewport(cdp, 390, 844, true);
+    await sleep(250);
+    const writingPhone = await cdp.evaluate(`
+      const area = document.getElementById('writing-text');
+      const submit = document.getElementById('writing-submit');
+      const rect = area ? area.getBoundingClientRect() : null;
+      return {
+        areaWidth: rect ? Math.round(rect.width) : 0,
+        overflows: document.documentElement.scrollWidth > window.innerWidth + 1,
+        submitVisible: Boolean(submit) && submit.getBoundingClientRect().width > 0,
+      };
+    `);
+    await shot(cdp, '13f-writing-submitted-phone-light');
+    record('W7 the writing view fits a phone without horizontal overflow',
+      writingPhone.areaWidth > 100 && !writingPhone.overflows && writingPhone.submitVisible,
+      `textarea ${writingPhone.areaWidth}px wide; page overflow=${writingPhone.overflows}; submit visible=${writingPhone.submitVisible}`);
+    await viewport(cdp, 1440, 900, false);
+    await sleep(150);
+
     /* ------------------------------------------- no learner state in the browser */
 
     /*
