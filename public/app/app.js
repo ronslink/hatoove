@@ -816,7 +816,10 @@ const CRITERION_LABELS = Object.freeze({
  *      The server refuses anything else (422 task_not_servable), and the button carries it.
  */
 const writing = createWritingController({ api, esc, readAloud, onChange: () => { if (currentView === 'fortschritt') guard(renderHistory()); } });
-async function openWriting(box, task, options = {}) { return writing.open(box, task, options); }
+async function openWriting(box, task, options = {}) {
+  // Keep the task catalogue as a sibling of the editor so closing a letter can restore it.
+  return writing.open(box.id.startsWith('skill-') ? practiceHost(box) : box, task, options);
+}
 async function renderHistory() {
   const host = el('history-list');
   host.innerHTML = '<p class="muted">Dein Verlauf wird geladen …</p>';

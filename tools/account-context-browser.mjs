@@ -59,6 +59,7 @@ export async function verifyAccountContext({ base, freePort, record, shot, viewp
 
     // Rebind only by reloading after a deliberate login. Create a normal unsubmitted draft.
     if (await loginOther(0) !== 200) throw new Error('Restoring synthetic A failed');
+    await nav(a, base + '/signin'); // Changing only the app hash deliberately does not unfreeze the old page.
     await nav(a, base + '/app/#/schreiben');
     await a.waitFor("document.querySelector('#skill-schreiben [data-write]')", 15000);
     await clickSel(a, '#skill-schreiben [data-write]');
