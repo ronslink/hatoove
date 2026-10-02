@@ -112,6 +112,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
  * its own shape rather than a borrowed one.
  */
 const CONTENT_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+/** The fields an entry in the open-attempt index may carry — and 	ext is deliberately NOT one. */
+const OPEN_ATTEMPT_FIELDS = Object.freeze(['id', 'task_id', 'task_version', 'rubric_id', 'rubric_version', 'revision', 'created_at']);
 const JOB_STATUSES = Object.freeze(['queued', 'running', 'succeeded', 'failed', 'cancelled']);
 
 /** Typed transport error: `code` is stable, `status` is the HTTP status or null. */
@@ -754,6 +756,42 @@ export function createOwnedClient(config = {}) {
     });
   }
 
+  /**
+   * The learner's UNFINISHED attempts — what a reload needs to offer "continue" rather than a blank page.
+   *
+   * `open=1` is part of the route, not a filter this client may vary, so it is built here rather than
+   * taken from the caller. The index carries NO TEXT by design: a list that returned letters would put a
+   * learner's writing in every response, so `readAttempt` is how the text is fetched, once the caller has
+   * decided which attempt to resume.
+   */
+  function openAttempts() {
+    rejectExtraArguments(arguments, 0, 'openAttempts');
+    return call({
+      method: 'GET',
+      path: `${ATTEMPTS_PATH}?open=1`,
+      validate: (value) => {
+        const resource = asResource(value, 'open attempts');
+        if (!Array.isArray(resource.attempts)) {
+          fail('malformed_response', { message: 'open attempts must be an array' });
+        }
+        const entries = resource.attempts.map((entry, index) => {
+          const row = asResource(entry, `open attempts[${index}]`);
+          const unknown = Object.keys(row).filter((key) => !OPEN_ATTEMPT_FIELDS.includes(key));
+          if (unknown.length) {
+            fail('malformed_response', { message: `unsupported field(s) in open attempts[${index}]: ${unknown.join(', ')}` });
+          }
+          // The text must NOT travel in an index. Refusing it here means a server that started sending
+          // letters in a list would fail the client rather than quietly ship them.
+          if ('text' in row) fail('malformed_response', { message: 'the open index must not carry draft text' });
+          if (typeof row.id !== 'string' || !UUID_RE.test(row.id)) fail('malformed_response', { message: `open attempts[${index}].id must be a uuid` });
+          if (!Number.isSafeInteger(row.revision) || row.revision < 1) fail('malformed_response', { message: `open attempts[${index}].revision must be a positive integer` });
+          return { ...row };
+        });
+        return { attempts: entries };
+      },
+    });
+  }
+
   function retrySubmission(submissionId) {
     rejectExtraArguments(arguments, 1, 'retry');
     const id = requireUuid(submissionId, 'submissionId');
@@ -786,6 +824,7 @@ export function createOwnedClient(config = {}) {
     signOut,
     clear,
     createAttempt,
+    openAttempts,
     readAttempt,
     saveDraft,
     submit,

@@ -196,6 +196,14 @@ export const api = Object.freeze({
    * for the life of one submit attempt.
    */
   writing: Object.freeze({
+    /**
+     * WHAT IS STILL UNFINISHED, so a reload can offer "continue" instead of a blank page.
+     *
+     * The index carries no text: this is an ID, the task binding and the revision. The text arrives from
+     * `readAttempt` once the view has decided which draft it is resuming — one letter per response, not
+     * every letter in a list.
+     */
+    openAttempts: () => call('GET', `${PATHS.attempts}?open=1`),
     createAttempt: (binding = null) => call('POST', PATHS.attempts, binding ? { ...binding } : {}),
     readAttempt: (attemptId) => call('GET', `${PATHS.attempts}/${encodeURIComponent(attemptId)}`),
     saveDraft: (attemptId, expectedRevision, text) => call('PUT', `${PATHS.attempts}/${encodeURIComponent(attemptId)}`,

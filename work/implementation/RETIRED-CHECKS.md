@@ -26,6 +26,58 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — PILOT-06: an unfinished letter survives a reload (and three defects found getting there)
+
+**The gap, and why the answer had to come from the server.** A learner who reloaded mid-letter got an empty
+textarea attached to a **new** attempt while their writing sat in the database with nothing pointing at it.
+The client cannot answer "which attempt is open" for itself — it keeps nothing in the browser (asserted by
+`app-browser-check` L30) — so the answer is a route.
+
+**`GET /api/v1/attempts?open=1`** returns the learner's unfinished attempts, newest first: **no text**, the
+task binding, and the revision to save against. "Open" is exactly two things — no submission exists (a
+submitted letter is a frozen snapshot, and resuming it as a draft would let a learner edit what was marked)
+and not deleted (a tombstone is not a draft). `?open=1` is part of WHAT IS SERVED, not a parameter with a
+validation error: any other query, or none, gets the same `404 not_found` the path already gives for an
+unsupported method — the convention `owned-api-check` leg `error-404-unknown-routes-and-methods` already
+asserts, so the new route obeys it rather than carving an exception into it.
+
+`owned-api-check` leg **`an-unfinished-attempt-is-resumable-and-a-submitted-one-is-not`** was written first
+and observed **red**, then green on **both backends** (30/30 memory, 30/30 postgres). It asserts the index
+names the attempt, its binding and its revision; that **no field smuggles the text**; that a stranger sees
+nothing; and that a submitted **or deleted** attempt is not resumable.
+
+**DEFECT 1 — `attempts` had no timestamp, so "newest first" was meaningless.** The first adapter query threw
+`column a.created_at does not exist` (SQLSTATE 42703) and the route answered **500**. The memory fixture had
+been setting a `created_at` of its own, so the check passed on one backend and the route broke on the other —
+which is the whole argument for running the same suite on both. Ordering by `id` was not an option (random
+UUIDv4, so "newest" would have been an arbitrary order presented as a meaningful one). Migration
+**`0016-attempt-created-at.sql`** adds the column (`NOT NULL DEFAULT now()`, so the INSERT needs no change)
+and an `(owner_id, created_at DESC)` index that matches the query.
+
+**DEFECT 2 — MY OWN "FIX" INTRODUCED A TDZ ERROR, AND THREE LEGS STILL PASSED.** Moving the autosave wiring
+so it could not lose early keystrokes put `attemptId = attempt.data.id` **above** `let attemptId = null`: a
+temporal-dead-zone `ReferenceError` that skipped the rest of the wiring — no listener, no enabled field, no
+resume. The rendered legs went on passing because they were too weak: W3 asked whether a textarea *existed*
+(a disabled one does), and **W4 asked only whether a HINT existed** — it passed while the autosave never
+landed at all. What caught it was asking the **SERVER**: `W4` now reads the draft back through
+`GET /api/v1/attempts/:id` and asserts the text and a revision of at least 2 (`server holds 77 char(s) at
+revision 2`). *A save is only a save if the server agrees.* The lesson is the same one this ledger already
+carries three times — "present" is not "working", and "a message is on screen" is not "the data is stored".
+
+**DEFECT 3 — the text field was editable before the save path existed.** The textarea rendered while
+`openAttempts`/`createAttempt` were still in flight and the listener was attached afterwards, so keystrokes
+during that window were dropped; on resume, anything typed before the stored text arrived would have been
+**overwritten** by it. The field and the submit button now start **disabled**, the listener is attached up
+front, `saveNow` does nothing until there is an attempt, and they are enabled once the attempt is ready.
+`app-browser-check`'s helper waits for a READY field, so no leg can type into one with no save path.
+
+**Rendered proof, with the server in the loop.** Legs **W8/W8b**: type into a second task, wait past the
+debounce, and the leg reports `before reload DOM=61 server=61 [{task, rev:2}]` — then a **real** `Page.reload`
+(a `Page.navigate` to the same hash does not re-route; the diagnostic the helper prints showed the old view
+still on screen) — and after it, `DOM=61`. W8b opens the **submitted** task again and asserts its snapshot is
+**not** offered as editable text, so a naive "the text is there" check cannot pass on the wrong behaviour.
+Screenshots `13g`/`13h`. **73/73 legs** (was 71).
+
 ### 2 October 2026 — PILOT-06/3b: a fabricated assessment can no longer be STORED, and a flaky check is fixed
 
 **The rubric contract is OPEN (MASTER-PLAN D4, R11):** a separately versioned three-criterion contract, or

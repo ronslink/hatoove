@@ -611,6 +611,28 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
       return reply(200, await datastore.listMistakes(owner, { examId: exam }));
     }
+    if (pathname === '/api/v1/attempts' && method === 'GET') {
+      /*
+       * PILOT-06 — WHAT IS STILL OPEN, so a reload does not lose a letter.
+       *
+       * A learner who reloads mid-writing gets a new attempt today, because nothing tells the client which
+       * attempt is unfinished. The client cannot answer that for itself: it keeps NOTHING in the browser
+       * (app-browser-check L30 asserts it), so the server has to say it.
+       *
+       * `?open=1` is the ONLY shape this GET serves. Any other query, and no query at all, is answered
+       * with the same `404 not_found` the path already gives for an unsupported METHOD — the API's
+       * established convention, asserted by `owned-api-check` leg `error-404-unknown-routes-and-methods`,
+       * which covers `GET /api/v1/attempts` today. Returning a special 422 for "you forgot the flag"
+       * would have carved an exception into a convention that is otherwise uniform, so the flag is part of
+       * WHAT IS SERVED rather than a parameter with a validation error.
+       *
+       * The index carries NO DRAFT TEXT: a list that returned letters would ship a learner's writing in
+       * every poll, while the client only needs the ID, the binding and the revision so it can read the
+       * one attempt it resumes.
+       */
+      if (query.get('open') !== '1') fault(404, 'not_found');
+      return reply(200, { attempts: await datastore.listOpenAttempts(owner) });
+    }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion']);
       const parent = body.parentSubmissionId === undefined ? null : requireUuid(body.parentSubmissionId, 'invalid_parent');

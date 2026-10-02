@@ -117,6 +117,27 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
       calls.push('read');
       return attemptView(ownedAttempt(owner, id));
     },
+    /*
+     * THE SAME "OPEN" RULE AS THE POSTGRES ADAPTER, in the fixture that runs on the memory backend:
+     * no submission exists, not deleted, newest first, and NO TEXT — the client reads the attempt it
+     * decides to resume. A rule enforced in one backend and not the other is a test-only disagreement,
+     * which is how a check passes here and fails there.
+     */
+    async listOpenAttempts(owner) {
+      calls.push('listOpenAttempts');
+      return [...attempts.values()]
+        .filter((attempt) => attempt.owner_id === owner && !attempt.deleted_at && !submissionFor(attempt.id))
+        .sort((x, y) => String(y.created_at).localeCompare(String(x.created_at)) || String(y.id).localeCompare(String(x.id)))
+        .map((attempt) => ({
+          id: attempt.id,
+          task_id: attempt.task_id,
+          task_version: attempt.task_version,
+          rubric_id: attempt.rubric_id,
+          rubric_version: attempt.rubric_version,
+          revision: drafts.get(attempt.id)?.revision ?? 1,
+          created_at: attempt.created_at,
+        }));
+    },
     async save(owner, id, expectedRevision, text) {
       calls.push('save');
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1 || typeof text !== 'string' || text.length > 12000) {
@@ -758,6 +779,66 @@ check('attempt-binds-the-servable-task-the-learner-opened', async () => {
   const fallbackRead = await a.raw('GET', `/api/v1/attempts/${fallback.id}`);
   assert.equal(fallbackRead.json.task_id, DEFAULT_TASK_BINDING.taskId, 'omitting the binding still uses the default task');
   return `bound to ${binding.taskId}@${binding.taskVersion}; unknown task, foreign rubric and partial binding all refused (422) with nothing written`;
+});
+
+/*
+ * AN UNFINISHED LETTER MUST SURVIVE A RELOAD — `GET /api/v1/attempts?open=1`.
+ *
+ * The gap this closes was recorded, not guessed: a learner who reloads mid-letter got an empty textarea
+ * and a NEW attempt, because nothing says "which attempt is open". The client keeps nothing in the browser
+ * by design (`app-browser-check` L30 asserts exactly that), so the answer has to come from the server.
+ *
+ * Three properties, and the second one is the one that is easy to get wrong:
+ *   * an attempt is RESUMABLE until a submission exists for it, and not afterwards — a submitted letter
+ *     is a frozen snapshot, and resurrecting it as a draft would let a learner edit what was marked;
+ *   * the index carries NO TEXT. A list that returned the draft body would ship a learner's letter in
+ *     every poll of a list route, and the client does not need it: it reads the one attempt it resumes;
+ *   * it is owner-scoped like every other read, and deleted attempts are not resumable.
+ */
+check('an-unfinished-attempt-is-resumable-and-a-submitted-one-is-not', async () => {
+  const w = await world();
+  const a = await learner(w, 'a');
+  const b = await learner(w, 'b');
+
+  // Nothing open to begin with: a fresh account has no draft to resume.
+  assert.deepEqual((await a.raw('GET', '/api/v1/attempts?open=1')).json, { attempts: [] }, 'a fresh account has nothing to resume');
+  /*
+   * AND THE FLAG IS PART OF WHAT IS SERVED, not a parameter with a validation error: a GET without it is
+   * the same `404 not_found` this path already answers for an unsupported method. Asserted here so the
+   * choice is deliberate rather than a side effect the other leg happens to cover.
+   */
+  assert.equal((await a.raw('GET', '/api/v1/attempts')).status, 404, 'the open index needs its flag');
+  assert.equal((await a.raw('GET', '/api/v1/attempts?open=0')).status, 404, 'and only open=1 is served');
+
+  const attempt = await a.client.createAttempt();
+  const saved = await a.client.saveDraft(attempt.id, { expectedRevision: 1, text: 'Angefangener Brief' });
+  const open = (await a.raw('GET', '/api/v1/attempts?open=1')).json;
+  assert.equal(open.attempts.length, 1, `exactly one open attempt expected, got ${open.attempts.length}`);
+  const entry = open.attempts[0];
+  assert.equal(entry.id, attempt.id, 'the open index names the attempt');
+  assert.equal(entry.revision, saved.revision, 'and the revision the client must save against');
+  assert.equal(entry.task_id, DEFAULT_TASK_BINDING.taskId, 'and the task it is bound to, so the view can resume the RIGHT one');
+  assert.equal(entry.task_version, DEFAULT_TASK_BINDING.taskVersion, 'including the version');
+  // NO TEXT. The letter is read from the attempt itself, once the client has decided to resume it.
+  assert.ok(!('text' in entry), 'the open index must not carry the draft text');
+  assert.ok(!JSON.stringify(entry).includes('Angefangener Brief'), 'and no field may smuggle it');
+
+  // Another learner sees none of it.
+  assert.deepEqual((await b.raw('GET', '/api/v1/attempts?open=1')).json, { attempts: [] }, 'the index is owner-scoped: a stranger sees nothing');
+
+  // Submitting ends resumability: the snapshot is frozen and must not come back as an editable draft.
+  await a.client.submit(attempt.id, { expectedRevision: saved.revision, eventId: randomUUID() });
+  assert.deepEqual((await a.raw('GET', '/api/v1/attempts?open=1')).json, { attempts: [] },
+    'a submitted attempt is not resumable');
+
+  // A deleted attempt is not resumable either.
+  const second = await a.client.createAttempt();
+  await a.client.saveDraft(second.id, { expectedRevision: 1, text: 'Wird verworfen' });
+  assert.equal((await a.raw('GET', '/api/v1/attempts?open=1')).json.attempts.length, 1, 'a second draft is open too');
+  await a.client.deleteAttempt(second.id);
+  const afterDelete = (await a.raw('GET', '/api/v1/attempts?open=1')).json;
+  assert.ok(!afterDelete.attempts.some((x) => x.id === second.id), 'a deleted attempt is not resumable');
+  return `resumed ${entry.id}@rev${entry.revision} with no text in the index; empty for a stranger, after submit, and after delete`;
 });
 
 check('retry-only-eligible-failed-job-same-identity', async () => {

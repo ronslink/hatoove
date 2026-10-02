@@ -900,10 +900,25 @@ async function main() {
     `);
     // Wait past the debounce so the draft is saved against a revision before submitting.
     await sleep(1400);
-    const afterType = await cdp.evaluate(`return { hint: document.getElementById('writing-hint')?.innerText || '', state: document.getElementById('writing-state')?.innerText || '' };`);
-    record('W4 the text is saved while typing, and the learner is told so',
-      /gespeichert|Gespeichert/i.test(afterType.hint + ' ' + afterType.state) || afterType.hint.length > 0,
-      `hint "${afterType.hint.trim().slice(0, 60)}"; state "${afterType.state.trim().slice(0, 60)}"`);
+    /*
+     * W4 ASKS THE SERVER. The first version asserted only that a HINT existed, and it passed while the
+     * autosave never landed at all — a draft at revision 1 with an empty text, discovered two legs later
+     * when the reload could not restore anything. A save is only a save if the server agrees.
+     */
+    const afterType = await cdp.evaluate(`return (async () => {
+      const index = await fetch('/api/v1/attempts?open=1').then((r) => r.json()).catch(() => null);
+      const first = index && Array.isArray(index.attempts) ? index.attempts[0] : null;
+      const loaded = first ? await fetch('/api/v1/attempts/' + first.id).then((r) => r.json()).catch(() => null) : null;
+      return {
+        hint: document.getElementById('writing-hint')?.innerText || '',
+        state: document.getElementById('writing-state')?.innerText || '',
+        serverText: loaded && typeof loaded.text === 'string' ? loaded.text : null,
+        serverRevision: first ? first.revision : null,
+      };
+    })();`);
+    record('W4 the text reaches the SERVER while typing, at a new revision',
+      typeof afterType.serverText === 'string' && afterType.serverText === typedText && afterType.serverRevision >= 2,
+      `server holds ${afterType.serverText === null ? 'nothing' : afterType.serverText.length + ' char(s)'} at revision ${afterType.serverRevision}; hint "${afterType.hint.trim().slice(0, 40)}"`);
 
     await cdp.evaluate(`document.getElementById('writing-submit').click(); return true;`);
     await softWait(cdp, "document.getElementById('writing-state') && !/Noch nichts abgegeben/.test(document.getElementById('writing-state').innerText)", 15000, 'the submitted state');
@@ -962,6 +977,123 @@ async function main() {
       `textarea ${writingPhone.areaWidth}px wide; page overflow=${writingPhone.overflows}; submit visible=${writingPhone.submitVisible}`);
     await viewport(cdp, 1440, 900, false);
     await sleep(150);
+
+    /*
+     * W8 — AN UNFINISHED LETTER SURVIVES A RELOAD.
+     *
+     * This is the gap that had a name and no vehicle: reload mid-letter and the textarea came back EMPTY,
+     * attached to a brand-new attempt, while the learner's writing sat in the database with nothing
+     * pointing at it. The rendered proof is the only one that counts here — the API leg
+     * (`an-unfinished-attempt-is-resumable-and-a-submitted-one-is-not`) proves the route, and this proves
+     * the VIEW uses it.
+     *
+     * A SECOND TASK is opened deliberately: the first one is already submitted, and a submitted attempt
+     * must NOT be resumable. Resuming the submitted task would also pass a naive "text is there" check
+     * while being the wrong behaviour, so the leg asserts both directions:
+     *   * an unfinished draft comes back after a real page reload;
+     *   * the submitted task does NOT offer its snapshot as resumable text.
+     */
+    const secondDraftText = 'Sehr geehrte Damen und Herren, ich schreibe wegen des Umzugs.';
+    /*
+     * A HELPER, BECAUSE THE INLINE VERSION FAILED OPAQUELY. The first attempt polled for "more than one
+     * writing button" and then clicked index 1, and the browser answered
+     * `TypeError: Cannot read properties of undefined (reading 'click')` — a failure with no count, no
+     * view state and no way to tell whether the catalogue had not rendered, had rendered one card, or the
+     * old document was still being evaluated. This helper reports what it SAW when it cannot proceed.
+     */
+    const openWritingTask = async (cdp, index, label, { reload = false } = {}) => {
+      if (reload) {
+        /*
+         * A REAL RELOAD, because `Page.navigate` to the SAME url (hash included) does not re-route: the
+         * diagnostic this helper prints showed the previously opened writing view still on screen with
+         * zero catalogue buttons, which is correct SPA behaviour and useless as a reload test.
+         */
+        await cdp.send('Page.reload', { ignoreCache: false });
+      } else {
+        // A DIFFERENT hash first: `#/schreiben` → `#/schreiben` is not a route change, so the writing view
+        // opened earlier would stay. Two navigations make the router render the catalogue again.
+        await nav(cdp, `${base}/app/#/heute`);
+        await sleep(150);
+        await nav(cdp, `${base}/app/#/schreiben`);
+      }
+      let seen = null;
+      for (let i = 0; i < 60; i += 1) {
+        seen = await cdp.evaluate(`
+          const box = document.getElementById('skill-schreiben');
+          const buttons = box ? box.querySelectorAll('[data-write]') : [];
+          return {
+            shown: Boolean(document.getElementById('view-schreiben')) && !document.getElementById('view-schreiben').hidden,
+            count: buttons.length,
+            tasks: [...buttons].map((b) => b.dataset.write),
+            text: (box ? box.innerText : '').trim().slice(0, 80),
+          };
+        `);
+        if (seen.count > index) break;
+        await sleep(250);
+      }
+      if (!seen || seen.count <= index) {
+        throw new Error(`${label}: expected at least ${index + 1} writing task(s), saw ${seen ? seen.count : 'nothing'}`
+          + ` (view shown=${seen?.shown}; tasks=${JSON.stringify(seen?.tasks || [])}; text "${seen?.text || ''}")`);
+      }
+      await cdp.evaluate(`
+        document.querySelectorAll('#skill-schreiben [data-write]')[${index}].click();
+        return true;
+      `);
+      await softWait(cdp, "document.querySelector('#writing-text')", 12000, `${label}: the writing view`);
+      return seen;
+    };
+
+    await openWritingTask(cdp, 1, 'W8 second task (unfinished draft)');
+    await cdp.evaluate(`
+      const area = document.getElementById('writing-text');
+      area.value = ${JSON.stringify(secondDraftText)};
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    `);
+    await sleep(1400); // past the autosave debounce
+    const beforeReload = await cdp.evaluate(`
+      // Ask the SERVER what it holds, not just the textarea: a draft that exists only on screen is the
+      // defect this leg is about, and the DOM cannot tell the two apart. The harness wraps this body in a
+      // plain function, so the fetch calls need their own async wrapper (it awaits the returned promise).
+      return (async () => {
+        const index = await fetch('/api/v1/attempts?open=1').then((r) => r.json()).catch(() => null);
+        const first = index && Array.isArray(index.attempts) ? index.attempts[0] : null;
+        const loaded = first ? await fetch('/api/v1/attempts/' + first.id).then((r) => r.json()).catch(() => null) : null;
+        return {
+          state: document.getElementById('writing-state')?.innerText || '',
+          value: document.getElementById('writing-text')?.value || '',
+          server: index ? index.attempts.map((a) => ({ id: a.id.slice(0, 8), task: a.task_id, rev: a.revision })) : null,
+          serverText: loaded && typeof loaded.text === 'string' ? loaded.text.length : null,
+        };
+      })();
+    `);
+    await shot(cdp, '13g-writing-draft-before-reload-desktop-light');
+
+    await openWritingTask(cdp, 1, 'W8 after reload', { reload: true });
+    await softWait(cdp, "document.querySelector('#writing-text')", 12000, 'the resuming writing view');
+    await sleep(600);
+    const afterReload = await cdp.evaluate(`
+      const area = document.getElementById('writing-text');
+      const state = document.getElementById('writing-state');
+      return {
+        value: area ? area.value : null,
+        state: state ? state.innerText.trim().slice(0, 160) : null,
+        newAttemptHint: /Noch nichts abgegeben/.test(state ? state.innerText : ''),
+      };
+    `);
+    await shot(cdp, '13h-writing-draft-after-reload-desktop-light');
+    record('W8 an unfinished draft comes back after a reload',
+      afterReload.value === secondDraftText,
+      `before reload DOM=${beforeReload.value.length} server=${beforeReload.serverText} ${JSON.stringify(beforeReload.server)}; after reload DOM=${(afterReload.value || '').length} char(s); state "${afterReload.state}"`);
+
+    // The submitted task keeps its snapshot: opening it again must NOT resume it as editable text.
+    await openWritingTask(cdp, 0, 'W8b submitted task again');
+    await softWait(cdp, "document.querySelector('#writing-text')", 12000, 'the first writing view again');
+    await sleep(400);
+    const submittedAgain = await cdp.evaluate(`return { value: document.getElementById('writing-text')?.value ?? null };`);
+    record('W8b a SUBMITTED letter is not offered as a resumable draft',
+      submittedAgain.value === '' || submittedAgain.value === null,
+      `text area after reopening the submitted task: ${JSON.stringify((submittedAgain.value || '').slice(0, 40))}`);
 
     /* ------------------------------------------- no learner state in the browser */
 

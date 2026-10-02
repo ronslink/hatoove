@@ -709,10 +709,10 @@ async function openWriting(box, task) {
       ? '<ul class="leitpunkte">' + leitpunkte.map((p) => '<li>' + esc(p) + '</li>').join('') + '</ul>'
       : '')
     + '<label class="field-label" for="writing-text">Ihr Text</label>'
-    + '<textarea id="writing-text" class="writing-text" rows="12" spellcheck="false"'
+    + '<textarea id="writing-text" class="writing-text" rows="12" spellcheck="false" disabled'
     + ' aria-describedby="writing-state"></textarea>'
     + '<p class="small muted" id="writing-hint">Der Text wird während des Schreibens gespeichert.</p>'
-    + '<div class="row"><button class="btn btn-primary" type="button" id="writing-submit">Abgeben</button>'
+    + '<div class="row"><button class="btn btn-primary" type="button" id="writing-submit" disabled>Abgeben</button>'
     + '<button class="btn" type="button" id="writing-close">Schließen</button></div>'
     + '<div id="writing-state" class="writing-state" role="status" aria-live="polite">'
     + '<p class="muted">Noch nichts abgegeben.</p></div></div>';
@@ -736,28 +736,35 @@ async function openWriting(box, task) {
     if (reveal && typeof state.scrollIntoView === 'function') state.scrollIntoView({ block: 'nearest' });
   };
 
-  const attempt = await api.writing.createAttempt({
-    taskId: task.task_id, taskVersion: task.version, rubricId: task.rubric_id, rubricVersion: task.rubric_version,
-  });
-  if (!attempt) return;
-  if (!attempt.ok) {
-    say('<p class="err">Das Schreiben konnte nicht begonnen werden: ' + esc(failure(attempt)) + '.</p>', { reveal: true });
-    if (submit) submit.disabled = true;
-    return;
-  }
-  let revision = Number(attempt.data?.revision);
-  if (!Number.isSafeInteger(revision) || revision < 1) revision = 1;
-  const attemptId = attempt.data.id;
-
   /*
-   * AUTOSAVE, DEBOUNCED. One timer, cleared on every keystroke: a save per keystroke would be one HTTP
-   * request per character, and no save at all would lose the text on a closed tab. The timer is the only
-   * state this view keeps, and it is cancelled when the view closes.
+   * AUTOSAVE IS WIRED BEFORE THE ATTEMPT EXISTS — and the text field is DISABLED until it does.
+   *
+   * Two failures are prevented here, and both were real:
+   *
+   *   1. THE LOST KEYSTROKES. The textarea used to be rendered live while `openAttempts`/`createAttempt`
+   *      were still in flight, and the autosave listener was attached only afterwards. A learner who
+   *      started typing immediately — or a check that dispatched `input` as soon as the field appeared —
+   *      had those keystrokes dropped: nothing was listening, and no later event fired. Measured, not
+   *      theorised: the browser leg asked the SERVER what it held after typing 61 characters and waiting
+   *      past the debounce, and the answer was an empty draft at revision 1.
+   *   2. THE OVERWRITTEN DRAFT. On resume the stored text arrives from the server, so anything typed
+   *      before it lands would be replaced by it.
+   *
+   * So the field is disabled until the attempt is ready, the listener is attached up front, and `saveNow`
+   * does nothing until there is an attempt to save against. A disabled field cannot lose a keystroke, and
+   * an early save cannot target an attempt that does not exist yet.
    */
   let timer = null;
   let saving = false;
+  let attemptId = null;
+  let revision = 1;
+  const setReady = (ready) => {
+    if (area) area.disabled = !ready;
+    if (submit) submit.disabled = !ready;
+  };
+  setReady(false);
   const saveNow = async (announce) => {
-    if (saving || !area) return;
+    if (saving || !area || !attemptId) return;
     saving = true;
     const res = await api.writing.saveDraft(attemptId, revision, area.value);
     saving = false;
@@ -784,6 +791,46 @@ async function openWriting(box, task) {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => { timer = null; guard(saveNow(false)); }, 800);
   });
+
+  /*
+   * RESUME BEFORE CREATING — the reload case, and the reason this route exists.
+   *
+   * A learner who reloads mid-letter used to get an empty textarea and a NEW attempt: their writing was
+   * still in the database, attached to an unfinished attempt, with nothing on screen pointing at it. The
+   * client cannot know which attempt that is (it keeps nothing in the browser by design), so it asks.
+   *
+   * The match is on the TASK AND ITS VERSION: resuming a draft written against a different task version
+   * would bind the old text to new task semantics, which is precisely the confusion the version exists to
+   * prevent. A draft that does not match this task is left alone rather than adopted.
+   */
+  const open = await api.writing.openAttempts();
+  if (!open) return;
+  let resumed = null;
+  if (open.ok && Array.isArray(open.data?.attempts)) {
+    resumed = open.data.attempts.find((entry) => entry.task_id === task.task_id && entry.task_version === task.version) || null;
+  }
+  let attempt;
+  if (resumed) {
+    attempt = await api.writing.readAttempt(resumed.id);
+    if (attempt?.ok) {
+      if (area) area.value = typeof attempt.data?.text === 'string' ? attempt.data.text : '';
+      say('<p class="muted">Gespeicherter Entwurf fortgesetzt. Noch nichts abgegeben.</p>');
+    }
+  } else {
+    attempt = await api.writing.createAttempt({
+      taskId: task.task_id, taskVersion: task.version, rubricId: task.rubric_id, rubricVersion: task.rubric_version,
+    });
+  }
+  if (!attempt) return;
+  if (!attempt.ok) {
+    say('<p class="err">Das Schreiben konnte nicht begonnen werden: ' + esc(failure(attempt)) + '.</p>', { reveal: true });
+    setReady(false);
+    return;
+  }
+  revision = Number(attempt.data?.revision);
+  if (!Number.isSafeInteger(revision) || revision < 1) revision = 1;
+  attemptId = attempt.data.id;
+  setReady(true);
 
   const eventId = () => (crypto.randomUUID ? crypto.randomUUID()
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {

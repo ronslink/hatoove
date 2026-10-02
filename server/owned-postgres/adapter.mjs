@@ -665,6 +665,42 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       });
     },
 
+    /**
+     * The learner's UNFINISHED attempts, newest first — what a reload needs to offer "continue" instead of
+     * a blank page.
+     *
+     * "Open" means exactly two things, and both matter: no submission exists for it (a submitted letter is
+     * a frozen snapshot, and resuming it as a draft would let a learner edit what was marked), and it is
+     * not deleted (a tombstone is not a draft). RLS scopes the rows to the owner, and the join to
+     * `drafts` is the revision the client must save against.
+     *
+     * NO TEXT IS SELECTED. The client reads the one attempt it resumes through `read`; a list route that
+     * returned letters would put a learner's writing in every response of a poll.
+     */
+    async listOpenAttempts(owner) {
+      note('listOpenAttempts');
+      return settle(owner, async (client) => {
+        const rows = (await client.query(
+          `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version, d.revision, a.created_at
+             FROM attempts a
+             JOIN drafts d ON d.attempt_id = a.id
+            WHERE a.owner_id = $1
+              AND a.deleted_at IS NULL
+              AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.attempt_id = a.id)
+            ORDER BY a.created_at DESC, a.id DESC`,
+          [owner])).rows;
+        return rows.map((row) => ({
+          id: row.id,
+          task_id: row.task_id,
+          task_version: row.task_version,
+          rubric_id: row.rubric_id,
+          rubric_version: row.rubric_version,
+          revision: Number(row.revision),
+          created_at: row.created_at,
+        }));
+      });
+    },
+
     async save(owner, id, expectedRevision, text) {
       note('save');
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1 ||
