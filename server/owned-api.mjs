@@ -401,6 +401,11 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
   async function identify(headers) {
     const session = await sessions.getSession(headers);
     if (!isPlainObject(session) || typeof session.userId !== 'string' || session.userId.trim() === '') return null;
+    // A consistency precondition, never an identity source. A stale tab must not act on the
+    // account another tab put in the shared cookie. Header-less API clients retain their contract.
+    if (headers['x-hatoove-account'] !== undefined && headers['x-hatoove-account'] !== session.userId) {
+      fault(409, 'account_changed');
+    }
     return { userId: session.userId, email: typeof session.email === 'string' ? session.email : null };
   }
 
@@ -474,6 +479,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       }
       if (key === 'POST /api/auth/sign-out') {
         onlyFields(body, []);
+        if (headers['x-hatoove-account'] !== undefined && !await identify(headers)) fault(401, 'unauthenticated');
         const outcome = await sessions.signOut(headers);
         return reply(200, { ok: true }, outcome && outcome.setCookie);
       }

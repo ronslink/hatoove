@@ -44,12 +44,35 @@ const PATHS = Object.freeze({
  * An owned-route 401 is an explicit failure, with one shell notification. Never redirect an active
  * writing form automatically: its unsaved text must remain available for recovery.
  */
+export function createApi({ fetchImpl = (...args) => fetch(...args), onSessionInvalid = (reason) => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('hatoove:session-expired', { detail: { reason } }));
+} } = {}) {
+let accountId = null;
+let generation = 0;
+let stopped = null;
+const refusal = (status, error) => ({ ok: false, status, data: null, error });
+function invalidate(reason) {
+  stopped = reason;
+  generation++;
+  onSessionInvalid(reason);
+  return refusal(reason === 'account_changed' ? 409 : 401, reason);
+}
 async function call(method, path, body) {
+  const protectedRequest = path.startsWith('/api/v1/') || path === PATHS.signOut || path === PATHS.session;
+  if (protectedRequest && stopped) {
+    onSessionInvalid(stopped);
+    return refusal(stopped === 'account_changed' ? 409 : 401, stopped);
+  }
+  if (protectedRequest && path !== PATHS.session && !accountId) return refusal(428, 'account_context_required');
+  const ticket = generation;
+  const headers = body === undefined ? {} : { 'content-type': 'application/json' };
+  if (protectedRequest && accountId) headers['X-Hatoove-Account'] = accountId;
   let res;
   try {
-    res = await fetch(path, {
+    res = await fetchImpl(path, {
       method,
-      headers: body === undefined ? {} : { 'content-type': 'application/json' },
+      credentials: 'same-origin',
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -59,19 +82,25 @@ async function call(method, path, body) {
      * module's own contract (above) says it returns a result rather than throwing, and this is what
      * makes that true. `status: 0` means "the request never reached the server".
      */
-    return { ok: false, status: 0, data: null, error: 'network' };
-  }
-  if (res.status === 401 && !path.startsWith('/api/auth/')) {
-    // Keep an unsaved letter visible when the session expires. Navigation would discard it.
-    window.dispatchEvent(new Event('hatoove:session-expired'));
-    return { ok: false, status: 401, data: null, error: 'session_expired' };
+    return refusal(0, ticket === generation ? 'network' : 'stale_session');
   }
   let payload = null;
   try { payload = await res.json(); } catch { /* a refusal may carry no body; the status still counts */ }
+  // A transport may finish after another request invalidated this tab. Never render that response.
+  if (ticket !== generation) return refusal(409, 'stale_session');
+  if (protectedRequest && res.status === 401) return invalidate('session_expired');
+  if (protectedRequest && res.status === 409 && payload?.error === 'account_changed') return invalidate('account_changed');
+  if (path === PATHS.session && res.ok) {
+    const next = payload?.user?.id;
+    if (typeof next !== 'string' || !next) return invalidate('session_expired');
+    if (accountId && next !== accountId) return invalidate('account_changed');
+    accountId = next;
+  }
+  if (path === PATHS.signOut && res.ok) { accountId = null; stopped = 'session_expired'; generation++; }
   return { ok: res.ok, status: res.status, data: payload, error: payload && (payload.error || payload.code) };
 }
 
-export const api = Object.freeze({
+return Object.freeze({
   /** The verified session, or null when signed out. Returns the raw response for the boot check. */
   session: () => call('GET', PATHS.session),
 
@@ -260,3 +289,6 @@ export const api = Object.freeze({
     retry: (submissionId) => call('POST', `${PATHS.submissions}/${encodeURIComponent(submissionId)}/retry`, {}),
   }),
 });
+}
+
+export const api = createApi();
