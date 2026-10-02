@@ -734,11 +734,60 @@ async function openWriting(box, task) {
     + '<button class="btn" type="button" id="writing-new" hidden>Neu anfangen</button>'
     + '<button class="btn" type="button" id="writing-close">Schließen</button></div>'
     + '<div id="writing-state" class="writing-state" role="status" aria-live="polite">'
-    + '<p class="muted">Noch nichts abgegeben.</p></div></div>';
+    + '<p class="muted">Noch nichts abgegeben.</p></div>'
+    /*
+     * THE MARKING SCHEME, WHERE IT BELONGS: before the learner writes, not only after.
+     *
+     * The panel is EMPTY here and filled from the API a moment later. That is the point: the wording lives in
+     * the rubric — one source of truth, the same text the grader was validated against — and a copy in this
+     * client would be a second text free to drift with nothing able to notice. The container exists so the
+     * fetch can land into it whatever the outcome; a failed fetch leaves an honest line rather than removing
+     * the panel the learner just saw.
+     */
+    + '<details class="rubric-panel" id="writing-rubric"><summary>Wie wird bewertet?</summary>'
+    + '<div id="writing-rubric-body"><p class="small muted">Wird geladen …</p></div></details></div>';
 
   const state = el('writing-state');
   const area = el('writing-text');
   const submit = el('writing-submit');
+
+  /*
+   * THE MARKING SCHEME, FETCHED RATHER THAN REMEMBERED.
+   *
+   * `task.rubric_id`/`task.rubric_version` say WHICH contract this task is marked against; the criteria, the
+   * band scale and the descriptors come from the rubric itself. The provisional status travels with the text
+   * — `review_status` is 'unreviewed' until E-01 — so the note below is derived from what the server said
+   * rather than from a constant here that could outlive the fact.
+   *
+   * A FAILED FETCH DOES NOT REMOVE THE PANEL: it says the scheme could not be loaded. Hiding it would leave
+   * a learner unable to find out how they are marked, with nothing on screen to explain the absence.
+   */
+  guard((async () => {
+    const rubricRes = await api.rubrics.read(task.rubric_id, task.rubric_version);
+    const into = el('writing-rubric-body');
+    if (!into) return;
+    if (!rubricRes || !rubricRes.ok) {
+      into.innerHTML = '<p class="small muted">Die Bewertungskriterien konnten nicht geladen werden'
+        + (rubricRes ? ' (' + esc(failure(rubricRes)) + ')' : '') + '.</p>';
+      return;
+    }
+    const rubric = rubricRes.data || {};
+    const criteria = Array.isArray(rubric.criteria) ? rubric.criteria : [];
+    const bands = criteria.length ? Object.keys(criteria[0].bands || {}) : [];
+    into.innerHTML = (rubric.provisional
+      ? '<p class="small muted">Vorläufige Beschreibung dieses Übungsbetriebs — <strong>nicht die offizielle '
+        + 'Formulierung des Prüfungsanbieters</strong>. Sie wird noch fachlich geprüft.</p>'
+      : '')
+      + '<ul class="rubric-criteria">' + criteria.map((criterion) => '<li>'
+        + '<strong>' + esc(CRITERION_LABELS[criterion.key] || String(criterion.key)) + '</strong>'
+        + (bands.length
+          ? '<ul class="rubric-bands">' + bands.map((band) => '<li><span class="band">' + esc(band) + '</span> '
+            + esc(String((criterion.descriptors || {})[band] || '')) + '</li>').join('') + '</ul>'
+          : '')
+        + '</li>').join('') + '</ul>'
+      + '<p class="small muted">Rubrik ' + esc(String(rubric.rubric_id || task.rubric_id)) + ' '
+        + esc(String(rubric.version || task.rubric_version)) + ' · Prüfstatus: ' + esc(String(rubric.review_status || 'unbekannt')) + '</p>';
+  })());
   /*
    * `reveal` IS NOT COSMETIC, AND IT IS NOT ALWAYS TRUE.
    *

@@ -231,3 +231,15 @@ code {
 /* The quote from the learner's own text: indented, plain, and never mistaken for interface copy. */
 .evidence { margin: 0.4rem 0 0; padding: 0.35rem 0 0.35rem 0.75rem; border-left: 3px solid var(--orange); font-style: italic; overflow-wrap: anywhere; }
 .corrections { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+
+/*
+ * THE MARKING SCHEME PANEL (D4/R11). Collapsed by default: it is reference material for a learner who wants
+ * it, not a wall between them and the task. The provisional note is styled as a note rather than as a
+ * warning — it is a fact about review status, not an error.
+ */
+.rubric-panel { margin-top: 0.9rem; }
+.rubric-panel > summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+.rubric-criteria { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+.rubric-criteria > li { margin: 0.4rem 0; }
+.rubric-bands { list-style: none; margin: 0.25rem 0 0; padding: 0; }
+.rubric-bands > li { margin: 0.2rem 0; }

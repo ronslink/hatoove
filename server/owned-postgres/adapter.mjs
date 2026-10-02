@@ -337,8 +337,45 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * answers a learner can act on — 404 versus 200 with an empty list — only if the difference
      * survives this far.
      */
-    async readGuide(owner, { guideId, serveReview = 'approved+unreviewed' } = {}) {
-      note('readGuide');
+    /**
+     * One rubric, by id AND version.
+     *
+     * The version is required rather than defaulted: a result is only meaningful against the version it was
+     * graded under, and an installation may hold several. Both rubrics stay readable indefinitely — the
+     * retired four-criterion one included — so an old attempt's feedback can explain itself against the
+     * contract it was actually graded under. Nothing is renormalised or relabelled.
+     *
+     * `provisional` is derived from the CONTENT's review status rather than stored as a flag of its own:
+     * `review_status = 'unreviewed'` is the fact (nothing has been reviewed), and a second boolean would be a
+     * second source of truth for the same claim, free to disagree with it.
+     */
+    async readRubric(owner, { rubricId, version, serveReview = 'approved+unreviewed' } = {}) {
+      note('readRubric');
+      const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
+      return settle(owner, async (client) => {
+        const row = first(await client.query(
+          `SELECT r.rubric_id, r.version, r.family, r.criteria, r.max_total, r.exam_id,
+                  c.review_status, c.rights_status
+             FROM rubric_version r
+             JOIN content_version c ON c.content_version_id = r.content_version_id
+            WHERE r.rubric_id = $1 AND r.version = $2 AND c.review_status = ANY($3::text[])`,
+          [rubricId, version, statuses]));
+        if (!row) return null;
+        return {
+          rubric_id: row.rubric_id,
+          version: row.version,
+          family: row.family,
+          exam_id: row.exam_id,
+          max_total: Number(row.max_total),
+          criteria: row.criteria,
+          review_status: row.review_status,
+          rights_status: row.rights_status,
+          provisional: row.review_status !== 'approved',
+        };
+      });
+    },
+
+    async readGuide(owner, { guideId, serveReview = 'approved+unreviewed' } = {}) {      note('readGuide');
       const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
       return settle(owner, async (client) => {
         const head = (await client.query(

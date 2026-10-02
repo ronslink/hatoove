@@ -83,7 +83,7 @@ const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry'
  * An absent catalogue must disable the CATALOGUE, in the way an absent settings port disables
  * settings and an absent deletion port disables deletion, and leave the rest of the product alone.
  */
-const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'readObjectiveSet', 'listVocab', 'listNouns', 'listGuides', 'readGuide'];
+const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'readObjectiveSet', 'readRubric', 'listVocab', 'listNouns', 'listGuides', 'readGuide'];
 /**
  * PRACTICE is its own optional capability, for the same reason the catalogue is.
  *
@@ -95,6 +95,15 @@ const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'readObjectiveSet',
 const PRACTICE_METHODS = ['answerObjectiveItem', 'nextPractice', 'practiceProgress', 'listMistakes'];
 /** `/api/v1/objective-sets/{setId}` — read ONE set, payload included. The list is an index. */
 const OBJECTIVE_SET_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})$/;
+/**
+ * A rubric, by id, with its version as a query parameter.
+ *
+ * The version is REQUIRED and not defaulted to "latest": a result is only meaningful against the version it
+ * was graded under, so a caller must say which contract it is asking about. An unknown id or version is a
+ * 404 rather than an empty rubric — "no such contract" and "a contract with no criteria" are different
+ * answers, and only one of them is true.
+ */
+const RUBRIC_RE = /^\/api\/v1\/rubrics\/([A-Za-z0-9._-]{1,128})$/;
 /** `/api/v1/objective-sets/{setId}/answers` — the set id is dotted (`telc-deutsch-b1.lv1.01`). */
 const OBJECTIVE_ANSWER_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})\/answers$/;
 /** `/api/v1/guides/{guideId}` — a closed slug shape, so an id can never reach SQL as anything else. */
@@ -591,6 +600,35 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
       return reply(200, await datastore.listGuides(owner, { examId: exam, serveReview }));
+    }
+    {
+      /*
+       * THE RUBRIC, READABLE — so the screen can explain a band from ONE source of truth.
+       *
+       * A band on its own is not actionable: "B" means nothing without knowing what B is. The descriptors
+       * that explain it live in the rubric (written independently for this product, and marked provisional),
+       * and this route serves them so the client does not carry a second copy that can drift. The client
+       * knowing the wording is the defect, not the feature: two texts, one stale, and no check able to tell.
+       *
+       * NOTHING HERE IS AN ANSWER KEY. The rubric is marking guidance — criteria, bands, descriptors — which
+       * is exactly what a learner is entitled to see. Objective answer keys live in `objective_key`, granted
+       * to the worker role and to nobody else, and are untouched by this route.
+       *
+       * The retired contract stays readable BY ITS EXACT VERSION. An old attempt's feedback can then still
+       * explain itself against the contract it was graded under, which is the "never renormalise" rule
+       * applied to reading rather than to writing.
+       */
+      const rubricMatch = RUBRIC_RE.exec(pathname);
+      if (rubricMatch && method === 'GET') {
+        if (!catalogueWired) fault(503, 'catalogue_unavailable');
+        const version = query.get('version');
+        if (version === null || !CONTENT_TOKEN_RE.test(version)) fault(422, 'invalid_version');
+        const rubric = await datastore.readRubric(owner, { rubricId: rubricMatch[1], version });
+        // Unknown id and unknown version are both 404: "no such contract" is not "a contract with no
+        // criteria", and the route must not answer the second when it means the first.
+        if (!rubric) fault(404, 'not_found');
+        return reply(200, rubric);
+      }
     }
     {
       const guideMatch = GUIDE_RE.exec(pathname);

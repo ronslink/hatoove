@@ -150,7 +150,21 @@ export const api = Object.freeze({
     },
   }),
 
-  /** The reference guides: an index, then one document. 64 KB is not fetched to list a title. */
+  /**
+   * THE RUBRIC, by id and version — so the screen can explain a band from ONE source of truth.
+   *
+   * A band on its own is not actionable ("B" means nothing without knowing what B is), and the descriptors
+   * that explain it belong to the rubric rather than to the client: a copy here would be a second text that
+   * can drift from the one the grader was validated against, with no check able to tell. The version is
+   * required for the same reason it is required on the route: a result is only meaningful against the
+   * contract it was graded under.
+   */
+  rubrics: Object.freeze({
+    read: (rubricId, version) => call('GET', `/api/v1/rubrics/${encodeURIComponent(rubricId)}?version=${encodeURIComponent(version)}`),
+  }),
+
+  /**
+   * The reference guides: an index, then one document. 64 KB is not fetched to list a title. */
   guides: Object.freeze({
     list: () => call('GET', PATHS.guides),
     read: (guideId) => call('GET', `${PATHS.guides}/${encodeURIComponent(guideId)}`),

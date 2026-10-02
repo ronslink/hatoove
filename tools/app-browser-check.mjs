@@ -1209,6 +1209,48 @@ async function main() {
       fabricatedTotal ? `FABRICATED: ${fabricatedTotal[0]}` : 'no score, no fraction, no pass line');
 
     /*
+     * W12 — A BAND IS EXPLAINED, AND THE EXPLANATION SAYS WHAT IT IS.
+     *
+     * A bare "B" is not feedback a learner can act on. The descriptors come from the RUBRIC through the API —
+     * not from a copy in this client, which would be a second text free to drift from the one the grader was
+     * validated against.
+     *
+     * The second assertion is the one that matters for honesty: the wording is provisional and UNREVIEWED
+     * (E-01 has not happened), and the note that says so — including that these are not the examination
+     * provider's official words — must travel WITH the text, because a screen cannot label what it was not
+     * told.
+     */
+    const rubricPanel = await cdp.evaluate(`
+      const details = document.getElementById('writing-rubric');
+      if (details) details.open = true;
+      const body = document.getElementById('writing-rubric-body');
+      const full = body ? body.innerText : '';
+      return {
+        present: Boolean(details),
+        rows: body ? body.querySelectorAll('.rubric-criteria > li').length : 0,
+        bands: body ? [...body.querySelectorAll('.rubric-bands > li')].length : 0,
+        // Read the status from the FULL text and log an excerpt: truncating first made the status line fall
+        // outside the captured slice, so the leg failed on its own logging rather than on the screen.
+        status: (full.match(/Prüfstatus:\\s*(\\S+)/) || [])[1] || null,
+        provisional: /vorläufig/i.test(full) && /nicht die offizielle Formulierung/i.test(full),
+        text: full.replace(/\\s+/g, ' ').trim().slice(0, 200),
+      };
+    `);
+    await cdp.evaluate(`
+      const details = document.getElementById('writing-rubric');
+      if (details) details.scrollIntoView({ block: 'center' });
+      return true;
+    `);
+    await sleep(250);
+    await shot(cdp, '13m-writing-rubric-panel-desktop-light');
+    record('W12 the marking scheme is available and explains every band',
+      rubricPanel.present && rubricPanel.rows === 3 && rubricPanel.bands === 12,
+      `${rubricPanel.rows} criterion row(s), ${rubricPanel.bands} band explanation(s); panel "${rubricPanel.text.slice(0, 90)}"`);
+    record('W12b the wording is labelled provisional and not the provider\'s own',
+      rubricPanel.provisional && rubricPanel.status === 'unreviewed',
+      `provisional note present=${rubricPanel.provisional}; review status "${rubricPanel.status}"`);
+
+    /*
      * W10 — THE FAILED ASSESSMENT, RENDERED. The property the deleted `mock-outcome-browser-check` held, on
      * the real submission path — and it had never been SEEN: the view renders "Unbewertet" with the failure
      * code, keeps the text and offers a retry, while every previous leg ran against a stub grader that always

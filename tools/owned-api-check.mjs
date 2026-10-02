@@ -517,6 +517,30 @@ function cataloguePort() {
     /* The rest of the catalogue is NOT exercised by this suite; they exist so the port counts as wired.
      * Their routes are covered where a real database is available (docker-stack-check, journey-api-check). */
     async readObjectiveSet() { return null; },
+    /*
+     * THE RUBRIC, from the same seed the migration writes. Both contracts are readable by version, which is
+     * what lets an old attempt explain itself against the rubric it was graded under, and provisional is
+     * derived from the content's review status exactly as the adapter derives it -- one source of truth for
+     * the claim, so the two backends cannot disagree about whether the wording is settled.
+     */
+    async readRubric(owner, { rubricId, version } = {}) {
+      const known = [
+        { rubric: TELC_B1_WRITING_RUBRIC, reviewStatus: 'unreviewed' },
+        { rubric: FORMATIVE_WRITING_RUBRIC, reviewStatus: 'unreviewed' },
+      ].find((row) => row.rubric.rubricId === rubricId && row.rubric.version === version);
+      if (!known) return null;
+      return {
+        rubric_id: known.rubric.rubricId,
+        version: known.rubric.version,
+        family: known.rubric.family || 'writing',
+        exam_id: known.rubric.examId || 'telc-deutsch-b1',
+        max_total: known.rubric.maxTotal || known.rubric.criteria.reduce((sum, c) => sum + c.max, 0),
+        criteria: known.rubric.criteria,
+        review_status: known.reviewStatus,
+        rights_status: 'unknown',
+        provisional: known.reviewStatus !== 'approved',
+      };
+    },
     async listVocab() { return []; },
     async listNouns() { return []; },
     async listGuides() { return []; },
@@ -1047,6 +1071,56 @@ check('the-catalogue-serves-the-telc-rubric-once-per-task', async () => {
   assert.equal(ids.length, WRITING_TASKS.length, `every seeded prompt is served exactly once (${ids.length})`);
   assert.ok(listed.json.every((task) => task.version === TELC_B1_TASK_VERSION), 'and the version served is the newest one');
   return `${ids.length} prompt(s), one version each, all declaring ${TELC_B1_WRITING_RUBRIC.rubricId}@${TELC_B1_WRITING_RUBRIC.version}`;
+});
+
+/*
+ * THE RUBRIC IS READABLE, AND ITS WORDING IS PROVISIONAL.
+ *
+ * A band on its own is not feedback a learner can act on: "B" means nothing without knowing what B is.
+ * The descriptors that explain each band live in the RUBRIC — one source of truth, written independently
+ * for this product — so the screen must READ them rather than carry its own copy. A copy in the client is
+ * the drift this programme keeps meeting: two texts, one of them stale, and no check able to tell.
+ *
+ * Two properties beyond "the route answers":
+ *   * the provisional status travels WITH the text, so the screen cannot present unreviewed wording as
+ *     settled — E-01 (a qualified reviewer against telc's current model exam) is still open;
+ *   * the RETIRED rubric is readable BY ITS EXACT VERSION and returns its own four criteria. That is the
+ *     "never renormalise" rule again: an old attempt's feedback can still explain itself against the
+ *     contract it was graded under.
+ */
+check('the-rubric-is-readable-and-carries-its-own-provisional-status', async () => {
+  const w = await catalogueWorld();
+  const a = await learner(w);
+
+  const current = await a.raw('GET', `/api/v1/rubrics/${TELC_B1_WRITING_RUBRIC.rubricId}?version=${TELC_B1_WRITING_RUBRIC.version}`);
+  assert.equal(current.status, 200, `the rubric must be readable, got ${current.status} ${current.text.slice(0, 80)}`);
+  const rubric = current.json;
+  assert.equal(rubric.rubric_id, TELC_B1_WRITING_RUBRIC.rubricId);
+  assert.equal(rubric.version, TELC_B1_WRITING_RUBRIC.version);
+  assert.equal(rubric.criteria.length, 3, 'three criteria');
+  for (const criterion of rubric.criteria) {
+    assert.ok(typeof criterion.label === 'string' && criterion.label.length > 0, `${criterion.key}: a name`);
+    assert.deepEqual(Object.keys(criterion.bands), ['A', 'B', 'C', 'D'], `${criterion.key}: the A-D scale`);
+    for (const band of ['A', 'B', 'C', 'D']) {
+      assert.ok(typeof criterion.descriptors?.[band] === 'string' && criterion.descriptors[band].length > 0,
+        `${criterion.key}.${band}: a descriptor, because a band without one is not actionable`);
+    }
+  }
+  // THE STATUS TRAVELS WITH THE TEXT. A screen cannot label what it was not told.
+  assert.equal(rubric.review_status, 'unreviewed', 'the seeded status is unreviewed until E-01');
+  assert.equal(rubric.provisional, true, 'and the wording is marked provisional');
+
+  // The RETIRED contract, by its own version, unchanged and separate.
+  const retired = await a.raw('GET', `/api/v1/rubrics/${FORMATIVE_WRITING_RUBRIC.rubricId}?version=${FORMATIVE_WRITING_RUBRIC.version}`);
+  assert.equal(retired.status, 200, 'a retired rubric is still readable by its exact version');
+  assert.equal(retired.json.criteria.length, 4, 'and it still has its four criteria');
+  assert.notDeepEqual(retired.json.criteria.map((c) => c.key), rubric.criteria.map((c) => c.key),
+    'the two contracts must not be presented as one');
+
+  // Unknown ids and versions are 404, not an empty rubric: an unknown contract is not an answer.
+  assert.equal((await a.raw('GET', '/api/v1/rubrics/writing.nope?version=v1')).status, 404);
+  assert.equal((await a.raw('GET', `/api/v1/rubrics/${TELC_B1_WRITING_RUBRIC.rubricId}?version=v99`)).status, 404);
+  return `${rubric.criteria.length} criteria with A-D descriptors and provisional=${rubric.provisional}; the retired contract readable by version with ${retired.json.criteria.length} criteria`;
 });
 
 check('retry-only-eligible-failed-job-same-identity', async () => {
