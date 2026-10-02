@@ -19,15 +19,19 @@
  *
  *   * `data/seed.json` holds the **8 reading/listening/Sprachbausteine families** (LV1..HV3,
  *     24 sets, 180 keyed answer slots). It has no writing prompt.
- *   * the **6 offline writing prompts** live in `public/js/ai.js`
+ *   * the **6 offline writing prompts** lived in `public/js/ai.js`
  *     (`OFFLINE_WRITING_TASKS`, surfaced by `offlineWritingTask()`), 3 `du` + 3 `Sie`, each
- *     with 4 Leitpunkte; the rubric is `WRITING_CRITERIA` (4 criteria, max sum 45).
+ *     with 4 Leitpunkte; the rubric was `WRITING_CRITERIA` (4 criteria, max sum 45). **That module was
+ *     deleted with the retired client (SPA-RETIRE 4)**, so `CONTENT_SOURCE` and migration 0006 are now
+ *     the only record of where this text came from. The provenance string is deliberately NOT rewritten:
+ *     the database rows already carry it, and re-pointing a provenance record at whichever file happens
+ *     to survive would be falsifying it.
  *
- * So the seed is taken from the real source — `public/js/ai.js` — and the prompt text below is
- * a literal copy of it. `tools/owned-api-check.mjs` asserts the copy still matches the module
- * (a drift check), so a change to the client prompts fails a check rather than silently
- * diverging from the database. Nothing here is invented; the rights/review statuses say
- * exactly what C-01 found.
+ * So the seed was taken from that source, and the prompt text below is a literal copy of it.
+ * `tools/owned-api-check.mjs` used to assert the copy still matched the MODULE; with the module gone it
+ * asserts the copy matches **migration 0006**, the artifact that actually seeds the database — two
+ * different files, so the drift check survives the deletion rather than dying with it. Nothing here is
+ * invented; the rights/review statuses say exactly what C-01 found.
  *
  * RIGHTS / REVIEW — truthful, and deliberately not flattering
  *

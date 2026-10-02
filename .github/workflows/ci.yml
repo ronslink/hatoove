@@ -15,9 +15,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
-      # Full history, NOT the default shallow clone: mock-outcome-check materializes the pre-fix
-      # exam.js with `git show <sha>:public/js/exam.js` and fails on a shallow clone. The contracts
-      # job already fetched full history for the same reason; this job now needs it too.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -27,16 +24,6 @@ jobs:
           node-version: '24'
       - name: Check tracked source and excluded data
         run: node tools/repository-check.mjs
-      - name: Legacy offline baseline
-        run: node tools/check.js
-      - name: Writing regression checks
-        run: node tools/writing-check.js
-      - name: Writing surface draft integration
-        run: node tools/writing-surface-check.mjs
-      - name: Writing surface checks discriminate against a broken restore
-        run: node --test tools/writing-surface-check.test.mjs
-      - name: Feedback regression checks
-        run: node tools/feedback-check.js
       # DESIGN-LANGUAGE.md: no raw colour or font family in a rule, the required tokens present,
       # the dark override present, the mobile breakpoints and reduced motion honoured, every view
       # registered through the shell, and the language setting NOT reaching the interface. This gate
@@ -46,8 +33,6 @@ jobs:
       - name: Design language consistency
         run: node tools/design-check.mjs
       # Not PostgreSQL-backed, so they belong on both OSes with the rest of the offline set.
-      - name: Mock writing outcomes, discriminated against the pre-fix tree
-        run: node tools/mock-outcome-check.mjs
       # THE NEGATIVE CHECK FOR THE RETIRED FILE STORE. `progress-scope-check` used to sit here and is
       # gone with the route it drove (see work/implementation/RETIRED-CHECKS.md); this is its
       # replacement vehicle: no `/api/progress` handler, no refusal code, no progress file opened, no
@@ -89,8 +74,6 @@ jobs:
         run: node tools/keymask-check.mjs
       - name: Key masking discriminates against the pre-fix server
         run: node tools/keymask-check.mjs --prefix-commit 8a71f718ee534851a98d19eece07dab933b56479
-      - name: Draft session contract
-        run: node tools/draft-session-check.mjs
       - name: Owned API suite (memory backend)
         run: node tools/owned-api-check.mjs
       - name: Owned API client contract
@@ -153,8 +136,6 @@ jobs:
         run: node tools/deletion-check.mjs
       - name: The worker runner claims, fences, retries and reclaims (stub grader; no provider call)
         run: node tools/worker-runner-check.mjs
-      - name: One session boundary, ordering and response fencing
-        run: node tools/session-boundary-check.mjs
       - name: The hosted runtime refuses by default
         run: node tools/saas-runtime-check.mjs
       # CONFIG-ANON-01. The machine-global /api/config write (and its read) is gone from the

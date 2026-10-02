@@ -26,6 +26,41 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — SPA-RETIRE 4: the retired client itself, and the twenty-two checks that tested it
+
+Ron: *"we need to remove the SPA as well to avoid this happening again."* The reason was demonstrated
+twice while getting here: `public/js/progress-merge.js` could not be deleted because the browser-side store
+imported it, and six checks used SPA modules as **fixtures**, so every retirement was entangled with the
+client. **Nineteen modules and twenty-two tool files are deleted in one commit.** What survives in
+`public/js/` is exactly one file: **`owned-client.js`**, the owned API client (driven by `owned-api-check`
+28 legs on two backends, `owned-client-check` 31, `accounts-http-check`).
+
+**A warning about this list.** `tools/check.js` (101 assertions) is gone, and it was the programme's
+recorded "legacy offline baseline" (`AGENTS.md`, `README.md`). The baseline is smaller now and it is
+DIFFERENT, not merely trimmed: the legacy assertions died with the engine they tested. The surviving
+runner gates are `repository-check`, `design-check`, `retired-surface-check`, `server-origin-check`,
+`keymask-check` (×2), `owned-api-check` (memory), `owned-client-check`, and the PostgreSQL job's
+`postgres-provision-check`, `accounts-http-check`, `owned-api-check --backend=postgres-persistent`,
+`deletion-check`, `worker-runner-check`, `saas-runtime-check`, `table-class-check`, `journey-api-check`.
+Rendered evidence is `app-browser-check` (Docker + browser, developer-run) and Compose acceptance is
+`docker-stack-check` (developer-run) — **neither is a CI gate**, which is recorded in `ci.yml` itself.
+
+| Check(s) | Leg(s) | Property | Decision | Replacement |
+|---|---|---|---|---|
+| `public/js/**` except `owned-client.js` — account, ai, app, blueprint, dashboard, draft-session, engine, exam, generators, guides, icons, mock-outcome, satzbau, shell, speech, store, ui, writing-surface, progress-merge | — | the retired Certa client: its engine, its generated exercises, its blob store, its UI, its speech, its sentence analyser, its writing editor and its mock-exam view | **DELETE** (implementation removed) | the new client `public/app/**` (rendered evidence: `app-browser-check` 63 legs) · the owned API (`owned-api-check` 28 legs on memory AND postgres) · the server (`docker-stack-check` 32 legs) · the negative check (`retired-surface-check`, which now asserts the whole client is absent: R4b module gone, R4c `public/js` holds only `owned-client.js`) |
+| `tools/check.js` | 101 | the legacy engine's rules: points, tags, generators, satzbau, speech, progress merge, plan ticks | **DELETE** | none — property void with the engine. **The recorded baseline changes shape; this row is the record** |
+| `tools/writing-check.js` (9) · `tools/feedback-check.js` (14) | 23 | the client-side writing grader's coverage rules and feedback validation | **DELETE** | the grader that ships is the server's (`server/owned-postgres/worker.mjs`), held by `worker-runner-check` (claim/fence/retry/reclaim) and `docker-stack-check` leg 19 (server-side marking). The RULES themselves — 4 internal criteria, never relabelled as telc's three — are held by `owned-api-check`'s rubric assertions and the seeded `WRITING_RUBRIC` |
+| `tools/mock-outcome-check.mjs` (+test) | 19 | `assessMockWriting` never fabricates a score | **DELETE** | void: the mock-exam view was SPA-only. The rendered half was already recorded UNPROVEN between MFP-08 and this commit; it stays UNPROVEN until a writing result screen exists |
+| `tools/app-shell-check.mjs` | S1–S5 | the SPA shell: entry gate, Hatoove branding, no "Certa", no legacy modules, real endpoints | **REPLACE** | `app-browser-check` (the shell IS rendered there, with `L1c` on refused assets, `L9` on a clean console, `L30` on web storage) and `docker-stack-check` leg 22 (the gate and the public front door) |
+| `tools/session-boundary-check.mjs` | 19 | server-side ordering/identity + the client-side session boundary (account copy, late responses, single-user path, second tab) | **server half REPLACE; client half DELETE** | **server:** `owned-api-check` legs `identity-is-never-accepted-from-input`, `unauthenticated-requests-get-401`, `cross-owner-is-404-for-every-route`; `deletion-check` (post-deletion 401s). **client:** void — the new client keeps no client-side record at all, which `app-browser-check` **L30** asserts |
+| `tools/writing-surface-check.mjs` (+test) | 7 | the draft/revision/submission contract from the editor's side | **API half REPLACE; editor half UNPROVEN** | **API:** `owned-api-check` `draft-revision-checked-and-increments-once`, `submission-idempotent-on-owner-and-event`, `submission-snapshot-immutable`, `result-never-regrades`. **Editor:** a failed save not dropping the text, restore-on-return, debounce — **no vehicle until the writing UI exists**, and recorded as a gap rather than as coverage |
+| `tools/draft-session-check.mjs` (+test) | 18 | the client draft state machine: reload recovery, conflict adoption, sign-out dropping text, late-response fencing | **API half REPLACE; client half UNPROVEN** | as the row above, plus `owned-client-check` 31 legs for client-side validation and shape refusal |
+| `tools/content-discovery.mjs` | 9 areas | the C-01 content inventory | **DELETE** | its findings live on as `docs/content/DISCOVERY.md`; the tool read `public/js/ai.js`, which is gone |
+| `tools/wo02-verify-probe.mjs` | — | a one-off probe for the mock-outcome slice | **DELETE** | none — property void |
+| `tools/e2e.js`, `tools/e2e-ai.js`, `tools/ai-live.js`, `tools/tts-check.js`, `tools/mock-deepseek.js` | — | SPA end-to-end runs, a LIVE provider probe, a browser-TTS diagnostic, and their mock provider | **DELETE** | rendered journeys → `app-browser-check`; server journeys → `docker-stack-check`. The live-AI probe also goes because **no live provider call is authorized** in this programme — removing it removes a foot-gun. `tools/cdp.js` (the CDP harness) STAYS: it drives a browser, not the SPA |
+| `tools/redesign-check.js`, `tools/writing-browser-check.js`, `tools/feedback-browser-check.js` | — | the SPA page's redesign, writing and feedback surfaces | **DELETE** | `app-browser-check` legs for the same screens |
+| `tools/keymask-check.test.mjs` | mutation fixtures | the keymask probe discriminates | **DELETE** | its fixture read `public/js/ui.js`. `keymask-check.mjs` itself is KEPT and is one of the three red-at-HEAD checks; **its retarget must carry its own discrimination test**, which this row requires rather than assumes |
+
 ### 2 October 2026 — SPA-RETIRE 3: the provider-config check, and a live defect it had been failing to catch
 
 | Check | Leg(s) | Property | Decision | Replacement | Commit | Slice |

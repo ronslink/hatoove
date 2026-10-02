@@ -128,26 +128,26 @@ try {
   /* ------------------------------------------------------ the server is detached */
 
   /*
-   * THE SERVER-SIDE PROPERTY IS DETACHMENT, not the file's absence — and that distinction is measured,
-   * not assumed. `public/js/progress-merge.js` is also imported by the BROWSER-side legacy store
-   * (`public/js/store.js`), which eleven checks still drive, so deleting the file now would cascade
-   * through the SPA retirement instead of this slice. What must be true here is that nothing the SERVER
-   * runs can reach it; the file goes with the SPA, in the next stage.
+   * THE MODULE IS NOW GONE, and this leg says so rather than noting that it survives. It used to be
+   * kept alive for the BROWSER-side legacy store (`public/js/store.js`), which is why the first version
+   * of this check could only assert that the SERVER was detached from it. The SPA's modules were deleted
+   * in SPA-RETIRE 4, so the stronger property is available: the file does not exist.
    */
-  const serverImports = /(?:^|\n)\s*import[^;\n]*progress-merge/.test(serverSource) || /from\s+['"][^'"]*progress-merge['"]/.test(serverSource);
+  const module = path.join(ROOT, 'public', 'js', 'progress-merge.js');
   record(
-    'R4 server detached',
-    'server.js imports nothing from the retired store',
-    !serverImports,
-    serverImports ? 'server.js still imports progress-merge' : 'no import of it survives in server.js',
+    'R4b module deleted',
+    'public/js/progress-merge.js is gone, so nothing can merge two blobs again',
+    !fs.existsSync(module),
+    fs.existsSync(module) ? `${path.relative(ROOT, module)} still present` : 'absent',
   );
-
-  const legacyModule = path.join(ROOT, 'public', 'js', 'progress-merge.js');
-  if (fs.existsSync(legacyModule)) {
-    note('R4b module on borrowed time',
-      'public/js/progress-merge.js still exists for the BROWSER-side legacy store (public/js/store.js imports it); '
-      + 'it is deleted with the SPA, and until then it has no server-side caller and no route');
-  }
+  // And the whole retired client is gone with it: only the owned API client is left in public/js.
+  const remaining = fs.existsSync(path.join(ROOT, 'public', 'js')) ? fs.readdirSync(path.join(ROOT, 'public', 'js')) : [];
+  record(
+    'R4c the retired client is gone',
+    'public/js holds the owned API client and nothing else',
+    remaining.length === 1 && remaining[0] === 'owned-client.js',
+    `public/js holds: ${remaining.join(', ') || '(nothing)'}`,
+  );
 
   /* ------------------------------------------- nobody advertises it any more */
 

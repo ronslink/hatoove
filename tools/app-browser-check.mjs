@@ -838,7 +838,8 @@ async function main() {
      * with the database. Checked here, at the END of the journey, after a registration, a sign-in, an
      * answered item and several view changes — the point where a caching client would have written
      * something. `indexedDB` cannot be enumerated synchronously and is NOT inspected; the shell names
-     * no web-storage API at all, which `tools/app-shell-check.mjs` S4 asserts from the source side.
+     * no web-storage API at all — the retired SPA's `app-shell-check.mjs` S4 asserted that from the
+     * source side, and S4 is gone with the SPA, so this leg is now the only vehicle for the property.
      */
     const storage = await cdp.evaluate(`
       const dump = (store) => {

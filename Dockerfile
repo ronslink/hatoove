@@ -28,8 +28,9 @@ COPY public/ ./public/
 # NOTE: `data/` is deliberately NOT copied into the image. Every authored corpus is in the database
 # (migrations 0010-0014) and served by the API; the image used to carry 557 KB of JSON that NOTHING in
 # the container read. Removing it means a re-added static route could not serve the corpus even by
-# mistake -- the files are not there. `tools/check.js`, which does read them, runs from the repo
-# checkout in CI, not inside this image.
+# mistake -- the files are not there. The tool that used to read them from the repo checkout in CI,
+# `tools/check.js`, was retired with the client it tested (SPA-RETIRE 4); `tools/objective-fixture-check.mjs`
+# and `tools/exam-blueprint-check.mjs` still read the repo's data and run from the checkout, not here.
 
 # Run as the unprivileged `node` user that the base image already provides. The runtime must hold
 # restricted database roles; it should not also be root inside its own container.

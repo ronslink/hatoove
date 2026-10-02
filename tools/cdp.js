@@ -2,7 +2,9 @@
  * Shared headless-browser harness for the end-to-end tests.
  *
  * Talks the Chrome DevTools Protocol over Node's built-in WebSocket, so the tests
- * need no npm packages. Used by tools/e2e.js (offline path) and tools/e2e-ai.js
+ * need no npm packages. Used by tools/app-browser-check.mjs (the rendered-evidence check, SPA-RETIRE
+ * era) and by the retired SPA end-to-end runners `tools/e2e.js` and `tools/e2e-ai.js`, which were
+ * deleted with the client they drove — this harness stayed because it drives a BROWSER, not the SPA.
  * (AI path against the mock DeepSeek server).
  */
 

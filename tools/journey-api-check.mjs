@@ -167,9 +167,11 @@ leg('J3', 'dashboard: continue your draft, your feedback is ready', 'MFP-05b', a
 leg('J4', 'choose a writing task (only servable versions)', 'MFP-05a', async (ctx) => {
   const a = ctx.accounts.j1 || await signUp(ctx.call, 'j4');
   /*
-   * `family=SA1` is the EXAM MODEL's writing part id, and it is not a stale name: `public/js/blueprint.js`
-   * defines `SA1: { id: 'SA1', group: 'SA', pts: 45, items: 1, kind: 'writing' }` and lists it in
-   * `SUBTEST_ORDER`. This leg now FAILS with 422, and the cause is a real product defect, not the check:
+   * `family=SA1` is the EXAM MODEL's writing part id, and it is not a stale name. It came from
+   * `public/js/blueprint.js`, which defined `SA1: { id: 'SA1', group: 'SA', pts: 45, items: 1,
+   * kind: 'writing' }` and listed it in `SUBTEST_ORDER` — that module was deleted with the retired client
+   * (SPA-RETIRE 4), and the citation stays because it is the record of where the id was defined. This leg
+   * now FAILS with 422, and the cause is a real product defect, not the check:
    *
    *   /api/v1/tasks          validates family as /^[a-z][a-z0-9_-]{0,31}$/   -> SA1 is refused (uppercase)
    *   /api/v1/objective-sets requires the UPPERCASE ids LV1/SB2/HV3          -> 'lv1' is refused
