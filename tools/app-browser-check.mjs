@@ -1928,6 +1928,109 @@ async function main() {
       `unlabelled=${JSON.stringify(a11y.unlabelled)} noAlt=${JSON.stringify(a11y.noAlt)}`);
     record('L29 no visible text below 11px', a11y.tinyText === 0, `${a11y.tinyText} element(s)`);
 
+    /*
+     * THE DARK SWEEP — EVERY REMAINING VIEW, WITH THE LEGIBILITY RULE AS THE ASSERTION.
+     *
+     * The previous pass proved what light-only coverage hides: in dark mode an un-variant `.btn` fell through
+     * to the BROWSER'S DEFAULT face, so the sessions list's "Beenden" was near-white on near-white — contrast
+     * 0.0012 — while every DOM assertion about it passed. Every screenshot taken before that pass was
+     * light-mode, so the same class of defect could sit anywhere the dark theme had never been rendered.
+     *
+     * Rather than take N screenshots nobody reads, this walks the remaining views IN DARK and runs the same
+     * measurement over every interactive control on each one. The assertion is the audit being empty; the
+     * screenshot is the evidence a human can check afterwards.
+     *
+     * The rule is deliberately restricted to CONTROLS (button / a.btn / role=button): muted body text on a dark
+     * background is a design decision, while a control whose label cannot be read is a defect.
+     */
+    const contrastAudit = `
+      const luminance = (value) => {
+        const parts = (String(value).match(/[\\d.]+/g) || [0, 0, 0]).map(Number);
+        const channel = (c) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * channel(parts[0]) + 0.7152 * channel(parts[1]) + 0.0722 * channel(parts[2]);
+      };
+      const offenders = [];
+      const controls = [...document.querySelectorAll('button, a.btn, [role=button], .btn')];
+      for (const el of controls) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;         // not rendered on this view
+        const style = getComputedStyle(el);
+        if (style.visibility === 'hidden' || style.display === 'none') continue;
+        const label = (el.innerText || el.getAttribute('aria-label') || '').trim();
+        if (!label) { offenders.push('unlabelled ' + el.tagName.toLowerCase() + '.' + String(el.className).split(' ')[0]); continue; }
+        const bg = style.backgroundColor;
+        const opaque = !/rgba\\(0, 0, 0, 0\\)|transparent/.test(bg);
+        // A transparent control shows the surface through it, so its own text colour is what must be legible;
+        // that is the design's ghost treatment and it is checked by the fallback below rather than skipped.
+        const contrast = Math.abs(luminance(style.color) - luminance(opaque ? bg : getComputedStyle(el.parentElement).backgroundColor));
+        if (contrast < 0.2) {
+          offenders.push(label.slice(0, 24) + ' [text ' + style.color + ' on ' + (opaque ? bg : 'parent') + ' contrast ' + contrast.toFixed(3) + ']');
+        }
+      }
+      return { count: controls.length, offenders: offenders.slice(0, 8) };
+    `;
+    /*
+     * SET THE THEME HERE AND PROVE IT, because the first version of this sweep did not and was therefore
+     * measuring NOTHING.
+     *
+     * The dark-mode section above ends by returning the page to light (line ~1893, before the accessibility
+     * legs), so by the time this block ran, `prefers-color-scheme` was LIGHT — while every leg below claimed to
+     * test dark. The symptom was a wall of "unreadable control" failures on controls whose computed colour was
+     * the LIGHT theme's ink, contradicted by a screenshot taken minutes earlier in which the same control was
+     * white and perfectly legible. A leg that depends on ambient state has to establish that state and assert
+     * it, or it is testing whatever the last section left behind.
+     */
+    await theme(cdp, 'dark');
+    await sleep(350);
+    const themeState = await cdp.evaluate(`
+      const luminance = (value) => {
+        const parts = (String(value).match(/[\\d.]+/g) || [0, 0, 0]).map(Number);
+        const channel = (c) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * channel(parts[0]) + 0.7152 * channel(parts[1]) + 0.0722 * channel(parts[2]);
+      };
+      const body = getComputedStyle(document.body);
+      const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim();
+      return { bodyBg: body.backgroundColor, bodyLuminance: luminance(body.backgroundColor), ink };
+    `);
+    const themeIsDark = themeState.bodyLuminance < 0.2;
+    record('L30 the dark sweep runs in the dark theme, asserted rather than assumed',
+      themeIsDark,
+      `body ${themeState.bodyBg} (luminance ${themeState.bodyLuminance.toFixed(3)}), --ink ${themeState.ink}`);
+    const darkViews = [
+      ['lesen', '#/lesen', '#view-lesen', '19-lesen-desktop-dark'],
+      ['woerterbuch', '#/woerterbuch', '#dict-results', '20-woerterbuch-desktop-dark'],
+      ['nachschlagen', '#/nachschlagen', '#guide-index', '21-nachschlagen-desktop-dark'],
+      ['fehler', '#/fehler', '#view-fehler', '22-fehler-desktop-dark'],
+      ['fortschritt', '#/fortschritt', '#view-fortschritt', '23-fortschritt-desktop-dark'],
+    ];
+    for (const [view, hash, selector, name] of darkViews) {
+      await clickSel(cdp, `[data-view="${view}"]`);
+      await softWait(cdp, `location.hash === '${hash}'`, 8000, hash);
+      await softWait(cdp, `document.querySelector('${selector}')`, 10000, selector);
+      await sleep(500);
+      const audit = await cdp.evaluate(contrastAudit);
+      await shot(cdp, name);
+      record(`L30.${view} every control on the ${view} view is legible in dark mode`,
+        audit.offenders.length === 0,
+        `${audit.count} control(s); offenders=${JSON.stringify(audit.offenders)}`);
+    }
+
+    /*
+     * THE OPENED SET IS THE ONE THAT MATTERS MOST: its answer tiles are un-variant `.btn`s, which is exactly
+     * the shape that was invisible before this pass — and it is the surface a learner uses to answer.
+     */
+    await clickSel(cdp, '[data-view="lesen"]');
+    await softWait(cdp, "document.querySelector('#view-lesen [data-open]')", 12000, 'the reading catalogue');
+    await clickSel(cdp, '#view-lesen [data-open]');
+    await softWait(cdp, "document.querySelector('#view-lesen [data-answer]')", 12000, 'the answer tiles');
+    await sleep(400);
+    const openSetAudit = await cdp.evaluate(contrastAudit);
+    const tiles = await cdp.evaluate(`return document.querySelectorAll('#view-lesen [data-answer]').length;`);
+    await shot(cdp, '24-set-open-desktop-dark');
+    record('L31 the answer tiles are legible in dark mode, where the same un-variant button shape was invisible',
+      openSetAudit.offenders.length === 0 && tiles > 0,
+      `${tiles} tile(s), ${openSetAudit.count} control(s); offenders=${JSON.stringify(openSetAudit.offenders)}`);
+
     note('screenshots', SHOTS);
     note('device honesty', 'headless Chromium on desktop is not iPhone Safari or Android Chrome; the real-device gate stays open');
     void landingText;
