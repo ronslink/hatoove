@@ -154,7 +154,53 @@ export const DELETION_NOT_REMOVED = Object.freeze([
  */
 export const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'theme', 'language'];
 /**
- * A content identifier: a task id, a task version, a rubric id or a rubric version. Deliberately wider
+ * FAMILY NAMING — ONE CONVENTION, ONE PARSER.
+ *
+ * Two routes the same client calls used to disagree: `/api/v1/tasks` accepted a lowercase KIND
+ * (`writing`) while `/api/v1/objective-sets` accepted an uppercase PART ID (`HV1`). `journey-api-check`
+ * leg J4 asks the tasks route for `family=SA1` — the blueprint's writing part id — and got 422, which
+ * made it the only red leg in the only red CI job. The stored rows are NOT the problem and are NOT
+ * rewritten: `objective_set.family` really is the part id (`HV1`) and `task_version.family` really is the
+ * kind (`writing`), so a single parser maps one wire vocabulary onto both.
+ *
+ * ONE VOCABULARY, TWO FORMS, A CLOSED SET — and both forms are CASE-SIGNIFICANT:
+ *   * the PART ID, uppercase — `LV1`-`LV3`, `SB1`-`SB2`, `HV1`-`HV3`, `SA1` (writing is a single 45-point
+ *     task, so it has one part). `sa1` is refused;
+ *   * the KIND, lowercase — `writing`, `lv`, `sb`, `hv`, which the app and `docker-stack-check` already
+ *     send and which must keep working. `WRITING` is refused.
+ * Case-significance is deliberate, not an oversight: `docker-stack-check` already asserts that a lowercase
+ * PART ID is "refused, not silently accepted", and accepting both casings would be two conventions wearing
+ * one name — the defect this parser exists to end. The two forms are a vocabulary and a kind, not a
+ * spelling and its variant.
+ * Anything else is refused. `SA2` and `LV9` look plausible and do not exist, so they are 422 like any junk.
+ *
+ * `SA` is the writing group: the blueprint names its writing part `SA1`, and a kind is a valid filter on
+ * both routes, which is the property that makes them one convention rather than two.
+ */
+const FAMILY_PARTS = Object.freeze({ LV: [1, 2, 3], SB: [1, 2], HV: [1, 2, 3], SA: [1] });
+const FAMILY_KINDS = Object.freeze({ writing: 'SA', lv: 'LV', sb: 'SB', hv: 'HV' });
+
+/**
+ * @returns {{partId: string|null, group: string, part: number|null, kind: string}|null} null when the
+ *   value is outside the closed set — the caller turns that into `422 invalid_family`.
+ */
+export function parseFamily(value) {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw || raw.length > 32 || raw !== value) return null; // no padding, no surprises
+  const partMatch = /^([A-Z]{2})([1-9])$/.exec(raw);
+  if (partMatch) {
+    const [, group, digit] = partMatch;
+    const parts = FAMILY_PARTS[group];
+    if (!parts || !parts.includes(Number(digit))) return null;
+    return { partId: `${group}${digit}`, group, part: Number(digit), kind: group === 'SA' ? 'writing' : group.toLowerCase() };
+  }
+  const kind = FAMILY_KINDS[raw];
+  if (kind) return { partId: null, group: kind, part: null, kind: raw };
+  return null;
+}
+
+/** A content identifier: a task id, a task version, a rubric id or a rubric version. Deliberately wider
  * than `SETTINGS_TOKEN_RE` (which is about tokens a learner types) because seeded ids carry dots and
  * dashes — `writing.du.besuch-einer-freundin` — and the same character set the catalogue route accepts.
  */
@@ -416,12 +462,14 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * a query string must not be able to unlock unreviewed content.
        */
       const family = query.get('family');
-      if (family !== null && !/^[a-z][a-z0-9_-]{0,31}$/.test(family)) fault(422, 'invalid_family');
+      const parsedFamily = family === null ? null : parseFamily(family);
+      if (family !== null && !parsedFamily) fault(422, 'invalid_family');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
-      return reply(200, await datastore.listTasks(owner, { examId: exam, family, serveReview }));
+      // The KIND is what the task catalogue stores; the part id is the wire vocabulary (see parseFamily).
+      return reply(200, await datastore.listTasks(owner, { examId: exam, family: parsedFamily ? parsedFamily.kind : null, serveReview }));
     }
     if (pathname === '/api/v1/objective-sets' && method === 'GET') {
       if (!catalogueWired) fault(503, 'catalogue_unavailable');
@@ -440,17 +488,29 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * `family` may only NARROW, exactly as for `/tasks`: the serving policy is deployment
        * configuration and a query string must not be able to unlock what the deployment withheld.
        *
-       * NOTE the naming inconsistency, recorded rather than hidden: the writing family is `writing`
-       * (lowercase word) while these are codes (`LV1`, `HV3`). Both are accepted by their own route;
-       * unifying them is a follow-up, and guessing a unified form now would break one of them.
+       * THE NAMING INCONSISTENCY IS FIXED, not annotated. It used to read "the writing family is
+       * `writing` while these are codes (`LV1`, `HV3`); unifying them is a follow-up" — and that follow-up
+       * is what made `journey-api-check` J4 the only red leg in the only red CI job. One parser now
+       * accepts one vocabulary in both spellings (see `parseFamily`): a PART ID narrows to that part, a
+       * KIND (`lv`) narrows to the whole group. `objective_set.family` stores the part id, so an exact
+       * match is the narrowest case and a group match is the widest.
        */
       const family = query.get('family');
-      if (family !== null && !/^[A-Z]{2}[0-9]$/.test(family)) fault(422, 'invalid_family');
+      const parsedFamily = family === null ? null : parseFamily(family);
+      if (family !== null && !parsedFamily) fault(422, 'invalid_family');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
-      return reply(200, await datastore.listObjectiveSets(owner, { examId: exam, family, serveReview }));
+      return reply(200, await datastore.listObjectiveSets(owner, {
+        examId: exam,
+        // An exact PART ID is the narrowest filter; a KIND narrows to the group. Both reach the same
+        // storage column, which is why one of them is passed as an equality and the other as a prefix.
+        family: parsedFamily && parsedFamily.partId ? parsedFamily.partId : null,
+        group: parsedFamily && parsedFamily.partId ? null : (parsedFamily ? parsedFamily.group : null),
+        part: parsedFamily ? parsedFamily.part : null,
+        serveReview,
+      }));
     }
     if (pathname === '/api/v1/vocab' && method === 'GET') {
       if (!catalogueWired) fault(503, 'catalogue_unavailable');

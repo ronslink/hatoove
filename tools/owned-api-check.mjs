@@ -439,6 +439,66 @@ const nextEmail = (tag) => `${tag}-${RUN_ID}-${++emailCounter}@example.invalid`;
 let BACKEND = 'memory';
 const openWorlds = [];
 
+/*
+ * A CATALOGUE FIXTURE, and a world that wires it — deliberately a SEPARATE world.
+ *
+ * The catalogue routes had no leg in this suite at all, which is how two routes the same client calls came
+ * to enforce opposite family conventions without anything noticing. Wiring the catalogue into the shared
+ * `world()` would change the behaviour every other leg sees (one of them asserts the 503 an UNWIRED
+ * catalogue gives), so the catalogue gets its own world and only the legs that need it use it.
+ *
+ * The objective rows mirror the seeded shape exactly: `family` is the uppercase PART ID (`LV1`), `section`
+ * is the group (`LV`), `part` is the integer, and `media_required` sets are filtered out by the adapter
+ * because a listening set with no audio must not be offered.
+ */
+const OBJECTIVE_FIXTURE = Object.freeze([
+  Object.freeze({ set_id: 'telc-deutsch-b1.lv1.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'LV1', section: 'LV', part: 1, title: 'Wohnungen und WG-Zimmer', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'unknown' }),
+  Object.freeze({ set_id: 'telc-deutsch-b1.lv1.02', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'LV1', section: 'LV', part: 1, title: 'Stellenanzeigen und Arbeitsuche', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'unknown' }),
+  Object.freeze({ set_id: 'telc-deutsch-b1.lv2.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'LV2', section: 'LV', part: 2, title: 'Zeitungsartikel', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'unknown' }),
+  Object.freeze({ set_id: 'telc-deutsch-b1.sb1.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'SB1', section: 'SB', part: 1, title: 'Formulare und Anzeigen', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'unknown' }),
+  Object.freeze({ set_id: 'telc-deutsch-b1.hv1.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'HV1', section: 'HV', part: 1, title: 'Nachrichten von Freunden', item_count: 6, media_required: true, review_status: 'unreviewed', rights_status: 'unknown' }),
+]);
+
+function cataloguePort() {
+  return {
+    async listTasks(owner, { examId = null, family = null } = {}) {
+      return WRITING_TASKS
+        .filter((task) => (examId === null || examId === 'telc-deutsch-b1') && (family === null || family === 'writing'))
+        .map((task) => ({
+          task_id: task.taskId, version: task.version, exam_id: 'telc-deutsch-b1', family: 'writing',
+          register: task.register, topic: task.topic, situation: task.situation, adressat: task.adressat,
+          leitpunkte: task.leitpunkte, rubric_id: WRITING_RUBRIC.rubricId, rubric_version: WRITING_RUBRIC.version,
+          review_status: 'unreviewed', rights_status: 'unknown',
+        }));
+    },
+    async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null } = {}) {
+      // The SAME filter the adapter applies, so a leg cannot pass on one backend and fail on the other:
+      // an exact part id (family), a group prefix (section), an integer part, and media_required excluded.
+      return OBJECTIVE_FIXTURE.filter((set) => (examId === null || set.exam_id === examId)
+        && (family === null || set.family === family)
+        && (group === null || set.section.startsWith(group))
+        && (part === null || set.part === part)
+        && set.media_required === false);
+    },
+    /* The rest of the catalogue is NOT exercised by this suite; they exist so the port counts as wired.
+     * Their routes are covered where a real database is available (docker-stack-check, journey-api-check). */
+    async readObjectiveSet() { return null; },
+    async listVocab() { return []; },
+    async listNouns() { return []; },
+    async listGuides() { return []; },
+    async readGuide() { return null; },
+  };
+}
+
+/** A world whose datastore ALSO implements the catalogue, so the two catalogue routes can be driven. */
+async function catalogueWorld() {
+  if (BACKEND !== 'memory') return world(); // the real datastore implements the catalogue already
+  const store = createMemoryDatastore({ allowance: 10 });
+  const sessions = createMemorySessions();
+  const api = createOwnedApi({ datastore: { ...store.port, ...cataloguePort() }, sessions, settings: store.settings });
+  return { store, sessions, api, browser: () => inProcessBrowser(api) };
+}
+
 async function world({ allowance } = {}) {
   if (BACKEND === 'postgres') {
     const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
@@ -839,6 +899,71 @@ check('an-unfinished-attempt-is-resumable-and-a-submitted-one-is-not', async () 
   const afterDelete = (await a.raw('GET', '/api/v1/attempts?open=1')).json;
   assert.ok(!afterDelete.attempts.some((x) => x.id === second.id), 'a deleted attempt is not resumable');
   return `resumed ${entry.id}@rev${entry.revision} with no text in the index; empty for a stranger, after submit, and after delete`;
+});
+
+/*
+ * FAMILY NAMING — ONE CONVENTION, ASSERTED ON BOTH CATALOGUE ROUTES.
+ *
+ * The measured defect (and `journey-api-check` leg J4, the only red leg in the only red CI job):
+ * `/api/v1/tasks` accepted a lowercase KIND (`writing`) while `/api/v1/objective-sets` accepted an
+ * uppercase PART ID (`HV1`) — two routes the same client calls, enforcing opposite conventions. J4 asks
+ * the tasks route for `family=SA1`, the blueprint's writing part id, and gets 422.
+ *
+ * These legs assert the unification WITHOUT touching a stored row: both spellings are accepted, on both
+ * routes, through ONE parser, and everything outside the closed set is still refused. The catalogue is
+ * also exercised here for the FIRST time — neither route had a leg in this suite, which is how the
+ * disagreement survived a programme with 30 legs around it.
+ */
+check('family-ids-are-one-convention-across-both-catalogue-routes', async () => {
+  const w = await catalogueWorld();
+  const a = await learner(w);
+
+  // ONE PART ID, THE SAME ANSWER — and the kind token keeps working, because the app and
+  // docker-stack-check both send it.
+  const byPart = await a.raw('GET', '/api/v1/tasks?family=SA1');
+  const byKind = await a.raw('GET', '/api/v1/tasks?family=writing');
+  assert.equal(byPart.status, 200, `family=SA1 must be accepted, got ${byPart.status} ${byPart.text.slice(0, 80)}`);
+  /*
+   * CASE-SIGNIFICANT, and that is the point rather than pedantry: docker-stack-check already asserts that a
+   * lowercase PART ID is refused rather than silently accepted, and accepting both casings would be two
+   * conventions wearing one name — the defect this parser exists to end. The two forms are a PART ID and a
+   * KIND, not a spelling and its variant.
+   */
+  assert.equal((await a.raw('GET', '/api/v1/tasks?family=sa1')).status, 422, 'a lowercase part id must be refused');
+  assert.deepEqual(byKind.json, byPart.json, 'the kind token must return the same tasks as its part id');
+  assert.ok(Array.isArray(byPart.json) && byPart.json.length >= 1, 'and it must actually return the writing tasks');
+  assert.ok(byPart.json.every((t) => t.family === 'writing'), 'all of them from the writing family');
+
+  // AN OBJECTIVE PART ID ON THE TASKS ROUTE IS AN EMPTY ANSWER, NOT A REFUSAL: the route narrows, it does
+  // not decide which parts exist. Refusing here is what made the two routes disagree.
+  const lvOnTasks = await a.raw('GET', '/api/v1/tasks?family=LV1');
+  assert.equal(lvOnTasks.status, 200, `family=LV1 on the tasks route must narrow, not refuse, got ${lvOnTasks.status}`);
+  assert.deepEqual(lvOnTasks.json, [], 'and there are no reading tasks in the writing catalogue');
+
+  // THE OBJECTIVE ROUTE, BOTH FORMS: an exact part id and a group. The group form is what makes the two
+  // routes speak one language — a KIND is a valid filter everywhere.
+  const onePart = await a.raw('GET', '/api/v1/objective-sets?family=LV1');
+  assert.equal(onePart.status, 200, `family=LV1 must be accepted, got ${onePart.status}`);
+  assert.ok(Array.isArray(onePart.json) && onePart.json.length >= 1, 'and must match the seeded LV1 sets');
+  assert.ok(onePart.json.every((s) => s.family === 'LV1' && s.part === 1), 'only LV1, part 1');
+  const group = await a.raw('GET', '/api/v1/objective-sets?family=lv');
+  assert.equal(group.status, 200, 'the group form must be accepted');
+  assert.ok(group.json.length >= onePart.json.length, `the group must be at least as wide as one part (${group.json.length} vs ${onePart.json.length})`);
+  assert.ok(group.json.every((s) => String(s.section).toUpperCase() === 'LV'), 'and every row must be Leseverstehen');
+  const writingOnSets = await a.raw('GET', '/api/v1/objective-sets?family=SA1');
+  assert.equal(writingOnSets.status, 200, 'the writing part id is valid on this route too');
+  assert.deepEqual(writingOnSets.json, [], 'and there are no objective sets in it');
+
+  // THE CLOSED SET STILL CLOSES: a plausible but non-existent part, an unknown group and junk are all
+  // refused on both routes. Accepting either SPELLING is not accepting anything.
+  for (const bad of ['SA2', 'LV9', 'SB3', 'XX1', 'nonsense', 'LV1 ', '', 'sa1', 'WRITING']) {
+    const res = await a.raw('GET', `/api/v1/tasks?family=${encodeURIComponent(bad)}`);
+    assert.equal(res.status, 422, `tasks family=${JSON.stringify(bad)} must be 422, got ${res.status}`);
+    assert.equal(res.json.error, 'invalid_family', `tasks family=${JSON.stringify(bad)} token`);
+    const sets = await a.raw('GET', `/api/v1/objective-sets?family=${encodeURIComponent(bad)}`);
+    assert.equal(sets.status, 422, `objective-sets family=${JSON.stringify(bad)} must be 422, got ${sets.status}`);
+  }
+  return `SA1 and writing agree on the tasks route (${byPart.json.length} task(s)); LV1 exact + lv group on the sets route; 9 invalid spellings refused on both`;
 });
 
 check('retry-only-eligible-failed-job-same-identity', async () => {

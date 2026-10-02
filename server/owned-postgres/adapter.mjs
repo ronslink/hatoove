@@ -148,7 +148,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * which is a Hören task wearing a Hören label while actually being a Lesen task. They stay in the
      * database, marked, until there is something to hear.
      */
-    async listObjectiveSets(owner, { examId = null, family = null, serveReview = 'approved+unreviewed' } = {}) {
+    async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null, serveReview = 'approved+unreviewed' } = {}) {
       note('listObjectiveSets');
       const statuses = serveReview === 'approved' ? ['approved'] : ['approved', 'unreviewed'];
       return settle(owner, async (client) => {
@@ -160,10 +160,12 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
              JOIN content_version c ON c.content_version_id = s.content_version_id
             WHERE s.exam_id = COALESCE($1, s.exam_id)
               AND ($2::text IS NULL OR s.family = $2)
+              AND ($4::text IS NULL OR s.family LIKE $4 || '%')
+              AND ($5::int IS NULL OR s.part = $5)
               AND c.review_status = ANY($3::text[])
               AND s.media_required = false
             ORDER BY s.family, s.part, s.set_id`,
-          [examId, family, statuses])).rows;
+          [examId, family, statuses, group, part])).rows;
         return rows.map((row) => ({
           set_id: row.set_id,
           version: row.version,
