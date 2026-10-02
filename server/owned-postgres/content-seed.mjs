@@ -65,8 +65,16 @@ export function taskContentHash(task) {
   }));
 }
 
-/** The formative writing rubric (`WRITING_CRITERIA` in public/js/ai.js), max sum 45. */
-export const WRITING_RUBRIC = Object.freeze({
+/**
+ * THE RETIRED FORMATIVE RUBRIC — four internal criteria, max sum 45.
+ *
+ * Kept because it is not deleted from the database and cannot be: the catalogue is immutable, every row
+ * already seeded under `writing.formative@v1` stays, and any attempt bound to it must keep rendering as
+ * the version it was graded under. It is RETIRED in the sense that no NEW task version binds it.
+ *
+ * Do not use it for new work. `WRITING_RUBRIC` below is the current contract.
+ */
+export const FORMATIVE_WRITING_RUBRIC = Object.freeze({
   rubricId: 'writing.formative',
   version: CONTENT_VERSION,
   criteria: Object.freeze([
@@ -76,6 +84,103 @@ export const WRITING_RUBRIC = Object.freeze({
     Object.freeze({ key: 'ausdruck', label: 'Ausdruck / Wortschatz', max: 8 }),
   ]),
 });
+
+/**
+ * THE CURRENT WRITING RUBRIC — telc Deutsch B1's own structure (Ron, 2 October 2026: *"i would lean to
+ * sticking with what is actually tested and how its graded"*).
+ *
+ * Three criteria, each marked with a BAND (A/B/C/D = 5/3/1/0 points, ×3, so each criterion is out of 15
+ * and the written paper is out of 45). It is a SEPARATELY VERSIONED rubric bound to the telc B1 exam
+ * package: the retired `writing.formative` rubric is a different contract with different criteria, and
+ * **the two are never renormalised or relabelled into each other**. Nothing here is copied from telc's
+ * published descriptor text — the criterion NAMES are used because they name the published structure,
+ * and every descriptor below is written independently for this product.
+ *
+ * PROVISIONAL, AND IT SAYS SO. `reviewStatus` is `unreviewed` and the descriptors are marked
+ * `provisional: true`: the structure can be built now, but calling it ACCURATE cannot. E-01 requires a
+ * qualified reviewer to confirm the criteria and the band values against telc's current model exam
+ * (the blueprint itself still lists whether the 2020 edition is current as an open question).
+ *
+ * R15 IS STILL OPEN — whether to show the bands only or also a total out of 45 — so the band VALUES live
+ * here as the marking scale while nothing in the result payload carries a number. Bands only, by default.
+ */
+/**
+ * The marking scale, defined ONCE and carried PER CRITERION into the stored JSON.
+ *
+ * It has to be per criterion because `rubric_version.criteria` is the only part of a rubric the database
+ * stores — a scale kept only at the top of this object would never reach the validator or the screen, and a
+ * band is only meaningful against the scale that produced it. Defined here as one object so the three
+ * criteria cannot drift into three slightly different scales.
+ */
+const TELC_B1_BANDS = Object.freeze({ A: 5, B: 3, C: 1, D: 0 });
+/** Telc multiplies the band by three per criterion, so each criterion is out of 15 and the paper out of 45. */
+const TELC_B1_FACTOR = 3;
+
+export const TELC_B1_WRITING_RUBRIC = Object.freeze({
+  rubricId: 'writing.telc-b1',
+  version: CONTENT_VERSION,
+  examId: 'telc-deutsch-b1',
+  family: 'writing',
+  provisional: true,
+  /** The shared scale and factor, ALSO written into every criterion below so the stored JSON is self-contained. */
+  bands: TELC_B1_BANDS,
+  factor: TELC_B1_FACTOR,
+  maxTotal: 45,
+  criteria: Object.freeze([
+    Object.freeze({
+      key: 'aufgabe',
+      label: 'Aufgabenbewältigung',
+      max: 15,
+      factor: TELC_B1_FACTOR,
+      bands: TELC_B1_BANDS,
+      descriptors: Object.freeze({
+        A: 'Alle Leitpunkte behandelt, mit klarer Absicht und passendem Umfang.',
+        B: 'Die Leitpunkte überwiegend behandelt; einzelne Punkte knapp oder ungenau.',
+        C: 'Mehrere Leitpunkte fehlen oder sind nur angedeutet.',
+        D: 'Die Aufgabenstellung wird nicht erkennbar bearbeitet.',
+      }),
+    }),
+    Object.freeze({
+      key: 'kommunikation',
+      label: 'Kommunikative Gestaltung',
+      max: 15,
+      factor: TELC_B1_FACTOR,
+      bands: TELC_B1_BANDS,
+      descriptors: Object.freeze({
+        A: 'Textsorte, Anrede und Register durchgehend passend und flüssig verbunden.',
+        B: 'Textsorte und Register überwiegend passend; Verbindungen teils einfach.',
+        C: 'Textsorte oder Register nur teilweise getroffen; wenig verbunden.',
+        D: 'Keine erkennbare Textsorte oder durchgehend unpassendes Register.',
+      }),
+    }),
+    Object.freeze({
+      key: 'richtigkeit',
+      label: 'Formale Richtigkeit',
+      max: 15,
+      factor: TELC_B1_FACTOR,
+      bands: TELC_B1_BANDS,
+      descriptors: Object.freeze({
+        A: 'Kaum Fehler; was falsch ist, behindert das Verständnis nicht.',
+        B: 'Einzelne Fehler, die das Verständnis nicht wesentlich stören.',
+        C: 'Häufige Fehler, die das Verständnis an einzelnen Stellen stören.',
+        D: 'Fehler prägen den Text; das Verständnis ist über weite Strecken erschwert.',
+      }),
+    }),
+  ]),
+});
+
+/**
+ * The CURRENT writing rubric, under the name every caller already uses. The retired contract keeps its
+ * own name above so that "the rubric" in new code cannot silently mean the four-criterion one.
+ */
+export const WRITING_RUBRIC = TELC_B1_WRITING_RUBRIC;
+
+/**
+ * The task version bound to the current rubric. The prompts themselves are unchanged — this is a
+ * RE-BINDING, not new content — and the catalogue is immutable, so it is a new version rather than an
+ * edit: `attempts` and `submissions` carry their own task/rubric versions and are never rewritten.
+ */
+export const TELC_B1_TASK_VERSION = 'v2';
 
 /**
  * The six prompts. `taskId` is the stable server-side identity (topic slug, register); the
@@ -158,18 +263,36 @@ export const WRITING_TASKS = Object.freeze([
 ]);
 
 /**
- * The binding every attempt gets until a task-selection route exists (SAAS-RESUME-01 /
- * DESIGN-02). It is REAL content: the canonical first writing prompt and the one rubric. The
- * dispatch forbids changing the client or adding a serving route in this slice, so the
- * datastore binds this default rather than taking a task from the caller.
+ * The binding every attempt gets when the caller names no task (SAAS-RESUME-01 / DESIGN-02). It is REAL
+ * content: the canonical first writing prompt at the version bound to the CURRENT rubric.
+ *
+ * `TELC_B1_TASK_VERSION` rather than `DEFAULT_TASK.version`: task v1 is bound to the retired four-criterion
+ * rubric in the catalogue, so pairing v1 with the telc rubric would be a tuple the serving policy must
+ * refuse — the datastore checks that a binding names a task version and the rubric THAT version declares.
  */
 export const DEFAULT_TASK = WRITING_TASKS[0];
 export const DEFAULT_TASK_BINDING = Object.freeze({
   taskId: DEFAULT_TASK.taskId,
-  taskVersion: DEFAULT_TASK.version,
+  taskVersion: TELC_B1_TASK_VERSION,
   rubricId: WRITING_RUBRIC.rubricId,
   rubricVersion: WRITING_RUBRIC.version,
 });
+
+/**
+ * The (task version, rubric) pairs the catalogue DECLARES, as data rather than as a database query, so the
+ * memory fixture, the migration generator and the checks all agree on one list. Task v1 carries the retired
+ * formative rubric; task v2 carries the current telc B1 rubric. Both remain servable under the pilot's
+ * serving policy, which is why the catalogue serves ONE version per task — the newest — rather than two
+ * cards for the same prompt.
+ */
+export function taskBindings() {
+  const rows = [];
+  for (const task of WRITING_TASKS) {
+    rows.push({ taskId: task.taskId, version: CONTENT_VERSION, rubricId: FORMATIVE_WRITING_RUBRIC.rubricId, rubricVersion: FORMATIVE_WRITING_RUBRIC.version, examId: 'telc-deutsch-b1' });
+    rows.push({ taskId: task.taskId, version: TELC_B1_TASK_VERSION, rubricId: TELC_B1_WRITING_RUBRIC.rubricId, rubricVersion: TELC_B1_WRITING_RUBRIC.version, examId: 'telc-deutsch-b1' });
+  }
+  return rows;
+}
 
 /** Every content_version row the seed needs: one per task version plus the rubric. */
 export function contentVersionRows() {
@@ -182,10 +305,10 @@ export function contentVersionRows() {
     });
   }
   rows.push({
-    contentVersionId: `${WRITING_RUBRIC.rubricId}@${WRITING_RUBRIC.version}`,
+    contentVersionId: `${FORMATIVE_WRITING_RUBRIC.rubricId}@${FORMATIVE_WRITING_RUBRIC.version}`,
     kind: 'rubric', family: WRITING_FAMILY, sourcePath: CONTENT_SOURCE,
     reviewStatus: REVIEW_STATUS, rightsStatus: RIGHTS_STATUS,
-    sha256: sha256(JSON.stringify(WRITING_RUBRIC.criteria)),
+    sha256: sha256(JSON.stringify(FORMATIVE_WRITING_RUBRIC.criteria)),
   });
   return rows;
 }

@@ -102,7 +102,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT t.task_id, t.version, t.family, t.register, t.topic, t.situation, t.adressat,
-                  t.leitpunkte, t.rubric_id, t.rubric_version, t.exam_id,
+                  t.leitpunkte, t.rubric_id, t.rubric_version, t.exam_id, t.created_at,
                   c.review_status, c.rights_status
              FROM task_version t
              JOIN content_version c ON c.content_version_id = t.content_version_id
@@ -115,6 +115,8 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
           task_id: row.task_id,
           version: row.version,
           exam_id: row.exam_id,
+          // The route picks the NEWEST version per task from these rows, so the timestamp has to travel.
+          created_at: row.created_at,
           family: row.family,
           register: row.register,
           topic: row.topic,

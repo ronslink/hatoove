@@ -78,7 +78,21 @@ try{
   passed('db -> migrations -> API and worker start in isolated containers');
   const rows=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.hatoove_migrations']).trim();
   assert.equal(rows,String(migrationCount),'the ledger must hold exactly the migrations on disk');
-  assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.task_version']).trim(),'6');
+  /*
+   * TWELVE TASK VERSIONS, SIX PROMPTS. Migration 0017 re-binds the six writing prompts to the telc B1 rubric
+   * at task `v2`; the catalogue is immutable (`content_immutable` refuses UPDATE), so that is six NEW rows
+   * beside the six `v1` rows rather than an edit. Both versions are servable, and the ROUTE serves one card
+   * per task — which `owned-api-check` leg `the-catalogue-serves-the-telc-rubric-once-per-task` asserts. This
+   * leg counts what the DATABASE holds, so it must expect both.
+   */
+  assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.task_version']).trim(),'12',
+    'six prompts at two versions each: v1 with the retired rubric, v2 with the telc B1 one');
+  assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    "SELECT count(*) FROM hatoove.task_version WHERE rubric_id = 'writing.telc-b1'"]).trim(),'6',
+    'the six current bindings must name the telc B1 rubric');
+  assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    "SELECT count(*) FROM hatoove.rubric_version"]).trim(),'2',
+    'two rubrics: the retired four-criterion one and the current three-criterion one, separately versioned');
   const elevated=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',"SELECT count(*) FROM pg_roles WHERE rolname LIKE 'hatoove_%' AND (rolsuper OR rolbypassrls)"]).trim();
   assert.equal(elevated,'0');
   passed(String(migrationCount)+' migrations applied and 6 task versions; application roles not superuser/BYPASSRLS');

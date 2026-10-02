@@ -13,7 +13,7 @@
  */
 
 import {
-  WRITING_FAMILY, WRITING_RUBRIC, WRITING_TASKS, contentVersionRows,
+  WRITING_FAMILY, FORMATIVE_WRITING_RUBRIC, WRITING_TASKS, contentVersionRows,
 } from './content-seed.mjs';
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
@@ -110,15 +110,15 @@ export function contentCatalogueSql({ schema, roles }) {
       + `${lit(row.sourcePath)}, ${lit(row.reviewStatus)}, ${lit(row.rightsStatus)}, ${lit(row.sha256)})`)
     .join(',\n');
   const rubricRows = [
-    `    (${lit(WRITING_RUBRIC.rubricId)}, ${lit(WRITING_RUBRIC.version)}, ${lit(WRITING_FAMILY)}, `
-    + `${jsonLit(WRITING_RUBRIC.criteria)}, `
-    + `${WRITING_RUBRIC.criteria.reduce((sum, c) => sum + c.max, 0)}, `
-    + `${lit(`${WRITING_RUBRIC.rubricId}@${WRITING_RUBRIC.version}`)})`,
+    `    (${lit(FORMATIVE_WRITING_RUBRIC.rubricId)}, ${lit(FORMATIVE_WRITING_RUBRIC.version)}, ${lit(WRITING_FAMILY)}, `
+    + `${jsonLit(FORMATIVE_WRITING_RUBRIC.criteria)}, `
+    + `${FORMATIVE_WRITING_RUBRIC.criteria.reduce((sum, c) => sum + c.max, 0)}, `
+    + `${lit(`${FORMATIVE_WRITING_RUBRIC.rubricId}@${FORMATIVE_WRITING_RUBRIC.version}`)})`,
   ].join(',\n');
   const taskRows = WRITING_TASKS
     .map((task) => `    (${lit(task.taskId)}, ${lit(task.version)}, ${lit(WRITING_FAMILY)}, ${lit(task.register)}, `
       + `${lit(task.topic)}, ${lit(task.situation)}, ${lit(task.adressat)}, ${jsonLit(task.leitpunkte)}, `
-      + `${lit(WRITING_RUBRIC.rubricId)}, ${lit(WRITING_RUBRIC.version)}, ${lit(`${task.taskId}@${task.version}`)})`)
+      + `${lit(FORMATIVE_WRITING_RUBRIC.rubricId)}, ${lit(FORMATIVE_WRITING_RUBRIC.version)}, ${lit(`${task.taskId}@${task.version}`)})`)
     .join(',\n');
   return `
     CREATE TABLE IF NOT EXISTS ${s}.content_version (

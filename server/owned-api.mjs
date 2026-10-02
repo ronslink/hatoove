@@ -469,7 +469,29 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
       // The KIND is what the task catalogue stores; the part id is the wire vocabulary (see parseFamily).
-      return reply(200, await datastore.listTasks(owner, { examId: exam, family: parsedFamily ? parsedFamily.kind : null, serveReview }));
+      const tasks = await datastore.listTasks(owner, { examId: exam, family: parsedFamily ? parsedFamily.kind : null, serveReview });
+      /*
+       * ONE CARD PER TASK, THE NEWEST VERSION.
+       *
+       * The catalogue is immutable, so re-binding the six prompts to the telc rubric produced v2 rows
+       * alongside v1 — and both are `unreviewed`, so the serving policy serves both. Returning both would
+       * show a learner the same prompt twice and make them guess which one to write into; the honest rule
+       * is that a task has VERSIONS and the catalogue offers the newest servable one.
+       *
+       * Done in the route rather than in SQL so both backends behave identically by construction: the
+       * datastore returns rows, and one place decides which of them a learner sees. `created_at` orders it
+       * — the newest row wins — with the version string as a stable tiebreak for rows seeded in the same
+       * statement. Old attempts are untouched: they keep their own binding and render under it.
+       */
+      const newest = new Map();
+      for (const task of tasks) {
+        const current = newest.get(task.task_id);
+        if (!current || String(task.created_at || '') > String(current.created_at || '')
+          || (String(task.created_at || '') === String(current.created_at || '') && String(task.version) > String(current.version))) {
+          newest.set(task.task_id, task);
+        }
+      }
+      return reply(200, tasks.filter((task) => newest.get(task.task_id) === task));
     }
     if (pathname === '/api/v1/objective-sets' && method === 'GET') {
       if (!catalogueWired) fault(503, 'catalogue_unavailable');

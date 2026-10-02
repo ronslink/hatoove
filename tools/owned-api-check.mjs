@@ -42,7 +42,10 @@ import assert from 'node:assert/strict';
 
 import { createOwnedApi, Fault, CONTRACT_VERSION } from '../server/owned-api.mjs';
 import { createOwnedClient, OwnedClientError } from '../public/js/owned-client.js';
-import { DEFAULT_TASK_BINDING, WRITING_TASKS, WRITING_RUBRIC } from '../server/owned-postgres/content-seed.mjs';
+import {
+  DEFAULT_TASK_BINDING, WRITING_TASKS, WRITING_RUBRIC, taskBindings,
+  FORMATIVE_WRITING_RUBRIC, TELC_B1_WRITING_RUBRIC, TELC_B1_TASK_VERSION, CONTENT_VERSION,
+} from '../server/owned-postgres/content-seed.mjs';
 
 /* ================================================== in-memory ports (TEST ONLY) */
 
@@ -100,9 +103,15 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
        * rubric; omitting the binding keeps the canonical default.
        */
       if (binding) {
-        const declared = WRITING_TASKS.find((t) => t.taskId === b.taskId && t.version === b.taskVersion);
-        const rubricFits = b.rubricId === WRITING_RUBRIC.rubricId && b.rubricVersion === WRITING_RUBRIC.version;
-        if (!declared || !rubricFits) fail(422, 'task_not_servable');
+        /*
+         * THE DECLARED PAIRS, not a task list plus one rubric. The catalogue holds v1 bound to the retired
+         * four-criterion rubric and v2 bound to the current telc one, so the rule is a TUPLE: this task
+         * version declares THIS rubric. Checking the pieces separately would accept v1 + telc, which no
+         * row declares -- the same mistake the PostgreSQL adapter refuses with 	ask_not_servable.
+         */
+        const declared = taskBindings().find((row) => row.taskId === b.taskId && row.version === b.taskVersion
+          && row.rubricId === b.rubricId && row.rubricVersion === b.rubricVersion);
+        if (!declared) fail(422, 'task_not_servable');
       }
       const id = randomUUID();
       attempts.set(id, {
@@ -460,15 +469,26 @@ const OBJECTIVE_FIXTURE = Object.freeze([
 ]);
 
 function cataloguePort() {
+  /*
+   * BOTH task versions are served here on purpose. The catalogue really holds v1 bound to the RETIRED
+   * four-criterion rubric and v2 bound to the current telc B1 rubric — re-binding an immutable catalogue
+   * means new rows — so the fixture has to expose both for the "one card per task, the newest" rule to be
+   * testable at all. The timestamps differ, because that is what decides.
+   */
+  const rows = [];
+  for (const task of WRITING_TASKS) {
+    rows.push({ ...task, version: CONTENT_VERSION, rubricId: FORMATIVE_WRITING_RUBRIC.rubricId, rubricVersion: FORMATIVE_WRITING_RUBRIC.version, createdAt: '2026-10-01T00:00:00Z' });
+    rows.push({ ...task, version: TELC_B1_TASK_VERSION, rubricId: TELC_B1_WRITING_RUBRIC.rubricId, rubricVersion: TELC_B1_WRITING_RUBRIC.version, createdAt: '2026-10-02T00:00:00Z' });
+  }
   return {
     async listTasks(owner, { examId = null, family = null } = {}) {
-      return WRITING_TASKS
+      return rows
         .filter((task) => (examId === null || examId === 'telc-deutsch-b1') && (family === null || family === 'writing'))
         .map((task) => ({
           task_id: task.taskId, version: task.version, exam_id: 'telc-deutsch-b1', family: 'writing',
           register: task.register, topic: task.topic, situation: task.situation, adressat: task.adressat,
-          leitpunkte: task.leitpunkte, rubric_id: WRITING_RUBRIC.rubricId, rubric_version: WRITING_RUBRIC.version,
-          review_status: 'unreviewed', rights_status: 'unknown',
+          leitpunkte: task.leitpunkte, rubric_id: task.rubricId, rubric_version: task.rubricVersion,
+          created_at: task.createdAt, review_status: 'unreviewed', rights_status: 'unknown',
         }));
     },
     async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null } = {}) {
@@ -810,11 +830,16 @@ check('attempt-binds-the-servable-task-the-learner-opened', async () => {
   const a = await learner(w);
   const servable = WRITING_TASKS[1];
   assert.ok(servable, 'the fixture needs at least two seeded writing tasks to tell them apart');
+  /*
+   * A DECLARED PAIR, said out loud: task `v2` (the version bound to the CURRENT rubric) with the telc B1
+   * rubric. Pairing a task's v1 with the telc rubric is a tuple no catalogue row declares, and the datastore
+   * refuses it — which is the rule this leg exists to prove, so the leg must not break it while setting up.
+   */
   const binding = {
     taskId: servable.taskId,
-    taskVersion: servable.version,
-    rubricId: WRITING_RUBRIC.rubricId,
-    rubricVersion: WRITING_RUBRIC.version,
+    taskVersion: TELC_B1_TASK_VERSION,
+    rubricId: TELC_B1_WRITING_RUBRIC.rubricId,
+    rubricVersion: TELC_B1_WRITING_RUBRIC.version,
   };
   const attempt = await a.client.createAttempt(binding);
   const read = await a.raw('GET', `/api/v1/attempts/${attempt.id}`);
@@ -964,6 +989,37 @@ check('family-ids-are-one-convention-across-both-catalogue-routes', async () => 
     assert.equal(sets.status, 422, `objective-sets family=${JSON.stringify(bad)} must be 422, got ${sets.status}`);
   }
   return `SA1 and writing agree on the tasks route (${byPart.json.length} task(s)); LV1 exact + lv group on the sets route; 9 invalid spellings refused on both`;
+});
+
+check('the-catalogue-serves-the-telc-rubric-once-per-task', async () => {
+  const w = await catalogueWorld();
+  const a = await learner(w);
+
+  const listed = await a.raw('GET', '/api/v1/tasks?family=SA1');
+  assert.equal(listed.status, 200, `the tasks route must answer, got ${listed.status}`);
+
+  /*
+   * THE D4/R11 CONTRACT, ON THE WIRE. Ron answered the rubric question on 2 October 2026: the writing
+   * feedback follows telc B1's own marking structure. The catalogue is immutable, so the six prompts are
+   * RE-BOUND at task v2 rather than edited — and every served task must therefore point at the current
+   * rubric, never at the retired four-criterion one.
+   */
+  for (const task of listed.json) {
+    assert.equal(task.rubric_id, TELC_B1_WRITING_RUBRIC.rubricId, `${task.task_id} must declare the current rubric`);
+    assert.equal(task.rubric_version, TELC_B1_WRITING_RUBRIC.version, `${task.task_id} rubric version`);
+    assert.notEqual(task.rubric_id, FORMATIVE_WRITING_RUBRIC.rubricId, 'the retired rubric must not be served for a new attempt');
+  }
+
+  /*
+   * ONE CARD PER TASK — THE NEWEST VERSION. Both v1 (retired rubric) and v2 (current) are servable under the
+   * pilot's policy, so without this rule a learner would see the same prompt twice and have to guess which
+   * one to write into. The fixture serves BOTH versions on purpose; the route is what picks.
+   */
+  const ids = listed.json.map((task) => task.task_id);
+  assert.equal(new Set(ids).size, ids.length, `the catalogue must not repeat a task (got ${ids.length} rows for ${new Set(ids).size} task(s))`);
+  assert.equal(ids.length, WRITING_TASKS.length, `every seeded prompt is served exactly once (${ids.length})`);
+  assert.ok(listed.json.every((task) => task.version === TELC_B1_TASK_VERSION), 'and the version served is the newest one');
+  return `${ids.length} prompt(s), one version each, all declaring ${TELC_B1_WRITING_RUBRIC.rubricId}@${TELC_B1_WRITING_RUBRIC.version}`;
 });
 
 check('retry-only-eligible-failed-job-same-identity', async () => {
@@ -1197,12 +1253,38 @@ check('garbage-session-port-output-is-401', async () => {
  * both sides have their quote characters removed before the containment test.
  */
 check('content-seed-and-the-seeded-migration-agree', async () => {
-  const { WRITING_TASKS, WRITING_RUBRIC } = await import('../server/owned-postgres/content-seed.mjs');
+  const {
+    WRITING_TASKS, FORMATIVE_WRITING_RUBRIC, TELC_B1_WRITING_RUBRIC, TELC_B1_TASK_VERSION, taskBindings,
+  } = await import('../server/owned-postgres/content-seed.mjs');
   assert.equal(WRITING_TASKS.length, 6, 'the writing family is 6 prompts (3 du + 3 Sie)');
-  assert.equal(WRITING_RUBRIC.criteria.length, 4, 'four internal criteria, never relabelled as telc three');
-  const sql = fs.readFileSync(new URL('../server/migrations/0006-content-and-catalogue.sql', import.meta.url), 'utf8');
+
+  /*
+   * TWO RUBRICS, SEPARATELY VERSIONED, NEVER RENORMALISED INTO EACH OTHER.
+   *
+   * This leg used to assert `WRITING_RUBRIC.criteria.length === 4` — "four internal criteria, never
+   * relabelled as telc three" — which was the right guard while the four-criterion formative rubric was the
+   * only one. Ron's D4/R11 answer (2 October 2026) changed the contract: the feedback follows the exam's own
+   * marking structure, so there are now TWO and the property is not "four, not three" but **"two distinct
+   * contracts that must never be mixed"**. The retired one keeps its rows (the catalogue is immutable and old
+   * attempts are bound to it); the current one is what new task versions declare.
+   */
+  assert.equal(FORMATIVE_WRITING_RUBRIC.criteria.length, 4, 'the RETIRED rubric keeps its four criteria');
+  assert.equal(FORMATIVE_WRITING_RUBRIC.rubricId, 'writing.formative');
+  assert.equal(TELC_B1_WRITING_RUBRIC.criteria.length, 3, "the CURRENT rubric is telc B1's three criteria");
+  assert.equal(TELC_B1_WRITING_RUBRIC.maxTotal, 45);
+  for (const criterion of TELC_B1_WRITING_RUBRIC.criteria) {
+    assert.deepEqual(Object.keys(criterion.bands), ['A', 'B', 'C', 'D'], `${criterion.key} carries the A-D band scale`);
+    assert.equal(criterion.max, criterion.bands.A * criterion.factor, `${criterion.key}.max is band A x factor`);
+  }
+  assert.notEqual(TELC_B1_WRITING_RUBRIC.rubricId, FORMATIVE_WRITING_RUBRIC.rubricId);
+  const formativeKeys = FORMATIVE_WRITING_RUBRIC.criteria.map((c) => c.key).sort().join(',');
+  const telcKeys = TELC_B1_WRITING_RUBRIC.criteria.map((c) => c.key).sort().join(',');
+  assert.notEqual(formativeKeys, telcKeys, `the two rubrics must not share a criteria set (both were ${telcKeys})`);
+
   const bare = (value) => String(value).replace(/'/g, '');
-  const haystack = bare(sql);
+  const six = fs.readFileSync(new URL('../server/migrations/0006-content-and-catalogue.sql', import.meta.url), 'utf8');
+  const seventeen = fs.readFileSync(new URL('../server/migrations/0017-telc-b1-rubric.sql', import.meta.url), 'utf8');
+  const haystack = bare(six);
   const missing = [];
   for (const task of WRITING_TASKS) {
     const fields = [['topic', task.topic], ['situation', task.situation], ['adressat', task.adressat],
@@ -1211,14 +1293,36 @@ check('content-seed-and-the-seeded-migration-agree', async () => {
       if (!haystack.includes(bare(value))) missing.push(`${task.taskId}.${field}`);
     }
   }
-  for (const criterion of WRITING_RUBRIC.criteria) {
-    if (!haystack.includes(bare(criterion.label))) missing.push(`rubric.${criterion.key}`);
+  for (const criterion of FORMATIVE_WRITING_RUBRIC.criteria) {
+    if (!haystack.includes(bare(criterion.label))) missing.push(`formative.${criterion.key}`);
   }
   assert.deepEqual(missing, [], 'these fields are in the fixture but not in the migration that seeds the database');
-  // The default binding must be one of the real tasks and must name the real rubric.
-  assert.ok(WRITING_TASKS.some((t) => t.taskId === DEFAULT_TASK_BINDING.taskId && t.version === DEFAULT_TASK_BINDING.taskVersion));
-  assert.equal(DEFAULT_TASK_BINDING.rubricId, WRITING_RUBRIC.rubricId);
-  return `6 prompts, ${WRITING_RUBRIC.criteria.length} criteria and every Leitpunkt appear in BOTH the fixture and migration 0006`;
+
+  // AND 0017 MUST AGREE WITH THE SEED IT CAME FROM — the guard that catches a hand-edited migration.
+  const missingNew = [];
+  for (const criterion of TELC_B1_WRITING_RUBRIC.criteria) {
+    if (!seventeen.includes(`"key":"${criterion.key}"`)) missingNew.push(`telc.${criterion.key}`);
+    if (!seventeen.includes(`"bands":{"A":${criterion.bands.A},"B":${criterion.bands.B},"C":${criterion.bands.C},"D":${criterion.bands.D}}`)) {
+      missingNew.push(`telc.${criterion.key}.bands`);
+    }
+  }
+  for (const binding of taskBindings()) {
+    if (binding.version === TELC_B1_TASK_VERSION && !seventeen.includes(`'${binding.taskId}', '${binding.version}'`)) {
+      missingNew.push(`binding ${binding.taskId}@${binding.version}`);
+    }
+  }
+  if (seventeen.includes('"key":"ausdruck"')) missingNew.push('the retired criterion leaked into 0017');
+  assert.deepEqual(missingNew, [], 'migration 0017 and the seed disagree');
+
+  // The default binding must be a DECLARED pair — the tuple rule, not two independent checks.
+  const declared = taskBindings().find((row) => row.taskId === DEFAULT_TASK_BINDING.taskId
+    && row.version === DEFAULT_TASK_BINDING.taskVersion
+    && row.rubricId === DEFAULT_TASK_BINDING.rubricId
+    && row.rubricVersion === DEFAULT_TASK_BINDING.rubricVersion);
+  assert.ok(declared, 'the default binding must be a pair the catalogue declares');
+  assert.equal(DEFAULT_TASK_BINDING.taskVersion, TELC_B1_TASK_VERSION, 'new attempts bind the version with the current rubric');
+  assert.equal(DEFAULT_TASK_BINDING.rubricId, TELC_B1_WRITING_RUBRIC.rubricId);
+  return `migration 0006: 6 prompts + the retired 4-criteria rubric; migration 0017: task ${TELC_B1_TASK_VERSION} + telc B1's 3 criteria (A-D bands); the two never share a criteria set`;
 });
 
 /*
@@ -1238,13 +1342,15 @@ check('attempt-binds-an-exact-task-and-rubric-version', async () => {
 
   // An explicit binding for a different real task is honoured and reads back unchanged.
   const other = WRITING_TASKS.find((t) => t.taskId.endsWith('sprachkurs'));
+  // The CURRENT binding: task v2 with the telc B1 rubric. The retired pair is still servable for an OLD
+  // attempt, but a new attempt binds what the catalogue declares today.
   const bound = await w.store.port.create(who.account.id, null, {
-    taskId: other.taskId, taskVersion: other.version,
-    rubricId: WRITING_RUBRIC.rubricId, rubricVersion: WRITING_RUBRIC.version,
+    taskId: other.taskId, taskVersion: TELC_B1_TASK_VERSION,
+    rubricId: TELC_B1_WRITING_RUBRIC.rubricId, rubricVersion: TELC_B1_WRITING_RUBRIC.version,
   });
   const readBound = await w.store.port.read(who.account.id, bound.id);
   assert.equal(readBound.task_id, other.taskId);
-  assert.equal(readBound.task_version, other.version);
+  assert.equal(readBound.task_version, TELC_B1_TASK_VERSION);
 
   const draft = await who.client.saveDraft(attempt.id, { expectedRevision: attempt.revision, text: 'Sehr geehrte Damen und Herren, ich schreibe wegen des Kurses.' });
   const receipt = await who.client.submit(attempt.id, { expectedRevision: draft.revision, eventId: randomUUID() });

@@ -855,13 +855,27 @@ async function main() {
         shown: !document.getElementById('view-schreiben').hidden,
         tasks: box.querySelectorAll('[data-write]').length,
         binding: button ? { task: button.dataset.write, version: button.dataset.version, rubric: button.dataset.rubric } : null,
+        rubrics: [...box.querySelectorAll('[data-write]')].map((b) => b.dataset.rubric),
+        versions: [...box.querySelectorAll('[data-write]')].map((b) => b.dataset.version),
         text: box.innerText.trim().slice(0, 200),
       };
     `);
     await shot(cdp, '13c-schreiben-catalogue-desktop-light');
+    /*
+     * THE BINDING IS THE CONTRACT, NOT A DECORATION. Each card carries the task, its VERSION and the rubric
+     * it declares, and the view binds all four when it creates an attempt. Since D4/R11 the rubric must be
+     * the CURRENT one (telc B1's three criteria) — the retired four-criterion rubric is still in the
+     * catalogue for old attempts, so a card offering it would be a real regression rather than a detail.
+     * The version matters for the same reason: task v1 is bound to the retired rubric, v2 to the current one.
+     */
     record('W1 Schreiben lists writing tasks, each carrying its own task binding',
       schreiben.shown && schreiben.tasks >= 1 && Boolean(schreiben.binding?.task) && Boolean(schreiben.binding?.version),
       `${schreiben.tasks} task(s); first binding ${JSON.stringify(schreiben.binding)}`);
+    record('W1b every writing card binds the CURRENT rubric, and never the retired one',
+      schreiben.rubrics.length > 0
+        && schreiben.rubrics.every((r) => r === 'writing.telc-b1')
+        && schreiben.versions.every((v) => v === 'v2'),
+      `rubrics ${JSON.stringify([...new Set(schreiben.rubrics)])}; versions ${JSON.stringify([...new Set(schreiben.versions)])}`);
     record('W2 no placeholder is shown as a writing task title',
       !/^(LV|SB|HV)\d+\s+\d+$/.test(schreiben.text) && !/writing\.\w+@/.test(schreiben.text),
       schreiben.text.slice(0, 90));
