@@ -153,17 +153,22 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
               : ['failed', 'cancelled'].includes(jobs.get(s.id)?.status) ? 'unassessed' : 'pending' };
         });
     },
+    // Mirrors the adapter: live attempts with drafts, and EVERY retained submission/result of the owner,
+    // tombstoned history included and flagged by `attempt_deleted_at`.
     async exportData(owner) {
       calls.push('exportData');
       const active = [...attempts.values()].filter((a) => a.owner_id === owner && !a.deleted_at);
-      const ids = new Set(active.map((a) => a.id));
-      const ownSubmissions = [...submissions.values()].filter((s) => s.owner_id === owner && ids.has(s.attempt_id));
+      const ownSubmissions = [...submissions.values()].filter((s) => s.owner_id === owner
+        && attempts.get(s.attempt_id)?.owner_id === owner);
+      const deletedAt = (s) => attempts.get(s.attempt_id).deleted_at ?? null;
       return {
         attempts: active.map(({ owner_id, deleted_at, ...a }) => ({ ...a, ...drafts.get(a.id) })),
         submissions: ownSubmissions.map(({ owner_id, event_id, ...s }) => ({ ...s,
-          task_id: attempts.get(s.attempt_id).task_id, rubric_id: attempts.get(s.attempt_id).rubric_id })),
+          task_id: attempts.get(s.attempt_id).task_id, rubric_id: attempts.get(s.attempt_id).rubric_id,
+          attempt_deleted_at: deletedAt(s) })),
         results: ownSubmissions.map((s) => ({ submission_id: s.id, ...jobs.get(s.id),
-          ...structuredClone(assessments.get(s.id) || { feedback: null, model_version: null, prompt_version: null, rubric_version: null }) })),
+          ...structuredClone(assessments.get(s.id) || { feedback: null, model_version: null, prompt_version: null, rubric_version: null }),
+          attempt_deleted_at: deletedAt(s) })),
         objective_evidence: [],
       };
     },
@@ -257,16 +262,11 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
       job.failure_code = null;
       adjust(owner, { reserved: 1 });
     },
+    // Only an unsubmitted draft can be discarded; ownership is proven first, so a foreign one stays 404.
     async remove(owner, id) {
       calls.push('remove');
       const attempt = ownedAttempt(owner, id);
-      for (const submission of submissions.values()) {
-        const job = submission.attempt_id === id ? jobs.get(submission.id) : null;
-        if (job && (job.status === 'queued' || job.status === 'running')) {
-          job.status = 'cancelled';
-          adjust(owner, { reserved: -1 });
-        }
-      }
+      if (submissionFor(id)) fail(409, 'submitted_attempt');
       attempt.deleted_at = new Date().toISOString();
       drafts.delete(id);
     },
@@ -312,6 +312,25 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
       job.status = 'failed';
       job.failure_code = code;
       adjust(submissions.get(submissionId).owner_id, { reserved: -1 });
+      return true;
+    },
+    /*
+     * Reproduce a tombstone written by the RETIRED delete-anything `remove` (before
+     * SUBMISSION-PRESERVE): such rows still exist in installed databases, so export and the late-worker
+     * guard must keep handling them even though the API can no longer create one for a submitted attempt.
+     */
+    legacyTombstone(attemptId) {
+      const attempt = attempts.get(attemptId);
+      if (!attempt || attempt.deleted_at) return false;
+      for (const submission of submissions.values()) {
+        const job = submission.attempt_id === attemptId ? jobs.get(submission.id) : null;
+        if (job && (job.status === 'queued' || job.status === 'running')) {
+          job.status = 'cancelled';
+          adjust(attempt.owner_id, { reserved: -1 });
+        }
+      }
+      attempt.deleted_at = new Date().toISOString();
+      drafts.delete(attemptId);
       return true;
     },
   };
@@ -1233,22 +1252,34 @@ check('allowance-exhausted-409', async () => {
     'conflict', { status: 409, detail: 'allowance_exhausted' });
 });
 
+/*
+ * DELETE DISCARDS A DRAFT; IT NEVER REMOVES SUBMITTED WORK (SUBMISSION-PRESERVE).
+ *
+ * This leg used to delete a SUBMITTED attempt and assert the job was cancelled and the reservation
+ * released. That behaviour is retired: a stale draft view could cancel paid-for feedback and make
+ * history disappear. A submitted attempt now answers 409 `submitted_attempt` and changes nothing;
+ * the tombstone semantics are asserted on an attempt that was never submitted.
+ */
 check('delete-is-a-tombstone', async () => {
   const w = await world();
   const s = await submitted(w);
-  assert.deepEqual(await s.client.deleteAttempt(s.attempt.id), { deleted: true });
-  assert.ok((await w.store.inspect.attempt(s.attempt.id)).deleted_at, 'tombstone recorded');
-  assert.equal((await w.store.inspect.attempt(s.attempt.id)).draft, null, 'draft removed');
-  assert.equal((await w.store.inspect.job(s.receipt.submissionId)).status, 'cancelled');
-  assert.equal((await w.store.inspect.entitlement(s.account.id)).reserved, 0, 'reservation released');
-  await expectClientError(s.client.readAttempt(s.attempt.id), 'not_found', { status: 404 });
-  await expectClientError(s.client.saveDraft(s.attempt.id, { expectedRevision: 2, text: 'stale' }), 'not_found', { status: 404 });
-  await expectClientError(s.client.submit(s.attempt.id, { expectedRevision: 2, eventId: s.eventId }), 'not_found', { status: 404 });
-  await expectClientError(s.client.readResult(s.receipt.submissionId), 'not_found', { status: 404 });
-  await expectClientError(s.client.retry(s.receipt.submissionId), 'not_found', { status: 404 });
-  await expectClientError(s.client.createAttempt({ parentSubmissionId: s.receipt.submissionId }), 'not_found', { status: 404 });
-  await expectClientError(s.client.deleteAttempt(s.attempt.id), 'not_found', { status: 404 });
-  assert.equal(await w.store.worker.complete(s.receipt.submissionId, 'late'), false, 'a late completion cannot recreate it');
+  const before = await w.store.inspect.fingerprint();
+  await expectClientError(s.client.deleteAttempt(s.attempt.id), 'conflict', { status: 409, detail: 'submitted_attempt' });
+  assert.equal(await w.store.inspect.fingerprint(), before, 'a refused delete changes nothing');
+  assert.equal((await w.store.inspect.job(s.receipt.submissionId)).status, 'queued', 'the job is not cancelled');
+  assert.equal((await w.store.inspect.entitlement(s.account.id)).reserved, 1, 'the reservation is kept');
+  assert.equal((await s.client.readResult(s.receipt.submissionId)).submission.text, s.draft.text, 'the result stays readable');
+
+  const draft = await s.client.createAttempt();
+  await s.client.saveDraft(draft.id, { expectedRevision: 1, text: 'verworfen' });
+  assert.deepEqual(await s.client.deleteAttempt(draft.id), { deleted: true });
+  assert.ok((await w.store.inspect.attempt(draft.id)).deleted_at, 'tombstone recorded');
+  assert.equal((await w.store.inspect.attempt(draft.id)).draft, null, 'draft removed');
+  assert.equal((await w.store.inspect.entitlement(s.account.id)).reserved, 1, 'discarding a draft touches no reservation');
+  await expectClientError(s.client.readAttempt(draft.id), 'not_found', { status: 404 });
+  await expectClientError(s.client.saveDraft(draft.id, { expectedRevision: 2, text: 'stale' }), 'not_found', { status: 404 });
+  await expectClientError(s.client.submit(draft.id, { expectedRevision: 2, eventId: randomUUID() }), 'not_found', { status: 404 });
+  await expectClientError(s.client.deleteAttempt(draft.id), 'not_found', { status: 404 });
 });
 
 /* -------------------------------------------------------------- ownership */
@@ -1710,7 +1741,8 @@ check('server-mount-real-client-over-http', async () => {
     const receipt = await a.client.submit(attempt.id, { expectedRevision: draft.revision, eventId: randomUUID() });
     const result = await a.client.readResult(receipt.submissionId);
     assert.equal(result.submission.text, 'über HTTP');
-    assert.deepEqual(await a.client.deleteAttempt(attempt.id), { deleted: true });
+    await expectClientError(a.client.deleteAttempt(attempt.id), 'conflict', { status: 409, detail: 'submitted_attempt' });
+    assert.equal((await a.client.readResult(receipt.submissionId)).submission.text, 'über HTTP', 'submitted work survives a delete');
     const b = httpBrowser(ctx.port);
     await b.client.signUp({ name: 'H2', email: nextEmail('h'), password: 'pw-http-synthetic' });
     await expectClientError(b.client.readResult(receipt.submissionId), 'not_found', { status: 404 });

@@ -775,7 +775,15 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
           ORDER BY a.created_at DESC, a.id DESC`, [owner])).rows);
     },
 
-    /** Learner data only, selected explicitly: no auth tables, tokens, hashes or worker leases. */
+    /**
+     * Learner data only, selected explicitly: no auth tables, tokens, hashes or worker leases.
+     *
+     * `attempts` lists live attempts with their drafts. `submissions` and `results` list EVERY
+     * retained submission of the owner, including those of attempts tombstoned under the retired
+     * delete-anything behaviour: that data is still held, so it must not vanish from the export.
+     * Each row carries `attempt_deleted_at` (null while the attempt is live) so a tombstoned
+     * one is explicit rather than silently mixed in.
+     */
     async exportData(owner) {
       note('exportData');
       return settle(owner, async (client) => {
@@ -786,16 +794,18 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
             WHERE a.owner_id = $1 AND a.deleted_at IS NULL ORDER BY a.created_at, a.id`, [owner])).rows;
         const submissions = (await client.query(
           `SELECT s.id, s.attempt_id, s.draft_revision, s.text, a.task_id, s.task_version,
-                  a.rubric_id, s.rubric_version, s.explanation_language, s.created_at
+                  a.rubric_id, s.rubric_version, s.explanation_language, s.created_at,
+                  a.deleted_at AS attempt_deleted_at
              FROM submissions s JOIN attempts a ON a.id = s.attempt_id AND a.owner_id = s.owner_id
-            WHERE s.owner_id = $1 AND a.deleted_at IS NULL ORDER BY s.created_at, s.id`, [owner])).rows;
+            WHERE s.owner_id = $1 ORDER BY s.created_at, s.id`, [owner])).rows;
         const results = (await client.query(
           `SELECT s.id AS submission_id, j.status, j.failure_code, j.tries,
-                  f.feedback, f.model_version, f.prompt_version, f.rubric_version
+                  f.feedback, f.model_version, f.prompt_version, f.rubric_version,
+                  a.deleted_at AS attempt_deleted_at
              FROM submissions s JOIN attempts a ON a.id = s.attempt_id AND a.owner_id = s.owner_id
              LEFT JOIN jobs j ON j.submission_id = s.id AND j.owner_id = s.owner_id
              LEFT JOIN assessments f ON f.submission_id = s.id AND f.owner_id = s.owner_id
-            WHERE s.owner_id = $1 AND a.deleted_at IS NULL ORDER BY s.created_at, s.id`, [owner])).rows;
+            WHERE s.owner_id = $1 ORDER BY s.created_at, s.id`, [owner])).rows;
         const objective_evidence = (await client.query(
           `SELECT evidence_id, exam_id, set_id, version, item_id, family, section, answer,
                   correct, latency_ms, answered_at FROM item_evidence
@@ -932,17 +942,24 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       });
     },
 
+    /**
+     * Discard an UNSUBMITTED draft. A submitted attempt is learner history and is refused with
+     * 409 `submitted_attempt` whatever its job state (queued, running, succeeded, failed,
+     * cancelled): removing it would cancel paid-for work, hide a result and lose a snapshot.
+     *
+     * Same lock order as `submit` (entitlement, then the attempt row FOR UPDATE), so the two
+     * serialise on the attempt row. If `submit` commits first, the submissions read below is a
+     * new READ COMMITTED statement and sees its row; if `remove` commits first, `submit`'s
+     * locked re-read sees `deleted_at` and answers 404. Ownership is proven before the
+     * submission test, so another owner's submitted attempt is still a plain 404.
+     */
     async remove(owner, id) {
       note('remove');
       return settle(owner, async (client) => {
         await client.query('SELECT owner_id FROM entitlements WHERE owner_id = $1 FOR UPDATE', [owner]);
         await owned(client, owner, id);
-        const cancelled = await client.query(
-          `UPDATE jobs SET status = 'cancelled', lease_token = NULL, lease_until = NULL
-           WHERE submission_id IN (SELECT id FROM submissions WHERE attempt_id = $1)
-             AND status IN ('queued', 'running') RETURNING id`, [id]);
-        if (cancelled.rowCount) {
-          await client.query('UPDATE entitlements SET reserved = reserved - $2 WHERE owner_id = $1', [owner, cancelled.rowCount]);
+        if (first(await client.query('SELECT id FROM submissions WHERE attempt_id = $1 LIMIT 1', [id]))) {
+          fail(409, 'submitted_attempt');
         }
         await client.query('UPDATE attempts SET deleted_at = now() WHERE id = $1', [id]);
         await client.query('DELETE FROM drafts WHERE attempt_id = $1', [id]);
