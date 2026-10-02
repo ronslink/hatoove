@@ -1,5 +1,9 @@
 # Hatoove work board
 
+## Multi-exam assessment — 2 October 2026
+
+Execution **EXAM-ARCH-20261002-A**, base `c06a087`, responds to Ron's request to assess DTZ alongside telc B1, exam selection after login and maintainable expansion to other languages. The [architecture proposal](implementation/MULTI-EXAM-ARCHITECTURE-20261002.md) records source findings, proposed data/API/UX boundaries and EXAM-01–06 acceptance. **State: assessed and proposed; no runtime implementation, DTZ content approval or package publication.** The coordinator authored the proposal with three bounded read-only audits. The [implementation plan](../IMPLEMENTATION_PLAN.md) records the same transition. Recommended next slice: EXAM-01 contracts, followed by preparation ownership and scoped APIs; no worker writing lease follows from this row.
+
 ## Integrated local pilot — 2 October 2026
 
 **INTEGRATE-20261002-A:** delivered, independently reviewed, seven applicable CI jobs green, **merged** through [PR #98](https://github.com/ronslink/hatoove/pull/98) as `04e52dc` at11:03UTC. Canonical main and local Docker4300 now serve the merged source; data volume preserved/backed up and row counts unchanged. Account-cookie and submitted-draft discard defects are closed; writing close/reopen and D8 local-voice controls are delivered. Complete browser132/132, read-aloud24/24, real PostgreSQL races9/9, deletion19/19, API33/33 and HTTP journeys11/11 pass. [Result and review pins](implementation/INTEGRATE-20261002-RESULT.md). Contained PRs97/95/94/93/92/91/90/81 closed as superseded without deleting branches; PR60 is marked merged. All workers have delivered and hold no active writing slots. PR89/33 remain held. Product acceptance, content, privacy/security, live-provider and physical-device gates remain open.

@@ -1,5 +1,9 @@
 # Hatoove implementation plan
 
+## Multi-exam assessment — 2 October 2026
+
+Execution **EXAM-ARCH-20261002-A** assesses DTZ A2–B1 alongside telc Deutsch B1 and future exam packages at base `c06a087`. The [architecture proposal](work/implementation/MULTI-EXAM-ARCHITECTURE-20261002.md) records official format differences, code gaps, the account → preparation → versioned package model, selection/resume UX, content publishing and proposed EXAM-01–06 slices. **State: assessed and proposed; no implementation or package release is authorised by this record.** The next engineering slice recommended is the package/preparation/blueprint contract, then scoped APIs. The [board](work/BOARD.md) records the same transition; existing pilot and human-review gates remain unchanged.
+
 ## Integrated local pilot — 2 October 2026
 
 Execution **INTEGRATE-20261002-A** merged through [PR #98](https://github.com/ronslink/hatoove/pull/98) as `04e52dc` at11:03UTC after all seven applicable CI jobs passed at reviewed head `903540a`. Account-cookie fencing, submitted-writing preservation/export, optional matching local-voice read-aloud and writing close/reopen are delivered and independently reviewed. Combined browser132/132, read-aloud24/24, real PostgreSQL races9/9, deletion19/19, API33/33 and HTTP journeys11/11 pass. [The integration result](work/implementation/INTEGRATE-20261002-RESULT.md) records pins, evidence and limitations. Canonical `D:\Hatoove` is on main; its Docker preview is healthy at4300 with the existing backed-up data volume and unchanged row counts. The contained old PR stack is closed as superseded; PR89/33 remain held. Product acceptance remains separate. No live AI or production deployment.
