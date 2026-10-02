@@ -25,6 +25,10 @@ const COOKIE_DEFAULT = 'hatoove_owned_session';
 
 /** The erification.identifier prefix that makes a reset token recognisable as one. */
 const RESET_PREFIX = 'reset-password:';
+/** The prefix that makes a verification token recognisable as one, rather than a reset token. */
+const VERIFY_PREFIX = 'verify-email:';
+/** How long a verification link stays valid: a day, because it asserts an address rather than granting access. */
+const VERIFY_TTL_SECONDS = 86400;
 /** How long a reset link stays valid. Short, because it travels through an operator and a chat message. */
 const RESET_TTL_SECONDS = 1800;
 
@@ -369,6 +373,64 @@ export function createPostgresSessions({
         // And every session with it — including the one that may not be the learner's.
         await client.query('DELETE FROM session WHERE "userId" = $1', [user.id]);
         return { userId: user.id };
+      });
+    },
+
+    /**
+     * REQUEST EMAIL VERIFICATION — the same token machinery as a reset, for a different purpose.
+     *
+     * TWO HONEST NO-OPS, and both must look identical to the caller to the "sent it" case:
+     *   * an address with no account produces no message;
+     *   * an account that is ALREADY verified produces no message and no token, because there is nothing left
+     *     to prove and a live token in the table is a credential nobody needs.
+     *
+     * The link lives longer than a reset link (a day rather than half an hour) for the same reason the reset
+     * link is short: a reset link IS a credential, while this one only asserts "this address is mine".
+     */
+    async requestEmailVerification({ email }) {
+      const user = (await pool.query('SELECT id, email, "emailVerified" FROM "user" WHERE email = $1', [email])).rows[0];
+      if (!user || user.emailVerified) return { delivered: false, requested: true };
+      const token = randomBytes(32).toString('base64url');
+      const identifier = `${VERIFY_PREFIX}${user.email}`;
+      const expiresAt = new Date(Date.now() + VERIFY_TTL_SECONDS * 1000);
+      await inTransaction(async (client) => {
+        // One live link per account, exactly as the reset flow does: "send it again" must not leave two working.
+        await client.query('DELETE FROM verification WHERE identifier = $1', [identifier]);
+        await client.query(
+          `INSERT INTO verification(id, identifier, value, "expiresAt", "createdAt", "updatedAt")
+           VALUES($1, $2, $3, $4, now(), now())`,
+          [randomUUID(), identifier, hashToken(token), expiresAt]);
+      });
+      if (notify && typeof notify.send === 'function') {
+        await notify.send({ to: user.email, kind: 'email-verification', token, expiresAt: expiresAt.toISOString() });
+      }
+      return { delivered: Boolean(notify && typeof notify.send === 'function'), requested: true };
+    },
+
+    /**
+     * REDEEM A VERIFICATION TOKEN.
+     *
+     * IT DOES NOT SIGN ANYONE IN, deliberately. An emailed link that both proved an address and authenticated
+     * would turn the delivery channel — an operator console, a chat message, a screenshot of a log — into a way
+     * to obtain a session. The link proves the address; the password still signs in.
+     *
+     * @returns {Promise<{userId: string, email: string} | null>} null for an unknown, expired or used token.
+     */
+    async verifyEmail({ token }) {
+      if (typeof token !== 'string' || token.length < 16 || token.length > 512) return null;
+      const row = (await pool.query(
+        `SELECT id, identifier FROM verification
+          WHERE value = $1 AND identifier LIKE $2 AND "expiresAt" > now()`,
+        [hashToken(token), `${VERIFY_PREFIX}%`])).rows[0];
+      if (!row) return null;
+      const email = row.identifier.slice(VERIFY_PREFIX.length);
+      const user = (await pool.query('SELECT id FROM "user" WHERE email = $1', [email])).rows[0];
+      if (!user) return null;
+      return inTransaction(async (client) => {
+        await client.query('UPDATE "user" SET "emailVerified" = true, "updatedAt" = now() WHERE id = $1', [user.id]);
+        // Single use, and the row goes rather than merely becoming unusable.
+        await client.query('DELETE FROM verification WHERE identifier = $1', [row.identifier]);
+        return { userId: user.id, email };
       });
     },
 

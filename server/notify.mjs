@@ -26,12 +26,29 @@
  */
 
 /**
+ * WHERE A LINK SENDS THE LEARNER, per kind of message.
+ *
+ * The first version had a single `resetLink`, which is fine until a second kind exists — and then a
+ * verification link would quietly point at the reset page, where the learner would type a new password to
+ * "verify" an address. A link's destination belongs with the kind of message that carries it.
+ */
+const LINK_PATHS = Object.freeze({
+  'password-reset': '/reset-password',
+  'email-verification': '/verify-email',
+});
+
+/**
  * The link a learner would follow. Built HERE, by the delivery channel, because the origin belongs to the
  * deployment's configuration and the auth port has no business knowing it.
+ *
+ * An unknown kind is a programming error rather than something to guess at: a link that goes somewhere
+ * unintended is worse than a failure to send.
  */
-export function resetLink({ publicOrigin, token }) {
+export function linkFor({ publicOrigin, kind, token }) {
+  const page = LINK_PATHS[kind];
+  if (!page) throw new TypeError(`no link page is defined for message kind "${kind}"`);
   const base = String(publicOrigin || '').replace(/\/+$/, '');
-  return `${base}/reset-password?token=${encodeURIComponent(token)}`;
+  return `${base}${page}?token=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -54,7 +71,7 @@ export function createNotifier({ deliver, publicOrigin = null, channel = 'operat
      *   the link is this channel's business, and a caller that cannot build one cannot build it wrong.
      */
     async send(message) {
-      const link = resetLink({ publicOrigin, token: message.token });
+      const link = linkFor({ publicOrigin, kind: message.kind, token: message.token });
       return deliver({ ...message, link });
     },
   };

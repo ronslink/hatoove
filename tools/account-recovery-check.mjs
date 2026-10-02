@@ -282,6 +282,33 @@ check('8. an unusable token is refused, and malformed is distinguished from unre
   return `${malformed.length} malformed refused with 422, ${unresolvable.length} unresolvable with 400`;
 });
 
+/*
+ * 9. THE OLDER ROUTE NAME IS THE SAME ROUTE.
+ *
+ * The queue's original measurement recorded `forget-password` as 404, and `request-password-reset` is the name
+ * the current library and its documentation use. Both are real, so both are served — and this leg asserts they
+ * are the SAME operation rather than two implementations that can drift: one message each, both 200, both with
+ * the same shape.
+ */
+check('9. forget-password is the same operation as request-password-reset', async () => {
+  const a = await account('alias');
+  const newer = await requestReset(a.email);
+  assert.equal(newer.res.status, 200, newer.res.text.slice(0, 120));
+  assert.ok(newer.message, 'the current name works');
+
+  const before = delivered.length;
+  const older = await call('POST', '/api/auth/forget-password', { body: { email: a.email } });
+  assert.equal(older.status, 200, `the older name must not be a 404: ${older.status}`);
+  assert.deepEqual(older.json, newer.res.json, 'and it must answer the same');
+  assert.equal(delivered.length, before + 1, 'and produce exactly one operator message, not two');
+
+  // The unknown-address behaviour is identical on both names, so neither is an enumeration oracle.
+  const unknownNew = await call('POST', '/api/auth/request-password-reset', { body: { email: nextEmail() } });
+  const unknownOld = await call('POST', '/api/auth/forget-password', { body: { email: nextEmail() } });
+  assert.deepEqual(unknownOld.json, unknownNew.json, 'and both answer an unknown address identically');
+  return 'forget-password and request-password-reset are one operation under two documented names';
+});
+
 /* ==================================================================== run */
 
 async function run() {

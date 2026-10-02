@@ -115,6 +115,8 @@ const SESSION_LIFECYCLE_METHODS = ['listSessions', 'revokeSession', 'changePassw
 const THROTTLE_METHODS = ['hit', 'clear'];
 /** The recovery flow's two operations: ask for a link, and redeem one. */
 const RECOVERY_METHODS = ['requestPasswordReset', 'resetPassword'];
+/** Email verification: ask for a link, and redeem one. Its own capability, so one flow cannot mask the other. */
+const VERIFICATION_METHODS = ['requestEmailVerification', 'verifyEmail'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -389,6 +391,9 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
    * name. It cannot lock anyone out — the route did not exist before.
    */
   const recoveryWired = implementsAll(sessions, RECOVERY_METHODS);
+  // Fail-closed like recovery: a verification route that silently did nothing would leave a learner believing
+  // their address was confirmed.
+  const verificationWired = implementsAll(sessions, VERIFICATION_METHODS);
 
   async function identify(headers) {
     const session = await sessions.getSession(headers);
@@ -485,7 +490,14 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * THROTTLED PER ADDRESS, because this route writes a row and produces a message: unlimited, it is a way
        * to fill the table and the operator's console.
        */
-      if (key === 'POST /api/auth/request-password-reset') {
+      /*
+       * BOTH NAMES FOR THE SAME OPERATION, because both are real. `forget-password` is what the queue's
+       * 1 October measurement actually called — it recorded that exact path as 404 — while
+       * `request-password-reset` is the name the current library version and its documentation use. A client
+       * built against either would otherwise get a 404 for a feature that exists, and a re-run of that
+       * measurement must be able to SEE the gap closed rather than a route that was renamed.
+       */
+      if (key === 'POST /api/auth/request-password-reset' || key === 'POST /api/auth/forget-password') {
         onlyFields(body, ['email']);
         if (!recoveryWired) fault(503, 'recovery_unavailable');
         const { email } = requireAuthFields({ email: body.email, password: 'x' }, false);
@@ -512,6 +524,33 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (key === 'GET /api/auth/get-session') {
         const who = await identify(headers);
         return reply(200, who ? { user: { id: who.userId, email: who.email } } : null);
+      }
+      /*
+       * EMAIL VERIFICATION — the last of the four routes PILOT-18 measured as 404, and the same shape as the
+       * reset pair above: request (always 200, no enumeration, throttled) and redeem (one refusal for every
+       * failure).
+       *
+       * IT SETS NO COOKIE, and that is a decision rather than an omission: a link that both proved an address
+       * and authenticated would turn the delivery channel — an operator console, a chat message, a screenshot —
+       * into a way to obtain a session. The link proves the address; the password signs in.
+       */
+      if (key === 'POST /api/auth/send-verification-email') {
+        onlyFields(body, ['email']);
+        if (!verificationWired) fault(503, 'verification_unavailable');
+        const { email } = requireAuthFields({ email: body.email, password: 'x' }, false);
+        await enforceThrottle('verify', email);
+        await sessions.requestEmailVerification({ email });
+        // Again not the outcome: "already verified" and "no such account" must be indistinguishable.
+        return reply(200, { ok: true });
+      }
+      if (key === 'POST /api/auth/verify-email') {
+        onlyFields(body, ['token']);
+        if (!verificationWired) fault(503, 'verification_unavailable');
+        const { token } = body;
+        if (typeof token !== 'string' || token.length === 0 || token.length > 512) fault(422, 'invalid_token');
+        const outcome = await sessions.verifyEmail({ token });
+        if (!outcome) fault(400, 'invalid_token');
+        return reply(200, { ok: true, email: outcome.email });
       }
       fault(404, 'not_found');
     }

@@ -40,6 +40,11 @@ export const THROTTLE_POLICY = Object.freeze({
    * would be the same denial of service the sign-in limit is careful to avoid.
    */
   reset: Object.freeze({ limit: 5, windowSeconds: 900 }),
+  /*
+   * Verification requests cost a row and a message to the operator, exactly as reset requests do, and are
+   * limited per ADDRESS for the same anti-lockout reason.
+   */
+  verify: Object.freeze({ limit: 5, windowSeconds: 900 }),
 });
 
 /**

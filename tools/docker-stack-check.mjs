@@ -184,6 +184,31 @@ try{
   assert.equal(compose(['logs','--no-color','--tail','80','app']).includes('no-such-'),false,
     'no operator line may be produced for an address with no account');
   passed('password reset: link delivered to the operator console only, no token in the response, one identical answer');
+
+  /*
+   * EMAIL VERIFICATION, same channel, same rules — and ONE property that differs from the reset: the link must
+   * point at the VERIFICATION page, not at the reset page. A single link builder with one destination would
+   * have sent learners to type a new password to "verify" an address, which is the sort of mistake that only a
+   * real link can show.
+   */
+  const verifyRequest = await request('POST','/api/auth/send-verification-email',{email:credentials.email});
+  assert.equal(verifyRequest.status,200,verifyRequest.text);
+  assert.equal(verifyRequest.text.includes('token'),false,'the verification response must not mention a token');
+  const verifyLines = compose(['logs','--no-color','--tail','80','app']).split('\n')
+    .filter((line)=>line.includes('[notify] email-verification') && line.includes(credentials.email));
+  assert.equal(verifyLines.length,1,`the operator must receive exactly one verification line, got ${verifyLines.length}`);
+  assert.ok(verifyLines[0].includes(`${base}/verify-email?token=`),
+    `the verification link must point at the verification page, got ${verifyLines[0].slice(0,220)}`);
+  assert.equal(verifyLines[0].includes('/reset-password'),false,'and never at the reset page');
+  // The operator's own line is enough to complete the flow, which is what "operator-assisted" has to mean.
+  const verifyToken=/[?&]token=([A-Za-z0-9_-]+)/.exec(verifyLines[0]);
+  assert.ok(verifyToken,'the delivered line carries a token');
+  const verified=await request('POST','/api/auth/verify-email',{token:verifyToken[1]});
+  assert.equal(verified.status,200,verified.text);
+  assert.equal(verified.json.email,credentials.email,'and it verifies the account the operator delivered it for');
+  const replay=await request('POST','/api/auth/verify-email',{token:verifyToken[1]});
+  assert.equal(replay.status,400,`a consumed verification token must be refused, got ${replay.status}`);
+  passed('email verification: link delivered to the operator, verified once, replayed token refused');
   // LOOPBACK ALIASES ARE THE SAME ORIGIN. On a LOCAL server `localhost` and `127.0.0.1` name the
   // same machine, so a deployment configured with one and browsed at the other must not refuse the
   // learner with an unexplained "cross-origin request rejected" on sign-up. This is the leg that
