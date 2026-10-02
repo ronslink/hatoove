@@ -1768,6 +1768,13 @@ export async function runOwnedApiChecks({ backend = 'memory' } = {}) {
   if (!['memory', 'postgres', 'postgres-persistent'].includes(backend)) throw new Error(`unknown backend: ${backend}`);
   BACKEND = backend;
   const results = [];
+  /*
+   * EXAM-S0: the default content mode is `public` (approved only), and every fixture row here is
+   * `unreviewed`. This suite therefore opts into `internal-preview` EXPLICITLY, for its own run only, and
+   * restores the previous value afterwards — an importer of this module does not inherit it.
+   */
+  const previousMode = process.env.B1PREP_CONTENT_MODE;
+  process.env.B1PREP_CONTENT_MODE = 'internal-preview';
   try {
     for (const { name, run } of checks) {
       try {
@@ -1783,6 +1790,8 @@ export async function runOwnedApiChecks({ backend = 'memory' } = {}) {
     }
   } finally {
     await closeWorlds();
+    if (previousMode === undefined) delete process.env.B1PREP_CONTENT_MODE;
+    else process.env.B1PREP_CONTENT_MODE = previousMode;
   }
   if (legacy) fs.rmSync(legacy.dir, { recursive: true, force: true });
   return { ok: results.every((r) => r.ok), backend, results };

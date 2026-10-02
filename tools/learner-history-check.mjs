@@ -10,8 +10,11 @@ import { WRITING_TASKS, TELC_B1_WRITING_RUBRIC, TELC_B1_TASK_VERSION } from '../
 const postgres = process.argv.includes('--backend=postgres');
 const previousRights = process.env.B1PREP_SERVE_RIGHTS;
 const previousReview = process.env.B1PREP_SERVE_REVIEW;
+const previousMode = process.env.B1PREP_CONTENT_MODE;
 delete process.env.B1PREP_SERVE_RIGHTS;
 delete process.env.B1PREP_SERVE_REVIEW;
+// EXAM-S0: the synthetic/seeded content is `unreviewed`; this check opts into the preview policy explicitly.
+process.env.B1PREP_CONTENT_MODE = 'internal-preview';
 let world;
 if (postgres) {
   const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
@@ -205,17 +208,19 @@ try {
     const guide = controls.get('/api/v1/guides');
     process.env.B1PREP_SERVE_RIGHTS = 'licensed';
     for (const route of routes) assert.deepEqual(expect(await call('GET', route + '?rights=generated', cookie)), []);
-    expect(await call('GET', `/api/v1/objective-sets/${set.set_id}`, cookie), 404);
+    expect(await call('GET', `/api/v1/objective-sets/${set.set_id}?version=${set.version}`, cookie), 404);
     expect(await call('GET', `/api/v1/guides/${guide.guide_id}`, cookie), 404);
     expect(await call('GET', `/api/v1/rubrics/${binding.rubricId}?version=${binding.rubricVersion}`, cookie), 404);
     assert.equal(expect(await call('GET', '/api/v1/practice/next', cookie)).reason, 'nothing_available');
-    expect(await call('POST', `/api/v1/objective-sets/${set.set_id}/answers`, cookie, { itemId: '1', answer: 'a' }), 404);
+    expect(await call('POST', `/api/v1/objective-sets/${set.set_id}/answers`, cookie,
+      { version: set.version, itemId: '1', answer: 'a' }), 404);
     delete process.env.B1PREP_SERVE_RIGHTS;
     assert.ok(expect(await call('GET', '/api/v1/practice/next', cookie)).set);
   });
 } finally {
   if (previousRights === undefined) delete process.env.B1PREP_SERVE_RIGHTS; else process.env.B1PREP_SERVE_RIGHTS = previousRights;
   if (previousReview === undefined) delete process.env.B1PREP_SERVE_REVIEW; else process.env.B1PREP_SERVE_REVIEW = previousReview;
+  if (previousMode === undefined) delete process.env.B1PREP_CONTENT_MODE; else process.env.B1PREP_CONTENT_MODE = previousMode;
   if (world.teardown) await world.teardown();
 }
 console.log(`\n${passed} passed, ${failures.length} failed (${postgres ? 'PostgreSQL with restricted roles/RLS' : 'memory contract only'})`);

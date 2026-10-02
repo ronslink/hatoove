@@ -126,6 +126,8 @@ function failureCodeOf(error) {
 
 /** The failure code for an assessment whose SHAPE the contract does not allow. */
 export const INVALID_ASSESSMENT = 'invalid_assessment';
+/** The failure code for an attempt bound to a rubric this worker cannot grade against. The grader is never called. */
+export const UNSUPPORTED_RUBRIC = 'unsupported_rubric';
 
 /*
  * THE ASSESSMENT SHAPE IS VALIDATED BEFORE ANYTHING IS STORED (MASTER-PLAN D4 / R11).
@@ -231,7 +233,9 @@ export function validateAssessment(assessment, { rubric = null, text = '' } = {}
   if (!Array.isArray(feedback.criteria)) throw bad('feedback.criteria must be an array');
 
   const expected = rubric.criteria.map((criterion) => criterion.key);
-  const bands = Object.keys(rubric.criteria[0].bands || {});
+  // EACH CRITERION AGAINST ITS OWN SCALE, looked up by key: criteria may carry different bands, and a
+  // grader may list them in any order (EXAM-S0). Reading the first criterion's scale for all was wrong.
+  const bandsByKey = new Map(rubric.criteria.map((criterion) => [criterion.key, Object.keys(criterion.bands || {})]));
   const seen = new Set();
   for (const [index, criterion] of feedback.criteria.entries()) {
     if (!criterion || typeof criterion !== 'object' || Array.isArray(criterion)) throw bad(`criteria[${index}] must be an object`);
@@ -241,6 +245,7 @@ export function validateAssessment(assessment, { rubric = null, text = '' } = {}
     if (!expected.includes(criterion.key)) throw bad(`criteria[${index}]: unknown criterion "${criterion.key}"`);
     if (seen.has(criterion.key)) throw bad(`criteria[${index}]: "${criterion.key}" appears twice`);
     seen.add(criterion.key);
+    const bands = bandsByKey.get(criterion.key);
     if (!bands.includes(criterion.band)) throw bad(`criteria[${index}] (${criterion.key}): band must be one of ${bands.join('/')}, got ${JSON.stringify(criterion.band)}`);
     if (typeof criterion.evidence !== 'string' || criterion.evidence.trim().length === 0 || criterion.evidence.length > EVIDENCE_LIMIT) {
       throw bad(`criteria[${index}] (${criterion.key}): evidence must be a non-empty quote`);
@@ -349,6 +354,14 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
     // reservation, so there is nothing here to undo.
     if (!row || row.deleted_at) return { claimed: true, submissionId, outcome: 'skipped', code: 'attempt_deleted' };
 
+    /*
+     * THE RUBRIC IS RESOLVED FROM THE ATTEMPT BEFORE THE GRADER IS INVOKED (EXAM-S0). A rubric this worker
+     * does not know cannot produce a valid assessment, so grading it would only spend a provider call on a
+     * result that must be refused. It is a preserved, unassessed failure: text kept, reservation refunded.
+     */
+    const rubric = rubricFor(row.rubric_id, row.rubric_version);
+    if (rubric === undefined) return completeFailure({ submissionId, token, code: UNSUPPORTED_RUBRIC });
+
     let assessment;
     try {
       assessment = await gradeFn({
@@ -367,13 +380,10 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
        * in `completeSuccess` also means the refusal happens BEFORE the transaction that writes the row,
        * so there is no window in which a fabricated assessment exists.
        *
-       * The rubric is resolved from the ATTEMPT. A rubric this worker does not know is a REFUSAL rather
-       * than a free pass — nobody may grade against a contract the catalogue never declared — and the
-       * retired formative contract still validates in its own one-comment shape, so an old attempt can be
-       * re-graded without being relabelled into the current one.
+       * The rubric was resolved from the ATTEMPT above, before grading. The retired formative contract
+       * still validates in its own one-comment shape, so an old attempt can be re-graded without being
+       * relabelled into the current one.
        */
-      const rubric = rubricFor(row.rubric_id, row.rubric_version);
-      if (rubric === undefined) throw Object.assign(new Error('unknown rubric'), { code: INVALID_ASSESSMENT });
       validateAssessment(assessment, { rubric, text: row.text });
     } catch (error) {
       return completeFailure({ submissionId, token, code: failureCodeOf(error) });

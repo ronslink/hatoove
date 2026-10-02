@@ -419,13 +419,22 @@ export const REQUIRED_CHECKS = checks.map((c) => c.name);
 
 export async function runOwnedApiPgChecks() {
   const results = [];
-  for (const { name, run } of checks) {
-    try {
-      await run();
-      results.push({ name, ok: true, detail: 'ok' });
-    } catch (error) {
-      results.push({ name, ok: false, detail: error && error.message ? error.message.split('\n')[0] : String(error), error });
+  // EXAM-S0: the seeded content is `unreviewed`, so this suite opts into `internal-preview` explicitly for
+  // its own run and restores the previous value. The deployment default is `public`.
+  const previousMode = process.env.B1PREP_CONTENT_MODE;
+  process.env.B1PREP_CONTENT_MODE = 'internal-preview';
+  try {
+    for (const { name, run } of checks) {
+      try {
+        await run();
+        results.push({ name, ok: true, detail: 'ok' });
+      } catch (error) {
+        results.push({ name, ok: false, detail: error && error.message ? error.message.split('\n')[0] : String(error), error });
+      }
     }
+  } finally {
+    if (previousMode === undefined) delete process.env.B1PREP_CONTENT_MODE;
+    else process.env.B1PREP_CONTENT_MODE = previousMode;
   }
   return { ok: results.every((r) => r.ok), results };
 }
