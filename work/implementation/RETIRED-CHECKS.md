@@ -26,6 +26,57 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — SPA-RETIRE 5: the two red-at-HEAD checks are RETARGETED, not deleted
+
+`server-origin-check` (7 of 16 legs red) and `keymask-check` (5 of 12 red) had been failing **at HEAD**
+since the auth wrap landed, for one shared reason: both drove the legacy `/api/config` route anonymously,
+and the wrap answers **401 before any handler**. CI never reported either, because each sits behind a
+failing step in the same job. Neither check was wrong about its property — both were wrong about the
+surface. Getting them green required MEASURING the real gate order, and the measurement contradicted my
+first two assumptions:
+
+| What I assumed | What the server does | How it was found |
+|---|---|---|
+| identity runs before everything on `/api/*` | on the legacy `/api/config` route the ORIGIN gate and the BODY gate run first: a foreign Origin gets `403 origin_rejected` and `text/plain` gets `415 json_required` with no session at all | leg failed with the actual status, twice |
+| the owned `/api/v1/*` surface checks identity first, then origin | for a MUTATING request the origin gate answers first there too — foreign Origin, `null`, rebinding Host, foreign Referer, or NO Origin at all is `403 origin_rejected`; only a same-origin request reaches identity | second and third measurements |
+| only a foreign Origin is refused | an ABSENT Origin is refused as well: "same-origin or nothing" | third measurement |
+
+**`tools/server-origin-check.mjs` — RETARGET (8/8 green, was 7/16).** Legs now assert the two orders
+explicitly: the legacy route's origin and body gates, its 401 for same-origin writes, and the owned
+surface's "no Origin, no method, no 2xx" including the `404 Unknown endpoint` it returns here because this
+check runs with **no account configuration**. Its test suite is 10/10.
+
+**`tools/keymask-check.mjs` — RETARGET (14/14 green, was 5/12).** The property is unchanged — no
+character run of the key in any response — and it is now scanned over **every response an anonymous
+caller can obtain**: `/api/health`, `/api/ready`, the front door (18 KB of HTML), `/signin`, and the
+refusals themselves. The old `leakScanText`/`leakScanJson` helpers insisted on a 200 with a JSON body,
+which is exactly right for a read route and useless for a refusal; the new `scanAny` scans text always
+and JSON where present.
+
+**Discrimination, explicitly.** `keymask-check --prefix-commit 8a71f718` runs the SAME probe against the
+pre-fix server and fails **5/5** leak legs while the key is live (`Zq7, q7X, 7Xv, 4Ew, Ew6` — the pre-fix
+`keyMasked` pill — plus the pre-fix field set `baseUrl, configured, examDate, keyMasked, model`). This is
+the mechanism the ledger required after `keymask-check.test.mjs` was deleted with its SPA fixture: the
+retarget carries its own discrimination proof, and it is a CI step. Two supporting changes were needed:
+the "key is live" anchor leg had to stop asserting the refusal (or it fails on the pre-fix source and the
+judge cannot see a live key), and `LEAK_CHECKS` had to list only the legs that CAN fail there — the
+pre-fix server 404s `/api/ready`, `/` and `/signin`, so demanding failure on those is unsatisfiable.
+
+**Two defects found while retargeting, both fixed here:**
+
+* **The probe would have made a live provider call.** Scanning `POST /api/ai` is harmless on the current
+  tree (a 401) but the same probe runs against the PRE-FIX server, where an accepted request starts a real
+  outbound call. A before/after probe is not a reason to break the no-live-AI rule, so `/api/ai` is not
+  probed; the route is covered by `docker-stack-check` against the configured runtime. This also removed a
+  Windows teardown crash (`Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)`, a fail-fast that made
+  the prefix leg exit `0xC0000409` with every check green), which is why the close path now calls
+  `server.closeAllConnections()`.
+* **`api-spec-check`'s `/api/progress` leg was `text.includes('/api/progress')`.** It went red the moment
+  the spec recorded the REMOVAL in a comment — a spec forbidden to name a retired route cannot record that
+  it was ever there, and losing that record is its own defect. The leg now tests for a **path key**
+  (`/^ {2}\/api\/progress:/m`) and, in the same breath, requires the removal note to be present
+  (`S-absent` + `S-recorded`, 26/26 green).
+
 ### 2 October 2026 — SPA-RETIRE 4: the retired client itself, and the twenty-two checks that tested it
 
 Ron: *"we need to remove the SPA as well to avoid this happening again."* The reason was demonstrated

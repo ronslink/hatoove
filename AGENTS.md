@@ -56,15 +56,24 @@ Do not commit credentials, learner records, machine configuration, agent memory,
 
 ## Validation and boundaries
 
-Safe offline baseline commands:
+Safe offline baseline commands (updated 2 October 2026 — the three legacy client checks that used to be
+listed here were retired with the SPA they tested, in SPA-RETIRE 4; the row in
+`work/implementation/RETIRED-CHECKS.md` records why, and the recorded baseline is now this set rather
+than 101 + 9 + 14):
 
 ```text
-node tools/check.js
-node tools/writing-check.js
-node tools/feedback-check.js
+node tools/repository-check.mjs
+node tools/design-check.mjs
+node tools/retired-surface-check.mjs
+node tools/server-origin-check.mjs
+node tools/keymask-check.mjs
+node tools/owned-api-check.mjs
+node tools/owned-client-check.mjs
 ```
 
-The recorded baseline is 101 + 9 + 14 passing checks. These test legacy behavior, not exam validity. Add focused tests for changed behavior; do not preserve an incorrect exam rule just to retain a test result.
+`docker-stack-check.mjs` and `app-browser-check.mjs` need Docker and a browser and are NOT CI gates;
+`owned-api-check --backend=postgres` and the other PostgreSQL checks need a disposable database. These
+test contracts and legacy behavior, not exam validity. Add focused tests for changed behavior; do not preserve an incorrect exam rule just to retain a test result.
 
 Do not run live AI or recovery scripts as automatic setup. The current `server.js` reads `.env` even in offline mode, and the provider key is server configuration that must never be settable or readable from a browser. Browser tests require a disposable source-only checkout, synthetic progress and explicitly isolated ports. Never point generic tests at the learner's existing app. The portable-build, synchronization and file-recovery scripts are **removed**: this is a hosted application with one authoritative server copy.
 

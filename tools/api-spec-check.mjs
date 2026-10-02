@@ -114,10 +114,26 @@ for (const required of ['/api/config', '/api/ai', 'deprecated: true']) {
   if (text.includes(required)) pass(`S-documented ${required}`, 'present in the spec');
   else fail(`S-documented ${required}`, 'missing from the spec: a retired route that is not documented is how it comes back');
 }
-if (text.includes('/api/progress')) {
-  fail('S-documented /api/progress', 'the spec still documents a route that is deleted: remove it, and let retired-surface-check guard its absence');
+/*
+ * A MENTION IS NOT A DOCUMENTATION — tightened 2 October 2026.
+ *
+ * This leg used to be `text.includes('/api/progress')`, and it went red the moment the spec recorded the
+ * removal in a comment: `# /api/progress REMOVED 2 October 2026 ...`. The property is "the spec must not
+ * DOCUMENT a route that does not exist", which means a PATH KEY a tool would read, not any occurrence of
+ * the string — a spec that is forbidden to name a retired route cannot record that it was ever there,
+ * and losing that record is its own defect. The negative check for un-documenting it is
+ * `tools/retired-surface-check.mjs`, which is unchanged.
+ */
+const progressPathKey = /^ {2}\/api\/progress:/m;
+if (progressPathKey.test(text)) {
+  fail('S-absent /api/progress', 'the spec still declares a path for a route that is deleted: remove it, and let retired-surface-check guard its absence');
 } else {
-  pass('S-absent /api/progress', 'not documented, because it no longer exists');
+  pass('S-absent /api/progress', 'no path key declared, because the route no longer exists');
+}
+if (/^[ \t]*#.*\/api\/progress.*REMOVED/m.test(text)) {
+  pass('S-recorded /api/progress removal', 'the spec records WHY the route is absent, which a bare deletion would lose');
+} else {
+  fail('S-recorded /api/progress removal', 'the spec no longer records that this route was removed and when; that record is how the next reader avoids re-adding it');
 }
 
 const failed = results.filter((r) => r === 'FAIL').length;

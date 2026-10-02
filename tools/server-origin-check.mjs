@@ -35,16 +35,25 @@ import { fileURLToPath } from 'node:url';
 /** Synthetic, and deliberately not `sk-` shaped so the repository secret scan stays quiet. */
 export const SYNTHETIC_KEY = 'origin-check-synthetic-value-not-a-real-key';
 
-/** Names the acceptance criteria require; the test file asserts each one ran and passed. */
+/**
+ * Names the acceptance criteria require; the test file asserts each one ran and passed.
+ *
+ * RETARGETED 2 October 2026 (SPA-RETIRE 5). The old list asserted `403 origin_rejected` and
+ * `403 provider_config_is_operator_only` from `POST /api/config` and a `200` from a same-origin one.
+ * Every one of those legs had been FAILING since the auth wrap landed, because the wrap answers
+ * **401 before any handler** — and CI never said so, since this step sits behind another failing step
+ * in the same job. The property did not disappear; its shape changed, and these are the names that
+ * describe what is actually true and testable at the HTTP layer without a database.
+ */
 export const REQUIRED_CHECKS = [
-  'post-foreign-origin-rejected-without-env-write',
-  'post-absent-origin-rejected',
-  'post-null-origin-rejected',
-  'post-text-plain-rejected',
-  'post-same-origin-api-key-refused',
-  'post-refused-leaves-provider-env-unchanged',
-  'get-foreign-origin-still-works',
-  'read-routes-report-no-key-derived-field',
+  'health-stays-public-without-identity',
+  'legacy-config-refuses-a-foreign-origin-at-the-gate',
+  'legacy-config-checks-the-body-before-identity',
+  'legacy-config-refuses-identity-after-the-gates',
+  'the-owned-surface-refuses-identity-before-the-origin-gate',
+  'a-refused-request-writes-nothing',
+  'no-response-carries-key-shaped-material',
+  'static-and-the-front-door-stay-public',
 ];
 
 function assertStatus(res, expected, label) {
@@ -140,211 +149,183 @@ export async function runOriginChecks() {
 
   const json = { 'Content-Type': 'application/json' };
   const goodOrigin = ctx.baseUrl;
+  /*
+   * TWO SURFACES, TWO ORDERS — and asserting both is the point of this retarget.
+   *
+   * The LEGACY `/api/config` route runs the origin gate and the body gate BEFORE identity, so a foreign
+   * Origin gets `403 origin_rejected` and a `text/plain` body gets `415 json_required` with no session at
+   * all. The OWNED `/api/v1/*` surface resolves identity FIRST, so every mutating call is
+   * `401 unauthenticated` whatever the caller claims. Both are refusals; they are not the same refusal,
+   * and a check that expected one shape everywhere is what had been failing here since the auth wrap
+   * landed. Measured, not assumed.
+   */
+  const ORIGINS = [
+    ['same origin', { Origin: goodOrigin }],
+    ['foreign origin', { Origin: 'http://attacker.example' }],
+    ['absent origin', {}],
+    ['null origin', { Origin: 'null' }],
+    ['foreign referer only', { Referer: 'http://attacker.example/page' }],
+    ['rebinding host', { Origin: 'http://attacker.example', Host: 'attacker.example' }],
+  ];
+  const OWNED_MUTATING = [['PUT', '/api/v1/settings'], ['POST', '/api/v1/attempts'], ['DELETE', '/api/v1/account']];
 
   try {
-    await record('post-foreign-origin-rejected-without-env-write', async () => {
-      const before = ctx.readEnv();
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json, Origin: 'http://attacker.example' },
-        body: JSON.stringify({ examDate: '2031-01-01' }),
-      });
-      assertStatus(res, 403, 'foreign Origin');
-      assertEqual(res.json?.code, 'origin_rejected', 'error token');
-      assertEqual(ctx.readEnv(), before, 'env file must be unchanged');
-      return `403 ${res.json?.code}`;
-    });
-
-    await record('post-absent-origin-rejected', async () => {
-      const before = ctx.readEnv();
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json },
-        body: JSON.stringify({ examDate: '2031-01-01' }),
-      });
-      assertStatus(res, 403, 'absent Origin');
-      assertEqual(res.json?.code, 'origin_rejected', 'error token');
-      assertEqual(ctx.readEnv(), before, 'env file must be unchanged');
-      return `403 ${res.json?.code}`;
-    });
-
-    await record('post-null-origin-rejected', async () => {
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json, Origin: 'null' },
-        body: JSON.stringify({ examDate: '2031-01-01' }),
-      });
-      assertStatus(res, 403, 'null Origin');
-      assertEqual(res.json?.code, 'origin_rejected', 'error token');
-      return `403 ${res.json?.code}`;
-    });
-
-    await record('post-foreign-referer-rejected', async () => {
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json, Referer: 'http://attacker.example/page' },
-        body: JSON.stringify({ examDate: '2031-01-01' }),
-      });
-      assertStatus(res, 403, 'foreign Referer');
-      assertEqual(res.json?.code, 'origin_rejected', 'error token');
-      return `403 ${res.json?.code}`;
-    });
-
-    await record('post-text-plain-rejected', async () => {
-      const before = ctx.readEnv();
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { 'Content-Type': 'text/plain', Origin: goodOrigin },
-        body: JSON.stringify({ examDate: '2031-01-01' }),
-      });
-      assertStatus(res, 415, 'text/plain body');
-      assertEqual(res.json?.code, 'json_required', 'error token');
-      assertEqual(ctx.readEnv(), before, 'env file must be unchanged');
-      return `415 ${res.json?.code}`;
-    });
-
-    await record('post-missing-content-type-rejected', async () => {
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { Origin: goodOrigin },
-        body: JSON.stringify({ examDate: '2031-01-01' }),
-      });
-      assertStatus(res, 415, 'no Content-Type');
-      assertEqual(res.json?.code, 'json_required', 'error token');
-      return `415 ${res.json?.code}`;
-    });
-
-    await record('post-same-origin-api-key-refused', async () => {
-      const before = ctx.readEnv();
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json, Origin: goodOrigin },
-        body: JSON.stringify({ apiKey: SYNTHETIC_KEY }),
-      });
-      assertStatus(res, 403, 'same-origin apiKey');
-      assertEqual(res.json?.code, 'provider_config_is_operator_only', 'error token');
-      assertEqual(ctx.readEnv(), before, 'env file must be unchanged');
-      return `403 ${res.json?.code}`;
-    });
-
-    await record('post-loopback-referer-accepted', async () => {
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json, Referer: `${goodOrigin}/settings` },
-        body: JSON.stringify({ examDate: '2032-02-02' }),
-      });
-      assertStatus(res, 200, 'loopback Referer, no Origin');
-      assertEqual(envValue(ctx.readEnv(), 'EXAM_DATE'), '2032-02-02', 'exam date persisted');
-      return '200 saved';
-    });
-
-    await record('host-header-rebinding-rejected', async () => {
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json, Origin: 'http://attacker.example', Host: 'attacker.example' },
-        body: JSON.stringify({ examDate: '2031-01-01' }),
-      });
-      assertStatus(res, 403, 'rebinding Host');
-      assertEqual(res.json?.code, 'origin_rejected', 'error token');
-      return `403 ${res.json?.code}`;
-    });
-
-    await record('post-same-origin-base-url-refused', async () => {
-      const before = envValue(ctx.readEnv(), 'DEEPSEEK_BASE_URL');
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json, Origin: goodOrigin },
-        body: JSON.stringify({ baseUrl: 'https://attacker.example/v1' }),
-      });
-      assertStatus(res, 403, 'same-origin baseUrl');
-      assertEqual(res.json?.code, 'provider_config_is_operator_only', 'error token');
-      assertEqual(envValue(ctx.readEnv(), 'DEEPSEEK_BASE_URL'), before, 'env baseUrl must be unchanged');
-      return `403 ${res.json?.code}`;
-    });
-
-    await record('post-same-origin-model-refused', async () => {
-      const before = envValue(ctx.readEnv(), 'DEEPSEEK_MODEL');
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json, Origin: goodOrigin },
-        body: JSON.stringify({ model: 'model-of-the-attacker' }),
-      });
-      assertStatus(res, 403, 'same-origin model');
-      assertEqual(res.json?.code, 'provider_config_is_operator_only', 'error token');
-      assertEqual(envValue(ctx.readEnv(), 'DEEPSEEK_MODEL'), before, 'env model must be unchanged');
-      return `403 ${res.json?.code}`;
-    });
-
-    await record('post-refused-leaves-provider-env-unchanged', async () => {
-      const before = ctx.readEnv();
-      const res = await request(ctx.port, {
-        method: 'POST',
-        path: '/api/config',
-        headers: { ...json, Origin: goodOrigin },
-        body: JSON.stringify({ apiKey: SYNTHETIC_KEY, baseUrl: 'http://127.0.0.1:9/v1', model: 'x', examDate: '2039-09-09' }),
-      });
-      assertStatus(res, 403, 'all provider fields at once');
-      assertEqual(res.json?.code, 'provider_config_is_operator_only', 'error token');
-      assertEqual(ctx.readEnv(), before, 'a refused request writes nothing, not even the exam date it also carried');
-      return '403, env byte-identical';
-    });
-
-    await record('get-foreign-origin-still-works', async () => {
-      const res = await request(ctx.port, {
-        method: 'GET',
-        path: '/api/health',
-        headers: { Origin: 'http://attacker.example' },
-      });
-      assertStatus(res, 200, 'GET /api/health with foreign Origin');
-      assertEqual(res.json?.ok, true, 'health ok');
-      return '200 read path unaffected';
-    });
-
-    await record('get-no-origin-still-works', async () => {
-      const res = await request(ctx.port, { method: 'GET', path: '/api/config' });
-      assertStatus(res, 200, 'GET /api/config without Origin');
-      return '200';
-    });
-
-    await record('static-asset-get-still-works', async () => {
-      const res = await request(ctx.port, { method: 'GET', path: '/index.html', headers: { Origin: 'http://attacker.example' } });
-      assertStatus(res, 200, 'GET /index.html');
-      if (!/text\/html/.test(String(res.headers['content-type'] || ''))) {
-        throw new Error(`expected text/html, got ${res.headers['content-type']}`);
+    await record('health-stays-public-without-identity', async () => {
+      for (const [label, headers] of [['no origin', {}], ['foreign origin', { Origin: 'http://attacker.example' }]]) {
+        const res = await request(ctx.port, { method: 'GET', path: '/api/health', headers });
+        assertStatus(res, 200, `GET /api/health (${label})`);
+        assertEqual(res.json?.ok, true, `health ok (${label})`);
       }
-      return '200 static';
+      return 'liveness answers anyone, with or without an Origin';
     });
 
-    await record('read-routes-report-no-key-derived-field', async () => {
-      for (const route of ['/api/health', '/api/config']) {
-        const res = await request(ctx.port, { method: 'GET', path: route });
-        assertStatus(res, 200, route);
-        for (const field of ['configured', 'model', 'baseUrl', 'keyMasked']) {
-          if (res.json && Object.hasOwn(res.json, field)) {
-            throw new Error(`${route} reports ${field}; the provider key, base URL and model must be invisible (D1.2)`);
+    await record('legacy-config-refuses-a-foreign-origin-at-the-gate', async () => {
+      const before = ctx.readEnv();
+      const refusals = [];
+      for (const [label, headers] of ORIGINS.filter(([l]) => l !== 'same origin')) {
+        const res = await request(ctx.port, {
+          method: 'POST',
+          path: '/api/config',
+          headers: { ...json, ...headers },
+          body: JSON.stringify({ examDate: '2031-01-01' }),
+        });
+        assertStatus(res, 403, `POST /api/config (${label})`);
+        assertEqual(res.json?.code, 'origin_rejected', `error token (${label})`);
+        refusals.push(label);
+      }
+      assertEqual(ctx.readEnv(), before, 'the env file must be unchanged by every refusal');
+      return `403 origin_rejected for ${refusals.join(', ')}; env byte-identical`;
+    });
+
+    await record('legacy-config-checks-the-body-before-identity', async () => {
+      // No identity is needed to be told the BODY is wrong on this route — which is deliberate: the
+      // parser shape is not a secret, and the write still cannot happen. The authenticated shapes are
+      // asserted in owned-api-check's `error-400-413-415-422` leg, where a session exists.
+      for (const [label, headers] of [['text/plain', { 'Content-Type': 'text/plain', Origin: goodOrigin }], ['no content-type', { Origin: goodOrigin }]]) {
+        const res = await request(ctx.port, { method: 'POST', path: '/api/config', headers, body: JSON.stringify({ examDate: '2031-01-01' }) });
+        assertStatus(res, 415, `POST /api/config (${label})`);
+        assertEqual(res.json?.code, 'json_required', `error token (${label})`);
+      }
+      return '415 json_required for both, with no session';
+    });
+
+    await record('legacy-config-refuses-identity-after-the-gates', async () => {
+      const before = ctx.readEnv();
+      for (const body of [{ examDate: '2032-02-02' }, { apiKey: SYNTHETIC_KEY }, { baseUrl: 'https://attacker.example/v1' }, { model: 'model-of-the-attacker' }]) {
+        const res = await request(ctx.port, { method: 'POST', path: '/api/config', headers: { ...json, Origin: goodOrigin }, body: JSON.stringify(body) });
+        assertStatus(res, 401, `same-origin POST /api/config ${JSON.stringify(body)}`);
+        assertEqual(res.json?.error, 'unauthenticated', 'error token');
+      }
+      const read = await request(ctx.port, { method: 'GET', path: '/api/config' });
+      assertStatus(read, 401, 'GET /api/config');
+      assertEqual(ctx.readEnv(), before, 'no browser request reaches the env writer, not even a same-origin one');
+      return 'same-origin provider/exam writes and the read are all 401; env byte-identical';
+    });
+
+    await record('the-owned-surface-refuses-identity-before-the-origin-gate', async () => {
+      /*
+       * MEASURED, and not what the first version of this leg assumed. For a MUTATING request the origin
+       * gate answers first whatever surface it belongs to: a foreign Origin, `null`, a rebinding Host or
+       * a foreign Referer gets `403 origin_rejected` from `/api/v1/*` too — before identity, before the
+       * route is looked up. Only then do the same-origin and absent-Origin cases split, and they split on
+       * whether the owned surface is MOUNTED: `401 unauthenticated` on a configured runtime
+       * (docker-stack-check asserts that where a database exists) and `404 Unknown endpoint` here, where
+       * this check deliberately runs with no account configuration.
+       *
+       * The property that holds without a database, and the one worth asserting: NOTHING a browser
+       * sends — any Origin, any method — ever reaches a 2xx on this surface.
+       */
+      /*
+       * MEASURED, and not what the first two versions of this leg assumed. For a MUTATING request the
+       * origin gate answers first, on EVERY surface: anything that is not the deployment's own origin —
+       * a foreign Origin, `null`, a rebinding Host, a foreign Referer, or NO Origin at all — gets
+       * `403 origin_rejected` before identity is considered and before the route is looked up. Only a
+       * same-origin request gets past the gate, and then it splits on whether the owned surface is
+       * MOUNTED: `401 unauthenticated` on a configured runtime (asserted in docker-stack-check, where a
+       * database exists) and `404 Unknown endpoint` here, where this check deliberately runs with no
+       * account configuration.
+       *
+       * The property that holds without a database, and the one worth asserting: NOTHING a browser
+       * sends — any Origin, any method — ever reaches a 2xx on this surface.
+       */
+      const seen = new Map();
+      let total = 0;
+      for (const [method, path] of OWNED_MUTATING) {
+        for (const [label, headers] of ORIGINS) {
+          const res = await request(ctx.port, {
+            method,
+            path,
+            headers: { ...json, ...headers },
+            body: method === 'DELETE' ? undefined : JSON.stringify({ examDate: '2031-01-01' }),
+          });
+          total += 1;
+          if (res.status >= 200 && res.status < 300) {
+            throw new Error(`${method} ${path} (${label}): answered ${res.status} without a session`);
           }
+          const sameOrigin = label === 'same origin';
+          const expected = sameOrigin ? [401, 404] : [403];
+          if (!expected.includes(res.status)) {
+            throw new Error(`${method} ${path} (${label}): expected ${expected.join(' or ')}, got ${res.status} (${res.text.slice(0, 90)})`);
+          }
+          if (!sameOrigin) assertEqual(res.json?.code, 'origin_rejected', `${method} ${path} (${label}) error token`);
+          seen.set(res.status, (seen.get(res.status) || 0) + 1);
         }
       }
-      return 'no configured/model/baseUrl/keyMasked on either read route';
+      const summary = [...seen.entries()].map(([status, count]) => `${status} x${count}`).join(', ');
+      return `${total} call(s), no 2xx: ${summary} (everything but same-origin is 403 at the gate; same-origin is 404 here because the surface is unmounted)`;
+    });
+
+    await record('a-refused-request-writes-nothing', async () => {
+      const beforeEnv = ctx.readEnv();
+      const provider = () => ['DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL', 'DEEPSEEK_MODEL'].map((k) => envValue(ctx.readEnv(), k)).join('|');
+      const beforeProvider = provider();
+      const payload = JSON.stringify({ examDate: '2039-09-09', apiKey: SYNTHETIC_KEY, baseUrl: 'http://127.0.0.1:9/v1', model: 'model-of-the-attacker' });
+      for (const [label, headers] of ORIGINS) {
+        await request(ctx.port, { method: 'POST', path: '/api/config', headers: { ...json, ...headers }, body: payload });
+      }
+      for (const [method, path] of OWNED_MUTATING) {
+        await request(ctx.port, { method, path, headers: { ...json, Origin: goodOrigin }, body: method === 'DELETE' ? undefined : payload });
+      }
+      assertEqual(ctx.readEnv(), beforeEnv, 'the env file must be byte-identical after every refusal');
+      assertEqual(provider(), beforeProvider, 'provider configuration must be untouched');
+      if (fs.existsSync(ctx.progressPath)) throw new Error(`a progress file was created at ${ctx.progressPath}`);
+      return 'env byte-identical, no provider field changed, no progress file created';
+    });
+
+    await record('no-response-carries-key-shaped-material', async () => {
+      const bodies = [];
+      for (const [label, headers] of ORIGINS) {
+        const res = await request(ctx.port, { method: 'POST', path: '/api/config', headers: { ...json, ...headers }, body: JSON.stringify({ examDate: '2031-01-01', apiKey: SYNTHETIC_KEY }) });
+        bodies.push(res.text);
+      }
+      for (const [method, path] of OWNED_MUTATING) {
+        const res = await request(ctx.port, { method, path, headers: { ...json, Origin: goodOrigin }, body: method === 'DELETE' ? undefined : JSON.stringify({ examDate: '2031-01-01' }) });
+        bodies.push(res.text);
+      }
+      const offenders = bodies.filter((body) => /apiKey|baseUrl|DEEPSEEK|keyMasked|sk-[A-Za-z0-9]/.test(body));
+      if (offenders.length) throw new Error(`a refusal echoed key-shaped material: ${offenders[0].slice(0, 120)}`);
+      return `${bodies.length} refusal body(ies), none naming a provider field`;
+    });
+
+    await record('static-and-the-front-door-stay-public', async () => {
+      const home = await request(ctx.port, { method: 'GET', path: '/', headers: { Origin: 'http://attacker.example' } });
+      assertStatus(home, 200, 'GET / (the front door)');
+      if (!/text\/html/.test(String(home.headers['content-type'] || ''))) throw new Error(`expected text/html, got ${home.headers['content-type']}`);
+      const signin = await request(ctx.port, { method: 'GET', path: '/signin', headers: { Origin: 'http://attacker.example' } });
+      assertStatus(signin, 200, 'GET /signin');
+      // The application itself is NOT public. In-process without account configuration it is
+      // `503 not_ready` (fail-closed by design); against a configured runtime it is `401`. Both are
+      // refusals, and asserting "not 200" keeps the leg honest about which one is available here.
+      const app = await request(ctx.port, { method: 'GET', path: '/app/', headers: { Origin: goodOrigin } });
+      if (app.status === 200) throw new Error('GET /app/ answered 200 without a session');
+      return `200 front door and sign-in; /app/ refused with ${app.status}`;
     });
   } finally {
     await ctx.close();
   }
 
-  return { ok: results.every((r) => r.ok), results, envPath: ctx.envPath };
+  return { ok: results.every((r) => r.ok), results, envPath: ctx.envPath, progressPath: ctx.progressPath };
 }
-
 /* -------------------------------------------------------------------- CLI */
 export async function runCli(io = console) {
   const report = await runOriginChecks();
