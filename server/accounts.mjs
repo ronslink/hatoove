@@ -61,6 +61,7 @@ export async function loadOwnedApi({ env = process.env } = {}) {
   const { openRuntimePools, closeRuntimePools, persistentConfig } = await import('./owned-postgres/provision.mjs');
   const { createPostgresWorld } = await import('./owned-postgres/fixture.mjs');
   const { createPostgresSettings } = await import('./owned-postgres/settings.mjs');
+  const { createConsoleNotifier } = await import('./notify.mjs');
 
   const runtime = await openRuntimePools({ config: persistentConfig(env) });
   // A3: a `pg` pool whose backend disappears emits `error` on the *pool*; with no listener
@@ -97,6 +98,21 @@ export async function loadOwnedApi({ env = process.env } = {}) {
     // wiring of the same thing.
     settings: createPostgresSettings({ pool: runtime.learner }),
   };
+  /*
+   * ACCOUNT RECOVERY'S DELIVERY CHANNEL (D6), wired here so the RUNNING server has it and not only the checks.
+   *
+   * The pilot is operator-assisted: `createConsoleNotifier` writes the reset link to the operator console and
+   * NO message leaves the building, because the email provider is a data processor whose terms a human has to
+   * accept and that decision (D6) is unanswered. Adopting one later replaces `server/notify.mjs` and nothing
+   * else.
+   *
+   * The origin comes from configuration rather than from a request header: a link built from `Host:` would let
+   * whoever sent the request choose where the learner's reset link points, which is a redirection primitive.
+   */
+  fixture.notifier = createConsoleNotifier({
+    log: (line) => console.log(line),
+    publicOrigin: env.B1PREP_PUBLIC_ORIGIN || env.HATOVE_PUBLIC_ORIGIN || null,
+  });
   const world = await createPostgresWorld({ fixture });
   // `world.api` is built by the same code the checks use, so the running server and the tests
   // cannot drift apart. Building a second API here with the ports re-supplied by hand is what

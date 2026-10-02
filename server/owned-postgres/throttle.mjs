@@ -34,6 +34,12 @@ export const THROTTLE_POLICY = Object.freeze({
   signin: Object.freeze({ limit: 10, windowSeconds: 900 }),
   signup: Object.freeze({ limit: 30, windowSeconds: 3600 }),
   password: Object.freeze({ limit: 5, windowSeconds: 900 }),
+  /*
+   * A reset request WRITES A ROW and produces a message for the operator, so it is both a database cost and a
+   * human one. Per ADDRESS rather than global: throttling every learner because one address is being abused
+   * would be the same denial of service the sign-in limit is careful to avoid.
+   */
+  reset: Object.freeze({ limit: 5, windowSeconds: 900 }),
 });
 
 /**

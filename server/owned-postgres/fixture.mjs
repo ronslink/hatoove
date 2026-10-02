@@ -12,6 +12,7 @@
 import { createFixture } from './bootstrap.mjs';
 import { stubGrade, rubricFor } from './worker.mjs';
 import { createPostgresThrottle } from './throttle.mjs';
+import { createConsoleNotifier } from '../../server/notify.mjs';
 import { createPostgresDatastore, createPostgresAccountDeletion } from './adapter.mjs';
 import { createPostgresSessions } from './sessions.mjs';
 import { createPostgresSettings } from './settings.mjs';
@@ -34,11 +35,20 @@ const FINGERPRINT_TABLES = [
  *   would be — the route then answers 503 rather than pretending.
  * @returns {Promise<{store: object, sessions: object, settings: object, api: object, deletion: object|null, fixture: object, teardown: Function}>}
  */
-export async function createPostgresWorld({ allowance = 10, fixture, deletion, limits = null } = {}) {
+export async function createPostgresWorld({ allowance = 10, fixture, deletion, limits = null, notifier = null } = {}) {
   const db = fixture ?? await createFixture();
   const calls = [];
   const port = createPostgresDatastore({ pool: db.learner, onCall: (name) => calls.push(name) });
-  const sessions = createPostgresSessions({ pool: db.auth, adminPool: db.admin, allowance });
+  /*
+   * THE NOTIFIER IS INJECTABLE, and in the pilot it is the OPERATOR CONSOLE (D6): nothing leaves the building,
+   * and a check can capture deliveries instead of printing them.
+   *
+   * Read from the FIXTURE object first, exactly as `db.settings` is read below: that is the established way an
+   * injected fixture supplies its own wiring, and the running server sets `fixture.notifier` so its deliveries
+   * reach the real console. The option remains for a caller that builds a world directly.
+   */
+  const notify = db.notifier ?? notifier ?? createConsoleNotifier({ log: () => {} });
+  const sessions = createPostgresSessions({ pool: db.auth, adminPool: db.admin, allowance, notify });
   /*
    * THE AUTH THROTTLE, ON THE AUTH POOL — the same restriction the sessions port runs under, because a limit
    * is auth material: only the auth role may see who has been failing to sign in (migration 0019's GRANT).

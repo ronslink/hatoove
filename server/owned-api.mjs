@@ -113,6 +113,8 @@ const GUIDE_RE = /^\/api\/v1\/guides\/([a-z][a-z0-9-]{0,63})$/;
 const SESSION_LIFECYCLE_METHODS = ['listSessions', 'revokeSession', 'changePassword', 'sweepExpired'];
 /** The auth throttle's two operations: count an attempt, and forget a bucket after a success. */
 const THROTTLE_METHODS = ['hit', 'clear'];
+/** The recovery flow's two operations: ask for a link, and redeem one. */
+const RECOVERY_METHODS = ['requestPasswordReset', 'resetPassword'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -381,6 +383,12 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
    * prove the difference rather than assume it, and the runtime always wires the port.
    */
   const throttleWired = implementsAll(throttle, THROTTLE_METHODS);
+  /*
+   * FAIL-CLOSED HERE, unlike the throttle. A recovery route that silently did nothing would tell a locked-out
+   * learner that a reset was on its way when it was not, so an implementation without it answers 503 with a
+   * name. It cannot lock anyone out — the route did not exist before.
+   */
+  const recoveryWired = implementsAll(sessions, RECOVERY_METHODS);
 
   async function identify(headers) {
     const session = await sessions.getSession(headers);
@@ -460,6 +468,46 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         onlyFields(body, []);
         const outcome = await sessions.signOut(headers);
         return reply(200, { ok: true }, outcome && outcome.setCookie);
+      }
+      /*
+       * ACCOUNT RECOVERY (D6's token path).
+       *
+       * THE RESPONSE IS THE SAME FOR EVERY ADDRESS, and that is the security property rather than a courtesy:
+       * anyone can type someone else's email into a reset form, so a response that differed would turn the
+       * form into a way to ask "does this learner have an account here?". The port returns whether a message
+       * was produced; this route deliberately discards that and answers `{ok:true}` either way.
+       *
+       * THE TOKEN NEVER APPEARS HERE. It goes to the notifier — in the pilot, the operator console — because
+       * a token in the response would make "I forgot my password" mean "I can take over any account whose
+       * address I know". That is what "operator-assisted" buys: recovery without an email provider and
+       * without a hole.
+       *
+       * THROTTLED PER ADDRESS, because this route writes a row and produces a message: unlimited, it is a way
+       * to fill the table and the operator's console.
+       */
+      if (key === 'POST /api/auth/request-password-reset') {
+        onlyFields(body, ['email']);
+        if (!recoveryWired) fault(503, 'recovery_unavailable');
+        const { email } = requireAuthFields({ email: body.email, password: 'x' }, false);
+        await enforceThrottle('reset', email);
+        await sessions.requestPasswordReset({ email });
+        // Deliberately not `outcome`: whether a message was produced must not be observable.
+        return reply(200, { ok: true });
+      }
+      if (key === 'POST /api/auth/reset-password') {
+        onlyFields(body, ['token', 'newPassword']);
+        if (!recoveryWired) fault(503, 'recovery_unavailable');
+        const { token } = body;
+        if (typeof token !== 'string' || token.length === 0 || token.length > 512) fault(422, 'invalid_token');
+        // The SAME rule as the change screen, for the same reason: one password rule, the one sign-up uses.
+        assertNewPassword(body.newPassword);
+        const outcome = await sessions.resetPassword({ token, newPassword: body.newPassword });
+        /*
+         * ONE REFUSAL FOR EVERY FAILURE — unknown, expired, already used, malformed. A guesser learns nothing
+         * from the difference between them, and there is nothing useful to say.
+         */
+        if (!outcome) fault(400, 'invalid_token');
+        return reply(200, { ok: true });
       }
       if (key === 'GET /api/auth/get-session') {
         const who = await identify(headers);

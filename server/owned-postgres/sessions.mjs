@@ -18,10 +18,26 @@
  * because the restricted roles have no INSERT right on `entitlements`.
  */
 
-import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { Fault } from '../../server/owned-api.mjs';
 
 const COOKIE_DEFAULT = 'hatoove_owned_session';
+
+/** The erification.identifier prefix that makes a reset token recognisable as one. */
+const RESET_PREFIX = 'reset-password:';
+/** How long a reset link stays valid. Short, because it travels through an operator and a chat message. */
+const RESET_TTL_SECONDS = 1800;
+
+/**
+ * The stored form of a reset token.
+ *
+ * SHA-256, NOT scrypt, and the difference is the point: the token is 256 bits of randomness, so there is no
+ * dictionary to attack and a slow hash would only make every redemption slower. A PASSWORD is the opposite
+ * case, which is why hashPassword above is scrypt with a per-password salt.
+ */
+function hashToken(token) {
+  return createHash('sha256').update(String(token), 'utf8').digest('hex');
+}
 
 /** scrypt hash in a self-describing single column: `scrypt:<salt-hex>:<hash-hex>`. */
 function hashPassword(password) {
@@ -54,6 +70,7 @@ function tokenFrom(headers, cookieName) {
  */
 export function createPostgresSessions({
   pool, adminPool, allowance = 10, sessionTtlSeconds = 3600, cookieName = COOKIE_DEFAULT,
+  notify = null,
 } = {}) {
   if (!pool || typeof pool.connect !== 'function') throw new TypeError('createPostgresSessions requires a pg Pool');
   if (!adminPool || typeof adminPool.query !== 'function') throw new TypeError('createPostgresSessions requires an admin Pool');
@@ -271,6 +288,87 @@ export function createPostgresSessions({
         // EVERY session, including this one: see above. The new session below is the acting device's.
         await client.query('DELETE FROM session WHERE "userId" = $1', [current.userId]);
         return issueSession(client, current.userId);
+      });
+    },
+
+    /**
+     * REQUEST A PASSWORD RESET — the token path (D6), with the delivery left to the caller's notifier.
+     *
+     * ANSWERING THE SAME THING FOR EVERY ADDRESS IS THE CALLER'S JOB, not this function's: it returns whether
+     * a message was produced, and the route ignores it. Splitting it this way is deliberate — a port that
+     * decided the HTTP status would put an enumeration decision in the database layer, where nobody reviewing
+     * the route would look for it.
+     *
+     * THE TOKEN IS STORED ONLY AS A HASH. A read of `verification` — a backup, a support query, a leaked dump
+     * — must not hand over working reset links. A plain SHA-256 is the right hash here and NOT a password
+     * hash: the token is 256 bits of randomness, so there is no dictionary to attack, and scrypt would only
+     * make the lookup slower. (A PASSWORD is the opposite case, which is why `hashPassword` above is scrypt.)
+     *
+     * ONE LIVE LINK PER ACCOUNT: any earlier row for the same identifier is deleted first, so a learner who
+     * clicks "send again" three times does not leave three working links behind.
+     */
+    async requestPasswordReset({ email }) {
+      const user = (await pool.query('SELECT id, email FROM "user" WHERE email = $1', [email])).rows[0];
+      // No account, no message — and no difference the caller is allowed to reveal.
+      if (!user) return { delivered: false, requested: true };
+      const token = randomBytes(32).toString('base64url');
+      const identifier = `${RESET_PREFIX}${user.email}`;
+      const expiresAt = new Date(Date.now() + RESET_TTL_SECONDS * 1000);
+      await inTransaction(async (client) => {
+        await client.query('DELETE FROM verification WHERE identifier = $1', [identifier]);
+        await client.query(
+          `INSERT INTO verification(id, identifier, value, "expiresAt", "createdAt", "updatedAt")
+           VALUES($1, $2, $3, $4, now(), now())`,
+          [randomUUID(), identifier, hashToken(token), expiresAt]);
+      });
+      const message = { to: user.email, kind: 'password-reset', token, expiresAt: expiresAt.toISOString() };
+      /*
+       * THE NOTIFIER IS TOLD THE TOKEN, and it is the ONLY consumer that gets it. It is never returned to
+       * the caller's caller: the route answers {ok:true} and nothing else, because anyone can type someone
+       * else's address into the form. The LINK is not built here: the delivery channel owns the deployment's
+       * public origin, and one value in two places is how the running container once logged a link with no
+       * origin at all.
+       */
+      if (notify && typeof notify.send === 'function') await notify.send(message);
+      return { delivered: Boolean(notify && typeof notify.send === 'function'), requested: true };
+    },
+
+    /**
+     * REDEEM A RESET TOKEN.
+     *
+     * The token resolves to its own account through the row's identifier, so a link minted for one learner can
+     * never touch another's password — there is no account id in the request to get wrong.
+     *
+     * THREE THINGS HAPPEN TOGETHER, and each one matters:
+     *   * the password is replaced, hashed by the SAME `hashPassword` as registration;
+     *   * the row is DELETED, so the link works exactly once;
+     *   * EVERY SESSION IS DELETED, because the reason a learner resets is that someone else may have the
+     *     password — and an intruder's session surviving the reset means the reset achieved nothing.
+     *
+     * @returns {Promise<{userId: string} | null>} null for an unknown, expired or already-used token; the
+     *   route turns that into 400 and says nothing more.
+     */
+    async resetPassword({ token, newPassword }) {
+      if (typeof token !== 'string' || token.length < 16 || token.length > 512) return null;
+      const row = (await pool.query(
+        `SELECT id, identifier FROM verification
+          WHERE value = $1 AND identifier LIKE $2 AND "expiresAt" > now()`,
+        [hashToken(token), `${RESET_PREFIX}%`])).rows[0];
+      if (!row) return null;
+      const email = row.identifier.slice(RESET_PREFIX.length);
+      const user = (await pool.query('SELECT id FROM "user" WHERE email = $1', [email])).rows[0];
+      if (!user) return null;
+      const account = (await pool.query(
+        'SELECT id FROM account WHERE "userId" = $1 AND "providerId" = \'credential\'', [user.id])).rows[0];
+      if (!account) return null;
+      const stored = hashPassword(newPassword);
+      return inTransaction(async (client) => {
+        await client.query('UPDATE account SET password = $2, "updatedAt" = now() WHERE id = $1', [account.id, stored]);
+        // Single use: the row goes, so the link cannot be replayed even by someone who saw the log.
+        await client.query('DELETE FROM verification WHERE identifier = $1', [row.identifier]);
+        // And every session with it — including the one that may not be the learner's.
+        await client.query('DELETE FROM session WHERE "userId" = $1', [user.id]);
+        return { userId: user.id };
       });
     },
 

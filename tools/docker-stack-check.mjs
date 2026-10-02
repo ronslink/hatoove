@@ -147,6 +147,43 @@ try{
   const saved=await request('PUT','/api/v1/settings',{expectedRevision:settings.json.revision,settings:{examDate:'2026-12-01',language:'en'}},cookie);
   assert.equal(saved.status,200,saved.text);
   passed('synthetic signup, protected shell and owned settings work at configured origin');
+
+  /*
+   * ACCOUNT RECOVERY, IN THE RUNNING CONTAINER, AND THE OPERATOR'S CONSOLE IS THE PROOF.
+   *
+   * D6's recommendation is operator-assisted resets with the token path wired now: the link goes to the
+   * operator console and NO message leaves the building, because the provider is a decision a human has to
+   * make. Three things are asserted here that only the real stack can show:
+   *
+   *   1. the ROUTE exists in the running server (it was 404 before this slice);
+   *   2. the RESPONSE carries no token — the property that stops "I forgot my password" becoming "I can take
+   *      over any account whose address I know";
+   *   3. the LINK reached the operator, read from the app container's own log — the channel that replaces
+   *      email in the pilot, and the only place the token is allowed to appear.
+   *
+   * The origin of the link is configuration (`B1PREP_PUBLIC_ORIGIN`), so it is asserted to point at the
+   * configured base rather than at whatever a request header claimed.
+   */
+  const resetRequest = await request('POST','/api/auth/request-password-reset',{email:credentials.email});
+  assert.equal(resetRequest.status,200,resetRequest.text);
+  assert.equal(resetRequest.text.includes('token'),false,'the reset response must not mention a token');
+  const appLog = compose(['logs','--no-color','--tail','80','app']);
+  const delivered = appLog.split('\n').filter((line)=>line.includes('[notify]') && line.includes(credentials.email));
+  assert.equal(delivered.length,1,`the operator console must receive exactly one reset line, got ${delivered.length}`);
+  assert.ok(delivered[0].includes(`${base}/reset-password?token=`),
+    `the link must point at the configured origin, got ${delivered[0].slice(0,200)}`);
+  // The token is IN the operator's line and NOWHERE in the learner's response.
+  const tokenMatch=/[?&]token=([A-Za-z0-9_-]+)/.exec(delivered[0]);
+  assert.ok(tokenMatch,'the delivered line carries a token');
+  assert.equal(resetRequest.text.includes(tokenMatch[1]),false,'and that token must not be in the response');
+  // A request for an unknown address produces no line at all: the operator must not be asked to deliver a
+  // link for an account that does not exist, and the difference must not be visible to the requester.
+  const unknown=await request('POST','/api/auth/request-password-reset',{email:`no-such-${project}@example.invalid`});
+  assert.equal(unknown.status,200,unknown.text);
+  assert.deepEqual(unknown.json,resetRequest.json,'known and unknown addresses must answer identically');
+  assert.equal(compose(['logs','--no-color','--tail','80','app']).includes('no-such-'),false,
+    'no operator line may be produced for an address with no account');
+  passed('password reset: link delivered to the operator console only, no token in the response, one identical answer');
   // LOOPBACK ALIASES ARE THE SAME ORIGIN. On a LOCAL server `localhost` and `127.0.0.1` name the
   // same machine, so a deployment configured with one and browsed at the other must not refuse the
   // learner with an unexplained "cross-origin request rejected" on sign-up. This is the leg that
