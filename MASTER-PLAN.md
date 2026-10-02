@@ -1,5 +1,7 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+**Integration reconciliation, 2 October 2026:** INTEGRATE-20261002-A combines completion head79a1659 with main4f76b94 through a normal merge. Main's only divergent change,61f7845, records historical #54/#56/#57 merges and the earlier multi-user transition. That history remains in Git and the board; the later pilot plan, Docker-only runtime, orange design and completed learner contracts govern current behavior. No retired single-user surface or older unimplemented-state claim is restored by this documentation merge.
+
 **Current delivery update, 2 October 2026:** [COMPLETE-20261002-A](work/implementation/COMPLETE-20261002-RESULT.md) and [PR #97](https://github.com/ronslink/hatoove/pull/97) implement and verify the previously missing saved-writing history/revision/export journeys, robust recovery, German account entry, readable guides, mobile navigation and sentence practice. The Docker preview is refreshed with its existing data volume preserved. The board and implementation plan carry matching states. Older absence claims below describe their inspected base, not today's candidate. PR integration/CI, qualified content approval, real devices, audio and live-model release gates remain distinct; no full product acceptance is claimed.
 
 **Regenerated:** 1 October 2026, after the workspace relocation to `D:\Hatoove` and Ron's direction change.
@@ -476,3 +478,4 @@ the choice explainable to the learner and cheap enough to run for every account.
 | **PILOT-21** | Library corpora into the database | vocab, noun lexicon, guides, sentence building. Generated seeds, one table per shape, on the `0010` pattern |
 | **PILOT-22** | `item_evidence` + `GET /api/v1/practice/next` | Deterministic adaptive selection over recorded performance |
 | **PILOT-23** | AI monitoring job | Evidence → insight, queued through the worker, with its evidence attached |
+
