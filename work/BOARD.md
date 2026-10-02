@@ -1,5 +1,9 @@
 # Hatoove work board
 
+## Integration in progress — 2 October 2026
+
+**INTEGRATE-20261002-A:** one combined candidate from completion `79a1659` and main `4f76b94`, reconciled by normal merge `a85d35d`. Delivered slices: account-context fence `f62e200` (core independently reviewed, UI verification pending); local-voice D8 `da970c2`/`b6291ca` (coordinator reviewed, adapter8 and combined synthetic browser24 pass); Claude submission preservation/export `e38b4a7`/`136afe2` (offline7 and API33 pass, independent real PostgreSQL review/checks running). Coordinator owns final integration, recovery UI, contracts and central records. Entry reviewer owns final account-context review; backend worker owns isolated PostgreSQL behavioral verification through11:40UTC; actual Claude has completed and holds no active slot. Exact combined browser/CI and final review precede merge. PR89/33 remain held; content, privacy/security, live-provider and physical-device gates remain open.
+
 ## Current completion batch — 2 October 2026
 
 [Issue #96](https://github.com/ronslink/hatoove/issues/96), [PR #97](https://github.com/ronslink/hatoove/pull/97), execution **COMPLETE-20261002-A**, base2711900. Ron requested completion of the unfinished learner work and work assignment to Claude. The coordinator owns integration in `codex/pilot-completion-20261002`; each writer has an independent managed worktree. No historical lease below is renewed. [Completion evidence and remaining acceptance](implementation/COMPLETE-20261002-RESULT.md).

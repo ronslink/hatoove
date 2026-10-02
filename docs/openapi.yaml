@@ -19,6 +19,9 @@ info:
       refused origin is `403 origin_rejected`; a missing content type is `415 json_required`.
     - **A failure is never a success.** A route that cannot answer says so: `503 not_ready` while the
       runtime is not ready, `401 unauthenticated`, `404 not_found`, `409` on a conflict.
+    - **Account consistency.** The learner app supplies optional `X-Hatoove-Account` on owned routes,
+      get-session and sign-out. A mismatch with the verified session returns `409 account_changed`
+      before any data operation. This is a precondition, never an ownership selector.
     - **Not ready ⇒ 503, in every mode.** Omitting `B1PREP_SAAS` does not re-open a single-user path.
 
     `tools/api-spec-check.mjs` verifies this document against a running server: every operation here
@@ -410,9 +413,10 @@ paths:
         '409': { description: 'Stale revision (`stale_revision`).' }
     delete:
       tags: [attempts]
-      summary: Remove an owned attempt
+      summary: Discard an owned unsubmitted draft
       responses:
-        '200': { description: 'Removed; queued or running jobs are cancelled and their reservation released.' }
+        '200': { description: 'Unsubmitted draft tombstoned.' }
+        '409': { description: 'Submitted writing is preserved (`submitted_attempt`). A stale account precondition returns `account_changed`.' }
 
   /api/v1/attempts/{id}/submissions:
     parameters:

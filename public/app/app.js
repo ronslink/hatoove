@@ -74,26 +74,40 @@ const state = { account: null, settings: null, revision: null };
 
 /** The view currently on screen, so a late failure from the previous one is not painted over it. */
 let currentView = 'heute';
+let sessionProblem = null;
 
 // ---------------------------------------------------------------- plumbing
 
 function showError(message) {
   const box = el('error');
+  if (sessionProblem) {
+    box.textContent = (sessionProblem === 'account_changed'
+      ? 'Das angemeldete Konto wurde in einem anderen Fenster gewechselt. Dieses Fenster ist gesperrt.'
+      : 'Deine Sitzung ist abgelaufen. Dieses Fenster ist gesperrt.')
+      + ' Dein ungespeicherter Text bleibt hier. Kopiere ihn, bevor du dich erneut anmeldest.';
+    const signIn = document.createElement('a');
+    signIn.href = '/signin'; signIn.className = 'btn'; signIn.textContent = 'Erneut anmelden';
+    box.append(' ', signIn); box.hidden = false;
+    return;
+  }
   box.textContent = message || '';
   box.hidden = !message;
 }
 
-window.addEventListener('hatoove:session-expired', () => {
-  showError('Deine Sitzung ist abgelaufen. Dein ungespeicherter Text bleibt in diesem Fenster. Kopiere ihn, bevor du dich erneut anmeldest.');
-  const signIn = document.createElement('a');
-  signIn.href = '/signin'; signIn.className = 'btn'; signIn.textContent = 'Erneut anmelden';
-  el('error').append(' ', signIn);
+window.addEventListener('hatoove:session-expired', (event) => {
+  sessionProblem ||= event.detail?.reason || 'session_expired';
+  showError();
 });
+// A focus check gives early feedback; every individual request also carries the server-side
+// precondition, so a cookie change between this check and a write is still refused atomically.
+const checkSession = () => { if (state.account && !sessionProblem && !document.hidden) void api.session(); };
+window.addEventListener('focus', checkSession);
+document.addEventListener('visibilitychange', checkSession);
 
 /**
  * How to describe a failed call to a learner.
  *
- * `status === 0` means the request never reached the server (see `api.js`), and printing "(0)" for a
+ * `status === 0` means the response was not received; a write may already have reached the server.
  * dropped connection tells the learner nothing — every message that used to interpolate the raw status
  * goes through here instead.
  */
@@ -948,7 +962,7 @@ el('settings-form').addEventListener('submit', async (event) => {
     const wanted = { examDate: el('examDate').value, language: el('language').value };
     const res = await api.settings.write(state.revision ?? 0, wanted);
     if (!res) return;
-    if (res.status === 409) {
+    if (res.status === 409 && !sessionProblem) {
       // The server keeps a revision per account. A conflict is not a failure to hide: the learner
       // is told their view was stale and the current values are loaded.
       status.textContent = '';
@@ -997,7 +1011,7 @@ el('signout').addEventListener('click', async () => {
 
 el('delete-account').addEventListener('click', async () => {
   const sure = window.confirm(
-    'Konto endgültig löschen?\n\nDeine eigenen Datensätze werden wirklich entfernt. Das kann nicht rückgängig gemacht werden.');
+    `Konto ${state.account?.email || ''} endgültig löschen?\n\nDeine eigenen Datensätze werden wirklich entfernt. Das kann nicht rückgängig gemacht werden.`);
   if (!sure) return;
   try {
     // `{}` and not no body: the server requires `application/json` on every mutating route, so a
@@ -1005,9 +1019,11 @@ el('delete-account').addEventListener('click', async () => {
     const res = await api.account.remove();
     if (!res) return;
     if (res.ok || res.status === 204) { location.replace('/signin'); return; }
-    showError('Löschen fehlgeschlagen: ' + failure(res) + ' Das Konto wurde nicht entfernt.');
+    showError(res.status === 0 || res.status >= 500
+      ? 'Die Antwort auf deine Löschanfrage fehlt. Ob das Konto gelöscht wurde, ist unklar. Melde dich erneut an, um den Stand zu prüfen.'
+      : 'Löschen fehlgeschlagen: ' + failure(res) + ' Das Konto wurde nicht entfernt.');
   } catch {
-    showError('Löschen fehlgeschlagen: keine Verbindung zum Server. Das Konto wurde nicht entfernt.');
+    showError('Die Antwort auf deine Löschanfrage fehlt. Ob das Konto gelöscht wurde, ist unklar. Melde dich erneut an, um den Stand zu prüfen.');
   }
 });
 
@@ -1037,11 +1053,8 @@ window.addEventListener('hashchange', route);
     // Tag the options before the first settings read, so the language tags and `dir` are never
     // missing while the request is in flight.
     applyExplanationDirection();
-    // The session comes through the same API layer as everything else. A 401 here is NOT auto-
-    // redirected by the layer (auth paths are excluded, because sign-in itself returns 401), so the
-    // boot decides for itself. NOTE: `get-session` answers 200 with a null body when signed out, so
-    // this guard cannot fire on its own — the static gate on /app/ and the 401 from the first owned
-    // call are what actually refuse an anonymous visitor.
+    // Bind this page to the verified account before loading owned data. Only a fresh boot may
+    // redirect on missing identity; expiry in an active writing view preserves its unsaved text.
     const session = await api.session();
     if (!session || !session.ok) { location.replace('/signin'); return; }
     el('dict-q')?.addEventListener('input', () => guard(renderDictionary()));

@@ -119,12 +119,15 @@ try {
   await cdp.evaluate("__readProbe.active.onerror({error:'audio-busy'}); return true");
   record('playback error offers honest retry', await cdp.evaluate("return document.querySelector('#history-detail .read-aloud-status').textContent.includes('fehlgeschlagen') && document.querySelector('#history-detail .read-aloud button').textContent === 'Vorlesen'"));
   await cdp.click('#history-detail .read-aloud button');
-  await cdp.evaluate("window.dispatchEvent(new CustomEvent('hatoove:session-expired',{detail:{reason:'account_changed'}})); return true");
-  record('session/account expiry stops speech without removing saved comments', await cdp.evaluate("return !__readProbe.active && Boolean(document.querySelector('[data-read-comment]'))"));
-  await cdp.click('#history-detail .read-aloud button');
   await cdp.click('#signout');
   await cdp.waitFor("document.querySelector('#error').textContent.includes('Abmelden fehlgeschlagen')");
   record('sign-out attempt stops speech even when sign-out fails', await cdp.evaluate('return !__readProbe.active'));
+  await cdp.click('[data-attempt=fallback]');
+  await cdp.waitFor("document.querySelector('[data-read-comment]')?.lang === 'de'");
+  await cdp.click('#history-detail .read-aloud button');
+  await cdp.evaluate("window.dispatchEvent(new CustomEvent('hatoove:session-expired',{detail:{reason:'account_changed'}})); return true");
+  record('session/account expiry stops speech without removing saved comments', await cdp.evaluate("return !__readProbe.active && Boolean(document.querySelector('[data-read-comment]'))"));
+  record('frozen account keeps the recovery message and stops further playback', await cdp.evaluate("return document.querySelector('#history-detail .read-aloud button').disabled && document.querySelector('#error').textContent.includes('Konto wurde')"));
   record('no new API route, text upload or provider call', requests.every(request => request.method === 'GET' || request.pathname === '/api/auth/sign-out'));
   record('no uncaught browser exceptions', cdp.consoleErrors().filter(error => error.startsWith('exception:')).length === 0);
 } finally {

@@ -36,6 +36,7 @@ import { fileURLToPath } from 'node:url';
 
 import { launchBrowser, connectToPage, sleep } from './cdp.js';
 import { verifyLearnerCompletion } from './learner-completion-browser.mjs';
+import { verifyAccountContext } from './account-context-browser.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const KEEP = process.argv.includes('--keep');
@@ -2028,6 +2029,7 @@ async function main() {
       `${tiles} tile(s), ${openSetAudit.count} control(s); offenders=${JSON.stringify(openSetAudit.offenders)}`);
 
     await verifyLearnerCompletion({ base, email, password: SYNTHETIC.password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, shots: SHOTS });
+    await verifyAccountContext({ base, freePort, record, shot, viewport, theme, nav, setInputs, clickSel });
     note('screenshots', SHOTS);
     note('device honesty', 'headless Chromium on desktop is not iPhone Safari or Android Chrome; the real-device gate stays open');
     void landingText;

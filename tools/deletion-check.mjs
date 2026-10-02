@@ -174,7 +174,12 @@ async function seed(call, label) {
   const second = await submitted(`Zweiter Versuch ${label}.`);
   assert.ok(await world.store.worker.claim(second.submissionId));
   assert.ok(await world.store.worker.fail(second.submissionId, 'synthetic_failure'));
-  assert.equal((await call('DELETE', `/api/v1/attempts/${second.attemptId}`, { cookie, body: {} })).status, 200);
+  assert.equal((await call('DELETE', `/api/v1/attempts/${second.attemptId}`, { cookie, body: {} })).status, 409);
+  // A draft discard can no longer delete submitted history. Keep that failed submission for
+  // hard-account-deletion coverage, and add a genuinely unsubmitted tombstone separately.
+  const discarded = await call('POST', '/api/v1/attempts', { cookie, body: {} });
+  assert.equal(discarded.status, 201);
+  assert.equal((await call('DELETE', `/api/v1/attempts/${discarded.json.id}`, { cookie, body: {} })).status, 200);
 
   const settings = await call('PUT', '/api/v1/settings', { cookie, body: { expectedRevision: 0, theme: 'dark', dailyGoal: 30 } });
   assert.equal(settings.status, 200, `settings ${label}: ${settings.status}`);

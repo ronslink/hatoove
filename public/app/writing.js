@@ -2,13 +2,22 @@
 export function createWritingController({ api, esc, readAloud = null, onChange = () => {} }) {
   let active = null;
   let serial = 0;
+  let sessionBlocked = false;
   const labels = { aufgabe: 'Aufgabenbewältigung', kommunikation: 'Kommunikative Gestaltung', richtigkeit: 'Formale Richtigkeit' };
   const message = (r) => r?.status === 0 ? 'Keine Verbindung zum Server.' : r?.status === 429 ? 'Bitte warte kurz und versuche es erneut.' : 'Die Anfrage konnte nicht abgeschlossen werden.';
-  const current = (s) => active === s && s.host.isConnected;
+  const current = (s) => !sessionBlocked && active === s && s.host.isConnected;
   const say = (s, html) => { if (current(s)) { readAloud?.clear(s.status); s.status.innerHTML = html; } };
   const button = (id, text, primary = false) => `<button type="button" class="btn${primary ? ' btn-primary' : ''}" id="${id}">${text}</button>`;
   const prompt = (task) => `<div class="card-head"><h3>${esc(task.topic || 'Gespeicherter Text')}</h3><span class="chip">Schreiben</span></div><p>${esc(task.situation || '')}</p>${task.adressat ? `<p class="small muted">Anrede: ${esc(task.adressat)}</p>` : ''}<ul class="leitpunkte">${(task.leitpunkte || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>`;
   const dirty = (s) => Boolean(s?.area && !s.submission && s.area.value !== s.saved);
+  window.addEventListener('hatoove:session-expired', () => {
+    if (!active) { sessionBlocked = true; return; }
+    clearTimeout(active.timer); clearTimeout(active.poll);
+    if (active.area) active.area.readOnly = true;
+    for (const control of active.host.querySelectorAll('button')) control.disabled = true;
+    if (active.area && !active.submission) say(active, '<p class="err">Dieses Fenster kann nicht mehr speichern. Dein Text bleibt zum Kopieren sichtbar. Melde dich danach erneut an.</p>');
+    sessionBlocked = true;
+  });
   function dispose() {
     if (active) readAloud?.clear(active.host);
     if (active?.timer) clearTimeout(active.timer);
@@ -29,6 +38,7 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     };
   }
   async function save(s) {
+    if (sessionBlocked) return false;
     if (!current(s) || !s.attempt || s.submission) return true;
     if (s.conflict) return false;
     if (s.saving) { await s.saving; return current(s) && (dirty(s) ? save(s) : !s.conflict); }
@@ -46,7 +56,8 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
       say(s, '<p class="muted">Gespeichert. Noch nichts abgegeben.</p>');
       return true;
     }
-    if (res?.status === 409) {
+    if (sessionBlocked) return false;
+    if (res?.status === 409 && res.error === 'draft_conflict') {
       s.conflict = true;
       compareConflict(s);
       return false;
@@ -125,6 +136,7 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     if ((job.status === 'queued' || job.status === 'running') && tries < 10) s.poll = setTimeout(() => showResult(s, submissionId, tries + 1), 1800);
   }
   async function open(host, task, options = {}) {
+    if (sessionBlocked) return false;
     if (!(await flush())) return false;
     dispose();
     const list = host.parentElement?.querySelector('.stack[id^="skill-"]');
@@ -162,7 +174,7 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     host.innerHTML = `<div class="card">${prompt(s.task)}<label class="field-label" for="writing-text">Dein Text</label><textarea id="writing-text" class="writing-text" rows="12" maxlength="12000" aria-describedby="writing-state"></textarea><p class="small muted">Dein Entwurf wird beim Schreiben gespeichert. Mit „Abgeben“ bleibt diese Fassung unverändert erhalten.</p><div class="row">${button('writing-submit', 'Abgeben', true)}${button('writing-new', 'Neu anfangen')}${button('writing-close', 'Schließen')}</div><div id="writing-state" class="writing-state" role="status" aria-live="polite"><p class="muted">${s.saved ? 'Gespeicherter Entwurf fortgesetzt.' : 'Noch nichts abgegeben.'}</p></div><details class="rubric-panel" id="writing-rubric"><summary>Wie wird bewertet?</summary><div id="writing-rubric-body">Wird geladen …</div></details></div>`;
     s.area = host.querySelector('#writing-text'); s.area.value = s.saved;
     s.status = host.querySelector('#writing-state');
-    bindClose(s); void rubric(s);
+    bindClose(s); void rubric(s, result.data.rubric);
     s.area.addEventListener('input', () => { clearTimeout(s.timer); if (s.conflict) return; say(s, '<p class="muted">Noch nicht gespeichert …</p>'); s.timer = setTimeout(() => save(s), 600); });
     host.querySelector('#writing-submit').onclick = async (e) => {
       const trigger = e.currentTarget;
@@ -170,7 +182,9 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
       s.submitting = true; trigger.disabled = true; s.area.readOnly = true;
       const discard = host.querySelector('#writing-new'); discard.disabled = true;
       clearTimeout(s.timer);
-      if (!(await save(s))) { s.submitting = false; trigger.disabled = false; s.area.readOnly = false; discard.disabled = Boolean(s.eventId); return; }
+      const saved = await save(s);
+      if (!current(s)) return;
+      if (!saved) { s.submitting = false; trigger.disabled = false; s.area.readOnly = false; discard.disabled = Boolean(s.eventId); return; }
       s.eventId ||= crypto.randomUUID();
       const submit = await api.writing.submit(s.attempt, s.revision, s.eventId);
       if (!current(s)) return;
@@ -191,7 +205,16 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
       clearTimeout(s.timer); if (s.saving) await s.saving;
       const removed = await api.writing.deleteAttempt(s.attempt);
       if (!current(s)) return;
-      if (!removed?.ok) { s.discarding = false; say(s, `<p class="err">${message(removed)} Dein Entwurf wurde nicht verworfen.</p>`); return; }
+      if (!removed?.ok) {
+        s.discarding = false;
+        if (removed?.error === 'submitted_attempt') {
+          s.area.readOnly = true;
+          host.querySelector('#writing-new').disabled = true;
+          host.querySelector('#writing-submit').disabled = true;
+          say(s, '<p class="err">Dieser Entwurf wurde bereits in einem anderen Fenster abgegeben. Er wurde nicht verworfen. Dein Text bleibt hier zum Kopieren sichtbar. Die Abgabe findest du im Verlauf.</p>');
+        } else say(s, `<p class="err">${message(removed)} Dein Entwurf wurde nicht verworfen.</p>`);
+        return;
+      }
       s.saved = s.area.value; dispose(); await open(host, s.task);
     };
     return true;

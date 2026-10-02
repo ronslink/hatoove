@@ -80,7 +80,7 @@ async function call(method, path, body) {
      * A transport failure is an ANSWER, not an exception. Without this the promise rejects, no caller
      * catches it, and the learner is left looking at "Wird geladen …" for ever with no message — the
      * module's own contract (above) says it returns a result rather than throwing, and this is what
-     * makes that true. `status: 0` means "the request never reached the server".
+     * makes that true. `status: 0` means "no response received"; a write may already have committed.
      */
     return refusal(0, ticket === generation ? 'network' : 'stale_session');
   }

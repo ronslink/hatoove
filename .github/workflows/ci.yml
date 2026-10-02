@@ -103,6 +103,12 @@ jobs:
         run: node tools/owned-api-check.mjs
       - name: Owned API client contract
         run: node tools/owned-client-check.mjs
+      - name: Stale tabs cannot follow another account cookie
+        run: node tools/account-context-check.mjs
+      - name: Read aloud uses explicit matching local voices
+        run: node tools/read-aloud-check.mjs
+      - name: Submitted writing and retained export data survive stale draft deletion
+        run: node tools/submission-preservation-check.mjs
       - name: Saved writing history export and revision contracts
         run: node tools/learner-history-check.mjs
       - name: Conservative sentence hints and recovered source identities

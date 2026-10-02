@@ -1,5 +1,9 @@
 # Hatoove implementation plan
 
+## Integration in progress — 2 October 2026
+
+Execution **INTEGRATE-20261002-A** consolidates the reviewed completion stack into one candidate based on current main `4f76b94`; the normal merge `a85d35d` reconciles only historical plan/board records. Independent review found a stale-tab account-cookie defect and a cross-window submitted-draft discard defect. The coordinator delivered the expected-account fence (`f62e200`); Claude delivered submitted-writing preservation and complete retained export (`e38b4a7`, integrated as `136afe2`). The D8 worker delivered optional matching local-voice read-aloud (`da970c2`, adopted as `b6291ca`). Recovery UI and exact combined browser/PostgreSQL verification are in progress. Delivered and locally tested do not yet mean merged or product accepted. PR89 and PR33 remain held and outside this candidate. No live AI or production deployment.
+
 ## Active completion — 2 October 2026
 
 Execution **COMPLETE-20261002-A**, [issue #96](https://github.com/ronslink/hatoove/issues/96), [PR #97](https://github.com/ronslink/hatoove/pull/97), delivers the unfinished learner journeys and refreshes the local Docker preview. The [board](work/BOARD.md) records the same transition. German entry/recovery, rights policy, saved history/revisions/export, robust writing recovery, readable guides, five mobile tabs and sentence practice are implemented and independently reviewed. Claude delivered both bounded CI/security repairs. [The result](work/implementation/COMPLETE-20261002-RESULT.md) distinguishes exact evidence from remaining product gates.
