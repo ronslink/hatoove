@@ -102,39 +102,34 @@ for (const op of gatedOps) {
   else fail(`S-gated  ${op.method} ${op.pathname}`, `declared to require a session but answered ${status} to an anonymous caller`);
 }
 
-// The retired surface must be DOCUMENTED, not merely absent: an undocumented retired route is how a
-// route quietly comes back. This asserts those conventions are visible in the document.
-//
-// `/api/progress` LEFT THIS LIST ON 2 OCTOBER 2026 because it stopped being a retired-but-present route
-// and became an ABSENT one: its handlers, its account header, its revision marker and its file writes
-// are deleted from server.js, and `tools/retired-surface-check.mjs` is the negative check that keeps
-// them gone. Documenting a route that no longer exists is the opposite mistake — a spec that names a
-// route an operator could still call.
-for (const required of ['/api/config', '/api/ai', 'deprecated: true']) {
-  if (text.includes(required)) pass(`S-documented ${required}`, 'present in the spec');
-  else fail(`S-documented ${required}`, 'missing from the spec: a retired route that is not documented is how it comes back');
+/*
+ * THE SPEC MUST NOT DOCUMENT A ROUTE THAT DOES NOT EXIST — rewritten 2 October 2026 (SPA-RETIRE 6).
+ *
+ * This block used to REQUIRE `/api/config` and `/api/ai` to be present, on the reasoning that "an
+ * undocumented retired route is how a route quietly comes back". That reasoning held while they were
+ * retired-but-PRESENT. They are now DELETED from `server.js` (SPA-RETIRE 6), so the requirement inverts:
+ * a spec that documents a route an operator could still call is the defect, and the negative check that
+ * keeps the route gone is `tools/retired-surface-check.mjs` (legs R8/R9).
+ *
+ * Both directions are asserted, in the shape the `/api/progress` leg already uses: no PATH KEY may be
+ * declared, and the REMOVAL must be recorded in a comment — because a spec forbidden to name a retired
+ * route cannot say it was ever there, and losing that record is how it comes back.
+ */
+for (const route of ['/api/progress', '/api/config', '/api/ai']) {
+  const pathKey = new RegExp(`^ {2}${route.replace(/\//g, '\\/')}:( |$)`, 'm');
+  if (pathKey.test(text)) fail(`S-absent ${route}`, 'the spec still declares a path for a route that is deleted: remove it, and let retired-surface-check guard its absence');
+  else pass(`S-absent ${route}`, 'no path key declared, because the route no longer exists');
+  const recorded = new RegExp(`^[ \\t]*#.*${route.replace(/\//g, '\\/')}.*REMOVED`, 'm');
+  if (recorded.test(text)) pass(`S-recorded ${route} removal`, 'the spec records WHY the route is absent, which a bare deletion would lose');
+  else fail(`S-recorded ${route} removal`, 'the spec no longer records that this route was removed and when; that record is how the next reader avoids re-adding it');
 }
 /*
- * A MENTION IS NOT A DOCUMENTATION — tightened 2 October 2026.
- *
- * This leg used to be `text.includes('/api/progress')`, and it went red the moment the spec recorded the
- * removal in a comment: `# /api/progress REMOVED 2 October 2026 ...`. The property is "the spec must not
- * DOCUMENT a route that does not exist", which means a PATH KEY a tool would read, not any occurrence of
- * the string — a spec that is forbidden to name a retired route cannot record that it was ever there,
- * and losing that record is its own defect. The negative check for un-documenting it is
- * `tools/retired-surface-check.mjs`, which is unchanged.
+ * The lesson from the `/api/progress` leg is folded into the loop above and worth stating once: a
+ * MENTION is not a DOCUMENTATION. The leg used to be `text.includes('/api/progress')` and went red the
+ * moment the spec recorded the removal in a comment. The property is about a PATH KEY a tool would read —
+ * and a spec forbidden to name a retired route cannot record that it was ever there, which is why
+ * `S-recorded` exists beside `S-absent`.
  */
-const progressPathKey = /^ {2}\/api\/progress:/m;
-if (progressPathKey.test(text)) {
-  fail('S-absent /api/progress', 'the spec still declares a path for a route that is deleted: remove it, and let retired-surface-check guard its absence');
-} else {
-  pass('S-absent /api/progress', 'no path key declared, because the route no longer exists');
-}
-if (/^[ \t]*#.*\/api\/progress.*REMOVED/m.test(text)) {
-  pass('S-recorded /api/progress removal', 'the spec records WHY the route is absent, which a bare deletion would lose');
-} else {
-  fail('S-recorded /api/progress removal', 'the spec no longer records that this route was removed and when; that record is how the next reader avoids re-adding it');
-}
 
 const failed = results.filter((r) => r === 'FAIL').length;
 console.log(`\n${results.length - failed} passed, ${failed} failed\n`);

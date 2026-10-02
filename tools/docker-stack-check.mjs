@@ -247,6 +247,32 @@ try{
   passed('the retired file store is absent: authenticated GET, POST and DELETE /api/progress answer 404');
 
   /*
+   * THE SPA-ERA API ROUTES ARE ABSENT TOO — the assertion `retired-surface-check` cannot make.
+   *
+   * `POST /api/config` wrote a MACHINE-GLOBAL `EXAM_DATE` for any visitor with no identity, and `GET
+   * /api/config` read it back; `/api/ai` and `/api/ai/test` reached the operator's provider from a
+   * browser. With a REAL account, a request that passes identity reaches the router and must find
+   * nothing. Bodies are deliberately EMPTY/INVALID: if a legacy AI handler were still mounted, an empty
+   * body would be refused by its own validator (422) rather than starting a provider call — a probe must
+   * never be the thing that makes a live AI request.
+   *
+   * The 404s are what make it discriminating: before the removal, GET /api/config answered 200 and
+   * POST /api/ai answered 422 with this same session.
+   */
+  for (const [m, p] of [['GET', '/api/config'], ['POST', '/api/config'], ['POST', '/api/ai'], ['POST', '/api/ai/test']]) {
+    const res = await fetch(base + p, {
+      method: m,
+      headers: { origin: base, 'content-type': 'application/json', cookie },
+      body: m === 'POST' ? '{}' : undefined,
+      redirect: 'manual', signal: AbortSignal.timeout(10000),
+    });
+    assert.equal(res.status, 404, m + ' ' + p + ' with a SESSION must be 404 (gone), got ' + res.status);
+    const body = await res.text();
+    assert.ok(!/provider_config_is_operator_only/.test(body), 'the retired provider-config refusal must not survive');
+  }
+  passed('the SPA-era API is absent: authenticated /api/config, /api/ai and /api/ai/test answer 404');
+
+  /*
    * OBJECTIVE-SEED-01 -- the authored corpus is IN THE DATABASE, and its answers are not.
    *
    * The answers sit INLINE in data/seed.json, in the same arrays as the learner-facing text, so a

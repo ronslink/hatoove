@@ -13,7 +13,6 @@
  */
 
 import http from 'node:http';
-import { timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
@@ -162,60 +161,6 @@ function settings() {
     examDate: String(process.env.EXAM_DATE || '').trim(),
   };
 }
-
-/**
- * What a route is allowed to report about server configuration.
- *
- * PROVIDER-CONFIG-01 (D1). SEC-04 / F-7 had already stopped serving characters of the key,
- * but GET /api/config and /api/health still reported `configured` (whether a key exists)
- * plus `model`/`baseUrl` (the operator's provider setup), and POST /api/config let the
- * browser write the key and base URL into the server's .env. On a hosted service that is an
- * operator control handed to a tenant. The provider key, base URL and model now come from
- * server environment configuration only, and **no route reports anything about the key** -
- * not its characters, not its presence, not a hint. `configured` is a presence report, so
- * it is gone; a client that used to branch on it learns that AI is unavailable when the
- * call fails, which is how a hosted client behaves.
- *
- * The two read routes therefore carry only non-key state:
- *   * GET /api/health carries a bare liveness payload (`ok`, `node`) for supervision;
- *   * GET /api/config carries the learner's own non-provider preference (`examDate`), and only
- *     on the local single-user install - on a hosted runtime the whole route is absent
- *     (CONFIG-ANON-01, see the route comment in handleApi), because a machine-global examDate
- *     is readable by every visitor.
- * Do not add a key-derived field back here - not a length, not a fingerprint, not a
- * presence flag (see work/implementation/PROVIDER-CONFIG-01.md, D1.2).
- */
-function publicConfig() {
-  return { examDate: settings().examDate };
-}
-
-async function saveEnv(updates) {
-  const merged = { ...readEnvFile() };
-  for (const [k, v] of Object.entries(updates)) {
-    if (v === undefined || v === null) continue;
-    merged[k] = String(v);
-  }
-  const keys = [
-    ...ENV_ORDER.filter((k) => k in merged),
-    ...Object.keys(merged).filter((k) => !ENV_ORDER.includes(k)),
-  ];
-  const lines = [
-    '# B1 Prep configuration.',
-    '# The provider key, base URL and model are operator settings: set DEEPSEEK_API_KEY,',
-    '# DEEPSEEK_BASE_URL and DEEPSEEK_MODEL in the server environment, never through a route.',
-    '',
-    ...keys.map((k) => `${k}=${merged[k]}`),
-    '',
-  ];
-  await fsp.writeFile(ENV_PATH, lines.join('\n'), 'utf8');
-  for (const [k, v] of Object.entries(merged)) {
-    if (v === '') delete process.env[k];
-    else process.env[k] = v;
-  }
-  return Object.keys(updates);
-}
-
-/* -------------------------------------------------------------------- http */
 
 function sendJSON(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -533,177 +478,8 @@ function isNavigation(req) {
   return String(req.headers.accept || '').includes('text/html');
 }
 
-/* ---------------------------------------------------------------- deepseek */
-
-class ApiError extends Error {
-  constructor(message, status, code) {
-    super(message);
-    this.status = status;
-    this.code = code;
-  }
-}
-
-async function callDeepSeek({ messages, model, temperature, json, maxTokens, timeoutMs }) {
-  const s = settings();
-  if (!s.apiKey) {
-    throw new ApiError('No DeepSeek API key configured.', 400, 'NO_KEY');
-  }
-  if (!Array.isArray(messages) || messages.length === 0) {
-    throw new ApiError('messages[] is required.', 400, 'BAD_REQUEST');
-  }
-
-  const body = {
-    model: model || s.model,
-    messages,
-    temperature: typeof temperature === 'number' ? temperature : 0.85,
-    stream: false,
-    max_tokens: Number.isFinite(maxTokens) ? maxTokens : 4096,
-  };
-  if (json) body.response_format = { type: 'json_object' };
-
-  const controller = new AbortController();
-  // Observed generation times are ~4-10s, with a 9-call mock finishing in ~12s. 120s is
-  // a ~10x margin, and bounds how long a stalled request can hang the learner.
-  const timer = setTimeout(() => controller.abort(), Number.isFinite(timeoutMs) ? timeoutMs : 120000);
-  try {
-    const res = await fetch(`${s.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${s.apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    const text = await res.text();
-
-    if (!res.ok) {
-      let detail = text.slice(0, 600);
-      try {
-        const parsed = JSON.parse(text);
-        detail = parsed?.error?.message || detail;
-      } catch {
-        /* keep raw text */
-      }
-      const code = res.status === 401 ? 'BAD_KEY' : res.status === 402 ? 'NO_CREDIT' : res.status === 429 ? 'RATE_LIMIT' : 'UPSTREAM';
-      throw new ApiError(`DeepSeek ${res.status}: ${detail}`, res.status, code);
-    }
-
-    let payload;
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      throw new ApiError('DeepSeek returned a non-JSON envelope.', 502, 'BAD_ENVELOPE');
-    }
-
-    const content = payload?.choices?.[0]?.message?.content;
-    if (typeof content !== 'string' || !content.trim()) {
-      throw new ApiError('DeepSeek returned an empty completion.', 502, 'EMPTY');
-    }
-    return {
-      content,
-      usage: payload.usage || null,
-      model: payload.model || body.model,
-      finishReason: payload?.choices?.[0]?.finish_reason || null,
-    };
-  } catch (err) {
-    if (err instanceof ApiError) throw err;
-    if (err.name === 'AbortError') throw new ApiError('DeepSeek request timed out.', 504, 'TIMEOUT');
-    throw new ApiError(`Could not reach DeepSeek: ${err.message}`, 502, 'NETWORK');
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 /* ------------------------------------------------------------------ routes */
 
-// A2 bounds. The caller may send a timeout and a token limit, but the server decides the
-// ceiling; a request cannot ask for an unbounded completion or an unbounded hang.
-const AI_BODY_LIMIT_BYTES = 256 * 1024;
-const AI_MAX_MESSAGES = 40;
-const AI_MAX_CHARS_PER_MESSAGE = 24000;
-const AI_MAX_TOKENS = 4096;
-const AI_MIN_TIMEOUT_MS = 1000;
-const AI_MAX_TIMEOUT_MS = 120000;
-
-// F1. `/api/ai/test` is operator-only, and *operator* is not a learner session. The first
-// version gated it on `B1PREP_AI_TEST` alone, so with that single variable set an anonymous
-// same-origin caller - or any signed-in learner - reached the provider with the operator's
-// key and spent the operator's credits. A flag must never be the only thing between a learner
-// and a credit-spending route, and this runtime's session port has no operator principal, so a
-// learner cookie cannot be one. The diagnostic therefore needs two independent operator facts:
-// the opt-in flag AND a dedicated operator token that only the server operator holds. Neither a
-// learner session nor an anonymous caller can present it, in every configuration.
-const AI_TEST_TOKEN_HEADER = 'x-b1prep-operator-token';
-
-/** The operator token, from the dedicated header or `Authorization: Bearer`. */
-function operatorTokenFrom(req) {
-  const header = req.headers[AI_TEST_TOKEN_HEADER];
-  if (typeof header === 'string' && header !== '') return header;
-  const match = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
-  return match ? match[1].trim() : null;
-}
-
-/** Constant-time comparison; a missing on either side is never a match. */
-function operatorTokenMatches(provided, expected) {
-  if (typeof provided !== 'string' || provided === '' || typeof expected !== 'string' || expected === '') return false;
-  const a = Buffer.from(provided, 'utf8');
-  const b = Buffer.from(expected, 'utf8');
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
-/**
- * The refusal for `POST /api/ai/test`, or null when the operator credential is present. It
- * deliberately never consults a session: a verified learner session is not an operator.
- */
-function aiTestRefusal(req, env = process.env) {
-  const message = 'POST /api/ai/test is operator-only. A learner session is never sufficient.';
-  if (env.B1PREP_AI_TEST !== '1') {
-    return { status: 403, code: 'ai_test_operator_only', error: `${message} Set B1PREP_AI_TEST=1 in the server environment to enable the diagnostic.` };
-  }
-  if (!env.B1PREP_AI_TEST_TOKEN) {
-    return { status: 403, code: 'ai_test_operator_only', error: `${message} No operator token is configured.` };
-  }
-  if (!operatorTokenMatches(operatorTokenFrom(req), env.B1PREP_AI_TEST_TOKEN)) {
-    return { status: 403, code: 'ai_test_operator_only', error: `${message} Present the operator token.` };
-  }
-  return null;
-}
-
-/**
- * Validate and bound an `/api/ai` body. The model is deliberately absent: it is operator
- * configuration (`DEEPSEEK_MODEL`), and a caller-supplied model is discarded, not honoured.
- */
-function validateAiRequest(body) {
-  const messages = body && body.messages;
-  if (!Array.isArray(messages) || messages.length === 0 || messages.length > AI_MAX_MESSAGES) {
-    throw Object.assign(new Error(`messages[] must be an array of 1..${AI_MAX_MESSAGES}`), { status: 422, code: 'invalid_messages' });
-  }
-  for (const m of messages) {
-    if (!m || typeof m !== 'object' || typeof m.role !== 'string' || typeof m.content !== 'string'
-      || m.content.length > AI_MAX_CHARS_PER_MESSAGE) {
-      throw Object.assign(new Error('each message needs a string role and a string content within the limit'), { status: 422, code: 'invalid_messages' });
-    }
-  }
-  const number = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-  const maxTokens = number(body.maxTokens);
-  const timeoutMs = number(body.timeoutMs);
-  return {
-    messages,
-    temperature: clamp(number(body.temperature) ?? 0.85, 0, 2),
-    json: body.json !== false,
-    maxTokens: maxTokens === null ? AI_MAX_TOKENS : clamp(Math.floor(maxTokens), 1, AI_MAX_TOKENS),
-    timeoutMs: timeoutMs === null ? AI_MAX_TIMEOUT_MS : clamp(Math.floor(timeoutMs), AI_MIN_TIMEOUT_MS, AI_MAX_TIMEOUT_MS),
-  };
-}
-
-/**
- * The verified session behind a request, resolved through the owned API's own session port.
- * There is no second identity source: a header, a body field or a query never names an account.
- * Returns null when there is no session, when accounts are not mounted, or when the port is not
- * configured - all three are "no identity", and the AI routes refuse on any of them.
- */
 async function requestIdentity(owned, req) {
   if (!owned) return null;
   try {
@@ -720,11 +496,6 @@ async function requestIdentity(owned, req) {
 async function handleApi(req, res, pathname, ctx = {}) {
   const method = req.method || 'GET';
   const { owned = null, saas = false } = ctx;
-  // A2. Identity is required on the AI routes in hosted mode, and whenever accounts are
-  // mounted (then a session exists and it is the only acceptable source of it). A plain local
-  // install with accounts off keeps its single-user AI path, which is the local contract.
-  const identityRequired = saas || Boolean(owned);
-
   if (pathname === '/api/health' && method === 'GET') {
     // Liveness only: a supervised service needs this, and it must reveal nothing about the
     // provider key. No `configured`, no `model`, no `baseUrl` (D1.2).
@@ -746,121 +517,33 @@ async function handleApi(req, res, pathname, ctx = {}) {
   }
 
 
-  // CONFIG-ANON-01. The machine-global config route is not served on a hosted runtime.
+  // THE MACHINE-GLOBAL CONFIG ROUTE WAS DELETED HERE (SPA-RETIRE 6, 2 October 2026).
   //
-  // POST /api/config required no identity: it refused only the provider field *names* and then
-  // handed everything else to saveEnv, which wrote the shared .env file and assigned it into
-  // process.env. With B1PREP_SAAS=1 and no cookie at all, {"examDate":"2099-01-01"} returned
-  // 200, rewrote EXAM_DATE=2099-01-01 in the env file, and every visitor then read the
-  // attacker's date from GET /api/config. The same-origin gate is satisfied by design (a
-  // browser supplies Origin) and the handler never consulted identity - while the learner
-  // route one line away refused. GET /api/config reports the same machine-global value to
-  // every visitor, so the read goes with the write.
+  // GET/POST /api/config read and wrote EXAM_DATE in the shared .env file for EVERY visitor, with no
+  // identity at all: a hosted runtime answered 404 (CONFIG-ANON-01), and the local single-user install
+  // kept it, which is precisely the runtime Compose replaced. There is no local single-user install any
+  // more, so there is no mode in which this route should answer.
   //
-  // On a hosted runtime neither method is handled: the request falls through to the generic
-  // 404, exactly like any other unknown endpoint (this is deletion, not an identity gate on a
-  // machine-global write). The learner's exam date lives in GET/PUT /api/v1/settings, per
-  // account under the session-derived owner. The local single-user install (B1PREP_SAAS off)
-  // keeps the route: it has no visitors to protect it from, its only write consumer is its own
-  // settings view, and removing it belongs to the local-install cutover, not this slice.
-  // See work/implementation/CONFIG-ANON-01.md.
-  if (saas && pathname === '/api/config') {
-    return false;
-  }
+  // Its properties now live where they can be observed: the learner's own examDate is
+  // GET/PUT /api/v1/settings, per account under the session-derived owner; the provider key, base URL
+  // and model are operator configuration that no browser can set OR read (owned-api-check leg
+  // `model-is-not-a-learner-setting`, app-browser-check L31); and the route's absence is a negative
+  // check (retired-surface-check legs R8/R9, docker-stack-check's authenticated-404 leg).
 
-  if (pathname === '/api/config' && method === 'GET') {
-    sendJSON(res, 200, publicConfig());
-    return true;
-  }
+  // THE BROWSER-FACING AI ROUTE WAS DELETED HERE (SPA-RETIRE 6, 2 October 2026).
+  //
+  // POST /api/ai let a signed-in caller spend the operator's provider credits from a browser. The
+  // product direction is that assessment is a SERVER-SIDE job: text is submitted through the owned API
+  // and a worker marks it (server/owned-postgres/worker.mjs, held by worker-runner-check and
+  // owned-api-check). With this route gone, no HTTP route in this file can reach the provider at all,
+  // which is why `callDeepSeek` and its bounds went with it.
 
-  if (pathname === '/api/config' && method === 'POST') {
-    const body = await readJSON(req);
-    // D1.1: the provider is operator configuration. A browser may not set, change or read
-    // the key, the base URL or the model. Those attempts are refused with a clear status
-    // rather than silently ignored, and nothing is written to the environment file.
-    const keys = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
-    const refused = ['apiKey', 'baseUrl', 'model'].filter((field) => Object.hasOwn(keys, field));
-    if (refused.length) {
-      sendJSON(res, 403, {
-        ok: false,
-        code: 'provider_config_is_operator_only',
-        error: 'The provider configuration (' + refused.join(', ') + ') is set by the server operator, not from the browser.',
-        refused,
-      });
-      return true;
-    }
-    const updates = {};
-    if (typeof keys.examDate === 'string') updates.EXAM_DATE = keys.examDate.trim();
-    const saved = await saveEnv(updates);
-    sendJSON(res, 200, { ok: true, ...publicConfig(), saved });
-    return true;
-  }
-
-  if (pathname === '/api/ai' && method === 'POST') {
-    // A2.1: an anonymous caller must never reach the operator's provider key. With accounts
-    // mounted (or in hosted mode) the session is required; without either, this is the local
-    // single-user install and the request proceeds.
-    if (identityRequired && !(await requestIdentity(owned, req))) {
-      sendJSON(res, 401, { ok: false, code: 'unauthenticated', error: 'A signed-in session is required for the AI routes.' });
-      return true;
-    }
-    const body = await readJSON(req, AI_BODY_LIMIT_BYTES);
-    let params;
-    try {
-      params = validateAiRequest(body);
-    } catch (err) {
-      sendJSON(res, err.status || 422, { ok: false, code: err.code || 'invalid_request', error: err.message });
-      return true;
-    }
-    try {
-      // A2.2: the caller's `model` is not passed. The model is operator configuration
-      // (`DEEPSEEK_MODEL`) exactly as the provider is (D1), so `callDeepSeek` falls back to
-      // the operator's model. Nothing a request says can change it.
-      const result = await callDeepSeek({
-        messages: params.messages,
-        temperature: params.temperature,
-        json: params.json,
-        maxTokens: params.maxTokens,
-        timeoutMs: params.timeoutMs,
-      });
-      sendJSON(res, 200, { ok: true, ...result });
-    } catch (err) {
-      sendJSON(res, err.status || 500, {
-        ok: false,
-        code: err.code || 'ERROR',
-        error: err.message,
-      });
-    }
-    return true;
-  }
-
-  if (pathname === '/api/ai/test' && method === 'POST') {
-    // A2.4 / F1: a diagnostic that spends the operator's credits is operator-only, and an
-    // operator is not a learner session. Both the opt-in flag and a dedicated operator token
-    // are required; an anonymous caller and a signed-in learner are both refused, in every
-    // configuration, before any provider call.
-    const refusal = aiTestRefusal(req);
-    if (refusal) {
-      sendJSON(res, refusal.status, { ok: false, code: refusal.code, error: refusal.error });
-      return true;
-    }
-    try {
-      const result = await callDeepSeek({
-        messages: [
-          { role: 'system', content: 'Antworte ausschliesslich mit JSON.' },
-          { role: 'user', content: 'Gib genau dieses JSON zurueck: {"ok":true}' },
-        ],
-        temperature: 0,
-        json: true,
-        maxTokens: 32,
-        timeoutMs: 30000,
-      });
-      sendJSON(res, 200, { ok: true, model: result.model, sample: result.content.trim().slice(0, 120) });
-    } catch (err) {
-      sendJSON(res, err.status || 500, { ok: false, code: err.code || 'ERROR', error: err.message });
-    }
-    return true;
-  }
+  // THE OPERATOR DIAGNOSTIC WAS DELETED HERE (SPA-RETIRE 6, 2 October 2026).
+  //
+  // POST /api/ai/test spent the operator's credits to answer "is the key configured", which is an
+  // OPERATOR question answered by the deployment's own environment and healthchecks, not by a route a
+  // browser can reach. Its operator-token machinery (B1PREP_AI_TEST, B1PREP_AI_TEST_TOKEN,
+  // operatorTokenMatches) is deleted with it: an unused credential path is a liability.
 
   return false;
 }

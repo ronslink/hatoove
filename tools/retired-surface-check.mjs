@@ -114,6 +114,36 @@ try {
     handlers.length ? `${handlers.length} handler(s) still in server.js` : 'no handler literal in server.js',
   );
 
+  /*
+   * R8 — THE LEGACY SPA-ERA API ROUTES. Added BEFORE their removal (SPA-RETIRE 6), so it was red on the
+   * un-retired tree and changed colour with the deletion. `/api/config` wrote a MACHINE-GLOBAL
+   * `EXAM_DATE` for any visitor with no identity at all; `/api/ai` and `/api/ai/test` reached the
+   * operator's provider from a browser. All three are the retired single-user runtime's surface, and the
+   * governing direction is SaaS-only with Compose as the runtime — so they must not come back.
+   *
+   * Source-level, because the auth wrap answers 401 before any handler: anonymously, "route absent" and
+   * "route present but refused" are indistinguishable. The authenticated 404 is asserted in
+   * tools/docker-stack-check.mjs, where a session exists.
+   */
+  const LEGACY_ROUTES = ['/api/config', '/api/ai', '/api/ai/test'];
+  const routeMounts = LEGACY_ROUTES.flatMap((route) => {
+    const matches = serverSource.match(new RegExp(`pathname === '${route.replace(/\//g, '\\/')}'`, 'g')) || [];
+    return matches.map((m) => `${route} x${matches.length}`);
+  });
+  record(
+    'R8 the legacy API routes are gone',
+    'server.js mounts no /api/config, /api/ai or /api/ai/test handler',
+    routeMounts.length === 0,
+    routeMounts.length ? `still mounted: ${[...new Set(routeMounts)].join(', ')}` : 'no handler literal for any of the three',
+  );
+  const providerLiteral = /provider_config_is_operator_only/.test(serverSource);
+  record(
+    'R9 the browser-facing provider refusal code is gone',
+    'provider_config_is_operator_only exists nowhere in server.js (the route it answered for is deleted, not gated)',
+    !providerLiteral,
+    providerLiteral ? 'the refusal token is still defined in server.js' : 'token absent: the route it belonged to is gone',
+  );
+
   /* --------------------------------------------------- no file was ever opened */
 
   const touched = fs.existsSync(sentinel);

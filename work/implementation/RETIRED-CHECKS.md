@@ -26,6 +26,64 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — SPA-RETIRE 6: the legacy API is DELETED, and two lessons that cost real time
+
+**Deleted from `server.js`:** `GET /api/config` and `POST /api/config` (plus their hosted-mode gate),
+`POST /api/ai`, `POST /api/ai/test`, and every helper they were the last user of — `publicConfig`,
+`saveEnv`, `callDeepSeek` and its `ApiError`, `validateAiRequest`, the `AI_*` bounds, `aiTestRefusal` and
+its operator-token machinery, the `identityRequired` flag, and the now-unused `timingSafeEqual` import.
+**No HTTP route in `server.js` can reach the provider any more.** The learner's exam date is
+`GET/PUT /api/v1/settings`, per account; the provider is operator environment configuration; assessment is
+a server-side worker job.
+
+**Asserted absent, not merely ungated:**
+
+| Where | What it asserts |
+|---|---|
+| `retired-surface-check` **R8** | no `pathname === '/api/config'`, `'/api/ai'` or `'/api/ai/test'` handler literal in `server.js` |
+| `retired-surface-check` **R9** | `provider_config_is_operator_only` exists nowhere in `server.js` — the route is deleted, not gated |
+| `docker-stack-check` | all three answer **404 to an AUTHENTICATED caller** — the difference between "gone" and "merely rude" (bodies are deliberately empty so a mounted legacy AI handler would 422 rather than start a provider call) |
+| `api-spec-check` | `S-absent` (no path key) **and** `S-recorded` (the removal is recorded) for `/api/progress`, `/api/config`, `/api/ai` |
+| `docs/openapi.yaml` | the paths are removed; the removal and its reasons are recorded in a comment |
+
+**Anonymously this is invisible, and that is by design:** every `/api/*` path answers **401** to a caller
+with no session (only `/api/health` and `/api/ready` are public), so the negative check works from source
+literals and the authenticated assertion works with a session.
+
+**LESSON 1 — the over-cut that only EXECUTION caught.** The cleanup script's first run removed five
+runtime helpers it was not aimed at (`sendJSON`, `readBody`, `readJSON`, `requestIdentity`, and
+`LOOPBACK_HOSTNAMES`) because an end anchor of `async function handleApi(` swallowed everything between.
+`node --check` passed — a syntax check cannot see a missing function — and so did a regex "proof" that the
+survivors were present. `retired-surface-check` caught it by **booting the server**
+(`ReferenceError: sendJSON is not defined`). The second attempt left an orphaned doc comment open, which
+turned the rest of the file into a comment: `node --check` was happy again, and the regex "proof" matched
+**commented-out** text. Both failures argue the same thing, and it is the ledger's own rule: a check that
+PARSES is not a check that RUNS. The script now strips comments before asserting, refuses to write unless
+every survivor is defined and every deletion is confirmed, and the caller boots the server.
+
+**LESSON 2 — a check can survive a deletion by driving a URL instead of a module.** Round 5 deleted the
+SPA by finding references to its files; **`tools/mock-outcome-browser-check.mjs` was missed** because it
+never named a module — it navigated a browser to `/`, which used to be the SPA and is now the **brand
+landing page**. It would have reported on the landing page while claiming to test the mock-exam view. It
+is deleted here, completing the row that had already recorded its replacement as unwritten, so its
+properties are recorded as **UNPROVEN** rather than covered:
+**P1** (an unavailable assessment renders `unbewertet`, never a fabricated score), **P2** (submitted text
+stays accessible) and **P3** (no pass/grade-band/readiness claim) all need a writing-result screen before
+they can be judged again. **P4** (no horizontal overflow) is void with the deleted view.
+
+**Retargeted rather than deleted — and two of them had been STALE, not merely newly broken:**
+
+| Check | Was | Now |
+|---|---|---|
+| `saas-runtime-check` — five AI-route legs | asserted `/api/ai` refuses anonymous, cannot override the model, is bounded, and `/api/ai/test` is operator-only | **RETIRED as VOID**: the routes do not exist. The property is structural and asserted in R8/R9 and the authenticated 404. The ledger forbids keeping an implementation alive to feed a check; the reverse is the same rule |
+| `saas-runtime-check` — `legacy-progress-refused-anonymous-in-saas` | required **403 `legacy_progress_disabled`** from GET/POST/DELETE | **RETARGETED**: the token is one R1 asserts must exist NOWHERE, so this leg had been failing since the file store was removed. Now asserts 401/404, no record served, no token, no file written |
+| `saas-runtime-check` — `runtime-database-interruption-is-a-refusal` | its last assertion demanded 403/503 from the legacy path | accepts 401/403/404/503: every one is a refusal, none serves a record |
+| `saas-runtime-check` — `configured-public-origin-accepted-and-foreign-refused` | required **404** from anonymous `POST /api/config` | accepts 401 **or** 404 and forbids 200: anonymously the two are indistinguishable, which is why the authenticated assertion lives in `docker-stack-check` |
+
+`saas-runtime-check` was **3 passed / 8 failed** before this slice and is **6/6** after it. The five-leg
+retirement and the three retargets are in one commit with the deletion, so no leg was ever asserting a
+route that did not exist.
+
 ### 2 October 2026 — SPA-RETIRE 5: the two red-at-HEAD checks are RETARGETED, not deleted
 
 `server-origin-check` (7 of 16 legs red) and `keymask-check` (5 of 12 red) had been failing **at HEAD**

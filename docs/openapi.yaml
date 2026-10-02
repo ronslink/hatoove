@@ -367,31 +367,16 @@ paths:
   # `tools/docker-stack-check.mjs`, and "no handler, no refusal code, no file opened" in the negative
   # check. Documenting a deleted route is how one comes back.
 
-  /api/config:
-    get:
-      tags: [settings]
-      summary: RETIRED — the browser-writable provider configuration
-      deprecated: true
-      description: |
-        The route that once let a **browser** write the server's provider key. That is fatal in a
-        multi-user app — one learner editing provider configuration is not a convenience, it is
-        spending the operator's money against the operator's account — so it is retired and
-        auth-wrapped, and answers `404` in hosted mode.
-      responses:
-        '401': { description: 'No verified session.' }
-        '404': { description: 'Retired in hosted mode.' }
-
-  /api/ai:
-    post:
-      tags: [attempts]
-      summary: RETIRED — the unmetered browser-facing inference proxy
-      deprecated: true
-      description: |
-        Inference is server-side and worker-queued, with a per-account allowance and exactly one
-        debit, and it is never in the request path. This route is retired and auth-wrapped.
-      responses:
-        '401': { description: 'No verified session.' }
-        '404': { description: 'Retired in hosted mode.' }
+  # /api/config AND /api/ai REMOVED 2 October 2026 (SPA-RETIRE 6). Both were documented here as
+  # retired-but-PRESENT and auth-wrapped; both are now DELETED from `server.js`. `/api/config` read and
+  # wrote a MACHINE-GLOBAL `EXAM_DATE` for every visitor with no identity, and kept a local single-user
+  # install alive; `/api/ai` (with its operator-only diagnostic `/api/ai/test`) let a browser spend the
+  # operator's provider credits. The learner's exam date is `GET/PUT /api/v1/settings`, per account; the
+  # provider is operator environment configuration that no route sets or reports; and inference is a
+  # server-side worker job. Their absence is asserted three ways: no handler literal and no
+  # `provider_config_is_operator_only` token in `tools/retired-surface-check.mjs` (legs R8/R9), 404 to an
+  # AUTHENTICATED caller in `tools/docker-stack-check.mjs`, and "no path key declared, and the removal
+  # RECORDED" in `tools/api-spec-check.mjs` (`S-absent` / `S-recorded`).
 
 components:
   securitySchemes:

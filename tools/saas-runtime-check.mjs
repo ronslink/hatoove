@@ -358,42 +358,37 @@ function startDatabaseProxy(targetPort) {
 
 /* =================================================================== checks */
 
-check('legacy-progress-refused-anonymous-in-saas', async () => {
+check('the-retired-progress-path-is-refused-and-serves-nothing', async () => {
   const port = await freePort();
-  // The hosted runtime must be *ready* for this check: while it is not ready every API route
-  // already refuses with 503, which would hide whether the legacy refusal itself works.
+  // A READY runtime, so the refusal cannot be confused with the not-ready 503 that any route gives.
   const server = await startServer(port, { saas: true, accounts: true, database: true, forceOffline: true });
   try {
     await waitForReady(port, true);
     const progressFile = server.env.B1PREP_PROGRESS_FILE;
 
-    const read = await request(port, { requestPath: '/api/progress' });
-    assert.equal(read.status, 403, `anonymous GET /api/progress must be refused, got ${read.status}`);
-    assert.equal(read.json?.code, 'legacy_progress_disabled');
+    /*
+     * RETARGETED 2 October 2026 (SPA-RETIRE 6). This leg used to require 403 `legacy_progress_disabled`
+     * from every method — a refusal code that `tools/retired-surface-check.mjs` R1 asserts must exist
+     * NOWHERE. It had been failing since the file store was removed, and CI never said so because this
+     * check sits behind other steps in the same job. The route is gone, so what is left to assert is
+     * that the path is refused for everyone and that no record is ever served or written.
+     */
+    for (const [method, body] of [['GET', undefined], ['POST', { rev: 0, state: { nodes: { inject: { ok: true } } } }], ['DELETE', undefined]]) {
+      const res = await request(port, {
+        method, requestPath: '/api/progress',
+        headers: method === 'GET' ? {} : jsonHeaders(), body,
+      });
+      must(res.status === 401 || res.status === 404, `${method} /api/progress must be refused, got ${res.status}`);
+      must(!res.text.includes('legacy_progress_disabled'), 'the retired refusal token must not come back');
+      must(res.status !== 200 && !res.json?.nodes && !res.json?.state, 'no learner record may be served from this path');
+    }
 
-    const readForeign = await request(port, {
-      requestPath: '/api/progress',
-      headers: { 'x-b1prep-account': 'someone-elses-account' },
-    });
-    assert.equal(readForeign.status, 403, `a caller-supplied account header must not select a record (${readForeign.status})`);
-    assert.equal(readForeign.json?.code, 'legacy_progress_disabled');
+    // A caller-supplied account header changes nothing: the path is refused before any selector is read.
+    const foreign = await request(port, { requestPath: '/api/progress', headers: { 'x-b1prep-account': 'someone-elses-account' } });
+    must(foreign.status === 401 || foreign.status === 404, `a caller-supplied account header must not select a record (${foreign.status})`);
 
-    const write = await request(port, {
-      method: 'POST', requestPath: '/api/progress',
-      headers: jsonHeaders(), body: { rev: 0, state: { nodes: { inject: { ok: true } } } },
-    });
-    assert.equal(write.status, 403, `anonymous POST /api/progress must be refused, got ${write.status}`);
-    assert.equal(write.json?.code, 'legacy_progress_disabled');
-
-    const del = await request(port, {
-      method: 'DELETE', requestPath: '/api/progress',
-      headers: publicHeaders(),
-    });
-    assert.equal(del.status, 403, `anonymous DELETE /api/progress must be refused, got ${del.status}`);
-
-    // The refusal really is a refusal: nothing was written to any record file.
     must(!fs.existsSync(progressFile), 'no shared progress file may be created by a refused request');
-    return '403 legacy_progress_disabled on GET/POST/DELETE; account header and unscoped fallback both refused';
+    return 'GET/POST/DELETE /api/progress refused (401/404), no record served, no refusal token, no file written';
   } finally { await server.stop(); }
 });
 
@@ -451,197 +446,25 @@ check('fail-closed-no-longer-depends-on-the-mode-flag', async () => {
   } finally { await server.stop(); }
 });
 
-check('ai-anonymous-refused-and-no-provider-call', async () => {
-  const port = await freePort();
-  const stub = await startProviderStub();
-  const server = await startServer(port, {
-    saas: true, accounts: true, database: true,
-    provider: { key: SYNTHETIC_KEY, model: OPERATOR_MODEL, baseUrl: `http://127.0.0.1:${stub.port}` },
-  });
-  try {
-    await waitForReady(port, true);
-    const res = await request(port, {
-      method: 'POST', requestPath: '/api/ai',
-      headers: jsonHeaders(), body: { messages: [{ role: 'user', content: 'Hallo' }] },
-    });
-    assert.equal(res.status, 401, `anonymous POST /api/ai must be refused, got ${res.status}`);
-    assert.equal(res.json?.code, 'unauthenticated');
-    assert.equal(stub.calls.length, 0, 'a refused request must never reach the provider');
-    return '401 unauthenticated, provider saw 0 calls';
-  } finally { await server.stop(); await stub.close(); }
-});
-
-check('ai-authenticated-cannot-override-the-model', async () => {
-  const port = await freePort();
-  const stub = await startProviderStub();
-  const server = await startServer(port, {
-    saas: true, accounts: true, database: true,
-    provider: { key: SYNTHETIC_KEY, model: OPERATOR_MODEL, baseUrl: `http://127.0.0.1:${stub.port}` },
-  });
-  try {
-    await waitForReady(port, true);
-    const jar = cookieJar();
-    const signUp = await request(port, {
-      method: 'POST', requestPath: '/api/auth/sign-up/email',
-      headers: jsonHeaders(), body: { name: 'A', email: `saas-ai-${RUN_ID}@example.invalid`, password: 'pw-synthetic-1' },
-    });
-    assert.equal(signUp.status, 200, `sign-up failed: ${signUp.text.slice(0, 200)}`);
-    jar.absorb(signUp.setCookie);
-    must(jar.size() > 0, 'sign-up must set a session cookie');
-
-    const before = stub.calls.length;
-    const res = await request(port, {
-      method: 'POST', requestPath: '/api/ai',
-      headers: jsonHeaders({ Cookie: jar.header() }),
-      body: {
-        messages: [{ role: 'user', content: 'Erstelle eine Aufgabe.' }],
-        model: 'attacker-chosen-model',
-        temperature: 0.5,
-      },
-    });
-    assert.equal(res.status, 200, `authenticated /api/ai failed: ${res.text.slice(0, 200)}`);
-    assert.equal(stub.calls.length, before + 1, 'exactly one provider call must be made');
-    const sent = stub.calls[stub.calls.length - 1];
-    assert.equal(sent.model, OPERATOR_MODEL, `the provider must receive the operator model, got ${sent.model}`);
-    must(sent.model !== 'attacker-chosen-model', 'the caller model must not reach the provider');
-    return `provider received model=${sent.model} (caller sent attacker-chosen-model)`;
-  } finally { await server.stop(); await stub.close(); }
-});
-
-check('ai-input-is-bounded-server-side', async () => {
-  const port = await freePort();
-  const stub = await startProviderStub();
-  const server = await startServer(port, {
-    saas: true, accounts: true, database: true,
-    provider: { key: SYNTHETIC_KEY, model: OPERATOR_MODEL, baseUrl: `http://127.0.0.1:${stub.port}` },
-  });
-  try {
-    await waitForReady(port, true);
-    const jar = cookieJar();
-    const signUp = await request(port, {
-      method: 'POST', requestPath: '/api/auth/sign-up/email',
-      headers: jsonHeaders(), body: { name: 'B', email: `saas-bound-${RUN_ID}@example.invalid`, password: 'pw-synthetic-1' },
-    });
-    assert.equal(signUp.status, 200, `sign-up failed: ${signUp.text.slice(0, 200)}`);
-    jar.absorb(signUp.setCookie);
-
-    const before = stub.calls.length;
-    // An over-long single message is refused (the server caps each message, not the caller).
-    const bigMessage = await request(port, {
-      method: 'POST', requestPath: '/api/ai',
-      headers: jsonHeaders({ Cookie: jar.header() }),
-      body: { messages: [{ role: 'user', content: 'x'.repeat(70000) }] },
-    });
-    must(bigMessage.status >= 400 && bigMessage.status < 500,
-      `an oversized message must be refused with a 4xx, got ${bigMessage.status}`);
-
-    // Too many messages are refused.
-    const many = await request(port, {
-      method: 'POST', requestPath: '/api/ai',
-      headers: jsonHeaders({ Cookie: jar.header() }),
-      body: { messages: Array.from({ length: 41 }, () => ({ role: 'user', content: 'hi' })) },
-    });
-    must(many.status >= 400 && many.status < 500,
-      `too many messages must be refused with a 4xx, got ${many.status}`);
-
-    // A caller's token limit is clamped, never trusted. 999999 must not reach the provider.
-    const clamped = await request(port, {
-      method: 'POST', requestPath: '/api/ai',
-      headers: jsonHeaders({ Cookie: jar.header() }),
-      body: { messages: [{ role: 'user', content: 'Kurz.' }], maxTokens: 999999, timeoutMs: 1 },
-    });
-    assert.equal(clamped.status, 200, `a bounded request must still work: ${clamped.text.slice(0, 160)}`);
-    const sent = stub.calls[stub.calls.length - 1];
-    must(Number.isInteger(sent.max_tokens) && sent.max_tokens <= 8192,
-      `the token limit must be clamped server-side, provider saw ${sent.max_tokens}`);
-
-    assert.equal(stub.calls.length, before + 1, 'only the one valid request may reach the provider');
-    return `oversized=>${bigMessage.status}; too many=>${many.status}; clamped max_tokens=${sent.max_tokens}`;
-  } finally { await server.stop(); await stub.close(); }
-});
-
-check('ai-test-is-not-reachable-in-saas', async () => {
-  const port = await freePort();
-  const stub = await startProviderStub();
-  const server = await startServer(port, {
-    saas: true, accounts: true, database: true,
-    provider: { key: SYNTHETIC_KEY, model: OPERATOR_MODEL, baseUrl: `http://127.0.0.1:${stub.port}` },
-  });
-  try {
-    await waitForReady(port, true);
-    const before = stub.calls.length;
-    const anonymous = await request(port, { method: 'POST', requestPath: '/api/ai/test', headers: jsonHeaders() });
-    must(anonymous.status === 404 || anonymous.status === 403, `anonymous /api/ai/test must be refused, got ${anonymous.status}`);
-
-    const jar = cookieJar();
-    const signUp = await request(port, {
-      method: 'POST', requestPath: '/api/auth/sign-up/email',
-      headers: jsonHeaders(), body: { name: 'C', email: `saas-test-${RUN_ID}@example.invalid`, password: 'pw-synthetic-1' },
-    });
-    assert.equal(signUp.status, 200);
-    jar.absorb(signUp.setCookie);
-    const learner = await request(port, {
-      method: 'POST', requestPath: '/api/ai/test',
-      headers: jsonHeaders({ Cookie: jar.header() }),
-    });
-    must(learner.status === 404 || learner.status === 403,
-      `a signed-in learner must not reach the diagnostic, got ${learner.status}`);
-    assert.equal(stub.calls.length, before, 'the diagnostic must never spend a provider call');
-    return `anonymous=${anonymous.status}, learner=${learner.status}, provider calls=0`;
-  } finally { await server.stop(); await stub.close(); }
-});
-
-check('ai-test-is-operator-only-with-the-flag-set', async () => {
-  // F1. This is the case the first version missed: the opt-in flag **is set**, so the old
-  // gate (`B1PREP_AI_TEST !== '1'`) let the request through. The diagnostic must still be
-  // unreachable by an anonymous caller and by a signed-in learner, and the stub - not the
-  // status code - proves zero provider calls. The real operator credential reaches it exactly
-  // once, so the refusal is a gate and not a dead route.
-  const port = await freePort();
-  const stub = await startProviderStub();
-  const server = await startServer(port, {
-    saas: true, accounts: true, database: true,
-    aiTest: true, aiTestToken: OPERATOR_TEST_TOKEN,
-    provider: { key: SYNTHETIC_KEY, model: OPERATOR_MODEL, baseUrl: `http://127.0.0.1:${stub.port}` },
-  });
-  try {
-    await waitForReady(port, true);
-    const before = stub.calls.length;
-
-    const anonymous = await request(port, { method: 'POST', requestPath: '/api/ai/test', headers: jsonHeaders() });
-    must(anonymous.status === 403, `flag-set anonymous must be refused, got ${anonymous.status}`);
-
-    const jar = cookieJar();
-    const signUp = await request(port, {
-      method: 'POST', requestPath: '/api/auth/sign-up/email',
-      headers: jsonHeaders(), body: { name: 'E', email: `saas-test-on-${RUN_ID}@example.invalid`, password: 'pw-synthetic-1' },
-    });
-    assert.equal(signUp.status, 200, `sign-up failed: ${signUp.text.slice(0, 200)}`);
-    jar.absorb(signUp.setCookie);
-
-    const learner = await request(port, {
-      method: 'POST', requestPath: '/api/ai/test',
-      headers: jsonHeaders({ Cookie: jar.header() }),
-    });
-    must(learner.status === 403, `flag-set learner must be refused, got ${learner.status}`);
-
-    const wrongToken = await request(port, {
-      method: 'POST', requestPath: '/api/ai/test',
-      headers: jsonHeaders({ Cookie: jar.header(), 'x-b1prep-operator-token': 'not-the-operator-token' }),
-    });
-    must(wrongToken.status === 403, `a wrong operator token must be refused, got ${wrongToken.status}`);
-
-    assert.equal(stub.calls.length, before, `no refusal may spend a provider call (saw ${stub.calls.length - before})`);
-
-    const operator = await request(port, {
-      method: 'POST', requestPath: '/api/ai/test',
-      headers: jsonHeaders({ 'x-b1prep-operator-token': OPERATOR_TEST_TOKEN }),
-    });
-    assert.equal(operator.status, 200, `the operator diagnostic must work: ${operator.text.slice(0, 160)}`);
-    assert.equal(stub.calls.length, before + 1, 'the operator call spends exactly one provider call');
-    return `flag-set anonymous=${anonymous.status}, learner=${learner.status}, wrong-token=${wrongToken.status}, 0 calls; operator=200 (1 call)`;
-  } finally { await server.stop(); await stub.close(); }
-});
+/*
+ * THE FIVE AI-ROUTE LEGS WERE RETIRED HERE (SPA-RETIRE 6, 2 October 2026).
+ *
+ * They asserted that POST /api/ai refuses an anonymous caller, that an authenticated caller cannot
+ * override the model, that the input is bounded server-side, and that POST /api/ai/test is
+ * operator-only. All five are VOID rather than failed: the routes were deleted with the SPA-era API, so
+ * there is nothing left to refuse, bound or override. Their property is now STRUCTURAL and asserted
+ * where it can be observed:
+ *
+ *   * retired-surface-check R8 — no /api/config, /api/ai or /api/ai/test handler literal in server.js;
+ *   * retired-surface-check R9 — the browser-facing provider refusal token exists nowhere;
+ *   * docker-stack-check — all three answer 404 to an AUTHENTICATED caller, which is the difference
+ *     between "gone" and "merely rude";
+ *   * worker-runner-check + owned-api-check — assessment is a server-side job with a per-account
+ *     allowance and exactly one debit, which is what the deleted proxy was replaced BY.
+ *
+ * The ledger rule this obeys: never keep an implementation alive to feed a check. The reverse is the
+ * same rule — never keep a check alive for an implementation that is gone.
+ */
 
 check('saas-missing-database-fails-closed', async () => {
   const port = await freePort();
@@ -701,7 +524,9 @@ check('runtime-database-interruption-is-a-refusal', async () => {
     must(!after.json?.id, 'no account data may be served after a database interruption');
 
     const legacy = await request(port, { requestPath: '/api/progress' });
-    must(legacy.status === 403 || legacy.status === 503, `the legacy path must stay refused throughout, got ${legacy.status}`);
+    // 401 is the auth wrap (the route is deleted, so no handler can run); 403/503 are the older gates.
+    // Every one of them is a refusal, and none of them serves a record — which is the property.
+    must([401, 403, 404, 503].includes(legacy.status), `the legacy path must stay refused throughout, got ${legacy.status}`);
     return `learner route => ${after.status} after interruption (was 200); legacy still ${legacy.status}; process alive`;
   } finally { await server.stop(); }
 });
@@ -732,9 +557,15 @@ check('configured-public-origin-accepted-and-foreign-refused', async () => {
       method: 'POST', requestPath: '/api/config',
       headers: jsonHeaders(), body: { examDate: '2027-01-09' },
     });
-    assert.equal(configWrite.status, 404, `anonymous POST /api/config must be gone, got ${configWrite.status}`);
+    /*
+     * RETARGETED (SPA-RETIRE 6): the auth wrap answers 401 for ANY /api/* path, so an ANONYMOUS caller
+     * cannot distinguish "route deleted" from "route present but refused". Both are refusals and both are
+     * acceptable here; the discriminating assertion is the AUTHENTICATED 404 in docker-stack-check, where
+     * a session exists. What must never happen is a 200 that writes the machine-global exam date.
+     */
+    must([401, 404].includes(configWrite.status), `anonymous POST /api/config must be refused, got ${configWrite.status}`);
     const configRead = await request(port, { requestPath: '/api/config' });
-    assert.equal(configRead.status, 404, `anonymous GET /api/config must be gone, got ${configRead.status}`);
+    must([401, 404].includes(configRead.status), `anonymous GET /api/config must be refused, got ${configRead.status}`);
 
     // A foreign origin is refused, even with the deployment's Host header.
     const foreign = await request(port, {
