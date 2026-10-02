@@ -119,9 +119,18 @@ export async function loadOwnedApi({ env = process.env } = {}) {
 export function accountsSummary(loaded, { enabled, reason } = {}) {
   if (!loaded) return `accounts: off (${reason || 'not enabled'})`;
   const schema = loaded.fixture && loaded.fixture.schema ? loaded.fixture.schema : 'unknown';
+  /*
+   * WHETHER RATE LIMITING IS ACTIVE IS PART OF THE SUMMARY, because the auth throttle FAILS OPEN: an
+   * installation without the port keeps serving, which is the right choice for availability and a fact an
+   * operator must be able to see rather than assume. A startup line that reads "throttle on" is the difference
+   * between a known gap and a silent one.
+   */
+  const throttled = loaded.api && typeof loaded.api.throttled === 'boolean'
+    ? (loaded.api.throttled ? '; auth throttle on' : '; AUTH THROTTLE OFF - sign-in, sign-up and password change are unlimited')
+    : '';
   const behind = loaded.schemaBehind;
   if (behind && behind.behind) {
-    return `accounts: on (schema ${schema}; SCHEMA BEHIND - expected head ${behind.expectedHead}, applied ${behind.appliedHead || 'none'}; run node server/migrate.mjs)`;
+    return `accounts: on (schema ${schema}${throttled}; SCHEMA BEHIND - expected head ${behind.expectedHead}, applied ${behind.appliedHead || 'none'}; run node server/migrate.mjs)`;
   }
-  return `accounts: on (schema ${schema}; schema at the expected head)`;
+  return `accounts: on (schema ${schema}${throttled}; schema at the expected head)`;
 }

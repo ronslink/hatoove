@@ -111,6 +111,8 @@ const OBJECTIVE_ANSWER_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})
 /** `/api/v1/guides/{guideId}` — a closed slug shape, so an id can never reach SQL as anything else. */
 const GUIDE_RE = /^\/api\/v1\/guides\/([a-z][a-z0-9-]{0,63})$/;
 const SESSION_LIFECYCLE_METHODS = ['listSessions', 'revokeSession', 'changePassword', 'sweepExpired'];
+/** The auth throttle's two operations: count an attempt, and forget a bucket after a success. */
+const THROTTLE_METHODS = ['hit', 'clear'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -363,7 +365,7 @@ const errorReply = (status, code) => reply(status, { error: TOKEN_RE.test(code) 
  *   unwired, `DELETE /api/v1/account` answers 503 `deletion_unavailable` and deletes nothing.
  * @returns {{handle: Function, handleNode: Function, matches: Function, configured: boolean}}
  */
-export function createOwnedApi({ datastore, sessions, settings = null, accountDeletion = null } = {}) {
+export function createOwnedApi({ datastore, sessions, settings = null, accountDeletion = null, throttle = null } = {}) {
   // Fail closed: without both ports wired, every owned route answers 503 and no
   // port method is ever reached, so nothing can be served without an identity.
   const configured = implementsAll(datastore, DATASTORE_METHODS) && implementsAll(sessions, SESSION_METHODS);
@@ -373,11 +375,43 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
   const practiceWired = implementsAll(datastore, PRACTICE_METHODS);
   // The session lifecycle is its own capability: rotation, sweep, revoke-one and revoke-all-on-password-change.
   const sessionLifecycleWired = implementsAll(sessions, SESSION_LIFECYCLE_METHODS);
+  /*
+   * The auth throttle is optional in the same way, and FAIL-OPEN on purpose: an installation without it keeps
+   * serving, because a missing rate limiter must not lock every learner out. The flag exists so the checks can
+   * prove the difference rather than assume it, and the runtime always wires the port.
+   */
+  const throttleWired = implementsAll(throttle, THROTTLE_METHODS);
 
   async function identify(headers) {
     const session = await sessions.getSession(headers);
     if (!isPlainObject(session) || typeof session.userId !== 'string' || session.userId.trim() === '') return null;
     return { userId: session.userId, email: typeof session.email === 'string' ? session.email : null };
+  }
+
+  /**
+   * Count one attempt and refuse with 429 when the limit is reached.
+   *
+   * THE REFUSAL NAMES A TIME, because a client told only "too many requests" can do nothing but retry harder:
+   * `Retry-After` is the difference between a limit and a maze.
+   *
+   * WHEN THE PORT IS ABSENT this is a no-op — FAIL-OPEN, deliberately. A missing rate limiter must not lock
+   * every learner out of the product; the gap is then a deployment fact, which `throttleWired` reports so it
+   * can be seen rather than assumed. And the sweep rides along with the attempt, so the table stays a picture
+   * of recent attempts rather than a growing history of every address anyone typed.
+   *
+   * @returns {Promise<boolean>} whether the throttle is active at all (so a caller can clear on success).
+   */
+  async function enforceThrottle(kind, key) {
+    if (!throttleWired) return false;
+    const verdict = await throttle.hit(kind, key);
+    // Opportunistic, bounded, and never fatal: a sweep that fails must not refuse a legitimate attempt.
+    Promise.resolve(throttle.sweep()).catch(() => {});
+    if (!verdict.allowed) {
+      const error = new Fault(429, 'too_many_requests');
+      error.retryAfterSeconds = verdict.retryAfterSeconds;
+      throw error;
+    }
+    return true;
   }
 
   async function route(method, pathname, headers, body, query = new URLSearchParams()) {
@@ -386,17 +420,40 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const key = `${method} ${pathname}`;
       if (key === 'POST /api/auth/sign-up/email') {
         onlyFields(body, ['name', 'email', 'password']);
+        /*
+         * A GLOBAL REGISTRATION CAP, because the resource is the operator's: every account costs a row and a
+         * session. Checked BEFORE the account is created, so a refused registration leaves nothing behind.
+         */
+        await enforceThrottle('signup', 'global');
         const outcome = await sessions.signUp(requireAuthFields(body, true));
         return reply(200, { ok: true }, outcome && outcome.setCookie);
       }
       if (key === 'POST /api/auth/sign-in/email') {
         onlyFields(body, ['email', 'password']);
+        const fields = requireAuthFields(body, false);
+        /*
+         * PER EMAIL, AND COUNTED BEFORE THE PASSWORD IS VERIFIED. Before, because a throttle that runs after
+         * verification still answers the attacker's question — "is this password right?" — on every attempt
+         * up to the limit, and because the counting must not depend on which branch the verification takes.
+         */
+        const gate = await enforceThrottle('signin', fields.email);
         /*
          * `headers` IS PASSED ON PURPOSE. Sign-in ROTATES the session: the cookie that was presented is
          * retired so that a token planted before authentication cannot survive it (session fixation). The
          * port needs to see that cookie, and this is the only place that has it.
          */
-        const outcome = await sessions.signIn({ ...requireAuthFields(body, false), headers });
+        let outcome;
+        try {
+          outcome = await sessions.signIn({ ...fields, headers });
+        } catch (error) {
+          // A FAILED attempt keeps its count — that is the point of the counter. Anything else, including a
+          // thrown Fault that is not an authentication refusal, is re-thrown unchanged.
+          if (error instanceof Fault && error.status === 401) throw error;
+          throw error;
+        }
+        // SUCCESS CLEARS THE COUNT: a learner who mistypes twice and then gets it right must not be two
+        // failures closer to being locked out for the rest of the window.
+        if (gate) await throttle.clear('signin', fields.email);
         return reply(200, { ok: true }, outcome && outcome.setCookie);
       }
       if (key === 'POST /api/auth/sign-out') {
@@ -468,8 +525,16 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * registration, so a learner who registered with a short password could never change it.
        */
       assertNewPassword(newPassword);
+      /*
+       * THROTTLED PER USER, AND BEFORE THE CURRENT PASSWORD IS VERIFIED. This route checks a password, so
+       * without a limit it is a password oracle: anyone holding a session could test candidates at machine
+       * speed. Counting before verification means a refused guess and a correct one both cost an attempt, so
+       * being throttled cannot be turned into a way to keep testing — and the check asserts exactly that.
+       */
+      const gate = await enforceThrottle('password', owner);
       const outcome = await sessions.changePassword(headers, { currentPassword, newPassword });
       if (!outcome) fault(401, 'unauthenticated');
+      if (gate) await throttle.clear('password', owner);
       /*
        * The new cookie is returned because the acting session is ROTATED: every session is revoked on a
        * password change, including the one that asked, and this token is the acting device's replacement. A
@@ -944,7 +1009,18 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       }
       return await route(method, pathname, headers, body, query);
     } catch (error) {
-      if (error instanceof Fault) return errorReply(error.status, error.code);
+      if (error instanceof Fault) {
+        /*
+         * A THROTTLE REFUSAL NAMES A TIME. `Retry-After` is the difference between a limit and a maze: a
+         * client told only "too many requests" can do nothing but retry harder. The header is set here rather
+         * than in a route because this is the one place every refusal passes through.
+         */
+        const reply429 = errorReply(error.status, error.code);
+        if (error.status === 429 && error.retryAfterSeconds) {
+          reply429.headers['retry-after'] = String(error.retryAfterSeconds);
+        }
+        return reply429;
+      }
       // Unexpected failure: redacted. No message, SQL or provider text leaves.
       return errorReply(500, 'internal_error');
     }
@@ -976,5 +1052,11 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
     res.end(method === 'HEAD' ? undefined : response.body);
   }
 
-  return Object.freeze({ handle, handleNode, matches: isOwnedPath, configured });
+  return Object.freeze({ handle, handleNode, matches: isOwnedPath, configured,
+    /*
+     * WHETHER RATE LIMITING IS WIRED, exposed rather than assumed. The throttle fails OPEN — an installation
+     * without the port keeps serving, which is right for availability and must not be silent — so the startup
+     * summary reads this and says "AUTH THROTTLE OFF" out loud when it is.
+     */
+    throttled: throttleWired });
 }

@@ -11,6 +11,7 @@
 
 import { createFixture } from './bootstrap.mjs';
 import { stubGrade, rubricFor } from './worker.mjs';
+import { createPostgresThrottle } from './throttle.mjs';
 import { createPostgresDatastore, createPostgresAccountDeletion } from './adapter.mjs';
 import { createPostgresSessions } from './sessions.mjs';
 import { createPostgresSettings } from './settings.mjs';
@@ -33,17 +34,23 @@ const FINGERPRINT_TABLES = [
  *   would be — the route then answers 503 rather than pretending.
  * @returns {Promise<{store: object, sessions: object, settings: object, api: object, deletion: object|null, fixture: object, teardown: Function}>}
  */
-export async function createPostgresWorld({ allowance = 10, fixture, deletion } = {}) {
+export async function createPostgresWorld({ allowance = 10, fixture, deletion, limits = null } = {}) {
   const db = fixture ?? await createFixture();
   const calls = [];
   const port = createPostgresDatastore({ pool: db.learner, onCall: (name) => calls.push(name) });
   const sessions = createPostgresSessions({ pool: db.auth, adminPool: db.admin, allowance });
+  /*
+   * THE AUTH THROTTLE, ON THE AUTH POOL — the same restriction the sessions port runs under, because a limit
+   * is auth material: only the auth role may see who has been failing to sign in (migration 0019's GRANT).
+   * `limits` is injectable so a check can use a small window instead of waiting out a real one.
+   */
+  const throttle = createPostgresThrottle({ pool: db.auth, ...(limits ? { policy: limits } : {}) });
   // Account settings are part of the same account, so the world builds them from the same
   // restricted learner pool. An injected fixture may supply its own.
   const settings = db.settings ?? createPostgresSettings({ pool: db.learner });
   const deletionPool = deletion ?? db.deletion ?? null;
   const accountDeletion = deletionPool ? createPostgresAccountDeletion({ pool: deletionPool }) : null;
-  const api = createOwnedApi({ datastore: port, sessions, settings, accountDeletion });
+  const api = createOwnedApi({ datastore: port, sessions, settings, accountDeletion, throttle });
 
   async function one(sql, params) {
     return (await db.admin.query(sql, params)).rows[0];
@@ -166,6 +173,9 @@ export async function createPostgresWorld({ allowance = 10, fixture, deletion } 
     store: { port, inspect, worker },
     sessions,
     settings,
+    // The throttle the api was built with, for the same reason `deletion` is here: a check can then use the
+    // SAME wiring the product uses instead of assembling a second one that can disagree with it.
+    throttle,
     api,
     // The port the api above was built with, so a caller can exercise the port directly
     // (idempotence, failure injection) without assembling a second, differently-wired api.

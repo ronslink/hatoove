@@ -142,10 +142,17 @@ export async function createFixture(overrides = {}) {
       .sort();
     for (const file of contentMigrations) {
       const text = await readFile(new URL(file, migrationDir), 'utf8');
-      await pools.migration.query(text
-        .replaceAll('__SCHEMA__', schema)
-        .replaceAll('__LEARNER__', roles.learner)
-        .replaceAll('__WORKER__', roles.worker));
+      /*
+       * THE SAME PLACEHOLDERS THE DEPLOYMENT PATH RENDERS, and now in one loop so the two cannot drift.
+       * `__AUTH__` was missing here while `renderSql` in `provision.mjs` substituted it: a migration granting
+       * anything to the auth role — the throttle table is the first — would have left the literal
+       * `__AUTH__` in the SQL and failed ONLY in the disposable fixture, which is the one place a check runs.
+       */
+      let rendered = text;
+      for (const [key, value] of Object.entries({ SCHEMA: schema, AUTH: roles.auth, LEARNER: roles.learner, WORKER: roles.worker, DELETION: roles.deletion })) {
+        rendered = rendered.replaceAll(`__${key}__`, value);
+      }
+      await pools.migration.query(rendered);
     }
 
     return { schema, roles, config, admin, ...pools, cleanup };
