@@ -1,8 +1,8 @@
 # Hatoove implementation plan
 
-## Integration in progress — 2 October 2026
+## Integrated local pilot — 2 October 2026
 
-Execution **INTEGRATE-20261002-A** consolidates the reviewed completion stack into one candidate based on current main `4f76b94`; the normal merge `a85d35d` reconciles only historical plan/board records. Account-cookie fencing, submitted-writing preservation/export, optional matching local-voice read-aloud and writing close/reopen are delivered and independently reviewed. Combined browser132/132, read-aloud24/24, real PostgreSQL races9/9, deletion19/19, API33/33 and HTTP journeys11/11 pass. [The integration result](work/implementation/INTEGRATE-20261002-RESULT.md) records pins, evidence and limitations. Final CI/main integration is pending; product acceptance remains separate. PR89 and PR33 remain held and outside this candidate. No live AI or production deployment.
+Execution **INTEGRATE-20261002-A** merged through [PR #98](https://github.com/ronslink/hatoove/pull/98) as `04e52dc` at11:03UTC after all seven applicable CI jobs passed at reviewed head `903540a`. Account-cookie fencing, submitted-writing preservation/export, optional matching local-voice read-aloud and writing close/reopen are delivered and independently reviewed. Combined browser132/132, read-aloud24/24, real PostgreSQL races9/9, deletion19/19, API33/33 and HTTP journeys11/11 pass. [The integration result](work/implementation/INTEGRATE-20261002-RESULT.md) records pins, evidence and limitations. Canonical `D:\Hatoove` is on main; its Docker preview is healthy at4300 with the existing backed-up data volume and unchanged row counts. The contained old PR stack is closed as superseded; PR89/33 remain held. Product acceptance remains separate. No live AI or production deployment.
 
 ## Active completion — 2 October 2026
 

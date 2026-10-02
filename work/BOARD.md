@@ -1,8 +1,8 @@
 # Hatoove work board
 
-## Integration in progress — 2 October 2026
+## Integrated local pilot — 2 October 2026
 
-**INTEGRATE-20261002-A:** delivered and independently reviewed; final CI/main integration pending. Candidate combines completion `79a1659` and main `4f76b94` through `a85d35d`, closes account-cookie and submitted-draft discard defects, restores writing close/reopen, and adds D8 matching local-voice controls. Complete browser132/132, read-aloud24/24, real PostgreSQL races9/9, deletion19/19, API33/33 and HTTP journeys11/11 pass. [Result and review pins](implementation/INTEGRATE-20261002-RESULT.md). All workers have delivered and hold no active writing slots; coordinator owns finalization. PR89/33 remain held. Product acceptance, content, privacy/security, live-provider and physical-device gates remain open.
+**INTEGRATE-20261002-A:** delivered, independently reviewed, seven applicable CI jobs green, **merged** through [PR #98](https://github.com/ronslink/hatoove/pull/98) as `04e52dc` at11:03UTC. Canonical main and local Docker4300 now serve the merged source; data volume preserved/backed up and row counts unchanged. Account-cookie and submitted-draft discard defects are closed; writing close/reopen and D8 local-voice controls are delivered. Complete browser132/132, read-aloud24/24, real PostgreSQL races9/9, deletion19/19, API33/33 and HTTP journeys11/11 pass. [Result and review pins](implementation/INTEGRATE-20261002-RESULT.md). Contained PRs97/95/94/93/92/91/90/81 closed as superseded without deleting branches; PR60 is marked merged. All workers have delivered and hold no active writing slots. PR89/33 remain held. Product acceptance, content, privacy/security, live-provider and physical-device gates remain open.
 
 ## Current completion batch — 2 October 2026
 
