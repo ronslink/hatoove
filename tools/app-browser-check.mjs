@@ -35,6 +35,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { launchBrowser, connectToPage, sleep } from './cdp.js';
+import { verifyLearnerCompletion } from './learner-completion-browser.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const KEEP = process.argv.includes('--keep');
@@ -357,7 +358,7 @@ async function main() {
         try { return { href: s.href, rules: s.cssRules.length }; } catch { return { href: s.href, rules: -1 }; }
       });
       const body = getComputedStyle(document.body);
-      const btn = document.querySelector('.button');
+      const btn = document.querySelector('.btn');
       return {
         textLength: document.body.innerText.trim().length,
         title: document.title,
@@ -1401,8 +1402,8 @@ async function main() {
       `);
       await shot(cdp, '13j-writing-unbewertet-desktop-light');
       const fabricatedFail = failedState.body.match(/(\b\d{1,2}\s*\/\s*45\b)|(\b\d{1,2}\s*\/\s*15\b)|(Bestanden)|(Nicht bestanden)|(Note\s*[:=]\s*\d)/i);
-      record('W10b a failed assessment renders UNBEWERTET, with the code and the text, and never a score',
-        /Unbewertet/.test(failedState.text) && /grader_unavailable/.test(failedState.text) && !fabricatedFail,
+      record('W10b a failed assessment renders UNBEWERTET, with a readable reason and the text, never a score',
+        /Unbewertet/.test(failedState.text) && /Bewertungsdienst.*nicht verfügbar/.test(failedState.text) && !fabricatedFail,
         `state "${failedState.text.replace(/\s+/g, ' ').slice(0, 130)}"${fabricatedFail ? `; FABRICATED: ${fabricatedFail[0]}` : '; no score, no fraction, no pass line'}`);
       record('W10c the failed assessment offers a retry and keeps the letter readable',
         failedState.retryOffered && failedState.submittedVisible,
@@ -2026,6 +2027,7 @@ async function main() {
       openSetAudit.offenders.length === 0 && tiles > 0,
       `${tiles} tile(s), ${openSetAudit.count} control(s); offenders=${JSON.stringify(openSetAudit.offenders)}`);
 
+    await verifyLearnerCompletion({ base, email, password: SYNTHETIC.password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, shots: SHOTS });
     note('screenshots', SHOTS);
     note('device honesty', 'headless Chromium on desktop is not iPhone Safari or Android Chrome; the real-device gate stays open');
     void landingText;

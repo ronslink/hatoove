@@ -37,6 +37,7 @@ const PATHS = Object.freeze({
   attempts: '/api/v1/attempts',
   submissions: '/api/v1/submissions',
   export: '/api/v1/export',
+  sentenceCheck: '/api/v1/sentence-check',
 });
 
 /**
@@ -97,6 +98,7 @@ export const api = Object.freeze({
    * deployment configuration on the server and is deliberately not a parameter here: a client must
    * not be able to ask for content the deployment has chosen not to serve.
    */
+  sentences: Object.freeze({ check: (text) => call('POST', PATHS.sentenceCheck, { text }) }),
   tasks: Object.freeze({
     list: ({ exam = null, family = null } = {}) => {
       const query = new URLSearchParams();

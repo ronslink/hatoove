@@ -1,5 +1,5 @@
 /** Owned writing lifecycle. Drafts and submitted feedback stay on the server. */
-export function createWritingController({ api, esc, language, onChange = () => {} }) {
+export function createWritingController({ api, esc, onChange = () => {} }) {
   let active = null;
   let serial = 0;
   const labels = { aufgabe: 'Aufgabenbewältigung', kommunikation: 'Kommunikative Gestaltung', richtigkeit: 'Formale Richtigkeit' };
@@ -15,6 +15,17 @@ export function createWritingController({ api, esc, language, onChange = () => {
     if (active) { active.host.replaceChildren(); active.host.hidden = true; if (active.list) active.list.hidden = false; }
     active = null;
     serial++;
+  }
+  function compareConflict(s, error = '') {
+    say(s, `<p class="err">${error || 'Dieser Entwurf wurde in einem anderen Fenster geändert. Dein Text bleibt hier erhalten. Vergleiche beide Fassungen, bevor du weiterschreibst.'}</p>` + button('writing-compare', 'Gespeicherten Text vergleichen'));
+    s.host.querySelector('#writing-compare').onclick = async () => {
+      const remote = await api.writing.readAttempt(s.attempt);
+      if (!current(s)) return;
+      if (!remote?.ok) { compareConflict(s, 'Die andere Fassung konnte nicht geladen werden. Dein Text bleibt erhalten. Versuche den Vergleich erneut.'); return; }
+      say(s, `<p class="err">Speicherkonflikt – deine Eingabe bleibt im Textfeld.</p><details open><summary>Auf dem Server gespeicherte Fassung</summary><pre class="submitted-text">${esc(remote.data.text || '')}</pre></details>` + button('writing-keep', 'Meine Fassung speichern') + button('writing-load', 'Gespeicherte Fassung übernehmen'));
+      s.host.querySelector('#writing-keep').onclick = async () => { s.revision = remote.data.revision; s.conflict = false; await save(s); };
+      s.host.querySelector('#writing-load').onclick = () => { s.area.value = remote.data.text || ''; s.saved = s.area.value; s.revision = remote.data.revision; s.conflict = false; say(s, '<p class="muted">Gespeicherte Fassung übernommen.</p>'); };
+    };
   }
   async function save(s) {
     if (!current(s) || !s.attempt || s.submission) return true;
@@ -36,15 +47,7 @@ export function createWritingController({ api, esc, language, onChange = () => {
     }
     if (res?.status === 409) {
       s.conflict = true;
-      say(s, '<p class="err">Dieser Entwurf wurde in einem anderen Fenster geändert. Dein Text bleibt hier erhalten. Vergleiche beide Fassungen, bevor du weiterschreibst.</p>' + button('writing-compare', 'Gespeicherten Text vergleichen'));
-      s.host.querySelector('#writing-compare').onclick = async () => {
-        const remote = await api.writing.readAttempt(s.attempt);
-        if (!current(s)) return;
-        if (!remote?.ok) { say(s, '<p class="err">Die andere Fassung konnte nicht geladen werden. Dein Text bleibt erhalten.</p>'); return; }
-        say(s, `<p class="err">Speicherkonflikt – deine Eingabe bleibt im Textfeld.</p><details open><summary>Auf dem Server gespeicherte Fassung</summary><pre class="submitted-text">${esc(remote.data.text || '')}</pre></details>` + button('writing-keep', 'Meine Fassung speichern') + button('writing-load', 'Gespeicherte Fassung übernehmen'));
-        s.host.querySelector('#writing-keep').onclick = async () => { s.revision = remote.data.revision; s.conflict = false; await save(s); };
-        s.host.querySelector('#writing-load').onclick = () => { s.area.value = remote.data.text || ''; s.saved = s.area.value; s.revision = remote.data.revision; s.conflict = false; say(s, '<p class="muted">Gespeicherte Fassung übernommen.</p>'); };
-      };
+      compareConflict(s);
       return false;
     }
     say(s, `<p class="err">${message(res)} Dein Text ist noch nicht gespeichert. Lass dieses Fenster geöffnet.</p>` + button('writing-save-again', 'Erneut speichern'));
@@ -73,6 +76,7 @@ export function createWritingController({ api, esc, language, onChange = () => {
     if (!current(s)) return;
     s.submission = submissionId;
     s.status.dataset.submissionId = submissionId;
+    const discard = s.host.querySelector('#writing-new'); if (discard) { discard.hidden = true; discard.disabled = true; }
     const res = await api.writing.result(submissionId);
     if (!current(s)) return;
     if (!res?.ok) {
@@ -97,9 +101,11 @@ export function createWritingController({ api, esc, language, onChange = () => {
       html += f.kind === 'telc-b1-bands' && Array.isArray(f.criteria)
         ? `<ul class="criteria">${f.criteria.map(c => `<li class="criterion"><div class="criterion-head"><strong>${esc(labels[c.key] || c.label || c.key)}</strong><span class="band" aria-label="Band ${esc(c.band)}">${esc(c.band)}</span></div><p lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(c.comment || '')}</p>${c.evidence ? `<blockquote class="evidence" lang="de" dir="ltr">${esc(c.evidence)}</blockquote>` : ''}</li>`).join('')}</ul>`
         : `<p lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(f.comment || 'Noch keine Rückmeldung verfügbar.')}</p>`;
+      if (Array.isArray(f.corrections) && f.corrections.length) html += `<section lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}"><h4>Korrekturhinweise</h4><ul>${f.corrections.map(text => `<li>${esc(text)}</li>`).join('')}</ul></section>`;
       html += sent + button('writing-revise', 'Text überarbeiten', true);
     } else if (job.status === 'failed') {
-      html = '<p class="err"><strong>Unbewertet.</strong> Die Rückmeldung konnte nicht erstellt werden. Dein Text bleibt erhalten.</p>' + sent + button('writing-retry', 'Erneut bewerten') + button('writing-revise', 'Text überarbeiten');
+      const reason = job.failure_code === 'grader_unavailable' ? 'Der Bewertungsdienst ist gerade nicht verfügbar.' : job.failure_code === 'retry_exhausted' ? 'Die möglichen Wiederholungen sind aufgebraucht.' : 'Die Rückmeldung konnte nicht erstellt werden.';
+      html = `<p class="err"><strong>Unbewertet.</strong> ${reason} Dein Text bleibt erhalten.</p>` + sent + button('writing-retry', 'Erneut bewerten') + button('writing-revise', 'Text überarbeiten');
     } else {
       html = '<p class="muted">Abgegeben. Die Rückmeldung wird vorbereitet. Du kannst diese Seite verlassen und den Stand im Verlauf wieder öffnen.</p>' + sent + button('writing-refresh', 'Stand aktualisieren');
     }
@@ -155,13 +161,14 @@ export function createWritingController({ api, esc, language, onChange = () => {
     s.area = host.querySelector('#writing-text'); s.area.value = s.saved;
     s.status = host.querySelector('#writing-state');
     bindClose(s); void rubric(s);
-    s.area.addEventListener('input', () => { clearTimeout(s.timer); say(s, '<p class="muted">Noch nicht gespeichert …</p>'); s.timer = setTimeout(() => save(s), 600); });
+    s.area.addEventListener('input', () => { clearTimeout(s.timer); if (s.conflict) return; say(s, '<p class="muted">Noch nicht gespeichert …</p>'); s.timer = setTimeout(() => save(s), 600); });
     host.querySelector('#writing-submit').onclick = async (e) => {
       const trigger = e.currentTarget;
       if (s.submitting || s.submission) return;
       s.submitting = true; trigger.disabled = true; s.area.readOnly = true;
+      const discard = host.querySelector('#writing-new'); discard.disabled = true;
       clearTimeout(s.timer);
-      if (!(await save(s))) { s.submitting = false; trigger.disabled = false; s.area.readOnly = false; return; }
+      if (!(await save(s))) { s.submitting = false; trigger.disabled = false; s.area.readOnly = false; discard.disabled = Boolean(s.eventId); return; }
       s.eventId ||= crypto.randomUUID();
       const submit = await api.writing.submit(s.attempt, s.revision, s.eventId);
       if (!current(s)) return;
@@ -176,11 +183,13 @@ export function createWritingController({ api, esc, language, onChange = () => {
       onChange(); await showResult(s, submit.data.submissionId);
     };
     host.querySelector('#writing-new').onclick = async () => {
+      if (s.submitting || s.submission || s.eventId || s.discarding) return;
       if (!confirm('Diesen Entwurf verwerfen und neu anfangen?')) return;
+      s.discarding = true;
       clearTimeout(s.timer); if (s.saving) await s.saving;
       const removed = await api.writing.deleteAttempt(s.attempt);
       if (!current(s)) return;
-      if (!removed?.ok) { say(s, `<p class="err">${message(removed)} Dein Entwurf wurde nicht verworfen.</p>`); return; }
+      if (!removed?.ok) { s.discarding = false; say(s, `<p class="err">${message(removed)} Dein Entwurf wurde nicht verworfen.</p>`); return; }
       s.saved = s.area.value; dispose(); await open(host, s.task);
     };
     return true;

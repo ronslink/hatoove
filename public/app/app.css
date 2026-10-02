@@ -59,7 +59,7 @@
 
 /* The mistakes badge in the phone tabbar. The pinned rule is `.nav a .count`, which does not match
  * `nav.tabbar > a > .count`, so the badge needs its own treatment here. */
-.tabbar a .count {
+.tabbar a .count, .more-link .count {
   font-size: 11px;
   font-weight: 700;
   background: var(--orange);
@@ -81,19 +81,7 @@
   text-decoration: none;
 }
 
-/*
- * THE PHONE TABBAR CARRIES EVERY DESTINATION IN ONE ROW.
- *
- * The pinned stylesheet lays the tabbar out as `repeat(5, minmax(0,1fr))`, because the design's tabbar
- * has five items. This shell has ten, so five columns wrapped them into a SECOND fixed row: the bar
- * grew to about 112px against the 96px of bottom padding the stylesheet reserves, covering the end of
- * every view, with three labels wrapped inside ~20%-wide cells.
- *
- * The pinned file must stay byte-exact, so the override lives here, in the shell's own layer: one row,
- * scrolled sideways when it does not fit. Every destination stays reachable and the bar stays one row
- * tall. Grouping ten destinations into five tabs is an information-architecture decision, and it is
- * recorded for Ron rather than taken here.
- */
+/* Four primary destinations and Mehr fit in one fixed row. The remaining destinations are cards. */
 @media (max-width: 860px) {
   .tabbar { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
   .tabbar a { min-width: 0; padding: 8px 2px; min-height: 58px; }
@@ -279,6 +267,8 @@ code {
 .guide-list { padding-inline-start: 1.4rem; }
 .guide-list li { margin-block: .5rem; }
 .guide-example { border-inline-start: 3px solid var(--orange); padding-inline-start: .8rem; margin: .7rem 0; }
+.guide-good, .guide-bad { border-inline-start: 3px solid var(--green); padding: .75rem; margin-block: .75rem; background: var(--green-bg); }
+.guide-bad { border-color: var(--red); background: var(--red-bg); }
 .guide-table { overflow-x: auto; max-width: 100%; margin-block: .8rem; }
 .guide-table table { border-collapse: collapse; width: 100%; }
 .guide-table th, .guide-table td { padding: .6rem; text-align: start; border-bottom: 1px solid var(--line); }

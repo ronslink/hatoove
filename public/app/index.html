@@ -45,6 +45,7 @@
     </div>
 
     <nav class="nav" aria-label="App">
+      <a href="#/satzbau" data-view="satzbau"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h11M4 18h16"/></svg><span>Satzbau</span></a>
       <a href="#/heute" data-view="heute"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg><span>Heute</span></a>
       <a href="#/fortschritt" data-view="fortschritt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>Fortschritt</span></a>
       <a href="#/fehler" data-view="fehler"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Fehler</span><span class="count" id="mistake-count" hidden>0</span></a>
@@ -163,7 +164,7 @@
         <div class="page-head">
           <div>
             <h2>Üben</h2>
-            <p>Aufgaben mit serverseitiger Bewertung.</p>
+            <p>Eine Aufgabe auswählen und Schritt für Schritt üben.</p>
           </div>
         </div>
         <div class="stack" id="practice-next"></div>
@@ -287,6 +288,7 @@
 <section class="view" id="view-mehr" hidden>
   <div class="page-head"><div><h2>Mehr entdecken</h2><p>Alles für deine nächste Übung.</p></div></div>
   <div class="more-grid">
+    <a class="card more-link" href="#/satzbau" data-view="satzbau"><strong>Satzbau erkunden</strong><span>Verbposition und Satzklammer im eigenen Satz untersuchen</span></a>
     <a class="card more-link" href="#/lesen" data-view="lesen"><strong>Leseverstehen</strong><span>Texte lesen und die passende Antwort finden</span></a>
     <a class="card more-link" href="#/sprachbausteine" data-view="sprachbausteine"><strong>Sprachbausteine</strong><span>Grammatik und Wortschatz im Kontext</span></a>
     <a class="card more-link" href="#/hoeren" data-view="hoeren"><strong>Hörverstehen</strong><span>Aufnahmen sind noch in Vorbereitung</span></a>
@@ -295,6 +297,16 @@
     <a class="card more-link" href="#/fehler" data-view="fehler"><strong>Fehler <span class="count" id="mistake-count-tab" hidden>0</span></strong><span>Offene Fehler noch einmal üben</span></a>
     <a class="card more-link" href="#/einstellungen" data-view="einstellungen"><strong>Konto und Einstellungen</strong><span>Prüfungsdatum, Sprache und deine Daten</span></a>
   </div>
+</section>
+<section class="view" id="view-satzbau" hidden>
+  <div class="page-head"><div><p class="kicker">Sprachbausteine</p><h2>Satzbau erkunden</h2><p>Untersuche die Struktur eines deutschen Satzes.</p></div></div>
+  <form class="card stack" id="sentence-form">
+    <label class="field-label" for="sentence-text">Dein Satz oder kurzer Text</label>
+    <textarea class="writing-text" id="sentence-text" rows="5" maxlength="2000" required placeholder="Ich bleibe zu Hause, weil ich morgen arbeiten muss." aria-describedby="sentence-limit"></textarea>
+    <p class="small muted" id="sentence-limit">Bis zu 2.000 Zeichen. Dieser Text wird nicht als Entwurf gespeichert. Die Strukturhinweise sind eine begrenzte Lernhilfe auf Deutsch, keine vollständige Grammatikprüfung.</p>
+    <button type="submit" class="btn btn-primary" id="sentence-submit">Strukturhinweise anzeigen</button>
+  </form>
+  <div class="stack" id="sentence-result" role="status" aria-live="polite"></div>
 </section>
       <!-- Einstellungen -->
       <section class="view" id="view-einstellungen" hidden>

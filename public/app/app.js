@@ -1,5 +1,6 @@
 import { createWritingController } from './writing.js';
 import { guideContent } from './guide-content.js';
+import { bindSentenceCheck } from './sentence-check.js';
 /**
  * The Hatoove app shell (PILOT-08).
  *
@@ -21,6 +22,7 @@ const el = (id) => document.getElementById(id);
 
 /** Escape text before it is concatenated into markup. */
 const esc = (value) => String(value ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+bindSentenceCheck({ api, esc });
 
 const LANGUAGE_NAMES = { de: 'Deutsch', en: 'English', uk: 'Українська', ar: 'العربية', tr: 'Türkçe' };
 /**
@@ -62,7 +64,7 @@ const VIEW_TITLES = {
   // The design organises practice by SKILL. Each maps to a section the catalogue already carries.
   lesen: 'Leseverstehen', sprachbausteine: 'Sprachbausteine',
   hoeren: 'Hörverstehen', schreiben: 'Schreiben',
-  fehler: 'Fehler', fortschritt: 'Fortschritt', einstellungen: 'Einstellungen', mehr: 'Mehr',
+  fehler: 'Fehler', fortschritt: 'Fortschritt', einstellungen: 'Einstellungen', mehr: 'Mehr', satzbau: 'Satzbau erkunden',
 };
 
 /** Server state, held in memory only. */
@@ -323,6 +325,8 @@ async function renderDictionary() {
 async function renderGuides() {
   const box = el('guide-index');
   if (!box) return;
+  box.hidden = false;
+  el('guide-body').hidden = true;
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
   const res = await api.guides.list();
   if (!res) return;
@@ -348,7 +352,7 @@ async function openGuide(guideId) {
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
   const res = await api.guides.read(guideId);
   if (!res) return;
-  if (!res.ok) { box.innerHTML = ''; showError('Das Nachschlagewerk konnte nicht geladen werden: ' + failure(res) + '.'); return; }
+  if (!res.ok) { box.hidden = true; index.hidden = false; showError('Das Nachschlagewerk konnte nicht geladen werden: ' + failure(res) + '.'); return; }
   const g = res.data;
   const sections = Array.isArray(g.sections) ? g.sections : [];
   box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(g.title)
@@ -527,8 +531,7 @@ async function renderMistakes() {
   // and dropped the section.
   box.innerHTML = '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>'
     + esc(setLabel({ title: m.set_title, section: m.section, part: null }))
-    + '</strong><span class="sub">' + esc(sectionName(m.section)) + ' &middot; Aufgabe ' + esc(m.item_id)
-    + ' von ' + m.set_item_count + '</span></div>'
+    + '</strong><span class="sub">' + esc(sectionName(m.section)) + ' &middot; ' + (/^g_/.test(m.item_id) ? 'Grammatikübung' : 'Aufgabe ' + esc(m.item_id) + ' von ' + m.set_item_count) + '</span></div>'
     + '<span class="chip chip-orange">deine Antwort: ' + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('') + '</div>';
 }
 
@@ -644,8 +647,8 @@ function objectiveForm(set) {
       return { passages: [{ label: 'Text', lines: [p.text] }], options: null,
         items: (p.questions || []).map((q) => ({ id: String(q.n), prompt: q.question, options: fromMap(q.options) })) };
     case 'SB1':
-      return { passages: [{ label: 'Brief', lines: [p.letter] }], options: null,
-        items: (p.gaps || []).map((g) => ({ id: String(g.n), prompt: 'Lücke ' + g.n, options: fromMap(g.options) })) };
+      return { passages: [{ label: p.practice_kind === 'grammar-drill' ? 'Grammatikübung' : 'Brief', lines: [p.letter] }], options: null,
+        items: (p.gaps || []).map((g) => ({ id: String(g.n), prompt: g.prompt || 'Lücke ' + g.n, options: fromMap(g.options) })) };
     default:
       return null;
   }
@@ -662,10 +665,10 @@ function renderObjectiveForm(set, host) {
   host.innerHTML =
     (form.passages || []).map((passage) => '<section class="card"><div class="card-head"><h3>'
       + esc(passage.label) + '</h3></div>' + passage.lines.map((l) => '<p>' + esc(l) + '</p>').join('') + '</section>').join('')
-    + form.items.map((item) => {
+    + form.items.map((item, index) => {
       const options = item.options || form.options || [];
       return '<section class="card" data-item="' + esc(item.id) + '"><p class="kicker">Aufgabe '
-        + esc(item.id) + '</p><p>' + esc(item.prompt) + '</p><div class="row">'
+        + (index + 1) + '</p><p>' + esc(item.prompt) + '</p><div class="row">'
         + options.map((o) => '<button class="btn" type="button" data-answer="' + esc(o.id) + '" title="'
           + esc(o.label) + '">' + esc(o.id) + ') ' + esc(o.label.slice(0, 40)) + '</button>').join('')
         + '</div><p class="small muted result"></p></section>';
@@ -789,7 +792,7 @@ const CRITERION_LABELS = Object.freeze({
  *   4. THE BINDING IS THE TASK THAT WAS OPENED, down to the version and the rubric the task declares.
  *      The server refuses anything else (422 task_not_servable), and the button carries it.
  */
-const writing = createWritingController({ api, esc, language: () => state.settings?.language || 'de' });
+const writing = createWritingController({ api, esc, onChange: () => { if (currentView === 'fortschritt') guard(renderHistory()); } });
 async function openWriting(box, task, options = {}) { return writing.open(box, task, options); }
 async function renderHistory() {
   const host = el('history-list');
