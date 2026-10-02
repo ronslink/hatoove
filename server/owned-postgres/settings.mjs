@@ -18,16 +18,14 @@
  * and a stale write writes nothing and is refused rather than merged.
  *
  * Scope and limits, stated plainly:
- *   - `language` is stored here, but **the app does not yet offer a language setting** and the
- *     reviewed native-language explanations are the open human gate C-06. Storing the field now
- *     means the contract does not have to change when the feature lands; it is NOT a claim that
- *     language support exists.
+ *   - `language` selects de/en/uk/ar/tr explanations and is snapshotted at submission time.
+ *     This setting is not a claim that provisional feedback has passed human language review.
  *   - Values are validated by shape (short strings, an integer in range, a known theme) and
  *     never interpreted. No field here is a security control.
  *   - It is not a general key/value store: the allowlist is fixed and closed.
  */
 
-import { Fault, SETTINGS_FIELDS } from '../owned-api.mjs';
+import { Fault, SETTINGS_FIELDS, EXPLANATION_LANGUAGES } from '../owned-api.mjs';
 
 export const SETTINGS_LIMITS = Object.freeze({
   examDate: 10,      // ISO calendar date, `YYYY-MM-DD`
@@ -36,8 +34,8 @@ export const SETTINGS_LIMITS = Object.freeze({
 });
 
 export const SETTINGS_THEMES = Object.freeze(['system', 'light', 'dark']);
-/** Language codes the app may offer later. Empty today: the feature does not exist yet. */
-export const SETTINGS_LANGUAGES = Object.freeze([]);
+/** Explanation languages supported by the learner contract. */
+export const SETTINGS_LANGUAGES = EXPLANATION_LANGUAGES;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/;
@@ -47,7 +45,7 @@ export const SETTINGS_DEFAULTS = Object.freeze({
   examDate: '',
   dailyGoal: 20,
   theme: 'system',
-  language: '',
+  language: 'de',
 });
 
 const asRow = (row) => ({
@@ -56,7 +54,7 @@ const asRow = (row) => ({
     examDate: row.exam_date || '',
     dailyGoal: Number(row.daily_goal),
     theme: row.theme || SETTINGS_DEFAULTS.theme,
-    language: row.language || '',
+    language: SETTINGS_LANGUAGES.includes(row.language) ? row.language : 'de',
   },
 });
 
@@ -102,7 +100,7 @@ export function validateSettings(input) {
     if (typeof input.language !== 'string' || input.language.length > SETTINGS_LIMITS.language) {
       throw new Fault(422, 'invalid_settings');
     }
-    if (input.language !== '' && SETTINGS_LANGUAGES.length && !SETTINGS_LANGUAGES.includes(input.language)) {
+    if (!SETTINGS_LANGUAGES.includes(input.language)) {
       throw new Fault(422, 'invalid_settings');
     }
     out.language = input.language;
@@ -153,6 +151,7 @@ export function createPostgresSettings({ pool } = {}) {
      */
     async write(owner, expectedRevision, patch) {
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Fault(422, 'invalid_settings');
+      patch = validateSettings(patch);
       return settle(owner, async (client) => {
         const current = (await client.query(
           'SELECT revision, exam_date, daily_goal, model, theme, language FROM learner_settings WHERE user_id = $1 FOR UPDATE',

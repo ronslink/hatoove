@@ -46,6 +46,8 @@
  * Forgetting the gate therefore fails closed instead of open.
  */
 
+import { contentIsServable } from './content-policy.mjs';
+
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
 export const TEXT_LIMIT = 12000;
@@ -171,6 +173,7 @@ export const DELETION_NOT_REMOVED = Object.freeze([
  * import server code — but `tools/owned-api-check.mjs` asserts the two agree on `model` being refused.
  */
 export const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'theme', 'language'];
+export const EXPLANATION_LANGUAGES = Object.freeze(['de', 'en', 'uk', 'ar', 'tr']);
 /**
  * FAMILY NAMING — ONE CONVENTION, ONE PARSER.
  *
@@ -253,9 +256,8 @@ function validateSettings(input) {
     out.theme = input.theme;
   }
   if (input.language !== undefined) {
-    // Stored, but the app does not offer a language setting yet: the field exists so the
-    // contract does not have to change when it does. See C-06.
-    if (typeof input.language !== 'string' || input.language.length > 16) fault(422, 'invalid_settings');
+    // This preference changes explanations; interface and exam content stay German.
+    if (!EXPLANATION_LANGUAGES.includes(input.language)) fault(422, 'invalid_settings');
     out.language = input.language;
   }
   if (!Object.keys(out).length) fault(422, 'invalid_settings');
@@ -712,7 +714,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
       // The KIND is what the task catalogue stores; the part id is the wire vocabulary (see parseFamily).
-      const tasks = await datastore.listTasks(owner, { examId: exam, family: parsedFamily ? parsedFamily.kind : null, serveReview });
+      const tasks = (await datastore.listTasks(owner, { examId: exam, family: parsedFamily ? parsedFamily.kind : null, serveReview })).filter((row) => contentIsServable(row));
       /*
        * ONE CARD PER TASK, THE NEWEST VERSION.
        *
@@ -767,7 +769,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
-      return reply(200, await datastore.listObjectiveSets(owner, {
+      return reply(200, (await datastore.listObjectiveSets(owner, {
         examId: exam,
         // An exact PART ID is the narrowest filter; a KIND narrows to the group. Both reach the same
         // storage column, which is why one of them is passed as an equality and the other as a prefix.
@@ -775,7 +777,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         group: parsedFamily && parsedFamily.partId ? null : (parsedFamily ? parsedFamily.group : null),
         part: parsedFamily ? parsedFamily.part : null,
         serveReview,
-      }));
+      })).filter((row) => contentIsServable(row)));
     }
     if (pathname === '/api/v1/vocab' && method === 'GET') {
       if (!catalogueWired) fault(503, 'catalogue_unavailable');
@@ -794,9 +796,9 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
-      return reply(200, await datastore.listVocab(owner, {
+      return reply(200, (await datastore.listVocab(owner, {
         examId: exam, pos, q: q === null ? null : q.trim(), serveReview,
-      }));
+      })).filter((row) => contentIsServable(row)));
     }
     if (pathname === '/api/v1/nouns' && method === 'GET') {
       if (!catalogueWired) fault(503, 'catalogue_unavailable');
@@ -817,10 +819,10 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
-      return reply(200, await datastore.listNouns(owner, {
+      return reply(200, (await datastore.listNouns(owner, {
         examId: exam, theme: theme === null ? null : theme.trim(), gender,
         q: q === null ? null : q.trim(), serveReview,
-      }));
+      })).filter((row) => contentIsServable(row)));
     }
     if (pathname === '/api/v1/guides' && method === 'GET') {
       if (!catalogueWired) fault(503, 'catalogue_unavailable');
@@ -833,7 +835,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
       const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
         ? 'approved' : 'approved+unreviewed';
-      return reply(200, await datastore.listGuides(owner, { examId: exam, serveReview }));
+      return reply(200, (await datastore.listGuides(owner, { examId: exam, serveReview })).filter((row) => contentIsServable(row)));
     }
     {
       /*
@@ -860,7 +862,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         const rubric = await datastore.readRubric(owner, { rubricId: rubricMatch[1], version });
         // Unknown id and unknown version are both 404: "no such contract" is not "a contract with no
         // criteria", and the route must not answer the second when it means the first.
-        if (!rubric) fault(404, 'not_found');
+        if (!contentIsServable(rubric)) fault(404, 'not_found');
         return reply(200, rubric);
       }
     }
@@ -873,7 +875,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         const guide = await datastore.readGuide(owner, { guideId: guideMatch[1], serveReview });
         // A guide that does not exist and a guide the deployment will not serve are BOTH 404, so the
         // endpoint is not an oracle for what exists but is withheld.
-        if (!guide) fault(404, 'not_found');
+        if (!contentIsServable(guide)) fault(404, 'not_found');
         return reply(200, guide);
       }
     }
@@ -937,7 +939,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
           ? 'approved' : 'approved+unreviewed';
         const set = await datastore.readObjectiveSet(owner, { setId: setMatch[1], version, serveReview });
-        if (!set) fault(404, 'not_found');
+        if (!contentIsServable(set)) fault(404, 'not_found');
         return reply(200, set);
       }
     }
@@ -966,26 +968,19 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       return reply(200, await datastore.listMistakes(owner, { examId: exam }));
     }
     if (pathname === '/api/v1/attempts' && method === 'GET') {
-      /*
-       * PILOT-06 — WHAT IS STILL OPEN, so a reload does not lose a letter.
-       *
-       * A learner who reloads mid-writing gets a new attempt today, because nothing tells the client which
-       * attempt is unfinished. The client cannot answer that for itself: it keeps NOTHING in the browser
-       * (app-browser-check L30 asserts it), so the server has to say it.
-       *
-       * `?open=1` is the ONLY shape this GET serves. Any other query, and no query at all, is answered
-       * with the same `404 not_found` the path already gives for an unsupported METHOD — the API's
-       * established convention, asserted by `owned-api-check` leg `error-404-unknown-routes-and-methods`,
-       * which covers `GET /api/v1/attempts` today. Returning a special 422 for "you forgot the flag"
-       * would have carved an exception into a convention that is otherwise uniform, so the flag is part of
-       * WHAT IS SERVED rather than a parameter with a validation error.
-       *
-       * The index carries NO DRAFT TEXT: a list that returned letters would ship a learner's writing in
-       * every poll, while the client only needs the ID, the binding and the revision so it can read the
-       * one attempt it resumes.
-       */
-      if (query.get('open') !== '1') fault(404, 'not_found');
-      return reply(200, { attempts: await datastore.listOpenAttempts(owner) });
+      // Discovery is owner scoped and carries no letter text. A fresh device can reopen the
+      // exact submission, including pending and failed work, without a browser state blob.
+      if ([...query.keys()].some((key) => key !== 'open') || (query.has('open') && query.get('open') !== '1')) fault(422, 'invalid_query');
+      const indexMethod = query.get('open') === '1' ? 'listOpenAttempts' : 'listAttempts';
+      if (typeof datastore[indexMethod] !== 'function') fault(503, 'history_unavailable');
+      return reply(200, { attempts: await datastore[indexMethod](owner) });
+    }
+    if (pathname === '/api/v1/export' && method === 'GET') {
+      if (typeof datastore.exportData !== 'function' || !settingsWired) fault(503, 'export_unavailable');
+      return reply(200, {
+        format: 'hatoove-learner-export-v1', exported_at: new Date().toISOString(),
+        settings: await settings.read(owner), ...await datastore.exportData(owner),
+      });
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['parentSubmissionId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion']);
@@ -1049,7 +1044,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         try {
           const stored = await settings.read(owner);
           const value = stored && stored.settings ? stored.settings.language : '';
-          if (typeof value === 'string' && value.trim() !== '' && value.length <= 16) language = value.trim();
+          if (EXPLANATION_LANGUAGES.includes(value)) language = value;
         } catch { /* an unreadable preference must not block a submission; German is the honest default */ }
       }
       return reply(202, await datastore.submit(owner, match[1].toLowerCase(), expected, eventId, language));

@@ -190,7 +190,7 @@ paths:
                     type: object
                     properties:
                       examDate: { type: string, description: 'YYYY-MM-DD, or empty.' }
-                      language: { type: string, description: 'Explanation language only. The interface stays German.' }
+                      language: { type: string, enum: [de, en, uk, ar, tr], description: 'Explanation language only. The interface stays German.' }
                       dailyGoal: { type: string }
                       model: { type: string }
                       theme: { type: string }
@@ -214,7 +214,7 @@ paths:
                   type: object
                   properties:
                     examDate: { type: string }
-                    language: { type: string }
+                    language: { type: string, enum: [de, en, uk, ar, tr] }
       responses:
         '200': { description: 'Written; the new revision is returned.' }
         '409': { description: 'The revision was stale (`settings_conflict`).' }
@@ -258,6 +258,32 @@ paths:
         '503': { description: 'Catalogue port not wired (`catalogue_unavailable`).' }
 
   /api/v1/attempts:
+    get:
+      tags: [attempts]
+      summary: Discover saved drafts, pending work and completed feedback
+      description: |
+        Owner-scoped, newest first, excluding deleted attempts. Carries no draft or submission text.
+        Each summary contains id, task_id, task_version, rubric_id, rubric_version, topic,
+        parent_submission_id, revision, created_at, submission_id (nullable), and status
+        (draft, pending, unassessed, assessed). Use submission_id to reopen the exact result.
+        The existing open=1 query returns unfinished drafts only.
+      parameters:
+        - name: open
+          in: query
+          schema: { type: string, enum: ['1'] }
+      responses:
+        '200':
+          description: A summary index under the attempts key.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attempts:
+                    type: array
+                    items: { $ref: '#/components/schemas/AttemptSummary' }
+        '401': { description: 'No verified session.' }
+        '422': { description: 'Unsupported filter (`invalid_query`).' }
     post:
       tags: [attempts]
       summary: Create an owned attempt
@@ -268,10 +294,30 @@ paths:
             schema:
               type: object
               properties:
-                parentSubmissionId: { type: string, format: uuid, description: 'Set when this is a revision of a previous submission.' }
+                parentSubmissionId: { type: string, format: uuid, description: 'Revision parent. Inherits its exact task/rubric and frozen text when binding is omitted.' }
+                taskId: { type: string }
+                taskVersion: { type: string }
+                rubricId: { type: string }
+                rubricVersion: { type: string }
       responses:
-        '201': { description: 'Created.' }
+        '201': { description: 'Created at revision 1 with text, immutable task/rubric binding and parent_submission_id. Explicit binding requires all four fields.' }
         '404': { description: 'The parent is not this owner’s (`not_found`).' }
+        '422': { description: 'Invalid binding, parent_binding_mismatch, or task_not_servable under deployment review/rights policy.' }
+
+  /api/v1/export:
+    get:
+      tags: [account]
+      summary: Export the signed-in learner's saved work
+      description: |
+        JSON format hatoove-learner-export-v1, with exported_at, settings, attempts (including
+        draft text), submissions (immutable text snapshots), results (job status and feedback),
+        and objective_evidence (the learner's answers). Excludes deleted attempts, other accounts,
+        passwords, sessions, reset/verification tokens, worker leases and objective answer keys.
+        Historical owned work is retained even when its content is no longer offered for new use.
+      responses:
+        '200': { description: 'The owner-scoped export document.' }
+        '401': { description: 'No verified session.' }
+        '503': { description: 'Required export/settings port unavailable.' }
 
   /api/v1/attempts/{id}:
     parameters:
@@ -283,7 +329,7 @@ paths:
       tags: [attempts]
       summary: Read an owned attempt and its draft
       responses:
-        '200': { description: 'The attempt.' }
+        '200': { description: 'The attempt, draft and its immutable historical task/rubric payloads, even if no longer in the current catalogue.' }
         '404': { description: 'Not this owner’s — never 403, so another owner’s record is indistinguishable from one that does not exist.' }
     put:
       tags: [attempts]
@@ -344,7 +390,7 @@ paths:
       summary: Read a submission, its job and its assessment
       description: A missing or failed assessment is reported as such. It is never a fabricated score.
       responses:
-        '200': { description: 'Submission, job status and assessment (or null while pending).' }
+        '200': { description: 'Submission, job status, assessment (or null), exact task/rubric identifiers, parent_submission_id and historical task/rubric payloads.' }
         '404': { description: 'Not this owner’s.' }
 
   /api/v1/submissions/{id}/retry:
@@ -389,6 +435,21 @@ components:
         is deliberately not required on the local HTTP stack, where a `Secure` cookie would never be
         sent.
   schemas:
+    AttemptSummary:
+      type: object
+      required: [id, task_id, task_version, rubric_id, rubric_version, revision, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        task_id: { type: string }
+        task_version: { type: string }
+        rubric_id: { type: string }
+        rubric_version: { type: string }
+        topic: { type: string }
+        parent_submission_id: { type: string, format: uuid, nullable: true }
+        revision: { type: integer }
+        created_at: { type: string, format: date-time }
+        submission_id: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [draft, pending, unassessed, assessed] }
     TaskVersion:
       type: object
       description: One servable version of a task, with the truth about its review and rights status.
@@ -405,7 +466,7 @@ components:
         rubric_id: { type: string }
         rubric_version: { type: string }
         review_status: { type: string, enum: [unreviewed, approved, rejected] }
-        rights_status: { type: string, description: '`unknown` for every seeded row today (D1). Carried so the gate can be added without a schema change.' }
+        rights_status: { type: string, description: 'Effective append-only rights decision, falling back to the immutable content row. Defaults to serving generated; B1PREP_SERVE_RIGHTS may allow generated/licensed/commissioned. Unknown always fails closed.' }
 
 security:
   - sessionCookie: []

@@ -154,7 +154,7 @@ check('5. content with no rights basis is refused while generated content is ser
     await db.admin.query(
       `INSERT INTO content_version(content_version_id, kind, family, source_path, review_status, rights_status, content_sha256, exam_id)
        VALUES($1, 'objective', 'lv', 'probe', 'approved', 'unknown', 'probe', 'telc-deutsch-b1')`, [id]);
-    await db.admin.query(
+    if (basis !== 'missing') await db.admin.query(
       `INSERT INTO content_rights(content_version_id, basis, decided_by, note)
        VALUES($1, $2, 'check', 'synthetic probe row for the fail-closed leg')`, [id, basis]);
     /*
@@ -170,20 +170,37 @@ check('5. content with no rights basis is refused while generated content is ser
   };
   await makeRow('generated');
   await makeRow('unknown');
+  await makeRow('missing');
+  await makeRow('licensed');
 
   const who = await learner();
   const listed = await call('GET', '/api/v1/objective-sets?family=LV1', { cookie: who.cookie });
   assert.equal(listed.status, 200, listed.text.slice(0, 120));
   const titles = (listed.json || []).map((set) => set.title);
   assert.ok(titles.includes('Probe generated'), `generated content must be served; got ${JSON.stringify(titles)}`);
-  if (titles.includes('Probe unknown')) {
-    /*
-     * PENDING, NOT PASSED. The enforcement is the half of D1 that is not built yet — the read path reports the
-     * effective basis, and nothing refuses a basis the deployment has not accepted. This leg therefore says so
-     * out loud and does NOT count as a pass, which is the convention `journey-api-check` established for a leg
-     * whose behaviour does not exist yet. A green tick here would claim a gate that is not there.
-     */
-    return { pending: 'RIGHTS-GATE', why: 'content with no accepted basis is still served; the route filter is not built' };
+  assert.ok(!titles.includes('Probe unknown'), 'unaccepted content must be excluded from the catalogue');
+  assert.ok(!titles.includes('Probe missing'), 'a missing rights decision must fail closed');
+  assert.ok(!titles.includes('Probe licensed'), 'an unconfigured basis must fail closed');
+  const refused = await call('GET', `/api/v1/objective-sets/${suffix}.unknown`, { cookie: who.cookie });
+  assert.equal(refused.status, 404, 'a direct content URL must not bypass the rights gate');
+  const accepted = await call('GET', `/api/v1/objective-sets/${suffix}.generated`, { cookie: who.cookie });
+  assert.equal(accepted.status, 200, 'the generated control must remain readable');
+  const marking = await call('POST', `/api/v1/objective-sets/${suffix}.unknown/answers`, {
+    cookie: who.cookie, body: { itemId: '1', answer: 'a' },
+  });
+  assert.equal(marking.status, 404, 'marking must reject a withheld set before looking up its key');
+  const previous = process.env.B1PREP_SERVE_RIGHTS;
+  try {
+    process.env.B1PREP_SERVE_RIGHTS = 'generated,licensed,unknown';
+    const widened = await call('GET', '/api/v1/objective-sets?family=LV1', { cookie: who.cookie });
+    assert.equal(widened.status, 200);
+    const allowed = widened.json.map((row) => row.title);
+    assert.ok(allowed.includes('Probe generated') && allowed.includes('Probe licensed'));
+    assert.ok(!allowed.includes('Probe unknown') && !allowed.includes('Probe missing'),
+      'deployment configuration cannot turn unknown or absent provenance into accepted content');
+  } finally {
+    if (previous === undefined) delete process.env.B1PREP_SERVE_RIGHTS;
+    else process.env.B1PREP_SERVE_RIGHTS = previous;
   }
   return `served ${JSON.stringify(titles)} — "Probe unknown" is absent`;
 });

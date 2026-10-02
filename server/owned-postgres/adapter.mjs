@@ -24,6 +24,7 @@
 import { randomUUID } from 'node:crypto';
 import { Fault } from '../../server/owned-api.mjs';
 import { DEFAULT_TASK_BINDING } from './content-seed.mjs';
+import { contentPolicy } from '../content-policy.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -48,10 +49,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
    * The setting is transaction-local (`set_config(..., true)`), so returning a
    * pooled connection never leaks a previous owner's context.
    */
-  async function settle(owner, work) {
+  async function settle(owner, work, snapshot = false) {
     const client = await pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query(snapshot ? 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY' : 'BEGIN');
       await client.query("SELECT set_config('hatoove.owner_id', $1, true)", [owner]);
       const value = await work(client);
       await client.query('COMMIT');
@@ -74,6 +75,45 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
 
   async function draftOf(client, id) {
     return first(await client.query('SELECT revision, text FROM drafts WHERE attempt_id = $1', [id]));
+  }
+
+  const bindingOf = (row) => ({
+    taskId: row.task_id, taskVersion: row.task_version, rubricId: row.rubric_id, rubricVersion: row.rubric_version,
+  });
+
+  // Every new use checks the task AND its declared rubric. Existing snapshots remain readable.
+  async function requireServableBinding(client, binding) {
+    const policy = contentPolicy();
+    const row = first(await client.query(
+      `SELECT 1 FROM task_version t
+         JOIN content_version c ON c.content_version_id = t.content_version_id
+         LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+         JOIN rubric_version r ON r.rubric_id = t.rubric_id AND r.version = t.rubric_version
+         JOIN content_version rc ON rc.content_version_id = r.content_version_id
+         LEFT JOIN content_rights rr ON rr.content_version_id = rc.content_version_id
+        WHERE t.task_id = $1 AND t.version = $2 AND t.rubric_id = $3 AND t.rubric_version = $4
+          AND c.review_status = ANY($5::text[]) AND rc.review_status = ANY($5::text[])
+          AND COALESCE(cr.basis, c.rights_status) = ANY($6::text[])
+          AND COALESCE(rr.basis, rc.rights_status) = ANY($6::text[])`,
+      [binding.taskId, binding.taskVersion, binding.rubricId, binding.rubricVersion, policy.review, policy.rights]));
+    if (!row) fail(422, 'task_not_servable');
+  }
+
+  // Call only after proving ownership of an attempt. These immutable historical records are
+  // deliberately readable when the current deployment no longer offers them for new practice.
+  async function historicalContent(client, attempt) {
+    const task = first(await client.query(
+      `SELECT task_id, version, rubric_id, rubric_version, exam_id, family, register, topic,
+              situation, adressat, leitpunkte FROM task_version WHERE task_id = $1 AND version = $2`,
+      [attempt.task_id, attempt.task_version]));
+    const rubric = first(await client.query(
+      `SELECT r.rubric_id, r.version, r.criteria, r.max_total, r.family, r.exam_id,
+              c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status,
+              c.review_status <> 'approved' AS provisional
+         FROM rubric_version r JOIN content_version c ON c.content_version_id = r.content_version_id
+         LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+        WHERE r.rubric_id = $1 AND r.version = $2`, [attempt.rubric_id, attempt.rubric_version]));
+    return { task: task ?? null, rubric: rubric ?? null };
   }
 
   return Object.freeze({
@@ -111,8 +151,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
             WHERE t.exam_id = COALESCE($1, t.exam_id)
               AND ($2::text IS NULL OR t.family = $2)
               AND c.review_status = ANY($3::text[])
+              AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])
             ORDER BY t.task_id, t.version`,
-          [examId, family, statuses])).rows;
+          [examId, family, statuses, contentPolicy().rights])).rows;
         return rows.map((row) => ({
           task_id: row.task_id,
           version: row.version,
@@ -169,8 +210,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
               AND ($5::int IS NULL OR s.part = $5)
               AND c.review_status = ANY($3::text[])
               AND s.media_required = false
+              AND COALESCE(cr.basis, c.rights_status) = ANY($6::text[])
             ORDER BY s.family, s.part, s.set_id`,
-          [examId, family, statuses, group, part])).rows;
+          [examId, family, statuses, group, part, contentPolicy().rights])).rows;
         return rows.map((row) => ({
           set_id: row.set_id,
           version: row.version,
@@ -203,8 +245,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
           WHERE s.set_id = $1 AND s.version = $2
             AND c.review_status = ANY($3::text[])
             AND s.media_required = false
-            AND s.exam_id = COALESCE($4, s.exam_id)`,
-        [setId, version, statuses, null])));
+            AND s.exam_id = COALESCE($4, s.exam_id)
+            AND COALESCE(cr.basis, c.rights_status) = ANY($5::text[])`,
+        [setId, version, statuses, null, contentPolicy().rights])));
       if (!row) return null;
       return {
         set_id: row.set_id, version: row.version, exam_id: row.exam_id, family: row.family,
@@ -242,9 +285,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
               AND ($2::text IS NULL OR v.pos = $2)
               AND ($3::text IS NULL OR v.de ILIKE '%' || $3 || '%' OR v.en ILIKE '%' || $3 || '%')
               AND c.review_status = ANY($4::text[])
+              AND COALESCE(cr.basis, c.rights_status) = ANY($6::text[])
             ORDER BY v.ordinal
             LIMIT $5`,
-          [examId, pos, q, statuses, limit])).rows;
+          [examId, pos, q, statuses, limit, contentPolicy().rights])).rows;
         return rows.map((row) => ({
           entry_id: row.entry_id,
           exam_id: row.exam_id,
@@ -284,9 +328,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
               AND ($3::text IS NULL OR n.gender = $3)
               AND ($4::text IS NULL OR n.de ILIKE '%' || $4 || '%' OR n.en ILIKE '%' || $4 || '%')
               AND c.review_status = ANY($5::text[])
+              AND COALESCE(cr.basis, c.rights_status) = ANY($7::text[])
             ORDER BY n.ordinal
             LIMIT $6`,
-          [examId, theme, gender, q, statuses, limit])).rows;
+          [examId, theme, gender, q, statuses, limit, contentPolicy().rights])).rows;
         return rows.map((row) => ({
           entry_id: row.entry_id,
           exam_id: row.exam_id,
@@ -323,8 +368,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE g.exam_id = COALESCE($1, g.exam_id)
               AND c.review_status = ANY($2::text[])
+              AND COALESCE(cr.basis, c.rights_status) = ANY($3::text[])
             ORDER BY g.guide_id`,
-          [examId, statuses])).rows;
+          [examId, statuses, contentPolicy().rights])).rows;
         return rows.map((row) => ({
           guide_id: row.guide_id,
           family: row.family,
@@ -366,8 +412,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
              FROM rubric_version r
              JOIN content_version c ON c.content_version_id = r.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
-            WHERE r.rubric_id = $1 AND r.version = $2 AND c.review_status = ANY($3::text[])`,
-          [rubricId, version, statuses]));
+            WHERE r.rubric_id = $1 AND r.version = $2 AND c.review_status = ANY($3::text[])
+              AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
+          [rubricId, version, statuses, contentPolicy().rights]));
         if (!row) return null;
         return {
           rubric_id: row.rubric_id,
@@ -392,8 +439,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
              FROM guide g
              JOIN content_version c ON c.content_version_id = g.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
-            WHERE g.guide_id = $1 AND c.review_status = ANY($2::text[])`,
-          [guideId, statuses])).rows[0];
+            WHERE g.guide_id = $1 AND c.review_status = ANY($2::text[])
+              AND COALESCE(cr.basis, c.rights_status) = ANY($3::text[])`,
+          [guideId, statuses, contentPolicy().rights])).rows[0];
         if (!head) return null;
         const sections = (await client.query(
           `SELECT section_id, ordinal, kind, title, title_en, summary, summary_en, payload
@@ -449,8 +497,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
              FROM objective_set s
              JOIN content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
-            WHERE s.set_id = $1 AND s.version = $2 AND c.review_status = ANY($3::text[])`,
-          [setId, version, statuses]));
+            WHERE s.set_id = $1 AND s.version = $2 AND c.review_status = ANY($3::text[])
+              AND s.media_required = false
+              AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
+          [setId, version, statuses, contentPolicy().rights]));
         if (!set) fail(404, 'not_found');
 
         let marked;
@@ -507,17 +557,18 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
           WHERE s.media_required = false
             AND s.exam_id = COALESCE($1, s.exam_id)
             AND c.review_status = ANY($2::text[])
+            AND COALESCE(cr.basis, c.rights_status) = ANY($3::text[])
           GROUP BY s.section`,
-        [examId, statuses])).rows));
+        [examId, statuses, contentPolicy().rights])).rows));
 
       if (!sections.length) return null;
 
       const stats = await settle(owner, async (client) => (await client.query(
         `SELECT section, count(*)::int AS attempts, count(*) FILTER (WHERE correct)::int AS correct
            FROM item_evidence
-          WHERE owner_id = $1
+          WHERE owner_id = $1 AND exam_id = COALESCE($2, exam_id)
           GROUP BY section`,
-        [owner])).rows);
+        [owner, examId])).rows);
       const bySection = new Map(stats.map((row) => [row.section, row]));
 
       const ranked = sections.map((section) => {
@@ -556,9 +607,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
             AND s.media_required = false
             AND s.exam_id = COALESCE($4, s.exam_id)
             AND c.review_status = ANY($2::text[])
+            AND COALESCE(cr.basis, c.rights_status) = ANY($5::text[])
           ORDER BY seen, s.part, s.set_id
           LIMIT 1`,
-        [chosen.section, statuses, owner, examId])));
+        [chosen.section, statuses, owner, examId, contentPolicy().rights])));
 
       if (!set) return null;
       return {
@@ -668,46 +720,32 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * keys added by migration `0006` make the binding a real, checked reference — an unknown
      * task id/version fails here instead of silently storing an unreviewed claim.
      */
-    async create(owner, parent = null, binding = DEFAULT_TASK_BINDING) {
+    async create(owner, parent = null, binding = null) {
       note('create');
-      const b = binding || DEFAULT_TASK_BINDING;
       return settle(owner, async (client) => {
-        /*
-         * AN EXPLICIT BINDING MUST NAME A SERVABLE TASK VERSION — checked here, in the datastore, so both
-         * backends apply the same rule and neither the route nor a caller can bind an attempt to content
-         * the deployment does not serve, or to a rubric of its own choosing.
-         *
-         * The composite foreign keys from migration 0006 already make the reference real (an unknown pair
-         * fails), but they do NOT apply the serving policy and they do NOT pin the rubric: a caller could
-         * name a servable task with a rubric that task does not declare. This query closes both, using the
-         * same `review_status` policy as the catalogue route rather than a second interpretation of it.
-         */
-        if (binding) {
-          const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
-            ? ['approved'] : ['approved', 'unreviewed'];
-          const servable = first(await client.query(
-            `SELECT 1 FROM task_version t
-               JOIN content_version c ON c.content_version_id = t.content_version_id
-                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
-              WHERE t.task_id = $1 AND t.version = $2
-                AND t.rubric_id = $3 AND t.rubric_version = $4
-                AND c.review_status = ANY($5::text[])`,
-            [b.taskId, b.taskVersion, b.rubricId, b.rubricVersion, serveReview]));
-          if (!servable) fail(422, 'task_not_servable');
-        }
+        let b = binding || DEFAULT_TASK_BINDING;
+        let text = '';
         if (parent) {
           const parentRow = first(await client.query(
-            `SELECT a.id FROM submissions s JOIN attempts a ON a.id = s.attempt_id
-             WHERE s.id = $1 AND s.owner_id = $2 AND a.deleted_at IS NULL FOR UPDATE OF a`, [parent, owner]));
+            `SELECT a.task_id, s.task_version, a.rubric_id, s.rubric_version, s.text
+               FROM submissions s JOIN attempts a ON a.id = s.attempt_id
+              WHERE s.id = $1 AND s.owner_id = $2 AND a.owner_id = $2
+                AND a.deleted_at IS NULL FOR UPDATE OF a`, [parent, owner]));
           if (!parentRow) fail(404, 'not_found');
+          const inherited = bindingOf(parentRow);
+          if (binding && Object.keys(inherited).some((key) => binding[key] !== inherited[key])) fail(422, 'parent_binding_mismatch');
+          b = inherited;
+          text = parentRow.text;
         }
+        await requireServableBinding(client, b);
         const id = randomUUID();
         await client.query(
           `INSERT INTO attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version, parent_submission_id)
            VALUES($1, $2, $3, $4, $5, $6, $7)`,
           [id, owner, b.taskId, b.taskVersion, b.rubricId, b.rubricVersion, parent]);
-        await client.query('INSERT INTO drafts(attempt_id, revision, text) VALUES($1, 1, \'\')', [id]);
-        return { id, revision: 1, text: '' };
+        await client.query('INSERT INTO drafts(attempt_id, revision, text) VALUES($1, 1, $2)', [id, text]);
+        return { id, revision: 1, text, task_id: b.taskId, task_version: b.taskVersion,
+          rubric_id: b.rubricId, rubric_version: b.rubricVersion, parent_submission_id: parent };
       });
     },
 
@@ -715,8 +753,55 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       note('read');
       return settle(owner, async (client) => {
         const attempt = await owned(client, owner, id);
-        return { ...attempt, ...(await draftOf(client, id)) };
+        return { ...attempt, ...(await draftOf(client, id)), ...await historicalContent(client, attempt) };
       });
+    },
+
+    async listAttempts(owner) {
+      note('listAttempts');
+      return settle(owner, async (client) => (await client.query(
+        `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version,
+                a.parent_submission_id, d.revision, a.created_at, t.topic, s.id AS submission_id,
+                CASE WHEN s.id IS NULL THEN 'draft'
+                     WHEN f.submission_id IS NOT NULL THEN 'assessed'
+                     WHEN j.status IN ('failed', 'cancelled') THEN 'unassessed'
+                     ELSE 'pending' END AS status
+           FROM attempts a JOIN drafts d ON d.attempt_id = a.id
+           JOIN task_version t ON t.task_id = a.task_id AND t.version = a.task_version
+           LEFT JOIN submissions s ON s.attempt_id = a.id AND s.owner_id = a.owner_id
+           LEFT JOIN jobs j ON j.submission_id = s.id AND j.owner_id = a.owner_id
+           LEFT JOIN assessments f ON f.submission_id = s.id AND f.owner_id = a.owner_id
+          WHERE a.owner_id = $1 AND a.deleted_at IS NULL
+          ORDER BY a.created_at DESC, a.id DESC`, [owner])).rows);
+    },
+
+    /** Learner data only, selected explicitly: no auth tables, tokens, hashes or worker leases. */
+    async exportData(owner) {
+      note('exportData');
+      return settle(owner, async (client) => {
+        const attempts = (await client.query(
+          `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version,
+                  a.parent_submission_id, a.created_at, d.revision, d.text
+             FROM attempts a JOIN drafts d ON d.attempt_id = a.id
+            WHERE a.owner_id = $1 AND a.deleted_at IS NULL ORDER BY a.created_at, a.id`, [owner])).rows;
+        const submissions = (await client.query(
+          `SELECT s.id, s.attempt_id, s.draft_revision, s.text, a.task_id, s.task_version,
+                  a.rubric_id, s.rubric_version, s.explanation_language, s.created_at
+             FROM submissions s JOIN attempts a ON a.id = s.attempt_id AND a.owner_id = s.owner_id
+            WHERE s.owner_id = $1 AND a.deleted_at IS NULL ORDER BY s.created_at, s.id`, [owner])).rows;
+        const results = (await client.query(
+          `SELECT s.id AS submission_id, j.status, j.failure_code, j.tries,
+                  f.feedback, f.model_version, f.prompt_version, f.rubric_version
+             FROM submissions s JOIN attempts a ON a.id = s.attempt_id AND a.owner_id = s.owner_id
+             LEFT JOIN jobs j ON j.submission_id = s.id AND j.owner_id = s.owner_id
+             LEFT JOIN assessments f ON f.submission_id = s.id AND f.owner_id = s.owner_id
+            WHERE s.owner_id = $1 AND a.deleted_at IS NULL ORDER BY s.created_at, s.id`, [owner])).rows;
+        const objective_evidence = (await client.query(
+          `SELECT evidence_id, exam_id, set_id, version, item_id, family, section, answer,
+                  correct, latency_ms, answered_at FROM item_evidence
+            WHERE owner_id = $1 ORDER BY answered_at, evidence_id`, [owner])).rows;
+        return { attempts, submissions, results, objective_evidence };
+      }, true);
     },
 
     /**
@@ -785,6 +870,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
           if (prior.attempt_id !== attempt.id || prior.draft_revision !== expectedRevision) fail(409, 'idempotency_conflict');
           return { submissionId: prior.id, replay: true };
         }
+        await requireServableBinding(client, bindingOf(attempt));
         const draft = await draftOf(client, id);
         if (!draft || draft.revision !== expectedRevision) fail(409, 'draft_conflict');
         if (!draft.text.trim()) fail(422, 'empty_submission');
@@ -812,12 +898,16 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
         const submission = first(await client.query(
           'SELECT * FROM submissions WHERE id = $1 AND owner_id = $2', [submissionId, owner]));
         if (!submission) fail(404, 'not_found');
-        await owned(client, owner, submission.attempt_id);
+        const attempt = await owned(client, owner, submission.attempt_id);
         const job = first(await client.query(
           'SELECT status, failure_code, tries FROM jobs WHERE submission_id = $1', [submissionId]));
         const assessment = first(await client.query(
           'SELECT feedback, model_version, prompt_version, rubric_version FROM assessments WHERE submission_id = $1', [submissionId]));
-        return { submission, job, assessment: assessment ?? null };
+        return { submission, job, assessment: assessment ?? null,
+          task_id: attempt.task_id, task_version: submission.task_version,
+          rubric_id: attempt.rubric_id, rubric_version: submission.rubric_version,
+          parent_submission_id: attempt.parent_submission_id,
+          ...await historicalContent(client, attempt) };
       });
     },
 
@@ -829,12 +919,13 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
         const submission = first(await client.query(
           'SELECT * FROM submissions WHERE id = $1 AND owner_id = $2', [submissionId, owner]));
         if (!submission) fail(404, 'not_found');
-        await owned(client, owner, submission.attempt_id);
+        const attempt = await owned(client, owner, submission.attempt_id);
         const job = first(await client.query(
           'SELECT * FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
         if (!job || job.status !== 'failed' || job.tries >= 3 || job.failure_code === 'retry_exhausted') {
           fail(409, 'retry_unavailable');
         }
+        await requireServableBinding(client, bindingOf(attempt));
         if (!entitlement || entitlement.used + entitlement.reserved >= entitlement.allowance) fail(409, 'allowance_exhausted');
         await client.query("UPDATE jobs SET status = 'queued', failure_code = NULL WHERE id = $1", [job.id]);
         await client.query('UPDATE entitlements SET reserved = reserved + 1 WHERE owner_id = $1', [owner]);

@@ -89,43 +89,83 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
   };
   const submissionFor = (attemptId) => [...submissions.values()].find((s) => s.attempt_id === attemptId);
   const attemptView = (attempt) => ({ ...attempt, ...drafts.get(attempt.id) });
+  const bindingOf = (attempt) => ({ taskId: attempt.task_id, taskVersion: attempt.task_version,
+    rubricId: attempt.rubric_id, rubricVersion: attempt.rubric_version });
+  const historicalContent = (attempt) => {
+    const task = WRITING_TASKS.find((row) => row.taskId === attempt.task_id);
+    const rubric = [FORMATIVE_WRITING_RUBRIC, TELC_B1_WRITING_RUBRIC]
+      .find((row) => row.rubricId === attempt.rubric_id && row.version === attempt.rubric_version);
+    return {
+      task: task ? { task_id: task.taskId, version: attempt.task_version, rubric_id: attempt.rubric_id,
+        rubric_version: attempt.rubric_version, exam_id: 'telc-deutsch-b1', family: 'writing',
+        register: task.register, topic: task.topic, situation: task.situation, adressat: task.adressat,
+        leitpunkte: [...task.leitpunkte] } : null,
+      rubric: rubric ? { rubric_id: rubric.rubricId, version: rubric.version, criteria: structuredClone(rubric.criteria),
+        max_total: rubric.maxTotal, review_status: 'unreviewed', rights_status: 'generated', provisional: true } : null,
+    };
+  };
+  const requireServableBinding = (binding, contentIsServable) => {
+    if (!contentIsServable({ review_status: 'unreviewed', rights_status: 'generated' })
+      || !taskBindings().some((row) => row.taskId === binding.taskId && row.version === binding.taskVersion
+        && row.rubricId === binding.rubricId && row.rubricVersion === binding.rubricVersion)) fail(422, 'task_not_servable');
+  };
 
   const port = {
-    async create(owner, parent = null, binding = DEFAULT_TASK_BINDING) {
+    async create(owner, parent = null, binding = null) {
+      const { contentIsServable } = await import('../server/content-policy.mjs');
       calls.push('create');
-      if (parent) ownedSubmission(owner, parent);
-      const b = binding || DEFAULT_TASK_BINDING;
-      /*
-       * THE SERVING POLICY, APPLIED HERE TOO — not only in the PostgreSQL adapter.
-       *
-       * The memory fixture mirrors the adapter's contract, so a rule the adapter enforces and this does
-       * not turns "passes on memory, fails on postgres" (or worse, the reverse) into a test-only
-       * disagreement. An explicit binding must name one of the seeded writing tasks AND that task's own
-       * rubric; omitting the binding keeps the canonical default.
-       */
-      if (binding) {
-        /*
-         * THE DECLARED PAIRS, not a task list plus one rubric. The catalogue holds v1 bound to the retired
-         * four-criterion rubric and v2 bound to the current telc one, so the rule is a TUPLE: this task
-         * version declares THIS rubric. Checking the pieces separately would accept v1 + telc, which no
-         * row declares -- the same mistake the PostgreSQL adapter refuses with 	ask_not_servable.
-         */
-        const declared = taskBindings().find((row) => row.taskId === b.taskId && row.version === b.taskVersion
-          && row.rubricId === b.rubricId && row.rubricVersion === b.rubricVersion);
-        if (!declared) fail(422, 'task_not_servable');
+      const parentRow = parent ? ownedSubmission(owner, parent) : null;
+      let b = binding || DEFAULT_TASK_BINDING;
+      if (parentRow) {
+        const inherited = bindingOf(ownedAttempt(owner, parentRow.attempt_id));
+        if (binding && Object.keys(inherited).some((key) => binding[key] !== inherited[key])) fail(422, 'parent_binding_mismatch');
+        b = inherited;
       }
+      requireServableBinding(b, contentIsServable);
       const id = randomUUID();
       attempts.set(id, {
         id, owner_id: owner, task_id: b.taskId, task_version: b.taskVersion,
         rubric_id: b.rubricId, rubric_version: b.rubricVersion,
         parent_submission_id: parent, created_at: new Date().toISOString(), deleted_at: null,
       });
-      drafts.set(id, { revision: 1, text: '' });
-      return { id, revision: 1, text: '' };
+      drafts.set(id, { revision: 1, text: parentRow?.text || '' });
+      return { id, revision: 1, text: parentRow?.text || '',
+        task_id: b.taskId, task_version: b.taskVersion, rubric_id: b.rubricId,
+        rubric_version: b.rubricVersion, parent_submission_id: parent };
     },
     async read(owner, id) {
       calls.push('read');
-      return attemptView(ownedAttempt(owner, id));
+      const attempt = ownedAttempt(owner, id);
+      return { ...attemptView(attempt), ...historicalContent(attempt) };
+    },
+    async listAttempts(owner) {
+      calls.push('listAttempts');
+      return [...attempts.values()]
+        .filter((a) => a.owner_id === owner && !a.deleted_at)
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.id.localeCompare(a.id))
+        .map((a) => {
+          const s = submissionFor(a.id);
+          return { id: a.id, task_id: a.task_id, task_version: a.task_version, rubric_id: a.rubric_id,
+            rubric_version: a.rubric_version, parent_submission_id: a.parent_submission_id,
+            revision: drafts.get(a.id)?.revision, created_at: a.created_at,
+            topic: WRITING_TASKS.find((task) => task.taskId === a.task_id)?.topic, submission_id: s?.id ?? null,
+            status: !s ? 'draft' : assessments.has(s.id) ? 'assessed'
+              : ['failed', 'cancelled'].includes(jobs.get(s.id)?.status) ? 'unassessed' : 'pending' };
+        });
+    },
+    async exportData(owner) {
+      calls.push('exportData');
+      const active = [...attempts.values()].filter((a) => a.owner_id === owner && !a.deleted_at);
+      const ids = new Set(active.map((a) => a.id));
+      const ownSubmissions = [...submissions.values()].filter((s) => s.owner_id === owner && ids.has(s.attempt_id));
+      return {
+        attempts: active.map(({ owner_id, deleted_at, ...a }) => ({ ...a, ...drafts.get(a.id) })),
+        submissions: ownSubmissions.map(({ owner_id, event_id, ...s }) => ({ ...s,
+          task_id: attempts.get(s.attempt_id).task_id, rubric_id: attempts.get(s.attempt_id).rubric_id })),
+        results: ownSubmissions.map((s) => ({ submission_id: s.id, ...jobs.get(s.id),
+          ...structuredClone(assessments.get(s.id) || { feedback: null, model_version: null, prompt_version: null, rubric_version: null }) })),
+        objective_evidence: [],
+      };
     },
     /*
      * THE SAME "OPEN" RULE AS THE POSTGRES ADAPTER, in the fixture that runs on the memory backend:
@@ -161,7 +201,8 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
       drafts.set(id, next);
       return { ...next };
     },
-    async submit(owner, id, expectedRevision, eventId) {
+    async submit(owner, id, expectedRevision, eventId, explanationLanguage = 'de') {
+      const { contentIsServable } = await import('../server/content-policy.mjs');
       calls.push('submit');
       const ent = entitlement(owner);
       const attempt = ownedAttempt(owner, id);
@@ -171,6 +212,7 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
         if (prior.attempt_id !== attempt.id || prior.draft_revision !== expectedRevision) fail(409, 'idempotency_conflict');
         return { submissionId: prior.id, replay: true };
       }
+      requireServableBinding(bindingOf(attempt), contentIsServable);
       const draft = drafts.get(id);
       if (draft.revision !== expectedRevision) fail(409, 'draft_conflict');
       if (!draft.text.trim()) fail(422, 'empty_submission');
@@ -181,6 +223,7 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
       submissions.set(submissionId, Object.freeze({
         id: submissionId, attempt_id: id, owner_id: owner, event_id: eventId, draft_revision: draft.revision,
         text: draft.text, task_version: attempt.task_version, rubric_version: attempt.rubric_version,
+        explanation_language: explanationLanguage, created_at: new Date().toISOString(),
       }));
       events.set(`${owner}\u0000${eventId}`, submissionId);
       jobs.set(submissionId, { status: 'queued', failure_code: null, tries: 0 });
@@ -190,19 +233,25 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
     async result(owner, submissionId) {
       calls.push('result');
       const submission = ownedSubmission(owner, submissionId);
+      const attempt = ownedAttempt(owner, submission.attempt_id);
       const job = jobs.get(submissionId);
       return {
         submission: { ...submission },
         job: { status: job.status, failure_code: job.failure_code, tries: job.tries },
         assessment: assessments.has(submissionId) ? structuredClone(assessments.get(submissionId)) : null,
+        task_id: attempt.task_id, task_version: attempt.task_version, rubric_id: attempt.rubric_id,
+        rubric_version: attempt.rubric_version, parent_submission_id: attempt.parent_submission_id,
+        ...historicalContent(attempt),
       };
     },
     async retry(owner, submissionId) {
+      const { contentIsServable } = await import('../server/content-policy.mjs');
       calls.push('retry');
       const ent = entitlement(owner);
-      ownedSubmission(owner, submissionId);
+      const submission = ownedSubmission(owner, submissionId);
       const job = jobs.get(submissionId);
       if (job.status !== 'failed' || job.tries >= 3 || job.failure_code === 'retry_exhausted') fail(409, 'retry_unavailable');
+      requireServableBinding(bindingOf(ownedAttempt(owner, submission.attempt_id)), contentIsServable);
       if (ent.used + ent.reserved >= ent.allowance) fail(409, 'allowance_exhausted');
       job.status = 'queued';
       job.failure_code = null;
@@ -249,7 +298,7 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
         && submission.rubric_version === TELC_B1_WRITING_RUBRIC.version;
       assessments.set(submissionId, Object.freeze({
         feedback: currentRubric
-          ? stubGrade({ text: drafts.get(submission.attempt_id)?.text || '', explanationLanguage: 'de' }).feedback
+          ? stubGrade({ text: submission.text, explanationLanguage: submission.explanation_language }).feedback
           : { kind: 'synthetic-formative', comment },
         model_version: 'fixture-v1', prompt_version: 'fixture-v1', rubric_version: submission.rubric_version,
       }));
@@ -291,7 +340,7 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
    * `model` is deliberately absent — see SETTINGS_FIELDS in owned-api.mjs.
    */
   const settingsByOwner = new Map();
-  const settingsDefaults = () => ({ examDate: '', dailyGoal: 20, theme: 'system', language: '' });
+  const settingsDefaults = () => ({ examDate: '', dailyGoal: 20, theme: 'system', language: 'de' });
   const settingsPort = {
     async read(owner) {
       calls.push('settings.read');
@@ -475,11 +524,11 @@ const openWorlds = [];
  * because a listening set with no audio must not be offered.
  */
 const OBJECTIVE_FIXTURE = Object.freeze([
-  Object.freeze({ set_id: 'telc-deutsch-b1.lv1.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'LV1', section: 'LV', part: 1, title: 'Wohnungen und WG-Zimmer', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'unknown' }),
-  Object.freeze({ set_id: 'telc-deutsch-b1.lv1.02', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'LV1', section: 'LV', part: 1, title: 'Stellenanzeigen und Arbeitsuche', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'unknown' }),
-  Object.freeze({ set_id: 'telc-deutsch-b1.lv2.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'LV2', section: 'LV', part: 2, title: 'Zeitungsartikel', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'unknown' }),
-  Object.freeze({ set_id: 'telc-deutsch-b1.sb1.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'SB1', section: 'SB', part: 1, title: 'Formulare und Anzeigen', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'unknown' }),
-  Object.freeze({ set_id: 'telc-deutsch-b1.hv1.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'HV1', section: 'HV', part: 1, title: 'Nachrichten von Freunden', item_count: 6, media_required: true, review_status: 'unreviewed', rights_status: 'unknown' }),
+  Object.freeze({ set_id: 'telc-deutsch-b1.lv1.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'LV1', section: 'LV', part: 1, title: 'Wohnungen und WG-Zimmer', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'generated' }),
+  Object.freeze({ set_id: 'telc-deutsch-b1.lv1.02', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'LV1', section: 'LV', part: 1, title: 'Stellenanzeigen und Arbeitsuche', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'generated' }),
+  Object.freeze({ set_id: 'telc-deutsch-b1.lv2.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'LV2', section: 'LV', part: 2, title: 'Zeitungsartikel', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'generated' }),
+  Object.freeze({ set_id: 'telc-deutsch-b1.sb1.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'SB1', section: 'SB', part: 1, title: 'Formulare und Anzeigen', item_count: 6, media_required: false, review_status: 'unreviewed', rights_status: 'generated' }),
+  Object.freeze({ set_id: 'telc-deutsch-b1.hv1.01', version: 'v1', exam_id: 'telc-deutsch-b1', family: 'HV1', section: 'HV', part: 1, title: 'Nachrichten von Freunden', item_count: 6, media_required: true, review_status: 'unreviewed', rights_status: 'generated' }),
 ]);
 
 function cataloguePort() {
@@ -502,7 +551,7 @@ function cataloguePort() {
           task_id: task.taskId, version: task.version, exam_id: 'telc-deutsch-b1', family: 'writing',
           register: task.register, topic: task.topic, situation: task.situation, adressat: task.adressat,
           leitpunkte: task.leitpunkte, rubric_id: task.rubricId, rubric_version: task.rubricVersion,
-          created_at: task.createdAt, review_status: 'unreviewed', rights_status: 'unknown',
+          created_at: task.createdAt, review_status: 'unreviewed', rights_status: 'generated',
         }));
     },
     async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null } = {}) {
@@ -537,7 +586,7 @@ function cataloguePort() {
         max_total: known.rubric.maxTotal || known.rubric.criteria.reduce((sum, c) => sum + c.max, 0),
         criteria: known.rubric.criteria,
         review_status: known.reviewStatus,
-        rights_status: 'unknown',
+        rights_status: 'generated',
         provisional: known.reviewStatus !== 'approved',
       };
     },
