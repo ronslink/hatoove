@@ -1,5 +1,7 @@
 # D1 — Content provenance: where each source came from, and who made it
 
+**Implementation update, COMPLETE-20261002-A:** migrations 0011–0014 already store the word lists and guides. Migration 0020 records Ron's generated-content declaration; the rights policy now gates new writing and objective practice as well as catalogue selection. The exact served task and rubric must both pass the policy. Existing owned work stays readable after withdrawal. Migration 0022 adds 12 generated, unreviewed word-order questions from the recovered 240-item source; 228 remain unserved. None of these states means qualified educational approval. The original source inventory below is historical and its "not yet in the database" statements are superseded by this update. See [completion evidence](COMPLETE-20261002-RESULT.md).
+
 **Answered by Ron, 2 October 2026: the content is AI-generated.** This file records what the repository can
 actually establish about each source, so the rights position rests on evidence rather than on assertion — and
 so the gaps are visible to whoever signs it off.

@@ -2,18 +2,20 @@
 
 ## Current completion batch — 2 October 2026
 
-[Issue #96](https://github.com/ronslink/hatoove/issues/96), execution **COMPLETE-20261002-A**, base2711900. Ron requested completion of the unfinished learner work and work assignment to Claude. The coordinator owns integration in `codex/pilot-completion-20261002`; each writer has an independent managed worktree. No historical lease below is renewed.
+[Issue #96](https://github.com/ronslink/hatoove/issues/96), [PR #97](https://github.com/ronslink/hatoove/pull/97), execution **COMPLETE-20261002-A**, base2711900. Ron requested completion of the unfinished learner work and work assignment to Claude. The coordinator owns integration in `codex/pilot-completion-20261002`; each writer has an independent managed worktree. No historical lease below is renewed. [Completion evidence and remaining acceptance](implementation/COMPLETE-20261002-RESULT.md).
 
 | Slice | Delivered / current state | Evidence and next action |
 |---|---|---|
 | German entry and recovery | f39f419, independently inspected by coordinator | 36 isolated Compose/browser checks, desktop/mobile views inspected; operator-assisted recovery wording |
 | Rights, history, revisions, export | eaf5118, independently inspected by coordinator | 8 memory /10 PostgreSQL history checks; rights6 with no pending gate |
-| Claude CI repair | a014632, independently inspected by coordinator | Registration isolation and exact-version discrimination pass; second bounded classification/deletion repair in progress |
-| Sentence recovery | 32bdacb, independent review in progress | 240 original items recovered,12 published as unreviewed grammar practice;12 offline/14 PostgreSQL checks |
-| Learner client and state recovery | 589223c, corrected in2c7f714; independent re-review in progress | Fresh-browser history, conflict recovery, uncertain submission, export, guides and mobile journey being tested |
+| Claude CI and security repair | a014632 +433a0f9 delivered; coordinator and independent backend review | Registration isolation, exact-version discrimination, deletion with objective evidence, key-role isolation and7/7 table-policy mutations pass |
+| Sentence recovery | 32bdacb, independently reviewed by entry worker | 240 original items recovered,12 published as unreviewed grammar practice;12 offline/14 PostgreSQL checks |
+| Learner client and state recovery | 589223c corrected in2c7f714 and9112b11; independent review closed at52fbd17 | Browser124/124, including fresh history/revision, conflicts, offline/uncertain submission, export, readable guides and mobile views |
+| Migration checkout compatibility | 87e92f4, independently inspected by coordinator | LF/CRLF upgrade7/7 and existing migration6/6; no applied SQL or ledger checksum rewritten |
+| Current HTTP journey gates | e5af9f3, independently inspected by coordinator | Accounts6/6 and complete API journey11/11 after persistent CI prerequisites; no pending routes |
 | Exam-package decision | [D9 record](implementation/D9-EXAM-PACKAGES.md) | telc Deutsch B1 only; original items; telc English B1 next candidate |
 
-Four slots maximum: coordinator; sentence worker/reviewer through08:35UTC; entry/client reviewer through08:45UTC; Claude CI repair through08:45UTC. No children or remote execution authorized. Delivered, independently reviewed, green CI, merged and product accepted remain distinct. Candidate is not yet merged or product accepted. Existing local learner data and volumes are preserved. Human content review, real-device keyboard/audio, commissioned recordings, live-provider privacy/cost gates and later batch refill remain open.
+All bounded worker executions are delivered; only the coordinator remains active for final CI and handoff. No child or remote execution is authorized by this record. Delivered, independently reviewed, green CI, merged and product accepted remain distinct; current GitHub status belongs to PR #97, stacked on #95. The local preview has been refreshed from the completion worktree after a database backup, with unchanged learner table counts and the same volume. Human content review, real-device keyboard/audio, commissioned recordings, live-provider privacy/cost gates and later batch refill remain open. This batch does not claim product acceptance or a production release.
 
 The local coordinator owns this board. Detailed assignments live on linked GitHub issues; PRs and merged source provide completion evidence. Follow the [workflow](../docs/AGENT_WORKFLOW.md), [task template](TASK_TEMPLATE.md) and [handoff template](HANDOFF_TEMPLATE.md).
 

@@ -1,5 +1,7 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+**Current delivery update, 2 October 2026:** [COMPLETE-20261002-A](work/implementation/COMPLETE-20261002-RESULT.md) and [PR #97](https://github.com/ronslink/hatoove/pull/97) implement and verify the previously missing saved-writing history/revision/export journeys, robust recovery, German account entry, readable guides, mobile navigation and sentence practice. The Docker preview is refreshed with its existing data volume preserved. The board and implementation plan carry matching states. Older absence claims below describe their inspected base, not today's candidate. PR integration/CI, qualified content approval, real devices, audio and live-model release gates remain distinct; no full product acceptance is claimed.
+
 **Regenerated:** 1 October 2026, after the workspace relocation to `D:\Hatoove` and Ron's direction change.
 **Base inspected:** `59b1929` (`codex/workspace-relocation`, pushed to `origin/codex/workspace-relocation`), working tree clean.
 **Governing product requirement:** [PILOT_BUILD_PLAN.md](PILOT_BUILD_PLAN.md). This document is its delivery order and progress record.

@@ -159,6 +159,8 @@ jobs:
         run: npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
       - name: Persistent installation is idempotent and a draft survives re-provisioning
         run: node tools/postgres-provision-check.mjs
+      - name: Migration line-ending upgrades preserve recorded checksums and reject SQL edits
+        run: node tools/migration-eol-check.mjs --postgres
       - name: The account API over real HTTP, including the restart property
         run: node tools/accounts-http-check.mjs
       - name: The owned API on the persistent backend
@@ -188,10 +190,8 @@ jobs:
       # rows survived in it.
       - name: Every table is classified, and every class rule holds
         run: node tools/table-class-check.mjs
-      # ...and the proof that the check above can FAIL. Four mutations in a scratch schema - drop an
-      # owner policy, remove a table from ACCOUNT_TABLES, grant INSERT on a shared content table, add
-      # an unclassified table - each must make it fail. A catalogue check whose mutations are not
-      # detected is decoration, and this programme has shipped that defect more than once.
+      # Seven scratch-schema mutations prove the classifier detects policy, deletion-coverage,
+      # shared-content, unclassified-table, answer-key and catalogue-grant regressions.
       - name: The table-class check detects all seven mutations
         run: node --test tools/table-class-check.test.mjs
       - name: Answer keys are inaccessible to runtime roles while marking still works
@@ -200,11 +200,9 @@ jobs:
         run: node tools/learner-history-check.mjs --backend=postgres
       - name: Recovered grammar drills preserve keys and owner-scoped evidence
         run: node tools/sentence-building-check.mjs --backend=postgres
-      # MFP-14. The journey counter, over HTTP against this configured runtime. Legs whose route does
-      # not exist yet report PENDING <slice-id> and do NOT count as passes, so the summary reads
-      # "n passed, m pending, 0 failed" and can never be read as more complete than it is. It turns
-      # "functional" into a number that moves.
-      - name: The learner journey, over HTTP (pending legs name their slice)
+      # These are shipped contracts: missing routes fail. Exact saved text, feedback, revision,
+      # objective counts, export and deletion are asserted; rendering has its own isolated check.
+      - name: The complete saved learner journey over HTTP
         run: node tools/journey-api-check.mjs
   # THE RENDERED-BEHAVIOUR JOB EXISTS AGAIN, FOR THE NEW CLIENT (2 October 2026).
   #
