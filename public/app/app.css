@@ -3,8 +3,10 @@
  * Everything visual comes from the curated design system at /assets/design/hatoove.css — tokens,
  * the .app/.side/.nav/.topbar/.content layout, the responsive rules at 1100 and 860 px, dark mode.
  * This file adds ONLY what a single-page shell needs, and it uses tokens rather than raw values,
- * so the design language stays in one place. `tools/design-check.mjs` holds public/styles.css to
- * that rule; this file follows the same rule deliberately.
+ * so the design language stays in one place. `tools/design-check.mjs` holds THIS file to that rule
+ * (it used to hold the retired SPA's public/styles.css, which is gone), and it fails on a raw colour,
+ * a raw brand face, an undefined token, a breakpoint of our own, a route with no view, or a missing
+ * reduced-motion neutraliser.
  */
 
 /* One view at a time. `hidden` is the shell's own state, not the design system's. */
@@ -34,6 +36,25 @@
   border-radius: var(--r-sm);
   padding: 10px 12px;
   font-size: 14px;
+}
+
+/*
+ * MOTION — THE ONE ACCESSIBILITY GAP THE DESIGN SYSTEM LEAVES TO US.
+ *
+ * The pinned `hatoove.css` transitions `.btn`'s background and transform in 150 ms and carries no
+ * `prefers-reduced-motion` block of its own. The pinned file is read-only (its digests are the reviewed
+ * contract), so the neutraliser belongs in this layer — and `tools/design-check.mjs` D4c now fails if
+ * the system animates and this block disappears. Found by the retargeted design check, not by reading.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* The mistakes badge in the phone tabbar. The pinned rule is `.nav a .count`, which does not match

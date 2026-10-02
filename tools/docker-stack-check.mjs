@@ -169,7 +169,7 @@ try{
   // is reachable without a special client. It must refuse, and 200 here means the leak is back.
   const traversals=[
     '/assets/design/..%2f..%2f..%2fdata%2fseed.json',
-    '/assets/design/..%2f..%2fstyles.css',
+    '/assets/design/..%2f..%2fapp%2findex.html',
     '/assets/design/..%2f..%2fapp%2fapp.js',
     '/assets/design/%2e%2e/%2e%2e/data/seed.json',
     '/data%2fseed.json',

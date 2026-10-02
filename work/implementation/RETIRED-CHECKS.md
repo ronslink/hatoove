@@ -26,6 +26,22 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — SPA-RETIRE 2: the two checks that could be retargeted before the modules go
+
+`public/js/**` cannot be deleted in one step: six surviving checks use SPA modules as **fixtures** (the
+pin table is in `AUTORUN-QUEUE.md`, measured to the line). Two of those pins are now gone, both by
+retargeting rather than by weakening.
+
+| Check | Leg(s) | Property | Decision | Replacement / change | Commit | Slice |
+|---|---|---|---|---|---|---|
+| `tools/owned-api-check.mjs` leg `content-seed-matches-the-client` | 1 leg, 26 assertions | the seeded writing prompts and rubric are the SAME content as the client module that originated them | **RETARGET** | renamed `content-seed-and-the-seeded-migration-agree`: it now compares the fixture module against **migration 0006**, the artifact that actually seeds the database. This is not self-comparison — two different files, written at different times — and it catches the failure that matters (the database serving one text while the test path exercises another). The comparison against `public/js/ai.js` is void with that module. Green: 27/27 memory | this commit | SPA-RETIRE 2 |
+| `tools/design-check.mjs` | rules 1–5 (raw colour, raw face, required tokens, breakpoints, shell/nav pattern) | the design language is consistent: no raw colour in a rule, no un-tokenised face, the tokens exist, the breakpoints exist, one navigation pattern | **RETARGET** (subject changed) | it read `public/styles.css`, the retired client's stylesheet, so the stylesheet could not be deleted while the check lived — an implementation kept alive to feed a check, which this ledger forbids. It now reads the shell's own layer `public/app/app.css` against the pinned `hatoove.css`: D1 raw colour, D2 raw face, **D3 every `var(--token)` used is DEFINED** (silent by nature), D4 the pinned system supplies what the shell uses + still carries dark theme, D5 the shell uses the system's breakpoint, D6 every route has a `#view-*` element, D7 one navigation pattern with `aria-current`. `public/styles.css` is DELETED in the same commit. Discrimination measured, not assumed: D3 goes red when an undefined token is added, D6 goes red when a view id is renamed. 14 passed / 0 failed | this commit | SPA-RETIRE 2 |
+| the old design check's form-language advisory | 1 advisory over `public/js/{guides,blueprint}.js` | the explanation-language setting does not translate exam content | **REPLACE** | void as written (both modules go with the SPA); the property now has a browser vehicle that can actually fail — `tools/app-browser-check.mjs` **L32** asserts every nav label is identical before and after a real language change | previous commit | SPA-RETIRE 1 |
+
+**A REAL GAP FOUND BY THE RETARGET, not by reading:** the pinned design system transitions `.btn` in
+150 ms and carries **no `prefers-reduced-motion` block at all**. The pinned file is read-only, so the
+neutraliser now lives in `public/app/app.css` and D4c fails if it disappears.
+
 ### 2 October 2026 — the file-based progress store (PILOT-17a, the stage that fits)
 
 `server.js` carried the single-user store: `PROGRESS_PATH`, a `.rev` marker beside it, an

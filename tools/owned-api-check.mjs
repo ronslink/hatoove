@@ -829,39 +829,41 @@ check('garbage-session-port-output-is-401', async () => {
 /* =================================== content records (SAAS-MODEL-01 Step 1) */
 
 /*
- * The seed in `server/owned-postgres/content-seed.mjs` is a literal copy of the writing
- * prompts in `public/js/ai.js`. A literal copy drifts. This check re-imports the real client
- * module and compares field-for-field, so a change to the prompts fails HERE rather than
- * silently leaving the database claiming one thing and the app showing another.
+ * TWO ARTIFACTS, ONE CONTENT — retargeted in SPA-RETIRE 2.
+ *
+ * This leg used to compare the fixture against `public/js/ai.js`, the CLIENT module that originally
+ * held the six prompts. That module goes with the SPA, so the surviving pair is the one that actually
+ * ships: **migration 0006**, which seeds the database, and **`content-seed.mjs`**, which the tests
+ * provision with. Comparing them is not self-comparison — they are different files, written at
+ * different times, and the failure it catches is real: the database serving one text while the test
+ * path exercises another, so every green leg describes content nobody will see.
+ *
+ * SQL escaping is normalised rather than guessed: an apostrophe is doubled inside a SQL literal, so
+ * both sides have their quote characters removed before the containment test.
  */
-check('content-seed-matches-the-client', async () => {
-  const { offlineWritingTask } = await import('../public/js/ai.js');
-  const { WRITING_TASKS, WRITING_RUBRIC, DEFAULT_TASK_BINDING } = await import('../server/owned-postgres/content-seed.mjs');
+check('content-seed-and-the-seeded-migration-agree', async () => {
+  const { WRITING_TASKS, WRITING_RUBRIC } = await import('../server/owned-postgres/content-seed.mjs');
   assert.equal(WRITING_TASKS.length, 6, 'the writing family is 6 prompts (3 du + 3 Sie)');
-  let seen = 0;
-  for (const register of ['du', 'Sie']) {
-    for (let variantIndex = 0; variantIndex < 3; variantIndex += 1) {
-      const live = offlineWritingTask({ register, variantIndex });
-      const seeded = WRITING_TASKS[seen];
-      seen += 1;
-      assert.equal(seeded.register, register, `task ${seen}: register`);
-      assert.equal(seeded.topic, live.topic, `task ${seen}: topic`);
-      assert.equal(seeded.situation, live.situation, `task ${seen}: situation drifted from public/js/ai.js`);
-      assert.equal(seeded.adressat, live.adressat, `task ${seen}: adressat`);
-      assert.deepEqual([...seeded.leitpunkte], [...live.leitpunkte], `task ${seen}: leitpunkte`);
-      assert.equal(seeded.version, 'v1');
+  assert.equal(WRITING_RUBRIC.criteria.length, 4, 'four internal criteria, never relabelled as telc three');
+  const sql = fs.readFileSync(new URL('../server/migrations/0006-content-and-catalogue.sql', import.meta.url), 'utf8');
+  const bare = (value) => String(value).replace(/'/g, '');
+  const haystack = bare(sql);
+  const missing = [];
+  for (const task of WRITING_TASKS) {
+    const fields = [['topic', task.topic], ['situation', task.situation], ['adressat', task.adressat],
+      ...task.leitpunkte.map((line, index) => [`leitpunkt${index + 1}`, line])];
+    for (const [field, value] of fields) {
+      if (!haystack.includes(bare(value))) missing.push(`${task.taskId}.${field}`);
     }
   }
-  const liveRubric = offlineWritingTask({ register: 'du', variantIndex: 0 }).criteria;
-  assert.deepEqual(
-    WRITING_RUBRIC.criteria.map((c) => [c.key, c.label, c.max]),
-    liveRubric.map((c) => [c.key, c.label, c.max]),
-    'the seeded rubric drifted from WRITING_CRITERIA in public/js/ai.js',
-  );
+  for (const criterion of WRITING_RUBRIC.criteria) {
+    if (!haystack.includes(bare(criterion.label))) missing.push(`rubric.${criterion.key}`);
+  }
+  assert.deepEqual(missing, [], 'these fields are in the fixture but not in the migration that seeds the database');
   // The default binding must be one of the real tasks and must name the real rubric.
   assert.ok(WRITING_TASKS.some((t) => t.taskId === DEFAULT_TASK_BINDING.taskId && t.version === DEFAULT_TASK_BINDING.taskVersion));
   assert.equal(DEFAULT_TASK_BINDING.rubricId, WRITING_RUBRIC.rubricId);
-  return `6 prompts and ${liveRubric.length} rubric criteria match public/js/ai.js`;
+  return `6 prompts, ${WRITING_RUBRIC.criteria.length} criteria and every Leitpunkt appear in BOTH the fixture and migration 0006`;
 });
 
 /*

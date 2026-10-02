@@ -1,216 +1,180 @@
+#!/usr/bin/env node
 /**
- * Design-language consistency check (DESIGN-LANGUAGE.md).
+ * Design-language consistency — RETARGETED at the shell, 2 October 2026.
  *
- * Ron, 2026-10-01: "we need to ensure we have a consistent page design or a design language
- * that is consistent throughout the app and is mobile friendly." A design language that is only
- * described in a document is not enforced, so this check makes its central rules mechanical:
+ * WHAT CHANGED AND WHY. This check used to read `public/styles.css`, the retired Certa client's
+ * stylesheet. That file goes with the SPA (SPA-RETIRE 2), so keeping the check alive by keeping the
+ * stylesheet alive would have been exactly the wrong trade — an implementation kept to feed a check.
+ * The design language did not disappear when the client did; it moved:
  *
- *   1. NO RAW COLOUR IN A RULE. Every colour in public/styles.css must come from a custom
- *      property; `--name: value` declarations are the only place a literal may appear. One
- *      hard-coded #fff in a component rule is how dark mode breaks silently.
- *   2. NO RAW FONT FAMILY IN A RULE. The design language has exactly three faces.
- *   3. REQUIRED TOKENS EXIST, and the dark theme overrides the surface ones.
- *   4. MOBILE BREAKPOINTS EXIST (1100/860/600/480 px) and prefers-reduced-motion is honoured.
- *   5. THE SHELL IS THE VIEW HOST, and navigation uses the one .nav-item pattern.
+ *   * `public/assets/design/hatoove.css` — the PINNED design system (tokens, dark theme, breakpoints,
+ *     base elements). Read-only: its digests are the reviewed contract, so this check READS it.
+ *   * `public/app/app.css` — the shell's OWN layer, the only stylesheet we may edit.
  *
- * Inline corner radii are reported as WARN, not FAIL: `border-radius: 0 3px 3px 0` is
- * legitimate, and a check that cries wolf is worse than no check - this programme has been
- * bitten eight times by wrong checks rather than by wrong artifacts. The debt stays visible.
+ * The rules that survive are the ones that still describe a real failure:
  *
- * What this does NOT prove: that a view looks right, that a touch target is 44 px, or that a
- * real phone behaves. Those need rendered evidence at 390 px in both themes; the real-device
- * gate stays open.
+ *   D1 NO RAW COLOUR IN A RULE. One hard-coded #fff is how dark mode breaks silently.
+ *   D2 NO RAW BRAND FACE. The system has two faces, reached through `--display` / `--font`.
+ *   D3 EVERY TOKEN USED IS DEFINED. `var(--orange-dark)` with a typo in it renders as nothing at all,
+ *      and nothing anywhere reports it. This is the rule worth having most: it is silent by nature.
+ *   D4 THE PINNED SYSTEM STILL SUPPLIES WHAT THE SHELL RELIES ON, and still carries the dark theme and
+ *      the reduced-motion block.
+ *   D5 THE SHELL'S OWN BREAKPOINT IS THE SYSTEM'S BREAKPOINT (1100/860 px), not a second opinion.
+ *   D6 THE SHELL IS THE VIEW HOST. Every route the router knows has a `#view-*` element. A route
+ *      without a view is a blank screen that a `hidden` toggle cannot fix.
+ *   D7 ONE NAVIGATION PATTERN. Navigation is `<a data-view="…">` and the router marks `aria-current`;
+ *      a second pattern is how two "current" items appear at once.
+ *
+ * WARN, not FAIL, for two deliberate exceptions: the monospace stack on `<code>` (a code sample is not
+ * brand copy) and inline corner radii (a pill is legitimately `999px`). A check that cries wolf is worse
+ * than no check — this programme has been bitten more often by wrong checks than by wrong files.
+ *
+ * The form-language advisory that used to live here (a `language` reference in the exam modules) is
+ * retired WITH those modules; its property — the interface is not translated by the explanation-language
+ * setting — is now asserted in a browser, where it can actually fail: `tools/app-browser-check.mjs` L32.
+ *
+ * WHAT IT DOES NOT PROVE: that a view looks right, that a touch target is 44 px, or that a real phone
+ * behaves. Those need rendered evidence (`tools/app-browser-check.mjs`, 390 px, both themes) and a real
+ * device, which remains an open gate.
  *
  * Usage: node tools/design-check.mjs
  */
-
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CSS_PATH = path.join(ROOT, 'public', 'styles.css');
-const APP_PATH = path.join(ROOT, 'public', 'js', 'app.js');
-const SHELL_PATH = path.join(ROOT, 'public', 'js', 'shell.js');
+const PINNED = path.join(ROOT, 'public', 'assets', 'design', 'hatoove.css');
+const APP_CSS = path.join(ROOT, 'public', 'app', 'app.css');
+const SHELL_HTML = path.join(ROOT, 'public', 'app', 'index.html');
+const SHELL_JS = path.join(ROOT, 'public', 'app', 'app.js');
 
-const HEX_RE = /#[0-9a-fA-F]{3,8}\b/;
-/** Advisory only: a non-zero inline radius rather than one from --radius. */
-const RADIUS_RE = /border(?:-[a-z]+)?-radius\s*:\s*[^;]*?\b\d+(?:\.\d+)?(?:px|rem|em)/i;
-const FONT_RE = /font-family\s*:/i;
-const CUSTOM_PROP_RE = /^\s*--[A-Za-z0-9-]+\s*:/;
+const results = [];
+const record = (name, ok, detail, level = 'FAIL') => {
+  results.push({ name, ok, level });
+  console.log(`${ok ? (level === 'WARN' ? 'WARN' : 'PASS') : 'FAIL'}  ${name}${detail ? `  [${detail}]` : ''}`);
+};
+const fail = (name, detail) => record(name, false, detail, 'FAIL');
+const pass = (name, detail) => record(name, true, detail);
+const warn = (name, detail) => record(name, true, detail, 'WARN');
 
-/**
- * A `font-family` declaration that NAMES a family instead of using a token.
- *
- * The first version of this check matched every `font-family:` line, so it reported the 22
- * rules that already say `var(--serif|sans|mono)` as debt alongside the 4 `@font-face`
- * descriptors - 26 "raw" declarations, of which 0 were raw. A rule consuming a face must use
- * a token, so a bare `var(--serif)` passes; a `@font-face` block is the definition of the
- * face and CSS forbids `var()` there, so those descriptors are structural. Blank the
- * @font-face blocks (keeping line numbers) and then flag only a declaration whose value is
- * not one of the three type tokens.
- */
-const FONT_FACE_RE = /@font-face\s*\{[^}]*\}/g;
-const TOKEN_FONT_RE = /font-family\s*:\s*var\(--(?:serif|sans|mono)\)/i;
-const fontFaceBlanked = (css) => css.replace(FONT_FACE_RE, (block) => block.replace(/[^\n]/g, ' '));
-
-/** Tokens DESIGN-LANGUAGE.md section 2 promises, so a view can style itself from tokens alone. */
-const REQUIRED_TOKENS = [
-  'bg', 'line', 'fg', 'sidebar-bg',
-  'accent', 'accent-soft', 'on-accent', 'brand-disc', 'gold', 'gold-soft',
-  'good', 'good-soft', 'warn', 'warn-soft', 'bad', 'bad-soft',
-  'radius', 'radius-sm', 'shadow-sm', 'shadow',
-  'serif', 'sans', 'mono',
-];
-
-const REQUIRED_BREAKPOINTS = [1100, 860, 600, 480];
-
-const checks = [];
-const warnings = [];
-const check = (name, run) => checks.push({ name, run });
 const read = (file) => fs.readFileSync(file, 'utf8');
-const nonTokenLines = (css) => css.split('\n')
-  .map((line, index) => ({ line, number: index + 1 }))
-  .filter(({ line }) => !CUSTOM_PROP_RE.test(line));
+const css = read(APP_CSS);
+const pinned = read(PINNED);
+const html = read(SHELL_HTML);
+const js = read(SHELL_JS);
 
-check('no-raw-colour-outside-a-token', () => {
-  const offenders = nonTokenLines(read(CSS_PATH)).filter(({ line }) => HEX_RE.test(line));
-  if (offenders.length) {
-    throw new Error(`${offenders.length} hard-coded colour(s) outside a custom property, first at line ${offenders[0].number}: ${offenders[0].line.trim()}`);
+const definedTokens = (source) => new Set([...source.matchAll(/(--[A-Za-z0-9-]+)\s*:/g)].map((m) => m[1]));
+const usedTokens = (source) => new Set([...source.matchAll(/var\((--[A-Za-z0-9-]+)/g)].map((m) => m[1]));
+
+/* ------------------------------------------------------------------- D1/D2 */
+
+const lines = css.split(/\r?\n/);
+const rawColour = [];
+const rawFace = [];
+const inlineRadius = [];
+for (let i = 0; i < lines.length; i++) {
+  const line = lines[i];
+  if (/^\s*(\/\*|\*)/.test(line)) continue; // a comment is not a declaration
+  const value = line.includes(':') ? line.split(':').slice(1).join(':') : '';
+  const isTokenDefinition = /^\s*--[A-Za-z0-9-]+\s*:/.test(line);
+  if (!isTokenDefinition && /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/.test(value)) {
+    rawColour.push(`line ${i + 1}: ${line.trim()}`);
   }
-});
-
-check('no-raw-font-family-outside-a-token', () => {
-  const offenders = nonTokenLines(fontFaceBlanked(read(CSS_PATH)))
-    .filter(({ line }) => FONT_RE.test(line) && !TOKEN_FONT_RE.test(line));
-  if (offenders.length) {
-    throw new Error(`${offenders.length} raw font family(ies) in a rule, first at line ${offenders[0].number}: ${offenders[0].line.trim()}`);
+  const face = line.match(/font-family\s*:\s*([^;]+)/i);
+  if (face) {
+    const declared = face[1].trim();
+    // A fallback is allowed: `var(--display, inherit)` is still the design face with a safety net.
+    const tokenised = /var\(--(display|font)\s*[,)]/.test(declared);
+    const monospace = /monospace|ui-monospace|SFMono|Menlo|Consolas/i.test(declared);
+    if (!tokenised && !monospace) rawFace.push(`line ${i + 1}: ${declared}`);
+    else if (monospace && !tokenised) warn('D2b monospace exception', `line ${i + 1}: ${declared}`);
   }
-});
+  if (/border(?:-[a-z]+)?-radius\s*:\s*[^;]*?\b\d+(?:\.\d+)?(?:px|rem|em)/i.test(line)) inlineRadius.push(i + 1);
+}
+if (rawColour.length) fail('D1 no raw colour in a rule', rawColour.join(' | '));
+else pass('D1 no raw colour in a rule', `${lines.length} lines; every colour comes from a token`);
+if (rawFace.length) fail('D2 no raw font family in a rule', rawFace.join(' | '));
+else pass('D2 fonts come from the design faces', 'no un-tokenised brand face declared');
+if (inlineRadius.length) warn('D2c inline corner radius', `${inlineRadius.length} rule(s), first at line ${inlineRadius[0]}`);
 
-check('every-required-token-is-declared', () => {
-  const css = read(CSS_PATH);
-  const declared = new Set([...css.matchAll(/^\s*(--[A-Za-z0-9-]+)\s*:/gm)].map((m) => m[1]));
-  const missing = REQUIRED_TOKENS.filter((token) => !declared.has(`--${token}`));
-  if (missing.length) throw new Error(`tokens promised by DESIGN-LANGUAGE.md are missing: ${missing.join(', ')}`);
-});
+/* ---------------------------------------------------------------------- D3 */
 
-check('dark-theme-overrides-the-surface-tokens', () => {
-  const css = read(CSS_PATH);
-  const marker = css.indexOf('prefers-color-scheme: dark');
-  if (marker === -1) throw new Error('no prefers-color-scheme: dark block; dark mode is part of the design language');
-  const dark = css.slice(marker);
-  for (const token of ['--bg', '--fg', '--line']) {
-    if (!dark.includes(`${token}:`)) throw new Error(`the dark block does not override ${token}`);
-  }
-});
+const defined = definedTokens(pinned);
+for (const token of definedTokens(css)) defined.add(token);
+const undefinedTokens = [...usedTokens(css)].filter((token) => !defined.has(token));
+if (undefinedTokens.length) fail('D3 every token used is defined', `undefined: ${undefinedTokens.join(', ')}`);
+else pass('D3 every token used is defined', `${usedTokens(css).size} token(s) resolved against the pinned system`);
 
-check('raw-radius-usage-is-reported-not-failed', () => {
-  const offenders = nonTokenLines(read(CSS_PATH)).filter(({ line }) => RADIUS_RE.test(line));
-  if (offenders.length) {
-    warnings.push(`${offenders.length} inline corner radius(es) outside a token, first at line ${offenders[0].number}: ${offenders[0].line.trim()}`);
-  }
-});
+/* ---------------------------------------------------------------------- D4 */
 
-check('mobile-breakpoints-are-present', () => {
-  const found = [...read(CSS_PATH).matchAll(/@media\s*\(max-width:\s*(\d+)px\)/g)].map((m) => Number(m[1]));
-  const missing = REQUIRED_BREAKPOINTS.filter((width) => !found.includes(width));
-  if (missing.length) throw new Error(`missing responsive breakpoint(s): ${missing.map((w) => `${w}px`).join(', ')} (found: ${found.join(', ')})`);
-});
-
-check('reduced-motion-is-honoured', () => {
-  if (!read(CSS_PATH).includes('prefers-reduced-motion')) {
-    throw new Error('no prefers-reduced-motion block; DESIGN-LANGUAGE.md requires it');
-  }
-});
-
-check('every-view-is-registered-in-the-shell', () => {
-  const registered = [...read(APP_PATH).matchAll(/shell\.registerView\(\s*'([^']+)'/g)].map((m) => m[1]);
-  if (registered.length < 15) {
-    throw new Error(`only ${registered.length} views registered; the app has more, so this check is not measuring what it claims`);
-  }
-  const duplicates = [...new Set(registered.filter((id, index) => registered.indexOf(id) !== index))];
-  if (duplicates.length) throw new Error(`view(s) registered twice: ${duplicates.join(', ')}`);
-});
-
-check('navigation-uses-the-one-nav-pattern', () => {
-  const source = read(APP_PATH);
-  if (!source.includes('nav-item')) throw new Error('app.js does not reference .nav-item; the navigation pattern is not the shell one');
-  const entries = [...source.matchAll(/id:\s*'([a-z0-9-]+)',\s*label:\s*'[^']+',\s*ico:/g)].map((m) => m[1]);
-  if (entries.length < 8) throw new Error(`only ${entries.length} navigation entries found in the expected shape`);
-});
-
-check('the-shell-is-the-view-host', () => {
-  const shell = read(SHELL_PATH);
-  for (const marker of ['registerView', 'render']) {
-    if (!shell.includes(marker)) throw new Error(`shell.js does not implement '${marker}'; the shell is not the view host`);
-  }
-});
-
-/**
- * Ron, 2026-10-01: "language refers to the explanation language; the menu and the content remain german."
- *
- * That is easy to get wrong in exactly one way, so it is worth a mechanical guard: a "language" setting that is
- * wired into the app's own chrome or into content presentation turns a German exam trainer into a translated
- * interface, which is not what was asked for.
- *
- * This check refuses a LANGUAGE SETTING THAT DRIVES THE INTERFACE. It cannot (and does not claim to) prove that
- * explanations arrive in the chosen language - that needs a rendered check and a stubbed provider, because it is a
- * property of a provider response rather than of this repository.
- *
- * Deliberately permissive about the field existing: storing `language` in the account-settings contract is the
- * plan, and a settings UI offering it is the point. What is forbidden is the setting reaching the shell, the
- * navigation, or content rendering.
+const REQUIRED_IN_PINNED = ['--orange', '--orange-dark', '--peach', '--ink', '--paper', '--canvas', '--card',
+  '--line', '--muted', '--red', '--red-bg', '--display', '--font', '--r-sm', '--r'];
+const missingPinned = REQUIRED_IN_PINNED.filter((token) => !defined.has(token));
+if (missingPinned.length) fail('D4 the pinned system supplies the shell tokens', `missing: ${missingPinned.join(', ')}`);
+else pass('D4 the pinned system supplies the shell tokens', `${REQUIRED_IN_PINNED.length} required token(s) present`);
+if (/prefers-color-scheme\s*:\s*dark/.test(pinned)) pass('D4b the pinned system carries a dark theme', 'prefers-color-scheme block present');
+else fail('D4b the pinned system carries a dark theme', 'no prefers-color-scheme block in the pinned stylesheet');
+/*
+ * D4c — MOTION. The pinned `.btn` transitions background and transform in 150 ms, and the design system
+ * carries no `prefers-reduced-motion` block at all. It is pinned, so the neutraliser belongs in the
+ * shell's own layer, and the honest assertion is about the UNION: if the system animates, this layer
+ * must switch it off for a learner who asked for less motion. A rule asserting the block exists in the
+ * pinned file would be unpassable by design; a rule asserting nothing would be a check in name only.
  */
-check('language-is-an-explanation-setting-not-an-interface-setting', () => {
-  const shell = read(SHELL_PATH);
-  if (/\blanguage\b/i.test(shell)) {
-    throw new Error('shell.js references `language`; the language setting must not drive the interface, the navigation or the app chrome - the menu stays German');
-  }
-
-  // The German navigation labels are the exam trainer's own voice. If one of them ever becomes a lookup, the
-  // interface has become translatable by accident.
-  const app = read(APP_PATH);
-  const labels = [...app.matchAll(/id:\s*'[a-z0-9-]+',\s*label:\s*'([^']+)'/g)].map((m) => m[1]);
-  if (!labels.length) throw new Error('no navigation labels found to check; this guard is not measuring what it claims');
-  const dynamic = labels.filter((label) => /[${}]/.test(label));
-  if (dynamic.length) {
-    throw new Error(`navigation label(s) are computed rather than literal: ${dynamic.join(', ')} - the menu is German and must not be language-dependent`);
-  }
-
-  // Exam content is the exam. A language switch must never reach it.
-  for (const file of ['guides.js', 'blueprint.js']) {
-    const source = read(path.join(ROOT, 'public', 'js', file));
-    if (/\blanguage\b/i.test(source)) {
-      warnings.push(`public/js/${file} references \`language\` - check by hand that the language setting is not being used to swap or translate exam content (advisory: this file may legitimately mention a language as exam subject matter)`);
-    }
-  }
-});
-
-export async function runDesignChecks() {
-  warnings.length = 0;
-  const results = [];
-  for (const { name, run } of checks) {
-    try {
-      await run();
-      results.push({ name, ok: true, detail: 'ok' });
-    } catch (error) {
-      results.push({ name, ok: false, detail: error && error.message ? error.message.split('\n')[0] : String(error) });
-    }
-  }
-  return { ok: results.every((r) => r.ok), results, warnings: [...warnings] };
+const pinnedMotion = [...pinned.matchAll(/(transition|animation)\s*:\s*([^;}]+)/g)].map((m) => `${m[1]}: ${m[2].trim()}`);
+const reducedBlock = /@media\s*\(prefers-reduced-motion\s*:\s*reduce\)\s*\{([\s\S]*?)\n\}/.exec(css);
+if (pinnedMotion.length === 0) {
+  pass('D4c motion is honoured', 'the pinned system declares no transition or animation');
+} else if (!reducedBlock) {
+  fail('D4c motion is honoured', `the pinned system animates (${pinnedMotion.length} declaration(s)) and the shell adds no prefers-reduced-motion block`);
+} else if (!/transition-duration|animation-duration|transition\s*:\s*none|animation\s*:\s*none/.test(reducedBlock[1])) {
+  fail('D4c motion is honoured', 'the prefers-reduced-motion block does not neutralise transition or animation duration');
+} else {
+  pass('D4c motion is honoured', `${pinnedMotion.length} pinned motion declaration(s) neutralised by the shell's reduce block`);
 }
 
-const invokedDirectly = process.argv[1] && process.argv[1].endsWith('design-check.mjs');
-if (invokedDirectly) {
-  const report = await runDesignChecks();
-  for (const result of report.results) {
-    console.log(`${result.ok ? 'PASS' : 'FAIL'} ${result.name}${result.ok ? '' : `\n  ${result.detail}`}`);
-  }
-  for (const warning of report.warnings) console.log(`WARN ${warning}`);
-  const failed = report.results.filter((r) => !r.ok).length;
-  console.log(`\n${report.results.length - failed} passed, ${failed} failed`);
-  console.log('NOTE stylesheet structure only. It does not prove a view looks right, that a touch target is 44 px,');
-  console.log('     or that a real phone behaves. 390 px rendered evidence is still required; the real-device gate stays open.');
-  process.exitCode = failed ? 1 : 0;
-}
+/* ---------------------------------------------------------------------- D5 */
+
+const BREAKPOINTS = [1100, 860];
+const missingBreakpoints = BREAKPOINTS.filter((px) => !new RegExp(`max-width\\s*:\\s*${px}px`).test(pinned));
+if (missingBreakpoints.length) fail('D5 the system keeps its breakpoints', `missing ${missingBreakpoints.join(', ')}px in the pinned stylesheet`);
+else pass('D5 the system keeps its breakpoints', `${BREAKPOINTS.join('/')}px present in the pinned stylesheet`);
+const appBreakpoints = [...css.matchAll(/max-width\s*:\s*(\d+)px/g)].map((m) => Number(m[1]));
+const offSystem = appBreakpoints.filter((px) => !BREAKPOINTS.includes(px));
+if (offSystem.length) fail('D5b the shell uses the system breakpoint', `app.css adds ${offSystem.join(', ')}px, which is a second opinion`);
+else pass('D5b the shell uses the system breakpoint', appBreakpoints.length ? `app.css: ${appBreakpoints.join('/')}px` : 'no breakpoint of its own');
+
+/* ---------------------------------------------------------------------- D6 */
+
+const titles = (js.match(/const VIEW_TITLES = \{([\s\S]*?)\};/) || [])[1] || '';
+const routes = [...titles.matchAll(/(?:^|\s)([a-z]+)\s*:/g)].map((m) => m[1]);
+const declaredViews = [...html.matchAll(/id="view-([a-z]+)"/g)].map((m) => m[1]);
+const routesWithoutView = routes.filter((key) => !declaredViews.includes(key));
+if (!routes.length) fail('D6 the shell is the view host', 'no VIEW_TITLES map found in app.js');
+else if (routesWithoutView.length) fail('D6 every route has a view', `no #view-* element for: ${routesWithoutView.join(', ')}`);
+else pass('D6 every route has a view', `${routes.length} route(s), ${declaredViews.length} view section(s), all matched`);
+
+/* ---------------------------------------------------------------------- D7 */
+
+const destinations = [...html.matchAll(/data-view="([a-z]+)"/g)].map((m) => m[1]);
+const unknownDestinations = [...new Set(destinations)].filter((key) => !routes.includes(key));
+if (unknownDestinations.length) fail('D7 navigation names real routes', `data-view points at: ${unknownDestinations.join(', ')}`);
+else pass('D7 navigation names real routes', `${new Set(destinations).size} destination(s), all routable`);
+const navsWithoutViews = [...html.matchAll(/<nav[^>]*>([\s\S]*?)<\/nav>/g)]
+  .map((m) => m[1])
+  .filter((body) => !/data-view=/.test(body));
+if (navsWithoutViews.length) fail('D7b one navigation pattern', `${navsWithoutViews.length} <nav> with no data-view links`);
+else pass('D7b one navigation pattern', 'every nav destination is an <a data-view>');
+if (/aria-current/.test(js)) pass('D7c the router marks the current view', 'aria-current is set from the route');
+else fail('D7c the router marks the current view', 'app.js never sets aria-current');
+
+/* ------------------------------------------------------------------- report */
+
+const failed = results.filter((r) => !r.ok).length;
+const warns = results.filter((r) => r.level === 'WARN').length;
+console.log(`\n${results.length - failed} passed, ${failed} failed${warns ? `, ${warns} warning(s)` : ''}\n`);
+console.log('NOTE stylesheet structure and shell wiring only. It does not prove a view looks right, that a');
+console.log('     touch target is 44 px, or that a real phone behaves. Rendered evidence comes from');
+console.log('     tools/app-browser-check.mjs (390 px, both themes); the real-device gate stays open.\n');
+process.exit(failed ? 1 : 0);
