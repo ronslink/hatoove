@@ -1,5 +1,20 @@
 # Hatoove work board
 
+## Current completion batch — 2 October 2026
+
+[Issue #96](https://github.com/ronslink/hatoove/issues/96), execution **COMPLETE-20261002-A**, base2711900. Ron requested completion of the unfinished learner work and work assignment to Claude. The coordinator owns integration in `codex/pilot-completion-20261002`; each writer has an independent managed worktree. No historical lease below is renewed.
+
+| Slice | Delivered / current state | Evidence and next action |
+|---|---|---|
+| German entry and recovery | f39f419, independently inspected by coordinator | 36 isolated Compose/browser checks, desktop/mobile views inspected; operator-assisted recovery wording |
+| Rights, history, revisions, export | eaf5118, independently inspected by coordinator | 8 memory /10 PostgreSQL history checks; rights6 with no pending gate |
+| Claude CI repair | a014632, independently inspected by coordinator | Registration isolation and exact-version discrimination pass; second bounded classification/deletion repair in progress |
+| Sentence recovery | 32bdacb, independent review in progress | 240 original items recovered,12 published as unreviewed grammar practice;12 offline/14 PostgreSQL checks |
+| Learner client and state recovery | 589223c, corrected in2c7f714; independent re-review in progress | Fresh-browser history, conflict recovery, uncertain submission, export, guides and mobile journey being tested |
+| Exam-package decision | [D9 record](implementation/D9-EXAM-PACKAGES.md) | telc Deutsch B1 only; original items; telc English B1 next candidate |
+
+Four slots maximum: coordinator; sentence worker/reviewer through08:35UTC; entry/client reviewer through08:45UTC; Claude CI repair through08:45UTC. No children or remote execution authorized. Delivered, independently reviewed, green CI, merged and product accepted remain distinct. Candidate is not yet merged or product accepted. Existing local learner data and volumes are preserved. Human content review, real-device keyboard/audio, commissioned recordings, live-provider privacy/cost gates and later batch refill remain open.
+
 The local coordinator owns this board. Detailed assignments live on linked GitHub issues; PRs and merged source provide completion evidence. Follow the [workflow](../docs/AGENT_WORKFLOW.md), [task template](TASK_TEMPLATE.md) and [handoff template](HANDOFF_TEMPLATE.md).
 
 Repository: **[private `ronslink/hatoove`](https://github.com/ronslink/hatoove)**. Curated baseline `2feaba6` is published and its Linux/Windows CI passed. Remote assignments are linked below. No production deployment is scheduled. The original Codex heartbeat `continue-hatoove-implementation` was paused on coordinator transfer; this documentation update does not resume it. Current coordination cadence belongs to the appointed coordinator; worker runs remain bounded.

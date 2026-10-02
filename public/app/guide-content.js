@@ -16,7 +16,9 @@ export function guideContent(value, esc, language = 'de') {
       html += `<blockquote class="guide-example" lang="de">${esc(item.de)}</blockquote>${language === 'en' && item.en ? `<p class="muted" lang="en">${esc(item.en)}</p>` : ''}`;
       skip.add('de');
     }
-    for (const [key, content] of Object.entries(item)) {
+    const order = ['title', 'group', 'idea', 'type', 'intro', 'why', 'rule', 'pattern', 'detail', 'hint', 'situation', 'leitpunkte', 'example', 'examples', 'good', 'bad', 'note'];
+    const rank = key => order.includes(key) ? order.indexOf(key) : 100;
+    for (const [key, content] of Object.entries(item).sort(([a], [b]) => rank(a) - rank(b))) {
       if (skip.has(key) || /En$|_en$/.test(key)) continue;
       if (key === 'good' || key === 'bad') {
         html += `<div class="guide-${key}" lang="de"><strong>${key === 'good' ? 'Passendes Beispiel' : 'So nicht – fehlerhaftes oder unpassendes Beispiel'}</strong>${walk(content, depth + 1)}</div>`;

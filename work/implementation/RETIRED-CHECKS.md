@@ -1,5 +1,7 @@
 # RETIRED CHECKS — the ledger
 
+2 October, COMPLETE-20261002-A / issue96: `coord-config-anon-probe` retains its no-global-config/no-env-mutation property. Its exact current wire assertions are anonymous401 plus authenticated404, following removal of the handler and the outer API auth boundary. Both identity controls remain; the original pre-fix server fails five of seven legs. Historical anonymous404 wording below describes an earlier layer, not today's route contract. The front-page check now pins German entry/sign-in, replacing the retired English headline; pinned design assets remain byte-checked. Mobile navigation checks pin four primary destinations plus Mehr, replacing the ten-item scrolling bar.
+
 A check guards a **property**. When its implementation is removed, the property is either moved to a new vehicle or
 it is void, and this file records which — so that a deleted check is never mistaken for a passing one.
 

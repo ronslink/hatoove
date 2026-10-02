@@ -1,5 +1,7 @@
 # CONFIG-ANON-01 — delete the unauthenticated machine-global config write
 
+Current verification, 2 October 2026, COMPLETE-20261002-A: the route is deleted. The outer authentication boundary returns exact401 for anonymous calls; authenticated calls return exact404 Unknown endpoint. The seven-leg probe checks both states, a working synthetic session, and byte-identical configuration. The original pre-fix tree fails five legs. Earlier404-only expectations below record the prior SaaS gate and are superseded by this contract.
+
 | | |
 |---|---|
 | Why | `POST /api/config` required no identity and wrote the shared `EXAM_DATE` into the server's `.env` for any same-origin browser; `GET /api/config` then read it back to every visitor |

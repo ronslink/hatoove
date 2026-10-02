@@ -355,11 +355,12 @@ async function openGuide(guideId) {
   if (!res.ok) { box.hidden = true; index.hidden = false; showError('Das Nachschlagewerk konnte nicht geladen werden: ' + failure(res) + '.'); return; }
   const g = res.data;
   const sections = Array.isArray(g.sections) ? g.sections : [];
+  const sectionKinds = { step: 'Schritt', topic: 'Thema', tier: 'Bausteine', gender_rule: 'Genusregel', exception: 'Ausnahme', double_gender: 'Mehrere Bedeutungen', table: 'Übersicht', trigger: 'Auslöser', example: 'Beispiel', phrases: 'Redemittel', phrase_group: 'Redemittel', checklist: 'Checkliste' };
   box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(g.title)
     + '</h3><span class="chip">' + sections.length + '</span></div>'
     + '<p class="small muted">Übungsmaterial – noch nicht fachlich geprüft.</p>' + (!['de', 'en'].includes(state.settings?.language || 'de') ? '<p class="small muted">Dieses Nachschlagewerk liegt noch nicht in deiner Erklärungssprache vor. Du siehst die deutsche Fassung.</p>' : '') + '<button class="btn" type="button" id="guide-back">Zurück</button></div>'
     + sections.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(s.title)
-      + '</h3><span class="chip">' + esc(s.kind) + '</span></div>'
+      + '</h3><span class="chip">' + esc(sectionKinds[s.kind] || 'Nachschlagen') + '</span></div>'
       + (s.summary ? '<p class="muted">' + esc(s.summary) + '</p>' : '')
       + '<div class="guide-content">' + guideContent(s.payload, esc, state.settings?.language || 'de') + '</div></div>').join('');
   el('guide-back').addEventListener('click', () => { box.hidden = true; index.hidden = false; });
@@ -668,7 +669,7 @@ function renderObjectiveForm(set, host) {
     + form.items.map((item, index) => {
       const options = item.options || form.options || [];
       return '<section class="card" data-item="' + esc(item.id) + '"><p class="kicker">Aufgabe '
-        + (index + 1) + '</p><p>' + esc(item.prompt) + '</p><div class="row">'
+        + (set.payload?.practice_kind === 'grammar-drill' ? index + 1 : esc(item.id)) + '</p><p>' + esc(item.prompt) + '</p><div class="row">'
         + options.map((o) => '<button class="btn" type="button" data-answer="' + esc(o.id) + '" title="'
           + esc(o.label) + '">' + esc(o.id) + ') ' + esc(o.label.slice(0, 40)) + '</button>').join('')
         + '</div><p class="small muted result"></p></section>';

@@ -38,7 +38,17 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     await cdp.waitFor("document.querySelector('#history-detail #writing-text')", 12000);
     const inherited = await cdp.evaluate("return document.querySelector('#writing-text').value");
     record('C3 revision starts with the original text', inherited === original.submission.text);
-    const revisedText = inherited + '\nDies ist meine gespeicherte Überarbeitung.';
+    let revisedText = inherited + '\nDies ist meine gespeicherte Überarbeitung.';
+    const freshRevision = (await request('/api/v1/attempts')).data.attempts.find(a => a.parent_submission_id === assessed.submission_id && !history.some(old => old.id === a.id));
+    if (!freshRevision) throw new Error('precondition: a new revision must exist on the server');
+    const absentBeforeClose = await cdp.evaluate(`return !document.querySelector('[data-attempt="${freshRevision.id}"]')`);
+    await setInputs(cdp, { 'writing-text': revisedText });
+    await clickSel(cdp, '#writing-close');
+    await cdp.waitFor(`document.querySelector('#history-detail').hidden && document.querySelector('[data-attempt="${freshRevision.id}"]')`, 12000);
+    record('C3b closing a brand-new revision refreshes history without any intervening navigation', absentBeforeClose && (await request('/api/v1/attempts/' + freshRevision.id)).data.text === revisedText);
+    await clickSel(cdp, `[data-attempt="${freshRevision.id}"]`);
+    await cdp.waitFor("document.querySelector('#writing-text')", 12000);
+    revisedText += '\nDiese Änderung wird beim Wechsel der Ansicht gespeichert.';
     await setInputs(cdp, { 'writing-text': revisedText });
     await clickSel(cdp, '.side [data-view="heute"]'); // Deliberately before the debounce expires.
     await cdp.waitFor("!document.querySelector('#view-heute').hidden", 12000);
@@ -62,6 +72,9 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     await setInputs(cdp, { 'writing-text': mine });
     await sleep(750);
     record('C5a typing after a conflict preserves the resolution controls', await cdp.evaluate("return Boolean(document.querySelector('#writing-compare'))"));
+    // Load the dark logo while online so a deliberate network loss does not fabricate a missing asset.
+    await theme(cdp, 'dark');
+    await cdp.waitFor("[...document.images].every(i => i.complete && i.naturalWidth > 0)", 12000);
     await cdp.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await clickSel(cdp, '#writing-compare');
     await cdp.waitFor("document.querySelector('#writing-state').innerText.includes('Versuche den Vergleich erneut')", 12000);
@@ -166,7 +179,7 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     await clickSel(cdp, '#sentence-submit');
     await cdp.waitFor("document.querySelectorAll('#sentence-result article').length === 2", 12000);
     const hints = await cdp.evaluate("return document.querySelector('#sentence-result').innerText");
-    record('C14 sentence analysis returns bounded structural hints with its limitation', /Hauptsatz/.test(hints) && /Nebensatz/.test(hints) && /keine vollständige Grammatikprüfung/.test(hints) && /muss/.test(hints));
+    record('C14 sentence analysis returns bounded structural hints with its limitation', /Hauptsatz/i.test(hints) && /Nebensatz/i.test(hints) && /keine vollständige Grammatikprüfung/.test(hints) && /muss/.test(hints), hints.slice(0, 180));
     await shot(cdp, '32-sentence-structure-desktop');
     await viewport(cdp, 390, 844, true);
     await theme(cdp, 'dark');

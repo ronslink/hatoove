@@ -1,5 +1,11 @@
 # Hatoove implementation plan
 
+## Active completion — 2 October 2026
+
+Execution **COMPLETE-20261002-A**, [issue #96](https://github.com/ronslink/hatoove/issues/96), advances the unfinished learner journey from the current handoff. The [board](work/BOARD.md) records the same transition: German entry/recovery, rights enforcement and saved-work APIs are delivered and coordinator-inspected; sentence recovery and the corrected learner client are under independent review and integrated browser verification. Claude repaired two persistent-database check defects and is finishing table classification/deletion coverage. Candidate `codex/pilot-completion-20261002` remains unmerged and not product accepted.
+
+Next integration gate: independent review of corrected code, full disposable Compose/browser evidence, staged source scan and current GitHub checks. Then refresh the local Docker preview while preserving its database volume. No production deployment is authorized. [D9](work/implementation/D9-EXAM-PACKAGES.md) records the approved exam-package direction; content approval, device acceptance, recordings and live-provider privacy/cost gates remain separate. D12 batch refill waits for those D10 gates.
+
 Revised 1 October 2026. This preserves the broader 36-package programme and its human/technical gates. **For the next release, [PILOT_BUILD_PLAN.md](PILOT_BUILD_PLAN.md) governs scope, and [MASTER-PLAN.md](MASTER-PLAN.md) sets dependency order, the new client and retirement of obsolete behavior/checks; the writing-first `FUNCTIONAL-ROADMAP.md` is withdrawn (MASTER-PLAN §10).** [MFP-DESIGN-DECISIONS.md](work/implementation/MFP-DESIGN-DECISIONS.md) supplies design interpretation and state acceptance. Later user instructions take precedence over all plans.
 
 [MASTER-PLAN.md](MASTER-PLAN.md) is the current delivery summary; live assignments remain on the [board](work/BOARD.md) and coordinator dispatches. The historical snapshots and package tables below are not live leases or a requirement to restore dropped first-release features.

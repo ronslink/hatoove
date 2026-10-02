@@ -103,6 +103,12 @@ jobs:
         run: node tools/owned-api-check.mjs
       - name: Owned API client contract
         run: node tools/owned-client-check.mjs
+      - name: Saved writing history export and revision contracts
+        run: node tools/learner-history-check.mjs
+      - name: Conservative sentence hints and recovered source identities
+        run: node tools/sentence-building-check.mjs
+      - name: Reference guides preserve correct and incorrect example semantics
+        run: node tools/guide-render-check.mjs
   # THE DURABLE CLAIMS WERE UNGATED, and that is what this job fixes. Until now CI had NO PostgreSQL
   # service at all, so the persistent installation, the mounted account API, the account-scoped
   # settings, the runtime refusals, the session boundary and the account deletion were all verified
@@ -168,8 +174,8 @@ jobs:
       - name: The hosted runtime refuses by default
         run: node tools/saas-runtime-check.mjs
       # CONFIG-ANON-01. The machine-global /api/config write (and its read) is gone from the
-      # hosted runtime. Four legs against a real server with NO cookie: anonymous POST and GET
-      # must be 404, the env file must not be rewritten, and an anonymous learner route must
+      # hosted runtime. Anonymous POST and GET are401 at the auth boundary; a real session gets404
+      # for the retired route. The env file must stay unchanged, and an anonymous learner route must
       # still refuse 401 (so the 404 is the route being gone, not a dead runtime).
       - name: The unauthenticated machine-global config write is gone
         run: node tools/coord-config-anon-probe.mjs
@@ -186,8 +192,14 @@ jobs:
       # owner policy, remove a table from ACCOUNT_TABLES, grant INSERT on a shared content table, add
       # an unclassified table - each must make it fail. A catalogue check whose mutations are not
       # detected is decoration, and this programme has shipped that defect more than once.
-      - name: The table-class check detects all four mutations
+      - name: The table-class check detects all seven mutations
         run: node --test tools/table-class-check.test.mjs
+      - name: Answer keys are inaccessible to runtime roles while marking still works
+        run: node tools/objective-key-access-check.mjs
+      - name: Owned history export revisions and withdrawn-content isolation in PostgreSQL
+        run: node tools/learner-history-check.mjs --backend=postgres
+      - name: Recovered grammar drills preserve keys and owner-scoped evidence
+        run: node tools/sentence-building-check.mjs --backend=postgres
       # MFP-14. The journey counter, over HTTP against this configured runtime. Legs whose route does
       # not exist yet report PENDING <slice-id> and do NOT count as passes, so the summary reads
       # "n passed, m pending, 0 failed" and can never be read as more complete than it is. It turns
