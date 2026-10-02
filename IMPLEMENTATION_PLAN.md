@@ -1,5 +1,13 @@
 # Hatoove implementation plan
 
+## Adopted mock-preparation plan — 2 October 2026
+
+**Ron's fixed release rules:** DTZ releases with all supported written sections (reading, listening and writing) together; S3/S4 are internal milestones only. Each DTZ recording plays once per attempt in both practice and mock-exam mode. Credits belong to one selected exam package, with no pooling, transfer or refill when creating/switching preparations. S1 includes exam-scoped entitlements and preserved legacy balances; S6 verifies complete DTZ availability, playback and debit isolation before release.
+
+**EXAM-ADOPT-20261002-A:** Ron clarified that Hatoove delivers mock exams for preparation, not official examinations, and adopted [Claude's recommendations](work/implementation/CLAUDE-MULTI-EXAM-REVIEW-20261002.md). Actual Claude Opus 5.5 reviewed the earlier plan at `7a7caa0` with no repository tools. [The revised architecture](work/implementation/MULTI-EXAM-ARCHITECTURE-20261002.md), pilot plan, master plan and D9 now adopt stable exam-bound preparations, exact versions on attempts/mock runs, one minimal release manifest, single-option chooser bypass, autosave-first switching and telc-first vertical delivery. Section practice is labelled honestly; complete written mocks require all target written sections including reviewed audio. No official result, certification, proctoring or overall pass prediction.
+
+**State: plan adopted; new runtime implementation, DTZ content approval and publication pending.** Next: **EXAM-S0** hardening, then S1 telc preparation journey, S2 release/importer and saved telc section mock, S3 DTZ reading, S4 DTZ writing, S5 fixed listening/complete written mocks, S6 integrated acceptance. S0–S6 supersede the original EXAM-01–06 proposal; English remains a later candidate. The [board](work/BOARD.md) records the same transition. Root owns this seven-document adoption diff in [PR #100](https://github.com/ronslink/hatoove/pull/100), with independent read-only architecture and UX reviewers. No worker implementation lease follows from the roadmap. Existing content, real-device, security/privacy and live-provider gates remain open; the running preview is unchanged.
+
 ## Integrated local pilot — 2 October 2026
 
 Execution **INTEGRATE-20261002-A** merged through [PR #98](https://github.com/ronslink/hatoove/pull/98) as `04e52dc` at11:03UTC after all seven applicable CI jobs passed at reviewed head `903540a`. Account-cookie fencing, submitted-writing preservation/export, optional matching local-voice read-aloud and writing close/reopen are delivered and independently reviewed. Combined browser132/132, read-aloud24/24, real PostgreSQL races9/9, deletion19/19, API33/33 and HTTP journeys11/11 pass. [The integration result](work/implementation/INTEGRATE-20261002-RESULT.md) records pins, evidence and limitations. Canonical `D:\Hatoove` is on main; its Docker preview is healthy at4300 with the existing backed-up data volume and unchanged row counts. The contained old PR stack is closed as superseded; PR89/33 remain held. Product acceptance remains separate. No live AI or production deployment.
@@ -14,7 +22,9 @@ Revised 1 October 2026. This preserves the broader 36-package programme and its 
 
 [MASTER-PLAN.md](MASTER-PLAN.md) is the current delivery summary; live assignments remain on the [board](work/BOARD.md) and coordinator dispatches. The historical snapshots and package tables below are not live leases or a requirement to restore dropped first-release features.
 
-## First-release direction — 1 October 2026
+## Historical first-release direction — 1 October 2026
+
+This snapshot records the earlier ordering. The adopted EXAM-S0–S6 direction above supersedes its conditional MFP-13 and deferred listening/mock statements; it must not be used as a current dispatch plan.
 
 The minimum functional product is a **multi-exam SaaS written-section product** — reading, language elements and writing, per [PILOT_BUILD_PLAN.md](PILOT_BUILD_PLAN.md), which governs scope. The earlier **writing-first** scope is withdrawn: it deferred objective practice, listening and the broader client to after its own end. Build the small new vanilla client under `public/app/` with the supplied orange/rising-oo design. Keep Node/PostgreSQL, and run it **only** through Docker Compose (DOCKER-ONLY-01). The fourteen-screen [design inventory](work/implementation/DESIGN-WIRE-01.md) is a reference and future backlog. No deployment, live invitations, email, AI or payments are authorized by a plan.
 

@@ -1,5 +1,9 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+**Adopted direction, 2 October 2026 — EXAM-ADOPT-20261002-A:** Ron confirmed that the product delivers **mock exams for preparation, not official examinations**, and adopted Claude's recommendations. [The revised architecture](work/implementation/MULTI-EXAM-ARCHITECTURE-20261002.md) now governs the next delivery order: S0 hardening → S1 telc preparation journey → S2 minimal package/release and saved telc section mock → S3 DTZ reading → S4 DTZ writing → S5 listening and complete written mocks → S6 integrated acceptance. This supersedes earlier next-slice and second-package order below, without changing recorded implementation history. Preparations bind stable exam identities; mock runs retain exact versions. Use one minimal release manifest, skip single-option selection and autosave before exam switching. Partial practice stays labelled as such; complete written mocks require every target written section including reviewed audio. No official results, certification, proctoring or overall pass prediction. **Plan adopted; new runtime work and product acceptance remain pending.** [Implementation plan](IMPLEMENTATION_PLAN.md), [board](work/BOARD.md) and [D9](work/implementation/D9-EXAM-PACKAGES.md) record the same decision.
+
+**Release defaults fixed by Ron:** DTZ reading/writing slices are internal milestones; **release the complete supported DTZ written package together**, including listening. Each DTZ recording plays **once in practice and once in mock-exam mode per respective attempt**, with no extra play from reload or device return. **Credit is for one selected exam package only**: no shared pool, transfer or refill when changing preparations. S1 establishes exam-scoped balances/debits, and S6 verifies all DTZ release gates together. Current telc playback remains defined by its own reviewed blueprint. No production deployment or payment activation follows from this plan.
+
 **Integration reconciliation, 2 October 2026:** INTEGRATE-20261002-A combines completion head79a1659 with main4f76b94 through a normal merge. Main's only divergent change,61f7845, records historical #54/#56/#57 merges and the earlier multi-user transition. That history remains in Git and the board; the later pilot plan, Docker-only runtime, orange design and completed learner contracts govern current behavior. No retired single-user surface or older unimplemented-state claim is restored by this documentation merge.
 
 **Current delivery update, 2 October 2026:** [INTEGRATE-20261002-A](work/implementation/INTEGRATE-20261002-RESULT.md) merged the completed learner stack through [PR #98](https://github.com/ronslink/hatoove/pull/98), main `04e52dc`, after independent review and seven green applicable CI jobs. Saved-writing history/revisions/export, recovery, German entry, readable guides, mobile navigation and sentence practice are now on canonical main. Integration also closes stale-tab account actions and submitted-draft discard, restores writing close/reopen, and delivers **D8 optional local-voice read-aloud** for examples and saved comments. Complete browser132/132 and real PostgreSQL race/export9/9 pass. Docker4300 is refreshed from `D:\Hatoove`, its existing volume preserved and backed up; the board and implementation plan match. Older absence claims below describe their inspected base. Qualified content, physical devices, listening recordings and live-model security/privacy/cost gates remain open; no full product acceptance is claimed.
@@ -37,7 +41,7 @@ Five consequences:
 
 ## 1. The product
 
-An online service where a learner preparing for a standardised exam gets the exam's own tasks, server-marked, with every requirement, criterion and mistake explained **in the learner's own language**.
+An online preparation service with original mock exams and supporting section practice structured for the learner's chosen standardised exam. It saves attempts, marks objective responses on the server and gives formative writing feedback, explaining requirements, criteria and mistakes **in the learner's own language**. It does not supply an examination board's item bank or administer official exams.
 
 Four axes stay independent (`PILOT_BUILD_PLAN.md:58`):
 
@@ -94,7 +98,7 @@ There are two local milestones, and the objective needs both. LM-1 makes the **p
 
 > register with email and password → sign in → set exam date and explanation language → see the servable task list → answer reading and language-element items marked **on the server** → write and submit a response → leave → return **on a fresh browser profile** to the exact saved text and saved feedback **with a first-language explanation** → revise → see factual history → export → delete the account.
 
-**LM-2 — the platform works locally.** A second exam package (PILOT-11) completes the same journey through the same code, with **no change to application source** and **no migration of learner data**. That is what makes the result multi-exam rather than a German app, and §6 exists to keep this cheap: if the exam-scoping seams land *after* the client is written, LM-2 becomes a rewrite instead of a content pack.
+**LM-2 — the platform works locally.** DTZ completes the same journey through the shared application, with no exam-specific fork or rewriting of existing learner history. Content using supported capabilities is additive; a genuinely new task interaction needs a reviewed renderer and validator. Required safe forward schema changes are permitted. The adopted EXAM-S sequence replaces the earlier PILOT-11 English-first assignment; English remains a later candidate.
 
 **Evidence standard for LM-1 and LM-2** (executed output, never a claim):
 
@@ -164,7 +168,7 @@ The platform substrate is real, and it is why a local milestone is reachable at 
 
 ## 4. The differentiator: explanations in the learner's language
 
-This is the feature Ron named, and the pilot plan already constrains it correctly (`PILOT_BUILD_PLAN.md:52,58,60`): *"Native-language explanations support understanding; the task evidence remains in the exam language"*; *"generate translated explanations from the saved assessment rather than silently regrading an attempt"*; *"Distinguish assisted attempts from mock evidence when reporting readiness."*
+This is the feature Ron named: native-language explanations support understanding while task evidence remains in the exam language. Translate saved assessment explanations without silently regrading an attempt. Record assisted and timed modes distinctly in factual history; do not report readiness or an overall pass prediction.
 
 **Rules that make it honest and affordable:**
 
@@ -272,7 +276,7 @@ Ordered to **LM-1 and LM-2**. The state column records what was true at `812408c
 | **PILOT-08** | **The new client** under `public/app/`. **Shell delivered** — it replaces Certa at `/`, on the curated design system, with settings and honest empty states. Still missing: task list, objective runner, writing, result with explanation, history, each blocked on PILOT-04/05/06/07. See [PILOT-08.md](work/implementation/PILOT-08.md) | **Partly delivered** — 5/5 legs, not reviewed, not merged | PILOT-05, 06, 07 |
 | **PILOT-09** | **Speech synthesis** for explanations and pronunciation (§5), with a real per-language availability state | Planned | PILOT-07, 08 |
 | **PILOT-10** | **Listening package**: audio asset model with rights/checksum/duration, plus fixed reviewed recordings, play counts and failure recovery. **Gated on C-04**; TTS is not a substitute | Blocked | C-04 |
-| **PILOT-11** | **Second exam package** — a small English reading pack. Delivers **LM-2**: the same journey through the same code, with no source change and no learner-data migration | Planned | PILOT-05, 08 |
+| **PILOT-11** | **Second exam package** — historical English-first proposal replaced by DTZ reading/writing/listening through EXAM-S3–S5. Shared runtime and supported content capabilities; no exam-specific fork or rewriting learner history | Superseded by adopted EXAM-S sequence | EXAM-S0–S2 |
 | **PILOT-12** | **Account lifecycle**: export, hard delete, retention, late-job-after-deletion. Largely built (`DELETE /api/v1/account`; `ACCOUNT_DELETION_STEPS` at `adapter.mjs:228-240`) | Mostly built | PILOT-08 |
 | **PILOT-13** | **LM-1 + LM-2 acceptance run**: two learners, fresh browser, stale writes, duplicate clicks, account switching, slow/failed/malformed provider output, and a late job after deletion | Planned | PILOT-12 |
 | **PILOT-14** | **Canonical, platform-independent migration digests.** `applyMigrations` hashes the working tree's **raw bytes**, so the ledger is a function of the checkout's line endings: a database migrated from a Windows checkout refuses to advance from a Linux clone with *"refusing to apply a migration that is not the one that was reviewed"* — a false tamper alarm. A fix must accept the legacy digest for rows already applied, never rewrite them | **Defect, measured, not fixed** | — |
