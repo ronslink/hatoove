@@ -1,5 +1,9 @@
 # Hatoove implementation plan
 
+## EXAM-S0 hardening — 2 October 2026
+
+**Delivered and independently reviewed: EXAM-S0-20261002-A**, [issue #101](https://github.com/ronslink/hatoove/issues/101), base `88fa268`. Actual Claude Opus 5.5 delivered the bounded server slice; the coordinator integrated client startup/version binding, explicit Compose preview policy and CI contracts. The combined isolated browser journey passes 144/144, Docker stack 35/35, new offline server checks 8/8 and new PostgreSQL checks 6/6; both new server suites fail against the original code. [Contract](docs/contracts/EXAM-S0.md) and [implementation evidence](work/implementation/EXAM-S0-RESULT.md). CI and merge status are recorded on the associated PR, separately from product acceptance. **Next: S1 telc preparation journey and exam-bound credits.** Preparations, saved mocks and complete written DTZ remain to be delivered.
+
 ## Adopted mock-preparation plan — 2 October 2026
 
 **Ron's fixed release rules:** DTZ releases with all supported written sections (reading, listening and writing) together; S3/S4 are internal milestones only. Each DTZ recording plays once per attempt in both practice and mock-exam mode. Credits belong to one selected exam package, with no pooling, transfer or refill when creating/switching preparations. S1 includes exam-scoped entitlements and preserved legacy balances; S6 verifies complete DTZ availability, playback and debit isolation before release.

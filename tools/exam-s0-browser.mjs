@@ -113,11 +113,20 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
     } };
     return intercept;
   };
-  const ownedRequests = mark => cdp.events.slice(mark).filter(e => e.method === 'Network.requestWillBeSent'
+  const ownedRequests = (mark, loaderId) => cdp.events.slice(mark).filter(e => e.method === 'Network.requestWillBeSent'
+    && (!loaderId || e.params.loaderId === loaderId)
     && new URL(e.params.request.url).pathname.startsWith('/api/v1/')).map(e => e.params.request);
   const go = async hash => {
     await cdp.evaluate(`location.hash=${JSON.stringify('#/' + hash)}; return true;`);
     await cdp.waitFor(`document.querySelector('#view-${hash}') && !document.querySelector('#view-${hash}').hidden`);
+  };
+  const freshApp = async hash => {
+    // Hash-only Page.navigate keeps the current document. Bootstrap assertions require a new one.
+    const token = randomUUID();
+    await cdp.evaluate(`window.__s0DocumentProbe=${JSON.stringify(token)}; return true;`);
+    const navigation = await cdp.send('Page.navigate', { url: base + '/app/#/' + hash });
+    if (!navigation.loaderId) await cdp.send('Page.reload', { ignoreCache: false });
+    await cdp.waitFor(`window.__s0DocumentProbe !== ${JSON.stringify(token)} && document.readyState === 'complete'`, 25000);
   };
   const openVersion = async version => {
     // Real server catalogue narrowed only to this fixture/version. Payload, grading and storage remain real.
@@ -170,17 +179,20 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
         if (p.request.method === 'GET' && !held) held = p;
         else await h.proceed(p);
       });
-      await nav(cdp, base + '/app/#/heute');
+      await freshApp('heute');
       await until(() => held, 'settings request paused');
+      const loaderId = (await cdp.send('Page.getFrameTree')).frameTree.frame.loaderId;
       await cdp.evaluate(`location.hash='#/woerterbuch';
         document.querySelector('#language').value='tr';
         document.querySelector('#settings-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); return true;`);
       await sleep(150);
       const blocked = await cdp.evaluate("const shell=document.querySelector('#app-shell'), loading=document.querySelector('#boot-state'); return { hidden:shell?.hidden, inert:shell?.inert, concealed:!!shell && shell.getClientRects().length===0, loading:!!loading && !loading.hidden && loading.getClientRects().length>0 }");
-      const early = ownedRequests(mark);
+      // Ignore requests still finishing in the previous document during the reload transition.
+      const early = ownedRequests(mark, loaderId);
       record('S0B1 loading keeps shell inert and blocks hash-driven practice and settings writes',
         blocked.hidden === true && blocked.inert === true && blocked.concealed === true && blocked.loading === true
-        && !early.some(r => r.method !== 'GET' || /\/vocab|\/nouns|\/practice\//.test(new URL(r.url).pathname)));
+        && !early.some(r => r.method !== 'GET' || /\/vocab|\/nouns|\/practice\//.test(new URL(r.url).pathname)),
+        JSON.stringify({ ...blocked, requests: early.map(r => `${r.method} ${new URL(r.url).pathname}`) }));
       await intercept.proceed(held);
       await cdp.waitFor("document.querySelector('#dict-results [lang=\"en\"]') && document.querySelector('#language').value==='en'", 12000);
       const first = await cdp.evaluate("return { hash:location.hash, title:document.querySelector('#page-title').textContent, language:document.querySelector('#lang-label').textContent, date:document.querySelector('#examDate').value, countdown:document.querySelector('#exam-countdown').textContent, english:document.querySelector('#dict-results [lang=\"en\"]')?.textContent, shell:!document.querySelector('#app-shell')?.hidden }");
@@ -200,7 +212,7 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
         else await h.proceed(p);
       });
       await viewport(cdp, 390, 844, true);
-      await nav(cdp, base + '/app/#/woerterbuch');
+      await freshApp('woerterbuch');
       await cdp.waitFor("document.querySelector('#boot-retry') && !document.querySelector('#boot-retry').hidden", 8000);
       record('S0B3 settings failure is recoverable without exposing default preferences', await cdp.evaluate("const shell=document.querySelector('#app-shell'); return shell.hidden && shell.inert && shell.getClientRects().length===0 && document.querySelector('#boot-message').textContent.includes('erneut')"));
       await shot(cdp, 's0-settings-recovery-mobile');

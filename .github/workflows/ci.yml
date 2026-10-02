@@ -103,6 +103,10 @@ jobs:
         run: node tools/owned-api-check.mjs
       - name: Owned API client contract
         run: node tools/owned-client-check.mjs
+      - name: Exact objective versions at the browser boundary
+        run: node tools/exam-s0-client-check.mjs
+      - name: Public content policy and criterion-specific feedback contracts
+        run: node tools/exam-s0-server-check.mjs
       - name: Stale tabs cannot follow another account cookie
         run: node tools/account-context-check.mjs
       - name: Read aloud uses explicit matching local voices
@@ -181,6 +185,8 @@ jobs:
         run: node tools/deletion-check.mjs
       - name: The worker runner claims, fences, retries and reclaims (stub grader; no provider call)
         run: node tools/worker-runner-check.mjs
+      - name: Version-specific evidence and public content gates on real PostgreSQL
+        run: node tools/exam-s0-server-pg-check.mjs
       - name: The hosted runtime refuses by default
         run: node tools/saas-runtime-check.mjs
       # CONFIG-ANON-01. The machine-global /api/config write (and its read) is gone from the

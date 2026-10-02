@@ -37,6 +37,7 @@ import { fileURLToPath } from 'node:url';
 import { launchBrowser, connectToPage, sleep } from './cdp.js';
 import { verifyLearnerCompletion } from './learner-completion-browser.mjs';
 import { verifyAccountContext } from './account-context-browser.mjs';
+import { verifyExamS0 } from './exam-s0-browser.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const KEEP = process.argv.includes('--keep');
@@ -1117,7 +1118,12 @@ async function main() {
          * diagnostic this helper prints showed the previously opened writing view still on screen with
          * zero catalogue buttons, which is correct SPA behaviour and useless as a reload test.
          */
+        // Page.reload acknowledges before the old document disappears. Its catalogue can still
+        // satisfy the selector below; wait for a new document before polling learner controls.
+        const oldDocument = crypto.randomUUID();
+        await cdp.evaluate(`window.__hatooveReloadProbe=${JSON.stringify(oldDocument)}; return true;`);
         await cdp.send('Page.reload', { ignoreCache: false });
+        await cdp.waitFor(`window.__hatooveReloadProbe !== ${JSON.stringify(oldDocument)} && document.readyState === 'complete'`, 25000, 'new document after reload');
       } else {
         // A DIFFERENT hash first: `#/schreiben` → `#/schreiben` is not a route change, so the writing view
         // opened earlier would stay. Two navigations make the router render the catalogue again.
@@ -2029,6 +2035,9 @@ async function main() {
       `${tiles} tile(s), ${openSetAudit.count} control(s); offenders=${JSON.stringify(openSetAudit.offenders)}`);
 
     await verifyLearnerCompletion({ base, email, password: SYNTHETIC.password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, shots: SHOTS });
+    await verifyExamS0({ base, email, password: SYNTHETIC.password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow,
+      query: sql => compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql]),
+    });
     await verifyAccountContext({ base, freePort, record, shot, viewport, theme, nav, setInputs, clickSel });
     note('screenshots', SHOTS);
     note('device honesty', 'headless Chromium on desktop is not iPhone Safari or Android Chrome; the real-device gate stays open');

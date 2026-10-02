@@ -491,11 +491,14 @@ try{
    * the key. This is the spine adaptive selection will read.
    */
   const answerSet = 'telc-deutsch-b1.lv1.01';
-  const post = (payload) => request('POST', `/api/v1/objective-sets/${answerSet}/answers`, payload, cookie);
+  const post = (payload) => request('POST', `/api/v1/objective-sets/${answerSet}/answers`, { version: 'v1', ...payload }, cookie);
   assert.equal((await request('POST', `/api/v1/objective-sets/${answerSet}/answers`, { itemId: '1', answer: 'b' })).status,
     401, 'answering must require a session');
   const evidenceBefore = Number(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     'SELECT count(*) FROM hatoove.item_evidence']).trim());
+  const missingVersion = await post({ version: undefined, itemId: '1', answer: 'b' });
+  assert.equal(missingVersion.status,422,'an authenticated answer must name its version');
+  assert.equal(missingVersion.json.error,'invalid_version');
   const right = await post({ itemId: '1', answer: 'b', latencyMs: 1200 });
   assert.equal(right.status,201,right.text);
   assert.equal(right.json.correct,true,'the authored key for item 1 is b, so b must mark correct');
@@ -631,7 +634,7 @@ try{
    * THE SERVING POLICY. Ron, 2 October 2026: "we will assume for now all are approved until we have
    * built the approval process that needs to be an item."
    *
-   * So the default policy SERVES the seeded content today, and the approval workflow becomes a slice
+   * Compose explicitly opts this local fixture into internal-preview, and the approval workflow remains a slice
    * of its own. What is deliberately NOT done is writing `approved` into the rows: that would record
    * a qualified review that has not happened, and AGENTS.md forbids marking content approved. The
    * rows keep their TRUE status and the policy is what changes, so a learner is served the content
@@ -639,7 +642,7 @@ try{
    * having to unpick a false one.
    *
    * The pair still discriminates, and now in the opposite direction from before:
-   *   default  -> the seeded versions ARE listed, each with its real review_status
+   *   internal-preview -> the seeded versions ARE listed, each with its real review_status
    *   approved -> the SAME route returns EMPTY, proving the policy is genuinely consulted and the
    *               fail-closed value still works
    * Without the second leg the first could be satisfied by a route that ignores the policy entirely.
@@ -647,7 +650,7 @@ try{
   const listed=await request('GET','/api/v1/tasks?family=writing',undefined,cookie);
   assert.equal(listed.status,200,'the task route must exist and answer a signed-in learner, got '+listed.status);
   assert.ok(Array.isArray(listed.json),'the task list must be a JSON array');
-  assert.ok(listed.json.length>0,'the default policy serves the seeded task versions, got '+listed.json.length);
+  assert.ok(listed.json.length>0,'internal-preview serves the seeded task versions, got '+listed.json.length);
   assert.ok(listed.json.every(t=>typeof t.review_status==='string'),'every listed task must carry its review_status so a learner can be told the truth');
   {
     const serialised=JSON.stringify(listed.json);
@@ -655,9 +658,9 @@ try{
       assert.ok(!serialised.includes(leak),'a task payload must not carry '+leak);
     }
   }
-  passed('the default policy serves '+listed.json.length+' task version(s), each with its review_status and no answer key');
+  passed('internal-preview serves '+listed.json.length+' task version(s), each with its review_status and no answer key');
 
-  // The fail-closed value, in its own container so the default stays as Ron directed.
+  // Standalone public policy in its own container; the Compose fixture remains internal-preview.
   const probePort=await freePort();
   const probeName='hatoove-p04-'+process.pid;
   const appImage=project+'-app';

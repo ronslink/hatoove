@@ -11,6 +11,8 @@
 
 /* One view at a time. `hidden` is the shell's own state, not the design system's. */
 .view[hidden] { display: none; }
+.app[hidden], #boot-state[hidden], #boot-state [hidden] { display: none; }
+.boot-card { max-width: 34rem; margin: 12vh auto; width: calc(100% - 2rem); }
 
 /*
  * `hidden` MUST WIN — and by default it does not.

@@ -23,7 +23,14 @@
 
 <a class="skip" href="#main">Zum Inhalt springen</a>
 
-<div class="app">
+<section id="boot-state" class="card boot-card" role="status" aria-live="polite">
+  <h1>Hatoove wird geladen</h1>
+  <p id="boot-message">Dein Konto und deine Einstellungen werden geladen …</p>
+  <button id="boot-retry" type="button" class="btn btn-primary" hidden>Erneut versuchen</button>
+  <a id="boot-signin" class="btn" href="/signin" hidden>Erneut anmelden</a>
+</section>
+
+<div class="app" id="app-shell" hidden inert aria-busy="true">
   <aside class="side" aria-label="Hauptnavigation">
     <a class="logo" href="#/heute" aria-label="Hatoove – Startseite">
       <!--
