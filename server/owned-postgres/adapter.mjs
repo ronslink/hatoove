@@ -991,6 +991,7 @@ export const ACCOUNT_TABLES = Object.freeze([
   ['usage_ledger', 'owner_id = $1', 'owner'], ['entitlements', 'owner_id = $1', 'owner'],
   ['learner_settings', 'user_id = $1', 'owner'], ['session', '"userId" = $1', 'owner'],
   ['account', '"userId" = $1', 'owner'], ['drafts', 'attempt_id = ANY($1::uuid[])', 'attempts'],
+  ['item_evidence', 'owner_id = $1', 'owner'],
   ['"user"', 'id = $1', 'owner'],
 ].map((entry) => Object.freeze(entry)));
 

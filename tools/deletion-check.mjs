@@ -45,8 +45,16 @@ const createDeletion = typeof adapter.createPostgresAccountDeletion === 'functio
 /** Every table that holds an account's rows, as HARD-DELETE-01 §1 lists it, plus `account`. */
 const TABLES = [
   'attempts', 'drafts', 'submissions', 'jobs', 'assessments', 'usage_ledger',
-  'entitlements', 'learner_settings', 'session', 'account', 'user',
+  'entitlements', 'learner_settings', 'item_evidence', 'session', 'account', 'user',
 ];
+
+/**
+ * One objective item an account answers through the API, so `item_evidence` holds REAL rows
+ * (PILOT-22). Resolved from the fixture once the world exists. The key is read on the superuser
+ * pool only to learn an item id that exists; the answers sent are fixed, and the check never
+ * depends on whether they are right.
+ */
+let evidenceItem = null;
 
 /* --------------------------------------------------------------- results */
 
@@ -120,6 +128,7 @@ async function snapshot(userId, attemptIds = []) {
     usage_ledger: await rows('SELECT * FROM usage_ledger WHERE owner_id = $1 ORDER BY submission_id', [userId]),
     entitlements: await rows('SELECT * FROM entitlements WHERE owner_id = $1', [userId]),
     learner_settings: await rows('SELECT * FROM learner_settings WHERE user_id = $1', [userId]),
+    item_evidence: await rows('SELECT * FROM item_evidence WHERE owner_id = $1 ORDER BY evidence_id', [userId]),
     session: await rows('SELECT * FROM session WHERE "userId" = $1 ORDER BY id', [userId]),
     account: await rows('SELECT * FROM account WHERE "userId" = $1 ORDER BY id', [userId]),
     user: await rows('SELECT * FROM "user" WHERE id = $1', [userId]),
@@ -169,6 +178,14 @@ async function seed(call, label) {
 
   const settings = await call('PUT', '/api/v1/settings', { cookie, body: { expectedRevision: 0, theme: 'dark', dailyGoal: 30 } });
   assert.equal(settings.status, 200, `settings ${label}: ${settings.status}`);
+
+  // Two evidence rows (append-only, so answering twice records twice), marked server-side by
+  // `mark_objective_item`. Without them `item_evidence` is empty and its read-back is vacuous.
+  for (const answer of [true, 'synthetic-wrong']) {
+    const answered = await call('POST', `/api/v1/objective-sets/${encodeURIComponent(evidenceItem.setId)}/answers`,
+      { cookie, body: { itemId: evidenceItem.itemId, version: evidenceItem.version, answer } });
+    assert.equal(answered.status, 201, `objective answer ${label}: ${answered.status} ${JSON.stringify(answered.json)}`);
+  }
   const signIn = await call('POST', '/api/auth/sign-in/email', { body: { email, password } });
   assert.equal(signIn.status, 200);
   return { label, userId, cookie, cookie2: cookieOf(signIn), revisionAttemptId: revision.json.id, firstSubmissionId: first.submissionId };
@@ -178,6 +195,7 @@ async function seed(call, label) {
 function assertPopulated(snap, label) {
   for (const table of TABLES) assert.ok(snap.counts[table] > 0, `${label}: no ${table} row before the deletion (vacuous)`);
   assert.ok(snap.counts.session >= 2, `${label}: expected two live sessions`);
+  assert.equal(snap.counts.item_evidence, 2, `${label}: expected the two answered objective items as evidence`);
   assert.ok(snap.state.attempts.some((a) => a.parent_submission_id), `${label}: no attempt carries parent_submission_id (no cycle)`);
   assert.ok(snap.state.attempts.some((a) => a.deleted_at), `${label}: no soft-deleted attempt`);
 }
@@ -197,6 +215,15 @@ try {
   const superuser = (await rows('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user'))[0];
   assert.ok(superuser.rolsuper || superuser.rolbypassrls, 'read-back pool must bypass RLS, or "no rows" proves nothing');
 
+  evidenceItem = (await rows(`
+    SELECT k.set_id AS "setId", k.version, (SELECT min(x) FROM jsonb_object_keys(k.answers) x) AS "itemId"
+      FROM objective_key k
+      JOIN objective_set s USING (set_id, version)
+      JOIN content_version c ON c.content_version_id = s.content_version_id
+     WHERE c.review_status IN ('approved', 'unreviewed')
+     ORDER BY k.set_id, k.version LIMIT 1`))[0];
+  assert.ok(evidenceItem && evidenceItem.itemId, 'the fixture serves no objective item to answer (vacuous evidence)');
+
   const A = await seed(call, 'a');
   const B = await seed(call, 'b');
   const C = await seed(call, 'c');
@@ -204,7 +231,7 @@ try {
   const beforeB = await snapshot(B.userId);
   const beforeC = await snapshot(C.userId);
 
-  await check('precondition: A, B and C each have rows in all 11 account tables, the cycle and a soft-deleted attempt', async () => {
+  await check('precondition: A, B and C each have rows in all 12 account tables, the cycle and a soft-deleted attempt', async () => {
     assertPopulated(beforeA, 'A'); assertPopulated(beforeB, 'B'); assertPopulated(beforeC, 'C');
     return `A before: ${countLine(beforeA.counts)}\n     B before: ${countLine(beforeB.counts)}`;
   });
@@ -236,6 +263,27 @@ try {
     for (const t of ['attempts', 'drafts', 'submissions', 'jobs', 'assessments', 'usage_ledger', 'entitlements', 'learner_settings']) {
       assert.ok(names.includes(t), `FORCE RLS missing on ${t}`);
     }
+  });
+
+  await check('the deletion role SEES exactly the scoped owner\'s item_evidence (its read-back is not vacuous under FORCE RLS)', async () => {
+    // Under FORCE RLS a role with no policy reads ZERO rows, so the port's pre-COMMIT read-back of
+    // `item_evidence` would pass whether or not the rows were gone. Asserted as the deletion role.
+    const client = await deletionPool.connect();
+    try {
+      await client.query('BEGIN');
+      const seen = async (owner) => {
+        await client.query("SELECT set_config('hatoove.owner_id', $1, true)", [owner]);
+        return (await client.query('SELECT owner_id FROM item_evidence')).rows.map((r) => r.owner_id);
+      };
+      const asB = await seen(B.userId);
+      assert.equal(asB.length, beforeB.counts.item_evidence, `scoped to B, the deletion role must see B's ${beforeB.counts.item_evidence} row(s), saw ${asB.length}`);
+      assert.ok(asB.every((id) => id === B.userId), 'scoped to B, the deletion role saw another owner\'s evidence');
+      assert.deepEqual(await seen(''), [], 'with no owner scoped, the deletion role must see no evidence');
+      await client.query('ROLLBACK');
+    } finally {
+      client.release();
+    }
+    return `scoped to B: ${beforeB.counts.item_evidence} row(s), all B's; unscoped: 0`;
   });
 
   await check('the restricted LEARNER role cannot run the deletion (permission denied) and A is untouched', async () => {

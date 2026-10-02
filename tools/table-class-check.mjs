@@ -1,21 +1,30 @@
 /**
  * MFP-14 — the table-class catalogue check.
  *
- * Classifies EVERY table in the app schema into exactly one of three classes and fails on any
+ * Classifies EVERY table in the app schema into exactly one class and fails on any
  * unclassified table:
  *
  *   auth            Better Auth's tables (user, session, account, verification)
  *                   no RLS; the auth role only (no learner/worker grant)
+ *   auth support    auth-seam state outside Better Auth's schema (auth_throttle, 0019)
+ *                   no RLS; the auth role only (nothing for learner/worker/deletion/provisioner)
  *   owned           account rows: has owner_id/user_id, or is owned through one (drafts)
- *                   FORCE ROW LEVEL SECURITY; an owner policy for the learner role;
- *                   an FK path to "user"; present in ACCOUNT_TABLES
- *   shared content  the versioned content records (content_version, rubric_version, task_version)
- *                   no runtime INSERT/UPDATE/DELETE grant; an immutability trigger
+ *                   FORCE ROW LEVEL SECURITY; an owner policy for the learner role; an
+ *                   owner-scoped policy plus SELECT/DELETE for the deletion role (or the
+ *                   deletion read-back is vacuous); an FK path to "user"; in ACCOUNT_TABLES
+ *   shared content  append-only content records (content_version, rubric_version, task_version,
+ *                   content_rights) - no runtime INSERT/UPDATE/DELETE grant; an immutability trigger
+ *   catalogue       migration-seeded reference data (exam_package, objective_set, vocab_entry,
+ *                   noun_entry, guide, guide_section) - SELECT for the learner; no runtime DML;
+ *                   nothing for auth/deletion/provisioner; no owner column; no key column
+ *   answer key      objective_key - NO runtime role holds ANY privilege; marking goes through a
+ *                   SECURITY DEFINER function owned by the migration role
  *
  * It also asserts, because these are cheap and they are the failure modes that hurt:
  *   - no key-bearing table grants SELECT to a runtime role (asserted even with zero such tables,
  *     so the day `task_key` is added it is caught);
  *   - no runtime role holds BYPASSRLS or SUPERUSER;
+ *   - every SECURITY DEFINER function pins search_path and is not executable by PUBLIC;
  *   - the migration ledger records a checksum (reported as a FINDING, not a class failure —
  *     MFP-01 owns the fix).
  *
@@ -36,7 +45,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ACCOUNT_TABLES } from '../server/owned-postgres/adapter.mjs';
 import {
-  AUTH_TABLES, CONTENT_TABLES, INFRASTRUCTURE_TABLES, OWNER_COLUMNS,
+  AUTH_TABLES, AUTH_SUPPORT_TABLES, CATALOGUE_TABLES, CONTENT_TABLES, INFRASTRUCTURE_TABLES, KEY_TABLES, OWNER_COLUMNS,
   accountTableNames, bare, columnsOf, policiesFor, privilegesFor, isKeyBearing, readCatalogue,
 } from './lib/catalogue.mjs';
 
@@ -91,20 +100,24 @@ export function anchorToUser(catalogue, candidates) {
 /**
  * Classify a catalogue. Pure: it only reads the object `readCatalogue` produced.
  * @param {object} catalogue
- * @param {{roles: object, accountTables?: Array}} options `roles` is the `{migration,auth,learner,worker,deletion}` map.
+ * @param {{roles: object, accountTables?: Array}} options `roles` is the `{migration,auth,learner,worker,deletion[,provisioner]}` map.
  * @returns {{rows: Array, findings: Array, failures: Array, ok: boolean}}
  */
 export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TABLES } = {}) {
-  const { auth, learner, worker, migration, deletion } = roles;
+  const { auth, learner, worker, migration, deletion, provisioner } = roles;
   const restrictedTo = [learner, worker]; // the roles that must never reach an auth table
+  // Every role a running process connects as. `migration` OWNS the schema (implicit owner
+  // privileges) and has no runtime route; the fixture has no provisioner, hence filter(Boolean).
+  const runtimeRoles = [auth, learner, worker, deletion, provisioner].filter(Boolean);
   const accountSet = accountTableNames(accountTables);
+  const classified = new Set([...AUTH_TABLES, ...AUTH_SUPPORT_TABLES, ...CONTENT_TABLES, ...CATALOGUE_TABLES,
+    ...KEY_TABLES, ...INFRASTRUCTURE_TABLES]);
 
   // A table is account-owned if it has an owner column, or if it is named in ACCOUNT_TABLES
   // (this is how `drafts`, which has no owner column, is recognised).
   const candidates = catalogue.tables
     .map((t) => t.name)
-    .filter((name) => !AUTH_TABLES.includes(name) && !CONTENT_TABLES.includes(name)
-      && !INFRASTRUCTURE_TABLES.includes(name))
+    .filter((name) => !classified.has(name))
     .filter((name) => columnsOf(catalogue, name).some((c) => OWNER_COLUMNS.includes(c)) || accountSet.has(name));
 
   const anchors = anchorToUser(catalogue, candidates);
@@ -130,11 +143,55 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
       continue;
     }
 
+    if (AUTH_SUPPORT_TABLES.includes(name)) {
+      // Same shape as the auth rule, but nothing at all outside the auth role: the bucket key can
+      // carry an email address (0019), so not even the deletion role may read who tried to sign in.
+      if (table.rls || table.force_rls) fail.push(`auth support table must have RLS off (rls=${table.rls}, force=${table.force_rls})`);
+      if (!privilegesFor(catalogue, name, auth).length) fail.push('the auth role holds no privilege on this auth support table');
+      for (const role of runtimeRoles.filter((r) => r !== auth)) {
+        const p = privilegesFor(catalogue, name, role);
+        if (p.length) fail.push(`auth support table grants ${p.join('/')} to ${role}`);
+      }
+      if (cols.some((c) => OWNER_COLUMNS.includes(c))) fail.push('auth support table carries an owner column (that would make it account data)');
+      rows.push({ table: name, cls: 'auth support', verdict: note(fail), detail: fail.length ? fail.join('; ') : `no RLS; ${auth} only; no owner column` });
+      continue;
+    }
+
+    if (KEY_TABLES.includes(name)) {
+      // The strictest class: no runtime role may hold ANY privilege, SELECT included. Marking reads
+      // the key inside a SECURITY DEFINER function owned by the migration role (checked below).
+      for (const role of runtimeRoles) {
+        const p = privilegesFor(catalogue, name, role);
+        if (p.length) fail.push(`answer-key table grants ${p.join('/')} to ${role}`);
+      }
+      rows.push({ table: name, cls: 'answer key', verdict: note(fail), detail: fail.length ? fail.join('; ') : `no privilege for any runtime role (${runtimeRoles.join('/')}); read only by a SECURITY DEFINER function` });
+      continue;
+    }
+
+    if (CATALOGUE_TABLES.includes(name)) {
+      // Written by migrations only, read by learners. Not account data (no owner column), never a
+      // key carrier (no key-shaped column), and no role outside learner/worker reads it.
+      for (const role of runtimeRoles) {
+        const p = privilegesFor(catalogue, name, role).filter((x) => DML.includes(x));
+        if (p.length) fail.push(`catalogue grants ${p.join('/')} to ${role}`);
+      }
+      const outsiders = [auth, deletion, provisioner].filter(Boolean);
+      for (const role of outsiders) {
+        const p = privilegesFor(catalogue, name, role).filter((x) => !DML.includes(x));
+        if (p.length) fail.push(`catalogue grants ${p.join('/')} to ${role}`);
+      }
+      if (!privilegesFor(catalogue, name, learner).includes('SELECT')) fail.push(`catalogue is not readable by the learner role (${learner})`);
+      if (cols.some((c) => OWNER_COLUMNS.includes(c))) fail.push('catalogue table carries an owner column (that would make it account data)');
+      if (isKeyBearing(name, cols)) fail.push('catalogue table carries a key-shaped column (keys belong in an answer-key table)');
+      rows.push({ table: name, cls: 'catalogue', verdict: note(fail), detail: fail.length ? fail.join('; ') : `SELECT for ${learner}; no runtime DML; nothing for ${outsiders.join('/')}; no owner or key column` });
+      continue;
+    }
+
     if (CONTENT_TABLES.includes(name)) {
       // Runtime roles only. `migration` OWNS the schema and every table, so PostgreSQL always
       // reports it holding a/r/w/d — the owner's implicit privileges are not a runtime grant.
       // `provision.mjs` says it plainly: the migration role "has no runtime route".
-      const runtime = [auth, learner, worker, deletion].filter(Boolean);
+      const runtime = runtimeRoles;
       for (const role of runtime) {
         const p = privilegesFor(catalogue, name, role).filter((x) => DML.includes(x));
         if (p.length) fail.push(`shared content grants ${p.join('/')} to ${role}`);
@@ -165,18 +222,27 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
         .filter((p) => OWNER_COL_RE.test(`${p.using_expr || ''} ${p.check_expr || ''}`));
       if (!ownerPolicies.length) fail.push(`no owner policy for the learner role (${learner})`);
       if (!accountSet.has(name)) fail.push('owned table is absent from ACCOUNT_TABLES (the deletion read-back would skip it)');
+      if (deletion) {
+        // The deletion port reads every owned table back as the deletion role. Under FORCE RLS a role
+        // with no policy sees zero rows, so without this the read-back passes whether or not rows remain.
+        const granted = privilegesFor(catalogue, name, deletion);
+        for (const p of ['SELECT', 'DELETE']) if (!granted.includes(p)) fail.push(`the deletion role (${deletion}) lacks ${p}`);
+        const deletionPolicies = policiesFor(catalogue, name, deletion)
+          .filter((p) => OWNER_COL_RE.test(`${p.using_expr || ''} ${p.check_expr || ''}`));
+        if (!deletionPolicies.length) fail.push(`no owner-scoped policy for the deletion role (${deletion}); its read-back would be vacuous`);
+      }
       const anchor = anchors.get(name);
       if (!anchor) fail.push('owned table has no FK path to "user"');
       const anchorNote = anchor ? `anchor: ${anchor.kind} FK to "user"${anchor.kind === 'transitive' ? ` via ${anchor.via}` : ''}` : 'anchor: none';
       rows.push({
         table: name, cls: 'owned',
         verdict: note(fail),
-        detail: fail.length ? fail.join('; ') : `FORCE RLS; learner owner policy; in ACCOUNT_TABLES; ${anchorNote}; owner column ${ownerCol || '(through a parent key)'}`,
+        detail: fail.length ? fail.join('; ') : `FORCE RLS; learner owner policy;${deletion ? ' deletion policy + SELECT/DELETE;' : ''} in ACCOUNT_TABLES; ${anchorNote}; owner column ${ownerCol || '(through a parent key)'}`,
       });
       continue;
     }
 
-    fail.push('unclassified table: it is not auth, owned, shared content or the ledger');
+    fail.push('unclassified table: it is not auth, auth support, owned, shared content, catalogue, answer key or the ledger');
     rows.push({ table: name, cls: 'unclassified', verdict: 'FAIL', detail: fail.join('; ') });
   }
 
@@ -193,11 +259,20 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
     rows.push({ table: '(all schema roles)', cls: 'role', verdict: 'OK', detail: `${catalogue.roleAttributes.length} role(s) hold no SUPERUSER/BYPASSRLS: ${catalogue.roleAttributes.map((r) => r.role).join(', ')}` });
   }
 
+  /* ---- SECURITY DEFINER functions: the only door to a key table, so the door must be narrow ---- */
+  for (const fn of catalogue.definerFunctions || []) {
+    const bad = [];
+    if (!/(^|,)search_path=/.test(fn.config)) bad.push('search_path is not pinned');
+    if (fn.public_execute) bad.push('PUBLIC may execute it');
+    rows.push({ table: `function:${fn.name}`, cls: 'definer', verdict: bad.length ? 'FAIL' : 'OK',
+      detail: `(${fn.args}) ${bad.length ? bad.join('; ') : `SECURITY DEFINER; ${fn.config}; not executable by PUBLIC`}` });
+  }
+
   /* ---- answer-key rule: asserted even with zero key-bearing tables ---- */
   for (const table of catalogue.tables) {
     const name = table.name;
     if (!isKeyBearing(name, columnsOf(catalogue, name))) continue;
-    for (const role of [learner, auth, worker]) {
+    for (const role of runtimeRoles) {
       const p = privilegesFor(catalogue, name, role);
       if (p.includes('SELECT')) {
         rows.push({ table: name, cls: 'answer key', verdict: 'FAIL', detail: `key-bearing table grants SELECT to ${role}` });

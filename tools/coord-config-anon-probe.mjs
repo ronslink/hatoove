@@ -13,18 +13,40 @@
  * satisfied by design (a browser supplies `Origin`), and the handler never consulted identity —
  * while the learner route one line away (`GET /api/v1/account`) correctly refuses.
  *
- * The four legs, and what the fix makes them:
+ * THE CONTRACT THIS PROBE NOW ASSERTS (updated 2 October 2026). The first fix answered 404 from a
+ * `saas && /api/config` early return. Two later changes superseded that shape, and this probe follows
+ * the tree rather than the history:
+ *   - SPA-RETIRE 6 DELETED the route from `server.js` outright (retired-surface-check R8/R9);
+ *   - every `/api` route except /api/health and /api/ready is now AUTH-WRAPPED before any handler
+ *     (`server.js`, "EVERY /api ROUTE IS AUTH-WRAPPED"), so an anonymous caller gets the wrap's
+ *     401 whether or not a route exists — a refusal must not reveal what exists.
+ * So "absent" is proved in two halves, exactly as docker-stack-check does it: anonymously the
+ * answer is the wrap's EXACT refusal and nothing else, and WITH A REAL SESSION (which passes the
+ * wrap and reaches the router) the answer is the router's EXACT "Unknown endpoint" 404. A non-200
+ * is not enough: each leg pins the status AND the whole JSON body, and a body carrying any date or
+ * an `examDate` field fails, so a route that answered 401/404 while still leaking configuration
+ * cannot pass.
  *
- *   1. anonymous POST /api/config   -> 404 (was 200)          [FAILS on the pre-fix tree]
- *   2. the env file keeps no EXAM_DATE=2099-01-01 (was rewritten) [FAILS on the pre-fix tree]
- *   3. anonymous GET  /api/config   -> 404 (was 200, exposing the date) [FAILS on the pre-fix tree]
- *   4. control: anonymous GET /api/v1/account -> 401 (unchanged; proves the runtime really
- *      does refuse an anonymous learner route, so leg 1's 404 is the route being gone, not a
- *      dead runtime)                                          [PASSES on the pre-fix tree]
+ * The legs (the env file is SEEDED with EXAM_DATE=2031-03-03 before start, so a route that still
+ * served configuration has something real to leak):
  *
- * Three of the four legs fail on the pre-fix tree. A check that cannot fail is not evidence:
- * `--server <path>` re-runs the same probe against another `server.js`, which is how the
- * pre-fix tree is shown to fail (see work/implementation/CONFIG-ANON-01.md).
+ *   1. control: anonymous GET /api/v1/account -> 401 (the runtime is up and refuses anonymous
+ *      learner routes)                                                         [PASSES pre-fix]
+ *   2. anonymous POST /api/config -> exactly 401 {ok:false,error:"unauthenticated"}, no date
+ *                                                    (was 200 + the attacker's date) [FAILS pre-fix]
+ *   3. anonymous GET  /api/config -> exactly 401, same body, no date
+ *                                                    (was 200 + the seeded date)     [FAILS pre-fix]
+ *   4. control: a synthetic same-origin sign-up yields a session that GET /api/v1/account accepts
+ *      (200), so the legs below really pass the auth wrap                       [PASSES pre-fix]
+ *   5. authenticated POST /api/config -> exactly 404 {ok:false,error:"Unknown endpoint /api/config"}
+ *   6. authenticated GET  /api/config -> exactly 404, same body
+ *      (5-6 are what separate "absent" from "present but refused": a route that still existed
+ *      behind the wrap would answer here)
+ *   7. the env file is byte-identical to its seed after every request above (no EXAM_DATE write
+ *      by any caller, anonymous or signed in)                     [FAILS pre-fix: rewritten]
+ *
+ * A check that cannot fail is not evidence: `--server <path>` re-runs the same probe against another
+ * `server.js`, which is how the pre-fix tree is shown to fail (see work/implementation/CONFIG-ANON-01.md).
  *
  * Method: the real `node server.js` over real HTTP, a disposable PostgreSQL database, a
  * throwaway B1PREP_ENV_FILE / B1PREP_PROGRESS_FILE, and an operator-shaped request. No real
@@ -45,6 +67,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,8 +83,15 @@ const PUBLIC_ORIGIN = 'https://app.hatoove.example.test';
 const PUBLIC_HOST = 'app.hatoove.example.test';
 /** The attacker's date. Synthetic, and chosen only to be obviously not a real exam date. */
 const ATTACKER_DATE = '2099-01-01';
+/** The operator's date, seeded into the throwaway env file so a route that still served it would leak it. */
+const SEEDED_DATE = '2031-03-03';
+const SEEDED_ENV = `EXAM_DATE=${SEEDED_DATE}\n`;
 /** The learner control route. */
 const CONTROL_PATH = '/api/v1/account';
+/** The exact bodies of the current contract (server.js: the auth wrap, and the router's fallthrough). */
+const UNAUTHENTICATED = { ok: false, error: 'unauthenticated' };
+const UNKNOWN_CONFIG = { ok: false, error: 'Unknown endpoint /api/config' };
+const LEG_COUNT = 7;
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -76,7 +106,7 @@ function freePort() {
   });
 }
 
-/** A real HTTP request with full Host/Origin control and a hard timeout. No cookie is ever sent. */
+/** A real HTTP request with full Host/Origin control and a hard timeout. A cookie is sent only when a leg passes one. */
 function request(port, { method = 'GET', requestPath = '/', headers = {}, body } = {}) {
   return new Promise((resolve, reject) => {
     const finalHeaders = { ...headers };
@@ -108,6 +138,9 @@ function request(port, { method = 'GET', requestPath = '/', headers = {}, body }
 /* ---------------------------------------------------------- server process */
 
 async function startServer(port, serverPath) {
+  // Seed the throwaway env file BEFORE start, so a config route that still existed would have a real
+  // operator value to serve, and any write is visible as a byte difference.
+  fs.writeFileSync(path.join(TEMP, `env-${port}`), SEEDED_ENV);
   const env = {
     ...process.env,
     B1PREP_PORT: String(port),
@@ -185,40 +218,71 @@ async function runProbe({ serverPath, label }) {
     }
   };
 
+  /** The exact status AND the whole JSON body, and no configuration anywhere in the reply text. */
+  const exactly = (res, status, body, what) => {
+    const shown = `${res.status} ${res.text.slice(0, 140)}`;
+    if (res.status !== status) throw new Error(`${what}: expected ${status}, got ${shown}`);
+    if (!isDeepStrictEqual(res.json, body)) throw new Error(`${what}: expected exactly ${JSON.stringify(body)}, got ${shown}`);
+    for (const leak of [ATTACKER_DATE, SEEDED_DATE, 'examDate', 'EXAM_DATE']) {
+      if (res.text.includes(leak)) throw new Error(`${what}: the reply carries configuration (${leak}): ${shown}`);
+    }
+    return `${what} -> ${status} ${JSON.stringify(body)}`;
+  };
+
   try {
     const envPath = server.env.B1PREP_ENV_FILE;
+    let cookie = null;
 
-    // Leg 4 (control) first: the runtime really is up and really does refuse an anonymous
-    // learner route, so a 404 below is the route being gone rather than a dead process.
+    // Control first: the runtime really is up and really does refuse an anonymous learner route.
     await record('control-anonymous-learner-route-refuses', async () => {
       const res = await request(port, { requestPath: CONTROL_PATH });
       if (res.status !== 401) throw new Error(`expected 401 for an anonymous ${CONTROL_PATH}, got ${res.status} (${res.text.slice(0, 120)})`);
       return `GET ${CONTROL_PATH} (no cookie) -> 401`;
     });
 
-    await record('anonymous-post-config-is-404', async () => {
-      const res = await request(port, {
-        method: 'POST', requestPath: '/api/config', headers: sameOriginJson,
-        body: { examDate: ATTACKER_DATE },
+    await record('anonymous-post-config-is-the-auth-wrap-refusal-and-returns-no-config', async () => exactly(
+      await request(port, { method: 'POST', requestPath: '/api/config', headers: sameOriginJson, body: { examDate: ATTACKER_DATE } }),
+      401, UNAUTHENTICATED, 'POST /api/config (no cookie)'));
+
+    await record('anonymous-get-config-is-the-auth-wrap-refusal-and-returns-no-config', async () => exactly(
+      await request(port, { requestPath: '/api/config' }),
+      401, UNAUTHENTICATED, 'GET /api/config (no cookie)'));
+
+    // Control: a REAL session, so the two legs after it pass the auth wrap and reach the router.
+    await record('control-synthetic-session-is-accepted', async () => {
+      const email = `config-probe-${port}-${Date.now()}@example.invalid`;
+      const signUp = await request(port, {
+        method: 'POST', requestPath: '/api/auth/sign-up/email', headers: sameOriginJson,
+        body: { name: 'Config probe', email, password: 'Synthetic-password-2026' },
       });
-      if (res.status !== 404) throw new Error(`expected 404 for an anonymous POST /api/config, got ${res.status} (${res.text.slice(0, 140)})`);
-      return `POST /api/config (no cookie) -> 404`;
+      if (signUp.status !== 200) throw new Error(`synthetic sign-up: expected 200, got ${signUp.status} (${signUp.text.slice(0, 120)})`);
+      const setCookie = [].concat(signUp.headers['set-cookie'] || []);
+      cookie = setCookie.map((v) => String(v).split(';')[0]).join('; ');
+      if (!cookie) throw new Error('synthetic sign-up returned no session cookie');
+      const who = await request(port, { requestPath: CONTROL_PATH, headers: { Cookie: cookie } });
+      if (who.status !== 200) throw new Error(`the session must pass the wrap: GET ${CONTROL_PATH} -> ${who.status}`);
+      return `sign-up 200; GET ${CONTROL_PATH} with the session -> 200`;
     });
 
-    await record('anonymous-post-config-writes-no-env', async () => {
-      const text = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
-      if (new RegExp(`^EXAM_DATE=${ATTACKER_DATE}$`, 'm').test(text)) {
-        throw new Error(`the env file was rewritten with EXAM_DATE=${ATTACKER_DATE}`);
-      }
-      return `no EXAM_DATE=${ATTACKER_DATE} in ${path.basename(envPath)}`;
+    await record('authenticated-post-config-is-absent', async () => {
+      if (!cookie) throw new Error('no session (the control above failed), so absence cannot be told from refusal');
+      return exactly(
+        await request(port, { method: 'POST', requestPath: '/api/config', headers: { ...sameOriginJson, Cookie: cookie }, body: { examDate: ATTACKER_DATE } }),
+        404, UNKNOWN_CONFIG, 'POST /api/config (with a session)');
     });
 
-    await record('anonymous-get-config-is-404', async () => {
-      const res = await request(port, { requestPath: '/api/config' });
-      if (res.status !== 404) {
-        throw new Error(`expected 404 for an anonymous GET /api/config, got ${res.status} (${res.text.slice(0, 140)})`);
-      }
-      return `GET /api/config (no cookie) -> 404`;
+    await record('authenticated-get-config-is-absent', async () => {
+      if (!cookie) throw new Error('no session (the control above failed), so absence cannot be told from refusal');
+      return exactly(
+        await request(port, { requestPath: '/api/config', headers: { Cookie: cookie } }),
+        404, UNKNOWN_CONFIG, 'GET /api/config (with a session)');
+    });
+
+    await record('env-file-is-byte-identical-to-its-seed', async () => {
+      if (!fs.existsSync(envPath)) throw new Error(`the env file ${path.basename(envPath)} was removed`);
+      const text = fs.readFileSync(envPath, 'utf8');
+      if (text !== SEEDED_ENV) throw new Error(`the env file was rewritten: ${JSON.stringify(text.slice(0, 160))}`);
+      return `${path.basename(envPath)} still exactly ${JSON.stringify(SEEDED_ENV)}`;
     });
   } finally {
     await server.stop();
@@ -242,12 +306,12 @@ export async function runProbeCli(argv = process.argv.slice(2), io = console) {
   const explicitServer = serverIndex === -1 ? null : path.resolve(argv[serverIndex + 1] || '');
 
   io.log('coord-config-anon-probe: the unauthenticated machine-global config write (CONFIG-ANON-01)');
-  io.log('  real hosted runtime (B1PREP_SAAS=1), throwaway env, disposable database, NO cookie sent.');
+  io.log('  real hosted runtime (B1PREP_SAAS=1), seeded throwaway env, disposable database; anonymous legs, then one synthetic session.');
   const tree = await runProbe({ serverPath: path.join(ROOT, 'server.js'), label: 'tree' });
   printRun(tree, io);
 
   let failed = tree.legs.filter((l) => !l.ok).length;
-  if (tree.legs.length !== 4) failed += 1;
+  if (tree.legs.length !== LEG_COUNT) failed += 1;
 
   if (explicitServer) {
     if (!fs.existsSync(explicitServer)) throw new Error(`no such file: ${explicitServer}`);

@@ -19,8 +19,33 @@
 /** Better Auth's tables (the pinned library's schema). No RLS; the auth role only. */
 export const AUTH_TABLES = Object.freeze(['user', 'session', 'account', 'verification']);
 
-/** The versioned shared content records (#82 migration `0006`). Immutable; SELECT only. */
-export const CONTENT_TABLES = Object.freeze(['content_version', 'rubric_version', 'task_version']);
+/** Auth-seam state that is not Better Auth's own schema: the sign-in/sign-up throttle (`0019`).
+ *  Its bucket keys can carry an email address, so it is held to the auth rule — the auth role
+ *  only — and additionally nothing for the deletion or provisioner roles. */
+export const AUTH_SUPPORT_TABLES = Object.freeze(['auth_throttle']);
+
+/**
+ * The append-only shared content records: the versioned records (#82 migration `0006`) and the
+ * rights DECISIONS about them (`0020`, guarded by the same `content_immutable` function).
+ * Immutable by trigger; no runtime DML.
+ */
+export const CONTENT_TABLES = Object.freeze(['content_version', 'rubric_version', 'task_version', 'content_rights']);
+
+/**
+ * The migration-seeded reference catalogue (`0009`-`0014`): exam packages, objective sets (the
+ * LEARNER side — answers live in `objective_key`), vocabulary, nouns and guides. Written only by
+ * migrations, served to learners: SELECT for the learner role, no runtime DML, nothing for the
+ * auth/deletion/provisioner roles, no owner column and no key-shaped column.
+ */
+export const CATALOGUE_TABLES = Object.freeze([
+  'exam_package', 'objective_set', 'vocab_entry', 'noun_entry', 'guide', 'guide_section',
+]);
+
+/**
+ * Answer-key tables (`0010`). NO runtime role holds ANY privilege on them; marking reads the key
+ * inside the SECURITY DEFINER `mark_objective_item` (`0015`), which runs as the table owner.
+ */
+export const KEY_TABLES = Object.freeze(['objective_key']);
 
 /**
  * Tables that are neither account rows nor shared content: the migration ledger itself.
@@ -159,6 +184,21 @@ export async function readGranteeRoles(db, schema) {
     ORDER BY role`, [schema])).map((row) => row.role);
 }
 
+/**
+ * SECURITY DEFINER functions in the schema: whether `search_path` is pinned, and whether PUBLIC
+ * (grantee oid 0, including the implicit default ACL) may execute them.
+ */
+export async function readDefinerFunctions(db, schema) {
+  return q(db, `
+    SELECT p.proname AS name, pg_get_function_identity_arguments(p.oid) AS args,
+           coalesce(array_to_string(p.proconfig, ','), '') AS config,
+           EXISTS (SELECT 1 FROM aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                    WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE') AS public_execute
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = $1 AND p.prosecdef
+    ORDER BY p.proname`, [schema]);
+}
+
 /** Role attributes for the named roles (`rolsuper`, `rolbypassrls`, …). */
 export async function readRoleAttributes(db, roles) {
   if (!roles.length) return [];
@@ -180,14 +220,15 @@ export async function readLedger(db, schema) {
 
 /** Read the whole catalogue in one call. */
 export async function readCatalogue(db, { schema }) {
-  const [tables, columns, policies, tableGrants, columnGrants, foreignKeys, uniqueKeys, triggers, granteeRoles, ledger] =
+  const [tables, columns, policies, tableGrants, columnGrants, foreignKeys, uniqueKeys, triggers, granteeRoles, ledger, definerFunctions] =
     await Promise.all([
       readTables(db, schema), readColumns(db, schema), readPolicies(db, schema),
       readTableGrants(db, schema), readColumnGrants(db, schema), readForeignKeys(db, schema),
       readUniqueKeys(db, schema), readTriggers(db, schema), readGranteeRoles(db, schema), readLedger(db, schema),
+      readDefinerFunctions(db, schema),
     ]);
   const roleAttributes = await readRoleAttributes(db, granteeRoles);
-  return { schema, tables, columns, policies, tableGrants, columnGrants, foreignKeys, uniqueKeys, triggers, granteeRoles, roleAttributes, ledger };
+  return { schema, tables, columns, policies, tableGrants, columnGrants, foreignKeys, uniqueKeys, triggers, granteeRoles, roleAttributes, ledger, definerFunctions };
 }
 
 /* -------------------------------------------------------------- selectors */
