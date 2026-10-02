@@ -565,22 +565,7 @@ async function world({ allowance } = {}) {
     return { store: pg.store, sessions: pg.sessions, api: pg.api, browser: () => inProcessBrowser(pg.api) };
   }
   if (BACKEND === 'postgres-persistent') {
-    // The SAME suite over a PERSISTENT installation (OWNAPI-03): real schema, real roles,
-    // provisioned from reviewed SQL and never dropped. This is the deployment shape, as
-    // opposed to the disposable fixture above that a checker can throw away.
-    const { provisionPersistent } = await import('../server/owned-postgres/provision.mjs');
-    const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
-    const pools = await provisionPersistent();
-    const fixture = {
-      schema: pools.config.schema,
-      roles: pools.config.roles,
-      learner: pools.learner,
-      auth: pools.auth,
-      worker: pools.worker,
-      admin: pools.admin,
-      close: async () => { const { closePersistent } = await import('../server/owned-postgres/provision.mjs'); await closePersistent(pools); },
-    };
-    const pg = await createPostgresWorld({ allowance, fixture });
+    const pg = await persistentWorld({ allowance });
     openWorlds.push(pg);
     return { store: pg.store, sessions: pg.sessions, api: pg.api, browser: () => inProcessBrowser(pg.api) };
   }
@@ -589,6 +574,50 @@ async function world({ allowance } = {}) {
   const api = createOwnedApi({ datastore: store.port, sessions, settings: store.settings });
   return { store, sessions, api, browser: () => inProcessBrowser(api) };
 }
+
+/**
+ * The SAME suite over a PERSISTENT installation (OWNAPI-03): real schema, real roles, provisioned from
+ * reviewed SQL and never dropped. This is the deployment shape, as opposed to the disposable fixture above
+ * that a checker can throw away.
+ *
+ * ONE WORLD PER LEG MEANS ONE SIGN-UP BUDGET PER LEG. The product's sign-up throttle is GLOBAL
+ * (`signup:global`, THROTTLE_POLICY.signup) and lives in `auth_throttle`, a table the persistent schema
+ * keeps. A disposable world starts with an empty table; a persistent world inherited every registration the
+ * earlier legs (and earlier CI steps on the same database) had made, so after 30 the later legs failed at
+ * synthetic sign-up with 429 — unrelated cases sharing one counter. Each persistent world therefore starts
+ * its own window by clearing THAT ONE bucket through the product's own throttle port, exactly as a disposable
+ * world does by being new. The throttle stays wired and enforcing with the shipped policy;
+ * `tools/owned-api-throttle-isolation-check.mjs` proves both halves (a world still answers 429 past its
+ * limit, and without this reset the next world inherits the exhaustion).
+ *
+ * Only for the persistent check backend, which `provisionPersistent` refuses without OWNAPI_PG_ALLOW on a
+ * disposable database. Rate-limit counters only: no learner row is touched.
+ *
+ * @param {{allowance?: number, limits?: object|null, isolateSignupBudget?: boolean}} [options] `limits` is
+ *   the fixture's injectable policy (small numbers so a check need not wait out a real window);
+ *   `isolateSignupBudget: false` exists only for the discrimination leg.
+ */
+export async function persistentWorld({ allowance, limits = null, isolateSignupBudget = true } = {}) {
+  const { provisionPersistent, closePersistent } = await import('../server/owned-postgres/provision.mjs');
+  const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
+  const pools = await provisionPersistent();
+  const fixture = {
+    schema: pools.config.schema,
+    roles: pools.config.roles,
+    learner: pools.learner,
+    auth: pools.auth,
+    worker: pools.worker,
+    admin: pools.admin,
+    close: async () => { await closePersistent(pools); },
+  };
+  const pg = await createPostgresWorld({ allowance, fixture, ...(limits ? { limits } : {}) });
+  assert.equal(pg.api.throttled, true, 'the persistent world must run with the auth throttle wired');
+  if (isolateSignupBudget) await pg.throttle.clear('signup', SIGNUP_THROTTLE_KEY);
+  return pg;
+}
+
+/** The one key the API counts every registration under (owned-api.mjs: `enforceThrottle('signup', 'global')`). */
+export const SIGNUP_THROTTLE_KEY = 'global';
 
 /** Tear down every PostgreSQL schema/role a `world()` opened. No-op in memory. */
 async function closeWorlds() {
@@ -939,12 +968,17 @@ check('an-unfinished-attempt-is-resumable-and-a-submitted-one-is-not', async () 
   // Nothing open to begin with: a fresh account has no draft to resume.
   assert.deepEqual((await a.raw('GET', '/api/v1/attempts?open=1')).json, { attempts: [] }, 'a fresh account has nothing to resume');
   /*
-   * AND THE FLAG IS PART OF WHAT IS SERVED, not a parameter with a validation error: a GET without it is
-   * the same `404 not_found` this path already answers for an unsupported method. Asserted here so the
-   * choice is deliberate rather than a side effect the other leg happens to cover.
+   * THE FLAG SELECTS A READ, IT DOES NOT OPEN THE PATH TO OTHER METHODS. A bare `GET /api/v1/attempts` is
+   * no longer asserted 404: it becomes the supported history read, and `?open=1` stays the open index this
+   * leg pins. What must stay `404 not_found` is a method this collection does not serve, flag or no flag.
    */
-  assert.equal((await a.raw('GET', '/api/v1/attempts')).status, 404, 'the open index needs its flag');
-  assert.equal((await a.raw('GET', '/api/v1/attempts?open=0')).status, 404, 'and only open=1 is served');
+  for (const method of ['DELETE', 'PATCH']) {
+    for (const url of ['/api/v1/attempts', '/api/v1/attempts?open=1']) {
+      const res = await a.raw(method, url, {});
+      assert.equal(res.status, 404, `${method} ${url} is not served`);
+      assert.deepEqual(res.json, { error: 'not_found' });
+    }
+  }
 
   const attempt = await a.client.createAttempt();
   const saved = await a.client.saveDraft(attempt.id, { expectedRevision: 1, text: 'Angefangener Brief' });
@@ -1248,7 +1282,10 @@ check('error-404-unknown-routes-and-methods', async () => {
   const w = await world();
   const a = await learner(w);
   for (const [method, url] of [
-    ['GET', '/api/v1/nope'], ['GET', '/api/v1'], ['PUT', '/api/v1/attempts'], ['GET', '/api/v1/attempts'],
+    // `GET /api/v1/attempts` left this list: it is a supported history read. The collection's
+    // unsupported methods stay here instead.
+    ['GET', '/api/v1/nope'], ['GET', '/api/v1'], ['PUT', '/api/v1/attempts'], ['DELETE', '/api/v1/attempts'],
+    ['PATCH', '/api/v1/attempts'],
     ['PATCH', `/api/v1/attempts/${ATTEMPT_ABSENT}`], ['GET', '/api/v1/attempts/not-a-uuid'],
     ['POST', `/api/v1/submissions/${SUBMISSION_ABSENT}`], ['GET', '/api/auth/unknown'], ['POST', '/api/auth/sign-in/social'],
   ]) {

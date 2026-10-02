@@ -157,6 +157,10 @@ jobs:
         run: node tools/accounts-http-check.mjs
       - name: The owned API on the persistent backend
         run: node tools/owned-api-check.mjs --backend=postgres-persistent
+      # The suite above resets the GLOBAL sign-up bucket per world; this proves the throttle still
+      # refuses inside a world and that, without the reset, the exhaustion would be inherited.
+      - name: The sign-up throttle is enforced per world and not accumulated across worlds
+        run: node tools/owned-api-throttle-isolation-check.mjs
       - name: Account deletion removes every row and is one transaction
         run: node tools/deletion-check.mjs
       - name: The worker runner claims, fences, retries and reclaims (stub grader; no provider call)

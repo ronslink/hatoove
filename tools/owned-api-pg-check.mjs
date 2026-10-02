@@ -283,39 +283,56 @@ check('pg-content-records-are-immutable-with-discrimination', async () => {
   const ctx = await buildContext();
   const { admin, schema } = ctx.fixture;
   try {
+    /*
+     * THE EXACT IDENTITY IS (task_id, version), the table's primary key. Re-binding an immutable catalogue
+     * means NEW rows (0017 added v2 beside v1), so `WHERE task_id = $1` alone now matches two rows: the
+     * positive control saw rowCount 2 and failed, and `rows[0]` read whichever row came back first. Every
+     * statement below names one version, and the precondition proves the task really has several, so a
+     * reversion to task_id-only matching fails here rather than passing by luck.
+     */
     const taskId = 'writing.du.besuch-einer-freundin';
-    const original = (await admin.query(`SELECT situation FROM ${schema}.task_version WHERE task_id = $1`, [taskId])).rows[0].situation;
+    const version = 'v1';
+    const where = 'task_id = $1 AND version = $2';
+    const key = [taskId, version];
+    const versions = (await admin.query(`SELECT version FROM ${schema}.task_version WHERE task_id = $1 ORDER BY version`, [taskId])).rows.map((r) => r.version);
+    assert.ok(versions.length >= 2 && versions.includes(version), `precondition: ${taskId} has several versions including ${version}, got ${JSON.stringify(versions)}`);
+    const snapshot = async (q = admin) => (await q.query(`SELECT version, situation FROM ${schema}.task_version WHERE task_id = $1 ORDER BY version`, [taskId])).rows;
+    const before = await snapshot();
 
     // 1. The real assertion: an update attempt must fail.
     await assert.rejects(
-      admin.query(`UPDATE ${schema}.task_version SET situation = 'tampered' WHERE task_id = $1`, [taskId]),
+      admin.query(`UPDATE ${schema}.task_version SET situation = 'tampered' WHERE ${where}`, key),
       (e) => e.code === '23000' || /immutable/.test(e.message),
       'updating an immutable task version must fail',
     );
     await assert.rejects(
-      admin.query(`DELETE FROM ${schema}.task_version WHERE task_id = $1`, [taskId]),
+      admin.query(`DELETE FROM ${schema}.task_version WHERE ${where}`, key),
       (e) => e.code === '23000' || /immutable/.test(e.message),
       'deleting an immutable task version must fail',
     );
-    assert.equal((await admin.query(`SELECT situation FROM ${schema}.task_version WHERE task_id = $1`, [taskId])).rows[0].situation, original, 'the refused update changed nothing');
+    assert.deepEqual(await snapshot(), before, 'the refused update changed nothing, in any version');
 
-    // 2. Discrimination: with the trigger off, the SAME statement succeeds. One client, so
-    //    BEGIN/ALTER/UPDATE/ROLLBACK run on one connection.
+    // 2. Discrimination: with the trigger off, the SAME statement succeeds on EXACTLY the one row it
+    //    names, and no sibling version moves. One client, so BEGIN/ALTER/UPDATE/ROLLBACK run on one
+    //    connection.
     const client = await admin.connect();
     try {
       await client.query('BEGIN');
       await client.query(`ALTER TABLE ${schema}.task_version DISABLE TRIGGER task_version_immutable`);
-      const changed = await client.query(`UPDATE ${schema}.task_version SET situation = 'tampered' WHERE task_id = $1`, [taskId]);
-      assert.equal(changed.rowCount, 1, 'with the trigger disabled the update must succeed, or this check is vacuous');
+      const changed = await client.query(`UPDATE ${schema}.task_version SET situation = 'tampered' WHERE ${where}`, key);
+      assert.equal(changed.rowCount, 1, 'with the trigger disabled the update must succeed on exactly one row, or this check is vacuous');
+      const during = await snapshot(client);
+      assert.deepEqual(during.filter((r) => r.situation === 'tampered').map((r) => r.version), [version], 'only the named version was written');
+      assert.deepEqual(during.filter((r) => r.version !== version), before.filter((r) => r.version !== version), 'sibling versions are untouched');
       await client.query('ROLLBACK');
     } finally { client.release(); }
 
-    // 3. Rolled back: the trigger and the row are exactly as they were.
+    // 3. Rolled back: the trigger and the rows are exactly as they were.
     await assert.rejects(
-      admin.query(`UPDATE ${schema}.task_version SET situation = 'tampered' WHERE task_id = $1`, [taskId]),
+      admin.query(`UPDATE ${schema}.task_version SET situation = 'tampered' WHERE ${where}`, key),
       /immutable/, 'the trigger must be back after the rollback',
     );
-    assert.equal((await admin.query(`SELECT situation FROM ${schema}.task_version WHERE task_id = $1`, [taskId])).rows[0].situation, original);
+    assert.deepEqual(await snapshot(), before);
   } finally { await ctx.fixture.cleanup(); }
 });
 

@@ -56,6 +56,8 @@ jobs:
         run: node tools/postgres-provision-check.mjs
       - name: The same 24-check suite on the persistent installation
         run: node tools/owned-api-check.mjs --backend=postgres-persistent
+      - name: The sign-up throttle is enforced per world and not accumulated across worlds
+        run: node tools/owned-api-throttle-isolation-check.mjs
       # A-01: accounts over REAL HTTP and REAL server processes - sign-up, own an attempt, save
       # and re-read a draft, account settings with a refused stale write, cross-owner isolation,
       # sign-out invalidating the cookie, and the origin gate. Also proves the restart property:
