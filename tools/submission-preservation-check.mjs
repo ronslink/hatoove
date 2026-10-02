@@ -275,14 +275,22 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
   let failed = 0;
-  for (const { name, run } of checks) {
-    try {
-      const detail = await run();
-      console.log(`PASS ${name}${detail ? ` — ${detail}` : ''}`);
-    } catch (error) {
-      failed += 1;
-      console.log(`FAIL ${name}\n  ${error && error.stack ? error.stack.split('\n').slice(0, 4).join('\n  ') : error}`);
+  const previousContentMode = process.env.B1PREP_CONTENT_MODE;
+  try {
+    // These synthetic writing tasks intentionally remain unreviewed.
+    process.env.B1PREP_CONTENT_MODE = 'internal-preview';
+    for (const { name, run } of checks) {
+      try {
+        const detail = await run();
+        console.log(`PASS ${name}${detail ? ` — ${detail}` : ''}`);
+      } catch (error) {
+        failed += 1;
+        console.log(`FAIL ${name}\n  ${error && error.stack ? error.stack.split('\n').slice(0, 4).join('\n  ') : error}`);
+      }
     }
+  } finally {
+    if (previousContentMode === undefined) delete process.env.B1PREP_CONTENT_MODE;
+    else process.env.B1PREP_CONTENT_MODE = previousContentMode;
   }
   console.log(`\n${checks.length - failed} passed, ${failed} failed`);
   console.log('NOTE in-memory datastore plus an adapter source-shape check; no PostgreSQL row-lock or RLS evidence.');

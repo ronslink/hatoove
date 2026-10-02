@@ -207,7 +207,10 @@ function assertPopulated(snap, label) {
 
 /* ---------------------------------------------------------------- checks */
 
+const previousContentMode = process.env.B1PREP_CONTENT_MODE;
 try {
+  // Deletion fixtures use generated, unreviewed content, never public approval.
+  process.env.B1PREP_CONTENT_MODE = 'internal-preview';
   world = await createPostgresWorld({ fixture: db });
   // The whole suite drives the world's own api — the one `server/accounts.mjs` hands to
   // `server.js` — rather than an api this checker assembles. The `deletion` port likewise
@@ -505,7 +508,10 @@ try {
   results.push({ name: 'setup', ok: false });
   console.log(`FAIL setup\n     ${error && error.stack || error}`);
 } finally {
-  await teardown();
+  try { await teardown(); } finally {
+    if (previousContentMode === undefined) delete process.env.B1PREP_CONTENT_MODE;
+    else process.env.B1PREP_CONTENT_MODE = previousContentMode;
+  }
 }
 
 const passed = results.filter((r) => r.ok).length;

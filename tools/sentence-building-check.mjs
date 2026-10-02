@@ -165,7 +165,7 @@ if (pg) {
     await assert.rejects(world.fixture.learner.query('SELECT answers FROM objective_key LIMIT 1'), (error) => error.code === '42501');
   });
   check('every selected item retains identity, key and explanation; marking records owner-scoped evidence', async () => {
-    const detail = expect(await call('GET', `/api/v1/objective-sets/${setId}`));
+    const detail = expect(await call('GET', `/api/v1/objective-sets/${setId}?version=v1`));
     const key = (await world.fixture.admin.query('SELECT answers,explanations FROM objective_key WHERE set_id=$1 AND version=$2', [setId, 'v1'])).rows[0];
     for (const item of bank.banks.wortstellung_nebensatz) {
       const gap = detail.payload.gaps.find((row) => row.n === item.id);
@@ -184,19 +184,27 @@ if (pg) {
     const previous = process.env.B1PREP_SERVE_RIGHTS;
     try {
       process.env.B1PREP_SERVE_RIGHTS = 'licensed';
-      expect(await call('GET', `/api/v1/objective-sets/${setId}`), 404);
-      expect(await call('POST', `/api/v1/objective-sets/${setId}/answers`, { itemId: first.n, answer: wrong }), 404);
+      expect(await call('GET', `/api/v1/objective-sets/${setId}?version=v1`), 404);
+      expect(await call('POST', `/api/v1/objective-sets/${setId}/answers`, { version: 'v1', itemId: first.n, answer: wrong }), 404);
     } finally { if (previous === undefined) delete process.env.B1PREP_SERVE_RIGHTS; else process.env.B1PREP_SERVE_RIGHTS = previous; }
   });
 }
 
 let passed = 0;
 const failures = [];
+const previousContentMode = process.env.B1PREP_CONTENT_MODE;
 try {
+  // Recovered grammar banks are deliberately unreviewed internal-preview content.
+  process.env.B1PREP_CONTENT_MODE = 'internal-preview';
   for (const test of checks) {
     try { await test.run(); passed += 1; console.log(`PASS ${test.name}`); }
     catch (error) { failures.push(test.name); console.log(`FAIL ${test.name}\n${error.stack}`); }
   }
-} finally { if (world?.teardown) await world.teardown(); }
+} finally {
+  try { if (world?.teardown) await world.teardown(); } finally {
+    if (previousContentMode === undefined) delete process.env.B1PREP_CONTENT_MODE;
+    else process.env.B1PREP_CONTENT_MODE = previousContentMode;
+  }
+}
 console.log(`\n${passed} passed, ${failures.length} failed (${pg ? 'PostgreSQL/RLS and migrated content' : 'offline analyser and memory API'})`);
 process.exitCode = failures.length ? 1 : 0;

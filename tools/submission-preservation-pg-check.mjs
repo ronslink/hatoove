@@ -131,7 +131,10 @@ async function race(who, winner) {
   }
 }
 
+const previousContentMode = process.env.B1PREP_CONTENT_MODE;
 try {
+  // Exercise preservation using the deliberately unreviewed synthetic fixture.
+  process.env.B1PREP_CONTENT_MODE = 'internal-preview';
   const a = await learner('Owner A'), b = await learner('Owner B');
   await check('preconditions: handler uses a non-superuser, non-bypass learner role with FORCE RLS', async () => {
     const actual = (await db.learner.query('SELECT current_user AS name, rolsuper, rolbypassrls FROM pg_roles WHERE rolname=current_user')).rows[0];
@@ -204,7 +207,12 @@ try {
     expect(await call('GET', '/api/v1/export'), 401);
     assert.equal(await world.store.inspect.fingerprint(), snapshot, 'export must not alter retained history');
   });
-} finally { await world.teardown(); }
+} finally {
+  try { await world.teardown(); } finally {
+    if (previousContentMode === undefined) delete process.env.B1PREP_CONTENT_MODE;
+    else process.env.B1PREP_CONTENT_MODE = previousContentMode;
+  }
+}
 const passed = results.filter(Boolean).length;
 console.log(`\n${passed} passed, ${results.length - passed} failed (real PostgreSQL, synthetic accounts, no provider).`);
 process.exitCode = passed === results.length ? 0 : 1;
