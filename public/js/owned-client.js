@@ -86,7 +86,13 @@ const ACCOUNT_PATH = '/api/v1/account';
 const ATTEMPTS_PATH = '/api/v1/attempts';
 const SETTINGS_PATH = '/api/v1/settings';
 /** The closed allowlist the server enforces; mirrored here so the client fails before sending. */
-const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'model', 'theme', 'language'];
+/*
+ * NO `model`. The model is OPERATOR configuration — `.env` locally, the platform's environment
+ * variables in a deployment (D10b) — so it is not a learner setting: this client will neither send it
+ * nor accept it back, and the server refuses it with 422 either way. Removed on both sides in the same
+ * commit, because a field one side accepts and the other refuses is a protocol that only looks agreed.
+ */
+const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'theme', 'language'];
 const SIGN_UP_PATH = '/api/auth/sign-up/email';
 const SIGN_IN_PATH = '/api/auth/sign-in/email';
 const SIGN_OUT_PATH = '/api/auth/sign-out';

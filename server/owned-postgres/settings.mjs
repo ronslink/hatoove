@@ -27,11 +27,10 @@
  *   - It is not a general key/value store: the allowlist is fixed and closed.
  */
 
-import { Fault } from '../owned-api.mjs';
+import { Fault, SETTINGS_FIELDS } from '../owned-api.mjs';
 
 export const SETTINGS_LIMITS = Object.freeze({
   examDate: 10,      // ISO calendar date, `YYYY-MM-DD`
-  model: 64,
   theme: 16,
   language: 16,
 });
@@ -47,7 +46,6 @@ const TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/;
 export const SETTINGS_DEFAULTS = Object.freeze({
   examDate: '',
   dailyGoal: 20,
-  model: 'deepseek-chat',
   theme: 'system',
   language: '',
 });
@@ -57,7 +55,6 @@ const asRow = (row) => ({
   settings: {
     examDate: row.exam_date || '',
     dailyGoal: Number(row.daily_goal),
-    model: row.model || SETTINGS_DEFAULTS.model,
     theme: row.theme || SETTINGS_DEFAULTS.theme,
     language: row.language || '',
   },
@@ -74,7 +71,12 @@ export function validateSettings(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new Fault(422, 'invalid_settings');
   }
-  const allowed = ['examDate', 'dailyGoal', 'model', 'theme', 'language'];
+  // No model: see the note on SETTINGS_FIELDS in owned-api.mjs. The COLUMN stays (it is NOT NULL with a
+  // default and the INSERT still names it), but it is not part of the learner's surface — neither
+  // settable nor returned.
+  // ONE canonical list, imported from owned-api.mjs (see the note on SETTINGS_FIELDS there). A second
+  // copy here could accept a field the route refuses — or the reverse — and nothing would report it.
+  const allowed = [...SETTINGS_FIELDS];
   const unknown = Object.keys(input).filter((key) => !allowed.includes(key));
   if (unknown.length) throw new Fault(422, 'invalid_settings');
 
@@ -91,10 +93,6 @@ export function validateSettings(input) {
       throw new Fault(422, 'invalid_settings');
     }
     out.dailyGoal = input.dailyGoal;
-  }
-  if (input.model !== undefined) {
-    if (typeof input.model !== 'string' || !TOKEN_RE.test(input.model)) throw new Fault(422, 'invalid_settings');
-    out.model = input.model;
   }
   if (input.theme !== undefined) {
     if (!SETTINGS_THEMES.includes(input.theme)) throw new Fault(422, 'invalid_settings');
@@ -165,18 +163,25 @@ export function createPostgresSettings({ pool } = {}) {
           throw new Fault(409, 'settings_conflict', { current: base });
         }
         const next = { ...base.settings, ...patch };
+        /*
+         * `model` is absent from the column list on purpose. It is a NOT NULL column with a DEFAULT, and
+         * it is no longer part of the learner's surface (see SETTINGS_FIELDS in owned-api.mjs), so the
+         * DEFAULT supplies it on INSERT and the UPDATE leaves the stored value alone. Passing
+         * `next.model` here would have written `undefined` the moment the field stopped being accepted —
+         * a crash on the first settings save, which is exactly the kind of thing this comment exists to
+         * stop someone "restoring".
+         */
         const row = (await client.query(
-          `INSERT INTO learner_settings (user_id, exam_date, daily_goal, model, theme, language, revision)
-           VALUES ($1, $2, $3, $4, $5, $6, 1)
+          `INSERT INTO learner_settings (user_id, exam_date, daily_goal, theme, language, revision)
+           VALUES ($1, $2, $3, $4, $5, 1)
            ON CONFLICT (user_id) DO UPDATE SET
              exam_date = EXCLUDED.exam_date,
              daily_goal = EXCLUDED.daily_goal,
-             model = EXCLUDED.model,
              theme = EXCLUDED.theme,
              language = EXCLUDED.language,
              revision = learner_settings.revision + 1
-           RETURNING revision, exam_date, daily_goal, model, theme, language`,
-          [owner, next.examDate, next.dailyGoal, next.model, next.theme, next.language])).rows[0];
+           RETURNING revision, exam_date, daily_goal, theme, language`,
+          [owner, next.examDate, next.dailyGoal, next.theme, next.language])).rows[0];
         return asRow(row);
       });
     },

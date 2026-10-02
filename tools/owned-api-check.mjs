@@ -223,7 +223,37 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
     }),
   };
 
-  return { port, worker, inspect };
+  /*
+   * A SETTINGS PORT, so the settings contract is exercised on the MEMORY backend too. Without it the
+   * route answers 503 `settings_unavailable` and every settings leg — including
+   * `model-is-not-a-learner-setting`, which replaced the retired provider-config check — would either
+   * have to be skipped here or could only run against PostgreSQL. A property asserted on one backend is
+   * a property asserted on one backend.
+   *
+   * The stored shape mirrors the server's: a revision per owner and the learner-settable fields only.
+   * `model` is deliberately absent — see SETTINGS_FIELDS in owned-api.mjs.
+   */
+  const settingsByOwner = new Map();
+  const settingsDefaults = () => ({ examDate: '', dailyGoal: 20, theme: 'system', language: '' });
+  const settingsPort = {
+    async read(owner) {
+      calls.push('settings.read');
+      const stored = settingsByOwner.get(owner);
+      return stored
+        ? { revision: stored.revision, settings: { ...stored.settings } }
+        : { revision: 0, settings: settingsDefaults() };
+    },
+    async write(owner, expectedRevision, patch) {
+      calls.push('settings.write');
+      const stored = settingsByOwner.get(owner) ?? { revision: 0, settings: settingsDefaults() };
+      if (stored.revision !== expectedRevision) throw new Fault(409, 'settings_conflict', { current: { revision: stored.revision, settings: { ...stored.settings } } });
+      const next = { revision: stored.revision + 1, settings: { ...stored.settings, ...patch } };
+      settingsByOwner.set(owner, next);
+      return { revision: next.revision, settings: { ...next.settings } };
+    },
+  };
+
+  return { port, settings: settingsPort, worker, inspect };
 }
 
 /** In-memory session port. Synthetic accounts only; TEST ONLY, not an auth system. */
@@ -404,7 +434,7 @@ async function world({ allowance } = {}) {
   }
   const store = createMemoryDatastore({ allowance });
   const sessions = createMemorySessions();
-  const api = createOwnedApi({ datastore: store.port, sessions });
+  const api = createOwnedApi({ datastore: store.port, sessions, settings: store.settings });
   return { store, sessions, api, browser: () => inProcessBrowser(api) };
 }
 
@@ -609,6 +639,63 @@ check('result-never-regrades', async () => {
   assert.deepEqual(await w.store.inspect.entitlement(s.account.id), usageBefore, 'no new debit or reservation');
   // A succeeded job is not retryable, so a result cannot be regraded through retry either.
   await expectClientError(s.client.retry(id), 'conflict', { status: 409, detail: 'retry_unavailable' });
+});
+
+/*
+ * THE MODEL IS NOT A LEARNER SETTING — the leg that replaced the retired provider-config check.
+ *
+ * `provider-config-check` guarded "a learner cannot set the provider or the model", and this ledger row
+ * predicted that `model` was "still accepted today". It was: `SETTINGS_FIELDS` contained it on the
+ * server AND in the shipped client, and `validateSettings` wrote it to the database. Nothing read it
+ * back for provider selection — the provider's model comes from operator configuration — so it was a
+ * field that only LOOKED like it controlled the model, settable from a browser by anyone with an
+ * account.
+ *
+ * Both shapes are asserted refused, because the route accepts settings either nested or inline and a
+ * fix that covered only one would leave the other open. The accepted fields are asserted to still
+ * work in the same leg, so tightening the surface cannot be mistaken for disabling it.
+ */
+check('model-is-not-a-learner-setting', async () => {
+  const w = await world();
+  const s = await learner(w);
+  const before = await s.client.readSettings();
+  assert.ok(!('model' in before.settings), 'the server must not return a model field at all');
+  /*
+   * EVERY REJECTION PAYLOAD BELOW ALSO CARRIES A FIELD THAT IS LEGAL.
+   *
+   * That is the whole design of this leg, and the first version got it wrong: it sent
+   * `{settings: {model}}` and asserted 422 — which is ALSO what a valid-but-empty patch gets, because
+   * `validateSettings` refuses a patch that resolves to no fields at all. The assertion passed whether
+   * or not `model` was accepted, for two different reasons, which is the "a check that cannot fail"
+   * failure mode this programme keeps meeting. A payload whose only OTHER outcome is success makes
+   * acceptance visible: if `model` were allowed, `{model, examDate}` would be non-empty, the write would
+   * land, and the 422 assertion would fail.
+   */
+  const legal = '2026-12-12';
+  const nested = await s.raw('PUT', '/api/v1/settings', { expectedRevision: before.revision, settings: { model: 'gpt-4o', examDate: legal } });
+  assert.equal(nested.status, 422, `nested settings.model must be 422, got ${nested.status}`);
+  const inline = await s.raw('PUT', '/api/v1/settings', { expectedRevision: before.revision, model: 'gpt-4o', examDate: legal });
+  assert.equal(inline.status, 422, `inline model must be 422, got ${inline.status}`);
+  // The refusal is ATOMIC: the legal field travelling with the illegal one was not written either.
+  const after = await s.client.readSettings();
+  assert.equal(after.revision, before.revision, 'a refused write must not advance the revision');
+  assert.notEqual(after.settings.examDate, legal, 'a refused write must not store the field that travelled with it');
+  // The shipped client refuses it locally too, which is defence in depth. `saveSettings` throws
+  // SYNCHRONOUSLY for input it will not send, so this cannot use the promise-shaped helper.
+  let clientRefusal = null;
+  try {
+    s.client.saveSettings({ expectedRevision: after.revision, settings: { model: 'gpt-4o', examDate: legal } });
+  } catch (error) {
+    clientRefusal = error;
+  }
+  assert.ok(clientRefusal, 'the client must refuse a model setting rather than send it');
+  assert.equal(clientRefusal.code, 'invalid_request', `client refusal code: ${clientRefusal.code}`);
+  // The fields that ARE learner settings still work: tightening the surface is not disabling it.
+  const saved = await s.client.saveSettings({ expectedRevision: after.revision, settings: { examDate: legal, language: 'de' } });
+  assert.equal(saved.revision, after.revision + 1, 'a real settings write still advances the revision once');
+  assert.equal(saved.settings.examDate, legal);
+  assert.ok(!('model' in saved.settings), 'and no response grows a model field back');
+  return 'model refused by the client AND the server in both shapes (422) while a legal field in the same payload is left unwritten; examDate/language still save; no model in any response';
 });
 
 check('retry-only-eligible-failed-job-same-identity', async () => {

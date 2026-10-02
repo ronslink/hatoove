@@ -141,7 +141,18 @@ export const DELETION_NOT_REMOVED = Object.freeze([
  * the HTTP contract is the contract, whatever datastore implements it. Unknown keys are
  * refused, never dropped: silently discarding a field a caller believes it saved is a defect.
  */
-const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'model', 'theme', 'language'];
+/*
+ * `model` is NOT here, and must not come back: the model is OPERATOR configuration (D10b — `.env`
+ * locally, the platform's environment variables in a deployment), so a learner setting it would be a
+ * way to change the provider's behaviour from a browser. Both input shapes are asserted refused in
+ * `tools/owned-api-check.mjs`, which is the leg that replaced the retired provider-config check.
+ *
+ * EXPORTED, and imported by `settings.mjs`, because this list existed in THREE places (here, the
+ * PostgreSQL settings port, and the shipped client) and three copies of a field list is three chances
+ * for the surface to disagree with itself. The client keeps its own copy deliberately — it must not
+ * import server code — but `tools/owned-api-check.mjs` asserts the two agree on `model` being refused.
+ */
+export const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'theme', 'language'];
 const SETTINGS_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SETTINGS_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/;
 const SETTINGS_THEMES = ['system', 'light', 'dark'];
@@ -165,10 +176,6 @@ function validateSettings(input) {
   if (input.dailyGoal !== undefined) {
     if (!Number.isSafeInteger(input.dailyGoal) || input.dailyGoal < 1 || input.dailyGoal > 500) fault(422, 'invalid_settings');
     out.dailyGoal = input.dailyGoal;
-  }
-  if (input.model !== undefined) {
-    if (typeof input.model !== 'string' || !SETTINGS_TOKEN_RE.test(input.model)) fault(422, 'invalid_settings');
-    out.model = input.model;
   }
   if (input.theme !== undefined) {
     if (!SETTINGS_THEMES.includes(input.theme)) fault(422, 'invalid_settings');

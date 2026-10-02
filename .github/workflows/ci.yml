@@ -56,8 +56,14 @@ jobs:
       # tools/app-browser-check.mjs, which needs Docker and a browser and is not a runner gate.
       - name: The retired single-user store cannot come back
         run: node tools/retired-surface-check.mjs
-      - name: The provider is operator-only and invisible
-        run: node tools/provider-config-check.mjs
+      # "The provider is operator-only and invisible" USED to run here
+      # (tools/provider-config-check.mjs). That check drove `/api/config` anonymously, which the auth
+      # wrap now refuses with 401 before any handler — so it had been red since that wrap landed, and
+      # CI never showed it because the step behind a failing one is skipped. Its property moved to
+      # checks that can actually observe it: `tools/owned-api-check.mjs` leg
+      # `model-is-not-a-learner-setting` (the server refuses `model` in both request shapes, with a
+      # measured discrimination test) and `tools/app-browser-check.mjs` leg L31 (the settings screen
+      # offers no provider, key or model field). Row in work/implementation/RETIRED-CHECKS.md.
   contracts:
     name: Server and owned API contracts (${{ matrix.os }})
     strategy:

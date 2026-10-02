@@ -26,6 +26,46 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — SPA-RETIRE 3: the provider-config check, and a live defect it had been failing to catch
+
+| Check | Leg(s) | Property | Decision | Replacement | Commit | Slice |
+|---|---|---|---|---|---|---|
+| `tools/provider-config-check.mjs` (**CI step removed**) | all 11 | a learner cannot set the provider or the model, no route discloses a key-derived field, and the Settings view offers no provider field | **REPLACE** | see below — and the property was FALSE when this row was written | this commit | SPA-RETIRE 3 |
+
+**The check was red, and it was red for a reason that hid a real defect.** It drove `/api/config`
+anonymously and expected 200/403; the auth wrap added to `server.js` answers **401 before any handler**,
+so 7 of its 11 legs had been failing since that wrap landed. CI never reported it: it sat behind
+`Same-origin guard on state-changing routes` in the same job, and a step after a failing step is
+**skipped**. Measured against a clean `HEAD` worktree before this slice — identical numbers — so this
+was pre-existing, not a regression.
+
+**While writing its replacement, the property turned out to be FALSE.** `SETTINGS_FIELDS` contained
+`model` on the server AND in the shipped client, and `validateSettings` wrote it to the database — so any
+holder of an account could set the model through `PUT /api/v1/settings`, in both request shapes. Nothing
+read it back for provider selection (the provider's model comes from operator configuration), so it was a
+field that only LOOKED like it controlled the model. Fixed in the same commit: removed from the server's
+field list, from the PostgreSQL settings port (validation, defaults, read mapping and the INSERT), and
+from the shipped client's list. The list now has ONE server-side definition (`owned-api.mjs` exports it;
+`settings.mjs` imports it) instead of two that could disagree.
+
+**Replacement, with its discrimination measured:**
+
+* `tools/owned-api-check.mjs` leg **`model-is-not-a-learner-setting`** — the client refuses it locally,
+  and the SERVER refuses both shapes with 422 while a legal field travelling in the same payload is left
+  unwritten; the legal fields still save. Run on **both backends** (28/28 memory, 28/28 postgres).
+  Discrimination proven by restoring `model` to the field list and re-running: the leg goes **red**.
+  *A lesson worth keeping:* the first version of this leg asserted only "422" for `{settings: {model}}`,
+  and it passed **with the defect present** — because `validateSettings` also refuses a patch that
+  resolves to no fields at all, so the assertion held for two different reasons. A rejection assertion
+  must use a payload whose only OTHER outcome is success.
+* `tools/app-browser-check.mjs` leg **L31** (the settings screen offers no provider, key or model field).
+* `tools/keymask-check.mjs` for the key-disclosure half (its own retarget is still pending — it is one of
+  the three red-at-HEAD checks).
+
+**Gap carried, not hidden:** `/api/config` answering 404 to an AUTHENTICATED caller is not asserted
+anywhere yet. It belongs with the retirement of the legacy `/api/config`, `/api/ai` and `/api/ai/test`
+routes themselves, which is the next slice after the SPA's modules are gone.
+
 ### 2 October 2026 — SPA-RETIRE 2: the two checks that could be retargeted before the modules go
 
 `public/js/**` cannot be deleted in one step: six surviving checks use SPA modules as **fixtures** (the
