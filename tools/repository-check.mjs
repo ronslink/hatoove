@@ -121,6 +121,26 @@ if (workflowRefs.length && !renderedWorkflow.length) {
   failures.push('ci.yml references no node checker, so the legs it claims to run cannot be verified here');
 }
 
+/*
+ * AND THE STRUCTURE OF THE WORKFLOW ITSELF, which is the other half of the same class — and the one that had
+ * already happened: an unquoted colon-space in a step name made `.github/workflows/ci.yml` INVALID YAML, so
+ * every job would have failed to start, and reading the file did not show it. `tools/workflow-shape.mjs`
+ * carries the three rules and the reasoning; `tools/workflow-shape.test.mjs` proves each rule can fail
+ * (including the block-scalar exemption, without which the check would flag every shell body in the file).
+ */
+const { workflowShapeProblems } = await import('./workflow-shape.mjs');
+for (const entry of entries) {
+  const file = entry.split('\t').pop().trim();
+  if (!workflowPattern.test(file)) continue;
+  let text = '';
+  try {
+    text = git('show', `:${file}`);
+  } catch {
+    continue; // already reported above when it mattered
+  }
+  for (const problem of workflowShapeProblems(text)) failures.push(`${file} ${problem}`);
+}
+
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exitCode = 1;

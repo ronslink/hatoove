@@ -43,6 +43,12 @@ jobs:
           node-version: '24'
       - name: Check tracked source and excluded data
         run: node tools/repository-check.mjs
+      # THE WORKFLOW-SHAPE CHECK CAN FAIL, and each of its rules has a mutation that proves it. This runs
+      # beside the table-class mutations for the same reason: a structural check whose failure modes are not
+      # demonstrated is decoration, and this one already had a version that reported nothing at all because it
+      # called `fs` in a file that imports no `fs`, with a `catch` that swallowed the ReferenceError.
+      - name: The workflow-shape check detects every mutation it claims to
+        run: node --test tools/workflow-shape.test.mjs
       # DESIGN-LANGUAGE.md: no raw colour or font family in a rule, the required tokens present,
       # the dark override present, the mobile breakpoints and reduced motion honoured, every view
       # registered through the shell, and the language setting NOT reaching the interface. This gate
