@@ -60,10 +60,27 @@ for (const block of pathBlocks) {
   }
 }
 
+/*
+ * EXIT WITHOUT `process.exit()` — and this is a correctness fix, not tidiness.
+ *
+ * `process.exit()` tears the process down immediately, and `fetch` keeps keep-alive sockets alive. On
+ * Windows the race between that teardown and a socket closing trips a libuv assertion
+ * (`!(handle->flags & UV_HANDLE_CLOSING)`), which ABORTS the process. Measured, not theorised: three
+ * consecutive identical runs exited 0, then aborted with `0xC0000409`, then exited 0 again — so the
+ * check's verdict was unreliable roughly one run in three, and it misled the person reading it (me: the
+ * first suspicion was a real defect in the check).
+ *
+ * Setting `exitCode` instead lets the runtime drain its own handles: the verdict is the same and the
+ * process cannot abort on the way out.
+ */
+function finish(code) {
+  process.exitCode = code;
+}
+
 if (!operations.length) {
   fail('S0-spec-parseable', `no operations found in ${path.relative(ROOT, SPEC)} — the scanner found nothing, so it cannot verify anything`);
   console.log('\n0 passed, 1 failed\n');
-  process.exit(1);
+  finish(1);
 }
 pass('S0-spec-parseable', `${operations.length} operation(s) declared across ${pathBlocks.length} path(s)`);
 
@@ -133,4 +150,4 @@ for (const route of ['/api/progress', '/api/config', '/api/ai']) {
 
 const failed = results.filter((r) => r === 'FAIL').length;
 console.log(`\n${results.length - failed} passed, ${failed} failed\n`);
-process.exit(failed ? 1 : 0);
+finish(failed ? 1 : 0);

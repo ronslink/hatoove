@@ -61,6 +61,75 @@ function failureCodeOf(error) {
   return code && CODE_RE.test(code) ? code : GRADER_ERROR;
 }
 
+/** The failure code for an assessment whose SHAPE the contract does not allow. */
+export const INVALID_ASSESSMENT = 'invalid_assessment';
+
+/*
+ * THE ASSESSMENT SHAPE IS VALIDATED BEFORE ANYTHING IS STORED (MASTER-PLAN D4 / R11).
+ *
+ * The rubric contract is OPEN: a separately versioned three-criterion contract, or honestly labelled
+ * provisional four-criterion internal feedback — and the decision notes say the two must never be
+ * renormalised into each other. PILOT-06's result schema is blocked on that decision.
+ *
+ * While it is open, the danger is not that a grader picks the wrong one of the two. It is that a SHAPE
+ * arrives through the data layer, where no screen check can see it: `completeSuccess` stored
+ * `assessment.feedback` verbatim, so `{total: 35}`, `{bestanden: true}` or `criteria: [{score: 12}]`
+ * would be written to `assessments`, served by `result()`, and rendered by any present or future client
+ * as though the contract had been decided. That is a fabricated assessment, and "no /45 and no pass
+ * line" is a red-line product rule rather than a formatting preference.
+ *
+ * SO THE ALLOWED SHAPE IS EXACTLY WHAT THE PRODUCT PROMISES TODAY: a `kind`, an optional `comment`, and
+ * the versions the feedback was produced with. Anything else — a total, a score, a band, a verdict, a
+ * criterion list, or an unknown field — fails the job with a stable code and stores NOTHING. When D4 is
+ * decided, THIS FUNCTION is the one place to widen, and widening it is a deliberate, reviewable edit
+ * rather than a silent consequence of a provider changing its response shape.
+ */
+const ASSESSMENT_FIELDS = ['feedback', 'modelVersion', 'promptVersion'];
+const FEEDBACK_FIELDS = ['kind', 'comment'];
+const COMMENT_LIMIT = 4000;
+const VERSION_LIMIT = 120;
+
+/**
+ * A `kind` is a token WITH dashes allowed: the shipped stub reports `synthetic-formative`, and reusing the
+ * failure-code pattern (`CODE_RE`, underscores only) rejected it — which the control case in
+ * `worker-runner-check` leg 3b caught immediately. A validator that refuses the one assessment the
+ * product ships is not validating, it is breaking.
+ */
+const KIND_RE = /^[a-z][a-z0-9_-]{0,47}$/;
+
+export function validateAssessment(assessment) {
+  const bad = (detail) => {
+    const error = new Error(`The assessment shape is not allowed: ${detail}`);
+    error.code = INVALID_ASSESSMENT;
+    return error;
+  };
+  if (!assessment || typeof assessment !== 'object' || Array.isArray(assessment)) throw bad('not an object');
+  for (const key of Object.keys(assessment)) {
+    if (!ASSESSMENT_FIELDS.includes(key)) throw bad(`unknown assessment field "${key}"`);
+  }
+  const feedback = assessment.feedback;
+  if (!feedback || typeof feedback !== 'object' || Array.isArray(feedback)) throw bad('feedback must be an object');
+  for (const key of Object.keys(feedback)) {
+    // `criteria`, `total`, `score`, `bestanden`… every one of them lands here, and the message names the
+    // field so the failure is diagnosable rather than mysterious.
+    if (!FEEDBACK_FIELDS.includes(key)) throw bad(`unknown feedback field "${key}"`);
+  }
+  if (feedback.kind !== undefined && (typeof feedback.kind !== 'string' || !KIND_RE.test(feedback.kind))) {
+    throw bad('feedback.kind must be a token');
+  }
+  if (feedback.comment !== undefined
+    && (typeof feedback.comment !== 'string' || feedback.comment.length > COMMENT_LIMIT)) {
+    throw bad(`feedback.comment must be a string of at most ${COMMENT_LIMIT} characters`);
+  }
+  for (const field of ['modelVersion', 'promptVersion']) {
+    const value = assessment[field];
+    if (value !== undefined && (typeof value !== 'string' || value.length === 0 || value.length > VERSION_LIMIT)) {
+      throw bad(`${field} must be a non-empty string of at most ${VERSION_LIMIT} characters`);
+    }
+  }
+  return assessment;
+}
+
 /**
  * @param {{pool: object, grade?: Function, now?: () => Date, leaseMs?: number, maxTries?: number}} options
  *   `pool` must connect as the restricted `worker` role. `grade` receives
@@ -139,6 +208,13 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
         rubricVersion: row.rubric_version,
         ownerId: row.owner_id,
       });
+      /*
+       * THE SHAPE GATE, inside the same try so a bad shape is an ordinary job failure: a stable
+       * `invalid_assessment` code, the reservation refunded, nothing written. Validating here rather than
+       * in `completeSuccess` also means the refusal happens BEFORE the transaction that writes the row,
+       * so there is no window in which a fabricated assessment exists.
+       */
+      validateAssessment(assessment);
     } catch (error) {
       return completeFailure({ submissionId, token, code: failureCodeOf(error) });
     }

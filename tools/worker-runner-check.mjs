@@ -244,6 +244,59 @@ check('3. retry path: a throwing grader fails with a stable code, releases the r
   return `failed(${failed.failure_code}) then re-queued with tries=${requeued.tries}, reserved refunded then re-reserved`;
 });
 
+/*
+ * 3b. AN ASSESSMENT CARRYING A SCORE, A TOTAL OR A PASS BAND IS REFUSED — NOT STORED.
+ *
+ * The rubric contract is OPEN (MASTER-PLAN D4 / R11): a separately versioned three-criterion contract or
+ * honestly labelled provisional four-criterion internal feedback, and the decision notes say the two must
+ * never be renormalised into each other. PILOT-06's result schema is blocked on it.
+ *
+ * While it is open, the risk is not that someone picks the WRONG one — it is that the shape arrives
+ * through the data layer, where no screen check can see it. `completeSuccess` stored `assessment.feedback`
+ * verbatim, so a grader (or a provider adapter) returning `{total: 35}`, `{bestanden: true}` or
+ * `criteria: [{score: 12}]` would have been written to `assessments`, served by `result()`, and rendered
+ * by any UI as if the contract had been decided. That is a fabricated assessment: the "no /45, no
+ * pass line" rule is a RED-LINE product rule, and a negative check at the point of storage is the only
+ * place it can be enforced for every future client.
+ *
+ * The control case is in the same leg on purpose: the shipped stub must PASS this validator, so the leg
+ * cannot be satisfied by a validator that refuses everything.
+ */
+check('3b. an assessment carrying a score, a total or a pass band fails the job and is never stored', async () => {
+  const call = caller(world.api);
+  await drain();
+  const refused = [
+    ['a total', { feedback: { kind: 'formative', comment: 'ok', total: 35 } }],
+    ['a /45 fraction', { feedback: { kind: 'formative', comment: 'ok', score: '35/45' } }],
+    ['per-criterion scores', { feedback: { kind: 'formative', criteria: [{ key: 'aufgabe', score: 12 }] } }],
+    ['a pass verdict', { feedback: { kind: 'formative', comment: 'ok', bestanden: true } }],
+    ['a bare number as the whole feedback', { feedback: 35 }],
+    ['a top-level score beside the feedback', { feedback: { kind: 'formative', comment: 'ok' }, total: 35 }],
+  ];
+  const seen = [];
+  for (const [what, assessment] of refused) {
+    const a = await signUp(call, 'p3b');
+    const s = await submit(call, a.cookie, 'Text für die Assessment-Form.');
+    const outcome = await createWorker({ pool: db.worker, grade: () => assessment }).runOnce();
+    assert.equal(outcome.outcome, 'failed', `${what} must FAIL the job, got ${outcome.outcome}`);
+    assert.equal(outcome.code, 'invalid_assessment', `${what} must fail with invalid_assessment, got ${outcome.code}`);
+    assert.equal(await assessmentCount(s.submissionId), 0, `${what} must not be stored`);
+    const job = await jobRow(s.submissionId);
+    assert.equal(job.status, 'failed');
+    assert.equal(job.failure_code, 'invalid_assessment');
+    assert.equal((await entitlement(a.userId)).reserved, 0, `${what}: a refusal refunds the reservation`);
+    seen.push(`${what}->${outcome.code}`);
+  }
+
+  // THE CONTROL: the shipped stub is accepted, so this validator is not refusing everything.
+  const control = await signUp(call, 'p3c');
+  const controlSubmission = await submit(call, control.cookie, 'Kontrolltext für den Stub.');
+  const ok = await createWorker({ pool: db.worker }).runOnce();
+  assert.equal(ok.outcome, 'succeeded', `the shipped stub must still grade, got ${ok.outcome}`);
+  assert.equal(await assessmentCount(controlSubmission.submissionId), 1, 'the stub assessment is stored');
+  return `refused ${refused.length} fabricated shapes (${seen.join(', ')}) with a refund and nothing stored; the shipped stub still succeeds`;
+});
+
 check('4. retry limit: retry() works at tries=2 and is refused at tries=3 (the boundary, not just the far side)', async () => {
   const call = caller(world.api);
   await drain();

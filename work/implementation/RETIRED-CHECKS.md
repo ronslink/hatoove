@@ -26,6 +26,57 @@ commit that removed the implementation | slice`
 
 ## Retired
 
+### 2 October 2026 — PILOT-06/3b: a fabricated assessment can no longer be STORED, and a flaky check is fixed
+
+**The rubric contract is OPEN (MASTER-PLAN D4, R11):** a separately versioned three-criterion contract, or
+honestly labelled provisional four-criterion internal feedback — the notes say the two must never be
+renormalised into each other, and PILOT-06's result schema is blocked on the decision. So this slice did
+**not** decide it.
+
+**What it did instead is close the hole the open decision leaves.** `completeSuccess` stored
+`assessment.feedback` **verbatim** as JSONB. A grader — or a provider adapter, or a model whose response
+shape drifts — returning `{total: 35}`, `{score: '35/45'}`, `{bestanden: true}` or
+`criteria: [{score: 12}]` would have been written to `assessments`, served by `result()`, and rendered by
+any present or future client as though the contract had been settled. That is a fabricated assessment, and
+"no /45, no pass line" is a red-line product rule rather than a formatting preference. **No screen check
+can see this**, which is why it is enforced at the point of storage.
+
+`validateAssessment` (`server/owned-postgres/worker.mjs`) now runs between the grader and the transaction
+and allows exactly what the product promises today: `feedback.kind`, an optional `feedback.comment`, and
+the `modelVersion`/`promptVersion` the feedback was produced with. Anything else — a total, a score, a
+band, a verdict, a criterion list, an unknown field — fails the job with the stable code
+`invalid_assessment`, refunds the reservation, and stores **nothing**. When D4 is decided, that function is
+the one place to widen, and widening it is a deliberate, reviewable edit instead of a silent consequence of
+a provider changing its response.
+
+**Check-first, with the red observed.** `worker-runner-check` leg **3b** was written before the validator
+and failed with *"a total must FAIL the job, got succeeded"* — the fabrication, demonstrated. It asserts
+six shapes are refused (a total, a `/45` fraction, per-criterion scores, a pass verdict, a bare number as
+the whole feedback, and a top-level score beside the feedback), that each failure leaves **no assessment
+row** and refunds the reservation, and — in the same leg — that the **shipped stub still succeeds**, so the
+leg cannot be satisfied by a validator that refuses everything.
+
+**That control case earned its place immediately.** The first validator reused the failure-code pattern
+(underscores only) for `feedback.kind`, and the shipped stub reports `synthetic-formative` — with a dash.
+It refused the one assessment the product actually ships, and the control case caught it on the next run.
+A validator that rejects the real payload is not validating, it is breaking.
+
+**Draft recovery on reload remains OPEN, and is not claimed.** A 409 is handled, but a learner who reloads
+mid-letter gets an empty textarea and a NEW attempt: there is no route that says "which attempt is open",
+and the client stores nothing in the browser by design (`app-browser-check` L30 asserts that). Resuming
+therefore needs a server-side answer — a route listing the learner's resumable (unsubmitted) drafts, most
+likely `GET /api/v1/attempts` — **or an explicit decision that a reload starts a new attempt**, which is
+what happens today and is not recorded anywhere as a decision. It is recorded here as a gap, with the two
+options named, rather than left to look like an oversight.
+
+**Also fixed: `api-spec-check` was unreliable roughly one run in three, and it misled me.** It called
+`process.exit()` while `fetch` keep-alive sockets were still closing, which trips a libuv assertion on
+Windows (`!(handle->flags & UV_HANDLE_CLOSING)`) and ABORTS the process. Measured: three consecutive
+identical runs exited 0, then `0xC0000409`, then 0 — and my first reading of that was a suspicion about the
+check's subject. It now sets `process.exitCode` and lets the runtime drain; four consecutive runs exit 0
+with the same 25/25 verdict. The same class of crash was removed from `keymask-check`'s prefix mode in
+SPA-RETIRE 5, where the assertion appeared *after* every check had passed.
+
 ### 2 October 2026 — PILOT-05: the writing journey gets a SCREEN, and its gap list shrinks
 
 **The gap, stated plainly.** Four ledger rows recorded writing as UNPROVEN — `draft-session`,
