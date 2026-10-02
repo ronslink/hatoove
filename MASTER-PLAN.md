@@ -291,12 +291,11 @@ Ordered to **LM-1 and LM-2**. The state column records what was true at `812408c
 
 | # | Decision | Blocks | Default if unanswered |
 |---|---|---|---|
-| **D1** | **Content rights (R1):** who wrote the 6 writing prompts and the 15 Lesen/Sprachbausteine sets, and does Hatoove own them? One line per source is enough; it becomes `rights_status` | Everything servable. Every seeded row is `unknown`, so production serves **nothing** | Fail-closed; nothing servable |
+| **D1** | ~~**Content rights (R1):** who wrote the 6 writing prompts and the 15 Lesen/Sprachbausteine sets, and does Hatoove own them?~~ **ANSWERED, 2 October 2026: the content is AI-generated.** The per-source record — what the tree establishes, and what it cannot — is [CONTENT-RIGHTS-D1.md](work/implementation/CONTENT-RIGHTS-D1.md). Note the count: `data/seed.json` holds **24** sets (15 servable + 9 held back for missing audio), not 15. The recorded basis becomes `rights_status='generated'`, which shrinks the gate to hand-authored material rather than opening it | The `generated` migration + serving-policy value; production serving is no longer blocked by this | **Generated**; hand-authored material still fails closed |
 | **D2** | ~~may learners see content labelled `unreviewed`?~~ **ANSWERED FOR NOW, 2 October 2026:** *"we will assume for now all are approved until we have built the approval process that needs to be an item."* So the **default serving policy is `approved+unreviewed`** and unreviewed content IS served, with every listing carrying its true `review_status`. The rows are **not** relabelled `approved`: that would record a qualified review that has not happened, and `AGENTS.md` forbids marking content approved. The approval process is **PILOT-19** | PILOT-19 | Serve unreviewed, labelled |
 | **D3** | **Is objective practice in the first product (R3)?** The pilot plan says yes and puts reading and language elements in the written offer; the retired plan made them conditional | PILOT-05's priority | In scope, per the pilot plan |
 | **D4** | **Rubric contract (R11):** a separately versioned three-criterion contract (Aufgabenbewältigung, Kommunikative Gestaltung, Formale Richtigkeit — bands 5/3/1/0, ×3) or honestly labelled provisional four-criterion internal feedback (15/10/12/8)? Never renormalise between them | PILOT-06's result schema | Blocks the final schema |
-| **D5** | **Auth library (R4):** adopt Better Auth (measured workable; ends "the root app is dependency-free" **for the server scope**) or harden the existing session port? The spike recommends adopting; the current port has no rotation, expiry sweep, revocation or recovery | Production auth. Not needed for LM-1 | Hardening only |
-| **D6** | **Email provider (R5)** for reset and verification, or operator-assisted resets for the pilot? It is a data processor for P-03 | Recovery flows | Build against the stub |
+| **D5** | **Auth library (R4):** adopt Better Auth (measured workable; ends "the root app is dependency-free" **for the server scope**) or harden the existing session port? The spike recommends adopting; the current port has no rotation, expiry sweep, revocation or recovery | Production auth. Not needed for LM-1 | Hardening only || **D6** | **Email provider (R5)** for reset and verification, or operator-assisted resets for the pilot? It is a data processor for P-03 | Recovery flows | Build against the stub |
 | **D7** | ~~Invite-only, how many invites, how many feedbacks each?~~ **ANSWERED, 1 October 2026: there is no invite.** *"we are not using an invite rather email password logic"*. Registration is email + password. What remains open is the abuse control an open service needs — throttling and email verification (PILOT-18) — and the per-account feedback allowance | PILOT-18 | Email/password; throttle and allowance sized when the pilot is defined |
 | **D8** | **Speech-synthesis scope (§5):** browser-only with honest unavailability, or server-side TTS (paid processor, per-play cost)? | PILOT-09 | Browser-first |
 | **D9** | **First English exam target**, and confirmation that we teach its *format* with original items rather than reproducing any board's bank | PILOT-11 | telc first only |
@@ -306,6 +305,20 @@ Ordered to **LM-1 and LM-2**. The state column records what was true at `812408c
 | **D12** | **Content-pool fill policy** ([CONTENT-POOL-01](work/implementation/CONTENT-POOL-01.md) §7): batch-to-target with starvation jumping the queue, or fill-on-demand? | PILOT-15 | Batch-to-target |
 | **D13** | **Pool target size, and who reviews a batch.** Pooling means a bad item reaches every learner at once, so this is the gate that matters — distinct from D2, which is whether the pilot may see `unreviewed` content | PILOT-15, and the review policy in D2 | Unset — blocks filling |
 | **D14** | **What is actually sold:** a per-exam pass with a term, a bundle of exams, or an allowance? And is it priced per market? This decides the shape of `products`/`market_prices`/`orders` and the key of `entitlements` | PILOT-20, and any checkout | Per-exam pass with a term; pilot stays invite-free with a configured allowance |
+
+D14 and the remaining rows above were **answered by Ron on 2 October 2026**; the answers, each with what it
+unblocks and the work it creates, are recorded in
+[DECISIONS-ANSWERED-20261002.md](work/implementation/DECISIONS-ANSWERED-20261002.md) — read that rather than
+this table's "recommendation" column, which is now historical. In one line each: **D5** harden the existing
+port (done, 6 legs); **D6** operator-assisted reset with honest pilot wording (token path done, UI pending);
+**D8** browser voice, listening waits for commissioned (AI) recordings; **D9** telc B1 only, original items,
+telc English B1 as the second candidate; **D10** no live calls until cost cap + human comparison + privacy/DPA
+review; **D12** batch refill below threshold with a budget cap; **D13** a licensed B1 examiner/DaF teacher will
+be engaged (name to follow), pool sizes as recommended, filling waits for D10; **D14** per-exam prep with a
+term, priced per market, pilot free with a configured allowance; **R15** grades only, no total; **E-01** the
+reviewer above; tab bar **five plus "Mehr"**; landing page **German**; the single-user file handlers are to be
+**deleted**; sentence building comes from the **recovered** `satzbau.js` (as a server check) and
+`generators.js` (drill banks as content).
 
 ---
 
