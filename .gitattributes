@@ -8,3 +8,7 @@
 # `-text` disables end-of-line conversion in both directions, so the bytes are the artifact.
 public/assets/design/**   -text
 work/design-reference/**  -text
+
+# Migration checksums record raw bytes. Keep future checkouts stable across platforms;
+# provision.mjs separately recognises the exact LF/CRLF variants of older applied files.
+server/migrations/*.sql text eol=lf

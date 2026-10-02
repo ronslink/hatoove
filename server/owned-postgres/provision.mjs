@@ -16,9 +16,9 @@
  *     byte-for-byte copies of the spike files (proved by hash), `0004`-`0006` are rendered from
  *     the shared builders in `provisioning-sql.mjs`. `spikes/` is left alone.
  *   - the ledger stores a **sha256 per migration**, and `applyMigrations` refuses to run when a
- *     frozen file's digest differs from the recorded one. The recorded checksum is over the
- *     **frozen bytes** — the reviewed artifact — so an installation upgraded from an earlier
- *     ledger (backfilled here) and a fresh one agree.
+ *     frozen file's digest differs from the recorded one, except for an exact LF/CRLF checkout
+ *     conversion. The recorded checksum remains over the **frozen bytes** actually applied;
+ *     compatibility checks never rewrite an existing checksum or reapply a migration.
  *   - the ledger upgrade (the `checksum` column and its backfill) is performed by this engine,
  *     not by a numbered migration file: a checksum migration would itself need a checksum to be
  *     recorded, and the ledger must already carry one when it is written.
@@ -119,6 +119,25 @@ const literal = (value) => (typeof value === 'string' && value.length
 
 /** The sha256 of a frozen migration's **bytes**. The digest is of the reviewed artifact. */
 export const checksumOf = (bytes) => createHash('sha256').update(bytes).digest('hex');
+
+/**
+ * Git's historical Windows checkout conversion changed every LF to CRLF in frozen SQL.
+ * Accept that one byte transformation in either direction, only for uniform line endings.
+ * No trimming, encoding conversion, BOM removal, bare-CR or mixed-ending normalisation.
+ * Latin-1 is a byte-preserving bridge here (SQL is still decoded as UTF-8 when executed).
+ * New ledger entries always use checksumOf(originalBytes); old entries stay untouched.
+ */
+export function migrationChecksumMatches(bytes, recorded) {
+  if (checksumOf(bytes) === recorded) return true;
+  const raw = Buffer.from(bytes).toString('latin1');
+  const withoutPairs = raw.replaceAll('\r\n', '');
+  if (withoutPairs.includes('\r')) return false; // bare CR is not a checkout conversion
+  const hasPairs = raw.includes('\r\n');
+  if (hasPairs && withoutPairs.includes('\n')) return false; // mixed endings: fail closed
+  if (!hasPairs && !raw.includes('\n')) return false;
+  const alternate = hasPairs ? raw.replaceAll('\r\n', '\n') : raw.replaceAll('\n', '\r\n');
+  return checksumOf(Buffer.from(alternate, 'latin1')) === recorded;
+}
 
 /**
  * Substitute the validated schema/role identifiers into a frozen file. `0001`-`0002` carry no
@@ -259,8 +278,8 @@ export async function backfillChecksums(pool, config) {
  * together with its ledger row - so a failure leaves neither a half-applied schema nor a
  * recorded-but-unapplied migration.
  *
- * Refuses to proceed on a checksum mismatch: an edited migration is not the migration that was
- * reviewed, and applying it silently is the defect this slice closes.
+ * Refuses changed bytes except the exact uniform LF/CRLF checkout conversion. A compatible
+ * already-applied migration is skipped; its original checksum and rows are never rewritten.
  *
  * @returns {Promise<{applied: string[], skipped: string[], backfilled: number}>}
  */
@@ -278,7 +297,7 @@ export async function applyMigrations(pool, config) {
       if (!prior) {
         throw new Error(`migration ${migration.id} is recorded without a checksum that the frozen file can supply; refusing to continue`);
       }
-      if (prior !== digest) {
+      if (!migrationChecksumMatches(bytes, prior)) {
         throw new Error(`checksum mismatch for migration ${migration.id}: the ledger has ${prior}, the frozen file is ${digest}; refusing to apply a migration that is not the one that was reviewed`);
       }
       skipped.push(migration.id);
