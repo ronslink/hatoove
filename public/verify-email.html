@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#ff6b2b"><title>E-Mail bestätigen · Hatoove</title>
+<link rel="icon" type="image/svg+xml" href="/assets/design/hatoove-mark.svg">
+<link rel="stylesheet" href="/assets/design/hatoove.css">
+<link rel="stylesheet" href="/assets/design/fonts-coverage.css">
+<link rel="stylesheet" href="/auth/entry.css">
+<script type="module" src="/auth/entry.js"></script>
+</head><body data-page="verify">
+<a class="skip" href="#main">Zum Inhalt</a>
+<main class="auth" id="main">
+<section class="auth-art" aria-label="Über Hatoove">
+<a class="auth-brand" href="/" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="186" height="34"></a>
+<div class="stack"><p class="kicker">telc Deutsch B1 · Kostenloser Pilot</p>
+<h2>Die Prüfung kennen.<br>Schritt für Schritt<br><span>üben.</span></h2>
+<p class="muted">Lesen, Sprachbausteine und Schreiben: Arbeite an eigenen Übungsaufgaben und kehre zu deinen gespeicherten Texten zurück.</p></div>
+<p class="small muted">Unabhängige Prüfungsvorbereitung.<br>Keine offizielle telc-Prüfung oder Bestehensprognose.</p>
+</section><section class="auth-form"><div class="auth-box">
+<a class="auth-brand" href="/" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="168" height="32"></a>
+<div class="stack"><h1 id="auth-title">E-Mail-Adresse bestätigen</h1><p class="muted" id="auth-intro">Fordere einen Bestätigungslink für dein Konto an.</p></div>
+<p class="auth-notice small muted">Im Pilot sendet eine Person aus dem Hatoove-Team den Link über den vereinbarten Kontaktweg. Es gibt keinen automatischen E-Mail-Versand.</p>
+<div class="card stack">
+<form class="stack" id="form-request">
+<div class="field"><label for="request-email">E-Mail deines Kontos</label><input class="input" id="request-email" name="email" type="email" autocomplete="email" maxlength="254" required></div>
+<button class="btn btn-primary btn-block" type="submit" id="request-submit">Bestätigungslink anfordern</button>
+</form>
+<form class="stack" id="form-verify" hidden><p>Bestätige deine Adresse mit dem Link, den du erhalten hast. Anschließend meldest du dich mit deinem Passwort an.</p><button class="btn btn-primary btn-block" type="submit" id="verify-submit">E-Mail jetzt bestätigen</button></form>
+<a class="link" id="request-another" href="/verify-email" hidden>Neuen Bestätigungslink anfordern</a>
+</div><a class="link" id="back-signin" href="/signin">Zurück zur Anmeldung</a><p class="auth-message err" id="error" role="alert" hidden></p>
+<p class="auth-message auth-status" id="status" role="status" hidden></p>
+<div id="success" class="auth-message auth-success stack" role="status" hidden><p id="success-message"></p><a class="btn btn-ghost" href="/signin">Zur Anmeldung</a></div>
+<nav class="auth-links auth-footer" aria-label="Weitere Seiten"><a class="link" href="/">Zur Startseite</a><a class="link" href="/app/">Zur App</a></nav>
+<noscript><p class="auth-message err">Bitte aktiviere JavaScript, um dich anzumelden oder einen Link anzufordern.</p></noscript>
+</div></section></main></body></html>

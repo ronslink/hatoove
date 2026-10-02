@@ -1,0 +1,279 @@
+/* The app shell's own layer (PILOT-08).
+ *
+ * Everything visual comes from the curated design system at /assets/design/hatoove.css — tokens,
+ * the .app/.side/.nav/.topbar/.content layout, the responsive rules at 1100 and 860 px, dark mode.
+ * This file adds ONLY what a single-page shell needs, and it uses tokens rather than raw values,
+ * so the design language stays in one place. `tools/design-check.mjs` holds THIS file to that rule
+ * (it used to hold the retired SPA's public/styles.css, which is gone), and it fails on a raw colour,
+ * a raw brand face, an undefined token, a breakpoint of our own, a route with no view, or a missing
+ * reduced-motion neutraliser.
+ */
+
+/* One view at a time. `hidden` is the shell's own state, not the design system's. */
+.view[hidden] { display: none; }
+
+/*
+ * `hidden` MUST WIN — and by default it does not.
+ *
+ * The pinned stylesheet defines `.stack{display:grid}`. An author `display` declaration outranks the
+ * browser's own `[hidden]{display:none}`, so `<form class="stack" id="form-signup" hidden>` rendered
+ * VISIBLY: the sign-in page showed the registration form underneath the sign-in form, and the
+ * Anmelden/Registrieren tabs changed only `aria-pressed`. The same cascade put `#guide-body` on screen
+ * before any guide was opened, so "Öffnen" appeared to append below the index and "Zurück" to do
+ * nothing. Measured in a real browser by tools/app-browser-check.mjs.
+ */
+[hidden] { display: none !important; }
+
+/*
+ * `.err` is used by this shell and by /signin, but the pinned stylesheet only defines `mark.err`, so
+ * every alert ("Aufgaben konnten nicht geladen werden …", the settings conflict notice) rendered as
+ * ordinary body text: no colour, no separation from the content around it.
+ */
+.err {
+  color: var(--red);
+  background: var(--red-bg);
+  border: 1px solid color-mix(in srgb, var(--red) 28%, transparent);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+/*
+ * MOTION — THE ONE ACCESSIBILITY GAP THE DESIGN SYSTEM LEAVES TO US.
+ *
+ * The pinned `hatoove.css` transitions `.btn`'s background and transform in 150 ms and carries no
+ * `prefers-reduced-motion` block of its own. The pinned file is read-only (its digests are the reviewed
+ * contract), so the neutraliser belongs in this layer — and `tools/design-check.mjs` D4c now fails if
+ * the system animates and this block disappears. Found by the retargeted design check, not by reading.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The mistakes badge in the phone tabbar. The pinned rule is `.nav a .count`, which does not match
+ * `nav.tabbar > a > .count`, so the badge needs its own treatment here. */
+.tabbar a .count, .more-link .count {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--orange);
+  color: var(--orange-ink);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+/*
+ * THE TOPBAR CONTROLS ARE CONTROLS, NOT LINKS.
+ *
+ * `.lang-btn` and `.icon-btn` are styled as buttons in the pinned stylesheet, which carries
+ * `text-decoration:none` for `.btn` only. Turning the explanation-language control into an `<a>` (it
+ * navigates to Einstellungen) made it render UNDERLINED — measured in a browser: computed
+ * `text-decoration-line: underline`, and the pixels differ from the button it replaced.
+ */
+.lang-btn,
+.icon-btn {
+  text-decoration: none;
+}
+
+/* Four primary destinations and Mehr fit in one fixed row. The remaining destinations are cards. */
+@media (max-width: 860px) {
+  .tabbar { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
+  .tabbar a { min-width: 0; padding: 8px 2px; min-height: 58px; }
+}
+
+/* The router marks where you are. The design system already styles [aria-current=page] in the
+ * sidebar; the tabbar needs the same emphasis so the mobile shell reads as one place. */
+.tabbar a[aria-current="page"] { color: var(--orange-dark); font-weight: 700; }
+
+/* The countdown is the one figure on the first screen, so it carries the display face. */
+#countdown { font-family: var(--display); letter-spacing: -.03em; }
+
+/* An email address is arbitrary length: it must not widen the sidebar. */
+.side-foot div { min-width: 0; }
+.side-foot div strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* A route name appears in prose when something is not built yet. It should read as a code
+ * reference rather than as a UI control. */
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .9em;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 5px;
+}
+
+/* A saving state must be visible without shifting the layout. */
+#settings-state { min-height: 1.2em; }
+
+/*
+ * Ueben groups the catalogue by section (Schreiben / Lesen und Sprachbausteine).
+ *
+ * This rule lives in the SHELL's stylesheet and not in `assets/design/hatoove.css`, which is a
+ * PINNED artifact: its digest is the reviewed contract and editing it would break the pin (a mistake
+ * already made once this project by adding font-coverage rules to it). New chrome belongs in a new
+ * layer, so the curated design stays byte-exact.
+ */
+.section-head {
+  margin: 1.4rem 0 0.6rem;
+  font-family: var(--display, inherit);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.section-head:first-child { margin-top: 0; }
+
+/*
+ * THE WRITING VIEW (PILOT-05) — the first surface in this client that takes a long piece of the
+ * learner's own text. In the SHELL layer, never in `assets/design/hatoove.css`: that file is a pinned
+ * artifact whose digest is the reviewed contract, and new chrome belongs beside it rather than inside it.
+ *
+ * Tokens only, no raw colour or face — `tools/design-check.mjs` D1/D2 enforce that mechanically, and a
+ * raw value here would fail the gate rather than merely look wrong.
+ */
+.field-label {
+  display: block;
+  margin: 1rem 0 0.35rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/*
+ * A writing surface, not a search box: 1.5 line-height, the body face (NOT the display face the headings
+ * use), a resize the learner controls, and a width that never exceeds its card — a 12 000-character text
+ * that widens the layout would push the submit button off a phone screen.
+ */
+.writing-text {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 12rem;
+  padding: 0.9rem 1rem;
+  font-family: var(--font, inherit);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: inherit;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  resize: vertical;
+}
+.writing-text:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+
+/* The task's Leitpunkte: numbered guidance, indented enough to read as a list rather than as prose. */
+.leitpunkte { margin: 0.6rem 0 0; padding-left: 1.2rem; }
+.leitpunkte li { margin: 0.25rem 0; }
+
+/* The state line must not shift the layout as it changes, and it is deliberately NOT a scoreboard. */
+.writing-state { min-height: 1.5em; margin-top: 0.9rem; }
+.writing-state p { margin: 0.35rem 0; }
+
+/* The submitted text is closed by default: it is reference material once the job has run. */
+.submitted { margin: 0.6rem 0; }
+.submitted summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+.submitted-text {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font, inherit);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+/* Two buttons in a row on a desktop card; they wrap rather than clip on a phone. */
+.writing-state .btn, .card .row { margin-top: 0.6rem; }
+.row { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+/*
+ * THE telc BAND RESULT (D4/R11). Shell layer, never the pinned design file: `assets/design/hatoove.css` is a
+ * reviewed artifact whose digest is the contract, and new chrome belongs beside it.
+ *
+ * NO TOTAL IS STYLED, and none may be added here: R15 — bands only, or also a sum out of 45 — is still an
+ * open decision, and the server stores nothing numeric so that the screen cannot settle it by accident.
+ */
+.criteria { list-style: none; margin: 0.5rem 0 0; padding: 0; }
+.criterion { margin: 0.75rem 0; padding: 0.6rem 0.75rem; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.criterion-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+/* The band is the mark: one letter, in the display face, with room around it so it reads as a mark rather than a word. */
+.band { font-family: var(--display, inherit); font-size: 1.15rem; font-weight: 700; min-width: 1.6em; text-align: center; }
+.criterion p { margin: 0.35rem 0 0; }
+/* The quote from the learner's own text: indented, plain, and never mistaken for interface copy. */
+.evidence { margin: 0.4rem 0 0; padding: 0.35rem 0 0.35rem 0.75rem; border-left: 3px solid var(--orange); font-style: italic; overflow-wrap: anywhere; }
+.corrections { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+
+/*
+ * THE MARKING SCHEME PANEL (D4/R11). Collapsed by default: it is reference material for a learner who wants
+ * it, not a wall between them and the task. The provisional note is styled as a note rather than as a
+ * warning — it is a fact about review status, not an error.
+ */
+.rubric-panel { margin-top: 0.9rem; }
+.rubric-panel > summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+.rubric-criteria { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+.rubric-criteria > li { margin: 0.4rem 0; }
+.rubric-bands { list-style: none; margin: 0.25rem 0 0; padding: 0; }
+.rubric-bands > li { margin: 0.2rem 0; }
+
+/*
+ * THE SESSION LIST (D5). One row per session: what it is, since when, and the one action that applies.
+ * The current session carries no button on purpose — "sign out" is the separate, deliberate action in the
+ * sidebar, and a session list that can silently end the session you are using is a trap.
+ */
+.sessions { list-style: none; margin: 0; padding: 0; }
+.session { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
+.session:last-child { border-bottom: 0; }
+.btn-small { padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+
+/*
+ * A BARE `.btn` MUST STILL BE A BUTTON.
+ *
+ * The pinned design defines `.btn` as LAYOUT ONLY (display, padding, radius, min-height) and puts every colour
+ * in a variant: `.btn-primary`, `.btn-dark`, `.btn-ghost`, `.btn-danger`. A button with NO variant therefore
+ * falls through to the browser's default face — a light grey box that does not follow the dark theme — while
+ * inheriting the theme's light text colour.
+ *
+ * MEASURED, 2 October 2026, in the dark theme on a phone: the sessions list's "Beenden" rendered
+ * `rgb(242, 240, 236)` text on the default face `rgb(240, 240, 240)` — a contrast of 0.0012, i.e. INVISIBLE,
+ * while every DOM assertion about that button passed (it existed, was 44px tall, and sat inside the viewport).
+ * Only the screenshot showed it, which is exactly why the render has to be looked at.
+ *
+ * The fix uses the design system's own neutral treatment rather than a new colour: the ghost variant's
+ * transparent face, line border and ink text. It applies to EVERY un-variant `.btn` — the sessions control,
+ * "Öffnen"/"Zurück"/"Schließen", "Neu anfangen", "Erneut bewerten" and the objective answer tiles — because
+ * they were all relying on the browser default, which was never a design decision.
+ */
+.btn:not(.btn-primary):not(.btn-dark):not(.btn-ghost):not(.btn-danger) {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+}
+.more-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem; }
+.more-link { color: var(--ink); text-decoration: none; display: grid; gap: .5rem; }
+.more-link span { color: var(--muted); }
+.guide-content { overflow-wrap: anywhere; }
+.guide-content h4 { margin: 1rem 0 .4rem; }
+.guide-content p { margin: .35rem 0 .65rem; }
+.guide-list { padding-inline-start: 1.4rem; }
+.guide-list li { margin-block: .5rem; }
+.guide-example { border-inline-start: 3px solid var(--orange); padding-inline-start: .8rem; margin: .7rem 0; }
+.guide-good, .guide-bad { border-inline-start: 3px solid var(--green); padding: .75rem; margin-block: .75rem; background: var(--green-bg); }
+.guide-bad { border-color: var(--red); background: var(--red-bg); }
+.guide-table { overflow-x: auto; max-width: 100%; margin-block: .8rem; }
+.guide-table table { border-collapse: collapse; width: 100%; }
+.guide-table th, .guide-table td { padding: .6rem; text-align: start; border-bottom: 1px solid var(--line); }
+#history-detail { scroll-margin-top: 5rem; margin-bottom: 1rem; }
+.read-aloud { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin-block: .5rem; }
+.read-aloud .btn { margin-top: 0; flex-shrink: 0; min-height: 44px; }
+.read-aloud-status { min-width: 0; overflow-wrap: anywhere; }
+.criterion > .read-aloud, .criterion > .evidence { grid-column: 1 / -1; }

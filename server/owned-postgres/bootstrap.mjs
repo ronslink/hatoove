@@ -1,12 +1,16 @@
 /**
  * Disposable PostgreSQL fixture bootstrap for OWNAPI-02 (source-only).
  *
- * Creates a random `ownapi_<hex>` schema and four real LOGIN roles
- * (`_migration`, `_auth`, `_learner`, `_worker`), then applies the SAME proven SQL
+ * Creates a random `ownapi_<hex>` schema and five real LOGIN roles
+ * (`_migration`, `_auth`, `_learner`, `_worker`, `_deletion`), then applies the SAME proven SQL
  * as the isolation spike, reused verbatim from `spikes/auth-runtime/`:
  *   - `auth-schema.sql`  the tracked pinned-library auth schema
  *   - `schema.sql`       attempts/drafts/submissions/jobs/entitlements/assessments/usage_ledger
  *   - `isolation.sql`    role grants, ENABLE + FORCE ROW LEVEL SECURITY, owner policies
+ *   - `accountSettingsSql` + `deletionRoleSql` + `contentCatalogueSql` from `provisioning-sql.mjs`
+ *     — the SAME builders `provision.mjs` records as migrations `0004`, `0005` and `0006`, so
+ *     this fixture is a real installation's schema and least-privilege grants, not an
+ *     approximation of them.
  *
  * It is never run automatically and never against a shared database: the target
  * defaults to the documented disposable fixture (127.0.0.1:55435, database
@@ -16,12 +20,13 @@
 
 import pg from 'pg';
 import { randomBytes } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { accountSettingsSql, deletionRoleSql, contentCatalogueSql, examScopeSql } from './provisioning-sql.mjs';
 
 const SPIKE = new URL('../../spikes/auth-runtime/', import.meta.url);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
-const SCHEMA_NAME = /^ownapi_[a-f0-9]{8,}$/;
-const ROLE_NAME = /^ownapi_[a-f0-9]{8,}_(migration|auth|learner|worker)$/;
+const SCHEMA_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
+const ROLE_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
 
 const ident = (name) => {
   if (!IDENTIFIER.test(name)) throw new Error(`Unsafe identifier: ${String(name)}`);
@@ -43,10 +48,10 @@ const connection = (config, extra) => ({
   host: config.host, port: config.port, database: config.database, ...extra,
 });
 
-/** Pool bound to one restricted role, search_path fixed to the random schema. */
+/** Pool bound to one restricted role, search_path fixed to the given schema. */
 export function rolePool(config, schema, user, max = 2) {
-  if (!SCHEMA_NAME.test(schema)) throw new Error('Unsafe test schema name');
-  if (!ROLE_NAME.test(user)) throw new Error('Unsafe test role name');
+  if (!SCHEMA_NAME.test(schema)) throw new Error(`Unsafe schema name: ${String(schema)}`);
+  if (!ROLE_NAME.test(user)) throw new Error(`Unsafe role name: ${String(user)}`);
   return new pg.Pool({
     ...connection(config, { user }), max, application_name: schema,
     options: `-c search_path=${schema},pg_catalog`,
@@ -60,7 +65,7 @@ export function rolePool(config, schema, user, max = 2) {
 export async function createFixture(overrides = {}) {
   const config = { ...pgConfig(), ...overrides };
   const schema = `ownapi_${randomBytes(8).toString('hex')}`;
-  const roles = Object.fromEntries(['migration', 'auth', 'learner', 'worker'].map((k) => [k, `${schema}_${k}`]));
+  const roles = Object.fromEntries(['migration', 'auth', 'learner', 'worker', 'deletion'].map((k) => [k, `${schema}_${k}`]));
   const admin = new pg.Pool({
     ...connection(config, { user: config.user }), max: 4, application_name: schema,
     options: `-c search_path=${schema},pg_catalog`,
@@ -100,6 +105,7 @@ export async function createFixture(overrides = {}) {
     pools.auth = rolePool(config, schema, roles.auth, 2);
     pools.learner = rolePool(config, schema, roles.learner, 1);
     pools.worker = rolePool(config, schema, roles.worker, 2);
+    pools.deletion = rolePool(config, schema, roles.deletion, 2);
 
     await pools.migration.query(await readFile(new URL('auth-schema.sql', SPIKE), 'utf8'));
     await pools.migration.query(await readFile(new URL('schema.sql', SPIKE), 'utf8'));
@@ -108,6 +114,46 @@ export async function createFixture(overrides = {}) {
       isolation = isolation.replaceAll(`__${key}__`, value);
     }
     await pools.migration.query(isolation);
+    // Migrations 0004, 0005 and 0006 of a persistent installation, from the one shared
+    // builder — so the disposable fixture has the SAME schema and content an installation has.
+    await pools.migration.query(accountSettingsSql({ schema, roles }));
+    await pools.migration.query(deletionRoleSql({ schema, roles }));
+    await pools.migration.query(contentCatalogueSql({ schema, roles }));
+    // PILOT-04. Applied AFTER the catalogue, mirroring 0006 -> 0009 in the persistent path, so the
+    // disposable fixture has the same exam scope an installation has. Without this the fixture had
+    // no `exam_package` at all while the product did.
+    await pools.migration.query(examScopeSql({ schema, roles }));
+    /*
+     * LIBRARY-SEED — every TRACKED content migration from 0010 onward, applied from the file.
+     *
+     * This used to name 0010 explicitly, which made the fixture correct for exactly one migration and
+     * silently stale for the next four. Now every content migration is picked up automatically, so the
+     * fixture gains vocab, nouns, the guides and whatever comes next WITHOUT another edit here -- and
+     * the failure mode of forgetting is gone rather than merely postponed.
+     *
+     * The hand-mirrored generators above stop at 0009 (`contentCatalogueSql` mirrors 0006 because it
+     * is a page of SQL). From 0010 the files are large generated inserts, so hand-mirroring them would
+     * guarantee the fixture and the product drift -- invisibly, until a learner was marked against the
+     * wrong key. 0010+ are therefore APPLIED, not duplicated.
+     */
+    const migrationDir = new URL('../migrations/', import.meta.url);
+    const contentMigrations = (await readdir(migrationDir))
+      .filter((file) => /^\d{4}-.*\.sql$/.test(file) && file >= '0010-')
+      .sort();
+    for (const file of contentMigrations) {
+      const text = await readFile(new URL(file, migrationDir), 'utf8');
+      /*
+       * THE SAME PLACEHOLDERS THE DEPLOYMENT PATH RENDERS, and now in one loop so the two cannot drift.
+       * `__AUTH__` was missing here while `renderSql` in `provision.mjs` substituted it: a migration granting
+       * anything to the auth role — the throttle table is the first — would have left the literal
+       * `__AUTH__` in the SQL and failed ONLY in the disposable fixture, which is the one place a check runs.
+       */
+      let rendered = text;
+      for (const [key, value] of Object.entries({ SCHEMA: schema, AUTH: roles.auth, LEARNER: roles.learner, WORKER: roles.worker, DELETION: roles.deletion })) {
+        rendered = rendered.replaceAll(`__${key}__`, value);
+      }
+      await pools.migration.query(rendered);
+    }
 
     return { schema, roles, config, admin, ...pools, cleanup };
   } catch (error) {

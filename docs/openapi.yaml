@@ -1,0 +1,536 @@
+openapi: 3.0.3
+info:
+  title: Hatoove API
+  version: 0.1.0
+  description: |
+    The Hatoove server API. **The API is the product**: the client holds no state, no provider key
+    and no grading logic, and submits a reference and receives a result.
+
+    ## Conventions this document is held to
+
+    - **Every route is auth-wrapped except liveness.** Only `GET /api/health` and `GET /api/ready`
+      answer an anonymous caller, because a supervisor or a container healthcheck has no session.
+      Every other route, including `/api/auth/**`, is either public by necessity (you cannot sign in
+      from behind a sign-in gate) or requires a verified session.
+    - **No data comes from files.** Learner data is served by these endpoints. There is no `/data/`
+      route: it is retired and answers 404, deliberately, rather than 401 — a 401 would say "sign in
+      and you can have this", which is false.
+    - **Mutating routes require `Content-Type: application/json` and a same-origin `Origin`.** A
+      refused origin is `403 origin_rejected`; a missing content type is `415 json_required`.
+    - **A failure is never a success.** A route that cannot answer says so: `503 not_ready` while the
+      runtime is not ready, `401 unauthenticated`, `404 not_found`, `409` on a conflict.
+    - **Account consistency.** The learner app supplies optional `X-Hatoove-Account` on owned routes,
+      get-session and sign-out. A mismatch with the verified session returns `409 account_changed`
+      before any data operation. This is a precondition, never an ownership selector.
+    - **Not ready ⇒ 503, in every mode.** Omitting `B1PREP_SAAS` does not re-open a single-user path.
+
+    `tools/api-spec-check.mjs` verifies this document against a running server: every operation here
+    is probed anonymously and must answer exactly what its `security` declares. Drift is a failing
+    check, not a surprise.
+
+servers:
+  - url: http://localhost:4300
+    description: Local server (Docker Compose). Use ONE host consistently — cookies are host-scoped, so a session created at `localhost` is not sent to `127.0.0.1`.
+
+tags:
+  - name: liveness
+    description: Public. For supervisors and container healthchecks.
+  - name: auth
+    description: Public by necessity — registration, sign-in, sign-out, session.
+  - name: account
+    description: The signed-in learner's own account.
+  - name: settings
+    description: Server-stored learner settings.
+  - name: catalogue
+    description: The servable task catalogue.
+  - name: attempts
+    description: Owned writing attempts, submissions and results.
+
+paths:
+  /api/health:
+    get:
+      tags: [liveness]
+      summary: Liveness only
+      description: Reveals nothing about the provider key — no `configured`, no `model`, no `baseUrl`.
+      security: []
+      responses:
+        '200':
+          description: The process is alive.
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean }, node: { type: string } } }
+
+  /api/ready:
+    get:
+      tags: [liveness]
+      summary: Readiness
+      description: Reports whether the runtime is ready and in which mode. `503` while starting, while the schema is behind, or when configuration is missing.
+      security: []
+      responses:
+        '200':
+          description: Ready.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  ready: { type: boolean }
+                  mode: { type: string, enum: [saas, local, unconfigured] }
+                  reason: { type: string }
+        '503':
+          description: Not ready; the reason token names why.
+
+  /api/auth/sign-up/email:
+    post:
+      tags: [auth]
+      summary: Register with email and password
+      description: |
+        Creates the account. There is **no invite** (Ron, 2 October 2026) and, at present, no email
+        verification and no throttle — see PILOT-18, which owns the abuse controls. The response sets
+        the session cookie.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '200': { description: 'Account created; session cookie set.' }
+        '403': { description: 'Origin refused (`origin_rejected`).' }
+        '415': { description: 'Content type must be application/json (`json_required`).' }
+        '422': { description: 'Invalid input, or the email already has an account (`user_exists`).' }
+
+  /api/auth/sign-in/email:
+    post:
+      tags: [auth]
+      summary: Sign in
+      description: |
+        A wrong password and an unknown email are refused with the **identical** response, so this
+        endpoint is not an oracle for who has an account.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '200': { description: 'Signed in; session cookie set.' }
+        '401': { description: 'Invalid credentials — identical for a wrong password and an unknown email.' }
+
+  /api/auth/sign-out:
+    post:
+      tags: [auth]
+      summary: Sign out
+      description: Ends the session server-side. The cookie is dead afterwards.
+      security: []
+      responses:
+        '200': { description: 'Session ended.' }
+
+  /api/auth/get-session:
+    get:
+      tags: [auth]
+      summary: The current session
+      security: []
+      responses:
+        '200': { description: 'The session and its user, or a null session when signed out.' }
+
+  /api/v1/account:
+    get:
+      tags: [account]
+      summary: Read the signed-in learner's account
+      responses:
+        '200':
+          description: The account.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contractVersion: { type: string }
+                  id: { type: string }
+                  email: { type: string, format: email }
+        '401': { description: 'No verified session.' }
+    delete:
+      tags: [account]
+      summary: Delete the account
+      description: |
+        Really deletes the learner's own records. Requires an **empty JSON body** (`{}`): every
+        mutating route requires `application/json`, so a bodyless DELETE is refused with `415`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200': { description: 'Account and owned records deleted.' }
+        '503': { description: 'Deletion port not wired (`deletion_unavailable`).' }
+
+  /api/v1/sentence-check:
+    post:
+      tags: [attempts]
+      summary: Get conservative structural hints for a German sentence
+      description: |
+        Authenticated deterministic teaching aid. Does not store the supplied text or contact a model.
+        It returns no score, correctness verdict, exam result or complete grammar assessment.
+        The result always includes limited=true and an explicit German limitation. At most 24
+        clauses are analysed; truncated=true and a clause_limit hint identify any omitted remainder.
+        Verb indices and flattened hint clause indices are zero-based.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '200':
+          description: Structural hints with explicit uncertainty; an empty hints list does not mean correct.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kind: { type: string, enum: [structural-hints] }
+                  version: { type: string, enum: [satzbau-heuristic-v1] }
+                  language: { type: string, enum: [de] }
+                  limited: { type: boolean, enum: [true] }
+                  limitation: { type: string }
+                  truncated: { type: boolean }
+                  clauses:
+                    type: array
+                    maxItems: 24
+                    items:
+                      type: object
+                      properties:
+                        text: { type: string }
+                        tokens: { type: array, items: { type: string } }
+                        type: { type: string, enum: [main, subordinate, question, uncertain] }
+                        trigger: { type: string, nullable: true }
+                        finite:
+                          type: object
+                          nullable: true
+                          properties:
+                            word: { type: string }
+                            index: { type: integer, minimum: 0 }
+                        rule: { type: string }
+                        hints: { type: array, items: { type: object } }
+                  hints:
+                    type: array
+                    description: 'Flattened hints with clause (index or null), code, severity (hint or uncertain), and message.'
+                    items: { type: object }
+        '401': { description: 'No verified session.' }
+        '403': { description: 'Origin refused.' }
+        '422': { description: 'Blank, non-string, too-long text or unsupported input fields.' }
+
+  /api/v1/settings:
+    get:
+      tags: [settings]
+      summary: Read settings
+      responses:
+        '200':
+          description: Settings and the revision they are at.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  settings:
+                    type: object
+                    properties:
+                      examDate: { type: string, description: 'YYYY-MM-DD, or empty.' }
+                      language: { type: string, enum: [de, en, uk, ar, tr], description: 'Explanation language only. The interface stays German.' }
+                      dailyGoal: { type: string }
+                      model: { type: string }
+                      theme: { type: string }
+                  revision: { type: integer }
+        '401': { description: 'No verified session.' }
+        '503': { description: 'Settings port not wired (`settings_unavailable`).' }
+    put:
+      tags: [settings]
+      summary: Write settings
+      description: Optimistic concurrency. A stale `expectedRevision` is refused with `409` rather than silently overwriting another device's change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedRevision]
+              properties:
+                expectedRevision: { type: integer }
+                settings:
+                  type: object
+                  properties:
+                    examDate: { type: string }
+                    language: { type: string, enum: [de, en, uk, ar, tr] }
+      responses:
+        '200': { description: 'Written; the new revision is returned.' }
+        '409': { description: 'The revision was stale (`settings_conflict`).' }
+        '422': { description: 'Invalid settings (`invalid_settings`).' }
+
+  /api/v1/tasks:
+    get:
+      tags: [catalogue]
+      summary: List servable task versions
+      description: |
+        The catalogue the **Üben** view lists. Each entry carries its true `review_status` and
+        `rights_status`, so a learner is told the truth about the content rather than shown an
+        implied approval.
+
+        **The serving policy is deployment configuration, not a request parameter.**
+        `B1PREP_SERVE_REVIEW=approved+unreviewed` (the default, per Ron 2 October 2026) serves
+        unreviewed content; `approved` serves only reviewed content and, today, returns an empty list
+        because every seeded row is `unreviewed`. A request may NARROW the list and may never widen
+        it: a query string must not be able to unlock content the deployment chose not to serve.
+      parameters:
+        - name: exam
+          in: query
+          required: false
+          schema: { type: string, pattern: '^[a-z0-9][a-z0-9-]{0,63}$' }
+          description: The exam package id, e.g. `telc-deutsch-b1`.
+        - name: family
+          in: query
+          required: false
+          schema: { type: string, pattern: '^[a-z][a-z0-9_-]{0,31}$' }
+          description: The task family, e.g. `writing`.
+      responses:
+        '200':
+          description: The servable versions — possibly empty, which is an answer from the server rather than an empty page.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TaskVersion' }
+        '401': { description: 'No verified session.' }
+        '422': { description: 'Invalid `exam` or `family` (`invalid_exam`, `invalid_family`).' }
+        '503': { description: 'Catalogue port not wired (`catalogue_unavailable`).' }
+
+  /api/v1/attempts:
+    get:
+      tags: [attempts]
+      summary: Discover saved drafts, pending work and completed feedback
+      description: |
+        Owner-scoped, newest first, excluding deleted attempts. Carries no draft or submission text.
+        Each summary contains id, task_id, task_version, rubric_id, rubric_version, topic,
+        parent_submission_id, revision, created_at, submission_id (nullable), and status
+        (draft, pending, unassessed, assessed). Use submission_id to reopen the exact result.
+        The existing open=1 query returns unfinished drafts only.
+      parameters:
+        - name: open
+          in: query
+          schema: { type: string, enum: ['1'] }
+      responses:
+        '200':
+          description: A summary index under the attempts key.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attempts:
+                    type: array
+                    items: { $ref: '#/components/schemas/AttemptSummary' }
+        '401': { description: 'No verified session.' }
+        '422': { description: 'Unsupported filter (`invalid_query`).' }
+    post:
+      tags: [attempts]
+      summary: Create an owned attempt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                parentSubmissionId: { type: string, format: uuid, description: 'Revision parent. Inherits its exact task/rubric and frozen text when binding is omitted.' }
+                taskId: { type: string }
+                taskVersion: { type: string }
+                rubricId: { type: string }
+                rubricVersion: { type: string }
+      responses:
+        '201': { description: 'Created at revision 1 with text, immutable task/rubric binding and parent_submission_id. Explicit binding requires all four fields.' }
+        '404': { description: 'The parent is not this owner’s (`not_found`).' }
+        '422': { description: 'Invalid binding, parent_binding_mismatch, or task_not_servable under deployment review/rights policy.' }
+
+  /api/v1/export:
+    get:
+      tags: [account]
+      summary: Export the signed-in learner's saved work
+      description: |
+        JSON format hatoove-learner-export-v1, with exported_at, settings, attempts (including
+        draft text), submissions (immutable text snapshots), results (job status and feedback),
+        and objective_evidence (the learner's answers). Excludes deleted attempts, other accounts,
+        passwords, sessions, reset/verification tokens, worker leases and objective answer keys.
+        Historical owned work is retained even when its content is no longer offered for new use.
+      responses:
+        '200': { description: 'The owner-scoped export document.' }
+        '401': { description: 'No verified session.' }
+        '503': { description: 'Required export/settings port unavailable.' }
+
+  /api/v1/attempts/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [attempts]
+      summary: Read an owned attempt and its draft
+      responses:
+        '200': { description: 'The attempt, draft and its immutable historical task/rubric payloads, even if no longer in the current catalogue.' }
+        '404': { description: 'Not this owner’s — never 403, so another owner’s record is indistinguishable from one that does not exist.' }
+    put:
+      tags: [attempts]
+      summary: Save the draft
+      description: The revision fence. A stale save is refused with `409 stale_revision` rather than overwriting the learner's text.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedRevision, text]
+              properties:
+                expectedRevision: { type: integer }
+                text: { type: string, maxLength: 12000 }
+      responses:
+        '200': { description: 'Saved; the new revision is returned.' }
+        '409': { description: 'Stale revision (`stale_revision`).' }
+    delete:
+      tags: [attempts]
+      summary: Discard an owned unsubmitted draft
+      responses:
+        '200': { description: 'Unsubmitted draft tombstoned.' }
+        '409': { description: 'Submitted writing is preserved (`submitted_attempt`). A stale account precondition returns `account_changed`.' }
+
+  /api/v1/attempts/{id}/submissions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [attempts]
+      summary: Submit for feedback
+      description: Idempotent by `eventId` — a duplicate click replays the first submission rather than queueing a second, so there is exactly one debit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedRevision, eventId]
+              properties:
+                expectedRevision: { type: integer }
+                eventId: { type: string, format: uuid }
+      responses:
+        '202': { description: 'Queued for the worker.' }
+        '409': { description: '`draft_conflict`, `idempotency_conflict`, `already_submitted` or `allowance_exhausted`.' }
+        '422': { description: 'Empty submission (`empty_submission`).' }
+
+  /api/v1/submissions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [attempts]
+      summary: Read a submission, its job and its assessment
+      description: A missing or failed assessment is reported as such. It is never a fabricated score.
+      responses:
+        '200': { description: 'Submission, job status, assessment (or null), exact task/rubric identifiers, parent_submission_id and historical task/rubric payloads.' }
+        '404': { description: 'Not this owner’s.' }
+
+  /api/v1/submissions/{id}/retry:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [attempts]
+      summary: Retry a failed assessment
+      responses:
+        '202': { description: 'Requeued.' }
+        '409': { description: 'Not retryable (`retry_unavailable`) — the job is not failed, has exhausted its tries, or is already exhausted.' }
+
+  # /api/progress REMOVED 2 October 2026. It was documented here as a retired-but-PRESENT route; it is
+  # now an ABSENT one. The handlers, the `x-b1prep-account` selector, the `.rev` marker and the file
+  # writes are deleted from `server.js`, and `tools/retired-surface-check.mjs` is the negative check that
+  # keeps them gone. Its absence is asserted twice: 404 to an AUTHENTICATED caller in
+  # `tools/docker-stack-check.mjs`, and "no handler, no refusal code, no file opened" in the negative
+  # check. Documenting a deleted route is how one comes back.
+
+  # /api/config AND /api/ai REMOVED 2 October 2026 (SPA-RETIRE 6). Both were documented here as
+  # retired-but-PRESENT and auth-wrapped; both are now DELETED from `server.js`. `/api/config` read and
+  # wrote a MACHINE-GLOBAL `EXAM_DATE` for every visitor with no identity, and kept a local single-user
+  # install alive; `/api/ai` (with its operator-only diagnostic `/api/ai/test`) let a browser spend the
+  # operator's provider credits. The learner's exam date is `GET/PUT /api/v1/settings`, per account; the
+  # provider is operator environment configuration that no route sets or reports; and inference is a
+  # server-side worker job. Their absence is asserted three ways: no handler literal and no
+  # `provider_config_is_operator_only` token in `tools/retired-surface-check.mjs` (legs R8/R9), 404 to an
+  # AUTHENTICATED caller in `tools/docker-stack-check.mjs`, and "no path key declared, and the removal
+  # RECORDED" in `tools/api-spec-check.mjs` (`S-absent` / `S-recorded`).
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: hatoove_owned_session
+      description: |
+        The server-side session. `HttpOnly`, `SameSite=Lax`; `Secure` is a TLS-deployment switch and
+        is deliberately not required on the local HTTP stack, where a `Secure` cookie would never be
+        sent.
+  schemas:
+    AttemptSummary:
+      type: object
+      required: [id, task_id, task_version, rubric_id, rubric_version, revision, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        task_id: { type: string }
+        task_version: { type: string }
+        rubric_id: { type: string }
+        rubric_version: { type: string }
+        topic: { type: string }
+        parent_submission_id: { type: string, format: uuid, nullable: true }
+        revision: { type: integer }
+        created_at: { type: string, format: date-time }
+        submission_id: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [draft, pending, unassessed, assessed] }
+    TaskVersion:
+      type: object
+      description: One servable version of a task, with the truth about its review and rights status.
+      properties:
+        task_id: { type: string }
+        version: { type: string }
+        exam_id: { type: string }
+        family: { type: string }
+        register: { type: string }
+        topic: { type: string }
+        situation: { type: string }
+        adressat: { type: string }
+        leitpunkte: { type: array, items: { type: string } }
+        rubric_id: { type: string }
+        rubric_version: { type: string }
+        review_status: { type: string, enum: [unreviewed, approved, rejected] }
+        rights_status: { type: string, description: 'Effective append-only rights decision, falling back to the immutable content row. Defaults to serving generated; B1PREP_SERVE_RIGHTS may allow generated/licensed/commissioned. Unknown always fails closed.' }
+
+security:
+  - sessionCookie: []

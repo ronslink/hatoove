@@ -1,4 +1,35 @@
-# Owned-attempts PostgreSQL adapter (OWNAPI-02)
+# Owned-attempts PostgreSQL adapter (OWNAPI-02 / OWNAPI-03)
+
+## Two provisioning modes — pick deliberately
+
+| Mode | Module | Behaviour |
+|---|---|---|
+| **Disposable fixture** | `bootstrap.mjs` + `fixture.mjs` | creates a **random `ownapi_<hex>` schema and four random roles** and **drops them all** in `cleanup()`. For isolated checks only. Never for an installation |
+| **Persistent installation** | `provision.mjs` | the **deployment shape**: a named schema (default `hatoove`) and four least-privilege roles created **only if missing**, then the tracked SQL applied **once each**, recorded in `<schema>.hatoove_migrations`. Idempotent, safe to run on every server start, and **never drops anything** |
+
+`provision.mjs` deliberately never drops what it creates: durability is the point. Because of that it **refuses**
+the `postgres`, `template0` and `template1` databases and requires an explicit opt-in before a checker will touch
+anything.
+
+```text
+OWNAPI_PG_HOST=127.0.0.1  OWNAPI_PG_PORT=5432  OWNAPI_PG_DATABASE=hatoove  OWNAPI_PG_USER=<admin>
+# OWNAPI_PG_PASSWORD=<admin password>
+OWNAPI_PG_SCHEMA=hatoove              # default
+OWNAPI_PG_ROLE_PREFIX=hatoove         # default; roles become <prefix>_migration/_auth/_learner/_worker
+# OWNAPI_PG_<ROLE>_PASSWORD=<password>  # optional per-role password; omitted => no password is set
+```
+
+```text
+# one-time, or every boot: it is idempotent
+node -e "import('./server/owned-postgres/provision.mjs').then(m => m.provisionPersistent().then(p => console.log(p.applied, p.skipped)))"
+
+# proofs (need a disposable database)
+OWNAPI_PG_ALLOW=1 node tools/postgres-provision-check.mjs      # durability, idempotency, RLS, discrimination
+node tools/owned-api-check.mjs --backend=postgres-persistent   # the same 24-check suite, durable
+```
+
+The role model, the least-privilege reasoning and the explicit "what this does NOT establish" list are in
+[`work/implementation/OWNAPI-03.md`](../../work/implementation/OWNAPI-03.md).
 
 The datastore port `server/owned-api.mjs` injects, implemented over PostgreSQL.
 Its SQL is the same proven SQL as `spikes/auth-runtime/store.mjs`; this package

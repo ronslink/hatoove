@@ -5,7 +5,7 @@
 > discriminates.
 # Dispatch and handoff commands
 
-Read [AGENT_WORKFLOW.md](AGENT_WORKFLOW.md) first. These are bounded worker dispatch commands. Ron requested continuous coordination: the active Codex thread heartbeat `continue-hatoove-implementation` resumes the coordinator every five minutes and reports meaningful changes, completion, failures or required action. It does not make workers autonomous beyond their task leases. The coordinator records the task/lease on GitHub and verifies the worktree/branch/base before a worker edits. Never reuse an active worker's checkout for another assignment.
+Read [AGENT_WORKFLOW.md](AGENT_WORKFLOW.md) first. These are bounded worker dispatch commands. Ron transferred ongoing coordination to his controlled agent; the original Codex heartbeat `continue-hatoove-implementation` remains paused. The canonical local repository is `D:\Hatoove`, and task/results are in `D:\Hatoove\handoff\ron-agent`; see [WORKSPACE_LOCATION](WORKSPACE_LOCATION.md). It does not make workers autonomous beyond their task leases. The coordinator records the task/lease on GitHub and verifies the worktree/branch/base before a worker edits. Never reuse an active worker's checkout for another assignment.
 
 ## OpenClaw on Hetzner
 
@@ -41,4 +41,4 @@ Hermes has no working GitHub login in this setup. Exchange commits without trans
 
 The baseline clone and task branches can persist between sessions. Bundles and local logs are not canonical completion records: the reviewed GitHub PR, task issue and board are. Record blocked or timed-out runs honestly and stop the old process before issuing a replacement execution.
 
-Coordinator transfer: see issue27. The original Codex heartbeat is paused to conserve credits; Ron's appointed agent now owns the five-minute CURRENT.md loop and remote dispatch. Its handoff is at <user-home>/.codex/hatoove-handoff/ron-agent/COORDINATOR-HANDOFF.md.
+Coordinator transfer: see issue27. The original Codex heartbeat is paused to conserve credits; Ron's appointed agent now owns the five-minute CURRENT.md loop and remote dispatch. Its handoff is at D:/Hatoove/handoff/ron-agent/COORDINATOR-HANDOFF.md.

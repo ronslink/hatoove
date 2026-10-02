@@ -84,6 +84,15 @@ const STATUS_CODES = Object.freeze({
 
 const ACCOUNT_PATH = '/api/v1/account';
 const ATTEMPTS_PATH = '/api/v1/attempts';
+const SETTINGS_PATH = '/api/v1/settings';
+/** The closed allowlist the server enforces; mirrored here so the client fails before sending. */
+/*
+ * NO `model`. The model is OPERATOR configuration — `.env` locally, the platform's environment
+ * variables in a deployment (D10b) — so it is not a learner setting: this client will neither send it
+ * nor accept it back, and the server refuses it with 422 either way. Removed on both sides in the same
+ * commit, because a field one side accepts and the other refuses is a protocol that only looks agreed.
+ */
+const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'theme', 'language'];
 const SIGN_UP_PATH = '/api/auth/sign-up/email';
 const SIGN_IN_PATH = '/api/auth/sign-in/email';
 const SIGN_OUT_PATH = '/api/auth/sign-out';
@@ -97,6 +106,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 const SERVER_CODE_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
+/**
+ * A content identifier — a task id, task version, rubric id or rubric version. Seeded ids carry dots and
+ * dashes (`writing.du.besuch-einer-freundin`), which `SERVER_CODE_RE` would reject, so the binding needs
+ * its own shape rather than a borrowed one.
+ */
+const CONTENT_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+/** The fields an entry in the open-attempt index may carry — and 	ext is deliberately NOT one. */
+const OPEN_ATTEMPT_FIELDS = Object.freeze(['id', 'task_id', 'task_version', 'rubric_id', 'rubric_version', 'revision', 'created_at']);
 const JOB_STATUSES = Object.freeze(['queued', 'running', 'succeeded', 'failed', 'cancelled']);
 
 /** Typed transport error: `code` is stable, `status` is the HTTP status or null. */
@@ -280,6 +297,22 @@ function readDeletedShape(value) {
   const resource = asResource(value, 'deletion');
   if (typeof resource.deleted !== 'boolean') fail('malformed_response', { message: 'deletion.deleted is not a boolean' });
   return resource;
+}
+
+/**
+ * Account settings, as the server owns them. The shape is validated rather than passed through:
+ * a response carrying an unexpected field is a protocol error, because the caller would otherwise
+ * persist whatever arrived. `language` here is the EXPLANATION language - see readSettings below.
+ */
+function readSettingsShape(value) {
+  const resource = asResource(value, 'settings');
+  if (!Number.isSafeInteger(resource.revision) || resource.revision < 0) {
+    fail('malformed_response', { message: 'settings.revision must be a non-negative integer' });
+  }
+  const settings = asResource(resource.settings, 'settings.settings');
+  const unknown = Object.keys(settings).filter((key) => !SETTINGS_FIELDS.includes(key));
+  if (unknown.length) fail('malformed_response', { message: `unsupported setting(s) in the response: ${unknown.join(', ')}` });
+  return { revision: resource.revision, settings };
 }
 
 /* ----------------------------------------------------------- the factory */
@@ -598,10 +631,32 @@ export function createOwnedClient(config = {}) {
 
   function createAttempt(options) {
     rejectExtraArguments(arguments, 1, 'createAttempt');
-    const allowed = allowlist(options, ['parentSubmissionId'], 'createAttempt');
+    const allowed = allowlist(options, ['parentSubmissionId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion'], 'createAttempt');
     const body = {};
     if (allowed.parentSubmissionId !== undefined) {
       body.parentSubmissionId = requireUuid(allowed.parentSubmissionId, 'parentSubmissionId');
+    }
+    /*
+     * PILOT-05 — the optional task binding. ALL FOUR OR NONE, validated here as well as on the server, so
+     * a caller cannot half-specify a task and have the server guess the rest: a partial binding is a bug
+     * in the caller, and guessing is how an attempt ends up bound to a task nobody opened.
+     *
+     * The client validates the SHAPE; the SERVER validates that the task version is one the deployment
+     * serves and that the rubric is the one that task declares (`422 task_not_servable`). A client cannot
+     * widen the serving policy by asking nicely, which is why this check is not the safeguard.
+     */
+    const BINDING_FIELDS = ['taskId', 'taskVersion', 'rubricId', 'rubricVersion'];
+    const given = BINDING_FIELDS.filter((field) => allowed[field] !== undefined);
+    if (given.length) {
+      if (given.length !== BINDING_FIELDS.length) {
+        fail('invalid_request', { message: `a task binding needs all of ${BINDING_FIELDS.join(', ')}; got ${given.join(', ')}` });
+      }
+      for (const field of BINDING_FIELDS) {
+        if (typeof allowed[field] !== 'string' || !CONTENT_TOKEN_RE.test(allowed[field])) {
+          fail('invalid_request', { message: `${field} must be a content identifier` });
+        }
+        body[field] = allowed[field];
+      }
     }
     return call({
       method: 'POST',
@@ -666,6 +721,77 @@ export function createOwnedClient(config = {}) {
     });
   }
 
+  /*
+   * Account settings. The account-scoped record the server owns: exam date, daily goal, model,
+   * theme and `language`. Two deliberate properties:
+   *
+   *   - the caller passes the revision it last saw, exactly as the draft path does, so a second
+   *     device cannot silently overwrite the first (the server answers 409 settings_conflict);
+   *   - the response is validated rather than trusted, so a caller cannot persist a field the
+   *     server never agreed to store.
+   *
+   * `language` is the EXPLANATION language. It must never reach the interface or the exam content -
+   * the menu and the content stay German - which `tools/design-check.mjs` enforces mechanically.
+   */
+  function readSettings() {
+    rejectExtraArguments(arguments, 0, 'readSettings');
+    return call({ method: 'GET', path: SETTINGS_PATH, validate: readSettingsShape });
+  }
+
+  function saveSettings(options) {
+    rejectExtraArguments(arguments, 1, 'saveSettings');
+    const { expectedRevision, settings } = allowlist(options, ['expectedRevision', 'settings'], 'saveSettings');
+    // A settings record starts at revision 0 (readSettingsShape accepts it and the server's
+    // first write is expectedRevision 0), unlike a draft, which starts at 1. Requiring >= 1
+    // here made an account's FIRST settings save impossible (SESSION-BOUNDARY-01).
+    const revision = expectedRevision === 0 ? 0 : requireRevision(expectedRevision, 'expectedRevision');
+    if (!isPlainObject(settings)) fail('invalid_request', { message: 'settings must be an object' });
+    const unknown = Object.keys(settings).filter((key) => !SETTINGS_FIELDS.includes(key));
+    if (unknown.length) fail('invalid_request', { message: `unsupported setting(s): ${unknown.join(', ')}` });
+    return call({
+      method: 'PUT',
+      path: SETTINGS_PATH,
+      body: { expectedRevision: revision, settings: deepCopy(settings) },
+      validate: readSettingsShape,
+    });
+  }
+
+  /**
+   * The learner's UNFINISHED attempts — what a reload needs to offer "continue" rather than a blank page.
+   *
+   * `open=1` is part of the route, not a filter this client may vary, so it is built here rather than
+   * taken from the caller. The index carries NO TEXT by design: a list that returned letters would put a
+   * learner's writing in every response, so `readAttempt` is how the text is fetched, once the caller has
+   * decided which attempt to resume.
+   */
+  function openAttempts() {
+    rejectExtraArguments(arguments, 0, 'openAttempts');
+    return call({
+      method: 'GET',
+      path: `${ATTEMPTS_PATH}?open=1`,
+      validate: (value) => {
+        const resource = asResource(value, 'open attempts');
+        if (!Array.isArray(resource.attempts)) {
+          fail('malformed_response', { message: 'open attempts must be an array' });
+        }
+        const entries = resource.attempts.map((entry, index) => {
+          const row = asResource(entry, `open attempts[${index}]`);
+          const unknown = Object.keys(row).filter((key) => !OPEN_ATTEMPT_FIELDS.includes(key));
+          if (unknown.length) {
+            fail('malformed_response', { message: `unsupported field(s) in open attempts[${index}]: ${unknown.join(', ')}` });
+          }
+          // The text must NOT travel in an index. Refusing it here means a server that started sending
+          // letters in a list would fail the client rather than quietly ship them.
+          if ('text' in row) fail('malformed_response', { message: 'the open index must not carry draft text' });
+          if (typeof row.id !== 'string' || !UUID_RE.test(row.id)) fail('malformed_response', { message: `open attempts[${index}].id must be a uuid` });
+          if (!Number.isSafeInteger(row.revision) || row.revision < 1) fail('malformed_response', { message: `open attempts[${index}].revision must be a positive integer` });
+          return { ...row };
+        });
+        return { attempts: entries };
+      },
+    });
+  }
+
   function retrySubmission(submissionId) {
     rejectExtraArguments(arguments, 1, 'retry');
     const id = requireUuid(submissionId, 'submissionId');
@@ -698,10 +824,13 @@ export function createOwnedClient(config = {}) {
     signOut,
     clear,
     createAttempt,
+    openAttempts,
     readAttempt,
     saveDraft,
     submit,
     readResult,
+    readSettings,
+    saveSettings,
     retry: retrySubmission,
     deleteAttempt,
   });

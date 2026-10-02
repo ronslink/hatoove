@@ -1,10 +1,20 @@
 # Hatoove agent instructions
 
+## Canonical workspace
+
+Ron relocated local work to **D:\Hatoove** on 1 October 2026. Use this repository for new local work; read `docs/WORKSPACE_LOCATION.md`. The design reference is `D:\Hatoove\design`, and the shared coordinator handoff is `D:\Hatoove\handoff\ron-agent`. Earlier OneDrive/D-drive paths in historical records are recovery references. Keep local handoffs, design originals and `.qa` recovery material out of commits. Relocation does not resume paused work or renew any lease.
+
+**Runtime direction (Ron, 1 October 2026):** Docker Compose is the supported execution path for the server, worker, migrations and PostgreSQL. Do not restore the retired host launcher or installer. Preserve existing data volumes; this change does not authorize production deployment.
+
 ## Product and design
 
-Hatoove is standalone exam preparation, initially for telc Deutsch B1 reading, language elements, listening and writing. Speaking, STT, school administration and overall-exam pass predictions are outside the pilot. Follow `IMPLEMENTATION_PLAN.md` for delivery and `PILOT_BUILD_PLAN.md` for product direction. The revised implementation plan supersedes the pasted 36-package proposal; it is not an instruction to migrate hosting or rewrite the app.
+Hatoove is standalone exam preparation, initially for telc Deutsch B1 reading, language elements, listening and writing. Speaking, STT, school administration and overall-exam pass predictions are outside the pilot. **`PILOT_BUILD_PLAN.md` governs scope**, [MASTER-PLAN.md](MASTER-PLAN.md) sets delivery order and records progress, and `work/implementation/MFP-DESIGN-DECISIONS.md` supplies design/state acceptance. The writing-first minimum functional product and its `FUNCTIONAL-ROADMAP.md` are withdrawn — see MASTER-PLAN §10. **The product is multi-exam:** telc Deutsch B1 is the first exam package and recognised English tests are the next candidate, so keep the exam package, exam language, instruction language and purchasing market independent. Build the small new vanilla client under `public/app/`, then retire the old SPA. No framework or hosting migration is implied.
 
-Preserve the previous learner app in `public/` as the visual foundation after login. The user likes its appearance. Adapt it for phone and tablet use; do not replace it with the marketing page. Keep the orange Hatoove and preferred oo identity. Each UI change needs desktop and mobile evidence; emulated viewports do not replace iPhone/Android keyboard and audio checks.
+Use the supplied designs in `D:\Hatoove\design` as the new learner-app visual direction (Ron, 1 October 2026), following `work/implementation/DESIGN-WIRE-01.md`. The orange/rising-oo design replaces the former palette/type preservation rule; keep one consistent system across all retained views. German interface and exam content remain German; explanation languages are de/en/uk/ar/tr with scoped Arabic RTL. Each UI change needs desktop/mobile evidence; emulation does not replace iPhone/Android keyboard/audio checks. Read the relocated design reference; curate assets/licences into tracked assets rather than importing the older live checkout.
+
+**SaaS-only data/runtime (Ron, 1 October 2026):** remove the prior single-user schema and linked functionality. Use session-derived ownership in one shared PostgreSQL schema; no default local user, progress files, global browser-state blob, file-sync engine or startup fallback to the single-user app. Removing code/schema assumptions does not authorize deleting existing learner records or the live install. PILOT-03 implements the cutover with safe forward migrations and negative acceptance checks, recorded in `work/implementation/RETIRED-CHECKS.md`; it supersedes the separate SAAS-RETIRE-01 slice. Retain useful exam behavior through the new contracts; old single-user compatibility assertions are superseded.
+
+First-release design defaults are email/password registration, per-criterion practice feedback without a /45 total and no daily-time setting. R11 remains an explicit rubric contract decision; never relabel four internal criteria as three telc criteria. No readiness, streaks, study-plan, reminder/purchase UI, automatic Leitpunkt ticks or two-model claim. Include missing async/history/reset/delete/legal/error states. Logo provenance is AI-generated for this project; curate verified font licences and full de/en/uk/ar/tr coverage.
 
 ## Coordination
 
@@ -42,21 +52,30 @@ The private repository is `ronslink/hatoove`. Use a separate clone on each host 
 
 Edit only assigned paths. Ask the coordinator to resolve overlaps or interface changes before editing shared files. In particular, `public/js/exam.js` must not have concurrent owners. Do not mark content approved; qualified human review remains necessary. The coordinator may resolve routine implementation choices within the user's authorized scope without asking Ron again.
 
-Do not commit credentials, learner records, machine configuration, agent memory, raw provider runs, private browser state, generated portable bundles or the older `D:\B1_Prep` checkout. Run `node tools/repository-check.mjs` on the staged snapshot before pushing. It catches common problems, not every possible secret. Review the staged file list as well.
+Do not commit credentials, learner records, machine configuration, agent memory, raw provider runs, private browser state or the older `D:\B1_Prep` checkout. Run `node tools/repository-check.mjs` on the staged snapshot before pushing. It catches common problems, not every possible secret. Review the staged file list as well.
 
 ## Validation and boundaries
 
-Safe offline baseline commands:
+Safe offline baseline commands (updated 2 October 2026 — the three legacy client checks that used to be
+listed here were retired with the SPA they tested, in SPA-RETIRE 4; the row in
+`work/implementation/RETIRED-CHECKS.md` records why, and the recorded baseline is now this set rather
+than 101 + 9 + 14):
 
 ```text
-node tools/check.js
-node tools/writing-check.js
-node tools/feedback-check.js
+node tools/repository-check.mjs
+node tools/design-check.mjs
+node tools/retired-surface-check.mjs
+node tools/server-origin-check.mjs
+node tools/keymask-check.mjs
+node tools/owned-api-check.mjs
+node tools/owned-client-check.mjs
 ```
 
-The recorded baseline is 101 + 9 + 14 passing checks. These test legacy behavior, not exam validity. Add focused tests for changed behavior; do not preserve an incorrect exam rule just to retain a test result.
+`docker-stack-check.mjs` and `app-browser-check.mjs` need Docker and a browser and are NOT CI gates;
+`owned-api-check --backend=postgres` and the other PostgreSQL checks need a disposable database. These
+test contracts and legacy behavior, not exam validity. Add focused tests for changed behavior; do not preserve an incorrect exam rule just to retain a test result.
 
-Do not run live AI, recovery, portable-build or synchronization scripts as automatic setup. The current `server.js` reads `.env` even in offline mode. Browser tests require a disposable source-only checkout, synthetic progress and explicitly isolated ports. Never point generic tests at the learner's existing app.
+Do not run live AI or recovery scripts as automatic setup. The current `server.js` reads `.env` even in offline mode, and the provider key is server configuration that must never be settable or readable from a browser. Browser tests require a disposable source-only checkout, synthetic progress and explicitly isolated ports. Never point generic tests at the learner's existing app. The portable-build, synchronization and file-recovery scripts are **removed**: this is a hosted application with one authoritative server copy.
 
 Keep reviewed tasks/audio versioned, mark objective answers deterministically, preserve unassessed writing failures and save drafts/submissions/results/revisions. The saved DeepSeek benchmark supports provisional formative feedback, not calibrated readiness scores. Runtime fallbacks need separate evaluation.
 

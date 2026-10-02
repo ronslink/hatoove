@@ -5,7 +5,7 @@
  *
  *   POST /api/auth/sign-up/email   POST /api/auth/sign-in/email
  *   POST /api/auth/sign-out        GET  /api/auth/get-session
- *   GET  /api/v1/account
+ *   GET/DELETE /api/v1/account
  *   POST /api/v1/attempts          GET/PUT/DELETE /api/v1/attempts/:id
  *   POST /api/v1/attempts/:id/submissions
  *   GET  /api/v1/submissions/:id   POST /api/v1/submissions/:id/retry
@@ -46,6 +46,9 @@
  * Forgetting the gate therefore fails closed instead of open.
  */
 
+import { contentIsServable } from './content-policy.mjs';
+import { checkSentence, SENTENCE_TEXT_LIMIT } from './sentence-building.mjs';
+
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
 export const TEXT_LIMIT = 12000;
@@ -72,7 +75,195 @@ const TOKEN_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
 
 const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry', 'remove'];
+/**
+ * The shared-content catalogue is an OPTIONAL CAPABILITY, not part of ownership.
+ *
+ * It is deliberately NOT in `DATASTORE_METHODS`. That list gates the ENTIRE owned API, so putting a
+ * catalogue method in it disables EVERY route for any datastore that does not implement one — which
+ * is exactly what happened: adding `listTasks` turned five checks that use an in-memory fake from
+ * green to "503 on every call", and the fail-closed gate was working correctly while doing it.
+ *
+ * An absent catalogue must disable the CATALOGUE, in the way an absent settings port disables
+ * settings and an absent deletion port disables deletion, and leave the rest of the product alone.
+ */
+const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'readObjectiveSet', 'readRubric', 'listVocab', 'listNouns', 'listGuides', 'readGuide'];
+/**
+ * PRACTICE is its own optional capability, for the same reason the catalogue is.
+ *
+ * It is NOT in `DATASTORE_METHODS`, because that list gates the ENTIRE owned API: adding one method to
+ * it once turned five checks that use an in-memory fake from green to "503 on every call". An
+ * in-memory datastore that cannot mark objective items should lose the PRACTICE routes, not the
+ * product.
+ */
+const PRACTICE_METHODS = ['answerObjectiveItem', 'nextPractice', 'practiceProgress', 'listMistakes'];
+/** `/api/v1/objective-sets/{setId}` — read ONE set, payload included. The list is an index. */
+const OBJECTIVE_SET_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})$/;
+/**
+ * A rubric, by id, with its version as a query parameter.
+ *
+ * The version is REQUIRED and not defaulted to "latest": a result is only meaningful against the version it
+ * was graded under, so a caller must say which contract it is asking about. An unknown id or version is a
+ * 404 rather than an empty rubric — "no such contract" and "a contract with no criteria" are different
+ * answers, and only one of them is true.
+ */
+const RUBRIC_RE = /^\/api\/v1\/rubrics\/([A-Za-z0-9._-]{1,128})$/;
+/** One session, by id. A UUID as the Better Auth schema stores it; the pattern is deliberately tight. */
+const SESSION_RE = /^\/api\/v1\/sessions\/([0-9a-fA-F-]{36})$/;
+/** `/api/v1/objective-sets/{setId}/answers` — the set id is dotted (`telc-deutsch-b1.lv1.01`). */
+const OBJECTIVE_ANSWER_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})\/answers$/;
+/** `/api/v1/guides/{guideId}` — a closed slug shape, so an id can never reach SQL as anything else. */
+const GUIDE_RE = /^\/api\/v1\/guides\/([a-z][a-z0-9-]{0,63})$/;
+const SESSION_LIFECYCLE_METHODS = ['listSessions', 'revokeSession', 'changePassword', 'sweepExpired'];
+/** The auth throttle's two operations: count an attempt, and forget a bucket after a success. */
+const THROTTLE_METHODS = ['hit', 'clear'];
+/** The recovery flow's two operations: ask for a link, and redeem one. */
+const RECOVERY_METHODS = ['requestPasswordReset', 'resetPassword'];
+/** Email verification: ask for a link, and redeem one. Its own capability, so one flow cannot mask the other. */
+const VERIFICATION_METHODS = ['requestEmailVerification', 'verifyEmail'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
+const SETTINGS_METHODS = ['read', 'write'];
+const DELETION_METHODS = ['deleteAccount'];
+
+/**
+ * What an account deletion does NOT remove (HARD-DELETE-01 §3). Returned with every
+ * deletion, because "deletion is not total, and saying so is part of the fix" (SEC-02).
+ * No retention period is stated for any of them: none has been decided, and inventing one
+ * here would be a false promise. The model provider is named for the same reason as the
+ * backups — this application cannot reach what it keeps either.
+ */
+export const DELETION_NOT_REMOVED = Object.freeze([
+  Object.freeze({
+    what: 'operator_backups',
+    detail: 'Copies of the database made before this deletion (backups, write-ahead log archives, replicas) '
+      + 'are outside the application\'s reach. A restore from one of them could bring these records back. '
+      + 'No retention period for those copies has been decided, so this response cannot say when they expire.',
+  }),
+  Object.freeze({
+    what: 'copies_outside_the_service',
+    detail: 'Anything you copied, exported or downloaded yourself, and anything this browser or device still '
+      + 'holds locally, is not reachable by the server.',
+  }),
+  Object.freeze({
+    what: 'legacy_progress_file',
+    detail: 'A server that is not running in hosted mode also keeps learner progress in a file outside '
+      + 'this account database, and serves it at /api/progress. This deletion removes the account '
+      + 'database rows only; it does not touch that file. Whether that route is served depends on how '
+      + 'the deployment is configured, so this response cannot promise it is refused.',
+  }),
+  Object.freeze({
+    what: 'model_provider',
+    detail: 'Text you submitted for assessment was sent to the model provider configured for this '
+      + 'installation. Copies that provider keeps, and for how long, are outside the application\'s '
+      + 'reach, and no retention period for them is known. This response cannot say when they expire.',
+  }),
+]);
+/**
+ * The closed allowlist for account settings. Validation lives here rather than in the port so
+ * the HTTP contract is the contract, whatever datastore implements it. Unknown keys are
+ * refused, never dropped: silently discarding a field a caller believes it saved is a defect.
+ */
+/*
+ * `model` is NOT here, and must not come back: the model is OPERATOR configuration (D10b — `.env`
+ * locally, the platform's environment variables in a deployment), so a learner setting it would be a
+ * way to change the provider's behaviour from a browser. Both input shapes are asserted refused in
+ * `tools/owned-api-check.mjs`, which is the leg that replaced the retired provider-config check.
+ *
+ * EXPORTED, and imported by `settings.mjs`, because this list existed in THREE places (here, the
+ * PostgreSQL settings port, and the shipped client) and three copies of a field list is three chances
+ * for the surface to disagree with itself. The client keeps its own copy deliberately — it must not
+ * import server code — but `tools/owned-api-check.mjs` asserts the two agree on `model` being refused.
+ */
+export const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'theme', 'language'];
+export const EXPLANATION_LANGUAGES = Object.freeze(['de', 'en', 'uk', 'ar', 'tr']);
+/**
+ * FAMILY NAMING — ONE CONVENTION, ONE PARSER.
+ *
+ * Two routes the same client calls used to disagree: `/api/v1/tasks` accepted a lowercase KIND
+ * (`writing`) while `/api/v1/objective-sets` accepted an uppercase PART ID (`HV1`). `journey-api-check`
+ * leg J4 asks the tasks route for `family=SA1` — the blueprint's writing part id — and got 422, which
+ * made it the only red leg in the only red CI job. The stored rows are NOT the problem and are NOT
+ * rewritten: `objective_set.family` really is the part id (`HV1`) and `task_version.family` really is the
+ * kind (`writing`), so a single parser maps one wire vocabulary onto both.
+ *
+ * ONE VOCABULARY, TWO FORMS, A CLOSED SET — and both forms are CASE-SIGNIFICANT:
+ *   * the PART ID, uppercase — `LV1`-`LV3`, `SB1`-`SB2`, `HV1`-`HV3`, `SA1` (writing is a single 45-point
+ *     task, so it has one part). `sa1` is refused;
+ *   * the KIND, lowercase — `writing`, `lv`, `sb`, `hv`, which the app and `docker-stack-check` already
+ *     send and which must keep working. `WRITING` is refused.
+ * Case-significance is deliberate, not an oversight: `docker-stack-check` already asserts that a lowercase
+ * PART ID is "refused, not silently accepted", and accepting both casings would be two conventions wearing
+ * one name — the defect this parser exists to end. The two forms are a vocabulary and a kind, not a
+ * spelling and its variant.
+ * Anything else is refused. `SA2` and `LV9` look plausible and do not exist, so they are 422 like any junk.
+ *
+ * `SA` is the writing group: the blueprint names its writing part `SA1`, and a kind is a valid filter on
+ * both routes, which is the property that makes them one convention rather than two.
+ */
+const FAMILY_PARTS = Object.freeze({ LV: [1, 2, 3], SB: [1, 2], HV: [1, 2, 3], SA: [1] });
+const FAMILY_KINDS = Object.freeze({ writing: 'SA', lv: 'LV', sb: 'SB', hv: 'HV' });
+
+/**
+ * @returns {{partId: string|null, group: string, part: number|null, kind: string}|null} null when the
+ *   value is outside the closed set — the caller turns that into `422 invalid_family`.
+ */
+export function parseFamily(value) {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw || raw.length > 32 || raw !== value) return null; // no padding, no surprises
+  const partMatch = /^([A-Z]{2})([1-9])$/.exec(raw);
+  if (partMatch) {
+    const [, group, digit] = partMatch;
+    const parts = FAMILY_PARTS[group];
+    if (!parts || !parts.includes(Number(digit))) return null;
+    return { partId: `${group}${digit}`, group, part: Number(digit), kind: group === 'SA' ? 'writing' : group.toLowerCase() };
+  }
+  const kind = FAMILY_KINDS[raw];
+  if (kind) return { partId: null, group: kind, part: null, kind: raw };
+  return null;
+}
+
+/** A content identifier: a task id, a task version, a rubric id or a rubric version. Deliberately wider
+ * than `SETTINGS_TOKEN_RE` (which is about tokens a learner types) because seeded ids carry dots and
+ * dashes — `writing.du.besuch-einer-freundin` — and the same character set the catalogue route accepts.
+ */
+const CONTENT_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+const SETTINGS_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const SETTINGS_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/;
+const SETTINGS_THEMES = ['system', 'light', 'dark'];
+
+/**
+ * Validate an account-settings payload. Kept here, beside the route, so the HTTP contract is
+ * enforced at the boundary whatever port implements it. Unknown keys are refused rather than
+ * dropped, because silently discarding a field a caller believes it saved is a defect this
+ * programme has already been bitten by.
+ */
+function validateSettings(input) {
+  if (!isPlainObject(input)) fault(422, 'invalid_settings');
+  const unknown = Object.keys(input).filter((key) => !SETTINGS_FIELDS.includes(key));
+  if (unknown.length) fault(422, 'invalid_settings');
+  const out = {};
+  if (input.examDate !== undefined) {
+    if (typeof input.examDate !== 'string' || input.examDate.length > 10) fault(422, 'invalid_settings');
+    if (input.examDate !== '' && !SETTINGS_DATE_RE.test(input.examDate)) fault(422, 'invalid_settings');
+    out.examDate = input.examDate;
+  }
+  if (input.dailyGoal !== undefined) {
+    if (!Number.isSafeInteger(input.dailyGoal) || input.dailyGoal < 1 || input.dailyGoal > 500) fault(422, 'invalid_settings');
+    out.dailyGoal = input.dailyGoal;
+  }
+  if (input.theme !== undefined) {
+    if (!SETTINGS_THEMES.includes(input.theme)) fault(422, 'invalid_settings');
+    out.theme = input.theme;
+  }
+  if (input.language !== undefined) {
+    // This preference changes explanations; interface and exam content stay German.
+    if (!EXPLANATION_LANGUAGES.includes(input.language)) fault(422, 'invalid_settings');
+    out.language = input.language;
+  }
+  if (!Object.keys(out).length) fault(422, 'invalid_settings');
+  return out;
+}
 
 /** True for every path this module answers, including its unknown routes (404). */
 export function isOwnedPath(pathname) {
@@ -151,6 +342,19 @@ function requireAuthFields(body, withName) {
   return withName ? { name, email, password } : { email, password };
 }
 
+/**
+ * The password rule for a CHANGE, which is deliberately the same one sign-up applies.
+ *
+ * One rule means a learner can always change their password to something they could also have registered
+ * with. A minimum length is a policy decision — it belongs with the human signoff D5 already needs for
+ * hashing parameters — and a screen that enforces a rule the registration screen does not is a screen that
+ * locks people out of their own account.
+ */
+function assertNewPassword(value) {
+  if (typeof value !== 'string' || value.length < 1 || value.length > 256) fault(422, 'invalid_password');
+  return value;
+}
+
 function reply(status, value, setCookie) {
   const headers = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
   if (setCookie) headers['set-cookie'] = setCookie;
@@ -161,42 +365,201 @@ const errorReply = (status, code) => reply(status, { error: TOKEN_RE.test(code) 
 
 /**
  * Build the owned API.
- * @param {{datastore?: object, sessions?: object}} ports
+ * @param {{datastore?: object, sessions?: object, settings?: object, accountDeletion?: object}} ports
+ *   `settings` is optional: an installation that does not wire it answers 503 on the settings
+ *   routes only, so the account boundary is unaffected by a missing optional port.
+ *   `accountDeletion` is optional in the same way: `deleteAccount(owner) -> {existed, removed}`;
+ *   unwired, `DELETE /api/v1/account` answers 503 `deletion_unavailable` and deletes nothing.
  * @returns {{handle: Function, handleNode: Function, matches: Function, configured: boolean}}
  */
-export function createOwnedApi({ datastore, sessions } = {}) {
+export function createOwnedApi({ datastore, sessions, settings = null, accountDeletion = null, throttle = null } = {}) {
   // Fail closed: without both ports wired, every owned route answers 503 and no
   // port method is ever reached, so nothing can be served without an identity.
   const configured = implementsAll(datastore, DATASTORE_METHODS) && implementsAll(sessions, SESSION_METHODS);
+  const settingsWired = implementsAll(settings, SETTINGS_METHODS);
+  const deletionWired = implementsAll(accountDeletion, DELETION_METHODS);
+  const catalogueWired = implementsAll(datastore, CATALOGUE_METHODS);
+  const practiceWired = implementsAll(datastore, PRACTICE_METHODS);
+  // The session lifecycle is its own capability: rotation, sweep, revoke-one and revoke-all-on-password-change.
+  const sessionLifecycleWired = implementsAll(sessions, SESSION_LIFECYCLE_METHODS);
+  /*
+   * The auth throttle is optional in the same way, and FAIL-OPEN on purpose: an installation without it keeps
+   * serving, because a missing rate limiter must not lock every learner out. The flag exists so the checks can
+   * prove the difference rather than assume it, and the runtime always wires the port.
+   */
+  const throttleWired = implementsAll(throttle, THROTTLE_METHODS);
+  /*
+   * FAIL-CLOSED HERE, unlike the throttle. A recovery route that silently did nothing would tell a locked-out
+   * learner that a reset was on its way when it was not, so an implementation without it answers 503 with a
+   * name. It cannot lock anyone out — the route did not exist before.
+   */
+  const recoveryWired = implementsAll(sessions, RECOVERY_METHODS);
+  // Fail-closed like recovery: a verification route that silently did nothing would leave a learner believing
+  // their address was confirmed.
+  const verificationWired = implementsAll(sessions, VERIFICATION_METHODS);
 
   async function identify(headers) {
     const session = await sessions.getSession(headers);
     if (!isPlainObject(session) || typeof session.userId !== 'string' || session.userId.trim() === '') return null;
+    // A consistency precondition, never an identity source. A stale tab must not act on the
+    // account another tab put in the shared cookie. Header-less API clients retain their contract.
+    if (headers['x-hatoove-account'] !== undefined && headers['x-hatoove-account'] !== session.userId) {
+      fault(409, 'account_changed');
+    }
     return { userId: session.userId, email: typeof session.email === 'string' ? session.email : null };
   }
 
-  async function route(method, pathname, headers, body) {
+  /**
+   * Count one attempt and refuse with 429 when the limit is reached.
+   *
+   * THE REFUSAL NAMES A TIME, because a client told only "too many requests" can do nothing but retry harder:
+   * `Retry-After` is the difference between a limit and a maze.
+   *
+   * WHEN THE PORT IS ABSENT this is a no-op — FAIL-OPEN, deliberately. A missing rate limiter must not lock
+   * every learner out of the product; the gap is then a deployment fact, which `throttleWired` reports so it
+   * can be seen rather than assumed. And the sweep rides along with the attempt, so the table stays a picture
+   * of recent attempts rather than a growing history of every address anyone typed.
+   *
+   * @returns {Promise<boolean>} whether the throttle is active at all (so a caller can clear on success).
+   */
+  async function enforceThrottle(kind, key) {
+    if (!throttleWired) return false;
+    const verdict = await throttle.hit(kind, key);
+    // Opportunistic, bounded, and never fatal: a sweep that fails must not refuse a legitimate attempt.
+    Promise.resolve(throttle.sweep()).catch(() => {});
+    if (!verdict.allowed) {
+      const error = new Fault(429, 'too_many_requests');
+      error.retryAfterSeconds = verdict.retryAfterSeconds;
+      throw error;
+    }
+    return true;
+  }
+
+  async function route(method, pathname, headers, body, query = new URLSearchParams()) {
     // Auth routes: exact allowlist, as the spike does for the library handler.
     if (pathname.startsWith('/api/auth/')) {
       const key = `${method} ${pathname}`;
       if (key === 'POST /api/auth/sign-up/email') {
         onlyFields(body, ['name', 'email', 'password']);
+        /*
+         * A GLOBAL REGISTRATION CAP, because the resource is the operator's: every account costs a row and a
+         * session. Checked BEFORE the account is created, so a refused registration leaves nothing behind.
+         */
+        await enforceThrottle('signup', 'global');
         const outcome = await sessions.signUp(requireAuthFields(body, true));
         return reply(200, { ok: true }, outcome && outcome.setCookie);
       }
       if (key === 'POST /api/auth/sign-in/email') {
         onlyFields(body, ['email', 'password']);
-        const outcome = await sessions.signIn(requireAuthFields(body, false));
+        const fields = requireAuthFields(body, false);
+        /*
+         * PER EMAIL, AND COUNTED BEFORE THE PASSWORD IS VERIFIED. Before, because a throttle that runs after
+         * verification still answers the attacker's question — "is this password right?" — on every attempt
+         * up to the limit, and because the counting must not depend on which branch the verification takes.
+         */
+        const gate = await enforceThrottle('signin', fields.email);
+        /*
+         * `headers` IS PASSED ON PURPOSE. Sign-in ROTATES the session: the cookie that was presented is
+         * retired so that a token planted before authentication cannot survive it (session fixation). The
+         * port needs to see that cookie, and this is the only place that has it.
+         */
+        let outcome;
+        try {
+          outcome = await sessions.signIn({ ...fields, headers });
+        } catch (error) {
+          // A FAILED attempt keeps its count — that is the point of the counter. Anything else, including a
+          // thrown Fault that is not an authentication refusal, is re-thrown unchanged.
+          if (error instanceof Fault && error.status === 401) throw error;
+          throw error;
+        }
+        // SUCCESS CLEARS THE COUNT: a learner who mistypes twice and then gets it right must not be two
+        // failures closer to being locked out for the rest of the window.
+        if (gate) await throttle.clear('signin', fields.email);
         return reply(200, { ok: true }, outcome && outcome.setCookie);
       }
       if (key === 'POST /api/auth/sign-out') {
         onlyFields(body, []);
+        if (headers['x-hatoove-account'] !== undefined && !await identify(headers)) fault(401, 'unauthenticated');
         const outcome = await sessions.signOut(headers);
         return reply(200, { ok: true }, outcome && outcome.setCookie);
+      }
+      /*
+       * ACCOUNT RECOVERY (D6's token path).
+       *
+       * THE RESPONSE IS THE SAME FOR EVERY ADDRESS, and that is the security property rather than a courtesy:
+       * anyone can type someone else's email into a reset form, so a response that differed would turn the
+       * form into a way to ask "does this learner have an account here?". The port returns whether a message
+       * was produced; this route deliberately discards that and answers `{ok:true}` either way.
+       *
+       * THE TOKEN NEVER APPEARS HERE. It goes to the notifier — in the pilot, the operator console — because
+       * a token in the response would make "I forgot my password" mean "I can take over any account whose
+       * address I know". That is what "operator-assisted" buys: recovery without an email provider and
+       * without a hole.
+       *
+       * THROTTLED PER ADDRESS, because this route writes a row and produces a message: unlimited, it is a way
+       * to fill the table and the operator's console.
+       */
+      /*
+       * BOTH NAMES FOR THE SAME OPERATION, because both are real. `forget-password` is what the queue's
+       * 1 October measurement actually called — it recorded that exact path as 404 — while
+       * `request-password-reset` is the name the current library version and its documentation use. A client
+       * built against either would otherwise get a 404 for a feature that exists, and a re-run of that
+       * measurement must be able to SEE the gap closed rather than a route that was renamed.
+       */
+      if (key === 'POST /api/auth/request-password-reset' || key === 'POST /api/auth/forget-password') {
+        onlyFields(body, ['email']);
+        if (!recoveryWired) fault(503, 'recovery_unavailable');
+        const { email } = requireAuthFields({ email: body.email, password: 'x' }, false);
+        await enforceThrottle('reset', email);
+        await sessions.requestPasswordReset({ email });
+        // Deliberately not `outcome`: whether a message was produced must not be observable.
+        return reply(200, { ok: true });
+      }
+      if (key === 'POST /api/auth/reset-password') {
+        onlyFields(body, ['token', 'newPassword']);
+        if (!recoveryWired) fault(503, 'recovery_unavailable');
+        const { token } = body;
+        if (typeof token !== 'string' || token.length === 0 || token.length > 512) fault(422, 'invalid_token');
+        // The SAME rule as the change screen, for the same reason: one password rule, the one sign-up uses.
+        assertNewPassword(body.newPassword);
+        const outcome = await sessions.resetPassword({ token, newPassword: body.newPassword });
+        /*
+         * ONE REFUSAL FOR EVERY FAILURE — unknown, expired, already used, malformed. A guesser learns nothing
+         * from the difference between them, and there is nothing useful to say.
+         */
+        if (!outcome) fault(400, 'invalid_token');
+        return reply(200, { ok: true });
       }
       if (key === 'GET /api/auth/get-session') {
         const who = await identify(headers);
         return reply(200, who ? { user: { id: who.userId, email: who.email } } : null);
+      }
+      /*
+       * EMAIL VERIFICATION — the last of the four routes PILOT-18 measured as 404, and the same shape as the
+       * reset pair above: request (always 200, no enumeration, throttled) and redeem (one refusal for every
+       * failure).
+       *
+       * IT SETS NO COOKIE, and that is a decision rather than an omission: a link that both proved an address
+       * and authenticated would turn the delivery channel — an operator console, a chat message, a screenshot —
+       * into a way to obtain a session. The link proves the address; the password signs in.
+       */
+      if (key === 'POST /api/auth/send-verification-email') {
+        onlyFields(body, ['email']);
+        if (!verificationWired) fault(503, 'verification_unavailable');
+        const { email } = requireAuthFields({ email: body.email, password: 'x' }, false);
+        await enforceThrottle('verify', email);
+        await sessions.requestEmailVerification({ email });
+        // Again not the outcome: "already verified" and "no such account" must be indistinguishable.
+        return reply(200, { ok: true });
+      }
+      if (key === 'POST /api/auth/verify-email') {
+        onlyFields(body, ['token']);
+        if (!verificationWired) fault(503, 'verification_unavailable');
+        const { token } = body;
+        if (typeof token !== 'string' || token.length === 0 || token.length > 512) fault(422, 'invalid_token');
+        const outcome = await sessions.verifyEmail({ token });
+        if (!outcome) fault(400, 'invalid_token');
+        return reply(200, { ok: true, email: outcome.email });
       }
       fault(404, 'not_found');
     }
@@ -209,10 +572,455 @@ export function createOwnedApi({ datastore, sessions } = {}) {
     if (pathname === '/api/v1/account' && method === 'GET') {
       return reply(200, { contractVersion: CONTRACT_VERSION, id: owner, email: who.email });
     }
+
+    /*
+     * THE SESSION LIFECYCLE (D5's security gap). Three routes, and each one is a property a learner needs
+     * rather than a convenience:
+     *
+     *   GET    /api/v1/sessions          see where you are signed in (ids and expiry, NEVER tokens)
+     *   DELETE /api/v1/sessions/<id>     end one — including one you do not recognise
+     *   PUT    /api/v1/account/password  change the password, which ends every other session
+     *
+     * THEY ARE AN OPTIONAL CAPABILITY, like settings and the catalogue: an implementation that cannot do this
+     * answers 503 rather than throwing, so a port that lacks the lifecycle loses these routes and nothing
+     * else. `implementsAll` is the same check the rest of this file uses.
+     */
+    if (pathname === '/api/v1/sessions' && method === 'GET') {
+      if (!sessionLifecycleWired) fault(503, 'session_lifecycle_unavailable');
+      const listed = await sessions.listSessions(headers);
+      // No session means the cookie was already refused by `identify`; this is belt and braces.
+      if (!listed) fault(401, 'unauthenticated');
+      return reply(200, listed);
+    }
+
+    const sessionMatch = SESSION_RE.exec(pathname);
+    if (sessionMatch && method === 'DELETE') {
+      onlyFields(body, []);
+      if (!sessionLifecycleWired) fault(503, 'session_lifecycle_unavailable');
+      const outcome = await sessions.revokeSession(headers, sessionMatch[1]);
+      if (!outcome) fault(401, 'unauthenticated');
+      /*
+       * A session that is not yours and a session that does not exist are BOTH 404. Anything else makes this
+       * route an oracle: a learner could sweep ids and learn which sessions exist on the installation.
+       */
+      if (!outcome.revoked) fault(404, 'not_found');
+      return reply(200, { revoked: true });
+    }
+
+    if (pathname === '/api/v1/account/password' && method === 'PUT') {
+      onlyFields(body, ['currentPassword', 'newPassword']);
+      if (!sessionLifecycleWired) fault(503, 'session_lifecycle_unavailable');
+      const { currentPassword, newPassword } = body;
+      if (typeof currentPassword !== 'string' || currentPassword.length < 1 || currentPassword.length > 256) {
+        fault(422, 'invalid_password');
+      }
+      /*
+       * ONE PASSWORD RULE, THE ONE SIGN-UP ALREADY USES — non-empty, at most 256 characters. A minimum length
+       * is a POLICY decision belonging with D5's human signoff on hashing parameters, and inventing one here
+       * would be worse than not having one: the product would refuse at the change screen what it accepted at
+       * registration, so a learner who registered with a short password could never change it.
+       */
+      assertNewPassword(newPassword);
+      /*
+       * THROTTLED PER USER, AND BEFORE THE CURRENT PASSWORD IS VERIFIED. This route checks a password, so
+       * without a limit it is a password oracle: anyone holding a session could test candidates at machine
+       * speed. Counting before verification means a refused guess and a correct one both cost an attempt, so
+       * being throttled cannot be turned into a way to keep testing — and the check asserts exactly that.
+       */
+      const gate = await enforceThrottle('password', owner);
+      const outcome = await sessions.changePassword(headers, { currentPassword, newPassword });
+      if (!outcome) fault(401, 'unauthenticated');
+      if (gate) await throttle.clear('password', owner);
+      /*
+       * The new cookie is returned because the acting session is ROTATED: every session is revoked on a
+       * password change, including the one that asked, and this token is the acting device's replacement. A
+       * client that ignored it would sign itself out — which is why the route answers with it rather than
+       * pretending nothing changed.
+       */
+      return reply(200, { ok: true, sessionsRevoked: true }, outcome && outcome.setCookie);
+    }
+
+    /*
+     * Hard account deletion (HARD-DELETE-02; Ron: "delete is a hard delete"). DELETE on the
+     * same resource the GET above reads, so the account is named by the session and nothing
+     * else: no owner field, header or query parameter is read, and an empty body is the only
+     * body accepted. The port runs the whole deletion in one transaction, including every
+     * session of the account, so the cookie that asked is refused from the next request on.
+     */
+    if (pathname === '/api/v1/account' && method === 'DELETE') {
+      onlyFields(body, []);
+      if (!deletionWired) fault(503, 'deletion_unavailable');
+      const outcome = await accountDeletion.deleteAccount(owner);
+      // The session rows are already gone with the account; this only clears the cookie, and
+      // its failure must not turn a committed deletion into an error reply.
+      let setCookie;
+      try { setCookie = (await sessions.signOut(headers))?.setCookie; } catch { setCookie = undefined; }
+      /*
+       * FOOTGUN for the future deletion UI (F10): a bodyless DELETE still demands
+       * `Content-Type: application/json` (the mutation gate above answers 415 `json_required`
+       * otherwise), and the shipped client (`public/js/owned-client.js`) has no method that
+       * issues this request yet. The contract is left as-is deliberately — every mutation in
+       * this API takes a JSON body, and special-casing DELETE would add a second rule — but a
+       * caller must send `{}` with that header, not an empty body of another type.
+       */
+      return reply(200, {
+        deleted: true,
+        accountExisted: Boolean(outcome && outcome.existed),
+        // The delete statements' OWN row counts. They are not the proof of absence: that is
+        // `verifiedAbsent`, set only because the port read every account table back first.
+        removed: outcome && isPlainObject(outcome.removed) ? outcome.removed : {},
+        verifiedAbsent: Boolean(outcome && outcome.verifiedAbsent === true),
+        completeErasure: false,
+        notRemoved: DELETION_NOT_REMOVED,
+      }, setCookie);
+    }
+
+    /*
+     * Account settings (A-01). Same account boundary as everything else, and the same
+     * revision story as the owned-attempts port: the first write is `expectedRevision: 0`,
+     * each write increments the revision by one, and a stale write writes nothing and is
+     * refused with the server's current copy so the caller can reconcile rather than guess.
+     */
+    if (pathname === '/api/v1/sentence-check' && method === 'POST') {
+      onlyFields(body, ['text']);
+      if (typeof body.text !== 'string' || !body.text.trim() || body.text.length > SENTENCE_TEXT_LIMIT) fault(422, 'invalid_sentence');
+      return reply(200, checkSentence(body.text));
+    }
+    if (pathname === '/api/v1/settings') {
+      if (!settingsWired) fault(503, 'settings_unavailable');
+      if (method === 'GET') return reply(200, await settings.read(owner));
+      if (method === 'PUT') {
+        onlyFields(body, ['expectedRevision', 'settings', ...SETTINGS_FIELDS]);
+        const expectedRevision = body.expectedRevision === undefined ? 0 : body.expectedRevision;
+        if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) fault(422, 'invalid_settings');
+        // Either a `settings` object or the fields inline; never both, so there is one shape
+        // a caller can rely on and no ambiguity about which one wins.
+        const hasObject = body.settings !== undefined;
+        const hasInline = SETTINGS_FIELDS.some((field) => body[field] !== undefined);
+        if (hasObject && hasInline) fault(422, 'invalid_settings');
+        if (!hasObject && !hasInline) fault(422, 'invalid_settings');
+        const input = hasObject ? body.settings : Object.fromEntries(
+          SETTINGS_FIELDS.filter((field) => body[field] !== undefined).map((field) => [field, body[field]]));
+        return reply(200, await settings.write(owner, expectedRevision, validateSettings(input)));
+      }
+      fault(404, 'not_found');
+    }
+    if (pathname === '/api/v1/tasks' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
+      /*
+       * PILOT-04 -- the servable task catalogue. This is the route the Ueben view has been waiting
+       * for: without it no learner-facing code could reach the seeded content at all, which is why
+       * that view has been an honest empty state rather than a broken one.
+       *
+       * THE SERVING POLICY IS DEPLOYMENT CONFIGURATION, NOT A REQUEST PARAMETER. Ron, 2 October
+       * 2026: "we will assume for now all are approved until we have built the approval process."
+       * The default therefore SERVES unreviewed content, and an explicit `approved` is the
+       * fail-closed value. A learner may NARROW the list (exam, family) and may never widen it --
+       * a query string must not be able to unlock unreviewed content.
+       */
+      const family = query.get('family');
+      const parsedFamily = family === null ? null : parseFamily(family);
+      if (family !== null && !parsedFamily) fault(422, 'invalid_family');
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      // The KIND is what the task catalogue stores; the part id is the wire vocabulary (see parseFamily).
+      const tasks = (await datastore.listTasks(owner, { examId: exam, family: parsedFamily ? parsedFamily.kind : null, serveReview })).filter((row) => contentIsServable(row));
+      /*
+       * ONE CARD PER TASK, THE NEWEST VERSION.
+       *
+       * The catalogue is immutable, so re-binding the six prompts to the telc rubric produced v2 rows
+       * alongside v1 — and both are `unreviewed`, so the serving policy serves both. Returning both would
+       * show a learner the same prompt twice and make them guess which one to write into; the honest rule
+       * is that a task has VERSIONS and the catalogue offers the newest servable one.
+       *
+       * Done in the route rather than in SQL so both backends behave identically by construction: the
+       * datastore returns rows, and one place decides which of them a learner sees. `created_at` orders it
+       * — the newest row wins — with the version string as a stable tiebreak for rows seeded in the same
+       * statement. Old attempts are untouched: they keep their own binding and render under it.
+       */
+      const newest = new Map();
+      for (const task of tasks) {
+        const current = newest.get(task.task_id);
+        if (!current || String(task.created_at || '') > String(current.created_at || '')
+          || (String(task.created_at || '') === String(current.created_at || '') && String(task.version) > String(current.version))) {
+          newest.set(task.task_id, task);
+        }
+      }
+      return reply(200, tasks.filter((task) => newest.get(task.task_id) === task));
+    }
+    if (pathname === '/api/v1/objective-sets' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
+      /*
+       * OBJECTIVE-SEED-01 — the reading and language-elements catalogue.
+       *
+       * The payload is the AUTHORED structure for each family, verbatim, because the families are NOT
+       * one shape: LV1 matches texts to headlines, LV3 matches situations to ads, SB1/SB2 are
+       * gap-fills (SB2 from a bank). Flattening them into one synthetic multiple-choice row would
+       * destroy the authored task.
+       *
+       * NO ANSWERS ARE IN THIS RESPONSE, and that is doubly true: the query does not select
+       * `objective_key`, and the learner role is not granted that table, so a future edit that added
+       * the join would fail with a permission error rather than leak.
+       *
+       * `family` may only NARROW, exactly as for `/tasks`: the serving policy is deployment
+       * configuration and a query string must not be able to unlock what the deployment withheld.
+       *
+       * THE NAMING INCONSISTENCY IS FIXED, not annotated. It used to read "the writing family is
+       * `writing` while these are codes (`LV1`, `HV3`); unifying them is a follow-up" — and that follow-up
+       * is what made `journey-api-check` J4 the only red leg in the only red CI job. One parser now
+       * accepts one vocabulary in both spellings (see `parseFamily`): a PART ID narrows to that part, a
+       * KIND (`lv`) narrows to the whole group. `objective_set.family` stores the part id, so an exact
+       * match is the narrowest case and a group match is the widest.
+       */
+      const family = query.get('family');
+      const parsedFamily = family === null ? null : parseFamily(family);
+      if (family !== null && !parsedFamily) fault(422, 'invalid_family');
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      return reply(200, (await datastore.listObjectiveSets(owner, {
+        examId: exam,
+        // An exact PART ID is the narrowest filter; a KIND narrows to the group. Both reach the same
+        // storage column, which is why one of them is passed as an equality and the other as a prefix.
+        family: parsedFamily && parsedFamily.partId ? parsedFamily.partId : null,
+        group: parsedFamily && parsedFamily.partId ? null : (parsedFamily ? parsedFamily.group : null),
+        part: parsedFamily ? parsedFamily.part : null,
+        serveReview,
+      })).filter((row) => contentIsServable(row)));
+    }
+    if (pathname === '/api/v1/vocab' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
+      /*
+       * LIBRARY-SEED-01 — the B1 core vocabulary, 300 entries.
+       *
+       * `q` is bounded and `limit` is fixed by the server. A learner may narrow the lexicon; the
+       * server decides how much of it one response may carry, so a crafted request cannot ask for the
+       * whole table on every keystroke.
+       */
+      const pos = query.get('pos');
+      if (pos !== null && !/^(noun|verb|adj|adv|phrase)$/.test(pos)) fault(422, 'invalid_pos');
+      const q = query.get('q');
+      if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      return reply(200, (await datastore.listVocab(owner, {
+        examId: exam, pos, q: q === null ? null : q.trim(), serveReview,
+      })).filter((row) => contentIsServable(row)));
+    }
+    if (pathname === '/api/v1/nouns' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
+      /*
+       * LIBRARY-SEED-02 — the B1 noun lexicon, 240 nouns with gender, plural and the gender rule.
+       *
+       * `gender` and `theme` are closed exact filters: a learner drills one article or browses one
+       * theme, and an unknown value is REFUSED rather than silently returning nothing, because an
+       * empty list and a typo look identical to a learner and only one of them is their fault.
+       */
+      const gender = query.get('gender');
+      if (gender !== null && !/^(der|die|das)$/.test(gender)) fault(422, 'invalid_gender');
+      const theme = query.get('theme');
+      if (theme !== null && (theme.trim().length < 2 || theme.length > 64)) fault(422, 'invalid_theme');
+      const q = query.get('q');
+      if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      return reply(200, (await datastore.listNouns(owner, {
+        examId: exam, theme: theme === null ? null : theme.trim(), gender,
+        q: q === null ? null : q.trim(), serveReview,
+      })).filter((row) => contentIsServable(row)));
+    }
+    if (pathname === '/api/v1/guides' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
+      /*
+       * LIBRARY-SEED-03 — the reference guides. The INDEX only: 5 documents, 101 sections between
+       * them, and `grammar-guide` alone is 64 KB, so the list carries titles and section counts and
+       * one guide is fetched by id.
+       */
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      return reply(200, (await datastore.listGuides(owner, { examId: exam, serveReview })).filter((row) => contentIsServable(row)));
+    }
+    {
+      /*
+       * THE RUBRIC, READABLE — so the screen can explain a band from ONE source of truth.
+       *
+       * A band on its own is not actionable: "B" means nothing without knowing what B is. The descriptors
+       * that explain it live in the rubric (written independently for this product, and marked provisional),
+       * and this route serves them so the client does not carry a second copy that can drift. The client
+       * knowing the wording is the defect, not the feature: two texts, one stale, and no check able to tell.
+       *
+       * NOTHING HERE IS AN ANSWER KEY. The rubric is marking guidance — criteria, bands, descriptors — which
+       * is exactly what a learner is entitled to see. Objective answer keys live in `objective_key`, granted
+       * to the worker role and to nobody else, and are untouched by this route.
+       *
+       * The retired contract stays readable BY ITS EXACT VERSION. An old attempt's feedback can then still
+       * explain itself against the contract it was graded under, which is the "never renormalise" rule
+       * applied to reading rather than to writing.
+       */
+      const rubricMatch = RUBRIC_RE.exec(pathname);
+      if (rubricMatch && method === 'GET') {
+        if (!catalogueWired) fault(503, 'catalogue_unavailable');
+        const version = query.get('version');
+        if (version === null || !CONTENT_TOKEN_RE.test(version)) fault(422, 'invalid_version');
+        const rubric = await datastore.readRubric(owner, { rubricId: rubricMatch[1], version });
+        // Unknown id and unknown version are both 404: "no such contract" is not "a contract with no
+        // criteria", and the route must not answer the second when it means the first.
+        if (!contentIsServable(rubric)) fault(404, 'not_found');
+        return reply(200, rubric);
+      }
+    }
+    {
+      const guideMatch = GUIDE_RE.exec(pathname);
+      if (guideMatch && method === 'GET') {
+        if (!catalogueWired) fault(503, 'catalogue_unavailable');
+        const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+          ? 'approved' : 'approved+unreviewed';
+        const guide = await datastore.readGuide(owner, { guideId: guideMatch[1], serveReview });
+        // A guide that does not exist and a guide the deployment will not serve are BOTH 404, so the
+        // endpoint is not an oracle for what exists but is withheld.
+        if (!contentIsServable(guide)) fault(404, 'not_found');
+        return reply(200, guide);
+      }
+    }
+    {
+      /*
+       * PILOT-22 -- answer one objective item. Marking happens SERVER-SIDE inside a SECURITY DEFINER
+       * function, because this connection is the learner role and is NOT granted the answer key.
+       * The response is the single boolean the function returns; the expected answer never leaves it.
+       *
+       * The evidence row is APPEND-ONLY: answering again records a new row rather than rewriting the
+       * last, because this is the raw signal adaptive selection reads.
+       */
+      const answerMatch = OBJECTIVE_ANSWER_RE.exec(pathname);
+      if (answerMatch && method === 'POST') {
+        if (!practiceWired) fault(503, 'practice_unavailable');
+        onlyFields(body, ['itemId', 'answer', 'version', 'latencyMs']);
+        if (typeof body.itemId !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(body.itemId)) fault(422, 'invalid_item');
+        if (body.answer === undefined) fault(422, 'invalid_answer');
+        const version = body.version === undefined ? 'v1' : body.version;
+        if (typeof version !== 'string' || !/^v[0-9]{1,4}$/.test(version)) fault(422, 'invalid_version');
+        const latencyMs = body.latencyMs === undefined ? null : body.latencyMs;
+        if (latencyMs !== null && (!Number.isSafeInteger(latencyMs) || latencyMs < 0 || latencyMs > 3600000)) {
+          fault(422, 'invalid_latency');
+        }
+        return reply(201, await datastore.answerObjectiveItem(owner, {
+          setId: answerMatch[1], version, itemId: body.itemId, answer: body.answer, latencyMs,
+        }));
+      }
+    }
+    if (pathname === '/api/v1/practice/next' && method === 'GET') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      /*
+       * PILOT-22b -- what to practise next. RULES CHOOSE; AI DOES NOT CHOOSE (MASTER-PLAN section 14).
+       *
+       * The response carries the EVIDENCE for its own claim, so the client can tell the learner "LV,
+       * 2 of 5 correct" instead of handing over an item with no reason. A deterministic choice over
+       * recorded evidence is repeatable and explainable; a model call is neither, costs tokens on
+       * every request, and cannot be justified to the person it is deciding for.
+       */
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+        ? 'approved' : 'approved+unreviewed';
+      const next = await datastore.nextPractice(owner, { examId: exam, serveReview });
+      // Nothing servable is NOT an error: it means the catalogue is empty for this deployment, and the
+      // client shows its honest empty state rather than an error page.
+      if (!next) return reply(200, { reason: 'nothing_available', section: null, evidence: null, set: null });
+      return reply(200, next);
+    }
+    {
+      /*
+       * One objective set, WITH its payload. The list is an INDEX and carries no payload: fetching 15
+       * titles used to ship all fifteen full task texts to the browser. A learner opening a set gets
+       * that one set.
+       */
+      const setMatch = OBJECTIVE_SET_RE.exec(pathname);
+      if (setMatch && method === 'GET') {
+        if (!catalogueWired) fault(503, 'catalogue_unavailable');
+        const version = query.get('version') === null ? 'v1' : query.get('version');
+        if (typeof version !== 'string' || !/^v[0-9]{1,4}$/.test(version)) fault(422, 'invalid_version');
+        const serveReview = String(process.env.B1PREP_SERVE_REVIEW || 'approved+unreviewed').trim() === 'approved'
+          ? 'approved' : 'approved+unreviewed';
+        const set = await datastore.readObjectiveSet(owner, { setId: setMatch[1], version, serveReview });
+        if (!contentIsServable(set)) fault(404, 'not_found');
+        return reply(200, set);
+      }
+    }
+    if (pathname === '/api/v1/practice/progress' && method === 'GET') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      /*
+       * PILOT-22c -- what the learner has actually done, per section.
+       *
+       * COUNTS, NOT A SCORE. The supplied design's dashboard carries a calibrated estimate and a pass
+       * line; the product forbids both. This is the truthful substitute, and the dashboard renders it
+       * without inventing a number to fill the gauge.
+       */
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      return reply(200, await datastore.practiceProgress(owner, { examId: exam }));
+    }
+    if (pathname === '/api/v1/practice/mistakes' && method === 'GET') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      /*
+       * PILOT-22d -- the items whose MOST RECENT answer was wrong. No correct answer is returned: the
+       * key is not readable by this role, and a mistakes list that revealed it would hand over exactly
+       * what the practice loop withholds.
+       */
+      const exam = query.get('exam');
+      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      return reply(200, await datastore.listMistakes(owner, { examId: exam }));
+    }
+    if (pathname === '/api/v1/attempts' && method === 'GET') {
+      // Discovery is owner scoped and carries no letter text. A fresh device can reopen the
+      // exact submission, including pending and failed work, without a browser state blob.
+      if ([...query.keys()].some((key) => key !== 'open') || (query.has('open') && query.get('open') !== '1')) fault(422, 'invalid_query');
+      const indexMethod = query.get('open') === '1' ? 'listOpenAttempts' : 'listAttempts';
+      if (typeof datastore[indexMethod] !== 'function') fault(503, 'history_unavailable');
+      return reply(200, { attempts: await datastore[indexMethod](owner) });
+    }
+    if (pathname === '/api/v1/export' && method === 'GET') {
+      if (typeof datastore.exportData !== 'function' || !settingsWired) fault(503, 'export_unavailable');
+      return reply(200, {
+        format: 'hatoove-learner-export-v1', exported_at: new Date().toISOString(),
+        settings: await settings.read(owner), ...await datastore.exportData(owner),
+      });
+    }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
-      onlyFields(body, ['parentSubmissionId']);
+      onlyFields(body, ['parentSubmissionId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion']);
       const parent = body.parentSubmissionId === undefined ? null : requireUuid(body.parentSubmissionId, 'invalid_parent');
-      return reply(201, await datastore.create(owner, parent));
+      /*
+       * PILOT-05 — AN ATTEMPT IS BOUND TO THE TASK THE LEARNER OPENED.
+       *
+       * This route used to take no binding at all: every attempt was created against the one canonical
+       * writing task. So the six seeded prompts were unreachable as attempts, and a writing view could
+       * only have submitted against ONE task while showing another — a screen that looks right and a row
+       * that belongs to something else.
+       *
+       * ALL FOUR FIELDS OR NONE. A partial binding is a caller bug, not a request to guess the rest, and
+       * the datastore applies the serving policy and pins the rubric to the one the task declares (see
+       * `adapter.create`): the client selects from what the deployment serves, and cannot widen that or
+       * choose its own rubric.
+       */
+      const BINDING = { taskId: 'invalid_binding', taskVersion: 'invalid_binding', rubricId: 'invalid_binding', rubricVersion: 'invalid_binding' };
+      const given = Object.keys(BINDING).filter((field) => body[field] !== undefined);
+      let binding = null;
+      if (given.length) {
+        if (given.length !== Object.keys(BINDING).length) fault(422, 'invalid_binding');
+        for (const [field, code] of Object.entries(BINDING)) {
+          if (typeof body[field] !== 'string' || !CONTENT_TOKEN_RE.test(body[field])) fault(422, code);
+        }
+        binding = { taskId: body.taskId, taskVersion: body.taskVersion, rubricId: body.rubricId, rubricVersion: body.rubricVersion };
+      }
+      return reply(201, await datastore.create(owner, parent, binding || undefined));
     }
 
     let match = ATTEMPT_RE.exec(pathname);
@@ -237,7 +1045,21 @@ export function createOwnedApi({ datastore, sessions } = {}) {
       onlyFields(body, ['expectedRevision', 'eventId']);
       const expected = requireRevision(body.expectedRevision, 'invalid_submission');
       const eventId = requireUuid(body.eventId, 'invalid_submission');
-      return reply(202, await datastore.submit(owner, match[1].toLowerCase(), expected, eventId));
+      /*
+       * THE EXPLANATION LANGUAGE IS SNAPSHOTTED HERE, at submit time, and never read again for this
+       * submission. `settings.language` is the learner's CURRENT preference; if the worker read that later,
+       * the feedback a learner reads would depend on when they read it. An unwired or unset language is
+       * 'de' — every seeded prompt and the whole interface are German.
+       */
+      let language = 'de';
+      if (settingsWired) {
+        try {
+          const stored = await settings.read(owner);
+          const value = stored && stored.settings ? stored.settings.language : '';
+          if (EXPLANATION_LANGUAGES.includes(value)) language = value;
+        } catch { /* an unreadable preference must not block a submission; German is the honest default */ }
+      }
+      return reply(202, await datastore.submit(owner, match[1].toLowerCase(), expected, eventId, language));
     }
     match = RESULT_RE.exec(pathname);
     if (match && method === 'GET') return reply(200, await datastore.result(owner, match[1].toLowerCase()));
@@ -261,7 +1083,12 @@ export function createOwnedApi({ datastore, sessions } = {}) {
     try {
       const method = String(request && request.method || 'GET').toUpperCase();
       let pathname;
-      try { pathname = new URL(String(request.path), 'http://owned.invalid').pathname; } catch { fault(404, 'not_found'); }
+      let query;
+      try {
+        const url = new URL(String(request.path), 'http://owned.invalid');
+        pathname = url.pathname;
+        query = url.searchParams;
+      } catch { fault(404, 'not_found'); }
       if (!isOwnedPath(pathname)) fault(404, 'not_found');
       const mutation = method !== 'GET' && method !== 'HEAD';
       // Origin precedes routing (contract), so an unchecked mutation is 403 even
@@ -274,9 +1101,20 @@ export function createOwnedApi({ datastore, sessions } = {}) {
         if (!hasJsonContentType(headers)) fault(415, 'json_required');
         body = parseJsonObject(decodeBody(request.body));
       }
-      return await route(method, pathname, headers, body);
+      return await route(method, pathname, headers, body, query);
     } catch (error) {
-      if (error instanceof Fault) return errorReply(error.status, error.code);
+      if (error instanceof Fault) {
+        /*
+         * A THROTTLE REFUSAL NAMES A TIME. `Retry-After` is the difference between a limit and a maze: a
+         * client told only "too many requests" can do nothing but retry harder. The header is set here rather
+         * than in a route because this is the one place every refusal passes through.
+         */
+        const reply429 = errorReply(error.status, error.code);
+        if (error.status === 429 && error.retryAfterSeconds) {
+          reply429.headers['retry-after'] = String(error.retryAfterSeconds);
+        }
+        return reply429;
+      }
       // Unexpected failure: redacted. No message, SQL or provider text leaves.
       return errorReply(500, 'internal_error');
     }
@@ -308,5 +1146,11 @@ export function createOwnedApi({ datastore, sessions } = {}) {
     res.end(method === 'HEAD' ? undefined : response.body);
   }
 
-  return Object.freeze({ handle, handleNode, matches: isOwnedPath, configured });
+  return Object.freeze({ handle, handleNode, matches: isOwnedPath, configured,
+    /*
+     * WHETHER RATE LIMITING IS WIRED, exposed rather than assumed. The throttle fails OPEN — an installation
+     * without the port keeps serving, which is right for availability and must not be silent — so the startup
+     * summary reads this and says "AUTH THROTTLE OFF" out loud when it is.
+     */
+    throttled: throttleWired });
 }

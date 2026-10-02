@@ -1,82 +1,395 @@
-# Hatoove master plan — delivery tracker
+# Hatoove master plan — a working multi-exam preparation SaaS, local first
 
-**Owner:** coordinator (`COORD-TAKEOVER-20260930`, issue [#27](https://github.com/ronslink/hatoove/issues/27))
-**Last updated:** 2026-10-01 · **Base:** `origin/main` @ `3a8c26647a2dabd1a95aff393ca9be870381d01a`
-**Update cadence:** with `work/BOARD.md` and `IMPLEMENTATION_PLAN.md` after meaningful transitions.
-**Dispatch mechanics:** the per-worker setup, delivery and verification facts live in the coordinator handoff
-folder's `WORKSPACE-SETUP.md` (recorded 2026-10-01) so a handoff stops re-deriving them.
+**Integration reconciliation, 2 October 2026:** INTEGRATE-20261002-A combines completion head79a1659 with main4f76b94 through a normal merge. Main's only divergent change,61f7845, records historical #54/#56/#57 merges and the earlier multi-user transition. That history remains in Git and the board; the later pilot plan, Docker-only runtime, orange design and completed learner contracts govern current behavior. No retired single-user surface or older unimplemented-state claim is restored by this documentation merge.
 
-## Movement since the previous revision (same day)
+**Current delivery update, 2 October 2026:** [COMPLETE-20261002-A](work/implementation/COMPLETE-20261002-RESULT.md) and [PR #97](https://github.com/ronslink/hatoove/pull/97) implement and verify the previously missing saved-writing history/revision/export journeys, robust recovery, German account entry, readable guides, mobile navigation and sentence practice. The Docker preview is refreshed with its existing data volume preserved. The board and implementation plan carry matching states. Older absence claims below describe their inspected base, not today's candidate. PR integration/CI, qualified content approval, real devices, audio and live-model release gates remain distinct; no full product acceptance is claimed.
 
-Four more merges, all verified on a fresh worktree before merging and re-verified on `main` afterwards:
+**Regenerated:** 1 October 2026, after the workspace relocation to `D:\Hatoove` and Ron's direction change.
+**Base inspected:** `59b1929` (`codex/workspace-relocation`, pushed to `origin/codex/workspace-relocation`), working tree clean.
+**Governing product requirement:** [PILOT_BUILD_PLAN.md](PILOT_BUILD_PLAN.md). This document is its delivery order and progress record.
+**Supersedes:** `work/implementation/FUNCTIONAL-ROADMAP.md` — the writing-first minimum functional product. The removal is recorded in §10.
 
-| Merge | Slice | Why it mattered |
+---
+
+## 0. The direction in force
+
+Ron, 1 October 2026, verbatim:
+
+> "we also need to frame this as a saas project that allows students to prepare for different exams online b1 german will be one of the languages but there will be others probably next will be english tests that are recognized and standardized. The feature we are trying to introduce explanations in users language to make understanding concepts easier as our differentiator and perhaps speech synthesis"
+
+> "our goal is to have a saas working application locally"
+
+> "lets stick to the pilot plan and remove the other"
+
+> "we need to remove the local run version of the app completely as we are running the docker server based version only there are no two version of the app"
+
+Five consequences:
+
+1. **The pilot plan governs.** `PILOT_BUILD_PLAN.md` is the product requirement again, and the writing-first minimum functional product is withdrawn as a plan. This matters beyond bookkeeping: the MFP deferred objective practice, listening, a study plan and the full written mock to *after* its own end, and it narrowed the client to about seven screens. The pilot plan treats reading, language elements, listening and writing as one written-section product (`PILOT_BUILD_PLAN.md:21`).
+2. **The product is multi-exam, not a German app.** telc Deutsch B1 is the **first exam package**, not the product. The pilot plan already states the rule: *"Keep the exam package, exam language, instruction language and purchasing market independent"* (`:58`), and *"Similar proficiency levels do not make telc, DTZ, Goethe and IELTS interchangeable"* (`:35`).
+3. **First-language explanation is the differentiator**, and it is a core-offer requirement, not an upsell: *"Native-language instruction belongs in the core offer; it is not a premium surcharge"* (`:62`).
+4. **"Working locally" is the acceptance target** — a complete SaaS running on this machine, ahead of any hosting question.
+5. **There is ONE version of the application, and it is the Docker server.** The host/local run is removed entirely, not deprecated or kept as a fallback. This is the answer to the question the relocation PR left open, and it settles decision D11.
+
+**The D11 question is closed.** The relocation PR recorded it unresolved: *"Clarification is pending whether that means the complete local application, on-device AI or both"* (`handoff/ron-agent/WORKSPACE-RELOCATION-PR.md:11`). The answer arrived as the runtime direction in consequence 5 above: **the complete application, served by Docker Compose, with provider stubs** — and **no on-device AI**, which is not in scope. Built by DOCKER-ONLY-01; see §1 "Architecture: DECIDED".
+
+---
+
+## 1. The product
+
+An online service where a learner preparing for a standardised exam gets the exam's own tasks, server-marked, with every requirement, criterion and mistake explained **in the learner's own language**.
+
+Four axes stay independent (`PILOT_BUILD_PLAN.md:58`):
+
+| Axis | Meaning | First instance |
 |---|---|---|
-| `1b96af6` | **CI-GATES-01 (#56)** | Closes the recorded gap that **five checkers were ungated**: `revision`, `keymask`, `progress-equal`, `draft-session`, `owned-api` plus `server-origin`, `reset`, `owned-client` and the three fixture checkers are now gated on **ubuntu and windows**. The new `contracts` job uses `fetch-depth: 0` because three checkers materialise the pre-fix tree with `git show`. The author proved each gate bites by breaking eleven things one at a time in a scratch copy outside the repo |
-| `e5d29e3` | Coordination records (#55) | `MASTER-PLAN.md`, `work/BOARD.md`, `IMPLEMENTATION_PLAN.md` brought current |
-| `8d6dc44` | **WRITING-OUTCOMES-02 (#54)** | Workstream 4 landed: absent/failed/unavailable/malformed writing stays **explicitly unassessed**, successful feedback is provisional, and **no whole-exam pass/grade/readiness figure** is computed. Chosen over the competing #53 after a measured comparison (19/19 checker, 21/21 tests, self-contained browser proof 11/11, plus a dead restart-button fix); #53 closed as superseded with its branch retained |
-| `3a8c266` | **F-4 account-scoped progress (#57)** | Learner records are now account-scoped, the legacy unscoped blob is adopted **once** and stays recoverable, and a signed-out browser exposes no learner text. Its checker is **7/7 with real discrimination** (the four scope checks fail on the pre-fix tree while both controls pass), and the existing reset and revision-fence behaviour is unchanged |
+| Exam package | task types, item counts, timing, keys, weights, rubric, thresholds | telc Deutsch B1 written |
+| Exam language | the language the learner answers in | German |
+| Instruction language | the language explanations are written in | de/en/uk/ar/tr (`:62`) |
+| Purchasing market | currency, price, allowance, term | unvalidated (`:74`) |
 
-**The product chain is unblocked.** With #54 on `main`, `public/js/exam.js` is released and the next slice —
-**wiring the recoverable-draft service into the writing surface** — is dispatched; it was blocked for two rounds.
+The commercial hypothesis on record is a direct-to-learner, fixed-duration exam pass initially tested as an eight-week term (`:31`), with a regional price catalogue by market, exam package, pass duration and allowance (`:64`). **None of that is in the local milestone.**
 
-**Recorded limitations, not hidden:**
+### Architecture: DECIDED, and running
 
-- **F-4 has no production caller yet.** `index.html`/`app.js` were outside the slice's allowed paths, so the app
-  still runs in legacy unscoped mode until `A-01` wires sign-in. The isolation is proven by the checker, not yet
-  exercised by the product. It is also **not** an authentication boundary — the account id is client-supplied here.
-  Its checker is **not yet gated in CI**.
-- The **draft pointer store is device-local and not durable**; cross-device recovery needs a server-side task
-  field plus a list route and stays an open decision.
-- The `draft-session` checker still does **not** discriminate the module's own generation/account fence (the
-  reviewer's finding stands): correct in shipped code, **redundancy today, not a proven control**.
-- The WRITING-OUTCOMES-02 decision was taken **before** the independent remote verification finished. That
-  verification was not discarded — its verdict is collected and, if it finds a blocking defect, it is fixed in a
-  follow-up slice rather than left in place.
+**Docker-only execution (Ron, 1 October 2026):** the server stack is started with Docker Compose. The separate host Node setup and local installer are retired by DOCKER-ONLY-01. This does not delete existing database volumes or authorize deployment. See [DOCKER-ONLY-01.md](work/implementation/DOCKER-ONLY-01.md).
 
-This is the **single consolidated progress tracker** for the programme. Read it first, then go to the
-authoritative source for detail.
+**The API is the product and the whole stack runs in containers.** The client is thin: it holds no
+state, no provider key and no grading logic, and it submits a reference and receives a result.
 
-## Where the authoritative detail lives
+**There are no two versions of the application.** There is one runtime, it is the containerised
+server, and nothing starts a host process alongside it by accident (`npm start` delegates to
+Compose). This is a settled decision, not a transition state.
 
-| Question | Authoritative record |
+Four things are decided, built and verified rather than proposed:
+
+1. **One runtime, and it is Docker Compose** — no host launcher, no installer, no parallel local app.
+2. **The page surface is auth-gated.** Only `/signin`, `/assets/design/**`, `/api/auth/**` and
+   liveness are public; everything else needs a verified session. Before this, `data/seed.json`
+   served all 180 answer keys to anyone.
+3. **The supplied design is the driver and it is tracked** — byte-pinned in `public/assets/design/`
+   with its licences, and `/` serves the Hatoove shell built from it.
+4. **Interface German, explanations per learner** (§4 rule 6).
+
+### Architecture: PROPOSED, and awaiting a decision
+
+Neither of these is in force, and neither may be cited as settled. They are recorded so the options
+are visible, and each names the decision it waits on.
+
+- **The multi-user integration layer** — inference, speech, email, payments and object storage behind
+  one port each, owner-attributed, allowance-bounded and ledger-debited. The *principle* follows from
+  being multi-user rather than single-user and is not really optional; the *implementation and its
+  providers* are unbuilt and unauthorized. [INTEGRATIONS-01.md](work/implementation/INTEGRATIONS-01.md), **D5/D6/D8/D10**.
+- **The generated-content pool** — generate once into a shared, reviewable pool instead of per
+  learner, with explanations cached per `(item, language)`. The economics are compelling; the fill
+  policy, the target size and the reviewer are Ron's. [CONTENT-POOL-01.md](work/implementation/CONTENT-POOL-01.md), **D12/D13**.
+
+---
+
+## 2. The immediate objective: a working multi-exam SaaS application locally
+
+There are two local milestones, and the objective needs both. LM-1 makes the **product** work locally; LM-2 makes the **platform** work locally. A single-exam local app would satisfy neither the multi-exam framing nor the claim that a second exam is additive.
+
+**LM-1 — the product works locally.** On this machine, with PostgreSQL available, one documented sequence brings the product up — disposable database, migrations applied by the migration command only, the telc B1 written package seeded, API and worker running, provider/email/payment as stubs — and a learner can:
+
+> register with email and password → sign in → set exam date and explanation language → see the servable task list → answer reading and language-element items marked **on the server** → write and submit a response → leave → return **on a fresh browser profile** to the exact saved text and saved feedback **with a first-language explanation** → revise → see factual history → export → delete the account.
+
+**LM-2 — the platform works locally.** A second exam package (PILOT-11) completes the same journey through the same code, with **no change to application source** and **no migration of learner data**. That is what makes the result multi-exam rather than a German app, and §6 exists to keep this cheap: if the exam-scoping seams land *after* the client is written, LM-2 becomes a rewrite instead of a content pack.
+
+**Evidence standard for LM-1 and LM-2** (executed output, never a claim):
+
+1. `node tools/journey-api-check.mjs` reports **0 failed**, and every leg that is not yet implemented prints `PENDING <slice>` and **does not count as a pass** — the counter already behaves this way, which is why it is the programme's measure of "functional".
+2. A browser run of the same journey on a fresh profile, on desktop and a 390 px viewport, with the old client retired from `/`.
+   > **Progress, 2 October 2026 — PARTLY MET, and the part that is met is the part that was missing.**
+   > `node tools/app-browser-check.mjs` (56 legs, 56 passing) now executes a browser run of this journey on
+   > a disposable Compose stack, on a fresh profile, at **1440×900 and 390×844, in light and dark**, with
+   > screenshots. The old client's page IS retired from `/`: `/` serves the brand site and the learner
+   > application is `/app/`. **What is NOT yet in that run:** the writing half of the journey
+   > (write → submit → saved feedback → revise → export → delete) is not built in the client at all, so it
+   > cannot be in the browser evidence. The run is also headless Chromium on a desktop OS: it does not
+   > discharge the real-device gate. Both limits are asserted in the check's own output, not just here.
+   > The old client's remaining files (`public/js/**`, `public/styles.css`) are PILOT-17 and are still
+   > served-or-load-bearing; "retired from `/`" is true of the route, not yet of the tree.
+3. The bring-up sequence executed from a clean state, including a deliberate failure leg: missing configuration exits non-zero **before** `listen()`.
+4. **LM-2 only:** the second exam's legs run the same assertions against the same runtime, and a check proves the first exam's learner records are untouched by the second exam's presence — the pairing that fails if exam identity leaks into global keys (§6).
+
+Both are *functional* milestones on stubs. They close no human gate and establish no exam validity, model quality or production readiness.
+
+---
+
+## 3. What exists today, verified at `59b1929`
+
+The platform substrate is real, and it is why a local milestone is reachable at all.
+
+| Capability | Where | State |
+|---|---|---|
+| Owned auth: `scrypt:<salt>:<hash>` passwords, `timingSafeEqual`, server-side sessions, cookie | `server/owned-postgres/sessions.mjs:26-39,77-82` | Works. Cookie is `HttpOnly; SameSite=Lax` with **no `Secure`**; no rotation, expiry sweep, verification or recovery (`accounts.mjs:20-22`) |
+| Six restricted PostgreSQL roles, `NOINHERIT NOSUPERUSER NOBYPASSRLS`, connection limit 10 | `server/owned-postgres/provision.mjs:88,203` | Works |
+| `ENABLE`+`FORCE ROW LEVEL SECURITY` and owner policies on all seven owned tables | `server/migrations/0003-isolation.sql:25-76` | Works |
+| Migrations applied only by `server/migrate.mjs`, sha256 ledger, tamper refusal, runtime never migrates | `migrate.mjs:10-12,29-42`; `provision.mjs:216-222,267-305` | Works |
+| Worker: `FOR UPDATE SKIP LOCKED` claim with `lease_token`/`lease_until`, lease-fenced completion, expired-lease reclaim, one debit, `tries < 3` | `server/owned-postgres/worker.mjs:107-120,153-191,205-232` | Works. A real child-process worker was proven end to end (journey leg J7) |
+| Versioned, immutable, shared-content tables carrying rights/review status | `server/migrations/0006-content-and-catalogue.sql:2-37,86-103` | Exists — **writing-only and not exam-scoped** |
+| Journey harness as the functional counter | `tools/journey-api-check.mjs` | **5 passed, 5 pending, 1 failed** — J4 is a REAL defect, see below |
+| Offline regression baseline | `tools/check.js`, `writing-check.js`, `feedback-check.js` | 101 / 9 / 14 |
+| Table-class guard: an unclassified table fails | `tools/table-class-check.mjs` + `tools/lib/catalogue.mjs:20,23,30` | Works: 18 tables, 0 failures |
+
+**Why J4 fails, measured 2 October 2026 — it is the product, not the check.** The leg asks for the writing task list with `family=SA1`, the exam model's own writing part id (`public/js/blueprint.js:76-77`, listed in `SUBTEST_ORDER`). `GET /api/v1/tasks` validates `family` as `/^[a-z][a-z0-9_-]{0,31}$/` (`server/owned-api.mjs:405`) and refuses it; its sibling `GET /api/v1/objective-sets` requires exactly those UPPERCASE ids and refuses lowercase. Two routes, one query parameter, opposite conventions, neither matching the blueprint. PILOT-04 turned this leg from PENDING into FAIL when it implemented the route, and nobody saw it because the CI job SKIPS `journey-api-check` (the session-boundary step fails first). One convention is needed — the evidence favours the blueprint — and until it is chosen the counter cannot be green.
+
+**Content on hand:** 24 objective sets / 180 keyed slots / 6 writing prompts, each slot carrying an inline German `why`; **0 tracked audio files**, so the 9 listening sets are unservable (`docs/content/DISCOVERY.md:89`). No `data/*.json` file carries `rights_status` or `review_status` — governance exists only as database columns, and every seeded row is `unreviewed` / `unknown`.
+
+**What does not exist yet — each of these is on the path to LM-1 and LM-2:**
+
+| Missing | Consequence |
 |---|---|
-| Which packages exist and their acceptance criteria? | [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) — the 36 packages, milestones and gates |
-| What is running right now, on which slot and lease? | [`work/BOARD.md`](work/BOARD.md) — live slot table |
-| What is authorized next? | coordinator handoff `QUEUE.md` (12 ordered workstreams) |
-| What is the current coordination status? | coordinator handoff `CURRENT.md` |
-| Handoff folder (outside the repo; communication files only) | `<user-home>/.codex/hatoove-handoff/ron-agent/` |
-| Why is the product built this way? | [`PILOT_BUILD_PLAN.md`](PILOT_BUILD_PLAN.md) |
-| How do agents/hosts/handoffs work? | [`docs/AGENT_WORKFLOW.md`](docs/AGENT_WORKFLOW.md), [`docs/AGENT_RUNBOOK.md`](docs/AGENT_RUNBOOK.md) |
+| `server/runtime.mjs` — runtime composition. **PR #89 is unmerged** and its last commit is `ARCHIVED UNVERIFIED` | The server still builds its API through the fixture path |
+| ~~Family naming: the writing family is `writing` while objectives are `LV1`/`HV3`~~ **CLOSED 2 October 2026** | One parser (`parseFamily` in `owned-api.mjs`) now serves both catalogue routes: a **PART ID** (`LV1`–`LV3`, `SB1`–`SB2`, `HV1`–`HV3`, `SA1`) or a **KIND** (`writing`, `lv`, `sb`, `hv`), both case-significant, everything else `422 invalid_family`. No stored row was rewritten: `objective_set.family` really is the part id and `task_version.family` really is the kind, which is why the parser maps one vocabulary onto both. A part id **narrows to that part**, a kind **narrows to the group**. `journey-api-check` J4 — the only red leg in the only red CI job — now passes, and the red was *visible* because retiring `session-boundary-check` removed the step that used to mask it |
+| ~~Removal of local single-user mode; the legacy routes are still live when accounts/SaaS are off~~ **CLOSED 2 October 2026 (SPA-RETIRE 6)** | The legacy API is **deleted, not gated**: `/api/config` (GET/POST), `/api/ai` and `/api/ai/test` have no handler in `server.js`, and the provider client they used is gone with them, so no HTTP route in this file can reach the provider at all. The learner's exam date is `GET/PUT /api/v1/settings`, per account. Absence is asserted by `retired-surface-check` R8/R9, by an **authenticated 404** in `docker-stack-check`, and by `S-absent`/`S-recorded` in `api-spec-check` |
+| `GET /api/v1/tasks` | No learner can discover a servable task; the seeded catalogue is unreachable from a client |
+| A server-side objective marking route | Reading/language-element answers cannot be marked authoritatively |
+| Any audio asset model, and any audio file | Listening cannot be served at all |
+| `public/app/` | No new client; the old SPA is still the entry point |
+| `SETTINGS_LANGUAGES` is `Object.freeze([])` (`settings.mjs:41`) | Any ≤16-character string is accepted as an explanation language — the "supported enum" the design record assumes does not exist |
+| Email port, pricing/entitlements, checkout | Later, and gated |
 
-If this tracker and `IMPLEMENTATION_PLAN.md` disagree, **the plan wins** — this file is a summary and may lag.
+**Known landmines** — verified, and each could waste a slice:
 
-## Status legend
+1. **A CRLF checksum trap.** `server/migrations/MANIFEST.json` digests match **LF-normalised** bytes, but `provision.mjs:120-121` hashes **raw** bytes and every file in this checkout is CRLF. A checksum comparison against the manifest therefore differs for **all six** migrations. `MANIFEST.json` currently has no code reader at all. This is the defect class that once let a discrimination leg silently no-op.
+2. **`0004`'s owner policy is missing its `TO` clause** (`0004-account-settings.sql:14-17`), so unlike `0003`/`0005` it applies to `PUBLIC`.
+3. **The fixture worker has no lease fence** (`fixture.mjs:110-133`) while the real runner does. A lease leg run against the fixture proves nothing about the runner.
+4. **`verification` is touched by no code** (`0001:7`; comments only).
+5. **The fixture does not execute the real migration files.** It applies the two spike SQL files, then `0003` rendered, then generated SQL (`bootstrap.mjs:110-121`). A green fixture run is not evidence that `0001`–`0006` apply as written.
+6. **A mixed-case `OWNAPI_PG_SCHEMA` silently breaks every pool** (found by independent review; pre-existing, not introduced by a recent slice). `persistentRolePool` passes `-c search_path=<schema>,pg_catalog`, and the GUC parser folds a mixed-case name to lowercase, so the pool lands on `pg_catalog` and DDL fails with *permission denied for schema pg_catalog*. Lowercase works; the default `hatoove` is lowercase, which is the only reason this has not bitten.
 
-`planned` → `in progress` → `delivered` → `independently reviewed` → `green CI` → `merged` → `accepted`
+---
 
-**These are not synonyms.** A passing test count means *internal shape only*; it is not exam validity,
-security, accessibility or product acceptance. Delivered ≠ reviewed ≠ merged ≠ accepted. Human gates
-(exam/content/language/security/legal) are separate from all of the above.
+## 4. The differentiator: explanations in the learner's language
 
-## Programme objective
+This is the feature Ron named, and the pilot plan already constrains it correctly (`PILOT_BUILD_PLAN.md:52,58,60`): *"Native-language explanations support understanding; the task evidence remains in the exam language"*; *"generate translated explanations from the saved assessment rather than silently regrading an attempt"*; *"Distinguish assisted attempts from mock evidence when reporting readiness."*
 
-> **⚠ Target change (Ron, 2026-10-01).** The app was built as a **local, single-user** install; the programme is
-> moving to a **server serving multiple users**. Read `MULTI-USER-TRANSITION.md` in the coordinator handoff folder
-> **before planning anything**: it maps every open finding to that one assumption, lists which merged mitigations
-> **expire** when the loopback bind goes away, and names the next three slices. In short: the merged security work
-> hardened a single-user app; the **multi-user boundary — identity, tenancy and key custody — is still almost
-> entirely unbuilt**, and the pieces that exist (`owned-api`, `owned-postgres` with FORCE RLS, `owned-client`,
-> `draft-session`, account-scoped progress) have **no production caller**. PostgreSQL remains the owned-state
-> store; Redis is not adopted for owned state and is a candidate only for the job queue and rate-limit counters.
+**Rules that make it honest and affordable:**
 
-A dependable, mobile-capable **internal learner journey** in the existing `public/` app's visual style:
-account/exam/date/language setup → owned attempt/task identity and draft → submission with pending, failed or
-unassessed feedback → return, revision and second device → honest objective practice with fixed, reviewed
-audio. **Speaking/STT is outside the pilot.** Preserve the navy/orange Hatoove identity; no framework
-migration, no hosting change.
+1. **Explanations are derived from the saved assessment, never a second grading pass.** Reopening a result or switching language must not produce a new grade (`:58`).
+2. **The language is snapshotted on the job at submit.** Changing the setting later re-renders explanations from stored evidence; it never regrades.
+3. **Each explanation is versioned content keyed by (task/rubric version, criterion or item, language)** — not a per-request model call. This is the load-bearing design decision: it makes quality reviewable once per language instead of once per view, makes cost one-time instead of per-render, makes results deterministic, and lets speech synthesis reuse the same bytes.
+4. **Review status is per (item, language) and visible.** The ladder is `unreviewed` → natively reviewed, surfaced as a plain label; the MFP's `Übungsfeedback – keine telc-Bewertung` treatment generalises to a "not natively reviewed" label for any language. C-06 stays open until a native speaker signs a language.
+5. **A missing or failed explanation is not a grade.** A pending or failed assessment stays explicitly unassessed, with the learner's text preserved.
+6. **Exam material is never translated, and the interface stays German.** Only the explanation layer moves. The retired plan's "German chrome" invariant was superseded by the pilot plan's four-axis rule, which left the interface language open — but the decision has since been made **and built**: `public/app/` is German chrome (Heute, Üben, Fortschritt, Einstellungen), and the only per-learner language is the explanation setting. So of the four independent axes, three are settled here: exam package (telc B1 first), exam language (the exam's own), instruction language (German chrome, per-learner explanations). Only the purchasing market is still open.
 
-## Closed milestones (merged, with evidence)
+**Where it plugs in:** the worker already carries `task_version`/`rubric_version` on the job and stores `model_version`/`prompt_version`/`rubric_version` on the assessment (`worker.mjs:124,138-139,166-168`). The explanation entity is a sibling of `assessments`, not a rewrite of it.
+
+---
+
+## 5. Speech synthesis — the permitted roles, and the one that is forbidden
+
+The repository's rule, stated twice, and both are correct:
+
+- `IMPLEMENTATION_PLAN.md:227` — *"Reading a transcript or playing browser-generated speech is not a substitute for a listening assessment."*
+- `IMPLEMENTATION_PLAN.md:148` (gate C-04) — *"no browser-TTS substitution"*, for fixed versioned listening recordings.
+
+**That is an exam-fidelity rule, not a ban on synthesis.** A scored listening item must present native pronunciation, exam pacing and the published play counts (`PILOT_BUILD_PLAN.md:46`); synthetic speech cannot supply those, and pretending otherwise is precisely the dishonesty this programme refuses.
+
+| Use | Verdict |
+|---|---|
+| Reading an explanation, hint or feedback aloud | **Permitted** — accessibility for the differentiator itself |
+| Pronouncing an exam-language word, phrase or example | **Permitted**, as a study aid |
+| Guided-practice hints | **Permitted**, labelled as assistance |
+| Any scored listening item, diagnostic or mock listening section | **Forbidden** — needs fixed reviewed recordings and C-04 |
+| A "generated examiner voice" | **Out of budget** (`PILOT_BUILD_PLAN.md:72`) |
+
+**Implementation: synthesis is two different jobs, and they need different answers.** This record
+previously said "browser first" while `INTEGRATIONS-01.md` said "server-side". Both were right about
+a different job, and neither generalises to the other:
+
+| Job | Mechanism | Why |
+|---|---|---|
+| Reading a learner's **own on-screen text** aloud — an explanation being read, a word pronounced | **Browser synthesis**, with an honest "no voice for this language yet" state | Free, private, instant, never leaves the device. Its weaknesses — per-device inconsistency and absent uk/ar/tr voices — do not matter for a one-learner, one-view rendering |
+| Anything **pooled, reviewed, shared or scored** | **Server-side synthesis**, cached per `(text, language, voice)` | The bytes must be identical for every learner, reviewable once and reproducible. A browser voice cannot be reviewed, cannot be cached for anyone else, and varies by device |
+
+So **D8 is not "browser versus server"**. It is: which provider gives the *pooled* role its voice,
+and whether a server-side voice for uk/ar/tr is worth its per-play cost (P-03, a data processor) at
+all. The browser role needs no decision — it is the cheap default for on-screen text.
+
+`public/js/speech.js` already drives the Web Speech API (`:14,175-190`) with a German-only voice
+filter (`:23`) and a German-only picker (`ui.js:892-916`). Whatever is chosen, **there is never a
+silent fallback to German**: a learner who asked for Ukrainian and hears German has been told
+something false about their own product.
+
+---
+
+## 6. Exam packages: lock the seams now, build the second exam later
+
+**Do not build the second exam yet. Do make identity exam-scoped, so adding one is additive rather than a migration of learner data.**
+
+The codebase has **no exam entity at all** — a repo-wide search for `exam_id|examId|exam_slug|examSlug|exam_code` returns **0 matches**, and `learner_settings` carries only a free-text `exam_date` (`0004:4`). The concrete couplings:
+
+1. **Content/rubric/task primary keys are global.** `content_version_id`, `(task_id, version)` and `(rubric_id, version)` cannot hold two exams' `writing.formative@v1` (`0006:2-37`). The `family` column (`:5,15,25`) is unconstrained text that nothing reads as an exam key.
+2. **The blueprint is a module singleton** (`public/js/blueprint.js:15-105`): `TOTAL_POINTS`, `WRITTEN`, `ORAL`, `GROUPS`, `PARTS`, `SUBTEST_ORDER` and `NODE_WEIGHTS` are constants consumed directly by `engine.js:16` and `exam.js:22`. Part ids are **global and persisted** in progress keys, so `LV1` in two exams collides.
+3. **Scales are hardcoded to telc's**: pass `written ≥ 135 AND oral ≥ 45` (`engine.js:262-266`), grade bands 90/80/70/60 (`:270-276`), `objectiveMax = 180` (`mock-outcome.js:118`).
+4. **Client state is exam-branded**: `b1prep.state.v1`, `b1prep.scope.v1`, `X-B1Prep-Account` (`store.js:18,25,30`).
+5. **Static identity is not data**: `index.html:6,7,44`; `dashboard.js:94`.
+
+**Minimum additive change for PILOT-04:** an `exam_package` row with a stable id; `exam_id` + `level` + `exam_language` columns on `content_version`, `rubric_version` and `task_version`, with slugs prefixed by exam; the blueprint loaded per exam rather than imported as a singleton; and per-exam namespacing of persisted progress keys. The pilot plan's own target records already name `exam_packages`, `rubric_versions`, `content_versions`, `content_assets`, `products`, `market_prices`, `orders` and `entitlements` (`PILOT_BUILD_PLAN.md:172-177`) — that list plus an audio asset model is the target schema.
+
+**A rights and trademark constraint that is easy to get wrong.** Exam boards own their item banks and their marks. *"Use public or licensed material to understand the blueprint and create original reviewed practice; a public download is not blanket permission to republish a question bank"* (`:54`). Naming a third-party exam and teaching its format is normal; reproducing its items is not. Every exam package needs its own `rights_status` provenance from the first row, and an `unknown` default must keep serving nothing.
+
+### The next seam, before it is needed: purchases are per exam
+
+Ron, 2 October 2026: *"right now we have only one exam prep however in future we will have several users can purchase so we need to keep this in mind in our design"* and *"and data model"*.
+
+Measured today, against the running schema [EXECUTED]:
+
+| | |
+|---|---|
+| `entitlements` | **`PRIMARY KEY (owner_id)`** — one GLOBAL allowance per learner |
+| `exam_id` present on | `content_version`, `exam_package`, `rubric_version`, `task_version` |
+| `exam_id` absent from | `entitlements`, `submissions`, `assessments`, `usage_ledger` — the entire purchase and debit path |
+| the debit lock | `SELECT * FROM entitlements WHERE owner_id = $1 FOR UPDATE` (`adapter.mjs:188,233,252`) — **exam-agnostic** |
+
+**That is a design defect waiting for the second exam.** Buying exam A would grant an allowance spendable on exam B, and `used` could not be attributed to what was actually bought. It is invisible with one exam and wrong with two — which is exactly the class of seam this section exists to lock.
+
+**The change, when it is made:** key `entitlements` by `(owner_id, exam_id, term)` rather than by `owner_id`; attribute usage through `submissions → task_version.exam_id`; and record what was sold as a product per (exam package, market, term) — the pilot plan already names `products`, `market_prices`, `orders` and `entitlements` (`PILOT_BUILD_PLAN.md:172-177`).
+
+**Why it is NOT done now:** it changes the row the one-debit transaction locks, and one-debit is a proven property (journey leg J7). That needs its own slice with its own discrimination leg, not a hurried edit. It is **PILOT-20**.
+---
+
+## 7. Delivery order
+
+Ordered to **LM-1 and LM-2**. The state column records what was true at `812408c` (the docker-only head) unless a row says otherwise; the stack has moved on since `59b1929`, and the delivered rows below were each re-verified when their PR was opened.
+
+| Slice | Purpose | State | Depends on |
+|---|---|---|---|
+| **PILOT-01** | Historical host bring-up; launcher and checker retired by DOCKER-ONLY-01 | **Retired** — earlier 10/10 is historical only | — |
+| **PILOT-01b / DOCKER-ONLY-01** | Docker Compose is the supported server launcher: db → migrate → app + worker; persistent volume; explicit runtime build context | **Under review** — see DOCKER-ONLY-01 for executed evidence | — |
+| **PILOT-01c** | **The page surface is auth-gated.** Before it, `GET /` served the app and `GET /data/seed.json` served **180 answer keys** to anyone. Public is only `/signin`, `/assets/design/**`, `/api/auth/**` and liveness | **Delivered** — 8/8 legs, not reviewed, not merged | PILOT-01b |
+| **PILOT-02** | **Runtime composition**: the API is built from `server/runtime.mjs` over restricted pools only, and sign-up provisions through the `SECURITY DEFINER` `provision_learner`. **Independently re-verified 1 October 2026 [EXECUTED]:** the checker is 6/6 at `74fb158` and 4/6 red at the base, so it discriminates; `provision_learner` is SECURITY DEFINER, migration-owned, `search_path`-pinned, EXECUTE to the auth role only; and the base runtime was **observed in `pg_stat_activity` connecting as the `provisioner` pool**. **No merge conflicts.** Two gaps remain: the checker gates **nothing** — no CI job invokes it — and no `MFP-02a.md` record exists, because step 4 never happened. **Before any merge, run the migration**: the head moves to `0008` and the live install's ledger is at `0006`, so sign-up answers 500 `schema_behind` until it runs | **Verified, not merged** — CI gate missing. **Also outstanding from the slice:** the `provisioner` role, its `INSERT` grant on `entitlements` and its two policies **still exist** — the runtime no longer uses them, but removing them is a later slice's job | PILOT-01 |
+| **PILOT-03** | **One runtime**: either removed flag present → refuse to start; required config missing → exit non-zero before `listen()`; `createServer()` defaults to not-ready; `/api/config`, `/api/progress`, `/api/ai`, `/api/ai/test` answer **404**; bind host from config | **PARTLY DONE, 2 October 2026** — `retired-surface-check` R8/R9 + `docker-stack-check` assert the four paths are ABSENT (401 anonymously, 404 with a session); the remaining parts are unverified | PILOT-02 |
+| **PILOT-04** | **Exam-scoped identity** (§6) + `GET /api/v1/tasks?exam=&family=` honouring a serving policy (`approved` fail-closed, or `approved+unreviewed`). Every seeded row is `unreviewed`, so serving under `approved` must return an **empty** list — a check that always returned six rows would be wrong | Planned | PILOT-03 |
+| **PILOT-05** | **Objective package served and marked on the server**: LV1–3 and SB1–2 (15 sets, 180 keyed slots) as task versions; keys in a table granted to **no** runtime role; marking through `SECURITY DEFINER`; answer and `why` revealed only after submission | Planned | PILOT-04 |
+**AUDIT FINDING, 2 October 2026 [EXECUTED]:** `task_version` holds **6 rows, family=`writing` only** (`SELECT family, count(*)` -> `writing = 6`). `data/seed.json` holds the eight objective families (LV1-3, SB1-2, HV1-3) as 24 sets with 180 keys, and **none of them is in the database**: `0006` seeds only the writing prompts. So `/api/v1/tasks` can list writing today and CANNOT list reading or language elements until that corpus is migrated into `task_version` (or regenerated). This decides whether `data/**` and the old SPA fetches of it can be deleted at all.
+| **PILOT-06** | **Writing → worker → validated feedback**: task binding, server-owned prompt and rubric, structured-output validation, one debit, honest unassessed failure. The substrate already works (leg J7); it needs the catalogue binding and **R11** resolved before the result schema is fixed | Partly built | PILOT-04 |
+| **PILOT-07** | **First-language explanations** (§4): the explanation entity, generation from the saved assessment, versioning by (task/rubric, criterion, language), review labels, and the snapshot rule | Planned | PILOT-06 |
+| **PILOT-08a** | **The design foundation**: the supplied design curated into the repository — `public/assets/design/` (tokens, fonts, logos, OFL notices) and `work/design-reference/` for reading. `.gitattributes` keeps the pinned bytes intact through a clone. See [PILOT-08A.md](work/implementation/PILOT-08A.md) | **Delivered** — 6/6 legs, not reviewed, not merged | PILOT-01c |
+| **PILOT-08** | **The new client** under `public/app/`. **Shell delivered** — it replaces Certa at `/`, on the curated design system, with settings and honest empty states. Still missing: task list, objective runner, writing, result with explanation, history, each blocked on PILOT-04/05/06/07. See [PILOT-08.md](work/implementation/PILOT-08.md) | **Partly delivered** — 5/5 legs, not reviewed, not merged | PILOT-05, 06, 07 |
+| **PILOT-09** | **Speech synthesis** for explanations and pronunciation (§5), with a real per-language availability state | Planned | PILOT-07, 08 |
+| **PILOT-10** | **Listening package**: audio asset model with rights/checksum/duration, plus fixed reviewed recordings, play counts and failure recovery. **Gated on C-04**; TTS is not a substitute | Blocked | C-04 |
+| **PILOT-11** | **Second exam package** — a small English reading pack. Delivers **LM-2**: the same journey through the same code, with no source change and no learner-data migration | Planned | PILOT-05, 08 |
+| **PILOT-12** | **Account lifecycle**: export, hard delete, retention, late-job-after-deletion. Largely built (`DELETE /api/v1/account`; `ACCOUNT_DELETION_STEPS` at `adapter.mjs:228-240`) | Mostly built | PILOT-08 |
+| **PILOT-13** | **LM-1 + LM-2 acceptance run**: two learners, fresh browser, stale writes, duplicate clicks, account switching, slow/failed/malformed provider output, and a late job after deletion | Planned | PILOT-12 |
+| **PILOT-14** | **Canonical, platform-independent migration digests.** `applyMigrations` hashes the working tree's **raw bytes**, so the ledger is a function of the checkout's line endings: a database migrated from a Windows checkout refuses to advance from a Linux clone with *"refusing to apply a migration that is not the one that was reviewed"* — a false tamper alarm. A fix must accept the legacy digest for rows already applied, never rewrite them | **Defect, measured, not fixed** | — |
+| **PILOT-15** | **The content pool** ([CONTENT-POOL-01.md](work/implementation/CONTENT-POOL-01.md)): `pool_spec` + the deficit loop, batched generation off the request path, dedup by `content_sha256`, explanations cached per `(item_version, language)`, and generation provenance. Provable against a **stub generator** under R10 | **Proposal — needs two decisions** | PILOT-04 |
+| **PILOT-16** | **The multi-user integration layer** ([INTEGRATIONS-01.md](work/implementation/INTEGRATIONS-01.md)): inference, speech, email, payments and object storage behind one port each, owner-attributed, allowance-bounded, ledger-debited, stubbed for development. The data ports already prove the pattern; this is the external half | **Proposal — needs R5/R10 and owner authorization** | PILOT-06 |
+| **PILOT-17** | **Retire the old SPA and its consumers**: delete `public/index.html`, `public/js/**`, the `data/**` route they use and the checks that exist only to serve them, each with a `RETIRED-CHECKS.md` row, once the shell covers the journey. **This is what the earlier text called "PILOT-11a" — that label collided with PILOT-11, the second exam, which is a different slice entirely** | Planned | PILOT-08 complete |
+| **PILOT-19** | **The content approval process.** A review workflow that moves `review_status` from `unreviewed` to `approved` with a named reviewer, a recorded decision and an audit trail — plus the serving policy that consumes it. Ron, 2 October 2026: *"the approval process needs to be an item."* Until it exists, the default policy serves unreviewed content and tells the learner so; **nothing may be relabelled approved in bulk before this exists**, because a pool makes one bad item reach every learner at once | **New — Ron's instruction** | D2, D1 |
+| **PILOT-20** | **Purchases and per-exam entitlements.** Key `entitlements` by `(owner_id, exam_id, term)` instead of `owner_id`, attribute usage through `submissions → task_version.exam_id`, and add the product/price record a purchase needs. **Today one global allowance per learner means buying exam A grants credits spendable on exam B** — invisible with one exam, wrong with two. Touches the one-debit transaction, so it needs its own discrimination leg | **New — Ron''s direction** | D14 |
+| **PILOT-18** | **Email/password account lifecycle, on the database.** The four auth tables **already exist and are in use** [EXECUTED]: migration `0001` creates `user` (7 cols), `account` (13), `session` (8) and `verification` (6), all deliberately without RLS; registration writes the `user` row plus `account(providerId='credential', password='scrypt:…')`, and login joins them and retrieves the account. **What is missing is the lifecycle around them:** `verification` is created and **written by nothing** (no email verification, no password-reset token), `session` has no rotation, expiry sweep or revocation on password change, and there are no throttle counters. Build those tables/columns and the flows that use them — registration stays email + password with **no invite** (Ron, 1 October 2026). **Measured 1 October 2026 [EXECUTED]:** 12 rapid registrations **all accepted** (no throttle); 12 rapid failed sign-ins **all 401, no 429** (no lockout); `/api/auth/forget-password`, `/reset-password`, `/verify-email` and `/send-verification-email` all **404**; and `verification` holds **0** rows. Those four numbers are the acceptance legs | **Gap — the tables exist, the lifecycle does not** | D5 (R4), D6 (R5) |
+
+**Not yet, and each has a named blocker:** commercial checkout and market pricing (P-01/P-02/P-03 plus owner authorization); any hosting, DNS, TLS, email provider or payment configuration; live model calls (R10); on-device or embedded AI; speaking and STT (outside the pilot); a full written mock (needs reviewed content, timing and playback rules for every included section); institutional or teacher features.
+
+**Next integration order.** Review DOCKER-ONLY-01 and the current shell/auth findings, then re-verify PILOT-02 runtime composition. Complete PILOT-03 before dependent PILOT-04 implementation; exam contract design may proceed independently. The retired host launcher is no longer an acceptance path.
+
+**Conventions carried forward from the retired plan, because they earned their place:** one writer per shared file; a check that fails on the base before the fix; push after every step and commit the checker **early even while it is failing**; a check that never completes is not evidence; when a check fails, suspect the check first; record the discrimination leg and not just the pass; set a record's status to what is true.
+
+---
+
+## 8. Decisions needed
+
+| # | Decision | Blocks | Default if unanswered |
+|---|---|---|---|
+| **D1** | ~~**Content rights (R1):** who wrote the 6 writing prompts and the 15 Lesen/Sprachbausteine sets, and does Hatoove own them?~~ **ANSWERED, 2 October 2026: the content is AI-generated.** The per-source record — what the tree establishes, and what it cannot — is [CONTENT-RIGHTS-D1.md](work/implementation/CONTENT-RIGHTS-D1.md). Note the count: `data/seed.json` holds **24** sets (15 servable + 9 held back for missing audio), not 15. The recorded basis becomes `rights_status='generated'`, which shrinks the gate to hand-authored material rather than opening it | The `generated` migration + serving-policy value; production serving is no longer blocked by this | **Generated**; hand-authored material still fails closed |
+| **D2** | ~~may learners see content labelled `unreviewed`?~~ **ANSWERED FOR NOW, 2 October 2026:** *"we will assume for now all are approved until we have built the approval process that needs to be an item."* So the **default serving policy is `approved+unreviewed`** and unreviewed content IS served, with every listing carrying its true `review_status`. The rows are **not** relabelled `approved`: that would record a qualified review that has not happened, and `AGENTS.md` forbids marking content approved. The approval process is **PILOT-19** | PILOT-19 | Serve unreviewed, labelled |
+| **D3** | **Is objective practice in the first product (R3)?** The pilot plan says yes and puts reading and language elements in the written offer; the retired plan made them conditional | PILOT-05's priority | In scope, per the pilot plan |
+| **D4** | **Rubric contract (R11):** a separately versioned three-criterion contract (Aufgabenbewältigung, Kommunikative Gestaltung, Formale Richtigkeit — bands 5/3/1/0, ×3) or honestly labelled provisional four-criterion internal feedback (15/10/12/8)? Never renormalise between them | PILOT-06's result schema | Blocks the final schema |
+| **D5** | **Auth library (R4):** adopt Better Auth (measured workable; ends "the root app is dependency-free" **for the server scope**) or harden the existing session port? The spike recommends adopting; the current port has no rotation, expiry sweep, revocation or recovery | Production auth. Not needed for LM-1 | Hardening only || **D6** | **Email provider (R5)** for reset and verification, or operator-assisted resets for the pilot? It is a data processor for P-03 | Recovery flows | Build against the stub |
+| **D7** | ~~Invite-only, how many invites, how many feedbacks each?~~ **ANSWERED, 1 October 2026: there is no invite.** *"we are not using an invite rather email password logic"*. Registration is email + password. What remains open is the abuse control an open service needs — throttling and email verification (PILOT-18) — and the per-account feedback allowance | PILOT-18 | Email/password; throttle and allowance sized when the pilot is defined |
+| **D8** | **Speech-synthesis scope (§5):** browser-only with honest unavailability, or server-side TTS (paid processor, per-play cost)? | PILOT-09 | Browser-first |
+| **D9** | **First English exam target**, and confirmation that we teach its *format* with original items rather than reproducing any board's bank | PILOT-11 | telc first only |
+| **D10** | **Live model calls (R10):** when may the worker call a live provider for real learners? | Real feedback quality | Stubs only |
+| **D10b** | ~~Where does the model provider key live?~~ **ANSWERED, 2 October 2026:** *"we will use the .env file or variables on vercel to hold the api key"* — the key is **operator configuration**: `.env` for the local Docker runtime, the platform's environment variables in a deployment. It is never settable or readable from a browser, no route exposes it, and no route writes it. Two consequences worth recording before anyone plans a deployment: **(a)** the file-writing config path (`POST /api/config` → `saveEnv`) cannot work where the filesystem is ephemeral, which is a second reason the retired file store and that path must not come back; **(b)** the current supported runtime is Docker Compose with a **long-running worker and PostgreSQL**, neither of which a serverless platform provides, so a Vercel deployment of the *learner-facing* site is not the same shape as this stack. No deployment is authorized by this answer | Nothing in the pilot; a future deployment target | `.env` locally, platform variables in deployment |
+| **D11** | ~~"Working local model": the complete local application with stubs, or also on-device AI?~~ **ANSWERED, 1 October 2026.** The answer arrived as a runtime direction rather than a label: **the Docker server is the only version of the application** — the host/local run is removed entirely — and on-device AI is not in scope. Recorded in §1 "Architecture: DECIDED", built by DOCKER-ONLY-01, and verified at 10/10 | — | **Resolved** |
+| **D12** | **Content-pool fill policy** ([CONTENT-POOL-01](work/implementation/CONTENT-POOL-01.md) §7): batch-to-target with starvation jumping the queue, or fill-on-demand? | PILOT-15 | Batch-to-target |
+| **D13** | **Pool target size, and who reviews a batch.** Pooling means a bad item reaches every learner at once, so this is the gate that matters — distinct from D2, which is whether the pilot may see `unreviewed` content | PILOT-15, and the review policy in D2 | Unset — blocks filling |
+| **D14** | **What is actually sold:** a per-exam pass with a term, a bundle of exams, or an allowance? And is it priced per market? This decides the shape of `products`/`market_prices`/`orders` and the key of `entitlements` | PILOT-20, and any checkout | Per-exam pass with a term; pilot stays invite-free with a configured allowance |
+
+D14 and the remaining rows above were **answered by Ron on 2 October 2026**; the answers, each with what it
+unblocks and the work it creates, are recorded in
+[DECISIONS-ANSWERED-20261002.md](work/implementation/DECISIONS-ANSWERED-20261002.md) — read that rather than
+this table's "recommendation" column, which is now historical. In one line each: **D5** harden the existing
+port (done, 6 legs); **D6** operator-assisted reset with honest pilot wording (token path done, UI pending);
+**D8** browser voice, listening waits for commissioned (AI) recordings; **D9** telc B1 only, original items,
+telc English B1 as the second candidate; **D10** no live calls until cost cap + human comparison + privacy/DPA
+review; **D12** batch refill below threshold with a budget cap; **D13** a licensed B1 examiner/DaF teacher will
+be engaged (name to follow), pool sizes as recommended, filling waits for D10; **D14** per-exam prep with a
+term, priced per market, pilot free with a configured allowance; **R15** grades only, no total; **E-01** the
+reviewer above; tab bar **five plus "Mehr"**; landing page **German**; the single-user file handlers are to be
+**deleted**; sentence building comes from the **recovered** `satzbau.js` (as a server check) and
+`generators.js` (drill banks as content).
+
+---
+
+## 9. Release gates still open
+
+Content rights and qualified exam/native-language review, security/privacy/legal review, real iPhone/Android keyboard/touch/recovery evidence, operations and explicit production authorization. Audio-device evidence becomes relevant when listening enters scope (PILOT-10). **No sample design, green CI run or passing stubbed journey approves any of these gates.**
+
+---
+
+## 10. Supersession record
+
+`work/implementation/FUNCTIONAL-ROADMAP.md` — the writing-first minimum functional product — was **removed** in this change at Ron's instruction. It is fully recoverable:
+
+```
+git show 626c126:work/implementation/FUNCTIONAL-ROADMAP.md
+```
+
+**Removed:** the MFP-00…MFP-14 slice order, and with it the deferral of objective practice, listening, the study plan and the broader client to "after MFP-12".
+
+**Kept, because it is evidence for code still in the tree rather than a plan:**
+
+- `work/implementation/MFP-*.md` — the per-slice records: what was built, its counters, its limits.
+- `work/implementation/RETIRED-CHECKS.md` — the retirement ledger.
+- `work/implementation/MFP-DESIGN-DECISIONS.md` — the design/state acceptance matrix, R11/R13–R16, the font-coverage and RTL findings, and the 22 verified design hashes. Its findings remain valid; its slice IDs no longer order the work.
+- `tools/journey-api-check.mjs`, `table-class-check.mjs`, `migrate-check.mjs`, `worker-wire-check.mjs` — the checks, which measure the product rather than the plan.
+
+**Governing references corrected in this change:** `AGENTS.md`, `PILOT_BUILD_PLAN.md`, `IMPLEMENTATION_PLAN.md`, `docs/AGENT_WORKFLOW.md`, `work/implementation/MFP-DESIGN-DECISIONS.md` and `work/implementation/DESIGN-WIRE-01.md`. Two factually stale lines in `PILOT_BUILD_PLAN.md` were corrected in the same pass: the OneDrive development-checkout path (`:80`) and the claim that the repository has no commits (`:90`).
+
+**Deliberately left alone:** historical records that cite the removed file — slice records, the auth spike, tool comments. They record what governed at the time, and rewriting them would falsify the history.
+
+---
+
+## 11. Boundaries that do not move
+
+No deployment, DNS, live payments, live email (verification and recovery stay stubbed), OAuth, new production access or live AI. **Synthetic data and provider stubs only.** `D:\B1_Prep` remains a live install: only its `design` folder may be **read**, and nothing in that tree may be modified. No live data migration and **no data deletion**; existing learner records are preserved; obsolete objects go by **forward** migrations after their consumers are mapped. Human gates **E-01, C-04, C-06, P-03/X-01** and real-device evidence stay open. Issue #63 is **not** a production-security approval. A 390 px emulated viewport is not a phone.
+
+Additional rules this plan makes load-bearing, because the new direction needs them:
+
+- **An exam's items are not ours to copy.** Blueprint and format, yes; another board's question bank, no.
+- **Similar levels are not interchangeable exams.** One exam's tasks, timing and rubric never stand in for another's.
+- **Four internal criteria are never relabelled as telc's three**, and no score is ever renormalised between them.
+- **Synthetic speech never substitutes for a listening assessment** (§5).
+- **No pass prediction, readiness score or whole-exam claim** while any included section is unassessed.
+
+---
+
+## 12. Coordination and evidence
+
+The appointed coordinator owns live dispatch, integration order and CURRENT updates. Preserve the global active-agent slot cap and single-writer boundaries; this plan creates no new worker allocation and renews no lease. Each dispatched slice still needs one owner, an execution ID, an exact base, allowed paths, acceptance evidence, a checkpoint and an expiry. `Planned`, `delivered`, `reviewed`, `CI green`, `integrated`, `merged to main` and `accepted` remain distinct states. [#63](https://github.com/ronslink/hatoove/issues/63) is the SaaS audit **issue**, not a pull request. Integration continues through pull requests; never force-push `main` or rewrite another worker's branch.
+
+---
+
+## 13. Limits of this document
+
+- **Nothing in this plan was executed against PostgreSQL or a browser while it was written.** The substrate claims in §3 rest on the migration SQL, the modules and the checkers as read, plus counters recorded by the previous session. They remain a reading until PILOT-01 and PILOT-02 re-run them.
+- **`59b1929` contains no `node_modules`** at any level and no `server/runtime.mjs`; the tree cannot yet be run as it stands.
+- **PR #89 (`74fb158`) is `ARCHIVED UNVERIFIED`.** Four files were rescued by hand from an ended run and **no check has ever been run against that state**. Treat every claim in it as unverified.
+- **No effort estimates are given, deliberately.** The retired plan's "15–17 engineer-days" was calibrated on a narrower product than the pilot plan describes, and re-using it would be false precision.
+- **The relocation is not fully verified either.** It reports 10,311 copied files size/hash-verified, 22 design hashes preserved and seven archive refs, with **no application, browser or device tests** run for it. `.qa/migration/20261001/` is recovery evidence and must stay out of commits.
+- **One stale record was found and not fixed:** `docs/exam/LEGACY-GAP-MAP.md:80-82` cites defects G1/G2 at `exam.js:1484` and `:1497-1498`, which the current tree no longer contains. It should be closed or re-anchored.
+- **The folder name is fixed.** The canonical workspace is `D:\Hatoove`, matching the website. The 1 October relocation created `D:\Hatoover` (the correct spelling plus a trailing `r`) because an earlier clone of this repository held the right path; that clone was deleted and the workspace renamed on the same day. `D:\Hatoover` no longer exists, and only untracked historical handoff records still carry the old spelling.
+
+---
+
+## Appendix — historical merged-slice evidence (retained)
+
+This table records earlier integration history. It does not restore superseded requirements, close a whole package or certify the current candidate. It is carried forward verbatim from the previous master plan because it is the record of what was actually merged.
 
 | Slice | Merge | Evidence |
 |---|---|---|
@@ -101,65 +414,68 @@ migration, no hosting change.
 | **DRAFT-SESSION-01 draft service** | **#51 `c8bf97a`** | 4 files added, **0 deletions**, `exam.js` byte-identical; checker **17/17**, tests **21/21**; **independent review: accept-with-notes, no blocking defect** |
 | **OWNAPI-02 PostgreSQL adapter + RLS evidence** | **#52 `5a63429`** | own package scope (`pg` 8.23.1) so the root app stays dependency-free; coordinator ran the proof on real PostgreSQL — **6/6** isolation tests and **24/24** the same suite on the pg backend; **discrimination proven by mutation** (granting the learner role `BYPASSRLS` makes it fail with "leaked a cross-owner row") |
 
-## Workstream tracker (12 items from the coordinator handoff)
+---
 
-| # | Workstream | State | Evidence / blocker | Next action |
-|---|---|---|---|---|
-| 1 | **Takeover and reconcile live work** | **merged** | `41b5efb` (PR #29) | — |
-| 2 | **Finish USER04 acceptance; integrate source/fixture stack** | **merged** | Integration stack `82ae9c2`; the hand-refusal (#33) is retained as the rejection record | Independent review of the accepted stack's known guard limits (`rationale`/top-level/family gaps) is documented, not closed |
-| 3 | **Accept and integrate Hermes owned API client** | **merged** | `de4ecb6` (31/31) and the owned API `2974359` (24/24) | — |
-| 4 | **Truthful mock outcomes** | **MERGED** `8d6dc44` (#54) | Chosen over the competing #53 (`72994ad`) after a measured comparison: 19/19 checker, 21/21 tests, self-contained browser proof **11/11** on this host, plus a dead restart-button fix #53 lacks. Both candidates carried pre-fix discrimination (15 defect checks fail on the pre-fix tree, 4 controls pass). #53 closed as superseded, branch retained. Comparison recorded on `origin/codex/wo02-impl-compare` | Independent remote verification was still in flight when the decision was needed; **its verdict is collected and any blocking defect is fixed in a follow-up slice** |
-| 5 | **Account-scoped draft state** | **MERGED** `c8bf97a` (#51) | `public/js/draft-session.js`; IDs only, keyed by account+task, never learner text; reviewer found one **non-blocking** discriminator gap (the module's own generation fence is redundancy today, not an independently proven control) | Being wired into the app now — see 6 |
-| 6 | **Connect writing UI to durable attempts/drafts** | **IN FLIGHT** — `wire-draft-01-claude-20261001-a` | **Unblocked**: `exam.js` was released by the coordinator under Ron's delegation now that #54 owns the file, and the draft-recovery question was decided in favour of the caller-side ID store (IDs only, server still authorises every read) | Delivered as `codex/wire-draft-01`; must keep the #54 honest-outcome behaviour intact and prove reload recovery in a real headless browser |
-| 7 | **Account/session entry flow + browser-to-server fixture** | **planned** | The owned client and owned API are merged, but **nothing in `public/**` calls them** — and F-4's account scoping has **no production caller** for the same reason: `index.html`/`app.js` are untouched | Next product slice after 6; synthetic loopback server, ephemeral secrets |
-| 8 | **Durable submission/result/retry/revision UI** | **planned** | Server contract already proves idempotency, lease fencing, one debit | Serialise behind 6 and 7; provider stubs |
-| 9 | **Server-side objective marking** | **planned** | Fixtures prepared (36 cases); **no authoritative marking implemented** | Bounded slice after 6; keep private keys out of learner payloads |
-| 10 | **Fixed-audio delivery + content provenance** | **planned** | Discovery reports **0 tracked fixed audio**; rights unknown | Asset manifest/schema + local delivery fixture with synthetic/licensed audio only |
-| 11 | **Independently verify the internal learner journey** | **blocked on 6–8** | — | Fresh synthetic checkout, isolated ports; real-device evidence stays **pending**, never passing-by-emulation |
-| 12 | **Close plan gaps; prepare next bounded batch** | **ongoing** | Baseline `101 / 9 / 14` plus checkers 16 · 9 · 8 · 31 · 24 · 12 · 10 · 17 · 19 · 7 re-measured on `3a8c266` | **CI gating is DONE** (#56). Running: F-5 deletion scope (Claude), the draft wiring (Claude). Next after those: gate F-4's new checker in CI, then `A-01` sign-in wiring so the account-scoped store and the owned client actually have a production caller |
+## 14. The wider library, and adaptive learning on a database
 
-## Open review and integration queue
+Ron, 2 October 2026: *"apart from mock exams there is adaptive learning, exercises, words and other aspects of the library, sentence building — these are features related to actual features that were offered in the b1_prep previous version that we still need to incorporate including the seed data needed in the database to serve the content. The adaptive learning requires interaction with ai and an active monitoring of user performance since we are not using flat files but a database now we need to find a way to achieve this."*
 
-| PR | Content | State | Action |
+### The inventory as measured
+
+| Corpus | Size | Shape | In the database? |
 |---|---|---|---|
-| #54 | WRITING-OUTCOMES-02 implementation B @ `793f3c6` | open, draft | **Awaiting Hermes's independent verdict and adjudication**; the author must not review it |
-| #53 | WRITING-OUTCOMES-02 implementation A @ `72994ad` | open, draft | Close as superseded if the reviewer confirms B |
-| #33 | Hand-rebuilt integration stack @ `7f1ffd7` | open, draft | **Do not merge.** Retained as the record of the rejection; review is #34 |
+| `seed.json` | 93 KB | LV1-3, SB1-2, HV1-3: 24 sets, 180 answers | **YES — migration `0010`** |
+| `vocab.json` | 80 KB | `words` | no |
+| `noun-lexicon.json` | 98 KB | `nouns` | no |
+| `grammar-guide.json` | 64 KB | `topics` | no |
+| `core-phrases.json` | 55 KB | `tiers` | no |
+| `core-grammar.json` | 54 KB | `tiers` | no |
+| `speaking-guide.json` | 52 KB | `parts` | no |
+| `writing-guide.json` | 35 KB | `sections`, `phrases`, `examples`, `checklist` | no |
+| `gender-rules.json` | 27 KB | `rules`, `exceptions`, `doubleGender` | no |
+| `cases-guide.json` | 17 KB | `tables`, `triggers`, `examples` | no |
 
-## Human and device gates (open — no agent may close these)
+**About 483 KB of authored content is currently served to nobody**: it is not in the database, and the `/data/**` route it used to travel by is retired. Every one of these needs its own table. They do **not** share a shape, and flattening them into one "content" table would be the same mistake as flattening the objective families into one multiple-choice row — it would destroy the authored structure.
 
-- **Educational/exam fidelity** (E-01): requires qualified expert signoff; the source register is unreviewed.
-- **Content and audio rights**: public availability is *not* permission to copy. Audio review (C-04) unfulfilled.
-- **Native-language explanations** (C-06): none reviewed.
-- **Writing feedback**: provisional/formative. Never calibrated readiness, never a whole-exam pass — the oral
-  part is unassessed, so no overall result may be computed.
-- **Real devices**: iPhone Safari and Android Chrome keyboard/audio/tab-discard/process-kill evidence is
-  **pending**. Viewport emulation cannot close it.
-- **Security/privacy/legal** (X-01, P-03): open.
+### Adaptive learning: why the flat-file version cannot be ported, and what replaces it
 
-## Boundaries in force
+The previous version was adaptive **in the browser, over files**: it read `progress.json` beside the app plus the content JSON, and chose what to show next inside the page. Three of its assumptions are now false: there is no file, there is no single user, and the browser is not trusted with the decision.
 
-No production publication, deployment, DNS, live payments, new production access, invitations or live AI
-evaluations. Provider stubs and synthetic progress only. Browser checks only on a source-only disposable
-checkout with isolated ports and **no `.env`**. No learner records, credentials, raw provider logs, browser
-profiles, machine config, bundles or agent memory in commits. Source guard + `git diff --cached --check`
-before each push, staged names inspected. Baseline `101 + 9 + 14` is historical until rerun — report actual
-counts. No hosting or framework migration.
+**What stays the same:** adaptivity is a *selection* problem over recorded evidence.
 
-## Concurrency
+**What replaces it — the loop, with the parts that must be server-side marked:**
 
-**Ron authorised all four workers (Hermes, OpenClaw, Clawdbot, Claude) plus the coordinator on 2026-09-30**, which
-supersedes the earlier "four including the coordinator" reading. A reviewer occupies the reviewer role; it does
-not add a fifth worker. No recursive spawning. **A reviewer must not be the author of the slice under review.**
+1. **Evidence is recorded per item, per learner, in the database.** A new table, roughly
+   `item_evidence(owner_id, exam_id, set_id, item_id, family, skill, correct, answered_at, latency_ms)`.
+   This is the raw signal and it is the thing the flat file was standing in for. **It must be server-side**:
+   a decision made from browser state cannot see the learner's history on another device, and cannot be
+   audited or corrected.
+2. **Mastery is DERIVED, not stored.** Per-skill accuracy is an aggregate over `item_evidence`
+   (`GROUP BY skill`). For the pilot scale this is computed on read, which means it can never be stale
+   and never disagrees with the evidence. A materialised `skill_state` is a later optimisation and would
+   need an invalidation story; today it would only add a way to be wrong.
+3. **Selection is a ROUTE, and it is deterministic.** `GET /api/v1/practice/next` reads the derived
+   accuracy, picks the weakest skill with headroom, and returns the next unserved set from the
+   catalogue. **Rules choose; AI does not choose.** AI selection is unrepeatable, unauditable and costs
+   tokens per request, and a learner cannot be told *why* they were given an item.
+4. **AI is used where it is actually needed:** explanations in the learner's own language, and
+   evaluating free writing. Both are **queued through the worker** — never in the request path —
+   costed, and cached per `(item_version, language)` so the same explanation is not paid for twice
+   (`CONTENT-POOL-01`).
+5. **"Active monitoring" is a job over recorded evidence, not a per-request call.** The worker already
+   owns leases, one debit, idempotency and retry; a monitoring job that reads evidence and writes an
+   insight reuses all of it. It produces a **claim with its evidence attached** ("Perfekt auxiliaries:
+   4 of 5 missed"), never a bare verdict, and never a pass prediction.
 
-## Verification gaps recorded, not closed
+**The one thing this design deliberately does not do** is let a model decide what a learner studies.
+That is the difference between an adaptive product and an unpredictable one, and it is also what makes
+the choice explainable to the learner and cheap enough to run for every account.
 
-1. **Five checkers were ungated by CI** (`revision`, `keymask`, `progress-equal`, `draft-session`, `owned-api`)
-   because `.github/**` had never been in a worker's allowed paths. `ci-gates-01-claude-20261001-a` is fixing it.
-2. **`reset-check.mjs --legacy-root` with no value silently compares the candidate against itself** and reports a
-   false negative. Never wire it into CI without a real path.
-3. **The `draft-session` checker does not discriminate the module's own generation/account fence** — deleting the
-   guard still yields 17/17 (verified by independent mutation). Correct in shipped code; **redundancy today, not a
-   proven control.**
-4. **`owned-api-pg-check` is now gated in CI** and was executed locally on real PostgreSQL; the mutation proving
-   it fails under `BYPASSRLS` was run by the coordinator, not by an independent reviewer.
+### Slices this creates
+
+| | Slice | Note |
+|---|---|---|
+| **PILOT-21** | Library corpora into the database | vocab, noun lexicon, guides, sentence building. Generated seeds, one table per shape, on the `0010` pattern |
+| **PILOT-22** | `item_evidence` + `GET /api/v1/practice/next` | Deterministic adaptive selection over recorded performance |
+| **PILOT-23** | AI monitoring job | Evidence → insight, queued through the worker, with its evidence attached |
+

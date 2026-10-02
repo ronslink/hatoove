@@ -1,0 +1,30 @@
+# Runtime build allowlist. Git ignore rules do not constrain the Docker build context.
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!server.js
+!server/
+!server/**
+!public/
+!public/**
+
+# Never include host dependencies, private state or credentials, even below a runtime directory.
+**/node_modules
+**/.git
+**/.env
+**/.env.*
+**/*.log
+**/progress.json*
+**/progress-*.json*
+**/.progress-*
+**/sync-home.json
+**/.openclaw
+**/.openai
+**/.hermes
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.db
+**/*.sqlite*

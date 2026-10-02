@@ -18,11 +18,12 @@
  *     know about it.
  *   * The same scan runs over every string value of the parsed JSON with field paths, so a
  *     leak in a nested field is reported with its location.
- *   * `configured` is asserted true at scan time - so a pass cannot be vacuous because no
- *     key was loaded - and false after the key is removed, so the flag is not hard-coded.
- *   * The field set of the payload is asserted to be exactly {configured, model, baseUrl,
- *     examDate}, which is how "do not invent a new exposure to replace the old one" is
- *     enforced against a future field.
+ *   * the synthetic key is asserted loaded into the server process at scan time - so a pass
+ *     cannot be vacuous because no key was loaded - and the read routes are asserted to
+ *     carry no key-derived field both with and without the key.
+ *   * The field set of the payload is asserted to be exactly {examDate} for /api/config and
+ *     {node, ok} for /api/health, which is how "do not invent a new exposure to replace the
+ *     old one" is enforced against a future field.
  *   * `detector-flags-the-legacy-mask` exercises the detector itself: it must flag the
  *     exact string the old `maskKey` returned, and must stay silent on the new payload.
  *   * `runKeyMaskChecks({ serverPath })` re-runs the whole probe against another server.js
@@ -74,27 +75,35 @@ export const PREFIX_COMMIT = '8a71f718ee534851a98d19eece07dab933b56479';
 
 export const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Fields publicConfig() is allowed to return. No key material, no per-key fingerprint. */
-export const ALLOWED_CONFIG_FIELDS = ['baseUrl', 'configured', 'examDate', 'model'];
-export const ALLOWED_HEALTH_FIELDS = ['baseUrl', 'configured', 'examDate', 'model', 'node', 'ok'];
+/**
+ * Fields the read routes may return after PROVIDER-CONFIG-01 (D1). D1 removed `configured`,
+ * `model` and `baseUrl`: a presence flag and the operator's provider setup are not learner
+ * information. `/api/config` now carries only the learner's own `examDate`, and
+ * `/api/health` is a bare liveness payload.
+ */
+export const ALLOWED_CONFIG_FIELDS = ['examDate'];
+export const ALLOWED_HEALTH_FIELDS = ['node', 'ok'];
 
 /** The checks that must FAIL on a source that still discloses key characters. */
 export const LEAK_CHECKS = [
-  'health-body-has-no-key-run',
-  'health-json-values-have-no-key-run',
-  'config-body-has-no-key-run',
-  'config-json-values-have-no-key-run',
-  'config-post-body-has-no-key-run',
+  // The legs that CAN fail on the pre-fix source. get-api-ready, get- and get-signin are absent
+  // from it (it 404s those routes), so they cannot discriminate and are deliberately NOT listed here —
+  // listing them would make the reporter demand a failure that is impossible by construction.
+  'no-key-run-in-get-api-health',
+  'legacy-routes-refuse-an-anonymous-caller',
+  'no-key-run-in-get-api-config',
+  'no-key-run-in-post-api-config',
+  'the-surface-stays-live-and-silent-without-a-key',
 ];
 
 /** Names the acceptance criteria require; the test file asserts each one ran and passed. */
 export const REQUIRED_CHECKS = [
   'probe-key-is-synthetic-not-credential-shaped',
   'throwaway-env-file-outside-repository',
-  'configured-true-with-key',
-  'status-still-shows-configured-and-model',
+  'key-loaded-into-the-server-process',
+  'status-reports-no-key-derived-field',
   ...LEAK_CHECKS,
-  'configured-false-without-key',
+  'legacy-routes-refuse-an-anonymous-caller',
   'detector-flags-the-legacy-mask',
   'repository-env-untouched',
 ];
@@ -269,7 +278,19 @@ export async function startProbeServer({ root = DEFAULT_ROOT, serverPath = null,
         body: JSON.stringify(payload),
       }),
     close: async () => {
+      /*
+       * `closeAllConnections` before `close`, after the retarget (SPA-RETIRE 5).
+       *
+       * The probe now sends BODIES to routes that refuse them early with 401 (`POST /api/ai`,
+       * `POST /api/config`) and reads an 18 KB front-door page. Closing the listener while such a socket
+       * is still tearing down makes libuv abort on Windows with
+       * `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` — a fail-fast, so the probe printed
+       * "15 check(s) passed" and then exited with 0xC0000409, which is a blue step in CI. Destroying the
+       * connections first, and yielding a tick, makes the teardown deterministic instead of racing.
+       */
+      server.closeAllConnections?.();
       await new Promise((resolve) => server.close(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
@@ -289,9 +310,20 @@ export function materializePreFixServer(targetDir, { commit = PREFIX_COMMIT, roo
   if (!/function maskKey\(/.test(blob)) {
     throw new Error(`${commit}:server.js does not contain the pre-fix maskKey; refusing to use it as a pre-fix source`);
   }
-  // server.js imports ./public/js/progress-merge.js relative to its own directory.
+  /*
+   * The pre-fix server imports `./public/js/progress-merge.js` relative to its own directory, and that
+   * import belongs to the PRE-FIX TREE — the current server no longer has it, because PILOT-17a deleted
+   * the file store. So the module is taken from the SAME COMMIT as the blob rather than copied from the
+   * working tree: a retired module must not have to survive on disk for a historical comparison to stay
+   * honest, and this check must not be the reason the SPA cannot be removed.
+   */
   fs.mkdirSync(path.join(targetDir, 'public/js'), { recursive: true });
-  fs.copyFileSync(path.join(path.resolve(root), 'public/js/progress-merge.js'), path.join(targetDir, 'public/js/progress-merge.js'));
+  const moduleBlob = execFileSync('git', ['-C', path.resolve(root), 'show', `${commit}:public/js/progress-merge.js`], {
+    encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  fs.writeFileSync(path.join(targetDir, 'public/js/progress-merge.js'), moduleBlob, 'utf8');
   const file = path.join(targetDir, 'server.js');
   fs.writeFileSync(file, blob, 'utf8');
   return { file, source: `git blob ${commit}:server.js`, preFix: true };
@@ -309,14 +341,14 @@ export function judgeDiscrimination(report) {
   const byName = new Map(report.results.map((result) => [result.name, result]));
   const missing = LEAK_CHECKS.filter((name) => !byName.has(name));
   const failedLeakChecks = LEAK_CHECKS.filter((name) => byName.has(name) && !byName.get(name).ok);
-  const liveKey = byName.get('configured-true-with-key');
+  const liveKey = byName.get('key-loaded-into-the-server-process');
   const keyWasLive = Boolean(liveKey && liveKey.ok);
   const ok = missing.length === 0 && failedLeakChecks.length > 0 && keyWasLive;
   const message = ok
     ? `${report.label} fails ${failedLeakChecks.length}/${LEAK_CHECKS.length} leak check(s) while the key is live: ${failedLeakChecks.join(', ')}`
     : `${report.label} did NOT discriminate: failed leak checks = ${failedLeakChecks.join(', ') || 'none'}` +
       `${missing.length ? `; missing checks = ${missing.join(', ')}` : ''}` +
-      `; configured-true-with-key = ${liveKey ? (liveKey.ok ? 'passed' : `failed (${liveKey.detail})`) : 'did not run'}`;
+      `; key-loaded-into-the-server-process = ${liveKey ? (liveKey.ok ? 'passed' : `failed (${liveKey.detail})`) : 'did not run'}`;
   return { ok, failedLeakChecks, keyWasLive, message };
 }
 
@@ -324,9 +356,9 @@ export function judgeDiscrimination(report) {
 
 function leakScanText(res, route) {
   if (res.status !== 200) throw new Error(`${route}: expected HTTP 200, got ${res.status} (${res.text.slice(0, 120)})`);
-  if (res.json?.configured !== true) {
-    throw new Error(`${route}: configured must be true so the scan is not vacuous, got ${JSON.stringify(res.json?.configured)}`);
-  }
+  // The scan is only meaningful while the synthetic key is live. The route no longer reports
+  // whether a key exists (D1.2), so prove liveness at the source rather than from the body.
+  assertEqual(process.env.DEEPSEEK_API_KEY, SYNTHETIC_KEY, `${route}: the synthetic key must be loaded, or the scan is vacuous`);
   const runs = findKeyRuns(res.text);
   if (runs.length) {
     throw new Error(`${route}: disclosed ${runs.length} run(s) of >=${KEY_RUN_LENGTH} key characters: ${runs.map((r) => JSON.stringify(r)).join(', ')}`);
@@ -386,62 +418,101 @@ export async function runKeyMaskChecks({ root = DEFAULT_ROOT, serverPath = null,
       return `${ctx.envPath} (throwaway)`;
     });
 
-    /* Take the two read-route responses once, with the key live. */
+    /*
+     * THE SURFACE SCANNED — retargeted 2 October 2026 (SPA-RETIRE 5).
+     *
+     * This probe used to read `GET /api/config` and post to it, because that route answered an anonymous
+     * caller with the machine-global config. The auth wrap now refuses it with 401 before any handler, so
+     * five of the twelve legs had been failing — and CI never showed it, because this step sits behind a
+     * failure in the same job. The PROPERTY is unchanged and now scanned where it can be observed:
+     * **every response an anonymous caller can obtain** — liveness, the front door, the sign-in page, the
+     * static assets, and the refusals themselves — must contain no character run of the key. The
+     * authenticated surface (`/api/v1/*`) needs a database; `docker-stack-check` scans the same way there.
+     */
     const health = await ctx.get('/api/health');
-    const config = await ctx.get('/api/config');
+    const ready = await ctx.get('/api/ready');
+    const home = await ctx.get('/');
+    const signin = await ctx.get('/signin');
+    const configGet = await ctx.get('/api/config');
+    const configPost = await ctx.postConfig({ examDate: POSTED_EXAM_DATE });
+    /*
+     * `/api/ai` is deliberately NOT probed here. On the CURRENT tree it is a harmless 401, but the same
+     * probe runs against the PRE-FIX server in the discrimination leg — and there an accepted request
+     * would start a real outbound provider call. This programme forbids live AI, synthetic key or not,
+     * and a before/after probe is not a reason to make an exception. The AI route is covered where it is
+     * safe to call it: `docker-stack-check` against the configured runtime.
+     */
+    const ANONYMOUS_SURFACE = [
+      ['GET /api/health', health],
+      ['GET /api/ready', ready],
+      ['GET /', home],
+      ['GET /signin', signin],
+      ['GET /api/config', configGet],
+      ['POST /api/config', configPost],
+    ];
 
-    /* 3. The key really is loaded - otherwise every leak check below would be vacuous. */
-    await record('configured-true-with-key', () => {
+    /*
+     * 3. The key really is loaded — the ANCHOR the discrimination reporter needs, so it must hold on a
+     * source that leaks as well as on this one. It therefore asserts only what is true of both: the
+     * throwaway env file and the process hold the key, and liveness answers. The refusal of the legacy
+     * routes is a SEPARATE leg below, because the pre-fix server DOES answer them — and that difference
+     * is exactly what makes the probe discriminating.
+     */
+    await record('key-loaded-into-the-server-process', () => {
       assertEqual(envValue(ctx.readEnv(), 'DEEPSEEK_API_KEY'), SYNTHETIC_KEY, 'throwaway env file holds the synthetic key');
       assertEqual(process.env.DEEPSEEK_API_KEY, SYNTHETIC_KEY, 'server process holds the synthetic key');
       assertEqual(process.env.B1PREP_ENV_FILE, ctx.envPath, 'server reads the throwaway env file');
-      for (const [route, res] of [['/api/health', health], ['/api/config', config]]) {
-        assertEqual(res.status, 200, `${route} status`);
-        assertEqual(res.json?.configured, true, `${route} configured`);
+      assertEqual(health.status, 200, '/api/health status');
+      return `synthetic key loaded into the server process from ${path.basename(ctx.envPath)}`;
+    });
+
+    /* 3b. And no anonymous caller can reach the surfaces that used to expose it. */
+    await record('legacy-routes-refuse-an-anonymous-caller', () => {
+      for (const [label, res] of [['GET /api/config', configGet], ['POST /api/config', configPost]]) {
+        assertTrue(res.status >= 400, `${label} must be refused for an anonymous caller, got ${res.status}`);
       }
-      return `configured=true on both routes with the key loaded from ${path.basename(ctx.envPath)}`;
+      return `the legacy config route is refused (${configGet.status}/${configPost.status})`;
     });
 
-    /* 4. The learner-visible status stays meaningful: configured + model, exact field set. */
-    await record('status-still-shows-configured-and-model', () => {
-      assertListEqual(Object.keys(config.json || {}).sort(), ALLOWED_CONFIG_FIELDS, '/api/config field set');
+    /* 4. The reachable payload carries only liveness state: no key-derived field at all. */
+    await record('status-reports-no-key-derived-field', () => {
       assertListEqual(Object.keys(health.json || {}).sort(), ALLOWED_HEALTH_FIELDS, '/api/health field set');
-      assertEqual(config.json?.model, SYNTHETIC_MODEL, '/api/config model');
-      assertEqual(health.json?.model, SYNTHETIC_MODEL, '/api/health model');
-      assertEqual(config.json?.examDate, EXAM_DATE, '/api/config examDate');
-      assertEqual(config.json?.configured, true, '/api/config configured');
-      return `configured + model (${config.json?.model}) + examDate, fields exactly [${ALLOWED_CONFIG_FIELDS.join(', ')}]`;
+      for (const [label, res] of ANONYMOUS_SURFACE) {
+        for (const field of ['configured', 'model', 'baseUrl', 'keyMasked', 'apiKey']) {
+          assertTrue(!Object.hasOwn(res.json || {}, field), `${label} must not report ${field}`);
+        }
+      }
+      return `/api/health = [${ALLOWED_HEALTH_FIELDS.join(', ')}]; no reachable payload names a provider field`;
     });
 
-    /* 5-8. The read routes must carry no character run of the key. */
-    await record('health-body-has-no-key-run', () => leakScanText(health, 'GET /api/health'));
-    await record('health-json-values-have-no-key-run', () => leakScanJson(health, 'GET /api/health'));
-    await record('config-body-has-no-key-run', () => leakScanText(config, 'GET /api/config'));
-    await record('config-json-values-have-no-key-run', () => leakScanJson(config, 'GET /api/config'));
+    /*
+     * 5-8. Every reachable response must carry no character run of the key — scanned as TEXT always, and
+     * as JSON values where the response is JSON. `leakScanText`/`leakScanJson` insist on a 200 with a
+     * JSON body, which is right for a read route and wrong for the refusals and HTML pages this surface
+     * now contains: a 401 body and a served page are exactly the responses that must be scanned too.
+     */
+    const scanAny = (label, res) => {
+      const runs = findKeyRuns(res.text);
+      assertTrue(runs.length === 0, `${label} disclosed key characters: ${runs.join(', ')}`);
+      if (!res.json) return `${res.status}, ${res.text.length} bytes scanned against ${keyRuns().length} key runs, 0 hit; not JSON`;
+      const inJson = findKeyRunsInJson(res.json);
+      assertTrue(inJson.length === 0, `${label} disclosed key characters in JSON: ${inJson.map(([fieldPath]) => fieldPath).join(', ')}`);
+      return `${res.status}, ${res.text.length} bytes scanned against ${keyRuns().length} key runs, 0 hit; ${Object.keys(res.json).length} JSON field(s)`;
+    };
+    for (const [label, res] of ANONYMOUS_SURFACE) {
+      await record(`no-key-run-in-${label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`, () => scanAny(label, res));
+    }
 
-    /* 9. The write path replies with the same object, so it is scanned too. */
-    await record('config-post-body-has-no-key-run', async () => {
-      const res = await ctx.postConfig({ examDate: POSTED_EXAM_DATE });
-      const detail = leakScanText(res, 'POST /api/config');
-      assertEqual(envValue(ctx.readEnv(), 'EXAM_DATE'), POSTED_EXAM_DATE, 'the save landed in the throwaway env file');
-      assertTrue(Array.isArray(res.json?.saved) && res.json.saved.includes('EXAM_DATE'), 'the reply still reports what was saved');
-      return `${detail}; save landed in the throwaway file, not the checkout`;
-    });
-
-    /* 10. Without a key the flag must flip - and the status must stay usable offline. */
-    await record('configured-false-without-key', async () => {
+    /* 10. Without a key the reachable surface behaves identically and still leaks nothing. */
+    await record('the-surface-stays-live-and-silent-without-a-key', async () => {
       delete process.env.DEEPSEEK_API_KEY;
       const offlineHealth = await ctx.get('/api/health');
+      assertEqual(offlineHealth.status, 200, '/api/health without a key');
+      assertListEqual(Object.keys(offlineHealth.json || {}).sort(), ALLOWED_HEALTH_FIELDS, '/api/health field set without a key');
+      const detail = scanAny('GET /api/health (no key)', offlineHealth);
       const offlineConfig = await ctx.get('/api/config');
-      for (const [route, res] of [['/api/health', offlineHealth], ['/api/config', offlineConfig]]) {
-        assertEqual(res.status, 200, `${route} status without a key`);
-        assertEqual(res.json?.configured, false, `${route} configured without a key`);
-        // Still a usable status display: the model has to survive an offline start.
-        assertTrue(typeof res.json?.model === 'string' && res.json.model.length > 0, `${route} must still report the model offline`);
-        const runs = findKeyRuns(res.text);
-        assertTrue(runs.length === 0, `${route} disclosed key characters without a key: ${runs.join(', ')}`);
-      }
-      return 'configured=false on both routes, model still reported, no key characters';
+      assertTrue(offlineConfig.status >= 400, `GET /api/config without a key must stay refused, got ${offlineConfig.status}`);
+      return `no key configured: /api/health still 200 with no key characters; /api/config still ${offlineConfig.status}`;
     });
 
     /* 11. The detector is not vacuous: it must catch the old shape, and only that shape. */

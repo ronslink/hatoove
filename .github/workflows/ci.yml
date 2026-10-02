@@ -1,8 +1,27 @@
 name: Offline checks
+#
+# VALIDATE THIS FILE BEFORE PUSHING IT. Nothing in this repository parses YAML — `repository-check.mjs` is
+# deliberately dependency-free, and adding a parser to the root package would break the `"dependencies": {}`
+# property this project keeps on purpose. The consequence was measured on 2 October 2026: the new `rendered`
+# job contained `- name: The real stack: migrations, ...`, and an UNQUOTED COLON-SPACE inside a plain scalar
+# made the whole workflow INVALID YAML. Every job would have failed to start, and READING the file did not show
+# it — the error was visible only to a parser:
+#
+#   docker run --rm -i mikefarah/yq:4 -o=json '.jobs | keys' - < .github/workflows/ci.yml
+#
+# (That is what found it: L219.C29 "mapping values are not allowed in this context". Two step names were
+# reformatted to avoid the colon. `repository-check.mjs` now asserts that every `node tools/….mjs` a workflow
+# names is a TRACKED file, which catches the other half of this class — a step that outlives its script.)
 on:
   pull_request:
   push:
     branches: [main]
+  # The rendered gate (below) is the only job that needs a browser and Docker, so it runs on a schedule
+  # rather than on every push: 25 minutes of runner time per push would be paid by every unrelated change,
+  # and a slow required check is a check people learn to ignore.
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -18,17 +37,43 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
       - name: Check tracked source and excluded data
         run: node tools/repository-check.mjs
-      - name: Legacy offline baseline
-        run: node tools/check.js
-      - name: Writing regression checks
-        run: node tools/writing-check.js
-      - name: Feedback regression checks
-        run: node tools/feedback-check.js
+      # THE WORKFLOW-SHAPE CHECK CAN FAIL, and each of its rules has a mutation that proves it. This runs
+      # beside the table-class mutations for the same reason: a structural check whose failure modes are not
+      # demonstrated is decoration, and this one already had a version that reported nothing at all because it
+      # called `fs` in a file that imports no `fs`, with a `catch` that swallowed the ReferenceError.
+      - name: The workflow-shape check detects every mutation it claims to
+        run: node --test tools/workflow-shape.test.mjs
+      # DESIGN-LANGUAGE.md: no raw colour or font family in a rule, the required tokens present,
+      # the dark override present, the mobile breakpoints and reduced motion honoured, every view
+      # registered through the shell, and the language setting NOT reaching the interface. This gate
+      # WAS red on a false count - the original regex matched the rules that already said var(--serif)
+      # plus the @font-face descriptors, which cannot use var() at all; the true count was zero. It is
+      # green now and the check fails on a genuinely raw family, verified by reintroducing one.
+      - name: Design language consistency
+        run: node tools/design-check.mjs
+      # Not PostgreSQL-backed, so they belong on both OSes with the rest of the offline set.
+      # THE NEGATIVE CHECK FOR THE RETIRED FILE STORE. `progress-scope-check` used to sit here and is
+      # gone with the route it drove (see work/implementation/RETIRED-CHECKS.md); this is its
+      # replacement vehicle: no `/api/progress` handler, no refusal code, no progress file opened, no
+      # server-side import of the merge module, and no path to it in the shipped client. The
+      # client-side half of that property — no learner state in web storage — is a leg of
+      # tools/app-browser-check.mjs, which needs Docker and a browser and is not a runner gate.
+      - name: The retired single-user store cannot come back
+        run: node tools/retired-surface-check.mjs
+      # "The provider is operator-only and invisible" USED to run here
+      # (tools/provider-config-check.mjs). That check drove `/api/config` anonymously, which the auth
+      # wrap now refuses with 401 before any handler — so it had been red since that wrap landed, and
+      # CI never showed it because the step behind a failing one is skipped. Its property moved to
+      # checks that can actually observe it: `tools/owned-api-check.mjs` leg
+      # `model-is-not-a-learner-setting` (the server refuses `model` in both request shapes, with a
+      # measured discrimination test) and `tools/app-browser-check.mjs` leg L31 (the settings screen
+      # offers no provider, key or model field). Row in work/implementation/RETIRED-CHECKS.md.
   contracts:
     name: Server and owned API contracts (${{ matrix.os }})
     strategy:
@@ -38,8 +83,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
-      # Full history: revision-check, progress-equal-check and keymask --prefix-commit
-      # materialize the pre-fix tree with `git show <sha>:<file>` and fail on a shallow clone.
+      # Full history: keymask --prefix-commit materializes the pre-fix tree with
+      # `git show <sha>:<file>` and fails on a shallow clone. (revision-check and
+      # progress-equal-check used to need it too; both are retired with the file store.)
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -49,23 +95,185 @@ jobs:
           node-version: '24'
       - name: Same-origin guard on state-changing routes
         run: node tools/server-origin-check.mjs
-      # No --legacy-root: with no value it compares the candidate against itself.
-      - name: Progress reset contract
-        run: node tools/reset-check.mjs
-      - name: Reset invalidates older writes, discriminated against the pre-fix tree
-        run: node tools/revision-check.mjs
       - name: Key never disclosed by any route
         run: node tools/keymask-check.mjs
       - name: Key masking discriminates against the pre-fix server
         run: node tools/keymask-check.mjs --prefix-commit 8a71f718ee534851a98d19eece07dab933b56479
-      - name: Key-order-insensitive progress equality, discriminated against the pre-fix tree
-        run: node tools/progress-equal-check.mjs
-      - name: Draft session contract
-        run: node tools/draft-session-check.mjs
       - name: Owned API suite (memory backend)
         run: node tools/owned-api-check.mjs
       - name: Owned API client contract
         run: node tools/owned-client-check.mjs
+      - name: Stale tabs cannot follow another account cookie
+        run: node tools/account-context-check.mjs
+      - name: Read aloud uses explicit matching local voices
+        run: node tools/read-aloud-check.mjs
+      - name: Submitted writing and retained export data survive stale draft deletion
+        run: node tools/submission-preservation-check.mjs
+      - name: Saved writing history export and revision contracts
+        run: node tools/learner-history-check.mjs
+      - name: Conservative sentence hints and recovered source identities
+        run: node tools/sentence-building-check.mjs
+      - name: Reference guides preserve correct and incorrect example semantics
+        run: node tools/guide-render-check.mjs
+  # THE DURABLE CLAIMS WERE UNGATED, and that is what this job fixes. Until now CI had NO PostgreSQL
+  # service at all, so the persistent installation, the mounted account API, the account-scoped
+  # settings, the runtime refusals, the session boundary and the account deletion were all verified
+  # only by hand, in one session, on one machine - and an ungated check rots. This is also the ONLY
+  # gate that can prove the durable properties: a memory backend cannot show that a draft survives a
+  # server restart.
+  #
+  # ubuntu only, deliberately: a GitHub service container is a Linux container, and the point here is
+  # real PostgreSQL, not a second OS. The offline set above still runs on both.
+  postgres:
+    name: Durable and hosted runtime contracts (real PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: hatoove_ci
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        # Without this the first step races the database's own startup and fails intermittently,
+        # which is the worst kind of gate: one that fails for a reason unrelated to the change.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      OWNAPI_PG_HOST: 127.0.0.1
+      OWNAPI_PG_PORT: '5432'
+      OWNAPI_PG_DATABASE: hatoove_ci
+      OWNAPI_PG_SCHEMA: hatoove
+      OWNAPI_PG_USER: postgres
+      # The provisioning check deliberately refuses to create schema and roles without this explicit
+      # confirmation, so that nobody points it at a real database by accident. The service container
+      # above IS disposable, which is exactly what this flag is asking about.
+      OWNAPI_PG_ALLOW: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Install the PostgreSQL client the owned server uses
+        run: npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
+      - name: Persistent installation is idempotent and a draft survives re-provisioning
+        run: node tools/postgres-provision-check.mjs
+      - name: Migration line-ending upgrades preserve recorded checksums and reject SQL edits
+        run: node tools/migration-eol-check.mjs --postgres
+      - name: The account API over real HTTP, including the restart property
+        run: node tools/accounts-http-check.mjs
+      - name: The owned API on the persistent backend
+        run: node tools/owned-api-check.mjs --backend=postgres-persistent
+      - name: Submitted writing survives real concurrent discard and exports retained history
+        run: node tools/submission-preservation-pg-check.mjs
+      # The suite above resets the GLOBAL sign-up bucket per world; this proves the throttle still
+      # refuses inside a world and that, without the reset, the exhaustion would be inherited.
+      - name: The sign-up throttle is enforced per world and not accumulated across worlds
+        run: node tools/owned-api-throttle-isolation-check.mjs
+      - name: Account deletion removes every row and is one transaction
+        run: node tools/deletion-check.mjs
+      - name: The worker runner claims, fences, retries and reclaims (stub grader; no provider call)
+        run: node tools/worker-runner-check.mjs
+      - name: The hosted runtime refuses by default
+        run: node tools/saas-runtime-check.mjs
+      # CONFIG-ANON-01. The machine-global /api/config write (and its read) is gone from the
+      # hosted runtime. Anonymous POST and GET are401 at the auth boundary; a real session gets404
+      # for the retired route. The env file must stay unchanged, and an anonymous learner route must
+      # still refuse 401 (so the 404 is the route being gone, not a dead runtime).
+      - name: The unauthenticated machine-global config write is gone
+        run: node tools/coord-config-anon-probe.mjs
+      # MFP-14. THE CHECK THAT MUST EXIST BEFORE THE MIGRATIONS IT GUARDS. Every table in the app
+      # schema is classified as auth / owned / shared-content, and an UNCLASSIFIED table fails - so a
+      # migration written by someone who has never read the plan cannot silently weaken a class. It
+      # guards the failure mode an architect review rated among the two most dangerous: the deletion
+      # read-back is a hand-maintained list (adapter.mjs:243-250), so a new owned table is covered
+      # only if someone remembers to add it, and deletion-check would stay green while an account's
+      # rows survived in it.
+      - name: Every table is classified, and every class rule holds
+        run: node tools/table-class-check.mjs
+      # Seven scratch-schema mutations prove the classifier detects policy, deletion-coverage,
+      # shared-content, unclassified-table, answer-key and catalogue-grant regressions.
+      - name: The table-class check detects all seven mutations
+        run: node --test tools/table-class-check.test.mjs
+      - name: Answer keys are inaccessible to runtime roles while marking still works
+        run: node tools/objective-key-access-check.mjs
+      - name: Owned history export revisions and withdrawn-content isolation in PostgreSQL
+        run: node tools/learner-history-check.mjs --backend=postgres
+      - name: Recovered grammar drills preserve keys and owner-scoped evidence
+        run: node tools/sentence-building-check.mjs --backend=postgres
+      # These are shipped contracts: missing routes fail. Exact saved text, feedback, revision,
+      # objective counts, export and deletion are asserted; rendering has its own isolated check.
+      - name: The complete saved learner journey over HTTP
+        run: node tools/journey-api-check.mjs
+  # THE RENDERED-BEHAVIOUR JOB EXISTS AGAIN, FOR THE NEW CLIENT (2 October 2026).
+  #
+  # The old one was retired with the Certa SPA and this file recorded the consequence: "Those legs live in
+  # tools/app-browser-check.mjs, which needs Docker and a browser and is therefore a DEVELOPER-RUN gate, not a
+  # runner gate. That trade is recorded, not hidden: nothing in CI renders the client today." Seventeen
+  # autonomous rounds produced 89 rendered legs and 35 real-stack legs, and EVERY ONE of them depended on a
+  # human remembering to run it. That is the trade this job ends.
+  #
+  # WHY IT IS NOT A REQUIRED CHECK, AND WHY THAT IS THE POINT: it builds images, starts a Compose project and
+  # drives headless Chrome, so it needs a browser in the image, a Docker daemon, and ~20 minutes. The recorded
+  # plan is to make it required only after a stretch of green runs -- a rendered gate that is required from day
+  # one and flakes teaches people to ignore red, which is worse than a gate that is honest about being new.
+  # It therefore runs on the nightly schedule and on demand, never on every push.
+  #
+  # WHY IT CAN FAIL FOR ENVIRONMENTAL REASONS, SAID OUT LOUD: the two checks need `docker compose` and a Chrome
+  # binary. Both are asserted in their own preflight steps, so a missing browser is a named failure rather than
+  # a mysterious one, and `CHROME_PATH` is the override that makes the browser's location a configuration value
+  # instead of a guess (the check's own candidate list is Windows-shaped plus /usr/bin).
+  rendered:
+    name: Rendered behaviour (Docker + headless Chrome)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: rendered-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      # PREFLIGHT: the two things this job needs that the offline jobs do not. A named failure here is worth
+      # more than a stack trace twenty minutes later, and it tells an operator whether to fix the runner or the
+      # code.
+      - name: Docker is available
+        run: |
+          docker version
+          docker compose version
+      - name: A Chrome binary is available
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: |
+          "${CHROME_PATH}" --version
+      - name: Real stack - migrations, API, worker and account lifecycle
+        timeout-minutes: 12
+        run: node tools/docker-stack-check.mjs
+      - name: Rendered client - 89 legs at desktop and mobile, light and dark
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/app-browser-check.mjs
+      # THE SCREENSHOTS ARE THE EVIDENCE, and they live in a gitignored directory that dies with the runner.
+      # They are listed on failure so the log says where to look and what was captured; uploading them as an
+      # artifact needs a pinned third-party action, which is a decision for the coordinator rather than one I
+      # should take by adding a floating tag to a file where every other action is pinned by SHA.
+      - name: Where the rendered evidence went
+        if: failure()
+        run: |
+          echo "Screenshots (if any) were written under .qa/browser/:"
+          find .qa/browser -type f -name '*.png' | sort | tail -40 || true
   fixtures:
     name: Exam and feedback fixtures
     runs-on: ubuntu-latest

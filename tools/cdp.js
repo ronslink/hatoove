@@ -2,7 +2,9 @@
  * Shared headless-browser harness for the end-to-end tests.
  *
  * Talks the Chrome DevTools Protocol over Node's built-in WebSocket, so the tests
- * need no npm packages. Used by tools/e2e.js (offline path) and tools/e2e-ai.js
+ * need no npm packages. Used by tools/app-browser-check.mjs (the rendered-evidence check, SPA-RETIRE
+ * era) and by the retired SPA end-to-end runners `tools/e2e.js` and `tools/e2e-ai.js`, which were
+ * deleted with the client they drove — this harness stayed because it drives a BROWSER, not the SPA.
  * (AI path against the mock DeepSeek server).
  */
 
@@ -23,7 +25,26 @@ const CHROME_CANDIDATES = [
   'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
 ].filter(Boolean);
 
+/**
+ * Where the browser is, with an explicit override.
+ *
+ * THE OVERRIDE IS WHAT MAKES THIS RUNNABLE OFF THIS MACHINE. The candidate list already covers the usual
+ * Windows installs and `/usr/bin/google-chrome`, but "the usual place" is not a plan: a CI runner image, a
+ * snap, a Flatpak, a Chromium build or a test-only copy all live somewhere else, and the previous behaviour
+ * was to return `null` and let the caller report something generic — which is how a gate stops being run
+ * because nobody can tell what it wanted.
+ *
+ * `CHROME_PATH` (and `CHROME_BIN`, the name the Puppeteer/Chromium tooling uses) is checked FIRST, and a
+ * wrong value is an error naming the variable rather than a silent fall-through to a search that will not
+ * find it. When nothing is found, the error lists what was tried, so the fix is obvious from the log.
+ */
 export function findBrowser() {
+  const override = process.env.CHROME_PATH || process.env.CHROME_BIN;
+  if (override) {
+    if (fs.existsSync(override)) return override;
+    throw new Error(`CHROME_PATH/CHROME_BIN is set to "${override}", which does not exist. `
+      + 'Point it at a Chrome or Chromium executable, or unset it to let the search run.');
+  }
   for (const c of CHROME_CANDIDATES) {
     try {
       if (fs.existsSync(c)) return c;
@@ -32,6 +53,14 @@ export function findBrowser() {
     }
   }
   return null;
+}
+
+/** The same search, but the failure explains itself — for the callers that cannot continue without a browser. */
+export function requireBrowser() {
+  const found = findBrowser();
+  if (found) return found;
+  throw new Error('no Chrome or Chromium found. Set CHROME_PATH to an executable; these were tried: '
+    + CHROME_CANDIDATES.join(', '));
 }
 
 export async function waitForHttp(url, timeoutMs = 15000) {
@@ -57,8 +86,7 @@ export async function waitForHttp(url, timeoutMs = 15000) {
  */
 export async function launchBrowser(port, opts = {}) {
   const { headless = true, muteAudio = true, autoPlay = false, extraArgs = [] } = opts;
-  const browser = findBrowser();
-  if (!browser) throw new Error('No Chrome or Edge installation found.');
+  const browser = requireBrowser();
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'b1prep-e2e-'));
   const args = [
     '--no-first-run',

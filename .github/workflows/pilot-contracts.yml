@@ -9,6 +9,18 @@ jobs:
   postgres:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # A-01 / OWNAPI-03: the persistent-installation and account-mount checks provision a NAMED
+    # schema and NAMED roles inside this disposable service database, so they need the explicit
+    # opt-in. The service is thrown away with the runner; the schema is deliberately NOT dropped
+    # inside the job, because durability across a restart is the property under test.
+    env:
+      OWNAPI_PG_HOST: 127.0.0.1
+      OWNAPI_PG_PORT: '55435'
+      OWNAPI_PG_DATABASE: hatoove_spike
+      OWNAPI_PG_USER: postgres
+      OWNAPI_PG_SCHEMA: hatoove
+      OWNAPI_PG_ROLE_PREFIX: hatoove
+      OWNAPI_PG_ALLOW: '1'
     services:
       postgres:
         image: postgres:17-alpine
@@ -37,3 +49,18 @@ jobs:
         run: node tools/owned-api-check.mjs --backend=postgres
       - name: Owned API PostgreSQL isolation and RLS discrimination proof
         run: node --test tools/owned-api-pg-check.test.mjs
+      # OWNAPI-03: the DEPLOYMENT shape - a named schema and roles, provisioned once, never
+      # dropped. Proves idempotency (a second run applies nothing and alters no role) and
+      # durability (a draft written as the restricted learner survives every pool closing).
+      - name: Persistent provisioning, idempotency and durability
+        run: node tools/postgres-provision-check.mjs
+      - name: The same 24-check suite on the persistent installation
+        run: node tools/owned-api-check.mjs --backend=postgres-persistent
+      - name: The sign-up throttle is enforced per world and not accumulated across worlds
+        run: node tools/owned-api-throttle-isolation-check.mjs
+      # A-01: accounts over REAL HTTP and REAL server processes - sign-up, own an attempt, save
+      # and re-read a draft, account settings with a refused stale write, cross-owner isolation,
+      # sign-out invalidating the cookie, and the origin gate. Also proves the restart property:
+      # the server is stopped and started again and the session and draft are still served.
+      - name: Accounts and settings over HTTP, including the restart property
+        run: node tools/accounts-http-check.mjs
