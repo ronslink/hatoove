@@ -304,7 +304,7 @@ async function main() {
   const referenceDrift = [];
   const servedDrift = [];
   for (const entry of manifest.files || []) {
-    const reference = path.join(ROOT, 'design', entry.path);
+    const reference = path.join(process.env.HATOOVE_DESIGN_ROOT || path.join(ROOT, 'design'), entry.path);
     if (!fs.existsSync(reference)) referenceDrift.push(`${entry.path}: absent`);
     else if (sha256(reference) !== entry.sha256) referenceDrift.push(`${entry.path}: digest changed`);
     if (!entry.path.startsWith('assets/')) continue;
@@ -317,25 +317,11 @@ async function main() {
   record('P0b the SERVED copy of every pinned design asset is byte-exact',
     servedDrift.length === 0, servedDrift.join('; ') || 'stylesheets, logos, mark and fonts all match');
 
-  const landingDrift = [];
-  for (const [served, artifact] of [['index.html', 'index.html'], ['site.css', 'site.css'], ['site.js', 'site.js'], ['favicon.ico', 'favicon.ico']]) {
-    const site = path.join(ROOT, 'hatoove-site', 'dist', artifact);
-    const landing = path.join(ROOT, 'public', served);
-    if (!fs.existsSync(site) || !fs.existsSync(landing)) landingDrift.push(`${served}: missing on one side`);
-    else if (sha256(site) !== sha256(landing)) landingDrift.push(served);
-  }
-  const siteAssets = fs.existsSync(path.join(ROOT, 'hatoove-site', 'dist', 'assets'))
-    ? fs.readdirSync(path.join(ROOT, 'hatoove-site', 'dist', 'assets'))
-    : [];
-  for (const name of siteAssets) {
-    const site = path.join(ROOT, 'hatoove-site', 'dist', 'assets', name);
-    const served = path.join(ROOT, 'public', 'assets', name);
-    if (!fs.existsSync(served)) landingDrift.push(`assets/${name}: absent`);
-    else if (sha256(site) !== sha256(served)) landingDrift.push(`assets/${name}: differs`);
-  }
-  record('P1 the front door IS the site artifact, copied verbatim to the root',
-    landingDrift.length === 0 && siteAssets.length > 0,
-    landingDrift.length ? `drifted: ${landingDrift.join(', ')}` : `hatoove-site/dist == public/ (${siteAssets.length + 4} files)`);
+  // The approved German learner entry supersedes the historical English marketing artifact.
+  const landingSource = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+  record('P1 the German front door has real sign-in and registration links',
+    /lang="de"/.test(landingSource) && /href="\/signin"/.test(landingSource)
+      && /href="\/signin\?mode=signup"/.test(landingSource), 'German entry contract; pinned design assets remain checked by P0b');
   record('P1b the retired SPA page is gone from the root',
     !fs.existsSync(path.join(ROOT, 'public', 'landing')) && !fs.existsSync(path.join(ROOT, 'public', 'studio.css'))
       && !/Certa/i.test(fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8')),
@@ -1241,7 +1227,10 @@ async function main() {
       beforeNew.offered && beforeNew.value.length > 0,
       `button offered=${beforeNew.offered} with ${beforeNew.value.length} char(s) resumed`);
 
-    await cdp.evaluate(`document.getElementById('writing-new').click(); return true;`);
+    const discardClick = cdp.evaluate(`document.getElementById('writing-new').click(); return true;`);
+    for (let n = 0; n < 40 && !cdp.events.some(e => e.method === 'Page.javascriptDialogOpening'); n++) await sleep(50);
+    await cdp.send('Page.handleJavaScriptDialog', { accept: true });
+    await discardClick;
     await softWait(cdp, "document.getElementById('writing-text') && document.getElementById('writing-text').value === ''", 12000, 'the cleared field');
     await sleep(900); // let the create land and the state settle
     const afterNew = await cdp.evaluate(`
@@ -1603,9 +1592,9 @@ async function main() {
     await shot(cdp, '14-heute-mobile-light');
     record('L21 on a phone the sidebar is replaced by the bottom tabbar',
       mobile.sideShown === false && mobile.tabbarShown === true, JSON.stringify(mobile));
-    record('L22 the phone tabbar is ONE row that carries every destination without clipping',
-      mobile.tabbarRows === 1 && mobile.tabbarHeight <= 80 && mobile.tabbarLinks === 10
-        && new Set(mobile.hrefs).size === 10 && mobile.clippedLabels.length === 0,
+    record('L22 the phone tabbar has four primary destinations and Mehr without clipping',
+      mobile.tabbarRows === 1 && mobile.tabbarHeight <= 80 && mobile.tabbarLinks === 5
+        && new Set(mobile.hrefs).size === 5 && mobile.hrefs.includes('#/mehr') && mobile.clippedLabels.length === 0,
       `${mobile.tabbarLinks} links in ${mobile.tabbarRows} row(s), ${mobile.tabbarHeight}px tall, ${mobile.display}`
         + `${mobile.scrollable ? ' scrollable' : ''} (${mobile.scrollWidth}/${mobile.clientWidth}px); `
         + `min tap height ${mobile.minTapHeight}px; clipped labels ${JSON.stringify(mobile.clippedLabels)}`);
@@ -1632,21 +1621,27 @@ async function main() {
     record('L22b the end of the content is not hidden behind the fixed bar',
       barOverlap.lastBottom !== null && barOverlap.lastBottom <= barOverlap.barTop,
       `last block ${barOverlap.lastBlock} ends at ${barOverlap.lastBottom}px, bar starts at ${barOverlap.barTop}px (${barOverlap.barHeight}px tall)`);
-    record('L22c the mistakes badge is visible in the phone tabbar when the count is not zero',
-      mobile.badgeHeight !== null && mobile.badgeHeight > 0,
-      `badge height ${mobile.badgeHeight}px (the sidebar, which carries the other badge, is hidden at this width)`);
+    await clickSel(cdp, '.tabbar [data-view="mehr"]');
+    await softWait(cdp, "!document.querySelector('#view-mehr').hidden", 8000, 'mobile Mehr');
+    const moreBadge = await visible(cdp, '#mistake-count-tab');
+    record('L22c Mehr makes the additional destinations and mistakes count reachable',
+      moreBadge.height > 0 && (await cdp.evaluate("return document.querySelectorAll('#view-mehr [data-view]').length")) >= 5,
+      JSON.stringify(moreBadge));
+    await shot(cdp, '14b-mehr-mobile-light');
     const mobileOverflow = await overflow(cdp);
     record('L23 no horizontal overflow at 390px', mobileOverflow.offenderCount === 0 && mobileOverflow.scrollWidth <= mobileOverflow.innerWidth + 1,
       JSON.stringify(mobileOverflow));
 
-    await clickSel(cdp, '.tabbar [data-view="lesen"]');
+    await clickSel(cdp, '#view-mehr [data-view="lesen"]');
     await softWait(cdp, "location.hash === '#/lesen'", 8000, 'mobile Leseverstehen');
     await sleep(900);
     await shot(cdp, '15-lesen-mobile-light');
     const mobileLesen = await overflow(cdp);
     record('L24 the Leseverstehen list does not overflow a phone screen', mobileLesen.offenderCount === 0, JSON.stringify(mobileLesen));
 
-    await clickSel(cdp, '.tabbar [data-view="fehler"]');
+    await clickSel(cdp, '.tabbar [data-view="mehr"]');
+    await softWait(cdp, "!document.querySelector('#view-mehr').hidden", 8000, 'mobile Mehr again');
+    await clickSel(cdp, '#view-mehr [data-view="fehler"]');
     await softWait(cdp, "location.hash === '#/fehler'", 8000, 'mobile Fehler');
     await sleep(900);
     await shot(cdp, '16-fehler-mobile-light');

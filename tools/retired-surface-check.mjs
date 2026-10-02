@@ -208,7 +208,7 @@ try {
   record(
     'R7 front page',
     'the root serves the brand site and not the retired Certa application',
-    home.status === 200 && /Know the exam/.test(home.text) && !/Certa/i.test(home.text),
+    home.status === 200 && /lang="de"/.test(home.text) && /href="\/signin/.test(home.text) && !/Certa/i.test(home.text),
     `GET / -> ${home.status}, Certa=${/Certa/i.test(home.text)}`,
   );
 } finally {

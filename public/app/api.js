@@ -10,8 +10,8 @@
  *
  *   1. ONE place to change a path. Renaming `/api/v1/tasks` is one edit here, not a grep through
  *      views for a string that half of them spell slightly differently.
- *   2. ONE refusal rule. A 401 means "the session is gone, go and sign in" everywhere, because it is
- *      decided once. A view cannot accidentally render a 401 as content.
+ *   2. ONE refusal rule. A 401 announces an expired session while preserving unsaved text on screen.
+ *      A view cannot accidentally render a 401 as content.
  *   3. NO DATA IN FILES. There is no `fetch('/data/…')` in this client, because there is no `/data/`
  *      route any more. Content arrives as JSON from the API under a verified session.
  *
@@ -36,11 +36,12 @@ const PATHS = Object.freeze({
   practiceMistakes: '/api/v1/practice/mistakes',
   attempts: '/api/v1/attempts',
   submissions: '/api/v1/submissions',
+  export: '/api/v1/export',
 });
 
 /**
- * A 401 is not an error to render: the session is gone and only signing in can fix it. The redirect
- * happens here so no view can get it wrong, and callers receive `null` to mean "we are leaving".
+ * An owned-route 401 is an explicit failure, with one shell notification. Never redirect an active
+ * writing form automatically: its unsaved text must remain available for recovery.
  */
 async function call(method, path, body) {
   let res;
@@ -60,8 +61,9 @@ async function call(method, path, body) {
     return { ok: false, status: 0, data: null, error: 'network' };
   }
   if (res.status === 401 && !path.startsWith('/api/auth/')) {
-    location.replace('/signin');
-    return null;
+    // Keep an unsaved letter visible when the session expires. Navigation would discard it.
+    window.dispatchEvent(new Event('hatoove:session-expired'));
+    return { ok: false, status: 401, data: null, error: 'session_expired' };
   }
   let payload = null;
   try { payload = await res.json(); } catch { /* a refusal may carry no body; the status still counts */ }
@@ -80,6 +82,7 @@ export const api = Object.freeze({
 
   account: Object.freeze({
     read: () => call('GET', PATHS.account),
+    export: () => call('GET', PATHS.export),
     // `{}` and not no body: the server requires application/json on every mutating route.
     remove: () => call('DELETE', PATHS.account, {}),
   }),
@@ -233,6 +236,7 @@ export const api = Object.freeze({
      * `readAttempt` once the view has decided which draft it is resuming — one letter per response, not
      * every letter in a list.
      */
+    listAttempts: () => call('GET', PATHS.attempts),
     openAttempts: () => call('GET', `${PATHS.attempts}?open=1`),
     createAttempt: (binding = null) => call('POST', PATHS.attempts, binding ? { ...binding } : {}),
     /**

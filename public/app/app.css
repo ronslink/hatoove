@@ -95,15 +95,8 @@
  * recorded for Ron rather than taken here.
  */
 @media (max-width: 860px) {
-  .tabbar {
-    display: flex;
-    grid-template-columns: none;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-  }
-  .tabbar::-webkit-scrollbar { display: none; }
-  .tabbar a { flex: 0 0 auto; min-width: 74px; padding: 8px 10px; }
+  .tabbar { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
+  .tabbar a { min-width: 0; padding: 8px 2px; min-height: 58px; }
 }
 
 /* The router marks where you are. The design system already styles [aria-current=page] in the
@@ -277,3 +270,16 @@ code {
   border-color: var(--line);
   color: var(--ink);
 }
+.more-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem; }
+.more-link { color: var(--ink); text-decoration: none; display: grid; gap: .5rem; }
+.more-link span { color: var(--muted); }
+.guide-content { overflow-wrap: anywhere; }
+.guide-content h4 { margin: 1rem 0 .4rem; }
+.guide-content p { margin: .35rem 0 .65rem; }
+.guide-list { padding-inline-start: 1.4rem; }
+.guide-list li { margin-block: .5rem; }
+.guide-example { border-inline-start: 3px solid var(--orange); padding-inline-start: .8rem; margin: .7rem 0; }
+.guide-table { overflow-x: auto; max-width: 100%; margin-block: .8rem; }
+.guide-table table { border-collapse: collapse; width: 100%; }
+.guide-table th, .guide-table td { padding: .6rem; text-align: start; border-bottom: 1px solid var(--line); }
+#history-detail { scroll-margin-top: 5rem; margin-bottom: 1rem; }

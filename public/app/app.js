@@ -1,3 +1,5 @@
+import { createWritingController } from './writing.js';
+import { guideContent } from './guide-content.js';
 /**
  * The Hatoove app shell (PILOT-08).
  *
@@ -60,7 +62,7 @@ const VIEW_TITLES = {
   // The design organises practice by SKILL. Each maps to a section the catalogue already carries.
   lesen: 'Leseverstehen', sprachbausteine: 'Sprachbausteine',
   hoeren: 'Hörverstehen', schreiben: 'Schreiben',
-  fehler: 'Fehler', fortschritt: 'Fortschritt', einstellungen: 'Einstellungen',
+  fehler: 'Fehler', fortschritt: 'Fortschritt', einstellungen: 'Einstellungen', mehr: 'Mehr',
 };
 
 /** Server state, held in memory only. */
@@ -76,6 +78,13 @@ function showError(message) {
   box.textContent = message || '';
   box.hidden = !message;
 }
+
+window.addEventListener('hatoove:session-expired', () => {
+  showError('Deine Sitzung ist abgelaufen. Dein ungespeicherter Text bleibt in diesem Fenster. Kopiere ihn, bevor du dich erneut anmeldest.');
+  const signIn = document.createElement('a');
+  signIn.href = '/signin'; signIn.className = 'btn'; signIn.textContent = 'Erneut anmelden';
+  el('error').append(' ', signIn);
+});
 
 /**
  * How to describe a failed call to a learner.
@@ -300,12 +309,12 @@ async function renderDictionary() {
   }
   box.innerHTML = rows.map((w) => (dictMode === 'nouns'
     ? '<div class="card"><div class="card-head"><h3>' + esc(w.de) + '</h3><span class="chip">' + esc(w.gender) + '</span></div>'
-      + '<p class="muted">' + esc(w.en) + '</p>'
+      + (state.settings?.language === 'en' ? '<p class="muted" lang="en">' + esc(w.en) + '</p>' : '')
       + '<p class="small muted">Plural: ' + esc(w.plural) + ' &middot; Thema: ' + esc(w.theme) + '</p>'
       + '<p class="small muted">Regel: ' + esc(w.rule) + '</p>'
       + (w.example ? '<p class="small">' + esc(w.example) + '</p>' : '') + '</div>'
     : '<div class="card"><div class="card-head"><h3>' + esc(w.de) + '</h3><span class="chip">' + esc(w.pos) + '</span></div>'
-      + '<p class="muted">' + esc(w.en) + '</p>'
+      + (state.settings?.language === 'en' ? '<p class="muted" lang="en">' + esc(w.en) + '</p>' : '')
       + (w.plural ? '<p class="small muted">Plural: ' + esc(w.plural) + '</p>' : '')
       + (w.example ? '<p class="small">' + esc(w.example) + '</p>' : '') + '</div>')).join('');
 }
@@ -344,11 +353,11 @@ async function openGuide(guideId) {
   const sections = Array.isArray(g.sections) ? g.sections : [];
   box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(g.title)
     + '</h3><span class="chip">' + sections.length + '</span></div>'
-    + '<button class="btn" type="button" id="guide-back">Zurück</button></div>'
+    + '<p class="small muted">Übungsmaterial – noch nicht fachlich geprüft.</p>' + (!['de', 'en'].includes(state.settings?.language || 'de') ? '<p class="small muted">Dieses Nachschlagewerk liegt noch nicht in deiner Erklärungssprache vor. Du siehst die deutsche Fassung.</p>' : '') + '<button class="btn" type="button" id="guide-back">Zurück</button></div>'
     + sections.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(s.title)
       + '</h3><span class="chip">' + esc(s.kind) + '</span></div>'
       + (s.summary ? '<p class="muted">' + esc(s.summary) + '</p>' : '')
-      + '<pre class="small">' + esc(JSON.stringify(s.payload, null, 1)) + '</pre></div>').join('');
+      + '<div class="guide-content">' + guideContent(s.payload, esc, state.settings?.language || 'de') + '</div></div>').join('');
   el('guide-back').addEventListener('click', () => { box.hidden = true; index.hidden = false; });
 }
 
@@ -780,349 +789,36 @@ const CRITERION_LABELS = Object.freeze({
  *   4. THE BINDING IS THE TASK THAT WAS OPENED, down to the version and the rubric the task declares.
  *      The server refuses anything else (422 task_not_servable), and the button carries it.
  */
-async function openWriting(box, task) {
-  if (!task) return;
-  const list = box.parentElement?.querySelector('.stack[id^="skill-"]');
-  if (list) list.hidden = true;
-  box.hidden = false;
-  window.scrollTo(0, 0);
-  const leitpunkte = Array.isArray(task.leitpunkte) ? task.leitpunkte : [];
-  box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(task.topic)
-    + '</h3><span class="chip">Schreiben</span></div>'
-    + '<p class="muted">' + esc(task.situation) + '</p>'
-    + '<p class="small muted">Anrede: ' + esc(task.adressat) + '</p>'
-    + (leitpunkte.length
-      ? '<ul class="leitpunkte">' + leitpunkte.map((p) => '<li>' + esc(p) + '</li>').join('') + '</ul>'
-      : '')
-    + '<label class="field-label" for="writing-text">Ihr Text</label>'
-    + '<textarea id="writing-text" class="writing-text" rows="12" spellcheck="false" disabled'
-    + ' aria-describedby="writing-state"></textarea>'
-    + '<p class="small muted" id="writing-hint">Der Text wird während des Schreibens gespeichert.</p>'
-    + '<div class="row"><button class="btn btn-primary" type="button" id="writing-submit" disabled>Abgeben</button>'
-    + '<button class="btn" type="button" id="writing-new" hidden>Neu anfangen</button>'
-    + '<button class="btn" type="button" id="writing-close">Schließen</button></div>'
-    + '<div id="writing-state" class="writing-state" role="status" aria-live="polite">'
-    + '<p class="muted">Noch nichts abgegeben.</p></div>'
-    /*
-     * THE MARKING SCHEME, WHERE IT BELONGS: before the learner writes, not only after.
-     *
-     * The panel is EMPTY here and filled from the API a moment later. That is the point: the wording lives in
-     * the rubric — one source of truth, the same text the grader was validated against — and a copy in this
-     * client would be a second text free to drift with nothing able to notice. The container exists so the
-     * fetch can land into it whatever the outcome; a failed fetch leaves an honest line rather than removing
-     * the panel the learner just saw.
-     */
-    + '<details class="rubric-panel" id="writing-rubric"><summary>Wie wird bewertet?</summary>'
-    + '<div id="writing-rubric-body"><p class="small muted">Wird geladen …</p></div></details></div>';
-
-  const state = el('writing-state');
-  const area = el('writing-text');
-  const submit = el('writing-submit');
-
-  /*
-   * THE MARKING SCHEME, FETCHED RATHER THAN REMEMBERED.
-   *
-   * `task.rubric_id`/`task.rubric_version` say WHICH contract this task is marked against; the criteria, the
-   * band scale and the descriptors come from the rubric itself. The provisional status travels with the text
-   * — `review_status` is 'unreviewed' until E-01 — so the note below is derived from what the server said
-   * rather than from a constant here that could outlive the fact.
-   *
-   * A FAILED FETCH DOES NOT REMOVE THE PANEL: it says the scheme could not be loaded. Hiding it would leave
-   * a learner unable to find out how they are marked, with nothing on screen to explain the absence.
-   */
-  guard((async () => {
-    const rubricRes = await api.rubrics.read(task.rubric_id, task.rubric_version);
-    const into = el('writing-rubric-body');
-    if (!into) return;
-    if (!rubricRes || !rubricRes.ok) {
-      into.innerHTML = '<p class="small muted">Die Bewertungskriterien konnten nicht geladen werden'
-        + (rubricRes ? ' (' + esc(failure(rubricRes)) + ')' : '') + '.</p>';
-      return;
-    }
-    const rubric = rubricRes.data || {};
-    const criteria = Array.isArray(rubric.criteria) ? rubric.criteria : [];
-    const bands = criteria.length ? Object.keys(criteria[0].bands || {}) : [];
-    into.innerHTML = (rubric.provisional
-      ? '<p class="small muted">Vorläufige Beschreibung dieses Übungsbetriebs — <strong>nicht die offizielle '
-        + 'Formulierung des Prüfungsanbieters</strong>. Sie wird noch fachlich geprüft.</p>'
-      : '')
-      + '<ul class="rubric-criteria">' + criteria.map((criterion) => '<li>'
-        + '<strong>' + esc(CRITERION_LABELS[criterion.key] || String(criterion.key)) + '</strong>'
-        + (bands.length
-          ? '<ul class="rubric-bands">' + bands.map((band) => '<li><span class="band">' + esc(band) + '</span> '
-            + esc(String((criterion.descriptors || {})[band] || '')) + '</li>').join('') + '</ul>'
-          : '')
-        + '</li>').join('') + '</ul>'
-      + '<p class="small muted">Rubrik ' + esc(String(rubric.rubric_id || task.rubric_id)) + ' '
-        + esc(String(rubric.version || task.rubric_version)) + ' · Prüfstatus: ' + esc(String(rubric.review_status || 'unbekannt')) + '</p>';
-  })());
-  /*
-   * `reveal` IS NOT COSMETIC, AND IT IS NOT ALWAYS TRUE.
-   *
-   * The screenshot showed it: after "Abgeben" the state and the buttons sat BELOW the fold at 1440x900,
-   * so the learner pressed the button and saw nothing happen — the same defect as the practice form that
-   * rendered after nine cards, found the same way. When the learner ACTS, the result must come into view.
-   *
-   * It must NOT happen on an autosave announcement: yanking the viewport while someone is typing is its
-   * own defect, and this client has already been bitten once by a scroll that fought the learner.
-   */
-  const say = (html, { reveal = false } = {}) => {
-    if (!state) return;
-    state.innerHTML = html;
-    if (reveal && typeof state.scrollIntoView === 'function') state.scrollIntoView({ block: 'nearest' });
+const writing = createWritingController({ api, esc, language: () => state.settings?.language || 'de' });
+async function openWriting(box, task, options = {}) { return writing.open(box, task, options); }
+async function renderHistory() {
+  const host = el('history-list');
+  host.innerHTML = '<p class="muted">Dein Verlauf wird geladen …</p>';
+  const [history, progress] = await Promise.all([api.writing.listAttempts(), api.practice.progress()]);
+  if (currentView !== 'fortschritt') return;
+  if (!history?.ok) { host.innerHTML = '<p class="err">Der Verlauf konnte nicht geladen werden. Bitte öffne die Ansicht erneut.</p>'; return; }
+  const totals = progress?.ok ? progress.data?.totals : null;
+  el('history-summary').textContent = totals ? totals.attempts + ' Antworten gespeichert · ' + totals.correct + ' richtig. Keine Prognose für deine Prüfung.' : 'Deine gespeicherten Texte und Rückmeldungen.';
+  const rows = history.data.attempts || [];
+  const statuses = { draft: 'Entwurf', pending: 'Rückmeldung wird vorbereitet', unassessed: 'Unbewertet', assessed: 'Rückmeldung gespeichert' };
+  host.innerHTML = rows.length ? rows.map(a => '<article class="card"><div class="card-head"><h3>' + esc(a.topic || 'Schreibübung') + '</h3><span class="chip">' + esc(statuses[a.status] || a.status) + '</span></div><p class="small muted">' + esc(new Date(a.created_at).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })) + (a.parent_submission_id ? ' · Überarbeitung' : '') + '</p><button type="button" class="btn" data-attempt="' + esc(a.id) + '">' + (a.submission_id ? 'Text und Rückmeldung öffnen' : 'Entwurf fortsetzen') + '</button></article>').join('') : '<div class="card"><h3>Noch keine Schreibübungen</h3><p>Beginne mit einer Aufgabe. Dein Entwurf und jede Abgabe bleiben hier erreichbar.</p><a class="btn btn-primary" href="#/schreiben">Schreiben üben</a></div>';
+  host.onclick = async (event) => {
+    const target = event.target.closest('[data-attempt]'); if (!target) return;
+    const entry = rows.find(a => a.id === target.dataset.attempt); if (!entry) return;
+    const task = { task_id: entry.task_id, version: entry.task_version, rubric_id: entry.rubric_id, rubric_version: entry.rubric_version, topic: entry.topic };
+    if (entry.submission_id) await openWriting(el('history-detail'), task, { submissionId: entry.submission_id });
+    else await openWriting(el('history-detail'), task, { attemptId: entry.id });
   };
-
-  /*
-   * AUTOSAVE IS WIRED BEFORE THE ATTEMPT EXISTS — and the text field is DISABLED until it does.
-   *
-   * Two failures are prevented here, and both were real:
-   *
-   *   1. THE LOST KEYSTROKES. The textarea used to be rendered live while `openAttempts`/`createAttempt`
-   *      were still in flight, and the autosave listener was attached only afterwards. A learner who
-   *      started typing immediately — or a check that dispatched `input` as soon as the field appeared —
-   *      had those keystrokes dropped: nothing was listening, and no later event fired. Measured, not
-   *      theorised: the browser leg asked the SERVER what it held after typing 61 characters and waiting
-   *      past the debounce, and the answer was an empty draft at revision 1.
-   *   2. THE OVERWRITTEN DRAFT. On resume the stored text arrives from the server, so anything typed
-   *      before it lands would be replaced by it.
-   *
-   * So the field is disabled until the attempt is ready, the listener is attached up front, and `saveNow`
-   * does nothing until there is an attempt to save against. A disabled field cannot lose a keystroke, and
-   * an early save cannot target an attempt that does not exist yet.
-   */
-  let timer = null;
-  let saving = false;
-  let attemptId = null;
-  let revision = 1;
-  const setReady = (ready) => {
-    if (area) area.disabled = !ready;
-    if (submit) submit.disabled = !ready;
-  };
-  setReady(false);
-  const saveNow = async (announce) => {
-    if (saving || !area || !attemptId) return;
-    saving = true;
-    const res = await api.writing.saveDraft(attemptId, revision, area.value);
-    saving = false;
-    if (!res) return;
-    if (res.ok) {
-      revision = Number(res.data?.revision) || revision + 1;
-      if (announce) say('<p class="muted">Gespeichert. Noch nichts abgegeben.</p>');
-      return;
-    }
-    if (res.status === 409) {
-      /*
-       * A CONFLICT IS A STATE, NOT A CRASH. The server sends its own copy so the caller can reconcile
-       * rather than guess; adopting the server's revision and saving again is the honest resolution here,
-       * and the learner keeps their text — which is the part that must never be lost.
-       */
-      const serverRevision = Number(res.data?.current?.revision);
-      if (Number.isSafeInteger(serverRevision)) revision = serverRevision;
-      const again = await api.writing.saveDraft(attemptId, revision, area.value);
-      if (again?.ok) { revision = Number(again.data?.revision) || revision + 1; if (announce) say('<p class="muted">Gespeichert (nach Abgleich).</p>'); return; }
-    }
-    say('<p class="err">Der Text konnte nicht gespeichert werden (' + esc(failure(res)) + '). Ihr Text bleibt hier stehen.</p>');
-  };
-  area?.addEventListener('input', () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => { timer = null; guard(saveNow(false)); }, 800);
-  });
-
-  /*
-   * RESUME BEFORE CREATING — the reload case, and the reason this route exists.
-   *
-   * A learner who reloads mid-letter used to get an empty textarea and a NEW attempt: their writing was
-   * still in the database, attached to an unfinished attempt, with nothing on screen pointing at it. The
-   * client cannot know which attempt that is (it keeps nothing in the browser by design), so it asks.
-   *
-   * The match is on the TASK AND ITS VERSION: resuming a draft written against a different task version
-   * would bind the old text to new task semantics, which is precisely the confusion the version exists to
-   * prevent. A draft that does not match this task is left alone rather than adopted.
-   */
-  const open = await api.writing.openAttempts();
-  if (!open) return;
-  let resumed = null;
-  if (open.ok && Array.isArray(open.data?.attempts)) {
-    resumed = open.data.attempts.find((entry) => entry.task_id === task.task_id && entry.task_version === task.version) || null;
-  }
-  let attempt;
-  if (resumed) {
-    attempt = await api.writing.readAttempt(resumed.id);
-    if (attempt?.ok) {
-      if (area) area.value = typeof attempt.data?.text === 'string' ? attempt.data.text : '';
-      /*
-       * A RESUMED DRAFT MUST BE ABANDONABLE. Automatic resume turns into a trap otherwise: the old text
-       * always comes back and the only way out is to overwrite it and submit. The button is revealed HERE
-       * and not for a fresh attempt, where there is nothing to abandon.
-       */
-      const abandon = el('writing-new');
-      if (abandon) abandon.hidden = false;
-      say('<p class="muted">Gespeicherter Entwurf fortgesetzt. Noch nichts abgegeben.</p>');
-    }
-  } else {
-    attempt = await api.writing.createAttempt({
-      taskId: task.task_id, taskVersion: task.version, rubricId: task.rubric_id, rubricVersion: task.rubric_version,
-    });
-  }
-  if (!attempt) return;
-  if (!attempt.ok) {
-    say('<p class="err">Das Schreiben konnte nicht begonnen werden: ' + esc(failure(attempt)) + '.</p>', { reveal: true });
-    setReady(false);
-    return;
-  }
-  revision = Number(attempt.data?.revision);
-  if (!Number.isSafeInteger(revision) || revision < 1) revision = 1;
-  attemptId = attempt.data.id;
-  setReady(true);
-
-  const eventId = () => (crypto.randomUUID ? crypto.randomUUID()
-    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      return (c === 'x' ? r : ((r & 0x3) | 0x8)).toString(16);
-    }));
-
-  const renderResult = async (submissionId, tries = 0) => {
-    /*
-     * THE SUBMISSION IS NAMED ON THE ELEMENT THAT SHOWS ITS STATE. It costs one attribute, and it means
-     * the rendered state can be tied to a specific submission — which is what a support question ("which
-     * one is this?") and a check that arranges a failed job both need. Without it, the only way to find the
-     * row is to guess from the database, and a check that guesses is a check that lies when the guess is
-     * close.
-     */
-    if (state) state.dataset.submissionId = submissionId;
-    const res = await api.writing.result(submissionId);
-    if (!res) return;
-    if (!res.ok) { say('<p class="err">Der Stand konnte nicht geladen werden (' + esc(failure(res)) + ').</p>', { reveal: true }); return; }
-    const job = res.data?.job || {};
-    const assessment = res.data?.assessment || null;
-    const submitted = typeof res.data?.submission?.text === 'string' ? res.data.submission.text : null;
-    /*
-     * THE SUBMITTED TEXT IS PART OF EVERY STATE, including the failures. It is the learner's own writing,
-     * it is frozen in the submission snapshot, and hiding it behind a job status would take it away from
-     * the person who wrote it.
-     */
-    const sent = submitted === null ? '' : '<details class="submitted"><summary>Ihr abgegebener Text</summary>'
-      + '<pre class="submitted-text">' + esc(submitted) + '</pre></details>';
-    if (job.status === 'queued' || job.status === 'running') {
-      say('<p class="muted">Abgegeben. Die Bewertung läuft — bis dahin gibt es keine Punktzahl.</p>' + sent, { reveal: true });
-      if (tries < 6) setTimeout(() => { if (state?.isConnected) guard(renderResult(submissionId, tries + 1)); }, 2000);
-      return;
-    }
-    if (job.status === 'failed') {
-      /*
-       * UNBEWERTET, AND SAID SO. A failed assessment is not a zero: the text is preserved and the learner
-       * is offered a retry. Rendering anything numeric here would be the fabricated score that the deleted
-       * browser check existed to prevent.
-       */
-      say('<p class="muted"><strong>Unbewertet.</strong> Die Bewertung ist fehlgeschlagen'
-        + (job.failure_code ? ' (' + esc(String(job.failure_code)) + ')' : '')
-        + '. Ihr Text bleibt erhalten.</p>' + sent
-        + '<button class="btn" type="button" id="writing-retry">Erneut bewerten</button>', { reveal: true });
-      el('writing-retry')?.addEventListener('click', () => guard((async () => {
-        await api.writing.retry(submissionId);
-        say('<p class="muted">Erneut abgegeben. Die Bewertung läuft.</p>' + sent, { reveal: true });
-        setTimeout(() => { if (state?.isConnected) guard(renderResult(submissionId, 0)); }, 1200);
-      })()));
-      return;
-    }
-    if (job.status === 'succeeded' && assessment) {
-      /*
-       * THE telc B1 CONTRACT, RENDERED (Ron's D4/R11 answer).
-       *
-       * One row per criterion: the criterion's name, its BAND, the comment written in the language the letter
-       * was submitted under, and the evidence QUOTED from the learner's own text — the quote is the reason
-       * the band is checkable by the person it is about.
-       *
-       * WHAT IS DELIBERATELY ABSENT: any total. R15 — whether to show bands only or also a sum out of 45 — is
-       * an OPEN decision, and the server stores nothing numeric precisely so this screen cannot settle it by
-       * accident. The label says what the feedback is and is not.
-       *
-       * THE RETIRED CONTRACT STILL RENDERS AS ITSELF: an assessment graded under `writing.formative` has one
-       * comment and no criteria, and it is shown as that comment. Relabelling it into bands would be the
-       * renormalisation the decision forbids, so the two shapes are rendered by two branches.
-       */
-      const feedback = assessment.feedback || {};
-      const criteria = Array.isArray(feedback.criteria) ? feedback.criteria : [];
-      if (feedback.kind === 'telc-b1-bands' && criteria.length) {
-        const corrections = Array.isArray(feedback.corrections) && feedback.corrections.length
-          ? '<p class="small muted">Korrekturen</p><ul class="corrections">'
-            + feedback.corrections.map((c) => '<li>' + esc(String(c)) + '</li>').join('') + '</ul>'
-          : '';
-        say('<p class="muted">' + esc(TELC_FEEDBACK_LABEL) + '</p>'
-          + '<ul class="criteria">' + criteria.map((criterion) => '<li class="criterion">'
-            + '<div class="criterion-head"><strong>' + esc(CRITERION_LABELS[criterion.key] || String(criterion.key))
-            + '</strong><span class="band" aria-label="Band ' + esc(String(criterion.band)) + '">' + esc(String(criterion.band)) + '</span></div>'
-            + (criterion.comment ? '<p class="small muted">' + esc(String(criterion.comment)) + '</p>' : '')
-            + (criterion.evidence ? '<blockquote class="evidence">' + esc(String(criterion.evidence)) + '</blockquote>' : '')
-            + '</li>').join('') + '</ul>'
-          + corrections
-          + '<p class="small muted">Rubrik ' + esc(String(assessment.rubric_version || '')) + '</p>'
-          + sent, { reveal: true });
-        return;
-      }
-      say('<p class="muted">Bewertet — formative Rückmeldung, keine Punktzahl und kein Bestehen.</p>'
-        + (feedback.comment ? '<p>' + esc(String(feedback.comment)) + '</p>' : '')
-        + (assessment.rubric_version ? '<p class="small muted">Rubrik ' + esc(String(assessment.rubric_version)) + '</p>' : '')
-        + sent, { reveal: true });
-      return;
-    }
-    say('<p class="muted">Abgegeben. Noch keine Bewertung verfügbar.</p>' + sent, { reveal: true });
-  };
-
-  submit?.addEventListener('click', () => guard((async () => {
-    if (!area) return;
-    if (timer) { clearTimeout(timer); timer = null; }
-    await saveNow(false);
-    submit.disabled = true;
-    const res = await api.writing.submit(attemptId, revision, eventId());
-    if (!res) return;
-    if (!res.ok) {
-      submit.disabled = false;
-      say('<p class="err">Die Abgabe ist fehlgeschlagen (' + esc(failure(res)) + '). Ihr Text bleibt hier stehen.</p>', { reveal: true });
-      return;
-    }
-    await renderResult(res.data.submissionId);
-  })()));
-
-  el('writing-close')?.addEventListener('click', () => {
-    if (timer) clearTimeout(timer);
-    box.hidden = true;
-    box.innerHTML = '';
-    if (list) list.hidden = false;
-  });
-
-  /*
-   * START OVER. The attempts route makes this a tombstone rather than an overwrite: the abandoned attempt
-   * is DELETED and a fresh one is created, so the old letter is not merely cleared from the screen but
-   * unreachable on the server. Clearing the textarea alone would have left it waiting to be resumed again
-   * on the next reload — the bug, wearing the fix's clothes.
-   */
-  el('writing-new')?.addEventListener('click', () => guard((async () => {
-    if (!attemptId) return;
-    if (timer) { clearTimeout(timer); timer = null; }
-    setReady(false);
-    const gone = await api.writing.deleteAttempt(attemptId);
-    if (!gone?.ok) {
-      say('<p class="err">Der Entwurf konnte nicht verworfen werden (' + esc(failure(gone)) + ').</p>', { reveal: true });
-      setReady(true);
-      return;
-    }
-    const fresh = await api.writing.createAttempt({
-      taskId: task.task_id, taskVersion: task.version, rubricId: task.rubric_id, rubricVersion: task.rubric_version,
-    });
-    if (!fresh?.ok) {
-      say('<p class="err">Ein neuer Entwurf konnte nicht begonnen werden (' + esc(failure(fresh)) + ').</p>', { reveal: true });
-      return;
-    }
-    attemptId = fresh.data.id;
-    revision = Number(fresh.data?.revision) || 1;
-    if (area) area.value = '';
-    setReady(true);
-    say('<p class="muted">Neu angefangen. Noch nichts abgegeben.</p>', { reveal: true });
-  })()));
 }
+let routing = 0;
 
-function route() {
+async function route() {
+  const request = ++routing;
+  if (writing.active) {
+    if (!(await writing.flush())) { history.replaceState(null, "", "#/" + currentView); return; }
+    if (request !== routing) return;
+    writing.dispose();
+  }
   const key = (location.hash || '#/heute').replace(/^#\/?/, '') || 'heute';
   const view = VIEW_TITLES[key] ? key : 'heute';
   /*
@@ -1151,6 +847,7 @@ function route() {
   if (view === 'ueben') { run(renderPracticeNext); run(renderTasks); }
   if (SKILL_SECTIONS[view]) run(() => renderSkill(view));
   if (view === 'fehler') run(renderMistakes);
+  if (view === 'fortschritt') run(renderHistory);
   if (view === 'woerterbuch') run(renderDictionary);
   if (view === 'nachschlagen') run(renderGuides);
   /*
@@ -1267,6 +964,8 @@ el('settings-form').addEventListener('submit', async (event) => {
 });
 
 el('signout').addEventListener('click', async () => {
+  if (!(await writing.flush())) return;
+  writing.dispose();
   // Do NOT navigate on a refusal. The server's mutation origin gate can reject a sign-out (403),
   // and the learner would then land on the sign-in page believing the session had ended while the
   // cookie was still valid — a false success about a security action, which is the worst kind.
@@ -1298,6 +997,17 @@ el('delete-account').addEventListener('click', async () => {
   }
 });
 
+el('export-data')?.addEventListener('click', async (event) => {
+  const trigger = event.currentTarget;
+  trigger.disabled = true; el('export-state').textContent = 'Dein Export wird vorbereitet …';
+  const res = await api.account.export();
+  trigger.disabled = false;
+  if (!res?.ok) { el('export-state').textContent = 'Der Export konnte nicht erstellt werden. Bitte versuche es erneut.'; return; }
+  const url = URL.createObjectURL(new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a'); link.href = url; link.download = 'hatoove-meine-daten.json'; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  el('export-state').textContent = 'Dein Export wurde zum Download bereitgestellt.';
+});
 window.addEventListener('hashchange', route);
 
 // ---------------------------------------------------------------- boot
