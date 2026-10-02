@@ -1,30 +1,16 @@
 /**
- * MFP-14 — the journey harness skeleton (`journey-api-check`).
+ * Saved learner journeys over the real HTTP runtime and a disposable PostgreSQL schema.
+ * These routes are shipped contracts: a missing route fails rather than becoming pending.
+ * The separate worker uses the deterministic stub, never a live provider. API assertions
+ * cover saved data and ownership; rendered interaction is covered by app-browser-check.
+ * Password recovery here proves only the generic request contract; auth-entry-check drives
+ * the actual operator-assisted reset and fresh sign-in.
  *
- * Turns "functional" into a counter that moves. J1–J11 (FUNCTIONAL-ROADMAP §2.2) are driven as
- * HTTP-level legs against a **real configured runtime**: `node server.js` started with
- * `B1PREP_ACCOUNTS=1` against the disposable database, exactly the path a learner takes —
- * not an in-process api.handle() call.
- *
- * HONESTY IS THE DESIGN:
- *   - a leg whose route does not exist yet reports `PENDING <slice-id>` and does NOT count as a
- *     pass;
- *   - a leg reports `FAIL` only on a wrong answer from a route that EXISTS;
- *   - the summary prints `n passed, m pending, f failed`, so the check measures progress toward
- *     the product instead of being red until the end, and it can never be read as more complete
- *     than it is.
- *
- * Route existence is DISCOVERED, not hard-coded: a sentinel request for a path that cannot exist
- * gives the runtime's "no such route" signature, and a leg is `PENDING` when its route answers
- * with exactly that signature. So when MFP-05b adds `GET /api/v1/attempts`, J3 stops being
- * PENDING by itself.
- *
- * Safety: disposable PostgreSQL only (`OWNAPI_PG_*`, refuses the default databases), throwaway
- * env and progress files, synthetic learners, no provider call.
- *
+ * Safety: synthetic accounts, throwaway env file, isolated ports and disposable OWNAPI_PG_*.
  * Usage: node tools/journey-api-check.mjs
  */
 
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -52,7 +38,6 @@ async function startServer() {
     B1PREP_PORT: String(PORT),
     B1PREP_ACCOUNTS: '1',
     B1PREP_ENV_FILE: path.join(TEMP, 'env'),
-    B1PREP_PROGRESS_FILE: path.join(TEMP, 'progress.json'),
     B1PREP_FORCE_OFFLINE: '1',
   };
   const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -110,242 +95,286 @@ const newJar = () => ({ cookies: new Map() });
 async function signUp(call, tag) {
   const jar = newJar();
   const email = `${tag}-${RUN_ID}@journey.example.invalid`;
+  const password = `pw-${randomUUID()}`;
   const res = await call(jar, 'POST', '/api/auth/sign-up/email',
-    { body: { name: `Synthetic ${tag}`, email, password: `pw-${randomUUID()}` } });
-  if (res.status !== 200) return { jar, email, res, ok: false };
-  const who = await call(jar, 'GET', '/api/v1/account');
-  return { jar, email, userId: who.json && who.json.id, res, ok: who.status === 200 };
+    { body: { name: `Synthetic ${tag}`, email, password } });
+  expect(res);
+  const who = expect(await call(jar, 'GET', '/api/v1/account'));
+  assert.ok(who.id, 'a synthetic account must resolve before its journey starts');
+  return { jar, email, password, userId: who.id, res, ok: true };
 }
 
+function expect(response, status = 200) {
+  assert.equal(response.status, status, `expected HTTP ${status}; got ${response.status}: ${response.text.slice(0, 160)}`);
+  assert.ok(response.json && typeof response.json === 'object', 'expected a JSON response');
+  return response.json;
+}
 /* ----------------------------------------------------------------- harness */
 
 const legs = [];
 const leg = (id, title, slice, run) => legs.push({ id, title, slice, run });
-
 const pass = (detail) => ({ status: 'pass', detail });
-const pending = (slice, detail) => ({ status: 'pending', slice, detail });
 const fail = (detail) => ({ status: 'fail', detail });
-
-/* =================================================================== legs */
 
 leg('J1', 'sign up with email and password', 'MFP-04a', async (ctx) => {
   const account = await signUp(ctx.call, 'j1');
-  if (account.res.status === 404 && ctx.routeAbsent(account.res)) return pending('MFP-04a', 'sign-up route does not exist');
-  if (!account.ok) return fail(`sign-up answered ${account.res.status}`);
-  const session = await ctx.call(account.jar, 'GET', '/api/auth/get-session');
-  if (session.status !== 200 || !session.json || !session.json.user) return fail(`get-session answered ${session.status}`);
-  if (session.json.user.id !== account.userId) return fail('get-session and /api/v1/account disagree');
+  const session = expect(await ctx.call(account.jar, 'GET', '/api/auth/get-session'));
+  assert.equal(session.user.id, account.userId);
   ctx.accounts.j1 = account;
-  return pass(`sign-up 200; get-session and /api/v1/account agree on ${account.userId}`);
+  return pass('sign-up, session and owned account agree');
 });
 
-leg('J2', 'first-run setup: exam date, explanation language', 'MFP-02a', async (ctx) => {
-  const a = ctx.accounts.j1 || await signUp(ctx.call, 'j2');
-  const before = await ctx.call(a.jar, 'GET', '/api/v1/settings');
-  if (before.status === 404 && ctx.routeAbsent(before)) return pending('MFP-02a', 'settings route does not exist');
-  if (before.status !== 200) return fail(`GET settings answered ${before.status}`);
-  const revision = before.json.revision;
-  const put = await ctx.call(a.jar, 'PUT', '/api/v1/settings',
-    { body: { expectedRevision: revision, settings: { examDate: '2027-03-15', language: 'de' } } });
-  if (put.status !== 200) return fail(`PUT settings answered ${put.status}`);
-  const after = await ctx.call(a.jar, 'GET', '/api/v1/settings');
-  if (after.json.settings.examDate !== '2027-03-15' || after.json.settings.language !== 'de') {
-    return fail(`settings did not round-trip: ${JSON.stringify(after.json.settings)}`);
+leg('J2', 'first-run setup preserves the supported explanation language', 'MFP-02a', async (ctx) => {
+  const a = ctx.accounts.j1;
+  const before = expect(await ctx.call(a.jar, 'GET', '/api/v1/settings'));
+  assert.equal(before.settings.language, 'de');
+  const saved = expect(await ctx.call(a.jar, 'PUT', '/api/v1/settings',
+    { body: { expectedRevision: before.revision, settings: { examDate: '2027-03-15', language: 'uk' } } }));
+  assert.equal(saved.revision, before.revision + 1);
+  assert.equal(saved.settings.examDate, '2027-03-15');
+  assert.equal(saved.settings.language, 'uk');
+  assert.deepEqual(expect(await ctx.call(a.jar, 'GET', '/api/v1/settings')), saved);
+  expect(await ctx.call(a.jar, 'PUT', '/api/v1/settings',
+    { body: { expectedRevision: saved.revision, settings: { language: 'fr' } } }), 422);
+  assert.deepEqual(expect(await ctx.call(a.jar, 'GET', '/api/v1/settings')), saved);
+  return pass('German default, Ukrainian selection, revision round-trip; unsupported language writes nothing');
+});
+
+leg('J3', 'discover and reopen an owned saved draft through history', 'MFP-05b', async (ctx) => {
+  const a = ctx.accounts.j1;
+  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} }), 201);
+  const text = 'Liebe Freundin, ich freue mich auf deinen Besuch. Viele Grüße.';
+  const saved = expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${created.id}`,
+    { body: { expectedRevision: created.revision, text } }));
+  const history = expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts')).attempts;
+  const open = expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts?open=1')).attempts;
+  assert.ok(Array.isArray(history) && Array.isArray(open));
+  assert.equal(history.length, 1);
+  assert.equal(history[0].id, created.id);
+  assert.equal(history[0].status, 'draft');
+  assert.equal(history[0].revision, saved.revision);
+  assert.deepEqual(open.map(row => row.id), [created.id]);
+  assert.equal('text' in history[0], false, 'the index must not expose draft bodies');
+  assert.equal(expect(await ctx.call(a.jar, 'GET', `/api/v1/attempts/${created.id}`)).text, text);
+  expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts?status=queued'), 422);
+  ctx.dashboardDraft = { id: created.id, text };
+  return pass('history/open indexes contain the saved revision; by-id read returns exact text; obsolete filter refused');
+});
+
+leg('J4', 'choose a servable writing task through either supported family form', 'MFP-05a', async (ctx) => {
+  const a = ctx.accounts.j1;
+  const tasks = expect(await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=SA1'));
+  const byKind = expect(await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=writing'));
+  assert.ok(Array.isArray(tasks) && tasks.length > 0, 'writing catalogue must be nonempty');
+  assert.deepEqual(tasks, byKind, 'writing part and kind must select the same versions');
+  for (const task of tasks) {
+    assert.equal(task.family, 'writing');
+    assert.ok(task.task_id && task.version && task.rubric_id && task.rubric_version);
+    assert.ok(['approved', 'unreviewed'].includes(task.review_status));
   }
-  // The language is NOT constrained to the supported set here; MFP-02a owns that. See the record.
-  return pass(`examDate+language round-tripped at revision ${after.json.revision}`);
+  expect(await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=sa1'), 422);
+  return pass(`${tasks.length} bound writing versions; SA1 and writing agree; invalid casing refused`);
 });
 
-leg('J3', 'dashboard: continue your draft, your feedback is ready', 'MFP-05b', async (ctx) => {
-  const a = ctx.accounts.j1 || await signUp(ctx.call, 'j3');
-  const list = await ctx.call(a.jar, 'GET', '/api/v1/attempts?status=queued');
-  if (list.status === 404 && ctx.routeAbsent(list)) return pending('MFP-05b', 'GET /api/v1/attempts list route does not exist');
-  if (list.status !== 200 || !Array.isArray(list.json)) return fail(`list answered ${list.status} ${list.text.slice(0, 80)}`);
-  return pass(`list route returned ${list.json.length} item(s)`);
-});
-
-leg('J4', 'choose a writing task (only servable versions)', 'MFP-05a', async (ctx) => {
-  const a = ctx.accounts.j1 || await signUp(ctx.call, 'j4');
-  /*
-   * `family=SA1` is the EXAM MODEL's writing part id, and it is not a stale name. It came from
-   * `public/js/blueprint.js`, which defined `SA1: { id: 'SA1', group: 'SA', pts: 45, items: 1,
-   * kind: 'writing' }` and listed it in `SUBTEST_ORDER` — that module was deleted with the retired client
-   * (SPA-RETIRE 4), and the citation stays because it is the record of where the id was defined. This leg
-   * now FAILS with 422, and the cause is a real product defect, not the check:
-   *
-   *   /api/v1/tasks          validates family as /^[a-z][a-z0-9_-]{0,31}$/   -> SA1 is refused (uppercase)
-   *   /api/v1/objective-sets requires the UPPERCASE ids LV1/SB2/HV3          -> 'lv1' is refused
-   *
-   * Two sibling routes, one query parameter, opposite conventions, and neither matches the blueprint the
-   * rest of the product is built from. PILOT-04 turned this leg from PENDING into FAIL when it implemented
-   * the route -- and nobody saw it, because the CI job SKIPS this check (the session-boundary step fails
-   * first). The counter is left failing on purpose: fixing the CHECK to ask for `family=writing` would
-   * hide the inconsistency the leg exists to expose. The product decision is recorded in AUTORUN-QUEUE.md.
-   */
-  const tasks = await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=SA1');
-  if (tasks.status === 404 && ctx.routeAbsent(tasks)) return pending('MFP-05a', 'GET /api/v1/tasks route does not exist');
-  if (tasks.status !== 200 || !Array.isArray(tasks.json)) return fail(`tasks answered ${tasks.status} for family=SA1, the blueprint's writing part id`);
-  return pass(`task route returned ${tasks.json.length} servable version(s)`);
-});
-
-leg('J5', 'write; autosave with visible state; conflicts explicit', 'MFP-05a', async (ctx) => {
+leg('J5', 'save exact text; reject stale and foreign draft access', 'MFP-05a', async (ctx) => {
   const a = await signUp(ctx.call, 'j5');
-  const created = await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} });
-  if (created.status === 404 && ctx.routeAbsent(created)) return pending('MFP-05a', 'attempt routes do not exist');
-  if (created.status !== 201) return fail(`create answered ${created.status}`);
-  const id = created.json.id;
-  const save = await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${id}`, { body: { expectedRevision: 1, text: 'Sehr geehrte Damen und Herren, ...' } });
-  if (save.status !== 200 || save.json.revision !== 2) return fail(`save answered ${save.status} rev ${save.json && save.json.revision}`);
-  const stale = await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${id}`, { body: { expectedRevision: 1, text: 'stale' } });
-  if (stale.status !== 409) return fail(`a stale save answered ${stale.status}, expected 409`);
-  const other = await signUp(ctx.call, 'j5b');
-  const foreign = await ctx.call(other.jar, 'GET', `/api/v1/attempts/${id}`);
-  if (foreign.status !== 404) return fail(`another account read the draft: ${foreign.status}`);
-  return pass('create 201, save -> revision 2, stale save 409, another account 404');
+  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} }), 201);
+  const text = 'Sehr geehrte Damen und Herren, ich schreibe wegen des Kurses.';
+  const saved = expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${created.id}`,
+    { body: { expectedRevision: created.revision, text } }));
+  assert.equal(saved.revision, created.revision + 1);
+  assert.equal(saved.text, text);
+  const stale = expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${created.id}`,
+    { body: { expectedRevision: created.revision, text: 'stale' } }), 409);
+  assert.equal(stale.error, 'draft_conflict');
+  const read = expect(await ctx.call(a.jar, 'GET', `/api/v1/attempts/${created.id}`));
+  assert.equal(read.text, text); assert.equal(read.revision, saved.revision);
+  expect(await ctx.call(ctx.accounts.j1.jar, 'GET', `/api/v1/attempts/${created.id}`), 404);
+  ctx.otherDraft = { id: created.id, text };
+  return pass('saved revision/text preserved after stale409; another account404');
 });
 
-leg('J6', 'submit; see pending; leave (and duplicate clicks are idempotent)', 'MFP-05a', async (ctx) => {
+leg('J6', 'submit an immutable text; duplicate requests return one pending submission', 'MFP-05a', async (ctx) => {
   const a = await signUp(ctx.call, 'j6');
-  const created = await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} });
-  if (created.status !== 201) return createdAtFail(ctx, created, 'MFP-05a');
-  const id = created.json.id;
-  await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${id}`, { body: { expectedRevision: 1, text: 'Ein vollständiger Aufsatz für die Abgabe.' } });
-  const eventId = randomUUID();
-  const sent = await ctx.call(a.jar, 'POST', `/api/v1/attempts/${id}/submissions`, { body: { expectedRevision: 2, eventId } });
-  if (sent.status !== 202) return fail(`submit answered ${sent.status}`);
-  const submissionId = sent.json.submissionId;
-  const replay = await ctx.call(a.jar, 'POST', `/api/v1/attempts/${id}/submissions`, { body: { expectedRevision: 2, eventId } });
-  if (replay.status !== 202 || replay.json.replay !== true) return fail(`a duplicate click was not idempotent (${replay.status})`);
-  const result = await ctx.call(a.jar, 'GET', `/api/v1/submissions/${submissionId}`);
-  if (result.status !== 200 || !result.json.job) return fail(`result answered ${result.status}`);
-  ctx.submissions = ctx.submissions || [];
-  ctx.submissions.push({ jar: a.jar, submissionId });
-  return pass(`submit 202, replay 202 replay:true, result job.status=${result.json.job.status}`);
+  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} }), 201);
+  const text = 'Ein vollständiger Aufsatz für die Abgabe.';
+  const saved = expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${created.id}`,
+    { body: { expectedRevision: created.revision, text } }));
+  const body = { expectedRevision: saved.revision, eventId: randomUUID() };
+  const sent = expect(await ctx.call(a.jar, 'POST', `/api/v1/attempts/${created.id}/submissions`, { body }), 202);
+  const replay = expect(await ctx.call(a.jar, 'POST', `/api/v1/attempts/${created.id}/submissions`, { body }), 202);
+  assert.equal(replay.replay, true); assert.equal(replay.submissionId, sent.submissionId);
+  const result = expect(await ctx.call(a.jar, 'GET', `/api/v1/submissions/${sent.submissionId}`));
+  assert.equal(result.job.status, 'queued'); assert.equal(result.submission.text, text);
+  assert.equal(result.assessment, null);
+  const history = expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts')).attempts;
+  assert.equal(history.length, 1); assert.equal(history[0].status, 'pending');
+  assert.equal(history[0].submission_id, sent.submissionId);
+  assert.deepEqual(expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts?open=1')).attempts, []);
+  return pass('same event returns same submission; immutable text queued, indexed as pending, excluded from drafts');
 });
 
-leg('J7', 'worker produces feedback in the chosen language (recoverable, one debit)', 'MFP-06a', async (ctx) => {
-  // The composition: a REAL, separate `node server/worker.mjs` process against the same
-  // disposable database. The child is killed in `finally` and its absence is proved, so a
-  // failing leg cannot leak a process into the next leg or CI.
+leg('J7', 'worker keeps the snapshotted explanation language and debits exactly once', 'MFP-06a', async (ctx) => {
+  const a = await signUp(ctx.call, 'j7');
+  const settings = expect(await ctx.call(a.jar, 'GET', '/api/v1/settings'));
+  const selected = expect(await ctx.call(a.jar, 'PUT', '/api/v1/settings',
+    { body: { expectedRevision: settings.revision, settings: { language: 'ar' } } }));
+  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} }), 201);
+  const submittedText = 'Liebe Frau Berger, ich bedanke mich für den Kurs. Ich möchte am nächsten Dienstag kommen und bringe alle Unterlagen mit. Viele Grüße.';
+  const saved = expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${created.id}`,
+    { body: { expectedRevision: created.revision, text: submittedText } }));
+  const before = await ctx.entitlement(a.userId);
+  const sent = expect(await ctx.call(a.jar, 'POST', `/api/v1/attempts/${created.id}/submissions`,
+    { body: { expectedRevision: saved.revision, eventId: randomUUID() } }), 202);
+  const submissionId = sent.submissionId;
+  const reserved = await ctx.entitlement(a.userId);
+  assert.equal(reserved.reserved, before.reserved + 1);
+  // Changing today's preference cannot change the language attached to an existing submission.
+  expect(await ctx.call(a.jar, 'PUT', '/api/v1/settings',
+    { body: { expectedRevision: selected.revision, settings: { language: 'de' } } }));
   const worker = await ctx.startWorker();
   try {
-    if (!worker.ok) return fail(`the worker process did not come up: ${worker.detail}`);
-
-    const a = await signUp(ctx.call, 'j7');
-    const created = await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} });
-    if (created.status !== 201) return createdAtFail(ctx, created, 'MFP-06a');
-    const id = created.json.id;
-    const submittedText = 'Text für die Bewertung durch den Worker.';
-    await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${id}`, { body: { expectedRevision: 1, text: submittedText } });
-
-    const before = await ctx.entitlement(a.userId);
-    const sent = await ctx.call(a.jar, 'POST', `/api/v1/attempts/${id}/submissions`, { body: { expectedRevision: 2, eventId: randomUUID() } });
-    if (sent.status !== 202) return fail(`submit answered ${sent.status}`);
-    const submissionId = sent.json.submissionId;
-    const reserved = await ctx.entitlement(a.userId);
-    if (reserved.reserved !== before.reserved + 1) {
-      return fail(`submit must reserve exactly one: reserved ${before.reserved} -> ${reserved.reserved}`);
-    }
-
-    // Bounded poll: a timeout is a FAILED leg with the last observed status, never a hang.
+    assert.equal(worker.ok, true, worker.detail);
     const deadline = Date.now() + WORKER_DEADLINE_MS;
-    let last = null;
+    let last;
     for (;;) {
-      const result = await ctx.call(a.jar, 'GET', `/api/v1/submissions/${submissionId}`);
-      if (result.status !== 200) return fail(`result answered ${result.status}`);
-      last = result.json;
-      if (last.job && last.job.status === 'failed') return fail(`the job failed: ${JSON.stringify(last.job)}`);
-      if (last.job && last.job.status === 'succeeded' && last.assessment) break;
-      if (Date.now() > deadline) {
-        return fail(`the job did not reach succeeded within ${WORKER_DEADLINE_MS}ms; last status=${last.job && last.job.status}; worker log: ${worker.log().slice(-300)}`);
-      }
-      await new Promise((r) => setTimeout(r, 200));
+      last = expect(await ctx.call(a.jar, 'GET', `/api/v1/submissions/${submissionId}`));
+      assert.notEqual(last.job.status, 'failed', `worker failed: ${last.job.failure_code}`);
+      if (last.job.status === 'succeeded' && last.assessment) break;
+      assert.ok(Date.now() <= deadline, `worker exceeded ${WORKER_DEADLINE_MS}ms; last=${last.job.status}`);
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
-
-    /*
-     * The assessment is the DETERMINISTIC STUB's, which no provider call could produce.
-     *
-     * Compared from the SAME function and the SAME input the worker gives the grader (`stubGrade` takes the
-     * text so it can quote evidence), not from a frozen copy of the shape: a frozen expectation asserts
-     * yesterday's contract and would have to be edited every time the contract legitimately changes — which
-     * is exactly what happened when the writing rubric became telc B1's three-criterion one.
-     */
-    const expected = stubGrade({ text: submittedText });
-    if (last.assessment.model_version !== expected.modelVersion) {
-      return fail(`the assessment was not produced by the stub grader (model_version=${last.assessment.model_version}); a provider call is unproven`);
-    }
-    /*
-     * CANONICAL COMPARISON, because `jsonb` does not keep the key order it was given: PostgreSQL sorts
-     * object keys by length then alphabetically, so `{key, band, evidence, comment}` comes back as
-     * `{key, band, comment, evidence}`. A `JSON.stringify` equality check therefore fails on a difference
-     * that is not one — the values are identical. Canonicalising both sides compares the CONTENT, which is
-     * what this leg is about.
-     */
-    const canonical = (value) => (Array.isArray(value)
-      ? value.map(canonical)
-      : (value && typeof value === 'object'
-        ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]))
-        : value));
-    if (JSON.stringify(canonical(last.assessment.feedback)) !== JSON.stringify(canonical(expected.feedback))) {
-      return fail(`the served feedback is not the stub's: ${JSON.stringify(last.assessment.feedback)}`);
-    }
-    if (await ctx.assessmentCount(submissionId) !== 1) return fail('expected exactly one assessment row');
-    const debits = await ctx.ledgerUnits(submissionId);
-    if (debits !== 1) return fail(`expected exactly one debit, got ${debits}`);
-
+    const expected = stubGrade({ text: submittedText, explanationLanguage: 'ar' });
+    assert.equal(last.submission.text, submittedText);
+    assert.equal(last.submission.explanation_language, 'ar');
+    assert.equal(last.assessment.model_version, expected.modelVersion);
+    assert.deepEqual(last.assessment.feedback, expected.feedback);
+    assert.equal(await ctx.assessmentCount(submissionId), 1);
+    assert.equal(await ctx.ledgerUnits(submissionId), 1);
     const after = await ctx.entitlement(a.userId);
-    if (after.used !== before.used + 1) return fail(`used must rise by exactly one: ${before.used} -> ${after.used}`);
-    if (after.reserved !== before.reserved) return fail(`reserved must return to its start: ${before.reserved} -> ${after.reserved}`);
-
-    return pass(`child process ${worker.detail}; submit reserved 1 -> 0; job ${last.job.status}; assessment=stub model_version=${last.assessment.model_version}; used ${before.used}->${after.used}; exactly one debit`);
+    assert.equal(after.used, before.used + 1); assert.equal(after.reserved, before.reserved);
+    ctx.assessed = { account: a, attempt: created, submissionId, text: submittedText, result: last };
+    return pass('Arabic snapshot survives preference change; exact stub feedback, one assessment and one debit');
   } finally {
-    const gone = await worker.stop();
-    if (!gone) throw new Error('the worker process was not gone after SIGKILL (pg_stat_activity still shows its backend)');
+    assert.equal(await worker.stop(), true, 'worker backend must be gone after the leg');
   }
 });
 
-leg('J8', 'return on a fresh browser; see the exact text and feedback', 'MFP-05b', async (ctx) => {
-  const a = ctx.accounts.j1 || await signUp(ctx.call, 'j8');
-  const list = await ctx.call(a.jar, 'GET', '/api/v1/attempts?status=succeeded');
-  if (list.status === 404 && ctx.routeAbsent(list)) return pending('MFP-05b', 'the list route (fresh-browser resume) does not exist; the by-id lookup does');
-  if (list.status !== 200 || !Array.isArray(list.json)) return fail(`list answered ${list.status}`);
-  return pass(`list route returned ${list.json.length} item(s) for resume`);
+leg('J8', 'fresh sign-in discovers exact feedback and saves a separate revision', 'MFP-05b', async (ctx) => {
+  const original = ctx.assessed; assert.ok(original, 'J7 must have produced feedback');
+  const a = original.account;
+  const oldJar = { cookies: new Map(a.jar.cookies) };
+  expect(await ctx.call(a.jar, 'POST', '/api/auth/sign-out', { body: {} }));
+  expect(await ctx.call(oldJar, 'GET', '/api/v1/account'), 401);
+  a.jar = newJar();
+  expect(await ctx.call(a.jar, 'POST', '/api/auth/sign-in/email', { body: { email: a.email, password: a.password } }));
+  const history = expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts')).attempts;
+  assert.ok(Array.isArray(history)); assert.equal(history.length, 1);
+  const row = history[0];
+  assert.equal(row.id, original.attempt.id); assert.equal(row.status, 'assessed');
+  assert.equal(row.submission_id, original.submissionId); assert.equal('text' in row, false);
+  const result = expect(await ctx.call(a.jar, 'GET', `/api/v1/submissions/${row.submission_id}`));
+  assert.equal(result.submission.text, original.text);
+  assert.deepEqual(result.assessment.feedback, original.result.assessment.feedback);
+  assert.deepEqual(result.task, original.result.task); assert.deepEqual(result.rubric, original.result.rubric);
+  expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts?status=succeeded'), 422);
+  const revision = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts',
+    { body: { parentSubmissionId: original.submissionId } }), 201);
+  assert.equal(revision.text, original.text);
+  for (const field of ['task_id', 'task_version', 'rubric_id', 'rubric_version']) assert.equal(revision[field], original.attempt[field]);
+  const text = original.text + '\nÜberarbeitete Fassung: Ich freue mich auf Ihre Antwort.';
+  expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${revision.id}`, { body: { expectedRevision: revision.revision, text } }));
+  assert.equal(expect(await ctx.call(a.jar, 'GET', `/api/v1/submissions/${original.submissionId}`)).submission.text, original.text);
+  assert.deepEqual(expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts?open=1')).attempts.map(item => item.id), [revision.id]);
+  ctx.revision = { id: revision.id, text };
+  return pass('new cookie rediscovers exact text/feedback/binding; revision inherits and preserves the original');
 });
 
-leg('J9', 'progress: a factual list and simple counts', 'MFP-09', async (ctx) => {
-  const a = ctx.accounts.j1 || await signUp(ctx.call, 'j9');
-  const progress = await ctx.call(a.jar, 'GET', '/api/v1/progress');
-  if (progress.status === 404 && ctx.routeAbsent(progress)) return pending('MFP-09', 'GET /api/v1/progress route does not exist');
-  if (progress.status !== 200) return fail(`progress answered ${progress.status}`);
-  return pass('progress route answered 200');
-});
-
-leg('J10', 'settings change, sign out, export, hard delete', 'MFP-09', async (ctx) => {
-  const a = await signUp(ctx.call, 'j10');
-  const exported = await ctx.call(a.jar, 'GET', '/api/v1/export');
-  // Prove the neighbours exist before reporting the leg pending, so the record shows the partial.
-  const signedOut = await ctx.call(a.jar, 'POST', '/api/auth/sign-out', { body: {} });
-  if (exported.status === 404 && ctx.routeAbsent(exported)) {
-    return pending('MFP-09', `GET /api/v1/export does not exist (export leg); sign-out and hard delete are wired (sign-out answered ${signedOut.status})`);
+leg('J9', 'objective progress counts the current learner evidence exactly', 'MFP-09', async (ctx) => {
+  const a = ctx.assessed.account;
+  const before = expect(await ctx.call(a.jar, 'GET', '/api/v1/practice/progress'));
+  assert.equal(before.totals.attempts, 0);
+  const catalogue = expect(await ctx.call(a.jar, 'GET', '/api/v1/objective-sets?family=SB1'));
+  assert.ok(catalogue.length > 0, 'an actual servable set is required');
+  const selected = catalogue[0];
+  const set = expect(await ctx.call(a.jar, 'GET', `/api/v1/objective-sets/${selected.set_id}?version=${selected.version}`));
+  const gap = set.payload.gaps[0]; assert.ok(gap && gap.options);
+  const itemId = String(gap.n), choices = Object.keys(gap.options);
+  assert.ok(choices.length >= 2);
+  const receipts = [];
+  for (const answer of choices.slice(0, 2)) {
+    const receipt = expect(await ctx.call(a.jar, 'POST', `/api/v1/objective-sets/${selected.set_id}/answers`,
+      { body: { version: selected.version, itemId, answer } }), 201);
+    assert.equal(typeof receipt.correct, 'boolean'); assert.equal(receipt.item_id, itemId);
+    receipts.push({ ...receipt, answer });
   }
-  if (exported.status !== 200) return fail(`export answered ${exported.status}`);
-  return pass('export route answered 200');
+  const progress = expect(await ctx.call(a.jar, 'GET', '/api/v1/practice/progress'));
+  const correct = receipts.filter(receipt => receipt.correct).length;
+  assert.deepEqual(progress.totals, { attempts: 2, correct, accuracy: correct / 2, sections: 1 });
+  assert.deepEqual(progress.sections, [{ section: 'SB', attempts: 2, correct, accuracy: correct / 2 }]);
+  const mistakes = expect(await ctx.call(a.jar, 'GET', '/api/v1/practice/mistakes'));
+  const latest = receipts.at(-1);
+  assert.equal(mistakes.count, latest.correct ? 0 : 1);
+  if (!latest.correct) {
+    assert.equal(mistakes.items[0].item_id, itemId); assert.equal(mistakes.items[0].your_answer, latest.answer);
+    assert.equal('correct_answer' in mistakes.items[0], false);
+  }
+  const foreign = expect(await ctx.call(ctx.accounts.j1.jar, 'GET', '/api/v1/practice/progress'));
+  assert.equal(foreign.totals.attempts, 0, 'another learner must not inherit the evidence');
+  ctx.objective = { setId: selected.set_id, version: selected.version, itemId, receipts };
+  return pass('two actual answers, exact per-section counts and latest-mistake state; another account stays empty');
 });
 
-leg('J11', 'forgot password, reset via an email port (stub in this programme)', 'MFP-04b', async (ctx) => {
-  const jar = newJar();
-  const res = await ctx.call(jar, 'POST', '/api/auth/forget-password', { body: { email: `nobody-${RUN_ID}@journey.example.invalid` } });
-  if (res.status === 404 && ctx.routeAbsent(res)) return pending('MFP-04b', 'no password-reset route exists');
-  if (res.status !== 200) return fail(`reset request answered ${res.status}`);
-  return pass('password-reset route answered 200');
+leg('J10', 'export exact owned work, change settings, sign out, sign in and delete the account', 'MFP-09', async (ctx) => {
+  const original = ctx.assessed, a = original.account;
+  const before = expect(await ctx.call(a.jar, 'GET', '/api/v1/settings'));
+  expect(await ctx.call(a.jar, 'PUT', '/api/v1/settings', { body: { expectedRevision: before.revision, settings: { language: 'tr' } } }));
+  const exported = expect(await ctx.call(a.jar, 'GET', '/api/v1/export'));
+  assert.equal(exported.format, 'hatoove-learner-export-v1'); assert.ok(Date.parse(exported.exported_at));
+  assert.equal(exported.settings.settings.language, 'tr');
+  assert.equal(exported.attempts.length, 2); assert.equal(exported.submissions.length, 1); assert.equal(exported.results.length, 1);
+  assert.equal(exported.attempts.find(row => row.id === ctx.revision.id).text, ctx.revision.text);
+  assert.equal(exported.submissions[0].id, original.submissionId); assert.equal(exported.submissions[0].text, original.text);
+  assert.equal(exported.submissions[0].explanation_language, 'ar');
+  assert.equal(exported.results[0].submission_id, original.submissionId);
+  assert.deepEqual(exported.results[0].feedback, original.result.assessment.feedback);
+  assert.equal(exported.objective_evidence.length, 2);
+  for (const receipt of ctx.objective.receipts) {
+    const evidence = exported.objective_evidence.find(row => row.evidence_id === receipt.evidence_id);
+    assert.ok(evidence); assert.equal(evidence.answer, receipt.answer); assert.equal(evidence.correct, receipt.correct);
+    assert.equal(evidence.item_id, ctx.objective.itemId); assert.equal(evidence.set_id, ctx.objective.setId);
+  }
+  for (const foreign of [ctx.dashboardDraft, ctx.otherDraft]) {
+    assert.equal(JSON.stringify(exported).includes(foreign.id), false);
+    assert.equal(JSON.stringify(exported).includes(foreign.text), false);
+  }
+  const forbidden = /^(password|password_hash|token|session|sessions|secret|lease_token|lease_until|event_id|owner_id|account|objective_key)$/i;
+  const inspect = value => { if (value && typeof value === 'object') for (const [key, entry] of Object.entries(value)) {
+    assert.equal(forbidden.test(key), false, `export exposes ${key}`); inspect(entry);
+  } };
+  inspect(exported);
+  const oldJar = { cookies: new Map(a.jar.cookies) };
+  expect(await ctx.call(a.jar, 'POST', '/api/auth/sign-out', { body: {} }));
+  expect(await ctx.call(oldJar, 'GET', '/api/v1/export'), 401);
+  a.jar = newJar();
+  expect(await ctx.call(a.jar, 'POST', '/api/auth/sign-in/email', { body: { email: a.email, password: a.password } }));
+  assert.equal(expect(await ctx.call(a.jar, 'GET', '/api/v1/settings')).settings.language, 'tr');
+  assert.equal(expect(await ctx.call(a.jar, 'DELETE', '/api/v1/account', { body: {} })).deleted, true);
+  expect(await ctx.call(a.jar, 'GET', '/api/v1/export'), 401);
+  expect(await ctx.call(newJar(), 'POST', '/api/auth/sign-in/email', { body: { email: a.email, password: a.password } }), 401);
+  assert.equal(expect(await ctx.call(ctx.accounts.j1.jar, 'GET', `/api/v1/attempts/${ctx.dashboardDraft.id}`)).text, ctx.dashboardDraft.text);
+  return pass('export includes exact original/revision/feedback/evidence and no foreign work or secrets; sign-out and deletion invalidate access');
 });
 
-/** A create-attempt failure that may be a missing route (pending) rather than a wrong answer. */
-function createdAtFail(ctx, res, slice) {
-  if (res.status === 404 && ctx.routeAbsent(res)) return { status: 'pending', slice, detail: 'attempt routes do not exist' };
-  return fail(`create answered ${res.status}`);
-}
-
+leg('J11', 'password-reset request gives the same generic response for known and unknown accounts', 'MFP-04b', async (ctx) => {
+  const known = expect(await ctx.call(newJar(), 'POST', '/api/auth/request-password-reset',
+    { body: { email: ctx.accounts.j1.email } }));
+  const unknown = expect(await ctx.call(newJar(), 'POST', '/api/auth/request-password-reset',
+    { body: { email: `nobody-${RUN_ID}@journey.example.invalid` } }));
+  assert.deepEqual(known, { ok: true }); assert.deepEqual(unknown, known);
+  expect(await ctx.call(newJar(), 'POST', '/api/auth/request-password-reset', { body: { email: 'invalid' } }), 422);
+  return pass('known/unknown requests both return only {ok:true}; malformed email refused; actual reset is covered by auth-entry-check');
+});
 /* ==================================================================== run */
 
 export async function runJourneyApiCheck() {
@@ -417,16 +446,7 @@ export async function runJourneyApiCheck() {
   };
 
   try {
-    // A sentinel request for a path that cannot exist gives the runtime's "no such route"
-    // signature. It must carry a session: every `/api/v1/*` path answers 401 before routing, so
-    // an anonymous probe would learn the auth signature, not the not-found one.
-    const sentinelAccount = await signUp(call, 'sentinel');
-    const sentinel = sentinelAccount.ok
-      ? await call(sentinelAccount.jar, 'GET', `/api/v1/__mfp14_absent__${randomUUID()}`)
-      : { status: 404, text: '{"error":"not_found"}' };
-    const routeAbsent = (res) => res.status === sentinel.status && res.text === sentinel.text;
-
-    const ctx = { call, routeAbsent, accounts: {}, sentinel, startWorker, entitlement, assessmentCount, ledgerUnits };
+    const ctx = { call, accounts: {}, startWorker, entitlement, assessmentCount, ledgerUnits };
     for (const { id, title, slice, run } of legs) {
       let outcome;
       try {
@@ -442,7 +462,7 @@ export async function runJourneyApiCheck() {
     fs.rmSync(TEMP, { recursive: true, force: true });
   }
   const passed = report.filter((r) => r.status === 'pass').length;
-  const pendingCount = report.filter((r) => r.status === 'pending').length;
+  const pendingCount = 0; // All journey routes above are shipped and required.
   const failed = report.filter((r) => r.status === 'fail').length;
   return { report, passed, pending: pendingCount, failed, ok: failed === 0 };
 }
@@ -452,7 +472,7 @@ export async function runJourneyApiCheck() {
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
   const database = process.env.OWNAPI_PG_DATABASE || '';
-  if (FORBIDDEN.has(database)) throw new Error(`refusing to run against ${database}; set OWNAPI_PG_DATABASE to a disposable database`);
+  if (!database || FORBIDDEN.has(database)) throw new Error(`refusing to run against ${database}; set OWNAPI_PG_DATABASE to a disposable database`);
   const result = await runJourneyApiCheck();
   console.log(`\n=== journey-api-check (HTTP, B1PREP_ACCOUNTS=1, port ${PORT}) ===\n`);
   for (const row of result.report) {

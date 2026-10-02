@@ -21,7 +21,7 @@
  *      origin check.
  *
  * Safety: it needs a disposable PostgreSQL database (`OWNAPI_PG_*`) and refuses `postgres`,
- * `template0` and `template1`; it uses a throwaway env file and progress file so the real
+ * `template0` and `template1`; it uses a throwaway env file so the real
  * install is never touched. Synthetic learners only. No provider call.
  *
  * Usage: node tools/accounts-http-check.mjs
@@ -51,7 +51,6 @@ async function startServer(port, { accounts }) {
     ...process.env,
     B1PREP_PORT: String(port),
     B1PREP_ENV_FILE: path.join(TEMP, `env-${port}`),
-    B1PREP_PROGRESS_FILE: path.join(TEMP, `progress-${port}.json`),
     B1PREP_FORCE_OFFLINE: '1',
   };
   // Absent when accounts are off (not an empty string): the flag is read as `=== '1'`.
@@ -270,7 +269,7 @@ check('settings-are-per-account-and-refuse-a-stale-write', async () => {
     assert.equal(initial.json.revision, 0, 'a never-saved account is at revision 0');
     assert.equal(initial.json.settings.dailyGoal, 20);
     assert.equal(initial.json.settings.theme, 'system');
-    assert.equal(initial.json.settings.language, '');
+    assert.equal(initial.json.settings.language, 'de');
 
     // The first write is expectedRevision 0 and bumps the revision to 1.
     const saved = await call('PUT', '/api/v1/settings', { expectedRevision: 0, settings: { examDate: '2026-12-05', dailyGoal: 30, theme: 'dark', language: 'de' } });
@@ -291,6 +290,24 @@ check('settings-are-per-account-and-refuse-a-stale-write', async () => {
     assert.equal((await call('PUT', '/api/v1/settings', { expectedRevision: 1, settings: { dailyGoal: 0 } })).status, 422);
     assert.equal((await call('PUT', '/api/v1/settings', { expectedRevision: 1, settings: { theme: 'neon' } })).status, 422);
 
+    // Every supported explanation language is accepted; a refusal cannot change state.
+    let revision = saved.json.revision;
+    for (const language of ['de', 'en', 'uk', 'ar', 'tr']) {
+      const updated = await call('PUT', '/api/v1/settings', { expectedRevision: revision, settings: { language } });
+      assert.equal(updated.status, 200, `supported language ${language} was refused`);
+      assert.equal(updated.json.revision, revision + 1);
+      assert.equal(updated.json.settings.language, language);
+      revision = updated.json.revision;
+    }
+    const beforeInvalid = await call('GET', '/api/v1/settings');
+    for (const language of ['', 'fr', 'AR', 'en-US']) {
+      const invalid = await call('PUT', '/api/v1/settings', { expectedRevision: revision, settings: { language } });
+      assert.equal(invalid.status, 422, `unsupported language ${JSON.stringify(language)} was accepted`);
+      assert.equal(invalid.json.error, 'invalid_settings');
+    }
+    assert.deepEqual((await call('GET', '/api/v1/settings')).json, beforeInvalid.json,
+      'refused language writes must preserve the settings and revision');
+
     // Another account sees its OWN defaults, never the first account's settings.
     const otherJar = [...jar];
     jar.clear();
@@ -299,6 +316,7 @@ check('settings-are-per-account-and-refuse-a-stale-write', async () => {
     assert.equal(other.json.revision, 0, 'a second account must not inherit the first account settings');
     assert.equal(other.json.settings.theme, 'system');
     assert.equal(other.json.settings.examDate, '');
+    assert.equal(other.json.settings.language, 'de');
     assert.ok(otherJar.length, 'the first account had a session');
   } finally { await server.stop(); }
 });
