@@ -6,13 +6,10 @@
   "description": "Hatoove multi-user exam preparation server, run with Docker Compose.",
   "main": "server.js",
   "scripts": {
-    "check": "node tools/check.js",
-    "test:e2e": "node tools/e2e.js",
-    "test:ai": "node tools/e2e-ai.js",
-    "tts": "node tools/tts-check.js",
-    "ai:live": "node tools/ai-live.js",
+    "check": "node tools/repository-check.mjs && node tools/design-check.mjs && node tools/retired-surface-check.mjs && node tools/server-origin-check.mjs && node tools/keymask-check.mjs && node tools/owned-api-check.mjs && node tools/owned-client-check.mjs",
+    "check:db": "node tools/postgres-provision-check.mjs && node tools/owned-api-check.mjs --backend=postgres-persistent && node tools/deletion-check.mjs && node tools/worker-runner-check.mjs && node tools/saas-runtime-check.mjs && node tools/table-class-check.mjs && node tools/journey-api-check.mjs",
+    "check:docker": "node tools/docker-stack-check.mjs && node tools/app-browser-check.mjs",
     "icon": "node tools/make-icon.js",
-    "mock:ai": "node tools/mock-deepseek.js",
     "start": "docker compose up -d --build"
   },
   "engines": {

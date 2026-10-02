@@ -8,8 +8,40 @@ product/content decisions (recorded below where it changed or sharpened the reco
 qualified telc-B1 reviewer or a lawyer, and (b) commercial judgements (price, market, budget). Those are
 marked **HUMAN** in every row, and a recommendation is not a substitute for them.
 
-**Reading order.** §1 is the answered decision and its implementation recipe. §2 blocks the most. §3 is
-everything with a working default. §4 is engineering hygiene. There is a suggested running order at the end.
+**Reading order.** §0 records three corrections to this document's own premises, found by an independent
+runtime review and **verified in the tree**. §1 is the answered decision and its implementation recipe. §2
+blocks the most. §3 is everything with a working default. §4 is engineering hygiene. There is a suggested
+running order at the end.
+
+---
+
+## 0. Corrections to this document, verified (2 October 2026)
+
+An independent review challenged three claims, and the tree confirms it on all three. They are recorded
+first because two of them changed a recommendation.
+
+| Claim in the first draft | What the tree says | Consequence |
+|---|---|---|
+| "`table-class-check` needs a live PostgreSQL, so move it into the postgres CI job" | **Already there**: `.github/workflows/ci.yml:155` runs it, `:161` runs its four-mutation proof, both inside the `postgres` job with a service container | **No work needed.** The recommendation is withdrawn |
+| "`journey-api-check` spawns a *retired host runtime*; retire it" | **Already a CI gate** (`ci.yml:167`), and `node server.js` **is the container entrypoint** (`compose.yaml:65`: `command: ["node", "server.js"]`). The retired thing was the *host launcher* (`npm start` is now `docker compose up -d --build`) | **Recommendation reversed**: rewrite it, do not retire it. It is entrypoint-contract testing, not a second runtime |
+| "D5 adopting Better Auth trades away `"dependencies": {}`" | Root `package.json:21` is `{}`, and the platform **already has the pattern that keeps it**: `server/owned-postgres` is an `npm --prefix` sub-package with its own lockfile, and the auth spike kept the same shape (`better-auth` 1.7.6 + `pg` 8.23.1, with a generated `auth-schema.sql`) | **Recommendation strengthened**: adopt it *in a sub-package*, so the root property survives |
+
+**And the finding that matters most, which I verified by running it: the `postgres` CI job is RED today.**
+`journey-api-check` fails its single leg **J4** — *"tasks answered 422 for family=SA1, the blueprint's
+writing part id"* — 5 passed, 5 pending, **1 failed**. It was previously *masked*: a `session-boundary-check`
+step ran before it and failed first, and a step after a failing step is **skipped**. That check was retired in
+SPA-RETIRE 4, which **unmasked** this. So the family-naming defect is not hygiene — it is the one thing
+standing between the repository and a green CI job, and the family decision below is therefore promoted to
+the top of the running order.
+
+**A defect I left behind, now fixed.** Deleting 22 SPA tool files in SPA-RETIRE 4 left six `package.json`
+scripts pointing at them: `check`, `test:e2e`, `test:ai`, `tts`, `ai:live`, `mock:ai`. `npm run check` died
+with `MODULE_NOT_FOUND`, and **`npm run tts` advertised a speech diagnostic that no longer existed** — a
+false signal that a TTS integration is present, which is exactly the wrong thing to leave lying next to the
+open **D8** decision. The scripts now name the surviving checks (`check`, `check:db`, `check:docker`), and
+`tools/repository-check.mjs` gained a leg that **fails the build when any script names a file that is not
+tracked** — proven by pointing one at a missing file and watching it go red. A script name is a claim about
+what the project can do; the next deletion will do the same thing.
 
 ---
 
@@ -96,17 +128,27 @@ affordable, while objective items are proportionate to spot-check **only if** co
 
 ## 3. Decisions with a working default — confirm or adjust
 
-### D5 — Auth library — **Recommendation: adopt Better Auth.**
+### D5 — Auth library — **Recommendation: adopt Better Auth, in a sub-package, for authentication only.**
 **The schema is already Better Auth's**: `user`/`session`/`account`/`verification` with camelCase columns
-and `emailVerified` (migration `0001-auth-schema.sql`). So this is **wiring, not migration** — the spike
-already measured it workable, and the current port has no rotation, expiry sweep, revocation or recovery.
-**How to implement.** Keep `server/owned-postgres/sessions.mjs` behind its port interface (that is why the
-port exists): replace its internals with Better Auth's session operations, keep `createOwnedApi`'s contract
-(`{ id, email }` or null) unchanged, and let the existing `accounts-http-check` + `entry-point-fails-closed`
-legs prove the boundary did not move. Add legs for the four missing behaviours *first* (rotate on sign-in,
-expire by sweep, revoke one session, revoke all on password change).
-**Trade away:** "the root app is dependency-free" for the server scope. That property is worth naming in the
-commit message rather than losing silently.
+and `emailVerified` (migration `0001-auth-schema.sql`). So this is **wiring, not migration** — and the root
+`"dependencies": {}` property can survive it, because `server/owned-postgres` already demonstrates the
+pattern: an `npm --prefix` sub-package with its own lockfile. The spike kept exactly that shape
+(`better-auth` 1.7.6 + `pg` 8.23.1, plus a generated `auth-schema.sql`).
+**How to implement.** New `server/auth/` sub-package; adopt the spike's generated SQL as a **frozen
+migration** applied only by `server/migrate.mjs`; replace the internals of
+`server/owned-postgres/sessions.mjs` (the port seam is `getSession`/`signUp`/`signIn`/`signOut`, which is why
+this is reversible) while keeping `createOwnedApi`'s contract (`{ id, email }` or null) unchanged. Do **not**
+let it own authorization or any learner table. Write the four missing-behaviour legs **first** — rotate the
+token on sign-in and 401 the retired cookie (session fixation), expiry sweep, revoke one session, revoke all
+on password change — then prove the boundary did not move with `accounts-http-check` and
+`owned-api-check` on both backends.
+**Existing data.** Session rows are volatile and droppable; map existing `user` rows by email before
+switching reads. Learner rows are not touched.
+**Trade away:** you inherit a third party's session semantics and migration history, and "rotate" and
+"revoke-all" become their semantics rather than yours. Name that in the commit rather than losing it
+silently.
+**Human:** password-hashing parameters and the RLS grants for Better Auth's tables (a security signoff), and
+the recovery-factor policy.
 
 ### D6 — Email provider — **Recommendation: operator-assisted resets for the pilot; wire the token path now.**
 **How to implement.** The `verification` table already exists. Build reset/verify as
@@ -189,25 +231,40 @@ uploads the screenshot directory as an artifact; keep it out of the required-che
 green ten times (a flaky required check is worse than none), then promote it. Expect it to be the slowest
 job — that is the honest price of the evidence.
 
-### `journey-api-check` — **Recommendation: retire it, with a ledger row.**
-It spawns a **host** `server.js` (a retired runtime) and cites withdrawn roadmap ids; it is red by design.
-Everything it asserted that still matters is covered by `owned-api-check` on two backends,
-`docker-stack-check`, and `app-browser-check`. **How:** delete it and its CI step, record the row in
-`RETIRED-CHECKS.md` naming the surviving vehicles — the same treatment as the other retirements, not a
-silent removal.
+### `journey-api-check` — **Recommendation: REWRITE it, do not retire it** *(reversed after verification)*.
+It is already a CI gate (`ci.yml:167`), and spawning `node server.js` is **not** a second runtime — that
+command *is* the container entrypoint (`compose.yaml:65`). So the check is testing the entrypoint contract,
+and its single red leg **J4 is the family defect, not the check**. It is also the only functional counter in
+the programme: account → draft → submit → worker → feedback → fresh-browser read-back over real HTTP with a
+real worker, plus the negative that a failed assessment stays visible and unassessed. Nothing else does that.
+**How to implement, in order.** (1) Fix the family convention (below), which turns J4 green; (2) replace the
+withdrawn `MFP-*` slice ids in its pending reasons with current PILOT ids or a neutral string; (3) assert the
+spawned process receives the same environment contract as `compose.yaml`; (4) keep the honest
+route-absence→PENDING protocol, which is the reason the remaining gaps are visible at all.
 
-### Family naming (the measured J4 defect) — **Recommendation: one lowercase convention, with the objective
-codes as *values*, not as family names.** `writing` is a family; `LV1`/`SB1`/`HV3` are **parts**.
-**How:** add `part` (already on `objective_set`) as the authoritative sub-identifier, keep `family` lowercase
-everywhere, accept the uppercase legacy spelling **on the read route only** for one release with a
-deprecation note in `docs/openapi.yaml`, and migrate the stored bindings by inserting new catalogue rows —
-never by rewriting attempts, which carry their own version binding. **Trade away:** a temporary
-accept-both window, which is cheaper than breaking stored bindings.
+### Family naming (the measured J4 defect) — **Recommendation: the blueprint's uppercase part ids, one shared
+parser, and `writing` becomes a KIND rather than a family.**
+This is now the highest-value item on the list: J4 is the only red leg in the only red CI job, and the
+masking step that hid it was removed in SPA-RETIRE 4, so **it is visible and it is red**.
+**How to implement.** Both `task_version.family` and `objective_set.family` are plain `text NOT NULL`, so
+**no schema change is needed**. Add one shared `parseFamily()` beside the two conflicting regexes
+(`server/owned-api.mjs:419` lowercase, `:448` uppercase), validate against a **closed set**
+(`LV1`–`LV3`, `SB1`–`SB2`, `HV1`–`HV3`, `SA1`), and require uppercase from both routes. Because the routes
+enforce opposite conventions today, the change is route-layer only plus its consumers: `SKILL_SECTIONS` in
+`public/app/app.js` (which maps views to section codes), `docker-stack-check.mjs:597` (`family=writing`) and
+`journey-api-check`'s J4. **Never rewrite a stored binding**: attempts and submissions carry their own
+`task_version`/`rubric_version`, and the catalogue is immutable — so a family change is a **new catalogue
+row**, not an UPDATE.
+**Verify.** A leg asserting `family=sa1` and `family=SA1` return identical payloads, and that `writing` →
+422 so the old name cannot silently survive.
+**Trade away:** a temporary accept-both window; and a lenient parser would hide typos, so **normalise, do not
+silently accept** arbitrary case.
+**Human:** exam-model confirmation that `SA1` is the right writing-part id before it is frozen into the wire
+contract.
 
-### `table-class-check` — **Recommendation: move it into the PostgreSQL CI job.**
-It needs a live database, so it cannot be an offline gate; that is an argument for moving it, not for
-leaving it developer-only. **How:** relocate the step into the `postgres` job where a database already
-exists, which also makes it a required check again.
+### `table-class-check` — **No change needed.** It already *is* a gate of the `postgres` CI job
+(`ci.yml:155` plus its mutation proof at `:161`). It sits before `journey-api-check`, which is the right
+order: a weakened class rule fails first. Re-review the class taxonomy when a new table class appears.
 
 ---
 
@@ -215,14 +272,29 @@ exists, which also makes it a required check again.
 
 | # | Item | Why now |
 |---|---|---|
-| 1 | **D4/R11 implementation** (§1) | Answered; unblocks PILOT-06's schema, the validator and PILOT-08's screen |
-| 2 | **D13 numbers** as configuration + the retro-correction query | The only thing actually blocking pool filling |
-| 3 | **D1 provenance table** | Smallest artefact that unblocks serving anything in production |
-| 4 | **Landing language + nine titles** | Content tasks, near-zero engineering, visible quality |
-| 5 | **Docker-in-CI** | Makes everything above verifiable by someone other than me |
-| 6 | **D5 wiring** (legs first) | The fourth missing session behaviour is a security gap, not a nicety |
-| 7 | Everything else | Fine to defer: D6, D8 audio, D9 ADR, D10 gates, D12, D14, tabbar, J4, check hygiene |
+| 1 | **Family naming + J4** (§4) | The only red leg in the only red CI job, now visible; route-layer only, no schema change |
+| 2 | **D4/R11 implementation** (§1) | Answered; unblocks PILOT-06's schema, the validator and PILOT-08's screen |
+| 3 | **D13 numbers** as configuration + the retro-correction query | The only thing actually blocking pool filling |
+| 4 | **D1 provenance table** | Smallest artefact that unblocks serving anything in production |
+| 5 | **Landing language + nine titles** | Content tasks, near-zero engineering, visible quality |
+| 6 | **Docker-in-CI** (see §4) | Makes everything above verifiable by someone other than me |
+| 7 | **D5 wiring** (legs first) | The four missing session behaviours are a security gap, not a nicety |
+| 8 | Everything else | Fine to defer: D6, D8 audio, D9 ADR, D10 gates, D12, D14, tabbar, journey rewrite |
 
 **The one thing I would not defer:** the four missing session behaviours in D5 — rotation, expiry sweep,
 revocation, and revoke-all-on-password-change. They are the only items on this list where the current state
 is a security property rather than a product choice.
+
+## 6. Evidence to gather before acting — not opinions
+
+Recorded because several recommendations above would be stronger as measurements than as arguments:
+
+1. **Which CI step currently fails before `journey-api-check`** (if any) — inspect the last `postgres` job
+   run. If nothing fails before it, J4 *is* the failure and item #1 is unblocked by definition.
+2. **A 20-run timing and flake baseline** for `docker-stack-check` and `app-browser-check` before either
+   becomes a required check. This repository has already been burned by a gate that was skipped rather than
+   fixed, and a flaky required check recreates that.
+3. **`SELECT DISTINCT family FROM task_version` and from `objective_set`** before the family rename — if
+   only the seeded values exist, the change is wire-only with no data migration at all.
+4. **A re-run of the auth spike at current HEAD** (it was measured before SPA-RETIRE and the API deletions).
+5. **A recorded cost-per-assessment measurement** before any live-model enablement (D10).

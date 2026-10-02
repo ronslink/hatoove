@@ -44,6 +44,29 @@ for (const entry of entries) {
 }
 
 if (!entries.length) failures.push('No tracked files: stage the curated source before checking.');
+
+/*
+ * NO package.json SCRIPT MAY POINT AT A FILE THAT DOES NOT EXIST.
+ *
+ * A real defect, found by an independent review after the SPA retirement: deleting 22 tool files left six
+ * npm scripts pointing at them, so `npm run check` died with MODULE_NOT_FOUND and — worse — `npm run tts`
+ * advertised a speech diagnostic that no longer existed. A script name is a CLAIM about what the project
+ * can do, and a stale one is a false signal rather than a harmless leftover. It belongs here rather than in
+ * a one-off command because the next deletion will do exactly the same thing.
+ */
+try {
+  const pkg = JSON.parse(git('show', ':package.json'));
+  const scripts = pkg.scripts || {};
+  for (const [name, command] of Object.entries(scripts)) {
+    for (const match of String(command).matchAll(/node\s+((?:tools|server)\/[\w./-]+)/g)) {
+      const target = match[1];
+      if (!entries.some((entry) => entry.split('\t').pop().trim() === target)) {
+        failures.push(`package.json script "${name}" runs ${target}, which is not a tracked file`);
+      }
+    }
+  }
+} catch { /* no package.json in this tree: nothing to check */ }
+
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exitCode = 1;
