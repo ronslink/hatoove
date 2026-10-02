@@ -2,6 +2,8 @@
 
 ## Multi-exam assessment — 2 October 2026
 
+**Claude follow-up:** actual Claude Opus 5.5 reviewed the plan at `7a7caa0` with no repository tools. [Its recommendations and coordinator assessment](work/implementation/CLAUDE-MULTI-EXAM-REVIEW-20261002.md) favour a telc-first preparation journey, smaller release model and DTZ reading/writing/listening slices. These are recorded recommendations; the original proposal and runtime remain unchanged. The board records the same review transition.
+
 Execution **EXAM-ARCH-20261002-A** assesses DTZ A2–B1 alongside telc Deutsch B1 and future exam packages at base `c06a087`. The [architecture proposal](work/implementation/MULTI-EXAM-ARCHITECTURE-20261002.md) records official format differences, code gaps, the account → preparation → versioned package model, selection/resume UX, content publishing and proposed EXAM-01–06 slices. **State: assessed and proposed; no implementation or package release is authorised by this record.** The next engineering slice recommended is the package/preparation/blueprint contract, then scoped APIs. The [board](work/BOARD.md) records the same transition; existing pilot and human-review gates remain unchanged.
 
 ## Integrated local pilot — 2 October 2026

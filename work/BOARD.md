@@ -2,6 +2,8 @@
 
 ## Multi-exam assessment — 2 October 2026
 
+**Claude follow-up:** execution **EXAM-ARCH-CLAUDE-20261002-B** completed an actual Claude Opus 5.5 plan-only review at `7a7caa0`. [Recommendations and coordinator assessment](implementation/CLAUDE-MULTI-EXAM-REVIEW-20261002.md) record agreement on the architecture and proposed sequence/model simplifications. No original-plan revision, runtime change or implementation lease follows. The implementation plan records the same review transition.
+
 Execution **EXAM-ARCH-20261002-A**, base `c06a087`, responds to Ron's request to assess DTZ alongside telc B1, exam selection after login and maintainable expansion to other languages. The [architecture proposal](implementation/MULTI-EXAM-ARCHITECTURE-20261002.md) records source findings, proposed data/API/UX boundaries and EXAM-01–06 acceptance. **State: assessed and proposed; no runtime implementation, DTZ content approval or package publication.** The coordinator authored the proposal with three bounded read-only audits. The [implementation plan](../IMPLEMENTATION_PLAN.md) records the same transition. Recommended next slice: EXAM-01 contracts, followed by preparation ownership and scoped APIs; no worker writing lease follows from this row.
 
 ## Integrated local pilot — 2 October 2026
