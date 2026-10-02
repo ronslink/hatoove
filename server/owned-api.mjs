@@ -47,6 +47,7 @@
  */
 
 import { contentIsServable } from './content-policy.mjs';
+import { checkSentence, SENTENCE_TEXT_LIMIT } from './sentence-building.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
@@ -674,6 +675,11 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
      * each write increments the revision by one, and a stale write writes nothing and is
      * refused with the server's current copy so the caller can reconcile rather than guess.
      */
+    if (pathname === '/api/v1/sentence-check' && method === 'POST') {
+      onlyFields(body, ['text']);
+      if (typeof body.text !== 'string' || !body.text.trim() || body.text.length > SENTENCE_TEXT_LIMIT) fault(422, 'invalid_sentence');
+      return reply(200, checkSentence(body.text));
+    }
     if (pathname === '/api/v1/settings') {
       if (!settingsWired) fault(503, 'settings_unavailable');
       if (method === 'GET') return reply(200, await settings.read(owner));

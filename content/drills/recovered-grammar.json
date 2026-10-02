@@ -1,0 +1,2926 @@
+{
+  "format": "hatoove-recovered-grammar-v1",
+  "source": {
+    "commit": "3a9254ce3905b7d4de430e3d129edf0f62c90962",
+    "path": "public/js/generators.js",
+    "sha256": "44ceb2ba3b3c2b194faeb72ca6319796503490513fe4248bd3ae21d7783331dc"
+  },
+  "rights_basis": "generated",
+  "review_status": "unreviewed",
+  "banks": {
+    "konnektoren": [
+      {
+        "id": "g_konnektoren_8vt9x9",
+        "ordinal": 1,
+        "q": "Ich kann heute leider nicht kommen, ___ ich habe noch einen Termin.",
+        "options": [
+          "denn",
+          "weil",
+          "deshalb"
+        ],
+        "answer": "denn",
+        "why": "Nach \"denn\" bleibt die normale Wortstellung (Subjekt + Verb). Nach \"weil\" müsste das Verb ans Ende: \"… weil ich noch einen Termin habe\"."
+      },
+      {
+        "id": "g_konnektoren_suyseu",
+        "ordinal": 2,
+        "q": "Es hat den ganzen Tag geregnet, ___ sind wir zu Hause geblieben.",
+        "options": [
+          "deshalb",
+          "trotzdem",
+          "denn"
+        ],
+        "answer": "deshalb",
+        "why": "\"deshalb\" drückt die Folge aus: Regen → zu Hause bleiben."
+      },
+      {
+        "id": "g_konnektoren_nsek2u",
+        "ordinal": 3,
+        "q": "Sie ist sehr müde, ___ geht sie noch joggen.",
+        "options": [
+          "trotzdem",
+          "deshalb",
+          "damit"
+        ],
+        "answer": "trotzdem",
+        "why": "\"trotzdem\" = Gegensatz/Einräumung: müde, aber trotzdem joggen."
+      },
+      {
+        "id": "g_konnektoren_mr46tf",
+        "ordinal": 4,
+        "q": "Ich möchte keinen Tee, ___ Kaffee.",
+        "options": [
+          "sondern",
+          "aber",
+          "oder"
+        ],
+        "answer": "sondern",
+        "why": "Nach einer Verneinung korrigiert man mit \"sondern\": nicht Tee, sondern Kaffee."
+      },
+      {
+        "id": "g_konnektoren_1uyszn2",
+        "ordinal": 5,
+        "q": "Er lernt Deutsch, ___ er in Berlin arbeiten will.",
+        "options": [
+          "weil",
+          "denn",
+          "deshalb"
+        ],
+        "answer": "weil",
+        "why": "Nach \"weil\" steht das Verb am Ende: \"… weil er in Berlin arbeiten will\". Das passt hier."
+      },
+      {
+        "id": "g_konnektoren_9l3vfp",
+        "ordinal": 6,
+        "q": "___ ich früh ins Bett gegangen bin, bin ich noch müde.",
+        "options": [
+          "Obwohl",
+          "Weil",
+          "Damit"
+        ],
+        "answer": "Obwohl",
+        "why": "\"Obwohl\" leitet einen Gegensatz ein: früh schlafen, trotzdem müde."
+      },
+      {
+        "id": "g_konnektoren_wnzz6q",
+        "ordinal": 7,
+        "q": "Ich rufe dich an, ___ ich am Bahnhof bin.",
+        "options": [
+          "wenn",
+          "als",
+          "damit"
+        ],
+        "answer": "wenn",
+        "why": "\"wenn\" für jedes Ereignis in der Gegenwart/Zukunft; \"als\" nur für ein einmaliges Ereignis in der Vergangenheit."
+      },
+      {
+        "id": "g_konnektoren_kfgzrj",
+        "ordinal": 8,
+        "q": "Sie spricht langsam, ___ die Kinder sie besser verstehen.",
+        "options": [
+          "damit",
+          "um",
+          "dass"
+        ],
+        "answer": "damit",
+        "why": "\"damit\" + Nebensatz mit Verb am Ende drückt einen Zweck aus."
+      },
+      {
+        "id": "g_konnektoren_1ncbqnr",
+        "ordinal": 9,
+        "q": "Das Zimmer war sehr klein. ___ war es ziemlich teuer.",
+        "options": [
+          "Trotzdem",
+          "Deshalb",
+          "Außerdem"
+        ],
+        "answer": "Trotzdem",
+        "why": "\"Trotzdem\" steht am Satzanfang, dann folgt das Verb: \"Trotzdem war es …\"."
+      },
+      {
+        "id": "g_konnektoren_mv6wvy",
+        "ordinal": 10,
+        "q": "Ich habe kein Auto, ___ fahre ich mit dem Fahrrad zur Arbeit.",
+        "options": [
+          "deshalb",
+          "obwohl",
+          "sondern"
+        ],
+        "answer": "deshalb",
+        "why": "Grund → Folge: kein Auto, deshalb Fahrrad."
+      },
+      {
+        "id": "g_konnektoren_m0juww",
+        "ordinal": 11,
+        "q": "___ sie viel gearbeitet hat, hat sie die Prüfung nicht bestanden.",
+        "options": [
+          "Obwohl",
+          "Weil",
+          "Wenn"
+        ],
+        "answer": "Obwohl",
+        "why": "Gegensatz: viel Arbeit, aber nicht bestanden → \"obwohl\"."
+      },
+      {
+        "id": "g_konnektoren_1bxcij2",
+        "ordinal": 12,
+        "q": "Er kam zu spät, ___ er den Bus verpasst hatte.",
+        "options": [
+          "weil",
+          "denn",
+          "deshalb"
+        ],
+        "answer": "weil",
+        "why": "\"weil\" + Plusquamperfekt am Ende: \"… weil er den Bus verpasst hatte\"."
+      },
+      {
+        "id": "g_konnektoren_uo80ff",
+        "ordinal": 13,
+        "q": "Ich habe kein Geld, ___ kann ich nicht mitfahren.",
+        "options": [
+          "deshalb",
+          "weil",
+          "obwohl"
+        ],
+        "answer": "deshalb",
+        "why": "\"deshalb\" ist ein Adverb: Position 1, das Verb folgt direkt. Nach \"weil\" müsste das Verb ans Ende."
+      },
+      {
+        "id": "g_konnektoren_4mfek3",
+        "ordinal": 14,
+        "q": "Er war sehr müde, ___ hat er weitergearbeitet.",
+        "options": [
+          "trotzdem",
+          "deshalb",
+          "damit"
+        ],
+        "answer": "trotzdem",
+        "why": "\"trotzdem\" = Gegensatz: müde, aber trotzdem weitergearbeitet."
+      },
+      {
+        "id": "g_konnektoren_msn5ab",
+        "ordinal": 15,
+        "q": "Die Wohnung ist teuer. ___ liegt sie weit von der Arbeit.",
+        "options": [
+          "Außerdem",
+          "Trotzdem",
+          "Damit"
+        ],
+        "answer": "Außerdem",
+        "why": "\"außerdem\" fügt einen weiteren Nachteil hinzu – es drückt keinen Gegensatz aus."
+      },
+      {
+        "id": "g_konnektoren_6ewah9",
+        "ordinal": 16,
+        "q": "Zuerst suchen wir ein Hotel, ___ buchen wir die Tickets.",
+        "options": [
+          "danach",
+          "davor",
+          "damit"
+        ],
+        "answer": "danach",
+        "why": "\"danach\" = zeitliche Reihenfolge: erst das eine, dann das andere."
+      },
+      {
+        "id": "g_konnektoren_nbvctb",
+        "ordinal": 17,
+        "q": "___ ich in Deutschland lebe, habe ich viel gelernt.",
+        "options": [
+          "Seitdem",
+          "Damit",
+          "Trotzdem"
+        ],
+        "answer": "Seitdem",
+        "why": "\"seitdem\" + Verb am Ende: Zeitraum, der in der Vergangenheit begann und andauert."
+      },
+      {
+        "id": "g_konnektoren_13044gn",
+        "ordinal": 18,
+        "q": "___ es morgen regnet, bleiben wir zu Hause.",
+        "options": [
+          "Falls",
+          "Damit",
+          "Deshalb"
+        ],
+        "answer": "Falls",
+        "why": "\"falls\" = wenn eventuell; drückt eine Bedingung aus (Verb am Ende)."
+      },
+      {
+        "id": "g_konnektoren_u150qm",
+        "ordinal": 19,
+        "q": "___ ich angekommen war, rief ich meine Mutter an.",
+        "options": [
+          "Nachdem",
+          "Bevor",
+          "Während"
+        ],
+        "answer": "Nachdem",
+        "why": "\"nachdem\" für die Vorzeitigkeit; danach steht meist Plusquamperfekt."
+      },
+      {
+        "id": "g_konnektoren_sgstnz",
+        "ordinal": 20,
+        "q": "___ ich frühstücke, lese ich die Zeitung.",
+        "options": [
+          "Während",
+          "Nachdem",
+          "Seitdem"
+        ],
+        "answer": "Während",
+        "why": "\"während\" = gleichzeitig: beide Handlungen laufen parallel."
+      },
+      {
+        "id": "g_konnektoren_152km3o",
+        "ordinal": 21,
+        "q": "___ du gehst, mach bitte das Licht aus.",
+        "options": [
+          "Bevor",
+          "Nachdem",
+          "Während"
+        ],
+        "answer": "Bevor",
+        "why": "\"bevor\" = vorher; die Handlung im Nebensatz kommt später."
+      },
+      {
+        "id": "g_konnektoren_15nj9kh",
+        "ordinal": 22,
+        "q": "Sie spricht sehr leise, ___ ich sie kaum verstehen kann.",
+        "options": [
+          "so dass",
+          "damit",
+          "obwohl"
+        ],
+        "answer": "so dass",
+        "why": "\"so dass\" drückt die Folge aus; \"damit\" drückt einen Zweck aus."
+      },
+      {
+        "id": "g_konnektoren_18hboqp",
+        "ordinal": 23,
+        "q": "Man lernt eine Sprache am besten, ___ man sie täglich benutzt.",
+        "options": [
+          "indem",
+          "damit",
+          "so dass"
+        ],
+        "answer": "indem",
+        "why": "\"indem\" nennt das Mittel: auf welche Weise erreicht man etwas?"
+      },
+      {
+        "id": "g_konnektoren_2o1efe",
+        "ordinal": 24,
+        "q": "___ mehr du lernst, desto besser wird dein Deutsch.",
+        "options": [
+          "Je",
+          "Wenn",
+          "Damit"
+        ],
+        "answer": "Je",
+        "why": "Feste Struktur \"je … desto\": Je mehr du lernst, desto besser …"
+      },
+      {
+        "id": "g_konnektoren_18nd60g",
+        "ordinal": 25,
+        "q": "Beeil dich, ___ kommen wir zu spät.",
+        "options": [
+          "sonst",
+          "damit",
+          "deshalb"
+        ],
+        "answer": "sonst",
+        "why": "\"sonst\" = andernfalls; warnt vor der negativen Folge."
+      },
+      {
+        "id": "g_konnektoren_1ws9wsz",
+        "ordinal": 26,
+        "q": "Das Hotel war teuer, ___ war es sehr schön.",
+        "options": [
+          "allerdings",
+          "deshalb",
+          "damit"
+        ],
+        "answer": "allerdings",
+        "why": "\"allerdings\" räumt einen Gegensatz ein: teuer, aber trotzdem schön."
+      },
+      {
+        "id": "g_konnektoren_1ojq9zy",
+        "ordinal": 27,
+        "q": "Er spricht sowohl Deutsch ___ auch Englisch.",
+        "options": [
+          "als",
+          "wie",
+          "oder"
+        ],
+        "answer": "als",
+        "why": "Feste Struktur \"sowohl … als auch\" – nicht \"wie\"."
+      },
+      {
+        "id": "g_konnektoren_o36zuz",
+        "ordinal": 28,
+        "q": "Ich weiß nicht, ___ er morgen kommt.",
+        "options": [
+          "ob",
+          "wenn",
+          "dass"
+        ],
+        "answer": "ob",
+        "why": "\"ob\" leitet eine indirekte Ja/Nein-Frage ein; \"wenn\" drückt eine Bedingung aus."
+      }
+    ],
+    "praeposition_kasus": [
+      {
+        "id": "g_praeposition_kasus_1bp8no7",
+        "ordinal": 1,
+        "q": "Ich wohne noch bei ___ Eltern.",
+        "options": [
+          "meinen",
+          "meine",
+          "meiner"
+        ],
+        "answer": "meinen",
+        "why": "\"bei\" verlangt den Dativ. Plural Dativ: meinen Eltern."
+      },
+      {
+        "id": "g_praeposition_kasus_4mvbro",
+        "ordinal": 2,
+        "q": "Nach ___ Arbeit gehe ich oft schwimmen.",
+        "options": [
+          "der",
+          "die",
+          "den"
+        ],
+        "answer": "der",
+        "why": "\"nach\" + Dativ, \"die Arbeit\" → \"der Arbeit\"."
+      },
+      {
+        "id": "g_praeposition_kasus_4fb4i0",
+        "ordinal": 3,
+        "q": "Ich fahre jeden Tag mit ___ Fahrrad zur Arbeit.",
+        "options": [
+          "dem",
+          "das",
+          "den"
+        ],
+        "answer": "dem",
+        "why": "\"mit\" + Dativ, \"das Fahrrad\" → \"dem Fahrrad\"."
+      },
+      {
+        "id": "g_praeposition_kasus_x6avmc",
+        "ordinal": 4,
+        "q": "Das Geschenk ist für ___ Bruder.",
+        "options": [
+          "meinen",
+          "meinem",
+          "mein"
+        ],
+        "answer": "meinen",
+        "why": "\"für\" + Akkusativ, maskulin → \"meinen Bruder\"."
+      },
+      {
+        "id": "g_praeposition_kasus_agt1m4",
+        "ordinal": 5,
+        "q": "Wir gehen ohne ___ ins Kino.",
+        "options": [
+          "dich",
+          "dir",
+          "du"
+        ],
+        "answer": "dich",
+        "why": "\"ohne\" + Akkusativ → \"ohne dich\"."
+      },
+      {
+        "id": "g_praeposition_kasus_n93xoj",
+        "ordinal": 6,
+        "q": "Seit ___ Jahr wohne ich in Wien.",
+        "options": [
+          "einem",
+          "einen",
+          "ein"
+        ],
+        "answer": "einem",
+        "why": "\"seit\" + Dativ, neutrum → \"einem Jahr\"."
+      },
+      {
+        "id": "g_praeposition_kasus_2n55xq",
+        "ordinal": 7,
+        "q": "Ich komme gerade aus ___ Stadt.",
+        "options": [
+          "der",
+          "die",
+          "den"
+        ],
+        "answer": "der",
+        "why": "\"aus\" + Dativ, \"die Stadt\" → \"der Stadt\"."
+      },
+      {
+        "id": "g_praeposition_kasus_1ar3rgc",
+        "ordinal": 8,
+        "q": "Wir fahren morgen zu ___ Arzt.",
+        "options": [
+          "dem",
+          "den",
+          "der"
+        ],
+        "answer": "dem",
+        "why": "\"zu\" + Dativ, \"der Arzt\" → \"dem Arzt\"."
+      },
+      {
+        "id": "g_praeposition_kasus_yi991r",
+        "ordinal": 9,
+        "q": "Er hat etwas gegen ___ Plan.",
+        "options": [
+          "diesen",
+          "diesem",
+          "dieser"
+        ],
+        "answer": "diesen",
+        "why": "\"gegen\" + Akkusativ, maskulin → \"diesen Plan\"."
+      },
+      {
+        "id": "g_praeposition_kasus_1r4dgtb",
+        "ordinal": 10,
+        "q": "Ich habe das Buch für ___ Schwester gekauft.",
+        "options": [
+          "meine",
+          "meiner",
+          "meinen"
+        ],
+        "answer": "meine",
+        "why": "\"für\" + Akkusativ, feminin → \"meine Schwester\"."
+      },
+      {
+        "id": "g_praeposition_kasus_30a3jq",
+        "ordinal": 11,
+        "q": "Nach ___ Unterricht gehe ich direkt nach Hause.",
+        "options": [
+          "dem",
+          "den",
+          "der"
+        ],
+        "answer": "dem",
+        "why": "\"nach\" + Dativ, \"der Unterricht\" → \"dem Unterricht\"."
+      },
+      {
+        "id": "g_praeposition_kasus_19gfyck",
+        "ordinal": 12,
+        "q": "Sie kommt mit ___ Schwester zur Party.",
+        "options": [
+          "ihrer",
+          "ihre",
+          "ihren"
+        ],
+        "answer": "ihrer",
+        "why": "\"mit\" + Dativ, feminin → \"ihrer Schwester\"."
+      }
+    ],
+    "wechselpraeposition": [
+      {
+        "id": "g_wechselpraeposition_r7sn2u",
+        "ordinal": 1,
+        "q": "Ich hänge das Bild an ___ Wand.",
+        "options": [
+          "die",
+          "der",
+          "dem"
+        ],
+        "answer": "die",
+        "why": "Wohin? → Akkusativ. \"an die Wand\" (Bewegung/Richtung)."
+      },
+      {
+        "id": "g_wechselpraeposition_dfhvqq",
+        "ordinal": 2,
+        "q": "Das Bild hängt schon an ___ Wand.",
+        "options": [
+          "der",
+          "die",
+          "den"
+        ],
+        "answer": "der",
+        "why": "Wo? → Dativ. \"an der Wand\" (Position)."
+      },
+      {
+        "id": "g_wechselpraeposition_1azc7ei",
+        "ordinal": 3,
+        "q": "Ich lege das Buch auf ___ Tisch.",
+        "options": [
+          "den",
+          "dem",
+          "der"
+        ],
+        "answer": "den",
+        "why": "Wohin? → Akkusativ: \"auf den Tisch\"."
+      },
+      {
+        "id": "g_wechselpraeposition_1smfdf8",
+        "ordinal": 4,
+        "q": "Das Buch liegt auf ___ Tisch.",
+        "options": [
+          "dem",
+          "den",
+          "das"
+        ],
+        "answer": "dem",
+        "why": "Wo? → Dativ: \"auf dem Tisch\"."
+      },
+      {
+        "id": "g_wechselpraeposition_12vna16",
+        "ordinal": 5,
+        "q": "Wir gehen heute in ___ Kino.",
+        "options": [
+          "das",
+          "dem",
+          "der"
+        ],
+        "answer": "das",
+        "why": "Wohin? → Akkusativ: \"in das Kino\"."
+      },
+      {
+        "id": "g_wechselpraeposition_1fbjkag",
+        "ordinal": 6,
+        "q": "Wir sind gestern in ___ Kino gewesen.",
+        "options": [
+          "dem",
+          "das",
+          "den"
+        ],
+        "answer": "dem",
+        "why": "Wo? → Dativ: \"in dem Kino\"."
+      },
+      {
+        "id": "g_wechselpraeposition_1b6y19d",
+        "ordinal": 7,
+        "q": "Sie stellt die Flasche in ___ Kühlschrank.",
+        "options": [
+          "den",
+          "dem",
+          "der"
+        ],
+        "answer": "den",
+        "why": "Wohin? → Akkusativ, maskulin: \"in den Kühlschrank\"."
+      },
+      {
+        "id": "g_wechselpraeposition_7iw6ly",
+        "ordinal": 8,
+        "q": "Die Flasche steht in ___ Kühlschrank.",
+        "options": [
+          "dem",
+          "den",
+          "das"
+        ],
+        "answer": "dem",
+        "why": "Wo? → Dativ, maskulin: \"in dem Kühlschrank\"."
+      },
+      {
+        "id": "g_wechselpraeposition_g4t8ss",
+        "ordinal": 9,
+        "q": "Ich setze mich auf ___ Stuhl.",
+        "options": [
+          "den",
+          "dem",
+          "der"
+        ],
+        "answer": "den",
+        "why": "Wohin? → Akkusativ: \"auf den Stuhl\"."
+      },
+      {
+        "id": "g_wechselpraeposition_1ojv8wm",
+        "ordinal": 10,
+        "q": "Ich sitze schon auf ___ Stuhl.",
+        "options": [
+          "dem",
+          "den",
+          "das"
+        ],
+        "answer": "dem",
+        "why": "Wo? → Dativ: \"auf dem Stuhl\"."
+      },
+      {
+        "id": "g_wechselpraeposition_1v80brd",
+        "ordinal": 11,
+        "q": "Er hängt die Jacke in ___ Schrank.",
+        "options": [
+          "den",
+          "dem",
+          "der"
+        ],
+        "answer": "den",
+        "why": "Wohin? → Akkusativ: \"in den Schrank\"."
+      },
+      {
+        "id": "g_wechselpraeposition_6kd8xo",
+        "ordinal": 12,
+        "q": "Die Jacke hängt in ___ Schrank.",
+        "options": [
+          "dem",
+          "den",
+          "das"
+        ],
+        "answer": "dem",
+        "why": "Wo? → Dativ: \"in dem Schrank\"."
+      }
+    ],
+    "perfekt_auxiliar": [
+      {
+        "id": "g_perfekt_auxiliar_1ar1dlu",
+        "ordinal": 1,
+        "q": "Gestern ___ ich mit dem Bus nach Hause gefahren.",
+        "options": [
+          "bin",
+          "habe",
+          "wurde"
+        ],
+        "answer": "bin",
+        "why": "\"fahren\" ist ein Bewegungsverb → Perfekt mit \"sein\": ich bin gefahren."
+      },
+      {
+        "id": "g_perfekt_auxiliar_dpqnmp",
+        "ordinal": 2,
+        "q": "Wir ___ gestern einen guten Film gesehen.",
+        "options": [
+          "haben",
+          "sind",
+          "waren"
+        ],
+        "answer": "haben",
+        "why": "\"sehen\" bildet das Perfekt mit \"haben\"."
+      },
+      {
+        "id": "g_perfekt_auxiliar_1kndpi0",
+        "ordinal": 3,
+        "q": "Er ___ um 22 Uhr nach Hause gegangen.",
+        "options": [
+          "ist",
+          "hat",
+          "wurde"
+        ],
+        "answer": "ist",
+        "why": "\"gehen\" ist ein Bewegungsverb → \"ist gegangen\"."
+      },
+      {
+        "id": "g_perfekt_auxiliar_1k76qwg",
+        "ordinal": 4,
+        "q": "Der Zug ___ pünktlich in Köln angekommen.",
+        "options": [
+          "ist",
+          "hat",
+          "war"
+        ],
+        "answer": "ist",
+        "why": "\"ankommen\" beschreibt einen Ortswechsel → Perfekt mit \"sein\"."
+      },
+      {
+        "id": "g_perfekt_auxiliar_4u73fl",
+        "ordinal": 5,
+        "q": "Ich ___ drei Jahre in Hamburg gewohnt.",
+        "options": [
+          "habe",
+          "bin",
+          "war"
+        ],
+        "answer": "habe",
+        "why": "\"wohnen\" ist kein Bewegungsverb → \"habe gewohnt\"."
+      },
+      {
+        "id": "g_perfekt_auxiliar_1ofen77",
+        "ordinal": 6,
+        "q": "Das Kind ___ endlich eingeschlafen.",
+        "options": [
+          "ist",
+          "hat",
+          "wurde"
+        ],
+        "answer": "ist",
+        "why": "\"einschlafen\" ist ein Zustandswechsel → Perfekt mit \"sein\"."
+      },
+      {
+        "id": "g_perfekt_auxiliar_158y4i0",
+        "ordinal": 7,
+        "q": "Wir ___ uns lange über die Prüfung unterhalten.",
+        "options": [
+          "haben",
+          "sind",
+          "waren"
+        ],
+        "answer": "haben",
+        "why": "\"sich unterhalten\" → Perfekt mit \"haben\"."
+      },
+      {
+        "id": "g_perfekt_auxiliar_d1ge59",
+        "ordinal": 8,
+        "q": "Meine Schwester ___ gestern Geburtstag gehabt.",
+        "options": [
+          "hat",
+          "ist",
+          "war"
+        ],
+        "answer": "hat",
+        "why": "\"haben\" bildet das Perfekt mit sich selbst: \"hat gehabt\"."
+      },
+      {
+        "id": "g_perfekt_auxiliar_aghtqo",
+        "ordinal": 9,
+        "q": "Ich ___ meine Hausaufgaben schon gemacht.",
+        "options": [
+          "habe",
+          "bin",
+          "werde"
+        ],
+        "answer": "habe",
+        "why": "\"machen\" → Perfekt mit \"haben\"."
+      },
+      {
+        "id": "g_perfekt_auxiliar_1e0xst8",
+        "ordinal": 10,
+        "q": "Die Familie ___ letztes Jahr nach Kanada gezogen.",
+        "options": [
+          "ist",
+          "hat",
+          "wurde"
+        ],
+        "answer": "ist",
+        "why": "\"ziehen\" (umziehen) = Ortswechsel → \"ist gezogen\"."
+      },
+      {
+        "id": "g_perfekt_auxiliar_51m3fy",
+        "ordinal": 11,
+        "q": "Wir ___ gestern lange auf dich gewartet.",
+        "options": [
+          "haben",
+          "sind",
+          "waren"
+        ],
+        "answer": "haben",
+        "why": "\"warten\" → Perfekt mit \"haben\"."
+      },
+      {
+        "id": "g_perfekt_auxiliar_1nxjpa0",
+        "ordinal": 12,
+        "q": "Sie ___ schnell eingeschlafen.",
+        "options": [
+          "ist",
+          "hat",
+          "war"
+        ],
+        "answer": "ist",
+        "why": "Zustandswechsel (wach → schlafend) → \"ist eingeschlafen\"."
+      }
+    ],
+    "partizip2": [
+      {
+        "id": "g_partizip2_vf0llg",
+        "ordinal": 1,
+        "q": "Ich habe gestern meine Tante ___ (besuchen).",
+        "options": [
+          "besucht",
+          "gebesucht",
+          "besuchen"
+        ],
+        "answer": "besucht",
+        "why": "Untrennbare Verben mit be-/ver-/er- bilden das Partizip II ohne \"ge-\": besucht."
+      },
+      {
+        "id": "g_partizip2_196116u",
+        "ordinal": 2,
+        "q": "Hast du die E-Mail schon ___ (schreiben)?",
+        "options": [
+          "geschrieben",
+          "geschreibt",
+          "schreiben"
+        ],
+        "answer": "geschrieben",
+        "why": "Starkes Verb: schreiben → geschrieben."
+      },
+      {
+        "id": "g_partizip2_m6j8vw",
+        "ordinal": 3,
+        "q": "Er hat die Rechnung noch nicht ___ (bezahlen).",
+        "options": [
+          "bezahlt",
+          "gebezahlt",
+          "bezahlen"
+        ],
+        "answer": "bezahlt",
+        "why": "\"bezahlen\" ist untrennbar → Partizip II ohne \"ge-\"."
+      },
+      {
+        "id": "g_partizip2_8xg57h",
+        "ordinal": 4,
+        "q": "Wir haben den ganzen Tag ___ (arbeiten).",
+        "options": [
+          "gearbeitet",
+          "gearbeit",
+          "arbeitet"
+        ],
+        "answer": "gearbeitet",
+        "why": "Verben auf -en/-eln/-ern: gearbeitet."
+      },
+      {
+        "id": "g_partizip2_fbyi7n",
+        "ordinal": 5,
+        "q": "Sie hat ihre Mutter dreimal ___ (anrufen).",
+        "options": [
+          "angerufen",
+          "gerufen an",
+          "angeruft"
+        ],
+        "answer": "angerufen",
+        "why": "Trennbares Verb: an- + gerufen = angerufen."
+      },
+      {
+        "id": "g_partizip2_zxlbid",
+        "ordinal": 6,
+        "q": "Ich habe das Buch in zwei Tagen ___ (lesen).",
+        "options": [
+          "gelesen",
+          "gelesen gehabt",
+          "gelesen worden"
+        ],
+        "answer": "gelesen",
+        "why": "Starkes Verb: lesen → gelesen."
+      },
+      {
+        "id": "g_partizip2_1kac0b3",
+        "ordinal": 7,
+        "q": "Hast du heute schon ___ (frühstücken)?",
+        "options": [
+          "gefrühstückt",
+          "gefrühstücken",
+          "frühstückt"
+        ],
+        "answer": "gefrühstückt",
+        "why": "Schwaches Verb auf -en → -t: gefrühstückt."
+      },
+      {
+        "id": "g_partizip2_1c3fhy6",
+        "ordinal": 8,
+        "q": "Ich habe dir die Wahrheit ___ (sagen).",
+        "options": [
+          "gesagt",
+          "gesagen",
+          "sagt"
+        ],
+        "answer": "gesagt",
+        "why": "Schwaches Verb: sagen → gesagt."
+      },
+      {
+        "id": "g_partizip2_172yqfs",
+        "ordinal": 9,
+        "q": "Wir haben das Fest gut ___ (vorbereiten).",
+        "options": [
+          "vorbereitet",
+          "bereitet vor",
+          "vorbereiten"
+        ],
+        "answer": "vorbereitet",
+        "why": "\"vorbereiten\" ist untrennbar → vorbereitet."
+      },
+      {
+        "id": "g_partizip2_1aj1tzv",
+        "ordinal": 10,
+        "q": "Ich habe leider nichts ___ (verstehen).",
+        "options": [
+          "verstanden",
+          "geverstanden",
+          "verstehe"
+        ],
+        "answer": "verstanden",
+        "why": "Starkes, untrennbares Verb: verstehen → verstanden."
+      },
+      {
+        "id": "g_partizip2_1sbjr24",
+        "ordinal": 11,
+        "q": "Sie hat sich die Haare ___ (waschen).",
+        "options": [
+          "gewaschen",
+          "gewaschen gehabt",
+          "wascht"
+        ],
+        "answer": "gewaschen",
+        "why": "Starkes Verb: waschen → gewaschen."
+      },
+      {
+        "id": "g_partizip2_bzb48a",
+        "ordinal": 12,
+        "q": "Er ist gestern spät ___ (aufstehen).",
+        "options": [
+          "aufgestanden",
+          "gestanden auf",
+          "aufstehen"
+        ],
+        "answer": "aufgestanden",
+        "why": "Trennbares Verb: auf- + gestanden = aufgestanden."
+      }
+    ],
+    "adjektivendungen": [
+      {
+        "id": "g_adjektivendungen_1io095y",
+        "ordinal": 1,
+        "q": "Ich habe mir ein neu___ Auto gekauft.",
+        "options": [
+          "neues",
+          "neue",
+          "neuen"
+        ],
+        "answer": "neues",
+        "why": "Neutrum mit unbestimmtem Artikel im Akkusativ → -es: ein neues Auto."
+      },
+      {
+        "id": "g_adjektivendungen_1couij1",
+        "ordinal": 2,
+        "q": "Der klein___ Junge spielt im Garten.",
+        "options": [
+          "kleine",
+          "kleiner",
+          "kleines"
+        ],
+        "answer": "kleine",
+        "why": "Maskulinum mit bestimmtem Artikel im Nominativ → -e: der kleine Junge."
+      },
+      {
+        "id": "g_adjektivendungen_1uao1hu",
+        "ordinal": 3,
+        "q": "Wir wohnen in einer sehr groß___ Wohnung.",
+        "options": [
+          "großen",
+          "große",
+          "großer"
+        ],
+        "answer": "großen",
+        "why": "Femininum mit unbestimmtem Artikel im Dativ → -en: in einer großen Wohnung."
+      },
+      {
+        "id": "g_adjektivendungen_1dn1k93",
+        "ordinal": 4,
+        "q": "Das ist mein best___ Freund.",
+        "options": [
+          "bester",
+          "beste",
+          "besten"
+        ],
+        "answer": "bester",
+        "why": "Maskulinum Nominativ nach Possessivartikel → -er: mein bester Freund."
+      },
+      {
+        "id": "g_adjektivendungen_18s33ih",
+        "ordinal": 5,
+        "q": "Bei schlecht___ Wetter bleiben wir zu Hause.",
+        "options": [
+          "schlechtem",
+          "schlechten",
+          "schlechter"
+        ],
+        "answer": "schlechtem",
+        "why": "\"bei\" + Dativ, Neutrum → -em: bei schlechtem Wetter."
+      },
+      {
+        "id": "g_adjektivendungen_1bvtuwp",
+        "ordinal": 6,
+        "q": "Die neu___ Nachbarn sind sehr freundlich.",
+        "options": [
+          "neuen",
+          "neue",
+          "neuer"
+        ],
+        "answer": "neuen",
+        "why": "Plural mit bestimmtem Artikel → -en: die neuen Nachbarn."
+      },
+      {
+        "id": "g_adjektivendungen_r3c46t",
+        "ordinal": 7,
+        "q": "Mit dem alt___ Fahrrad fahre ich zur Arbeit.",
+        "options": [
+          "alten",
+          "alte",
+          "alter"
+        ],
+        "answer": "alten",
+        "why": "Dativ, Neutrum, bestimmter Artikel → -en: mit dem alten Fahrrad."
+      },
+      {
+        "id": "g_adjektivendungen_gjfc2b",
+        "ordinal": 8,
+        "q": "Sie hat einen interessant___ Beruf.",
+        "options": [
+          "interessanten",
+          "interessante",
+          "interessanter"
+        ],
+        "answer": "interessanten",
+        "why": "Maskulinum Akkusativ mit unbestimmtem Artikel → -en: einen interessanten Beruf."
+      },
+      {
+        "id": "g_adjektivendungen_q69mjx",
+        "ordinal": 9,
+        "q": "Das ist eine wichtig___ Frage.",
+        "options": [
+          "wichtige",
+          "wichtigen",
+          "wichtiger"
+        ],
+        "answer": "wichtige",
+        "why": "Femininum Nominativ mit unbestimmtem Artikel → -e: eine wichtige Frage."
+      },
+      {
+        "id": "g_adjektivendungen_164lazu",
+        "ordinal": 10,
+        "q": "Ich trinke gern kalt___ Wasser.",
+        "options": [
+          "kaltes",
+          "kalte",
+          "kalten"
+        ],
+        "answer": "kaltes",
+        "why": "Ohne Artikel, Neutrum Akkusativ → -es: kaltes Wasser."
+      },
+      {
+        "id": "g_adjektivendungen_q2qe42",
+        "ordinal": 11,
+        "q": "Wir haben leider kein___ Zeit mehr.",
+        "options": [
+          "keine",
+          "keinen",
+          "keiner"
+        ],
+        "answer": "keine",
+        "why": "\"die Zeit\" ist feminin → keine Zeit."
+      },
+      {
+        "id": "g_adjektivendungen_h8m054",
+        "ordinal": 12,
+        "q": "Er wohnt in einem klein___ Dorf.",
+        "options": [
+          "kleinen",
+          "kleine",
+          "kleinem"
+        ],
+        "answer": "kleinen",
+        "why": "Dativ Neutrum mit unbestimmtem Artikel → -en: in einem kleinen Dorf."
+      }
+    ],
+    "relativpronomen": [
+      {
+        "id": "g_relativpronomen_didt8v",
+        "ordinal": 1,
+        "q": "Das ist der Mann, ___ ich gestern getroffen habe.",
+        "options": [
+          "den",
+          "dem",
+          "der"
+        ],
+        "answer": "den",
+        "why": "Relativpronomen im Akkusativ, maskulin (ich habe ihn getroffen) → den."
+      },
+      {
+        "id": "g_relativpronomen_1wga6i8",
+        "ordinal": 2,
+        "q": "Die Frau, ___ dort steht, ist meine Chefin.",
+        "options": [
+          "die",
+          "der",
+          "denen"
+        ],
+        "answer": "die",
+        "why": "Femininum Nominativ → die."
+      },
+      {
+        "id": "g_relativpronomen_f1iv54",
+        "ordinal": 3,
+        "q": "Das Haus, in ___ wir wohnen, ist sehr alt.",
+        "options": [
+          "dem",
+          "das",
+          "den"
+        ],
+        "answer": "dem",
+        "why": "\"in\" + Dativ, Neutrum → in dem."
+      },
+      {
+        "id": "g_relativpronomen_144os6m",
+        "ordinal": 4,
+        "q": "Die Kollegen, mit ___ ich arbeite, sind sehr nett.",
+        "options": [
+          "denen",
+          "den",
+          "die"
+        ],
+        "answer": "denen",
+        "why": "\"mit\" + Dativ Plural → mit denen."
+      },
+      {
+        "id": "g_relativpronomen_12aifmv",
+        "ordinal": 5,
+        "q": "Der Film, ___ wir gesehen haben, war langweilig.",
+        "options": [
+          "den",
+          "der",
+          "dem"
+        ],
+        "answer": "den",
+        "why": "Akkusativ maskulin → den (wir haben ihn gesehen)."
+      },
+      {
+        "id": "g_relativpronomen_14twiuw",
+        "ordinal": 6,
+        "q": "Die Stadt, in ___ ich geboren bin, heißt Bonn.",
+        "options": [
+          "der",
+          "die",
+          "dem"
+        ],
+        "answer": "der",
+        "why": "\"in\" + Dativ, feminin → in der."
+      },
+      {
+        "id": "g_relativpronomen_1j7l6kw",
+        "ordinal": 7,
+        "q": "Der Kollege, ___ ich das Buch gegeben habe, ist krank.",
+        "options": [
+          "dem",
+          "den",
+          "der"
+        ],
+        "answer": "dem",
+        "why": "Dativ maskulin (ich habe ihm das Buch gegeben) → dem."
+      },
+      {
+        "id": "g_relativpronomen_12k1zpr",
+        "ordinal": 8,
+        "q": "Das ist die Firma, bei ___ ich arbeite.",
+        "options": [
+          "der",
+          "die",
+          "dem"
+        ],
+        "answer": "der",
+        "why": "\"bei\" + Dativ, feminin → bei der."
+      },
+      {
+        "id": "g_relativpronomen_4onnkw",
+        "ordinal": 9,
+        "q": "Die Freunde, ___ ich eingeladen habe, kommen später.",
+        "options": [
+          "die",
+          "denen",
+          "den"
+        ],
+        "answer": "die",
+        "why": "Akkusativ Plural → die."
+      },
+      {
+        "id": "g_relativpronomen_o4nfa1",
+        "ordinal": 10,
+        "q": "Das Kind, ___ Eltern in Spanien leben, wohnt bei uns.",
+        "options": [
+          "dessen",
+          "deren",
+          "dem"
+        ],
+        "answer": "dessen",
+        "why": "Genitiv maskulin/neutrum → dessen."
+      },
+      {
+        "id": "g_relativpronomen_mnb5gx",
+        "ordinal": 11,
+        "q": "Kennst du den Autor, ___ Buch so berühmt ist?",
+        "options": [
+          "dessen",
+          "dem",
+          "den"
+        ],
+        "answer": "dessen",
+        "why": "Genitiv: das Buch des Autors → dessen Buch."
+      },
+      {
+        "id": "g_relativpronomen_1hz9ssy",
+        "ordinal": 12,
+        "q": "Die Aufgabe, ___ wir lösen mussten, war schwer.",
+        "options": [
+          "die",
+          "der",
+          "denen"
+        ],
+        "answer": "die",
+        "why": "Akkusativ feminin → die."
+      }
+    ],
+    "possessivartikel": [
+      {
+        "id": "g_possessivartikel_c2xz0k",
+        "ordinal": 1,
+        "q": "Ich fahre mit mein___ Bruder nach München.",
+        "options": [
+          "meinem",
+          "meinen",
+          "meiner"
+        ],
+        "answer": "meinem",
+        "why": "\"mit\" + Dativ, maskulin → meinem Bruder."
+      },
+      {
+        "id": "g_possessivartikel_13vrzr5",
+        "ordinal": 2,
+        "q": "Sie liebt ihr___ Hund über alles.",
+        "options": [
+          "ihren",
+          "ihrem",
+          "ihre"
+        ],
+        "answer": "ihren",
+        "why": "Akkusativ maskulin → ihren Hund."
+      },
+      {
+        "id": "g_possessivartikel_k38qzx",
+        "ordinal": 3,
+        "q": "Wir besuchen am Sonntag unser___ Großeltern.",
+        "options": [
+          "unsere",
+          "unseren",
+          "unserer"
+        ],
+        "answer": "unsere",
+        "why": "Akkusativ Plural → unsere Großeltern."
+      },
+      {
+        "id": "g_possessivartikel_ojcfco",
+        "ordinal": 4,
+        "q": "Hast du dein___ Schlüssel dabei?",
+        "options": [
+          "deinen",
+          "deinem",
+          "deine"
+        ],
+        "answer": "deinen",
+        "why": "Akkusativ maskulin → deinen Schlüssel."
+      },
+      {
+        "id": "g_possessivartikel_gqja00",
+        "ordinal": 5,
+        "q": "Er wohnt noch bei sein___ Eltern.",
+        "options": [
+          "seinen",
+          "seine",
+          "seiner"
+        ],
+        "answer": "seinen",
+        "why": "\"bei\" + Dativ Plural → seinen Eltern."
+      },
+      {
+        "id": "g_possessivartikel_1bltpwd",
+        "ordinal": 6,
+        "q": "Ich habe mein___ Tasche im Bus vergessen.",
+        "options": [
+          "meine",
+          "meinen",
+          "meiner"
+        ],
+        "answer": "meine",
+        "why": "Akkusativ feminin → meine Tasche."
+      },
+      {
+        "id": "g_possessivartikel_14tp57o",
+        "ordinal": 7,
+        "q": "Ist das wirklich dein___ Jacke?",
+        "options": [
+          "deine",
+          "deinen",
+          "deiner"
+        ],
+        "answer": "deine",
+        "why": "Femininum Nominativ → deine Jacke."
+      },
+      {
+        "id": "g_possessivartikel_1vmwobk",
+        "ordinal": 8,
+        "q": "Sie hat ihr___ Bruder gestern angerufen.",
+        "options": [
+          "ihren",
+          "ihrem",
+          "ihre"
+        ],
+        "answer": "ihren",
+        "why": "Akkusativ maskulin → ihren Bruder."
+      },
+      {
+        "id": "g_possessivartikel_xrsk9u",
+        "ordinal": 9,
+        "q": "Nach unser___ Reise waren wir sehr müde.",
+        "options": [
+          "unserer",
+          "unseren",
+          "unsere"
+        ],
+        "answer": "unserer",
+        "why": "\"nach\" + Dativ, feminin → unserer Reise."
+      },
+      {
+        "id": "g_possessivartikel_7ds9ta",
+        "ordinal": 10,
+        "q": "Ich gebe dir gern mein___ Adresse.",
+        "options": [
+          "meine",
+          "meinen",
+          "meinem"
+        ],
+        "answer": "meine",
+        "why": "Akkusativ feminin → meine Adresse."
+      },
+      {
+        "id": "g_possessivartikel_lwk7i9",
+        "ordinal": 11,
+        "q": "Wo sind eigentlich eur___ Fahrräder?",
+        "options": [
+          "eure",
+          "euren",
+          "euer"
+        ],
+        "answer": "eure",
+        "why": "Plural Nominativ → eure Fahrräder."
+      },
+      {
+        "id": "g_possessivartikel_1xrcp4n",
+        "ordinal": 12,
+        "q": "Der Lehrer hat mit mein___ Vater gesprochen.",
+        "options": [
+          "meinem",
+          "meinen",
+          "meiner"
+        ],
+        "answer": "meinem",
+        "why": "\"mit\" + Dativ, maskulin → meinem Vater."
+      }
+    ],
+    "personalpronomen": [
+      {
+        "id": "g_personalpronomen_1mqxr4t",
+        "ordinal": 1,
+        "q": "Kannst du ___ bitte helfen?",
+        "options": [
+          "mir",
+          "mich",
+          "ich"
+        ],
+        "answer": "mir",
+        "why": "\"helfen\" verlangt den Dativ: jemandem helfen → mir."
+      },
+      {
+        "id": "g_personalpronomen_7ixdq8",
+        "ordinal": 2,
+        "q": "Ich sehe ___ morgen im Kurs.",
+        "options": [
+          "dich",
+          "dir",
+          "du"
+        ],
+        "answer": "dich",
+        "why": "Akkusativobjekt (wen sehen?) → dich."
+      },
+      {
+        "id": "g_personalpronomen_1omfllo",
+        "ordinal": 3,
+        "q": "Wie geht es ___ , Frau Müller?",
+        "options": [
+          "Ihnen",
+          "Sie",
+          "dir"
+        ],
+        "answer": "Ihnen",
+        "why": "Höfliche Anrede im Dativ → Ihnen. Register: der Text siezt."
+      },
+      {
+        "id": "g_personalpronomen_1nbhv0o",
+        "ordinal": 4,
+        "q": "Ich rufe ___ heute Abend an.",
+        "options": [
+          "ihn",
+          "ihm",
+          "er"
+        ],
+        "answer": "ihn",
+        "why": "Akkusativ (wen anrufen?) → ihn."
+      },
+      {
+        "id": "g_personalpronomen_b6gv50",
+        "ordinal": 5,
+        "q": "Das Buch gehört ___ .",
+        "options": [
+          "uns",
+          "wir",
+          "unser"
+        ],
+        "answer": "uns",
+        "why": "\"gehören\" + Dativ → uns."
+      },
+      {
+        "id": "g_personalpronomen_1un832c",
+        "ordinal": 6,
+        "q": "Kann ich ___ etwas fragen?",
+        "options": [
+          "Sie",
+          "Ihnen",
+          "dich"
+        ],
+        "answer": "Sie",
+        "why": "Akkusativ der höflichen Anrede → Sie."
+      },
+      {
+        "id": "g_personalpronomen_n7o0c5",
+        "ordinal": 7,
+        "q": "Ich danke ___ für die schnelle Hilfe.",
+        "options": [
+          "dir",
+          "dich",
+          "du"
+        ],
+        "answer": "dir",
+        "why": "\"danken\" + Dativ → dir."
+      },
+      {
+        "id": "g_personalpronomen_gjct9e",
+        "ordinal": 8,
+        "q": "Gib ___ bitte das Salz.",
+        "options": [
+          "mir",
+          "mich",
+          "ich"
+        ],
+        "answer": "mir",
+        "why": "\"geben\" + Dativ (wem?) → mir."
+      },
+      {
+        "id": "g_personalpronomen_h2och8",
+        "ordinal": 9,
+        "q": "Wir treffen ___ um acht vor dem Kino.",
+        "options": [
+          "euch",
+          "euche",
+          "ihr"
+        ],
+        "answer": "euch",
+        "why": "Akkusativ (wen treffen?) → euch."
+      },
+      {
+        "id": "g_personalpronomen_14n6mgo",
+        "ordinal": 10,
+        "q": "Ich habe ___ seit Jahren nicht gesehen.",
+        "options": [
+          "sie",
+          "ihr",
+          "ihnen"
+        ],
+        "answer": "sie",
+        "why": "Akkusativ Plural → sie."
+      },
+      {
+        "id": "g_personalpronomen_xh35rw",
+        "ordinal": 11,
+        "q": "Entschuldigung, können Sie ___ helfen?",
+        "options": [
+          "mir",
+          "mich",
+          "ich"
+        ],
+        "answer": "mir",
+        "why": "\"helfen\" + Dativ → mir."
+      },
+      {
+        "id": "g_personalpronomen_1igmc0a",
+        "ordinal": 12,
+        "q": "Das ist nicht mein Problem, frag ___ selbst!",
+        "options": [
+          "ihn",
+          "ihm",
+          "er"
+        ],
+        "answer": "ihn",
+        "why": "Akkusativ (wen fragen?) → ihn."
+      }
+    ],
+    "temporalpraeposition": [
+      {
+        "id": "g_temporalpraeposition_161mvf2",
+        "ordinal": 1,
+        "q": "___ dem Essen gehen wir noch spazieren.",
+        "options": [
+          "Nach",
+          "Vor",
+          "Bis"
+        ],
+        "answer": "Nach",
+        "why": "\"nach\" + Dativ für die Zeit danach: nach dem Essen."
+      },
+      {
+        "id": "g_temporalpraeposition_1dtjd2m",
+        "ordinal": 2,
+        "q": "Ich warte hier ___ nächsten Montag.",
+        "options": [
+          "bis",
+          "in",
+          "seit"
+        ],
+        "answer": "bis",
+        "why": "\"bis\" markiert das Ende eines Zeitraums (ohne Artikel danach)."
+      },
+      {
+        "id": "g_temporalpraeposition_1n96rex",
+        "ordinal": 3,
+        "q": "___ zwei Jahren lerne ich Deutsch.",
+        "options": [
+          "Seit",
+          "Vor",
+          "In"
+        ],
+        "answer": "Seit",
+        "why": "\"seit\" + Dativ für einen Zeitraum, der bis jetzt dauert."
+      },
+      {
+        "id": "g_temporalpraeposition_r25lhs",
+        "ordinal": 4,
+        "q": "Wir treffen uns ___ einer Stunde.",
+        "options": [
+          "in",
+          "nach",
+          "vor"
+        ],
+        "answer": "in",
+        "why": "\"in\" + Dativ für die Zukunft: in einer Stunde."
+      },
+      {
+        "id": "g_temporalpraeposition_1rwwihu",
+        "ordinal": 5,
+        "q": "___ drei Jahren habe ich in Rom gelebt.",
+        "options": [
+          "Vor",
+          "Seit",
+          "Nach"
+        ],
+        "answer": "Vor",
+        "why": "\"vor\" + Dativ für einen abgeschlossenen Zeitpunkt in der Vergangenheit."
+      },
+      {
+        "id": "g_temporalpraeposition_6s3uq5",
+        "ordinal": 6,
+        "q": "Der Kurs beginnt ___ 1. September.",
+        "options": [
+          "am",
+          "im",
+          "um"
+        ],
+        "answer": "am",
+        "why": "Datum mit Tag → \"am\" + Dativ: am 1. September."
+      },
+      {
+        "id": "g_temporalpraeposition_j5wp50",
+        "ordinal": 7,
+        "q": "Ich bin normalerweise ___ 8 Uhr zu Hause.",
+        "options": [
+          "um",
+          "am",
+          "in"
+        ],
+        "answer": "um",
+        "why": "Uhrzeit → \"um\": um 8 Uhr."
+      },
+      {
+        "id": "g_temporalpraeposition_80xayd",
+        "ordinal": 8,
+        "q": "___ einer Woche bin ich wieder zurück.",
+        "options": [
+          "In",
+          "Vor",
+          "Seit"
+        ],
+        "answer": "In",
+        "why": "\"in\" + Dativ für einen Zeitpunkt in der Zukunft."
+      },
+      {
+        "id": "g_temporalpraeposition_tlo0da",
+        "ordinal": 9,
+        "q": "Er arbeitet ___ 20 Jahren bei dieser Firma.",
+        "options": [
+          "seit",
+          "vor",
+          "bis"
+        ],
+        "answer": "seit",
+        "why": "Der Zeitraum dauert an → \"seit 20 Jahren\"."
+      },
+      {
+        "id": "g_temporalpraeposition_1shsu6m",
+        "ordinal": 10,
+        "q": "___ dem Kurs treffen wir uns immer im Café.",
+        "options": [
+          "Nach",
+          "Seit",
+          "Bis"
+        ],
+        "answer": "Nach",
+        "why": "\"nach dem Kurs\" = danach (Dativ)."
+      },
+      {
+        "id": "g_temporalpraeposition_1x25znq",
+        "ordinal": 11,
+        "q": "Wir bleiben ___ Sonntag in Berlin.",
+        "options": [
+          "bis",
+          "seit",
+          "vor"
+        ],
+        "answer": "bis",
+        "why": "\"bis Sonntag\" = Endpunkt des Aufenthalts."
+      },
+      {
+        "id": "g_temporalpraeposition_1irbwau",
+        "ordinal": 12,
+        "q": "___ Winter fahre ich gern Ski.",
+        "options": [
+          "Im",
+          "Am",
+          "Um"
+        ],
+        "answer": "Im",
+        "why": "Jahreszeit → \"im\" + Dativ: im Winter."
+      }
+    ],
+    "konjunktiv2_hoeflich": [
+      {
+        "id": "g_konjunktiv2_hoeflich_17ymce2",
+        "ordinal": 1,
+        "q": "___ Sie mir bitte kurz helfen?",
+        "options": [
+          "Könnten",
+          "Konnten",
+          "Können"
+        ],
+        "answer": "Könnten",
+        "why": "Konjunktiv II macht die Bitte höflich: Könnten Sie …?"
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_pulfs9",
+        "ordinal": 2,
+        "q": "Ich ___ gern einen Termin für nächste Woche.",
+        "options": [
+          "hätte",
+          "hatte",
+          "habe"
+        ],
+        "answer": "hätte",
+        "why": "Höflicher Wunsch → Konjunktiv II: ich hätte gern."
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_154up9b",
+        "ordinal": 3,
+        "q": "___ es möglich, dass Sie mich zurückrufen?",
+        "options": [
+          "Wäre",
+          "War",
+          "Wird"
+        ],
+        "answer": "Wäre",
+        "why": "Höfliche Frage mit Konjunktiv II von \"sein\": Wäre es möglich …?"
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_19epfed",
+        "ordinal": 4,
+        "q": "___ Sie mir bitte die Adresse schicken?",
+        "options": [
+          "Würden",
+          "Wurden",
+          "Werden"
+        ],
+        "answer": "Würden",
+        "why": "\"würden\" + Infinitiv ist die höfliche Umschreibung."
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_hl70pd",
+        "ordinal": 5,
+        "q": "Ich ___ noch ein paar Informationen.",
+        "options": [
+          "bräuchte",
+          "brauchte",
+          "brauche"
+        ],
+        "answer": "bräuchte",
+        "why": "Höflicher Wunsch im Konjunktiv II: ich bräuchte."
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_11aer4",
+        "ordinal": 6,
+        "q": "Es ___ sehr nett, wenn Sie mir antworten würden.",
+        "options": [
+          "wäre",
+          "war",
+          "ist"
+        ],
+        "answer": "wäre",
+        "why": "Irrealer/höflicher Bedingungssatz → \"es wäre nett\"."
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_1bqez15",
+        "ordinal": 7,
+        "q": "___ ich Sie etwas fragen?",
+        "options": [
+          "Dürfte",
+          "Darf",
+          "Durfte"
+        ],
+        "answer": "Dürfte",
+        "why": "Konjunktiv II von \"dürfen\" macht die Frage höflich."
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_lc5txy",
+        "ordinal": 8,
+        "q": "An Ihrer Stelle ___ ich mit dem Chef sprechen.",
+        "options": [
+          "würde",
+          "werde",
+          "wurde"
+        ],
+        "answer": "würde",
+        "why": "Ratschlag mit \"an deiner/Ihrer Stelle\" + würde + Infinitiv."
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_1yub8k5",
+        "ordinal": 9,
+        "q": "___ Sie so freundlich und schicken mir das Formular?",
+        "options": [
+          "Wären",
+          "Würden",
+          "Waren"
+        ],
+        "answer": "Wären",
+        "why": "Feste höfliche Wendung: Wären Sie so freundlich …?"
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_gey8ur",
+        "ordinal": 10,
+        "q": "Ich ___ mich über eine schnelle Antwort sehr freuen.",
+        "options": [
+          "würde",
+          "werde",
+          "wurde"
+        ],
+        "answer": "würde",
+        "why": "Höflicher Schlusssatz im Brief: Ich würde mich freuen."
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_bjp96j",
+        "ordinal": 11,
+        "q": "___ Sie mir bitte sagen, wann der Kurs beginnt?",
+        "options": [
+          "Könnten",
+          "Konnten",
+          "Können"
+        ],
+        "answer": "Könnten",
+        "why": "Höfliche Bitte mit Konjunktiv II."
+      },
+      {
+        "id": "g_konjunktiv2_hoeflich_1b4z2jl",
+        "ordinal": 12,
+        "q": "Wir ___ uns sehr freuen, wenn Sie teilnehmen könnten.",
+        "options": [
+          "würden",
+          "werden",
+          "wurden"
+        ],
+        "answer": "würden",
+        "why": "Konjunktiv II in der höflichen Einladung."
+      }
+    ],
+    "trennbare_verben": [
+      {
+        "id": "g_trennbare_verben_1f0na73",
+        "ordinal": 1,
+        "q": "Ich rufe dich heute Abend ___ .",
+        "options": [
+          "an",
+          "auf",
+          "aus"
+        ],
+        "answer": "an",
+        "why": "\"anrufen\" ist trennbar: ich rufe … an."
+      },
+      {
+        "id": "g_trennbare_verben_ht88lg",
+        "ordinal": 2,
+        "q": "Der Zug kommt um 8 Uhr ___ .",
+        "options": [
+          "an",
+          "ab",
+          "auf"
+        ],
+        "answer": "an",
+        "why": "\"ankommen\" → kommt … an."
+      },
+      {
+        "id": "g_trennbare_verben_nt7gnj",
+        "ordinal": 3,
+        "q": "Wir laden unsere Freunde zum Essen ___ .",
+        "options": [
+          "ein",
+          "aus",
+          "an"
+        ],
+        "answer": "ein",
+        "why": "\"einladen\" → laden … ein."
+      },
+      {
+        "id": "g_trennbare_verben_uk9egi",
+        "ordinal": 4,
+        "q": "Ich stehe jeden Morgen um 6 Uhr ___ .",
+        "options": [
+          "auf",
+          "an",
+          "aus"
+        ],
+        "answer": "auf",
+        "why": "\"aufstehen\" → stehe … auf."
+      },
+      {
+        "id": "g_trennbare_verben_1lv8uyc",
+        "ordinal": 5,
+        "q": "Wir fahren am Freitag ___ .",
+        "options": [
+          "ab",
+          "an",
+          "auf"
+        ],
+        "answer": "ab",
+        "why": "\"abfahren\" → fahren … ab."
+      },
+      {
+        "id": "g_trennbare_verben_1g9xfdl",
+        "ordinal": 6,
+        "q": "Mach bitte das Licht ___ .",
+        "options": [
+          "aus",
+          "an",
+          "ab"
+        ],
+        "answer": "aus",
+        "why": "\"ausmachen\" → mach … aus."
+      },
+      {
+        "id": "g_trennbare_verben_1axr4o1",
+        "ordinal": 7,
+        "q": "Ich hole meine Freundin vom Bahnhof ___ .",
+        "options": [
+          "ab",
+          "an",
+          "auf"
+        ],
+        "answer": "ab",
+        "why": "\"abholen\" → hole … ab."
+      },
+      {
+        "id": "g_trennbare_verben_1pbbpbj",
+        "ordinal": 8,
+        "q": "Er zieht seine Jacke ___ .",
+        "options": [
+          "an",
+          "aus",
+          "auf"
+        ],
+        "answer": "an",
+        "why": "\"anziehen\" → zieht … an."
+      },
+      {
+        "id": "g_trennbare_verben_rtsxun",
+        "ordinal": 9,
+        "q": "Ich schlage das Wort im Wörterbuch ___ .",
+        "options": [
+          "nach",
+          "auf",
+          "an"
+        ],
+        "answer": "nach",
+        "why": "\"nachschlagen\" → schlage … nach."
+      },
+      {
+        "id": "g_trennbare_verben_1wl0ppi",
+        "ordinal": 10,
+        "q": "Die Party fängt um 20 Uhr ___ .",
+        "options": [
+          "an",
+          "auf",
+          "aus"
+        ],
+        "answer": "an",
+        "why": "\"anfangen\" → fängt … an."
+      },
+      {
+        "id": "g_trennbare_verben_1zvmvc",
+        "ordinal": 11,
+        "q": "Bitte füllen Sie das Formular ___ .",
+        "options": [
+          "aus",
+          "an",
+          "ab"
+        ],
+        "answer": "aus",
+        "why": "\"ausfüllen\" → füllen … aus."
+      },
+      {
+        "id": "g_trennbare_verben_1mp7fza",
+        "ordinal": 12,
+        "q": "Ich mache das Fenster ___ , es ist warm hier.",
+        "options": [
+          "auf",
+          "an",
+          "aus"
+        ],
+        "answer": "auf",
+        "why": "\"aufmachen\" → mache … auf."
+      }
+    ],
+    "modalverben": [
+      {
+        "id": "g_modalverben_t2n88h",
+        "ordinal": 1,
+        "q": "Ich ___ heute länger arbeiten.",
+        "options": [
+          "muss",
+          "musst",
+          "müssen"
+        ],
+        "answer": "muss",
+        "why": "1. Person Singular: ich muss."
+      },
+      {
+        "id": "g_modalverben_1vva125",
+        "ordinal": 2,
+        "q": "___ ich hier rauchen?",
+        "options": [
+          "Darf",
+          "Darfst",
+          "Dürfen"
+        ],
+        "answer": "Darf",
+        "why": "Erlaubnis erfragen: Darf ich …? (ich-Form)."
+      },
+      {
+        "id": "g_modalverben_gv40n7",
+        "ordinal": 3,
+        "q": "Du ___ mehr schlafen, du siehst müde aus.",
+        "options": [
+          "solltest",
+          "sollst",
+          "sollte"
+        ],
+        "answer": "solltest",
+        "why": "Ratschlag an \"du\" → solltest."
+      },
+      {
+        "id": "g_modalverben_1t4ma1i",
+        "ordinal": 4,
+        "q": "Wir ___ am Wochenende nach Hamburg fahren.",
+        "options": [
+          "wollen",
+          "wollt",
+          "will"
+        ],
+        "answer": "wollen",
+        "why": "1. Person Plural: wir wollen."
+      },
+      {
+        "id": "g_modalverben_xctk8n",
+        "ordinal": 5,
+        "q": "Sie ___ sehr gut Klavier spielen.",
+        "options": [
+          "kann",
+          "können",
+          "kannst"
+        ],
+        "answer": "kann",
+        "why": "\"sie\" (Singular) → kann."
+      },
+      {
+        "id": "g_modalverben_uqcpla",
+        "ordinal": 6,
+        "q": "Ich ___ gern ein Glas Wasser, bitte.",
+        "options": [
+          "möchte",
+          "möchte gern",
+          "mag"
+        ],
+        "answer": "möchte",
+        "why": "Höflicher Wunsch: ich möchte."
+      },
+      {
+        "id": "g_modalverben_10j4x9b",
+        "ordinal": 7,
+        "q": "Kinder ___ im Museum nicht rennen.",
+        "options": [
+          "dürfen",
+          "dürft",
+          "darf"
+        ],
+        "answer": "dürfen",
+        "why": "Plural: Kinder dürfen."
+      },
+      {
+        "id": "g_modalverben_1ssyg0h",
+        "ordinal": 8,
+        "q": "Er ___ gestern leider nicht kommen.",
+        "options": [
+          "konnte",
+          "kann",
+          "könnte"
+        ],
+        "answer": "konnte",
+        "why": "Vergangenheit von \"können\" → konnte."
+      },
+      {
+        "id": "g_modalverben_j4rair",
+        "ordinal": 9,
+        "q": "Ihr ___ die Hausaufgaben bis Freitag machen.",
+        "options": [
+          "müsst",
+          "muss",
+          "müssen"
+        ],
+        "answer": "müsst",
+        "why": "2. Person Plural: ihr müsst."
+      },
+      {
+        "id": "g_modalverben_1hd4v5w",
+        "ordinal": 10,
+        "q": "___ du mir bitte helfen?",
+        "options": [
+          "Kannst",
+          "Kann",
+          "Können"
+        ],
+        "answer": "Kannst",
+        "why": "2. Person Singular: kannst."
+      },
+      {
+        "id": "g_modalverben_1j2q8t",
+        "ordinal": 11,
+        "q": "Man ___ hier nicht parken.",
+        "options": [
+          "darf",
+          "darfst",
+          "dürfen"
+        ],
+        "answer": "darf",
+        "why": "\"man\" ist immer Singular → darf."
+      },
+      {
+        "id": "g_modalverben_ljz38g",
+        "ordinal": 12,
+        "q": "Wir ___ heute leider nicht ins Kino gehen.",
+        "options": [
+          "können",
+          "könnt",
+          "kann"
+        ],
+        "answer": "können",
+        "why": "1. Person Plural: wir können."
+      }
+    ],
+    "komparativ": [
+      {
+        "id": "g_komparativ_npjuoz",
+        "ordinal": 1,
+        "q": "Mein Bruder ist ___ als ich.",
+        "options": [
+          "größer",
+          "großer",
+          "am größten"
+        ],
+        "answer": "größer",
+        "why": "Komparativ mit \"als\": größer als."
+      },
+      {
+        "id": "g_komparativ_1526lhb",
+        "ordinal": 2,
+        "q": "Dieser Weg ist ___ als der andere.",
+        "options": [
+          "kürzer",
+          "kurzer",
+          "am kürzesten"
+        ],
+        "answer": "kürzer",
+        "why": "kurz → kürzer (Umlaut im Komparativ)."
+      },
+      {
+        "id": "g_komparativ_1wdu40g",
+        "ordinal": 3,
+        "q": "Der Winter in Russland ist ___ als in Italien.",
+        "options": [
+          "kälter",
+          "kalter",
+          "am kältesten"
+        ],
+        "answer": "kälter",
+        "why": "kalt → kälter (Umlaut)."
+      },
+      {
+        "id": "g_komparativ_1f4e258",
+        "ordinal": 4,
+        "q": "Sie spricht ___ Deutsch als ich.",
+        "options": [
+          "besser",
+          "guter",
+          "am besten"
+        ],
+        "answer": "besser",
+        "why": "gut → besser (unregelmäßig)."
+      },
+      {
+        "id": "g_komparativ_1bouxb3",
+        "ordinal": 5,
+        "q": "Das ist das ___ Restaurant in der Stadt.",
+        "options": [
+          "beste",
+          "bessere",
+          "guteste"
+        ],
+        "answer": "beste",
+        "why": "Superlativ von \"gut\" → beste."
+      },
+      {
+        "id": "g_komparativ_eyglab",
+        "ordinal": 6,
+        "q": "Ich fahre lieber mit dem Zug, das ist viel ___ .",
+        "options": [
+          "bequemer",
+          "bequem",
+          "am bequemsten"
+        ],
+        "answer": "bequemer",
+        "why": "Komparativ: bequem → bequemer."
+      },
+      {
+        "id": "g_komparativ_1h0056z",
+        "ordinal": 7,
+        "q": "Der Everest ist der ___ Berg der Welt.",
+        "options": [
+          "höchste",
+          "höhere",
+          "hochste"
+        ],
+        "answer": "höchste",
+        "why": "Superlativ von \"hoch\" → höchste."
+      },
+      {
+        "id": "g_komparativ_o4g079",
+        "ordinal": 8,
+        "q": "Meine Wohnung ist ___ als deine.",
+        "options": [
+          "kleiner",
+          "klein",
+          "am kleinsten"
+        ],
+        "answer": "kleiner",
+        "why": "Komparativ mit \"als\": kleiner als."
+      },
+      {
+        "id": "g_komparativ_7hbohj",
+        "ordinal": 9,
+        "q": "Im Sommer sind die Tage ___ als im Winter.",
+        "options": [
+          "länger",
+          "langer",
+          "am längsten"
+        ],
+        "answer": "länger",
+        "why": "lang → länger (Umlaut)."
+      },
+      {
+        "id": "g_komparativ_1nj44d0",
+        "ordinal": 10,
+        "q": "Dieses Buch ist ___ als das andere.",
+        "options": [
+          "interessanter",
+          "interessant",
+          "am interessantesten"
+        ],
+        "answer": "interessanter",
+        "why": "Komparativ auf -er: interessanter als."
+      },
+      {
+        "id": "g_komparativ_1xqs4rz",
+        "ordinal": 11,
+        "q": "Sie ist die ___ Mitarbeiterin im Team.",
+        "options": [
+          "erfahrenste",
+          "erfahrenere",
+          "erfahren"
+        ],
+        "answer": "erfahrenste",
+        "why": "Superlativ mit bestimmtem Artikel → erfahrenste."
+      },
+      {
+        "id": "g_komparativ_6ku2uc",
+        "ordinal": 12,
+        "q": "Je mehr ich lerne, ___ wird mein Deutsch.",
+        "options": [
+          "besser",
+          "gut",
+          "am besten"
+        ],
+        "answer": "besser",
+        "why": "Vergleich \"je … desto\" → Komparativ: besser."
+      }
+    ],
+    "wortstellung_nebensatz": [
+      {
+        "id": "g_wortstellung_nebensatz_1bwzwum",
+        "ordinal": 1,
+        "q": "Ich weiß, dass er morgen nach Berlin ___ .",
+        "options": [
+          "fährt",
+          "er fährt",
+          "fahren"
+        ],
+        "answer": "fährt",
+        "why": "Im Nebensatz steht das konjugierte Verb am Ende: … dass er morgen nach Berlin fährt."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_1bns8w",
+        "ordinal": 2,
+        "q": "Sie kommt heute nicht, weil sie ___ .",
+        "options": [
+          "krank ist",
+          "ist krank",
+          "krank sein"
+        ],
+        "answer": "krank ist",
+        "why": "Nach \"weil\" steht das Verb am Satzende."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_e9k8r3",
+        "ordinal": 3,
+        "q": "Ich rufe dich an, wenn ich ___ .",
+        "options": [
+          "Zeit habe",
+          "habe Zeit",
+          "Zeit haben"
+        ],
+        "answer": "Zeit habe",
+        "why": "Nebensatz mit \"wenn\" → Verb am Ende."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_ioh2c5",
+        "ordinal": 4,
+        "q": "Er sagt, dass er das Buch schon ___ .",
+        "options": [
+          "gelesen hat",
+          "hat gelesen",
+          "gelesen haben"
+        ],
+        "answer": "gelesen hat",
+        "why": "Im Nebensatz steht das Hilfsverb nach dem Partizip am Ende."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_otwf6u",
+        "ordinal": 5,
+        "q": "Ich habe gehört, dass du ___ .",
+        "options": [
+          "umgezogen bist",
+          "bist umgezogen",
+          "umgezogen sein"
+        ],
+        "answer": "umgezogen bist",
+        "why": "Perfekt im Nebensatz: Partizip + Hilfsverb am Ende."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_1r4f1ml",
+        "ordinal": 6,
+        "q": "Obwohl es stark ___ , sind wir spazieren gegangen.",
+        "options": [
+          "geregnet hat",
+          "hat geregnet",
+          "regnen hat"
+        ],
+        "answer": "geregnet hat",
+        "why": "Nach \"obwohl\" steht das Verb am Ende."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_ivslwl",
+        "ordinal": 7,
+        "q": "Ich bleibe zu Hause, weil ich sehr ___ .",
+        "options": [
+          "müde bin",
+          "bin müde",
+          "müde sein"
+        ],
+        "answer": "müde bin",
+        "why": "Verb am Ende im \"weil\"-Satz."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_wn4ry5",
+        "ordinal": 8,
+        "q": "Weißt du, wann der Zug ___ ?",
+        "options": [
+          "abfährt",
+          "fährt ab",
+          "abfahren"
+        ],
+        "answer": "abfährt",
+        "why": "Indirekte Frage: trennbares Verb bleibt zusammen am Ende."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_i65oho",
+        "ordinal": 9,
+        "q": "Ich möchte wissen, ob du ___ .",
+        "options": [
+          "mitkommst",
+          "kommst mit",
+          "mitkommen"
+        ],
+        "answer": "mitkommst",
+        "why": "Nach \"ob\" steht das Verb am Ende – trennbares Verb zusammen."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_1tp4oj",
+        "ordinal": 10,
+        "q": "Sie hat gesagt, dass sie uns später ___ .",
+        "options": [
+          "anruft",
+          "ruft an",
+          "anrufen"
+        ],
+        "answer": "anruft",
+        "why": "Im Nebensatz bleibt das trennbare Verb am Ende zusammen."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_1xmbg3q",
+        "ordinal": 11,
+        "q": "Ich habe ihn gefragt, wo er ___ .",
+        "options": [
+          "wohnt",
+          "wohnt er",
+          "wohnen"
+        ],
+        "answer": "wohnt",
+        "why": "Indirekte Frage: Verb am Ende."
+      },
+      {
+        "id": "g_wortstellung_nebensatz_1649nxw",
+        "ordinal": 12,
+        "q": "Es ist wichtig, dass du pünktlich ___ .",
+        "options": [
+          "kommst",
+          "kommst du",
+          "kommen"
+        ],
+        "answer": "kommst",
+        "why": "\"dass\"-Satz → konjugiertes Verb am Ende."
+      }
+    ],
+    "negation": [
+      {
+        "id": "g_negation_9yk4xb",
+        "ordinal": 1,
+        "q": "Ich habe leider ___ Zeit für dich.",
+        "options": [
+          "keine",
+          "nicht",
+          "nichts"
+        ],
+        "answer": "keine",
+        "why": "Substantiv mit Artikel → Negation mit \"kein\": keine Zeit."
+      },
+      {
+        "id": "g_negation_11kinio",
+        "ordinal": 2,
+        "q": "Das ist ___ mein Buch, das ist deins.",
+        "options": [
+          "nicht",
+          "kein",
+          "keine"
+        ],
+        "answer": "nicht",
+        "why": "Nicht ein Substantiv, sondern der ganze Satzteil wird negiert → \"nicht\"."
+      },
+      {
+        "id": "g_negation_r1di80",
+        "ordinal": 3,
+        "q": "Ich habe davon ___ verstanden.",
+        "options": [
+          "nichts",
+          "nicht",
+          "kein"
+        ],
+        "answer": "nichts",
+        "why": "\"nichts\" = nothing, eigenständiges Pronomen."
+      },
+      {
+        "id": "g_negation_1xn9pqd",
+        "ordinal": 4,
+        "q": "Er kommt heute leider ___ .",
+        "options": [
+          "nicht",
+          "kein",
+          "nichts"
+        ],
+        "answer": "nicht",
+        "why": "Verb negieren → \"nicht\"."
+      },
+      {
+        "id": "g_negation_1dliaqt",
+        "ordinal": 5,
+        "q": "Ich habe ___ Geld dabei.",
+        "options": [
+          "kein",
+          "keine",
+          "nicht"
+        ],
+        "answer": "kein",
+        "why": "\"das Geld\" → Neutrum → kein Geld."
+      },
+      {
+        "id": "g_negation_14b5kod",
+        "ordinal": 6,
+        "q": "Sie hat ___ Interesse an Sport.",
+        "options": [
+          "kein",
+          "keine",
+          "nicht"
+        ],
+        "answer": "kein",
+        "why": "\"das Interesse\" → Neutrum → kein Interesse."
+      },
+      {
+        "id": "g_negation_x0qa0p",
+        "ordinal": 7,
+        "q": "Wir waren ___ in Paris.",
+        "options": [
+          "nie",
+          "nicht",
+          "kein"
+        ],
+        "answer": "nie",
+        "why": "\"nie\" = never, verstärkt die Verneinung der Zeit."
+      },
+      {
+        "id": "g_negation_1f3ts0w",
+        "ordinal": 8,
+        "q": "Das ist wirklich ___ Problem.",
+        "options": [
+          "kein",
+          "keine",
+          "nicht"
+        ],
+        "answer": "kein",
+        "why": "\"das Problem\" → Neutrum → kein Problem."
+      },
+      {
+        "id": "g_negation_akfjh9",
+        "ordinal": 9,
+        "q": "Ich kenne hier ___ .",
+        "options": [
+          "niemanden",
+          "nicht",
+          "keinen"
+        ],
+        "answer": "niemanden",
+        "why": "\"niemand\" im Akkusativ → niemanden."
+      },
+      {
+        "id": "g_negation_9j0n4d",
+        "ordinal": 10,
+        "q": "Er hat ___ Zeit für Hobbys.",
+        "options": [
+          "keine",
+          "kein",
+          "nicht"
+        ],
+        "answer": "keine",
+        "why": "\"die Zeit\" ist feminin → keine Zeit."
+      },
+      {
+        "id": "g_negation_13whvqk",
+        "ordinal": 11,
+        "q": "Ich verstehe dich ___ .",
+        "options": [
+          "nicht",
+          "kein",
+          "nichts"
+        ],
+        "answer": "nicht",
+        "why": "Verb negieren → nicht."
+      },
+      {
+        "id": "g_negation_toh5g0",
+        "ordinal": 12,
+        "q": "Wir haben ___ Lust mehr.",
+        "options": [
+          "keine",
+          "kein",
+          "nicht"
+        ],
+        "answer": "keine",
+        "why": "\"die Lust\" ist feminin → keine Lust."
+      }
+    ],
+    "lexik_verben_praeposition": [
+      {
+        "id": "g_lexik_verben_praeposition_1tqswnq",
+        "ordinal": 1,
+        "q": "Ich warte schon zehn Minuten ___ den Bus.",
+        "options": [
+          "auf",
+          "für",
+          "an"
+        ],
+        "answer": "auf",
+        "why": "Feste Verbindung: warten auf + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_11cmgx2",
+        "ordinal": 2,
+        "q": "Sie freut sich sehr ___ das Geschenk.",
+        "options": [
+          "über",
+          "auf",
+          "für"
+        ],
+        "answer": "über",
+        "why": "\"sich freuen über\" = Freude über etwas, das schon da ist."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_rlcrvy",
+        "ordinal": 3,
+        "q": "Ich interessiere mich sehr ___ Musik.",
+        "options": [
+          "für",
+          "an",
+          "über"
+        ],
+        "answer": "für",
+        "why": "sich interessieren für + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_12i8cg3",
+        "ordinal": 4,
+        "q": "Er denkt oft ___ seine Familie.",
+        "options": [
+          "an",
+          "über",
+          "auf"
+        ],
+        "answer": "an",
+        "why": "denken an + Akkusativ = an jemanden denken."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1do1b2w",
+        "ordinal": 5,
+        "q": "Wir nehmen gern ___ deinem Kurs teil.",
+        "options": [
+          "an",
+          "in",
+          "bei"
+        ],
+        "answer": "an",
+        "why": "teilnehmen an + Dativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1jgnesg",
+        "ordinal": 6,
+        "q": "Ich kümmere mich ___ meine Großmutter.",
+        "options": [
+          "um",
+          "für",
+          "über"
+        ],
+        "answer": "um",
+        "why": "sich kümmern um + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1kmj8sq",
+        "ordinal": 7,
+        "q": "Ich habe mich ___ das Ergebnis sehr geärgert.",
+        "options": [
+          "über",
+          "auf",
+          "für"
+        ],
+        "answer": "über",
+        "why": "sich ärgern über + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1m5wdir",
+        "ordinal": 8,
+        "q": "Ich träume ___ einem eigenen Haus.",
+        "options": [
+          "von",
+          "über",
+          "an"
+        ],
+        "answer": "von",
+        "why": "träumen von + Dativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_l3x897",
+        "ordinal": 9,
+        "q": "Wir sprechen morgen ___ das Problem.",
+        "options": [
+          "über",
+          "auf",
+          "für"
+        ],
+        "answer": "über",
+        "why": "sprechen über + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_9hvhi8",
+        "ordinal": 10,
+        "q": "Sie hat sich ___ ihren Kollegen entschuldigt.",
+        "options": [
+          "bei",
+          "mit",
+          "zu"
+        ],
+        "answer": "bei",
+        "why": "sich entschuldigen bei + Dativ (Person)."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_2w64dv",
+        "ordinal": 11,
+        "q": "Ich freue mich schon ___ den Urlaub.",
+        "options": [
+          "auf",
+          "über",
+          "an"
+        ],
+        "answer": "auf",
+        "why": "\"sich freuen auf\" = Vorfreude auf etwas Zukünftiges."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1h7fsky",
+        "ordinal": 12,
+        "q": "Er hat ___ seine Prüfung nicht bestanden.",
+        "options": [
+          "in",
+          "an",
+          "bei"
+        ],
+        "answer": "in",
+        "why": "bestanden in + Dativ (Prüfungsfach): in der Prüfung."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1oihwk4",
+        "ordinal": 13,
+        "q": "Sie bewirbt sich ___ eine Stelle als Ärztin.",
+        "options": [
+          "um",
+          "für",
+          "auf"
+        ],
+        "answer": "um",
+        "why": "sich bewerben um + Akkusativ (die Stelle)."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_t83qcj",
+        "ordinal": 14,
+        "q": "Ich erinnere mich gern ___ meine Kindheit.",
+        "options": [
+          "an",
+          "auf",
+          "über"
+        ],
+        "answer": "an",
+        "why": "sich erinnern an + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_jpbwrw",
+        "ordinal": 15,
+        "q": "Er hat mich ___ einen Gefallen gebeten.",
+        "options": [
+          "um",
+          "für",
+          "nach"
+        ],
+        "answer": "um",
+        "why": "bitten um + Akkusativ (der Gefallen)."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1t9822n",
+        "ordinal": 16,
+        "q": "Wir haben uns ___ ein neues Auto entschieden.",
+        "options": [
+          "für",
+          "auf",
+          "zu"
+        ],
+        "answer": "für",
+        "why": "sich entscheiden für + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1plv429",
+        "ordinal": 17,
+        "q": "Dieses Lied gehört ___ meiner Kindheit.",
+        "options": [
+          "zu",
+          "in",
+          "bei"
+        ],
+        "answer": "zu",
+        "why": "gehören zu + Dativ = zu etwas dazugehören. Ohne Präposition steht nur der Dativ: Das Buch gehört mir."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_g1mr0b",
+        "ordinal": 18,
+        "q": "Der Kurs besteht ___ zwölf Teilnehmern.",
+        "options": [
+          "aus",
+          "von",
+          "mit"
+        ],
+        "answer": "aus",
+        "why": "bestehen aus + Dativ = aus etwas zusammengesetzt sein."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1isdz21",
+        "ordinal": 19,
+        "q": "Ich beschäftige mich gerade ___ einem neuen Projekt.",
+        "options": [
+          "mit",
+          "an",
+          "über"
+        ],
+        "answer": "mit",
+        "why": "sich beschäftigen mit + Dativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_186ogvn",
+        "ordinal": 20,
+        "q": "Das hängt ___ Wetter ab.",
+        "options": [
+          "vom",
+          "von",
+          "aus"
+        ],
+        "answer": "vom",
+        "why": "abhängen von + Dativ; \"von dem\" wird zu \"vom\"."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_szrpq7",
+        "ordinal": 21,
+        "q": "Bitte achten Sie ___ die Regeln.",
+        "options": [
+          "auf",
+          "an",
+          "für"
+        ],
+        "answer": "auf",
+        "why": "achten auf + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1s1iqq0",
+        "ordinal": 22,
+        "q": "Ich bereite mich ___ die Prüfung vor.",
+        "options": [
+          "auf",
+          "für",
+          "zu"
+        ],
+        "answer": "auf",
+        "why": "sich vorbereiten auf + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_jona9s",
+        "ordinal": 23,
+        "q": "Er träumt ___ einer Weltreise.",
+        "options": [
+          "von",
+          "über",
+          "an"
+        ],
+        "answer": "von",
+        "why": "träumen von + Dativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1vsw832",
+        "ordinal": 24,
+        "q": "Wir haben uns lange ___ das Problem unterhalten.",
+        "options": [
+          "über",
+          "von",
+          "an"
+        ],
+        "answer": "über",
+        "why": "sich unterhalten über + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_mo3j6a",
+        "ordinal": 25,
+        "q": "Ich bedanke mich herzlich ___ Ihre Hilfe.",
+        "options": [
+          "für",
+          "über",
+          "auf"
+        ],
+        "answer": "für",
+        "why": "sich bedanken für + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_xv2jkt",
+        "ordinal": 26,
+        "q": "Sie hat ___ dem Weg zum Bahnhof gefragt.",
+        "options": [
+          "nach",
+          "für",
+          "über"
+        ],
+        "answer": "nach",
+        "why": "fragen nach + Dativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1yd4j2c",
+        "ordinal": 27,
+        "q": "Wir suchen noch ___ einer günstigen Wohnung.",
+        "options": [
+          "nach",
+          "für",
+          "auf"
+        ],
+        "answer": "nach",
+        "why": "suchen nach + Dativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1p12jga",
+        "ordinal": 28,
+        "q": "Ich treffe mich morgen ___ meinen Freunden.",
+        "options": [
+          "mit",
+          "bei",
+          "zu"
+        ],
+        "answer": "mit",
+        "why": "sich treffen mit + Dativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_cxxaj",
+        "ordinal": 29,
+        "q": "Bist du ___ deiner Note zufrieden?",
+        "options": [
+          "mit",
+          "über",
+          "von"
+        ],
+        "answer": "mit",
+        "why": "zufrieden sein mit + Dativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1vkrvzb",
+        "ordinal": 30,
+        "q": "Sie hat Angst ___ großen Hunden.",
+        "options": [
+          "vor",
+          "von",
+          "für"
+        ],
+        "answer": "vor",
+        "why": "Angst haben vor + Dativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_iyzdf",
+        "ordinal": 31,
+        "q": "Hast du Lust ___ einen Kaffee?",
+        "options": [
+          "auf",
+          "für",
+          "zu"
+        ],
+        "answer": "auf",
+        "why": "Lust haben auf + Akkusativ."
+      },
+      {
+        "id": "g_lexik_verben_praeposition_1mheh8o",
+        "ordinal": 32,
+        "q": "Ich habe heute leider keine Zeit ___ Sport.",
+        "options": [
+          "für",
+          "zu",
+          "auf"
+        ],
+        "answer": "für",
+        "why": "Zeit haben für + Akkusativ."
+      }
+    ]
+  }
+}

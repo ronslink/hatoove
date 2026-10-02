@@ -174,6 +174,66 @@ paths:
         '200': { description: 'Account and owned records deleted.' }
         '503': { description: 'Deletion port not wired (`deletion_unavailable`).' }
 
+  /api/v1/sentence-check:
+    post:
+      tags: [attempts]
+      summary: Get conservative structural hints for a German sentence
+      description: |
+        Authenticated deterministic teaching aid. Does not store the supplied text or contact a model.
+        It returns no score, correctness verdict, exam result or complete grammar assessment.
+        The result always includes limited=true and an explicit German limitation. At most 24
+        clauses are analysed; truncated=true and a clause_limit hint identify any omitted remainder.
+        Verb indices and flattened hint clause indices are zero-based.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '200':
+          description: Structural hints with explicit uncertainty; an empty hints list does not mean correct.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kind: { type: string, enum: [structural-hints] }
+                  version: { type: string, enum: [satzbau-heuristic-v1] }
+                  language: { type: string, enum: [de] }
+                  limited: { type: boolean, enum: [true] }
+                  limitation: { type: string }
+                  truncated: { type: boolean }
+                  clauses:
+                    type: array
+                    maxItems: 24
+                    items:
+                      type: object
+                      properties:
+                        text: { type: string }
+                        tokens: { type: array, items: { type: string } }
+                        type: { type: string, enum: [main, subordinate, question, uncertain] }
+                        trigger: { type: string, nullable: true }
+                        finite:
+                          type: object
+                          nullable: true
+                          properties:
+                            word: { type: string }
+                            index: { type: integer, minimum: 0 }
+                        rule: { type: string }
+                        hints: { type: array, items: { type: object } }
+                  hints:
+                    type: array
+                    description: 'Flattened hints with clause (index or null), code, severity (hint or uncertain), and message.'
+                    items: { type: object }
+        '401': { description: 'No verified session.' }
+        '403': { description: 'Origin refused.' }
+        '422': { description: 'Blank, non-string, too-long text or unsupported input fields.' }
+
   /api/v1/settings:
     get:
       tags: [settings]

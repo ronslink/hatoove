@@ -358,10 +358,16 @@ try{
    */
   const scored=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     'SELECT sum(item_count) FROM hatoove.objective_set']).trim();
-  assert.equal(scored,'180','the corpus must hold exactly the 180 authored answers as scored items, got '+scored);
+  assert.equal(scored,'192','180 original corpus items plus 12 recovered grammar-practice items expected, got '+scored);
   const sets=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     'SELECT count(*) FROM hatoove.objective_set']).trim();
-  assert.equal(sets,'24','the corpus must hold the 24 authored sets, got '+sets);
+  assert.equal(sets,'25','24 original corpus sets plus one recovered grammar-practice set expected, got '+sets);
+  const originalCorpus=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    "SELECT count(*) || ':' || sum(item_count) FROM hatoove.objective_set WHERE COALESCE(payload->>'practice_kind','') <> 'grammar-drill'"]).trim();
+  assert.equal(originalCorpus,'24:180','the original authored corpus must remain intact, got '+originalCorpus);
+  const grammarPractice=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
+    "SELECT count(*) || ':' || sum(item_count) FROM hatoove.objective_set WHERE payload->>'practice_kind' = 'grammar-drill'"]).trim();
+  assert.equal(grammarPractice,'1:12','one separate twelve-item grammar-practice set expected, got '+grammarPractice);
   // `jsonb_path_exists` with a recursive wildcard, not a `LIKE` on the JSON text: it DESCENDS into
   // the nested arrays where the answers actually live, so a secret one level deeper than the check
   // still fails it. It also needs no quote-escaping, which is its own small mercy.
@@ -371,16 +377,20 @@ try{
   const learnerKey=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     "SELECT has_table_privilege('hatoove_learner','hatoove.objective_key','SELECT')"]).trim();
   assert.equal(learnerKey,'f','the learner role MUST NOT be able to read objective_key, got '+learnerKey);
-  passed('24 objective sets and 180 answers are seeded, no payload carries a secret, and the learner role cannot read the key table');
+  passed('24 original sets / 180 items plus one grammar-practice set / 12 items are seeded; payloads and learner grants keep keys private');
 
   // The route that SERVES the corpus, and must never serve the key side of it.
   assert.equal((await request('GET','/api/v1/objective-sets')).status,401,'/api/v1/objective-sets must require a session');
   const objective=await request('GET','/api/v1/objective-sets',undefined,cookie);
   assert.equal(objective.status,200,'the objective route must answer a signed-in learner, got '+objective.status);
   assert.ok(Array.isArray(objective.json),'the objective list must be a JSON array');
-  // 24 sets exist, 9 are media-gated (HV has a transcript but no audio) -> 15 servable, 120 of 180 items.
-  assert.equal(objective.json.length,15,'15 servable objective sets expected (24 minus 9 media-gated), got '+objective.json.length);
-  assert.equal(objective.json.reduce((n,s)=>n+s.item_count,0),120,'120 servable scored items expected, got '+objective.json.reduce((n,s)=>n+s.item_count,0));
+  // 25 sets exist, 9 are media-gated -> 15 original sets plus one grammar drill; 120 + 12 items.
+  assert.equal(objective.json.length,16,'16 servable objective sets expected (25 minus 9 media-gated), got '+objective.json.length);
+  assert.equal(objective.json.reduce((n,s)=>n+s.item_count,0),132,'132 servable items expected, got '+objective.json.reduce((n,s)=>n+s.item_count,0));
+  const grammarRows=objective.json.filter((row)=>row.set_id==='telc-deutsch-b1.sb1.grammar-wortstellung-v1');
+  assert.equal(grammarRows.length,1,'the recovered practice set must be served once');
+  assert.equal(grammarRows[0].item_count,12);
+  assert.equal(grammarRows[0].review_status,'unreviewed','recovery must not claim content approval');
   {
     const serialised=JSON.stringify(objective.json);
     for(const leak of ['"answer"','"why"','"grammar"','"script"','objective_key']){
@@ -392,7 +402,7 @@ try{
   assert.equal(listening.status,200);
   assert.equal(listening.json.length,0,'HV must serve NOTHING while audio does not exist, got '+listening.json.length);
   assert.equal((await request('GET','/api/v1/objective-sets?family=lv1',undefined,cookie)).status,422,'a lowercase family must be refused, not silently accepted');
-  passed('the objective route serves 15 sets / 120 items with NO key, and withholds listening until audio exists');
+  passed('the objective route serves 15 original sets plus one grammar-practice set / 132 items with NO key, and withholds listening until audio exists');
 
   // LIBRARY-SEED-01 — the vocabulary lexicon. 300 entries are authored; the SERVER decides how many
   // one response may carry, so a crafted request cannot ask for the whole table on every keystroke.
