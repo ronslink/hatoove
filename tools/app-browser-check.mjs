@@ -1653,6 +1653,217 @@ async function main() {
     const mobileErrors = errorsSince(cdp, mark);
     record('L25 the mobile walk raises no console exception', mobileErrors.length === 0, mobileErrors[0] || 'clean');
 
+    /* ------------------------------- the newest surfaces on a phone, dark */
+
+    /*
+     * W14 — THE THREE SURFACES THIS RUN ADDED, AT 390×844, IN DARK.
+     *
+     * This block exists because of a gap I should have caught when I wrote them: W11 (the telc bands), W12 (the
+     * marking-scheme panel) and W13 (the sessions list) asserted their properties in the DOM but captured only
+     * DESKTOP-LIGHT screenshots. The standing priority for this run is "desktop and mobile, light and dark" —
+     * and the desktop pass is exactly where three real client defects were found, two of which were visible
+     * only in an image. A surface asserted but never SEEN at phone width is not evidenced.
+     *
+     * Each leg asserts a property rather than the existence of a screenshot: the surface fits the screen
+     * (`overflow` finds nothing past the viewport), the text that matters is the text that renders, and the
+     * revoke control is a measured TAP TARGET rather than an assumption.
+     */
+    await viewport(cdp, 390, 844, true);
+    await theme(cdp, 'dark');
+    await sleep(300);
+    /*
+     * A REAL PHONE-WIDTH RUN OF THE WHOLE SURFACE, not a revisit of an old result.
+     *
+     * The first version of this block reopened the task W11 had graded and found ZERO band rows — correctly,
+     * because that submission was finished and opening the task again starts a NEW attempt with nothing
+     * submitted yet. The check was wrong, not the screen; and the honest evidence is the flow end to end at
+     * this width: open a task, write, submit, wait for the worker, and look at what the learner sees.
+     */
+    await openWritingTask(cdp, 3, 'W14 a task on a phone');
+    await cdp.evaluate(`
+      const area = document.getElementById('writing-text');
+      area.value = ${JSON.stringify('Liebe Frau Neumann, ich möchte am Ausflug teilnehmen. Bitte sagen Sie mir den Treffpunkt und die Abfahrtszeit.')};
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    `);
+    await sleep(1200);
+    await cdp.evaluate(`document.getElementById('writing-submit').click(); return true;`);
+    await softWait(cdp, "document.querySelectorAll('#writing-state .criterion').length === 3", 30000, 'the graded bands');
+    const phoneBands = await cdp.evaluate(`
+      const state = document.getElementById('writing-state');
+      const rows = [...state.querySelectorAll('.criterion')];
+      const details = document.getElementById('writing-rubric');
+      if (details) details.open = true;
+      const body = document.getElementById('writing-rubric-body');
+      const rect = (el) => { const r = el.getBoundingClientRect(); return { right: Math.round(r.right), width: Math.round(r.width) }; };
+      const bandLine = body ? body.querySelector('.rubric-bands li') : null;
+      const tabbar = document.querySelector('.tabbar');
+      const barTop = tabbar && tabbar.getBoundingClientRect().height > 0 ? Math.round(tabbar.getBoundingClientRect().top) : null;
+      return {
+        rows: rows.length,
+        widths: rows.map((r) => rect(r).width),
+        label: /Übungsfeedback nach den telc-Kriterien/.test(state.innerText),
+        rubricRows: body ? body.querySelectorAll('.rubric-criteria > li').length : 0,
+        rubricRight: bandLine ? rect(bandLine).right : null,
+        innerWidth: window.innerWidth,
+        stateBottom: Math.round(state.getBoundingClientRect().bottom),
+        barTop,
+        state: state.innerText.replace(/\\s+/g, ' ').trim().slice(0, 160),
+      };
+    `);
+    await cdp.evaluate(`document.getElementById('writing-state').scrollIntoView({ block: 'center' }); return true;`);
+    await sleep(250);
+    await shot(cdp, '13p-writing-bands-mobile-dark');
+    const phoneOverflow = await overflow(cdp);
+    record('W14 the bands and the marking scheme render on a phone in dark, without overflowing it',
+      phoneBands.rows === 3 && phoneBands.rubricRows === 3 && phoneBands.label && phoneOverflow.offenderCount === 0,
+      `${phoneBands.rows} band row(s), ${phoneBands.rubricRows} criterion row(s) at ${phoneBands.innerWidth}px; `
+        + `offenders=${JSON.stringify(phoneOverflow.offenders)}`);
+    record('W14b the band cards and the rubric text fit the phone width',
+      // `widths.length === 3` FIRST: `[].every(...)` is vacuously TRUE, so the first version of this leg passed
+      // while measuring nothing at all — a false pass is worse than a failure, and only reading the output
+      // ("criterion widths []") showed it.
+      phoneBands.widths.length === 3
+        && phoneBands.widths.every((w) => w > 0 && w <= phoneBands.innerWidth)
+        && phoneBands.rubricRight !== null && phoneBands.rubricRight <= phoneBands.innerWidth + 2,
+      `criterion widths ${JSON.stringify(phoneBands.widths)} at ${phoneBands.innerWidth}px; rubric text ends at ${phoneBands.rubricRight}px`);
+
+    /*
+     * AND THE RESULT CAN BE SCROLLED CLEAR OF THE PHONE'S FIXED BAR.
+     *
+     * The first version of this leg compared the whole `#writing-state` container's bottom to the bar's top and
+     * failed — "result ends at 844px, the bar starts at 768px". That was the CHECK being wrong: a result taller
+     * than the viewport always has part of itself below the fold, which is what scrolling is for, so an
+     * absolute comparison measures nothing. The real property is the one L22b already asserts for another
+     * view: at the END of the scroll, the last thing that matters sits ABOVE the bar rather than under it.
+     */
+    const cleared = await cdp.evaluate(`
+      // An async IIFE, because \`evaluate\` wraps the body in a NON-async arrow: a top-level \`await\` here is a
+      // SyntaxError. I documented this trap in W13c and then walked straight back into it two rounds later.
+      return (async () => {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        await new Promise((r) => setTimeout(r, 150));
+        const rows = [...document.querySelectorAll('#writing-state .criterion')];
+        const last = rows[rows.length - 1];
+        const tabbar = document.querySelector('.tabbar');
+        const barTop = tabbar && tabbar.getBoundingClientRect().height > 0 ? Math.round(tabbar.getBoundingClientRect().top) : null;
+        return {
+          lastBottom: last ? Math.round(last.getBoundingClientRect().bottom) : null,
+          barTop,
+          atEnd: Math.abs(window.scrollY + window.innerHeight - document.documentElement.scrollHeight) < 4,
+        };
+      })();
+    `);
+    record('W14d the graded result can be scrolled clear of the phone tabbar',
+      cleared.atEnd && cleared.lastBottom !== null
+        && (cleared.barTop === null || cleared.lastBottom <= cleared.barTop + 2),
+      cleared.barTop === null
+        ? `no fixed bar at this width; scrolled to end=${cleared.atEnd}`
+        : `at the end of the scroll the last criterion ends at ${cleared.lastBottom}px and the bar starts at ${cleared.barTop}px`);
+
+    /*
+     * THE SESSIONS LIST ON A PHONE, where the revoke control becomes a thumb target rather than a mouse target.
+     *
+     * A SECOND DEVICE IS CREATED FIRST, because the run's earlier leg (W13d) REVOKED the one it had made: with
+     * only the browser's own session there is no revoke button to measure, which is what the first version of
+     * this leg reported (`revoke nullpx tall`). Again the check was wrong rather than the screen.
+     */
+    await cdp.evaluate(`
+      return (async () => {
+        const res = await fetch('/api/auth/sign-in/email', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'omit',
+          body: JSON.stringify({ email: ${JSON.stringify(email)}, password: ${JSON.stringify(SYNTHETIC.password)} }),
+        });
+        return { status: res.status };
+      })();
+    `);
+    await nav(cdp, `${base}/app/#/einstellungen`);
+    await softWait(cdp, "document.querySelectorAll('#session-list .session').length >= 2", 12000, 'two sessions');
+    await sleep(300);
+    /*
+     * THE LABEL MUST BE LEGIBLE, which is not the same as the button existing. In dark mode the first version of
+     * the sessions button rendered as a BLANK WHITE BOX: it carried class "btn btn-small" with no variant
+     * class, and the pinned design defines .btn as LAYOUT ONLY (display, padding, radius) with the colours
+     * living in .btn-primary/.btn-dark/.btn-ghost/.btn-danger — so a bare .btn fell back to the browser's
+     * default button styling, which is a light box that does not follow the dark theme.
+     *
+     * EVERY DOM ASSERTION PASSED WHILE THE CONTROL WAS INVISIBLE. That is the whole argument for looking at the
+     * image, and it is why the property is now measured instead of trusted: the text colour and the background
+     * must actually differ. The delete-account button is read as a CONTROL, so the bar is calibrated to what
+     * this design system already renders rather than to my opinion.
+     *
+     * (This comment lives OUTSIDE the template literal below: the first version of it sat inside and contained
+     * backticks around the class attribute, which terminated the string. Third time in this session that a
+     * backtick has done that.)
+     */
+    const phoneSessions = await cdp.evaluate(`
+      const list = document.getElementById('session-list');
+      const rows = [...list.querySelectorAll('.session')];
+      const button = list.querySelector('[data-revoke]');
+      const r = button ? button.getBoundingClientRect() : null;
+      const luminance = (value) => {
+        const [r0, g0, b0] = (value.match(/[\\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number);
+        const channel = (c) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * channel(r0) + 0.7152 * channel(g0) + 0.0722 * channel(b0);
+      };
+      const read = (el) => {
+        if (!el) return null;
+        const style = getComputedStyle(el);
+        const bg = style.backgroundColor;
+        const opaque = !/rgba\\(0, 0, 0, 0\\)|transparent/.test(bg);
+        return {
+          text: style.color,
+          background: bg,
+          border: style.borderTopColor,
+          // A transparent background means the card shows through, so the text colour alone must be visible
+          // against the card; a solid one must be distinguishable from the text ON it.
+          contrast: opaque ? Math.abs(luminance(style.color) - luminance(bg)) : null,
+          opaque,
+          label: (el.innerText || '').trim(),
+        };
+      };
+      return {
+        rows: rows.length,
+        buttonHeight: r ? Math.round(r.height) : null,
+        buttonRight: r ? Math.round(r.right) : null,
+        innerWidth: window.innerWidth,
+        revoke: read(button),
+        control: read(document.getElementById('delete-account')),
+        text: list.innerText.replace(/\\s+/g, ' ').trim().slice(0, 140),
+      };
+    `);
+    await cdp.evaluate(`document.getElementById('session-list').scrollIntoView({ block: 'center' }); return true;`);
+    await sleep(250);
+    await shot(cdp, '13r-sessions-mobile-dark');
+    const sessionsOverflow = await overflow(cdp);
+    record('W14c the sessions list fits a phone and its revoke control is a reachable tap target',
+      phoneSessions.rows >= 1 && phoneSessions.buttonHeight !== null && phoneSessions.buttonHeight >= 24
+        && phoneSessions.buttonRight !== null && phoneSessions.buttonRight <= phoneSessions.innerWidth + 2
+        && sessionsOverflow.offenderCount === 0,
+      `${phoneSessions.rows} row(s); revoke ${phoneSessions.buttonHeight}px tall ending at ${phoneSessions.buttonRight}px `
+        + `of ${phoneSessions.innerWidth}px; text "${phoneSessions.text.slice(0, 60)}"`);
+    /*
+     * W14e — AND THE LABEL IS READABLE, which is the property the screenshot caught and the DOM did not.
+     *
+     * A button that exists, is 44px tall and sits inside the viewport can still be invisible. The rule: a
+     * button with a SOLID background must have text that differs from it by a real margin, and its label must
+     * not be empty. The control is the account-deletion button, which this design system already renders
+     * correctly — so the assertion is calibrated against the product's own appearance rather than a constant I
+     * chose.
+     */
+    const revokeLegible = phoneSessions.revoke
+      && phoneSessions.revoke.label.length > 0
+      && (!phoneSessions.revoke.opaque || phoneSessions.revoke.contrast >= 0.2);
+    record('W14e the revoke control\'s label is legible against its own background',
+      Boolean(revokeLegible),
+      `revoke text ${phoneSessions.revoke && phoneSessions.revoke.text} on ${phoneSessions.revoke && phoneSessions.revoke.background} `
+        + `(solid=${phoneSessions.revoke && phoneSessions.revoke.opaque}, contrast=${phoneSessions.revoke && phoneSessions.revoke.contrast}); `
+        + `control "Konto löschen" text ${phoneSessions.control && phoneSessions.control.text} on ${phoneSessions.control && phoneSessions.control.background}`);
+
+    await viewport(cdp, 1440, 900, false);
+    await theme(cdp, null);
+    await sleep(200);
+
     /* ----------------------------------------------------------- dark mode  */
 
     await theme(cdp, 'dark');

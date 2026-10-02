@@ -253,3 +253,27 @@ code {
 .session { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
 .session:last-child { border-bottom: 0; }
 .btn-small { padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+
+/*
+ * A BARE `.btn` MUST STILL BE A BUTTON.
+ *
+ * The pinned design defines `.btn` as LAYOUT ONLY (display, padding, radius, min-height) and puts every colour
+ * in a variant: `.btn-primary`, `.btn-dark`, `.btn-ghost`, `.btn-danger`. A button with NO variant therefore
+ * falls through to the browser's default face — a light grey box that does not follow the dark theme — while
+ * inheriting the theme's light text colour.
+ *
+ * MEASURED, 2 October 2026, in the dark theme on a phone: the sessions list's "Beenden" rendered
+ * `rgb(242, 240, 236)` text on the default face `rgb(240, 240, 240)` — a contrast of 0.0012, i.e. INVISIBLE,
+ * while every DOM assertion about that button passed (it existed, was 44px tall, and sat inside the viewport).
+ * Only the screenshot showed it, which is exactly why the render has to be looked at.
+ *
+ * The fix uses the design system's own neutral treatment rather than a new colour: the ghost variant's
+ * transparent face, line border and ink text. It applies to EVERY un-variant `.btn` — the sessions control,
+ * "Öffnen"/"Zurück"/"Schließen", "Neu anfangen", "Erneut bewerten" and the objective answer tiles — because
+ * they were all relying on the browser default, which was never a design decision.
+ */
+.btn:not(.btn-primary):not(.btn-dark):not(.btn-ghost):not(.btn-danger) {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+}
