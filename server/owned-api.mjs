@@ -104,10 +104,13 @@ const OBJECTIVE_SET_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})$/;
  * answers, and only one of them is true.
  */
 const RUBRIC_RE = /^\/api\/v1\/rubrics\/([A-Za-z0-9._-]{1,128})$/;
+/** One session, by id. A UUID as the Better Auth schema stores it; the pattern is deliberately tight. */
+const SESSION_RE = /^\/api\/v1\/sessions\/([0-9a-fA-F-]{36})$/;
 /** `/api/v1/objective-sets/{setId}/answers` — the set id is dotted (`telc-deutsch-b1.lv1.01`). */
 const OBJECTIVE_ANSWER_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})\/answers$/;
 /** `/api/v1/guides/{guideId}` — a closed slug shape, so an id can never reach SQL as anything else. */
 const GUIDE_RE = /^\/api\/v1\/guides\/([a-z][a-z0-9-]{0,63})$/;
+const SESSION_LIFECYCLE_METHODS = ['listSessions', 'revokeSession', 'changePassword', 'sweepExpired'];
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -330,6 +333,19 @@ function requireAuthFields(body, withName) {
   return withName ? { name, email, password } : { email, password };
 }
 
+/**
+ * The password rule for a CHANGE, which is deliberately the same one sign-up applies.
+ *
+ * One rule means a learner can always change their password to something they could also have registered
+ * with. A minimum length is a policy decision — it belongs with the human signoff D5 already needs for
+ * hashing parameters — and a screen that enforces a rule the registration screen does not is a screen that
+ * locks people out of their own account.
+ */
+function assertNewPassword(value) {
+  if (typeof value !== 'string' || value.length < 1 || value.length > 256) fault(422, 'invalid_password');
+  return value;
+}
+
 function reply(status, value, setCookie) {
   const headers = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
   if (setCookie) headers['set-cookie'] = setCookie;
@@ -355,6 +371,8 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
   const deletionWired = implementsAll(accountDeletion, DELETION_METHODS);
   const catalogueWired = implementsAll(datastore, CATALOGUE_METHODS);
   const practiceWired = implementsAll(datastore, PRACTICE_METHODS);
+  // The session lifecycle is its own capability: rotation, sweep, revoke-one and revoke-all-on-password-change.
+  const sessionLifecycleWired = implementsAll(sessions, SESSION_LIFECYCLE_METHODS);
 
   async function identify(headers) {
     const session = await sessions.getSession(headers);
@@ -373,7 +391,12 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       }
       if (key === 'POST /api/auth/sign-in/email') {
         onlyFields(body, ['email', 'password']);
-        const outcome = await sessions.signIn(requireAuthFields(body, false));
+        /*
+         * `headers` IS PASSED ON PURPOSE. Sign-in ROTATES the session: the cookie that was presented is
+         * retired so that a token planted before authentication cannot survive it (session fixation). The
+         * port needs to see that cookie, and this is the only place that has it.
+         */
+        const outcome = await sessions.signIn({ ...requireAuthFields(body, false), headers });
         return reply(200, { ok: true }, outcome && outcome.setCookie);
       }
       if (key === 'POST /api/auth/sign-out') {
@@ -395,6 +418,65 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
 
     if (pathname === '/api/v1/account' && method === 'GET') {
       return reply(200, { contractVersion: CONTRACT_VERSION, id: owner, email: who.email });
+    }
+
+    /*
+     * THE SESSION LIFECYCLE (D5's security gap). Three routes, and each one is a property a learner needs
+     * rather than a convenience:
+     *
+     *   GET    /api/v1/sessions          see where you are signed in (ids and expiry, NEVER tokens)
+     *   DELETE /api/v1/sessions/<id>     end one — including one you do not recognise
+     *   PUT    /api/v1/account/password  change the password, which ends every other session
+     *
+     * THEY ARE AN OPTIONAL CAPABILITY, like settings and the catalogue: an implementation that cannot do this
+     * answers 503 rather than throwing, so a port that lacks the lifecycle loses these routes and nothing
+     * else. `implementsAll` is the same check the rest of this file uses.
+     */
+    if (pathname === '/api/v1/sessions' && method === 'GET') {
+      if (!sessionLifecycleWired) fault(503, 'session_lifecycle_unavailable');
+      const listed = await sessions.listSessions(headers);
+      // No session means the cookie was already refused by `identify`; this is belt and braces.
+      if (!listed) fault(401, 'unauthenticated');
+      return reply(200, listed);
+    }
+
+    const sessionMatch = SESSION_RE.exec(pathname);
+    if (sessionMatch && method === 'DELETE') {
+      onlyFields(body, []);
+      if (!sessionLifecycleWired) fault(503, 'session_lifecycle_unavailable');
+      const outcome = await sessions.revokeSession(headers, sessionMatch[1]);
+      if (!outcome) fault(401, 'unauthenticated');
+      /*
+       * A session that is not yours and a session that does not exist are BOTH 404. Anything else makes this
+       * route an oracle: a learner could sweep ids and learn which sessions exist on the installation.
+       */
+      if (!outcome.revoked) fault(404, 'not_found');
+      return reply(200, { revoked: true });
+    }
+
+    if (pathname === '/api/v1/account/password' && method === 'PUT') {
+      onlyFields(body, ['currentPassword', 'newPassword']);
+      if (!sessionLifecycleWired) fault(503, 'session_lifecycle_unavailable');
+      const { currentPassword, newPassword } = body;
+      if (typeof currentPassword !== 'string' || currentPassword.length < 1 || currentPassword.length > 256) {
+        fault(422, 'invalid_password');
+      }
+      /*
+       * ONE PASSWORD RULE, THE ONE SIGN-UP ALREADY USES — non-empty, at most 256 characters. A minimum length
+       * is a POLICY decision belonging with D5's human signoff on hashing parameters, and inventing one here
+       * would be worse than not having one: the product would refuse at the change screen what it accepted at
+       * registration, so a learner who registered with a short password could never change it.
+       */
+      assertNewPassword(newPassword);
+      const outcome = await sessions.changePassword(headers, { currentPassword, newPassword });
+      if (!outcome) fault(401, 'unauthenticated');
+      /*
+       * The new cookie is returned because the acting session is ROTATED: every session is revoked on a
+       * password change, including the one that asked, and this token is the acting device's replacement. A
+       * client that ignored it would sign itself out — which is why the route answers with it rather than
+       * pretending nothing changed.
+       */
+      return reply(200, { ok: true, sessionsRevoked: true }, outcome && outcome.setCookie);
     }
 
     /*

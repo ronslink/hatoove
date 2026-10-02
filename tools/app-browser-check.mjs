@@ -737,6 +737,113 @@ async function main() {
       apiCount === 0 || fehler.listWrapper === true,
       `rows=${fehler.rows} wrapper=${fehler.listWrapper}`);
 
+    /*
+     * W13 — SITZUNGEN (D5), RENDERED.
+     *
+     * The security behaviours have their own six legs against a real database; this is the half a learner can
+     * actually reach. A session list nobody can see is not a way to end a session you do not recognise.
+     *
+     * What is asserted here is what the screen must NOT do as much as what it must: the list must not print a
+     * TOKEN (a bearer credential in a screenshot, a log or a support ticket), and the current session must not
+     * offer a "Beenden" button — ending the session you are looking at belongs to the deliberate sidebar
+     * action, not to a list that could do it by accident.
+     */
+    await clickSel(cdp, '[data-view="einstellungen"]');
+    await softWait(cdp, "location.hash === '#/einstellungen'", 8000, 'Einstellungen');
+    await softWait(cdp, "document.querySelectorAll('#session-list .session').length > 0 || document.getElementById('session-list').innerText.includes('Keine')",
+      10000, 'the session list');
+    const sessions = await cdp.evaluate(`
+      const list = document.getElementById('session-list');
+      const rows = [...list.querySelectorAll('.session')];
+      return {
+        rows: rows.length,
+        text: list.innerText.replace(/\\s+/g, ' ').trim().slice(0, 240),
+        // A token is 32 base64url characters or more with no spaces; the ids are UUIDs and the dates are not.
+        looksLikeAToken: /[A-Za-z0-9_-]{32,}/.test(list.innerText),
+        revokeButtons: list.querySelectorAll('[data-revoke]').length,
+        currentRows: rows.filter((r) => r.innerText.includes('Dieses Gerät')).length,
+      };
+    `);
+    // Scroll the card into view before capturing: a screenshot that does not show what the leg asserts is not
+    // evidence, and the first version of these two shots caught the top of the page with the card below the fold.
+    await cdp.evaluate(`const card = document.getElementById('session-list'); if (card) card.scrollIntoView({ block: 'center' }); return true;`);
+    await sleep(250);
+    await shot(cdp, '13n-sessions-desktop-light');
+    record('W13 the settings view lists the sessions the server reports',
+      sessions.rows >= 1 && sessions.currentRows === 1,
+      `${sessions.rows} row(s), ${sessions.currentRows} marked as this device: "${sessions.text.slice(0, 120)}"`);
+    record('W13b the session list never prints a token, and offers no way to end the current session',
+      !sessions.looksLikeAToken && sessions.revokeButtons === sessions.rows - sessions.currentRows,
+      `token-like string present=${sessions.looksLikeAToken}; ${sessions.revokeButtons} revoke button(s) for ${sessions.rows - sessions.currentRows} other row(s)`);
+
+    /*
+     * A SECOND SESSION, so the assertions below are about a real choice rather than a one-row list.
+     *
+     * `fetch` from the page does NOT store the response cookie, so this signs in a "second device" without
+     * disturbing the browser's own session — which is exactly the situation the list exists for. Without it,
+     * "0 revoke buttons for 0 other rows" would pass even if the button could never appear.
+     */
+    /*
+     * NOTE ON THE WRAPPER: `cdp.evaluate` wraps its argument in a NON-async arrow and relies on
+     * `awaitPromise: true`, so a `fetch` must be awaited inside its own async IIFE — top-level `await` in the
+     * page body is a SyntaxError. And the comment here is OUTSIDE the template literal, because a backtick
+     * inside it would end the string.
+     */
+    const secondSession = await cdp.evaluate(`
+      return (async () => {
+        const res = await fetch('/api/auth/sign-in/email', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          /*
+           * credentials: 'omit' IS THE WHOLE POINT, and the first version of this leg proved why: a
+           * same-origin fetch sends the page's own cookie by default, so the sign-in ROTATED the browser's
+           * session (retiring it and issuing a replacement) instead of adding a second one — the list stayed
+           * at one row, which is rotation working rather than a defect. Another device is precisely a caller
+           * that presents no cookie.
+           */
+          credentials: 'omit',
+          body: JSON.stringify({ email: ${JSON.stringify(email)}, password: ${JSON.stringify(SYNTHETIC.password)} }),
+        });
+        return { status: res.status };
+      })();
+    `);
+    // Re-enter the view so the list is fetched again with the new session present.
+    await clickSel(cdp, '[data-view="heute"]');
+    await softWait(cdp, "location.hash === '#/heute'", 8000, 'Heute');
+    await clickSel(cdp, '[data-view="einstellungen"]');
+    await softWait(cdp, "document.querySelectorAll('#session-list .session').length >= 2", 12000, 'two sessions');
+    const withTwo = await cdp.evaluate(`
+      const list = document.getElementById('session-list');
+      const rows = [...list.querySelectorAll('.session')];
+      return {
+        rows: rows.length,
+        current: rows.filter((r) => r.innerText.includes('Dieses Gerät')).length,
+        buttons: list.querySelectorAll('[data-revoke]').length,
+      };
+    `);
+    record('W13c with two devices the list offers to end exactly the other one',
+      withTwo.rows === 2 && withTwo.current === 1 && withTwo.buttons === 1,
+      `the second sign-in answered ${secondSession.status}; ${withTwo.rows} row(s), ${withTwo.current} current, ${withTwo.buttons} revoke button(s)`);
+
+    // END IT, and prove the list reflects the server rather than the click: one row remains.
+    await clickSel(cdp, '#session-list [data-revoke]');
+    await softWait(cdp, "document.querySelectorAll('#session-list .session').length === 1", 12000, 'the shortened list');
+    const afterRevoke = await cdp.evaluate(`
+      const list = document.getElementById('session-list');
+      return {
+        rows: list.querySelectorAll('.session').length,
+        current: [...list.querySelectorAll('.session')].filter((r) => r.innerText.includes('Dieses Gerät')).length,
+        state: (document.getElementById('session-state') || {}).innerText || '',
+      };
+    `);
+    // Scroll the card into view before capturing: a screenshot that does not show what the leg asserts is not
+    // evidence, and the first version of these two shots caught the top of the page with the card below the fold.
+    await cdp.evaluate(`const card = document.getElementById('session-list'); if (card) card.scrollIntoView({ block: 'center' }); return true;`);
+    await sleep(250);
+    await shot(cdp, '13o-sessions-after-revoke-desktop-light');
+    record('W13d ending the other session leaves this device signed in and the list correct',
+      afterRevoke.rows === 1 && afterRevoke.current === 1 && /beendet/i.test(afterRevoke.state),
+      `${afterRevoke.rows} row(s), ${afterRevoke.current} current; state "${afterRevoke.state.trim()}"`);
+
     /* --------------------------------------------------------- other views  */
 
     const viewChecks = [

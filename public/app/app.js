@@ -127,6 +127,74 @@ function renderAccount() {
   el('greeting').textContent = email.startsWith('–') ? 'Willkommen' : `Willkommen, ${email.split('@')[0]}`;
 }
 
+/**
+ * SITZUNGEN (D5), rendered from the server.
+ *
+ * THREE THINGS THIS DELIBERATELY DOES:
+ *   * shows what the SERVER says, never a list assembled here — a session list the client invented would
+ *     show sessions that do not exist and hide ones that do;
+ *   * never renders a token, because the server does not send one and a session id is enough to end it;
+ *   * says what "end" means (only that device), because "Sitzung beenden" that secretly ends everything is
+ *     the kind of label that teaches a learner not to trust the screen.
+ *
+ * A 503 is reported as its own state rather than as an empty list: an installation without the lifecycle
+ * capability has no sessions to show, and "keine Sitzungen" would be a lie about a server that cannot answer.
+ */
+async function renderSessions() {
+  const into = el('session-list');
+  const state = el('session-state');
+  if (!into) return;
+  const res = await api.sessions.list();
+  if (!res || !res.ok) {
+    into.innerHTML = '';
+    if (state) {
+      state.textContent = res && res.status === 503
+        ? 'Dieser Server kann Sitzungen nicht verwalten.'
+        : 'Sitzungen konnten nicht geladen werden: ' + failure(res);
+    }
+    return;
+  }
+  const sessions = (res.data && res.data.sessions) || [];
+  if (state) state.textContent = '';
+  if (!sessions.length) {
+    into.innerHTML = '<li class="muted small">Keine weiteren Sitzungen.</li>';
+    return;
+  }
+  into.innerHTML = sessions.map((session) => '<li class="session">'
+    + '<div><strong>' + (session.current ? 'Dieses Gerät' : 'Anderes Gerät') + '</strong>'
+    + '<span class="small muted"> seit ' + esc(shortDate(session.created_at)) + '</span></div>'
+    + (session.current
+      ? '<span class="small muted">aktiv</span>'
+      : '<button type="button" class="btn btn-small" data-revoke="' + esc(String(session.id)) + '">Beenden</button>')
+    + '</li>').join('');
+  for (const button of into.querySelectorAll('[data-revoke]')) {
+    /*
+     * `guard` TAKES A PROMISE, NOT A FUNCTION — it is `promise.catch(...)`, so passing an arrow function made
+     * `guard` call `.catch` on a function and the listener died before making a request. The browser leg is
+     * what caught it: the button rendered, nothing happened, and the status line stayed empty. So the async
+     * function is INVOKED here and its promise handed over.
+     */
+    button.addEventListener('click', () => guard((async () => {
+      const res = await api.sessions.revoke(button.dataset.revoke);
+      /*
+       * RE-RENDER FIRST, MESSAGE SECOND. `renderSessions` clears the status line when it succeeds (there is
+       * nothing to report about a list that loaded), so setting the message before it wiped the confirmation
+       * the learner had just earned — which the browser leg showed as a click that worked with an empty
+       * status line.
+       */
+      await renderSessions();
+      if (state) state.textContent = res && res.ok ? 'Sitzung beendet.' : 'Konnte nicht beendet werden: ' + failure(res);
+    })()));
+  }
+}
+
+/** A local date, without a time nobody needs on a session list. */
+function shortDate(value) {
+  const date = new Date(String(value || ''));
+  return Number.isNaN(date.getTime()) ? 'unbekannt'
+    : date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 function renderSettings() {
   const settings = state.settings || {};
   const examDate = settings.examDate || '';
@@ -1085,6 +1153,15 @@ function route() {
   if (view === 'fehler') run(renderMistakes);
   if (view === 'woerterbuch') run(renderDictionary);
   if (view === 'nachschlagen') run(renderGuides);
+  /*
+   * THE SESSION LIST IS RE-READ WHEN ITS VIEW OPENS, not only when the page loaded.
+   *
+   * Loaded once at boot it goes stale the moment anything changes: sign in on a phone, and the desktop's list
+   * still shows what it saw at breakfast — while the whole purpose of the list is to notice a session you do
+   * not recognise. Rendered on entry, what the learner reads is what the server says at that moment. (The
+   * browser leg found this: it signed in a second "device" and the list never noticed.)
+   */
+  if (view === 'einstellungen') run(renderSessions);
   for (const link of document.querySelectorAll('[data-view]')) {
     if (link.dataset.view === view) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
@@ -1106,9 +1183,49 @@ async function refresh() {
   }
   renderAccount();
   renderSettings();
+  /*
+   * THE SESSION LIST IS LOADED WITH THE VIEW, and it is awaited by nobody: a slow or refused session list must
+   * not hold up the settings the learner came for. `guard` is what turns a rejection into a message instead of
+   * an unhandled promise — the defect this file has already met once, where one throw silently skipped every
+   * later render.
+   */
+  guard(renderSessions());
 }
 
 // ---------------------------------------------------------------- actions
+
+/*
+ * PASSWORT ÄNDERN. A successful change ROTATES the acting session — every session is ended, including this
+ * one, and the response carries the replacement cookie — so the page must not assume it is still the same
+ * session afterwards. Reloading the account state is the honest way to find out rather than guessing, and the
+ * session list is re-read so the learner sees the promised effect instead of being told about it.
+ */
+el('password-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const status = el('password-state');
+  const current = el('current-password').value;
+  const next = el('new-password').value;
+  if (!current || !next) {
+    status.textContent = 'Bitte beide Felder ausfüllen.';
+    return;
+  }
+  const res = await api.sessions.changePassword(current, next);
+  if (res && res.ok) {
+    status.textContent = 'Passwort geändert. Alle anderen Sitzungen wurden beendet.';
+    el('current-password').value = '';
+    el('new-password').value = '';
+    /*
+     * refresh() is the one place that reads the account and the settings, and it also re-renders the
+     * session list — so calling it again is how the page learns what the rotation left it holding,
+     * rather than assuming it is still the same session.
+     */
+    await refresh();
+    return;
+  }
+  status.textContent = res && res.status === 403
+    ? 'Das aktuelle Passwort stimmt nicht.'
+    : 'Passwort konnte nicht geändert werden: ' + failure(res);
+});
 
 el('settings-form').addEventListener('submit', async (event) => {
   event.preventDefault();

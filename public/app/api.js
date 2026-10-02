@@ -164,6 +164,22 @@ export const api = Object.freeze({
   }),
 
   /**
+   * THE SESSION LIFECYCLE (D5): where am I signed in, end one, change the password.
+   *
+   * `changePassword` may return a NEW session cookie — the acting session is rotated, not spared, because a
+   * token that existed before the password changed is exactly the token an intruder might hold. The caller
+   * must therefore treat a successful change as "the session I am holding is not the session I had".
+   */
+  sessions: Object.freeze({
+    list: () => call('GET', '/api/v1/sessions'),
+    // An empty JSON object, because the route refuses a body-less DELETE with 415 like every other
+    // mutating route here — the destructive verbs all require a body rather than accepting an accident.
+    revoke: (sessionId) => call('DELETE', `/api/v1/sessions/${encodeURIComponent(sessionId)}`, {}),
+    changePassword: (currentPassword, newPassword) =>
+      call('PUT', '/api/v1/account/password', { currentPassword, newPassword }),
+  }),
+
+  /**
    * The reference guides: an index, then one document. 64 KB is not fetched to list a title. */
   guides: Object.freeze({
     list: () => call('GET', PATHS.guides),

@@ -73,13 +73,43 @@ export function createPostgresSessions({
     }
   }
 
+  /**
+   * THE SWEEP: delete expired sessions.
+   *
+   * Rejecting an expired session on read is not the same as getting rid of it. Every sign-in leaves a row and
+   * nothing removed the expired ones, so the table grew without bound — a storage leak, and a privacy one,
+   * because the rows outlive the sessions they describe.
+   *
+   * It runs as part of `issueSession` rather than from a scheduler: a job that must be configured, started
+   * and monitored is a job that can silently not run, while this work is trivially bounded (a scan of one
+   * small table) and idempotent. It is ALSO callable on its own, so an operator or a future job can sweep
+   * without waiting for the next sign-in.
+   */
+  async function sweepExpired(client = pool) {
+    const result = await client.query('DELETE FROM session WHERE "expiresAt" <= now()');
+    return result.rowCount || 0;
+  }
+
   async function issueSession(client, userId) {
+    /*
+     * SWEEP BEFORE ISSUING. Every sign-in is an opportunity to remove what has expired, which keeps the table
+     * proportional to the sessions actually alive without anyone having to remember to run anything.
+     */
+    await sweepExpired(client);
     const token = randomBytes(24).toString('base64url');
     await client.query(
       `INSERT INTO session(id, "expiresAt", token, "createdAt", "updatedAt", "userId")
        VALUES($1, now() + make_interval(secs => $2), $3, now(), now(), $4)`,
       [randomUUID(), sessionTtlSeconds, token, userId]);
     return { setCookie: `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax` };
+  }
+
+  /** One session row by token, or null — the shared read every lifecycle operation below starts from. */
+  async function sessionOfToken(token) {
+    if (!token) return null;
+    return (await pool.query(
+      'SELECT id, "userId" AS "userId", "expiresAt" AS "expiresAt" FROM session WHERE token = $1',
+      [token])).rows[0] || null;
   }
 
   return {
@@ -138,13 +168,115 @@ export function createPostgresSessions({
       }
     },
 
-    async signIn({ email, password }) {
+    /**
+     * SIGN IN, WITH ROTATION — the session-fixation fix.
+     *
+     * The attack: an attacker plants a session cookie in a victim's browser (shared machine, subdomain, XSS).
+     * The victim signs in. If the planted session survives the sign-in, the attacker now holds an
+     * authenticated session they never authenticated for. So the cookie that was PRESENTED is retired here,
+     * and the sign-in issues a new one: from the moment the real user authenticates, the planted token is
+     * worthless.
+     *
+     * `headers` is optional so an existing caller without it still works (it simply has no session to retire),
+     * and the deletion is by token, so it can only ever retire the session that was actually presented.
+     */
+    async signIn({ email, password, headers }) {
       const row = (await pool.query(
         `SELECT u.id AS "userId", a.password AS password
          FROM "user" u JOIN account a ON a."userId" = u.id
          WHERE u.email = $1 AND a."providerId" = 'credential'`, [email])).rows[0];
       if (!row || !verifyPassword(password, row.password)) throw new Fault(401, 'invalid_credentials');
-      return inTransaction((client) => issueSession(client, row.userId));
+      const presented = tokenFrom(headers, cookieName);
+      return inTransaction(async (client) => {
+        if (presented) await client.query('DELETE FROM session WHERE token = $1', [presented]);
+        return issueSession(client, row.userId);
+      });
+    },
+
+    /**
+     * The learner's own sessions, WITHOUT THEIR TOKENS.
+     *
+     * A session id is enough to revoke one; the token is a bearer credential for that session, so serving it
+     * — even to its owner — turns a read route into a way to steal a session from a log, a screenshot or a
+     * support ticket. The current session is flagged so the screen can say "dieses Gerät".
+     */
+    async listSessions(headers) {
+      const current = await sessionOfToken(tokenFrom(headers, cookieName));
+      if (!current) return null;
+      // Sweep first: a list that shows sessions which are already dead is a list that lies.
+      await sweepExpired();
+      const rows = (await pool.query(
+        `SELECT id, "createdAt" AS "createdAt", "expiresAt" AS "expiresAt"
+         FROM session WHERE "userId" = $1 ORDER BY "createdAt" DESC`, [current.userId])).rows;
+      return {
+        sessions: rows.map((row) => ({
+          id: row.id,
+          created_at: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
+          expires_at: row.expiresAt instanceof Date ? row.expiresAt.toISOString() : String(row.expiresAt),
+          current: row.id === current.id,
+        })),
+      };
+    },
+
+    /**
+     * REVOKE ONE SESSION, and only if it belongs to the caller.
+     *
+     * The `userId` in the WHERE clause is the whole security property: without it, any learner could end any
+     * other learner's session by guessing an id. Scoped this way the answer for someone else's session is
+     * "nothing was revoked", which the route turns into a 404 — ids must not be an oracle for what exists.
+     */
+    async revokeSession(headers, sessionId) {
+      const current = await sessionOfToken(tokenFrom(headers, cookieName));
+      if (!current) return null;
+      const result = await pool.query('DELETE FROM session WHERE id = $1 AND "userId" = $2', [sessionId, current.userId]);
+      return { revoked: (result.rowCount || 0) > 0 };
+    },
+
+    /**
+     * REVOKE EVERY SESSION FOR ONE ACCOUNT, optionally sparing one.
+     *
+     * Used by the password change: if a learner changes their password because someone else may have it, and
+     * the intruder's session keeps working, the change achieved nothing.
+     */
+    async revokeAllSessions(userId, { exceptId = null } = {}) {
+      const result = await pool.query(
+        'DELETE FROM session WHERE "userId" = $1 AND ($2::text IS NULL OR id <> $2)', [userId, exceptId]);
+      return result.rowCount || 0;
+    },
+
+    /**
+     * CHANGE THE PASSWORD: verify the old one, store the new one, and end every session.
+     *
+     * Two decisions, both deliberate:
+     *   * THE ACTING SESSION IS ROTATED, NOT SPARED. Sparing it would leave a token that existed before the
+     *     password changed, which is exactly the token an intruder might hold. So all sessions die and the
+     *     device that made the change gets a NEW one — signed in, holding nothing that predates the change.
+     *   * THE NEW PASSWORD IS HASHED BY THE SAME `hashPassword` AS REGISTRATION, so there is one definition of
+     *     how a password is stored rather than two that can drift (D5's hashing parameters are a human
+     *     signoff item; whoever changes them changes them in one place).
+     *
+     * Returns null when there is no session, and throws `invalid_credentials` when the current password is
+     * wrong — the caller turns that into a 403, and NOTHING is revoked in that path.
+     */
+    async changePassword(headers, { currentPassword, newPassword }) {
+      const current = await sessionOfToken(tokenFrom(headers, cookieName));
+      if (!current) return null;
+      const row = (await pool.query(
+        `SELECT a.id AS "accountId", a.password AS password
+         FROM account a WHERE a."userId" = $1 AND a."providerId" = 'credential'`, [current.userId])).rows[0];
+      if (!row || !verifyPassword(currentPassword, row.password)) throw new Fault(403, 'invalid_credentials');
+      const stored = hashPassword(newPassword);
+      return inTransaction(async (client) => {
+        await client.query('UPDATE account SET password = $2, "updatedAt" = now() WHERE id = $1', [row.accountId, stored]);
+        // EVERY session, including this one: see above. The new session below is the acting device's.
+        await client.query('DELETE FROM session WHERE "userId" = $1', [current.userId]);
+        return issueSession(client, current.userId);
+      });
+    },
+
+    /** Sweep on its own, for an operator or a future job. */
+    async sweepExpired() {
+      return sweepExpired();
     },
 
     async signOut(headers) {

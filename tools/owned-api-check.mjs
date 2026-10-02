@@ -1327,6 +1327,46 @@ check('fail-closed-without-ports', async () => {
     await expectClientError(client.refreshAccount(), 'server_error', { status: 503 });
   }
   assert.equal(w.store.inspect.calls.length, callsBefore, 'no datastore method ran');
+
+  /*
+   * THE SESSION LIFECYCLE IS AN OPTIONAL CAPABILITY TOO — and it must be tested with a port that genuinely
+   * lacks it, not with whichever backend happens to be running.
+   *
+   * The FIRST version of this block used the world's own API and asserted 503 on the three routes. It passed
+   * on memory and FAILED on postgres, because the real port implements the lifecycle there and the routes
+   * correctly work: the leg was asserting a property of the memory fake while claiming to assert a property
+   * of the seam. So the reduced port is built EXPLICITLY, the same way `partialStore` above removes `retry` —
+   * identical on both backends, and about the capability rather than about the backend.
+   *
+   * Why assert a REFUSAL instead of teaching the memory fake the lifecycle: the product implementation is the
+   * PostgreSQL port, the four behaviours have their own six legs against a real database
+   * (`session-lifecycle-check.mjs`), and a second hand-written implementation inside a test fake would be a
+   * second source of truth for `session` semantics — free to disagree with the one that ships, with no check
+   * able to tell. What must be proven HERE is the fail-closed property: an implementation that cannot do this
+   * loses the routes, never the product, and never throws a TypeError into a 500.
+   */
+  {
+    const partialSessions = { ...w.sessions };
+    for (const method of ['listSessions', 'revokeSession', 'changePassword', 'sweepExpired']) delete partialSessions[method];
+    assert.ok(typeof partialSessions.getSession === 'function', 'the reduced port still authenticates, so only the lifecycle is missing');
+    const reduced = createOwnedApi({ datastore: w.store.port, settings: w.settings, sessions: partialSessions });
+    assert.equal(reduced.configured, true, 'the reduced server is CONFIGURED: these routes are optional, not the product');
+
+    const a2 = await learner(w, 'lifecycle');
+    const cookie2 = cookieHeader(a2.jar);
+    for (const [method, url] of [['GET', '/api/v1/sessions'], ['DELETE', `/api/v1/sessions/${randomUUID()}`],
+      ['PUT', '/api/v1/account/password']]) {
+      const res = await reduced.handle({
+        method, path: url, headers: { cookie: cookie2, 'content-type': 'application/json' },
+        body: method === 'GET' ? undefined : '{}', originChecked: true,
+      });
+      assert.equal(res.status, 503, `${method} ${url} must be 503 without the lifecycle capability, got ${res.status}`);
+      assert.equal(JSON.parse(res.body).error, 'session_lifecycle_unavailable', `${method} ${url}: the reason is named`);
+    }
+    // AND THE PRODUCT IS NOT LOST: everything else on the reduced server still works for a real session.
+    const account = await reduced.handle({ method: 'GET', path: '/api/v1/account', headers: { cookie: cookie2 }, originChecked: true });
+    assert.equal(account.status, 200, 'only the lifecycle routes are missing, not the account route');
+  }
 });
 
 check('garbage-session-port-output-is-401', async () => {

@@ -350,6 +350,46 @@
                 rückgängig gemacht werden.</p>
             </div>
           </div>
+
+          <!--
+            SITZUNGEN (D5). A learner who cannot see where they are signed in cannot act on it, and "sign out"
+            only helps if you still hold the session you want to end. This lists what the server knows, with
+            no token ever served, and ends one at a time.
+          -->
+          <div class="card">
+            <div class="card-head"><h3>Sitzungen</h3></div>
+            <div class="stack">
+              <p class="small muted">Wo du angemeldet bist. Das Beenden einer Sitzung meldet nur dieses
+                Gerät ab.</p>
+              <ul class="sessions" id="session-list"><li class="muted small">Wird geladen …</li></ul>
+              <p class="small muted" id="session-state" role="status"></p>
+            </div>
+          </div>
+
+          <!--
+            PASSWORT ÄNDERN (D5). The point of the change is that every OTHER session ends: if someone else
+            has the password, a change that leaves their session alive achieved nothing. The acting device is
+            rotated rather than spared, so nothing that existed before the change keeps working.
+          -->
+          <form class="card" id="password-form">
+            <div class="card-head"><h3>Passwort ändern</h3></div>
+            <div class="stack">
+              <div class="field">
+                <label for="current-password">Aktuelles Passwort</label>
+                <input class="input" type="password" id="current-password" name="currentPassword" autocomplete="current-password">
+              </div>
+              <div class="field">
+                <label for="new-password">Neues Passwort</label>
+                <input class="input" type="password" id="new-password" name="newPassword" autocomplete="new-password">
+              </div>
+              <p class="small muted">Alle anderen Sitzungen werden dabei beendet. Dieses Gerät bleibt
+                angemeldet.</p>
+              <div class="spread">
+                <button type="submit" class="btn" id="save-password">Passwort ändern</button>
+                <span class="muted small" id="password-state" role="status"></span>
+              </div>
+            </div>
+          </form>
         </div>
       </section>
 
