@@ -1,0 +1,123 @@
+{
+  "fixture": {
+    "synthetic": true,
+    "generated": true,
+    "unreviewed": true,
+    "notForPublication": true,
+    "purpose": "Offline internal importer fixture: a tiny synthetic reading section used to exercise the package/importer contract. It is NOT real DTZ authoring, is NOT educationally reviewed, and must never become an available release."
+  },
+  "schemaVersion": 1,
+  "exam": {
+    "id": "dtz-a2-b1",
+    "title": "Synthetic A2–B1 internal reading fixture (not real DTZ authoring)",
+    "language": "de",
+    "levelModel": {
+      "type": "cefr-range",
+      "levels": [
+        "A2",
+        "B1"
+      ]
+    }
+  },
+  "blueprint": {
+    "version": "v1",
+    "sections": [
+      {
+        "id": "LV",
+        "title": "Leseverstehen",
+        "timeGroup": "fixture-lv-20",
+        "parts": [
+          {
+            "family": "lv1",
+            "itemCount": 1,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "HV",
+        "title": "Hörverstehen",
+        "timeGroup": null,
+        "parts": [
+          {
+            "family": "hv1",
+            "itemCount": 1,
+            "interaction": "fixed_audio",
+            "mediaRequired": true
+          }
+        ]
+      },
+      {
+        "id": "SA",
+        "title": "Schriftlicher Ausdruck",
+        "timeGroup": null,
+        "parts": [
+          {
+            "family": "sa1",
+            "itemCount": 1,
+            "interaction": "extended_writing",
+            "mediaRequired": false
+          }
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "FIX1",
+        "kind": "synthetic-fixture",
+        "title": "Generated internal fixture structure (no external source retrieved)",
+        "url": null,
+        "locatorNote": "Synthetic fixture authored inside this execution; nothing external was retrieved or copied.",
+        "retrieved": "2026-10-03",
+        "verification": "Authored in this execution as an offline test double; no external document was fetched or copied."
+      }
+    ]
+  },
+  "release": {
+    "version": "v1",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [],
+  "sets": [
+    {
+      "setId": "dtz-a2-b1.lv1.01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "lv1",
+      "section": "LV",
+      "part": 1,
+      "title": "Synthetic single-choice fixture item (unreviewed)",
+      "payload": {
+        "text": "Dies ist ein synthetischer Übungstext, der ausschließlich für den Offline-Test des Paket- und Importvertrags erzeugt wurde. Er ist kein echter DTZ-Prüfungstext und wurde nicht fachlich geprüft. Der Text dient nur dazu, die Form des Leseverstehens zu belegen.",
+        "questions": [
+          {
+            "id": 1,
+            "question": "Wofür wurde dieser Text erzeugt?",
+            "options": {
+              "a": "Für den Offline-Test des Paket- und Importvertrags.",
+              "b": "Für eine veröffentlichte DTZ-Prüfung."
+            }
+          }
+        ]
+      },
+      "itemCount": 1,
+      "interaction": "single_choice",
+      "answers": {
+        "1": "a"
+      },
+      "explanations": {
+        "1": "Synthetic fixture explanation."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "unknown",
+      "source": "content/fixtures/exams/dtz-internal.json"
+    }
+  ]
+}
