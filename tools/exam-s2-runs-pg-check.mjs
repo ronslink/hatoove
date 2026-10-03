@@ -2,14 +2,18 @@
 /** EXAM-S2 real restricted-role PostgreSQL checks. Dedicated disposable DB only; never app ports. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import {createRequire} from 'node:module';
 import { createFixture, rolePool } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createPostgresDatastore, createPostgresAccountDeletion, ACCOUNT_TABLES } from '../server/owned-postgres/adapter.mjs';
 import { importPackage } from '../server/owned-postgres/package-importer.mjs';
 
-if (process.env.OWNAPI_PG_ALLOW !== '1' || [4300,55440].includes(Number(process.env.OWNAPI_PG_PORT))) {
-  throw new Error('Set OWNAPI_PG_ALLOW=1 and explicit disposable OWNAPI_PG_* parameters; live ports prohibited.');
-}
+const env=process.env;
+const local=env.OWNAPI_PG_PORT==='62563'&&env.OWNAPI_PG_DATABASE==='hatoove_spike';
+const ci=env.CI==='true'&&env.GITHUB_ACTIONS==='true'&&env.OWNAPI_PG_PORT==='5432'&&env.OWNAPI_PG_DATABASE==='hatoove_ci';
+if(env.OWNAPI_PG_ALLOW!=='1'||env.OWNAPI_PG_HOST!=='127.0.0.1'||(!local&&!ci))throw Error('exam_s2_fixture_refused');
+const policyKeys=['B1PREP_CONTENT_MODE','B1PREP_SERVE_REVIEW','B1PREP_SERVE_RIGHTS'];
+const previousPolicy=Object.fromEntries(policyKeys.map(key=>[key,process.env[key]]));
 process.env.B1PREP_CONTENT_MODE = 'internal-preview';
 delete process.env.B1PREP_SERVE_REVIEW;
 delete process.env.B1PREP_SERVE_RIGHTS;
@@ -29,11 +33,7 @@ function source({ version = 'v9001', setVersion = 'v1', formVersion = 'v1', stat
       itemCount:2,interaction:'single_choice',answers:{1:setVersion==='v1'?'a':'b',2:'b'},explanations:{1:'Synthetic explanation '+setVersion,2:'Synthetic second explanation'},
       reviewStatus:'unreviewed',rightsStatus:'generated',source:'synthetic:exam-s2-runs-pg-check'}]};
 }
-const db = await createFixture();
-const world = await createPostgresWorld({ fixture:db });
-const parallelPool = rolePool(db.config,db.schema,db.roles.learner,5);
-const port = createPostgresDatastore({ pool:parallelPool });
-const deletion = createPostgresAccountDeletion({ pool:db.deletion });
+let db,world,parallelPool,port,deletion,observer;
 let passed=0;
 const check=async(name,work)=>{await work();passed++;console.log('PASS '+name);};
 const rejects=async(promise,code,status=409)=>assert.rejects(promise,e=>e.code===code&&e.status===status);
@@ -50,11 +50,12 @@ const start=(o,patch={})=>port.startMockRun(o.id,{preparationId:o.prep.id,formId
 const snapshot=(revision,answer='a',patch={})=>({expectedRevision:revision,eventId:randomUUID(),responses:[{setId:SET,version:'v1',itemId:'1',answer}],position:{member:0,item:0},...patch});
 const finalise=(o,run,patch={})=>port.finaliseMockRun(o.id,run.id,{expectedRevision:run.revision,eventId:randomUUID(),...patch});
 const count=async(table,who)=>Number((await db.admin.query(`SELECT count(*)::int AS n FROM ${table} WHERE owner_id=$1`,[who])).rows[0].n);
-async function asLearner(who,work) {
-  const client=await parallelPool.connect();
-  try {await client.query('BEGIN');await client.query("SELECT set_config('hatoove.owner_id',$1,true)",[who]);const result=await work(client);await client.query('COMMIT');return result;}
+async function asOwner(pool,who,work) {
+  const client=await pool.connect();
+  try {await client.query('BEGIN');await client.query("SELECT set_config('hatoove.owner_id',$1,true)",[who??'']);const result=await work(client);await client.query('COMMIT');return result;}
   catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
 }
+const asLearner=(who,work)=>asOwner(parallelPool,who,work);
 async function blockPreparation(o,work) {
   const client=await parallelPool.connect();
   try {
@@ -86,6 +87,14 @@ function pausedPort(pattern) {
   return {port:createPostgresDatastore({pool}),entered,release:()=>release()};
 }
 try {
+  db=await createFixture();
+  const pg=createRequire(new URL('../server/owned-postgres/bootstrap.mjs',import.meta.url))('pg');
+  observer=new pg.Pool({...db.config,max:1});
+  world=await createPostgresWorld({fixture:db});
+  parallelPool=rolePool(db.config,db.schema,db.roles.learner,5);
+  port=createPostgresDatastore({pool:parallelPool});
+  deletion=createPostgresAccountDeletion({pool:db.deletion});
+  console.log('Fixture '+db.schema+' (synthetic S2 content only)');
   await importPackage(db.migration,source(),{publisher:'synthetic-s2-runs-check'});
   const a=await owner('a');const b=await owner('b');
   await check('forms, owned start, exact pin and no early evidence/feedback',async()=>{
@@ -197,7 +206,16 @@ try {
   });
   await check('same-exam SQL foreign keys and identity triggers fail closed',async()=>{
     const {run}=await start(a);
-    await assert.rejects(db.admin.query('UPDATE mock_run SET preparation_id=$2 WHERE id=$1',[run.id,b.prep.id]),/mock_identity_immutable/);
+    const before=(await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[run.id])).rows[0];
+    const changeIdentity=c=>c.query('UPDATE mock_run SET preparation_id=$2 WHERE id=$1',[run.id,b.prep.id]);
+    // C03 checks the bound owner before the immutable-identity trigger. Admin is needed only
+    // to exercise that trigger: the learner's column grant separately refuses this UPDATE.
+    for(const who of [null,b.id])await assert.rejects(asOwner(db.admin,who,changeIdentity),
+      e=>e.code==='P0002'&&e.message==='not_found','missing/wrong owner must not reach identity mutation');
+    await assert.rejects(asLearner(a.id,changeIdentity),e=>e.code==='42501');
+    await assert.rejects(asOwner(db.admin,a.id,changeIdentity),
+      e=>e.code==='23514'&&e.message==='mock_identity_immutable','owner-bound raw DML must reach the exact identity guard');
+    assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[run.id])).rows[0],before,'every refused mutation preserves all run bytes');
     await assert.rejects(asLearner(a.id,c=>c.query(`INSERT INTO mock_run(id,owner_id,preparation_id,exam_id,release_version,blueprint_version,form_id,form_version,start_event_id,title,scope,mode)
       VALUES($1,$2,$3,$4,'v9001','v9000','s2-reading','v1',$5,'x','section','untimed')`,[randomUUID(),a.id,b.prep.id,TELC,randomUUID()])),/preparation_archived/);
     await assert.rejects(asLearner(a.id,c=>c.query("UPDATE mock_run SET responses=$2::jsonb,revision=revision+1 WHERE id=$1",[run.id,JSON.stringify([{setId:SET,version:'v9',itemId:'1',answer:'a'}])])),/unknown_mock_item/);
@@ -281,4 +299,17 @@ try {
     const exported=(await port.exportData(a.id)).mock_runs.find(x=>x.id===run.id);assert.deepEqual(exported.responses,saved.responses);assert.equal(exported.result,null);
   });
   console.log(`\n${passed} passed, 0 failed (real PostgreSQL; disposable schema ${db.schema})`);
-} finally {await parallelPool.end();await world.teardown();}
+} finally {
+  const errors=[];
+  if(parallelPool)try{await parallelPool.end();}catch(error){errors.push(error);}
+  if(world)try{await world.teardown();}catch(error){errors.push(error);}
+  if(db)try{await db.cleanup();}catch(error){errors.push(error);}
+  if(observer&&db)try{
+    assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_namespace WHERE nspname=$1',[db.schema])).rows[0].n,0);
+    assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_roles WHERE rolname=ANY($1::text[])',[Object.values(db.roles)])).rows[0].n,0);
+  }catch(error){errors.push(error);}
+  if(observer)try{await observer.end();}catch(error){errors.push(error);}
+  for(const key of policyKeys){if(previousPolicy[key]===undefined)delete process.env[key];else process.env[key]=previousPolicy[key];}
+  if(errors.length)throw Error('exam_s2_fixture_cleanup_failed');
+}
+console.log('Disposable fixture schema and roles verified absent; policy environment restored.');
