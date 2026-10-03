@@ -1123,6 +1123,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       return settle(owner, async (client) => {
         await lockMockOwner(client,owner);
         const attempt = await owned(client, owner, id);
+        // An unresolved historical row has no admission subject; retain its explicit recovery error.
+        if (!attempt.preparation_id) fail(422, 'preparation_unresolved');
         await requireWritingMutation(client,attempt,{});
         const current = await draftOf(client, id);
         if (!current || current.revision !== expectedRevision) fail(409, 'draft_conflict');
@@ -1262,6 +1264,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const examId = await attemptExam(client, owner, id);
         if (examId) await lockBalance(client, owner, examId);
         const attempt = await owned(client, owner, id);
+        if (!attempt.preparation_id) fail(422, 'preparation_unresolved');
         await requireWritingMutation(client,attempt,{standalone:true});
         if (first(await client.query('SELECT id FROM submissions WHERE attempt_id = $1 LIMIT 1', [id]))) {
           fail(409, 'submitted_attempt');
