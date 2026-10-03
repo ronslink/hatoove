@@ -61,15 +61,16 @@ const sectionMarkup = code => SECTION_NAMES[code] ? messageMarkup(SECTION_NAMES[
  * its part instead — true, and readable. The missing authored titles are recorded for Ron: they are
  * content, and content is not mine to invent.
  */
+const hasAuthoredSetTitle = set => { const title = String(set?.title ?? '').trim(); return Boolean(title && !/^(LV|SB|HV)\d+\s+\d+$/.test(title)); };
 const setLabel = (set) => {
   const title = String(set?.title ?? '').trim();
-  if (title && !/^(LV|SB|HV)\d+\s+\d+$/.test(title)) return title;
+  if (hasAuthoredSetTitle(set)) return title;
   const part = set?.part === undefined || set?.part === null ? '' : ' · ' + uiText('part', {part: set.part});
   return `${sectionName(set?.section)}${part}`;
 };
 const setLabelMarkup = set => {
   const title = String(set?.title ?? '').trim();
-  if (title && !/^(LV|SB|HV)\d+\s+\d+$/.test(title)) return '<span ' + examTextAttributes() + '>' + esc(title) + '</span>';
+  if (hasAuthoredSetTitle(set)) return '<span ' + examTextAttributes() + '>' + esc(title) + '</span>';
   return sectionMarkup(set?.section) + (set?.part == null ? '' : ' · ' + messageMarkup('part', {part: set.part}));
 };
 const VIEW_TITLES = {
@@ -566,7 +567,7 @@ async function renderTasks() {
   if (tasks.length) {
     groups.push("<h3 class=\"section-head\"><span data-i18n=\"shell.m005\">Schreiben</span></h3>" + tasks.map((t) => card(
       '<span ' + examTextAttributes() + '>' + esc(t.topic) + '</span>', esc(t.family), '<span ' + examTextAttributes() + '>' + esc(t.situation) + '</span>',
-      messageMarkup("m059") + " " + esc(t.adressat) + ' &middot; ' + messageMarkup('register') + ': ' + esc(t.register)
+      messageMarkup("m059") + ' <span ' + examTextAttributes() + '>' + esc(t.adressat) + '</span> &middot; ' + messageMarkup('register') + ': <span ' + examTextAttributes() + '>' + esc(t.register) + '</span>'
         + ' &middot; ' + messageMarkup('version') + ' ' + esc(t.version) + ' &middot; ' + reviewMarkup(t),
       // The four-part binding, exactly as the Schreiben view binds it; the controller resumes an open
       // draft for this task+version instead of creating a second one.
@@ -703,14 +704,14 @@ async function renderDictionary() {
   }
   readAloud.clear(box);
   setShellHTML(box, materialNotice() + rows.map((w) => (mode === 'nouns'
-    ? '<div class="card"><div class="card-head"><h3 lang="de" dir="ltr">' + esc(w.de) + '</h3><span class="chip">' + esc(w.gender) + '</span></div>'
+    ? '<div class="card"><div class="card-head"><h3 lang="de" dir="ltr">' + esc(w.de) + '</h3><span class="chip" lang="de" dir="ltr">' + esc(w.gender) + '</span></div>'
       + (w.en ? '<p class="muted" lang="en" dir="ltr" data-authored-alternative="en"' + (getLocale() === 'en' ? '' : ' hidden') + '>' + esc(w.en) + '</p>' : '')
-      + "<p class=\"small muted\"><span data-i18n=\"shell.m072\">Plural:</span> " + esc(w.plural) + ' &middot; ' + messageMarkup('topic') + ': ' + esc(w.theme) + '</p>'
-      + "<p class=\"small muted\"><span data-i18n=\"shell.m073\">Regel:</span> " + esc(w.rule) + '</p>'
+      + '<p class="small muted"><span data-i18n="shell.m072">Plural:</span> <span lang="de" dir="ltr">' + esc(w.plural) + '</span> &middot; ' + messageMarkup('topic') + ': <span lang="de" dir="ltr">' + esc(w.theme) + '</span></p>'
+      + '<p class="small muted"><span data-i18n="shell.m073">Regel:</span> <span lang="de" dir="ltr">' + esc(w.rule) + '</span></p>'
       + (w.example ? '<p class="small" lang="de" dir="ltr" data-read-example>' + esc(w.example) + '</p>' : '') + '</div>'
-    : '<div class="card"><div class="card-head"><h3 lang="de" dir="ltr">' + esc(w.de) + '</h3><span class="chip">' + esc(w.pos) + '</span></div>'
+    : '<div class="card"><div class="card-head"><h3 lang="de" dir="ltr">' + esc(w.de) + '</h3><span class="chip" lang="de" dir="ltr">' + esc(w.pos) + '</span></div>'
       + (w.en ? '<p class="muted" lang="en" dir="ltr" data-authored-alternative="en"' + (getLocale() === 'en' ? '' : ' hidden') + '>' + esc(w.en) + '</p>' : '')
-      + (w.plural ? "<p class=\"small muted\"><span data-i18n=\"shell.m072\">Plural:</span> " + esc(w.plural) + '</p>' : '')
+      + (w.plural ? '<p class="small muted"><span data-i18n="shell.m072">Plural:</span> <span lang="de" dir="ltr">' + esc(w.plural) + '</span></p>' : '')
       + (w.example ? '<p class="small" lang="de" dir="ltr" data-read-example>' + esc(w.example) + '</p>' : '') + '</div>')).join(''));
   for (const example of box.querySelectorAll('[data-read-example]')) readAloud.mount(example, { label: uiText("m074"), language: example.lang });
 }
@@ -990,7 +991,7 @@ async function renderSkill(view) {
       ? tasks.map((t) => '<div class="card"><div class="card-head"><h3 ' + examTextAttributes() + '>' + esc(t.topic)
         + '</h3><span class="chip">' + esc(t.family) + '</span></div>'
         + '<p class="muted" ' + examTextAttributes() + '>' + esc(t.situation) + '</p>'
-        + "<p class=\"small muted\"><span data-i18n=\"shell.m059\">Anrede:</span> " + esc(t.adressat) + ' &middot; ' + reviewMarkup(t) + '</p>'
+        + '<p class="small muted"><span data-i18n="shell.m059">Anrede:</span> <span ' + examTextAttributes() + '>' + esc(t.adressat) + '</span> &middot; ' + reviewMarkup(t) + '</p>'
         /*
          * The binding travels WITH the button. A writing view that creates an attempt without it is bound
          * to the canonical default task, so the learner would read task B and have task A marked — the
@@ -1236,7 +1237,7 @@ const writingApi = { ...api, mock: { ...api.mock, read: (runId, language = state
   if (currentContext(ticket) && bootReady) guard(refreshCredits());
   return result;
 } } };
-const mock = createMockController({ api: writingApi, esc, setLabel, readAloud, explanations, getExamLanguage, explanationLanguage: () => state.settings?.language || 'de', canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
+const mock = createMockController({ api: writingApi, esc, setLabel, setLabelLanguage: set => hasAuthoredSetTitle(set) ? getExamLanguage() || 'und' : getLocale(), readAloud, explanations, getExamLanguage, explanationLanguage: () => state.settings?.language || 'de', canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
 window.addEventListener('beforeunload', event => mock.preserveOnUnload(event));
 const writing = createWritingController({ api: writingApi, esc, readAloud, explanations, getExamLanguage, onChange: () => { guard(refreshCredits()); if (currentView === 'fortschritt') guard(renderHistory()); } });
 // PAYMENTS-SLICE-01. `onChange` re-reads the credit line, because a granted pass is exactly the thing
@@ -1264,8 +1265,8 @@ const localePreference = createLocalePreference({
     const key = { saving: 'm185', reconciling: 'reconciling', saved: 'm196', reconciled: 'reconciled', conflict: 'conflict', unresolved: 'unresolved', failed: 'm195' }[status];
     bindShellText(el('locale-state'), () => key ? uiText(key) : '');
     el('locale-reload').hidden = !unresolved;
-    el('header-language').disabled = busy || Boolean(sessionProblem);
-    el('language').disabled = busy || settingsSaving || Boolean(sessionProblem);
+    el('header-language').disabled = busy || unresolved || Boolean(sessionProblem);
+    el('language').disabled = busy || unresolved || settingsSaving || Boolean(sessionProblem);
     el('header-language').value = getLocale();
   },
 });
@@ -1291,7 +1292,15 @@ function updateLocaleLabels() {
   for (const notice of document.querySelectorAll('[data-material-unavailable]')) notice.hidden = ['de', 'en'].includes(getLocale());
 }
 const unsubscribeLocale = subscribeLocale(updateLocaleLabels);
-window.addEventListener('pagehide', event => { if (!event.persisted) unsubscribeLocale(); localePreference.cancel(); readAloud.stop(); });
+window.addEventListener('pagehide', event => {
+  if (event.persisted) localePreference.suspend();
+  else { unsubscribeLocale(); localePreference.cancel(); }
+  readAloud.stop();
+});
+window.addEventListener('pageshow', event => {
+  // The API retains its account fence. A restored document must reread authority before another save.
+  if (event.persisted && state.account && !sessionProblem) guard(localePreference.reconcile());
+});
 el('header-language').addEventListener('change', event => {
   if (!bootReady || sessionProblem || settingsSaving || preparationSwitching) { event.target.value = getLocale(); return; }
   guard(localePreference.save(event.target.value));
@@ -1333,7 +1342,7 @@ async function openArchivedWriting(entry) {
     setShellHTML(host, '<article class="card"><h3>' + (entry.topic ? '<span ' + examTextAttributes() + '>' + esc(entry.topic) + '</span>' : messageMarkup("m156")) + "</h3><p class=\"small muted\"><span data-i18n=\"shell.m157\">Archiv · schreibgeschützt</span></p><div class=\"archived-writing\" "+ examTextAttributes() + ">"
       + esc(entry.submission_id ? data.submission?.text || '' : data.text || '') + '</div>' + result + (entry.submission_id ? '<div data-archived-explanation></div>' : '')
       + "<div class=\"row\"><button class=\"btn\" id=\"archived-refresh\" type=\"button\"><span data-i18n=\"shell.m158\">Stand erneut laden</span></button><button class=\"btn\" id=\"archived-close\" type=\"button\"><span data-i18n=\"shell.m141\">Schließen</span></button></div></article>");
-    if (entry.submission_id) explanations.mount(host.querySelector('[data-archived-explanation]'), { view: data.explanation_view, labels: writingExplanationLabels(data), isCurrent: current,
+    if (entry.submission_id) explanations.mount(host.querySelector('[data-archived-explanation]'), { view: data.explanation_view, labels: writingExplanationLabels(data), labelLanguage: getExamLanguage(), isCurrent: current,
       read: async language => { const r = await api.writing.result(entry.submission_id, language); return { ...r, data: r?.data?.explanation_view, parent: r?.data }; },
       onConfirmed: parent => {
         if (!parent || !current()) return;

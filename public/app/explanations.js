@@ -77,7 +77,7 @@ export function createExplanationManager({ readAloud = null, getLanguage = () =>
       card.model.dispose(); readAloud?.clear(card.host); card.host.replaceChildren(); cards.delete(card);
     }
   }
-  function mount(host, { view = null, read, labels = {}, isCurrent = () => true, onConfirmed = () => {} }) {
+  function mount(host, { view = null, read, labels = {}, labelLanguage = 'und', isCurrent = () => true, onConfirmed = () => {} }) {
     if (!host) return null;
     dispose(host); const context = getContext(), id = 'explanation-language-' + (++sequence);
     const card = { host, model: null, status: null, review: null };
@@ -108,7 +108,7 @@ export function createExplanationManager({ readAloud = null, getLanguage = () =>
         for (const block of value.representation.payload.blocks) {
           const section = node('div', undefined, 'explanation-block'), headingKey = block.slot.startsWith('correction/') ? 'correctionHint' : 'explanation', heading = labels[block.slot] || pt(headingKey);
           const title = labels[block.slot] ? node('p',heading,'explanation-block-label') : ui('p',headingKey,'explanation-block-label');
-          if (labels[block.slot]) { title.lang = 'de'; title.dir = 'ltr'; }
+          if (labels[block.slot]) { title.lang = typeof labelLanguage === 'string' && /^[a-z]{2,3}(?:-[A-Za-z0-9]+)*$/.test(labelLanguage) ? labelLanguage : 'und'; title.dir = title.lang === 'ar' ? 'rtl' : 'ltr'; }
           section.append(title);
           const prose = node('p', block.text, 'explanation-prose'); prose.dataset.explanationSlot = block.slot; prose.lang = value.displayed_language || ''; prose.dir = value.displayed_language === 'ar' ? 'rtl' : 'ltr'; section.append(prose); host.append(section);
           if (value.displayed_language) readAloud?.mount(prose, { label: heading, labelKey: labels[block.slot] ? null : headingKey, language: value.displayed_language });

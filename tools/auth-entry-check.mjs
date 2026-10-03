@@ -30,9 +30,13 @@ function compose(args) {
   if (result.error || result.status) throw new Error('Disposable Compose command failed: ' + args[0]);
   return result.stdout || '';
 }
+let navigationSequence = 0;
 async function nav(route) {
+  const marker = 'entry-navigation-' + (++navigationSequence);
+  await cdp.evaluate('window.__entryNavigationMarker = ' + JSON.stringify(marker) + ';');
   await cdp.send('Page.navigate', { url: base + route });
-  await cdp.waitFor('document.readyState === "complete"', 15000, 'document load');
+  const pathname = new URL(base + route).pathname;
+  await cdp.waitFor('window.__entryNavigationMarker !== ' + JSON.stringify(marker) + ' && location.pathname === ' + JSON.stringify(pathname) + ' && document.readyState === "complete"', 15000, 'new target document load');
   await sleep(100);
 }
 async function fill(values) {
@@ -86,19 +90,19 @@ async function main() {
     await cdp.click('#answer-options input[value="0"]');
     await submit('answer-form');
     record('landing sample produces German answer explanation', (await cdp.text()).includes('Genau. Alle Einzelheiten passen.'));
-    await cdp.evaluate('window.sampleRadio = document.querySelector("#answer-options input[value=\"0\"]"); window.sampleFeedback = document.querySelector("#feedback");');
+    await cdp.evaluate(`window.sampleRadio = document.querySelector('#answer-options input[value="0"]'); window.sampleFeedback = document.querySelector('#feedback');`);
     for (const locale of ['en','uk','ar','tr','de']) {
       await selectLocale(locale);
-      record('checked sample survives ' + locale, await cdp.evaluate('return window.sampleRadio === document.querySelector("#answer-options input[value=\"0\"]") && window.sampleRadio.checked && window.sampleFeedback === document.querySelector("#feedback") && !window.sampleFeedback.hidden && document.querySelector(".task-stimulus").lang === "de" && document.querySelector(".task-stimulus").dir === "ltr";'));
+      record('checked sample survives ' + locale, await cdp.evaluate(`return window.sampleRadio === document.querySelector('#answer-options input[value="0"]') && window.sampleRadio.checked && window.sampleFeedback === document.querySelector('#feedback') && !window.sampleFeedback.hidden && document.querySelector('.task-stimulus').lang === 'de' && document.querySelector('.task-stimulus').dir === 'ltr';`));
     }
     await cdp.click('#tab-writing');
     await fill({ 'writing-response': 'Liebe Mila, ich helfe dir gern.' });
     await cdp.evaluate('document.querySelector("#writing-response").dispatchEvent(new Event("input"));');
     await cdp.click('#review-writing');
-    await cdp.evaluate('window.sampleDraft = document.querySelector("#writing-response"); window.sampleDraft.focus(); window.sampleDraft.setSelectionRange(6, 10); document.querySelector("[data-review=\"2\"]").click(); document.querySelector(".model-response").open = true;');
+    await cdp.evaluate(`window.sampleDraft = document.querySelector('#writing-response'); window.sampleDraft.focus(); window.sampleDraft.setSelectionRange(6, 10); document.querySelector('[data-review="2"]').click(); document.querySelector('.model-response').open = true;`);
     for (const locale of ['en','uk','ar','tr','de']) {
       await selectLocale(locale);
-      record('draft and self-review survive ' + locale, await cdp.evaluate('return window.sampleDraft === document.querySelector("#writing-response") && window.sampleDraft.value === "Liebe Mila, ich helfe dir gern." && window.sampleDraft.selectionStart === 6 && window.sampleDraft.selectionEnd === 10 && document.querySelector("[data-review=\"2\"]").checked && document.querySelector(".model-response").open && window.sampleDraft.lang === "de" && window.sampleDraft.dir === "ltr";'));
+      record('draft and self-review survive ' + locale, await cdp.evaluate(`return window.sampleDraft === document.querySelector('#writing-response') && window.sampleDraft.value === 'Liebe Mila, ich helfe dir gern.' && window.sampleDraft.selectionStart === 6 && window.sampleDraft.selectionEnd === 10 && document.querySelector('[data-review="2"]').checked && document.querySelector('.model-response').open && window.sampleDraft.lang === 'de' && window.sampleDraft.dir === 'ltr';`));
     }
     await cdp.click('#tab-reading'); await cdp.click('#tab-writing');
     record('preview draft survives practice-tab navigation', await cdp.evaluate('return document.querySelector("#writing-response").value === "Liebe Mila, ich helfe dir gern.";'));
@@ -110,6 +114,8 @@ async function main() {
     await submit('form-signup');
     await cdp.waitFor('location.pathname === "/app/"', 15000, 'registration app redirect');
     record('registration lands inside app', true);
+    // Leave the app before expiring its cookie so its pending boot cannot race public navigation.
+    await nav('/');
     await cdp.send('Network.clearBrowserCookies');
     await nav('/reset-password');
     await fill({ 'request-email': email }); await submit('form-request');
@@ -139,6 +145,7 @@ async function main() {
     await fill({ 'si-email': email, 'si-password': 'synthetic-entry-new-password' }); await submit('form-signin');
     await cdp.waitFor('location.pathname === "/app/"', 15000, 'new password sign-in');
     record('new password actually signs in', true);
+    await nav('/');
     await cdp.send('Network.clearBrowserCookies');
     await nav('/verify-email');
     await fill({ 'request-email': email }); await submit('form-request');

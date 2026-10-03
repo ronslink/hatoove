@@ -65,6 +65,7 @@ export function createLocalePreference({ read, write, context, confirmed, accept
   return {
     get busy() { return busy; }, get unresolved() { return unresolved; }, get status() { return status; },
     cancel() { sequence++; busy = false; unresolved = false; },
+    suspend() { sequence++; busy = false; unresolved = true; publish('unresolved'); },
     reconcile() { if (busy) return Promise.resolve(false); return reconcile(); },
     async save(language) {
       if (busy || unresolved || !validLocale(language)) return false;

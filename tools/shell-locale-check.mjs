@@ -80,6 +80,30 @@ await check('account generation fences delayed save and delayed reconciliation r
   const first=deferred(),f=preference({write:()=>first.promise});const saving=f.model.save('ar');f.switchOwner('account-b');first.resolve(response('ar',4));await saving;assert.equal(f.accepted.length,0);
   const second=deferred(),g=preference({write:()=>({status:0}),read:()=>second.promise});const reconciling=g.model.save('tr');await new Promise(r=>setImmediate(r));g.switchOwner('account-b');second.resolve(response('tr',4));await reconciling;assert.equal(g.accepted.length,0);
 });
+await check('BFCache suspension fences a held save and rereads authority before enabling language changes', async () => {
+  const held = deferred(), reread = deferred();
+  const f = preference({ write: () => held.promise, read: () => reread.promise });
+  const saving = f.model.save('uk');
+  f.model.suspend();
+  assert.equal(f.model.unresolved, true); assert.equal(f.model.busy, false);
+  assert.equal(f.states.at(-1).state, 'unresolved');
+  assert.equal(await f.model.save('tr'), false); assert.equal(f.writes.length, 1);
+  const restored = f.model.reconcile();
+  assert.equal(f.model.busy, true); assert.equal(f.states.at(-1).state, 'reconciling');
+  held.resolve(response('uk', 4)); await saving;
+  assert.equal(f.accepted.length, 0, 'the reply from before pagehide cannot update a restored page');
+  reread.resolve(response('ar', 5)); assert.equal(await restored, true);
+  assert.equal(f.confirmed.settings.language, 'ar'); assert.equal(f.model.unresolved, false); assert.equal(f.model.busy, false);
+  assert.equal(f.writes.length, 1, 'restoring performs no mutation or replay');
+});
+await check('failed BFCache read keeps writes blocked and owner changes fence its late response', async () => {
+  const f = preference({ read: () => ({ ok: false, status: 0 }) });
+  f.model.suspend(); await f.model.reconcile(); assert.equal(f.model.unresolved, true);
+  assert.equal(await f.model.save('tr'), false); assert.equal(f.writes.length, 0);
+  const held = deferred(), g = preference({ read: () => held.promise });
+  g.model.suspend(); const reading = g.model.reconcile(); g.switchOwner('account-b');
+  held.resolve(response('ar', 5)); await reading; assert.equal(g.accepted.length, 0);
+});
 await check('a response older than a newer confirmed revision cannot regress the preference', async () => {
   const held=deferred(),f=preference({write:()=>held.promise,read:()=>response('uk',6)});
   const saving=f.model.save('ar');f.setConfirmed(response('en',5).data);held.resolve(response('ar',4));await saving;
@@ -123,6 +147,16 @@ await check('library material remains original with explicit English alternative
   const payload={rule:'Deutsche Originalregel',ruleEn:'Existing English rule',example:{de:'Ich lerne.',en:'I am learning.'},bad:'<img onerror=evil()>'};
   for(const locale of LOCALES){setLocale(locale);const html=guideContent(payload,esc,locale);assert.ok(html.includes('Deutsche Originalregel'));assert.ok(html.includes('lang="de" dir="ltr"'));assert.ok(html.includes('Existing English rule'));assert.ok(html.includes('data-authored-alternative="en"'));assert.ok(!html.includes('<img'));assert.ok(html.includes(s('m267')));}
 });
+await check('an English guide-table alternative keeps German grammar cells explicitly German', () => {
+  setLocale('ar');
+  const table = { headers: ['Fall', 'Beispiel'], headersEn: ['Case', 'Example'], rows: [['Nominativ', 'Der Mann liest.']], firstColumnEn: ['Nominative'] };
+  const html = guideContent(table, esc, 'en');
+  assert.match(html, /<th scope="col" lang="en" dir="ltr">Case<\/th>/);
+  assert.match(html, /<td lang="en" dir="ltr">Nominative<\/td>/);
+  assert.equal((html.match(/<td lang="de" dir="ltr">Der Mann liest\.<\/td>/g) || []).length, 2);
+  assert.doesNotMatch(html, /<table lang="en"/);
+  assert.deepEqual(table.rows, [['Nominativ', 'Der Mann liest.']]);
+});
 await check('shell locale entry point calls label-only hooks and settings send no stale theme patch', async () => {
   const source=await readFile(new URL('../public/app/app.js',import.meta.url),'utf8');
   const hook=source.slice(source.indexOf('function updateLocaleLabels()'),source.indexOf('const unsubscribeLocale'));
@@ -132,6 +166,37 @@ await check('shell locale entry point calls label-only hooks and settings send n
   assert.match(source,/state\.preparation\?\.exam_language/);assert.match(source,/instructionMarkup\(\{ id: form\.interaction/);
   assert.match(source,/const view = VIEW_TITLES\[key\] \? key : 'heute'/);
   assert.doesNotMatch(source,/esc\([^\n;]*\|\| messageMarkup/);
+});
+await check('actual Arabic dictionary rendering isolates every authored German field', async () => {
+  const source=await readFile(new URL('../public/app/app.js',import.meta.url),'utf8');
+  const render=source.slice(source.indexOf('async function renderDictionary()'),source.indexOf('/** NACHSCHLAGEN'));
+  const row={de:'SENTINEL Wort',gender:'SENTINEL Geschlecht',plural:'SENTINEL Plural',theme:'SENTINEL Thema',rule:'SENTINEL Regel',pos:'SENTINEL Wortart',example:'SENTINEL Beispiel',en:'English alternative'};
+  for (const mode of ['nouns','vocab']) {
+    let html=''; const box={querySelectorAll:()=>[]};
+    const factory=new Function('api','el','setShellHTML','readAloud','materialNotice','messageMarkup','getLocale','esc','uiText','dictMode',`let dictionaryRequest=0; ${render}; return renderDictionary;`);
+    const list=async()=>({ok:true,data:[row]});
+    setLocale('ar');
+    await factory({nouns:{list},vocab:{list}},id=>id==='dict-results'?box:{value:''},(_node,value)=>{html=value;},{clear(){},mount(){}},()=>'',messageMarkup,getLocale,esc,s,mode)();
+    for(const field of mode==='nouns'?['de','gender','plural','theme','rule','example']:['de','pos','plural','example']) {
+      const offset=html.indexOf(row[field]); assert.ok(offset>0,field+' is preserved');
+      const opening=html.slice(html.lastIndexOf('<',offset),offset);
+      assert.match(opening,/lang="de" dir="ltr"/,field+' has its own original-language island');
+    }
+    assert.ok(html.includes('data-i18n="shell.m072"')); assert.ok(html.includes('data-authored-alternative="en" hidden'));
+  }
+});
+await check('actual BFCache handlers suspend writes and reconcile a restored owned page without remounting', async () => {
+  const source=await readFile(new URL('../public/app/app.js',import.meta.url),'utf8');
+  const hooks=source.slice(source.indexOf("window.addEventListener('pagehide', event =>"),source.indexOf("el('header-language').addEventListener('change'"));
+  const events=new Map(),calls=[];
+  new Function('window','localePreference','readAloud','unsubscribeLocale','state','sessionProblem','guard',hooks)(
+    {addEventListener:(name,callback)=>events.set(name,callback)},
+    {suspend:()=>calls.push('suspend'),cancel:()=>calls.push('cancel'),reconcile:()=>{calls.push('read');return Promise.resolve();}},
+    {stop:()=>calls.push('stop')},()=>calls.push('unsubscribe'),{account:{id:'same-owner'}},null,()=>{});
+  events.get('pagehide')({persisted:true}); assert.deepEqual(calls,['suspend','stop']);
+  events.get('pageshow')({persisted:true}); assert.deepEqual(calls,['suspend','stop','read']);
+  events.get('pagehide')({persisted:false}); assert.deepEqual(calls.slice(-3),['unsubscribe','cancel','stop']);
+  assert.match(source,/header-language'\)\.disabled = busy \|\| unresolved/);
 });
 await check('actual shell objective rendering keeps exam language and immutable options under Arabic chrome', async () => {
   const source=await readFile(new URL('../public/app/app.js',import.meta.url),'utf8');

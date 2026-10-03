@@ -194,7 +194,7 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
     }
     say(s, html + '<div data-writing-explanation></div>');
     explanations?.mount(s.status.querySelector('[data-writing-explanation]'), {
-      view: data.explanation_view, labels: writingExplanationLabels(data), isCurrent: () => current(s) && s.submission === submissionId && resultRequest === s.resultRequest,
+      view: data.explanation_view, labels: writingExplanationLabels(data), labelLanguage: s.task?.exam_language || getExamLanguage() || 'und', isCurrent: () => current(s) && s.submission === submissionId && resultRequest === s.resultRequest,
       read: async language => { const response = await api.writing.result(submissionId, language); return { ...response, data: response?.data?.explanation_view, parent: response?.data }; },
       onConfirmed: parent => {
         if (!parent || !current(s)) return;

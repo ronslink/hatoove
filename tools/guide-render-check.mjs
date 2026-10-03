@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { guideContent } from '../public/app/guide-content.js';
+import { setLocale } from '../public/assets/i18n/core.js';
+setLocale('de');
 const esc = value => String(value).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 let examples = 0, wrong = 0;
 for (const file of ['writing-guide', 'grammar-guide', 'core-grammar', 'core-phrases', 'gender-rules', 'cases-guide']) {
@@ -9,8 +11,8 @@ for (const file of ['writing-guide', 'grammar-guide', 'core-grammar', 'core-phra
   function check(value) {
     if (!value || typeof value !== 'object') return;
     if (typeof value.example === 'string') { assert.ok(html.includes(esc(value.example)), `${file}: an authored example disappeared`); examples++; }
-    if (typeof value.bad === 'string') { assert.ok(html.includes(`So nicht – fehlerhaftes oder unpassendes Beispiel</strong><p>${esc(value.bad)}`), `${file}: wrong example is unlabelled`); wrong++; }
-    if (typeof value.good === 'string') assert.ok(html.includes(`Passendes Beispiel</strong><p>${esc(value.good)}`));
+    if (typeof value.bad === 'string') { assert.ok(html.includes(`So nicht – fehlerhaftes oder unpassendes Beispiel</span></strong><p lang="de" dir="ltr">${esc(value.bad)}`), `${file}: wrong example is unlabelled`); wrong++; }
+    if (typeof value.good === 'string') assert.ok(html.includes(`Passendes Beispiel</span></strong><p lang="de" dir="ltr">${esc(value.good)}`));
     for (const child of Object.values(value)) check(child);
   }
   check(source);

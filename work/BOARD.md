@@ -1,5 +1,11 @@
 # Hatoove work board
 
+## Full interface languages assembled; browser acceptance pending — 3 October 2026
+
+[Issue129](https://github.com/ronslink/hatoove/issues/129) now has five-language public/auth, account/navigation and practice implementations assembled under [the frozen contract](../docs/contracts/PILOT-I18N-INTERFACE.md). German exam material stays original with explicit language/direction; operational instructions additionally use the selected language. Registration initializes the new account preference atomically, existing account preference overrides the guest scalar, and uncertain settings saves reconcile without blind replay. Independent reviews closed preference recovery and source-language title findings. Focused core9, public14, shell23, practice18, checkout28, S5B19 and registration PostgreSQL12 pass. Public browser95 passed before the final independently reviewed navigation-fence correction; its rerun and combined signed-in browser acceptance are pending. Native devices, human translation/content review and production operation remain separate gates.
+
+PR114/116/118/120/123 have merged after seven actual hosted successes. PR125 is still unmerged: reviewed S1 ownership/runtime and owner-context fixture corrections are published at d861e16; six gates pass and the remaining durable job exposes a migration-EOL legacy fixture dependency under bounded repair. PR126/128 await ordered integration. Hosting advice favors one DigitalOcean web origin with separate app/worker containers and private PostgreSQL; PostgreSQL placement remains to be confirmed. No deployment or DNS changes are authorized by this advice.
+
 ## Hosted execution resumed; first integrations merged — 3 October 2026
 
 PR114 and PR116 passed all seven repository-policy hosted gates and merged as dc3b3ca2 and bbf82da5. O01 [PR128](https://github.com/ronslink/hatoove/pull/128) now has actual execution rather than billing refusals. Its first runs exposed one real LF/CRLF explanation-registry portability defect and retained export/owner-context fixture defects; independently reviewed corrections b2dccd5/36892cb pass focused local checks and await new-head hosted CI. PR118's historical export assertion is under a bounded repair. Remaining PRs are unmerged; no repeated unchanged retries or deployment.

@@ -10,7 +10,7 @@ export function guideContent(value, esc, language = 'de') {
     const skip = new Set(['id','kind','source','level','pos','en']);
     let html = '';
     if (Array.isArray(item.headers) && Array.isArray(item.rows)) {
-      const table = (headers, english = false) => `<div class="guide-table" tabindex="0" role="region" data-i18n-aria-label="shell.grammarTable" aria-label="Grammatiktabelle"><table lang="${english ? 'en' : 'de'}" dir="ltr"><thead><tr>${headers.map(h => `<th scope="col">${esc(String(h))}</th>`).join('')}</tr></thead><tbody>${item.rows.map((row,i) => `<tr>${row.map((cell,j) => `<td>${esc(String(english && j === 0 && item.firstColumnEn?.[i] ? item.firstColumnEn[i] : cell))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      const table = (headers, english = false) => `<div class="guide-table" tabindex="0" role="region" data-i18n-aria-label="shell.grammarTable" aria-label="Grammatiktabelle"><table lang="de" dir="ltr"><thead><tr>${headers.map(h => `<th scope="col" lang="${english ? 'en' : 'de'}" dir="ltr">${esc(String(h))}</th>`).join('')}</tr></thead><tbody>${item.rows.map((row,i) => `<tr>${row.map((cell,j) => { const translated = Boolean(english && j === 0 && item.firstColumnEn?.[i]); return `<td lang="${translated ? 'en' : 'de'}" dir="ltr">${esc(String(translated ? item.firstColumnEn[i] : cell))}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
       html += table(item.headers);
       if (Array.isArray(item.headersEn)) html += alternative(table(item.headersEn,true));
       ['headers','headersEn','rows','firstColumnEn'].forEach(key => skip.add(key));
