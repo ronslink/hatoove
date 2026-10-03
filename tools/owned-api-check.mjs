@@ -113,6 +113,11 @@ export function createMemoryDatastore({
     if (prep.state !== 'active') fail(409, 'preparation_archived');
     return prep;
   };
+  // EXAM-S1-D, as `requireEditableContext` in the adapter: a draft is edited only in its own active preparation.
+  const requireEditableContext = (owner, attempt) => {
+    if (!attempt.preparation_id) fail(422, 'preparation_unresolved');
+    return requireActivePreparation(owner, attempt.preparation_id);
+  };
   const activePreparation = (owner, examId) => [...preparations.values()]
     .find((p) => p.owner_id === owner && p.exam_id === examId && p.state === 'active');
   const insertPreparation = (owner, examId) => {
@@ -296,10 +301,11 @@ export function createMemoryDatastore({
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1 || typeof text !== 'string' || text.length > 12000) {
         fail(422, 'invalid_draft');
       }
-      ownedAttempt(owner, id);
+      const attempt = ownedAttempt(owner, id);
       const current = drafts.get(id);
       if (current.revision !== expectedRevision) fail(409, 'draft_conflict');
       if (submissionFor(id)) fail(409, 'revision_required');
+      requireEditableContext(owner, attempt);
       const next = { revision: current.revision + 1, text };
       drafts.set(id, next);
       return { ...next };
@@ -371,10 +377,12 @@ export function createMemoryDatastore({
       adjust(owner, job.exam_id, { reserved: 1 });
     },
     // Only an unsubmitted draft can be discarded; ownership is proven first, so a foreign one stays 404.
+    // EXAM-S1-D: discarding is an edit, so an archived or unresolved context refuses it as in the adapter.
     async remove(owner, id) {
       calls.push('remove');
       const attempt = ownedAttempt(owner, id);
       if (submissionFor(id)) fail(409, 'submitted_attempt');
+      requireEditableContext(owner, attempt);
       attempt.deleted_at = new Date().toISOString();
       drafts.delete(id);
     },

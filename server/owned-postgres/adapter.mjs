@@ -139,6 +139,19 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       'SELECT * FROM entitlements WHERE owner_id = $1 AND exam_id = $2 FOR UPDATE', [owner, examId]));
   }
 
+  /**
+   * EXAM-S1-D: an unsubmitted draft may be edited or discarded only inside its own ACTIVE preparation.
+   * An archived preparation is read-only to learner practice (409 `preparation_archived`), and an
+   * unresolved legacy attempt is never edited under a guessed context (422 `preparation_unresolved`).
+   * Call AFTER `owned()` has locked the attempt: the order attempt -> preparation FOR SHARE is the one
+   * `create`/`submit` use, and archiving locks only the preparation row, so the two serialise without a
+   * cycle. Whichever commits first wins; the loser either waits and re-reads `archived`, or archives after.
+   */
+  async function requireEditableContext(client, owner, attempt) {
+    if (!attempt.preparation_id) fail(422, 'preparation_unresolved');
+    await requireActivePreparation(client, owner, attempt.preparation_id);
+  }
+
   const preparations = preparationMethods({ settle, note, catalogue: examCatalogue });
 
   // Call only after proving ownership of an attempt. These immutable historical records are
@@ -966,11 +979,12 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1 ||
           typeof text !== 'string' || text.length > TEXT_LIMIT) fail(422, 'invalid_draft');
       return settle(owner, async (client) => {
-        await owned(client, owner, id);
+        const attempt = await owned(client, owner, id);
         const current = await draftOf(client, id);
         if (!current || current.revision !== expectedRevision) fail(409, 'draft_conflict');
         const submitted = first(await client.query('SELECT id FROM submissions WHERE attempt_id = $1', [id]));
         if (submitted) fail(409, 'revision_required');
+        await requireEditableContext(client, owner, attempt);
         return first(await client.query(
           'UPDATE drafts SET revision = revision + 1, text = $2 WHERE attempt_id = $1 RETURNING revision, text', [id, text]));
       });
@@ -1094,10 +1108,12 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         // The same (owner, exam) balance lock `submit` takes first, so the two still serialise.
         const examId = await attemptExam(client, owner, id);
         if (examId) await lockBalance(client, owner, examId);
-        await owned(client, owner, id);
+        const attempt = await owned(client, owner, id);
         if (first(await client.query('SELECT id FROM submissions WHERE attempt_id = $1 LIMIT 1', [id]))) {
           fail(409, 'submitted_attempt');
         }
+        // Discarding a draft is an edit: refused while archived or unresolved (EXAM-S1-D).
+        await requireEditableContext(client, owner, attempt);
         await client.query('UPDATE attempts SET deleted_at = now() WHERE id = $1', [id]);
         await client.query('DELETE FROM drafts WHERE attempt_id = $1', [id]);
       });

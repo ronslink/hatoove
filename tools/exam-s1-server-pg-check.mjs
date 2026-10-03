@@ -20,6 +20,17 @@
  *   7. export includes all preparations and balances; hard delete removes them; a late job writes nothing.
  *   8. concurrent submissions for two exams sharing one event ID produce one success and one contract 409,
  *      one job/reservation/debit, with the winner still replayable.
+ *   9. (EXAM-S1-D) an archived preparation is read-only to learner practice: saving or deleting an unsubmitted
+ *      draft is 409 `preparation_archived` and writes nothing; foreign stays 404 and submitted stays 409; reads,
+ *      the open index and export survive; queued/running/failed submitted work still retries and completes
+ *      against the original exam ledger; unarchiving restores draft editing.
+ *  10. (EXAM-S1-D) archive vs save/delete is serialised by row locks on two real connections: a save that
+ *      holds its preparation share lock delays the archive and lands first; an uncommitted archive delays a
+ *      save and a delete, which then refuse. No deadlock.
+ *  11. (EXAM-S1-D) an UNRESOLVED legacy draft stays readable and exportable but is never edited or discarded
+ *      under a guessed context (422 `preparation_unresolved`); a provably bound legacy draft stays editable.
+ *
+ * Legs 9-11 fail against base 3f9d14e, whose save/remove did not consult the preparation.
  *
  * Usage: node tools/exam-s1-server-pg-check.mjs [--only=<text>]
  */
@@ -511,6 +522,244 @@ check('8. concurrent cross-exam event reuse has one success, one 409, and one re
     clearTimeout(timeout);
     await Promise.all(pools.map((pool) => pool.end().catch(() => {})));
     await w.teardown();
+  }
+});
+
+/*
+ * A datastore port on its own restricted learner connection. `pauseAfter(text)` holds the FIRST matching
+ * statement's transaction open (after the statement ran) until `release()`, so a test can place a second
+ * transaction behind a lock deterministically. `pids` are the backend pids, for `waitForLockWait`.
+ */
+function gatedPort(w, pools, pauseAfter = () => false) {
+  const realPool = rolePool(w.db.config, w.db.schema, w.db.roles.learner, 1);
+  pools.push(realPool);
+  let release;
+  let reached;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const arrived = new Promise((resolve) => { reached = resolve; });
+  const pids = new Set();
+  let paused = false;
+  const pool = { connect: async () => {
+    const client = await realPool.connect();
+    pids.add(client.processID);
+    return { release: () => client.release(), query: async (text, params) => {
+      const result = await client.query(text, params);
+      if (!paused && pauseAfter(String(text))) { paused = true; reached(); await gate; }
+      return result;
+    } };
+  } };
+  return { port: createPostgresDatastore({ pool, examCatalogue: catalogue }), pids, arrived, release: () => release() };
+}
+
+/** Wait until `n` of the given backends are blocked on a heavyweight lock (pg_stat_activity), or fail. */
+async function waitForLockWait(w, gated, n = 1) {
+  for (let i = 0; i < 500; i += 1) {
+    const pids = gated.flatMap((g) => [...g.pids]);
+    const waiting = (await w.sql(
+      "SELECT count(*)::int AS n FROM pg_stat_activity WHERE pid = ANY($1::int[]) AND wait_event_type = 'Lock'", [pids])).rows[0].n;
+    if (waiting >= n) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error(`expected ${n} backend(s) to wait on a row lock; none did within 10s`);
+}
+
+const draftRow = async (w, id) => (await w.sql(
+  'SELECT a.deleted_at, d.revision, d.text FROM attempts a LEFT JOIN drafts d ON d.attempt_id = a.id WHERE a.id = $1', [id])).rows[0];
+
+check('9. an archived preparation is read-only to drafts; history, export, retry and workers survive', async () => {
+  const w = await makeWorld();
+  try {
+    const a = await w.learner('archive');
+    const b = await w.learner('archive-other');
+    const create = async (who) => {
+      const created = await w.call('POST', '/api/v1/attempts', { cookie: who.cookie, body: { preparationId: who.telc.id, ...TELC_TASK } });
+      assert.equal(created.status, 201, JSON.stringify(created.json));
+      return created.json.id;
+    };
+    const save = (who, id, expectedRevision, text) => w.call('PUT', `/api/v1/attempts/${id}`, { cookie: who.cookie, body: { expectedRevision, text } });
+    const submit = async (id) => {
+      assert.equal((await save(a, id, 1, LETTER)).status, 200);
+      const sub = await w.call('POST', `/api/v1/attempts/${id}/submissions`, { cookie: a.cookie, body: { expectedRevision: 2, eventId: randomUUID() } });
+      assert.equal(sub.status, 202, JSON.stringify(sub.json));
+      return sub.json.submissionId;
+    };
+
+    const draft = await create(a);
+    assert.equal((await save(a, draft, 1, 'Entwurf vor dem Archiv')).status, 200);
+    const queuedAttempt = await create(a);
+    const queued = await submit(queuedAttempt);
+    const failed = await submit(await create(a));
+    const running = await submit(await create(a));
+    const store = w.world.store;
+    assert.equal(await store.worker.claim(failed), true);
+    assert.equal(await store.worker.fail(failed, 'provider_unavailable'), true);
+    assert.equal(await store.worker.claim(running), true);
+    const foreignDraft = await create(b);
+    assert.deepEqual(await w.balance(a.id, TELC), { allowance: 10, used: 0, reserved: 2 });
+
+    const archived = await w.call('PUT', `/api/v1/preparations/${a.telc.id}`, { cookie: a.cookie, body: { expectedRevision: 1, state: 'archived' } });
+    assert.equal(archived.json.state, 'archived');
+
+    // Refusals: none of them may write a row.
+    const before = await store.inspect.fingerprint();
+    const refused = async (label, res, status, code) => {
+      assert.equal(res.status, status, `${label}: expected ${status}, got ${res.status} ${JSON.stringify(res.json)}`);
+      assert.equal(res.json.error, code, `${label}: refusal token`);
+    };
+    await refused('archived save', await save(a, draft, 2, 'nach dem Archiv'), 409, 'preparation_archived');
+    await refused('archived delete', await w.call('DELETE', `/api/v1/attempts/${draft}`, { cookie: a.cookie, body: {} }), 409, 'preparation_archived');
+    await refused('archived submit', await w.call('POST', `/api/v1/attempts/${draft}/submissions`, { cookie: a.cookie, body: { expectedRevision: 2, eventId: randomUUID() } }), 409, 'preparation_archived');
+    await refused('archived create', await w.call('POST', '/api/v1/attempts', { cookie: a.cookie, body: { preparationId: a.telc.id, ...TELC_TASK } }), 409, 'preparation_archived');
+    await refused('stale save', await save(a, draft, 1, 'veraltet'), 409, 'draft_conflict');
+    // Submitted-snapshot semantics are unchanged by the archive.
+    await refused('submitted save', await save(a, queuedAttempt, 2, 'nachträglich'), 409, 'revision_required');
+    await refused('submitted delete', await w.call('DELETE', `/api/v1/attempts/${queuedAttempt}`, { cookie: a.cookie, body: {} }), 409, 'submitted_attempt');
+    // Foreign and absent stay indistinguishable 404s.
+    for (const id of [foreignDraft, randomUUID()]) {
+      await refused('foreign/absent save', await save(a, id, 1, 'fremd'), 404, 'not_found');
+      await refused('foreign/absent delete', await w.call('DELETE', `/api/v1/attempts/${id}`, { cookie: a.cookie, body: {} }), 404, 'not_found');
+    }
+    assert.equal(await store.inspect.fingerprint(), before, 'no refused request changed a draft, revision, attempt, balance or history row');
+    assert.deepEqual(await draftRow(w, draft), { deleted_at: null, revision: 2, text: 'Entwurf vor dem Archiv' });
+
+    // Reads survive the archive.
+    const read = await w.call('GET', `/api/v1/attempts/${draft}`, { cookie: a.cookie });
+    assert.equal(read.status, 200);
+    assert.deepEqual([read.json.revision, read.json.text], [2, 'Entwurf vor dem Archiv']);
+    const open = await w.call('GET', `/api/v1/attempts?open=1&preparationId=${a.telc.id}`, { cookie: a.cookie });
+    assert.equal(open.status, 200);
+    assert.deepEqual(open.json.attempts.map((x) => x.id), [draft], 'the archived draft is still listed as unfinished');
+    const exported = await w.call('GET', '/api/v1/export', { cookie: a.cookie });
+    assert.equal(exported.status, 200);
+    assert.equal(exported.json.attempts.find((x) => x.id === draft).text, 'Entwurf vor dem Archiv');
+    assert.equal(exported.json.preparations.find((p) => p.id === a.telc.id).state, 'archived');
+    assert.equal(exported.json.submissions.length, 3);
+
+    // Submitted work is finished under the original exam ledger: retry, running and queued all complete.
+    assert.equal((await w.call('POST', `/api/v1/submissions/${failed}/retry`, { cookie: a.cookie, body: {} })).status, 202);
+    assert.deepEqual(await w.balance(a.id, TELC), { allowance: 10, used: 0, reserved: 3 });
+    assert.equal(await store.worker.complete(running, 'fixture'), true, 'a running job completes after archive');
+    for (const id of [queued, failed]) {
+      assert.equal(await store.worker.claim(id), true);
+      assert.equal(await store.worker.complete(id, 'fixture'), true);
+    }
+    assert.deepEqual(await w.balance(a.id, TELC), { allowance: 10, used: 3, reserved: 0 }, 'every debit hit the original telc balance');
+    for (const id of [queued, failed, running]) {
+      const result = await w.call('GET', `/api/v1/submissions/${id}`, { cookie: a.cookie });
+      assert.equal(result.status, 200);
+      assert.equal(result.json.job.status, 'succeeded');
+      assert.equal(result.json.preparation_id, a.telc.id);
+    }
+
+    // An explicit state edit restores safe draft work.
+    const resumed = await w.call('PUT', `/api/v1/preparations/${a.telc.id}`, { cookie: a.cookie, body: { expectedRevision: 2, state: 'active' } });
+    assert.equal(resumed.status, 200, JSON.stringify(resumed.json));
+    const resumedSave = await save(a, draft, 2, 'nach dem Fortsetzen');
+    assert.equal(resumedSave.status, 200, JSON.stringify(resumedSave.json));
+    assert.equal(resumedSave.json.revision, 3);
+    assert.equal((await w.call('DELETE', `/api/v1/attempts/${draft}`, { cookie: a.cookie, body: {} })).status, 200);
+    assert.ok((await draftRow(w, draft)).deleted_at, 'the resumed draft could be discarded');
+    assert.deepEqual(await w.balance(a.id, TELC), { allowance: 10, used: 3, reserved: 0 }, 'discarding touched no balance');
+  } finally { await w.teardown(); }
+});
+
+check('10. archive vs save/delete is serialised by row locks, in either order, without deadlock', async () => {
+  const w = await makeWorld();
+  const pools = [];
+  const gated = [];
+  const pending = [];
+  try {
+    const a = await w.learner('archive-race');
+    const created = await w.call('POST', '/api/v1/attempts', { cookie: a.cookie, body: { preparationId: a.telc.id, ...TELC_TASK } });
+    assert.equal(created.status, 201, JSON.stringify(created.json));
+    const draft = created.json.id;
+    assert.equal((await w.call('PUT', `/api/v1/attempts/${draft}`, { cookie: a.cookie, body: { expectedRevision: 1, text: 'eins' } })).status, 200);
+    const balanceBefore = await w.balance(a.id, TELC);
+
+    // A: the save holds its preparation share lock; the archive must wait for it, and the save lands.
+    const saver = gatedPort(w, pools, (text) => text.includes('FOR SHARE OF p'));
+    const archiver = gatedPort(w, pools);
+    gated.push(saver, archiver);
+    const saving = saver.port.save(a.id, draft, 2, 'vor dem Archiv gespeichert');
+    pending.push(saving);
+    await saver.arrived;
+    const archiving = archiver.port.updatePreparation(a.id, a.telc.id, 1, { state: 'archived' });
+    pending.push(archiving);
+    await waitForLockWait(w, [archiver], 1);
+    saver.release();
+    const [saved, archivedA] = await Promise.all([saving, archiving]);
+    assert.equal(saved.revision, 3, 'the save that held the lock first committed');
+    assert.equal(archivedA.state, 'archived', 'and the archive committed after it');
+    assert.deepEqual(await draftRow(w, draft), { deleted_at: null, revision: 3, text: 'vor dem Archiv gespeichert' });
+    const late = await w.call('PUT', `/api/v1/attempts/${draft}`, { cookie: a.cookie, body: { expectedRevision: 3, text: 'danach' } });
+    assert.equal(late.json.error, 'preparation_archived', 'after the archive commits, the next save refuses');
+
+    const resumed = await w.call('PUT', `/api/v1/preparations/${a.telc.id}`, { cookie: a.cookie, body: { expectedRevision: 2, state: 'active' } });
+    assert.equal(resumed.status, 200, JSON.stringify(resumed.json));
+
+    // B: an uncommitted archive holds the preparation; a save AND a delete wait, then both refuse.
+    const archiver2 = gatedPort(w, pools, (text) => text.includes('UPDATE learner_preparation'));
+    const saver2 = gatedPort(w, pools);
+    const remover = gatedPort(w, pools);
+    gated.push(archiver2, saver2, remover);
+    const archiving2 = archiver2.port.updatePreparation(a.id, a.telc.id, 3, { state: 'archived' });
+    pending.push(archiving2);
+    await archiver2.arrived;
+    const outcomes = Promise.allSettled([saver2.port.save(a.id, draft, 3, 'zu spät'), remover.port.remove(a.id, draft)]);
+    pending.push(outcomes);
+    await waitForLockWait(w, [saver2, remover], 2);
+    archiver2.release();
+    assert.equal((await archiving2).state, 'archived');
+    for (const outcome of await outcomes) {
+      assert.equal(outcome.status, 'rejected', 'a write queued behind the archive must not land');
+      assert.equal(outcome.reason.status, 409, String(outcome.reason && outcome.reason.stack));
+      assert.equal(outcome.reason.code, 'preparation_archived');
+    }
+    assert.deepEqual(await draftRow(w, draft), { deleted_at: null, revision: 3, text: 'vor dem Archiv gespeichert' }, 'nothing written behind the archive');
+    assert.deepEqual(await w.balance(a.id, TELC), balanceBefore, 'no balance touched');
+  } finally {
+    for (const g of gated) g.release();
+    await Promise.allSettled(pending);
+    await Promise.all(pools.map((pool) => pool.end().catch(() => {})));
+    await w.teardown();
+  }
+});
+
+check('11. an unresolved legacy draft is readable and exportable but never edited under a guessed context', async () => {
+  const db = await createFixture({ stopBefore: '0023-' });
+  const sql = (text, params) => db.admin.query(text, params);
+  try {
+    const owner = `user-legacy-draft-${randomUUID().slice(0, 8)}`;
+    await sql(`INSERT INTO "user"(id, name, email, "emailVerified", "createdAt", "updatedAt")
+               VALUES($1, 'Legacy', $2, false, now(), now())`, [owner, `${owner}@example.invalid`]);
+    const b = DEFAULT_TASK_BINDING;
+    const bound = randomUUID();
+    const unbound = randomUUID();
+    await sql('INSERT INTO attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version) VALUES($1, $2, $3, $4, $5, $6)',
+      [bound, owner, b.taskId, b.taskVersion, b.rubricId, b.rubricVersion]);
+    await sql("INSERT INTO attempts(id, owner_id, task_version, rubric_version) VALUES($1, $2, 'legacy', 'legacy')", [unbound, owner]);
+    await sql("INSERT INTO drafts(attempt_id, revision, text) VALUES($1, 1, 'Gebundener Entwurf'), ($2, 1, 'Alter Entwurf')", [bound, unbound]);
+    await db.applyRemaining();
+    assert.equal((await sql('SELECT preparation_id FROM attempts WHERE id = $1', [unbound])).rows[0].preparation_id, null, 'precondition: unresolved');
+
+    const port = createPostgresDatastore({ pool: db.learner });
+    const read = await port.read(owner, unbound);
+    assert.deepEqual([read.preparation_id, read.revision, read.text], [null, 1, 'Alter Entwurf'], 'readable without a guessed context');
+    const fingerprint = async () => JSON.stringify((await sql(
+      `SELECT a.id, a.deleted_at, a.preparation_id, d.revision, d.text FROM attempts a LEFT JOIN drafts d ON d.attempt_id = a.id
+        WHERE a.owner_id = $1 ORDER BY a.id`, [owner])).rows);
+    const before = await fingerprint();
+    await assert.rejects(port.save(owner, unbound, 1, 'geraten'), { status: 422, code: 'preparation_unresolved' });
+    await assert.rejects(port.remove(owner, unbound), { status: 422, code: 'preparation_unresolved' });
+    await assert.rejects(port.save(`user-stranger-${randomUUID().slice(0, 8)}`, unbound, 1, 'fremd'), { status: 404, code: 'not_found' });
+    assert.equal(await fingerprint(), before, 'refused legacy edits wrote nothing');
+    const exported = await port.exportData(owner);
+    const row = exported.attempts.find((x) => x.id === unbound);
+    assert.deepEqual([row.preparation_id, row.exam_id, row.text], [null, null, 'Alter Entwurf'], 'exported with explicit null context');
+    // The provably bound legacy draft lives in an active preparation and stays editable.
+    assert.equal((await port.save(owner, bound, 1, 'weiter')).revision, 2);
+  } finally {
+    await db.cleanup();
   }
 });
 
