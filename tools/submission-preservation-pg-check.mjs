@@ -11,6 +11,7 @@ import { createOwnedApi } from '../server/owned-api.mjs';
 import { createPostgresDatastore } from '../server/owned-postgres/adapter.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { rolePool, pgConfig } from '../server/owned-postgres/bootstrap.mjs';
+import { INITIAL_EXAM_ID } from '../server/preparation-contract.mjs';
 
 assert.equal(process.env.OWNAPI_PG_ALLOW, '1', 'confirm a disposable DB with OWNAPI_PG_ALLOW=1');
 for (const key of ['OWNAPI_PG_HOST', 'OWNAPI_PG_PORT', 'OWNAPI_PG_DATABASE', 'OWNAPI_PG_USER']) assert.ok(process.env[key], `${key} is required`);
@@ -40,10 +41,15 @@ async function learner(name) {
   expect(signup);
   const who = { cookie: signup.cookie };
   who.id = expect(await call('GET', '/api/v1/account', who)).id;
-  assert.ok(who.id); return who;
+  assert.ok(who.id);
+  // EXAM-S1: registration provisioned exactly one active telc preparation; every new attempt names it.
+  const preps = expect(await call('GET', '/api/v1/preparations', who)).preparations.filter(p => p.state === 'active');
+  assert.equal(preps.length, 1); assert.equal(preps[0].exam_id, INITIAL_EXAM_ID);
+  who.prep = preps[0].id; return who;
 }
 async function draft(who, text) {
-  const attempt = expect(await call('POST', '/api/v1/attempts', who), 201);
+  const attempt = expect(await call('POST', '/api/v1/attempts', who, { preparationId: who.prep }), 201);
+  assert.equal(attempt.preparation_id, who.prep); assert.equal(attempt.exam_id, INITIAL_EXAM_ID);
   const saved = expect(await call('PUT', `/api/v1/attempts/${attempt.id}`, who, { expectedRevision: 1, text }));
   return { ...attempt, revision: saved.revision, text };
 }
@@ -54,13 +60,21 @@ async function submitted(who, text) {
   const attempt = await draft(who, text);
   return { ...attempt, submissionId: expect(await submit(who, attempt), 202).submissionId };
 }
+/** Per (owner, exam): reservations match live jobs of THAT exam, and used matches that exam's debits. */
 async function balanced(owner) {
-  const row = (await db.admin.query(`SELECT e.reserved, e.used,
-      (SELECT count(*)::int FROM jobs j WHERE j.owner_id=e.owner_id AND j.status IN ('queued','running')) AS pending,
-      (SELECT count(*)::int FROM usage_ledger u WHERE u.owner_id=e.owner_id) AS debits
-    FROM entitlements e WHERE e.owner_id=$1`, [owner])).rows[0];
-  assert.equal(row.reserved, row.pending, 'every reservation must have a live job, and every live job a reservation');
-  assert.equal(row.used, row.debits, 'completed work must have exactly its recorded debit');
+  const rows = (await db.admin.query(`SELECT e.exam_id, e.reserved, e.used,
+      (SELECT count(*)::int FROM jobs j WHERE j.owner_id=e.owner_id AND j.exam_id=e.exam_id AND j.status IN ('queued','running')) AS pending,
+      (SELECT count(*)::int FROM usage_ledger u JOIN jobs j ON j.submission_id=u.submission_id
+        WHERE u.owner_id=e.owner_id AND j.exam_id=e.exam_id) AS debits
+    FROM entitlements e WHERE e.owner_id=$1 ORDER BY e.exam_id`, [owner])).rows;
+  assert.ok(rows.length >= 1, 'the registered owner has a balance');
+  for (const row of rows) {
+    assert.equal(row.reserved, row.pending, `${row.exam_id}: every reservation must have a live job, and every live job a reservation`);
+    assert.equal(row.used, row.debits, `${row.exam_id}: completed work must have exactly its recorded debit`);
+  }
+  const orphans = (await db.admin.query(`SELECT count(*)::int AS n FROM jobs j WHERE j.owner_id=$1
+      AND NOT EXISTS (SELECT 1 FROM entitlements e WHERE e.owner_id=j.owner_id AND e.exam_id=j.exam_id)`, [owner])).rows[0].n;
+  assert.equal(orphans, 0, 'no job reserves against a balance that does not exist');
 }
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 async function bounded(promise, label) {
@@ -136,6 +150,7 @@ try {
   // Exercise preservation using the deliberately unreviewed synthetic fixture.
   process.env.B1PREP_CONTENT_MODE = 'internal-preview';
   const a = await learner('Owner A'), b = await learner('Owner B');
+  const foreignWho = who => (who === a ? b : a);
   await check('preconditions: handler uses a non-superuser, non-bypass learner role with FORCE RLS', async () => {
     const actual = (await db.learner.query('SELECT current_user AS name, rolsuper, rolbypassrls FROM pg_roles WHERE rolname=current_user')).rows[0];
     assert.equal(actual.name, db.roles.learner); assert.equal(actual.rolsuper, false); assert.equal(actual.rolbypassrls, false);
@@ -196,6 +211,11 @@ try {
       const resultRow = exported.results.find(row => row.submission_id === mine.submissionId);
       assert.equal(submittedRow.text, mine.text); assert.equal(submittedRow.attempt_deleted_at, '2026-01-02T03:04:05.000Z');
       assert.equal(resultRow.status, 'succeeded'); assert.equal(resultRow.attempt_deleted_at, submittedRow.attempt_deleted_at);
+      // EXAM-S1: a tombstoned submission keeps its context and the balance it settled against.
+      assert.equal(submittedRow.preparation_id, who.prep); assert.equal(submittedRow.exam_id, INITIAL_EXAM_ID);
+      assert.equal(resultRow.credit_exam_id, INITIAL_EXAM_ID);
+      assert.deepEqual(exported.preparations.map(row => row.id), [who.prep], 'exactly the own preparation');
+      assert.equal(JSON.stringify(exported).includes(foreignWho(who).prep), false, "another owner's preparation never appears");
       const stored = (await db.admin.query('SELECT feedback FROM assessments WHERE submission_id=$1', [mine.submissionId])).rows[0];
       assert.deepEqual(resultRow.feedback, stored.feedback);
       assert.equal(exported.attempts.some(row => row.id === mine.id), false, 'a legacy tombstone is not offered as a live draft');

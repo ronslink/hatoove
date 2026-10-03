@@ -34,6 +34,7 @@ import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createWorker, stubGrade } from '../server/owned-postgres/worker.mjs';
 import { TELC_B1_WRITING_RUBRIC } from '../server/owned-postgres/content-seed.mjs';
+import { INITIAL_EXAM_ID } from '../server/preparation-contract.mjs';
 
 /* =============================================================== the world */
 
@@ -54,7 +55,9 @@ const assessmentCount = async (submissionId) =>
   (await one('SELECT count(*)::int AS n FROM assessments WHERE submission_id = $1', [submissionId])).n;
 const assessmentOf = (submissionId) => one('SELECT * FROM assessments WHERE submission_id = $1', [submissionId]);
 const ledgerOf = (submissionId) => one('SELECT * FROM usage_ledger WHERE submission_id = $1', [submissionId]);
-const entitlement = (owner) => one('SELECT * FROM entitlements WHERE owner_id = $1', [owner]);
+/** The (owner, exam) balance. EXAM-S1: every account here registered for telc only. */
+const entitlement = (owner, examId = INITIAL_EXAM_ID) =>
+  one('SELECT * FROM entitlements WHERE owner_id = $1 AND exam_id = $2', [owner, examId]);
 const jobCountFor = async (owner) => (await one('SELECT count(*)::int AS n FROM jobs WHERE owner_id = $1', [owner])).n;
 const queuedCount = async () =>
   (await one("SELECT count(*)::int AS n FROM jobs WHERE status = 'queued'")).n;
@@ -90,13 +93,18 @@ async function signUp(call, tag) {
   assert.equal(res.status, 200, `sign-up ${tag}: ${res.status}`);
   const cookie = cookieOf(res);
   const who = await call('GET', '/api/v1/account', { cookie });
-  return { cookie, userId: who.json.id, email };
+  // EXAM-S1: the registered preparation travels with the cookie, so every attempt below names it.
+  const preps = (await call('GET', '/api/v1/preparations', { cookie })).json.preparations.filter((p) => p.state === 'active');
+  assert.equal(preps.length, 1, `sign-up ${tag}: one active preparation`);
+  return { cookie, userId: who.json.id, preparationId: preps[0].id, email };
 }
 
-/** One submitted attempt through the real API; returns the ids an assertion needs. */
-async function submit(call, cookie, text, eventId = randomUUID()) {
-  const created = await call('POST', '/api/v1/attempts', { cookie, body: {} });
-  assert.equal(created.status, 201, `create: ${created.status}`);
+/** One submitted attempt through the real API, in the account's own preparation; returns the ids an assertion needs. */
+async function submit(call, account, text, eventId = randomUUID()) {
+  const { cookie, preparationId } = account;
+  const created = await call('POST', '/api/v1/attempts', { cookie, body: { preparationId } });
+  assert.equal(created.status, 201, `create: ${created.status} ${JSON.stringify(created.json)}`);
+  assert.equal(created.json.preparation_id, preparationId);
   const saved = await call('PUT', `/api/v1/attempts/${created.json.id}`, { cookie, body: { expectedRevision: 1, text } });
   assert.equal(saved.status, 200, `save: ${saved.status}`);
   const sent = await call('POST', `/api/v1/attempts/${created.json.id}/submissions`,
@@ -163,11 +171,12 @@ async function drain(max = 25) {
 check('1. full pipeline: submit debits once, runOnce grades, result() returns the assessment', async () => {
   const call = caller(world.api);
   const a = await signUp(call, 'p1');
-  const s = await submit(call, a.cookie, 'Liebe Frau Weber, ich schreibe Ihnen wegen eines Termins.');
+  const s = await submit(call, a, 'Liebe Frau Weber, ich schreibe Ihnen wegen eines Termins.');
 
   const before = await jobRow(s.submissionId);
   assert.equal(before.status, 'queued', 'a fresh submission is queued');
   assert.equal(before.tries, 0);
+  assert.equal(before.exam_id, INITIAL_EXAM_ID, "the job records the attempt's exam as the balance it reserved from");
   const entBefore = await entitlement(a.userId);
   assert.equal(entBefore.reserved, 1, 'submit reserves exactly one allowance');
   assert.equal(entBefore.used, 0);
@@ -197,6 +206,7 @@ check('1. full pipeline: submit debits once, runOnce grades, result() returns th
   const result = await call('GET', `/api/v1/submissions/${s.submissionId}`, { cookie: a.cookie });
   assert.equal(result.status, 200);
   assert.equal(result.json.job.status, 'succeeded');
+  assert.deepEqual([result.json.preparation_id, result.json.exam_id], [a.preparationId, INITIAL_EXAM_ID], 'the result carries its context');
   // The assertion below compares against the SAME shape the injected grader produced, from the same input.
   assert.deepEqual(result.json.assessment.feedback,
     stubGrade({ text: 'Liebe Frau Weber, ich schreibe Ihnen wegen eines Termins.' }).feedback,
@@ -207,7 +217,7 @@ check('1. full pipeline: submit debits once, runOnce grades, result() returns th
 check('2. idempotency: a replayed event_id creates no second job and no second debit', async () => {
   const call = caller(world.api);
   const a = await signUp(call, 'p2');
-  const s = await submit(call, a.cookie, 'Text für den Idempotenz-Test.');
+  const s = await submit(call, a, 'Text für den Idempotenz-Test.');
   const jobsBefore = await jobCountFor(a.userId);
   const entBefore = await entitlement(a.userId);
 
@@ -229,7 +239,7 @@ check('3. retry path: a throwing grader fails with a stable code, releases the r
   const call = caller(world.api);
   await drain();
   const a = await signUp(call, 'p3');
-  const s = await submit(call, a.cookie, 'Text für den Wiederholungs-Test.');
+  const s = await submit(call, a, 'Text für den Wiederholungs-Test.');
 
   const throwing = () => { const error = new Error('stub grader unavailable'); error.code = 'grader_unavailable'; throw error; };
   const worker = createWorker({ pool: db.worker, grade: throwing });
@@ -286,7 +296,7 @@ check('3b. an assessment carrying a score, a total or a pass band fails the job 
   const seen = [];
   for (const [what, assessment] of refused) {
     const a = await signUp(call, 'p3b');
-    const s = await submit(call, a.cookie, 'Text für die Assessment-Form.');
+    const s = await submit(call, a, 'Text für die Assessment-Form.');
     const outcome = await createWorker({ pool: db.worker, grade: () => assessment }).runOnce();
     assert.equal(outcome.outcome, 'failed', `${what} must FAIL the job, got ${outcome.outcome}`);
     assert.equal(outcome.code, 'invalid_assessment', `${what} must fail with invalid_assessment, got ${outcome.code}`);
@@ -300,7 +310,7 @@ check('3b. an assessment carrying a score, a total or a pass band fails the job 
 
   // THE CONTROL: the shipped stub is accepted, so this validator is not refusing everything.
   const control = await signUp(call, 'p3c');
-  const controlSubmission = await submit(call, control.cookie, 'Kontrolltext für den Stub.');
+  const controlSubmission = await submit(call, control, 'Kontrolltext für den Stub.');
   const ok = await createWorker({ pool: db.worker }).runOnce();
   assert.equal(ok.outcome, 'succeeded', `the shipped stub must still grade, got ${ok.outcome}`);
   assert.equal(await assessmentCount(controlSubmission.submissionId), 1, 'the stub assessment is stored');
@@ -326,7 +336,7 @@ check('3c. the telc rubric: one band per criterion, evidence quoted from the tex
   await drain();
   const a = await signUp(call, 'p3c');
   const text = 'Liebe Anna, ich freue mich über deinen Besuch. Am Samstag habe ich Zeit. Wir können ins Museum gehen.';
-  const s = await submit(call, a.cookie, text);
+  const s = await submit(call, a,text);
 
   const outcome = await createWorker({ pool: db.worker }).runOnce();
   assert.equal(outcome.outcome, 'succeeded',
@@ -398,7 +408,7 @@ check('3d. a band assessment that breaks the contract fails the job and stores n
   const seen = [];
   for (const [what, build] of cases) {
     const a = await signUp(call, 'p3d');
-    const s = await submit(call, a.cookie, `Text für ${what}. Am Samstag habe ich Zeit.`);
+    const s = await submit(call, a, `Text für ${what}. Am Samstag habe ich Zeit.`);
     const grade = () => ({ feedback: build(), modelVersion: 'test', promptVersion: 'test' });
     const outcome = await createWorker({ pool: db.worker, grade }).runOnce();
     assert.equal(outcome.outcome, 'failed', `${what}: must fail the job, got ${outcome.outcome}`);
@@ -409,7 +419,7 @@ check('3d. a band assessment that breaks the contract fails the job and stores n
   }
   // THE CONTROL: the shipped stub passes the same gate, so this leg cannot be satisfied by refusing all.
   const control = await signUp(call, 'p3d-control');
-  const controlSubmission = await submit(call, control.cookie, 'Kontrolltext. Am Samstag habe ich Zeit.');
+  const controlSubmission = await submit(call, control, 'Kontrolltext. Am Samstag habe ich Zeit.');
   const ok = await createWorker({ pool: db.worker }).runOnce();
   assert.equal(ok.outcome, 'succeeded', `the shipped stub must still grade, got ${ok.outcome} ${ok.code || ''}`);
   assert.equal(await assessmentCount(controlSubmission.submissionId), 1);
@@ -434,7 +444,7 @@ check('3e. the explanation language is snapshotted at submit time and never rewr
   });
   assert.equal(set.status, 200, `setting the explanation language: ${set.status} ${JSON.stringify(set.json)}`);
 
-  const s = await submit(call, a.cookie, 'Текст для перевірки. Am Samstag habe ich Zeit.');
+  const s = await submit(call, a, 'Текст для перевірки. Am Samstag habe ich Zeit.');
   let seen = null;
   const grade = (input) => { seen = input; return stubGrade(input); };
   const outcome = await createWorker({ pool: db.worker, grade }).runOnce();
@@ -456,7 +466,7 @@ check('4. retry limit: retry() works at tries=2 and is refused at tries=3 (the b
   const call = caller(world.api);
   await drain();
   const a = await signUp(call, 'p4');
-  const s = await submit(call, a.cookie, 'Text für das Wiederholungslimit.');
+  const s = await submit(call, a, 'Text für das Wiederholungslimit.');
   const throwing = () => { const error = new Error('stub grader unavailable'); error.code = 'grader_unavailable'; throw error; };
   const worker = createWorker({ pool: db.worker, grade: throwing });
 
@@ -484,7 +494,7 @@ check('5. lease fence: a worker whose lease lapsed cannot commit; the assessment
   const call = caller(world.api);
   await drain();
   const a = await signUp(call, 'p5');
-  const s = await submit(call, a.cookie, 'Text für die Lease-Fence.');
+  const s = await submit(call, a, 'Text für die Lease-Fence.');
   const clock = makeClock();
 
   let releaseA = null;
@@ -531,7 +541,7 @@ check('6. reclaimExpired(): lapsed -> queued, and lapsed past maxTries -> failed
 
   // (a) an abandoned job returns to queued and keeps its reservation for the retry
   const a = await signUp(call, 'p6a');
-  const s1 = await submit(call, a.cookie, 'Abandoned then requeued.');
+  const s1 = await submit(call, a, 'Abandoned then requeued.');
   const clock1 = makeClock();
   const hanging1 = createWorker({ pool: db.worker, grade: hangingGrade, now: clock1.now, leaseMs: 60000 });
   float(hanging1.runOnce()); // claimed; never commits (the grade hangs)
@@ -550,7 +560,7 @@ check('6. reclaimExpired(): lapsed -> queued, and lapsed past maxTries -> failed
 
   // (b) an abandoned job at maxTries is failed and its reservation released
   const b = await signUp(call, 'p6b');
-  const s2 = await submit(call, b.cookie, 'Abandoned until exhausted.');
+  const s2 = await submit(call, b, 'Abandoned until exhausted.');
   const clock2 = makeClock();
   const hanging2 = createWorker({ pool: db.worker, grade: hangingGrade, now: clock2.now, leaseMs: 60000 });
   // Three claims, each abandoned while the lease lapses, driving tries to maxTries.
@@ -576,7 +586,7 @@ check('7. concurrency: two runOnce() against one queued job — exactly one clai
   const call = caller(world.api);
   await drain();
   const a = await signUp(call, 'p7');
-  const s = await submit(call, a.cookie, 'Text für die Nebenläufigkeit.');
+  const s = await submit(call, a, 'Text für die Nebenläufigkeit.');
   const jobsBefore = await jobCountFor(a.userId);
 
   const clock = makeClock();
@@ -616,7 +626,7 @@ check('X1. server/worker.mjs --once is a real process that drains one queued job
   const call = caller(world.api);
   await drain();
   const a = await signUp(call, 'pcli');
-  const s = await submit(call, a.cookie, 'Text für die echte Prozess-Ausführung.');
+  const s = await submit(call, a, 'Text für die echte Prozess-Ausführung.');
   assert.equal((await jobRow(s.submissionId)).status, 'queued');
 
   const cliPath = path.resolve(fileURLToPath(new URL('../server/worker.mjs', import.meta.url)));

@@ -18,8 +18,9 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-import { persistentConfig, persistentRolePool } from '../server/owned-postgres/provision.mjs';
+import { migrate, persistentConfig, persistentRolePool } from '../server/owned-postgres/provision.mjs';
 import { stubGrade } from '../server/owned-postgres/worker.mjs';
+import { INITIAL_EXAM_ID } from '../server/preparation-contract.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FORBIDDEN = new Set(['postgres', 'template0', 'template1']);
@@ -103,8 +104,15 @@ async function signUp(call, tag) {
   expect(res);
   const who = expect(await call(jar, 'GET', '/api/v1/account'));
   assert.ok(who.id, 'a synthetic account must resolve before its journey starts');
-  return { jar, email, password, userId: who.id, res, ok: true };
+  // EXAM-S1: registration provisions exactly one active telc preparation; the journey practises in it.
+  const preps = expect(await call(jar, 'GET', '/api/v1/preparations')).preparations.filter((p) => p.state === 'active');
+  assert.equal(preps.length, 1, 'registration provisions one active preparation');
+  assert.equal(preps[0].exam_id, INITIAL_EXAM_ID);
+  return { jar, email, password, userId: who.id, prep: preps[0], res, ok: true };
 }
+
+/** `pathName` scoped to the account's preparation, as every practice/history/catalogue read must be. */
+const inPrep = (account, pathName) => `${pathName}${pathName.includes('?') ? '&' : '?'}preparationId=${account.prep.id}`;
 
 function expect(response, status = 200) {
   assert.equal(response.status, status, `expected HTTP ${status}; got ${response.status}: ${response.text.slice(0, 160)}`);
@@ -130,26 +138,40 @@ leg('J2', 'first-run setup preserves the supported explanation language', 'MFP-0
   const a = ctx.accounts.j1;
   const before = expect(await ctx.call(a.jar, 'GET', '/api/v1/settings'));
   assert.equal(before.settings.language, 'de');
+  // EXAM-S1: the exam date is set on the PREPARATION. Settings refuse it and keep the legacy value read-only.
+  const legacy = expect(await ctx.call(a.jar, 'PUT', '/api/v1/settings',
+    { body: { expectedRevision: before.revision, settings: { examDate: '2027-03-15', language: 'uk' } } }), 422);
+  assert.equal(legacy.error, 'invalid_settings');
+  assert.deepEqual(expect(await ctx.call(a.jar, 'GET', '/api/v1/settings')), before, 'the refused write changed nothing');
+  const dated = expect(await ctx.call(a.jar, 'PUT', `/api/v1/preparations/${a.prep.id}`,
+    { body: { expectedRevision: a.prep.revision, examDate: '2027-03-15' } }));
+  assert.equal(dated.exam_date, '2027-03-15');
+  assert.equal(dated.revision, a.prep.revision + 1);
+  a.prep = dated;
   const saved = expect(await ctx.call(a.jar, 'PUT', '/api/v1/settings',
-    { body: { expectedRevision: before.revision, settings: { examDate: '2027-03-15', language: 'uk' } } }));
+    { body: { expectedRevision: before.revision, settings: { language: 'uk' } } }));
   assert.equal(saved.revision, before.revision + 1);
-  assert.equal(saved.settings.examDate, '2027-03-15');
+  assert.equal(saved.settings.examDate, before.settings.examDate, 'the legacy date is never written by settings');
   assert.equal(saved.settings.language, 'uk');
   assert.deepEqual(expect(await ctx.call(a.jar, 'GET', '/api/v1/settings')), saved);
   expect(await ctx.call(a.jar, 'PUT', '/api/v1/settings',
     { body: { expectedRevision: saved.revision, settings: { language: 'fr' } } }), 422);
   assert.deepEqual(expect(await ctx.call(a.jar, 'GET', '/api/v1/settings')), saved);
-  return pass('German default, Ukrainian selection, revision round-trip; unsupported language writes nothing');
+  assert.equal(expect(await ctx.call(a.jar, 'GET', `/api/v1/preparations/${a.prep.id}`)).exam_date, '2027-03-15');
+  return pass('German default, Ukrainian selection, revision round-trip; exam date on the preparation; settings examDate refused and unchanged');
 });
 
 leg('J3', 'discover and reopen an owned saved draft through history', 'MFP-05b', async (ctx) => {
   const a = ctx.accounts.j1;
-  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} }), 201);
+  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: { preparationId: a.prep.id } }), 201);
+  assert.equal(created.preparation_id, a.prep.id);
   const text = 'Liebe Freundin, ich freue mich auf deinen Besuch. Viele Grüße.';
   const saved = expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${created.id}`,
     { body: { expectedRevision: created.revision, text } }));
-  const history = expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts')).attempts;
-  const open = expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts?open=1')).attempts;
+  const history = expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/attempts'))).attempts;
+  const open = expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/attempts?open=1'))).attempts;
+  // History has no all-preparations default: an unscoped index is refused rather than widened.
+  assert.equal(expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts'), 422).error, 'preparation_required');
   assert.ok(Array.isArray(history) && Array.isArray(open));
   assert.equal(history.length, 1);
   assert.equal(history[0].id, created.id);
@@ -158,29 +180,31 @@ leg('J3', 'discover and reopen an owned saved draft through history', 'MFP-05b',
   assert.deepEqual(open.map(row => row.id), [created.id]);
   assert.equal('text' in history[0], false, 'the index must not expose draft bodies');
   assert.equal(expect(await ctx.call(a.jar, 'GET', `/api/v1/attempts/${created.id}`)).text, text);
-  expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts?status=queued'), 422);
+  expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/attempts?status=queued')), 422);
   ctx.dashboardDraft = { id: created.id, text };
   return pass('history/open indexes contain the saved revision; by-id read returns exact text; obsolete filter refused');
 });
 
 leg('J4', 'choose a servable writing task through either supported family form', 'MFP-05a', async (ctx) => {
   const a = ctx.accounts.j1;
-  const tasks = expect(await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=SA1'));
-  const byKind = expect(await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=writing'));
+  const tasks = expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/tasks?family=SA1')));
+  const byKind = expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/tasks?family=writing')));
   assert.ok(Array.isArray(tasks) && tasks.length > 0, 'writing catalogue must be nonempty');
   assert.deepEqual(tasks, byKind, 'writing part and kind must select the same versions');
   for (const task of tasks) {
     assert.equal(task.family, 'writing');
+    assert.equal(task.exam_id, a.prep.exam_id, "the catalogue offers only the preparation's exam");
     assert.ok(task.task_id && task.version && task.rubric_id && task.rubric_version);
     assert.ok(['approved', 'unreviewed'].includes(task.review_status));
   }
-  expect(await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=sa1'), 422);
+  expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/tasks?family=sa1')), 422);
+  expect(await ctx.call(a.jar, 'GET', '/api/v1/tasks?family=SA1'), 422);
   return pass(`${tasks.length} bound writing versions; SA1 and writing agree; invalid casing refused`);
 });
 
 leg('J5', 'save exact text; reject stale and foreign draft access', 'MFP-05a', async (ctx) => {
   const a = await signUp(ctx.call, 'j5');
-  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} }), 201);
+  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: { preparationId: a.prep.id } }), 201);
   const text = 'Sehr geehrte Damen und Herren, ich schreibe wegen des Kurses.';
   const saved = expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${created.id}`,
     { body: { expectedRevision: created.revision, text } }));
@@ -198,7 +222,7 @@ leg('J5', 'save exact text; reject stale and foreign draft access', 'MFP-05a', a
 
 leg('J6', 'submit an immutable text; duplicate requests return one pending submission', 'MFP-05a', async (ctx) => {
   const a = await signUp(ctx.call, 'j6');
-  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} }), 201);
+  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: { preparationId: a.prep.id } }), 201);
   const text = 'Ein vollständiger Aufsatz für die Abgabe.';
   const saved = expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${created.id}`,
     { body: { expectedRevision: created.revision, text } }));
@@ -209,10 +233,10 @@ leg('J6', 'submit an immutable text; duplicate requests return one pending submi
   const result = expect(await ctx.call(a.jar, 'GET', `/api/v1/submissions/${sent.submissionId}`));
   assert.equal(result.job.status, 'queued'); assert.equal(result.submission.text, text);
   assert.equal(result.assessment, null);
-  const history = expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts')).attempts;
+  const history = expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/attempts'))).attempts;
   assert.equal(history.length, 1); assert.equal(history[0].status, 'pending');
   assert.equal(history[0].submission_id, sent.submissionId);
-  assert.deepEqual(expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts?open=1')).attempts, []);
+  assert.deepEqual(expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/attempts?open=1'))).attempts, []);
   return pass('same event returns same submission; immutable text queued, indexed as pending, excluded from drafts');
 });
 
@@ -221,7 +245,7 @@ leg('J7', 'worker keeps the snapshotted explanation language and debits exactly 
   const settings = expect(await ctx.call(a.jar, 'GET', '/api/v1/settings'));
   const selected = expect(await ctx.call(a.jar, 'PUT', '/api/v1/settings',
     { body: { expectedRevision: settings.revision, settings: { language: 'ar' } } }));
-  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: {} }), 201);
+  const created = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts', { body: { preparationId: a.prep.id } }), 201);
   const submittedText = 'Liebe Frau Berger, ich bedanke mich für den Kurs. Ich möchte am nächsten Dienstag kommen und bringe alle Unterlagen mit. Viele Grüße.';
   const saved = expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${created.id}`,
     { body: { expectedRevision: created.revision, text: submittedText } }));
@@ -251,6 +275,7 @@ leg('J7', 'worker keeps the snapshotted explanation language and debits exactly 
     assert.equal(last.submission.explanation_language, 'ar');
     assert.equal(last.assessment.model_version, expected.modelVersion);
     assert.deepEqual(last.assessment.feedback, expected.feedback);
+    assert.deepEqual([last.preparation_id, last.exam_id], [a.prep.id, a.prep.exam_id], 'the result carries its preparation context');
     assert.equal(await ctx.assessmentCount(submissionId), 1);
     assert.equal(await ctx.ledgerUnits(submissionId), 1);
     const after = await ctx.entitlement(a.userId);
@@ -270,7 +295,7 @@ leg('J8', 'fresh sign-in discovers exact feedback and saves a separate revision'
   expect(await ctx.call(oldJar, 'GET', '/api/v1/account'), 401);
   a.jar = newJar();
   expect(await ctx.call(a.jar, 'POST', '/api/auth/sign-in/email', { body: { email: a.email, password: a.password } }));
-  const history = expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts')).attempts;
+  const history = expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/attempts'))).attempts;
   assert.ok(Array.isArray(history)); assert.equal(history.length, 1);
   const row = history[0];
   assert.equal(row.id, original.attempt.id); assert.equal(row.status, 'assessed');
@@ -279,50 +304,57 @@ leg('J8', 'fresh sign-in discovers exact feedback and saves a separate revision'
   assert.equal(result.submission.text, original.text);
   assert.deepEqual(result.assessment.feedback, original.result.assessment.feedback);
   assert.deepEqual(result.task, original.result.task); assert.deepEqual(result.rubric, original.result.rubric);
-  expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts?status=succeeded'), 422);
+  expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/attempts?status=succeeded')), 422);
+  // A revision names no preparation: it inherits the parent's exact context.
   const revision = expect(await ctx.call(a.jar, 'POST', '/api/v1/attempts',
     { body: { parentSubmissionId: original.submissionId } }), 201);
   assert.equal(revision.text, original.text);
+  assert.deepEqual([revision.preparation_id, revision.exam_id], [original.attempt.preparation_id, original.attempt.exam_id]);
   for (const field of ['task_id', 'task_version', 'rubric_id', 'rubric_version']) assert.equal(revision[field], original.attempt[field]);
   const text = original.text + '\nÜberarbeitete Fassung: Ich freue mich auf Ihre Antwort.';
   expect(await ctx.call(a.jar, 'PUT', `/api/v1/attempts/${revision.id}`, { body: { expectedRevision: revision.revision, text } }));
   assert.equal(expect(await ctx.call(a.jar, 'GET', `/api/v1/submissions/${original.submissionId}`)).submission.text, original.text);
-  assert.deepEqual(expect(await ctx.call(a.jar, 'GET', '/api/v1/attempts?open=1')).attempts.map(item => item.id), [revision.id]);
+  assert.deepEqual(expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/attempts?open=1'))).attempts.map(item => item.id), [revision.id]);
   ctx.revision = { id: revision.id, text };
   return pass('new cookie rediscovers exact text/feedback/binding; revision inherits and preserves the original');
 });
 
 leg('J9', 'objective progress counts the current learner evidence exactly', 'MFP-09', async (ctx) => {
   const a = ctx.assessed.account;
-  const before = expect(await ctx.call(a.jar, 'GET', '/api/v1/practice/progress'));
+  const before = expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/practice/progress')));
   assert.equal(before.totals.attempts, 0);
-  const catalogue = expect(await ctx.call(a.jar, 'GET', '/api/v1/objective-sets?family=SB1'));
+  assert.equal(before.preparation_id, a.prep.id);
+  const catalogue = expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/objective-sets?family=SB1')));
   assert.ok(catalogue.length > 0, 'an actual servable set is required');
   const selected = catalogue[0];
-  const set = expect(await ctx.call(a.jar, 'GET', `/api/v1/objective-sets/${selected.set_id}?version=${selected.version}`));
+  assert.equal(selected.exam_id, a.prep.exam_id);
+  const set = expect(await ctx.call(a.jar, 'GET', inPrep(a, `/api/v1/objective-sets/${selected.set_id}?version=${selected.version}`)));
   const gap = set.payload.gaps[0]; assert.ok(gap && gap.options);
   const itemId = String(gap.n), choices = Object.keys(gap.options);
   assert.ok(choices.length >= 2);
   const receipts = [];
   for (const answer of choices.slice(0, 2)) {
     const receipt = expect(await ctx.call(a.jar, 'POST', `/api/v1/objective-sets/${selected.set_id}/answers`,
-      { body: { version: selected.version, itemId, answer } }), 201);
+      { body: { preparationId: a.prep.id, version: selected.version, itemId, answer } }), 201);
     assert.equal(typeof receipt.correct, 'boolean'); assert.equal(receipt.item_id, itemId);
+    assert.equal(receipt.preparation_id, a.prep.id);
     receipts.push({ ...receipt, answer });
   }
-  const progress = expect(await ctx.call(a.jar, 'GET', '/api/v1/practice/progress'));
+  const progress = expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/practice/progress')));
   const correct = receipts.filter(receipt => receipt.correct).length;
   assert.deepEqual(progress.totals, { attempts: 2, correct, accuracy: correct / 2, sections: 1 });
   assert.deepEqual(progress.sections, [{ section: 'SB', attempts: 2, correct, accuracy: correct / 2 }]);
-  const mistakes = expect(await ctx.call(a.jar, 'GET', '/api/v1/practice/mistakes'));
+  const mistakes = expect(await ctx.call(a.jar, 'GET', inPrep(a, '/api/v1/practice/mistakes')));
   const latest = receipts.at(-1);
   assert.equal(mistakes.count, latest.correct ? 0 : 1);
   if (!latest.correct) {
     assert.equal(mistakes.items[0].item_id, itemId); assert.equal(mistakes.items[0].your_answer, latest.answer);
     assert.equal('correct_answer' in mistakes.items[0], false);
   }
-  const foreign = expect(await ctx.call(ctx.accounts.j1.jar, 'GET', '/api/v1/practice/progress'));
+  const other = ctx.accounts.j1;
+  const foreign = expect(await ctx.call(other.jar, 'GET', inPrep(other, '/api/v1/practice/progress')));
   assert.equal(foreign.totals.attempts, 0, 'another learner must not inherit the evidence');
+  expect(await ctx.call(other.jar, 'GET', inPrep(a, '/api/v1/practice/progress')), 404);
   ctx.objective = { setId: selected.set_id, version: selected.version, itemId, receipts };
   return pass('two actual answers, exact per-section counts and latest-mistake state; another account stays empty');
 });
@@ -341,6 +373,13 @@ leg('J10', 'export exact owned work, change settings, sign out, sign in and dele
   assert.equal(exported.results[0].submission_id, original.submissionId);
   assert.deepEqual(exported.results[0].feedback, original.result.assessment.feedback);
   assert.equal(exported.objective_evidence.length, 2);
+  // EXAM-S1: the export carries the learner's preparation and exam balance, and every record's context.
+  assert.deepEqual(exported.preparations.map(row => row.id), [a.prep.id]);
+  assert.deepEqual(exported.balances.map(row => row.exam_id), [a.prep.exam_id]);
+  assert.ok(exported.attempts.every(row => row.preparation_id === a.prep.id), 'every live attempt carries its preparation');
+  assert.equal(exported.submissions[0].preparation_id, a.prep.id);
+  assert.equal(exported.results[0].credit_exam_id, a.prep.exam_id, 'the result settled against its own exam');
+  assert.ok(exported.objective_evidence.every(row => row.preparation_id === a.prep.id));
   for (const receipt of ctx.objective.receipts) {
     const evidence = exported.objective_evidence.find(row => row.evidence_id === receipt.evidence_id);
     assert.ok(evidence); assert.equal(evidence.answer, receipt.answer); assert.equal(evidence.correct, receipt.correct);
@@ -381,6 +420,15 @@ leg('J11', 'password-reset request gives the same generic response for known and
 
 export async function runJourneyApiCheck() {
   const call = makeCaller(PORT);
+  /*
+   * THE OPERATOR STEP FIRST. The runtime never migrates (MFP-01) and refuses learner routes with 503
+   * `schema_behind` on an unmigrated schema, so a fresh disposable schema gets the same migration command an
+   * installation runs. Idempotent when the schema is already current.
+   */
+  if (process.env.OWNAPI_PG_ALLOW !== '1') {
+    throw new Error('set OWNAPI_PG_ALLOW=1 to confirm this is a disposable database the migration command may provision');
+  }
+  await migrate({ config: persistentConfig() });
   const server = await startServer();
   const report = [];
 
@@ -398,8 +446,9 @@ export async function runJourneyApiCheck() {
   const workerBackends = async () => (await inspectPool.query(
     'SELECT count(*)::int AS n FROM pg_stat_activity WHERE application_name = $1 AND usename = $2 AND pid <> pg_backend_pid()',
     [workerIdentity, workerRole])).rows[0].n;
-  const entitlement = async (owner) => {
-    const row = (await inspectPool.query('SELECT allowance, used, reserved FROM entitlements WHERE owner_id = $1', [owner])).rows[0];
+  const entitlement = async (owner, examId = INITIAL_EXAM_ID) => {
+    const row = (await inspectPool.query('SELECT allowance, used, reserved FROM entitlements WHERE owner_id = $1 AND exam_id = $2',
+      [owner, examId])).rows[0];
     return row ? { allowance: row.allowance, used: row.used, reserved: row.reserved } : { allowance: 0, used: 0, reserved: 0 };
   };
   const assessmentCount = async (submissionId) => (await inspectPool.query(

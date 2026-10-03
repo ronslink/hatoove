@@ -35,6 +35,9 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
+import { migrate, persistentConfig } from '../server/owned-postgres/provision.mjs';
+import { INITIAL_EXAM_ID } from '../server/preparation-contract.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FORBIDDEN = new Set(['postgres', 'template0', 'template1']);
 const DATABASE = process.env.OWNAPI_PG_DATABASE || '';
@@ -76,14 +79,33 @@ async function startServer(port, { accounts }) {
   return { child, env, log: () => out, stop: () => new Promise((resolve) => { child.once('exit', resolve); child.kill(); }) };
 }
 
-/** Wait until the accounts banner line appears, so sign-up is not raced against provisioning. */
+/**
+ * Wait until the accounts banner line appears, so sign-up is not raced against provisioning — and then
+ * require READINESS. The banner also prints for a schema that is behind (the runtime never migrates), and
+ * every learner route then answers 503; a check must say `schema_behind` rather than fail as 503s later.
+ */
 async function waitForBanner(server, needle, timeoutMs = 60000) {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    if (server.log().includes(needle)) return true;
+    if (server.log().includes(needle)) break;
     if (Date.now() > deadline) return false;
     await new Promise((r) => setTimeout(r, 200));
   }
+  const port = server.env.B1PREP_PORT;
+  const ready = await fetch(`http://127.0.0.1:${port}/api/ready`);
+  const body = await ready.json().catch(() => null);
+  assert.equal(ready.status, 200, `the runtime is not ready (${body && body.reason}): ${server.log().slice(-300)}`);
+  return true;
+}
+
+/** The account's ONE active telc preparation, provisioned by registration (EXAM-S1). */
+async function activePreparation(b) {
+  const response = await b.fetchImpl('/api/v1/preparations', { method: 'GET', headers: { accept: 'application/json' } });
+  assert.equal(response.status, 200, `preparations: ${response.status}`);
+  const active = JSON.parse(await response.text()).preparations
+    .filter((p) => p.state === 'active' && p.exam_id === INITIAL_EXAM_ID);
+  assert.equal(active.length, 1, 'registration provisions exactly one active telc preparation');
+  return active[0];
 }
 
 /** Minimal cookie jar over the real client's transport shape. */
@@ -162,7 +184,10 @@ check('a-learner-can-sign-up-and-own-an-attempt-over-http', async () => {
     assert.match(account.id, /^user-/, 'a real account id comes back');
     assert.equal((await a.client.getAccount()).id, account.id, 'the session resolves to that account');
 
-    const attempt = await a.client.createAttempt();
+    const prep = await activePreparation(a);
+    const attempt = await a.client.createAttempt({ preparationId: prep.id });
+    assert.equal(attempt.preparation_id, prep.id, 'the attempt is bound to the preparation it named');
+    assert.equal(attempt.exam_id, INITIAL_EXAM_ID);
     const draft = await a.client.saveDraft(attempt.id, { expectedRevision: attempt.revision, text: 'Sehr geehrte Damen und Herren, ich schreibe wegen des Kurses.' });
     assert.equal(draft.revision, attempt.revision + 1);
     const read = await a.client.readAttempt(attempt.id);
@@ -179,11 +204,12 @@ check('the-session-and-the-draft-survive-a-server-restart', async () => {
     assert.ok(await waitForBanner(first, 'Accounts: accounts: on'), 'accounts did not come up');
     const a = await client(4473);
     const account = await a.client.signUp({ name: 'R', email: email('r'), password: 'pw-r-synthetic-1' });
-    const attempt = await a.client.createAttempt();
+    const prep = await activePreparation(a);
+    const attempt = await a.client.createAttempt({ preparationId: prep.id });
     await a.client.saveDraft(attempt.id, { expectedRevision: attempt.revision, text });
     cookie = [...a.jar].map(([k, v]) => `${k}=${v}`).join('; ');
     // Carry the account id out of the first world so the restarted server is the same learner.
-    fs.writeFileSync(path.join(TEMP, 'restart.json'), JSON.stringify({ cookie, attemptId: attempt.id, accountId: account.id, text }));
+    fs.writeFileSync(path.join(TEMP, 'restart.json'), JSON.stringify({ cookie, attemptId: attempt.id, accountId: account.id, preparationId: prep.id, text }));
     attemptId = attempt.id;
   } finally { await first.stop(); }
 
@@ -198,6 +224,13 @@ check('the-session-and-the-draft-survive-a-server-restart', async () => {
     assert.equal(response.status, 200, `the restarted server must still know the session (got ${response.status})`);
     const body = await response.json();
     assert.equal(body.text, saved.text, 'and must serve the saved draft unchanged');
+    assert.equal(body.preparation_id, saved.preparationId, 'and keep its preparation');
+    // The preparation-scoped history still finds it: the context survived the restart, not just the row.
+    const history = await fetch(`http://127.0.0.1:4474/api/v1/attempts?preparationId=${saved.preparationId}`, {
+      headers: { cookie: saved.cookie },
+    });
+    assert.equal(history.status, 200, `history after restart: ${history.status}`);
+    assert.deepEqual((await history.json()).attempts.map((row) => row.id), [saved.attemptId]);
   } finally { await second.stop(); }
 });
 
@@ -207,7 +240,8 @@ check('another-account-sees-nothing-and-sign-out-really-ends-the-session', async
     assert.ok(await waitForBanner(server, 'Accounts: accounts: on'), 'accounts did not come up');
     const a = await client(4475);
     await a.client.signUp({ name: 'A', email: email('iso-a'), password: 'pw-a-synthetic-1' });
-    const attempt = await a.client.createAttempt();
+    const prepA = await activePreparation(a);
+    const attempt = await a.client.createAttempt({ preparationId: prepA.id });
     await a.client.saveDraft(attempt.id, { expectedRevision: attempt.revision, text: 'A private draft' });
 
     const b = await client(4475);
@@ -217,6 +251,11 @@ check('another-account-sees-nothing-and-sign-out-really-ends-the-session', async
     assert.ok(error, "another owner's attempt must not be readable");
     assert.equal(error.code, 'not_found', `cross-owner must be not_found, got ${error.code}`);
     assert.equal(error.status, 404);
+    // Nor may B write into A's preparation: a foreign context is indistinguishable from an absent one.
+    let foreignContext = null;
+    try { await b.client.createAttempt({ preparationId: prepA.id }); } catch (e) { foreignContext = e; }
+    assert.ok(foreignContext, "another owner's preparation must not accept an attempt");
+    assert.equal(foreignContext.status, 404, `foreign preparation must be 404, got ${foreignContext.status}`);
 
     const cookieBefore = [...a.jar].map(([k, v]) => `${k}=${v}`).join('; ');
     await a.client.signOut();
@@ -273,11 +312,26 @@ check('settings-are-per-account-and-refuse-a-stale-write', async () => {
     assert.equal(initial.json.settings.theme, 'system');
     assert.equal(initial.json.settings.language, 'de');
 
+    assert.equal(initial.json.settings.examDate, '', 'the legacy exam date is read-only and empty for a new account');
+
+    // EXAM-S1: the exam date belongs to the preparation. A settings write naming it is refused and
+    // writes nothing — the legacy value stays read/export-only.
+    const legacyWrite = await call('PUT', '/api/v1/settings', { expectedRevision: 0, settings: { examDate: '2026-12-05', theme: 'dark' } });
+    assert.equal(legacyWrite.status, 422, `a settings examDate write must be refused: ${JSON.stringify(legacyWrite.json)}`);
+    assert.equal(legacyWrite.json.error, 'invalid_settings');
+    assert.deepEqual((await call('GET', '/api/v1/settings')).json, initial.json, 'the refused write changed nothing');
+    const preparations = (await call('GET', '/api/v1/preparations')).json.preparations;
+    assert.equal(preparations.length, 1, 'registration provisions one preparation');
+    const datedPrep = await call('PUT', `/api/v1/preparations/${preparations[0].id}`, { expectedRevision: preparations[0].revision, examDate: '2026-12-05' });
+    assert.equal(datedPrep.status, 200, `preparation date: ${JSON.stringify(datedPrep.json)}`);
+    assert.equal(datedPrep.json.exam_date, '2026-12-05');
+    assert.equal((await call('GET', '/api/v1/settings')).json.settings.examDate, '', 'the preparation date never writes the legacy field');
+
     // The first write is expectedRevision 0 and bumps the revision to 1.
-    const saved = await call('PUT', '/api/v1/settings', { expectedRevision: 0, settings: { examDate: '2026-12-05', dailyGoal: 30, theme: 'dark', language: 'de' } });
+    const saved = await call('PUT', '/api/v1/settings', { expectedRevision: 0, settings: { dailyGoal: 30, theme: 'dark', language: 'de' } });
     assert.equal(saved.status, 200, `save failed: ${JSON.stringify(saved.json)}`);
     assert.equal(saved.json.revision, 1);
-    assert.equal(saved.json.settings.examDate, '2026-12-05');
+    assert.equal(saved.json.settings.dailyGoal, 30);
     assert.equal(saved.json.settings.theme, 'dark');
 
     // A stale revision writes NOTHING and is refused with the server's copy to reconcile.
@@ -319,6 +373,10 @@ check('settings-are-per-account-and-refuse-a-stale-write', async () => {
     assert.equal(other.json.settings.theme, 'system');
     assert.equal(other.json.settings.examDate, '');
     assert.equal(other.json.settings.language, 'de');
+    const otherPreps = (await call('GET', '/api/v1/preparations')).json.preparations;
+    assert.equal(otherPreps.length, 1);
+    assert.notEqual(otherPreps[0].id, preparations[0].id, 'a second account has its own preparation');
+    assert.equal(otherPreps[0].exam_date, null, "and never the first account's exam date");
     assert.ok(otherJar.length, 'the first account had a session');
   } finally { await server.stop(); }
 });
@@ -330,6 +388,15 @@ export async function runAccountsHttpChecks() {
     throw new Error(`refusing to run against ${DATABASE}; set OWNAPI_PG_DATABASE to a disposable database`);
   }
   if (!DATABASE) throw new Error('OWNAPI_PG_DATABASE must name a disposable database');
+  if (process.env.OWNAPI_PG_ALLOW !== '1') {
+    throw new Error('set OWNAPI_PG_ALLOW=1 to confirm this is a disposable database the migration command may provision');
+  }
+  /*
+   * THE OPERATOR STEP, NOT THE RUNTIME. MFP-01: `server.js` never migrates and answers 503 `schema_behind`
+   * on an unmigrated schema, so a fresh disposable schema must first get `node server/migrate.mjs`'s body —
+   * the same command an installation runs. Idempotent on an already-current schema.
+   */
+  await migrate({ config: persistentConfig() });
   const results = [];
   for (const { name, run } of checks) {
     try {
