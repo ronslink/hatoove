@@ -1,6 +1,6 @@
 /** Exact package publication reads. Caller owns transaction and session context. */
 import { contentPolicy, contentIsServable } from '../content-policy.mjs';
-import { objectiveItems } from '../package-contract.mjs';
+import { objectiveItems, validatePlayback } from '../package-contract.mjs';
 
 function permittedStates() { return contentPolicy().mode==='internal-preview' ? ['internal','available'] : contentPolicy().mode==='public' ? ['available'] : []; }
 
@@ -60,11 +60,38 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
     FROM exam_form_member m JOIN objective_set s ON s.set_id=m.set_id AND s.version=m.set_version AND s.exam_id=m.exam_id
     JOIN content_version c ON c.content_version_id=s.content_version_id LEFT JOIN content_rights cr ON cr.content_version_id=c.content_version_id
     WHERE m.exam_id=$1 AND m.form_id=$2 AND m.form_version=$3 ORDER BY m.position`,[examId,formId,formVersion])).rows;
-  if (rows.length!==form.payload.members.length || rows.some(r=>r.media_required)) return null;
+  if (rows.length!==form.payload.members.length) return null;
   for (const row of rows) {
-    try { if(objectiveItems(row.payload,row.interaction).length!==row.item_count) return null; } catch { return null; }
+    try { if(objectiveItems(row.payload,row.interaction).length!==row.item_count||row.media_required!==(row.interaction==='fixed_audio')) return null; } catch { return null; }
   }
   const writingChoices=[],reviews=rows.map(r=>r.review_status);
+  const media=[],mediaIds=new Set();
+  if(rows.some(row=>row.media_required)) {
+    if(!['practice','mock'].includes(form.payload.attemptMode)) return null;
+    const blueprint=(await client.query('SELECT payload FROM exam_blueprint WHERE exam_id=$1 AND version=$2',[examId,form.blueprint_version])).rows[0]?.payload;
+    if(!blueprint) return null;
+    for(const row of rows.filter(row=>row.media_required)) {
+      const part=blueprint.sections.find(section=>section.id===row.section)?.parts.find(part=>part.family===row.family);
+      let allowance;
+      try {if(!part||part.itemCount!==row.item_count) return null;allowance=validatePlayback(part,examId)[form.payload.attemptMode];} catch {return null;}
+      row.recordings=[];
+      for(const recording of row.payload.recordings) {
+        const identity=recording.mediaId+'@'+recording.mediaVersion;
+        if(mediaIds.has(identity)) return null;
+        mediaIds.add(identity);
+        const asset=(await client.query(`SELECT m.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status
+          FROM exam_media m JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id)
+          WHERE m.media_id=$1 AND m.version=$2 AND m.exam_id=$3`,[recording.mediaId,recording.mediaVersion,examId])).rows[0];
+        if(!asset) return null;
+        if(!contentIsServable(asset)) {if(newStart) return null;blockedReason ||= 'rights_blocked';}
+        reviews.push(asset.review_status);
+        media.push(asset);
+        row.recordings.push({id:recording.id,media_id:asset.media_id,media_version:asset.version,label:recording.label,
+          duration_ms:asset.duration_ms,mime_type:asset.mime_type,max_plays:allowance});
+      }
+      if(!contentIsServable(row)) {if(newStart) return null;blockedReason ||= 'rights_blocked';}
+    }
+  }
   for(const choice of form.payload.writingChoices||[]) {
     const options=[];
     for(const option of choice.options) {
@@ -77,7 +104,7 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
     writingChoices.push({id:choice.id,section:choice.section,options});
   }
   if (newStart && rows.some(r=>!contentIsServable(r))) return null;
-  return {release,form,members:blockedReason?[]:rows,writingChoices:blockedReason?[]:writingChoices,blockedReason,
+  return {release,form,members:blockedReason?[]:rows,media:blockedReason?[]:media,writingChoices:blockedReason?[]:writingChoices,blockedReason,
     reviewStatus:reviews.length && reviews.every(r=>r==='approved')?'approved':'unreviewed'};
 }
 
@@ -93,6 +120,7 @@ export async function listReleasedForms(client,examId) {
     forms.push({exam_id:examId,release_version:release.version,blueprint_version:release.blueprint_version,
       release_state:release.state,form_id:form.form_id,version:form.version,title:form.payload.title,scope:form.payload.scope,sections:form.payload.sections,
       mode:form.payload.mode,time_limit_seconds:form.payload.timeLimitSeconds,writing_choice_count:(form.payload.writingChoices||[]).length,item_count:members.reduce((n,m)=>n+m.item_count,0),
+      ...(form.payload.attemptMode?{attempt_mode:form.payload.attemptMode}:{}),
       review_status:item.reviewStatus});
   }
   return forms;

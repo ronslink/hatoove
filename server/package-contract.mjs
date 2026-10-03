@@ -1,8 +1,9 @@
-/** Pure declarative package validation. No SQL, provider, locale or exam constants. */
+/** Declarative package validation with explicit supported-format policy. No SQL or provider calls. */
 import { DTZ_KEYS, DTZ_BANDS, DTZ_POLICY, DTZ_KIND } from './writing-policy.mjs';
 import { createHash } from 'node:crypto';
+import { validateMediaDescriptor } from './media-contract.mjs';
 
-export const INTERACTIONS = Object.freeze(['matching_headlines','single_choice','matching_ads','gap_choice','gap_bank','grouped_choice']);
+export const INTERACTIONS = Object.freeze(['matching_headlines','single_choice','matching_ads','gap_choice','gap_bank','grouped_choice','fixed_audio']);
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const VERSION = /^v[0-9]{1,4}$/;
 const object = v => v && typeof v === 'object' && !Array.isArray(v);
@@ -36,6 +37,23 @@ export function objectiveItems(payload,interaction) {
   if (interaction==='matching_headlines') { rows=payload.texts; choices=bank(payload.headlines,'text'); }
   if (interaction==='matching_ads') { rows=payload.situations; choices=[...bank(payload.ads,'text'),'x']; }
   if (interaction==='single_choice') rows=payload.questions;
+  if (interaction==='fixed_audio') {
+    keys(payload,['recordings'],'audio payload');
+    demand(Array.isArray(payload.recordings) && payload.recordings.length>0 && payload.recordings.length<=100,'invalid recordings');
+    rows=[];
+    for(const recording of payload.recordings) {
+      keys(recording,['id','mediaId','mediaVersion','label','questions'],'recording');
+      demand(text(recording.id,128)&&ID.test(recording.id)&&text(recording.mediaId,128)&&ID.test(recording.mediaId)&&VERSION.test(recording.mediaVersion),'invalid recording identity');
+      demand(text(recording.label,1000)&&recording.label.trim().length>0&&Array.isArray(recording.questions)&&recording.questions.length>0,'invalid recording label/questions');
+      for(const row of recording.questions) {
+        keys(row,['n','question','options'],'audio question');
+        demand(text(row.question,20000)&&row.question.trim().length>0,'missing audio question');
+        rows.push(row);
+      }
+    }
+    demand(unique(payload.recordings.map(r=>r.id)),'duplicate recording');
+    demand(unique(payload.recordings.map(r=>r.mediaId+'@'+r.mediaVersion)),'duplicate recording media');
+  }
   if (interaction==='grouped_choice') {
     keys(payload,['groups'],'grouped payload');
     demand(Array.isArray(payload.groups) && payload.groups.length>0 && payload.groups.length<=100,'invalid groups');
@@ -83,7 +101,7 @@ export function validatePackage(input) {
   try { source=JSON.stringify(input); } catch { invalid('not JSON'); }
   demand(source && source.length<=2_000_000,'package too large');
   const p=JSON.parse(source);
-  keys(p,['schemaVersion','exam','blueprint','release','forms','sets','writingTasks','rubrics'],'package');
+  keys(p,['schemaVersion','exam','blueprint','release','forms','sets','writingTasks','rubrics','media'],'package');
   demand(p.schemaVersion===1,'unsupported schemaVersion');
   keys(p.exam,['id','title','language','levelModel'],'exam');
   demand(text(p.exam.id,64) && /^[a-z0-9][a-z0-9-]{0,63}$/.test(p.exam.id) && text(p.exam.title,200) && text(p.exam.language,40) && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(p.exam.language),'invalid exam');
@@ -98,8 +116,9 @@ export function validatePackage(input) {
     keys(s,['id','title','parts','timeGroup'],'section');
     demand(text(s.id,128) && ID.test(s.id) && text(s.title,200) && Array.isArray(s.parts) && s.parts.length>0 && s.parts.length<=20,'invalid section');
     for (const part of s.parts) {
-      keys(part,['family','itemCount','interaction','mediaRequired'],'part');
+      keys(part,['family','itemCount','interaction','mediaRequired','playback'],'part');
       demand(text(part.family,128) && ID.test(part.family) && Number.isSafeInteger(part.itemCount) && part.itemCount>0 && part.itemCount<=100 && text(part.interaction,40) && typeof part.mediaRequired==='boolean','invalid blueprint part');
+      if(part.playback!==undefined) validatePlayback(part,p.exam.id);
     }
     demand(unique(s.parts.map(x=>x.family)),'duplicate part');
   }
@@ -115,7 +134,7 @@ export function validatePackage(input) {
   demand(p.forms.length>0 || ['hidden','withdrawn'].includes(p.release.state),'empty release');
   demand(unique(p.forms.map(f=>f.id+'@'+f.version)),'duplicate form');
   for (const f of p.forms) {
-    keys(f,['id','version','title','scope','sections','mode','timeLimitSeconds','feedback','members','writingChoices'],'form');
+    keys(f,['id','version','title','scope','sections','mode','timeLimitSeconds','feedback','members','writingChoices','attemptMode'],'form');
     demand(text(f.id,128) && ID.test(f.id) && VERSION.test(f.version) && text(f.title,200),'invalid form identity');
     demand(['section','complete_supported_written'].includes(f.scope) && f.feedback==='finalise','unsupported form policy');
     demand(Array.isArray(f.sections) && f.sections.length>0 && unique(f.sections) && f.sections.every(id=>p.blueprint.sections.some(s=>s.id===id)),'invalid form sections');
@@ -125,6 +144,12 @@ export function validatePackage(input) {
       keys(m,['setId','version','interaction','itemCount'],'member');
       demand(text(m.setId,128) && ID.test(m.setId) && VERSION.test(m.version) && INTERACTIONS.includes(m.interaction) && Number.isSafeInteger(m.itemCount) && m.itemCount>0 && m.itemCount<=100,'invalid member');
     }
+    if(f.members.some(m=>m.interaction==='fixed_audio')) {
+      demand(['practice','mock'].includes(f.attemptMode),'listening form requires attemptMode');
+      validateListeningBlueprint(p);
+      for(const id of f.sections) for(const part of p.blueprint.sections.find(s=>s.id===id).parts)
+        if(part.mediaRequired) validatePlayback(part,p.exam.id);
+    } else demand(f.attemptMode===undefined,'attemptMode requires listening');
     demand(f.members.reduce((sum,m)=>sum+m.itemCount,0)<=500,'form exceeds saved response limit');
     if (f.writingChoices !== undefined) {
       demand(Array.isArray(f.writingChoices) && f.writingChoices.length===1,'one writing choice group required');
@@ -149,7 +174,8 @@ export function validatePackage(input) {
     demand(text(s.setId,128) && ID.test(s.setId) && VERSION.test(s.version) && s.examId===p.exam.id && text(s.family,128) && ID.test(s.family) && text(s.title,200) && Number.isInteger(s.part) && s.part>0,'invalid set identity');
     const section=p.blueprint.sections.find(x=>x.id===s.section);
     const part=section?.parts.find(x=>x.family===s.family);
-    demand(part && part.interaction===s.interaction && !part.mediaRequired,'set blueprint mismatch');
+    demand(part && part.interaction===s.interaction && part.mediaRequired===(s.interaction==='fixed_audio'),'set blueprint mismatch');
+    if(s.interaction==='fixed_audio') {validateListeningBlueprint(p);validatePlayback(part,p.exam.id);}
     const items=objectiveItems(s.payload,s.interaction);
     demand(items.length===s.itemCount && s.itemCount===part.itemCount,'item count mismatch');
     demand(object(s.answers) && Object.keys(s.answers).length===items.length && items.every(i=>i.options.includes(s.answers[i.id])),'invalid answer key');
@@ -158,6 +184,10 @@ export function validatePackage(input) {
     // The importer cannot grant educational or legal approval. It imports draft/generated source only;
     // an available release must reference separately approved existing database content.
     demand(s.reviewStatus==='unreviewed' && s.rightsStatus==='generated','new imports require separate review/rights approval');
+  }
+  if(p.media!==undefined) {
+    demand(Array.isArray(p.media)&&p.media.length<=200&&unique(p.media.map(m=>m.mediaId+'@'+m.version)),'invalid/duplicate media');
+    for(const media of p.media) validateMediaDescriptor(media,p.exam.id);
   }
   const hadRubrics=Object.hasOwn(p,'rubrics'),hadWriting=Object.hasOwn(p,'writingTasks');
   p.rubrics ??=[]; p.writingTasks ??=[];
@@ -189,5 +219,27 @@ export function validatePackage(input) {
     demand(p.blueprint.sections.some(s=>s.parts.some(x=>x.mediaRequired)),'DTZ requires reviewed listening');
   }
   if(!hadRubrics) delete p.rubrics; if(!hadWriting) delete p.writingTasks;
+  const contentIds=[...p.sets.map(s=>s.setId+'@'+s.version),...(p.media||[]).map(m=>m.mediaId+'@'+m.version),
+    ...(p.rubrics||[]).map(r=>r.rubricId+'@'+r.version),...(p.writingTasks||[]).map(t=>t.taskId+'@'+t.version)];
+  demand(unique(contentIds),'content identity used by multiple records');
   return p;
+}
+
+/** Dormant historical blueprints keep their hashes; actual listening needs the exact policy. */
+export function validatePlayback(part,examId) {
+  demand(part.mediaRequired===true&&part.interaction==='fixed_audio','playback requires fixed audio');
+  keys(part.playback,['practice','mock'],'playback');
+  demand(['practice','mock'].every(mode=>Number.isSafeInteger(part.playback[mode])&&part.playback[mode]>0&&part.playback[mode]<=10),'invalid playback allowance');
+  const expected=examId==='dtz-a2-b1'?1:examId==='telc-deutsch-b1'?({HV1:1,HV2:2,HV3:2}[part.family]):null;
+  if(expected!==null) demand(expected!==undefined&&part.playback.practice===expected&&part.playback.mock===expected,'incorrect target playback policy');
+  return part.playback;
+}
+
+function validateListeningBlueprint(p) {
+  const counts=p.exam.id==='dtz-a2-b1'?[4,5,8,3]:p.exam.id==='telc-deutsch-b1'?[5,10,5]:null;
+  if(!counts) return;
+  const section=p.blueprint.sections.find(s=>s.id==='HV');
+  demand(section?.parts.length===counts.length&&section.parts.every((part,i)=>part.family==='HV'+(i+1)&&part.itemCount===counts[i]&&part.mediaRequired&&part.interaction==='fixed_audio'),'incorrect target listening format');
+  demand(p.blueprint.sections.filter(s=>s.id!=='HV').every(s=>s.parts.every(part=>!part.mediaRequired&&part.interaction!=='fixed_audio')),'listening outside target section');
+  for(const part of section.parts) validatePlayback(part,p.exam.id);
 }
