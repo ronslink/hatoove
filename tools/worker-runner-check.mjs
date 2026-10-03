@@ -244,11 +244,11 @@ check('3. retry path: a throwing grader fails with a stable code, releases the r
   const throwing = () => { const error = new Error('stub grader unavailable'); error.code = 'grader_unavailable'; throw error; };
   const worker = createWorker({ pool: db.worker, grade: throwing });
   const outcome = await worker.runOnce();
-  assert.deepEqual(outcome, { claimed: true, submissionId: s.submissionId, outcome: 'failed', code: 'grader_unavailable' });
+  assert.deepEqual(outcome, { claimed: true, submissionId: s.submissionId, outcome: 'failed', code: 'grader_error' });
 
   const failed = await jobRow(s.submissionId);
   assert.equal(failed.status, 'failed');
-  assert.equal(failed.failure_code, 'grader_unavailable', 'a stable failure_code, from the grader');
+  assert.equal(failed.failure_code, 'grader_error', 'a fixed failure code without copying the grader-supplied value');
   assert.equal(failed.tries, 1);
   assert.equal((await entitlement(a.userId)).reserved, 0, 'a failure refunds the reservation');
   assert.equal(await assessmentCount(s.submissionId), 0);
@@ -649,7 +649,10 @@ check('X1. server/worker.mjs --once is a real process that drains one queued job
     child.on('close', (exit) => { clearTimeout(timer); resolve({ code: exit, stdout: out, stderr: err }); });
   });
   assert.equal(code, 0, `CLI exit ${code}; stderr: ${stderr}`);
-  assert.match(stdout, /worker: succeeded/, `CLI stdout: ${stdout}`);
+  const records = stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
+  assert.ok(records.some(record => record.event === 'worker_outcome' && record.outcome === 'succeeded'), 'the CLI reports the actual successful outcome');
+  assert.ok(!(stdout + stderr).includes(s.submissionId), 'worker output excludes the submission identity');
+  assert.ok(!(stdout + stderr).includes(a.userId), 'worker output excludes the owner identity');
   assert.doesNotMatch(stdout + stderr, /password|PGPASSWORD|secret/i, 'the CLI must print no credential');
   assert.equal((await jobRow(s.submissionId)).status, 'succeeded', 'the real process graded the job');
   assert.equal(await assessmentCount(s.submissionId), 1);
@@ -670,10 +673,9 @@ check('X2. the CLI refuses to start without database configuration and prints no
     child.on('error', reject);
     child.on('close', (exit) => { clearTimeout(timer); resolve({ code: exit, stdout: out, stderr: err }); });
   });
-  assert.notEqual(code, 0, 'the CLI must not start without configuration');
-  assert.match(stderr, /refusing to start without database configuration/);
-  assert.match(stderr, /OWNAPI_PG_DATABASE/);
-  return `child exit ${code}; refused naming the missing variables, no credential printed`;
+  assert.equal(code, 2, 'the CLI must refuse invalid configuration with its documented usage exit');
+  assert.deepEqual(JSON.parse(stderr.trim()), { event: 'worker_error', code: 'worker_configuration_invalid' });
+  return `child exit ${code}; fixed configuration error with no raw input or credential`;
 });
 
 /* =================================================================== run */

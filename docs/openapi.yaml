@@ -813,9 +813,15 @@ paths:
       description: |
         JSON format hatoove-learner-export-v1, with exported_at, settings, attempts (including
         draft text), submissions (immutable text snapshots), results (job status and feedback),
-        and objective_evidence (the learner's answers). Excludes deleted attempts, other accounts,
-        passwords, sessions, reset/verification tokens, worker leases and objective answer keys.
-        Historical owned work is retained even when its content is no longer offered for new use.
+        and objective_evidence (the learner's answers). PostgreSQL exports also contain owned
+        preparations, balances, mock/playback/payment records, authorized saved explanation
+        representations and provider_attempts with their safe usage observations when recorded.
+        Draft attempts exclude deleted attempts; immutable submissions/results retain historical
+        work and attempt_deleted_at labels. Independent content-rights policy withholds blocked
+        prose while preserving safe identity and refusal context.
+        Excludes other accounts, passwords, sessions, reset/verification tokens, worker leases,
+        objective answer keys, raw provider payloads, price-card internals and operational hashes.
+        Missing invocation observations remain empty history; usage or cost is never inferred as zero.
       responses:
         '200': { description: 'The owner-scoped export document.' }
         '401': { description: 'No verified session.' }

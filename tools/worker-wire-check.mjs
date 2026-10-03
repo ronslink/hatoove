@@ -313,11 +313,11 @@ check('W4. a failing grader does not lose the submission: failed + stable code, 
     return stubGrade();
   };
   const outcome = await createWorker({ pool: db.worker, grade: grader }).runOnce();
-  assert.deepEqual(outcome, { claimed: true, submissionId: s.submissionId, outcome: 'failed', code: 'grader_unavailable' });
+  assert.deepEqual(outcome, { claimed: true, submissionId: s.submissionId, outcome: 'failed', code: 'grader_error' });
 
   const failed = await jobRow(s.submissionId);
   assert.equal(failed.status, 'failed');
-  assert.equal(failed.failure_code, 'grader_unavailable', 'a stable failure_code');
+  assert.equal(failed.failure_code, 'grader_error', 'a fixed code without copying the grader-supplied value');
   assert.equal((await entitlement(a.userId)).reserved, 0, 'a failure releases the reservation');
   assert.equal(await assessmentCount(s.submissionId), 0, 'no assessment on failure');
   assert.equal(await ledgerUnits(s.submissionId), 0, 'no debit on failure');
@@ -343,7 +343,7 @@ check('W4. a failing grader does not lose the submission: failed + stable code, 
   } finally {
     await worker.stop();
   }
-  return 'failed(grader_unavailable) with reserved released and text readable -> retry() re-queued -> real process succeeded, assessments=1, used=1/reserved=0';
+  return 'failed(grader_error) with reserved released and text readable -> retry() re-queued -> real process succeeded, assessments=1, used=1/reserved=0';
 });
 
 check('W0. control: with nothing queued, a real worker process claims nothing and writes nothing', async () => {
