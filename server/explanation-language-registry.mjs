@@ -8,18 +8,26 @@ const pinned=Object.freeze([
 ]);
 export const EXPLANATION_LANGUAGE_REGISTRY_VERSION='bundled-original-de-v1';
 const entries=[];
-// Exact retained seed bytes declare German originals. No language inference from family or request.
-try{
- const bytes=readFileSync(new URL('../data/seed.json',import.meta.url));
- if(createHash('sha256').update(bytes).digest('hex')==='ef26279dfaf3399de1039e0528f385465a5c1a2bc414f0bd0b5c270df2023bac'){
-  const seed=JSON.parse(bytes);
+// Git checks this retained seed out as LF or CRLF. Canonicalize only CRLF byte pairs to LF;
+// every other byte (including whitespace, BOM and JSON spelling) remains part of the pin.
+// Latin-1 round-tripping preserves bytes rather than repairing malformed UTF-8.
+export function legacySeedLanguageRegistry(bytes){
+ const declared=[];
+ if(!Buffer.isBuffer(bytes))return Object.freeze(declared);
+ const canonical=Buffer.from(bytes.toString('latin1').replace(/\r\n/g,'\n'),'latin1');
+ if(createHash('sha256').update(canonical).digest('hex')==='40a0a06616a539c291be4db1b6644f83f6027cf0423be81343f0dd8a5ed205a6'){
+  const seed=JSON.parse(canonical);
   for(const [family,sets] of Object.entries(seed))for(const [index,set] of sets.entries()){
    const originals=new Map(Object.entries(set.why&&typeof set.why==='object'?set.why:{}));
    for(const rows of Object.values(set))if(Array.isArray(rows))for(const row of rows)if(row&&typeof row==='object'&&row.why!==undefined)originals.set(String(row.id??row.n??''),row.why);
-   for(const [item,original]of originals)if(typeof original==='string')entries.push(Object.freeze({exam_id:'telc-deutsch-b1',set_id:`telc-deutsch-b1.${family.toLowerCase()}.${String(index+1).padStart(2,'0')}`,set_version:'v1',item_id:item,original_value_sha256:packageHash(original),language:'de'}));
+   for(const [item,original]of originals)if(typeof original==='string')declared.push(Object.freeze({exam_id:'telc-deutsch-b1',set_id:`telc-deutsch-b1.${family.toLowerCase()}.${String(index+1).padStart(2,'0')}`,set_version:'v1',item_id:item,original_value_sha256:packageHash(original),language:'de'}));
   }
  }
-}catch{/* Missing or changed legacy bytes remain unknown. */}
+ return Object.freeze(declared);
+}
+// Exact retained source declares German originals. No inference from family or requested language.
+try{entries.push(...legacySeedLanguageRegistry(readFileSync(new URL('../data/seed.json',import.meta.url))));}
+catch{/* Missing or changed legacy bytes remain unknown. */}
 for(const [exam,digest] of pinned){
  try {
   const p=JSON.parse(readFileSync(new URL(`../content/exams/${exam}/manifest.json`,import.meta.url),'utf8'));

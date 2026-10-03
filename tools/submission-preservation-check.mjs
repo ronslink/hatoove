@@ -281,7 +281,33 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
     'submit locks the balance before the attempt');
   const exported = body('exportData');
   const statements = exported.split('client.query(').slice(1);
-  assert.equal(statements.length, 12, 'preparations, balances, attempts, submissions, results, objective evidence, saved runs, writing attachments, and four payment records');
+  // Retain the closed query inventory while checking each current export class and its owner scope.
+  // S5/S5B added playback/timing facts; PILOT-07 added personal explanation rows and heads.
+  const queryClasses = new Map([
+    ['learner_preparation', 1], ['entitlements', 1], ['attempts', 1], ['submissions', 2],
+    ['item_evidence', 1], ['mock_run', 1], ['mock_writing', 1], ['mock_run_time_group', 1],
+    ['listening_playback', 1], ['writing_explanation_representation', 1], ['writing_explanation_head', 1],
+    ['payment_order', 1], ['payment_checkout_event', 1], ['payment_event', 1], ['payment_grant', 1],
+  ]);
+  assert.equal(statements.length, [...queryClasses.values()].reduce((sum, count) => sum + count, 0),
+    'no unclassified direct query may enter the owned export');
+  for (const [table, expected] of queryClasses) {
+    const matching = statements.filter(sql => new RegExp(`FROM ${table}\\b`).test(sql));
+    assert.equal(matching.length, expected, `${table} retains its exact export query class`);
+    for (const statement of matching) assert.match(statement, /WHERE (?:[a-z]+\.)?owner_id\s*=\s*\$1/,
+      `${table} export is explicitly owner-scoped`);
+  }
+  assert.match(exported, /const provider_attempts=await readOwnProviderAttempts\(client\)/,
+    'provider history uses the protected owned export helper in the existing transaction');
+  assert.doesNotMatch(exported, /FROM provider_attempt(?:_observation)?\b/,
+    'the learner export must not read raw private provider tables');
+  const { readOwnProviderAttempts } = await import('../server/owned-postgres/provider-attempts.mjs');
+  const providerQueries = [];
+  assert.deepEqual(await readOwnProviderAttempts({ query: async (...args) => {
+    providerQueries.push(args); return { rows: [{ value: { synthetic: true } }] };
+  } }), [{ synthetic: true }]);
+  assert.deepEqual(providerQueries, [['SELECT export_owned_provider_attempts() AS value']],
+    'the helper reads only the authenticated-owner SQL projection, with no caller-selected owner');
   for (const table of ['payment_order', 'payment_checkout_event', 'payment_event', 'payment_grant']) {
     const paymentStatements = statements.filter(sql => new RegExp(`FROM ${table}\\b`).test(sql));
     assert.equal(paymentStatements.length, 1, `${table} stays in the account export`);
@@ -291,7 +317,7 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
   assert.equal(attachments.length, 1, 'writing attachments remain exported and owner-scoped');
   assert.match(exported, /writingContext\(client,\{id:submission\.attempt_id,owner_id:owner,/,
     'feedback rights follow the owned attempt and its original run through revision ancestry');
-  assert.match(exported, /if\(context\.blocked_reason\) result\.feedback=null/,
+  assert.match(exported, /if\(context\.blocked_reason\)\s*\{?\s*result\.feedback=null/,
     'blocked feedback is withheld while owned submissions stay exportable');
   const savedRuns = statements.filter((sql) => /FROM mock_run r/.test(sql));
   assert.equal(savedRuns.length, 1, 'saved runs remain part of the account export');
