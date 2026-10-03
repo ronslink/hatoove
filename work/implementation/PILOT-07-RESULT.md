@@ -2,6 +2,14 @@
 
 3 October 2026, [issue124](https://github.com/ronslink/hatoove/issues/124), executions PILOT-07-20261003-A/B/C and coordinator integration. The [saved-explanation contract](../../docs/contracts/PILOT-07-EXPLANATIONS.md) governs this delivery. Source, disposable database checks and final browser evidence pass with independent reviews. Publication and actual hosted status belong to the issue/PR; local delivery is distinct from hosted CI, merge, native-language approval and product acceptance.
 
+## Integration corrections — 3 October 2026, 22:10 UTC
+
+Predecessor PR125 merged as `f296ce94715b6cec7b46333fd83e28206c2587a1` after seven actual required hosted successes. This branch inherits its independently reviewed owner/review/cleanup fixtures and the source-only Compose journey wrapper. The exact two-file registry correction from `a41a1d1` preserves only CRLF-to-LF checkout equivalence; pure18 and exact P07 export-preservation7 pass with independent A review. The P07 fixture accounts for all16 direct owner-bound export queries and the17-field return object, without a future O01 dependency. S2 fixture395a5bf is adopted; coordinator actual14/14 on `ownapi_adee124f1dadb28b` passed with exact cleanup.
+
+The unchanged HTTP privacy assertion found own internal `owner_id` fields in two explanation exports. Independent diagnosis preserved the recursive denylist and corrected the two SELECT lists, retaining every non-owner binding, payload/hash/provenance value and rights redaction. Author7f33011 and coordinator actual11/11 consumer checks pass; coordinator fixture `ownapi_d61ed75ee1eb8fd3` has independently verified schema/roles/connections0. No cross-owner leak was demonstrated. The exact column-set controls require real nonempty rows and preserve foreign-owner, stored-fingerprint and withdrawal checks.
+
+Corrected P07 runtime9d06a9c passed all11 retained HTTP journeys in source-only project `hatoove-journey-check-1791065353362-56372`. The newer language runtime63aceab independently passed the same11 in its own project. Both had zero pending/failures; coordinator verified no remaining project-labelled containers, volumes, networks, image tags or exact temporary directories. Runtime assertions were not weakened. These are synthetic local checks; this PR's new-head hosted CI, merge and human/product acceptance remain separate. Earlier account-billing failures are historical, not the current execution condition.
+
 ## Delivered behavior
 
 Saved explanation representations accompany the original writing assessment, objective evidence or finalised mock item. Language selection reads saved prose in de/en/uk/ar/tr without grading, submitting, retrying, debiting, creating a job or invoking a provider. Original grades, evidence, rubric/task versions and submitted text remain authoritative. Representation and source hashes, explicit version heads and provenance prevent silent replacement or reassignment.
