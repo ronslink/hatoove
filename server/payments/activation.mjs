@@ -24,7 +24,7 @@ export function decideActivation({ event, order, entitlement = null, now = () =>
     return refuse('amount_mismatch');
   }
   if (reversal) {
-    if (!reference(event.providerRef, event.kind === 'refunded' ? 'ch' : 'dp')) return refuse('invalid_provider_reference');
+    if (!reference(event.providerRef, event.kind === 'refunded' ? 'ch' : 'du')) return refuse('invalid_provider_reference');
     if (!reference(event.paymentIntentRef, 'pi') || !reference(order.paymentIntentRef, 'pi')) return refuse('payment_intent_unbound');
     if (event.paymentIntentRef !== order.paymentIntentRef) return refuse('payment_intent_mismatch');
     if (event.kind === 'refunded') {

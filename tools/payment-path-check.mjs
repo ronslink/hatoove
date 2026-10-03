@@ -26,6 +26,12 @@ const rawEvent = (objectExtra = {}, eventExtra = {}) => ({ id: 'evt_synthetic', 
     metadata: { order_id: orderId }, payment_intent: 'pi_synthetic', amount_total: 1900, currency: 'eur',
     payment_status: 'paid', livemode: false, ...objectExtra } }, ...eventExtra });
 const normalized = (extra = {}) => ({ ...readEvent(rawEvent()), ...extra });
+// Real-shaped public example from https://docs.stripe.com/api/disputes/object; all transaction data is synthetic.
+const disputeId = 'du_1MtJUT2eZvKYlo2CNaw2HvEv';
+const disputeEvent = (id = disputeId) => rawEvent({}, { type: 'charge.dispute.created', data: { object: {
+  object: 'dispute', id, payment_intent: 'pi_synthetic', amount: 500, currency: 'eur',
+  livemode: false, metadata: { order_id: orderId },
+} } });
 const session = (extra = {}) => ({ id: 'cs_test_synthetic', object: 'checkout.session', mode: 'payment',
   livemode: false, client_reference_id: orderId, metadata: { order_id: orderId }, amount_total: 1900,
   currency: 'eur', status: 'open', payment_status: 'unpaid', expires_at: timestamp + 1800,
@@ -214,12 +220,21 @@ check('refunds bind payment intent and distinguish partial from full refund', ()
   assert.equal(decideActivation({ event: full, order: order({ paymentIntentRef: null }), now }).reason, 'payment_intent_unbound');
 });
 
-check('disputes use a dispute reference, preserve money and never grant', () => {
-  const event = readEvent(rawEvent({}, { type: 'charge.dispute.created', data: { object: { object: 'dispute', id: 'dp_synthetic',
-    payment_intent: 'pi_synthetic', amount: 500, currency: 'eur', livemode: false, metadata: { order_id: orderId } } } }));
-  assert.equal(event.providerRef, 'dp_synthetic');
+check('real-shaped Stripe du disputes normalize and activate without a grant', () => {
+  const event = readEvent(disputeEvent());
+  assert.equal(event.providerRef, disputeId);
+  assert.equal(event.kind, 'disputed');
   assert.deepEqual(decideActivation({ event, order: order({ status: 'paid' }), now }), { action: 'dispute', reason: 'provider_dispute', grant: null });
   assert.equal(decideActivation({ event: { ...event, amountMinor: 1901 }, order: order(), now }).action, 'refuse');
+});
+
+check('invented dp dispute identifiers fail normalization and policy independently', () => {
+  const wrongId = disputeId.replace(/^du_/, 'dp_');
+  assert.throws(() => readEvent(disputeEvent(wrongId)), reason(InvalidPayload, 'invalid_provider_object'));
+  const event = { ...readEvent(disputeEvent()), providerRef: wrongId };
+  assert.deepEqual(decideActivation({ event, order: order({ status: 'paid' }), now }), {
+    action: 'refuse', reason: 'invalid_provider_reference', grant: null,
+  });
 });
 
 check('Stripe request binds price, German learner locale, metadata and stable idempotency', async () => {
@@ -319,6 +334,25 @@ if (compareBase) {
   hexAssertion(verifySignature);
   assert.throws(() => hexAssertion(oldSignature.verifySignature));
   console.log('DISCRIMINATES malformed hexadecimal signature suffix');
+}
+const disputeBase = process.argv.find(arg => arg.startsWith('--compare-dispute-base='))?.split('=')[1];
+if (disputeBase) {
+  assert.match(disputeBase, /^[0-9a-f]{7,40}$/);
+  const oldSource = name => execFileSync('git', ['show', `${disputeBase}:server/payments/${name}.mjs`], { encoding: 'utf8' });
+  const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
+  const eventUrl = moduleUrl(oldSource('events'));
+  const priorEvents = await import(eventUrl);
+  const priorPolicy = await import(moduleUrl(oldSource('activation').replace("'./events.mjs'", JSON.stringify(eventUrl))));
+  const normalizedDispute = readEvent(disputeEvent());
+  assert.equal(normalizedDispute.providerRef, disputeId);
+  assert.equal(decideActivation({ event: normalizedDispute, order: order({ status: 'paid' }), now }).action, 'dispute');
+  assert.throws(() => priorEvents.readEvent(disputeEvent()), error => error.reason === 'invalid_provider_object');
+  assert.deepEqual(priorPolicy.decideActivation({ event: normalizedDispute, order: order({ status: 'paid' }), now }), {
+    action: 'refuse', reason: 'invalid_provider_reference', grant: null,
+  });
+  const priorInventedEvent = priorEvents.readEvent(disputeEvent(disputeId.replace(/^du_/, 'dp_')));
+  assert.equal(priorPolicy.decideActivation({ event: priorInventedEvent, order: order({ status: 'paid' }), now }).action, 'dispute');
+  console.log(`DISCRIMINATES ${disputeBase}: real du dispute rejected by prior normalizer and prior policy`);
 }
 console.log(`${cases.length - failed}/${cases.length} payment checks passed; unexpected HTTP calls: ${unexpectedNetworkCalls}`);
 if (failed) process.exitCode = 1;

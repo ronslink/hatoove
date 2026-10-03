@@ -37,7 +37,7 @@ export function readEvent(event) {
 
   const checkout = ['paid', 'delayed_paid', 'failed'].includes(kind);
   const expectedObject = checkout ? 'checkout.session' : kind === 'refunded' ? 'charge' : 'dispute';
-  const prefix = checkout ? 'cs_test' : kind === 'refunded' ? 'ch' : 'dp';
+  const prefix = checkout ? 'cs_test' : kind === 'refunded' ? 'ch' : 'du';
   if (object.object !== expectedObject || !reference(object.id, prefix)) throw new InvalidPayload('invalid_provider_object');
   const metadataOrder = object.metadata?.order_id;
   if (metadataOrder !== undefined && !UUID.test(String(metadataOrder))) throw new InvalidPayload('invalid_order_reference');
