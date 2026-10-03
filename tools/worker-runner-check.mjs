@@ -505,6 +505,8 @@ check('5. lease fence: a worker whose lease lapsed cannot commit; the assessment
   const pendingA = workerA.runOnce();
   await until(async () => (await jobRow(s.submissionId)).status === 'running');
   assert.equal((await jobRow(s.submissionId)).status, 'running', 'A holds the job');
+  // Claim visibility precedes asynchronous pre-grader transactions. Grade entry proves those locks are released.
+  await until(() => typeof releaseA === 'function');
 
   // A's lease lapses and B reclaims, claims and completes the job with a distinguishable assessment.
   clock.advance(120000);
@@ -543,10 +545,16 @@ check('6. reclaimExpired(): lapsed -> queued, and lapsed past maxTries -> failed
   const a = await signUp(call, 'p6a');
   const s1 = await submit(call, a, 'Abandoned then requeued.');
   const clock1 = makeClock();
-  const hanging1 = createWorker({ pool: db.worker, grade: hangingGrade, now: clock1.now, leaseMs: 60000 });
+  let gradeCalls1 = 0;
+  const hanging1 = createWorker({ pool: db.worker, grade: (input) => {
+    assert.equal(input.submissionId, s1.submissionId);
+    gradeCalls1 += 1;
+    return hangingGrade();
+  }, now: clock1.now, leaseMs: 60000 });
   float(hanging1.runOnce()); // claimed; never commits (the grade hangs)
   await until(async () => (await jobRow(s1.submissionId)).status === 'running');
   assert.equal((await jobRow(s1.submissionId)).status, 'running');
+  await until(() => gradeCalls1 === 1);
   clock1.advance(120000);
   const first = await hanging1.reclaimExpired();
   assert.deepEqual(first, { requeued: 1, abandoned: 0 });
@@ -562,12 +570,19 @@ check('6. reclaimExpired(): lapsed -> queued, and lapsed past maxTries -> failed
   const b = await signUp(call, 'p6b');
   const s2 = await submit(call, b, 'Abandoned until exhausted.');
   const clock2 = makeClock();
-  const hanging2 = createWorker({ pool: db.worker, grade: hangingGrade, now: clock2.now, leaseMs: 60000 });
+  let gradeCalls2 = 0;
+  const hanging2 = createWorker({ pool: db.worker, grade: (input) => {
+    assert.equal(input.submissionId, s2.submissionId);
+    gradeCalls2 += 1;
+    return hangingGrade();
+  }, now: clock2.now, leaseMs: 60000 });
   // Three claims, each abandoned while the lease lapses, driving tries to maxTries.
   for (let i = 0; i < 3; i += 1) {
     const before = (await jobRow(s2.submissionId)).tries;
     float(hanging2.runOnce());
     await until(async () => (await jobRow(s2.submissionId)).tries === before + 1);
+    // Do not reclaim while this runOnce still holds the pre-grader job lock: the next claim uses SKIP LOCKED.
+    await until(() => gradeCalls2 === i + 1);
     clock2.advance(120000);
     await hanging2.reclaimExpired();
   }
