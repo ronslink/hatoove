@@ -1,6 +1,10 @@
 /** Restricted-role payment proof. Only an explicitly selected disposable database is permitted. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { mkdtemp,rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { createOwnedApi } from '../server/owned-api.mjs';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createPostgresPayments } from '../server/owned-postgres/payments.mjs';
@@ -11,6 +15,7 @@ import { importPackage,importDefaultPackage } from '../server/owned-postgres/pac
 import { syntheticS4Package } from './exam-s4-check.mjs';
 import { runTableClassCheck } from './table-class-check.mjs';
 import { InvalidSignature,createPaymentsPort } from '../server/payments/port.mjs';
+import { buildSignatureHeader } from '../server/payments/signature.mjs';
 if(process.env.OWNAPI_PG_ALLOW!=='1'||!process.env.OWNAPI_PG_PORT||[4300,55440].includes(Number(process.env.OWNAPI_PG_PORT))) throw Error('Explicit isolated OWNAPI_PG_ALLOW/PORT required');
 process.env.B1PREP_CONTENT_MODE='internal-preview';delete process.env.B1PREP_SERVE_REVIEW;delete process.env.B1PREP_SERVE_RIGHTS;
 const TELC='telc-deutsch-b1',DTZ='dtz-a2-b1',origin='https://synthetic.invalid';
@@ -109,7 +114,7 @@ try {
   await reject(purchase(a,eventA,'US'),'event_conflict');
   for(const table of ['payment_order','payment_event','payment_grant','payment_checkout_event']) assert.equal((await asOwner(b,c=>c.query(`SELECT * FROM ${table} WHERE owner_id=$1`,[a]))).rowCount,0);
  });
- await check('refund/dispute mappings remain retryable until bound; partial refund preserves paid status',async()=>{
+ await check('refund mappings remain retryable until bound; partial refund preserves paid status',async()=>{
   const event=await eventFor(orderA,{kind:'refunded',type:'charge.refunded',fullRefund:true,amountRefunded:1000,providerRef:'ch_synthetic'});
   const missing={...event,id:'evt_'+randomUUID().replaceAll('-',''),orderId:null,paymentIntentRef:'pi_unknown'};
   await reject(send(missing),'payment_binding_pending');assert.equal(await one('SELECT id FROM payment_event WHERE id=$1',[missing.id]),undefined);
@@ -152,6 +157,80 @@ try {
   const signature=stub.signForTest(raw);await reject(actual.webhook(Buffer.concat([raw,Buffer.from(' ')]),signature),'invalid_webhook');
   await actual.webhook(raw,signature);assert.equal((await actual.order(c,stored.id)).order.status,'paid');
   const before=await one('SELECT * FROM entitlements WHERE owner_id=$1',[c]);await actual.webhook(raw,signature);assert.deepEqual(await one('SELECT * FROM entitlements WHERE owner_id=$1',[c]),before);
+ });
+ await check('signed HTTP du_ dispute retries before intent binding, then records once without changing credits',async()=>{
+  const c=await user('dispute');
+  await sql("UPDATE entitlements SET allowance=50,used=7,reserved=2,expires_at=now()-interval '1 second' WHERE owner_id=$1",[c]);
+  const webhookSecret='whsec_synthetic_dispute_pg_only';let providerRequests=0;
+  const stripe=createPaymentsPort({mode:'stripe-test',publicOrigin:origin,webhookSecret,secretKey:'sk_test_offlineFixture',
+   fetchImpl:async(url,options)=>{
+    providerRequests++;assert.equal(url,'https://api.stripe.com/v1/checkout/sessions');assert.equal(options.method,'POST');
+    const form=new URLSearchParams(options.body),id=form.get('client_reference_id');
+    assert.equal(form.get('metadata[owner_id]'),c);assert.equal(form.get('line_items[0][price]'),'price_synthetic');
+    assert.equal(options.headers['Idempotency-Key'],'hatoove-checkout-'+id);
+    return new Response(JSON.stringify({id:'cs_test_'+id.replaceAll('-',''),object:'checkout.session',mode:'payment',
+     livemode:false,client_reference_id:id,metadata:{order_id:id},amount_total:1000,currency:'eur',
+     status:'open',payment_status:'unpaid',expires_at:Math.floor(Date.now()/1000)+1800,
+     url:'https://checkout.stripe.com/c/pay/cs_test_'+id.replaceAll('-','')}),{status:200});
+   }});
+  const sign=rawBody=>buildSignatureHeader({rawBody,secret:webhookSecret,timestamp:Math.floor(Date.now()/1000)});
+  const actual=createPostgresPayments({pool:db.payments,provider:stripe,publicOrigin:origin});
+  const checkout=await actual.checkout(c,{examId:TELC,market:'DE',eventId:randomUUID()});
+  const stored=await one('SELECT * FROM payment_order WHERE id=$1',[checkout.orderId]);
+  const intent='pi_'+stored.id.replaceAll('-',''),suffix=randomUUID().replaceAll('-','');
+  // Stripe's dispute object has a du_ identity and maps to its order through payment_intent.
+  // Metadata deliberately carries no order id; a dispute/charge reference is not a session reference.
+  const dispute={id:'evt_dispute_'+suffix,object:'event',type:'charge.dispute.created',livemode:false,
+   data:{object:{id:'du_'+suffix,object:'dispute',amount:1000,currency:'eur',livemode:false,
+    charge:'ch_'+suffix,payment_intent:intent,status:'needs_response',metadata:{}}}};
+  const success={id:'evt_success_'+suffix,object:'event',type:'checkout.session.completed',livemode:false,
+   data:{object:{id:stored.provider_ref,object:'checkout.session',livemode:false,client_reference_id:stored.id,
+    metadata:{order_id:stored.id},payment_intent:intent,amount_total:1000,currency:'eur',payment_status:'paid'}}};
+  const disputeRaw=Buffer.from(' '+JSON.stringify(dispute)+'\n'),disputeSignature=sign(disputeRaw);
+  const temp=await mkdtemp(path.join(os.tmpdir(),'hatoove-dispute-http-'));
+  process.env.B1PREP_ENV_FILE=path.join(temp,'absent.env');process.env.B1PREP_PROGRESS_FILE=path.join(temp,'absent.json');
+  delete process.env.B1PREP_ACCOUNTS;
+  const {createServer}=await import('../server.js');
+  const api=createOwnedApi({datastore:world.store.port,sessions:world.sessions,payments:actual});
+  const server=createServer({ownedApi:api});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const endpoint=`http://127.0.0.1:${server.address().port}/api/v1/payments/stripe/webhook`;
+  const post=async(raw,signature=sign(raw))=>{
+   const response=await fetch(endpoint,{method:'POST',headers:{origin:'https://foreign.invalid','stripe-signature':signature},body:raw});
+   return {status:response.status,body:await response.json()};
+  };
+  try {
+   const before=await one('SELECT * FROM entitlements WHERE owner_id=$1',[c]);
+   const unknown=await post(disputeRaw,disputeSignature);assert.equal(unknown.status,503);assert.equal(unknown.body.error,'payment_binding_pending');
+   assert.equal(await one('SELECT id FROM payment_event WHERE id=$1',[dispute.id]),undefined);
+   assert.equal((await actual.order(c,stored.id)).order.status,'pending');
+   assert.deepEqual(await one('SELECT * FROM entitlements WHERE owner_id=$1',[c]),before);
+   assert.equal((await post(Buffer.from(JSON.stringify(success)))).status,200);
+   const granted=await one('SELECT * FROM entitlements WHERE owner_id=$1',[c]);
+   assert.equal(granted.allowance,19);assert.equal(granted.used,7);assert.equal(granted.reserved,2);assert.ok(granted.expires_at>Date.now());
+   assert.equal((await actual.order(c,stored.id)).order.status,'paid');
+   const grant=await one('SELECT * FROM payment_grant WHERE order_id=$1',[stored.id]);assert.ok(grant);
+   assert.equal((await post(disputeRaw,disputeSignature)).status,200);
+   const settled=await actual.order(c,stored.id);assert.equal(settled.order.status,'disputed');assert.ok(settled.order.paidAt);
+   const receipt=await one('SELECT * FROM payment_event WHERE id=$1',[dispute.id]);
+   assert.equal(receipt.order_id,stored.id);assert.equal(receipt.owner_id,c);assert.equal(receipt.disposition,'dispute:provider_dispute');
+   assert.deepEqual(await one('SELECT * FROM entitlements WHERE owner_id=$1',[c]),granted);
+   assert.deepEqual(await one('SELECT * FROM payment_grant WHERE order_id=$1',[stored.id]),grant);
+   // Same event replay and a different successful event for the disputed session cannot grant again.
+   assert.equal((await post(disputeRaw,disputeSignature)).status,200);
+   assert.deepEqual(await one('SELECT * FROM payment_event WHERE id=$1',[dispute.id]),receipt);
+   assert.equal((await post(Buffer.from(JSON.stringify({...success,id:'evt_late_'+suffix})))).status,200);
+   assert.equal((await actual.order(c,stored.id)).order.status,'disputed');
+   assert.equal((await one('SELECT count(*)::int AS n FROM payment_grant WHERE order_id=$1',[stored.id])).n,1);
+   assert.deepEqual(await one('SELECT * FROM entitlements WHERE owner_id=$1',[c]),granted);
+   // An invented dp_ prefix must fail during authenticated normalization, before any receipt exists.
+   const invented={...dispute,id:'evt_invented_'+suffix,data:{object:{...dispute.data.object,id:'dp_'+suffix}}};
+   const refused=await post(Buffer.from(JSON.stringify(invented)));assert.equal(refused.status,400);assert.equal(refused.body.error,'invalid_webhook');
+   assert.equal(await one('SELECT id FROM payment_event WHERE id=$1',[invented.id]),undefined);
+   assert.equal((await actual.order(c,stored.id)).order.status,'disputed');
+   assert.deepEqual(await one('SELECT * FROM entitlements WHERE owner_id=$1',[c]),granted);
+   assert.equal(providerRequests,1,'all adapter transport was injected; webhook handling makes no provider request');
+  } finally {await new Promise(resolve=>server.close(resolve));await rm(temp,{recursive:true,force:true});}
  });
  await check('expiry blocks submit/retry while reserved completion and history remain valid',async()=>{
   const c=await user('writing'),port=world.store.port,prep=(await port.listPreparations(c))[0];
