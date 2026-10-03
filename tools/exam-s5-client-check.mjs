@@ -162,6 +162,37 @@ await check('navigation while begin is pending waits for its receipt and pauses 
   await v.c.play(); const navigating = v.c.flush(); await release(); assert.equal(await navigating, true);
   assert.equal(f.saved.state, 'paused'); assert.equal(v.audios[0].plays, 1); assert.equal(v.audios[0].paused, true); v.c.dispose();
 });
+await check('pending checkpoint retains an enabled immediate pause and serialises its durable save', async () => {
+  let clock=0,release;const f=fixture(),v=controllerFor(f,{now:()=>clock});await v.ready();await v.play();
+  const original=f.api.mock.playbackEvent;
+  f.api.mock.playbackEvent=(id,body)=>body.action==='checkpoint'?new Promise(resolve=>{release=async()=>resolve(await original(id,body));}):original(id,body);
+  try {
+    v.audios[0].currentTime=3;clock=3000;await new Promise(resolve=>setTimeout(resolve,600));
+    assert.equal(typeof release,'function');assert.equal(v.audios[0].paused,false);
+    assert.match(v.host.innerHTML,/data-listening-action="pause">/);assert.doesNotMatch(v.host.innerHTML,/data-listening-action="pause" disabled/);
+    const paused=v.c.flush();assert.equal(v.audios[0].paused,true,'native audio stops before server response');
+    await release();assert.equal(await paused,true);assert.equal(f.saved.state,'paused');assert.equal(f.saved.position_ms,3000);
+  } finally {if(release)await release();v.c.dispose();}
+});
+await check('terminal playback refusals stop audio but release navigation and finalisation without losing receipts', async () => {
+  for (const error of ['mock_expired', 'mock_finalised', 'preparation_archived', 'mock_rights_blocked', 'mock_content_unavailable']) {
+    const f = fixture(), v = controllerFor(f); await v.ready(); await v.play();
+    f.intercept(() => ({ ok: false, status: 409, error })); v.c.freeze(true);
+    assert.equal(await v.c.flush(), true, error); assert.equal(v.audios[0].paused, true);
+    assert.equal(v.c.state().pending, true); assert.equal(v.c.state().playback.plays_used, 1);
+    assert.equal(v.c.needsFlush, false); const calls=f.calls.length;
+    assert.equal(await v.c.flush(), true); assert.equal(f.calls.length, calls, 'terminal receipt is not retried forever');
+    v.c.freeze(false); assert.doesNotMatch(v.host.innerHTML, /data-listening-action=/); v.c.dispose();
+  }
+});
+await check('unknown or retryable pause failures still block navigation with the exact pending receipt', async () => {
+  for (const failure of [{status:0,error:'network'},{status:409,error:'playback_conflict'},{status:0,error:'mock_expired'}]) {
+    const f=fixture(),v=controllerFor(f);await v.ready();await v.play();
+    f.intercept(()=>({ok:false,...failure}));assert.equal(await v.c.flush(),false);assert.equal(v.c.needsFlush,true);
+    assert.equal(await v.c.flush(),false);assert.deepEqual(f.calls[1],f.calls[2]);v.c.dispose();
+  }
+});
+
 await check('unexpected native pause saves progress and native rate/backward seek are corrected', async () => {
   const f = fixture(), v = controllerFor(f); await v.ready(); await v.play(); const a = v.audios[0]; a.currentTime = 4; a.dispatchEvent(new Event('timeupdate'));
   a.currentTime = 1; a.dispatchEvent(new Event('seeking')); assert.equal(a.currentTime, 4);

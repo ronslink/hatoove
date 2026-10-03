@@ -62,6 +62,9 @@ async function sourceFixture() {
     "const { createExamCatalogue } = await import('./preparation-contract.mjs');\n  const world = await createPostgresWorld({ fixture, examCatalogue: createExamCatalogue({ enabled: ['telc-deutsch-b1', 'dtz-a2-b1'] }) });");
   for (const examId of ['telc-deutsch-b1','dtz-a2-b1']) {
     const packageInput = await createListeningFixture({ examId, mediaRoot: path.join(source,'content/exams'), durationMs: 7000 });
+    // A separate explicitly labelled shortened-clock form exercises expiry during native playback.
+    const timed = packageInput.forms.find(form => form.attemptMode === 'mock');
+    packageInput.forms.push({...timed,id: timed.id.replace(/mock$/, 'expiry'),title: 'Zeitablauf · interne Technikprobe (6 Sekunden)',timeLimitSeconds:6});
     fs.writeFileSync(path.join(source,'content/exams',examId,'s5-fixture.json'),JSON.stringify(packageInput));
   }
   replaceOnce(path.join(source, 'server/owned-postgres/package-importer.mjs'), "return importPackage(pool,input,{publisher:'bundled-telc-source'});",

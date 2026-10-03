@@ -33,7 +33,7 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
       for(const examId of ['telc-deutsch-b1','dtz-a2-b1'])if(!rows.some(p=>p.exam_id===examId))await request(a,'/api/v1/preparations','POST',{examId});
       rows=(await request(a,'/api/v1/preparations')).data.preparations;dtz=rows.find(p=>p.exam_id==='dtz-a2-b1');telc=rows.find(p=>p.exam_id==='telc-deutsch-b1');
       assert(dtz&&telc,'both preparations absent');
-      for(const prep of [dtz,telc]){const forms=(await request(a,'/api/v1/mock-forms?preparationId='+prep.id)).data.forms;assert(forms.length===2&&forms.every(f=>f.scope==='section'&&f.release_state==='internal'&&f.item_count===20),'bad section/public catalogue');}
+      for(const prep of [dtz,telc]){const forms=(await request(a,'/api/v1/mock-forms?preparationId='+prep.id)).data.forms;assert(forms.length===3&&forms.every(f=>f.scope==='section'&&f.release_state==='internal'&&f.item_count===20),'bad section/public catalogue');}
       practice=await start(a,dtz,'practice');first=practice.members[0].recordings[0];
       assert(practice.attempt_mode==='practice'&&practice.members.length===4,'practice mode or members absent');
       assert(!/"(?:correct_answer|answers|script|transcript|path)"/.test(JSON.stringify(practice.members)),'private fields in active DTO');
@@ -102,11 +102,24 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
       practice=mock;first=mock.members[0].recordings[0];
     });
     await run('S5B9 player fits desktop and 390/320px light/dark with keyboard labels',async()=>{
-      for(const width of [1440,390,320])for(const mode of ['light','dark']){await viewport(a,width,width===1440?900:844,width!==1440);await theme(a,mode);const layout=await overflow(a);await shot(a,`s5-player-${width}-${mode}`,'[data-listening-status]');assert(layout.offenderCount===0,`${width}/${mode} overflow ${JSON.stringify(layout)}`);}
+      for(const width of [1440,390,320])for(const mode of ['light','dark']){await viewport(a,width,width===1440?900:844,width!==1440);await theme(a,mode);const layout=await overflow(a);await shot(a,`s5-player-${width}-${mode}`,'.listening-player');assert(layout.offenderCount===0,`${width}/${mode} overflow ${JSON.stringify(layout)}`);}
       await a.evaluate("document.querySelector('[data-listening-action]').focus();return true;");assert(await a.evaluate("return document.activeElement.hasAttribute('data-listening-action')"),'keyboard focus missing');
       await viewport(a,1440,900,false);await theme(a,'light');
     });
-    await run('S5B10 telc blueprint retains one/two/two and cross-exam media is refused',async()=>{
+    await run('S5B10 expiry during real playback preserves answers and permits leaving and finalising',async()=>{
+      const expiring=await start(a,dtz,'expiry');await fresh(a,expiring.id);
+      await pointer(a,'.mock-options input');await clickSel(a,'[data-mock-action="save"]');
+      await a.waitFor("document.querySelector('#mock-save-state')?.textContent.includes('Gespeichert')",10000);
+      await action(a,'load');await waitControl(a,'play');await action(a,'play');
+      await a.waitFor("document.querySelector('[data-listening-audio]')?.currentTime>0.2",5000);
+      await a.waitFor("document.querySelector('#mock-deadline')?.textContent==='Zeit abgelaufen' && document.querySelector('[data-listening-audio]')?.paused",10000);
+      await shot(a,'s5-expired-desktop');
+      await clickSel(a,'a[href="#/abschnitt"]');await a.waitFor("!document.querySelector('#mock-deadline') && document.querySelector('[data-mock-refresh]')",10000);
+      await fresh(a,expiring.id);await clickSel(a,'[data-mock-action="confirm"]');await clickSel(a,'[data-mock-action="finalise"]');
+      await a.waitFor("document.querySelector('.mock-results')",10000);
+      const closed=await current(a,expiring.id);assert(closed.state==='finalised'&&closed.result.answered===1,'expired finalisation lost confirmed answer');
+    });
+    await run('S5B11 telc blueprint retains one/two/two and cross-exam media is refused',async()=>{
       const tc=await start(a,telc,'practice');assert(tc.members.map(m=>m.recordings[0].max_plays).join(',')==='1,2,2','telc policy replaced with DTZ');
       const alien='/api/v1/mock-runs/'+tc.id+'/media/'+first.media_id+'/'+first.media_version;
       assert((await a.evaluate(`return fetch(${JSON.stringify(alien)}).then(r=>r.status);`))===404,'cross-exam recording readable');

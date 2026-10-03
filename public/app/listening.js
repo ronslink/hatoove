@@ -1,6 +1,8 @@
 /** Fixed recording playback. The server owns allowances; this module keeps only document-local state. */
 const copy = value => structuredClone(value);
 const failure = error => ({ ok: false, status: 0, error });
+// Only an authoritative terminal refusal releases navigation. Unknown outcomes stay retryable.
+const terminal = error => error?.status === 409 && ['mock_expired', 'mock_finalised', 'preparation_archived', 'mock_rights_blocked', 'mock_content_unavailable'].includes(error.error);
 const matches = (value, recording) => value?.media_id === recording?.media_id && value?.media_version === recording?.media_version;
 const valid = (value, recording) => matches(value, recording) && Number.isInteger(value.revision) && value.revision >= 0
   && ['ready', 'playing', 'paused', 'completed'].includes(value.state) && Number.isInteger(value.plays_used)
@@ -66,7 +68,7 @@ export function listeningMessage(state) {
   const code = state.error?.error;
   if (['account_changed', 'stale_session', 'session_expired'].includes(code) || state.error?.status === 401) return 'Deine Sitzung ist gesperrt. Die Aufnahme wurde angehalten. Deine Antworten bleiben erhalten.';
   if (['mock_expired', 'mock_finalised', 'preparation_archived'].includes(code)) return 'Dieser Lauf kann nicht mehr abgespielt werden. Deine Antworten bleiben gespeichert.';
-  if (['mock_rights_blocked', 'rights_blocked', 'media_unavailable', 'media_integrity'].includes(code)) return 'Die Aufnahme ist zurzeit nicht verfügbar. Deine Antworten bleiben erhalten.';
+  if (['mock_rights_blocked', 'rights_blocked', 'media_unavailable', 'media_integrity', 'mock_content_unavailable'].includes(code)) return 'Die Aufnahme ist zurzeit nicht verfügbar. Deine Antworten bleiben erhalten.';
   if (['playback_conflict', 'playback_recovery_required'].includes(code)) return 'Der Hörstand wurde in einem anderen Fenster geändert. Prüfe den Serverstand, bevor du fortsetzt.';
   if (code === 'play_rejected') return 'Die Wiedergabe konnte nicht starten. Tippe erneut auf Abspielen. Ein neuer Hörversuch wurde nicht verbraucht.';
   if (state.error) return state.pending ? 'Die Bestätigung fehlt. Die Aufnahme bleibt angehalten. Wiederholen prüft denselben Vorgang und startet keinen neuen Hörversuch.' : 'Die Aufnahme konnte nicht geladen werden. Bitte erneut versuchen. Deine Antworten bleiben erhalten.';
@@ -100,16 +102,16 @@ export function createListeningController({ api, esc, canEdit = () => true, crea
   const time = ms => Math.floor(ms / 60000) + ':' + String(Math.floor(ms / 1000) % 60).padStart(2, '0');
   function render() {
     if (!host || !recording) return;
-    const s = state(), p = s.playback, stopped = !canEdit() || frozen;
+    const s = state(), p = s.playback, ended = terminal(s.error), stopped = !canEdit() || frozen || ended;
     const busy = s.busy || loading || arming;
     const focus = host.contains?.(globalThis.document?.activeElement) ? globalThis.document.activeElement.dataset.listeningAction : null;
     const btn = (action, label, disabled = false) => '<button type="button" class="btn' + (['play', 'recover'].includes(action) ? ' btn-primary' : '') + '" data-listening-action="' + action + '"' + (disabled ? ' disabled' : '') + '>' + label + '</button>';
     let controls = '';
     if (!stopped) {
       if (!p) controls = btn('reload', 'Hörstand erneut laden', busy);
+      else if (playing) controls = btn('pause', 'Anhalten und speichern');
       else if (s.pending) controls = btn('retry', 'Bestätigung erneut prüfen', busy) + btn('reload', 'Serverstand prüfen', busy);
       else if (s.error && ['playback_conflict', 'playback_recovery_required'].includes(s.error.error)) controls = btn('reload', 'Serverstand prüfen', busy);
-      else if (playing) controls = btn('pause', 'Anhalten und speichern', busy);
       else if (!ready) controls = btn('load', 'Aufnahme laden', busy);
       else if (p.state !== 'completed' || p.plays_used < p.max_plays) controls = btn(['playing', 'paused'].includes(p.state) ? 'recover' : 'play', p.state === 'ready' ? 'Abspielen' : p.state === 'completed' ? 'Erlaubten Hörversuch starten' : 'Am gespeicherten Stand fortsetzen', busy);
     }
@@ -117,7 +119,7 @@ export function createListeningController({ api, esc, canEdit = () => true, crea
       + (run?.release_state === 'internal' ? '<p class="small muted">Internes Testmaterial · fachliche und Audio-Prüfung ausstehend.</p>' : '')
       + '<p class="small">' + esc(recording.max_plays) + ' Hörversuch' + (recording.max_plays === 1 ? '' : 'e') + ' je Aufnahme in diesem Lauf. Zurückspulen und Tempoänderungen sind nicht vorgesehen.</p>'
       + '<div class="listening-progress"><progress data-listening-progress max="' + recording.duration_ms + '" value="' + position() + '" aria-label="Gespeicherter und aktueller Hörfortschritt"></progress><span class="num">' + time(position()) + ' / ' + time(recording.duration_ms) + '</span></div>'
-      + '<p data-listening-status class="listening-status' + (s.error ? ' err' : ' muted') + '" role="status" aria-live="polite">' + esc(stopped ? 'Wiedergabe gesperrt. Deine Antworten bleiben erhalten.' : loading ? 'Aufnahme wird geschützt geladen …' : listeningMessage(s)) + '</p><div class="row listening-controls">' + controls + '</div></section>';
+      + '<p data-listening-status class="listening-status' + (s.error ? ' err' : ' muted') + '" role="status" aria-live="polite">' + esc(ended ? listeningMessage(s) : stopped ? 'Wiedergabe gesperrt. Deine Antworten bleiben erhalten.' : loading ? 'Aufnahme wird geschützt geladen …' : listeningMessage(s)) + '</p><div class="row listening-controls">' + controls + '</div></section>';
     host.onclick = event => {
       const button = event.target.closest('[data-listening-action]'); if (!button || button.disabled) return;
       event.stopPropagation();
@@ -225,9 +227,13 @@ export function createListeningController({ api, esc, canEdit = () => true, crea
       if (playFlight) await playFlight;
       if (ticket !== generation) return false;
       halt(); confirmed = false;
-      if (session.state().pending || session.state().busy) { if (!(await session.retry())) return false; }
+      if (terminal(session.state().error)) return true;
+      if (session.state().pending || session.state().busy) { if (!(await session.retry())) return terminal(session.state().error); }
       if (ticket !== generation) return false;
-      return pauseSaved();
+      const saved = await pauseSaved();
+      // Retain the rejected receipt and last confirmed progress for inspection. The server
+      // refuses further playback, but objective finalisation and leaving the page remain usable.
+      return saved || terminal(session.state().error);
     })();
     try { return await flushing; } finally { if (ticket === generation) { flushing = null; render(); } }
   }
@@ -249,7 +255,7 @@ export function createListeningController({ api, esc, canEdit = () => true, crea
       void session.read(value.id, clip); render();
     },
     freeze(value = true) { if (value && !frozen) { halt(); resumeRequested = false; arming = false; confirmed = false; } frozen = value; render(); },
-    get needsFlush() { const s = session.state(); return playing || arming || s.pending || s.busy || s.playback?.state === 'playing'; },
+    get needsFlush() { const s = session.state(); return !terminal(s.error) && (playing || arming || s.pending || s.busy || s.playback?.state === 'playing'); },
     preserveOnUnload(event) { if (this.needsFlush) { halt(); event.preventDefault(); event.returnValue = ''; } },
     dispose() { generation++; resetAudio(); session.dispose(); if (host) host.onclick = null; host = null; binding = null; recording = null; run = null; localError = null; flushing = null; },
   };

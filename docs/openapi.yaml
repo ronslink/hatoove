@@ -1077,7 +1077,7 @@ components:
         title: { type: string }
         scope: { type: string, enum: [section] }
         mode: { type: string, enum: [untimed, timed] }
-        attempt_mode: { type: string, enum: [practice, mock] }
+        attempt_mode: { type: string, enum: [practice, mock], nullable: true }
         state: { type: string, enum: [active, finalised] }
         revision: { type: integer, minimum: 1 }
         created_at: { type: string, format: date-time }
