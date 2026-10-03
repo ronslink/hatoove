@@ -1,6 +1,7 @@
 import { initialPreparation, preparationChoices } from './preparation.js';
 import { createMockController, mockMember } from './mock.js';
 import { createWritingController, writingCriterion, writingFeedbackState } from './writing.js';
+import { createCheckoutController } from './checkout.js';
 import { guideContent } from './guide-content.js';
 import { bindSentenceCheck } from './sentence-check.js';
 import { createReadAloud } from './read-aloud.js';
@@ -69,6 +70,7 @@ const VIEW_TITLES = {
   lesen: 'Leseverstehen', sprachbausteine: 'Sprachbausteine',
   hoeren: 'Hörverstehen', schreiben: 'Schreiben',
   fehler: 'Fehler', fortschritt: 'Fortschritt', einstellungen: 'Einstellungen', mehr: 'Mehr', satzbau: 'Satzbau erkunden',
+  checkout: 'Pass freischalten',
 };
 
 /** Server state, held in memory only. */
@@ -1193,6 +1195,9 @@ const writingApi = { ...api, writing: { ...api.writing, result: async submission
 const mock = createMockController({ api: writingApi, esc, setLabel, readAloud, explanationLanguage: () => state.settings?.language || 'de', canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
 window.addEventListener('beforeunload', event => mock.preserveOnUnload(event));
 const writing = createWritingController({ api: writingApi, esc, readAloud, onChange: () => { guard(refreshCredits()); if (currentView === 'fortschritt') guard(renderHistory()); } });
+// PAYMENTS-SLICE-01. `onChange` re-reads the credit line, because a granted pass is exactly the thing
+// that line shows; it never writes a learner state anywhere.
+const checkout = createCheckoutController({ api, esc, onChange: () => guard(refreshCredits()) });
 async function openWriting(box, task, options = {}) {
   if (!activePreparation() || preparationSwitching) return false;
   // Keep the task catalogue as a sibling of the editor so closing a letter can restore it.
@@ -1231,6 +1236,38 @@ async function openArchivedWriting(entry) {
   }
   el('archived-refresh').onclick = () => guard(openArchivedWriting(entry));
 }
+/**
+ * CHECKOUT (PAYMENTS-SLICE-01). One render function, and it decides nothing itself: the
+ * controller asks the server what is on sale and renders the documented answer — including
+ * `payments_unavailable` (503), which is the pilot's default and therefore the state most learners
+ * will see. An unwired port is a fact about the installation, not an error the learner caused, so it
+ * is not allowed to reach the shell's error strip.
+ *
+ * The exam is the active preparation's, because a pass is bought for an exam. `market` is the only
+ * purchasing input the client has, and it is a LABEL rather than a price: the price lives in a server
+ * row, and the client must never send an amount, a currency or a price id (contract §7).
+ */
+async function renderCheckout() {
+  const host = el('checkout-host');
+  if (!host) return;
+  const prep = state.preparation;
+  if (!prep?.exam_id) {
+    host.innerHTML = '<div class="card"><h3>Keine Prüfung ausgewählt</h3><p class="small muted">Wähle zuerst eine Prüfungsvorbereitung.</p></div>';
+    return;
+  }
+  // Which order is being watched after a return from the provider. The server builds that URL and the
+  // contract does not fix its shape, so any UUID it carries is accepted — and validated before use.
+  // Nothing is read from browser storage: the shell has none, and a purchase state is not put in one.
+  const raw = location.hash.slice(1) + '&' + location.search.replace(/^\?/, '');
+  const param = name => new RegExp('[?&#]' + name + '=([^&]+)').exec(raw);
+  const order = param('order') || param('orderId') || param('order_id');
+  await checkout.open(host, {
+    examId: prep.exam_id,
+    market: 'DE',
+    orderId: order ? decodeURIComponent(order[1]) : null,
+  });
+}
+
 async function renderHistory() {
   const ticket = contextTicket();
   const host = el('history-list');
@@ -1288,6 +1325,10 @@ async function route() {
   }
   if (mock.active && info.view === 'abschnitt' && info.runId === mock.runId) { history.replaceState(null, '', '#/prep/' + state.preparation.id + '/abschnitt/' + mock.runId); return; }
   mock.dispose();
+  // The checkout is a screen, not a draft: leaving it drops an in-flight poll and its host content,
+  // because a status line that kept updating on another view would be a claim about a screen nobody
+  // is looking at.
+  if (checkout.active && info.view !== 'checkout') checkout.dispose();
   let key = info.view;
   if (key === 'sprachbausteine') {
     // A hidden link alone cannot prevent a saved URL or an exam switch retaining this route.
@@ -1329,6 +1370,7 @@ async function route() {
   if (view === 'fortschritt') run(renderHistory);
   if (view === 'woerterbuch') run(renderDictionary);
   if (view === 'nachschlagen') run(renderGuides);
+  if (view === 'checkout') run(renderCheckout);
   /*
    * THE SESSION LIST IS RE-READ WHEN ITS VIEW OPENS, not only when the page loaded.
    *

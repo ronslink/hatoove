@@ -29,7 +29,7 @@ navigation, light/dark behaviour. The tokens for all of that are curated and shi
 | `onboarding.html` — "daily time" | The daily-time setting is **removed** (`MFP-DESIGN-DECISIONS.md` R16), not renamed |
 | `review.html` — "Spaced review queue and weak topics" | The adaptive engine and SRS were **dropped**: their items are client-generated, so the server cannot mark them. Keeping them forces forgeable progress |
 | `plan.html` — "Week calendar to the exam date" | No study plan in the first release. The exam date is a countdown, not a schedule |
-| `upgrade.html` — "Exam Sprint purchase, Einführungspreis, withdrawal consent" | **No checkout in the pilot.** Invite-only with a configured allowance. Prices and promotional dates need real contracts; do not invent terms |
+| `upgrade.html` — "Exam Sprint purchase, Einführungspreis, withdrawal consent" | **Checkout is in scope** (Ron, 3 October 2026: Stripe; MASTER-PLAN D15) — `public/app/checkout.js` builds from this screen's structure. Prices, promotional dates and withdrawal terms still need real contracts; do not invent terms |
 | `listening.html` — "Play-once audio, true/false" | **0 tracked audio files.** Listening is blocked on gate C-04, and browser speech synthesis is explicitly **not** a substitute for a listening assessment (`IMPLEMENTATION_PLAN.md:227`) |
 | `index.html` — "Design reference for the React app" | Reference copy, not a decision. The client is small vanilla ES modules under `public/app/`; no framework migration is implied |
 | `writing.html` — "criteria bands" | The rubric contract is **open** (R11). Four internal criteria (15/10/12/8) must never be relabelled as telc's three |

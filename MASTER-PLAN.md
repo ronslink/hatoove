@@ -161,7 +161,8 @@ The platform substrate is real, and it is why a local milestone is reachable at 
 | Any audio asset model, and any audio file | Listening cannot be served at all |
 | `public/app/` | No new client; the old SPA is still the entry point |
 | `SETTINGS_LANGUAGES` is `Object.freeze([])` (`settings.mjs:41`) | Any ≤16-character string is accepted as an explanation language — the "supported enum" the design record assumes does not exist |
-| Email port, pricing/entitlements, checkout | Later, and gated |
+| Email port | Later, and gated |
+| Pricing/entitlements, checkout | **In scope** — `PAYMENTS-SLICE-01`; **Stripe** (D15). Live keys and real charges stay owner-gated |
 
 **Known landmines** — verified, and each could waste a slice:
 
@@ -295,7 +296,7 @@ Ordered to **LM-1 and LM-2**. The state column records what was true at `812408c
 | **PILOT-20** | **Purchases and per-exam entitlements.** Key `entitlements` by `(owner_id, exam_id, term)` instead of `owner_id`, attribute usage through `submissions → task_version.exam_id`, and add the product/price record a purchase needs. **Today one global allowance per learner means buying exam A grants credits spendable on exam B** — invisible with one exam, wrong with two. Touches the one-debit transaction, so it needs its own discrimination leg | **New — Ron''s direction** | D14 |
 | **PILOT-18** | **Email/password account lifecycle, on the database.** The four auth tables **already exist and are in use** [EXECUTED]: migration `0001` creates `user` (7 cols), `account` (13), `session` (8) and `verification` (6), all deliberately without RLS; registration writes the `user` row plus `account(providerId='credential', password='scrypt:…')`, and login joins them and retrieves the account. **What is missing is the lifecycle around them:** `verification` is created and **written by nothing** (no email verification, no password-reset token), `session` has no rotation, expiry sweep or revocation on password change, and there are no throttle counters. Build those tables/columns and the flows that use them — registration stays email + password with **no invite** (Ron, 1 October 2026). **Measured 1 October 2026 [EXECUTED]:** 12 rapid registrations **all accepted** (no throttle); 12 rapid failed sign-ins **all 401, no 429** (no lockout); `/api/auth/forget-password`, `/reset-password`, `/verify-email` and `/send-verification-email` all **404**; and `verification` holds **0** rows. Those four numbers are the acceptance legs | **Gap — the tables exist, the lifecycle does not** | D5 (R4), D6 (R5) |
 
-**Not yet, and each has a named blocker:** commercial checkout and market pricing (P-01/P-02/P-03 plus owner authorization); any hosting, DNS, TLS, email provider or payment configuration; live model calls (R10); on-device or embedded AI; speaking and STT (outside the pilot); a full written mock (needs reviewed content, timing and playback rules for every included section); institutional or teacher features.
+**Not yet, and each has a named blocker:** **market pricing and the legal/commercial terms** (P-01/P-03: real price and market contracts, tax and withdrawal terms — the payment *path* itself is in scope, see D15); any hosting, DNS, TLS or email provider configuration; **live payment keys and real charges** (D15); live model calls (R10); on-device or embedded AI; speaking and STT (outside the pilot); a full written mock (needs reviewed content, timing and playback rules for every included section); institutional or teacher features.
 
 **Next integration order.** Review DOCKER-ONLY-01 and the current shell/auth findings, then re-verify PILOT-02 runtime composition. Complete PILOT-03 before dependent PILOT-04 implementation; exam contract design may proceed independently. The retired host launcher is no longer an acceptance path.
 
@@ -320,7 +321,8 @@ Ordered to **LM-1 and LM-2**. The state column records what was true at `812408c
 | **D11** | ~~"Working local model": the complete local application with stubs, or also on-device AI?~~ **ANSWERED, 1 October 2026.** The answer arrived as a runtime direction rather than a label: **the Docker server is the only version of the application** — the host/local run is removed entirely — and on-device AI is not in scope. Recorded in §1 "Architecture: DECIDED", built by DOCKER-ONLY-01, and verified at 10/10 | — | **Resolved** |
 | **D12** | **Content-pool fill policy** ([CONTENT-POOL-01](work/implementation/CONTENT-POOL-01.md) §7): batch-to-target with starvation jumping the queue, or fill-on-demand? | PILOT-15 | Batch-to-target |
 | **D13** | **Pool target size, and who reviews a batch.** Pooling means a bad item reaches every learner at once, so this is the gate that matters — distinct from D2, which is whether the pilot may see `unreviewed` content | PILOT-15, and the review policy in D2 | Unset — blocks filling |
-| **D14** | **What is actually sold:** a per-exam pass with a term, a bundle of exams, or an allowance? And is it priced per market? This decides the shape of `products`/`market_prices`/`orders` and the key of `entitlements` | PILOT-20, and any checkout | Per-exam pass with a term; pilot stays invite-free with a configured allowance |
+| **D14** | **What is actually sold:** a per-exam pass with a term, a bundle of exams, or an allowance? And is it priced per market? This decides the shape of `products`/`market_prices`/`orders` and the key of `entitlements` | PILOT-20, and any checkout | Per-exam pass with a term; ~~pilot stays invite-free with a configured allowance~~ **superseded by D15** |
+| **D15** | **Payment provider and activation.** **Stripe** is the method (Ron, 3 October 2026): Stripe-hosted Checkout, one-time payment, webhook-first activation, and an exam-scoped entitlement **with a term**. This **removes the earlier "no purchase UI / no live payments" stipulation** from AGENTS.md, PILOT_BUILD_PLAN.md, IMPLEMENTATION_PLAN.md and this plan. Dated dispatches, spikes and slice records in `work/dispatches/` and `work/implementation/` keep their historical wording — they were true when written and are superseded here, not amended | `PAYMENTS-SLICE-01` (port, stub, activation, checkout screen — built); `0026-payments` schema and the three session routes next; PILOT-20 (per-exam term) | **Stripe**; build and test in the provider's **test mode**; live keys and real charges only on Ron's explicit go-ahead |
 
 D14 and the remaining rows above were **answered by Ron on 2 October 2026**; the answers, each with what it
 unblocks and the work it creates, are recorded in
@@ -331,7 +333,8 @@ port (done, 6 legs); **D6** operator-assisted reset with honest pilot wording (t
 telc English B1 as the second candidate; **D10** no live calls until cost cap + human comparison + privacy/DPA
 review; **D12** batch refill below threshold with a budget cap; **D13** a licensed B1 examiner/DaF teacher will
 be engaged (name to follow), pool sizes as recommended, filling waits for D10; **D14** per-exam prep with a
-term, priced per market, pilot free with a configured allowance; **R15** grades only, no total; **E-01** the
+term, priced per market (its "pilot free with a configured allowance" half is superseded by **D15**: the pilot
+sells through Stripe); **R15** grades only, no total; **E-01** the
 reviewer above; tab bar **five plus "Mehr"**; landing page **German**; the single-user file handlers are to be
 **deleted**; sentence building comes from the **recovered** `satzbau.js` (as a server check) and
 `generators.js` (drill banks as content).
@@ -369,7 +372,7 @@ git show 626c126:work/implementation/FUNCTIONAL-ROADMAP.md
 
 ## 11. Boundaries that do not move
 
-No deployment, DNS, live payments, live email (verification and recovery stay stubbed), OAuth, new production access or live AI. **Synthetic data and provider stubs only.** `D:\B1_Prep` remains a live install: only its `design` folder may be **read**, and nothing in that tree may be modified. No live data migration and **no data deletion**; existing learner records are preserved; obsolete objects go by **forward** migrations after their consumers are mapped. Human gates **E-01, C-04, C-06, P-03/X-01** and real-device evidence stay open. Issue #63 is **not** a production-security approval. A 390 px emulated viewport is not a phone.
+No deployment, DNS, live email (verification and recovery stay stubbed), OAuth, new production access, live AI, or **live payment keys and real charges**. Payment code and the provider's **test mode** are in scope (D15); running them against real money is not authorized here. **Synthetic data and provider stubs only.** `D:\B1_Prep` remains a live install: only its `design` folder may be **read**, and nothing in that tree may be modified. No live data migration and **no data deletion**; existing learner records are preserved; obsolete objects go by **forward** migrations after their consumers are mapped. Human gates **E-01, C-04, C-06, P-03/X-01** and real-device evidence stay open. Issue #63 is **not** a production-security approval. A 390 px emulated viewport is not a phone.
 
 Additional rules this plan makes load-bearing, because the new direction needs them:
 

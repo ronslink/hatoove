@@ -370,3 +370,27 @@ code {
 @media (max-width: 860px) {
   .mock-writing-choices { grid-template-columns: minmax(0, 1fr); }
 }
+
+/*
+ * CHECKOUT (PAYMENTS-SLICE-01). Shell layer, never `assets/design/hatoove.css`: that file is a
+ * pinned artifact whose digest is the reviewed contract, and new chrome belongs beside it.
+ *
+ * DELIBERATELY SMALL. The state cards are the design system's own `.card`, `.chip`, `.stat-row`, `.row`
+ * and `.btn-primary`; nothing here re-draws them. What is added is only what the system does not have:
+ * a figure that must not be mistaken for body text, a stat row that may wrap on a phone instead of
+ * overflowing it, and one line reserved for a status message so a state change cannot shift the layout
+ * under the learner's finger.
+ *
+ * Tokens only, no raw colour and no raw radius: `tools/design-check.mjs` D1/D2c enforce that
+ * mechanically, and a raw value here would fail the gate rather than merely look wrong. The single
+ * class that needs emphasis uses `--display`/`--font`, the system's two faces.
+ */
+.checkout-price { font-family: var(--display, inherit); font-size: 1.3rem; }
+/* `min-width: 0` plus `overflow-wrap` is the load-bearing half: four tiles at 320 px overflow the
+   viewport without it, which is the defect the answer tiles already hit once. */
+#checkout-host .stat-row { flex-wrap: wrap; }
+#checkout-host .stat { min-width: 0; overflow-wrap: anywhere; }
+#checkout-host .spread { gap: .5rem 1rem; }
+/* The status line of the pending and paid states. Addressed by the id the elements actually carry, so
+   the rule cannot be dead: a `.checkout-note` class that no element wears would be decoration. */
+#checkout-note { min-height: 1.2em; margin-top: .6rem; }

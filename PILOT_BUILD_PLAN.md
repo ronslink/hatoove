@@ -10,7 +10,7 @@ Login leads directly to the sole available exam or an explicit choice among mult
 
 **Ron's release decisions:** "no we will release dtz fully , listening playback in practice once and exam mode once . Credit is for one exam only". Each DTZ recording plays once per attempt in both practice and mock-exam mode; reload/resume cannot add another play. Credits/allowances belong to one selected exam package, with no pooling, transfer or refill through another preparation. Preserve existing balances through an audited exam-scoped migration. Prices, quantities and live payment integration are not decided by this rule.
 
-telc Deutsch B1 remains first; DTZ A2–B1 is the next implementation package; recognised English exams remain later candidates. No study-plan/readiness/purchase UI is added. The historical commercial research below remains background, not an active release assignment. Existing human/device/provider gates remain open.
+telc Deutsch B1 remains first; DTZ A2–B1 is the next implementation package; recognised English exams remain later candidates. No study-plan/readiness UI is added. **Payments are an active assignment** (Ron, 3 October 2026: Stripe is the payment method); the historical commercial research below stays background for *pricing*, which is still undecided. Existing human/device/provider gates remain open.
 
 ## First-release direction — 1 October 2026
 
@@ -20,7 +20,7 @@ Build the small new vanilla client using `D:\Hatoove\design`, with the orange/ri
 
 Use one shared PostgreSQL schema with session-owned private records and versioned content. Remove local fallback, progress files/blob sync and browser grading through MFP-02b/11; no implicit import into the first account or live data deletion. The internal writing journey must survive fresh-browser resume from server records.
 
-First-release defaults: email/password signup, criterion practice grades without a /45 total, no daily-time setting. Resolve R11's three-versus-four rubric contract explicitly. No readiness/streak/study-plan/reminder/purchase UI or unsupported model/storage/retention claims. Pending/failed/unassessed feedback, reset, history/revision, export/delete, legal and error states are required. Objective practice and mocks follow EXAM-S0–S6 above; the older conditional MFP-13 ordering is withdrawn. Broader human review and production authorization gates stay open.
+First-release defaults: email/password signup, criterion practice grades without a /45 total, no daily-time setting. Resolve R11's three-versus-four rubric contract explicitly. No readiness/streak/study-plan/reminder UI, and no unsupported model/storage/retention claims. A purchase screen is in scope; prices and markets are not yet decided. Pending/failed/unassessed feedback, reset, history/revision, export/delete, legal and error states are required. Objective practice and mocks follow EXAM-S0–S6 above; the older conditional MFP-13 ordering is withdrawn. Broader human review and production authorization gates stay open.
 
 Prepared 30 September 2026 from the current development checkout and the research in this chat.
 

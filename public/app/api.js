@@ -42,6 +42,9 @@ const PATHS = Object.freeze({
   submissions: '/api/v1/submissions',
   export: '/api/v1/export',
   sentenceCheck: '/api/v1/sentence-check',
+  checkoutOffer: '/api/v1/checkout/offer',
+  checkoutSession: '/api/v1/checkout/session',
+  orders: '/api/v1/orders',
 });
 
 /**
@@ -268,6 +271,41 @@ return Object.freeze({
     revoke: (sessionId) => call('DELETE', `/api/v1/sessions/${encodeURIComponent(sessionId)}`, {}),
     changePassword: (currentPassword, newPassword) =>
       call('PUT', '/api/v1/account/password', { currentPassword, newPassword }),
+  }),
+
+  /**
+   * PAYMENTS (PAYMENTS-SLICE-01). Three session-scoped routes, and the shape of the calls is the
+   * whole point:
+   *
+   *   * `offer` asks what is on sale for one exam. The server answers from its own price row, and a
+   *     market with no row is a 404 rather than an empty offer. `503 payments_unavailable` is the
+   *     pilot's default and is a state the screen must render, not an error to retry silently.
+   *   * `startSession` sends the exam and the market and NOTHING ELSE. No amount, no currency, no
+   *     price id: the contract (§2.2, §7) puts the price on the server, so a client that could name
+   *     one could name a different one. Unknown fields are refused with 422 like every other
+   *     mutating route, so the body here is the allowlist rather than a convenient superset.
+   *   * `order` is the ONLY source of truth about a payment. The provider's return URL is a browser
+   *     arriving somewhere, not money moving, and the status is read here every time.
+   *
+   * None of these is preparation-scoped on the server: the offer is for an exam, and an order belongs
+   * to the account, so they use `call` rather than `scopedCall` — a checkout that refused to work
+   * because a preparation happened to be archived would be a bug, not a safeguard.
+   */
+  payments: Object.freeze({
+    offer: (examId) => {
+      if (typeof examId !== 'string' || !examId.trim()) return Promise.resolve(refusal(422, 'invalid_exam'));
+      return call('GET', `${PATHS.checkoutOffer}?exam=${encodeURIComponent(examId)}`);
+    },
+    startSession: (payload = {}) => {
+      const examId = typeof payload.examId === 'string' ? payload.examId.trim() : '';
+      const market = typeof payload.market === 'string' ? payload.market.trim() : '';
+      // The two documented fields only. Anything else a caller passes is dropped rather than sent.
+      if (!examId || !market) return Promise.resolve(refusal(422, 'invalid_market'));
+      return call('POST', PATHS.checkoutSession, { examId, market });
+    },
+    order: (orderId) => UUID.test(String(orderId || ''))
+      ? call('GET', `${PATHS.orders}/${encodeURIComponent(orderId)}`)
+      : Promise.resolve(refusal(422, 'invalid_order')),
   }),
 
   /**
