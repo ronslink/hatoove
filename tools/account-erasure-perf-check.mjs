@@ -10,6 +10,10 @@ import { EventEmitter } from 'node:events';
 import { createPostgresAccountDeletion, ACCOUNT_DELETION_STEPS, ACCOUNT_TABLES } from '../server/owned-postgres/adapter.mjs';
 
 const COHORTS = Object.freeze([100, 1000, 10000]);
+const OPT_IN_COHORTS = Object.freeze([...COHORTS, 100001]);
+const PHASES = new Set(['fixture_bootstrap', 'seed_owner', 'seed_bulk_intents', 'seed_cardinality',
+  'snapshot_target_before', 'snapshot_rollback', 'snapshot_cancel', 'snapshot_target_after',
+  'snapshot_foreign_before', 'snapshot_foreign_after', 'snapshot_foreign_final']);
 const LIMITS = Object.freeze({ lockMs: 2000, statementMs: 15000, deletionMs: 30000, cancelGraceMs: 5000, sampleMs: 100, maxSamples: 420 });
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const normal = (sql) => String(sql).replace(/\s+/g, ' ').trim();
@@ -33,7 +37,7 @@ export function parseOptions(args) {
   if (args.length === 0 || (args.length === 1 && args[0] === '--offline')) return { postgres: false, cohorts: [] };
   if (args[0] !== '--postgres' || args.length > 2) throw Error('erasure_arguments_refused');
   if (args.length === 1) return { postgres: true, cohorts: [...COHORTS] };
-  const match = /^--cohort=(100|1000|10000)$/.exec(args[1]);
+  const match = /^--cohort=(100|1000|10000|100001)$/.exec(args[1]);
   if (!match) throw Error('erasure_cohort_refused');
   return { postgres: true, cohorts: [Number(match[1])] };
 }
@@ -44,6 +48,13 @@ export function stepLabel(sql) {
 }
 function errorCode(error) {
   return /^[A-Z0-9]{5}$/.test(error?.code || '') ? error.code : null;
+}
+async function phase(report, label, count, work) {
+  if (!PHASES.has(label) || !(count === null || count === 1 || OPT_IN_COHORTS.includes(count))) throw Error('erasure_phase_refused');
+  const started = performance.now(); let outcome = 'ok', code = null;
+  try { return await work(); }
+  catch (error) { outcome = 'error'; code = errorCode(error); report.failurePhase ??= { label, count }; throw error; }
+  finally { report.phaseTimings.push({ label, count, elapsedMs: Math.round((performance.now() - started) * 1000) / 1000, outcome, code }); }
 }
 function restore(key, value) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
 function watchErrors(emitter, surface, state, onError = () => {}) {
@@ -187,14 +198,14 @@ async function measuredDeletion({ db, observer, pg, state, owner, mode = 'measur
 }
 
 export async function runDiagnostic(cohorts = COHORTS) {
-  guardErasureFixture(); assert(cohorts.length > 0 && cohorts.every((n) => COHORTS.includes(n)));
+  guardErasureFixture(); assert(cohorts.length > 0 && cohorts.every((n) => OPT_IN_COHORTS.includes(n)));
   // Every selective run includes the small cancellation/rollback controls before larger measurements.
   const executionCohorts = [...new Set([100, ...cohorts])];
   const saved = Object.fromEntries(['B1PREP_CONTENT_MODE', 'B1PREP_SERVE_REVIEW', 'B1PREP_SERVE_RIGHTS'].map((key) => [key, process.env[key]]));
   const report = { kind: 'synthetic-account-erasure-diagnostic', status: 'failed', shape: 'one-submission,distinct-intents,no-observations',
     deadlineScope: 'per-deletion; cancellation/termination grace is additional', deletionDeadlineMs: LIMITS.deletionMs,
     connectionTimeoutMs: 5000, observerStatementTimeoutMs: 10000, bootstrapGlobalCancellation: false, requiresSupervisedOuterProcessBound: true,
-    requestedCohorts: cohorts, cohorts: [], controls: [], cleanupVerified: false, performanceClaim: false };
+    requestedCohorts: cohorts, phaseTimings: [], cohorts: [], controls: [], cleanupVerified: false, performanceClaim: false };
   let db, world, observer, baseline, admin, foreign, foreignBefore;
   const state = { faults: [], clients: new WeakSet(), aborted: false };
   const pg = createRequire(new URL('../server/owned-postgres/bootstrap.mjs', import.meta.url))('pg');
@@ -208,7 +219,7 @@ export async function runDiagnostic(cohorts = COHORTS) {
     const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
     const { beginProviderAttempt } = await import('../server/owned-postgres/provider-attempts.mjs');
     const { validateProviderIdentity } = await import('../server/provider-attempt-contract.mjs');
-    db = await createFixture(); report.schema = db.schema;
+    db = await phase(report, 'fixture_bootstrap', null, () => createFixture()); report.schema = db.schema;
     for (const name of ['admin', 'migration', 'auth', 'learner', 'worker', 'deletion', 'payments']) watchPool(db[name], `fixture:${name}`, state);
     requireHealthy(state); world = await createPostgresWorld({ fixture: db });
     admin = await db.admin.connect(); await admin.query("SET statement_timeout='15s'"); await admin.query("SET lock_timeout='2s'");
@@ -226,46 +237,49 @@ export async function runDiagnostic(cohorts = COHORTS) {
     const identity = validateProviderIdentity({ adapterId: 'synthetic-grader-v1', pricingCardId: 'synthetic-usd-v1' }, { builtin: false });
     async function seed(count) {
       requireHealthy(state);
-      const signup = await world.sessions.signUp({ name: 'Synthetic erasure fixture', email: `erasure-${randomUUID()}@example.invalid`, password: 'synthetic-erasure-password' });
-      const owner = (await world.sessions.getSession({ cookie: String(signup.setCookie).split(';')[0] })).userId;
-      const prep = (await world.store.port.listPreparations(owner)).find((p) => p.state === 'active'); assert(prep);
-      const attempt = await world.store.port.create(owner, null, null, prep.id);
-      const draft = await world.store.port.save(owner, attempt.id, 1, 'SYNTHETIC erasure fixture letter; no learner or provider data.');
-      const receipt = await world.store.port.submit(owner, attempt.id, draft.revision, randomUUID(), 'de');
-      const token = randomUUID();
-      const job = (await admin.query("UPDATE jobs SET status='running',tries=1,lease_token=$2,lease_until=clock_timestamp()+interval '10 minutes' WHERE submission_id=$1 RETURNING id", [receipt.submissionId, token])).rows[0];
-      const worker = await db.worker.connect(); let id;
-      try { await worker.query('BEGIN'); id = (await beginProviderAttempt(worker, { jobId: job.id, leaseToken: token, identity })).attemptId; await worker.query('COMMIT'); }
-      catch (error) { await worker.query('ROLLBACK'); throw error; } finally { worker.release(); }
-      const template = (await admin.query('SELECT to_jsonb(a) AS value FROM provider_attempt a WHERE attempt_id=$1', [id])).rows[0].value;
+      const { owner, template } = await phase(report, 'seed_owner', count, async () => {
+        const signup = await world.sessions.signUp({ name: 'Synthetic erasure fixture', email: `erasure-${randomUUID()}@example.invalid`, password: 'synthetic-erasure-password' });
+        const owner = (await world.sessions.getSession({ cookie: String(signup.setCookie).split(';')[0] })).userId;
+        const prep = (await world.store.port.listPreparations(owner)).find((p) => p.state === 'active'); assert(prep);
+        const attempt = await world.store.port.create(owner, null, null, prep.id);
+        const draft = await world.store.port.save(owner, attempt.id, 1, 'SYNTHETIC erasure fixture letter; no learner or provider data.');
+        const receipt = await world.store.port.submit(owner, attempt.id, draft.revision, randomUUID(), 'de');
+        const token = randomUUID();
+        const job = (await admin.query("UPDATE jobs SET status='running',tries=1,lease_token=$2,lease_until=clock_timestamp()+interval '10 minutes' WHERE submission_id=$1 RETURNING id", [receipt.submissionId, token])).rows[0];
+        const worker = await db.worker.connect(); let id;
+        try { await worker.query('BEGIN'); id = (await beginProviderAttempt(worker, { jobId: job.id, leaseToken: token, identity })).attemptId; await worker.query('COMMIT'); }
+        catch (error) { await worker.query('ROLLBACK'); throw error; } finally { worker.release(); }
+        const template = (await admin.query('SELECT to_jsonb(a) AS value FROM provider_attempt a WHERE attempt_id=$1', [id])).rows[0].value;
+        return { owner, template };
+      });
       // Same explicit volume seam as O01's cap fixture: all INSERT guards/FKs remain enabled.
-      await admin.query(`INSERT INTO provider_attempt SELECT r.* FROM generate_series(2,$2::int) n
-        CROSS JOIN LATERAL jsonb_populate_record(NULL::provider_attempt,$1::jsonb||jsonb_build_object('attempt_id',gen_random_uuid(),'claim_number',n)) r`, [JSON.stringify(template), count]);
-      const counts = (await admin.query(`SELECT (SELECT count(*)::int FROM submissions WHERE owner_id=$1) submissions,
+      await phase(report, 'seed_bulk_intents', count, () => admin.query(`INSERT INTO provider_attempt SELECT r.* FROM generate_series(2,$2::int) n
+        CROSS JOIN LATERAL jsonb_populate_record(NULL::provider_attempt,$1::jsonb||jsonb_build_object('attempt_id',gen_random_uuid(),'claim_number',n)) r`, [JSON.stringify(template), count]));
+      const counts = await phase(report, 'seed_cardinality', count, async () => (await admin.query(`SELECT (SELECT count(*)::int FROM submissions WHERE owner_id=$1) submissions,
         (SELECT count(*)::int FROM provider_attempt WHERE owner_id=$1) intents,
-        (SELECT count(*)::int FROM provider_attempt_observation WHERE owner_id=$1) observations`, [owner])).rows[0];
+        (SELECT count(*)::int FROM provider_attempt_observation WHERE owner_id=$1) observations`, [owner])).rows[0]);
       assert.deepEqual(counts, { submissions: 1, intents: count, observations: 0 }); requireHealthy(state); return { owner, counts };
     }
-    foreign = await seed(1); foreignBefore = await ownerSnapshot(admin, foreign.owner);
+    foreign = await seed(1); foreignBefore = await phase(report, 'snapshot_foreign_before', 1, () => ownerSnapshot(admin, foreign.owner));
     for (const count of executionCohorts) {
-      const target = await seed(count); const before = await ownerSnapshot(admin, target.owner);
+      const target = await seed(count); const before = await phase(report, 'snapshot_target_before', count, () => ownerSnapshot(admin, target.owner));
       if (count === 100) {
         const rollback = await measuredDeletion({ db, observer, pg, state, owner: target.owner, mode: 'rollback_control' }); report.controls.push(rollback);
-        assert.deepEqual(await ownerSnapshot(admin, target.owner, before.ids), before); assert.equal(rollback.status, 'control_pass');
+        assert.deepEqual(await phase(report, 'snapshot_rollback', count, () => ownerSnapshot(admin, target.owner, before.ids)), before); assert.equal(rollback.status, 'control_pass');
         const blocker = await db.admin.connect();
         try {
           await blocker.query('BEGIN'); await blocker.query("SET LOCAL statement_timeout='15s'"); await blocker.query("SET LOCAL lock_timeout='2s'");
           await blocker.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))', [target.owner]);
           const blockerPid = (await blocker.query('SELECT pg_backend_pid() AS pid')).rows[0].pid;
           const cancel = await measuredDeletion({ db, observer, pg, state, owner: target.owner, mode: 'cancel_control', blockerPid }); report.controls.push(cancel);
-          assert.deepEqual(await ownerSnapshot(admin, target.owner, before.ids), before); assert.equal(cancel.status, 'control_pass');
+          assert.deepEqual(await phase(report, 'snapshot_cancel', count, () => ownerSnapshot(admin, target.owner, before.ids)), before); assert.equal(cancel.status, 'control_pass');
         } finally { try { await blocker.query('ROLLBACK'); } finally { blocker.release(); } }
       }
       const measured = await measuredDeletion({ db, observer, pg, state, owner: target.owner }); report.cohorts.push({ count, cardinality: target.counts, ...measured });
-      const after = await ownerSnapshot(admin, target.owner, before.ids);
+      const after = await phase(report, 'snapshot_target_after', count, () => ownerSnapshot(admin, target.owner, before.ids));
       if (measured.status === 'pass') assert(after.tables.every((table) => table.count === 0), 'actual account rows remain');
       else assert.deepEqual(after, before, 'failed erasure must roll back all original rows');
-      assert.deepEqual(await ownerSnapshot(admin, foreign.owner, foreignBefore.ids), foreignBefore, 'foreign owner changed');
+      assert.deepEqual(await phase(report, 'snapshot_foreign_after', 1, () => ownerSnapshot(admin, foreign.owner, foreignBefore.ids)), foreignBefore, 'foreign owner changed');
       assert.equal(measured.status, 'pass', 'failed/timeout measurement is not acceptance');
     }
     requireHealthy(state); report.status = 'pass';
@@ -273,7 +287,7 @@ export async function runDiagnostic(cohorts = COHORTS) {
   finally {
     const cleanupErrors = [];
     if (admin && foreignBefore) {
-      try { assert.deepEqual(await ownerSnapshot(admin, foreign.owner, foreignBefore.ids), foreignBefore); report.foreignPreserved = true; }
+      try { assert.deepEqual(await phase(report, 'snapshot_foreign_final', 1, () => ownerSnapshot(admin, foreign.owner, foreignBefore.ids)), foreignBefore); report.foreignPreserved = true; }
       catch { cleanupErrors.push('foreign_owner_changed_or_unverified'); }
     }
     if (admin) admin.release();
@@ -303,8 +317,18 @@ export async function offlineChecks() {
   for (const key of Object.keys(valid)) assert.throws(() => guardErasureFixture({ ...valid, [key]: '' }), /erasure_fixture_refused/);
   assert.throws(() => guardErasureFixture({ ...valid, OWNAPI_PG_PORT: '5432', OWNAPI_PG_DATABASE: 'hatoove_ci', CI: 'true', GITHUB_ACTIONS: 'true' }));
   assert.deepEqual(parseOptions([]), { postgres: false, cohorts: [] }); assert.deepEqual(parseOptions(['--postgres']).cohorts, COHORTS);
-  for (const n of COHORTS) assert.deepEqual(parseOptions(['--postgres', `--cohort=${n}`]).cohorts, [n]);
-  for (const arg of ['--cohort=100001', '--cohort=0', '--cohort=0100', '--anything']) assert.throws(() => parseOptions(['--postgres', arg]));
+  assert.equal(parseOptions(['--postgres']).cohorts.includes(100001), false);
+  for (const n of OPT_IN_COHORTS) assert.deepEqual(parseOptions(['--postgres', `--cohort=${n}`]).cohorts, [n]);
+  for (const arg of ['--cohort=100002', '--cohort=1000000', '--cohort=0', '--cohort=0100', '--anything']) assert.throws(() => parseOptions(['--postgres', arg]));
+  const phaseReport = { phaseTimings: [] };
+  assert.equal(await phase(phaseReport, 'seed_bulk_intents', 100001, async () => 7), 7);
+  const timeout = Object.assign(Error('PRIVATE phase sentinel'), { code: '57014' });
+  await assert.rejects(phase(phaseReport, 'snapshot_target_before', 100001, async () => { throw timeout; }), (error) => error === timeout);
+  assert.deepEqual(phaseReport.failurePhase, { label: 'snapshot_target_before', count: 100001 });
+  assert.equal(phaseReport.phaseTimings[0].outcome, 'ok'); assert.equal(phaseReport.phaseTimings[1].outcome, 'error');
+  assert.equal(phaseReport.phaseTimings[1].code, '57014'); assert(phaseReport.phaseTimings.every((p) => Number.isFinite(p.elapsedMs) && p.elapsedMs >= 0));
+  for (const [label, count] of [['PRIVATE', 100], ['seed_bulk_intents', 100002]]) await assert.rejects(phase(phaseReport, label, count, async () => assert.fail('refused phase executed')), /erasure_phase_refused/);
+  assert.equal(JSON.stringify(phaseReport).includes('PRIVATE'), false);
   for (const [name, sql] of ACCOUNT_DELETION_STEPS) assert.equal(stepLabel(sql), `delete:${name}`);
   assert.equal(stepLabel('SELECT pg_advisory_xact_lock(hashtextextended($1, 7352))'), 'owner_fence');
   assert.equal(stepLabel('COMMIT'), 'commit'); assert.equal(stepLabel('ROLLBACK'), 'rollback');
@@ -335,7 +359,7 @@ export async function offlineChecks() {
     else { assert.equal((await port.deleteAccount('synthetic-offline-owner')).verifiedAbsent, true); assert.equal(seen.at(-1), 'commit'); assert.equal(seen.filter((label) => label.startsWith('delete:')).length, ACCOUNT_DELETION_STEPS.length); }
     assert.equal(released, 1);
   }
-  return { status: 'pass', targetControls: 7, cohortControls: 9, fixedDeletionLabels: ACCOUNT_DELETION_STEPS.length, actualPortOfflinePaths: 2, emitterFaultControls: 3, databaseAccess: false };
+  return { status: 'pass', targetControls: 7, cohortControls: 12, phaseControls: 4, fixedDeletionLabels: ACCOUNT_DELETION_STEPS.length, actualPortOfflinePaths: 2, emitterFaultControls: 3, databaseAccess: false };
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
