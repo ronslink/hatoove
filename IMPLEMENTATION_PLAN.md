@@ -1,5 +1,12 @@
 # Hatoove implementation plan
 
+## EXAM-S1 and review fixes — 3 October 2026
+
+**In implementation: EXAM-S1-20261003-A**, [issue #104](https://github.com/ronslink/hatoove/issues/104), base `0d32619`. Ron authorized the reviewed fixes and the next slice. Actual Claude owns bounded preparations, exam-specific credits and atomic registration; actual Docker Hermes delivered full objective labels and direct catalogue launches; the coordinator integrates the selected-preparation API and a separate learner-journey author. The readiness fix has been delivered and independently reviewed, with eight offline checks passing; PostgreSQL fault checks remain pending. Each writer uses a separate checkout and bounded lease. Detailed active checkpoints are in the private coordinator handoff.
+
+S1 retains telc-only availability, preparation-owned dates and history, per-exam credit balances without refills on creation/switching, and safe forward migration of existing records. The route contract is in [EXAM-S1](docs/contracts/EXAM-S1.md). Delivered source is not yet browser-verified, green in CI, merged or product accepted. The current local preview remains on the previous merged baseline. Saved mocks are S2; complete written DTZ, recordings and the existing human content/security/privacy/device gates remain later work.
+
+
 ## EXAM-S0 hardening — 2 October 2026
 
 **Merged and locally verified: EXAM-S0-20261002-A**, [issue #101](https://github.com/ronslink/hatoove/issues/101), base `88fa268`. Actual Claude Opus 5.5 delivered the bounded server slice; the coordinator integrated client startup/version binding, explicit Compose preview policy and CI contracts. The combined isolated browser journey passes 144/144, Docker stack 35/35, new offline server checks 8/8 and new PostgreSQL checks 6/6; both new server suites fail against the original code. [Contract](docs/contracts/EXAM-S0.md) and [implementation evidence](work/implementation/EXAM-S0-RESULT.md). [PR #102](https://github.com/ronslink/hatoove/pull/102) merged as `5d2b4ac` after all seven applicable CI jobs passed on reviewed head `26273c7`. The local Docker app and worker were refreshed; readiness is healthy and the existing database volume and aggregate record counts are unchanged. Product acceptance remains separate. **Next: S1 telc preparation journey and exam-bound credits.** Preparations, saved mocks and complete written DTZ remain to be delivered.

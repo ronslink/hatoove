@@ -92,7 +92,7 @@ const SETTINGS_PATH = '/api/v1/settings';
  * nor accept it back, and the server refuses it with 422 either way. Removed on both sides in the same
  * commit, because a field one side accepts and the other refuses is a protocol that only looks agreed.
  */
-const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'theme', 'language'];
+const SETTINGS_FIELDS = ['dailyGoal', 'theme', 'language'];
 const SIGN_UP_PATH = '/api/auth/sign-up/email';
 const SIGN_IN_PATH = '/api/auth/sign-in/email';
 const SIGN_OUT_PATH = '/api/auth/sign-out';
@@ -310,7 +310,8 @@ function readSettingsShape(value) {
     fail('malformed_response', { message: 'settings.revision must be a non-negative integer' });
   }
   const settings = asResource(resource.settings, 'settings.settings');
-  const unknown = Object.keys(settings).filter((key) => !SETTINGS_FIELDS.includes(key));
+  // Legacy date remains readable for audit; current edits use the preparation route.
+  const unknown = Object.keys(settings).filter((key) => key !== 'examDate' && !SETTINGS_FIELDS.includes(key));
   if (unknown.length) fail('malformed_response', { message: `unsupported setting(s) in the response: ${unknown.join(', ')}` });
   return { revision: resource.revision, settings };
 }
@@ -631,8 +632,9 @@ export function createOwnedClient(config = {}) {
 
   function createAttempt(options) {
     rejectExtraArguments(arguments, 1, 'createAttempt');
-    const allowed = allowlist(options, ['parentSubmissionId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion'], 'createAttempt');
+    const allowed = allowlist(options, ['parentSubmissionId', 'preparationId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion'], 'createAttempt');
     const body = {};
+    if (allowed.preparationId !== undefined) body.preparationId = requireUuid(allowed.preparationId, 'preparationId');
     if (allowed.parentSubmissionId !== undefined) {
       body.parentSubmissionId = requireUuid(allowed.parentSubmissionId, 'parentSubmissionId');
     }
