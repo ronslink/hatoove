@@ -58,7 +58,7 @@ try{
    FROM exam_form f JOIN exam_release_head h ON h.exam_id=f.exam_id WHERE f.exam_id=$5 ORDER BY f.form_id LIMIT 1 RETURNING *`,[randomUUID(),a.id,a.telc.id,randomUUID(),TELC])).rows[0]);
   await sqlAs(a.id,c=>c.query(`UPDATE mock_run SET responses='[{"setId":"telc-deutsch-b1.lv1.01","version":"v1","itemId":"1","answer":null}]',revision=revision+1 WHERE id=$1`,[old.id]));
   const before=(await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0],content=(await db.admin.query('SELECT * FROM exam_release ORDER BY exam_id,version')).rows;
-  assert.deepEqual(await db.applyRemaining(),['0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql']);
+  assert.deepEqual(await db.applyRemaining(),['0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql']);
   assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0],before);
   assert.deepEqual((await db.admin.query('SELECT * FROM exam_release ORDER BY exam_id,version')).rows,content);
   const read=await port.readMockRun(a.id,old.id);assert.equal(read.timing,null);assert.equal(read.writing_task,null);
