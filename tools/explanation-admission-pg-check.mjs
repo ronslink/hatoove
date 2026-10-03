@@ -24,6 +24,20 @@ const envKeys=['B1PREP_CONTENT_MODE','B1PREP_SERVE_REVIEW','B1PREP_SERVE_RIGHTS'
 const previous=Object.fromEntries(envKeys.map(key=>[key,process.env[key]]));
 const DTZ='dtz-a2-b1',catalogue=createExamCatalogue({enabled:['telc-deutsch-b1',DTZ]});
 const languages=['de','en','uk','ar','tr'];
+const writingRepresentationFields=Object.freeze(['submission_id','source_sha256','language','representation_version',
+  'attempt_id','exam_id','task_id','task_version','rubric_id','rubric_version','model_version','prompt_version',
+  'original_language','original_format','payload','payload_sha256','provenance','created_at']);
+const writingHeadFields=Object.freeze(['submission_id','source_sha256','language','representation_version']);
+function assertWritingExportFields(exported,{blocked=false}={}){
+  assert.ok(exported.writing_explanation_representations.length>0,'representation field checks require actual owned rows');
+  assert.ok(exported.writing_explanation_heads.length>0,'head field checks require actual owned rows');
+  const expected=blocked?[...writingRepresentationFields,'blocked_reason']:writingRepresentationFields;
+  for(const row of exported.writing_explanation_representations)
+    assert.deepEqual(Object.keys(row).sort(),[...expected].sort(),'exact representation export fields exclude private owner identity');
+  for(const row of exported.writing_explanation_heads)
+    assert.deepEqual(Object.keys(row).sort(),[...writingHeadFields].sort(),'exact head export fields exclude private owner identity');
+}
+const withoutOwner=({owner_id,...row})=>row;
 let db,world,port,api,mediaRoot,passed=0,failed;
 const check=async(name,fn)=>{await fn();passed++;console.log('PASS '+name);};
 const reject=(promise,code)=>assert.rejects(promise,error=>error.code===code);
@@ -56,7 +70,9 @@ async function reviewContent(contentId,decision){
 try{
   process.env.B1PREP_CONTENT_MODE='internal-preview';delete process.env.B1PREP_SERVE_REVIEW;delete process.env.B1PREP_SERVE_RIGHTS;
   mediaRoot=await mkdtemp(path.join(tmpdir(),'hatoove-explanation-consumers-'));
-  db=await createFixture();world=await createPostgresWorld({fixture:db,examCatalogue:catalogue});
+  db=await createFixture();
+  console.log('Saved explanation consumer fixture: '+db.schema);
+  world=await createPostgresWorld({fixture:db,examCatalogue:catalogue});
   const fixture=await publishCompleteDtzFixture(db,{mediaRoot});
   const registry=fixture.internal.sets.flatMap(set=>objectiveItems(set.payload,set.interaction).map(item=>{
     const original=set.explanations?.[item.id]??set.explanations?._set_why?.[item.id]??null;
@@ -137,10 +153,18 @@ try{
   await check('export includes every owned representation/head and only authorized selected shared variants',async()=>{
     const before=await fingerprint(),exported=await port.exportData(a.id);
     assert.equal(exported.writing_explanation_representations.length,5);assert.equal(exported.writing_explanation_heads.length,5);
+    assertWritingExportFields(exported);
+    const storedRepresentations=(await db.admin.query('SELECT * FROM writing_explanation_representation WHERE owner_id=$1 ORDER BY submission_id,source_sha256,language,representation_version',[a.id])).rows;
+    const storedHeads=(await db.admin.query('SELECT * FROM writing_explanation_head WHERE owner_id=$1 ORDER BY submission_id,source_sha256,language',[a.id])).rows;
+    assert.ok(storedRepresentations.every(row=>row.owner_id===a.id&&row.submission_id===submissionId&&row.attempt_id===attempt.id));
+    assert.ok(storedHeads.every(row=>row.owner_id===a.id&&row.submission_id===submissionId));
+    assert.deepEqual(exported.writing_explanation_representations,storedRepresentations.map(withoutOwner),'every saved non-owner value and original provenance survives export');
+    assert.deepEqual(exported.writing_explanation_heads,storedHeads.map(withoutOwner),'head linkage remains exact');
     assert.ok(exported.shared_explanation_representations.some(row=>row.context.evidence_id===evidence.evidence_id&&row.language==='en'));
     assert.ok(exported.shared_explanation_representations.some(row=>row.context.run_id===run.id));
     assert.ok(!JSON.stringify(exported).includes('UNSELECTED_EXPLANATION_MUST_NOT_LEAK'));
     assert.equal((await port.exportData(b.id)).writing_explanation_representations.length,0);
+    assert.equal((await port.exportData(b.id)).writing_explanation_heads.length,0);
     assert.equal((await port.exportData(b.id)).shared_explanation_representations.length,0);
     assert.equal(await fingerprint(),before);
   });
@@ -201,6 +225,21 @@ try{
     assert.equal(exported.shared_explanation_representations.filter(row=>row.context.run_id===run.id&&row.representation===null).length,storedRun.items.length);
     assert.equal(exported.writing_explanation_representations.length,5);
     assert.ok(Array.isArray(exported.payment_orders),'queries after refused SQL complete');
+    assert.equal(await fingerprint(),before);
+  });
+  await migration(client=>client.query("INSERT INTO content_rights(content_version_id,basis,decided_by,note) VALUES($1,'unknown','synthetic test','Disposable writing explanation rights refusal')",[task.taskId+'@'+task.version]));
+  await check('writing rights refusal keeps exact safe export identities while withholding protected explanation prose',async()=>{
+    const before=await fingerprint(),exported=await port.exportData(a.id);
+    assert.equal(exported.writing_explanation_representations.length,5);assert.equal(exported.writing_explanation_heads.length,5);
+    assertWritingExportFields(exported,{blocked:true});
+    const storedRepresentations=(await db.admin.query('SELECT * FROM writing_explanation_representation WHERE owner_id=$1 ORDER BY submission_id,source_sha256,language,representation_version',[a.id])).rows;
+    const storedHeads=(await db.admin.query('SELECT * FROM writing_explanation_head WHERE owner_id=$1 ORDER BY submission_id,source_sha256,language',[a.id])).rows;
+    assert.ok(storedRepresentations.every(row=>row.owner_id===a.id&&row.payload?.blocks?.length>0),'rights withholding must not erase stored prose');
+    assert.deepEqual(exported.writing_explanation_representations,storedRepresentations.map(row=>({...withoutOwner(row),payload:null,blocked_reason:'rights_blocked'})));
+    assert.deepEqual(exported.writing_explanation_heads,storedHeads.map(withoutOwner));
+    assert.equal(exported.results.find(row=>row.submission_id===submissionId).feedback,null);
+    assert.equal((await port.exportData(b.id)).writing_explanation_representations.length,0);
+    assert.equal((await port.exportData(b.id)).writing_explanation_heads.length,0);
     assert.equal(await fingerprint(),before);
   });
   await check('account deletion removes personal prose/heads and preserves the shared publisher records',async()=>{
