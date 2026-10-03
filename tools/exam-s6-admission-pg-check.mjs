@@ -10,7 +10,7 @@ import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createPostgresDatastore } from '../server/owned-postgres/adapter.mjs';
 import { importDefaultPackage, importPackage } from '../server/owned-postgres/package-importer.mjs';
 import { createExamCatalogue } from '../server/preparation-contract.mjs';
-import { publishCompleteDtzFixture } from './exam-s6-fixture.mjs';
+import { publishCompleteDtzFixture, syntheticContentReview } from './exam-s6-fixture.mjs';
 
 if (process.env.OWNAPI_PG_ALLOW !== '1' || !process.env.OWNAPI_PG_PORT || [4300, 55440].includes(Number(process.env.OWNAPI_PG_PORT)))
   throw Error('Explicit disposable OWNAPI_PG_ALLOW/PORT required; learner ports forbidden');
@@ -101,6 +101,15 @@ try {
   const reading = { id: 's6.synthetic.reading', version: full.version, title: 'Synthetic reading', scope: 'section', sections: ['LV'], mode: 'untimed', timeLimitSeconds: null, feedback: 'finalise', members: full.members.filter(row => row.interaction !== 'fixed_audio') };
   const writing = { id: 's6.synthetic.writing', version: full.version, title: 'Synthetic writing', scope: 'section', sections: ['SA'], mode: 'untimed', timeLimitSeconds: null, feedback: 'finalise', members: [], writingChoices: structuredClone(full.writingChoices) };
   await importPackage(db.migration, { ...fixture.published, forms: [full, reading, writing], release: { version: 'v9602', state: 'internal', resumeBlockedReleases: [] } }, { mediaRoot });
+  const reviewClient = await db.migration.connect();
+  try {
+    await reviewClient.query('BEGIN');
+    for (const form of [reading, writing]) {
+      const row = (await reviewClient.query('SELECT sha256 FROM exam_form WHERE exam_id=$1 AND form_id=$2 AND version=$3', [DTZ, form.id, form.version])).rows[0];
+      await syntheticContentReview(db, reviewClient, { kind: 'form', examId: DTZ, subjectId: form.id, version: form.version, sha256: row.sha256 });
+    }
+    await reviewClient.query('COMMIT');
+  } catch (error) { await reviewClient.query('ROLLBACK'); throw error; } finally { reviewClient.release(); }
   await publishHead('v9603', [full, reading, writing]);
   process.env.B1PREP_CONTENT_MODE = 'public';
   const set = fixture.internal.sets.find(row => row.section === 'LV'), task = fixture.internal.writingTasks[0];

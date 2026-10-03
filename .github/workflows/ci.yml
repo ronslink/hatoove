@@ -136,6 +136,8 @@ jobs:
           node tools/exam-s5b-client-check.mjs
       - name: Complete DTZ admission policy and wrapper refusals
         run: node tools/exam-s6-core-check.mjs
+      - name: Private content review input and packet boundaries
+        run: node tools/content-review-check.mjs
       - name: Payment signatures, test provider and activation refusals
         run: node tools/payment-path-check.mjs
       - name: Payment API ownership and exact webhook boundary
@@ -251,6 +253,10 @@ jobs:
           node tools/exam-s6-parity-pg-check.mjs
           node tools/exam-s6-admission-pg-check.mjs
           node tools/exam-s6-payments-pg-check.mjs
+      - name: Attributable content review and concurrent learner refusals
+        run: |
+          node tools/content-review-pg-check.mjs
+          node tools/content-review-admission-pg-check.mjs
       - name: Payment upgrade, ownership, concurrent grants and expiry
         run: node tools/payments-pg-check.mjs
       - name: Bounded readiness probes recover after a real PostgreSQL connection loss
@@ -272,9 +278,8 @@ jobs:
       # rows survived in it.
       - name: Every table is classified, and every class rule holds
         run: node tools/table-class-check.mjs
-      # Seven scratch-schema mutations prove the classifier detects policy, deletion-coverage,
-      # shared-content, unclassified-table, answer-key and catalogue-grant regressions.
-      - name: The table-class check detects all eight mutations
+      # Scratch-schema mutations prove policy, deletion, content, key and private-review boundaries.
+      - name: Table classification rejects privilege and immutability regressions
         run: node --test tools/table-class-check.test.mjs
       - name: Answer keys are inaccessible to runtime roles while marking still works
         run: node tools/objective-key-access-check.mjs

@@ -230,6 +230,7 @@ check('4. adapter options cannot widen the deployment policy', async () => {
     // EXAM-S1 added an owned, ACTIVE preparation lookup and an exam-consistency check before marking, so
     // the marking path only reaches its set query with scripted responses for those reads.
     const { log, pool } = fakePool((sql) => {
+      if (/current_release_eligibility/.test(sql)) return { rows: [{ eligible: true, exam_id: INITIAL_EXAM, state: 'available', reason: 'eligible' }] };
       if (/FROM learner_preparation p/.test(sql)) return { rows: [{ id: PREP, exam_id: INITIAL_EXAM, state: 'active' }] };
       if (/FROM objective_set s/.test(sql)) return { rows: [{ exam_id: INITIAL_EXAM, family: 'LV', section: 'LV1', version: 'v1' }] };
       if (/mark_objective_item/.test(sql)) return { rows: [{ correct: true }] };
@@ -243,14 +244,17 @@ check('4. adapter options cannot widen the deployment policy', async () => {
     await port.readRubric('owner', { rubricId: 'r', version: 'v1', ...wide });
     await port.listGuides('owner', wide);
     await port.answerObjectiveItem('owner', { preparationId: PREP, setId: 'synthetic.set', version: 'v1', itemId: '1', answer: 'a' }).catch(() => {});
-    const pick = (pattern) => log.find((entry) => pattern.test(entry.sql));
+    if (env.B1PREP_CONTENT_MODE === 'nonsense') {
+      assert.equal(log.some(entry => /mark_objective_item/.test(entry.sql)), false, 'unknown mode must refuse before marking SQL');
+    }
+    const pick = (pattern) => { const row = log.find((entry) => pattern.test(entry.sql)); assert.ok(row || env.B1PREP_CONTENT_MODE === 'nonsense', `Expected policy query ${pattern} in ${env.B1PREP_CONTENT_MODE || 'public'}`); return row || { params: [] }; };
     return {
       tasks: pick(/FROM task_version t/).params[2],
       sets: pick(/FROM objective_set s[\s\S]*ORDER BY s\.family/).params[2],
       set: pick(/s\.payload/).params[2],
       rubric: pick(/FROM rubric_version r/).params[2],
       guides: pick(/FROM guide g/).params[1],
-      marking: pick(/SELECT s\.exam_id, s\.family, s\.section, s\.version/).params[2],
+      marking: log.find(entry => /SELECT s\.exam_id, s\.family, s\.section, s\.version/.test(entry.sql))?.params[2] ?? null,
     };
   });
   const publicStatuses = await statusesFor({ B1PREP_SERVE_REVIEW: 'approved+unreviewed' });
@@ -262,8 +266,9 @@ check('4. adapter options cannot widen the deployment policy', async () => {
     assert.deepEqual(statuses, ['approved', 'unreviewed'], `${what}: the preview control keeps unreviewed content`);
   }
   const closed = await statusesFor({ B1PREP_CONTENT_MODE: 'nonsense' });
-  for (const [what, statuses] of Object.entries(closed)) assert.deepEqual(statuses, [], `${what}: unknown mode is closed`);
-  return 'six adapter queries: public=[approved] despite serveReview, preview=[approved,unreviewed], unknown=[]';
+  for (const [what, statuses] of Object.entries(closed)) assert.deepEqual(statuses ?? [], [], `${what}: unknown mode has no query or an empty status allowlist`);
+  assert.equal(closed.marking, null, 'unknown mode refuses before the marking content query');
+  return 'six adapter paths: public=[approved] despite serveReview, preview=[approved,unreviewed], unknown closes before marking or uses an empty catalogue allowlist';
 });
 
 /* ------------------------------------------------------------------ 5 */
@@ -390,6 +395,9 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
   const run = async (rubricId) => {
     let token = null;
     const writes = [];
+    const binding = { task_id: 'synthetic.task', version: 'v2', exam_id: INITIAL_EXAM, rubric_id: rubricId, rubric_version: 'v1', source_path: 'synthetic:fixture',
+      review_status: 'approved', rubric_review_status: 'approved', rights_status: 'generated', rubric_rights_status: 'generated',
+      review_basis: 'legacy_unattributed', rubric_review_basis: 'legacy_unattributed', review_blocked: false, rubric_review_blocked: false };
     const pool = {
       async query(sql, params) {
         if (/UPDATE jobs SET status = 'running'/.test(sql)) {
@@ -398,8 +406,9 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
         }
         if (/FROM submissions s JOIN attempts a/.test(sql)) {
           return { rows: [{ id: 'sub-1', owner_id: 'owner-1', text: 'Liebe Anna, ich komme gern. Bis bald.',
-            task_version: 'v2', rubric_version: 'v1', explanation_language: 'de', rubric_id: rubricId, deleted_at: null }] };
+            task_id: binding.task_id, exam_id: INITIAL_EXAM, attempt_id: 'attempt-1', task_version: 'v2', rubric_version: 'v1', explanation_language: 'de', rubric_id: rubricId, deleted_at: null }] };
         }
+        if (/FROM task_version t/.test(sql)) return { rows: [binding] };
         return { rows: [] };
       },
       async connect() {
@@ -407,8 +416,10 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
           async query(sql) {
             writes.push(String(sql));
             if (/FROM jobs WHERE submission_id = \$1 FOR UPDATE/.test(sql)) {
-              return { rows: [{ id: 'job-1', owner_id: 'owner-1', status: 'running', lease_token: token }] };
+              return { rows: [{ id: 'job-1', owner_id: 'owner-1', exam_id: INITIAL_EXAM, status: 'running', lease_token: token }] };
             }
+            if (/SELECT owner_id,exam_id FROM jobs WHERE submission_id=\$1/.test(sql)) return { rows: [{ owner_id: 'owner-1', exam_id: INITIAL_EXAM }] };
+            if (/FROM task_version t/.test(sql)) return { rows: [binding] };
             if (/SELECT a\.deleted_at/.test(sql)) return { rows: [{ deleted_at: null }] };
             return { rows: [] };
           },

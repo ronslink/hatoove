@@ -10,7 +10,7 @@ import { createPostgresPayments } from '../server/owned-postgres/payments.mjs';
 import { createExamCatalogue } from '../server/preparation-contract.mjs';
 import { importPackage } from '../server/owned-postgres/package-importer.mjs';
 import { syntheticS4Package } from './exam-s4-check.mjs';
-import { publishCompleteDtzFixture } from './exam-s6-fixture.mjs';
+import { publishCompleteDtzFixture, syntheticContentReview } from './exam-s6-fixture.mjs';
 
 if (process.env.OWNAPI_PG_ALLOW !== '1' || !process.env.OWNAPI_PG_PORT || [4300,55440].includes(Number(process.env.OWNAPI_PG_PORT))) {
   throw Error('Explicit disposable OWNAPI_PG_ALLOW=1 and OWNAPI_PG_PORT required; learner ports forbidden');
@@ -89,10 +89,12 @@ async function advisoryWait(waiter,blocker) {
   assert.fail('Expected actual separate-connection advisory wait');
 }
 async function simulatedReviewLoss(contentId) {
-  const client=await db.admin.connect();
+  const client=await db.migration.connect();
   try {
-    await client.query('BEGIN');await client.query('SET LOCAL session_replication_role=replica');
-    assert.equal((await client.query("UPDATE content_version SET review_status='unreviewed' WHERE content_version_id=$1 RETURNING content_version_id",[contentId])).rowCount,1);
+    await client.query('BEGIN');
+    const row=(await client.query('SELECT exam_id,content_sha256 FROM content_version WHERE content_version_id=$1',[contentId])).rows[0];
+    assert.ok(row);
+    await syntheticContentReview(db,client,{kind:'content',examId:row.exam_id,subjectId:contentId,version:'',sha256:row.content_sha256},{decision:'withdraw'});
     await client.query('COMMIT');
   } catch(error) { await client.query('ROLLBACK');throw error; } finally { client.release(); }
 }

@@ -61,7 +61,7 @@ try {
       FROM exam_form f WHERE f.exam_id=$6 AND f.form_id=$7 AND f.version=$8 RETURNING *`,
       [randomUUID(),a.id,a.telc.id,form.release_version,randomUUID(),TELC,form.form_id,form.version])).rows[0]);
     const before = (await db.admin.query('SELECT * FROM mock_run WHERE id=$1', [old.id])).rows[0];
-    assert.deepEqual(await db.applyRemaining(), ['0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql']);
+    assert.deepEqual(await db.applyRemaining(), ['0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql']);
     assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1', [old.id])).rows[0], before);
     assert.equal((await port.finaliseMockRun(a.id, old.id, { expectedRevision: old.revision, eventId: randomUUID() })).result.total, 20);
     const f = (await db.admin.query("SELECT proname,prosecdef,proconfig FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname IN ('protect_mock_run','finalise_mock_run','protect_listening_playback')")).rows;

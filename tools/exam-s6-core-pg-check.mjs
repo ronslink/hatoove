@@ -9,7 +9,7 @@ import {createPostgresWorld} from '../server/owned-postgres/fixture.mjs';
 import {importPackage} from '../server/owned-postgres/package-importer.mjs';
 import {readCurrentReleaseEligibility} from '../server/owned-postgres/release-eligibility.mjs';
 import {createExamCatalogue} from '../server/preparation-contract.mjs';
-import {publishCompleteDtzFixture} from './exam-s6-fixture.mjs';
+import {publishCompleteDtzFixture,publishLegacyCompleteDtzFixture,syntheticContentReview} from './exam-s6-fixture.mjs';
 if(process.env.OWNAPI_PG_ALLOW!=='1'||!process.env.OWNAPI_PG_PORT||[4300,55440].includes(Number(process.env.OWNAPI_PG_PORT)))throw Error('Explicit disposable PostgreSQL port required');
 const DTZ='dtz-a2-b1',catalogue=createExamCatalogue({enabled:['telc-deutsch-b1',DTZ]});
 const envKeys=['B1PREP_CONTENT_MODE','B1PREP_SERVE_REVIEW','B1PREP_SERVE_RIGHTS'],saved=Object.fromEntries(envKeys.map(key=>[key,process.env[key]]));
@@ -25,7 +25,7 @@ try {
  process.env.B1PREP_CONTENT_MODE='internal-preview';delete process.env.B1PREP_SERVE_REVIEW;delete process.env.B1PREP_SERVE_RIGHTS;
  mediaRoot=await mkdtemp(path.join(tmpdir(),'hatoove-s6-core-'));db=await createFixture({stopBefore:'0034-'});
  world=await createPostgresWorld({fixture:db,examCatalogue:catalogue});
- pkg=await publishCompleteDtzFixture(db,{mediaRoot,version:'v9800',availableVersion:'v9801'});
+ pkg=await publishLegacyCompleteDtzFixture(db,{mediaRoot,version:'v9800',availableVersion:'v9801'});
  const signup=await world.sessions.signUp({name:'Synthetic S6 core',email:'s6-core-'+randomUUID()+'@example.invalid',password:'synthetic-s6-core-password'});
  owner=(await world.sessions.getSession({cookie:String(signup.setCookie).split(';')[0]})).userId;
  // Seed the historical row through its pre-upgrade restricted SQL grant; current adapters require0034.
@@ -38,7 +38,7 @@ try {
  await check('complete approved synthetic DTZ passes the single SQL predicate with minimal metadata',async()=>{const e=await eligibility();assert.equal(e.eligible,true,JSON.stringify(e));assert.equal(e.complete_form_id,pkg.formId);assert.equal(e.complete_form_version,pkg.formVersion);assert.deepEqual(Object.keys(e),['eligible','exam_id','release_version','state','reason','complete_form_id','complete_form_version']);process.env.B1PREP_CONTENT_MODE='public';assert.equal((await readCurrentReleaseEligibility(db.learner,DTZ,{catalogue})).eligible,true);});
  await check('payment executes only minimal eligibility and has no new content reads or marking authority',async()=>{assert.equal((await eligibility(db.payments)).eligible,true);for(const table of ['objective_key','content_version','exam_form','exam_media','task_version'])await assert.rejects(db.payments.query('SELECT * FROM '+table),e=>e.code==='42501');await assert.rejects(db.payments.query("SELECT complete_dtz_form_eligible('x','v1','v1',ARRAY['generated'])"),e=>e.code==='42501');await assert.rejects(db.worker.query("SELECT * FROM current_release_eligibility('dtz-a2-b1',ARRAY['generated'])"),e=>e.code==='42501');});
  await check('recognized rights are intersected, while unknown and narrowed-out rights close eligibility',async()=>{assert.equal((await eligibility(db.learner,['unknown'])).eligible,false);assert.equal((await eligibility(db.learner,['licensed'])).eligible,false);assert.equal((await eligibility(db.learner,['unknown','generated'])).eligible,true);});
- await check('loss of either writing prompt, reading, media or rubric approval closes the whole package',async()=>{const ids=[pkg.internal.writingTasks[0].taskId+'@v9800',pkg.internal.writingTasks[1].taskId+'@v9800',pkg.internal.sets.find(s=>s.section==='LV').setId+'@v9800',pkg.internal.media[0].mediaId+'@v9800',pkg.internal.rubrics[0].rubricId+'@v9800'];for(const id of ids)await altered("UPDATE content_version SET review_status='unreviewed' WHERE content_version_id=$1",[id],async c=>{assert.equal((await eligibility(c)).eligible,false,id);});});
+ await check('withdrawal of either writing prompt, reading, media or rubric approval closes the whole package',async()=>{const ids=[pkg.internal.writingTasks[0].taskId+'@v9800',pkg.internal.writingTasks[1].taskId+'@v9800',pkg.internal.sets.find(s=>s.section==='LV').setId+'@v9800',pkg.internal.media[0].mediaId+'@v9800',pkg.internal.rubrics[0].rubricId+'@v9800'];for(const id of ids){const c=await db.migration.connect();try{await c.query('BEGIN');const row=(await c.query('SELECT content_sha256 FROM content_version WHERE content_version_id=$1',[id])).rows[0];await syntheticContentReview(db,c,{kind:'content',examId:DTZ,subjectId:id,version:'',sha256:row.content_sha256},{decision:'withdraw',mediaRoot});assert.equal((await eligibility(c)).eligible,false,id);}finally{await c.query('ROLLBACK');c.release();}}});
  await check('malformed shape, timing, playback, member identity and writing policy fail closed',async()=>{
   const mutations=[
    ["UPDATE exam_form SET payload=jsonb_set(payload,'{scope}','\"section\"') WHERE exam_id=$1 AND version=$2",[DTZ,'v9800']],

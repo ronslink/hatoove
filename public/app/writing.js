@@ -1,3 +1,5 @@
+import { contentReviewLabel, reviewHistoryNotice } from './review-labels.js';
+
 /** Bound rubric metadata supplies criterion names and scales; never convert between exams. */
 export function writingCriterion(criterion, rubric) {
   const bound = rubric?.criteria?.find(c => (c.key || c.id) === (criterion.key || criterion.id));
@@ -37,6 +39,18 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
   const button = (id, text, primary = false) => `<button type="button" class="btn${primary ? ' btn-primary' : ''}" id="${id}">${text}</button>`;
   const prompt = task => writingPrompt(task, esc);
   const dirty = (s) => Boolean(s?.area && !s.submission && s.area.value !== s.saved);
+  const contentRefused = response => ['rights_blocked', 'content_policy_blocked', 'review_blocked', 'exam_unavailable'].includes(response?.error);
+  function blockContent(s, html) {
+    s.blocked = true; s.task = {};
+    clearTimeout(s.timer); clearTimeout(s.poll);
+    if (s.area) s.area.readOnly = true;
+    s.host.querySelector('.writing-prompt')?.replaceChildren();
+    s.host.querySelector('#writing-rubric')?.remove();
+    for (const id of ['writing-submit', 'writing-new', 'writing-retry', 'writing-revise']) {
+      const control = s.host.querySelector('#' + id); if (control) control.disabled = true;
+    }
+    say(s, html);
+  }
   window.addEventListener('hatoove:session-expired', () => {
     if (!active) { sessionBlocked = true; return; }
     clearTimeout(active.timer); clearTimeout(active.poll);
@@ -90,11 +104,8 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
       say(s, '<p class="err">Die Schreibzeit ist beendet. Deine unbestätigte Eingabe bleibt zum Kopieren erhalten; sie wurde nicht als gespeichert bestätigt.</p>');
       onChange(); return false;
     }
-    if (['rights_blocked', 'content_policy_blocked', 'exam_unavailable'].includes(res?.error)) {
-      s.blocked = true; s.area.readOnly = true; s.task = {};
-      s.host.querySelector('.writing-prompt')?.replaceChildren();
-      s.host.querySelector('#writing-rubric')?.remove();
-      say(s, '<p class="err">Die Aufgabe ist zurzeit gesperrt. Deine Eingabe bleibt hier zum Kopieren sichtbar; sie wurde nicht gespeichert.</p>');
+    if (contentRefused(res)) {
+      blockContent(s, '<p class="err">Die Aufgabe ist zurzeit gesperrt. Deine Eingabe bleibt hier zum Kopieren sichtbar; sie wurde nicht gespeichert.</p>');
       return false;
     }
     if (res?.status === 409 && res.error === 'draft_conflict') {
@@ -126,7 +137,7 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     if (!response?.ok) { target.textContent = 'Die Bewertungskriterien sind gerade nicht verfügbar.'; return; }
     const r = response.data;
     s.rubric = r;
-    target.innerHTML = `<p class="small muted">${esc(writingLabels(r).notice)} Prüfstatus: ${esc(r.review_status || 'unreviewed')}</p><ol class="rubric-criteria">${(r.criteria || []).map(c => `<li><strong>${esc(c.label || c.name || labels[c.key] || c.key || '')}</strong>${c.description ? `<p>${esc(c.description)}</p>` : ''}<ul class="rubric-bands">${Object.entries(c.descriptors || {}).map(([band, text]) => `<li><span class="band">${esc(c.bandLabels?.[band] || band)}</span> ${esc(text)}</li>`).join('')}</ul></li>`).join('')}</ol>`;
+    target.innerHTML = `<p class="small muted">${esc(writingLabels(r).notice)} ${esc(contentReviewLabel(r))}</p><ol class="rubric-criteria">${(r.criteria || []).map(c => `<li><strong>${esc(c.label || c.name || labels[c.key] || c.key || '')}</strong>${c.description ? `<p>${esc(c.description)}</p>` : ''}<ul class="rubric-bands">${Object.entries(c.descriptors || {}).map(([band, text]) => `<li><span class="band">${esc(c.bandLabels?.[band] || band)}</span> ${esc(text)}</li>`).join('')}</ul></li>`).join('')}</ol>`;
   }
   async function showResult(s, submissionId, tries = 0) {
     if (!current(s)) return;
@@ -165,7 +176,7 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
         ? `<ul class="criteria">${f.criteria.map(c => { const view = writingCriterion(c, s.rubric); return `<li class="criterion"><div class="criterion-head"><strong>${esc(view.label || labels[c.key])}</strong><span class="band"><span class="sr-only">Band </span>${esc(view.band)}</span></div><p data-read-comment lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(c.comment || '')}</p>${c.evidence ? `<blockquote class="evidence" lang="de" dir="ltr">${esc(c.evidence)}</blockquote>` : ''}</li>`; }).join('')}</ul>`
         : `<p ${f.comment ? 'data-read-comment' : ''} lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(f.comment || 'Noch keine Rückmeldung verfügbar.')}</p>`;
       if (Array.isArray(f.corrections) && f.corrections.length) html += `<section lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}"><h4>Korrekturhinweise</h4><ul>${f.corrections.map(text => `<li>${esc(text)}</li>`).join('')}</ul></section>`;
-      html += sent + (!s.readonly ? button('writing-revise', 'Text überarbeiten', true) : '');
+      html += (data.review_withdrawn ? `<p class="hint" data-review-withdrawn>${esc(reviewHistoryNotice(data))}</p>` : '') + sent + (!s.readonly && !data.review_withdrawn ? button('writing-revise', 'Text überarbeiten', true) : '');
     } else if (state === 'blocked') {
       html = '<p class="err">Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Dein abgegebener Text bleibt erhalten.</p>' + sent;
     } else if (state === 'unassessed') {
@@ -185,6 +196,7 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
       e.currentTarget.disabled = true;
       const retry = await api.writing.retry(submissionId);
       if (!current(s)) return;
+      if (contentRefused(retry)) { blockContent(s, '<p class="err">Die Aufgabe ist zurzeit gesperrt. Dein abgegebener Text bleibt erhalten.</p>' + sent); return; }
       if (!retry?.ok) { say(s, `<p class="err">${message(retry)} Ein weiterer Versuch ist derzeit nicht möglich.</p>` + sent + button('writing-refresh', 'Stand aktualisieren')); s.host.querySelector('#writing-refresh').onclick = () => showResult(s, submissionId); return; }
       await showResult(s, submissionId);
     });
@@ -246,18 +258,19 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     const submitButton = host.querySelector('#writing-submit');
     if (submitButton) submitButton.onclick = async (e) => {
       const trigger = e.currentTarget;
-      if (s.submitting || s.submission) return;
+      if (s.submitting || s.submission || s.blocked || s.readonly || !canEdit()) return;
       s.submitting = true; trigger.disabled = true; s.area.readOnly = true;
       const discard = host.querySelector('#writing-new'); discard.disabled = true;
       clearTimeout(s.timer);
       const saved = await save(s);
       if (!current(s)) return;
-      if (!saved) { s.submitting = false; trigger.disabled = false; s.area.readOnly = false; discard.disabled = Boolean(s.eventId); return; }
+      if (!saved) { s.submitting = false; trigger.disabled = s.blocked || s.readonly || !canEdit(); s.area.readOnly = trigger.disabled; discard.disabled = trigger.disabled || Boolean(s.eventId); return; }
       s.eventId ||= crypto.randomUUID();
       const submit = await api.writing.submit(s.attempt, s.revision, s.eventId);
       if (!current(s)) return;
       s.submitting = false;
       if (!submit?.ok) {
+        if (contentRefused(submit)) { blockContent(s, '<p class="err">Die Aufgabe ist zurzeit gesperrt. Dein Text bleibt zum Kopieren sichtbar. Die Abgabe wurde nicht bestätigt.</p>'); return; }
         // An uncertain POST keeps its identity and frozen text. Retrying it cannot create a second job.
         trigger.disabled = false; trigger.textContent = 'Abgabe erneut prüfen';
         if (submit?.status > 0 && submit.status < 500) s.area.readOnly = false;

@@ -1,5 +1,9 @@
 # Hatoove work board
 
+## C-03 combined candidate under verification; Q-01 PR123 — 3 October 2026
+
+Q-01 is published as [PR123](https://github.com/ronslink/hatoove/pull/123) at `c2c25e1`. Its actual hosted workflows37139332094/37139332097 again stopped with zero test steps for the account payment/spending restriction; no merge is authorized by the local results. [Issue122](https://github.com/ronslink/hatoove/issues/122) now combines core `fca4ab0` plus reviewed coverage correction `0b72b5c`, consumers `5dd37d8` and private-ledger classifier `6c43bb9` on a separate integration branch. Core33/consumer25/S6core16/parity81/admission12 pass locally. Coordinator fixture/client source review is clear after terminal-refusal and connection-reuse corrections; full consumer review, remaining retained checks and desktop/mobile review-history evidence are pending. These are synthetic engineering results, not real reviewer appointments or content approval.
+
 ## Q-01 final local evidence; C-03 core and consumers active — 3 October 2026
 
 [Issue121](https://github.com/ronslink/hatoove/issues/121), **PILOT-Q01-AXE-20261003-A / PILOT-Q01-20261003-B**, now has [final accessibility evidence](implementation/PILOT-Q01-RESULT.md): clean source `f44e0b2` passes app230, audio23 and payments24, with all30 required states/48 scans and zero violations. Incomplete contrast findings remain manual work. Independent review covers instrumentation, coordinator semantic fixes and CI; local evidence is not hosted CI, merge or full accessibility acceptance. [Issue122](https://github.com/ronslink/hatoove/issues/122) core execution **A** and transferred consumer execution **C** remain separately owned, with no runtime integrated yet. Saved explanations follow those consumers; human/live gates remain open.

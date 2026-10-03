@@ -130,7 +130,7 @@ paths:
     get:
       tags: [mock-runs]
       summary: Resume or read the exact owned run
-      description: Ordinary release withdrawal preserves pinned history. An explicit rights block keeps the saved answers and identity readable, withholds members and result, and sets blocked_reason. No answers or explanations are revealed while active.
+      description: Ordinary release withdrawal preserves pinned history. An explicit review rejection or withdrawal blocks active use with review_blocked but preserves completed results with review_withdrawn. An independent rights block keeps saved answers and identity readable while withholding members and result. No answers or explanations are revealed while active.
       responses:
         '200': { description: 'Full owned run DTO.', content: { application/json: { schema: { $ref: '#/components/schemas/MockRun' } } } }
         '404': { description: 'Absent or owned by someone else.' }
@@ -1030,6 +1030,8 @@ components:
         writing_task_count: { type: integer, minimum: 0, maximum: 1 }
         review_status: { type: string }
         release_state: { type: string, enum: [hidden, internal, available, withdrawn] }
+        review_basis: { type: string, enum: [named_decision, legacy_unattributed, none] }
+        review_withdrawn: { type: boolean }
     MockPosition:
       type: object
       additionalProperties: false
@@ -1096,6 +1098,8 @@ components:
         release_state: { type: string, enum: [hidden, internal, available, withdrawn] }
         review_status: { type: string }
         blueprint_version: { type: string }
+        review_basis: { type: string, enum: [named_decision, legacy_unattributed, none] }
+        review_withdrawn: { type: boolean, description: 'An explicit negative review affects this exact saved content; completed facts remain unchanged if independent rights permit disclosure.' }
         form_id: { type: string }
         form_version: { type: string }
         title: { type: string }
@@ -1115,7 +1119,7 @@ components:
         blocked_reason:
           type: string
           nullable: true
-          description: 'A blocked run retains owned identity and responses. rights_blocked, content_policy_blocked or exam_unavailable withhold members and protected results; ordinary withdrawal of an available release retains permitted resume.'
+          description: 'A blocked run retains owned identity and responses. review_blocked prevents further active use; finalised results remain readable with review_withdrawn. Independent rights_blocked, content_policy_blocked or exam_unavailable may withhold content; ordinary release withdrawal retains permitted pinned resume.'
     MockRun:
       allOf:
         - $ref: '#/components/schemas/MockRunSummary'
@@ -1243,7 +1247,9 @@ components:
         leitpunkte: { type: array, items: { type: string } }
         rubric_id: { type: string }
         rubric_version: { type: string }
-        review_status: { type: string, enum: [unreviewed, approved, rejected] }
+        review_status: { type: string, enum: [unreviewed, approved, rejected, withdrawn, unavailable] }
+        review_basis: { type: string, enum: [named_decision, legacy_unattributed, none], description: 'Safe review provenance only. No reviewer identity, private evidence or answer keys are exposed.' }
+        review_withdrawn: { type: boolean }
         rights_status: { type: string, description: 'Effective append-only rights decision, falling back to the immutable content row. Defaults to serving generated; B1PREP_SERVE_RIGHTS may allow generated/licensed/commissioned. Unknown always fails closed.' }
 
 security:
