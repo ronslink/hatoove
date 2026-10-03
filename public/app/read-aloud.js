@@ -38,7 +38,7 @@ export function createLocalSpeech({ synthesis = globalThis.speechSynthesis, Utte
     if (!choice.voice) { report({ state: 'unavailable', message: choice.message }); return; }
     const token = ++serial;
     try {
-      const utterance = new Utterance(text.trim());
+      const utterance = new Utterance(text);
       utterance.voice = choice.voice;
       utterance.lang = choice.voice.lang;
       active = { report, utterance, timer: null };
@@ -105,7 +105,7 @@ export function createReadAloud({ speech = createLocalSpeech(), doc = globalThis
       // Read only a currently rendered paragraph, never hidden submitted text or another view.
       if (!text.isConnected || text.closest('[hidden]') || !text.getClientRects().length) return;
       control.tried = true; selected = control;
-      speech.play(text.innerText, language, update);
+      speech.play(text.textContent, language, update);
     });
     control.unsubscribe = speech.subscribe(() => {
       if (!control.tried || control.busy) return;

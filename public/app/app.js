@@ -1,6 +1,7 @@
 import { initialPreparation, preparationChoices } from './preparation.js';
 import { createMockController, mockMember } from './mock.js';
-import { createWritingController, writingCriterion, writingFeedbackState } from './writing.js';
+import { createWritingController, writingCriterion, writingFeedbackState, writingExplanationLabels } from './writing.js';
+import { createExplanationManager } from './explanations.js';
 import { createCheckoutController, checkoutRoute, checkoutReturnPath } from './checkout.js';
 import { guideContent } from './guide-content.js';
 import { bindSentenceCheck } from './sentence-check.js';
@@ -90,6 +91,10 @@ let settingsSaving = false;
 const activePreparation = () => state.preparation?.state === 'active';
 const contextTicket = () => preparationGeneration;
 const currentContext = ticket => ticket === preparationGeneration && !sessionProblem;
+let explanationContext = 0, archivedRequest = 0;
+const answerRequests = new WeakMap();
+const explanations = createExplanationManager({ readAloud, getLanguage: () => state.settings?.language || 'de',
+  getContext: () => [state.account?.id, state.preparation?.id, preparationGeneration, explanationContext, sessionProblem].join('|') });
 
 // ---------------------------------------------------------------- plumbing
 
@@ -111,6 +116,7 @@ function showError(message) {
 
 window.addEventListener('hatoove:session-expired', (event) => {
   sessionProblem ||= event.detail?.reason || 'session_expired';
+  explanations.dispose();
   mock.refresh();
   checkout.dispose();
   showError();
@@ -232,6 +238,7 @@ async function refreshCredits() {
 }
 
 function clearPreparationViews() {
+  explanationContext++; archivedRequest++; explanations.dispose();
   objectiveRequest++;
   dictionaryRequest++;
   readAloud.stop();
@@ -1062,10 +1069,12 @@ function renderObjectiveForm(set, host) {
 async function answerItem(set, card, itemId, answer) {
   if (!bootReady || sessionProblem || !activePreparation() || preparationSwitching) return;
   const ticket = contextTicket();
+  const request = (answerRequests.get(card) || 0) + 1, viewTicket = explanationContext;
+  answerRequests.set(card, request); explanations.dispose(card);
   const out = card.querySelector('.result');
   out.textContent = 'Wird geprüft ...';
   const res = await api.practice.answer(set.set_id, { version: set.version, itemId, answer });
-  if (!currentContext(ticket)) return;
+  if (!currentContext(ticket) || !card.isConnected || viewTicket !== explanationContext || answerRequests.get(card) !== request) return;
   if (!res) return;
   const button = card.querySelector('[data-answer="' + answer + '"]');
   if (!res.ok) {
@@ -1077,6 +1086,11 @@ async function answerItem(set, card, itemId, answer) {
   const correct = res.data && res.data.correct === true;
   if (button) button.setAttribute('aria-pressed', String(correct));
   out.textContent = correct ? 'Richtig.' : 'Noch nicht richtig — die Aufgabe bleibt bei deinen Fehlern.';
+  if (res.data?.evidence_id) {
+    const target = document.createElement('div'); target.dataset.objectiveExplanation = res.data.evidence_id; out.append(target);
+    explanations.mount(target, { read: language => api.practice.explanation(res.data.evidence_id, language),
+      isCurrent: () => answerRequests.get(card) === request && currentContext(ticket) && viewTicket === explanationContext });
+  }
   // The badge is a promise; refresh it so it stays true after every answer.
   guard(renderMistakes());
 }
@@ -1115,6 +1129,7 @@ async function openSet(setId, version) {
   const list = box.parentElement?.querySelector('.stack[id^="skill-"]');
   if (list) list.hidden = true;
   box.hidden = false;
+  explanations.dispose(box);
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
   window.scrollTo(0, 0);
   const res = await api.objectiveSets.read(setId, version);
@@ -1149,6 +1164,7 @@ async function openSet(setId, version) {
   };
   box.querySelector('#practice-close')?.addEventListener('click', () => {
     objectiveRequest++;
+    explanations.dispose(box);
     box.hidden = true;
     box.innerHTML = '';
     if (list) list.hidden = false;
@@ -1193,15 +1209,15 @@ const CRITERION_LABELS = Object.freeze({
  *   4. THE BINDING IS THE TASK THAT WAS OPENED, down to the version and the rubric the task declares.
  *      The server refuses anything else (422 task_not_servable), and the button carries it.
  */
-const writingApi = { ...api, writing: { ...api.writing, result: async submissionId => {
+const writingApi = { ...api, mock: { ...api.mock, read: (runId, language = state.settings?.language || 'de') => api.mock.read(runId, language) }, writing: { ...api.writing, result: async (submissionId, language = state.settings?.language || 'de') => {
   const ticket = contextTicket();
-  const result = await api.writing.result(submissionId);
+  const result = await api.writing.result(submissionId, language);
   if (currentContext(ticket) && bootReady) guard(refreshCredits());
   return result;
 } } };
-const mock = createMockController({ api: writingApi, esc, setLabel, readAloud, explanationLanguage: () => state.settings?.language || 'de', canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
+const mock = createMockController({ api: writingApi, esc, setLabel, readAloud, explanations, explanationLanguage: () => state.settings?.language || 'de', canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
 window.addEventListener('beforeunload', event => mock.preserveOnUnload(event));
-const writing = createWritingController({ api: writingApi, esc, readAloud, onChange: () => { guard(refreshCredits()); if (currentView === 'fortschritt') guard(renderHistory()); } });
+const writing = createWritingController({ api: writingApi, esc, readAloud, explanations, onChange: () => { guard(refreshCredits()); if (currentView === 'fortschritt') guard(renderHistory()); } });
 // PAYMENTS-SLICE-01. `onChange` re-reads the credit line, because a granted pass is exactly the thing
 // that line shows; it never writes a learner state anywhere.
 const checkout = createCheckoutController({ api, esc, onChange: () => { if (state.preparation) guard(refreshCredits()); }, beforeRedirect: async () => {
@@ -1219,31 +1235,40 @@ function archivedPracticeNotice() {
 
 async function openArchivedWriting(entry) {
   const ticket = contextTicket(), host = el('history-detail');
+  const request = ++archivedRequest, viewTicket = explanationContext;
+  const current = () => currentContext(ticket) && currentView === 'fortschritt' && archivedRequest === request && explanationContext === viewTicket;
+  explanations.dispose(host);
   host.hidden = false;
   host.innerHTML = '<p class="muted">Gespeicherter Text wird geladen …</p>';
-  const response = entry.submission_id ? await api.writing.result(entry.submission_id) : await api.writing.readAttempt(entry.id);
-  if (!currentContext(ticket) || currentView !== 'fortschritt') return;
+  const response = entry.submission_id ? await writingApi.writing.result(entry.submission_id) : await api.writing.readAttempt(entry.id);
+  if (!current()) return;
   if (!response?.ok) {
     host.innerHTML = '<p class="err">Der gespeicherte Text konnte nicht geladen werden.</p><button class="btn" id="archived-refresh" type="button">Erneut laden</button>';
   } else {
     const data = response.data, feedback = data.assessment?.feedback;
-    const language = EXPLANATION_LANGUAGES.includes(feedback?.language || data.submission?.explanation_language)
-      ? feedback?.language || data.submission?.explanation_language : 'de';
     let result = '';
     const feedbackState = writingFeedbackState(data);
     if (feedbackState === 'assessed' && feedback) {
       result = '<p class="small muted">Übungsfeedback – keine offizielle Bewertung. Die Rückmeldung im lokalen Pilot stammt aus einer technischen Simulation.</p>';
-      result += Array.isArray(feedback.criteria) ? '<ul>' + feedback.criteria.map(c => { const view = writingCriterion(c, data.rubric); return '<li><strong>'
-        + esc(view.label) + ': ' + esc(view.band) + '</strong><p lang="' + language + '" dir="' + (language === 'ar' ? 'rtl' : 'ltr') + '">'
-        + esc(c.comment) + '</p></li>'; }).join('') + '</ul>' : '<p lang="' + language + '" dir="' + (language === 'ar' ? 'rtl' : 'ltr') + '">' + esc(feedback.comment) + '</p>';
+      result += Array.isArray(feedback.criteria) ? '<ul class="criteria">' + feedback.criteria.map(c => { const view = writingCriterion(c, data.rubric); return '<li><strong>'
+        + esc(view.label) + ': <span class="band"><span class="sr-only">Band </span>' + esc(view.band) + '</span></strong>'
+        + (c.evidence ? '<blockquote class="evidence" lang="de" dir="ltr">' + esc(c.evidence) + '</blockquote>' : '') + '</li>'; }).join('') + '</ul>' : '';
     } else if (feedbackState === 'blocked') result = '<p>Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Dein Text bleibt erhalten.</p>';
     else if (['failed', 'unassessed'].includes(feedbackState)) result = '<p>Unbewertet. Dein abgegebener Text bleibt erhalten.</p>';
     else if (entry.submission_id) result = '<p>Die Rückmeldung wird vorbereitet. Du kannst den Stand erneut laden.</p>';
     if (feedbackState === 'assessed' && data.review_withdrawn) result += '<p class="hint" data-review-withdrawn>' + esc(reviewHistoryNotice(data)) + '</p>';
     host.innerHTML = '<article class="card"><h3>' + esc(entry.topic || 'Gespeicherter Text') + '</h3><p class="small muted">Archiv · schreibgeschützt</p><div class="archived-writing">'
-      + esc(entry.submission_id ? data.submission?.text || '' : data.text || '') + '</div>' + result
+      + esc(entry.submission_id ? data.submission?.text || '' : data.text || '') + '</div>' + result + (entry.submission_id ? '<div data-archived-explanation></div>' : '')
       + '<div class="row"><button class="btn" id="archived-refresh" type="button">Stand erneut laden</button><button class="btn" id="archived-close" type="button">Schließen</button></div></article>';
-    el('archived-close').onclick = () => { host.replaceChildren(); host.hidden = true; };
+    if (entry.submission_id) explanations.mount(host.querySelector('[data-archived-explanation]'), { view: data.explanation_view, labels: writingExplanationLabels(data), isCurrent: current,
+      read: async language => { const r = await api.writing.result(entry.submission_id, language); return { ...r, data: r?.data?.explanation_view, parent: r?.data }; },
+      onConfirmed: parent => {
+        if (!parent || !current()) return;
+        if (parent.blocked_reason) { host.querySelector('.criteria')?.remove(); host.querySelector('[data-review-withdrawn]')?.remove(); host.querySelector('h3').textContent = 'Gespeicherter Text'; }
+        else if (parent.review_withdrawn && !host.querySelector('[data-review-withdrawn]')) { const notice = document.createElement('p'); notice.className = 'hint'; notice.dataset.reviewWithdrawn = ''; notice.textContent = reviewHistoryNotice(parent); host.querySelector('[data-archived-explanation]').before(notice); }
+      },
+    });
+    el('archived-close').onclick = () => { archivedRequest++; explanations.dispose(host); host.replaceChildren(); host.hidden = true; };
   }
   el('archived-refresh').onclick = () => guard(openArchivedWriting(entry));
 }
@@ -1330,6 +1355,7 @@ async function route() {
     writing.dispose();
   }
   if (mock.active && info.view === 'abschnitt' && info.runId === mock.runId) { history.replaceState(null, '', '#/prep/' + state.preparation.id + '/abschnitt/' + mock.runId); return; }
+  explanationContext++; archivedRequest++; explanations.dispose();
   mock.dispose();
   // The checkout is a screen, not a draft: leaving it drops an in-flight poll and its host content,
   // because a status line that kept updating on another view would be a claim about a screen nobody
@@ -1465,6 +1491,7 @@ el('settings-form').addEventListener('submit', async (event) => {
   let dateSaved = false;
   let settingsSaved = false;
   settingsSaving = true;
+  el('language').disabled = true;
   status.textContent = 'Wird gespeichert …';
   button.disabled = true;
   el('preparation-picker').disabled = true;
@@ -1523,6 +1550,7 @@ el('settings-form').addEventListener('submit', async (event) => {
       return;
     }
     state.settings = res.data?.settings || wanted;
+    explanations.refresh(state.settings.language);
     state.revision = res.data?.revision ?? state.revision;
     renderSettings();
     // The topbar summarises two settings (the exam pill and the explanation language), so it has to be
@@ -1536,6 +1564,7 @@ el('settings-form').addEventListener('submit', async (event) => {
     recovery((dateSaved ? 'Das Prüfungsdatum ist gespeichert. ' : '') + 'Speichern konnte nicht vollständig abgeschlossen werden.');
   } finally {
     settingsSaving = false;
+    el('language').disabled = Boolean(sessionProblem);
     button.disabled = Boolean(sessionProblem);
     renderPreparation();
     const destination = pendingPreparationNavigation;
@@ -1556,6 +1585,7 @@ el('signout').addEventListener('click', async () => {
   readAloud.stop();
   if (!(await writing.flush()) || !(await mock.flush())) return;
   writing.dispose();
+  explanationContext++; explanations.dispose();
   // Do NOT navigate on a refusal. The server's mutation origin gate can reject a sign-out (403),
   // and the learner would then land on the sign-in page believing the session had ended while the
   // cookie was still valid — a false success about a security action, which is the worst kind.
