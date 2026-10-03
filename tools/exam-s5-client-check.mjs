@@ -185,6 +185,18 @@ await check('terminal playback refusals stop audio but release navigation and fi
     v.c.freeze(false); assert.doesNotMatch(v.host.innerHTML, /data-listening-action=/); v.c.dispose();
   }
 });
+await check('obsolete flush never borrows terminal success from a newly mounted run', async () => {
+  for(const pendingFirst of [false,true]) {
+    const f=fixture(),v=controllerFor(f);await v.ready();await v.play();
+    if(pendingFirst){f.intercept(()=>({ok:false,status:0,error:'network'}));assert.equal(await v.c.flush(),false);}
+    let release;f.intercept(()=>new Promise(resolve=>{release=resolve;}));
+    const old=v.c.flush();await tick();v.c.dispose();
+    f.api.mock.playback=async()=>({ok:false,status:409,error:'mock_expired'});
+    v.c.mount(v.host,{...run,id:'new-expired-run'},descriptor);await tick();
+    release({ok:false,status:409,error:'mock_expired'});
+    assert.equal(await old,false);assert.equal(v.c.state().runId,'new-expired-run');v.c.dispose();
+  }
+});
 await check('unknown or retryable pause failures still block navigation with the exact pending receipt', async () => {
   for (const failure of [{status:0,error:'network'},{status:409,error:'playback_conflict'},{status:0,error:'mock_expired'}]) {
     const f=fixture(),v=controllerFor(f);await v.ready();await v.play();

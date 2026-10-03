@@ -228,9 +228,14 @@ export function createListeningController({ api, esc, canEdit = () => true, crea
       if (ticket !== generation) return false;
       halt(); confirmed = false;
       if (terminal(session.state().error)) return true;
-      if (session.state().pending || session.state().busy) { if (!(await session.retry())) return terminal(session.state().error); }
+      if (session.state().pending || session.state().busy) {
+        const acknowledged = await session.retry();
+        if (ticket !== generation) return false;
+        if (!acknowledged) return terminal(session.state().error);
+      }
       if (ticket !== generation) return false;
       const saved = await pauseSaved();
+      if (ticket !== generation) return false;
       // Retain the rejected receipt and last confirmed progress for inspection. The server
       // refuses further playback, but objective finalisation and leaving the page remain usable.
       return saved || terminal(session.state().error);
