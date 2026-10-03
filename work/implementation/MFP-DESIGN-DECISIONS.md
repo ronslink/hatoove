@@ -2,11 +2,15 @@
 
 Updated 1 October 2026. Execution `mfp-design-decisions-20261001-a`, documentation only, based on integration commit `199dc0b99f91d06f402f084757ecf586e03631ce`. [PILOT_BUILD_PLAN.md](../../PILOT_BUILD_PLAN.md) governs scope and [MASTER-PLAN.md](../../MASTER-PLAN.md) sets delivery order; this record supplies the design interpretation and state acceptance, which outlive the withdrawn functional roadmap (MASTER-PLAN §10). Its MFP-07/08/09 slice IDs no longer order the work. The [14-screen map](DESIGN-WIRE-01.md) remains a reference inventory and later backlog, not a first-release checklist. No live assignment or release gate is closed here.
 
+## Language override — 3 October 2026
+
+Ron now requires selected-language public landing/authentication screens, menus, account screens and app guidance in de/en/uk/ar/tr. Original exam-language material stays intact, and operational directions additionally show the selected-language translation. Follow [PILOT-I18N](../../docs/contracts/PILOT-I18N-INTERFACE.md): Arabic interface RTL with explicit German/LTR assessed-content islands, preserved immutable explanation snapshots and exam/market independence. The earlier German-only chrome/LTR-shell and explanation-only preference assertions below are superseded. This records an owner decision; implementation, native translation and physical-device acceptance still require evidence.
+
 ## Decisions and defaults
 
 | Item | Status | First-release contract |
 |---|---|---|
-| German interface | Confirmed direction | Navigation, auth, settings, status messages and exam material stay German. The explanation-language setting changes explanations only; remove App language |
+| Selected interface language | Updated by Ron, 3 October 2026 | Public landing/authentication, navigation, settings and status messages use selected de/en/uk/ar/tr. Exam material stays in its exam language, with bilingual operational directions; existing language preference also selects interface language |
 | Five explanation languages | Confirmed direction | `de`, `en`, `uk`, `ar`, `tr` in onboarding and settings, using the server's supported enum. The worker snapshots the selected language on submission; changing it later never regrades or relabels saved feedback |
 | R14: sign-in method | Planning default, not a recorded final owner answer | Email/password at registration with NO invite code (Ron, 1 October 2026); no Google or magic-link buttons. Password reset uses MFP-04b's email port and stub in development. Password auth still needs a real recovery policy before launch; email-provider or operator-assisted recovery selection remains R5 |
 | R15: writing outcome | Planning default | Per-criterion grades and explanatory feedback, labelled `Übungsfeedback – keine telc-Bewertung`. No `/45` total, percentage, pass line, readiness estimate or pass/fail band in first-release writing UI |
