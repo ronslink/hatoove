@@ -93,13 +93,15 @@ BEGIN
    IF value<>trunc(value) OR value<0 OR value>1000000000000 OR basis<>'reported' THEN RAISE EXCEPTION 'provider_observation_invalid' USING ERRCODE='22023'; END IF;
   END IF;
  END LOOP;
- it:=(r->>'inputTokens')::bigint;ot:=(r->>'outputTokens')::bigint;ct:=(r->>'cachedInputTokens')::bigint;rt:=(r->>'reasoningOutputTokens')::bigint;
+ it:=(r->>'inputTokens')::numeric::bigint;ot:=(r->>'outputTokens')::numeric::bigint;ct:=(r->>'cachedInputTokens')::numeric::bigint;rt:=(r->>'reasoningOutputTokens')::numeric::bigint;
  IF (ct IS NOT NULL AND (it IS NULL OR ct>it)) OR (rt IS NOT NULL AND (ot IS NULL OR rt>ot)) THEN RAISE EXCEPTION 'provider_observation_invalid' USING ERRCODE='22023'; END IF;
  IF p->'elapsedMs'='null'::jsonb THEN
   IF p->>'elapsedIssue' IS NULL OR p->>'elapsedIssue' NOT IN ('unavailable','out_of_range') THEN RAISE EXCEPTION 'provider_observation_invalid' USING ERRCODE='22023'; END IF;
  ELSE
   IF jsonb_typeof(p->'elapsedMs')<>'number' OR (p->>'elapsedMs')::numeric<>trunc((p->>'elapsedMs')::numeric) OR (p->>'elapsedMs')::numeric NOT BETWEEN 0 AND 86400000 OR p->'elapsedIssue'<>'null'::jsonb THEN RAISE EXCEPTION 'provider_observation_invalid' USING ERRCODE='22023'; END IF;
  END IF;
+ r:=jsonb_build_object('modelReported',r->>'modelReported','inputTokens',it,'outputTokens',ot,'cachedInputTokens',ct,'reasoningOutputTokens',rt,'usageBasis',basis,'receiptIssue',issue);
+ p:=p||jsonb_build_object('receipt',r,'elapsedMs',(p->>'elapsedMs')::numeric::integer);
  IF NOT (p->>'receiptCaptured')::boolean AND (r IS DISTINCT FROM '{"modelReported":null,"inputTokens":null,"outputTokens":null,"cachedInputTokens":null,"reasoningOutputTokens":null,"usageBasis":"missing","receiptIssue":null}'::jsonb OR p->'elapsedMs'<>'null'::jsonb)
   OR (p->>'transportStatus'='response' AND NOT (p->>'receiptCaptured')::boolean)
   OR (p->>'transportStatus'='definite_not_sent' AND (p->>'receiptCaptured')::boolean)
@@ -177,7 +179,7 @@ BEGIN
  IF NOT FOUND THEN RAISE EXCEPTION 'provider_intent_failed' USING ERRCODE='P0001'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended(j.owner_id,7352));PERFORM pg_advisory_xact_lock(hashtextextended(j.exam_id,7351));
  SELECT * INTO j FROM jobs WHERE id=p_job_id FOR UPDATE;
- IF NOT FOUND OR j.status<>'running' OR j.lease_token IS DISTINCT FROM p_lease_token OR j.lease_until<=clock_timestamp() OR j.lease_until IS NULL OR j.tries<1 THEN RAISE EXCEPTION 'provider_intent_failed' USING ERRCODE='P0001'; END IF;
+ IF NOT FOUND OR j.status<>'running' OR p_lease_token IS NULL OR j.lease_token IS NULL OR j.lease_token IS DISTINCT FROM p_lease_token OR j.lease_until<=clock_timestamp() OR j.lease_until IS NULL OR j.tries<1 THEN RAISE EXCEPTION 'provider_intent_failed' USING ERRCODE='P0001'; END IF;
  SELECT * INTO prior FROM provider_attempt a WHERE a.job_id=j.id AND a.claim_number=j.tries FOR UPDATE;
  IF FOUND THEN
   IF prior.identity_sha256<>i->>'identitySha256' THEN RAISE EXCEPTION 'provider_identity_invalid' USING ERRCODE='P0001'; END IF;
@@ -202,7 +204,7 @@ BEGIN
  SELECT * INTO i FROM provider_attempt a WHERE a.attempt_id=p_attempt_id FOR UPDATE;
  IF NOT FOUND THEN RETURN QUERY SELECT 'deleted'::text,NULL::uuid,NULL::integer,false;RETURN;END IF;
  IF p_event_id IS NULL OR p_expected_revision IS NULL OR p_expected_revision NOT BETWEEN 0 AND 999999 THEN RAISE EXCEPTION 'provider_observation_invalid' USING ERRCODE='22023';END IF;
- v:=provider_observation_value(i,p_observation);r:=p_observation->'receipt';
+ v:=provider_observation_value(i,p_observation);p_observation:=v-ARRAY['costStatus','costReason','currency','estimatedAmount','pricingSha256'];r:=p_observation->'receipt';
  bytes:='{"attemptId":'||to_json(p_attempt_id)::text||',"eventId":'||to_json(p_event_id)::text||',"expectedRevision":'||p_expected_revision::text||',"observation":';
  bytes:=bytes||left(provider_json_bytes(p_observation,ARRAY['transportStatus','disposition','failureCode']),-1)||',"receipt":'||provider_json_bytes(r,ARRAY['modelReported','inputTokens','outputTokens','cachedInputTokens','reasoningOutputTokens','usageBasis','receiptIssue'])||','||substring(provider_json_bytes(p_observation,ARRAY['receiptCaptured','elapsedMs','elapsedIssue']) FROM 2)||'}';
  fingerprint:=encode(sha256(convert_to(bytes,'UTF8')),'hex');
@@ -213,7 +215,7 @@ BEGIN
  END IF;
  SELECT * INTO prior FROM provider_attempt_observation o WHERE o.attempt_id=p_attempt_id ORDER BY o.revision DESC LIMIT 1;
  IF coalesce(prior.revision,0)<>p_expected_revision THEN RAISE EXCEPTION 'provider_head_conflict' USING ERRCODE='P0001';END IF;
- IF p_observation->>'disposition'='accepted' AND (j.status<>'running' OR j.lease_token IS DISTINCT FROM p_lease_token OR j.tries<>i.claim_number OR (prior.disposition IS NOT NULL AND prior.disposition<>'pending')) THEN RAISE EXCEPTION 'provider_observation_invalid' USING ERRCODE='P0001';END IF;
+ IF p_observation->>'disposition'='accepted' AND (j.status<>'running' OR p_lease_token IS NULL OR j.lease_token IS NULL OR j.lease_token IS DISTINCT FROM p_lease_token OR j.tries<>i.claim_number OR (prior.disposition IS NOT NULL AND prior.disposition<>'pending')) THEN RAISE EXCEPTION 'provider_observation_invalid' USING ERRCODE='P0001';END IF;
  next_revision:=p_expected_revision+1;
  INSERT INTO provider_attempt_observation(event_id,attempt_id,owner_id,exam_id,job_id,submission_id,claim_number,revision,previous_event_id,event_sha256,transport_status,disposition,failure_code,model_reported,usage_basis,receipt_issue,input_tokens,output_tokens,cached_input_tokens,reasoning_output_tokens,receipt_captured,elapsed_ms,elapsed_issue,cost_status,cost_reason,currency,estimated_amount,pricing_sha256)
  VALUES(p_event_id,i.attempt_id,i.owner_id,i.exam_id,i.job_id,i.submission_id,i.claim_number,next_revision,prior.event_id,fingerprint,p_observation->>'transportStatus',p_observation->>'disposition',p_observation->>'failureCode',r->>'modelReported',r->>'usageBasis',r->>'receiptIssue',(r->>'inputTokens')::bigint,(r->>'outputTokens')::bigint,(r->>'cachedInputTokens')::bigint,(r->>'reasoningOutputTokens')::bigint,(p_observation->>'receiptCaptured')::boolean,(p_observation->>'elapsedMs')::integer,p_observation->>'elapsedIssue',v->>'costStatus',v->>'costReason',v->>'currency',v->>'estimatedAmount',v->>'pricingSha256');
