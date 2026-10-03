@@ -111,7 +111,9 @@ fs.writeFileSync(envFile,'HATOVE_APP_PORT='+appPort+'\nHATOVE_DB_PORT='+dbPort+'
 let preparationId;
 async function request(method,url,body,cookie){
   if(cookie && method==='GET') url=scopedFixtureRoute(url,preparationId);
-  const headers={origin:base};
+  // Synchronous Docker checks can outlast the server's keep-alive timeout while Node cannot
+  // consume the socket-close event. Use a fresh fixture connection, never replay an uncertain POST.
+  const headers={origin:base,connection:'close'};
   if(body!==undefined) headers['content-type']='application/json';
   if(cookie) headers.cookie=cookie;
   const res=await fetch(base+url,{method,headers,body:body===undefined?undefined:JSON.stringify(body),redirect:'manual',signal:AbortSignal.timeout(10000)});
