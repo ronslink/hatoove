@@ -4,6 +4,8 @@
  * Real upgrade proof: add --postgres with explicit OWNAPI_PG_* and OWNAPI_PG_ALLOW=1.
  * PostgreSQL legs create unique eol_check_* schemas/roles and scratch migration copies,
  * never change a tracked SQL file or manually rewrite an applied ledger, then clean up.
+ * The initial ledger includes every real migration required by the current package importer;
+ * a scratch-only synthetic tail migration makes the opposite-ending run an actual upgrade.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -91,6 +93,7 @@ async function upgradeProof(from, to) {
   const nextDir = path.join(scratch, 'next');
   const sourceDir = path.join(root, 'server', 'migrations');
   const env = { OWNAPI_PG_SCHEMA: schema, OWNAPI_PG_ROLE_PREFIX: schema };
+  let ownsFixture = false;
   const ending = (bytes, kind) => {
     const text = bytes.toString('latin1').replaceAll('\r\n', '\n');
     assert.ok(!text.includes('\r'), 'fixture source must have no bare CR');
@@ -100,17 +103,28 @@ async function upgradeProof(from, to) {
     await fs.mkdir(legacyDir); await fs.mkdir(nextDir);
     const files = (await fs.readdir(sourceDir)).filter(name => /^\d{4}-.*\.sql$/.test(name)).sort();
     assert.ok(files.length > 1);
-    const head = files.at(-1);
+    // Today's importer requires today's schema. Omitting the newest real migration makes
+    // this an invalid old-schema/current-importer fixture, not an EOL compatibility proof.
+    const head = '9999-eol-upgrade-fixture.sql';
+    assert.ok(files.every(name => name < head), 'the scratch-only marker must follow every real migration');
+    const marker = Buffer.from('-- Synthetic EOL fixture only; never a production migration.\n'
+      + 'CREATE TABLE "__SCHEMA__".eol_upgrade_marker (id integer PRIMARY KEY, proof text NOT NULL);\n'
+      + "INSERT INTO \"__SCHEMA__\".eol_upgrade_marker VALUES (1, 'opposite checkout applied');\n");
     for (const name of files) {
       const bytes = await fs.readFile(path.join(sourceDir, name));
-      if (name !== head) await fs.writeFile(path.join(legacyDir, name), ending(bytes, from));
+      await fs.writeFile(path.join(legacyDir, name), ending(bytes, from));
       await fs.writeFile(path.join(nextDir, name), ending(bytes, to));
     }
+    await fs.writeFile(path.join(nextDir, head), ending(marker, to));
+    assert.equal((await admin.query('SELECT 1 FROM pg_namespace WHERE nspname = $1', [schema])).rowCount, 0, 'fixture schema must be new');
+    assert.equal((await admin.query('SELECT 1 FROM pg_roles WHERE rolname = ANY($1::text[])', [Object.values(config.roles)])).rowCount, 0, 'fixture roles must be new');
+    ownsFixture = true;
     const first = await migrate({ ...env, OWNAPI_MIGRATIONS_DIR: legacyDir });
     assert.equal(first.code, 0, `legacy install: ${first.output.slice(-1200)}`);
     const ledger = async () => (await admin.query(`SELECT id, checksum, applied_at FROM "${schema}".hatoove_migrations ORDER BY id`)).rows;
     const before = await ledger();
-    assert.equal(before.length, files.length - 1);
+    assert.equal(before.length, files.length);
+    assert.equal((await admin.query('SELECT to_regclass($1) AS marker', [schema + '.eol_upgrade_marker'])).rows[0].marker, null, 'the marker must not exist before the upgrade');
     for (const row of before) assert.equal(row.checksum, sha(await fs.readFile(path.join(legacyDir, row.id + '.sql'))));
     await admin.query(`CREATE TABLE "${schema}".eol_keep (id integer PRIMARY KEY, payload text NOT NULL)`);
     await admin.query(`INSERT INTO "${schema}".eol_keep VALUES (1, $1)`, ['synthetic row: Ä / العربية / українська']);
@@ -120,6 +134,9 @@ async function upgradeProof(from, to) {
     assert.equal(next.code, 0, `opposite checkout upgrade: ${next.output.slice(-1200)}`);
     assert.match(next.output, /applied=1\b/);
     const after = await ledger();
+    assert.equal(after.length, files.length + 1, 'exactly the synthetic tail must be newly recorded');
+    const markerRows = async () => (await admin.query('SELECT id, proof FROM "' + schema + '".eol_upgrade_marker ORDER BY id')).rows;
+    assert.deepEqual(await markerRows(), [{ id: 1, proof: 'opposite checkout applied' }], 'the new migration must actually execute');
     assert.deepEqual(after.filter(row => row.id !== head.slice(0, -4)), before, 'old checksums and timestamps must stay untouched');
     assert.equal(after.find(row => row.id === head.slice(0, -4)).checksum, sha(await fs.readFile(path.join(nextDir, head))), 'new head records its actual raw bytes');
     assert.deepEqual(await saved(), savedBefore, 'saved rows survive the upgrade');
@@ -141,19 +158,28 @@ async function upgradeProof(from, to) {
     assert.equal(restored.code, 0, `restored checkout: ${restored.output.slice(-1200)}`);
     assert.match(restored.output, /applied=0\b/);
     assert.deepEqual(await ledger(), after);
+    assert.deepEqual(await saved(), savedBefore, 'a restored checkout must preserve saved rows');
+    assert.deepEqual(await markerRows(), [{ id: 1, proof: 'opposite checkout applied' }], 'an idempotent rerun must not reapply the marker');
   } finally {
     // Only this run's random, identifier-validated schema/roles and temp directory are removed.
-    await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-    for (const role of Object.values(config.roles)) {
-      const exists = (await admin.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [role])).rowCount;
-      if (!exists) continue;
-      await admin.query(`DROP OWNED BY "${role}"`);
-      await admin.query(`DROP ROLE "${role}"`);
+    // A pre-existing-name refusal must never clean up another installation.
+    if (ownsFixture) {
+      await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+      for (const role of Object.values(config.roles)) {
+        const exists = (await admin.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [role])).rowCount;
+        if (!exists) continue;
+        await admin.query(`DROP OWNED BY "${role}"`);
+        await admin.query(`DROP ROLE "${role}"`);
+      }
+      assert.equal((await admin.query('SELECT 1 FROM pg_namespace WHERE nspname = $1', [schema])).rowCount, 0, 'fixture schema cleanup verified');
+      assert.equal((await admin.query('SELECT 1 FROM pg_roles WHERE rolname = ANY($1::text[])', [Object.values(config.roles)])).rowCount, 0, 'every fixture role cleanup verified');
     }
     await admin.end();
     assert.equal(path.dirname(path.resolve(scratch)), path.resolve(os.tmpdir()));
     assert.ok(path.basename(scratch).startsWith('hatoove-eol-check-'));
     await fs.rm(scratch, { recursive: true, force: true });
+    await assert.rejects(fs.stat(scratch), { code: 'ENOENT' }, 'scratch migration copies cleanup verified');
+    if (ownsFixture) console.log('CLEANUP ' + schema + ': schema, all ' + Object.keys(config.roles).length + ' roles and ' + path.basename(scratch) + ' verified absent');
   }
 }
 
