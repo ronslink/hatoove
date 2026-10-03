@@ -2,7 +2,7 @@
 
 ## EXAM-S3 implementation — 3 October 2026
 
-**Active: EXAM-S3-20261003-A**, [issue #110](https://github.com/ronslink/hatoove/issues/110), base `470d428`. Original DTZ reading drafts are authorised with human approval pending. Five parts/25 items, grouped questions/cloze and isolated two-exam recovery follow the [S3 contract](../docs/contracts/EXAM-S3.md). Default learner runtime remains telc-only. Delivery, independent review, green CI, merge and product acceptance are pending and distinct. Existing learner data and paused work stay preserved.
+**Delivered and independently reviewed; integration pending: EXAM-S3-20261003-A**, [issue #110](https://github.com/ronslink/hatoove/issues/110), base `470d428`. Ron authorised original internal DTZ reading drafts with human approval pending. Five parts/25 items, grouped questions, cloze and save-safe two-exam switching follow the [S3 contract](../docs/contracts/EXAM-S3.md). Default learner availability remains telc-only; internal DTZ is exercised only in disposable fixtures. S3 browser14/14, PostgreSQL10/10, default telc browser199/199 and Compose37/37 (OpenAPI42/42) pass. Independent backend and root/client/content reviews have no open findings. [Evidence](implementation/EXAM-S3-RESULT.md) records exact scopes and fixture repairs. Current-head CI and PR integration remain pending. Human content, physical-device, complete DTZ release and product acceptance remain separate; learner runtime/data and paused work are preserved.
 
 ## EXAM-S2 implementation — 3 October 2026
 
