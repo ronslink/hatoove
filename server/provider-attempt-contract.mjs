@@ -37,7 +37,7 @@ function checkedCard(card){
   ||!Array.isArray(card.modelIds)||types.isProxy(card.modelIds)||card.modelIds.length!==1||Object.getOwnPropertyDescriptor(card.modelIds,'0')?.value!=='fixture-model-a'
   ||Reflect.ownKeys(card.modelIds).some(key=>!['0','length'].includes(key))||card.currency!==(card.cardId==='synthetic-usd-v1'?'USD':'EUR')||![1,1000,1000000].includes(card.unit))fail('provider_identity_invalid');
  for(const key of ['inputRate','outputRate'])decimal(card[key]);for(const key of ['cachedInputRate','reasoningOutputRate'])if(card[key]!==null)decimal(card[key]);
- return Object.fromEntries(cardKeys.map(key=>[key,key==='modelIds'?[...card[key]]:card[key]]));
+ return Object.fromEntries(cardKeys.map(key=>[key,key==='modelIds'?['fixture-model-a']:card[key]]));
 }
 export function validateProviderIdentity(selector,{builtin=false,policy=null}={}){
  const defaultId=builtin?(policy===DTZ_POLICY?'local-dtz-stub-v1':'local-telc-stub-v1'):'synthetic-grader-v1';
