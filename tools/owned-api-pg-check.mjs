@@ -393,14 +393,46 @@ check('pg-an-attempt-cannot-bind-content-that-does-not-exist', async () => {
                     VALUES($1, $2, $3, $4, $5, $6, $7, $8)`;
     const values = (taskId, taskVersion) => [randomUUID(), owner, preparation.id, preparation.exam_id,
       taskId, taskVersion, DEFAULT_TASK_BINDING.rubricId, DEFAULT_TASK_BINDING.rubricVersion];
+    const insertInContext = async (pool, ownerContext, parameters, beforeCommit = () => {}) => {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query("SELECT set_config('hatoove.owner_id', $1, true)", [ownerContext]);
+        const result = await client.query(insert, parameters);
+        beforeCommit(result);
+        // The deferred C03 guard must see the same owner through COMMIT.
+        await client.query('COMMIT');
+        return result;
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally { client.release(); }
+    };
+    const valid = () => values(DEFAULT_TASK_BINDING.taskId, DEFAULT_TASK_BINDING.taskVersion);
+    // Even an admin with a real task/preparation cannot commit without the matching owner.
+    // The INSERT itself succeeds, discriminating the deferred guard from RLS/FK rejection.
+    for (const ownerContext of ['', `user-${randomUUID()}`]) {
+      let inserted = false;
+      await assert.rejects(insertInContext(admin, ownerContext, valid(), (result) => {
+        assert.equal(result.rowCount, 1);
+        inserted = true;
+      }), (e) => e.code === 'P0002' && e.message === 'not_found');
+      assert.equal(inserted, true, 'the valid row reached the deferred owner guard');
+    }
+    assert.equal((await admin.query(`SELECT count(*)::int AS n FROM ${schema}.attempts WHERE owner_id=$1`, [owner])).rows[0].n, 0,
+      'both refused commits leave no attempt');
     await assert.rejects(
-      admin.query(insert, values('writing.no.such.task', 'v9')),
+      insertInContext(ctx.fixture.learner, owner, values('writing.no.such.task', 'v9')),
       (e) => e.code === '23503' && e.constraint === 'attempts_task_version_fk',
       'a missing task version must fail its specific FK, not an unrelated context constraint',
     );
-    // Positive control: the same fully scoped INSERT with the real task identity succeeds.
-    const ok = await admin.query(insert, values(DEFAULT_TASK_BINDING.taskId, DEFAULT_TASK_BINDING.taskVersion));
+    // Positive control: the same owner-bound restricted transaction with the real task commits.
+    const parameters = valid();
+    const ok = await insertInContext(ctx.fixture.learner, owner, parameters);
     assert.equal(ok.rowCount, 1);
+    assert.deepEqual((await admin.query(`SELECT owner_id,task_id,task_version FROM ${schema}.attempts WHERE id=$1`, [parameters[0]])).rows,
+      [{ owner_id: owner, task_id: DEFAULT_TASK_BINDING.taskId, task_version: DEFAULT_TASK_BINDING.taskVersion }],
+      'the exact valid binding persists after the restricted transaction commits');
   } finally { await ctx.fixture.cleanup(); }
 });
 
