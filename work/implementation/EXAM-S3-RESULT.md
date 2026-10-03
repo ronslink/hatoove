@@ -27,10 +27,10 @@ Ignored logs/screenshots are under `D:/Hatoove/.qa/exam-s3-20261003/`; worker AC
 | Default telc browser | 199/199; final evidence `browser-default-reviewed`, exact synthetic stack removed |
 | Compose/API surface | 37/37, including OpenAPI42/42; exact disposable Compose project removed |
 | Independent backend review | Approved author20d3d19, byte-identical integrationf9356d4; reviewer did not author backend |
-| Independent client/root/content review | Source approved856dfce; exact-version review-UX follow-up independently approved; final head receipt recorded in issue110 |
-| CI, PR integration | Pending; delivery is not merge or product acceptance |
+| Independent client/root/content review | Final head693f4ac approved; [receipt](https://github.com/ronslink/hatoove/issues/110#issuecomment-5968711859); no open findings |
+| CI, PR integration | [PR111](https://github.com/ronslink/hatoove/pull/111) merged4eab9a9 at11:27:57UTC on3October2026; seven applicable CI jobs green on reviewed693f4ac. Scheduled rendered job is not a PR gate; local rendered receipts are listed above. Product acceptance remains separate |
 
-The coordinator integrated actual Docker Hermes' original content84be781, the clientb67aca5 and backend20d3d19 in separate worktrees. The baseline fixture author delivered297531c; the coordinator's exact-version assertion fix has separate review. Actual Claude's session was unavailable and local independent reviews were used without changing provider configuration. Authors' execution leases are closed; the read-only final reviewer remains active until integration review closes.
+The coordinator integrated actual Docker Hermes' original content84be781, the clientb67aca5 and backend20d3d19 in separate worktrees. The baseline fixture author delivered297531c; the coordinator's exact-version assertion fix has separate review. Actual Claude's session was unavailable and local independent reviews were used without changing provider configuration. All implementation/review leases are closed. Canonical main is fast-forwarded, all exact task browser/Compose/PostgreSQL fixtures and volumes are disposed, and ignored source snapshots/logs/screenshots and worker bundles remain preserved. The learner runtime and database were not restarted or migrated.
 
 The first browser fixture incorrectly omitted curated public design assets and produced unstyled layout failures. The copy filter was repaired, source assets and loaded styles are now asserted, and the styled/final runs pass. Intermediate element crops had fixed-chrome artifacts; final evidence uses real viewport scroll positions and separate text/control views. These earlier images are retained for diagnosis and are not acceptance evidence.
 
