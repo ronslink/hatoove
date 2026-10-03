@@ -51,7 +51,7 @@ import { checkSentence, SENTENCE_TEXT_LIMIT } from './sentence-building.mjs';
 import {
   requirePreparationId, validateCreatePreparation, validateUpdatePreparation,
 } from './preparation-contract.mjs';
-import { MOCK_METHODS, validateStartMockRun, validateSaveMockRun, validateFinaliseMockRun } from './mock-contract.mjs';
+import { MOCK_METHODS, validateWritingChoice, validateStartMockRun, validateSaveMockRun, validateFinaliseMockRun } from './mock-contract.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
@@ -85,6 +85,7 @@ const SUBMIT_RE = new RegExp(`^/api/v1/attempts/(${UUID})/submissions$`, 'i');
 const RESULT_RE = new RegExp(`^/api/v1/submissions/(${UUID})$`, 'i');
 const RETRY_RE = new RegExp(`^/api/v1/submissions/(${UUID})/retry$`, 'i');
 const MOCK_RUN_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})$`, 'i');
+const MOCK_WRITING_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/writing-choice$`, 'i');
 const MOCK_FINALISE_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/finalise$`, 'i');
 const TOKEN_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
@@ -613,7 +614,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
     }
 
     if (pathname === '/api/v1/mock-forms' || pathname === '/api/v1/mock-runs'
-      || MOCK_RUN_RE.test(pathname) || MOCK_FINALISE_RE.test(pathname)) {
+      || MOCK_RUN_RE.test(pathname) || MOCK_FINALISE_RE.test(pathname) || MOCK_WRITING_RE.test(pathname)) {
       if (!mocksWired) fault(503, 'mock_runs_unavailable');
       const index = pathname === '/api/v1/mock-forms' || pathname === '/api/v1/mock-runs';
       const allowedQuery = index && method === 'GET' ? ['preparationId'] : [];
@@ -631,6 +632,11 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const run = MOCK_RUN_RE.exec(pathname);
       if (run && method === 'GET') return reply(200, await datastore.readMockRun(owner, run[1].toLowerCase()));
       if (run && method === 'PUT') return reply(200, await datastore.saveMockRun(owner, run[1].toLowerCase(), validateSaveMockRun(body)));
+      const writing = MOCK_WRITING_RE.exec(pathname);
+      if (writing && method === 'POST') {
+        if(typeof datastore.selectMockWriting !== 'function') fault(503,'mock_runs_unavailable');
+        return reply(200,await datastore.selectMockWriting(owner,writing[1].toLowerCase(),validateWritingChoice(body)));
+      }
       const finalise = MOCK_FINALISE_RE.exec(pathname);
       if (finalise && method === 'POST') return reply(200, await datastore.finaliseMockRun(owner, finalise[1].toLowerCase(), validateFinaliseMockRun(body)));
       fault(404, 'not_found');

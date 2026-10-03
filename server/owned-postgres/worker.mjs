@@ -30,6 +30,9 @@
  * database is the other worker's, exactly one of them.
  */
 
+import { createExamCatalogue } from '../preparation-contract.mjs';
+import { readWritingTask, writingAccess, readWritingOrigin } from './packages.mjs';
+import { supportedWritingPolicy, DTZ_POLICY, DTZ_KIND, DTZ_INSTRUCTIONS } from '../writing-policy.mjs';
 import { randomUUID } from 'node:crypto';
 import { TELC_B1_WRITING_RUBRIC, FORMATIVE_WRITING_RUBRIC } from './content-seed.mjs';
 
@@ -90,7 +93,11 @@ export function firstSentence(text) {
   return sentence.length > 0 ? sentence : value.slice(0, 60);
 }
 
-export function stubGrade({ text = '', explanationLanguage = 'de' } = {}) {
+export function stubGrade({ text = '', explanationLanguage = 'de', rubric = null, policy = null } = {}) {
+  if(policy===DTZ_POLICY) return {
+    feedback:{kind:DTZ_KIND,criteria:rubric.criteria.map(c=>({key:c.key,band:'A2',evidence:firstSentence(text).slice(0,500),
+      comment:({'de':'Simulation ohne Sprachbewertung: Diese feste Beispielposition bewertet Ihren Text nicht.','en':'Simulation without language assessment: this fixed example position does not assess your text.','uk':'Симуляція без мовного оцінювання: ця фіксована позиція не оцінює ваш текст.','ar':'محاكاة دون تقييم لغوي: هذا المثال الثابت لا يقيّم نصك.','tr':'Dil değerlendirmesi olmadan simülasyon: bu sabit örnek metninizi değerlendirmez.'})[explanationLanguage]||'Simulation ohne Sprachbewertung.'})),corrections:[]},
+    modelVersion:'dtz-simulation-v1',promptVersion:'dtz-simulation-v1'};
   const body = String(text || '');
   const comment = SYNTHETIC_COMMENT[String(explanationLanguage || 'de').slice(0, 2)] || SYNTHETIC_COMMENT.de;
   const evidence = firstSentence(body);
@@ -229,7 +236,7 @@ export function validateAssessment(assessment, { rubric = null, text = '' } = {}
     // field so the failure is diagnosable rather than mysterious.
     if (!BAND_FEEDBACK_FIELDS.includes(key)) throw bad(`unknown feedback field "${key}"`);
   }
-  if (feedback.kind !== BAND_KIND) throw bad(`feedback.kind must be "${BAND_KIND}" for this rubric`);
+  if (feedback.kind !== (rubric.feedback_kind||BAND_KIND)) throw bad(`feedback.kind must match the bound rubric`);
   if (!Array.isArray(feedback.criteria)) throw bad('feedback.criteria must be an array');
 
   const expected = rubric.criteria.map((criterion) => criterion.key);
@@ -293,7 +300,7 @@ export function validateAssessment(assessment, { rubric = null, text = '' } = {}
  *   drive the clock rather than sleep.
  * @returns {Readonly<{runOnce: Function, reclaimExpired: Function}>}
  */
-export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DEFAULT_LEASE_MS, maxTries = DEFAULT_MAX_TRIES } = {}) {
+export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DEFAULT_LEASE_MS, maxTries = DEFAULT_MAX_TRIES, examCatalogue = createExamCatalogue() } = {}) {
   if (!pool || typeof pool.connect !== 'function') {
     throw new TypeError('createWorker requires a pg Pool connected as the restricted worker role');
   }
@@ -328,6 +335,11 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
    *
    * @returns {Promise<{claimed:false} | {claimed:true, submissionId:string, outcome:'succeeded'|'failed'|'stale'|'skipped', code?:string}>}
    */
+  async function blockedAttached(client,runId) {
+    return Boolean(first(await client.query(`SELECT 1 FROM mock_run r JOIN exam_release_head h ON h.exam_id=r.exam_id
+      JOIN exam_release e ON e.exam_id=h.exam_id AND e.version=h.release_version
+      WHERE r.id=$1 AND coalesce(e.manifest #> '{release,resumeBlockedReleases}','[]'::jsonb) ? r.release_version`,[runId])));
+  }
   async function runOnce() {
     const token = randomUUID();
     const leaseUntil = new Date(now().getTime() + leaseMs);
@@ -345,7 +357,7 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
 
     const submissionId = claimed.submission_id;
     const row = first(await pool.query(
-      `SELECT s.id, s.owner_id, s.text, s.task_version, s.rubric_version, s.explanation_language, a.rubric_id, a.deleted_at
+      `SELECT s.id, s.attempt_id, s.owner_id, s.text, s.task_version, s.rubric_version, s.explanation_language, a.rubric_id, a.task_id, a.exam_id, a.deleted_at
        FROM submissions s JOIN attempts a ON a.id = s.attempt_id
        WHERE s.id = $1`, [submissionId]));
     // Mirror the fixture's `complete`/`fail`: a submission whose attempt is tombstoned is
@@ -359,13 +371,26 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
      * does not know cannot produce a valid assessment, so grading it would only spend a provider call on a
      * result that must be refused. It is a preserved, unassessed failure: text kept, reservation refunded.
      */
-    const rubric = rubricFor(row.rubric_id, row.rubric_version);
+    let rubric = rubricFor(row.rubric_id, row.rubric_version),task=null,policy=null,selectedOption=null;
+    if(rubric===undefined) {
+      if(!examCatalogue.isEnabled(row.exam_id)) return completeFailure({submissionId,token,code:UNSUPPORTED_RUBRIC});
+      task=await readWritingTask(pool,row.task_id,row.task_version);
+      if(task&&task.rubric_id===row.rubric_id&&task.rubric_version===row.rubric_version&&supportedWritingPolicy(task,row.exam_id)) {
+        if(await writingAccess(pool,task,{historical:true})) return completeFailure({submissionId,token,code:'content_unavailable'});
+        rubric={rubric_id:task.rubric_id,version:task.rubric_version,criteria:task.criteria,policy:task.policy,feedback_kind:task.feedback_kind};
+        policy=task.policy;
+        const origin=await readWritingOrigin(pool,row.attempt_id,row.owner_id);
+        selectedOption=origin?{choice_group_id:origin.choice_group_id,selected_option_id:origin.selected_option_id,run_id:origin.run_id}:null;
+        if(selectedOption&&await blockedAttached(pool,selectedOption.run_id)) return completeFailure({submissionId,token,code:'content_unavailable'});
+      }
+    }
     if (rubric === undefined) return completeFailure({ submissionId, token, code: UNSUPPORTED_RUBRIC });
 
     let assessment;
     try {
       assessment = await gradeFn({
         submissionId,
+        task, rubric, policy, policyInstructions:policy===DTZ_POLICY?DTZ_INSTRUCTIONS:null, selectedOption,
         text: row.text,
         taskVersion: row.task_version,
         rubricId: row.rubric_id,
@@ -398,6 +423,8 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
    */
   async function completeSuccess({ submissionId, token, row, assessment }) {
     return transaction(async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))',[row.owner_id]);
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[row.exam_id]);
       const job = first(await client.query(
         'SELECT id, owner_id, exam_id, status, lease_token FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
       if (!job || job.status !== 'running' || job.lease_token !== token) return { claimed: true, submissionId, outcome: 'stale' };
@@ -405,6 +432,13 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
         `SELECT a.deleted_at FROM attempts a JOIN submissions s ON s.id = $1 WHERE a.id = s.attempt_id`, [submissionId]));
       if (!attempt || attempt.deleted_at) return { claimed: true, submissionId, outcome: 'skipped', code: 'attempt_deleted' };
 
+      const task=rubricFor(row.rubric_id,row.rubric_version)===undefined?await readWritingTask(client,row.task_id,row.task_version):null;
+      const attachment=task?await readWritingOrigin(client,row.attempt_id,row.owner_id):null;
+      if(task?.policy&&(await writingAccess(client,task,{historical:true})||(attachment&&await blockedAttached(client,attachment.run_id)))) {
+        await client.query("UPDATE jobs SET status='failed',failure_code='content_unavailable',lease_token=NULL,lease_until=NULL WHERE id=$1",[job.id]);
+        await client.query('UPDATE entitlements SET reserved=reserved-1 WHERE owner_id=$1 AND exam_id=$2',[job.owner_id,job.exam_id]);
+        return {claimed:true,submissionId,outcome:'failed',code:'content_unavailable'};
+      }
       const feedback = assessment && assessment.feedback !== undefined ? assessment.feedback : { kind: 'synthetic-formative' };
       const modelVersion = (assessment && assessment.modelVersion) || 'unknown';
       const promptVersion = (assessment && assessment.promptVersion) || 'unknown';

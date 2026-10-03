@@ -43,6 +43,35 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
       sets.set(cv,{set_id:s.setId,version:s.version,exam_id:s.examId,family:s.family,section:s.section,part:s.part,payload:s.payload,item_count:s.itemCount,
         review_status:s.reviewStatus,rights_status:s.rightsStatus,media_required:false});
     }
+    const rubrics=new Map(),writingTasks=new Map();
+    for(const r of p.rubrics||[]) {
+      const cv=r.rubricId+'@'+r.version,digest=packageHash(r);
+      const old=(await client.query(`SELECT r.*,c.content_sha256,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r
+        JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[r.rubricId,r.version])).rows[0];
+      if(old && (old.content_sha256!==digest||old.exam_id!==p.exam.id)) fail('changed rubric under existing version');
+      if(!old) {
+        plan('add rubric '+cv,`INSERT INTO content_version(content_version_id,kind,family,source_path,review_status,rights_status,content_sha256,exam_id)
+          VALUES($1,'rubric','writing',$2,$3,$4,$5,$6)`,[cv,'content/exams/'+p.exam.id+'/writing-manifest.json#'+cv,r.reviewStatus,r.rightsStatus,digest,p.exam.id]);
+        commands.push([`INSERT INTO rubric_version(rubric_id,version,family,criteria,max_total,content_version_id,exam_id,policy,feedback_kind)
+          VALUES($1,$2,'writing',$3::jsonb,NULL,$4,$5,$6,$7)`,[r.rubricId,r.version,canonicalJson(r.criteria),cv,p.exam.id,r.policy,r.feedbackKind]]);
+      }
+      rubrics.set(cv,old||{exam_id:r.examId,review_status:r.reviewStatus,rights_status:r.rightsStatus});
+    }
+    for(const t of p.writingTasks||[]) {
+      const cv=t.taskId+'@'+t.version,digest=packageHash(t);
+      const r=rubrics.get(t.rubricId+'@'+t.rubricVersion)||(await client.query(`SELECT r.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[t.rubricId,t.rubricVersion])).rows[0];
+      if(!r||r.exam_id!==p.exam.id||!['generated','licensed','commissioned'].includes(r.rights_status)) fail('missing or incompatible exact rubric');
+      const old=(await client.query(`SELECT t.*,c.content_sha256,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM task_version t
+        JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE task_id=$1 AND version=$2`,[t.taskId,t.version])).rows[0];
+      if(old && (old.content_sha256!==digest||old.exam_id!==p.exam.id)) fail('changed writing task under existing version');
+      if(!old) {
+        plan('add writing task '+cv,`INSERT INTO content_version(content_version_id,kind,family,source_path,review_status,rights_status,content_sha256,exam_id)
+          VALUES($1,'task','writing',$2,$3,$4,$5,$6)`,[cv,'content/exams/'+p.exam.id+'/writing-manifest.json#'+cv,t.reviewStatus,t.rightsStatus,digest,p.exam.id]);
+        commands.push([`INSERT INTO task_version(task_id,version,family,register,topic,situation,adressat,leitpunkte,rubric_id,rubric_version,content_version_id,exam_id,section)
+          VALUES($1,$2,'writing',$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12)`,[t.taskId,t.version,t.register,t.topic,t.situation,t.adressat,canonicalJson(t.leitpunkte),t.rubricId,t.rubricVersion,cv,t.examId,t.section]]);
+      }
+      writingTasks.set(cv,old||{exam_id:t.examId,family:t.family,section:t.section,review_status:t.reviewStatus,rights_status:t.rightsStatus,rubric_id:t.rubricId,rubric_version:t.rubricVersion});
+    }
     for(const f of p.forms) {
       const formHash=packageHash({blueprintVersion:p.blueprint.version,form:f});
       const old=(await client.query('SELECT sha256 FROM exam_form WHERE exam_id=$1 AND form_id=$2 AND version=$3',[p.exam.id,f.id,f.version])).rows[0];
@@ -75,6 +104,19 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
         if(!old) commands.push([`INSERT INTO exam_form_member(exam_id,form_id,form_version,position,set_id,set_version,interaction,item_count)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[p.exam.id,f.id,f.version,i,m.setId,m.version,m.interaction,m.itemCount]]);
       }
+      for(const choice of f.writingChoices||[]) {
+        let family;
+        for(const o of choice.options) {
+          const t=writingTasks.get(o.taskId+'@'+o.taskVersion)||(await client.query(`SELECT t.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM task_version t JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE task_id=$1 AND version=$2`,[o.taskId,o.taskVersion])).rows[0];
+          const part=p.blueprint.sections.find(x=>x.id===choice.section)?.parts.find(x=>x.family===t?.family);
+          if(!t||t.exam_id!==p.exam.id||t.section!==choice.section||part?.interaction!=='writing_choice'||!['generated','licensed','commissioned'].includes(t.rights_status)) fail('missing or incompatible writing choice');
+          const r=rubrics.get(t.rubric_id+'@'+t.rubric_version)||(await client.query(`SELECT r.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[t.rubric_id,t.rubric_version])).rows[0];
+          if(!r||r.exam_id!==p.exam.id||!['generated','licensed','commissioned'].includes(r.rights_status)) fail('incompatible choice rubric');
+          if(p.release.state==='available'&&(t.review_status!=='approved'||r.review_status!=='approved')) fail('writing needs qualified review');
+          family=t.family;
+        }
+        coverage.set(choice.section+':'+family,(coverage.get(choice.section+':'+family)||0)+1);
+      }
       // A section label means every part of that declared section, exactly once.
       for(const id of f.sections) for(const part of p.blueprint.sections.find(s=>s.id===id).parts)
         if(coverage.get(id+':'+part.family)!==1) fail('incomplete or repeated section coverage: '+id+'/'+part.family);
@@ -84,7 +126,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
         changes.push('add form '+f.id+'@'+f.version);
         // Insert the form before its already planned members, all after blueprint/set commands.
         const firstMember=commands.findIndex(([sql,args])=>sql.startsWith('INSERT INTO exam_form_member')&&args[1]===f.id&&args[2]===f.version);
-        commands.splice(firstMember,0,['INSERT INTO exam_form(exam_id,form_id,version,blueprint_version,payload,sha256) VALUES($1,$2,$3,$4,$5::jsonb,$6)',
+        commands.splice(firstMember<0?commands.length:firstMember,0,['INSERT INTO exam_form(exam_id,form_id,version,blueprint_version,payload,sha256) VALUES($1,$2,$3,$4,$5::jsonb,$6)',
           [p.exam.id,f.id,f.version,p.blueprint.version,canonicalJson(f),formHash]]);
       }
     }

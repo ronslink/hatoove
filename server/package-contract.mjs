@@ -1,4 +1,5 @@
 /** Pure declarative package validation. No SQL, provider, locale or exam constants. */
+import { DTZ_KEYS, DTZ_BANDS, DTZ_POLICY, DTZ_KIND } from './writing-policy.mjs';
 import { createHash } from 'node:crypto';
 
 export const INTERACTIONS = Object.freeze(['matching_headlines','single_choice','matching_ads','gap_choice','gap_bank','grouped_choice']);
@@ -82,7 +83,7 @@ export function validatePackage(input) {
   try { source=JSON.stringify(input); } catch { invalid('not JSON'); }
   demand(source && source.length<=2_000_000,'package too large');
   const p=JSON.parse(source);
-  keys(p,['schemaVersion','exam','blueprint','release','forms','sets'],'package');
+  keys(p,['schemaVersion','exam','blueprint','release','forms','sets','writingTasks','rubrics'],'package');
   demand(p.schemaVersion===1,'unsupported schemaVersion');
   keys(p.exam,['id','title','language','levelModel'],'exam');
   demand(text(p.exam.id,64) && /^[a-z0-9][a-z0-9-]{0,63}$/.test(p.exam.id) && text(p.exam.title,200) && text(p.exam.language,40) && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(p.exam.language),'invalid exam');
@@ -114,17 +115,27 @@ export function validatePackage(input) {
   demand(p.forms.length>0 || ['hidden','withdrawn'].includes(p.release.state),'empty release');
   demand(unique(p.forms.map(f=>f.id+'@'+f.version)),'duplicate form');
   for (const f of p.forms) {
-    keys(f,['id','version','title','scope','sections','mode','timeLimitSeconds','feedback','members'],'form');
+    keys(f,['id','version','title','scope','sections','mode','timeLimitSeconds','feedback','members','writingChoices'],'form');
     demand(text(f.id,128) && ID.test(f.id) && VERSION.test(f.version) && text(f.title,200),'invalid form identity');
     demand(['section','complete_supported_written'].includes(f.scope) && f.feedback==='finalise','unsupported form policy');
     demand(Array.isArray(f.sections) && f.sections.length>0 && unique(f.sections) && f.sections.every(id=>p.blueprint.sections.some(s=>s.id===id)),'invalid form sections');
     demand((f.mode==='untimed' && f.timeLimitSeconds===null) || (f.mode==='timed' && Number.isSafeInteger(f.timeLimitSeconds) && f.timeLimitSeconds>=1 && f.timeLimitSeconds<=86400),'invalid timing');
-    demand(Array.isArray(f.members) && f.members.length>0 && f.members.length<=50 && unique(f.members.map(m=>m.setId+'@'+m.version)),'invalid/duplicate members');
+    demand(Array.isArray(f.members) && (f.members.length>0 || f.writingChoices?.length===1) && f.members.length<=50 && unique(f.members.map(m=>m.setId+'@'+m.version)),'invalid/duplicate members');
     for (const m of f.members) {
       keys(m,['setId','version','interaction','itemCount'],'member');
       demand(text(m.setId,128) && ID.test(m.setId) && VERSION.test(m.version) && INTERACTIONS.includes(m.interaction) && Number.isSafeInteger(m.itemCount) && m.itemCount>0 && m.itemCount<=100,'invalid member');
     }
     demand(f.members.reduce((sum,m)=>sum+m.itemCount,0)<=500,'form exceeds saved response limit');
+    if (f.writingChoices !== undefined) {
+      demand(Array.isArray(f.writingChoices) && f.writingChoices.length===1,'one writing choice group required');
+      for (const choice of f.writingChoices) {
+        keys(choice,['id','section','options'],'writing choice');
+        demand(text(choice.id,128)&&ID.test(choice.id)&&f.sections.includes(choice.section),'invalid writing choice');
+        demand(Array.isArray(choice.options)&&choice.options.length===2&&choice.options[0].id==='A'&&choice.options[1].id==='B','writing options must be A/B');
+        for(const o of choice.options) { keys(o,['id','taskId','taskVersion'],'writing option'); demand(text(o.taskId,128)&&ID.test(o.taskId)&&VERSION.test(o.taskVersion),'invalid writing option'); }
+        demand(unique(choice.options.map(o=>o.taskId+'@'+o.taskVersion)),'duplicate writing option');
+      }
+    }
     if (f.scope==='complete_supported_written') {
       // S2 deliberately ships no complete-written capability. A shortened blueprint cannot evade
       // missing listening/writing by redefining the target examination's supported scope.
@@ -148,9 +159,35 @@ export function validatePackage(input) {
     // an available release must reference separately approved existing database content.
     demand(s.reviewStatus==='unreviewed' && s.rightsStatus==='generated','new imports require separate review/rights approval');
   }
+  const hadRubrics=Object.hasOwn(p,'rubrics'),hadWriting=Object.hasOwn(p,'writingTasks');
+  p.rubrics ??=[]; p.writingTasks ??=[];
+  demand(Array.isArray(p.rubrics)&&p.rubrics.length<=20&&unique(p.rubrics.map(r=>r.rubricId+'@'+r.version)),'invalid rubrics');
+  for(const r of p.rubrics) {
+    keys(r,['rubricId','version','examId','family','policy','feedbackKind','criteria','reviewStatus','rightsStatus','source'],'rubric');
+    demand(text(r.rubricId,128)&&ID.test(r.rubricId)&&VERSION.test(r.version)&&r.examId===p.exam.id&&r.family==='writing','invalid rubric identity');
+    demand(r.examId==='dtz-a2-b1'&&r.policy===DTZ_POLICY&&r.feedbackKind===DTZ_KIND,'unsupported writing policy');
+    demand(Array.isArray(r.criteria)&&r.criteria.length===4&&unique(r.criteria.map(c=>c.key))&&DTZ_KEYS.every(k=>r.criteria.some(c=>c.key===k)),'invalid DTZ criteria');
+    for(const c of r.criteria) {
+      keys(c,['key','label','bands','bandLabels','descriptors'],'criterion');
+      demand(text(c.label,200)&&canonicalJson(c.bands)===canonicalJson(DTZ_BANDS),'invalid DTZ scale');
+      for(const field of ['bandLabels','descriptors']) demand(object(c[field])&&Object.keys(c[field]).length===6&&Object.keys(DTZ_BANDS).every(k=>text(c[field][k],2000)),'invalid criterion '+field);
+    }
+    demand(r.reviewStatus==='unreviewed'&&r.rightsStatus==='generated'&&text(r.source,1000),'new rubrics need separate review');
+  }
+  demand(Array.isArray(p.writingTasks)&&p.writingTasks.length<=100&&unique(p.writingTasks.map(t=>t.taskId+'@'+t.version)),'invalid writing tasks');
+  for(const t of p.writingTasks) {
+    keys(t,['taskId','version','examId','family','section','register','topic','situation','adressat','leitpunkte','rubricId','rubricVersion','reviewStatus','rightsStatus','source'],'writing task');
+    demand(text(t.taskId,128)&&ID.test(t.taskId)&&VERSION.test(t.version)&&t.examId===p.exam.id&&t.family==='writing','invalid writing identity');
+    const part=p.blueprint.sections.find(s=>s.id===t.section)?.parts.find(x=>x.family===t.family);
+    demand(part?.interaction==='writing_choice'&&part.itemCount===1&&!part.mediaRequired,'writing blueprint mismatch');
+    demand(['du','Sie'].includes(t.register)&&text(t.topic,200)&&text(t.situation,12000)&&text(t.adressat,1000)&&Array.isArray(t.leitpunkte)&&t.leitpunkte.length===4&&t.leitpunkte.every(x=>text(x,2000)),'invalid writing prompt');
+    demand(text(t.rubricId,128)&&ID.test(t.rubricId)&&VERSION.test(t.rubricVersion),'invalid writing rubric');
+    demand(t.reviewStatus==='unreviewed'&&t.rightsStatus==='generated'&&text(t.source,1000),'new writing tasks need separate review');
+  }
   if (p.release.state==='available' && p.exam.id==='dtz-a2-b1') {
     demand(p.forms.some(f=>f.scope==='complete_supported_written'),'DTZ requires the complete written package');
     demand(p.blueprint.sections.some(s=>s.parts.some(x=>x.mediaRequired)),'DTZ requires reviewed listening');
   }
+  if(!hadRubrics) delete p.rubrics; if(!hadWriting) delete p.writingTasks;
   return p;
 }
