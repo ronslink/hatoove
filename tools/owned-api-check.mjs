@@ -1533,6 +1533,27 @@ check('delete-is-a-tombstone', async () => {
   await expectClientError(s.client.deleteAttempt(draft.id), 'not_found', { status: 404 });
 });
 
+check('archived-drafts-refuse-edits-until-explicit-resume', async () => {
+  const w = await world();
+  const a = await learner(w, 'archive');
+  const draft = await a.client.createAttempt({ preparationId: a.preparationId });
+  await a.client.saveDraft(draft.id, { expectedRevision: 1, text: 'vor dem Archiv' });
+  const archived = await a.raw('PUT', `/api/v1/preparations/${a.preparationId}`, { expectedRevision: 1, state: 'archived' });
+  assert.equal(archived.status, 200);
+  const before = await w.store.inspect.fingerprint();
+  await expectClientError(a.client.saveDraft(draft.id, { expectedRevision: 2, text: 'verweigert' }),
+    'conflict', { status: 409, detail: 'preparation_archived' });
+  await expectClientError(a.client.deleteAttempt(draft.id),
+    'conflict', { status: 409, detail: 'preparation_archived' });
+  assert.equal(await w.store.inspect.fingerprint(), before, 'archived refusals change no draft, history or balance');
+  const read = await a.client.readAttempt(draft.id);
+  assert.deepEqual([read.revision, read.text], [2, 'vor dem Archiv']);
+  const resumed = await a.raw('PUT', `/api/v1/preparations/${a.preparationId}`, { expectedRevision: 2, state: 'active' });
+  assert.equal(resumed.status, 200);
+  assert.equal((await a.client.saveDraft(draft.id, { expectedRevision: 2, text: 'fortgesetzt' })).revision, 3);
+  assert.deepEqual(await a.client.deleteAttempt(draft.id), { deleted: true });
+});
+
 /* -------------------------------------------------------------- ownership */
 
 check('cross-owner-is-404-for-every-route', async () => {

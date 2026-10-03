@@ -551,6 +551,18 @@ function gatedPort(w, pools, pauseAfter = () => false) {
   return { port: createPostgresDatastore({ pool, examCatalogue: catalogue }), pids, arrived, release: () => release() };
 }
 
+/** A missing lock statement or an early failure must fail the test instead of leaving a held gate forever. */
+async function waitForGate(gated, operation) {
+  let timer;
+  try {
+    await Promise.race([
+      gated.arrived,
+      operation.then(() => { throw new Error('operation completed without reaching the expected lock gate'); }),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('lock gate not reached within 10s')), 10000); }),
+    ]);
+  } finally { clearTimeout(timer); }
+}
+
 /** Wait until `n` of the given backends are blocked on a heavyweight lock (pg_stat_activity), or fail. */
 async function waitForLockWait(w, gated, n = 1) {
   for (let i = 0; i < 500; i += 1) {
@@ -682,7 +694,7 @@ check('10. archive vs save/delete is serialised by row locks, in either order, w
     gated.push(saver, archiver);
     const saving = saver.port.save(a.id, draft, 2, 'vor dem Archiv gespeichert');
     pending.push(saving);
-    await saver.arrived;
+    await waitForGate(saver, saving);
     const archiving = archiver.port.updatePreparation(a.id, a.telc.id, 1, { state: 'archived' });
     pending.push(archiving);
     await waitForLockWait(w, [archiver], 1);
@@ -697,6 +709,10 @@ check('10. archive vs save/delete is serialised by row locks, in either order, w
     const resumed = await w.call('PUT', `/api/v1/preparations/${a.telc.id}`, { cookie: a.cookie, body: { expectedRevision: 2, state: 'active' } });
     assert.equal(resumed.status, 200, JSON.stringify(resumed.json));
 
+    // Each restricted role permits five connections. Close phase A before allocating phase B's three
+    // connections, so a connection-limit refusal cannot masquerade as a write blocked by the archive.
+    await Promise.all(pools.splice(0).map((pool) => pool.end()));
+
     // B: an uncommitted archive holds the preparation; a save AND a delete wait, then both refuse.
     const archiver2 = gatedPort(w, pools, (text) => text.includes('UPDATE learner_preparation'));
     const saver2 = gatedPort(w, pools);
@@ -704,7 +720,7 @@ check('10. archive vs save/delete is serialised by row locks, in either order, w
     gated.push(archiver2, saver2, remover);
     const archiving2 = archiver2.port.updatePreparation(a.id, a.telc.id, 3, { state: 'archived' });
     pending.push(archiving2);
-    await archiver2.arrived;
+    await waitForGate(archiver2, archiving2);
     const outcomes = Promise.allSettled([saver2.port.save(a.id, draft, 3, 'zu spät'), remover.port.remove(a.id, draft)]);
     pending.push(outcomes);
     await waitForLockWait(w, [saver2, remover], 2);
