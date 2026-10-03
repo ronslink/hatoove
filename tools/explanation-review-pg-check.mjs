@@ -9,6 +9,30 @@ import {importObjectiveExplanations} from '../server/owned-postgres/explanation-
 import {registerExplanationReviewTarget,readExplanationReviewPacket,readExplanationCoverage} from '../server/owned-postgres/explanation-review.mjs';
 import {recordReviewerAuthority,recordContentReview} from '../server/owned-postgres/content-review.mjs';
 import {executeReviewCommand,parseReviewArgs} from './review-content.mjs';
+/** Every cleanup stage is attempted. No success value escapes on a primary or cleanup failure. */
+async function finishFixture(steps,primary={failed:false}){
+ const errors=[];let verified;
+ const attempt=async(name)=>{try{return await steps[name]();}catch(error){errors.push(error);}};
+ try{
+  await attempt('closeParallel');await attempt('createObserver');await attempt('cleanupDatabase');verified=await attempt('verifyAbsence');
+ }finally{try{await attempt('closeObserver');}finally{await attempt('restorePolicy');}}
+ if(primary.failed&&errors.length)throw new AggregateError([primary.error,...errors],'C06 fixture and cleanup failed',{cause:primary.error});
+ if(primary.failed)throw primary.error;
+ if(errors.length)throw new AggregateError(errors,'C06 fixture cleanup failed');
+ return verified;
+}
+if(process.argv[2]==='--cleanup-self-test'){
+ const names=['closeParallel','createObserver','cleanupDatabase','verifyAbsence','closeObserver','restorePolicy'];
+ for(const failing of names){const calls=[],primary=Error('synthetic primary'),secondary=Error('synthetic '+failing);
+  const steps=Object.fromEntries(names.map(name=>[name,async()=>{calls.push(name);if(name===failing)throw secondary;return {verified:true};}]));
+  await assert.rejects(finishFixture(steps,{failed:true,error:primary}),error=>error instanceof AggregateError&&error.cause===primary&&error.errors[0]===primary&&error.errors.includes(secondary));assert.deepEqual(calls,names);
+ }
+ const calls=[],steps=Object.fromEntries(names.map(name=>[name,async()=>{calls.push(name);return {verified:true};}]));
+ assert.deepEqual(await finishFixture(steps),{verified:true});assert.deepEqual(calls,names);
+ await assert.rejects(finishFixture(steps,{failed:true,error:Error('synthetic original')}),/synthetic original/);
+ await assert.rejects(finishFixture({...steps,verifyAbsence:async()=>{throw Error('synthetic resources remain');}}),error=>error instanceof AggregateError&&error.errors[0].message==='synthetic resources remain');
+ console.log('Explanation review cleanup offline: 9 injected/success cases passed; no database connection.');process.exit(0);
+}
 const local=process.env.OWNAPI_PG_PORT==='62563'&&process.env.OWNAPI_PG_DATABASE==='hatoove_spike';
 const actions=process.env.CI==='true'&&process.env.GITHUB_ACTIONS==='true'&&process.env.OWNAPI_PG_PORT==='5432'&&process.env.OWNAPI_PG_DATABASE==='hatoove_ci';
 if(process.env.OWNAPI_PG_ALLOW!=='1'||process.env.OWNAPI_PG_HOST!=='127.0.0.1'||(!local&&!actions))throw Error('Explicit assigned local or Actions disposable PostgreSQL required');
@@ -26,7 +50,7 @@ const variant=(language='ar',version='v1')=>{const s=source(),payload={schema:'e
 const stored=(r=variant())=>({...original(),targetKind:'stored',language:r.language,representationVersion:r.version,payloadSha256:r.payload_sha256});
 const authority=(patch={})=>({eventId:randomUUID(),reviewerId:'synthetic.c06',reviewerName:'Synthetic fixture reviewer, no real approval',examId:EXAM,category:'educational',language:'',action:'grant',expectedAuthorityId:null,evidenceRef:'fixture://appointment',evidenceSha256:SHA,rationale:'Synthetic test only',...patch});
 const decision=(subject,authorityId,packetSha256,patch={})=>({eventId:randomUUID(),subject,category:'educational',language:'',authorityId,expectedDecisionId:null,decision:'approve',evidenceRef:'fixture://decision',evidenceSha256:SHA,rationale:'Synthetic test only',packetSha256,...patch});
-let db,parallel,cleanupObserver,passed=0,first,arabic,legacyStored,packet,arPacket,edu,native,approved,arApproved,eduInput;
+let db,parallel,cleanupObserver,passed=0,first,arabic,legacyStored,packet,arPacket,edu,native,approved,arApproved,eduInput,primary={failed:false};
 const check=async(name,fn)=>{await fn();passed++;console.log('PASS '+name);};
 async function tx(fn,pool=db.migration,begin='BEGIN'){const c=await pool.connect();try{await c.query(begin);await c.query("SET LOCAL statement_timeout='6000ms'");const r=await fn(c);await c.query('COMMIT');return r;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}}
 const register=p=>tx(c=>registerExplanationReviewTarget(c,p,{languageRegistry}));
@@ -71,9 +95,15 @@ try{
  await check('read-first rights withdrawal waits on the packet reader exam fence',async()=>{await race(c=>readExplanationReviewPacket(c,first.subject),c=>c.query("INSERT INTO content_rights(content_version_id,basis,decided_by,note) VALUES($1,'unknown','synthetic','rollback-only rights denial')",[SET+'@v1']),async r=>assert.equal(r.value.rowCount,1));});
  await check('rights-first registration waits then refuses; exact receipts and negative decisions remain possible',async()=>{await race(c=>c.query("INSERT INTO content_rights(content_version_id,basis,decided_by,note) VALUES($1,'unknown','synthetic','disposable rights denial')",[SET+'@v1']),c=>registerExplanationReviewTarget(c,stored(variant('tr')),{languageRegistry}),async r=>assert.match(r.error?.message??'',/review_rights_blocked/));assert.deepEqual(await register(original()),{...first,unchanged:true});assert.deepEqual(await decide(approval),{...approved,unchanged:true});await assert.rejects(tx(c=>readExplanationReviewPacket(c,first.subject)),/review_rights_blocked/);const fresh=await grant(authority({reviewerId:'synthetic.c06.after-rights'}));await assert.rejects(decide(decision(first.subject,fresh.authorityId,packet.packetSha256,{expectedDecisionId:approved.decisionId})),/review_rights_blocked/);await decide(decision(first.subject,fresh.authorityId,null,{decision:'withdraw',expectedDecisionId:approved.decisionId}));assert.equal((await project(original()))[0].review_status,'withdrawn');});
  await check('CLI default dry-run uses a rollback and retains exact receipt without reopening prose',async()=>{const c=await db.migration.connect();try{const before=await fingerprint();const r=await executeReviewCommand(c,parseReviewArgs(['explanation-target','--input','synthetic-input.json']),{readJson:async()=>original(),languageRegistry});assert.equal(r.mode,'dry_run');assert.equal(r.receipt.targetId,first.targetId);assert.deepEqual(await fingerprint(),before);}finally{c.release();}});
-}finally{
- if(parallel)await parallel.end();
- if(db){const schema=db.schema,roles=Object.values(db.roles);cleanupObserver=rolePool(db.config,'public',db.config.user,1);await db.cleanup();try{const result=(await cleanupObserver.query('SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname=$1) AS schema_exists,(SELECT count(*)::int FROM pg_roles WHERE rolname=ANY($2::text[])) AS roles,(SELECT count(*)::int FROM pg_stat_activity WHERE application_name=$1) AS connections',[schema,roles])).rows[0];assert.deepEqual(result,{schema_exists:false,roles:0,connections:0});console.log('C06 cleanup '+JSON.stringify({schema,...result}));}finally{await cleanupObserver.end();}}
- for(const [key,name] of Object.entries({mode:'B1PREP_CONTENT_MODE',review:'B1PREP_SERVE_REVIEW',rights:'B1PREP_SERVE_RIGHTS'})){if(saved[key]===undefined)delete process.env[name];else process.env[name]=saved[key];}
+}catch(error){primary={failed:true,error};}finally{
+ const verified=await finishFixture({
+  closeParallel:()=>parallel?.end(),
+  createObserver:()=>{if(db)cleanupObserver=rolePool(db.config,'public',db.config.user,1);},
+  cleanupDatabase:()=>db?.cleanup(),
+  verifyAbsence:async()=>{if(!db)return null;if(!cleanupObserver)throw Error('C06 cleanup observer unavailable');const schema=db.schema,roles=Object.values(db.roles);const result=(await cleanupObserver.query('SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname=$1) AS schema_exists,(SELECT count(*)::int FROM pg_roles WHERE rolname=ANY($2::text[])) AS roles,(SELECT count(*)::int FROM pg_stat_activity WHERE application_name=$1) AS connections',[schema,roles])).rows[0];assert.deepEqual(result,{schema_exists:false,roles:0,connections:0});return {schema,...result};},
+  closeObserver:()=>cleanupObserver?.end(),
+  restorePolicy:()=>{for(const [key,name] of Object.entries({mode:'B1PREP_CONTENT_MODE',review:'B1PREP_SERVE_REVIEW',rights:'B1PREP_SERVE_RIGHTS'})){if(saved[key]===undefined)delete process.env[name];else process.env[name]=saved[key];}}
+ },primary);
+ if(verified)console.log('C06 cleanup '+JSON.stringify(verified));
 }
 console.log(`Explanation review PostgreSQL: ${passed} groups passed; own schema/roles/connections verified absent.`);
