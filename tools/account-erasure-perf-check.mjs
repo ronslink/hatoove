@@ -12,6 +12,7 @@ import { createPostgresAccountDeletion, ACCOUNT_DELETION_STEPS, ACCOUNT_TABLES }
 const COHORTS = Object.freeze([100, 1000, 10000]);
 const OPT_IN_COHORTS = Object.freeze([...COHORTS, 100001]);
 const MAX_SEED_BATCH = 10000;
+const SNAPSHOT_FINGERPRINT = 'full-row-sha256-multiset-v1';
 const PHASES = new Set(['fixture_bootstrap', 'seed_owner', 'seed_bulk_intents', 'seed_cardinality',
   'snapshot_target_before', 'snapshot_rollback', 'snapshot_cancel', 'snapshot_target_after',
   'snapshot_foreign_before', 'snapshot_foreign_after', 'snapshot_foreign_final']);
@@ -109,12 +110,22 @@ async function ownerSnapshot(client, owner, savedAttemptIds = null) {
   const ids = savedAttemptIds ?? (await client.query('SELECT id FROM attempts WHERE owner_id=$1 ORDER BY id', [owner])).rows.map((r) => r.id);
   const tables = [];
   for (const [table, predicate, bind] of ACCOUNT_TABLES) {
+    // v1: SHA256(UTF8(version + ':' + decimal count + ':' + sorted 64-hex row hashes)).
+    // Each row hash covers the complete PostgreSQL to_jsonb(row)::text UTF8 bytes. C ordering
+    // is deterministic; duplicates remain repeated. Only fixed-size hashes are aggregated.
     const row = (await client.query(`SELECT count(*)::int AS count,
-      encode(sha256(convert_to(coalesce(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text),'[]'::jsonb)::text,'UTF8')),'hex') AS digest
-      FROM ${table} t WHERE ${predicate}`, [bind === 'attempts' ? ids : owner])).rows[0];
+      encode(sha256(convert_to('${SNAPSHOT_FINGERPRINT}:'||count(*)::text||':'||
+        coalesce(string_agg(row_hash,'' ORDER BY row_hash COLLATE "C"),''),'UTF8')),'hex') AS digest
+      FROM (SELECT encode(sha256(convert_to(to_jsonb(t)::text,'UTF8')),'hex') AS row_hash
+        FROM ${table} t WHERE ${predicate}) complete_rows`, [bind === 'attempts' ? ids : owner])).rows[0];
     tables.push({ table, ...row });
   }
-  return { ids, tables };
+  return { fingerprintVersion: SNAPSHOT_FINGERPRINT, ids, tables };
+}
+function offlineRowFingerprint(rowTexts) {
+  const hashes = rowTexts.map((row) => createHash('sha256').update(row, 'utf8').digest('hex')).sort();
+  return { count: rowTexts.length, digest: createHash('sha256')
+    .update(`${SNAPSHOT_FINGERPRINT}:${rowTexts.length}:${hashes.join('')}`, 'utf8').digest('hex') };
 }
 
 const BACKEND_WHERE = 'pid=$1 AND backend_start::text=$2 AND usename=$3 AND datname=$4 AND application_name=$5';
@@ -226,6 +237,7 @@ export async function runDiagnostic(cohorts = COHORTS) {
   const executionCohorts = [...new Set([100, ...cohorts])];
   const saved = Object.fromEntries(['B1PREP_CONTENT_MODE', 'B1PREP_SERVE_REVIEW', 'B1PREP_SERVE_RIGHTS'].map((key) => [key, process.env[key]]));
   const report = { kind: 'synthetic-account-erasure-diagnostic', status: 'failed', shape: 'one-submission,distinct-intents,no-observations',
+    snapshotFingerprint: SNAPSHOT_FINGERPRINT,
     deadlineScope: 'per-deletion; cancellation/termination grace is additional', deletionDeadlineMs: LIMITS.deletionMs,
     connectionTimeoutMs: 5000, observerStatementTimeoutMs: 10000, bootstrapGlobalCancellation: false, requiresSupervisedOuterProcessBound: true,
     requestedCohorts: cohorts, phaseTimings: [], batchTimings: [], cohorts: [], controls: [], cleanupVerified: false, performanceClaim: false };
@@ -381,6 +393,32 @@ export async function offlineChecks() {
   assert(batchReport.batchTimings.every((batch) => Number.isFinite(batch.elapsedMs) && batch.elapsedMs >= 0));
   assert(batchReport.batchTimings.every((batch) => Object.keys(batch).sort().join(',') === 'count,elapsedMs,ordinal,outcome'));
   assert.equal(JSON.stringify(batchReport).includes('PRIVATE'), false);
+  // Complete synthetic PostgreSQL row texts: no field projection, trimming or JSON reserialization.
+  const rowA = '{"id": "synthetic-a", "value": 1, "extra": {"text": "مرحبا", "nullable": null}}';
+  const rowB = '{"id": "synthetic-b", "value": 2, "extra": {"text": "Привіт", "nullable": null}}';
+  const baselineRows = offlineRowFingerprint([rowA, rowB]);
+  assert.deepEqual(offlineRowFingerprint([rowB, rowA]), baselineRows, 'row order is not a mutation');
+  assert.notEqual(offlineRowFingerprint([rowA.replace('"nullable": null', '"nullable": "changed"'), rowB]).digest, baselineRows.digest, 'any nested column change is covered');
+  assert.notEqual(offlineRowFingerprint([rowA]).digest, baselineRows.digest, 'missing row is covered');
+  assert.notEqual(offlineRowFingerprint([rowA, rowB, rowB.replace('synthetic-b', 'synthetic-c')]).digest, baselineRows.digest, 'extra row is covered');
+  assert.notEqual(offlineRowFingerprint([rowA, rowB, rowB]).digest, baselineRows.digest, 'duplicate multiplicity is covered');
+  assert.equal(offlineRowFingerprint([rowA, rowB, rowB]).count, 3);
+  assert.notEqual(offlineRowFingerprint([]).digest, offlineRowFingerprint([rowA]).digest);
+  assert.equal(offlineRowFingerprint([]).count, 0);
+  const snapshotCalls = [], savedIds = ['synthetic-attempt'];
+  const capturedSnapshot = await ownerSnapshot({ async query(sql, args) {
+    snapshotCalls.push({ sql, args }); return { rows: [offlineRowFingerprint([])] };
+  } }, 'synthetic-owner', savedIds);
+  assert.equal(capturedSnapshot.fingerprintVersion, SNAPSHOT_FINGERPRINT);
+  assert.equal(snapshotCalls.length, ACCOUNT_TABLES.length);
+  for (const [index, [table, predicate, bind]] of ACCOUNT_TABLES.entries()) {
+    const { sql, args } = snapshotCalls[index];
+    assert(sql.includes(`FROM ${table} t WHERE ${predicate}) complete_rows`));
+    assert.deepEqual(args, [bind === 'attempts' ? savedIds : 'synthetic-owner']);
+    assert(sql.includes("sha256(convert_to(to_jsonb(t)::text,'UTF8'))"));
+    assert(sql.includes('string_agg(row_hash,\'\' ORDER BY row_hash COLLATE "C")'));
+    assert.equal(/jsonb_agg|DISTINCT|LIMIT|substring|left\(/i.test(sql), false);
+  }
   const phaseReport = { phaseTimings: [] };
   assert.equal(await phase(phaseReport, 'seed_bulk_intents', 100001, async () => 7), 7);
   const timeout = Object.assign(Error('PRIVATE phase sentinel'), { code: '57014' });
@@ -420,7 +458,7 @@ export async function offlineChecks() {
     else { assert.equal((await port.deleteAccount('synthetic-offline-owner')).verifiedAbsent, true); assert.equal(seen.at(-1), 'commit'); assert.equal(seen.filter((label) => label.startsWith('delete:')).length, ACCOUNT_DELETION_STEPS.length); }
     assert.equal(released, 1);
   }
-  return { status: 'pass', targetControls: 7, cohortControls: 12, batchRangeControls: 13, batchFailureControls: 1, phaseControls: 4, fixedDeletionLabels: ACCOUNT_DELETION_STEPS.length, actualPortOfflinePaths: 2, emitterFaultControls: 3, databaseAccess: false };
+  return { status: 'pass', targetControls: 7, cohortControls: 12, batchRangeControls: 13, batchFailureControls: 1, fingerprintControls: 7, phaseControls: 4, fixedDeletionLabels: ACCOUNT_DELETION_STEPS.length, actualPortOfflinePaths: 2, emitterFaultControls: 3, databaseAccess: false };
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
