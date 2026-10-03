@@ -3,8 +3,9 @@
  * EXAM-S0 server contract hardening — REAL PostgreSQL discrimination (disposable database only).
  *
  * Synthetic content is inserted into a random disposable schema (`createFixture`): an objective set with v1 and
- * v2 that share item ids but have DIFFERENT keys, and writing tasks whose content is approved while one of
- * their rubrics is not. Every learner is synthetic, every grader is a stub, and no provider is called.
+ * v2 that share item ids but have DIFFERENT keys, and writing tasks with simulated named review while one
+ * rubric remains undecided. The guarded fixture ledger is not a human approval. Every learner is synthetic,
+ * every grader is a stub, and no provider is called.
  *
  * Legs (each fails against base 88fa268):
  *   1. exact versions: v1/v2 read their own payload; omission 422; unknown pair 404; same item id, different key;
@@ -12,19 +13,21 @@
  *   3. mistakes are latest per (set, version, item): a correct v2 answer does not clear a wrong v1 one; the
  *      order is deterministic and another owner sees none of it;
  *   4. public cannot be widened by the legacy flag, and an unknown mode serves nothing;
- *   5. an approved task with an unreviewed rubric is refused for new use in public mode while saved history
- *      (attempt, result, draft, export) stays readable;
+ *   5. an approved task with an unreviewed rubric is refused for new use in public mode; saved text/history
+ *      stays readable while active prompt/rubric content is withheld;
  *   6. the worker fails an unsupported rubric before the grader is invoked (stub grader spy).
  *
  * Usage: node tools/exam-s0-server-pg-check.mjs [--list] [--only=<text>]   (OWNAPI_PG_*; never a live database)
  */
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
 
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createWorker, stubGrade } from '../server/owned-postgres/worker.mjs';
 import { TELC_B1_WRITING_RUBRIC } from '../server/owned-postgres/content-seed.mjs';
+import { syntheticContentReview } from './exam-s6-fixture.mjs';
 
 const MODE_KEYS = ['B1PREP_CONTENT_MODE', 'B1PREP_SERVE_REVIEW', 'B1PREP_SERVE_RIGHTS'];
 const PREVIOUS = Object.fromEntries(MODE_KEYS.map((key) => [key, process.env[key]]));
@@ -47,23 +50,24 @@ const RUBRIC_APPROVED = 'exam-s0.rubric.approved';
 const BIND_GATED = { taskId: TASK_GATED, taskVersion: 'v1', rubricId: RUBRIC_UNREVIEWED, rubricVersion: 'v1' };
 const BIND_OPEN = { taskId: TASK_OPEN, taskVersion: 'v1', rubricId: RUBRIC_APPROVED, rubricVersion: 'v1' };
 
-mode(PREVIEW);
-const db = await createFixture();
-const world = await createPostgresWorld({ fixture: db });
+let db, world, observer;
 const sql = (text, params) => db.admin.query(text, params);
+const syntheticRows = [];
 
-async function contentRow(id, kind, family, review) {
+async function contentRow(id, kind, family, review, payload) {
+  const sha256 = createHash('sha256').update(JSON.stringify({ id, kind, family, payload })).digest('hex');
   await sql(`INSERT INTO content_version(content_version_id, kind, family, source_path, review_status, rights_status, content_sha256, exam_id)
-             VALUES($1, $2, $3, 'synthetic:exam-s0-server-pg-check', $4, 'unknown', 'synthetic', 'telc-deutsch-b1')`,
-  [id, kind, family, review]);
+             VALUES($1, $2, $3, 'synthetic:exam-s0-server-pg-check; no actual educational approval', $4, 'unknown', $5, 'telc-deutsch-b1')`,
+  [id, kind, family, review, sha256]);
   await sql(`INSERT INTO content_rights(content_version_id, basis, decided_by, note)
              VALUES($1, 'generated', 'exam-s0-check', 'synthetic EXAM-S0 discrimination row in a disposable schema')`, [id]);
+  syntheticRows.push({ id, review, sha256 });
 }
 
 async function seedSynthetic() {
   for (const version of ['v1', 'v2']) {
     const id = `${SET}@${version}`;
-    await contentRow(id, 'task', 'lv', 'approved');
+    await contentRow(id, 'task', 'lv', 'approved', { version, title: `synthetic ${version}`, items: [], answers: KEYS[version] });
     await sql(`INSERT INTO objective_set(set_id, version, exam_id, family, section, part, title, payload, item_count, media_required, content_version_id)
                VALUES($1, $2, 'telc-deutsch-b1', 'LV1', 'LV', 1, $3, $4::jsonb, 2, false, $5)`,
     [SET, version, `EXAM-S0 synthetic ${version}`, JSON.stringify({ title: `synthetic ${version}`, items: [] }), id]);
@@ -71,19 +75,44 @@ async function seedSynthetic() {
       [SET, version, JSON.stringify(KEYS[version])]);
   }
   for (const [rubricId, review] of [[RUBRIC_UNREVIEWED, 'unreviewed'], [RUBRIC_APPROVED, 'approved']]) {
-    await contentRow(`${rubricId}@v1`, 'rubric', 'writing', review);
+    await contentRow(`${rubricId}@v1`, 'rubric', 'writing', review, { criteria: TELC_B1_WRITING_RUBRIC.criteria, maxTotal: 45 });
     await sql(`INSERT INTO rubric_version(rubric_id, version, family, criteria, max_total, content_version_id, exam_id)
                VALUES($1, 'v1', 'writing', $2::jsonb, 45, $3, 'telc-deutsch-b1')`,
     [rubricId, JSON.stringify(TELC_B1_WRITING_RUBRIC.criteria), `${rubricId}@v1`]);
   }
   for (const [taskId, rubricId] of [[TASK_GATED, RUBRIC_UNREVIEWED], [TASK_OPEN, RUBRIC_APPROVED]]) {
-    await contentRow(`${taskId}@v1`, 'task', 'writing', 'approved');
+    await contentRow(`${taskId}@v1`, 'task', 'writing', 'approved', {
+      register: 'du', topic: 'EXAM-S0 synthetisch', situation: 'Synthetische Situation.', adressat: 'Synthetisch (du)',
+      leitpunkte: ['Punkt eins.', 'Punkt zwei.'], rubricId, rubricVersion: 'v1',
+    });
     await sql(`INSERT INTO task_version(task_id, version, family, register, topic, situation, adressat, leitpunkte,
                                         rubric_id, rubric_version, content_version_id, exam_id)
                VALUES($1, 'v1', 'writing', 'du', 'EXAM-S0 synthetisch', 'Synthetische Situation.', 'Synthetisch (du)',
                       '["Punkt eins.","Punkt zwei."]'::jsonb, $2, 'v1', $3, 'telc-deutsch-b1')`,
     [taskId, rubricId, `${taskId}@v1`]);
   }
+  // Current content is projected from named decisions, never from raw flags or a forged historical baseline.
+  const ids = syntheticRows.map(row => row.id), approvedIds = syntheticRows.filter(row => row.review === 'approved').map(row => row.id).sort();
+  assert.equal(approvedIds.length, 5);
+  const rawBefore = (await sql('SELECT * FROM content_version WHERE content_version_id=ANY($1::text[]) ORDER BY content_version_id', [ids])).rows;
+  const client = await db.migration.connect();
+  try {
+    await client.query('BEGIN');
+    for (const row of syntheticRows) {
+      const before = (await client.query('SELECT * FROM effective_content_review($1)', [row.id])).rows[0];
+      assert.deepEqual([before.review_status, before.review_basis, before.blocked], ['unreviewed', 'none', false], 'raw approved flags confer no current review');
+      if (row.review === 'approved') await syntheticContentReview(db, client, {
+        kind: 'content', examId: 'telc-deutsch-b1', subjectId: row.id, version: '', sha256: row.sha256,
+      });
+      const after = (await client.query('SELECT * FROM effective_content_review($1)', [row.id])).rows[0];
+      assert.deepEqual([after.review_status, after.review_basis, after.blocked],
+        [row.review, row.review === 'approved' ? 'named_decision' : 'none', false]);
+    }
+    await client.query('COMMIT');
+  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  assert.deepEqual((await sql('SELECT subject_id FROM content_review_decision WHERE subject_id=ANY($1::text[]) ORDER BY subject_id', [ids])).rows.map(row => row.subject_id), approvedIds);
+  assert.equal((await sql('SELECT count(*)::int AS n FROM content_review_baseline WHERE subject_id=ANY($1::text[])', [ids])).rows[0].n, 0);
+  assert.deepEqual((await sql('SELECT * FROM content_version WHERE content_version_id=ANY($1::text[]) ORDER BY content_version_id', [ids])).rows, rawBefore, 'simulated review never rewrites immutable source rows');
 }
 
 async function call(method, path, { cookie = null, body } = {}) {
@@ -235,7 +264,7 @@ check('4. public cannot be widened by the legacy flag; an unknown mode serves no
   return 'public+legacy flag: approved rows only, seeded set/answer 404, default task 422; unknown mode empty; preview control 200';
 });
 
-check('5. approved task with an unreviewed rubric: refused for new use in public, history retained', async () => {
+check('5. approved task with an unreviewed rubric: public mutations refused, history text retained and active content withheld', async () => {
   mode(PREVIEW);
   const e = await learner('history');
   const text = 'SYNTHETIC EXAM-S0: Liebe Anna, ich komme am Samstag. Viele Grüße.';
@@ -255,23 +284,32 @@ check('5. approved task with an unreviewed rubric: refused for new use in public
   assert.equal(await world.store.worker.claim(failedReceipt.json.submissionId), true);
   assert.equal(await world.store.worker.fail(failedReceipt.json.submissionId, 'provider_unavailable'), true);
   const draftId = await make();
+  const preview = await call('GET', `/api/v1/attempts/${draftId}`, { cookie: e.cookie });
+  assert.deepEqual([preview.status, preview.json.text, preview.json.rubric.rubric_id, preview.json.rubric.provisional],
+    [200, text, RUBRIC_UNREVIEWED, true], 'explicit preview retains the exact unreviewed rubric and provisional label');
+  const previewResult = await call('GET', `/api/v1/submissions/${receipt.json.submissionId}`, { cookie: e.cookie });
+  assert.equal(previewResult.json.assessment, null, 'this fixture is unfinished history, not a fabricated completed assessment');
 
   mode(PUBLIC);
   const before = await world.store.inspect.fingerprint();
-  for (const [what, res] of [
+  const refusedUses = [
     ['create', await call('POST', '/api/v1/attempts', { cookie: e.cookie, body: { preparationId: e.prep, ...BIND_GATED } })],
     // A revision names no preparation: it inherits its parent's exact context (EXAM-S1).
     ['revision', await call('POST', '/api/v1/attempts', { cookie: e.cookie, body: { parentSubmissionId: receipt.json.submissionId } })],
     ['submit', await call('POST', `/api/v1/attempts/${draftId}/submissions`, { cookie: e.cookie, body: { expectedRevision: 2, eventId: randomUUID() } })],
     ['retry', await call('POST', `/api/v1/submissions/${failedReceipt.json.submissionId}/retry`, { cookie: e.cookie })],
-  ]) {
-    assert.deepEqual([res.status, res.json.error], [422, 'task_not_servable'], `${what} must be refused in public`);
+  ];
+  const expectedRefusal = { create: [422, 'task_not_servable'], revision: [409, 'review_blocked'], submit: [409, 'review_blocked'], retry: [409, 'review_blocked'] };
+  for (const [what, res] of refusedUses) {
+    assert.deepEqual([res.status, res.json.error], expectedRefusal[what], `${what} must be refused in public: ${res.status} ${JSON.stringify(res.json)}`);
   }
   assert.equal(await world.store.inspect.fingerprint(), before, 'refused new uses write nothing');
   const read = await call('GET', `/api/v1/attempts/${draftId}`, { cookie: e.cookie });
-  assert.deepEqual([read.status, read.json.text, read.json.rubric.rubric_id], [200, text, RUBRIC_UNREVIEWED], 'the draft and its rubric stay readable');
+  assert.deepEqual([read.status, read.json.text, read.json.blocked_reason, read.json.task, read.json.rubric],
+    [200, text, 'review_blocked', null, null], 'saved draft text remains; active prompt and rubric are withheld');
   const result = await call('GET', `/api/v1/submissions/${receipt.json.submissionId}`, { cookie: e.cookie });
-  assert.deepEqual([result.status, result.json.submission.text, result.json.rubric.provisional], [200, text, true]);
+  assert.deepEqual([result.status, result.json.submission.text, result.json.blocked_reason, result.json.task, result.json.rubric, result.json.assessment],
+    [200, text, 'review_blocked', null, null, null], 'pending history preserves owned text without exposing restricted content');
   const failed = await call('GET', `/api/v1/submissions/${failedReceipt.json.submissionId}`, { cookie: e.cookie });
   assert.deepEqual([failed.json.job.status, failed.json.job.failure_code], ['failed', 'provider_unavailable'], 'the unassessed failure is kept');
   const history = (await call('GET', scoped(e, '/api/v1/attempts'), { cookie: e.cookie })).json.attempts.map((a) => a.id).sort();
@@ -279,7 +317,7 @@ check('5. approved task with an unreviewed rubric: refused for new use in public
   assert.ok((await call('GET', '/api/v1/export', { cookie: e.cookie })).json.submissions.some((s) => s.text === text && s.preparation_id === e.prep));
   const open = await call('POST', '/api/v1/attempts', { cookie: e.cookie, body: { preparationId: e.prep, ...BIND_OPEN } });
   assert.equal(open.status, 201, `control: an approved task with an approved rubric is usable in public, got ${JSON.stringify(open.json)}`);
-  return 'public: create/revision/submit/retry 422 for the unreviewed rubric, nothing written; draft/result/failure/history/export kept; approved pair 201';
+  return 'public: create 422, revision/submit/retry 409 review_blocked, nothing written; owned text/failure/history/export kept and active content withheld; approved pair 201';
 });
 
 check('6. the worker fails an unsupported rubric before invoking the grader', async () => {
@@ -298,6 +336,7 @@ check('6. the worker fails an unsupported rubric before invoking the grader', as
   assert.deepEqual([job.status, job.failure_code], ['failed', 'unsupported_rubric']);
   assert.ok(!graded.includes(receipt.json.submissionId), 'the grader was never called for the unsupported rubric');
   assert.equal((await sql('SELECT count(*)::int AS n FROM assessments WHERE submission_id = $1', [receipt.json.submissionId])).rows[0].n, 0);
+  assert.equal((await sql('SELECT count(*)::int AS n FROM provider_attempt WHERE submission_id = $1', [receipt.json.submissionId])).rows[0].n, 0, 'unsupported rubric never creates an invocation intent');
   assert.equal((await sql("SELECT reserved FROM entitlements WHERE owner_id = $1 AND exam_id = 'telc-deutsch-b1'", [f.id])).rows[0].reserved, 0,
     'reservation refunded to the exam balance it was reserved from');
   const result = await call('GET', `/api/v1/submissions/${receipt.json.submissionId}`, { cookie: f.cookie });
@@ -307,6 +346,16 @@ check('6. the worker fails an unsupported rubric before invoking the grader', as
 
 async function run() {
   if (process.argv.includes('--list')) { for (const leg of legs) console.log(leg.name); return 0; }
+  const env = process.env;
+  const local = env.OWNAPI_PG_PORT === '62563' && env.OWNAPI_PG_DATABASE === 'hatoove_spike';
+  const ci = env.CI === 'true' && env.GITHUB_ACTIONS === 'true' && env.OWNAPI_PG_PORT === '5432' && env.OWNAPI_PG_DATABASE === 'hatoove_ci';
+  if (env.OWNAPI_PG_ALLOW !== '1' || env.OWNAPI_PG_HOST !== '127.0.0.1' || (!local && !ci)) throw Error('exam_s0_fixture_refused');
+  mode(PREVIEW);
+  db = await createFixture();
+  const pg = createRequire(new URL('../server/owned-postgres/bootstrap.mjs', import.meta.url))('pg');
+  observer = new pg.Pool({ ...db.config, max: 1 });
+  world = await createPostgresWorld({ fixture: db });
+  console.log('Fixture ' + db.schema + ' (synthetic named review only; no human approval)');
   const only = process.argv.find((a) => a.startsWith('--only='));
   await seedSynthetic();
   let passed = 0;
@@ -330,10 +379,19 @@ let code = 1;
 try {
   code = await run();
 } finally {
-  await world.teardown().catch(() => {});
+  const errors = [];
+  if (world) try { await world.teardown(); } catch (error) { errors.push(error); }
+  if (db) try { await db.cleanup(); } catch (error) { errors.push(error); }
+  if (observer && db) try {
+    assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_namespace WHERE nspname=$1', [db.schema])).rows[0].n, 0);
+    assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_roles WHERE rolname=ANY($1::text[])', [Object.values(db.roles)])).rows[0].n, 0);
+  } catch (error) { errors.push(error); }
+  if (observer) try { await observer.end(); } catch (error) { errors.push(error); }
   for (const key of MODE_KEYS) {
     if (PREVIOUS[key] === undefined) delete process.env[key];
     else process.env[key] = PREVIOUS[key];
   }
+  if (errors.length) throw Error('exam_s0_fixture_cleanup_failed');
 }
+if (db) console.log('Disposable fixture schema and roles verified absent; policy environment restored.');
 process.exitCode = code;
