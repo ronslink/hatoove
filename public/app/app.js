@@ -1,4 +1,5 @@
-import { createMockController } from './mock.js';
+import { initialPreparation, preparationChoices } from './preparation.js';
+import { createMockController, mockMember } from './mock.js';
 import { createWritingController } from './writing.js';
 import { guideContent } from './guide-content.js';
 import { bindSentenceCheck } from './sentence-check.js';
@@ -164,6 +165,18 @@ function selectPreparation(value) {
   // Recovery controls belong to the preparation/form that created them. An explicit successful
   // context switch renders the newly selected form and retires any old recovery action with it.
   el('settings-state').replaceChildren();
+  for (const link of document.querySelectorAll('[data-view="sprachbausteine"]')) link.hidden = false;
+  guard(refreshSectionNavigation());
+}
+
+async function refreshSectionNavigation() {
+  const ticket = contextTicket();
+  const response = await api.objectiveSets.list();
+  if (!currentContext(ticket) || !response?.ok || !Array.isArray(response.data)) return null;
+  const hasLanguageSection = response.data.some(set => set.section === 'SB');
+  for (const link of document.querySelectorAll('[data-view="sprachbausteine"]')) link.hidden = !hasLanguageSection;
+  el('view-satzbau').querySelector('.kicker').textContent = 'Lernhilfe';
+  return hasLanguageSection;
 }
 
 function renderPreparation() {
@@ -179,13 +192,11 @@ function renderPreparation() {
   el('preparation-start').hidden = !activePreparation();
   el('preparation-start').href = '#/prep/' + prep.id + '/ueben';
   const picker = el('preparation-picker');
-  const additions = state.exams.filter(e => !state.preparations.some(p => p.exam_id === e.exam_id && p.state === 'active'));
-  picker.innerHTML = state.preparations.map(p => '<option value="' + esc(p.id) + '">'
-    + esc(p.exam || p.exam_id) + (p.state === 'archived' ? ' · Archiv' : '') + '</option>').join('')
-    + additions.map(e => '<option value="new:' + esc(e.exam_id) + '">Neue Vorbereitung: ' + esc(e.exam) + '</option>').join('');
+  const choices = preparationChoices(state.exams, state.preparations);
+  picker.innerHTML = choices.map(choice => '<option value="' + esc(choice.id) + '">' + esc(choice.label) + '</option>').join('');
   picker.value = prep.id;
   picker.disabled = preparationSwitching || settingsSaving;
-  el('preparation-choice').hidden = state.preparations.length + additions.length < 2;
+  el('preparation-choice').hidden = choices.length < 2;
   el('examDate').disabled = !activePreparation();
 }
 
@@ -226,6 +237,7 @@ async function switchPreparation(selection, view = currentView, runId = null) {
   let completed = false;
   let destination = { selection, view, runId };
   el('preparation-picker').disabled = true;
+  el('preparation-picker').value = state.preparation.id;
   el('preparation-state').textContent = 'Dein Text und deine Antworten werden vor dem Wechsel gespeichert …';
   try {
     if (!(await writing.flush()) || !(await mock.flush())) {
@@ -291,15 +303,15 @@ async function loadPreparations() {
     selectPreparation(response.data);
     return true;
   }
-  const active = state.preparations.filter(p => p.state === 'active');
-  if (active.length === 1) { selectPreparation(active[0]); return true; }
-  if (state.preparations.length === 1) {
-    selectPreparation(state.preparations[0]);
+  const initial = initialPreparation(state.exams, state.preparations);
+  if (initial.kind === 'select' && initial.preparation.state === 'active') { selectPreparation(initial.preparation); return true; }
+  if (initial.kind === 'select') {
+    selectPreparation(initial.preparation);
     history.replaceState(null, '', '#/prep/' + state.preparation.id + '/fortschritt');
     return true;
   }
-  if (!state.preparations.length && state.exams.length === 1) {
-    const created = await api.preparations.create(state.exams[0].exam_id);
+  if (initial.kind === 'create') {
+    const created = await api.preparations.create(initial.examId);
     if (!created?.ok) throw new Error('Deine Vorbereitung konnte nicht angelegt werden. Bitte versuche es erneut.');
     selectPreparation(created.data);
     return true;
@@ -308,10 +320,7 @@ async function loadPreparations() {
   el('boot-message').textContent = state.preparations.length || state.exams.length
     ? 'Wähle deine Prüfungsvorbereitung. Ein Prüfungstermin ist freiwillig.'
     : 'Zurzeit ist keine Prüfungsvorbereitung verfügbar. Bitte versuche es später erneut.';
-  choices.innerHTML = state.preparations.map(p => '<button class="btn" type="button" data-preparation="' + esc(p.id) + '">'
-    + esc(p.exam || p.exam_id) + (p.state === 'archived' ? ' · Archiv ansehen' : ' · Fortsetzen') + '</button>').join('')
-    + state.exams.filter(e => !state.preparations.some(p => p.exam_id === e.exam_id && p.state === 'active'))
-      .map(e => '<button class="btn btn-primary" type="button" data-preparation="new:' + esc(e.exam_id) + '">' + esc(e.exam) + ' · Beginnen</button>').join('');
+  choices.innerHTML = preparationChoices(state.exams, state.preparations).map(choice => '<button class="btn' + (choice.isNew ? ' btn-primary' : '') + '" type="button" data-preparation="' + esc(choice.id) + '">' + esc(choice.label) + '</button>').join('');
   choices.hidden = false;
   el('boot-retry').hidden = choices.childElementCount > 0;
   choices.onclick = event => {
@@ -534,7 +543,7 @@ async function renderTasks() {
   if (sets.length) {
     // setLabel(), not s.title: nine seeded sets have no authored title and the generator wrote
     // `LV3 1` into the column. This view was the one place it still reached the screen.
-    groups.push('<h3 class="section-head">Lesen und Sprachbausteine</h3>' + sets.map((s) => card(
+    groups.push('<h3 class="section-head">' + esc([...new Set(sets.map(set => sectionName(set.section)))].join(' und ')) + '</h3>' + sets.map((s) => card(
       esc(setLabel(s)), esc(s.family), s.item_count + ' Aufgaben',
       'Teil ' + s.part + ' &middot; Fassung ' + esc(s.version) + ' &middot; Prüfstatus: ' + esc(s.review_status),
       // The version is the second half of the identity: the read below refuses a mismatch rather than
@@ -989,42 +998,21 @@ async function renderSkill(view) {
 /**
  * PRACTICE -- answer one item at a time, marked by the server.
  *
- * THE FAMILIES ARE NOT ONE SHAPE and the form says so. LV1 matches texts to headlines, LV3 matches
- * situations to ads, SB1 and SB2 are gap-fills (SB2 from a bank), LV2 is multiple choice per question.
- * They are normalised here into one honest shape -- a passage, a list of lettered options, and items --
- * rather than one of them being flattened into another's mould.
+ * The exact server interaction defines the form. Section/family labels do not select executable
+ * behaviour: the same reading family can be a different shape in another exam package. Saved and
+ * standalone practice share the item adapter, including each grouped question's own passage.
  *
  * THE CLIENT NEVER MARKS ANYTHING. It posts the answer and shows the boolean the server returns, which
  * comes from a SECURITY DEFINER function the learner's own database role could not replace.
  */
 function objectiveForm(set) {
-  const p = set.payload || {};
-  const opts = (list, idKey, textKey) => (list || []).map((o) => ({
-    id: String(o[idKey]), label: String(o[textKey] ?? o.text ?? o.word ?? ''),
-  }));
-  const fromMap = (map) => Object.entries(map || {}).map(([id, label]) => ({ id, label: String(label) }));
-  switch (set.family) {
-    case 'LV1':
-      return { passages: [{ label: 'Überschriften', lines: (p.headlines || []).map((h) => h.id + ') ' + h.text) }],
-        options: opts(p.headlines, 'id', 'text'),
-        items: (p.texts || []).map((t) => ({ id: String(t.id), prompt: t.text, options: null })) };
-    case 'LV3':
-      return { passages: [{ label: 'Anzeigen', lines: (p.ads || []).map((a) => a.id + ') ' + a.text) }],
-        options: opts(p.ads, 'id', 'text'),
-        items: (p.situations || []).map((s) => ({ id: String(s.n), prompt: s.text, options: null })) };
-    case 'SB2':
-      return { passages: [{ label: 'Brief', lines: [p.letter] }],
-        options: opts(p.bank, 'id', 'word'),
-        items: (p.gaps || []).map((g) => ({ id: String(g.n), prompt: 'Lücke ' + g.n, options: null })) };
-    case 'LV2':
-      return { passages: [{ label: 'Text', lines: [p.text] }], options: null,
-        items: (p.questions || []).map((q) => ({ id: String(q.n), prompt: q.question, options: fromMap(q.options) })) };
-    case 'SB1':
-      return { passages: [{ label: p.practice_kind === 'grammar-drill' ? 'Grammatikübung' : 'Brief', lines: [p.letter] }], options: null,
-        items: (p.gaps || []).map((g) => ({ id: String(g.n), prompt: g.prompt || 'Lücke ' + g.n, options: fromMap(g.options) })) };
-    default:
-      return null;
-  }
+  const form = mockMember(set);
+  if (!form) return null;
+  return {
+    passages: form.passage ? [{ label: 'Text', lines: [form.passage] }] : [],
+    options: form.options,
+    items: form.items.map(item => ({ ...item, prompt: item.text })),
+  };
 }
 
 /** Render the set, with a lettered choice per item. */
@@ -1041,7 +1029,8 @@ function renderObjectiveForm(set, host) {
     + form.items.map((item, index) => {
       const options = item.options || form.options || [];
       return '<section class="card" data-item="' + esc(item.id) + '"><p class="kicker">Aufgabe '
-        + (set.payload?.practice_kind === 'grammar-drill' ? index + 1 : esc(item.id)) + '</p><p>' + esc(item.prompt) + '</p><div class="row">'
+        + (set.payload?.practice_kind === 'grammar-drill' ? index + 1 : esc(item.id)) + '</p>'
+        + (item.passage ? '<div class="stimulus mock-passage" lang="de">' + esc(item.passage) + '</div>' : '') + '<p>' + esc(item.prompt) + '</p><div class="row">'
         /*
          * THE WHOLE OPTION, ON THE SCREEN.
          *
@@ -1296,7 +1285,14 @@ async function route() {
   }
   if (mock.active && info.view === 'abschnitt' && info.runId === mock.runId) { history.replaceState(null, '', '#/prep/' + state.preparation.id + '/abschnitt/' + mock.runId); return; }
   mock.dispose();
-  const key = info.view;
+  let key = info.view;
+  if (key === 'sprachbausteine') {
+    // A hidden link alone cannot prevent a saved URL or an exam switch retaining this route.
+    // Resolve from this preparation's catalogue only after the outgoing work is saved.
+    const available = await refreshSectionNavigation();
+    if (request !== routing || sessionProblem) return;
+    if (available === false) key = 'ueben';
+  }
   const view = VIEW_TITLES[key] ? key : 'heute';
   /*
    * Which view is on screen, so a SLOW failure cannot paint on the wrong one.

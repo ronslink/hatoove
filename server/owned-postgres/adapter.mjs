@@ -28,7 +28,7 @@ import { contentPolicy, servableReview } from '../content-policy.mjs';
 import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs';
 import { preparationMethods, requireActivePreparation, resolvePreparation } from './preparations.mjs';
 import { mockRunMethods, lockMockOwner } from './mock-runs.mjs';
-import { importedSetGate } from './packages.mjs';
+import { importedSetGate, objectiveInteractionSql, releasedObjectiveFamily } from './packages.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -260,18 +260,23 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
      * which is a Hören task wearing a Hören label while actually being a Lesen task. They stay in the
      * database, marked, until there is something to hear.
      */
+    async hasObjectiveFamily(owner, { examId, family } = {}) {
+      note('hasObjectiveFamily');
+      if (!examCatalogue.isEnabled(examId)) return false;
+      return settle(owner, client => releasedObjectiveFamily(client, examId, family));
+    },
     async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null, serveReview = 'approved+unreviewed' } = {}) {
       note('listObjectiveSets');
       const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title,
-                  s.item_count, s.media_required,
+                  s.item_count, s.media_required, ${objectiveInteractionSql()} AS interaction,
                   c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM objective_set s
              JOIN content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
-            WHERE s.exam_id = COALESCE($1, s.exam_id)
+            WHERE s.exam_id = COALESCE($1, s.exam_id) AND s.exam_id = ANY($7::text[])
               AND ($2::text IS NULL OR s.family = $2)
               AND ($4::text IS NULL OR s.family LIKE $4 || '%')
               AND ($5::int IS NULL OR s.part = $5)
@@ -280,7 +285,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
               AND ${importedSetGate()}
               AND COALESCE(cr.basis, c.rights_status) = ANY($6::text[])
             ORDER BY s.family, s.part, s.set_id`,
-          [examId, family, statuses, group, part, contentPolicy().rights])).rows;
+          [examId, family, statuses, group, part, contentPolicy().rights, examCatalogue.ids])).rows;
         return rows.map((row) => ({
           set_id: row.set_id,
           version: row.version,
@@ -290,6 +295,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           part: row.part,
           title: row.title,
           item_count: row.item_count,
+          interaction: row.interaction,
           media_required: row.media_required,
           review_status: row.review_status,
           rights_status: row.rights_status,
@@ -307,7 +313,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       const statuses = servableReview(serveReview);
       const row = first(await settle(owner, async (client) => client.query(
         `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title, s.payload,
-                s.item_count, s.media_required, c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
+                s.item_count, s.media_required, ${objectiveInteractionSql()} AS interaction, c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
            FROM objective_set s
            JOIN content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
@@ -315,14 +321,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             AND c.review_status = ANY($3::text[])
             AND s.media_required = false
             AND ${importedSetGate()}
-            AND s.exam_id = COALESCE($4, s.exam_id)
+            AND s.exam_id = ANY($4::text[])
             AND COALESCE(cr.basis, c.rights_status) = ANY($5::text[])`,
-        [setId, version, statuses, null, contentPolicy().rights])));
+        [setId, version, statuses, examCatalogue.ids, contentPolicy().rights])));
       if (!row) return null;
       return {
         set_id: row.set_id, version: row.version, exam_id: row.exam_id, family: row.family,
         section: row.section, part: row.part, title: row.title, payload: row.payload,
-        item_count: row.item_count, media_required: row.media_required,
+        item_count: row.item_count, media_required: row.media_required, interaction: row.interaction,
         review_status: row.review_status, rights_status: row.rights_status,
       };
     },
@@ -563,6 +569,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       return settle(owner, async (client) => {
         // EXAM-S1: owned (404) and active (409) before anything else; exam match (422) before marking.
         const prep = await requireActivePreparation(client, owner, preparationId);
+        if (!examCatalogue.isEnabled(prep.exam_id)) fail(404, 'not_found');
         // The set must be one the deployment serves, and this also yields the exam/section the
         // evidence is attributed to. A set that is withheld or absent is 404, not a silent record.
         const set = first(await client.query(
@@ -626,6 +633,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       requirePreparationContext(preparationId);
       // The preparation decides the exam; evidence is counted for this preparation only.
       const { exam_id: examId } = await settle(owner, (client) => resolvePreparation(client, owner, preparationId));
+      if (!examCatalogue.isEnabled(examId)) return null;
 
       const sections = (await settle(owner, async (client) => (await client.query(
         `SELECT s.section, min(s.family) AS family
@@ -677,7 +685,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       // that looked like "the selector is broken" and was a misuse of a helper.
       // `seen` is per exact (set, version): evidence for v1 says nothing about what v2 asks.
       const set = first(await settle(owner, async (client) => client.query(
-        `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count,
+        `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count, ${objectiveInteractionSql()} AS interaction,
                 (SELECT count(*)::int FROM item_evidence e
                   WHERE e.owner_id = $3 AND e.preparation_id = $6
                     AND e.set_id = s.set_id AND e.version = s.version) AS seen
@@ -705,7 +713,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         evidence: { attempts: chosen.attempts, correct: chosen.correct, accuracy: chosen.accuracy },
         set: {
           set_id: set.set_id, version: set.version, title: set.title, family: set.family,
-          section: set.section, part: set.part, item_count: set.item_count, seen_items: set.seen,
+          section: set.section, part: set.part, item_count: set.item_count, seen_items: set.seen, interaction: set.interaction,
         },
       };
     },
@@ -938,15 +946,18 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           `SELECT evidence_id, exam_id, preparation_id, set_id, version, item_id, family, section, answer,
                   correct, latency_ms, answered_at FROM item_evidence
             WHERE owner_id = $1 ORDER BY answered_at, evidence_id`, [owner])).rows;
-        // Original pinned identities/responses/results, including archived and rights-blocked runs.
+        // Original pinned identities/responses, including archived and blocked runs.
+        // Protected feedback follows publication policy; learner responses and evidence stay exportable.
         // No keys or transcripts are fetched to make an export; result is the immutable learner snapshot.
         const mock_runs = (await client.query(`SELECT id,preparation_id,exam_id,release_version,blueprint_version,
           form_id,form_version,title,scope,mode,state,revision,responses,position,
           CASE WHEN EXISTS (SELECT 1 FROM exam_release_head h JOIN exam_release er
             ON er.exam_id = h.exam_id AND er.version = h.release_version
             WHERE h.exam_id = r.exam_id AND coalesce(er.manifest #> '{release,resumeBlockedReleases}', '[]'::jsonb) ? r.release_version)
+            OR EXISTS (SELECT 1 FROM exam_release pinned WHERE pinned.exam_id=r.exam_id AND pinned.version=r.release_version
+              AND pinned.state IN ('internal','hidden') AND (NOT (r.exam_id=ANY($2::text[])) OR NOT $3::boolean))
             THEN NULL ELSE result END AS result,created_at,updated_at,
-          deadline_at,finalised_at FROM mock_run r WHERE owner_id = $1 ORDER BY created_at,id`, [owner])).rows;
+          deadline_at,finalised_at FROM mock_run r WHERE owner_id = $1 ORDER BY created_at,id`, [owner, examCatalogue.ids, contentPolicy().mode==='internal-preview'])).rows;
         return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs };
       }, true);
     },

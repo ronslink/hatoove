@@ -5,12 +5,36 @@ const responseValues = rows => [...rows].sort((a,b) => key(a).localeCompare(key(
 const sameResponses = (a, b) => equal(responseValues(a), responseValues(b));
 const samePosition = (a, b) => a?.member === b?.member && a?.item === b?.item;
 const key = row => [row.setId, row.version, row.itemId].join('\u0000');
+export function mockReviewLabel(value) {
+  const publication = { internal: 'Interner Entwurf', hidden: 'Nicht veröffentlicht', withdrawn: 'Zurückgezogene Ausgabe' }[value.release_state];
+  const review = { unreviewed: 'Fachliche Prüfung ausstehend', generated: 'Fachliche Prüfung ausstehend', draft: 'Fachliche Prüfung ausstehend', approved: 'Prüfstatus: freigegeben', reviewed: 'Prüfstatus: geprüft' }[value.review_status]
+    || (value.review_status ? 'Prüfstatus: ' + value.review_status : 'Prüfstatus nicht angegeben');
+  return [publication, review].filter(Boolean).join(' · ');
+}
 export function mockMember(member) {
   const p = member.payload || {};
   const options = rows => (rows || []).map(row => ({ id: String(row.id), label: String(row.text ?? row.word ?? '') }));
   const mapped = value => Object.entries(value || {}).map(([id, label]) => ({ id, label: String(label) }));
   switch (member.interaction) {
     case 'matching_headlines': return { passage: '', options: options(p.headlines), items: (p.texts || []).map(v => ({ id: String(v.id), text: v.text })) };
+    case 'grouped_choice': {
+      if (!Array.isArray(p.groups) || !p.groups.length) return null;
+      const groups = new Set(), questions = new Set(), items = [];
+      const token = value => (typeof value === 'string' && value.trim()) || (typeof value === 'number' && Number.isFinite(value));
+      for (const group of p.groups) {
+        if (!group || !token(group.id) || groups.has(String(group.id)) || typeof group.text !== 'string' || !group.text.trim()
+          || !Array.isArray(group.questions) || !group.questions.length) return null;
+        groups.add(String(group.id));
+        for (const question of group.questions) {
+          if (!question || !token(question.n) || questions.has(String(question.n)) || typeof question.question !== 'string' || !question.question.trim()
+            || !question.options || typeof question.options !== 'object' || Array.isArray(question.options)
+            || Object.keys(question.options).length < 2 || Object.entries(question.options).some(([id, label]) => !id.trim() || typeof label !== 'string' || !label.trim())) return null;
+          questions.add(String(question.n));
+          items.push({ id: String(question.n), text: question.question, options: mapped(question.options), passage: group.text, groupId: String(group.id) });
+        }
+      }
+      return { passage: '', items };
+    }
     case 'single_choice': return { passage: p.text || '', items: (p.questions || []).map(v => ({ id: String(v.n), text: v.question, options: mapped(v.options) })) };
     case 'matching_ads': return { passage: '', options: [...options(p.ads), { id: 'x', label: 'Keine passende Anzeige' }], items: (p.situations || []).map(v => ({ id: String(v.n), text: v.text })) };
     case 'gap_choice': return { passage: p.letter || '', items: (p.gaps || []).map(v => ({ id: String(v.n), text: v.prompt || 'Lücke ' + v.n, options: mapped(v.options) })) };
@@ -132,6 +156,16 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     return (snapshot.error ? '<div class="err" role="alert"><p>' + esc(message(snapshot.error)) + '</p><div class="row">' + button('retry', 'Vorgang wiederholen') + button('reload', 'Serverstand laden · lokale Kopie behalten') + '</div></div>' : '')
       + '<details class="mock-copy"' + (snapshot.localCopy ? ' open' : '') + '><summary>Eigene Antworten kopieren</summary><label class="field-label" for="mock-local-copy">' + (snapshot.localCopy ? 'Lokale Auswahl vor dem Laden' : 'Auswahl in diesem Fenster') + '</label><textarea id="mock-local-copy" class="writing-text" readonly>' + esc(snapshot.localCopy || JSON.stringify({ responses: snapshot.responses, position: snapshot.position }, null, 2)) + '</textarea><div class="row">' + button('reload', 'Serverstand laden · lokale Kopie behalten') + '</div></details>';
   }
+  function reviewContext(row, members) {
+    const member = members.find(value => value.set_id === row.set_id && value.version === row.version);
+    const form = member && mockMember(member), item = form?.items.find(value => value.id === String(row.item_id));
+    if (!item) return '';
+    const passage = item.passage ?? form.passage;
+    return '<details class="mock-review-context" data-review-item="' + esc(row.item_id) + '"><summary>Aufgabe und Text ansehen</summary>'
+      + (passage ? '<div class="stimulus mock-passage" lang="de">' + esc(passage) + '</div>' : '')
+      + '<p class="mock-review-prompt" lang="de">' + esc(item.text) + '</p><dl class="mock-review-options">'
+      + (item.options || form.options || []).map(option => '<div><dt>' + esc(option.id) + '</dt><dd>' + esc(option.label) + '</dd></div>').join('') + '</dl></details>';
+  }
   function render() {
     if (!host) return;
     const snapshot = session.state(), run = snapshot.run;
@@ -147,11 +181,11 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     if (run.blocked_reason) body = '<section class="card"><h3>Dieser Abschnitt ist zurzeit gesperrt</h3><p>Die Inhalte sind nicht verfügbar. Deine gespeicherten Antworten bleiben erhalten und können über dein Konto exportiert werden.</p></section>';
     else if (run.state === 'finalised') {
       const result = run.result;
-      body = '<section class="card stack" id="mock-result"><h3>Abschnitt abgeschlossen</h3>' + (result ? '<p><strong>' + esc(result.correct) + ' von ' + esc(result.total) + ' Antworten richtig</strong> · ' + esc(result.unanswered) + ' unbeantwortet.</p><p class="muted">Das ist die Rückmeldung zu diesem geübten Abschnitt.</p><ol class="mock-results">' + result.items.map(row => '<li><strong>Teil ' + esc((members.findIndex(member => member.set_id === row.set_id && member.version === row.version) + 1) || '–') + ' · Aufgabe ' + esc(row.item_id) + '</strong><span>' + (row.unanswered ? 'Unbeantwortet' : 'Deine Antwort: ' + esc(row.answer) + ' · ' + (row.correct ? 'Richtig' : 'Nicht richtig')) + '</span>' + (row.correct_answer !== null && row.correct_answer !== undefined ? '<span>Passende Antwort: ' + esc(row.correct_answer) + '</span>' : '') + (row.explanation ? '<p lang="de">' + esc(row.explanation) + '</p>' : '') + '</li>').join('') + '</ol>' : '<p>Die Rückmeldung ist derzeit nicht verfügbar.</p>') + (canEdit() ? '<a class="btn" href="#/abschnitt">Neue Wiederholung auswählen</a>' : '') + '</section>';
+      body = '<section class="card stack" id="mock-result"><h3>Abschnitt abgeschlossen</h3><p class="small muted mock-review-status">' + esc(mockReviewLabel(run)) + '</p>' + (result ? '<p><strong>' + esc(result.correct) + ' von ' + esc(result.total) + ' Antworten richtig</strong> · ' + esc(result.unanswered) + ' unbeantwortet.</p><p class="muted">Das ist die Rückmeldung zu diesem geübten Abschnitt.</p><ol class="mock-results">' + result.items.map(row => '<li><strong>Teil ' + esc((members.findIndex(member => member.set_id === row.set_id && member.version === row.version) + 1) || '–') + ' · Aufgabe ' + esc(row.item_id) + '</strong>' + reviewContext(row, members) + '<span>' + (row.unanswered ? 'Unbeantwortet' : 'Deine Antwort: ' + esc(row.answer) + ' · ' + (row.correct ? 'Richtig' : 'Nicht richtig')) + '</span>' + (row.correct_answer !== null && row.correct_answer !== undefined ? '<span>Passende Antwort: ' + esc(row.correct_answer) + '</span>' : '') + (row.explanation ? '<p lang="de">' + esc(row.explanation) + '</p>' : '') + '</li>').join('') + '</ol>' : '<p>Die Rückmeldung ist derzeit nicht verfügbar.</p>') + (canEdit() ? '<a class="btn" href="#/abschnitt">Neue Wiederholung auswählen</a>' : '') + '</section>';
     } else if (item) {
       const answer = snapshot.responses.find(row => row.setId === member.set_id && row.version === member.version && row.itemId === item.id)?.answer;
       body = '<div class="mock-layout"><section class="card stack mock-question"><p class="kicker">Teil ' + (position.member + 1) + ' von ' + members.length + ' · Aufgabe ' + esc(item.id) + '</p><h3 id="mock-question-title" tabindex="-1">' + esc(setLabel(member)) + '</h3>'
-        + (form.passage ? '<div class="stimulus mock-passage" lang="de">' + esc(form.passage) + '</div>' : '')
+        + ((item.passage ?? form.passage) ? '<div class="stimulus mock-passage" lang="de">' + esc(item.passage ?? form.passage) + '</div>' : '')
         + '<fieldset class="mock-options"' + (readonly ? ' disabled' : '') + '><legend>' + esc(item.text) + '</legend>'
         + (item.options || form.options || []).map((option, i) => '<label class="option' + (answer === option.id ? ' selected' : '') + '"><input type="radio" name="mock-answer" data-focus="option-' + i + '" value="' + esc(option.id) + '"' + (answer === option.id ? ' checked' : '') + '><span class="letter">' + esc(option.id) + '</span><span lang="de">' + esc(option.label) + '</span></label>').join('')
         + '</fieldset>' + (!readonly ? button('clear', 'Auswahl zurücknehmen') : '') + '<div class="row">' + button('previous', 'Zurück') + button('next', 'Weiter', true) + '</div></section>'
@@ -161,7 +195,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
         }).join('') + '</div></div>').join('') + '<p class="small muted">Rückmeldung erst nach dem Abschließen.</p></aside></div>';
     } else body = '<section class="card"><p>Dieser Inhalt kann nicht angezeigt werden. Deine Antworten bleiben gespeichert.</p></section>';
     const expired = run.expired || (run.deadline_at && Date.parse(run.deadline_at) <= Date.now() + serverOffset);
-    host.innerHTML = '<div class="card mock-heading"><div><p class="kicker">Gespeicherte Abschnittsübung · ' + esc(run.exam_id) + '</p><h2>' + esc(run.title) + '</h2><p class="small muted">Formular ' + esc(run.form_version) + ' · Ausgabe ' + esc(run.release_version) + ' · ' + (run.mode === 'untimed' ? 'Ohne Zeitlimit' : '<span id="mock-deadline"></span>') + '</p></div><p id="mock-save-state" role="status" aria-live="polite">' + esc(status) + '</p></div>'
+    host.innerHTML = '<div class="card mock-heading"><div><p class="kicker">Gespeicherte Abschnittsübung · ' + esc(run.exam_id) + '</p><h2>' + esc(run.title) + '</h2><p class="small muted mock-review-status">' + esc(mockReviewLabel(run)) + '</p><p class="small muted">Formular ' + esc(run.form_version) + ' · Ausgabe ' + esc(run.release_version) + ' · ' + (run.mode === 'untimed' ? 'Ohne Zeitlimit' : '<span id="mock-deadline"></span>') + '</p></div><p id="mock-save-state" role="status" aria-live="polite">' + esc(status) + '</p></div>'
       + (isArchived() ? '<p class="hint">Archivierte Vorbereitung · schreibgeschützt.</p>' : '')
       + (expired && run.state === 'active' ? '<p class="err">Die Zeit ist abgelaufen. Abschließen wertet nur bestätigte Antworten aus. Bei ungespeicherten Änderungen: erst die lokale Kopie sichern und den Serverstand laden.</p>' : '')
       + recovery(snapshot) + body
@@ -228,7 +262,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     if (ticket !== generation) return;
     const rows = runs?.ok ? runs.data?.runs || [] : [];
     host.innerHTML = '<div class="page-head"><div><p class="kicker">In deinem Tempo</p><h1>Gespeicherte Abschnittsübungen</h1><p>Bearbeite einen Abschnitt und erhalte die Rückmeldung am Ende. Deine bestätigten Antworten kannst du später fortsetzen.</p></div></div><div class="grid-dash"><section class="card stack"><h2>Einen Abschnitt beginnen</h2>'
-      + (!canEdit() ? '<p>Diese Vorbereitung ist archiviert. Gespeicherte Abschnitte bleiben lesbar.</p>' : !forms?.ok ? '<p class="err">Die verfügbaren Abschnitte konnten nicht geladen werden.</p>' : !(forms.data?.forms || []).length ? '<p>Zurzeit ist kein Abschnitt für einen neuen Start verfügbar. Bereits gespeicherte Läufe findest du daneben.</p>' : forms.data.forms.map((form, i) => '<article class="mock-form"><h3>' + esc(form.title) + '</h3><p>' + esc(form.item_count) + ' Aufgaben · ' + (form.mode === 'untimed' ? 'Ohne Zeitlimit' : 'Mit Zeitlimit') + '</p><p class="small muted">' + esc(form.exam_id) + ' · Formular ' + esc(form.version) + ' · Ausgabe ' + esc(form.release_version) + '</p><button class="btn btn-primary" type="button" data-mock-start="' + i + '">Neuen Lauf beginnen</button></article>').join(''))
+      + (!canEdit() ? '<p>Diese Vorbereitung ist archiviert. Gespeicherte Abschnitte bleiben lesbar.</p>' : !forms?.ok ? '<p class="err">Die verfügbaren Abschnitte konnten nicht geladen werden.</p>' : !(forms.data?.forms || []).length ? '<p>Zurzeit ist kein Abschnitt für einen neuen Start verfügbar. Bereits gespeicherte Läufe findest du daneben.</p>' : forms.data.forms.map((form, i) => '<article class="mock-form"><h3>' + esc(form.title) + '</h3><p class="small muted mock-review-status">' + esc(mockReviewLabel(form)) + '</p><p>' + esc(form.item_count) + ' Aufgaben · ' + (form.mode === 'untimed' ? 'Ohne Zeitlimit' : 'Mit Zeitlimit') + '</p><p class="small muted">' + esc(form.exam_id) + ' · Formular ' + esc(form.version) + ' · Ausgabe ' + esc(form.release_version) + '</p><button class="btn btn-primary" type="button" data-mock-start="' + i + '">Neuen Lauf beginnen</button></article>').join(''))
       + '<p id="mock-start-state" role="status"></p><button class="btn" type="button" data-mock-refresh>Übersicht erneut laden</button></section><section class="stack"><h2>Deine gespeicherten Abschnitte</h2>' + (!runs?.ok ? '<p class="err">Der Verlauf konnte nicht geladen werden.</p>' : historyMarkup(rows)) + '</section></div>';
     host.onclick = async event => {
       if (event.target.closest('[data-mock-refresh]')) { await list(target); return; }

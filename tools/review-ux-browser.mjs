@@ -132,7 +132,8 @@ export async function verifyReviewUx({ base, email, password, freePort, record, 
 
     /* -------------------------------------------------------------- the visible catalogue */
 
-    const apiVersions = new Map(catalogue.data.map((s) => [s.set_id, String(s.version)]));
+    const exactIdentity = (id, version) => JSON.stringify([id, String(version)]);
+    const apiVersions = new Set(catalogue.data.map((s) => exactIdentity(s.set_id, s.version)));
     const apiBinding = new Map(tasks.data.map((t) => [t.task_id, t]));
 
     const openUeben = async () => {
@@ -156,7 +157,7 @@ export async function verifyReviewUx({ base, email, password, freePort, record, 
         const writes = [...box.querySelectorAll('[data-write]')].map((b) => ({ id: b.dataset.write, version: b.dataset.version, rubric: b.dataset.rubric, rubricVersion: b.dataset.rubricVersion, text: b.textContent.trim() }));
         return { opens, writes, cards: box.querySelectorAll('.card').length };
       `);
-      const mismatched = seen.opens.filter((b) => apiVersions.get(b.id) !== b.version);
+      const mismatched = seen.opens.filter((b) => !apiVersions.has(exactIdentity(b.id, b.version)));
       const writingWrong = seen.writes.filter((b) => !apiBinding.has(b.id)
         || String(apiBinding.get(b.id).version) !== b.version
         || String(apiBinding.get(b.id).rubric_id) !== b.rubric
@@ -177,7 +178,7 @@ export async function verifyReviewUx({ base, email, password, freePort, record, 
         record('RUX2 a long authored option is available to wrap', false,
           `longest authored option in this stack is ${target.label.length} char(s), below the ${LONG_OPTION_FLOOR}-char floor; a coordinator fixture is required`);
       }
-      const selector = `#task-list [data-open="${target.setId}"]`;
+      const selector = `#task-list [data-open="${target.setId}"][data-version="${target.version}"]`;
       await cdp.waitFor(`document.querySelector(${JSON.stringify(selector)})`, 12000);
       const mark = cdp.events.length;
       await clickSel(cdp, selector);
