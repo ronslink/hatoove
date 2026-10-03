@@ -43,10 +43,10 @@
     --
     -- ## Registration
     --
-    -- `provision_learner` is a SECURITY DEFINER function with a pinned search_path, no PUBLIC execute and
-    -- EXECUTE for the auth role only. It refuses any account not created by the calling transaction, so it
-    -- can only run inside registration and cannot be used to grant or refill credits later. It is insert-only:
-    -- an existing preparation or balance is left exactly as it is.
+    -- An AFTER INSERT trigger on "user" provisions the initial telc preparation and optional allowance.
+    -- Its SECURITY DEFINER function has a pinned search_path and no runtime EXECUTE grant. Neither an
+    -- UPDATE of an existing account nor a direct auth-role function call can grant credits. Auth does not
+    -- own the table or hold TRIGGER privilege. Account insertion and provisioning roll back together.
     --
     -- FORWARD ONLY. No applied migration is edited.
 
@@ -305,7 +305,7 @@
 
     -- 7. Registration provisioning ---------------------------------------------------------------------
 
-    -- Effective only inside provision_learner, which sets both settings transaction-locally.
+    -- Effective only for the migration-owned trigger, which sets both settings transaction-locally.
     DROP POLICY IF EXISTS provision_learner_preparation ON "__SCHEMA__".learner_preparation;
     CREATE POLICY provision_learner_preparation ON "__SCHEMA__".learner_preparation TO CURRENT_USER
       USING (owner_id = nullif(current_setting('hatoove.owner_id', true), '') AND current_setting('hatoove.provisioning', true) = 'on')
@@ -315,38 +315,53 @@
       USING (owner_id = nullif(current_setting('hatoove.owner_id', true), '') AND current_setting('hatoove.provisioning', true) = 'on')
       WITH CHECK (owner_id = nullif(current_setting('hatoove.owner_id', true), '') AND current_setting('hatoove.provisioning', true) = 'on');
 
-    CREATE OR REPLACE FUNCTION "__SCHEMA__".provision_learner(p_owner text, p_exam_id text, p_allowance integer)
-    RETURNS uuid
+    -- This candidate has never been applied. Remove the earlier callable proposal if a disposable
+    -- schema used it while reviewing this migration; no runtime may retain that grant boundary.
+    DROP FUNCTION IF EXISTS "__SCHEMA__".provision_learner(text, text, integer);
+    CREATE OR REPLACE FUNCTION "__SCHEMA__".provision_registered_learner()
+    RETURNS trigger
     LANGUAGE plpgsql
     SECURITY DEFINER
     SET search_path = "__SCHEMA__", pg_temp
     AS $fn$
     DECLARE
-      prep uuid;
+      allowance_text text;
+      initial_allowance integer;
+      previous_owner text;
+      previous_provisioning text;
     BEGIN
-      IF p_allowance IS NOT NULL AND (p_allowance < 0 OR p_allowance > 10000) THEN
+      IF TG_OP <> 'INSERT' OR TG_TABLE_SCHEMA <> '__SCHEMA__' OR TG_TABLE_NAME <> 'user' THEN
+        RAISE EXCEPTION 'provisioning_requires_account_insert' USING ERRCODE = 'insufficient_privilege';
+      END IF;
+      -- The auth adapter supplies its configured allowance before INSERT, in this transaction only.
+      -- No setting (or empty) means no grant, retaining the fixture's allowance:null contract.
+      allowance_text := nullif(current_setting('hatoove.registration_allowance', true), '');
+      IF allowance_text IS NOT NULL AND allowance_text !~ '^[0-9]{1,5}$' THEN
         RAISE EXCEPTION 'invalid_allowance' USING ERRCODE = 'check_violation';
       END IF;
-      -- Registration only: the account row must have been written by THIS transaction.
-      IF NOT EXISTS (SELECT 1 FROM "user" u
-                      WHERE u.id = p_owner AND u.xmin::text = (txid_current() % 4294967296)::text) THEN
-        RAISE EXCEPTION 'provisioning_requires_new_account' USING ERRCODE = 'insufficient_privilege';
+      initial_allowance := allowance_text::integer;
+      IF initial_allowance > 10000 THEN
+        RAISE EXCEPTION 'invalid_allowance' USING ERRCODE = 'check_violation';
       END IF;
-      PERFORM set_config('hatoove.owner_id', p_owner, true);
+      previous_owner := current_setting('hatoove.owner_id', true);
+      previous_provisioning := current_setting('hatoove.provisioning', true);
+      PERFORM set_config('hatoove.owner_id', NEW.id, true);
       PERFORM set_config('hatoove.provisioning', 'on', true);
       INSERT INTO learner_preparation (id, owner_id, exam_id, state, revision)
-      VALUES (gen_random_uuid(), p_owner, p_exam_id, 'active', 1)
+      VALUES (gen_random_uuid(), NEW.id, 'telc-deutsch-b1', 'active', 1)
       ON CONFLICT DO NOTHING;
       -- Insert-only: an existing balance is never refilled.
-      IF p_allowance IS NOT NULL THEN
-        INSERT INTO entitlements (owner_id, exam_id, allowance) VALUES (p_owner, p_exam_id, p_allowance)
+      IF initial_allowance IS NOT NULL THEN
+        INSERT INTO entitlements (owner_id, exam_id, allowance) VALUES (NEW.id, 'telc-deutsch-b1', initial_allowance)
         ON CONFLICT (owner_id, exam_id) DO NOTHING;
       END IF;
-      SELECT p.id INTO prep FROM learner_preparation p
-       WHERE p.owner_id = p_owner AND p.exam_id = p_exam_id AND p.state = 'active';
-      PERFORM set_config('hatoove.provisioning', '', true);
-      RETURN prep;
+      PERFORM set_config('hatoove.provisioning', coalesce(previous_provisioning, ''), true);
+      PERFORM set_config('hatoove.owner_id', coalesce(previous_owner, ''), true);
+      RETURN NEW;
     END $fn$;
 
-    REVOKE ALL ON FUNCTION "__SCHEMA__".provision_learner(text, text, integer) FROM PUBLIC;
-    GRANT EXECUTE ON FUNCTION "__SCHEMA__".provision_learner(text, text, integer) TO "__AUTH__";
+    REVOKE ALL ON FUNCTION "__SCHEMA__".provision_registered_learner() FROM PUBLIC, "__AUTH__", "__LEARNER__", "__WORKER__";
+    REVOKE TRIGGER ON "__SCHEMA__"."user" FROM "__AUTH__";
+    DROP TRIGGER IF EXISTS provision_registered_learner ON "__SCHEMA__"."user";
+    CREATE TRIGGER provision_registered_learner AFTER INSERT ON "__SCHEMA__"."user"
+      FOR EACH ROW EXECUTE FUNCTION "__SCHEMA__".provision_registered_learner();

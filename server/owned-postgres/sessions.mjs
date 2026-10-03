@@ -13,8 +13,8 @@
  * It cannot read `attempts`, `drafts` or `submissions`.
  *
  * EXAM-S1: sign-up provisions the initial preparation and its exam balance INSIDE the auth transaction,
- * through the SECURITY DEFINER `provision_learner` function (migration 0023), which only the auth role may
- * execute and which refuses any account the calling transaction did not create. It used to be a separate
+ * through the migration-owned AFTER INSERT trigger on "user" (migration 0023). Auth cannot invoke its
+ * SECURITY DEFINER function directly or attach it to another trigger. It used to be a separate
  * post-COMMIT insert through a privileged pool, so a failure there left an account with a session and no
  * balance. Now a provisioning failure rolls back the account, the credential, the session, the preparation
  * and the balance together. `adminPool` is used only by the fixture-only `liveSessions` count.
@@ -22,7 +22,6 @@
 
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { Fault } from '../../server/owned-api.mjs';
-import { INITIAL_EXAM_ID } from '../preparation-contract.mjs';
 
 const COOKIE_DEFAULT = 'hatoove_owned_session';
 
@@ -171,6 +170,10 @@ export function createPostgresSessions({
       if (existing) throw new Fault(422, 'user_exists');
       try {
         return await inTransaction(async (client) => {
+          // The INSERT-only database trigger owns initial telc provisioning. The configured allowance
+          // is transaction-local; a later UPDATE cannot invoke it or mint another exam's balance.
+          await client.query("SELECT set_config('hatoove.registration_allowance', $1, true)",
+            [allowance === null || allowance === undefined ? '' : String(allowance)]);
           await client.query(
             `INSERT INTO "user"(id, name, email, "emailVerified", "createdAt", "updatedAt")
              VALUES($1, $2, $3, false, now(), now())`, [id, name, email]);
@@ -179,8 +182,6 @@ export function createPostgresSessions({
              VALUES($1, $2, 'credential', $3, $4, now(), now())`,
             [randomUUID(), id, id, hashPassword(password)]);
           // Same transaction: account, credential, initial preparation, balance and session commit together.
-          await client.query('SELECT provision_learner($1, $2, $3)',
-            [id, INITIAL_EXAM_ID, allowance === undefined ? null : allowance]);
           if (typeof registrationHook === 'function') await registrationHook('provisioned', client);
           const cookie = await issueSession(client, id);
           if (typeof registrationHook === 'function') await registrationHook('session', client);

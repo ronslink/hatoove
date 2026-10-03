@@ -12,12 +12,14 @@
  *      attempts, submissions, jobs and evidence is migrated; balances, text, IDs and reservations are
  *      preserved exactly, only provable rows are bound, invalid dates are preserved, temporary policies gone;
  *   2. registration: account, session, preparation and balance commit together; an injected failure rolls
- *      ALL of them back; the provisioning function refuses an existing account;
+ *      ALL of them back; updating an existing account cannot trigger provisioning or invoke a grant helper;
  *   3. missing/foreign/mismatched context writes nothing (full fingerprint);
  *   4. concurrent duplicate preparation creation converges on one row; stale revision 409 with current DTO;
  *   5. create/archive/resume never grants or refills; a second active preparation is refused;
  *   6. exam-specific success, failure, retry and reclaim, through the runtime worker AND the fixture worker;
  *   7. export includes all preparations and balances; hard delete removes them; a late job writes nothing.
+ *   8. concurrent submissions for two exams sharing one event ID produce one success and one contract 409,
+ *      one job/reservation/debit, with the winner still replayable.
  *
  * Usage: node tools/exam-s1-server-pg-check.mjs [--only=<text>]
  */
@@ -27,6 +29,7 @@ import { randomUUID } from 'node:crypto';
 import { createFixture, rolePool } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createPostgresDatastore } from '../server/owned-postgres/adapter.mjs';
+import { createPostgresSessions } from '../server/owned-postgres/sessions.mjs';
 import { createWorker, stubGrade } from '../server/owned-postgres/worker.mjs';
 import { DEFAULT_TASK_BINDING, TELC_B1_WRITING_RUBRIC } from '../server/owned-postgres/content-seed.mjs';
 import { createExamCatalogue } from '../server/preparation-contract.mjs';
@@ -197,6 +200,15 @@ check('2. registration is atomic, and provisioning is registration-only and inse
     const a = await w.learner('reg');
     assert.equal(a.telc.state, 'active');
     assert.deepEqual(await w.balance(a.id, TELC), { allowance: 10, used: 0, reserved: 0 });
+    // The trigger retains the server-configured policy, including an explicit zero or no grant.
+    for (const allowance of [3, 0, null]) {
+      const sessions = createPostgresSessions({ pool: w.db.auth, adminPool: w.db.admin, allowance });
+      const email = `exam-s1-allowance-${randomUUID().slice(0, 8)}@example.invalid`;
+      await sessions.signUp({ name: 'Configured allowance', email, password: 'pw-exam-s1-synthetic' });
+      const owner = (await w.sql('SELECT id FROM "user" WHERE email = $1', [email])).rows[0].id;
+      assert.deepEqual(await w.balance(owner, TELC), allowance === null ? null : { allowance, used: 0, reserved: 0 });
+      assert.equal((await w.sql('SELECT count(*)::int AS n FROM learner_preparation WHERE owner_id = $1 AND exam_id = $2', [owner, TELC])).rows[0].n, 1);
+    }
     for (const stage of ['provisioned', 'session']) {
       failAt = stage;
       const counts = async () => (await w.sql(`SELECT (SELECT count(*) FROM "user")::int AS u, (SELECT count(*) FROM session)::int AS s,
@@ -211,16 +223,34 @@ check('2. registration is atomic, and provisioning is registration-only and inse
       assert.equal((await w.sql('SELECT count(*)::int AS n FROM "user" WHERE email = $1', [email])).rows[0].n, 0);
     }
     failAt = null;
-    // The auth role cannot use the function to grant or refill an existing account.
+    const initialPreparations = (await w.sql('SELECT id, exam_id, revision FROM learner_preparation WHERE owner_id = $1 ORDER BY id', [a.id])).rows;
+    // Reproduce the xmin bypass: an UPDATE makes an existing user's row version current. Neither
+    // that update nor arbitrary provisioning settings may grant another exam or refill the first.
     const auth = await w.db.auth.connect();
     try {
       await auth.query('BEGIN');
-      await assert.rejects(auth.query('SELECT provision_learner($1, $2, 999)', [a.id, TELC]), /provisioning_requires_new_account/);
+      await auth.query("SELECT set_config('hatoove.registration_allowance', '999', true)");
+      await auth.query("SELECT set_config('hatoove.owner_id', $1, true), set_config('hatoove.provisioning', 'on', true)", [a.id]);
+      await auth.query('UPDATE "user" SET "updatedAt" = "updatedAt" WHERE id = $1', [a.id]);
+      assert.equal((await auth.query('SELECT xmin::text = (txid_current() % 4294967296)::text AS current_version FROM "user" WHERE id = $1', [a.id])).rows[0].current_version, true,
+        'the previous guard would have accepted this updated account');
+      await assert.rejects(auth.query('SELECT provision_learner($1, $2, 999)', [a.id, SYNTH]), { code: '42883' }, 'the callable grant helper is absent');
       await auth.query('ROLLBACK');
+      // Also commit a standalone UPDATE, proving that success cannot silently provision anything.
+      await auth.query('BEGIN');
+      await auth.query("SELECT set_config('hatoove.registration_allowance', '999', true)");
+      await auth.query('UPDATE "user" SET "updatedAt" = "updatedAt" WHERE id = $1', [a.id]);
+      await auth.query('COMMIT');
+      await assert.rejects(auth.query('SELECT provision_registered_learner()'), { code: '42501' }, 'auth cannot invoke the trigger helper');
+      const privileges = (await auth.query(`SELECT has_function_privilege(current_user, 'provision_registered_learner()', 'EXECUTE') AS execute,
+        has_table_privilege(current_user, '"user"', 'TRIGGER') AS trigger`)).rows[0];
+      assert.deepEqual(privileges, { execute: false, trigger: false }, 'auth cannot attach or invoke the provisioning trigger');
     } finally { auth.release(); }
     assert.deepEqual(await w.balance(a.id, TELC), { allowance: 10, used: 0, reserved: 0 }, 'no refill');
-    // The learner role cannot execute it at all.
-    await assert.rejects(w.db.learner.query('SELECT provision_learner($1, $2, 1)', [a.id, SYNTH]), /permission denied/);
+    assert.equal(await w.balance(a.id, SYNTH), null, 'no arbitrary exam grant');
+    assert.deepEqual((await w.sql('SELECT id, exam_id, revision FROM learner_preparation WHERE owner_id = $1 ORDER BY id', [a.id])).rows, initialPreparations,
+      'no arbitrary preparation or mutation');
+    await assert.rejects(w.db.learner.query('SELECT provision_registered_learner()'), { code: '42501' }, 'learner cannot invoke the trigger helper');
   } finally { await w.teardown(); }
 });
 
@@ -407,6 +437,79 @@ check('7. export carries every preparation and balance; delete removes them; a l
     assert.equal((await w.sql('SELECT count(*)::int AS n FROM learner_preparation WHERE owner_id = $1', [b.id])).rows[0].n, 1, 'the other owner is untouched');
   } finally {
     release();
+    await w.teardown();
+  }
+});
+
+check('8. concurrent cross-exam event reuse has one success, one 409, and one reservation/debit', async () => {
+  const w = await makeWorld();
+  const pools = [];
+  let timeout;
+  try {
+    const a = await w.learner('event-race');
+    const synth = (await w.call('POST', '/api/v1/preparations', { cookie: a.cookie, body: { examId: SYNTH } })).json;
+    await w.sql('INSERT INTO entitlements(owner_id, exam_id, allowance) VALUES($1, $2, 3)', [a.id, SYNTH]);
+    const attempts = [];
+    for (const [prep, task] of [[a.telc.id, TELC_TASK], [synth.id, SYNTH_TASK]]) {
+      const created = await w.call('POST', '/api/v1/attempts', { cookie: a.cookie, body: { preparationId: prep, ...task } });
+      assert.equal(created.status, 201, JSON.stringify(created.json));
+      const saved = await w.call('PUT', `/api/v1/attempts/${created.json.id}`, { cookie: a.cookie, body: { expectedRevision: 1, text: LETTER } });
+      assert.equal(saved.status, 200, JSON.stringify(saved.json));
+      attempts.push(created.json.id);
+    }
+    // Two real restricted-role connections read the absent event before either INSERT. This
+    // deterministically reaches the cross-exam race; per-exam balance locks cannot serialize it.
+    let arrivals = 0;
+    let release;
+    let rejectGate;
+    const gate = new Promise((resolve, reject) => { release = resolve; rejectGate = reject; });
+    const ports = attempts.map(() => {
+      const realPool = rolePool(w.db.config, w.db.schema, w.db.roles.learner, 1);
+      pools.push(realPool);
+      const pool = { connect: async () => {
+        const client = await realPool.connect();
+        return { release: () => client.release(), query: async (text, params) => {
+          const result = await client.query(text, params);
+          if (text === 'SELECT * FROM submissions WHERE owner_id = $1 AND event_id = $2' && arrivals < 2) {
+            assert.equal(result.rows.length, 0, 'both initial event lookups are absent');
+            arrivals += 1;
+            if (arrivals === 1) timeout = setTimeout(() => rejectGate(new Error('second event lookup did not reach the race gate')), 10000);
+            if (arrivals === 2) { clearTimeout(timeout); release(); }
+            await gate;
+          }
+          return result;
+        } };
+      } };
+      return createPostgresDatastore({ pool, examCatalogue: catalogue });
+    });
+    const eventId = randomUUID();
+    const outcomes = await Promise.allSettled(ports.map((port, i) => port.submit(a.id, attempts[i], 2, eventId)));
+    assert.equal(arrivals, 2);
+    assert.equal(outcomes.filter((o) => o.status === 'fulfilled').length, 1, 'one submission wins');
+    const winner = outcomes.findIndex((o) => o.status === 'fulfilled');
+    const loser = 1 - winner;
+    assert.equal(outcomes[loser].reason.status, 409, 'the SQL race is a contract conflict, not a 500');
+    assert.equal(outcomes[loser].reason.code, 'idempotency_conflict');
+    const result = outcomes[winner].value;
+    assert.equal(result.replay, false);
+    const counts = async () => (await w.sql(`SELECT
+      (SELECT count(*) FROM submissions WHERE owner_id = $1)::int AS submissions,
+      (SELECT count(*) FROM jobs WHERE owner_id = $1)::int AS jobs,
+      (SELECT count(*) FROM usage_ledger WHERE owner_id = $1)::int AS debits,
+      (SELECT sum(reserved) FROM entitlements WHERE owner_id = $1)::int AS reserved,
+      (SELECT sum(used) FROM entitlements WHERE owner_id = $1)::int AS used`, [a.id])).rows[0];
+    assert.deepEqual(await counts(), { submissions: 1, jobs: 1, debits: 0, reserved: 1, used: 0 });
+    assert.deepEqual(await ports[winner].submit(a.id, attempts[winner], 2, eventId), { submissionId: result.submissionId, replay: true });
+    await assert.rejects(ports[loser].submit(a.id, attempts[loser], 2, eventId), { status: 409, code: 'idempotency_conflict' });
+    assert.deepEqual(await counts(), { submissions: 1, jobs: 1, debits: 0, reserved: 1, used: 0 }, 'replays and conflicts reserve nothing more');
+    assert.equal(await w.world.store.worker.claim(result.submissionId), true);
+    assert.equal(await w.world.store.worker.complete(result.submissionId, 'fixture'), true);
+    assert.deepEqual(await counts(), { submissions: 1, jobs: 1, debits: 1, reserved: 0, used: 1 });
+    const losingExam = loser === 0 ? TELC : SYNTH;
+    assert.deepEqual(await w.balance(a.id, losingExam), { allowance: loser === 0 ? 10 : 3, used: 0, reserved: 0 }, 'losing exam credit remains untouched');
+  } finally {
+    clearTimeout(timeout);
+    await Promise.all(pools.map((pool) => pool.end().catch(() => {})));
     await w.teardown();
   }
 });

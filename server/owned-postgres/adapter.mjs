@@ -981,7 +981,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1 ||
           typeof eventId !== 'string' || !UUID_RE.test(eventId)) fail(422, 'invalid_submission');
       return settle(owner, async (client) => {
-        // Serialize idempotency and the attempt's EXAM balance before locking the attempt (EXAM-S1).
+        // Serialize the attempt's EXAM balance before locking the attempt (EXAM-S1). Owner-wide
+        // event uniqueness also covers concurrent submissions against independently locked exams.
         const examId = await attemptExam(client, owner, id);
         const entitlement = examId ? await lockBalance(client, owner, examId) : null;
         const attempt = await owned(client, owner, id);
@@ -1001,13 +1002,22 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         if (first(await client.query('SELECT id FROM submissions WHERE attempt_id = $1', [id]))) fail(409, 'already_submitted');
         if (!entitlement || entitlement.used + entitlement.reserved >= entitlement.allowance) fail(409, 'allowance_exhausted');
         const submissionId = randomUUID();
-        await client.query(
-          `INSERT INTO submissions(id, attempt_id, owner_id, event_id, draft_revision, text, task_version, rubric_version, explanation_language)
-           VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [submissionId, id, owner, eventId, draft.revision, draft.text, attempt.task_version, attempt.rubric_version,
-            // SNAPSHOTTED, not looked up later: the language the letter was written under travels with it.
-            typeof explanationLanguage === 'string' && explanationLanguage.length <= 16 && explanationLanguage !== ''
-              ? explanationLanguage : 'de']);
+        try {
+          await client.query(
+            `INSERT INTO submissions(id, attempt_id, owner_id, event_id, draft_revision, text, task_version, rubric_version, explanation_language)
+             VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [submissionId, id, owner, eventId, draft.revision, draft.text, attempt.task_version, attempt.rubric_version,
+              // SNAPSHOTTED, not looked up later: the language the letter was written under travels with it.
+              typeof explanationLanguage === 'string' && explanationLanguage.length <= 16 && explanationLanguage !== ''
+                ? explanationLanguage : 'de']);
+        } catch (error) {
+          // Another exam may commit this owner's event after the prior lookup. Translate only that
+          // exact uniqueness violation; settle() rolls back before any job or reservation is written.
+          if (error.code === '23505' && error.table === 'submissions' && error.constraint === 'submissions_owner_id_event_id_key') {
+            fail(409, 'idempotency_conflict');
+          }
+          throw error;
+        }
         await client.query(
           "INSERT INTO jobs(id, submission_id, owner_id, status, exam_id) VALUES($1, $2, $3, 'queued', $4)",
           [randomUUID(), submissionId, owner, attempt.exam_id]);
