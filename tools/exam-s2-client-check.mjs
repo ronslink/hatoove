@@ -82,6 +82,10 @@ await check('archived and rights-blocked runs remain read-only', async()=>{
   const archived=setup({canEdit:()=>false});assert.equal(archived.session.answer(member,'1','a'),false);assert.equal(await archived.session.finalise(),false);
   const blocked=setup();blocked.session.load({...base,blocked_reason:'rights',members:[]});assert.equal(blocked.session.answer(member,'1','a'),false);assert.equal(await blocked.session.finalise(),false);
 });
+await check('explicit reload fences selection and new saves while its read is pending', async()=>{
+  let release;const session=createMockSession({api:{mock:{read:()=>new Promise(resolve=>{release=()=>resolve({ok:true,data:base});})}}});session.load(base);
+  const loading=session.reload();assert.equal(session.state().busy,true);assert.equal(session.answer(member,'1','a'),false);assert.equal(await session.flush(),false);release();assert.equal(await loading,true);assert.equal(session.state().busy,false);
+});
 await check('deadline uses server time and preserves unacknowledged answers on expiry', async()=>{
   let now=1000;const fixture=setup({now:()=>now});const timed={...base,server_now:new Date(10000).toISOString(),deadline_at:new Date(11000).toISOString()};fixture.saved=timed;fixture.session.load(timed);
   fixture.session.answer(member,'1','b');now=2001;assert.equal(fixture.session.state().writable,false);assert.equal(await fixture.session.flush(),false);assert.equal(fixture.writes.length,0);

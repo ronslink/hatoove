@@ -20,16 +20,16 @@ export function mockMember(member) {
 /** Pure state/transport boundary; the view cannot replace local answers with an uncertain reply. */
 export function createMockSession({ api, eventId = () => crypto.randomUUID(), onChange = () => {}, canEdit = () => true, now = () => Date.now() }) {
   let run = null, responses = [], position = { member: 0, item: 0 }, pending = null, flight = null;
-  let flushing = null, clockOffset = 0;
+  let flushing = null, clockOffset = 0, reloading = false;
   let epoch = 0, error = null, localCopy = '', finalising = false;
   const changed = () => onChange();
   const expired = () => run?.expired || Boolean(run?.deadline_at && Date.parse(run.deadline_at) <= now() + clockOffset);
-  const writable = () => run?.state === 'active' && !run.blocked_reason && !expired() && canEdit() && !finalising;
+  const writable = () => run?.state === 'active' && !run.blocked_reason && !expired() && canEdit() && !finalising && !reloading;
   const dirty = () => Boolean(run && (!sameResponses(responses, run.responses) || !equal(position, run.position)));
-  const state = () => ({ run, responses: clone(responses), position: { ...position }, dirty: dirty(), pending: Boolean(pending), busy: Boolean(flight), error, localCopy, finalising, writable: writable() });
+  const state = () => ({ run, responses: clone(responses), position: { ...position }, dirty: dirty(), pending: Boolean(pending), busy: Boolean(flight) || reloading, loading: reloading, error, localCopy, finalising, writable: writable() });
   function load(value, keepCopy = false) {
     epoch++; clockOffset = value.server_now ? Date.parse(value.server_now) - now() : 0; run = clone(value); responses = clone(value.responses || []); position = clone(value.position || { member: 0, item: 0 });
-    run.responses = clone(responses); run.position = clone(position); pending = null; flight = null; flushing = null; error = null; finalising = false;
+    run.responses = clone(responses); run.position = clone(position); pending = null; flight = null; flushing = null; reloading = false; error = null; finalising = false;
     if (!keepCopy) localCopy = ''; changed();
   }
   async function send() {
@@ -59,6 +59,7 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
   }
   async function performFlush() {
     if (!run) return true;
+    if (reloading) return false;
     if (flight && !(await flight)) return false;
     if (pending && !(await send())) return false;
     while (dirty()) {
@@ -100,14 +101,14 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
       } finally { finalising = false; changed(); }
     },
     async reload() {
-      if (!run || flight) return false;
-      const ticket = epoch; localCopy = JSON.stringify({ responses, position }, null, 2); changed();
+      if (!run || flight || reloading) return false;
+      const ticket = epoch; reloading = true; localCopy = JSON.stringify({ responses, position }, null, 2); changed();
       const response = await api.mock.read(run.id);
       if (ticket !== epoch) return false;
-      if (!response?.ok) { error = response; changed(); return false; }
+      if (!response?.ok) { reloading = false; error = response; changed(); return false; }
       load(response.data, true); return true;
     },
-    dispose() { epoch++; run = null; pending = null; flight = null; flushing = null; error = null; responses = []; localCopy = ''; finalising = false; },
+    dispose() { epoch++; run = null; pending = null; flight = null; flushing = null; reloading = false; error = null; responses = []; localCopy = ''; finalising = false; },
   };
 }
 
@@ -127,7 +128,7 @@ export function createMockController({ api, esc, canEdit = () => true, onOpen = 
   }
   function recovery(snapshot) {
     return (snapshot.error ? '<div class="err" role="alert"><p>' + esc(message(snapshot.error)) + '</p><div class="row">' + button('retry', 'Vorgang wiederholen') + button('reload', 'Serverstand laden · lokale Kopie behalten') + '</div></div>' : '')
-      + '<details class="mock-copy"' + (snapshot.localCopy ? ' open' : '') + '><summary>Eigene Antworten kopieren</summary><label class="field-label" for="mock-local-copy">' + (snapshot.localCopy ? 'Lokale Auswahl vor dem Laden' : 'Auswahl in diesem Fenster') + '</label><textarea id="mock-local-copy" class="writing-text" readonly>' + esc(snapshot.localCopy || JSON.stringify({ responses: snapshot.responses, position: snapshot.position }, null, 2)) + '</textarea></details>';
+      + '<details class="mock-copy"' + (snapshot.localCopy ? ' open' : '') + '><summary>Eigene Antworten kopieren</summary><label class="field-label" for="mock-local-copy">' + (snapshot.localCopy ? 'Lokale Auswahl vor dem Laden' : 'Auswahl in diesem Fenster') + '</label><textarea id="mock-local-copy" class="writing-text" readonly>' + esc(snapshot.localCopy || JSON.stringify({ responses: snapshot.responses, position: snapshot.position }, null, 2)) + '</textarea><div class="row">' + button('reload', 'Serverstand laden · lokale Kopie behalten') + '</div></details>';
   }
   function render() {
     if (!host) return;
@@ -137,7 +138,7 @@ export function createMockController({ api, esc, canEdit = () => true, onOpen = 
     const focused = host.contains(document.activeElement) ? document.activeElement?.getAttribute('data-focus') : null;
     const readonly = !snapshot.writable, members = run.members || [], total = members.reduce((n, m) => n + m.item_count, 0);
     const selected = snapshot.responses.filter(row => row.answer !== null).length;
-    const status = snapshot.busy ? 'Wird gespeichert …' : snapshot.error ? 'Noch nicht bestätigt' : snapshot.dirty ? 'Änderungen noch nicht gespeichert' : 'Gespeichert · Stand ' + run.revision;
+    const status = snapshot.loading ? 'Serverstand wird geladen …' : snapshot.busy ? 'Wird gespeichert …' : snapshot.error ? 'Noch nicht bestätigt' : snapshot.dirty ? 'Änderungen noch nicht gespeichert' : 'Gespeichert · Stand ' + run.revision;
     const position = displayPosition || snapshot.position;
     const member = members[position.member], form = member && mockMember(member), item = form?.items[position.item];
     let body = '';
@@ -192,7 +193,7 @@ export function createMockController({ api, esc, canEdit = () => true, onOpen = 
       const action = element.dataset.mockAction;
       if (action === 'clear') { session.answer(m, form.items[p.item].id, null); await session.flush(); }
       if (['save', 'retry'].includes(action)) await session.flush();
-      if (action === 'reload') { confirm = false; displayPosition = null; await session.reload(); }
+      if (action === 'reload') { clearTimeout(timer); confirm = false; displayPosition = null; await session.reload(); }
       if (action === 'confirm') { confirm = true; render(); host.querySelector('[data-mock-action="finalise"]')?.focus(); }
       if (action === 'cancel') { confirm = false; render(); }
       if (action === 'finalise') { clearTimeout(timer); await session.finalise(); confirm = false; render(); }

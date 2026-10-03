@@ -28,7 +28,7 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
     await cdp.evaluate(`const radio=document.querySelector('input[name="mock-answer"][value=${JSON.stringify(value)}]');if(!radio)throw Error('radio missing');radio.click();return true;`);
   };
   const saved = () => cdp.waitFor("document.querySelector('#mock-save-state')?.textContent.startsWith('Gespeichert') && !document.querySelector('[data-mock-action=save]')?.disabled");
-  const intercept = async (stage, handler) => {
+  const intercept = async (stage, handler, pattern = '*/api/v1/mock-runs/*') => {
     const pending = new Set(); let failure;
     const listener = event => {
       const value=JSON.parse(event.data);if(value.method!=='Fetch.requestPaused')return;
@@ -37,7 +37,7 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
         if(!handled)await cdp.send('Fetch.continueRequest',{requestId:item.requestId});pending.delete(item.requestId);
       }).catch(async error=>{failure=error.message;try{await cdp.send('Fetch.continueRequest',{requestId:item.requestId});}catch{}pending.delete(item.requestId);});
     };
-    cdp.ws.addEventListener('message',listener);await cdp.send('Fetch.enable',{patterns:[{urlPattern:'*/api/v1/mock-runs/*',requestStage:stage}]});
+    cdp.ws.addEventListener('message',listener);await cdp.send('Fetch.enable',{patterns:[{urlPattern:pattern,requestStage:stage}]});
     stopIntercept=async()=>{cdp.ws.removeEventListener('message',listener);for(const requestId of pending){try{await cdp.send('Fetch.continueRequest',{requestId});}catch{}}await cdp.send('Fetch.disable');stopIntercept=null;if(failure)throw Error(failure);};
   };
   try {
@@ -47,6 +47,23 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
     const request = (route, method='GET', body) => cdp.evaluate(`return (async()=>{const r=await fetch(${JSON.stringify(route)},{method:${JSON.stringify(method)},credentials:'same-origin',headers:{'content-type':'application/json'}${body===undefined?'':',body:'+JSON.stringify(JSON.stringify(body))}});return {status:r.status,data:await r.json()};})()`);
     const preparationId=await cdp.evaluate("return document.querySelector('#preparation-picker').value");
     let runId, firstChoice, secondChoice;
+    const reply = (event, data, status = 200) => cdp.send('Fetch.fulfillRequest', {requestId:event.requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify(data)).toString('base64')});
+    await run('S2B0 loading, empty and unavailable states (synthetic responses)',async()=>{
+      let release;const held=new Promise(resolve=>{release=resolve;});let reached;const requested=new Promise(resolve=>{reached=resolve;});
+      await intercept('Request',async event=>{
+        if(event.request.method!=='GET')return false;
+        if(event.request.url.includes('/mock-forms?')){reached();await held;await reply(event,{forms:[]});return true;}
+        if(event.request.url.includes('/mock-runs?')){await reply(event,{runs:[]});return true;}return false;
+      },'*/api/v1/mock-*');
+      try {
+        await go('abschnitt');await Promise.race([requested,new Promise((_,reject)=>setTimeout(()=>reject(Error('loading fixture request missing')),10000))]);
+        assert(await cdp.evaluate("return document.querySelector('#mock-host').textContent.includes('werden geladen')"),'loading state missing');await shot(cdp,'s2-loading-desktop-light');release();
+        await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('Zurzeit ist kein Abschnitt') && document.querySelector('#mock-host').textContent.includes('Noch keine gespeicherten')");await shot(cdp,'s2-empty-desktop-light');
+      } finally {release();await stopIntercept();}
+      await intercept('Request',async event=>{if(event.request.method==='GET'){await reply(event,{error:'unavailable'},503);return true;}return false;},'*/api/v1/mock-*');
+      try {await clickSel(cdp,'[data-mock-refresh]');await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('konnten nicht geladen')");await shot(cdp,'s2-unavailable-desktop-light');}finally{await stopIntercept();}
+      await clickSel(cdp,'[data-mock-refresh]');
+    });
     await run('S2B1 section entry creates exact pinned twenty-item reading run',async()=>{
       await go('abschnitt');await cdp.waitFor("document.querySelector('[data-mock-start]')");await shot(cdp,'s2-section-index-desktop-light');
       await clickSel(cdp,'[data-mock-start]');await cdp.waitFor("document.querySelector('input[name=mock-answer]') && location.hash.includes('/abschnitt/')");
@@ -120,7 +137,23 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
       await go('abschnitt');await cdp.waitFor("document.querySelector('[data-mock-start]')");await clickSel(cdp,'[data-mock-start]');await cdp.waitFor("document.querySelector('input[name=mock-answer]')");
       assert(await cdp.evaluate(`return location.hash.split('/').at(-1)!==${JSON.stringify(runId)}`),'retake reused original identity');
     });
-    await run('S2B10 account-expiry refusal keeps current answer and copy recovery',async()=>{
+    await run('S2B10 real archived preparation keeps run readable and blocks controls',async()=>{
+      const activeRun=await cdp.evaluate("return location.hash.split('/').at(-1)");const prep=await request('/api/v1/preparations/'+preparationId);
+      const archived=await request('/api/v1/preparations/'+preparationId,'PUT',{expectedRevision:prep.data.revision,state:'archived'});assert(archived.status===200,'synthetic archive failed');
+      try {await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('schreibgeschützt')");assert(await cdp.evaluate("return [...document.querySelectorAll('input[name=mock-answer]')].every(n=>n.disabled||n.closest('fieldset').disabled) && !document.querySelector('[data-mock-action=confirm]')"),'archived answer controls writable');await shot(cdp,'s2-archived-desktop-light');}
+      finally {const current=await request('/api/v1/preparations/'+preparationId);const restored=await request('/api/v1/preparations/'+preparationId,'PUT',{expectedRevision:current.data.revision,state:'active'});assert(restored.status===200,'synthetic preparation restore failed');await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('input[name=mock-answer]')");}
+    });
+    await run('S2B11 rights block and elapsed deadline retain identity (synthetic responses)',async()=>{
+      const activeRun=await cdp.evaluate("return location.hash.split('/').at(-1)");const original=await request('/api/v1/mock-runs/'+activeRun);
+      const blocked={...original.data,blocked_reason:'rights_blocked',members:[],result:null};
+      await intercept('Request',async event=>{if(event.request.method==='GET'){await reply(event,blocked);return true;}return false;});
+      try {await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('zurzeit gesperrt')");assert(await cdp.evaluate("return !document.querySelector('input[name=mock-answer]') && !document.querySelector('[data-mock-action=confirm]') && !!document.querySelector('#mock-local-copy')"),'rights block exposes content or loses response copy');await shot(cdp,'s2-rights-blocked-desktop-light');}finally{await stopIntercept();}
+      const timed={...original.data,mode:'timed',server_now:new Date().toISOString(),deadline_at:new Date(Date.now()-1000).toISOString(),expired:true};
+      await intercept('Request',async event=>{if(event.request.method==='GET'){await reply(event,timed);return true;}return false;});
+      try {await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('Die Zeit ist abgelaufen')");assert(await cdp.evaluate("return [...document.querySelectorAll('input[name=mock-answer]')].every(n=>n.disabled||n.closest('fieldset').disabled)"),'expired answers writable');await shot(cdp,'s2-expired-desktop-light');}finally{await stopIntercept();}
+      await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('input[name=mock-answer]')");
+    });
+    await run('S2B12 account-expiry refusal keeps current answer and copy recovery',async()=>{
       await intercept('Request',async event=>{if(event.request.method==='PUT'){await cdp.send('Fetch.fulfillRequest',{requestId:event.requestId,responseCode:401,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify({error:'unauthenticated'})).toString('base64')});return true;}return false;});
       try {await choose(firstChoice);await cdp.waitFor("document.querySelector('#mock-save-state')?.textContent==='Noch nicht bestätigt'");assert(await cdp.evaluate("return !!document.querySelector('input[name=mock-answer]:checked') && !document.querySelector('#error').hidden && document.querySelector('#mock-local-copy').value.includes('answer')"),'expiry lost answers or recovery');await shot(cdp,'s2-session-expired-desktop-light');}finally{await stopIntercept();}
     });
