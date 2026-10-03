@@ -84,6 +84,7 @@ const UUID_RE = new RegExp(`^${UUID}$`, 'i');
 const ATTEMPT_RE = new RegExp(`^/api/v1/attempts/(${UUID})$`, 'i');
 const SUBMIT_RE = new RegExp(`^/api/v1/attempts/(${UUID})/submissions$`, 'i');
 const RESULT_RE = new RegExp(`^/api/v1/submissions/(${UUID})$`, 'i');
+const OBJECTIVE_EXPLANATION_RE = new RegExp(`^/api/v1/objective-evidence/(${UUID})/explanation$`, 'i');
 const RETRY_RE = new RegExp(`^/api/v1/submissions/(${UUID})/retry$`, 'i');
 const MOCK_RUN_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})$`, 'i');
 const MOCK_WRITING_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/writing-choice$`, 'i');
@@ -213,6 +214,13 @@ export const SETTINGS_FIELDS = ['dailyGoal', 'theme', 'language'];
 /** Read-only legacy settings, returned by `GET /api/v1/settings` and refused by `PUT`. */
 export const LEGACY_SETTINGS_FIELDS = Object.freeze(['examDate']);
 export const EXPLANATION_LANGUAGES = Object.freeze(['de', 'en', 'uk', 'ar', 'tr']);
+
+function explanationLanguageQuery(query, key = 'explanationLanguage') {
+  if ([...query.keys()].some(name => name !== key) || query.getAll(key).length > 1) fault(422, 'invalid_query');
+  const language = query.get(key);
+  if (language !== null && !EXPLANATION_LANGUAGES.includes(language)) fault(422, 'invalid_explanation_language');
+  return language;
+}
 /**
  * FAMILY NAMING — ONE CONVENTION, ONE PARSER.
  *
@@ -667,7 +675,8 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       || MOCK_RUN_RE.test(pathname) || MOCK_FINALISE_RE.test(pathname) || MOCK_WRITING_RE.test(pathname)) {
       if (!mocksWired) fault(503, 'mock_runs_unavailable');
       const index = pathname === '/api/v1/mock-forms' || pathname === '/api/v1/mock-runs';
-      const allowedQuery = index && method === 'GET' ? ['preparationId'] : [];
+      const run = MOCK_RUN_RE.exec(pathname);
+      const allowedQuery = index && method === 'GET' ? ['preparationId'] : run && method === 'GET' ? ['explanationLanguage'] : [];
       if ([...query.keys()].some((key) => !allowedQuery.includes(key))
         || allowedQuery.some((key) => query.getAll(key).length > 1)) fault(422, 'invalid_query');
       if (index && method === 'GET') {
@@ -679,8 +688,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         const outcome = await datastore.startMockRun(owner, validateStartMockRun(body));
         return reply(outcome.created ? 201 : 200, outcome.run);
       }
-      const run = MOCK_RUN_RE.exec(pathname);
-      if (run && method === 'GET') return reply(200, await datastore.readMockRun(owner, run[1].toLowerCase()));
+      if (run && method === 'GET') return reply(200, await datastore.readMockRun(owner, run[1].toLowerCase(), { explanationLanguage: explanationLanguageQuery(query) }));
       if (run && method === 'PUT') return reply(200, await datastore.saveMockRun(owner, run[1].toLowerCase(), validateSaveMockRun(body)));
       const writing = MOCK_WRITING_RE.exec(pathname);
       if (writing && method === 'POST') {
@@ -1237,7 +1245,14 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       return reply(202, await datastore.submit(owner, match[1].toLowerCase(), expected, eventId, language));
     }
     match = RESULT_RE.exec(pathname);
-    if (match && method === 'GET') return reply(200, await datastore.result(owner, match[1].toLowerCase()));
+    if (match && method === 'GET') return reply(200, await datastore.result(owner, match[1].toLowerCase(), { explanationLanguage: explanationLanguageQuery(query) }));
+    match = OBJECTIVE_EXPLANATION_RE.exec(pathname);
+    if (match) {
+      if (method !== 'GET') fault(404, 'not_found');
+      const language = explanationLanguageQuery(query, 'language');
+      if (typeof datastore.readObjectiveEvidenceExplanation !== 'function') fault(503, 'explanations_unavailable');
+      return reply(200, await datastore.readObjectiveEvidenceExplanation(owner, match[1].toLowerCase(), { language }));
+    }
     match = RETRY_RE.exec(pathname);
     if (match && method === 'POST') {
       onlyFields(body, []);

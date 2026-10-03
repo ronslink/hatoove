@@ -24,7 +24,7 @@
 import { randomUUID } from 'node:crypto';
 import { Fault } from '../../server/owned-api.mjs';
 import { DEFAULT_TASK_BINDING } from './content-seed.mjs';
-import { contentPolicy, servableReview } from '../content-policy.mjs';
+import { contentPolicy, servableReview, contentBlockReason } from '../content-policy.mjs';
 import { entitlementExpired } from './entitlement.mjs';
 import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs';
 import { preparationMethods, requireActivePreparation, resolvePreparation } from './preparations.mjs';
@@ -32,6 +32,9 @@ import { mockRunMethods, lockMockOwner, requireMockGroup } from './mock-runs.mjs
 import { playbackMethods } from './playback.mjs';
 import { importedSetGate, objectiveInteractionSql, releasedObjectiveFamily, readWritingTask, writingAccess, readReleasedForm, readWritingOrigin } from './packages.mjs';
 import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
+import { extractWritingExplanationSource, unavailableExplanationView } from '../explanation-contract.mjs';
+import { readExplanationRepresentations, readObjectiveEvidenceExplanation as readEvidenceExplanation, readFinalisedMockItemExplanation } from './explanations.mjs';
+import { explanationLanguage, blockedExplanation, projectStoredExplanation, explanationFault, protectedExplanationRead, selectedExplanationExports } from './explanation-views.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -63,7 +66,7 @@ const requirePreparationContext = (preparationId) => {
  *   allowlist (`createExamCatalogue`); only a disposable test passes another one.
  * @returns {object} the port `createOwnedApi({ datastore })` consumes.
  */
-export function createPostgresDatastore({ pool, onCall, examCatalogue = createExamCatalogue(), mediaRoot } = {}) {
+export function createPostgresDatastore({ pool, onCall, examCatalogue = createExamCatalogue(), mediaRoot, explanationLanguageRegistry } = {}) {
   if (!pool || typeof pool.connect !== 'function') {
     throw new TypeError('createPostgresDatastore requires a pg Pool');
   }
@@ -225,11 +228,35 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     return { task: task ?? null, rubric: rubric ?? null, mock_run_id, blocked_reason, review_withdrawn, review_basis };
   }
 
+  async function objectiveExplanationBundle(client,evidenceId,language=null) {
+    const bundle=await protectedExplanationRead(client,()=>readEvidenceExplanation(client,{evidenceId,language},{languageRegistry:explanationLanguageRegistry}));
+    const identity=bundle.source.identity;
+    const content=first(await client.query(`SELECT c.source_path,c.review_status,c.review_blocked,c.review_explicit_negative,
+      COALESCE(cr.basis,c.rights_status) AS rights_status
+      FROM objective_set s JOIN reviewed_content_version c USING(content_version_id)
+      LEFT JOIN content_rights cr USING(content_version_id)
+      WHERE s.exam_id=$1 AND s.set_id=$2 AND s.version=$3`,[identity.exam_id,identity.set_id,identity.set_version]));
+    if(contentBlockReason(content,{completed:true}) || (content?.source_path?.startsWith('content/exams/')&&!examCatalogue.isEnabled(identity.exam_id)))
+      return null;
+    if(content?.source_path?.startsWith('content/exams/')) {
+      const states=contentPolicy().mode==='internal-preview'?['internal','available']:contentPolicy().mode==='public'?['available']:[];
+      const historical=first(await client.query(`SELECT EXISTS(SELECT 1 FROM exam_release r
+        JOIN exam_release_form rf ON rf.exam_id=r.exam_id AND rf.release_version=r.version
+        JOIN exam_form_member m ON m.exam_id=rf.exam_id AND m.form_id=rf.form_id AND m.form_version=rf.form_version
+        JOIN exam_release_head h ON h.exam_id=r.exam_id JOIN exam_release head ON head.exam_id=h.exam_id AND head.version=h.release_version
+        WHERE r.exam_id=$1 AND m.set_id=$2 AND m.set_version=$3 AND r.state=ANY($4::text[])
+          AND NOT(coalesce(head.manifest#>'{release,resumeBlockedReleases}','[]'::jsonb)?r.version)) AS allowed`,
+        [identity.exam_id,identity.set_id,identity.set_version,states]));
+      if(!historical?.allowed)return null;
+    }
+    return bundle;
+  }
+
   return Object.freeze({
     // EXAM-S1: listExams, listPreparations, readPreparation, resolvePreparation, createPreparation,
     // updatePreparation, readCredits — see preparations.mjs.
     ...preparations,
-    ...mockRunMethods({ settle, note, catalogue: examCatalogue }),
+    ...mockRunMethods({ settle, note, catalogue: examCatalogue, explanationLanguageRegistry }),
     ...playbackMethods({ settle, note, catalogue: examCatalogue, mediaRoot }),
     /**
      * PILOT-04 — the servable task catalogue.
@@ -1028,7 +1055,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
              LEFT JOIN assessments f ON f.submission_id = s.id AND f.owner_id = s.owner_id
             WHERE s.owner_id = $1 ORDER BY s.created_at, s.id`, [owner])).rows;
         const objective_evidence = (await client.query(
-          `SELECT evidence_id, exam_id, preparation_id, set_id, version, item_id, family, section, answer,
+          `SELECT evidence_id, exam_id, preparation_id, set_id, version, item_id, family, section, answer, mock_run_id,
                   correct, latency_ms, answered_at FROM item_evidence
             WHERE owner_id = $1 ORDER BY answered_at, evidence_id`, [owner])).rows;
         // Original pinned identities/responses, including archived and blocked runs.
@@ -1042,7 +1069,12 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             OR EXISTS (SELECT 1 FROM exam_release pinned WHERE pinned.exam_id=r.exam_id AND pinned.version=r.release_version
               AND pinned.state IN ('internal','hidden') AND (NOT (r.exam_id=ANY($2::text[])) OR NOT $3::boolean))
             THEN NULL ELSE result END AS result,created_at,updated_at,
-          deadline_at,finalised_at FROM mock_run r WHERE owner_id = $1 ORDER BY created_at,id`, [owner, examCatalogue.ids, contentPolicy().mode==='internal-preview'])).rows;
+          deadline_at,finalised_at,
+          (SELECT coalesce(jsonb_agg(jsonb_build_object('set_id',i->>'set_id','set_version',i->>'version','item_id',i->>'item_id')),'[]'::jsonb)
+            FROM jsonb_array_elements(r.result->'items') i) AS explanation_contexts
+          FROM mock_run r WHERE owner_id = $1 ORDER BY created_at,id`, [owner, examCatalogue.ids, contentPolicy().mode==='internal-preview'])).rows;
+        const mockExplanationContexts=new Map(mock_runs.map(run=>[run.id,run.explanation_contexts]));
+        for(const run of mock_runs)delete run.explanation_contexts;
         const mock_writing=(await client.query('SELECT run_id,attempt_id,binding_kind,choice_group_id,selected_option_id,submission_id,failure_code FROM mock_writing WHERE owner_id=$1 ORDER BY run_id',[owner])).rows;
         const mock_run_time_groups=(await client.query('SELECT run_id,ordinal,group_id,sections,starts_at,deadline_at FROM mock_run_time_group WHERE owner_id=$1 ORDER BY run_id,ordinal',[owner])).rows;
         // Transport event IDs/playback UUIDs are deliberately absent from the learner export.
@@ -1050,18 +1082,59 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           max_plays,position_ms,duration_ms,created_at,updated_at FROM listening_playback
           WHERE owner_id=$1 ORDER BY run_id,media_id,media_version`, [owner])).rows;
         for (const run of mock_runs) {
-          if (!run.result) continue;
+          if (run.state!=='finalised') continue;
           const bundle = await readReleasedForm(client, { examId: run.exam_id, formId: run.form_id,
             formVersion: run.form_version, releaseVersion: run.release_version,completed:run.state==='finalised' });
-          if (!bundle || bundle.blockedReason) run.result = null;
+          run.blocked_reason=!bundle?'content_unavailable':bundle.blockedReason??(!run.result&&mockExplanationContexts.get(run.id)?.length?'content_policy_blocked':null);
+          if (run.blocked_reason) run.result = null;
           run.review_withdrawn=Boolean(bundle?.reviewWithdrawn);run.review_basis=bundle?.reviewBasis??null;
         }
+        const blockedWriting=new Map();
         for(const result of results) {
           const submission=submissions.find(s=>s.id===result.submission_id);
           if(submission) {
             const context=await writingContext(client,{id:submission.attempt_id,owner_id:owner,task_id:submission.task_id,task_version:submission.task_version},{completed:Boolean(result.feedback)});
-            if(context.blocked_reason) result.feedback=null;
+            if(context.blocked_reason){result.feedback=null;blockedWriting.set(submission.id,context.blocked_reason);}
             result.review_withdrawn=context.review_withdrawn;result.review_basis=context.review_basis;
+          }
+        }
+        const writing_explanation_representations=(await client.query(`SELECT * FROM writing_explanation_representation
+          WHERE owner_id=$1 ORDER BY submission_id,source_sha256,language,representation_version`,[owner])).rows.map(row=>{
+            const blocked=blockedWriting.get(row.submission_id);
+            return blocked?{...row,payload:null,blocked_reason:blocked}:row;
+          });
+        const writing_explanation_heads=(await client.query(`SELECT * FROM writing_explanation_head
+          WHERE owner_id=$1 ORDER BY submission_id,source_sha256,language`,[owner])).rows;
+        const shared_explanation_representations=[];
+        for(const evidence of objective_evidence){
+          if(evidence.mock_run_id)continue;
+          const context={evidence_id:evidence.evidence_id};
+          try {
+            const bundle=await objectiveExplanationBundle(client,evidence.evidence_id);
+            if(bundle)shared_explanation_representations.push(...await selectedExplanationExports(client,bundle,context));
+            else shared_explanation_representations.push({context,representation:null,blocked_reason:'content_blocked'});
+          }catch(error){
+            if(['not_found','explanation_content_blocked'].includes(error?.message))shared_explanation_representations.push({context,representation:null,blocked_reason:error.message});
+            else throw error;
+          }
+        }
+        for(const run of mock_runs){
+          if(run.state!=='finalised')continue;
+          if(!run.result){
+            for(const item of mockExplanationContexts.get(run.id)??[])shared_explanation_representations.push({
+              context:{run_id:run.id,...item},representation:null,blocked_reason:run.blocked_reason??'content_unavailable'});
+            continue;
+          }
+          for(const item of run.result.items??[]){
+            const context={run_id:run.id,set_id:item.set_id,set_version:item.version,item_id:item.item_id};
+            try {
+              const bundle=await protectedExplanationRead(client,()=>readFinalisedMockItemExplanation(client,
+                {runId:run.id,setId:item.set_id,setVersion:item.version,itemId:item.item_id},{languageRegistry:explanationLanguageRegistry}));
+              shared_explanation_representations.push(...await selectedExplanationExports(client,bundle,context));
+            }catch(error){
+              if(['not_found','explanation_content_blocked'].includes(error?.message))shared_explanation_representations.push({context,representation:null,blocked_reason:error.message});
+              else throw error;
+            }
           }
         }
         const payment_orders = (await client.query(`SELECT id,exam_id,product_id,market,currency,amount_minor,allowance,term_days,status,created_at,paid_at
@@ -1069,7 +1142,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const payment_events = (await client.query('SELECT id,order_id,kind,disposition,created_at FROM payment_event WHERE owner_id=$1 ORDER BY created_at,id', [owner])).rows;
         const payment_grants = (await client.query('SELECT order_id,event_id,exam_id,allowance,expires_at,created_at FROM payment_grant WHERE owner_id=$1 ORDER BY created_at,order_id', [owner])).rows;
         const payment_checkout_events = (await client.query('SELECT event_id,order_id FROM payment_checkout_event WHERE owner_id=$1 ORDER BY event_id', [owner])).rows;
-        return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing, mock_run_time_groups, listening_playback, payment_orders, payment_events, payment_grants, payment_checkout_events };
+        return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing, mock_run_time_groups, listening_playback, payment_orders, payment_events, payment_grants, payment_checkout_events,
+          writing_explanation_representations,writing_explanation_heads,shared_explanation_representations };
       }, true);
     },
 
@@ -1187,8 +1261,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       });
     },
 
-    async result(owner, submissionId) {
+    async result(owner, submissionId, {explanationLanguage:requestedLanguage=null}={}) {
       note('result');
+      explanationLanguage(requestedLanguage);
       return settle(owner, async (client) => {
         const submission = first(await client.query(
           'SELECT * FROM submissions WHERE id = $1 AND owner_id = $2', [submissionId, owner]));
@@ -1200,12 +1275,34 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           'SELECT feedback, model_version, prompt_version, rubric_version FROM assessments WHERE submission_id = $1', [submissionId]));
         const content=await historicalContent(client,attempt,{completed:Boolean(assessment)});
         const attachment=first(await client.query('SELECT failure_code FROM mock_writing WHERE submission_id=$1 AND owner_id=$2',[submissionId,owner]));
+        let explanation_view;
+        if(content.blocked_reason)explanation_view=blockedExplanation(requestedLanguage);
+        else if(!assessment)explanation_view=unavailableExplanationView({requestedLanguage,state:'not_assessed',
+          reason:['failed','cancelled','unassessed'].includes(job?.status)||attachment?.failure_code?'assessment_failed':'assessment_pending'});
+        else {
+          const source=extractWritingExplanationSource({ownerId:owner,attempt,submission,assessment});
+          explanation_view=await projectStoredExplanation(client,{source,...await readExplanationRepresentations(client,{source})},requestedLanguage);
+        }
         return { submission, job:job??(attachment?.failure_code?{status:'unassessed',failure_code:attachment.failure_code,tries:0}:null), assessment:content.blocked_reason?null:assessment ?? null,
+          explanation_view,
           task_id: attempt.task_id, task_version: submission.task_version,
           rubric_id: attempt.rubric_id, rubric_version: submission.rubric_version,
           parent_submission_id: attempt.parent_submission_id,
           preparation_id: attempt.preparation_id ?? null, exam_id: attempt.exam_id ?? null,
           ...content };
+      });
+    },
+
+    async readObjectiveEvidenceExplanation(owner,evidenceId,{language=null}={}) {
+      note('readObjectiveEvidenceExplanation');explanationLanguage(language);
+      return settle(owner,async client=>{
+        try {
+          const bundle=await objectiveExplanationBundle(client,evidenceId,language);
+          return bundle?await projectStoredExplanation(client,bundle,language):blockedExplanation(language);
+        } catch(error) {
+          if(error?.message==='explanation_content_blocked')return blockedExplanation(language);
+          return explanationFault(error);
+        }
       });
     },
 
@@ -1289,6 +1386,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
 export const ACCOUNT_DELETION_STEPS = Object.freeze([
   ['mock_writing', 'DELETE FROM mock_writing WHERE owner_id = $1'],
   ['attempts_unlinked', 'UPDATE attempts SET parent_submission_id = NULL WHERE owner_id = $1 AND parent_submission_id IS NOT NULL'],
+  ['writing_explanation_head', 'DELETE FROM writing_explanation_head WHERE owner_id = $1'],
+  ['writing_explanation_representation', 'DELETE FROM writing_explanation_representation WHERE owner_id = $1'],
   ['usage_ledger', 'DELETE FROM usage_ledger WHERE owner_id = $1'],
   ['assessments', 'DELETE FROM assessments WHERE owner_id = $1'],
   ['jobs', 'DELETE FROM jobs WHERE owner_id = $1'],
@@ -1324,6 +1423,7 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
  * `attempts`, so it is selected by the attempt ids rather than by the owner (see the port).
  */
 export const ACCOUNT_TABLES = Object.freeze([
+  ['writing_explanation_head', 'owner_id = $1', 'owner'], ['writing_explanation_representation', 'owner_id = $1', 'owner'],
   ['payment_order', 'owner_id = $1', 'owner'], ['payment_event', 'owner_id = $1', 'owner'],
   ['payment_grant', 'owner_id = $1', 'owner'], ['payment_checkout_event', 'owner_id = $1', 'owner'],
   ['mock_writing', 'owner_id = $1', 'owner'],

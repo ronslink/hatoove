@@ -55,6 +55,11 @@ export const CATALOGUE_TABLES = Object.freeze([
  */
 export const KEY_TABLES = Object.freeze(['objective_key']);
 
+/** Shared saved explanations are reachable only through context-authorized definer readers. */
+export const PROTECTED_EXPLANATION_TABLES = Object.freeze([
+  'objective_explanation_representation', 'objective_explanation_head',
+]);
+
 /**
  * Tables that are neither account rows nor shared content: the migration ledger itself.
  * Named explicitly so "an unclassified table fails" stays true for every *other* table, while
