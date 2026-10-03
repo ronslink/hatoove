@@ -1,5 +1,11 @@
 # Hatoove implementation plan
 
+## O01 locally verified; full interface languages requested — 3 October 2026
+
+[Issue127](https://github.com/ronslink/hatoove/issues/127) has independently reviewed private invocation accounting, bounded recovery, owned export/deletion and safe aggregate reporting, with [local evidence](work/implementation/PILOT-O01-RESULT.md): pure15, PostgreSQL32, classifier173 mutation controls, Compose40 including OpenAPI51, and retained regressions pass. Final source-only S0 fixture1967b5b also passes6/6 with independent review. Publication follows staged verification, stacked on PILOT07 PR126. Actual hosted CI and merge remain separate; the prerequisite stack is account-blocked. Synthetic estimates are not actual spend, and production-scale erasure performance remains unproved.
+
+Ron now requires the selected language to cover public landing/pre-authentication screens, menus, account screens and app guidance before and after signup. Original German exam content and directions stay German; operational directions additionally show the selected-language translation. This supersedes the former German-only interface rule. Supported languages remain de/en/uk/ar/tr, independent of exam language and purchasing market. Read-only discovery is active before separately leased implementation; immutable saved explanation/source facts and human/native/device/security/legal/live-operation gates remain intact.
+
 ## PILOT07 published; O01 contract frozen — 3 October 2026
 
 PILOT07 [PR126](https://github.com/ronslink/hatoove/pull/126), head671b3e0, is independently reviewed with local evidence and final staged guard629/542. Actual hosted runs37145079825/37145079751 have seven required zero-step failures, each confirming the GitHub account payment/spending restriction. No retry or merge. [Issue127](https://github.com/ronslink/hatoove/issues/127) freezes the independently reviewed [O01 contract](docs/contracts/PILOT-O01-USAGE.md), reserving0038 for private invocation accounting, exact unknown-aware synthetic cost reporting and bounded owner-first worker recovery. Implementation still requires separate bounded leases. No live provider, real prices, production operation or retention approval is implied; human/native/device/privacy/security/legal/provider gates remain open.

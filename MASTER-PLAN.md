@@ -1,5 +1,11 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## Invocation accounting locally delivered; full interface languages next — 3 October 2026
+
+[O01 issue127](https://github.com/ronslink/hatoove/issues/127) delivers independently reviewed private invocation receipts, safe synthetic reporting and bounded recovery with [local evidence](work/implementation/PILOT-O01-RESULT.md): pure15, PostgreSQL32, classifier173, Compose40/OpenAPI51 and retained regression suites pass. PR publication follows final staged verification. Required hosted CI, ordered integration and product acceptance remain outstanding under the predecessor account restriction; no actual provider spend, production erasure performance or live-operation approval is claimed.
+
+Ron explicitly changed the language requirement: the public landing page, pre-signup screens, navigation, account screens and app guidance follow the selected de/en/uk/ar/tr language. Original exam-language content and instructions remain visible; operational directions also show the selected-language translation. German-only interface preservation is superseded. Tested passages, audio, questions/options, writing scenario and Leitpunkte remain in the exam language; package, language and market stay independent. Read-only discovery precedes bounded implementation and desktop/mobile verification. Native translation review remains a separate acceptance gate.
+
 ## Saved explanations PR126; invocation-accounting contract ready — 3 October 2026
 
 PILOT07 is published as [PR126](https://github.com/ronslink/hatoove/pull/126), independently reviewed and locally verified, with actual required hosted jobs stopped before any test by the unchanged account billing/spending restriction. The stack remains unmerged. [O01 issue127](https://github.com/ronslink/hatoove/issues/127) now has a [reviewed contract](docs/contracts/PILOT-O01-USAGE.md) for private per-claim usage facts, unknown-aware synthetic estimates, bounded recovery and safe aggregate reporting. This is a contract freeze before separately leased implementation; actual provider prices/calls, invoices, production monitoring, retention and human/live-operation acceptance remain open.
