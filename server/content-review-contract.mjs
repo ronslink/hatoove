@@ -1,3 +1,4 @@
+import {validateExplanationReviewSubject} from './explanation-review-contract.mjs';
 /** Operator inputs only. This contract does not establish human qualifications. */
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA=/^[0-9a-f]{64}$/;
@@ -10,6 +11,7 @@ const object=(v,keys)=>demand(v&&typeof v==='object'&&!Array.isArray(v)&&Object.
 const nullableUuid=v=>v===null||(typeof v==='string'&&UUID.test(v));
 function evidence(p){demand(UUID.test(p.eventId??'')&&text(p.evidenceRef,500)&&SHA.test(p.evidenceSha256??'')&&text(p.rationale,2000,3));}
 export function validateReviewSubject(s){
+ if(s&&Object.getOwnPropertyDescriptor(s,'kind')?.value==='explanation')return validateExplanationReviewSubject(s);
  object(s,['kind','examId','subjectId','version','sha256']);
  demand(['content','blueprint','form'].includes(s.kind)&&text(s.examId,128)&&text(s.subjectId,300)&&SHA.test(s.sha256??''));
  demand(s.kind==='content'?s.version==='':typeof s.version==='string'&&/^v[0-9]{1,4}$/.test(s.version));
@@ -26,8 +28,9 @@ export function validateReviewerAuthority(p){
 export function validateContentReview(p){
  object(p,['eventId','subject','category','language','authorityId','expectedDecisionId','decision','evidenceRef','evidenceSha256','rationale','packetSha256']);evidence(p);
  const subject=validateReviewSubject(p.subject);
- demand(['educational','audio','exam_format'].includes(p.category)&&typeof p.language==='string'&&UUID.test(p.authorityId??'')&&nullableUuid(p.expectedDecisionId)&&['approve','reject','withdraw'].includes(p.decision));
- demand(p.category==='audio'?REVIEW_LANGUAGES.includes(p.language):p.language==='');
+ demand((subject.kind==='explanation'?['educational','language']:['educational','audio','exam_format']).includes(p.category)&&typeof p.language==='string'&&UUID.test(p.authorityId??'')&&nullableUuid(p.expectedDecisionId)&&['approve','reject','withdraw'].includes(p.decision));
+ demand(['audio','language'].includes(p.category)?REVIEW_LANGUAGES.includes(p.language):p.language==='');
+ demand(subject.kind!=='explanation'||p.decision!=='approve'||SHA.test(p.packetSha256??''));
  demand(p.packetSha256==null||SHA.test(p.packetSha256));
  return {...p,subject,packetSha256:p.packetSha256??null};
 }
