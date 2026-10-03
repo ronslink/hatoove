@@ -589,8 +589,11 @@ paths:
       description: |
         The version is REQUIRED and never defaulted (EXAM-S0): two versions of one set may share item
         ids with different keys, so the client must bind the exact `(set_id, version)` pair it took from
-        the catalogue. The response shape is unchanged and carries no answer key. The deployment content
-        policy applies, as for `/api/v1/tasks`.
+        the catalogue. The response carries no answer key. Imported sets include an interaction identifier
+        resolved from exact current permitted release membership; ambiguous metadata fails closed. The
+        deployment content policy applies, as for `/api/v1/tasks`. The internal `grouped_choice` payload
+        has ordered groups with id, text and questions (n, question, options); item identities are unique
+        across all groups. The interaction, rather than a telc family assumption, determines rendering.
       parameters:
         - $ref: '#/components/parameters/PreparationQuery'
         - name: version
@@ -840,6 +843,7 @@ components:
         time_limit_seconds: { type: integer, nullable: true }
         item_count: { type: integer }
         review_status: { type: string }
+        release_state: { type: string, enum: [hidden, internal, available, withdrawn] }
     MockPosition:
       type: object
       additionalProperties: false
@@ -863,6 +867,8 @@ components:
         preparation_id: { type: string, format: uuid }
         exam_id: { type: string }
         release_version: { type: string }
+        release_state: { type: string, enum: [hidden, internal, available, withdrawn] }
+        review_status: { type: string }
         blueprint_version: { type: string }
         form_id: { type: string }
         form_version: { type: string }
@@ -877,7 +883,10 @@ components:
         finalised_at: { type: string, format: date-time, nullable: true }
         server_now: { type: string, format: date-time }
         expired: { type: boolean }
-        blocked_reason: { type: string, nullable: true }
+        blocked_reason:
+          type: string
+          nullable: true
+          description: 'A blocked run retains owned identity and responses. rights_blocked, content_policy_blocked or exam_unavailable withhold members and protected results; ordinary withdrawal of an available release retains permitted resume.'
     MockRun:
       allOf:
         - $ref: '#/components/schemas/MockRunSummary'
@@ -893,7 +902,8 @@ components:
                 properties:
                   set_id: { type: string }
                   version: { type: string }
-                  interaction: { type: string }
+                  interaction: { type: string, enum: [matching_headlines, single_choice, matching_ads, gap_choice, gap_bank, grouped_choice] }
+                  review_status: { type: string }
                   item_count: { type: integer }
                   title: { type: string }
                   family: { type: string }

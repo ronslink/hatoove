@@ -46,6 +46,12 @@ export async function verifyExamS3({base,email,password,freePort,record,shot,vie
       await select(a,telcId);assert(await a.evaluate("return document.querySelector('#examDate').value===''") ,'DTZ date leaked into telc');await setInputs(a,{examDate:'2026-12-09'});await clickSel(a,'#save-settings');await a.waitFor("document.querySelector('#settings-state').textContent==='Gespeichert.'");
       await select(a,dtzId);assert(await a.evaluate("return document.querySelector('#examDate').value==='2026-12-21'"),'DTZ date not retained');
     });
+    await run('S3B2b unsupported language-elements route cannot persist after exam switch or a direct link',async()=>{
+      await select(a,telcId);await go(a,'sprachbausteine');await a.waitFor("!document.querySelector('#view-sprachbausteine').hidden");
+      await select(a,dtzId);await a.waitFor("!document.querySelector('#view-ueben').hidden && document.querySelector('#view-sprachbausteine').hidden");
+      await fresh(a,'#/prep/'+dtzId+'/sprachbausteine');await a.waitFor("!document.querySelector('#view-ueben').hidden && document.querySelector('#view-sprachbausteine').hidden");
+      assert(await a.evaluate("return location.hash.endsWith('/ueben') && [...document.querySelectorAll('[data-view=sprachbausteine]')].every(link=>link.hidden)"),'unsupported exam section still shown');
+    });
     await run('S3B3 standalone DTZ uses exact interaction metadata and keeps cloze in reading',async()=>{
       const catalog=await request(a,'/api/v1/objective-sets?preparationId='+dtzId);assert(catalog.status===200&&catalog.data.length===5&&catalog.data.every(set=>set.section==='LV'),'DTZ catalogue must contain five reading parts');
       const groupSet=catalog.data.find(set=>set.interaction==='grouped_choice'),clozeSet=catalog.data.find(set=>set.interaction==='gap_choice'),directory=catalog.data.find(set=>set.part===1);assert(groupSet&&clozeSet&&directory,'interaction metadata missing');

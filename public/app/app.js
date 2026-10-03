@@ -172,10 +172,11 @@ function selectPreparation(value) {
 async function refreshSectionNavigation() {
   const ticket = contextTicket();
   const response = await api.objectiveSets.list();
-  if (!currentContext(ticket) || !response?.ok || !Array.isArray(response.data)) return;
+  if (!currentContext(ticket) || !response?.ok || !Array.isArray(response.data)) return null;
   const hasLanguageSection = response.data.some(set => set.section === 'SB');
   for (const link of document.querySelectorAll('[data-view="sprachbausteine"]')) link.hidden = !hasLanguageSection;
   el('view-satzbau').querySelector('.kicker').textContent = 'Lernhilfe';
+  return hasLanguageSection;
 }
 
 function renderPreparation() {
@@ -1284,7 +1285,14 @@ async function route() {
   }
   if (mock.active && info.view === 'abschnitt' && info.runId === mock.runId) { history.replaceState(null, '', '#/prep/' + state.preparation.id + '/abschnitt/' + mock.runId); return; }
   mock.dispose();
-  const key = info.view;
+  let key = info.view;
+  if (key === 'sprachbausteine') {
+    // A hidden link alone cannot prevent a saved URL or an exam switch retaining this route.
+    // Resolve from this preparation's catalogue only after the outgoing work is saved.
+    const available = await refreshSectionNavigation();
+    if (request !== routing || sessionProblem) return;
+    if (available === false) key = 'ueben';
+  }
   const view = VIEW_TITLES[key] ? key : 'heute';
   /*
    * Which view is on screen, so a SLOW failure cannot paint on the wrong one.

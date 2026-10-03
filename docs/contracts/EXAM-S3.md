@@ -16,6 +16,8 @@ Existing immutable migrations stay unchanged. A forward migration extends protec
 
 The default catalogue remains telc-only; no new runtime environment or browser flag enables DTZ. The original package is not added to default startup imports. Disposable PostgreSQL and source-only browser fixtures explicitly import it and inject the existing server-side test catalogue seam. Public mode, default catalogue, direct IDs and incomplete publication must all refuse access. The fixture must not read a local `.env`, call providers or use learner ports/data.
 
+If an internal run exists and the deployment later loses its internal-preview policy or allowed exam, its owned identity, responses and history metadata remain readable, while question members and protected results are withheld with an explicit blocked reason. Saves/finalisation cannot expose or mark that internal content. An available-origin run still follows the existing ordinary-withdrawal resume policy when its exam is enabled; rights-blocked content stays separately withheld. This distinction preserves learner evidence without turning saved IDs into a publication bypass.
+
 S3 proves two-exam choice, preparation-specific date/history/results, autosave before switching, retained context/local answers when save fails or conflicts, late-response fencing and two independent tabs. Empty multi-exam accounts choose explicitly; existing telc-only accounts keep the one-option bypass. No DTZ credit allowance is invented, transferred or refilled. Human content/device acceptance remains open and is not represented by mechanical tests.
 
 ## Evidence
