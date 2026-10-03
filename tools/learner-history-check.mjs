@@ -2,6 +2,7 @@
 /** Synthetic history/export/revision and new-content policy checks. PostgreSQL requires a disposable DB. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { createOwnedApi } from '../server/owned-api.mjs';
 import { contentPolicy } from '../server/content-policy.mjs';
 import { createMemoryDatastore, createMemorySessions } from './owned-api-check.mjs';
@@ -11,20 +12,45 @@ const postgres = process.argv.includes('--backend=postgres');
 const previousRights = process.env.B1PREP_SERVE_RIGHTS;
 const previousReview = process.env.B1PREP_SERVE_REVIEW;
 const previousMode = process.env.B1PREP_CONTENT_MODE;
-delete process.env.B1PREP_SERVE_RIGHTS;
-delete process.env.B1PREP_SERVE_REVIEW;
-// EXAM-S0: the synthetic/seeded content is `unreviewed`; this check opts into the preview policy explicitly.
-process.env.B1PREP_CONTENT_MODE = 'internal-preview';
-let world;
-if (postgres) {
-  const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
-  world = await createPostgresWorld();
-} else {
-  const store = createMemoryDatastore();
-  // EXAM-S1: sign-up provisions the initial preparation + balance, as the PostgreSQL registration does.
-  const sessions = createMemorySessions({ provision: store.provision });
-  world = { store, sessions, settings: store.settings,
-    api: createOwnedApi({ datastore: store.port, sessions, settings: store.settings }) };
+let world, fixture, observer, fixtureBaseline;
+function fixtureAllowed(env) {
+  const local = env.OWNAPI_PG_PORT === '62563' && env.OWNAPI_PG_DATABASE === 'hatoove_spike';
+  const ci = env.CI === 'true' && env.GITHUB_ACTIONS === 'true'
+    && env.OWNAPI_PG_PORT === '5432' && env.OWNAPI_PG_DATABASE === 'hatoove_ci';
+  return env.OWNAPI_PG_ALLOW === '1' && env.OWNAPI_PG_HOST === '127.0.0.1'
+    && env.OWNAPI_PG_USER === 'postgres' && (local || ci);
+}
+function restoreEnv(key, value) {
+  if (value === undefined) delete process.env[key]; else process.env[key] = value;
+}
+// The observer exists before bootstrap so partial setup failures also have a cleanup oracle.
+async function fixtureObjects() {
+  return (await observer.query(`
+    SELECT 'schema:' || nspname AS identity FROM pg_namespace WHERE nspname ~ '^ownapi_[0-9a-f]{16}$'
+    UNION SELECT 'role:' || rolname FROM pg_roles WHERE rolname ~ '^ownapi_[0-9a-f]{16}_'
+    UNION SELECT 'connection:' || application_name || ':' || usename FROM pg_stat_activity
+      WHERE application_name ~ '^ownapi_[0-9a-f]{16}$' OR usename ~ '^ownapi_[0-9a-f]{16}_'
+    ORDER BY identity`)).rows.map((row) => row.identity);
+}
+async function cleanupFixture() {
+  const errors = [];
+  try { if (fixture) await fixture.cleanup(); else if (world?.teardown) await world.teardown(); }
+  catch (error) { errors.push(error); }
+  try {
+    if (observer && fixtureBaseline) {
+      const remaining = await fixtureObjects();
+      assert.deepEqual(remaining.filter((name) => !fixtureBaseline.has(name)), [], 'fixture setup/cleanup left new objects or connections');
+      if (fixture) {
+        assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_namespace WHERE nspname=$1', [fixture.schema])).rows[0].n, 0);
+        assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_roles WHERE rolname=ANY($1::text[])', [Object.values(fixture.roles)])).rows[0].n, 0);
+        assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_stat_activity WHERE application_name=$1 OR usename=ANY($2::text[])',
+          [fixture.schema, Object.values(fixture.roles)])).rows[0].n, 0);
+        console.log(`clean ${fixture.schema}: schema, roles and connections verified absent`);
+      }
+    }
+  } catch (error) { errors.push(error); }
+  finally { if (observer) await observer.end(); }
+  if (errors.length) throw new AggregateError(errors, 'history fixture cleanup failed');
 }
 
 const call = async (method, path, cookie = null, body = {}) => {
@@ -76,6 +102,27 @@ async function saveAndSubmit(sourceCookie, letter, customBinding = binding) {
 }
 
 try {
+  if (postgres && !fixtureAllowed(process.env)) throw new Error('history_fixture_refused: explicit disposable PostgreSQL target required');
+  delete process.env.B1PREP_SERVE_RIGHTS;
+  delete process.env.B1PREP_SERVE_REVIEW;
+  // Seeded content stays unreviewed: this is internal preview, never a content approval.
+  process.env.B1PREP_CONTENT_MODE = 'internal-preview';
+  if (postgres) {
+    const { createFixture, pgConfig } = await import('../server/owned-postgres/bootstrap.mjs');
+    const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
+    const pg = createRequire(new URL('../server/owned-postgres/bootstrap.mjs', import.meta.url))('pg');
+    observer = new pg.Pool({ ...pgConfig(), max: 1, connectionTimeoutMillis: 5000, query_timeout: 10000,
+      application_name: 'history-check-cleanup' });
+    fixtureBaseline = new Set(await fixtureObjects());
+    fixture = await createFixture();
+    console.log(`fixture ${fixture.schema}`);
+    world = await createPostgresWorld({ fixture });
+  } else {
+    const store = createMemoryDatastore();
+    const sessions = createMemorySessions({ provision: store.provision });
+    world = { store, sessions, settings: store.settings,
+      api: createOwnedApi({ datastore: store.port, sessions, settings: store.settings }) };
+  }
   await check('history/export require a verified session and new accounts have empty history', async () => {
     expect(await call('GET', '/api/v1/attempts'), 401);
     expect(await call('GET', '/api/v1/export'), 401);
@@ -202,17 +249,66 @@ try {
   await check('rights policy cannot allow unknown and withdrawal blocks new uses while preserving history', async () => {
     assert.deepEqual(contentPolicy({ B1PREP_SERVE_RIGHTS: 'generated,licensed+commissioned unknown nonsense' }).rights,
       ['generated', 'licensed', 'commissioned']);
-    process.env.B1PREP_SERVE_RIGHTS = 'unknown';
-    expect(await call('POST', '/api/v1/attempts', cookie, { preparationId: await preparationId(cookie) }), 422);
-    expect(await call('POST', '/api/v1/attempts', cookie, { ...binding, preparationId: await preparationId(cookie) }), 422);
-    expect(await call('POST', '/api/v1/attempts', cookie, { parentSubmissionId: submitted }), 422);
-    expect(await call('POST', `/api/v1/attempts/${revised.id}/submissions`, cookie,
-      { expectedRevision: 2, eventId: randomUUID() }), 422);
-    expect(await call('POST', `/api/v1/submissions/${failed.submissionId}/retry`, cookie), 422);
-    assert.equal(expect(await call('GET', `/api/v1/submissions/${submitted}`, cookie)).task.task_id, binding.taskId);
-    assert.equal(expect(await call('GET', `/api/v1/attempts/${revised.id}`, cookie)).task.task_id, binding.taskId);
-    assert.ok(expect(await call('GET', '/api/v1/export', cookie)).submissions.some((s) => s.id === submitted));
-    delete process.env.B1PREP_SERVE_RIGHTS;
+    const prep = await preparationId(cookie);
+    const historyPath = `/api/v1/attempts?preparationId=${prep}`;
+    const beforeResult = expect(await call('GET', `/api/v1/submissions/${submitted}`, cookie));
+    const beforeDraft = expect(await call('GET', `/api/v1/attempts/${revised.id}`, cookie));
+    const beforeHistory = expect(await call('GET', historyPath, cookie));
+    const beforeExport = expect(await call('GET', '/api/v1/export', cookie));
+    // This reads actual stored rows on PostgreSQL, including jobs, assessments, balances and receipts.
+    const beforeRows = await world.store.inspect.fingerprint();
+    const previous = process.env.B1PREP_SERVE_RIGHTS;
+    try {
+      process.env.B1PREP_SERVE_RIGHTS = 'unknown';
+      assert.equal(expect(await call('POST', '/api/v1/attempts', cookie, { preparationId: prep }), 422).error, 'task_not_servable');
+      assert.equal(expect(await call('POST', '/api/v1/attempts', cookie, { ...binding, preparationId: prep }), 422).error, 'task_not_servable');
+      // C-03 gives retained PostgreSQL work an explicit refusal. The older memory stand-in keeps its own contract.
+      const status = postgres ? 409 : 422;
+      const code = postgres ? 'rights_blocked' : 'task_not_servable';
+      assert.equal(expect(await call('POST', '/api/v1/attempts', cookie, { parentSubmissionId: submitted }), status).error, code);
+      assert.equal(expect(await call('POST', `/api/v1/attempts/${revised.id}/submissions`, cookie,
+        { expectedRevision: 2, eventId: randomUUID() }), status).error, code);
+      assert.equal(expect(await call('POST', `/api/v1/submissions/${failed.submissionId}/retry`, cookie), status).error, code);
+      if (postgres) {
+        assert.equal(expect(await call('PUT', `/api/v1/attempts/${revised.id}`, cookie,
+          { expectedRevision: 2, text: 'SYNTHETIC refused replacement' }), 409).error, 'rights_blocked');
+        assert.equal(expect(await call('DELETE', `/api/v1/attempts/${revised.id}`, cookie), 409).error, 'rights_blocked');
+      }
+      for (const [method, path, body] of [
+        ['GET', `/api/v1/submissions/${submitted}`], ['GET', `/api/v1/attempts/${revised.id}`],
+        ['POST', '/api/v1/attempts', { parentSubmissionId: submitted }],
+        ['POST', `/api/v1/attempts/${revised.id}/submissions`, { expectedRevision: 2, eventId: randomUUID() }],
+        ['POST', `/api/v1/submissions/${failed.submissionId}/retry`],
+      ]) assert.equal(expect(await call(method, path, otherCookie, body), 404).error, 'not_found');
+      const result = expect(await call('GET', `/api/v1/submissions/${submitted}`, cookie));
+      const draft = expect(await call('GET', `/api/v1/attempts/${revised.id}`, cookie));
+      assert.deepEqual(result.submission, beforeResult.submission);
+      assert.deepEqual(result.job, beforeResult.job);
+      for (const key of ['id', 'task_id', 'task_version', 'rubric_id', 'rubric_version', 'parent_submission_id', 'revision', 'text']) {
+        assert.deepEqual(draft[key], beforeDraft[key], `retained draft ${key}`);
+      }
+      assert.deepEqual(expect(await call('GET', historyPath, cookie)), beforeHistory);
+      const exported = expect(await call('GET', '/api/v1/export', cookie));
+      for (const key of ['attempts', 'submissions', 'objective_evidence']) assert.deepEqual(exported[key], beforeExport[key], `retained export ${key}`);
+      assert.equal(JSON.stringify(exported).includes(privateText), false);
+      if (postgres) {
+        for (const view of [result, draft]) {
+          assert.equal(view.blocked_reason, 'rights_blocked');
+          assert.equal(view.task, null); assert.equal(view.rubric, null);
+        }
+        assert.equal(result.assessment, null);
+        assert.deepEqual(exported.results, beforeExport.results.map((row) => ({ ...row, feedback: null })));
+      } else {
+        assert.deepEqual(result.task, beforeResult.task); assert.deepEqual(result.rubric, beforeResult.rubric);
+        assert.deepEqual(result.assessment, beforeResult.assessment); assert.deepEqual(draft.task, beforeDraft.task);
+        assert.deepEqual(exported.results, beforeExport.results);
+      }
+    } finally {
+      restoreEnv('B1PREP_SERVE_RIGHTS', previous);
+      assert.equal(await world.store.inspect.fingerprint(), beforeRows, 'rights refusals and redacted reads changed stored learner facts');
+    }
+    assert.deepEqual(expect(await call('GET', `/api/v1/submissions/${submitted}`, cookie)), beforeResult,
+      'restored policy reveals the original stored content and assessment unchanged');
   });
 
   if (postgres) await check('all catalogue and practice routes apply the same closed rights policy', async () => {
@@ -226,22 +322,24 @@ try {
     }
     const set = controls.get('/api/v1/objective-sets');
     const guide = controls.get('/api/v1/guides');
-    process.env.B1PREP_SERVE_RIGHTS = 'licensed';
-    for (const route of routes) assert.deepEqual(expect(await call('GET', scoped(route + '?rights=generated'), cookie)), []);
-    expect(await call('GET', scoped(`/api/v1/objective-sets/${set.set_id}?version=${set.version}`), cookie), 404);
-    expect(await call('GET', `/api/v1/guides/${guide.guide_id}`, cookie), 404);
-    expect(await call('GET', `/api/v1/rubrics/${binding.rubricId}?version=${binding.rubricVersion}`, cookie), 404);
-    assert.equal(expect(await call('GET', scoped('/api/v1/practice/next'), cookie)).reason, 'nothing_available');
-    expect(await call('POST', `/api/v1/objective-sets/${set.set_id}/answers`, cookie,
-      { version: set.version, itemId: '1', answer: 'a', preparationId: prep }), 404);
-    delete process.env.B1PREP_SERVE_RIGHTS;
+    const previous = process.env.B1PREP_SERVE_RIGHTS;
+    try {
+      process.env.B1PREP_SERVE_RIGHTS = 'licensed';
+      for (const route of routes) assert.deepEqual(expect(await call('GET', scoped(route + '?rights=generated'), cookie)), []);
+      expect(await call('GET', scoped(`/api/v1/objective-sets/${set.set_id}?version=${set.version}`), cookie), 404);
+      expect(await call('GET', `/api/v1/guides/${guide.guide_id}`, cookie), 404);
+      expect(await call('GET', `/api/v1/rubrics/${binding.rubricId}?version=${binding.rubricVersion}`, cookie), 404);
+      assert.equal(expect(await call('GET', scoped('/api/v1/practice/next'), cookie)).reason, 'nothing_available');
+      expect(await call('POST', `/api/v1/objective-sets/${set.set_id}/answers`, cookie,
+        { version: set.version, itemId: '1', answer: 'a', preparationId: prep }), 404);
+    } finally { restoreEnv('B1PREP_SERVE_RIGHTS', previous); }
     assert.ok(expect(await call('GET', scoped('/api/v1/practice/next'), cookie)).set);
   });
 } finally {
-  if (previousRights === undefined) delete process.env.B1PREP_SERVE_RIGHTS; else process.env.B1PREP_SERVE_RIGHTS = previousRights;
-  if (previousReview === undefined) delete process.env.B1PREP_SERVE_REVIEW; else process.env.B1PREP_SERVE_REVIEW = previousReview;
-  if (previousMode === undefined) delete process.env.B1PREP_CONTENT_MODE; else process.env.B1PREP_CONTENT_MODE = previousMode;
-  if (world.teardown) await world.teardown();
+  restoreEnv('B1PREP_SERVE_RIGHTS', previousRights);
+  restoreEnv('B1PREP_SERVE_REVIEW', previousReview);
+  restoreEnv('B1PREP_CONTENT_MODE', previousMode);
+  await cleanupFixture();
 }
 console.log(`\n${passed} passed, ${failures.length} failed (${postgres ? 'PostgreSQL with restricted roles/RLS' : 'memory contract only'})`);
 process.exitCode = failures.length ? 1 : 0;
