@@ -35,13 +35,20 @@ function fixture(options = {}) {
 // controller too, so discrimination is behavioral rather than just a newly exported helper name.
 async function rendered(api, run) {
   const previousWindow = globalThis.window, previousDocument = globalThis.document;
-  const redirects = []; let html = '', nodes = new Map();
-  const host = { isConnected: true, hidden: true, dataset: {}, contains: () => false,
-    get innerHTML() { return html; }, set innerHTML(value) { html = value; nodes = new Map([...value.matchAll(/id="([^"]+)"/g)].map(match => [match[1], { id: match[1], focus() {} }])); },
+  const redirects = [], focusCalls = []; let html = '', nodes = new Map();
+  const document = { body: { isConnected: true }, documentElement: { isConnected: true }, activeElement: null };
+  document.activeElement = document.body;
+  const control = (id, disabled = false) => ({ id, isConnected: true, disabled, focus() { if (this.isConnected && !this.disabled) { document.activeElement = this; focusCalls.push(this); } } });
+  const host = { isConnected: true, hidden: true, dataset: {}, contains: node => Boolean(node?.isConnected && [...nodes.values()].includes(node)),
+    get innerHTML() { return html; }, set innerHTML(value) {
+      if (host.contains(document.activeElement)) document.activeElement = document.body;
+      for (const node of nodes.values()) node.isConnected = false;
+      html = value; nodes = new Map([...value.matchAll(/<[^>]+\bid="([^"]+)"[^>]*>/g)].map(match => [match[1], control(match[1], /\bdisabled\b/.test(match[0]))]));
+    },
     querySelector(selector) { return nodes.get(selector.slice(1)) || null; }, replaceChildren() { this.innerHTML = ''; } };
-  globalThis.window = { location: { origin: ORIGIN, assign: value => redirects.push(value) } }; globalThis.document = { activeElement: null };
+  globalThis.window = { location: { origin: ORIGIN, assign: value => redirects.push(value) } }; globalThis.document = document;
   const controller = checkout.createCheckoutController({ api: { payments: api }, esc });
-  try { await run({ controller, host, redirects }); } finally { controller.dispose(); globalThis.window = previousWindow; globalThis.document = previousDocument; }
+  try { await run({ controller, host, redirects, document, control, focusCalls }); } finally { controller.dispose(); globalThis.window = previousWindow; globalThis.document = previousDocument; }
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const compatibleOffer = async (examId, market) => ok({ markets, offer: market === null ? null : offer(market || 'DE'), testMode: true });
@@ -70,6 +77,30 @@ await check('rendered uncertain retry repeats the original checkout POST and kee
 await check('rendered refund copy never says nothing was previously granted', async () => {
   await rendered({ order: async () => ok({ order: order('refunded') }) }, async ({ controller, host }) => {
     await controller.open(host, { examId: 'telc-deutsch-b1', orderId: ID }); assert.equal(/nichts freigeschaltet|nicht aktiv/i.test(host.innerHTML), false, 'refund must not invent a balance removal');
+  });
+});
+await check('a delayed offer leaves focus on a live preparation control outside checkout', async () => {
+  let release;
+  await rendered({ offer: async (examId, market) => market ? new Promise(resolve => { release = () => resolve(ok({ markets, offer: offer(market), testMode: true })); }) : ok({ markets, offer: null, testMode: true }) }, async ({ controller, host, document, control, focusCalls }) => {
+    await controller.open(host, { examId: 'telc-deutsch-b1' });
+    const picker = host.querySelector('#checkout-market'); picker.focus(); picker.onchange({ target: { value: 'DE' } });
+    assert.equal(picker.isConnected, false); assert.equal(document.activeElement, document.body);
+    const preparation = control('preparation-picker'); preparation.focus(); const count = focusCalls.length;
+    release(); await tick();
+    assert.equal(host.dataset.state, 'ready'); assert.equal(document.activeElement, preparation, 'offer response must not steal deliberately moved focus');
+    assert.equal(focusCalls.length, count, 'no focus call is needed when the learner is elsewhere');
+  });
+});
+await check('a delayed offer restores checkout focus lost when its controls are replaced', async () => {
+  let release;
+  await rendered({ offer: async (examId, market) => market ? new Promise(resolve => { release = () => resolve(ok({ markets, offer: offer(market), testMode: true })); }) : ok({ markets, offer: null, testMode: true }) }, async ({ controller, host, document }) => {
+    await controller.open(host, { examId: 'telc-deutsch-b1' });
+    const picker = host.querySelector('#checkout-market'); picker.focus(); picker.onchange({ target: { value: 'DE' } });
+    assert.equal(picker.isConnected, false); assert.equal(document.activeElement, document.body);
+    release(); await tick();
+    const replacement = host.querySelector('#checkout-market');
+    assert.notEqual(replacement, picker); assert.equal(replacement.isConnected, true); assert.equal(replacement.disabled, false);
+    assert.equal(document.activeElement, replacement, 'replacement must regain focus when the learner has not moved elsewhere');
   });
 });
 

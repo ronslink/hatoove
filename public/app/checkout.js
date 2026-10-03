@@ -169,8 +169,11 @@ export function createCheckoutController({ api, esc, onChange = () => {}, before
   const session = createCheckoutState({ api, beforeRedirect, canContinue: () => Boolean(host?.isConnected) && canContinue(), onPaid: onChange, changed: () => {
     const state = session.snapshot();
     if (!host?.isConnected || !state) return;
-    const focused = host.contains(document.activeElement) ? document.activeElement.id : null;
-    if (focused) restoreFocus = focused;
+    const active = document.activeElement;
+    if (host.contains(active)) restoreFocus = active.id || 'checkout-title';
+    // Replacement can leave focus on the document. A deliberate move to another live control
+    // cancels the pending restoration, including while an offer request is still in flight.
+    else if (active?.isConnected && active !== document.body && active !== document.documentElement && active !== document) restoreFocus = null;
     host.dataset.state = state.mode; host.innerHTML = checkoutMarkup(state, esc);
     const bind = (id, action) => { const node = host.querySelector('#' + id); if (node) node.onclick = action; };
     bind('checkout-buy', () => void session.start()); bind('checkout-refresh', () => void (state.orderId ? session.checkOrder() : session.loadOffer()));
