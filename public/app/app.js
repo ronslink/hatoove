@@ -827,6 +827,14 @@ function renderChrome() {
  *      claim nothing here makes.
  * The layout, the components and the hierarchy are the design's. The numbers are the learner's own.
  */
+function bindDashboardTitle(read, readLanguage = () => getLocale()) {
+  const node = el('next-title');
+  bindShellText(node, () => {
+    const language = readLanguage() || 'und';
+    node.lang = language; node.dir = language === 'ar' ? 'rtl' : 'ltr';
+    return read();
+  });
+}
 async function renderDashboard() {
   const ticket = contextTicket();
   const pct = (value) => Math.round((value || 0) * 100) + '%';
@@ -840,25 +848,25 @@ async function renderDashboard() {
     const d = next.data;
     const e = d.evidence || {};
     bindShellText(el('next-kicker'), () => uiText("m102") + " " + sectionName(d.section));
-    bindShellText(el('next-title'), () => setLabel(d.set));
+    bindDashboardTitle(() => setLabel(d.set), () => hasAuthoredSetTitle(d.set) ? getExamLanguage() || 'und' : getLocale());
     bindShellText(el('next-detail'), () => uiText('tasks', {count: d.set.item_count})
       + (d.reason === 'section_not_started'
         ? " " + uiText("m103")
         : (e.attempts ? ' · ' + e.correct + " " + uiText("m094") + " " + e.attempts + " " + uiText("m104") : '')));
   } else {
     bindShellText(el('next-kicker'), () => uiText("m105"));
-    bindShellText(el('next-title'), () => uiText("m106"));
+    bindDashboardTitle(() => uiText("m106"));
     bindShellText(el('next-detail'), () => uiText("m107"));
   }
   const savedRun = savedRuns?.ok && savedRuns.data?.runs?.find(run => run.state === 'active');
   if (savedRun && activePreparation()) {
     bindShellText(el('next-kicker'), () => uiText("m108"));
-    bindShellText(el('next-title'), () => savedRun.title);
+    bindDashboardTitle(() => savedRun.title, () => savedRun.exam_language || getExamLanguage() || 'und');
     bindShellText(el('next-detail'), () => uiText("m109"));
     if (start) { start.href = '#/lauf/' + savedRun.id; bindShellText(start, () => uiText("m110")); }
   }
   if (!activePreparation()) {
-    bindShellText(el('next-title'), () => uiText("m111"));
+    bindDashboardTitle(() => uiText("m111"));
     bindShellText(el('next-detail'), () => uiText("m112"));
   }
 

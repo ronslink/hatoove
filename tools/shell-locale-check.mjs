@@ -115,6 +115,19 @@ function textNode() {
     set textContent(value){if(this.firstChild)this.firstChild.parentNode=null;this.firstChild={data:String(value),parentNode:this};this.children=[];},
     get textContent(){return this.firstChild?.data||'';},replaceChildren(){this.textContent='';},contains(child){return this===child;},matches:()=>false};
 }
+await check('dashboard title bindings keep authored language and reset translated fallback annotations', async () => {
+  const source = await readFile(new URL('../public/app/app.js', import.meta.url), 'utf8');
+  const body = source.slice(source.indexOf('function bindDashboardTitle('), source.indexOf('async function renderDashboard()'));
+  const node = textNode();
+  const bind = new Function('el', 'bindShellText', 'getLocale', body + ';return bindDashboardTitle;')(() => node, bindShellText, getLocale);
+  for (const language of ['de', 'en', 'ar', null]) {
+    bind(() => 'Exact authored title', () => language); const text = node.firstChild;
+    for (const locale of LOCALES) { setLocale(locale); updateShellMessages(node); assert.equal(node.firstChild, text); assert.equal(node.textContent, 'Exact authored title'); assert.equal(node.lang, language || 'und'); assert.equal(node.dir, language === 'ar' ? 'rtl' : 'ltr'); }
+  }
+  bind(() => s('m106')); const text = node.firstChild;
+  for (const locale of LOCALES) { setLocale(locale); updateShellMessages(node); assert.equal(node.firstChild, text); assert.equal(node.textContent, s('m106')); assert.equal(node.lang, locale); assert.equal(node.dir, locale === 'ar' ? 'rtl' : 'ltr'); }
+  node.isConnected = false;
+});
 await check('locale text updates preserve a recovery control, active editor and audio identities', () => {
   setLocale('de');const status=textNode(),button={id:'retry'},editor={value:'Ungespeichert',selectionStart:4},audio={currentTime:8.2};
   bindShellText(status,()=>s('m185'));const originalText=status.firstChild;status.children.push(button,editor,audio);

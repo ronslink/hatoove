@@ -51,7 +51,7 @@ jobs:
         run: node --test tools/workflow-shape.test.mjs
       # DESIGN-LANGUAGE.md: no raw colour or font family in a rule, the required tokens present,
       # the dark override present, the mobile breakpoints and reduced motion honoured, every view
-      # registered through the shell, and the language setting NOT reaching the interface. This gate
+      # registered through the shell. The selected-language interface has focused checks below. This gate
       # WAS red on a false count - the original regex matched the rules that already said var(--serif)
       # plus the @font-face descriptors, which cannot use var() at all; the true count was zero. It is
       # green now and the check fails on a genuinely raw family, verified by reintroducing one.
@@ -144,10 +144,12 @@ jobs:
           node tools/explanation-worker-check.mjs
           node tools/explanation-api-check.mjs
           node tools/explanation-client-check.mjs
-      - name: Interface locale core and public entry state preservation
+      - name: Interface languages and public shell practice state preservation
         run: |
           node tools/i18n-core-check.mjs
           node tools/public-locale-check.mjs
+          node tools/shell-locale-check.mjs
+          node tools/practice-locale-check.mjs
       - name: Install locked PostgreSQL client for offline worker CLI contracts
         run: npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
       - name: Private invocation receipts and exact synthetic cost contracts
@@ -413,6 +415,20 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/explanation-browser-check.mjs --shots .qa/browser/pilot07-explanations
+      - name: Interface languages preserve live work across account and navigation boundaries
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/exam-s6-browser-check.mjs --locale --shots .qa/browser/pilot-i18n
+      - name: Retain synthetic interface language evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pilot-i18n-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .qa/browser/pilot-i18n/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
       - name: Retain synthetic explanation evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
