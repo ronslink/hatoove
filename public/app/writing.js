@@ -12,6 +12,15 @@ export function writingFeedbackState(data) {
   if (data?.job?.status === 'unassessed') return 'unassessed';
   return 'pending';
 }
+export function writingLabels(rubric, feedbackKind = null) {
+  const boundKind = rubric?.feedback_kind || (rubric?.rubric_id === 'writing.telc-b1' ? 'telc-b1-bands' : null);
+  const telc = (!rubric?.exam_id || rubric.exam_id === 'telc-deutsch-b1')
+    && (boundKind ? boundKind === 'telc-b1-bands' && (!feedbackKind || feedbackKind === boundKind) : !rubric && feedbackKind === 'telc-b1-bands');
+  return {
+    heading: telc ? 'Übungsfeedback nach den telc-Kriterien – keine offizielle Bewertung' : 'Übungsfeedback – keine offizielle Bewertung',
+    notice: 'Vorläufige Rubrik: eigene Beschreibungen, nicht die offizielle Formulierung' + (telc ? ' von telc' : '') + '.',
+  };
+}
 export function writingPrompt(task, esc) {
   return `<div class="card-head"><h3>${esc(task.topic || 'Gespeicherter Text')}</h3><span class="chip">Schreiben</span></div><p lang="de">${esc(task.situation || '')}</p>${task.adressat ? `<p class="small muted" lang="de">Anrede: ${esc(task.adressat)}</p>` : ''}<ul class="leitpunkte" lang="de">${(task.leitpunkte || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>`;
 }
@@ -112,7 +121,7 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     if (!response?.ok) { target.textContent = 'Die Bewertungskriterien sind gerade nicht verfügbar.'; return; }
     const r = response.data;
     s.rubric = r;
-    target.innerHTML = `<p class="small muted">Vorläufige Rubrik: eigene Beschreibungen, keine offizielle Bewertungsformulierung. Prüfstatus: ${esc(r.review_status || 'unreviewed')}</p><ol class="rubric-criteria">${(r.criteria || []).map(c => `<li><strong>${esc(c.label || c.name || labels[c.key] || c.key || '')}</strong>${c.description ? `<p>${esc(c.description)}</p>` : ''}<ul class="rubric-bands">${Object.entries(c.descriptors || {}).map(([band, text]) => `<li><span class="band">${esc(c.bandLabels?.[band] || band)}</span> ${esc(text)}</li>`).join('')}</ul></li>`).join('')}</ol>`;
+    target.innerHTML = `<p class="small muted">${esc(writingLabels(r).notice)} Prüfstatus: ${esc(r.review_status || 'unreviewed')}</p><ol class="rubric-criteria">${(r.criteria || []).map(c => `<li><strong>${esc(c.label || c.name || labels[c.key] || c.key || '')}</strong>${c.description ? `<p>${esc(c.description)}</p>` : ''}<ul class="rubric-bands">${Object.entries(c.descriptors || {}).map(([band, text]) => `<li><span class="band">${esc(c.bandLabels?.[band] || band)}</span> ${esc(text)}</li>`).join('')}</ul></li>`).join('')}</ol>`;
   }
   async function showResult(s, submissionId, tries = 0) {
     if (!current(s)) return;
@@ -145,7 +154,7 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
       const f = assessment.feedback || {};
       const storedLanguage = f.language || data.submission?.explanation_language;
       const lang = ['de', 'en', 'uk', 'ar', 'tr'].includes(storedLanguage) ? storedLanguage : 'de';
-      html = '<p class="muted"><strong>Übungsfeedback – keine offizielle Bewertung</strong></p><p class="small muted">Lokaler Pilot: Die Rückmeldung stammt derzeit aus einer technischen Simulation. Sie bewertet deine Sprachleistung nicht verlässlich.</p>';
+      html = `<p class="muted"><strong>${esc(writingLabels(s.rubric, f.kind).heading)}</strong></p><p class="small muted">Lokaler Pilot: Die Rückmeldung stammt derzeit aus einer technischen Simulation. Sie bewertet deine Sprachleistung nicht verlässlich.</p>`;
       const supported = f.kind === (s.rubric?.feedback_kind || 'telc-b1-bands');
       html += supported && Array.isArray(f.criteria)
         ? `<ul class="criteria">${f.criteria.map(c => { const view = writingCriterion(c, s.rubric); return `<li class="criterion"><div class="criterion-head"><strong>${esc(view.label || labels[c.key])}</strong><span class="band" aria-label="Band ${esc(view.band)}">${esc(view.band)}</span></div><p data-read-comment lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(c.comment || '')}</p>${c.evidence ? `<blockquote class="evidence" lang="de" dir="ltr">${esc(c.evidence)}</blockquote>` : ''}</li>`; }).join('')}</ul>`

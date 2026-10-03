@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createMockSession, finaliseMockWriting, mockWritingStatus } from '../public/app/mock.js';
-import { writingCriterion, writingFeedbackState, writingPrompt } from '../public/app/writing.js';
+import { writingCriterion, writingFeedbackState, writingLabels, writingPrompt } from '../public/app/writing.js';
 import { createApi } from '../public/app/api.js';
 
 const copy = value => structuredClone(value);
@@ -115,6 +115,21 @@ await check('blocked or unassessed results never masquerade as pending or assess
   assert.equal(writingFeedbackState({ job: { status: 'running' } }), 'pending');
   assert.equal(writingFeedbackState({ job: { status: 'succeeded' }, assessment: {} }), 'assessed');
   assert.match(mockWritingStatus({ assessment_state: 'unassessed' }), /Unbewertet/);
+});
+await check('telc wording follows its bound rubric while DTZ and other rubrics stay distinct', async () => {
+  const telc = { rubric_id: 'writing.telc-b1', exam_id: 'telc-deutsch-b1' };
+  const dtz = { rubric_id: 'writing.dtz', exam_id: 'dtz-a2-b1', feedback_kind: 'dtz-writing-bands' };
+  const exact = 'Übungsfeedback nach den telc-Kriterien – keine offizielle Bewertung';
+  assert.equal(writingLabels(telc, 'telc-b1-bands').heading, exact);
+  assert.equal(writingLabels({ ...telc, feedback_kind: 'telc-b1-bands' }, 'telc-b1-bands').heading, exact);
+  assert.equal(writingLabels(null, 'telc-b1-bands').heading, exact);
+  assert.equal(writingLabels(telc).notice, 'Vorläufige Rubrik: eigene Beschreibungen, nicht die offizielle Formulierung von telc.');
+  for (const [rubric, kind] of [[dtz, 'dtz-writing-bands'], [dtz, 'telc-b1-bands'], [telc, 'dtz-writing-bands'], [{ rubric_id: 'writing.formative', exam_id: 'telc-deutsch-b1' }, 'formative'], [null, null]]) {
+    const label = writingLabels(rubric, kind);
+    assert.equal(label.heading, 'Übungsfeedback – keine offizielle Bewertung');
+    assert.doesNotMatch(label.notice, /telc/);
+    assert.match(label.notice, /nicht die offizielle Formulierung/);
+  }
 });
 await check('prompt renders the supplied address and all points without an invented minimum', async () => {
   const html = writingPrompt({ topic: 'An eine Freundin', situation: 'Schreibe einen Brief.', adressat: 'Liebe Freundin', leitpunkte: ['Grund', 'Frage'] }, value => String(value));
