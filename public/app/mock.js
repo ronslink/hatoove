@@ -247,7 +247,7 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
 export function createMockController({ api, esc, setLabel = member => member.title, canEdit = () => true, isArchived = () => false, readAloud = null, explanationLanguage = () => 'de', onOpen = () => {}, onChange = () => {} }) {
   let host = null, generation = 0, timer = null, deadlineTimer = null, startOperation = null, confirm = false;
   let displayPosition = null, deadlineReached = false, workspace = 'objective', observedGroup = null;
-  let boundaryChanging = false, boundaryMessage = '', boundaryFlight = null, copyPending = false, draftCopies = [];
+  let boundaryChanging = false, boundaryMessage = '', boundaryFlight = null, boundaryAudioPending = false, copyPending = false, draftCopies = [];
   let writingBinding = null, writingReady = Promise.resolve(true), finishing = false;
   const writingAllowed = () => canEdit() && (writing.active && !writing.active.attached || session.state().run?.state === 'finalised' || session.sectionWritable(mockWritingSection(session.state().run)));
   const writing = createWritingController({ api, esc, readAloud, canEdit: writingAllowed, onChange: () => { onChange(); if (writing.active?.error === 'mock_group_inactive') void refreshTiming(); } });
@@ -291,7 +291,16 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     boundaryMessage = 'Der Zeitabschnitt hat gewechselt. Der bestätigte Serverstand wird geladen; unbestätigte Eingaben bleiben als Kopie erhalten.';
     boundaryFlight = (async () => {
       // A terminal group refusal is an explicit stop, not a successful progress acknowledgement.
-      const audioStopped = await listening.flush();
+      const audioStopped = !listening.needsFlush || await listening.flush();
+      if (ticket !== generation) return false;
+      if (!audioStopped) {
+        // Keep the exact playback receipt alive until retry yields an acknowledgement or
+        // authoritative terminal refusal. Rendering another member would dispose it.
+        boundaryAudioPending = true;
+        boundaryMessage = 'Die Hörzeit ist beendet. Die Bestätigung des letzten Hörstands fehlt. Gleiche ihn erneut ab; die feste Prüfungszeit läuft weiter.';
+        return false;
+      }
+      boundaryAudioPending = false;
       await writing.settle();
       if (ticket !== generation) return false;
       captureDraft();
@@ -314,7 +323,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     if (!timing.valid) return '<p class="err" role="alert">Der Zeitplan konnte nicht geprüft werden. Bearbeiten ist gesperrt; deine Antworten bleiben erhalten.</p>';
     return '<section class="card-peach stack mock-timing" aria-label="Zeitplan"><h3>Feste Bearbeitungszeiten</h3><p>Die Abschnitte wechseln automatisch. Verlassen, Neuladen und Prüfungswechsel halten die Zeit nicht an. Ein früherer Wechsel der Bearbeitungszeit ist nicht möglich.</p><ol class="mock-time-groups">'
       + timing.groups.map(group => '<li data-mock-group-state="' + group.state + '"><button class="btn" type="button" data-mock-group="' + esc(group.id) + '"' + (group.state === 'active' ? ' aria-current="step"' : '') + '>' + esc(group.sections.map(section => ({ LV: 'Lesen', SB: 'Sprachbausteine', HV: 'Hören', SA: 'Schreiben', writing: 'Schreiben' })[section] || section).join(' + ')) + ' · ' + Math.round((group.end - group.start) / 60000) + ' Min.</button><span>' + ({ pending: 'Später · schreibgeschützt', active: 'Jetzt bearbeiten', closed: 'Beendet · schreibgeschützt' })[group.state] + '</span></li>').join('')
-      + '</ol><p data-mock-timing-status role="status" aria-live="polite">' + esc(boundaryChanging ? 'Serverstand wird abgeglichen …' : boundaryMessage) + '</p></section>';
+      + '</ol><p data-mock-timing-status role="status" aria-live="polite">' + esc(boundaryChanging ? 'Serverstand wird abgeglichen …' : boundaryMessage) + '</p>' + (boundaryAudioPending ? button('reload', 'Hörstand abgleichen') : '') + '</section>';
   }
   function reviewContext(row, members) {
     const member = members.find(value => value.set_id === row.set_id && value.version === row.version);
@@ -488,7 +497,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     };
   }
   async function showRun(target, id) {
-    const ticket = ++generation; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); boundaryChanging = false; boundaryFlight = null; boundaryMessage = ''; copyPending = false; draftCopies = []; workspace = 'objective'; attach(target); host.innerHTML = '<p class="muted" role="status">Gespeicherter Lauf wird geladen …</p>';
+    const ticket = ++generation; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); boundaryChanging = false; boundaryFlight = null; boundaryMessage = ''; boundaryAudioPending = false; copyPending = false; draftCopies = []; workspace = 'objective'; attach(target); host.innerHTML = '<p class="muted" role="status">Gespeicherter Lauf wird geladen …</p>';
     const response = await api.mock.read(id);
     if (ticket !== generation) return false;
     if (!response?.ok) { host.innerHTML = '<p class="err">Der gespeicherte Lauf konnte nicht geladen werden.</p><a class="btn" href="#/abschnitt">Zur Übersicht</a>'; return false; }

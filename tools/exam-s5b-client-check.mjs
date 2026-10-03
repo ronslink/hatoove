@@ -239,5 +239,29 @@ try {
     assert.match(host.querySelector('#mock-footer').innerHTML, /data-mock-draft-copy/);
     assert.equal(await controller.flush(), false); controller.dispose();
   });
+  await check('unknown audio boundary receipt survives until authoritative retry before switching workspace', async () => {
+    const start = Date.now(), recording = { id: 'r', media_id: 'clip', media_version: 'v1', max_plays: 1, duration_ms: 10000, label: 'Signal' };
+    const audio = { ...member('HV', 'audio'), interaction: 'fixed_audio', recordings: [recording], payload: { recordings: [{ id: 'r', mediaId: 'clip', mediaVersion: 'v1', label: 'Signal', questions: [{ n: 1, question: 'Q', options: { a: 'A', b: 'B' } }] }] } };
+    const value = { ...copy(base), writing: null, writing_task: null, writing_choices: [], members: [audio, member('LV', 'read')], server_now: iso(start), deadline_at: iso(start + 60000), timing: { policy: 'ordered-fixed-v1', groups: [
+      { id: 'h', sections: ['HV'], starts_at: iso(start - 1000), deadline_at: iso(start + 80) },
+      { id: 'r', sections: ['LV'], starts_at: iso(start + 80), deadline_at: iso(start + 60000) },
+    ] } };
+    const calls = []; let terminal = false;
+    const api = { mock: {
+      read: async () => ({ ok: true, data: { ...copy(value), server_now: iso(Date.now()) } }),
+      playback: async () => ({ ok: true, data: { items: [{ ...recording, revision: 1, state: 'playing', plays_used: 1, position_ms: 1000, playback_id: 'pid', uncertain: false }] } }),
+      playbackEvent: async (id, body) => { calls.push(copy(body)); return { ok: false, status: terminal ? 409 : 0, error: terminal ? 'mock_group_inactive' : 'network' }; },
+    } };
+    const controller = mock.createMockController({ api, esc: String }), host = new NodePort();
+    try {
+      await controller.showRun(host, 'run'); await new Promise(resolve => setTimeout(resolve, 360));
+      assert.equal(calls.length, 1); assert.match(host.querySelector('#mock-content').innerHTML, /Hörstand abgleichen/);
+      assert.equal(await controller.flush(), false); assert.deepEqual(calls[0], calls[1]);
+      terminal = true;
+      await host.onclick({ target: { closest: () => ({ dataset: { mockAction: 'reload' } }) } });
+      assert.deepEqual(calls[0], calls[2]); assert.match(host.querySelector('#mock-content').innerHTML, /LV example/);
+      assert.equal(await controller.flush(), true);
+    } finally { controller.dispose(); }
+  });
 } finally { globalThis.window = previousWindow; globalThis.document = previousDocument; }
 console.log(`EXAM-S5B client: ${passed} checks passed; synthetic controller/transport evidence only.`);
