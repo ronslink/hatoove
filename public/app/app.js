@@ -1071,6 +1071,7 @@ async function answerItem(set, card, itemId, answer) {
   const ticket = contextTicket();
   const request = (answerRequests.get(card) || 0) + 1, viewTicket = explanationContext;
   answerRequests.set(card, request); explanations.dispose(card);
+  card.querySelector('[data-objective-explanation]')?.remove();
   const out = card.querySelector('.result');
   out.textContent = 'Wird geprüft ...';
   const res = await api.practice.answer(set.set_id, { version: set.version, itemId, answer });
@@ -1087,7 +1088,7 @@ async function answerItem(set, card, itemId, answer) {
   if (button) button.setAttribute('aria-pressed', String(correct));
   out.textContent = correct ? 'Richtig.' : 'Noch nicht richtig — die Aufgabe bleibt bei deinen Fehlern.';
   if (res.data?.evidence_id) {
-    const target = document.createElement('div'); target.dataset.objectiveExplanation = res.data.evidence_id; out.append(target);
+    const target = document.createElement('div'); target.dataset.objectiveExplanation = res.data.evidence_id; out.after(target);
     explanations.mount(target, { read: language => api.practice.explanation(res.data.evidence_id, language),
       isCurrent: () => answerRequests.get(card) === request && currentContext(ticket) && viewTicket === explanationContext });
   }

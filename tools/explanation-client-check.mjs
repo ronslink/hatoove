@@ -43,6 +43,11 @@ await check('parent rights refusal redacts facts even when blocked mock has no i
 await check('malformed blocked-parent projection cannot retain previously confirmed protected prose',async()=>{
  const model=createExplanationState({view:dto(),read:async()=>({ok:true,parent:{blocked_reason:'rights_blocked'}})});assert.equal(await model.select('ar'),false);assert.equal(model.state().view,null);assert.equal(model.state().error,true);
 });
+await check('withdrawn selected and original representations retain authorized source but remove prior prose',async()=>{
+ const blocked=dto('ar',{state:'blocked',reason:'representation_withdrawn',requested_status:'blocked',displayed_language:null,representation:null});assert(validExplanationView(blocked));
+ const model=createExplanationState({view:dto(),read:async()=>response(blocked)});assert.equal(await model.select('ar'),true);assert.equal(model.state().view.state,'blocked');assert.equal(model.state().view.source.source_sha256,dto().source.source_sha256);assert.equal(model.state().view.representation,null);assert.equal(model.state().error,false);
+ assert.equal(validExplanationView({...blocked,reason:'content_blocked'}),false);
+});
 await check('fallback statuses state actual original language honestly and never create pending work',()=>{
  for(const status of ['missing','pending','failed','blocked']){const view=dto('ar',{displayed_language:'de',state:'fallback',requested_status:status});assert(validExplanationView(view));assert.match(explanationStatus(view),/Deutsch.*Originalfassung/);assert.equal(view.operation,null);}
  assert.match(explanationStatus(dto(null,{displayed_language:null,original_language:null})),/Originalsprache unbekannt/);
@@ -61,6 +66,11 @@ class Node {
  setAttribute(k,v){this.attrs[k]=v;}hasAttribute(k){return k==='data-explanation-language'?Object.hasOwn(this.dataset,'explanationLanguage'):Object.hasOwn(this.attrs,k);}focus(){this.doc.activeElement=this;}
 }
 const walk=(node,predicate)=>[node,...node.children.filter(x=>typeof x==='object').flatMap(x=>walk(x,predicate))].filter(predicate);
+await check('actual renderer removes previously visible prose for representation-blocked source DTO',async()=>{
+ const doc={activeElement:null,createElement(tag){return new Node(tag,this);}},host=doc.createElement('div');
+ const manager=createExplanationManager({doc,getLanguage:()=> 'de'});const model=manager.mount(host,{view:dto(),read:async()=>response(dto('ar',{state:'blocked',reason:'representation_withdrawn',requested_status:'blocked',displayed_language:null,representation:null}))});
+ assert.equal(walk(host,n=>Object.hasOwn(n.dataset,'explanationSlot')).length,1);assert.equal(await model.select('ar'),true);assert.equal(walk(host,n=>Object.hasOwn(n.dataset,'explanationSlot')).length,0);assert.equal(host.dataset.explanationState,'blocked');manager.dispose();
+});
 await check('rendered Arabic direction is prose-only; speech receives exact text and unknown language has no action',()=>{
  const doc={activeElement:null,createElement(tag){return new Node(tag,this);}},host=doc.createElement('div'),spoken=[];
  const speech={clear(){},stop(){},mount(node,options){spoken.push({text:node.textContent,language:options.language});}};

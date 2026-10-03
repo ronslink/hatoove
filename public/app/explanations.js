@@ -7,7 +7,10 @@ const language = value => value === null || EXPLANATION_LANGUAGES.includes(value
 export function validExplanationView(value) {
   if (!value || value.schema !== 'explanation-view-v1' || !states.includes(value.state) || !statuses.includes(value.requested_status)
     || ![value.requested_language, value.original_language, value.displayed_language].every(language) || value.operation !== null) return false;
-  if (['blocked', 'not_assessed'].includes(value.state)) return value.source === null && value.representation === null;
+  if (value.state === 'not_assessed') return value.source === null && value.representation === null;
+  if (value.state === 'blocked') return value.representation === null
+    && (value.source === null || Boolean(value.source?.source_sha256))
+    && (value.reason !== 'content_blocked' || value.source === null);
   if (value.representation === null) return value.state === 'missing';
   const blocks = value.representation?.payload?.blocks;
   return Boolean(value.source?.source_sha256 && value.representation.payload.schema === 'explanation-text-v1'
