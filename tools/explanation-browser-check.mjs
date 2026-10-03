@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createCompleteFixture } from './exam-s5b-fixture.mjs';
-import { verifyExplanations } from './explanation-browser.mjs';
+import { verifyExplanations, explanationProviderProbeSource } from './explanation-browser.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const stamp=Date.now()+'_'+process.pid,project='hatoove-explanation-browser-'+stamp.replace('_','-'),schema='ownapi_explanation_browser_'+stamp;
@@ -75,7 +75,7 @@ async function sourceFixture(){
     fs.mkdirSync(path.dirname(to),{recursive:true});fs.copyFileSync(from,to);
   }
   // Source-only fixture instrumentation. Any external fetch is counted and refused before network I/O.
-  fs.writeFileSync(path.join(source,'server/explanation-fixture-provider-probe.mjs'), `import fs from 'node:fs';const native=globalThis.fetch;globalThis.__explanationProviderCalls=0;globalThis.fetch=(input,...args)=>{const url=new URL(typeof input==='string'?input:input.url);if(!['localhost','127.0.0.1','::1'].includes(url.hostname)){globalThis.__explanationProviderCalls++;fs.appendFileSync('/tmp/explanation-provider-count','x');throw Error('Synthetic fixture refuses external provider I/O');}return native(input,...args);};`);
+  fs.writeFileSync(path.join(source,'server/explanation-fixture-provider-probe.mjs'), explanationProviderProbeSource);
   const appEntry=path.join(source,'server.js');fs.writeFileSync(appEntry,"import './server/explanation-fixture-provider-probe.mjs';\n"+fs.readFileSync(appEntry,'utf8'));
   replaceOnce(path.join(source,'server/accounts.mjs'),'const world = await createPostgresWorld({ fixture });',
     "const {createExamCatalogue}=await import('./preparation-contract.mjs');\n  const world = await createPostgresWorld({ fixture,examCatalogue:createExamCatalogue({enabled:['telc-deutsch-b1','dtz-a2-b1']}) });");
@@ -130,7 +130,7 @@ finally{
   }catch(error){record('Explanation fixture cleanup',false,error.message);}
   const resolved=fs.realpathSync(scratch);
   if((!started||cleaned)&&path.dirname(resolved)===fs.realpathSync(os.tmpdir())&&path.basename(resolved).startsWith(project+'-'))fs.rmSync(resolved,{recursive:true,force:true});else console.log('Preserved source/Compose recovery files at '+scratch);
-  fs.mkdirSync(shots,{recursive:true});fs.writeFileSync(path.join(shots,'results.json'),JSON.stringify({mode:'saved-explanations',sourceRevision,sourceChanges,project,base,dbPort,schema,cleaned,finishedAt:new Date().toISOString(),screenshots:fs.readdirSync(shots).filter(name=>name.endsWith('.png')).sort(),limits:['Synthetic technical content; no human educational approval','Headless Chromium emulation; no physical-device or screen-reader acceptance','Synthetic pending/failed/representation refusal fixtures test only rendering'],results},null,2));
+  fs.mkdirSync(shots,{recursive:true});fs.writeFileSync(path.join(shots,'results.json'),JSON.stringify({mode:'saved-explanations',sourceRevision,sourceChanges,project,base,dbPort,schema,cleaned,finishedAt:new Date().toISOString(),screenshots:fs.readdirSync(shots).filter(name=>name.endsWith('.png')).sort(),limits:['Synthetic technical content; no human educational approval','Headless Chromium emulation; no physical-device or screen-reader acceptance','Synthetic pending/failed/representation refusal fixtures test only rendering','Speech uses synthetic local voices; no native audio or physical-device acceptance','Race/failure probes hold real responses or explicitly fail transport; database snapshots remain real'],results},null,2));
   const failures=results.filter(result=>!result.ok);console.log(`${results.length-failures.length} passed, ${failures.length} failed; screenshots ${shots}`);
   console.log('Headless Chromium and synthetic technical content only; physical devices and human approval remain pending.');process.exitCode=failures.length?1:0;
 }

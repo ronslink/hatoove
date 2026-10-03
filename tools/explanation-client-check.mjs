@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createExplanationState,createExplanationManager,validExplanationView,explanationStatus} from '../public/app/explanations.js';
 import {createApi} from '../public/app/api.js';
 import {createLocalSpeech} from '../public/app/read-aloud.js';
+import {explanationProviderProbeSource} from './explanation-browser.mjs';
 const langs=['de','en','uk','ar','tr'],review={review_status:'unreviewed',review_basis:'none',blocked:false,explicit_negative:false};
 const original='  Gespeicherter Text\nmit unveränderten Leerzeichen.  ';
 function dto(lang='de',extra={}){return {schema:'explanation-view-v1',source:{kind:'writing',source_sha256:'a'.repeat(64),submission_id:'submission-a',exam_id:'telc-deutsch-b1'},requested_language:lang,original_language:'de',displayed_language:lang,state:lang==='de'?'original':'translated',requested_status:'available',reason:null,representation:{version:'v1',payload_sha256:'b'.repeat(64),persisted:true,payload:{schema:'explanation-text-v1',blocks:[{slot:'criterion/aufgabe/comment',text:original}]},provenance_kind:'builtin-simulation-dictionary'},review:{educational:review,native_language:review},languages:langs.map(language=>({language,status:'available'})),operation:null,...extra};}
@@ -97,5 +98,11 @@ await check('API language read is rejected after preparation identity changes',a
 });
 await check('verified account-cookie transition rejects a previously dispatched explanation response',async()=>{
  const pending=defer();let owner='owner-a';const api=createApi({onSessionInvalid:()=>{},fetchImpl:async url=>url==='/api/auth/get-session'?{ok:true,status:200,json:async()=>({user:{id:owner}})}:pending.promise});await api.session();const request=api.writing.result('submission-a','ar');owner='owner-b';assert.equal((await api.session()).error,'account_changed');pending.resolve({ok:true,status:200,json:async()=>dto('ar')});assert.equal((await request).error,'stale_session');
+});
+await check('generated provider probe counts and refuses external string URL and Request before native I/O',()=>{
+ let calls=0,appended=0;const scope={fetch:()=>{calls++;return 'local response';}},fakeFs={appendFileSync:()=>appended++};
+ new Function('fs','URL','globalThis',explanationProviderProbeSource.replace("import fs from 'node:fs';",''))(fakeFs,URL,scope);
+ for(const input of ['https://provider.invalid/test',new URL('https://provider.invalid/test'),new Request('https://provider.invalid/test')])assert.throws(()=>scope.fetch(input),/refuses external provider I\/O/);
+ assert.equal(calls,0);assert.equal(appended,3);assert.equal(scope.__explanationProviderCalls,3);assert.equal(scope.fetch(new Request('http://127.0.0.1:4321/api/ready')),'local response');assert.equal(calls,1);
 });
 console.log(`Saved explanation client: ${passed} checks passed; synthetic DTO/transport evidence only.`);
