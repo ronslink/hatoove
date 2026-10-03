@@ -13,6 +13,7 @@ import net from 'node:net';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const project='hatoove-check-'+Date.now()+'-'+process.pid;
 const scratch=fs.mkdtempSync(path.join(os.tmpdir(),project+'-'));
@@ -20,14 +21,64 @@ const envFile=path.join(scratch,'compose.env');
 const marker='DOCKER-ONLY-SYNTHETIC-'+project;
 const sentinels=['progress-'+project+'.json','public/progress-'+project+'.json'];
 let started=false;
+let probeId=null;
 let count=0;
 const passed=label=>console.log('PASS '+(++count)+' '+label);
+// The generated fixture must not inherit a live payment switch, credentials, content mode or
+// host Node preload. Compose receives only the explicit local test values below.
+const childEnv=Object.fromEntries(Object.entries(process.env).filter(([key])=>
+  !/^(?:HATOVE_|OWNAPI_|B1PREP_|STRIPE_|PAYMENTS_|COMPOSE_|NODE_OPTIONS$|NODE_PATH$)/i.test(key)));
+function dockerResult(args) {
+  return spawnSync('docker',args,{cwd:root,env:{...childEnv,HATOVE_APP_PORT:String(appPort),HATOVE_DB_PORT:String(dbPort),HATOVE_PUBLIC_ORIGIN:base,HATOVE_CONTENT_MODE:'internal-preview',HATOVE_PAYMENTS_MODE:'off',STRIPE_SECRET_KEY:'',STRIPE_WEBHOOK_SECRET:'',OWNAPI_PG_PAYMENTS_PASSWORD:''},encoding:'utf8',windowsHide:true,timeout:240000,maxBuffer:8*1024*1024});
+}
 function docker(args) {
-  const r=spawnSync('docker',args,{cwd:root,env:{...process.env,HATOVE_APP_PORT:String(appPort),HATOVE_DB_PORT:String(dbPort),HATOVE_PUBLIC_ORIGIN:base},encoding:'utf8',windowsHide:true,timeout:240000,maxBuffer:8*1024*1024});
+  const r=dockerResult(args);
   if(r.error || r.status!==0) throw new Error('docker '+args[0]+': '+(r.error?.message || r.stderr || r.stdout).slice(-2400));
   return r.stdout.trim();
 }
-const compose=args=>docker(['compose','--env-file',envFile,'-p',project,'-f',path.join(root,'compose.yaml'),...args]);
+const composeArgs=args=>['compose','--env-file',envFile,'-p',project,'-f',path.join(root,'compose.yaml'),...args];
+const compose=args=>docker(composeArgs(args));
+const sql=statement=>compose(['exec','-T','db','psql','-v','ON_ERROR_STOP=1','-U','postgres','-d','hatoove','-tAc',statement]);
+const reportArgs=window=>['run','--rm','--no-deps','-T','-e','OWNAPI_PG_USER=hatoove_worker','worker','node','tools/provider-usage-report.mjs','--from='+window.from,'--to='+window.to];
+function reportWindow(){
+  const to=sql(`SELECT to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`);
+  return {from:new Date(Date.parse(to)-3600000).toISOString(),to};
+}
+function assertPrivateReport(report,window,privateValues=[]){
+  assert.equal(report.schemaVersion,1);
+  assert.equal(report.scope,'stub_only_engineering');
+  assert.deepEqual(report.window,{...window,basis:'intent_created_at',bounds:'[from,to)'});
+  assert.ok(Date.parse(report.asOf)>=Date.parse(window.to));
+  assert.equal(report.queue.scope,'all_current_outstanding');
+  assert.equal(report.queue.workerLiveness,'unobserved','queue/report data must not claim worker liveness');
+  assert.deepEqual(report.realSpend,{status:'not_measured',amount:null});
+  const forbidden=new Set(['owner_id','ownerId','submission_id','submissionId','job_id','jobId','attempt_id','attemptId','event_id','eventId','text','feedback','email','password','headers','pricingCard','pricing_card','pricingSha256','pricing_sha256','lease_token','leaseToken','prompt','evidence','cookie']);
+  function walk(value){
+    if(!value||typeof value!=='object')return;
+    for(const [key,child] of Object.entries(value)){
+      assert.equal(forbidden.has(key),false,'aggregate output must not include private field '+key);
+      walk(child);
+    }
+  }
+  walk(report);
+  const output=JSON.stringify(report);
+  assert.doesNotMatch(output,/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,'aggregate output contains no raw identities');
+  assert.doesNotMatch(output,/https?:\/\//i,'aggregate output contains no endpoint');
+  for(const value of privateValues.filter(value=>typeof value==='string'&&value.length)) assert.equal(output.includes(value),false,'aggregate output excludes the synthetic private sentinel');
+}
+function readReport(privateValues=[]){
+  const window=reportWindow();
+  const report=JSON.parse(compose(reportArgs(window)));
+  assertPrivateReport(report,window,privateValues);
+  return report;
+}
+function removeProbe(){
+  if(!probeId)return;
+  const owned=JSON.parse(docker(['inspect',probeId]))[0];
+  assert.equal(owned.Config.Labels['hatoove.test-project'],project,'only this check owns the probe container');
+  docker(['rm','-f',probeId]);
+  probeId=null;
+}
 async function freePort(){
   const s=net.createServer();
   await new Promise((resolve,reject)=>{s.once('error',reject);s.listen(0,'127.0.0.1',resolve);});
@@ -67,9 +118,16 @@ try{
   assert.equal(JSON.parse(fs.readFileSync(path.join(root,'package.json'))).scripts.start,'docker compose up -d --build');
   passed('host launcher/installer retired; npm start delegates to Docker Compose');
   const config=JSON.parse(compose(['config','--format','json']));
+  assert.equal(config.name,project);
+  assert.equal(config.volumes['db-data'].name,project+'_db-data');
+  assert.equal(Boolean(config.volumes['db-data'].external),false);
   assert.equal(String(config.services.app.ports[0].published),String(appPort));
   assert.equal(String(config.services.db.ports[0].published),String(dbPort));
+  assert.ok(![4300,55440].includes(appPort)&&![4300,55440].includes(dbPort),'existing learner ports are never used');
   assert.equal(config.services.app.environment.B1PREP_PUBLIC_ORIGIN,base);
+  assert.equal(config.services.app.environment.PAYMENTS_MODE,'off');
+  assert.equal(config.services.app.environment.STRIPE_SECRET_KEY,'');
+  assert.equal(config.services.app.environment.STRIPE_WEBHOOK_SECRET,'');
   assert.equal(config.services.worker.healthcheck,undefined);
   assert.ok(config.services.app.healthcheck.test.join(' ').includes('/api/ready'));
   passed('only the API declares an HTTP readiness probe');
@@ -102,11 +160,24 @@ try{
   const rejected=['/app/.git','/app/work','/app/research','/app/content/fixtures','/app/handoff','/app/.env',...sentinels.map(p=>'/app/'+p)];
   const audit="const fs=require('node:fs');const bad="+JSON.stringify(rejected)+".filter(p=>fs.existsSync(p));if(bad.length)throw Error('private/unneeded image paths: '+bad.join(','));";
   compose(['exec','-T','app','node','-e',audit]);
-  assert.deepEqual(JSON.parse(compose(['exec','-T','app','node','-e',"console.log(JSON.stringify(require('node:fs').readdirSync('/app/tools')))"])),['import-exam-package.mjs'],'only the privileged package CLI belongs in the image tools directory');
+  assert.deepEqual(JSON.parse(compose(['exec','-T','app','node','-e',"console.log(JSON.stringify(require('node:fs').readdirSync('/app/tools').sort()))"])),['import-exam-package.mjs','provider-usage-report.mjs','review-content.mjs'],'the image contains exactly its three operator CLIs');
   const workerId=compose(['ps','-q','worker']);
   assert.ok(workerId);
   assert.equal(JSON.parse(docker(['inspect',workerId]))[0].Config.Healthcheck,undefined);
   passed('built image excludes synthetic private files; worker inherits no HTTP probe');
+  const usageHelp=compose(['run','--rm','--no-deps','-T','-e','OWNAPI_PG_HOST=127.0.0.1','-e','OWNAPI_PG_PORT=1','-e','OWNAPI_PG_DATABASE=','-e','OWNAPI_PG_USER=','worker','node','tools/provider-usage-report.mjs','--help']);
+  assert.match(usageHelp,/provider-usage-report\.mjs/);
+  assert.match(usageHelp,/--from/);
+  assert.match(usageHelp,/--to/);
+  assert.doesNotMatch(usageHelp,/provider_report_(?:invalid|unavailable)/);
+  const emptyUsage=readReport();
+  assert.equal(emptyUsage.totals.intents,0);
+  assert.equal(emptyUsage.totals.unknownCost,0);
+  assert.deepEqual(emptyUsage.groups,[]);
+  assert.equal(emptyUsage.queue.queued,0);
+  assert.equal(emptyUsage.queue.running,0);
+  assert.equal(emptyUsage.queue.oldestQueuedAgeMs,null);
+  passed('packaged report help is independent of DB configuration; actual empty report keeps liveness and real spend unknown');
   compose(['run','--rm','--no-deps','migrate']);
   assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.hatoove_migrations']).trim(),String(migrationCount));
   passed('re-running migrations leaves the ledger at '+migrationCount+' entries');
@@ -162,6 +233,95 @@ try{
   const savedDate=await request('PUT','/api/v1/preparations/'+preparationId,{expectedRevision:preparation.json.revision,examDate:'2026-12-01'},cookie);
   assert.equal(savedDate.status,200,savedDate.text);
   passed('synthetic signup, protected shell and owned settings work at configured origin');
+
+  // O01: create real owned jobs through HTTP, then use only the local stub in the image.
+  // Stop this project's daemon so the explicitly injected synthetic call owns its queued job.
+  // The wrapper deliberately captures no usage: accepting its grade must not invent free cost.
+  compose(['stop','worker']);
+  try{
+    const privateValues=[marker,credentials.email,credentials.password,cookie,accountBefore.json.id,preparationId];
+    async function submitUsageFixture(){
+      const created=await request('POST','/api/v1/attempts',{preparationId},cookie);
+      assert.equal(created.status,201,created.text);
+      const text='Liebe Frau Weber, dies ist ausschließlich ein synthetischer Docker-Test. '+marker+'. Bitte bestätigen Sie den Termin. Vielen Dank.';
+      const draft=await request('PUT','/api/v1/attempts/'+created.json.id,{expectedRevision:1,text},cookie);
+      assert.equal(draft.status,200,draft.text);
+      const submitted=await request('POST','/api/v1/attempts/'+created.json.id+'/submissions',{expectedRevision:2,eventId:randomUUID()},cookie);
+      assert.equal(submitted.status,202,submitted.text);
+      privateValues.push(created.json.id,submitted.json.submissionId,text);
+      return submitted.json.submissionId;
+    }
+    await submitUsageFixture();
+    const syntheticRun=`
+      import assert from 'node:assert/strict';
+      import {persistentConfig,persistentRolePool} from './server/owned-postgres/provision.mjs';
+      import {createWorker,stubGrade} from './server/owned-postgres/worker.mjs';
+      const pool=persistentRolePool(persistentConfig(),'worker',{max:1});
+      try{
+        const {rows:[identity]}=await pool.query('SELECT current_user AS role');
+        assert.equal(identity.role,'hatoove_worker');
+        const result=await createWorker({pool,grade:input=>stubGrade(input)}).runOnce();
+        assert.equal(result.outcome,'succeeded');
+        console.log(JSON.stringify({role:identity.role,outcome:result.outcome}));
+      }finally{await pool.end();}
+    `;
+    assert.deepEqual(JSON.parse(compose(['run','--rm','--no-deps','-T','-e','OWNAPI_PG_USER=hatoove_worker','worker','node','--input-type=module','-e',syntheticRun])),{role:'hatoove_worker',outcome:'succeeded'});
+    await submitUsageFixture();
+    const pendingUsage=readReport(privateValues);
+    assert.equal(pendingUsage.totals.intents,1,'a queued job without dispatch is not an invocation intent');
+    assert.equal(pendingUsage.totals.unknownCost,1,'successful synthetic feedback without usage has unknown cost');
+    assert.equal(pendingUsage.totals.notApplicable,0,'an injected stub lookalike is not the trusted builtin');
+    assert.equal(pendingUsage.queue.queued,1,'the report reads actual outstanding work');
+    assert.ok(Number.isInteger(pendingUsage.queue.oldestQueuedAgeMs));
+    const cliOutput=compose(['run','--rm','--no-deps','-T','-e','OWNAPI_PG_USER=hatoove_worker','worker','node','server/worker.mjs','--once']);
+    const cliRecords=cliOutput.split(/\r?\n/).filter(Boolean).map(line=>JSON.parse(line));
+    assert.ok(cliRecords.some(row=>row.event==='worker_outcome'&&row.outcome==='succeeded'));
+    for(const value of privateValues)assert.equal(cliOutput.includes(value),false,'worker CLI output excludes owned identities and text');
+    const beforeRead=sql('SELECT (SELECT count(*) FROM hatoove.provider_attempt)::text || \':\' || (SELECT count(*) FROM hatoove.provider_attempt_observation)::text || \':\' || (SELECT count(*) FROM hatoove.assessments)::text || \':\' || (SELECT sum(units) FROM hatoove.usage_ledger)::text');
+    const usage=readReport(privateValues);
+    assert.equal(usage.totals.intents,2);
+    assert.equal(usage.totals.responses,2);
+    assert.equal(usage.totals.dispositions.accepted,2);
+    assert.equal(usage.totals.unknownCost,1);
+    assert.equal(usage.totals.notApplicable,1);
+    assert.equal(usage.totals.estimated,0);
+    assert.equal(usage.queue.queued,0);
+    assert.equal(usage.queue.running,0);
+    assert.equal(usage.queue.unresolvedIntents,0);
+    assert.equal(usage.groups.length,2);
+    const synthetic=usage.groups.find(group=>group.transportMode==='synthetic_fixture');
+    const local=usage.groups.find(group=>group.transportMode==='local_stub');
+    assert.equal(synthetic?.unknownCostCount,1);
+    assert.equal(synthetic.knownEstimatedSubtotal,null);
+    assert.equal(synthetic.estimateCompleteness,'partial');
+    assert.deepEqual(synthetic.usage.input,{knownTotal:null,knownCount:0,unknownCount:1});
+    assert.equal(synthetic.latency.samples,1);
+    assert.equal(local?.notApplicableCount,1);
+    assert.equal(local.knownEstimatedSubtotal,null);
+    assert.equal(local.estimateCompleteness,'not_applicable');
+    assert.equal(sql('SELECT (SELECT count(*) FROM hatoove.provider_attempt)::text || \':\' || (SELECT count(*) FROM hatoove.provider_attempt_observation)::text || \':\' || (SELECT count(*) FROM hatoove.assessments)::text || \':\' || (SELECT sum(units) FROM hatoove.usage_ledger)::text'),beforeRead,'reporting creates no attempt, observation, assessment or debit');
+    passed('restricted-worker report preserves real unknown usage, separates the local stub, and exposes no private identities or invented spend');
+
+    // Discriminate against a reporting CLI silently using the configured admin role.
+    // This role/table belong solely to the generated disposable Compose database.
+    const deniedWindow=reportWindow();
+    sql('REVOKE SELECT ON hatoove.provider_attempt FROM hatoove_worker');
+    try{
+      const denied=dockerResult(composeArgs(reportArgs(deniedWindow)));
+      assert.equal(denied.error,undefined);
+      assert.equal(denied.status,1,'restricted report must fail when its worker table grant is withheld');
+      assert.equal(denied.stdout.trim(),'','failure cannot masquerade as an empty healthy report');
+      const failures=denied.stderr.split(/\r?\n/).map(line=>line.trim()).filter(line=>line.startsWith('{')).map(line=>JSON.parse(line));
+      assert.deepEqual(failures,[{event:'provider_report_error',code:'provider_report_unavailable'}]);
+      for(const value of privateValues)assert.equal((denied.stdout+denied.stderr).includes(value),false);
+    }finally{
+      sql('GRANT SELECT ON hatoove.provider_attempt TO hatoove_worker');
+    }
+    assert.equal(readReport(privateValues).totals.intents,2,'restoring the original worker grant restores the same report');
+    passed('report CLI uses restricted database authority and fails closed instead of returning an empty success');
+  }finally{
+    compose(['start','worker']);
+  }
 
   /*
    * ACCOUNT RECOVERY, IN THE RUNNING CONTAINER, AND THE OPERATOR'S CONSOLE IS THE PROOF.
@@ -676,16 +836,15 @@ try{
 
   // Standalone public policy in its own container; the Compose fixture remains internal-preview.
   const probePort=await freePort();
-  const probeName='hatoove-p04-'+process.pid;
+  const probeName=project+'-approved-probe';
   const appImage=project+'-app';
-  spawnSync('docker',['rm','-f',probeName],{encoding:'utf8',windowsHide:true});
-  spawnSync('docker',['run','-d','--name',probeName,'--network',project+'_default',
+  probeId=docker(['run','-d','--name',probeName,'--label','hatoove.test-project='+project,'--network',project+'_default',
     '-p','127.0.0.1:'+probePort+':4321',
     '-e','B1PREP_BIND=0.0.0.0','-e','B1PREP_SAAS=1','-e','B1PREP_ACCOUNTS=1','-e','B1PREP_PORT=4321',
     '-e','B1PREP_PUBLIC_ORIGIN=http://127.0.0.1:'+probePort,
     '-e','B1PREP_SERVE_REVIEW=approved',
     '-e','OWNAPI_PG_HOST=db','-e','OWNAPI_PG_PORT=5432','-e','OWNAPI_PG_DATABASE=hatoove','-e','OWNAPI_PG_USER=postgres',
-    appImage,'node','server.js'],{encoding:'utf8',windowsHide:true});
+    appImage,'node','server.js']);
   try{
     const probeBase='http://127.0.0.1:'+probePort;
     const deadline=Date.now()+60000;
@@ -705,7 +864,7 @@ try{
     assert.equal(strict.length,0,'under an explicit approved-only policy and only unreviewed rows the list must be EMPTY, got '+strict.length);
     passed('an explicit approved-only policy serves NOTHING: the policy is consulted, not hardcoded');
   } finally {
-    spawnSync('docker',['rm','-f',probeName],{encoding:'utf8',windowsHide:true});
+    removeProbe();
   }
   compose(['restart','app','worker']);
   await ready();
@@ -719,14 +878,24 @@ try{
   assert.equal(after.json.settings.language,'en');
   passed('fresh sign-in after container restart restores saved account settings');
   const spec = spawnSync(process.execPath, ['tools/api-spec-check.mjs', '--base='+base],
-    {cwd:root,encoding:'utf8',windowsHide:true,timeout:60000});
+    {cwd:root,env:childEnv,encoding:'utf8',windowsHide:true,timeout:60000});
   assert.equal(spec.status,0, spec.error?.message || spec.stdout + spec.stderr);
   passed('OpenAPI anonymous surface matches the disposable server (' + spec.stdout.match(/\d+ passed, 0 failed/)?.[0] + ')');
   console.log(count+' passed; product journeys, auth attack cases and model validity are separate gates.');
 } finally {
+  try{removeProbe();}
+  catch(error){console.error('Probe cleanup failed for '+project+': '+error.message);process.exitCode=1;}
   if(started){
     // Only this check's unique project is removed; no prune and no existing project is touched.
-    try{compose(['down','--volumes','--remove-orphans']);console.log('Removed disposable project '+project);}
+    try{
+      compose(['down','--volumes','--remove-orphans','--rmi','local']);
+      assert.equal(docker(['ps','-aq','--filter','label=com.docker.compose.project='+project]),'','project containers are absent');
+      assert.equal(docker(['ps','-aq','--filter','label=hatoove.test-project='+project]),'','owned standalone probe is absent');
+      assert.equal(docker(['volume','ls','-q','--filter','label=com.docker.compose.project='+project]),'','project volumes are absent');
+      assert.equal(docker(['network','ls','-q','--filter','label=com.docker.compose.project='+project]),'','project networks are absent');
+      for(const service of ['app','worker','migrate'])assert.equal(docker(['image','ls','-q','--filter','reference='+project+'-'+service+':latest']),'','project image tag is absent');
+      console.log('Verified absent disposable containers, volumes, networks and image tags for '+project);
+    }
     catch(error){console.error('Cleanup failed for '+project+': '+error.message);process.exitCode=1;}
   }
   for(const file of sentinels){
@@ -736,4 +905,6 @@ try{
   assert.equal(path.dirname(path.resolve(scratch)),path.resolve(os.tmpdir()));
   assert.ok(path.basename(scratch).startsWith(project+'-'));
   fs.rmSync(scratch,{recursive:true,force:true});
+  assert.equal(fs.existsSync(scratch),false,'owned scratch directory is absent');
+  for(const file of sentinels)assert.equal(fs.existsSync(path.join(root,file)),false,'owned synthetic source sentinel is absent');
 }

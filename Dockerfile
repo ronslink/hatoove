@@ -28,6 +28,7 @@ COPY public/ ./public/
 COPY content/exams/ ./content/exams/
 COPY tools/import-exam-package.mjs ./tools/import-exam-package.mjs
 COPY tools/review-content.mjs ./tools/review-content.mjs
+COPY tools/provider-usage-report.mjs ./tools/provider-usage-report.mjs
 # NOTE: `data/` is deliberately NOT copied into the image. Every authored corpus is in the database
 # (migrations 0010-0014) and served by the API; the image used to carry 557 KB of JSON that NOTHING in
 # the container read. Removing it means a re-added static route could not serve the corpus even by
