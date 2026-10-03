@@ -1,6 +1,7 @@
 /** One attachment, existing writing storage, and the caller's owner/run transaction. */
 import { randomUUID } from 'node:crypto';
 import { Fault } from '../owned-api.mjs';
+import { entitlementExpired } from './entitlement.mjs';
 
 export async function writingAttachment(client,owner,runId) {
   const w=(await client.query(`SELECT w.*,d.revision AS draft_revision,j.status,j.failure_code AS job_failure,
@@ -30,7 +31,7 @@ export async function finaliseWriting(client,owner,row,body) {
   const d=(await client.query('SELECT * FROM drafts WHERE attempt_id=$1',[a.id])).rows[0];
   if(d.revision!==body.expectedWritingRevision) throw new Fault(409,'draft_conflict');
   if(!['de','en','uk','ar','tr'].includes(body.explanationLanguage)) throw new Fault(422,'invalid_explanation_language');
-  const failure=!d.text.trim()?'empty_submission':!balance||balance.used+balance.reserved>=balance.allowance?'allowance_exhausted':null;
+  const failure=!d.text.trim()?'empty_submission':!balance||entitlementExpired(balance)||balance.used+balance.reserved>=balance.allowance?'allowance_exhausted':null;
   const id=randomUUID();
   await client.query(`INSERT INTO submissions(id,attempt_id,owner_id,event_id,draft_revision,text,task_version,rubric_version,explanation_language)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[id,a.id,owner,body.eventId,d.revision,d.text,a.task_version,a.rubric_version,body.explanationLanguage]);

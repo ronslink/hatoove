@@ -88,6 +88,8 @@ const MOCK_RUN_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})$`, 'i');
 const MOCK_WRITING_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/writing-choice$`, 'i');
 const MOCK_FINALISE_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/finalise$`, 'i');
 const TOKEN_RE = /^[a-z][a-z0-9_]{0,47}$/;
+const ORDER_RE = new RegExp(`^/api/v1/orders/(${UUID})$`, 'i');
+const WEBHOOK_PATH = '/api/v1/payments/stripe/webhook';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
 
 const DATASTORE_METHODS = ['create', 'read', 'save', 'submit', 'result', 'retry', 'remove'];
@@ -399,7 +401,7 @@ const errorReply = (status, code) => reply(status, { error: TOKEN_RE.test(code) 
  *   unwired, `DELETE /api/v1/account` answers 503 `deletion_unavailable` and deletes nothing.
  * @returns {{handle: Function, handleNode: Function, matches: Function, configured: boolean}}
  */
-export function createOwnedApi({ datastore, sessions, settings = null, accountDeletion = null, throttle = null } = {}) {
+export function createOwnedApi({ datastore, sessions, settings = null, accountDeletion = null, throttle = null, payments = null } = {}) {
   // Fail closed: without both ports wired, every owned route answers 503 and no
   // port method is ever reached, so nothing can be served without an identity.
   const configured = implementsAll(datastore, DATASTORE_METHODS) && implementsAll(sessions, SESSION_METHODS);
@@ -597,6 +599,29 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
     const who = await identify(headers);
     if (!who) fault(401, 'unauthenticated');
     const owner = who.userId;
+
+    if (pathname === '/api/v1/checkout/offer' && method === 'GET') {
+      if (!payments?.offer) fault(503, 'payments_unavailable');
+      if ([...query.keys()].some(key => !['exam','market'].includes(key)) || [...query.keys()].some(key => query.getAll(key).length !== 1)) fault(422,'invalid_query');
+      const examId=query.get('exam'), market=query.get('market');
+      if (!EXAM_QUERY_RE.test(examId ?? '')) fault(422,'invalid_exam');
+      if (market !== null && !/^[A-Z]{2}$/.test(market)) fault(422,'invalid_market');
+      return reply(200,await payments.offer(owner,{examId,market}));
+    }
+    if (pathname === '/api/v1/checkout/session' && method === 'POST') {
+      if (!payments?.checkout) fault(503, 'payments_unavailable');
+      onlyFields(body,['examId','market','eventId']);
+      if (query.size) fault(422,'invalid_query');
+      if (typeof body.examId !== 'string' || !EXAM_QUERY_RE.test(body.examId)) fault(422,'invalid_exam');
+      if (typeof body.market !== 'string' || !/^[A-Z]{2}$/.test(body.market)) fault(422,'invalid_market');
+      return reply(201,await payments.checkout(owner,{examId:body.examId,market:body.market,eventId:requireUuid(body.eventId,'invalid_event')}));
+    }
+    const orderMatch=ORDER_RE.exec(pathname);
+    if (orderMatch && method==='GET') {
+      if (!payments?.order) fault(503,'payments_unavailable');
+      if (query.size) fault(422,'invalid_query');
+      return reply(200,await payments.order(owner,orderMatch[1].toLowerCase()));
+    }
 
     /**
      * EXAM-S1 — the preparation a scoped read runs in, from `?preparationId=`. Missing or malformed is 422;
@@ -1215,6 +1240,13 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         query = url.searchParams;
       } catch { fault(404, 'not_found'); }
       if (!isOwnedPath(pathname)) fault(404, 'not_found');
+      if (method === 'POST' && request.path === WEBHOOK_PATH) {
+        if (!payments?.webhook) fault(503,'payments_unavailable');
+        if (request.body != null && typeof request.body !== 'string' && !(request.body instanceof Uint8Array)) fault(400,'invalid_body');
+        const raw = request.body instanceof Uint8Array ? Buffer.from(request.body) : Buffer.from(request.body ?? '', 'utf8');
+        if (raw.length > BODY_LIMIT_BYTES) fault(413,'body_too_large');
+        return reply(200,await payments.webhook(raw,lowerHeaders(request.headers)['stripe-signature']));
+      }
       const mutation = method !== 'GET' && method !== 'HEAD';
       // Origin precedes routing (contract), so an unchecked mutation is 403 even
       // for an unknown route.
@@ -1269,7 +1301,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       body = Buffer.concat(chunks);
     }
     const response = tooLarge
-      ? (originChecked ? errorReply(413, 'body_too_large') : errorReply(403, 'origin_rejected'))
+      ? (originChecked || (method === 'POST' && req.url === WEBHOOK_PATH) ? errorReply(413, 'body_too_large') : errorReply(403, 'origin_rejected'))
       : await handle({ method, path: req.url, headers: req.headers, body, originChecked });
     res.writeHead(response.status, response.headers);
     res.end(method === 'HEAD' ? undefined : response.body);

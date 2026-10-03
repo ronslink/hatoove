@@ -602,7 +602,8 @@ export function createServer({ ownedApi = null, readinessCheck = null } = {}) {
       }
       if (pathname.startsWith('/api/')) {
         const method = req.method || 'GET';
-        if (method !== 'GET' && method !== 'HEAD') {
+        const paymentWebhook = method === 'POST' && req.url === '/api/v1/payments/stripe/webhook';
+        if (method !== 'GET' && method !== 'HEAD' && !paymentWebhook) {
           if (!isSameOriginRequest(req, req.socket.localPort, { saas, origin })) {
             sendJSON(res, 403, { ok: false, code: 'origin_rejected', error: 'Cross-origin API request rejected.' });
             return;

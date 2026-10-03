@@ -25,6 +25,7 @@ import { randomUUID } from 'node:crypto';
 import { Fault } from '../../server/owned-api.mjs';
 import { DEFAULT_TASK_BINDING } from './content-seed.mjs';
 import { contentPolicy, servableReview } from '../content-policy.mjs';
+import { entitlementExpired } from './entitlement.mjs';
 import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs';
 import { preparationMethods, requireActivePreparation, resolvePreparation } from './preparations.mjs';
 import { mockRunMethods, lockMockOwner } from './mock-runs.mjs';
@@ -967,7 +968,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             WHERE p.owner_id = $1 ORDER BY p.created_at, p.id`, [owner])).rows
           .map((row) => ({ ...preparationExport(row) }));
         const balances = (await client.query(
-          `SELECT exam_id, allowance, used, reserved FROM entitlements
+          `SELECT exam_id, allowance, used, reserved, expires_at FROM entitlements
             WHERE owner_id = $1 ORDER BY exam_id`, [owner])).rows;
         const attempts = (await client.query(
           `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version, a.preparation_id, a.exam_id,
@@ -1014,7 +1015,12 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             if(context.blocked_reason) result.feedback=null;
           }
         }
-        return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing };
+        const payment_orders = (await client.query(`SELECT id,exam_id,product_id,market,currency,amount_minor,allowance,term_days,status,created_at,paid_at
+          FROM payment_order WHERE owner_id=$1 ORDER BY created_at,id`, [owner])).rows;
+        const payment_events = (await client.query('SELECT id,order_id,kind,disposition,created_at FROM payment_event WHERE owner_id=$1 ORDER BY created_at,id', [owner])).rows;
+        const payment_grants = (await client.query('SELECT order_id,event_id,exam_id,allowance,expires_at,created_at FROM payment_grant WHERE owner_id=$1 ORDER BY created_at,order_id', [owner])).rows;
+        const payment_checkout_events = (await client.query('SELECT event_id,order_id FROM payment_checkout_event WHERE owner_id=$1 ORDER BY event_id', [owner])).rows;
+        return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing, payment_orders, payment_events, payment_grants, payment_checkout_events };
       }, true);
     },
 
@@ -1105,7 +1111,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         if (!draft || draft.revision !== expectedRevision) fail(409, 'draft_conflict');
         if (!draft.text.trim()) fail(422, 'empty_submission');
         if (first(await client.query('SELECT id FROM submissions WHERE attempt_id = $1', [id]))) fail(409, 'already_submitted');
-        if (!entitlement || entitlement.used + entitlement.reserved >= entitlement.allowance) fail(409, 'allowance_exhausted');
+        if (!entitlement || entitlementExpired(entitlement) || entitlement.used + entitlement.reserved >= entitlement.allowance) fail(409, 'allowance_exhausted');
         const submissionId = randomUUID();
         try {
           await client.query(
@@ -1181,7 +1187,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           fail(409, 'retry_unavailable');
         }
         await requireServableBinding(client, bindingOf(attempt),true);
-        if (!entitlement || entitlement.used + entitlement.reserved >= entitlement.allowance) fail(409, 'allowance_exhausted');
+        if (!entitlement || entitlementExpired(entitlement) || entitlement.used + entitlement.reserved >= entitlement.allowance) fail(409, 'allowance_exhausted');
         await client.query("UPDATE jobs SET status = 'queued', failure_code = NULL WHERE id = $1", [job.id]);
         await client.query('UPDATE entitlements SET reserved = reserved + 1 WHERE owner_id = $1 AND exam_id = $2',
           [owner, job.exam_id]);
@@ -1246,6 +1252,10 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
   ['mock_run_event', 'DELETE FROM mock_run_event WHERE owner_id = $1'],
   ['mock_run', 'DELETE FROM mock_run WHERE owner_id = $1'],
   ['learner_preparation', 'DELETE FROM learner_preparation WHERE owner_id = $1'],
+  ['payment_grant', 'DELETE FROM payment_grant WHERE owner_id = $1'],
+  ['payment_event', 'DELETE FROM payment_event WHERE owner_id = $1'],
+  ['payment_checkout_event', 'DELETE FROM payment_checkout_event WHERE owner_id = $1'],
+  ['payment_order', 'DELETE FROM payment_order WHERE owner_id = $1'],
   ['entitlements', 'DELETE FROM entitlements WHERE owner_id = $1'],
   ['learner_settings', 'DELETE FROM learner_settings WHERE user_id = $1'],
   ['session', 'DELETE FROM session WHERE "userId" = $1'],
@@ -1262,6 +1272,8 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
  * `attempts`, so it is selected by the attempt ids rather than by the owner (see the port).
  */
 export const ACCOUNT_TABLES = Object.freeze([
+  ['payment_order', 'owner_id = $1', 'owner'], ['payment_event', 'owner_id = $1', 'owner'],
+  ['payment_grant', 'owner_id = $1', 'owner'], ['payment_checkout_event', 'owner_id = $1', 'owner'],
   ['mock_writing', 'owner_id = $1', 'owner'],
   ['attempts', 'owner_id = $1', 'owner'], ['submissions', 'owner_id = $1', 'owner'],
   ['jobs', 'owner_id = $1', 'owner'], ['assessments', 'owner_id = $1', 'owner'],

@@ -104,11 +104,11 @@ export function anchorToUser(catalogue, candidates) {
  * @returns {{rows: Array, findings: Array, failures: Array, ok: boolean}}
  */
 export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TABLES } = {}) {
-  const { auth, learner, worker, migration, deletion, provisioner } = roles;
+  const { auth, learner, worker, migration, deletion, provisioner, payments } = roles;
   const restrictedTo = [learner, worker]; // the roles that must never reach an auth table
   // Every role a running process connects as. `migration` OWNS the schema (implicit owner
   // privileges) and has no runtime route; the fixture has no provisioner, hence filter(Boolean).
-  const runtimeRoles = [auth, learner, worker, deletion, provisioner].filter(Boolean);
+  const runtimeRoles = [auth, learner, worker, deletion, provisioner, payments].filter(Boolean);
   const accountSet = accountTableNames(accountTables);
   const classified = new Set([...AUTH_TABLES, ...AUTH_SUPPORT_TABLES, ...CONTENT_TABLES, ...CATALOGUE_TABLES,
     ...KEY_TABLES, ...INFRASTRUCTURE_TABLES]);
@@ -130,6 +130,14 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
     const name = table.name;
     const cols = columnsOf(catalogue, name);
     const fail = [];
+    if (payments) {
+      const allowed = ['payment_product','payment_price','payment_order','payment_checkout_event','payment_event','payment_grant','entitlements','exam_package','user'];
+      const granted = privilegesFor(catalogue,name,payments);
+      if (!allowed.includes(name) && granted.length) fail.push(`payments role has unexpected access to ${name}`);
+      if (name === 'user' && granted.some(p => p !== 'SELECT')) fail.push('payments may only check user existence');
+      if (name === 'user' && catalogue.columnGrants.some(g => bare(g.table) === name && g.grantee === payments && g.column !== 'id')) fail.push('payments role may read only user.id');
+      if (name === 'entitlements' && catalogue.columnGrants.some(g => bare(g.table) === name && g.grantee === payments && g.privilege === 'UPDATE' && !['allowance','expires_at'].includes(g.column))) fail.push('payments role may update only allowance and expiry');
+    }
 
     if (AUTH_TABLES.includes(name)) {
       if (table.rls || table.force_rls) fail.push(`auth table must have RLS off (rls=${table.rls}, force=${table.force_rls})`);
@@ -216,6 +224,13 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
 
     const ownerCol = cols.find((c) => OWNER_COLUMNS.includes(c));
     if (ownerCol || accountSet.has(name)) {
+      if (name.startsWith('payment_')) {
+        if (name === 'payment_order' && payments && catalogue.columnGrants.some(g => bare(g.table) === name && g.grantee === payments && g.privilege === 'UPDATE' && ['owner_id','exam_id','product_id','market','currency','amount_minor','allowance','term_days','stripe_price_id'].includes(g.column))) fail.push('payments role may not change order identity or terms');
+        for (const role of [learner,worker,auth,provisioner].filter(Boolean)) {
+          if (privilegesFor(catalogue,name,role).some(p => DML.includes(p))) fail.push(`payment ledger grants mutation to ${role}`);
+        }
+        if (payments && !privilegesFor(catalogue,name,payments).includes('INSERT')) fail.push('payments role lacks ledger INSERT');
+      }
       if (!table.force_rls) fail.push('owned table must FORCE ROW LEVEL SECURITY');
       if (!table.rls) fail.push('owned table must ENABLE ROW LEVEL SECURITY');
       const ownerPolicies = policiesFor(catalogue, name, learner)
