@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { verifyExamS5 } from './exam-s5-browser.mjs';
 import { createListeningFixture } from './exam-s5-fixture.mjs';
+import { createA11yAuditor, browserEnvironment, verifyBrowserProject, verifyBrowserCleanup } from './a11y-browser.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const project = `hatoove-s5-browser-${Date.now()}-${process.pid}`;
@@ -25,9 +26,10 @@ function command(binary, args, cwd = root, env = process.env) {
   return (r.stdout || '').trim();
 }
 const compose = args => command('docker', ['compose', '--env-file', envFile, '-p', project, '-f', path.join(source, 'compose.yaml'), ...args], source,
-  { ...process.env, HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base, HATOVE_CONTENT_MODE: 'internal-preview',
+  { ...browserEnvironment(), HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base, HATOVE_CONTENT_MODE: 'internal-preview',
     HATOVE_PAYMENTS_MODE: 'off', STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '', OWNAPI_PG_PAYMENTS_PASSWORD: '' });
-const query = sql => compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql]);
+const verifyProject = () => verifyBrowserProject({ project, dbPort, compose, command });
+const query = sql => { verifyProject(); return compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql]); };
 function record(name, ok, detail = '') { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ': ' + detail : ''}`); }
 async function freePort() {
   const server = net.createServer();
@@ -61,7 +63,7 @@ async function sourceFixture() {
   replaceOnce(path.join(source, 'server/accounts.mjs'), 'const world = await createPostgresWorld({ fixture });',
     "const { createExamCatalogue } = await import('./preparation-contract.mjs');\n  const world = await createPostgresWorld({ fixture, examCatalogue: createExamCatalogue({ enabled: ['telc-deutsch-b1', 'dtz-a2-b1'] }) });");
   for (const examId of ['telc-deutsch-b1','dtz-a2-b1']) {
-    const packageInput = await createListeningFixture({ examId, mediaRoot: path.join(source,'content/exams'), durationMs: 7000 });
+    const packageInput = await createListeningFixture({ examId, mediaRoot: path.join(source,'content/exams'), durationMs: process.argv.includes('--axe') ? 12000 : 7000 });
     // A separate explicitly labelled shortened-clock form exercises expiry during native playback.
     const timed = packageInput.forms.find(form => form.attemptMode === 'mock');
     packageInput.forms.push({...timed,id: timed.id.replace(/mock$/, 'expiry'),title: 'Zeitablauf · interne Technikprobe (6 Sekunden)',timeLimitSeconds:6});
@@ -96,12 +98,14 @@ async function signup(email, password) {
   const response = await fetch(base + '/api/auth/sign-up/email', { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ email, password, name: 'S5 Browser Evidence' }) });
   if (response.status !== 200) throw new Error(`Synthetic signup failed: ${response.status} ${await response.text()}`);
 }
+const axe = createA11yAuditor({ suite: 'audio', directory: shots, record, viewport, theme, shot });
 
 try {
   appPort = await freePort(); dbPort = await freePort();
   while (dbPort === appPort) dbPort = await freePort();
   if ([4300, 55440].includes(appPort) || [4300, 55440].includes(dbPort)) throw new Error('Reserved learner port');
   base = `http://127.0.0.1:${appPort}`;
+  verifyBrowserCleanup(project, command);
   fs.writeFileSync(envFile, `HATOVE_APP_PORT=${appPort}\nHATOVE_DB_PORT=${dbPort}\nHATOVE_PUBLIC_ORIGIN=${base}\nHATOVE_CONTENT_MODE=internal-preview\n`);
   await sourceFixture();
   console.log(`Internal S5 source fixture: ${project}, ${base}, database127.0.0.1:${dbPort}`);
@@ -109,6 +113,7 @@ try {
   // Keep pending/failed/assessed transitions deterministic. The fixture invokes the real worker
   // explicitly with its restricted role; no provider or live learner process participates.
   compose(['stop', 'worker']);
+  verifyProject();
   const deadline = Date.now() + 60000;
   let ready = false;
   while (Date.now() < deadline) {
@@ -119,12 +124,13 @@ try {
   const password = 'synthetic-browser-pass-1', email = `browser-${Date.now()}@example.test`;
   await signup(email, password);
   record('S5 imports exact private synthetic media', query("SELECT count(*) FROM hatoove.exam_media") === '27');
-  await verifyExamS5({ base, email, password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, query });
+  await verifyExamS5({ base, email, password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, query, axe });
 } catch (error) {
   record('S5 isolated browser execution completes', false, error.stack || error.message);
 } finally {
+  axe.finish();
   if (started) {
-    try { compose(['down', '-v', '--remove-orphans']); cleaned = true; console.log(`Removed disposable project ${project}`); }
+    try { verifyBrowserCleanup(project, command, { before: true }); compose(['down', '-v', '--remove-orphans']); verifyBrowserCleanup(project, command); cleaned = true; console.log(`Removed disposable project ${project}`); }
     catch (error) { record('S5 fixture cleanup', false, error.message); }
   }
   // Verify the resolved recursive target is this uniquely created task directory before removing it.

@@ -331,14 +331,16 @@ jobs:
           CHROME_PATH: /usr/bin/google-chrome
         run: |
           "${CHROME_PATH}" --version
+      - name: Install the pinned accessibility test engine
+        run: npm ci --prefix tools/a11y --ignore-scripts --no-audit --no-fund
       - name: Real stack - migrations, API, worker and account lifecycle
         timeout-minutes: 12
         run: node tools/docker-stack-check.mjs
-      - name: Rendered client - 89 legs at desktop and mobile, light and dark
+      - name: Rendered client and accessibility states at desktop and mobile
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
-        run: node tools/app-browser-check.mjs
+        run: node tools/app-browser-check.mjs --axe --design-evidence=served-only --shots .qa/browser/q01-app
       - name: Isolated two-exam reading and save-before-switch browser acceptance
         timeout-minutes: 12
         env:
@@ -353,7 +355,12 @@ jobs:
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
-        run: node tools/exam-s5-browser-check.mjs
+        run: node tools/exam-s5-browser-check.mjs --axe --shots .qa/browser/q01-audio
+      - name: Isolated stub checkout and accessibility states
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/payment-browser-check.mjs --axe --shots .qa/browser/q01-payments
       - name: Complete written mock boundaries and assigned or choice writing
         timeout-minutes: 12
         env:
@@ -364,10 +371,18 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s6-browser-check.mjs
-      # THE SCREENSHOTS ARE THE EVIDENCE, and they live in a gitignored directory that dies with the runner.
-      # They are listed on failure so the log says where to look and what was captured; uploading them as an
-      # artifact needs a pinned third-party action, which is a decision for the coordinator rather than one I
-      # should take by adding a floating tag to a file where every other action is pinned by SHA.
+      - name: Retain synthetic accessibility evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: q01-accessibility-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .qa/browser/q01-app/
+            .qa/browser/q01-audio/
+            .qa/browser/q01-payments/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
       - name: Where the rendered evidence went
         if: failure()
         run: |

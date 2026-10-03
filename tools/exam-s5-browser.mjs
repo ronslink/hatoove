@@ -2,14 +2,14 @@
 import { randomUUID } from 'node:crypto';
 import { launchBrowser, connectToPage } from './cdp.js';
 
-export async function verifyExamS5({base,email,password,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow}) {
+export async function verifyExamS5({base,email,password,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,axe}) {
   const origin = new URL(base);
   if (origin.protocol !== 'http:' || !['localhost','127.0.0.1'].includes(origin.hostname) || !origin.port
     || ['4300','55440'].includes(origin.port) || origin.origin !== base || !/^browser-[a-z0-9-]+@example\.test$/i.test(email))
     throw Error('S5 requires an isolated loopback stack and synthetic account');
   const browsers=[], connections=[];
   const assert=(value,message)=>{if(!value)throw Error(message);};
-  const run=async(name,work)=>{try{await work();record(name,true);}catch(error){record(name,false,error.stack||error.message);}};
+  const run=async(name,work)=>{try{await work();record(name,true);}catch(error){record(name,false,error.stack||error.message);if(error.code==='Q01_A11Y')throw error;}};
   const request=(cdp,route,method='GET',body)=>cdp.evaluate(`return (async()=>{const response=await fetch(${JSON.stringify(route)},{method:${JSON.stringify(method)},credentials:'same-origin',headers:{'content-type':'application/json'}${body===undefined?'':',body:'+JSON.stringify(JSON.stringify(body))}});return {status:response.status,data:await response.json()};})()`);
   const ready=cdp=>cdp.waitFor("document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden && document.querySelector('#preparation-picker').value",20000);
   const launch=async()=>{const port=await freePort(),browser=await launchBrowser(port);browsers.push(browser);const cdp=await connectToPage(port);connections.push(cdp);await cdp.send('Network.enable');await viewport(cdp,1440,900,false);await theme(cdp,'light');return cdp;};
@@ -24,7 +24,7 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
   const start=async(cdp,prep,mode)=>{const listed=await request(cdp,'/api/v1/mock-forms?preparationId='+prep.id);const form=listed.data.forms.find(f=>f.form_id.endsWith('.'+mode));assert(form,'missing form '+mode);const made=await request(cdp,'/api/v1/mock-runs','POST',{preparationId:prep.id,formId:form.form_id,formVersion:form.version,releaseVersion:form.release_version,eventId:randomUUID()});assert(made.status===201,'start refused '+JSON.stringify(made));return made.data;};
   let a,b,telc,dtz,practice,first,paused;
   try {
-    a=await launch();await signin(a);
+    a=await launch();await axe.start(a,base);await signin(a);
     await run('S5B1 both internal listening catalogues contain honest section forms',async()=>{
       if(await a.evaluate("return Boolean(document.querySelector('[data-preparation=\"new:dtz-a2-b1\"]'))"))await clickSel(a,'[data-preparation="new:dtz-a2-b1"]');
       await ready(a);
@@ -55,12 +55,16 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
         await a.waitFor("document.querySelector('[data-listening-status].err')?.textContent.includes('nicht geladen') && document.querySelector('[data-listening-action=load]')?.disabled===false",12000);
         assert((await playback(a,practice.id)).every(p=>p.plays_used===0),'failed media load consumed play');
         await shot(a,'s5-load-failure-desktop');
+        await axe.scan(a,'audio-load-error',"document.querySelector('[data-listening-status].err')?.textContent.includes('nicht geladen')");
+        await axe.scan(a,'audio-retry',"document.querySelector('[data-listening-action=load]')?.disabled===false && document.querySelector('[data-listening-status].err')");
       } finally { await a.send('Network.setBlockedURLs',{urls:[]}); }
       const retry=await a.evaluate("return Boolean(document.querySelector('[data-listening-action=load]'))");await action(a,retry?'load':'retry');await waitControl(a,'play');
+      await axe.scan(a,'audio-loaded',"document.querySelector('[data-listening-action=play]')?.disabled===false && document.querySelector('[data-listening-audio]')?.duration>0");
     });
     await run('S5B4 actual HTML audio begins once and persists a pause',async()=>{
       await action(a,'play');await waitPlayback(a,practice.id,first.media_id,"p.plays_used===1 && p.state==='playing'");
       await a.waitFor("document.querySelector('[data-listening-audio]')?.currentTime>0.25",10000);
+      await axe.scan(a,'audio-playing',"document.querySelector('[data-listening-audio]')?.paused===false && document.querySelector('[data-listening-audio]').currentTime>0");
       await action(a,'pause');await waitPlayback(a,practice.id,first.media_id,"p.state==='paused' && p.position_ms>0");
       paused=(await playback(a,practice.id)).find(p=>p.media_id===first.media_id);
       assert(paused.plays_used===1&&paused.position_ms>0,'pause not durable');await shot(a,'s5-paused-desktop');
@@ -72,6 +76,7 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
       const restart=await request(b,'/api/v1/mock-runs/'+practice.id+'/playback','POST',{eventId:randomUUID(),mediaId:first.media_id,mediaVersion:first.media_version,expectedRevision:copy.revision,action:'begin'});
       assert(restart.status===409,'existing consumed play restarted');
       await fresh(a,practice.id);await action(a,'load');await waitControl(a,'recover');await shot(a,'s5-recovery-desktop');
+      await axe.scan(a,'audio-recovery',"document.querySelector('[data-listening-action=recover]')?.disabled===false");
     });
     await run('S5B6 explicit recovery completes same DTZ play with no additional allowance',async()=>{
       await a.evaluate("window.__s5Resumed=[];window.__s5Ended=false;const el=document.querySelector('[data-listening-audio]');el.addEventListener('timeupdate',()=>{if(!el.paused)window.__s5Resumed.push(el.currentTime)});el.addEventListener('ended',()=>{window.__s5Ended=true});return true;");
@@ -85,6 +90,7 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
       assert(completed.plays_used===1,'recovery added a play');
       const restart=await request(a,'/api/v1/mock-runs/'+practice.id+'/playback','POST',{eventId:randomUUID(),mediaId:first.media_id,mediaVersion:first.media_version,expectedRevision:completed.revision,action:'begin'});
       assert(restart.status===409,'completed DTZ playback restarted');await shot(a,'s5-exhausted-desktop');
+      await axe.scan(a,'audio-exhausted',"document.querySelector('[data-listening-audio]')?.ended && !document.querySelector('[data-listening-action=play]')");
     });
     await run('S5B7 answers survive new document and finalise separately from playback',async()=>{
       await pointer(a,'.mock-options input');await clickSel(a,'[data-mock-action="save"]');await a.waitFor("document.querySelector('#mock-save-state')?.textContent.includes('Gespeichert')",15000);

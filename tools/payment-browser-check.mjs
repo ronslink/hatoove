@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { verifyPayments } from './payment-browser.mjs';
 import { buildSignatureHeader } from '../server/payments/signature.mjs';
+import { createA11yAuditor, browserEnvironment, verifyBrowserProject, verifyBrowserCleanup } from './a11y-browser.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const project = `hatoove-payments-browser-${Date.now()}-${process.pid}`;
@@ -27,13 +28,14 @@ function command(binary, args, cwd = root, env = process.env) {
   return (r.stdout || '').trim();
 }
 const compose = args => {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(STRIPE_|PAYMENTS_|OWNAPI_|HATOVE_PAYMENTS_)/i.test(key)));
+  const env = browserEnvironment();
   return command('docker', ['compose', '--env-file', envFile, '-p', project, '-f', path.join(source, 'compose.yaml'), ...args], source,
     { ...env, HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base,
       HATOVE_CONTENT_MODE: 'internal-preview', HATOVE_PAYMENTS_MODE: paymentMode,
       STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: webhookSecret });
 };
-const query = sql => compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql]);
+const verifyProject = () => verifyBrowserProject({ project, dbPort, compose, command });
+const query = sql => { verifyProject(); return compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql]); };
 function record(name, ok, detail = '') { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ': ' + detail : ''}`); }
 async function freePort() {
   const server = net.createServer();
@@ -85,18 +87,21 @@ async function signup(email, password) {
   const response = await fetch(base + '/api/auth/sign-up/email', { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ email, password, name: 'Payment Browser Evidence' }) });
   if (response.status !== 200) throw new Error(`Synthetic signup failed: ${response.status} ${await response.text()}`);
 }
+const axe = createA11yAuditor({ suite: 'payments', directory: shots, record, viewport, theme, shot });
 
 try {
   appPort = await freePort(); dbPort = await freePort();
   while (dbPort === appPort) dbPort = await freePort();
   if ([4300, 55440].includes(appPort) || [4300, 55440].includes(dbPort)) throw new Error('Reserved learner port');
   base = `http://127.0.0.1:${appPort}`;
+  verifyBrowserCleanup(project, command);
   fs.writeFileSync(envFile, `HATOVE_APP_PORT=${appPort}\nHATOVE_DB_PORT=${dbPort}\nHATOVE_PUBLIC_ORIGIN=${base}\nHATOVE_CONTENT_MODE=internal-preview\n`);
   sourceFixture();
   console.log(`Synthetic payment source fixture: ${project}, ${base}, database127.0.0.1:${dbPort}`);
   started = true; compose(['up', '--build', '-d']);
   // Payment evidence needs no writing worker; stop only this fixture's worker for deterministic drafts.
   compose(['stop', 'worker']);
+  verifyProject();
   const deadline = Date.now() + 60000;
   let ready = false;
   while (Date.now() < deadline) {
@@ -106,8 +111,10 @@ try {
   if (!ready) throw new Error('Disposable payment stack not ready');
   const password = 'synthetic-browser-pass-1', email = `browser-${Date.now()}@example.test`;
   await signup(email, password);
-  await verifyPayments({ base, email, password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, query,
+  await verifyPayments({ base, email, password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, query, axe,
     webhook: async (event, valid = true) => {
+      // The generated origin/schema were verified before this journey. Keep this callback
+      // non-blocking: synchronous Docker probes here stall concurrent HTTP confirmations.
       const rawBody = JSON.stringify(event);
       const signature = buildSignatureHeader({ rawBody, secret: webhookSecret, timestamp: Math.floor(Date.now() / 1000) });
       const response = await fetch(base + '/api/v1/payments/stripe/webhook', { method: 'POST',
@@ -127,8 +134,9 @@ try {
 } catch (error) {
   record('Payment isolated browser execution completes', false, error.stack || error.message);
 } finally {
+  axe.finish();
   if (started) {
-    try { compose(['down', '-v', '--remove-orphans']); cleaned = true; console.log(`Removed disposable project ${project}`); }
+    try { verifyBrowserCleanup(project, command, { before: true }); compose(['down', '-v', '--remove-orphans']); verifyBrowserCleanup(project, command); cleaned = true; console.log(`Removed disposable project ${project}`); }
     catch (error) { record('Payment fixture cleanup', false, error.message); }
   }
   // Verify the resolved recursive target is this uniquely created task directory before removing it.

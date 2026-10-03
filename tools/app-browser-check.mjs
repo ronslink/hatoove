@@ -24,7 +24,8 @@
  * Android device. It proves rendering and layout; it does not replace a real-device keyboard, audio or
  * Safari check, and it cannot see a font fallback that only that device has.
  *
- * Usage: node tools/app-browser-check.mjs [--keep] [--shots <dir>]
+ * Usage: node tools/app-browser-check.mjs [--keep] [--shots <dir>] [--axe]
+ *        [--design-evidence=originals|served-only]
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -42,9 +43,14 @@ import { verifyExamS1 } from './exam-s1-browser.mjs';
 import { verifyExamS2 } from './exam-s2-browser.mjs';
 import { verifyReviewUx } from './review-ux-browser.mjs';
 import { fixturePreparation, scopedFixtureRoute } from './browser-preparation-fixtures.mjs';
+import { createA11yAuditor, browserEnvironment, copyBrowserSource, verifyBrowserProject, verifyBrowserCleanup } from './a11y-browser.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const KEEP = process.argv.includes('--keep');
+const designArguments = process.argv.filter(value => value.startsWith('--design-evidence'));
+const designEvidence = designArguments.length ? (designArguments[0].startsWith('--design-evidence=') ? designArguments[0].slice('--design-evidence='.length) : null) : 'originals';
+if (designArguments.length > 1 || !['originals', 'served-only'].includes(designEvidence)) throw Error('Use --design-evidence=originals or --design-evidence=served-only');
+if (process.argv.includes('--axe') && KEEP) throw Error('--axe requires verified cleanup; --keep is not permitted');
 const shotsArg = process.argv.indexOf('--shots');
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const SHOTS = shotsArg === -1 ? path.join(ROOT, '.qa', 'browser', stamp) : path.resolve(process.argv[shotsArg + 1]);
@@ -54,6 +60,7 @@ const SYNTHETIC = { name: 'Browser Evidence', password: 'synthetic-browser-pass-
 
 const project = `hatoove-browser-${Date.now()}-${process.pid}`;
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), `${project}-`));
+const source = path.join(scratch, 'source');
 const envFile = path.join(scratch, 'compose.env');
 
 const results = [];
@@ -62,6 +69,7 @@ function record(name, ok, detail = '') {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  [${detail}]` : ''}`);
 }
 const note = (name, detail) => console.log(`NOTE  ${name}${detail ? `  [${detail}]` : ''}`);
+const axe = createA11yAuditor({ suite: 'app', directory: SHOTS, record, viewport, theme, shot, context: { designEvidence, originalsAudited: designEvidence === 'originals' } });
 
 /* ------------------------------------------------------------------ docker */
 
@@ -72,7 +80,8 @@ let base = '';
 function docker(args) {
   const r = spawnSync('docker', args, {
     cwd: ROOT,
-    env: { ...process.env, HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base },
+    env: { ...browserEnvironment(), HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base,
+      HATOVE_CONTENT_MODE: 'internal-preview', HATOVE_PAYMENTS_MODE: 'off', STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '', OWNAPI_PG_PAYMENTS_PASSWORD: '' },
     encoding: 'utf8',
     windowsHide: true,
     timeout: 300000,
@@ -83,7 +92,9 @@ function docker(args) {
   }
   return (r.stdout || '').trim();
 }
-const compose = (args) => docker(['compose', '--env-file', envFile, '-p', project, '-f', path.join(ROOT, 'compose.yaml'), ...args]);
+const compose = (args) => docker(['compose', '--env-file', envFile, '-p', project, '-f', path.join(source, 'compose.yaml'), ...args]);
+const fixtureCommand = (binary, args) => { if (binary !== 'docker') throw Error('Unexpected fixture command'); return docker(args); };
+const verifyProject = () => verifyBrowserProject({ project, dbPort, compose, command: fixtureCommand });
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -299,7 +310,7 @@ async function main() {
   console.log(`\n=== APP-BROWSER-01: rendered evidence (${project}) ===`);
   console.log(`app ${base}   db 127.0.0.1:${dbPort}   screenshots ${SHOTS}\n`);
 
-  if (appPort === 4300 || dbPort === 55440) throw new Error('refusing to run on a live learner port');
+  if ([4300, 55440].includes(appPort) || [4300, 55440].includes(dbPort)) throw new Error('refusing to run on a live learner port');
   fs.writeFileSync(envFile, `HATOVE_APP_PORT=${appPort}\nHATOVE_DB_PORT=${dbPort}\nHATOVE_PUBLIC_ORIGIN=${base}\n`);
 
   /*
@@ -318,16 +329,19 @@ async function main() {
   const referenceDrift = [];
   const servedDrift = [];
   for (const entry of manifest.files || []) {
-    const reference = path.join(process.env.HATOOVE_DESIGN_ROOT || path.join(ROOT, 'design'), entry.path);
-    if (!fs.existsSync(reference)) referenceDrift.push(`${entry.path}: absent`);
-    else if (sha256(reference) !== entry.sha256) referenceDrift.push(`${entry.path}: digest changed`);
+    if (designEvidence === 'originals') {
+      const reference = path.join(process.env.HATOOVE_DESIGN_ROOT || path.join(ROOT, 'design'), entry.path);
+      if (!fs.existsSync(reference)) referenceDrift.push(`${entry.path}: absent`);
+      else if (sha256(reference) !== entry.sha256) referenceDrift.push(`${entry.path}: digest changed`);
+    }
     if (!entry.path.startsWith('assets/')) continue;
     const served = path.join(ROOT, 'public', 'assets', 'design', entry.path.slice('assets/'.length));
     if (!fs.existsSync(served)) servedDrift.push(`${entry.path}: not served`);
     else if (sha256(served) !== entry.sha256) servedDrift.push(`${entry.path}: served copy differs from the pin`);
   }
-  record('P0 the design reference still matches the pinned digests',
+  if (designEvidence === 'originals') record('P0 the design reference still matches the pinned digests',
     referenceDrift.length === 0, referenceDrift.join('; ') || `${(manifest.files || []).length} files`);
+  else note('P0 original-reference audit NOT PERFORMED', 'explicit --design-evidence=served-only; P0b still verifies every pinned served asset');
   record('P0b the SERVED copy of every pinned design asset is byte-exact',
     servedDrift.length === 0, servedDrift.join('; ') || 'stylesheets, logos, mark and fonts all match');
 
@@ -344,10 +358,14 @@ async function main() {
   let browser = null;
   let cdp = null;
   let started = false;
+  let cleaned = false;
   try {
+    verifyBrowserCleanup(project, fixtureCommand);
+    copyBrowserSource(ROOT, source);
     console.log('Building and starting the disposable stack ...');
-    compose(['up', '-d', '--build', '--wait', '--wait-timeout', '180']);
     started = true;
+    compose(['up', '-d', '--build', '--wait', '--wait-timeout', '180']);
+    verifyProject();
     record('B1 disposable stack is ready', await waitForReady(`${base}/api/ready`, 60000), `${base}/api/ready`);
     console.log('  seeded: ' + compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-tAc',
       "SELECT 'objective_sets=' || (SELECT count(*) FROM hatoove.objective_set) || ' keys=' || (SELECT count(*) FROM hatoove.objective_key) || ' vocab=' || (SELECT count(*) FROM hatoove.vocab_entry)"]));
@@ -355,6 +373,7 @@ async function main() {
     browser = await launchBrowser(debugPort);
     cdp = await connectToPage(debugPort);
     await cdp.send('Network.enable');
+    await axe.start(cdp, base);
 
     /* ---------------------------------------------------------------- desktop */
 
@@ -458,6 +477,21 @@ async function main() {
       Boolean(signinView.errStyled) && signinView.errStyled.padding !== '0px' && signinView.errStyled.color !== 'rgb(36, 35, 32)',
       JSON.stringify(signinView.errStyled));
 
+    await axe.scan(cdp, 'auth-signin', "document.querySelector('#form-signin')?.getBoundingClientRect().height>0");
+    if (axe.enabled) {
+      await setInputs(cdp, { 'si-email': 'q01-unknown@example.test', 'si-password': 'synthetic-invalid-password' });
+      await clickSel(cdp, '#si-submit');
+      await axe.scan(cdp, 'auth-error', "document.querySelector('#error')?.getBoundingClientRect().height>0 && !document.querySelector('#si-submit').disabled");
+      await nav(cdp, base + '/reset-password');
+      await axe.scan(cdp, 'reset-request', "document.querySelector('#form-request')?.getBoundingClientRect().height>0");
+      await setInputs(cdp, { 'request-email': 'q01-unknown@example.test' }); await clickSel(cdp, '#request-submit');
+      await axe.scan(cdp, 'reset-acknowledgement', "document.querySelector('#status')?.textContent.includes('keine automatische E-Mail')");
+      await nav(cdp, base + '/reset-password?token=q01-synthetic-invalid-token');
+      await axe.scan(cdp, 'reset-new-password', "document.querySelector('#form-reset')?.getBoundingClientRect().height>0");
+      await setInputs(cdp, { 'new-password': 'synthetic-password-2', 'confirm-password': 'synthetic-password-2' }); await clickSel(cdp, '#reset-submit');
+      await axe.scan(cdp, 'reset-invalid-token', "document.querySelector('#error')?.textContent.includes('ungültig') && document.querySelector('#form-reset').hidden");
+      await nav(cdp, base + '/signin');
+    }
     // The tabs must actually switch which form is shown.
     await clickSel(cdp, '#tab-signup');
     await sleep(250);
@@ -467,6 +501,7 @@ async function main() {
     `);
     record('L4d the Anmelden/Registrieren tabs switch the visible form',
       tabbed.signin === false && tabbed.signup === true, JSON.stringify(tabbed));
+    await axe.scan(cdp, 'auth-register', "document.querySelector('#form-signup')?.getBoundingClientRect().height>0");
 
     // L5/L6 — register THROUGH THE FORM, then see where the learner actually ends up.
     await clickSel(cdp, '#tab-signup');
@@ -617,6 +652,7 @@ async function main() {
       placement.inViewport === true && placement.listHidden === true,
       `form top ${placement.top}px of ${844}px viewport; list hidden=${placement.listHidden} (height ${placement.listHeight})`);
 
+    await axe.scan(cdp, 'objective-pre-answer', "document.querySelector('#practice-items [data-item] button')?.getBoundingClientRect().height>0");
     // Answer the first item's choices in turn until the SERVER says "Richtig." — which also exercises
     // the mistakes path, because every wrong answer must be recorded. The loop runs out here in Node
     // because `cdp.evaluate` does not admit `await` inside the page (it is not an async function).
@@ -645,6 +681,7 @@ async function main() {
     record('L16 an answer is marked by the server and the verdict is shown on screen',
       /^(Richtig\.|Noch nicht richtig)/.test(verdict) && answerRun.pressed >= 1 && seen.length >= 1,
       `${JSON.stringify(seen)}`);
+    await axe.scan(cdp, 'objective-post-answer', "/^(Richtig\\.|Noch nicht richtig)/.test(document.querySelector('#practice-items [data-item] .result')?.innerText)");
     const answerErrors = errorsSince(cdp, mark);
     record('L17 answering produces no console exception', answerErrors.length === 0, answerErrors[0] || 'clean');
 
@@ -1006,6 +1043,7 @@ async function main() {
       };
     `);
     await shot(cdp, '13d-writing-open-desktop-light');
+    await axe.scan(cdp, 'writing-draft', "document.querySelector('#writing-text')?.getBoundingClientRect().height>40 && document.querySelector('#writing-submit')");
     record('W3 opening a writing task renders the task, its Leitpunkte and a text field',
       writingView.area && writingView.leitpunkte >= 3 && writingView.submit,
       `${writingView.leitpunkte} Leitpunkt(e); textarea visible=${writingView.area}; submit=${writingView.submit}`);
@@ -1303,18 +1341,27 @@ async function main() {
       const text = state ? state.innerText : '';
       return {
         state: text.replace(/\\s+/g, ' ').trim().slice(0, 400),
-        bands: [...document.querySelectorAll('#writing-state .band')].map((b) => b.innerText.trim()),
+        bands: [...document.querySelectorAll('#writing-state .band')].map((b) => [...b.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join('').trim()),
+        semanticBands: [...document.querySelectorAll('#writing-state .band')].map((b) => {
+          const prefix = b.querySelector('.sr-only');
+          return { text: b.textContent.trim(), prefix: prefix?.textContent,
+            readable: !!prefix && !prefix.closest('[aria-hidden="true"], [hidden]') && getComputedStyle(prefix).display !== 'none' && getComputedStyle(prefix).visibility !== 'hidden' };
+        }),
         criteria: [...document.querySelectorAll('#writing-state .criterion')].length,
         evidence: [...document.querySelectorAll('#writing-state .evidence')].map((e) => e.innerText.trim()),
         body: document.body.innerText,
       };
     `);
     await shot(cdp, '13l-writing-graded-bands-desktop-light');
+    await axe.scan(cdp, 'writing-assessed', "document.querySelectorAll('#writing-state .criterion').length===3 && document.querySelector('#writing-state').textContent.includes('Übungsfeedback')");
     record('W11 a graded letter renders one band per telc criterion, with the required label',
       graded.criteria === 3 && graded.bands.length === 3
         && graded.bands.every((b) => ['A', 'B', 'C', 'D'].includes(b))
         && graded.state.includes('Übungsfeedback nach den telc-Kriterien – keine offizielle Bewertung'),
       `${graded.criteria} criterion row(s), bands ${JSON.stringify(graded.bands)}; state "${graded.state.slice(0, 120)}"`);
+    record('W11a each visible band has the readable semantic prefix Band',
+      graded.semanticBands.length === 3 && graded.semanticBands.every((b, i) => b.prefix === 'Band ' && b.readable && b.text === `Band ${graded.bands[i]}`),
+      JSON.stringify(graded.semanticBands));
     record('W11b the evidence shown is the learner own sentence, quoted back',
       graded.evidence.length === 3 && graded.evidence.every((quote) => quote.length > 0 && graded.body.includes(quote)),
       `${graded.evidence.length} quote(s), first ${JSON.stringify((graded.evidence[0] || '').slice(0, 60))}`);
@@ -1358,6 +1405,7 @@ async function main() {
     `);
     await sleep(250);
     await shot(cdp, '13m-writing-rubric-panel-desktop-light');
+    await axe.scan(cdp, 'writing-rubric', "document.querySelector('#writing-rubric')?.open && document.querySelector('#writing-rubric-body')?.getBoundingClientRect().height>0");
     record('W12 the marking scheme is available and explains every band',
       rubricPanel.present && rubricPanel.rows === 3 && rubricPanel.bands === 12,
       `${rubricPanel.rows} criterion row(s), ${rubricPanel.bands} band explanation(s); panel "${rubricPanel.text.slice(0, 90)}"`);
@@ -1400,7 +1448,9 @@ async function main() {
         Boolean(queuedState.submissionId) && /läuft|geprüft|Abgegeben/i.test(queuedState.text),
         `submission ${String(queuedState.submissionId).slice(0, 8)}…; state "${queuedState.text}"`);
 
+      await axe.scan(cdp, 'writing-pending', "document.querySelector('#writing-state')?.dataset.submissionId && /läuft|geprüft|Abgegeben/i.test(document.querySelector('#writing-state').textContent)");
       // Arrange the failure in the database the stack itself uses.
+      verifyProject();
       compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-c',
         `UPDATE hatoove.jobs SET status = 'failed', failure_code = 'grader_unavailable' WHERE submission_id = '${queuedState.submissionId}';`,
         '-c',
@@ -1419,6 +1469,7 @@ async function main() {
         };
       `);
       await shot(cdp, '13j-writing-unbewertet-desktop-light');
+      await axe.scan(cdp, 'writing-failed', "document.querySelector('#writing-state')?.textContent.includes('Unbewertet') && document.querySelector('#writing-retry')?.getBoundingClientRect().height>0");
       const fabricatedFail = failedState.body.match(/(\b\d{1,2}\s*\/\s*45\b)|(\b\d{1,2}\s*\/\s*15\b)|(Bestanden)|(Nicht bestanden)|(Note\s*[:=]\s*\d)/i);
       record('W10b a failed assessment renders UNBEWERTET, with a readable reason and the text, never a score',
         /Unbewertet/.test(failedState.text) && /Bewertungsdienst.*nicht verfügbar/.test(failedState.text) && !fabricatedFail,
@@ -2045,11 +2096,11 @@ async function main() {
       openSetAudit.offenders.length === 0 && tiles > 0,
       `${tiles} tile(s), ${openSetAudit.count} control(s); offenders=${JSON.stringify(openSetAudit.offenders)}`);
 
-    await verifyLearnerCompletion({ base, email, password: SYNTHETIC.password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, shots: SHOTS });
+    await verifyLearnerCompletion({ base, email, password: SYNTHETIC.password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, shots: SHOTS, axe });
     await verifyExamS0({ base, email, password: SYNTHETIC.password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow,
       query: sql => compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql]),
     });
-    const browserQuery=sql=>compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-At','-v','ON_ERROR_STOP=1','-c',sql]);
+    const browserQuery=sql=>{verifyProject();return compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-At','-v','ON_ERROR_STOP=1','-c',sql]);};
     await verifyReviewUx({base,email,password:SYNTHETIC.password,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,query:browserQuery});
     await verifyExamS1({base,email,password:SYNTHETIC.password,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,query:browserQuery,
       preparationFixtures:async ({query,email})=>{
@@ -2065,20 +2116,25 @@ async function main() {
     note('device honesty', 'headless Chromium on desktop is not iPhone Safari or Android Chrome; the real-device gate stays open');
     void landingText;
   } finally {
+    axe.finish();
     if (cdp) { try { cdp.ws.close(); } catch { /* ignore */ } }
     if (browser) await browser.cleanup();
     if (started && !KEEP) {
       try {
+        verifyBrowserCleanup(project, fixtureCommand, { before: true });
         compose(['down', '-v', '--remove-orphans']);
+        verifyBrowserCleanup(project, fixtureCommand); cleaned = true;
         console.log(`Removed disposable project ${project}`);
       } catch (err) {
-        console.log(`WARNING: could not remove ${project}: ${err.message}`);
+        record('Disposable project cleanup', false, err.message);
       }
     } else if (started) {
       console.log(`Kept ${project} running on ${base} (--keep)`);
     }
     try {
-      fs.rmSync(scratch, { recursive: true, force: true });
+      const resolved = fs.realpathSync(scratch);
+      if ((!started || cleaned) && path.dirname(resolved) === fs.realpathSync(os.tmpdir()) && path.basename(resolved).startsWith(project + '-')) fs.rmSync(resolved, { recursive: true, force: true });
+      else console.log('Preserved recovery source at ' + scratch);
     } catch {
       /* ignore */
     }
