@@ -1,0 +1,538 @@
+{
+  "schemaVersion": 1,
+  "exam": {
+    "id": "dtz-a2-b1",
+    "title": "Deutsch-Test für Zuwanderer (DTZ), A2–B1",
+    "language": "de",
+    "levelModel": {
+      "type": "cefr-range",
+      "levels": [
+        "A2",
+        "B1"
+      ]
+    }
+  },
+  "blueprint": {
+    "version": "v2",
+    "timeGroups": [
+      {
+        "id": "dtz-lv-45",
+        "seconds": 2700,
+        "sections": [
+          "LV"
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "id": "LV",
+        "title": "Leseverstehen",
+        "timeGroup": "dtz-lv-45",
+        "parts": [
+          {
+            "family": "LV1",
+            "itemCount": 5,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV2",
+            "itemCount": 5,
+            "interaction": "matching_ads",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV3",
+            "itemCount": 6,
+            "interaction": "grouped_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV4",
+            "itemCount": 3,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV5",
+            "itemCount": 6,
+            "interaction": "gap_choice",
+            "mediaRequired": false
+          }
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "S1",
+        "kind": "official-practice-test-pdf",
+        "title": "Deutsch-Test für Zuwanderer — Übungssatz (Beispielaufgaben), Leseverstehen",
+        "url": "https://www.gast.de/fileadmin/gast.de/GAST/5_DTZ/PDF/gast_DTZ_UEbungssatz_1.pdf",
+        "page": 6,
+        "retrieved": "2026-10-03",
+        "verification": "Coordinator retrieved the PDF on 3 October 2026 and read page 6 to establish the reading item counts and structural shape only. No official exam text was copied, and this format reference is not a content licence."
+      }
+    ]
+  },
+  "release": {
+    "version": "v2",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [
+    {
+      "id": "dtz-a2-b1.reading.original01",
+      "version": "v1",
+      "title": "Leseverstehen — Originalübung (interner Entwurf)",
+      "scope": "section",
+      "sections": [
+        "LV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "dtz-a2-b1.lv1.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 5
+        },
+        {
+          "setId": "dtz-a2-b1.lv2.original01",
+          "version": "v1",
+          "interaction": "matching_ads",
+          "itemCount": 5
+        },
+        {
+          "setId": "dtz-a2-b1.lv3.original01",
+          "version": "v1",
+          "interaction": "grouped_choice",
+          "itemCount": 6
+        },
+        {
+          "setId": "dtz-a2-b1.lv4.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 3
+        },
+        {
+          "setId": "dtz-a2-b1.lv5.original01",
+          "version": "v1",
+          "interaction": "gap_choice",
+          "itemCount": 6
+        }
+      ]
+    }
+  ],
+  "sets": [
+    {
+      "setId": "dtz-a2-b1.lv1.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "LV1",
+      "section": "LV",
+      "part": 1,
+      "title": "Nachbarschaftszentrum Sonnenhof — Verzeichnis (Originalentwurf)",
+      "payload": {
+        "text": "Nachbarschaftszentrum Sonnenhof\n\nDas Nachbarschaftszentrum Sonnenhof in der Lindenstraße 4 ist ein offener Treffpunkt für alle Menschen im Viertel. Es ist montags bis freitags von 9 bis 18 Uhr geöffnet und am Samstag von 10 bis 14 Uhr. Sonntags bleibt das Haus geschlossen.\n\nJeden Dienstag und Donnerstag findet von 10 bis 11:30 Uhr ein Deutschkurs für Anfänger statt. Der Kurs kostet 2 Euro pro Termin. Wer wenig Geld hat, kann sich von der Gebühr befreien lassen. Eine Anmeldung ist nicht nötig, kommen Sie einfach vorbei.\n\nAm Mittwochnachmittag gibt es ein Familiencafé mit Kaffee und Kuchen. Während die Eltern sich unterhalten, betreuen zwei Erzieherinnen die Kinder in einem eigenen Raum. Für das Familiencafé zahlen Erwachsene 1 Euro, Kinder bezahlen nichts.\n\nWer handwerklich geschickt ist oder es werden möchte, kann donnerstags ab 17 Uhr in der Werkstatt mitarbeiten. Dort reparieren wir gemeinsam Fahrräder und kleine Möbel. Das Werkzeug ist vorhanden, Sie müssen nichts mitbringen.\n\nFür Fragen ist das Büro im Erdgeschoss zuständig. Sie erreichen uns telefonisch unter 0221 44 55 66 oder per E-Mail an info@sonnenhof.example. Bitte beachten Sie: Im August ist das Zentrum wegen Renovierung zwei Wochen lang geschlossen.",
+        "questions": [
+          {
+            "n": 21,
+            "question": "Wann kann man am Wochenende ins Zentrum kommen?",
+            "options": {
+              "a": "Am Samstag von 10 bis 14 Uhr.",
+              "b": "Am Sonntag von 10 bis 14 Uhr.",
+              "c": "Am Wochenende ist das Zentrum immer geschlossen."
+            }
+          },
+          {
+            "n": 22,
+            "question": "Was gilt für den Deutschkurs?",
+            "options": {
+              "a": "Er kostet immer 2 Euro, auch für Menschen mit wenig Geld.",
+              "b": "Er findet am Dienstag und am Donnerstag statt.",
+              "c": "Man muss sich vorher schriftlich anmelden."
+            }
+          },
+          {
+            "n": 23,
+            "question": "Was kostet der Besuch des Familiencafés für ein Kind?",
+            "options": {
+              "a": "Nichts.",
+              "b": "1 Euro.",
+              "c": "2 Euro."
+            }
+          },
+          {
+            "n": 24,
+            "question": "Was kann man in der Werkstatt machen?",
+            "options": {
+              "a": "Fahrräder und kleine Möbel reparieren.",
+              "b": "Werkzeug kaufen.",
+              "c": "Eigene Möbel verkaufen."
+            }
+          },
+          {
+            "n": 25,
+            "question": "Was passiert im August?",
+            "options": {
+              "a": "Der Deutschkurs findet im Park statt.",
+              "b": "Das Zentrum ist zwei Wochen geschlossen.",
+              "c": "Das Zentrum öffnet auch sonntags."
+            }
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "single_choice",
+      "answers": {
+        "21": "a",
+        "22": "b",
+        "23": "a",
+        "24": "a",
+        "25": "b"
+      },
+      "explanations": {
+        "21": "Im Text steht, dass das Zentrum am Samstag von 10 bis 14 Uhr geöffnet ist und sonntags geschlossen bleibt; deshalb ist nur die Samstagszeit am Wochenende möglich.",
+        "22": "Der Text nennt den Kurs an Dienstag und Donnerstag von 10 bis 11:30 Uhr. Wer wenig Geld hat, kann sich von der Gebühr befreien lassen, und eine Anmeldung ist gerade nicht nötig.",
+        "23": "Laut Text zahlen Erwachsene für das Familiencafé 1 Euro, Kinder bezahlen nichts.",
+        "24": "Die Werkstatt öffnet donnerstags ab 17 Uhr; dort werden gemeinsam Fahrräder und kleine Möbel repariert, und das Werkzeug ist vorhanden.",
+        "25": "Im letzten Satz heißt es, dass das Zentrum im August wegen Renovierung zwei Wochen lang geschlossen ist."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/manifest.json — original generated internal draft, coordinator authored; not copied from any official examination."
+    },
+    {
+      "setId": "dtz-a2-b1.lv2.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "LV2",
+      "section": "LV",
+      "part": 2,
+      "title": "Anzeigen und Situationen (Originalentwurf)",
+      "payload": {
+        "situations": [
+          {
+            "n": 26,
+            "text": "Ihr Toaster funktioniert nicht mehr, und Sie möchten ihn lieber reparieren lassen, statt ihn wegzuwerfen."
+          },
+          {
+            "n": 27,
+            "text": "Ihre Tochter möchte ein Musikinstrument lernen und sucht einen Kurs in der Nähe."
+          },
+          {
+            "n": 28,
+            "text": "Sie arbeiten abends und suchen jemanden, der in dieser Zeit auf Ihr Kind aufpasst."
+          },
+          {
+            "n": 29,
+            "text": "Sie möchten im Sommer eigenes Gemüse anbauen, haben aber keinen eigenen Garten."
+          },
+          {
+            "n": 30,
+            "text": "Sie möchten heute Abend mit Freunden auswärts essen und suchen dafür ein Restaurant."
+          }
+        ],
+        "ads": [
+          {
+            "id": "a",
+            "text": "Babysitter-Vermittlung Regenbogen: Wir vermitteln zuverlässige Babysitterinnen in Ihrem Viertel, auch abends und am Wochenende. Anmeldung online oder telefonisch."
+          },
+          {
+            "id": "b",
+            "text": "Musikschule Klangraum: Klavier, Gitarre und Gesang für Kinder ab sechs Jahren. Die erste Probestunde ist kostenlos. Unterricht dienstags und freitags."
+          },
+          {
+            "id": "c",
+            "text": "Reparaturcafé Lichtblick: Bringen Sie kaputte Kleingeräte mit — wir reparieren Toaster, Lampen und Radios gemeinsam mit Ihnen. Jeden ersten Samstag im Monat, kostenlos."
+          },
+          {
+            "id": "d",
+            "text": "Sprachschule Tor: Intensivkurse Deutsch für den Beruf, abends und samstags. Kleine Gruppen, auch online möglich. Kostenlose Einstufung."
+          },
+          {
+            "id": "e",
+            "text": "Stadtbibliothek Nord: Neue Kinderbücher und Gesellschaftsspiele zum Ausleihen. Vorlesestunde für Kinder jeden Mittwoch um 16 Uhr, Eintritt frei."
+          },
+          {
+            "id": "f",
+            "text": "Sportverein Blauweiß: Fußball und Leichtathletik für Kinder und Jugendliche. Ein Probetraining ist jederzeit möglich. Monatsbeitrag 12 Euro."
+          },
+          {
+            "id": "g",
+            "text": "Fahrradverleih Pedal: Räder und E-Bikes tageweise mieten. Helm inklusive, kleine Reparaturen unterwegs inklusive. Abholung direkt am Bahnhof."
+          },
+          {
+            "id": "h",
+            "text": "Gartenverein Grüne Hand: Kleine Gärten zum Anbau von Gemüse zu vergeben. Ein Wasseranschluss ist vorhanden, Werkzeug kann geteilt werden."
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "matching_ads",
+      "answers": {
+        "26": "c",
+        "27": "b",
+        "28": "a",
+        "29": "h",
+        "30": "x"
+      },
+      "explanations": {
+        "26": "Anzeige c ist ein Reparaturcafé, in dem Kleingeräte wie Toaster gemeinsam mit den Besuchern repariert werden.",
+        "27": "Anzeige b, die Musikschule, bietet Unterricht für Kinder ab sechs Jahren an, unter anderem Klavier und Gitarre.",
+        "28": "Anzeige a vermittelt Babysitterinnen im Viertel und nennt ausdrücklich Abende und Wochenenden als mögliche Zeiten.",
+        "29": "Anzeige h vergeben kleine Gärten zum Anbau von Gemüse an Menschen ohne eigenen Garten.",
+        "30": "Keine der Anzeigen bietet ein Restaurant oder Speisen an. Anzeige e (Bibliothek) und Anzeige d (Sprachschule) sind keine Gaststätten."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/manifest.json — original generated internal draft, coordinator authored; not copied from any official examination."
+    },
+    {
+      "setId": "dtz-a2-b1.lv3.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "LV3",
+      "section": "LV",
+      "part": 3,
+      "title": "Drei kurze Texte (Originalentwurf)",
+      "payload": {
+        "groups": [
+          {
+            "id": "g1",
+            "text": "Seit drei Monaten fahre ich mit dem Fahrrad zur Arbeit. Früher habe ich den Bus genommen und war oft zwanzig Minuten unterwegs. Mit dem Rad brauche ich nur zwölf Minuten, und ich spare außerdem die Fahrkarte. Nur bei starkem Regen nehme ich noch den Bus.",
+            "questions": [
+              {
+                "n": 31,
+                "question": "Die Person ist mit dem Fahrrad länger unterwegs als früher mit dem Bus.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 32,
+                "question": "Wann nimmt die Person noch den Bus?",
+                "options": {
+                  "a": "An jedem Arbeitstag.",
+                  "b": "Nie, sie fährt immer Rad.",
+                  "c": "Nur bei starkem Regen."
+                }
+              }
+            ]
+          },
+          {
+            "id": "g2",
+            "text": "Unsere Nachbarin Frau Yilmaz hat letzten Monat einen kleinen Blumenladen eröffnet. Vorher hat sie in einem Büro gearbeitet, aber sie wollte lieber mit Pflanzen und mit Menschen zu tun haben. Der Laden ist montags bis samstags geöffnet, am Sonntag nicht. Am ersten Tag haben alle Nachbarn Blumen gekauft, um sie zu unterstützen.",
+            "questions": [
+              {
+                "n": 33,
+                "question": "Frau Yilmaz hat früher in einem Büro gearbeitet.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 34,
+                "question": "Was ist über den neuen Laden richtig?",
+                "options": {
+                  "a": "Er ist montags bis samstags geöffnet.",
+                  "b": "Er ist auch am Sonntag geöffnet.",
+                  "c": "Er verkauft nur Bürobedarf."
+                }
+              }
+            ]
+          },
+          {
+            "id": "g3",
+            "text": "Mein Bruder und ich arbeiten in derselben Firma, aber unsere Arbeitszeiten sind verschieden. Deshalb fahren wir meistens getrennt zur Arbeit. Einmal pro Woche haben wir aber beide um sechzehn Uhr Schluss; dann fahren wir zusammen und sparen Benzin. Unterwegs sprechen wir über unsere Pläne für das Wochenende.",
+            "questions": [
+              {
+                "n": 35,
+                "question": "Die beiden Brüder fahren jeden Tag gemeinsam zur Arbeit.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 36,
+                "question": "Wann fahren die Brüder zusammen?",
+                "options": {
+                  "a": "An jedem Arbeitstag.",
+                  "b": "Nur am Wochenende.",
+                  "c": "Einmal pro Woche, wenn beide um 16 Uhr Schluss haben."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 6,
+      "interaction": "grouped_choice",
+      "answers": {
+        "31": "falsch",
+        "32": "c",
+        "33": "richtig",
+        "34": "a",
+        "35": "falsch",
+        "36": "c"
+      },
+      "explanations": {
+        "31": "Im Text heißt es, dass die Person mit dem Bus oft zwanzig Minuten brauchte, mit dem Rad aber nur zwölf Minuten. Mit dem Fahrrad ist sie also kürzer unterwegs, nicht länger.",
+        "32": "Der letzte Satz sagt ausdrücklich: Nur bei starkem Regen nimmt sie noch den Bus.",
+        "33": "Im Text steht, dass Frau Yilmaz vorher in einem Büro gearbeitet hat und lieber mit Pflanzen und Menschen arbeiten wollte.",
+        "34": "Der Text nennt die Öffnungszeiten montags bis samstags; am Sonntag ist der Laden geschlossen, und Bürobedarf wird nicht verkauft.",
+        "35": "Die Brüder haben verschiedene Arbeitszeiten und fahren deshalb meistens getrennt; gemeinsam fahren sie nur einmal pro Woche.",
+        "36": "Laut Text haben beide einmal pro Woche um 16 Uhr Schluss und fahren dann zusammen nach Hause."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/manifest.json — original generated internal draft, coordinator authored; not copied from any official examination."
+    },
+    {
+      "setId": "dtz-a2-b1.lv4.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "LV4",
+      "section": "LV",
+      "part": 4,
+      "title": "Stadtmuseum am Fluss — Broschüre (Originalentwurf)",
+      "payload": {
+        "text": "Stadtmuseum am Fluss\n\nDas Stadtmuseum am Fluss zeigt die Geschichte unserer Stadt von der Römerzeit bis heute. Es ist dienstags bis sonntags von 10 bis 18 Uhr geöffnet. Montags ist das Museum geschlossen.\n\nDer Eintritt für Erwachsene kostet 8 Euro. Kinder und Jugendliche bis 18 Jahre zahlen 3 Euro. Für Familien gibt es eine günstige Karte: zwei Erwachsene und bis zu drei Kinder zahlen zusammen 18 Euro.\n\nJeden Samstag um 14 Uhr beginnt eine öffentliche Führung, die eine Stunde dauert. Die Teilnahme ist im Eintrittspreis enthalten. Wer eine Führung in einer anderen Sprache möchte, kann sie vorher telefonisch anmelden; dafür wird ein Aufpreis von 10 Euro pro Gruppe berechnet.\n\nIm Erdgeschoss befindet sich ein kleines Café. Dort kann man Kaffee, Kuchen und kleine Speisen kaufen. Eigene Getränke und Speisen dürfen nicht mitgebracht werden. Im Museumsladen am Eingang gibt es Bücher, Postkarten und Geschenke aus der Region.",
+        "questions": [
+          {
+            "n": 37,
+            "question": "Das Museum ist auch montags geöffnet.",
+            "options": {
+              "richtig": "Richtig",
+              "falsch": "Falsch"
+            }
+          },
+          {
+            "n": 38,
+            "question": "Die Familienkarte gilt für zwei Erwachsene und bis zu drei Kinder.",
+            "options": {
+              "richtig": "Richtig",
+              "falsch": "Falsch"
+            }
+          },
+          {
+            "n": 39,
+            "question": "Man darf eigene Getränke in das Museumscafé mitbringen.",
+            "options": {
+              "richtig": "Richtig",
+              "falsch": "Falsch"
+            }
+          }
+        ]
+      },
+      "itemCount": 3,
+      "interaction": "single_choice",
+      "answers": {
+        "37": "falsch",
+        "38": "richtig",
+        "39": "falsch"
+      },
+      "explanations": {
+        "37": "Der Text sagt, dass das Museum dienstags bis sonntags geöffnet und montags geschlossen ist. Die Aussage ist daher falsch.",
+        "38": "Im Text steht ausdrücklich: zwei Erwachsene und bis zu drei Kinder zahlen zusammen 18 Euro. Die Aussage stimmt.",
+        "39": "Laut Text dürfen eigene Getränke und Speisen nicht mitgebracht werden. Die Aussage ist falsch."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/manifest.json — original generated internal draft, coordinator authored; not copied from any official examination."
+    },
+    {
+      "setId": "dtz-a2-b1.lv5.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "LV5",
+      "section": "LV",
+      "part": 5,
+      "title": "Brief: Besuch am Wochenende (Originalentwurf)",
+      "payload": {
+        "letter": "Liebe Frau Kessler,\n\nvielen Dank für Ihre E-Mail. Ich habe mich sehr [40] gefreut, dass Sie mich besuchen möchten. Am nächsten Samstag [41] ich leider arbeiten, deshalb passt mir dieser Termin nicht so gut. [42] Sie am Sonntag Zeit haben, treffen wir uns gern in einem Café in der Nähe.\n\nMeine Wohnung liegt nicht weit [43] Bahnhof, nur fünf Minuten zu Fuß. Wenn Sie mit dem Zug kommen, [44] ich Sie am Ausgang ab. Bringen Sie bitte [45] Regenschirm mit, denn am Wochenende soll es regnen.\n\nÜber Ihren Besuch freue ich mich schon sehr.\n\nViele Grüße\nAnna Berger",
+        "gaps": [
+          {
+            "n": 40,
+            "options": {
+              "a": "darauf",
+              "b": "darüber",
+              "c": "daran"
+            }
+          },
+          {
+            "n": 41,
+            "options": {
+              "a": "muss",
+              "b": "musst",
+              "c": "müssen"
+            }
+          },
+          {
+            "n": 42,
+            "options": {
+              "a": "Ob",
+              "b": "Wenn",
+              "c": "Dass"
+            }
+          },
+          {
+            "n": 43,
+            "options": {
+              "a": "vom",
+              "b": "zum",
+              "c": "im"
+            }
+          },
+          {
+            "n": 44,
+            "options": {
+              "a": "hebe",
+              "b": "hole",
+              "c": "halte"
+            }
+          },
+          {
+            "n": 45,
+            "options": {
+              "a": "einen",
+              "b": "ein",
+              "c": "einem"
+            }
+          }
+        ]
+      },
+      "itemCount": 6,
+      "interaction": "gap_choice",
+      "answers": {
+        "40": "b",
+        "41": "a",
+        "42": "b",
+        "43": "a",
+        "44": "b",
+        "45": "a"
+      },
+      "explanations": {
+        "40": "„sich freuen über“ verlangt das Präpositionaladverb „darüber“: Ich habe mich darüber gefreut, dass …",
+        "41": "Das Subjekt ist „ich“, deshalb steht die erste Person: Am Samstag muss ich arbeiten. „musst“ gehört zu „du“, „müssen“ zu „wir/sie“.",
+        "42": "Die Bedingung wird mit „Wenn“ eingeleitet: Wenn Sie am Sonntag Zeit haben, treffen wir uns.",
+        "43": "„nicht weit von“ steht mit dem Dativ; die Kurzform von „von dem“ ist „vom“: nicht weit vom Bahnhof.",
+        "44": "Das trennbare Verb heißt „abholen“; in der ersten Person Singular lautet die Form „hole“: ich hole Sie ab.",
+        "45": "„mitbringen“ verlangt hier den Akkusativ; „Regenschirm“ ist maskulin, also „einen Regenschirm“."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/manifest.json — original generated internal draft, coordinator authored; not copied from any official examination."
+    }
+  ]
+}
