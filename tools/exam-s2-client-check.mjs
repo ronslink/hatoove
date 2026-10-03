@@ -36,6 +36,10 @@ await check('active selection stores no local correctness and persists exact ful
   assert.equal(await session.flush(),true);assert.deepEqual(writes[0].body,{expectedRevision:1,eventId:'event-1',responses:[{setId:'fixture.lv1',version:'v1',itemId:'1',answer:'b'}],position:{member:0,item:0}});
   assert.equal(session.state().dirty,false);
 });
+await check('JSONB key and response ordering do not manufacture dirty state or conflict', async()=>{
+  const fixture=setup();fixture.session.answer(member,'1','b');fixture.session.answer(member,'2','a');fixture.intercept(async()=>({ok:true,status:200,data:{...base,revision:2,responses:[{answer:'a',itemId:'2',version:'v1',setId:member.set_id},{answer:'b',itemId:'1',version:'v1',setId:member.set_id}],position:{item:0,member:0}}}));
+  assert.equal(await fixture.session.flush(),true);assert.equal(fixture.session.state().dirty,false);assert.equal(fixture.writes.length,1);
+});
 await check('lost response retries the same event and body before saving newer local selection', async()=>{
   const fixture=setup();let fail=true;
   fixture.intercept(async()=>fail?{ok:false,status:0,error:'network'}:null);
@@ -66,9 +70,13 @@ await check('finalise first saves answers and freezes the returned result', asyn
   const fixture=setup();fixture.session.answer(member,'1','a');assert.equal(await fixture.session.finalise(),true);
   assert.deepEqual(fixture.writes.map(v=>v.kind),['save','finalise']);assert.equal(fixture.writes[1].body.expectedRevision,2);assert.equal(fixture.session.state().writable,false);assert.equal(fixture.session.answer(member,'2','b'),false);
 });
+await check('concurrent finalise calls cannot replace the pending event', async()=>{
+  const fixture=setup();let release;fixture.intercept(()=>new Promise(resolve=>{release=()=>{fixture.intercept(null);resolve(null);};}));
+  const first=fixture.session.finalise();assert.equal(await fixture.session.finalise(),false);await new Promise(resolve=>setTimeout(resolve,0));assert.equal(fixture.writes.length,1);release();assert.equal(await first,true);
+});
 await check('uncertain finalise retry keeps its event and cannot create a second finalise', async()=>{
   const fixture=setup();let failed=false;fixture.intercept(async kind=>kind==='finalise'&&!failed?(failed=true,{ok:false,status:0,error:'network'}):null);
-  assert.equal(await fixture.session.finalise(),false);assert.equal(await fixture.session.flush(),true);assert.deepEqual(fixture.writes[0],fixture.writes[1]);assert.equal(fixture.session.state().run.state,'finalised');
+  assert.equal(await fixture.session.finalise(),false);assert.equal(fixture.session.state().writable,false);assert.equal(fixture.session.answer(member,'2','b'),false);assert.equal(await fixture.session.flush(),true);assert.deepEqual(fixture.writes[0],fixture.writes[1]);assert.equal(fixture.session.state().run.state,'finalised');
 });
 await check('session expiry preserves unsaved answers and refuses navigation', async()=>{
   let allowed=true;const fixture=setup({canEdit:()=>allowed});fixture.session.answer(member,'1','b');allowed=false;

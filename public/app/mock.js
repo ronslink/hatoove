@@ -1,7 +1,9 @@
 /** Saved section practice. Responses exist only in this document until the server acknowledges them. */
 const clone = value => JSON.parse(JSON.stringify(value));
 const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const sameResponses = (a, b) => equal([...a].sort((x,y) => key(x).localeCompare(key(y))), [...b].sort((x,y) => key(x).localeCompare(key(y))));
+const responseValues = rows => [...rows].sort((a,b) => key(a).localeCompare(key(b))).map(row => [row.setId, row.version, row.itemId, row.answer]);
+const sameResponses = (a, b) => equal(responseValues(a), responseValues(b));
+const samePosition = (a, b) => a?.member === b?.member && a?.item === b?.item;
 const key = row => [row.setId, row.version, row.itemId].join('\u0000');
 export function mockMember(member) {
   const p = member.payload || {};
@@ -24,8 +26,8 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
   let epoch = 0, error = null, localCopy = '', finalising = false;
   const changed = () => onChange();
   const expired = () => run?.expired || Boolean(run?.deadline_at && Date.parse(run.deadline_at) <= now() + clockOffset);
-  const writable = () => run?.state === 'active' && !run.blocked_reason && !expired() && canEdit() && !finalising && !reloading;
-  const dirty = () => Boolean(run && (!sameResponses(responses, run.responses) || !equal(position, run.position)));
+  const writable = () => run?.state === 'active' && !run.blocked_reason && !expired() && canEdit() && !finalising && !reloading && pending?.kind !== 'finalise';
+  const dirty = () => Boolean(run && (!sameResponses(responses, run.responses) || !samePosition(position, run.position)));
   const state = () => ({ run, responses: clone(responses), position: { ...position }, dirty: dirty(), pending: Boolean(pending), busy: Boolean(flight) || reloading, loading: reloading, error, localCopy, finalising, writable: writable() });
   function load(value, keepCopy = false) {
     epoch++; clockOffset = value.server_now ? Date.parse(value.server_now) - now() : 0; run = clone(value); responses = clone(value.responses || []); position = clone(value.position || { member: 0, item: 0 });
@@ -44,7 +46,7 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
       if (!response?.ok) { error = response || { status: 0, error: 'network' }; return false; }
       const value = response.data;
       if (!value || value.id !== run.id || !Number.isInteger(value.revision)) { error = { status: 0, error: 'invalid_response' }; return false; }
-      if (operation.kind === 'save' && value.state === 'active' && (!sameResponses(value.responses || [], operation.body.responses) || !equal(value.position, operation.body.position))) {
+      if (operation.kind === 'save' && value.state === 'active' && (!sameResponses(value.responses || [], operation.body.responses) || !samePosition(value.position, operation.body.position))) {
         error = { status: 409, error: 'run_changed' }; return false;
       }
       // A finalised acknowledgement is authoritative. Retain any divergent local selection as a copy.
@@ -91,7 +93,7 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
       changed(); return true;
     },
     async finalise() {
-      if (!run || run.state !== 'active' || run.blocked_reason || !canEdit()) return false;
+      if (!run || run.state !== 'active' || run.blocked_reason || !canEdit() || finalising) return false;
       finalising = true; changed();
       try {
         if (!(await flush())) return false;
