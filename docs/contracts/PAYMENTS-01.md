@@ -18,6 +18,8 @@ provider calls, real keys, real charges, production operations or migration of l
 part of this execution. Synthetic fixtures demonstrate the path; they are not commercial offers.
 Prices, markets, currencies, allowance, term, tax display and refund policy remain owner decisions.
 No commercial rows are seeded in a normal installation. Existing pilot records and balances survive.
+Runtime configuration is `PAYMENTS_MODE`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and the existing
+`B1PREP_PUBLIC_ORIGIN`. Safe offer/session/order DTOs carry `testMode:true`; the UI labels the test flow.
 
 ## HTTP interface
 
@@ -76,8 +78,9 @@ paymentStatus,livemode`. Recognize completed and async success only when `paymen
 unpaid/no-payment-required are not grants in this slice. Require well-formed event/session identity,
 `livemode:false`, an exact order ID/session binding, amount and currency on grants.
 Refund/dispute events use payment intent plus server-set order metadata to find and cross-check the
-order; never equate a charge/dispute ID with a Checkout Session ID. Unsupported/missing mappings are
-durably refused without granting. Partial refunds are recorded, not presented as a full refund.
+order; never equate a charge/dispute ID with a Checkout Session ID. Missing mappings on an otherwise
+authentic refund/dispute remain retryable until binding is available; do not permanently discard an
+early reversal and then grant its later success. Partial refunds are recorded, not presented as a full refund.
 
 `decideActivation({event,order,entitlement,now})` is pure policy, not an exactly-once guarantee.
 It must reject absent money, mismatched identity/reference/currency, live or unpaid events.
