@@ -144,6 +144,10 @@ jobs:
           node tools/explanation-worker-check.mjs
           node tools/explanation-api-check.mjs
           node tools/explanation-client-check.mjs
+      - name: Interface locale core and public entry state preservation
+        run: |
+          node tools/i18n-core-check.mjs
+          node tools/public-locale-check.mjs
       - name: Install locked PostgreSQL client for offline worker CLI contracts
         run: npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
       - name: Private invocation receipts and exact synthetic cost contracts
@@ -240,6 +244,8 @@ jobs:
         run: node tools/exam-s0-server-pg-check.mjs
       - name: Preparation migration registration and credit concurrency on PostgreSQL
         run: node tools/exam-s1-server-pg-check.mjs
+      - name: Atomic registration language and concurrent account preferences
+        run: node tools/registration-language-pg-check.mjs
       - name: Package imports and release access on PostgreSQL
         run: node tools/exam-s2-package-pg-check.mjs
       - name: Saved section ownership and concurrent finalisation on PostgreSQL

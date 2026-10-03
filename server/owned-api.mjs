@@ -18,7 +18,7 @@
  *   sessions  - the only source of identity. Identity is never read from a body,
  *               a path or a query string.
  *       getSession(headers)            -> {userId, email} | null
- *       signUp({name, email, password}) -> {setCookie?}      (may throw Fault)
+ *       signUp({name, email, password, language?}) -> {setCookie?} (may throw Fault)
  *       signIn({email, password})       -> {setCookie?}      (may throw Fault)
  *       signOut(headers)                -> {setCookie?}
  *
@@ -297,7 +297,7 @@ function validateSettings(input) {
     out.theme = input.theme;
   }
   if (input.language !== undefined) {
-    // This preference changes explanations; interface and exam content stay German.
+    // Interface and preferred explanation language; exam material keeps its exam language.
     if (!EXPLANATION_LANGUAGES.includes(input.language)) fault(422, 'invalid_settings');
     out.language = input.language;
   }
@@ -482,13 +482,18 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
     if (pathname.startsWith('/api/auth/')) {
       const key = `${method} ${pathname}`;
       if (key === 'POST /api/auth/sign-up/email') {
-        onlyFields(body, ['name', 'email', 'password']);
+        onlyFields(body, ['name', 'email', 'password', 'language']);
+        const fields = requireAuthFields(body, true);
+        if (body.language !== undefined) {
+          if (!EXPLANATION_LANGUAGES.includes(body.language)) fault(422, 'invalid_language');
+          fields.language = body.language;
+        }
         /*
          * A GLOBAL REGISTRATION CAP, because the resource is the operator's: every account costs a row and a
          * session. Checked BEFORE the account is created, so a refused registration leaves nothing behind.
          */
         await enforceThrottle('signup', 'global');
-        const outcome = await sessions.signUp(requireAuthFields(body, true));
+        const outcome = await sessions.signUp(fields);
         return reply(200, { ok: true }, outcome && outcome.setCookie);
       }
       if (key === 'POST /api/auth/sign-in/email') {
@@ -1232,7 +1237,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * THE EXPLANATION LANGUAGE IS SNAPSHOTTED HERE, at submit time, and never read again for this
        * submission. `settings.language` is the learner's CURRENT preference; if the worker read that later,
        * the feedback a learner reads would depend on when they read it. An unwired or unset language is
-       * 'de' — every seeded prompt and the whole interface are German.
+       * 'de'. The interface preference does not change the original exam language.
        */
       let language = 'de';
       if (settingsWired) {

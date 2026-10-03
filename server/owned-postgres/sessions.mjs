@@ -21,7 +21,7 @@
  */
 
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import { Fault } from '../../server/owned-api.mjs';
+import { Fault, EXPLANATION_LANGUAGES } from '../../server/owned-api.mjs';
 
 const COOKIE_DEFAULT = 'hatoove_owned_session';
 
@@ -164,7 +164,8 @@ export function createPostgresSessions({
       return { userId: row.userId, email: row.email };
     },
 
-    async signUp({ name, email, password }) {
+    async signUp({ name, email, password, language }) {
+      if (language !== undefined && !EXPLANATION_LANGUAGES.includes(language)) throw new Fault(422, 'invalid_language');
       const id = `user-${randomUUID()}`;
       const existing = (await pool.query('SELECT 1 FROM "user" WHERE email = $1', [email])).rows[0];
       if (existing) throw new Fault(422, 'user_exists');
@@ -174,6 +175,10 @@ export function createPostgresSessions({
           // is transaction-local; a later UPDATE cannot invoke it or mint another exam's balance.
           await client.query("SELECT set_config('hatoove.registration_allowance', $1, true)",
             [allowance === null || allowance === undefined ? '' : String(allowance)]);
+          // Always set this transaction-local scalar, including the absent-language case, so a
+          // reused connection cannot inherit another registration's preference. Migration0039
+          // initializes only the newly inserted account; existing preferences are never updated.
+          await client.query("SELECT set_config('hatoove.registration_language', $1, true)", [language ?? '']);
           await client.query(
             `INSERT INTO "user"(id, name, email, "emailVerified", "createdAt", "updatedAt")
              VALUES($1, $2, $3, false, now(), now())`, [id, name, email]);
