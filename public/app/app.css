@@ -214,9 +214,11 @@ code {
  * open decision, and the server stores nothing numeric so that the screen cannot settle it by accident.
  */
 .criteria { list-style: none; margin: 0.5rem 0 0; padding: 0; }
-.criterion { margin: 0.75rem 0; padding: 0.6rem 0.75rem; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--r-sm); }
-.criterion-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
-/* The band is the mark: one letter, in the display face, with room around it so it reads as a mark rather than a word. */
+.criterion { grid-template-columns: minmax(0, 1fr); margin: 0.75rem 0; padding: 0.6rem 0.75rem; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.criterion-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.75rem; min-width: 0; }
+.criterion-head > strong { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.criterion-head > .band { max-width: 100%; overflow-wrap: anywhere; }
+/* Bound bands can be a letter or a longer phrase; wrap them below the title when space is limited. */
 .band { font-family: var(--display, inherit); font-size: 1.15rem; font-weight: 700; min-width: 1.6em; text-align: center; }
 .criterion p { margin: 0.35rem 0 0; }
 /* The quote from the learner's own text: indented, plain, and never mistaken for interface copy. */
@@ -358,3 +360,13 @@ code {
 .mock-review-prompt { white-space: pre-wrap; }
 #boot-choices .btn { white-space: normal; text-align: start; overflow-wrap: anywhere; }
 .mock-options .letter { width: auto; min-width: 30px; max-width: 40%; height: auto; min-height: 30px; padding: .1rem .35rem; }
+.mock-writing-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.mock-writing-choices > article, #mock-writing-host { min-width: 0; }
+.mock-writing-choices .btn { white-space: normal; min-height: 44px; }
+#mock-writing-host { margin-block: 1rem; }
+.writing-prompt, .rubric-bands { overflow-wrap: anywhere; }
+.writing-prompt .card-head { flex-wrap: wrap; }
+.writing-prompt .card-head .chip { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 860px) {
+  .mock-writing-choices { grid-template-columns: minmax(0, 1fr); }
+}

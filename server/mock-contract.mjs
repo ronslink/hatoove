@@ -30,8 +30,17 @@ export function validateStartMockRun(body) {
 }
 
 export function validateFinaliseMockRun(body) {
-  fields(body, ['expectedRevision', 'eventId']);
-  return { expectedRevision: revision(body.expectedRevision), eventId: event(body.eventId) };
+  fields(body, ['expectedRevision', 'eventId', 'expectedWritingRevision', 'explanationLanguage']);
+  if(body.expectedWritingRevision !== undefined) revision(body.expectedWritingRevision);
+  if(body.explanationLanguage !== undefined && !['de','en','uk','ar','tr'].includes(body.explanationLanguage)) fail('invalid_explanation_language');
+  return { expectedRevision: revision(body.expectedRevision), eventId: event(body.eventId),
+    ...(body.expectedWritingRevision !== undefined ? {expectedWritingRevision:body.expectedWritingRevision}:{}),
+    ...(body.explanationLanguage !== undefined ? {explanationLanguage:body.explanationLanguage}:{}) };
+}
+
+export function validateWritingChoice(body) {
+  fields(body,['expectedRevision','eventId','choiceGroupId','optionId']);
+  return {expectedRevision:revision(body.expectedRevision),eventId:event(body.eventId),choiceGroupId:token(body.choiceGroupId),optionId:token(body.optionId)};
 }
 
 export function validateSaveMockRun(body) {
@@ -86,6 +95,7 @@ export function validatePinnedSnapshot(members, responses, position) {
     for (const item of list) tuples.set(JSON.stringify([member.set_id, member.version, item.id]), item.options);
     return list;
   });
+  if (!members.length && responses.length===0 && position.member===0 && position.item===0) return;
   if (!items[position.member] || !items[position.member][position.item]) fail('invalid_mock_position');
   for (const r of responses) {
     const options = tuples.get(JSON.stringify([r.setId, r.version, r.itemId]));

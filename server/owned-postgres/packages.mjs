@@ -50,7 +50,7 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
     WHERE r.exam_id=$1 AND r.version=$2 AND rf.form_id=$3 AND rf.form_version=$4`,[examId,releaseVersion,formId,formVersion])).rows[0];
   if (!release) return null;
   const head=(await client.query(`SELECT r.* FROM exam_release_head h JOIN exam_release r ON r.exam_id=h.exam_id AND r.version=h.release_version WHERE h.exam_id=$1`,[examId])).rows[0];
-  const blockedReason=head?.manifest?.release?.resumeBlockedReleases?.includes(releaseVersion)?'rights_blocked':
+  let blockedReason=head?.manifest?.release?.resumeBlockedReleases?.includes(releaseVersion)?'rights_blocked':
     (['internal','hidden'].includes(release.state) && contentPolicy().mode!=='internal-preview'?'content_policy_blocked':null);
   if (newStart && (!head || head.version!==releaseVersion || !permittedStates().includes(release.state) || blockedReason)) return null;
   const form=(await client.query('SELECT * FROM exam_form WHERE exam_id=$1 AND form_id=$2 AND version=$3',[examId,formId,formVersion])).rows[0];
@@ -64,9 +64,21 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
   for (const row of rows) {
     try { if(objectiveItems(row.payload,row.interaction).length!==row.item_count) return null; } catch { return null; }
   }
+  const writingChoices=[],reviews=rows.map(r=>r.review_status);
+  for(const choice of form.payload.writingChoices||[]) {
+    const options=[];
+    for(const option of choice.options) {
+      const task=await readWritingTask(client,option.taskId,option.taskVersion);
+      if(!task||task.exam_id!==examId||task.section!==choice.section) return null;
+      if(!writingServable(task)) { if(newStart) return null; blockedReason ||= 'rights_blocked'; }
+      reviews.push(task.review_status,task.rubric_review_status);
+      options.push({id:option.id,task:writingTaskDto(task)});
+    }
+    writingChoices.push({id:choice.id,section:choice.section,options});
+  }
   if (newStart && rows.some(r=>!contentIsServable(r))) return null;
-  return {release,form,members:blockedReason?[]:rows,blockedReason,
-    reviewStatus:rows.length && rows.every(r=>r.review_status==='approved')?'approved':'unreviewed'};
+  return {release,form,members:blockedReason?[]:rows,writingChoices:blockedReason?[]:writingChoices,blockedReason,
+    reviewStatus:reviews.length && reviews.every(r=>r==='approved')?'approved':'unreviewed'};
 }
 
 export async function listReleasedForms(client,examId) {
@@ -80,8 +92,50 @@ export async function listReleasedForms(client,examId) {
     const {form,release,members}=item;
     forms.push({exam_id:examId,release_version:release.version,blueprint_version:release.blueprint_version,
       release_state:release.state,form_id:form.form_id,version:form.version,title:form.payload.title,scope:form.payload.scope,sections:form.payload.sections,
-      mode:form.payload.mode,time_limit_seconds:form.payload.timeLimitSeconds,item_count:members.reduce((n,m)=>n+m.item_count,0),
-      review_status:members.every(m=>m.review_status==='approved')?'approved':'unreviewed'});
+      mode:form.payload.mode,time_limit_seconds:form.payload.timeLimitSeconds,writing_choice_count:(form.payload.writingChoices||[]).length,item_count:members.reduce((n,m)=>n+m.item_count,0),
+      review_status:item.reviewStatus});
   }
   return forms;
+}
+
+/** Full immutable writing binding; never chooses a latest rubric version. */
+export async function readWritingTask(client,taskId,version) {
+ return (await client.query(`SELECT t.*,c.source_path,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status,
+ r.criteria,r.max_total,r.policy,r.feedback_kind,rc.review_status AS rubric_review_status,
+ COALESCE(rr.basis,rc.rights_status) AS rubric_rights_status
+ FROM task_version t JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id)
+ JOIN rubric_version r ON r.rubric_id=t.rubric_id AND r.version=t.rubric_version AND r.exam_id=t.exam_id
+ JOIN content_version rc ON rc.content_version_id=r.content_version_id LEFT JOIN content_rights rr ON rr.content_version_id=rc.content_version_id
+ WHERE t.task_id=$1 AND t.version=$2`,[taskId,version])).rows[0];
+}
+export function writingServable(t) { return contentIsServable(t)&&contentIsServable({review_status:t.rubric_review_status,rights_status:t.rubric_rights_status}); }
+export function writingTaskDto(t) {
+ const {task_id,version,exam_id,family,section,register,topic,situation,adressat,leitpunkte,rubric_id,rubric_version,review_status,rights_status}=t;
+ return {task_id,version,exam_id,family,section,register,topic,situation,adressat,leitpunkte,rubric_id,rubric_version,review_status,rights_status};
+}
+/** Imported standalone discovery uses current membership; owned resumes may use an older eligible release. */
+export async function writingAccess(client,t,{historical=false}={}) {
+ if(!t) return 'content_unavailable';
+ if(!t.source_path?.startsWith('content/exams/')) return null;
+ if(!writingServable(t)) return 'rights_blocked';
+ const rows=(await client.query(`SELECT r.version,r.state,h.release_version AS head_version,head.manifest AS head_manifest
+ FROM exam_release r JOIN exam_release_form rf ON rf.exam_id=r.exam_id AND rf.release_version=r.version
+ JOIN exam_form f ON f.exam_id=rf.exam_id AND f.form_id=rf.form_id AND f.version=rf.form_version
+ JOIN exam_release_head h ON h.exam_id=r.exam_id JOIN exam_release head ON head.exam_id=h.exam_id AND head.version=h.release_version
+ WHERE r.exam_id=$1 AND EXISTS(SELECT 1 FROM jsonb_array_elements(coalesce(f.payload->'writingChoices','[]'::jsonb)) g,
+ jsonb_array_elements(g->'options') o WHERE o->>'taskId'=$2 AND o->>'taskVersion'=$3)`,[t.exam_id,t.task_id,t.version])).rows;
+ const eligible=rows.filter(r=>(historical||r.version===r.head_version)&&permittedStates().includes(r.state));
+ if(!eligible.length) return 'content_policy_blocked';
+ return eligible.some(r=>!r.head_manifest?.release?.resumeBlockedReleases?.includes(r.version))?null:'rights_blocked';
+}
+
+/** A revision keeps its independent navigation while inheriting its original prompt's rights fence. */
+export async function readWritingOrigin(client,attemptId,ownerId) {
+ return (await client.query(`WITH RECURSIVE lineage AS (
+   SELECT id,parent_submission_id FROM attempts WHERE id=$1 AND owner_id=$2
+   UNION ALL
+   SELECT a.id,a.parent_submission_id FROM lineage l JOIN submissions s ON s.id=l.parent_submission_id AND s.owner_id=$2
+   JOIN attempts a ON a.id=s.attempt_id AND a.owner_id=$2
+ ) SELECT r.*,w.run_id,w.choice_group_id,w.selected_option_id FROM lineage l
+ JOIN mock_writing w ON w.attempt_id=l.id AND w.owner_id=$2 JOIN mock_run r ON r.id=w.run_id AND r.owner_id=w.owner_id LIMIT 1`,[attemptId,ownerId])).rows[0]??null;
 }

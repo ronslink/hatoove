@@ -148,6 +148,35 @@ paths:
         '409': { description: 'Revision/event conflict, finalised, expired, archived or content blocked.' }
         '422': { description: 'Invalid answer, item, position or unknown request field.' }
 
+  /api/v1/mock-runs/{id}/writing-choice:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [mock-runs]
+      summary: Bind one immutable writing option to the owned saved run
+      description: 'Creates the initial attempt and draft atomically. The server resolves the exact prompt and rubric from the pinned form. An acknowledged choice cannot be replaced. A repeated event returns its original selection; another body under the same event conflicts. Internal and withdrawn content gates remain authoritative.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedRevision, eventId, choiceGroupId, optionId]
+              properties:
+                expectedRevision: { type: integer, minimum: 1 }
+                eventId: { type: string, format: uuid }
+                choiceGroupId: { type: string }
+                optionId: { type: string, enum: [A, B] }
+      responses:
+        '200': { description: 'Full run with the immutable selected option and attached draft.', content: { application/json: { schema: { $ref: '#/components/schemas/MockRun' } } } }
+        '401': { description: Session required }
+        '404': { description: Owned run absent }
+        '409': { description: Revision, event, selection, finalisation or content conflict }
+        '422': { description: Invalid request or unavailable exam }
   /api/v1/mock-runs/{id}/finalise:
     parameters:
       - name: id
@@ -157,7 +186,7 @@ paths:
     post:
       tags: [mock-runs]
       summary: Finalise acknowledged answers and reveal deterministic feedback
-      description: Atomically freezes the saved snapshot and creates version-exact evidence for answered items once. Unanswered items are explicit. An expired run grades only its last acknowledged answers. Repeated finalisation returns the stored result. There is no overall exam grade or pass prediction.
+      description: Atomically freezes acknowledged objective answers and the selected writing draft. A selected writing attachment requires explanationLanguage and expectedWritingRevision. Empty or credit-exhausted writing remains submitted and unassessed without consuming another exam's allowance. Pending or failed writing never removes objective results. An expired run retains its server deadline. Repeated finalisation returns the stored result and does not create another submission or debit. There is no overall exam grade or pass prediction.
       requestBody:
         required: true
         content:
@@ -169,6 +198,8 @@ paths:
               properties:
                 expectedRevision: { type: integer, minimum: 1, maximum: 2147483646 }
                 eventId: { type: string, format: uuid }
+                expectedWritingRevision: { type: integer, minimum: 1, description: Required when a writing option has been selected. }
+                explanationLanguage: { type: string, enum: [de, en, uk, ar, tr], description: Required after writing selection; saved with the submission. }
       responses:
         '200': { description: 'Full finalised run with deterministic per-item feedback.', content: { application/json: { schema: { $ref: '#/components/schemas/MockRun' } } } }
         '404': { description: 'Absent or owned by someone else.' }
@@ -714,7 +745,7 @@ paths:
       tags: [attempts]
       summary: Read an owned attempt and its draft
       responses:
-        '200': { description: 'The attempt, draft and its immutable historical task/rubric payloads, even if no longer in the current catalogue.' }
+        '200': { description: 'The attempt and owned draft. Historical task/rubric payloads follow catalogue and rights policy; blocked_reason explains withheld content while the learner text remains available.' }
         '404': { description: 'Not this owner’s — never 403, so another owner’s record is indistinguishable from one that does not exist.' }
     put:
       tags: [attempts]
@@ -738,7 +769,7 @@ paths:
       summary: Discard an owned unsubmitted draft
       responses:
         '200': { description: 'Unsubmitted draft tombstoned.' }
-        '409': { description: 'Submitted writing is preserved (`submitted_attempt`). A stale account precondition returns `account_changed`.' }
+        '409': { description: 'Submitted writing is preserved (`submitted_attempt`); an attached active-run draft must be managed through its run. A stale account precondition returns `account_changed`.' }
 
   /api/v1/attempts/{id}/submissions:
     parameters:
@@ -749,7 +780,7 @@ paths:
     post:
       tags: [attempts]
       summary: Submit for feedback
-      description: Idempotent by `eventId` — a duplicate click replays the first submission rather than queueing a second, so there is exactly one debit.
+      description: Idempotent by `eventId` — a duplicate click replays the first submission rather than queueing a second, so there is exactly one debit. An attached active-run attempt must use mock-run finalisation; this standalone route refuses it.
       requestBody:
         required: true
         content:
@@ -776,7 +807,7 @@ paths:
       summary: Read a submission, its job and its assessment
       description: A missing or failed assessment is reported as such. It is never a fabricated score.
       responses:
-        '200': { description: 'Submission, job status, assessment (or null), exact task/rubric identifiers, parent_submission_id and historical task/rubric payloads.' }
+        '200': { description: 'Submission, job status, assessment (or null), exact task/rubric identifiers and parent_submission_id. Historical task/rubric payloads and feedback follow catalogue and rights policy; blocked_reason explains withheld content while original submitted text is retained.' }
         '404': { description: 'Not this owner’s.' }
 
   /api/v1/submissions/{id}/retry:
@@ -842,6 +873,7 @@ components:
         mode: { type: string, enum: [untimed, timed] }
         time_limit_seconds: { type: integer, nullable: true }
         item_count: { type: integer }
+        writing_choice_count: { type: integer, minimum: 0, maximum: 1 }
         review_status: { type: string }
         release_state: { type: string, enum: [hidden, internal, available, withdrawn] }
     MockPosition:
@@ -883,6 +915,7 @@ components:
         finalised_at: { type: string, format: date-time, nullable: true }
         server_now: { type: string, format: date-time }
         expired: { type: boolean }
+        writing: { $ref: '#/components/schemas/MockWriting' }
         blocked_reason:
           type: string
           nullable: true
@@ -894,6 +927,21 @@ components:
           properties:
             responses: { type: array, items: { $ref: '#/components/schemas/MockResponse' } }
             position: { $ref: '#/components/schemas/MockPosition' }
+            writing_choices:
+              type: array
+              description: Exact pinned A/B prompts, withheld when content is blocked. No assessment is implied by selection.
+              items:
+                type: object
+                properties:
+                  id: { type: string }
+                  section: { type: string }
+                  options:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, enum: [A, B] }
+                        task: { $ref: '#/components/schemas/TaskVersion' }
             members:
               type: array
               description: Exact pinned public content, or empty when access is blocked. Contains no keys or explanations.
@@ -913,7 +961,7 @@ components:
             result:
               type: object
               nullable: true
-              description: Null while active or rights-blocked. Counts describe this section practice only.
+              description: Null while active, blocked, or in a writing-only run. Objective counts describe this section practice only; writing has its own assessment state.
               properties:
                 answered: { type: integer }
                 unanswered: { type: integer }
@@ -932,6 +980,18 @@ components:
                       unanswered: { type: boolean }
                       correct_answer: { type: string }
                       explanation: { type: string, nullable: true }
+    MockWriting:
+      type: object
+      nullable: true
+      description: The original writing attachment remains immutable when independent revisions are created. Null means no option was selected.
+      properties:
+        choice_group_id: { type: string }
+        selected_option_id: { type: string, enum: [A, B] }
+        attempt_id: { type: string, format: uuid }
+        draft_revision: { type: integer, minimum: 1 }
+        submission_id: { type: string, format: uuid, nullable: true }
+        assessment_state: { type: string, enum: [not_started, pending, assessed, failed, unassessed] }
+        failure_code: { type: string, nullable: true }
     Preparation:
       type: object
       required: [id, exam_id, exam, exam_language, exam_date, state, revision, created_at, updated_at]
@@ -958,6 +1018,7 @@ components:
         rubric_version: { type: string }
         topic: { type: string }
         parent_submission_id: { type: string, format: uuid, nullable: true }
+        mock_run_id: { type: string, format: uuid, nullable: true, description: Initial run attachment only; a revision is an independent attempt. }
         revision: { type: integer }
         created_at: { type: string, format: date-time }
         submission_id: { type: string, format: uuid, nullable: true }

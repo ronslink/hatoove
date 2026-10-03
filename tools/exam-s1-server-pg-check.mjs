@@ -455,7 +455,8 @@ check('7. export carries every preparation and balance; delete removes them; a l
 check('8. concurrent cross-exam event reuse has one success, one 409, and one reservation/debit', async () => {
   const w = await makeWorld();
   const pools = [];
-  let timeout;
+  let held;
+  const pending = [];
   try {
     const a = await w.learner('event-race');
     const synth = (await w.call('POST', '/api/v1/preparations', { cookie: a.cookie, body: { examId: SYNTH } })).json;
@@ -468,38 +469,43 @@ check('8. concurrent cross-exam event reuse has one success, one 409, and one re
       assert.equal(saved.status, 200, JSON.stringify(saved.json));
       attempts.push(created.json.id);
     }
-    // Two real restricted-role connections read the absent event before either INSERT. This
-    // deterministically reaches the cross-exam race; per-exam balance locks cannot serialize it.
-    let arrivals = 0;
-    let release;
-    let rejectGate;
-    const gate = new Promise((resolve, reject) => { release = resolve; rejectGate = reject; });
-    const ports = attempts.map(() => {
-      const realPool = rolePool(w.db.config, w.db.schema, w.db.roles.learner, 1);
-      pools.push(realPool);
-      const pool = { connect: async () => {
-        const client = await realPool.connect();
-        return { release: () => client.release(), query: async (text, params) => {
-          const result = await client.query(text, params);
-          if (text === 'SELECT * FROM submissions WHERE owner_id = $1 AND event_id = $2' && arrivals < 2) {
-            assert.equal(result.rows.length, 0, 'both initial event lookups are absent');
-            arrivals += 1;
-            if (arrivals === 1) timeout = setTimeout(() => rejectGate(new Error('second event lookup did not reach the race gate')), 10000);
-            if (arrivals === 2) { clearTimeout(timeout); release(); }
-            await gate;
-          }
-          return result;
-        } };
-      } };
-      return createPostgresDatastore({ pool, examCatalogue: catalogue });
-    });
+    // S4 serializes all writing mutations for one owner before per-exam balances. Hold that
+    // real lock, overlap a second restricted connection, and prove the exact blocker/key rather
+    // than waiting for two event lookups that can no longer occur concurrently.
+    held = gatedPort(w, pools, (text) => /pg_advisory_xact_lock\(hashtextextended\(\$1,\s*7352\)\)/.test(text));
+    const waiting = gatedPort(w, pools);
+    const ports = [held.port, waiting.port];
     const eventId = randomUUID();
-    const outcomes = await Promise.allSettled(ports.map((port, i) => port.submit(a.id, attempts[i], 2, eventId)));
-    assert.equal(arrivals, 2);
+    const first = ports[0].submit(a.id, attempts[0], 2, eventId);
+    pending.push(first);
+    await waitForGate(held, first);
+    const second = ports[1].submit(a.id, attempts[1], 2, eventId);
+    pending.push(second);
+    const settled = Promise.allSettled(pending);
+    let overlap;
+    for (let i = 0; i < 500 && !overlap; i += 1) {
+      if (held.pids.size === 1 && waiting.pids.size === 1) {
+        overlap = (await w.sql(`SELECT holder.pid AS winner_pid, waiter.pid AS loser_pid
+          FROM pg_locks holder JOIN pg_locks waiter
+            ON holder.locktype=waiter.locktype AND holder.database=waiter.database
+            AND holder.classid=waiter.classid AND holder.objid=waiter.objid AND holder.objsubid=waiter.objsubid
+          WHERE holder.pid=$1 AND waiter.pid=$2 AND holder.locktype='advisory'
+            AND holder.granted AND NOT waiter.granted AND holder.objsubid=1
+            AND ((holder.classid::bigint << 32) | holder.objid::bigint)=hashtextextended($3,7352)
+            AND $1=ANY(pg_blocking_pids($2))`, [[...held.pids][0], [...waiting.pids][0], a.id])).rows[0];
+      }
+      if (!overlap) await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.ok(overlap, "second submission must wait on this owner's exact 7352 lock held by the first backend");
+    assert.equal(overlap.winner_pid, [...held.pids][0]);
+    assert.equal(overlap.loser_pid, [...waiting.pids][0]);
+    held.release();
+    const outcomes = await settled;
     assert.equal(outcomes.filter((o) => o.status === 'fulfilled').length, 1, 'one submission wins');
     const winner = outcomes.findIndex((o) => o.status === 'fulfilled');
+    assert.equal(winner, 0, 'the verified lock-holder backend wins before its waiting peer');
     const loser = 1 - winner;
-    assert.equal(outcomes[loser].reason.status, 409, 'the SQL race is a contract conflict, not a 500');
+    assert.equal(outcomes[loser].reason.status, 409, 'the overlapped submission is a contract conflict, not a 500');
     assert.equal(outcomes[loser].reason.code, 'idempotency_conflict');
     const result = outcomes[winner].value;
     assert.equal(result.replay, false);
@@ -519,7 +525,8 @@ check('8. concurrent cross-exam event reuse has one success, one 409, and one re
     const losingExam = loser === 0 ? TELC : SYNTH;
     assert.deepEqual(await w.balance(a.id, losingExam), { allowance: loser === 0 ? 10 : 3, used: 0, reserved: 0 }, 'losing exam credit remains untouched');
   } finally {
-    clearTimeout(timeout);
+    held?.release();
+    await Promise.allSettled(pending);
     await Promise.all(pools.map((pool) => pool.end().catch(() => {})));
     await w.teardown();
   }

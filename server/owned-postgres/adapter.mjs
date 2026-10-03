@@ -28,7 +28,7 @@ import { contentPolicy, servableReview } from '../content-policy.mjs';
 import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs';
 import { preparationMethods, requireActivePreparation, resolvePreparation } from './preparations.mjs';
 import { mockRunMethods, lockMockOwner } from './mock-runs.mjs';
-import { importedSetGate, objectiveInteractionSql, releasedObjectiveFamily } from './packages.mjs';
+import { importedSetGate, objectiveInteractionSql, releasedObjectiveFamily, readWritingTask, writingAccess, readReleasedForm, readWritingOrigin } from './packages.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -89,6 +89,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
 
   /** Live, owned attempt or 404. Locked for the writer paths. */
   async function owned(client, owner, id) {
+    await lockMockOwner(client,owner);
     const attempt = first(await client.query(
       'SELECT * FROM attempts WHERE id = $1 AND owner_id = $2 FOR UPDATE', [id, owner]));
     if (!attempt || attempt.deleted_at) fail(404, 'not_found');
@@ -105,7 +106,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
 
   // Every new use checks the task AND its declared rubric. Existing snapshots remain readable.
   // Returns the exam both belong to, so a caller can compare it with the preparation BEFORE writing.
-  async function requireServableBinding(client, binding) {
+  async function requireServableBinding(client, binding, historical=false) {
+    const identity=await readWritingTask(client,binding.taskId,binding.taskVersion);
+    if(identity?.source_path?.startsWith('content/exams/')) await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[identity.exam_id]);
     const policy = contentPolicy();
     const row = first(await client.query(
       `SELECT t.exam_id FROM task_version t
@@ -121,6 +124,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           AND COALESCE(rr.basis, rc.rights_status) = ANY($6::text[])`,
       [binding.taskId, binding.taskVersion, binding.rubricId, binding.rubricVersion, policy.review, policy.rights]));
     if (!row) fail(422, 'task_not_servable');
+    const task=await readWritingTask(client,binding.taskId,binding.taskVersion);
+    if(task?.source_path?.startsWith('content/exams/') && (!examCatalogue.isEnabled(row.exam_id) || await writingAccess(client,task,{historical}))) fail(422,'task_not_servable');
     return row.exam_id;
   }
 
@@ -158,19 +163,45 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
 
   // Call only after proving ownership of an attempt. These immutable historical records are
   // deliberately readable when the current deployment no longer offers them for new practice.
+  async function writingContext(client,attempt) {
+    const attached=first(await client.query(`SELECT r.* FROM mock_writing w JOIN mock_run r ON r.id=w.run_id AND r.owner_id=w.owner_id WHERE w.attempt_id=$1 AND w.owner_id=$2`,[attempt.id,attempt.owner_id]));
+    const origin=await readWritingOrigin(client,attempt.id,attempt.owner_id);
+    const t=await readWritingTask(client,attempt.task_id,attempt.task_version);
+    let blocked=null;
+    if(t?.source_path?.startsWith('content/exams/')) {
+      blocked=!examCatalogue.isEnabled(t.exam_id)?'exam_unavailable':await writingAccess(client,t,{historical:true});
+      if(origin&&!blocked) {
+        const bundle=await readReleasedForm(client,{examId:origin.exam_id,formId:origin.form_id,formVersion:origin.form_version,releaseVersion:origin.release_version});
+        blocked=bundle?.blockedReason??(!bundle?'content_unavailable':null);
+      }
+    }
+    return {mock_run_id:attached?.id??null,blocked_reason:blocked,attached};
+  }
+  async function requireWritingMutation(client,attempt,{standalone=false}={}) {
+    if(attempt.exam_id) await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[attempt.exam_id]);
+    const context=await writingContext(client,attempt);
+    if(standalone&&context.attached) fail(409,'attached_mock_attempt');
+    if(context.blocked_reason) fail(409,context.blocked_reason);
+    if(context.attached) {
+      if(context.attached.state!=='active') fail(409,'mock_finalised');
+      if(context.attached.deadline_at&&new Date(context.attached.deadline_at)<=new Date()) fail(409,'mock_expired');
+    }
+  }
   async function historicalContent(client, attempt) {
+    const {mock_run_id,blocked_reason}=await writingContext(client,attempt);
+    if(blocked_reason) return {task:null,rubric:null,mock_run_id,blocked_reason};
     const task = first(await client.query(
       `SELECT task_id, version, rubric_id, rubric_version, exam_id, family, register, topic,
               situation, adressat, leitpunkte FROM task_version WHERE task_id = $1 AND version = $2`,
       [attempt.task_id, attempt.task_version]));
     const rubric = first(await client.query(
-      `SELECT r.rubric_id, r.version, r.criteria, r.max_total, r.family, r.exam_id,
+      `SELECT r.rubric_id, r.version, r.criteria, r.max_total, r.family, r.exam_id, r.policy, r.feedback_kind,
               c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status,
               c.review_status <> 'approved' AS provisional
          FROM rubric_version r JOIN content_version c ON c.content_version_id = r.content_version_id
          LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
         WHERE r.rubric_id = $1 AND r.version = $2`, [attempt.rubric_id, attempt.rubric_version]));
-    return { task: task ?? null, rubric: rubric ?? null };
+    return { task: task ?? null, rubric: rubric ?? null, mock_run_id, blocked_reason };
   }
 
   return Object.freeze({
@@ -221,7 +252,12 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
               AND COALESCE(rr.basis, rc.rights_status) = ANY($4::text[])
             ORDER BY t.task_id, t.version`,
           [examId, family, statuses, contentPolicy().rights])).rows;
-        return rows.map((row) => ({
+        const permitted=[];
+        for(const row of rows) {
+          const task=await readWritingTask(client,row.task_id,row.version);
+          if(examCatalogue.isEnabled(row.exam_id)&&!(await writingAccess(client,task))) permitted.push(row);
+        }
+        return permitted.map((row) => ({
           task_id: row.task_id,
           version: row.version,
           exam_id: row.exam_id,
@@ -483,7 +519,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
         const row = first(await client.query(
-          `SELECT r.rubric_id, r.version, r.family, r.criteria, r.max_total, r.exam_id,
+          `SELECT r.rubric_id, r.version, r.family, r.criteria, r.max_total, r.exam_id, r.policy, r.feedback_kind,
                   c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM rubric_version r
              JOIN content_version c ON c.content_version_id = r.content_version_id
@@ -491,13 +527,20 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             WHERE r.rubric_id = $1 AND r.version = $2 AND c.review_status = ANY($3::text[])
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
           [rubricId, version, statuses, contentPolicy().rights]));
-        if (!row) return null;
+        if (!row || !examCatalogue.isEnabled(row.exam_id)) return null;
+        if(row.policy) {
+          const tasks=(await client.query('SELECT task_id,version FROM task_version WHERE rubric_id=$1 AND rubric_version=$2',[rubricId,version])).rows;
+          let permitted=false;
+          for(const t of tasks) if(!(await writingAccess(client,await readWritingTask(client,t.task_id,t.version)))) permitted=true;
+          if(!permitted) return null;
+        }
         return {
+          policy:row.policy,feedback_kind:row.feedback_kind,
           rubric_id: row.rubric_id,
           version: row.version,
           family: row.family,
           exam_id: row.exam_id,
-          max_total: Number(row.max_total),
+          max_total: row.max_total===null?null:Number(row.max_total),
           criteria: row.criteria,
           review_status: row.review_status,
           rights_status: row.rights_status,
@@ -833,16 +876,20 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     async create(owner, parent = null, binding = null, preparationId = null) {
       note('create');
       return settle(owner, async (client) => {
+        await lockMockOwner(client,owner);
         let b = binding || DEFAULT_TASK_BINDING;
         let text = '';
         let prepId = preparationId;
         if (parent) {
           const parentRow = first(await client.query(
-            `SELECT a.task_id, s.task_version, a.rubric_id, s.rubric_version, s.text, a.preparation_id
+            `SELECT a.id,a.owner_id,a.exam_id,a.task_id, s.task_version, a.rubric_id, s.rubric_version, s.text, a.preparation_id
                FROM submissions s JOIN attempts a ON a.id = s.attempt_id
               WHERE s.id = $1 AND s.owner_id = $2 AND a.owner_id = $2
                 AND a.deleted_at IS NULL FOR UPDATE OF a`, [parent, owner]));
           if (!parentRow) fail(404, 'not_found');
+          if(parentRow.exam_id) await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[parentRow.exam_id]);
+          const parentContext=await writingContext(client,parentRow);
+          if(parentContext.blocked_reason) fail(409,parentContext.blocked_reason);
           const inherited = bindingOf(parentRow);
           if (binding && Object.keys(inherited).some((key) => binding[key] !== inherited[key])) fail(422, 'parent_binding_mismatch');
           if (!parentRow.preparation_id) fail(422, 'preparation_unresolved');
@@ -853,7 +900,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         }
         requirePreparationContext(prepId);
         const prep = await requireActivePreparation(client, owner, prepId);
-        const contentExam = await requireServableBinding(client, b);
+        const contentExam = await requireServableBinding(client, b,Boolean(parent));
         if (contentExam !== prep.exam_id) fail(422, 'preparation_mismatch');
         const id = randomUUID();
         await client.query(
@@ -884,9 +931,10 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         return (await client.query(
         `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version, a.preparation_id, a.exam_id,
                 a.parent_submission_id, d.revision, a.created_at, t.topic, s.id AS submission_id,
+                (SELECT run_id FROM mock_writing WHERE attempt_id=a.id) AS mock_run_id,
                 CASE WHEN s.id IS NULL THEN 'draft'
                      WHEN f.submission_id IS NOT NULL THEN 'assessed'
-                     WHEN j.status IN ('failed', 'cancelled') THEN 'unassessed'
+                     WHEN j.status IS NULL OR j.status IN ('failed', 'cancelled') THEN 'unassessed'
                      ELSE 'pending' END AS status
            FROM attempts a JOIN drafts d ON d.attempt_id = a.id
            JOIN task_version t ON t.task_id = a.task_id AND t.version = a.task_version
@@ -958,7 +1006,15 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
               AND pinned.state IN ('internal','hidden') AND (NOT (r.exam_id=ANY($2::text[])) OR NOT $3::boolean))
             THEN NULL ELSE result END AS result,created_at,updated_at,
           deadline_at,finalised_at FROM mock_run r WHERE owner_id = $1 ORDER BY created_at,id`, [owner, examCatalogue.ids, contentPolicy().mode==='internal-preview'])).rows;
-        return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs };
+        const mock_writing=(await client.query('SELECT run_id,attempt_id,choice_group_id,selected_option_id,submission_id,failure_code FROM mock_writing WHERE owner_id=$1 ORDER BY run_id',[owner])).rows;
+        for(const result of results) {
+          const submission=submissions.find(s=>s.id===result.submission_id);
+          if(submission) {
+            const context=await writingContext(client,{id:submission.attempt_id,owner_id:owner,task_id:submission.task_id,task_version:submission.task_version});
+            if(context.blocked_reason) result.feedback=null;
+          }
+        }
+        return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing };
       }, true);
     },
 
@@ -981,7 +1037,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         await resolvePreparation(client, owner, preparationId);
         const rows = (await client.query(
           `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version, a.preparation_id, a.exam_id,
-                  d.revision, a.created_at
+                  d.revision, a.created_at,(SELECT run_id FROM mock_writing WHERE attempt_id=a.id) AS mock_run_id
              FROM attempts a
              JOIN drafts d ON d.attempt_id = a.id
             WHERE a.owner_id = $1
@@ -996,6 +1052,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           exam_id: row.exam_id,
           task_id: row.task_id,
           task_version: row.task_version,
+          mock_run_id:row.mock_run_id??null,
           rubric_id: row.rubric_id,
           rubric_version: row.rubric_version,
           revision: Number(row.revision),
@@ -1009,7 +1066,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1 ||
           typeof text !== 'string' || text.length > TEXT_LIMIT) fail(422, 'invalid_draft');
       return settle(owner, async (client) => {
+        await lockMockOwner(client,owner);
         const attempt = await owned(client, owner, id);
+        await requireWritingMutation(client,attempt,{});
         const current = await draftOf(client, id);
         if (!current || current.revision !== expectedRevision) fail(409, 'draft_conflict');
         const submitted = first(await client.query('SELECT id FROM submissions WHERE attempt_id = $1', [id]));
@@ -1025,11 +1084,13 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1 ||
           typeof eventId !== 'string' || !UUID_RE.test(eventId)) fail(422, 'invalid_submission');
       return settle(owner, async (client) => {
+        await lockMockOwner(client,owner);
         // Serialize the attempt's EXAM balance before locking the attempt (EXAM-S1). Owner-wide
         // event uniqueness also covers concurrent submissions against independently locked exams.
         const examId = await attemptExam(client, owner, id);
         const entitlement = examId ? await lockBalance(client, owner, examId) : null;
         const attempt = await owned(client, owner, id);
+        await requireWritingMutation(client,attempt,{standalone:true});
         const prior = first(await client.query(
           'SELECT * FROM submissions WHERE owner_id = $1 AND event_id = $2', [owner, eventId]));
         if (prior) {
@@ -1039,7 +1100,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         // An unresolved legacy attempt stays readable, but cannot spend a credit of a guessed exam.
         if (!attempt.preparation_id || !attempt.exam_id) fail(422, 'preparation_unresolved');
         await requireActivePreparation(client, owner, attempt.preparation_id);
-        await requireServableBinding(client, bindingOf(attempt));
+        await requireServableBinding(client, bindingOf(attempt),true);
         const draft = await draftOf(client, id);
         if (!draft || draft.revision !== expectedRevision) fail(409, 'draft_conflict');
         if (!draft.text.trim()) fail(422, 'empty_submission');
@@ -1082,12 +1143,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           'SELECT status, failure_code, tries FROM jobs WHERE submission_id = $1', [submissionId]));
         const assessment = first(await client.query(
           'SELECT feedback, model_version, prompt_version, rubric_version FROM assessments WHERE submission_id = $1', [submissionId]));
-        return { submission, job, assessment: assessment ?? null,
+        const content=await historicalContent(client,attempt);
+        const attachment=first(await client.query('SELECT failure_code FROM mock_writing WHERE submission_id=$1 AND owner_id=$2',[submissionId,owner]));
+        return { submission, job:job??(attachment?.failure_code?{status:'unassessed',failure_code:attachment.failure_code,tries:0}:null), assessment:content.blocked_reason?null:assessment ?? null,
           task_id: attempt.task_id, task_version: submission.task_version,
           rubric_id: attempt.rubric_id, rubric_version: submission.rubric_version,
           parent_submission_id: attempt.parent_submission_id,
           preparation_id: attempt.preparation_id ?? null, exam_id: attempt.exam_id ?? null,
-          ...await historicalContent(client, attempt) };
+          ...content };
       });
     },
 
@@ -1099,6 +1162,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     async retry(owner, submissionId) {
       note('retry');
       return settle(owner, async (client) => {
+        await lockMockOwner(client,owner);
         const credit = first(await client.query(
           `SELECT j.exam_id FROM jobs j JOIN submissions s ON s.id = j.submission_id
             WHERE j.submission_id = $1 AND s.owner_id = $2`, [submissionId, owner]));
@@ -1108,12 +1172,15 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           'SELECT * FROM submissions WHERE id = $1 AND owner_id = $2', [submissionId, owner]));
         if (!submission) fail(404, 'not_found');
         const attempt = await owned(client, owner, submission.attempt_id);
+        if(attempt.exam_id) await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[attempt.exam_id]);
+        const context=await writingContext(client,attempt);
+        if(context.blocked_reason) fail(409,context.blocked_reason);
         const job = first(await client.query(
           'SELECT * FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
         if (!job || job.status !== 'failed' || job.tries >= 3 || job.failure_code === 'retry_exhausted') {
           fail(409, 'retry_unavailable');
         }
-        await requireServableBinding(client, bindingOf(attempt));
+        await requireServableBinding(client, bindingOf(attempt),true);
         if (!entitlement || entitlement.used + entitlement.reserved >= entitlement.allowance) fail(409, 'allowance_exhausted');
         await client.query("UPDATE jobs SET status = 'queued', failure_code = NULL WHERE id = $1", [job.id]);
         await client.query('UPDATE entitlements SET reserved = reserved + 1 WHERE owner_id = $1 AND exam_id = $2',
@@ -1135,10 +1202,12 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     async remove(owner, id) {
       note('remove');
       return settle(owner, async (client) => {
+        await lockMockOwner(client,owner);
         // The same (owner, exam) balance lock `submit` takes first, so the two still serialise.
         const examId = await attemptExam(client, owner, id);
         if (examId) await lockBalance(client, owner, examId);
         const attempt = await owned(client, owner, id);
+        await requireWritingMutation(client,attempt,{standalone:true});
         if (first(await client.query('SELECT id FROM submissions WHERE attempt_id = $1 LIMIT 1', [id]))) {
           fail(409, 'submitted_attempt');
         }
@@ -1163,6 +1232,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
  * Each entry is `[name, sql]`; `$1` is the verified owner.
  */
 export const ACCOUNT_DELETION_STEPS = Object.freeze([
+  ['mock_writing', 'DELETE FROM mock_writing WHERE owner_id = $1'],
   ['attempts_unlinked', 'UPDATE attempts SET parent_submission_id = NULL WHERE owner_id = $1 AND parent_submission_id IS NOT NULL'],
   ['usage_ledger', 'DELETE FROM usage_ledger WHERE owner_id = $1'],
   ['assessments', 'DELETE FROM assessments WHERE owner_id = $1'],
@@ -1192,6 +1262,7 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
  * `attempts`, so it is selected by the attempt ids rather than by the owner (see the port).
  */
 export const ACCOUNT_TABLES = Object.freeze([
+  ['mock_writing', 'owner_id = $1', 'owner'],
   ['attempts', 'owner_id = $1', 'owner'], ['submissions', 'owner_id = $1', 'owner'],
   ['jobs', 'owner_id = $1', 'owner'], ['assessments', 'owner_id = $1', 'owner'],
   ['usage_ledger', 'owner_id = $1', 'owner'], ['entitlements', 'owner_id = $1', 'owner'],

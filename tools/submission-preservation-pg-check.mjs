@@ -82,27 +82,33 @@ async function bounded(promise, label) {
   try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(label)), 5000); })]); }
   finally { clearTimeout(timer); }
 }
-async function waitBlocked(pid) {
+async function waitBlocked(pid, winnerPid) {
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
-    const row = (await db.admin.query('SELECT wait_event_type, query, usename FROM pg_stat_activity WHERE pid=$1', [pid])).rows[0];
-    if (row?.wait_event_type === 'Lock' && /entitlements.*FOR UPDATE/.test(row.query)) {
+    const row = (await db.admin.query('SELECT wait_event_type, wait_event, query, usename, pg_blocking_pids(pid) AS blockers FROM pg_stat_activity WHERE pid=$1', [pid])).rows[0];
+    // S4 serialises owner writes before the entitlement/attempt locks. Prove the real
+    // loser waits on that exact owner gate, held by the deliberately paused winner.
+    if (row?.wait_event_type === 'Lock' && row.wait_event === 'advisory'
+      && /pg_advisory_xact_lock\(hashtextextended\(\$1,\s*7352\)\)/.test(row.query)) {
       assert.equal(row.usename, db.roles.learner, 'the blocked connection must really be the restricted learner');
+      assert.ok(row.blockers.includes(winnerPid), 'the paused winner must be the actual blocker');
       return;
     }
     await new Promise(resolve => setTimeout(resolve, 15));
   }
-  throw new Error('loser never visibly waited on the entitlement row lock (race proof would be vacuous)');
+  throw new Error('loser never visibly waited on the owner gate held by the winner (race proof would be vacuous)');
 }
 async function race(who, winner) {
   const attempt = await draft(who, `SYNTHETIC controlled ${winner} race.`);
   const before = await world.store.inspect.entitlement(who.id);
   const reached = deferred(), release = deferred(), loserConnected = deferred();
+  let winnerPid;
   const firstPool = rolePool(pgConfig(), db.schema, db.roles.learner, 1);
   const secondPool = rolePool(pgConfig(), db.schema, db.roles.learner, 1);
   const paused = { async connect() {
     const client = await firstPool.connect();
     await client.query("SET statement_timeout='12s'");
+    winnerPid = (await client.query('SELECT pg_backend_pid() AS pid')).rows[0].pid;
     return { release: () => client.release(), async query(sql, params) {
       const result = await client.query(sql, params);
       if (/SELECT \* FROM attempts .* FOR UPDATE$/.test(sql)) { reached.resolve(); await release.promise; }
@@ -122,7 +128,7 @@ async function race(who, winner) {
     first = winner === 'submit' ? submit(who, attempt, firstApi) : remove(who, attempt, firstApi);
     await bounded(reached.promise, 'winner never acquired its real attempt lock');
     second = winner === 'submit' ? remove(who, attempt, secondApi) : submit(who, attempt, secondApi);
-    await waitBlocked(await bounded(loserConnected.promise, 'second real learner connection was not opened'));
+    await waitBlocked(await bounded(loserConnected.promise, 'second real learner connection was not opened'), winnerPid);
     release.resolve();
     const [won, lost] = await Promise.all([first, second]);
     const row = await world.store.inspect.attempt(attempt.id);
