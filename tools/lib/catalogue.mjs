@@ -37,6 +37,11 @@ export const PRIVATE_REVIEW_TABLES = Object.freeze([
   'content_review_authority', 'content_review_decision', 'content_review_baseline',
 ]);
 
+/** Private account-owned operational facts: safe export goes through a definer projection. */
+export const PRIVATE_TELEMETRY_TABLES = Object.freeze([
+  'provider_attempt', 'provider_attempt_observation',
+]);
+
 /**
  * The migration-seeded reference catalogue (`0009`-`0014`): exam packages, objective sets (the
  * LEARNER side — answers live in `objective_key`), vocabulary, nouns and guides. Written only by
@@ -109,7 +114,8 @@ export async function readTables(db, schema) {
 /** Every column of every base table (name + type). */
 export async function readColumns(db, schema) {
   return q(db, `
-    SELECT c.relname AS table, a.attname AS column, format_type(a.atttypid, a.atttypmod) AS type
+    SELECT c.relname AS table, a.attname AS column, format_type(a.atttypid, a.atttypmod) AS type,
+           NOT a.attnotnull AS nullable
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
@@ -120,7 +126,7 @@ export async function readColumns(db, schema) {
 /** Policies with their roles flattened to a comma string (node-pg returns `name[]` awkwardly). */
 export async function readPolicies(db, schema) {
   return q(db, `
-    SELECT tablename AS table, policyname AS policy, array_to_string(roles, ',') AS roles, cmd,
+    SELECT tablename AS table, policyname AS policy, array_to_string(roles, ',') AS roles, cmd, permissive,
            qual AS using_expr, with_check AS check_expr
     FROM pg_policies WHERE schemaname = $1 ORDER BY tablename, policyname`, [schema]);
 }
@@ -148,13 +154,15 @@ export async function readForeignKeys(db, schema) {
            array_to_string((SELECT array_agg(att.attname ORDER BY k.ord)
               FROM unnest(con.conkey) WITH ORDINALITY k(attnum, ord)
               JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = k.attnum), ',') AS columns,
-           rc.relname AS ref_table,
+           rc.relname AS ref_table, rn.nspname AS ref_schema,
+           con.convalidated AS validated,
            array_to_string((SELECT array_agg(att.attname ORDER BY k.ord)
               FROM unnest(con.confkey) WITH ORDINALITY k(attnum, ord)
               JOIN pg_attribute att ON att.attrelid = con.confrelid AND att.attnum = k.attnum), ',') AS ref_columns
     FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_class rc ON rc.oid = con.confrelid
+    JOIN pg_namespace rn ON rn.oid = rc.relnamespace
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.contype = 'f' AND n.nspname = $1
     ORDER BY c.relname, con.conname`, [schema]);
@@ -180,7 +188,9 @@ export async function readTriggers(db, schema) {
     SELECT c.relname AS table, t.tgname AS name, pg_get_triggerdef(t.oid) AS def,
            t.tgenabled AS enabled, t.tgtype::integer AS type,
            t.tgattr::text AS update_columns, t.tgqual IS NULL AS unconditional,
-           p.proname AS function_name, pn.nspname AS function_schema
+           p.proname AS function_name, pn.nspname AS function_schema,
+           t.tgdeferrable AS deferrable, t.tginitdeferred AS initially_deferred,
+           t.tgconstraint <> 0 AS constraint_trigger
     FROM pg_trigger t
     JOIN pg_class c ON c.oid = t.tgrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -217,6 +227,20 @@ export async function readDefinerFunctions(db, schema) {
     ORDER BY p.proname`, [schema]);
 }
 
+/** Exact function identity and ACLs, including implicit PUBLIC EXECUTE and column-free helpers. */
+export async function readFunctionAccess(db, schema) {
+  return q(db, `
+    SELECT p.proname AS name, oidvectortypes(p.proargtypes) AS argument_types,
+           pg_get_userbyid(p.proowner) AS owner, p.prosecdef AS security_definer,
+           p.provolatile AS volatility, coalesce(array_to_string(p.proconfig, ','), '') AS config,
+           CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END AS grantee,
+           a.privilege_type AS privilege
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+    WHERE n.nspname = $1
+    ORDER BY p.proname, argument_types, grantee`, [schema]);
+}
+
 /** Role attributes for the named roles (`rolsuper`, `rolbypassrls`, …). */
 export async function readRoleAttributes(db, roles) {
   if (!roles.length) return [];
@@ -238,15 +262,15 @@ export async function readLedger(db, schema) {
 
 /** Read the whole catalogue in one call. */
 export async function readCatalogue(db, { schema }) {
-  const [tables, columns, policies, tableGrants, columnGrants, foreignKeys, uniqueKeys, triggers, granteeRoles, ledger, definerFunctions] =
+  const [tables, columns, policies, tableGrants, columnGrants, foreignKeys, uniqueKeys, triggers, granteeRoles, ledger, definerFunctions, functionAccess] =
     await Promise.all([
       readTables(db, schema), readColumns(db, schema), readPolicies(db, schema),
       readTableGrants(db, schema), readColumnGrants(db, schema), readForeignKeys(db, schema),
       readUniqueKeys(db, schema), readTriggers(db, schema), readGranteeRoles(db, schema), readLedger(db, schema),
-      readDefinerFunctions(db, schema),
+      readDefinerFunctions(db, schema), readFunctionAccess(db, schema),
     ]);
   const roleAttributes = await readRoleAttributes(db, granteeRoles);
-  return { schema, tables, columns, policies, tableGrants, columnGrants, foreignKeys, uniqueKeys, triggers, granteeRoles, roleAttributes, ledger, definerFunctions };
+  return { schema, tables, columns, policies, tableGrants, columnGrants, foreignKeys, uniqueKeys, triggers, granteeRoles, roleAttributes, ledger, definerFunctions, functionAccess };
 }
 
 /* -------------------------------------------------------------- selectors */

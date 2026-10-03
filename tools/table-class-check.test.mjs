@@ -38,11 +38,31 @@ import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { ACCOUNT_TABLES } from '../server/owned-postgres/adapter.mjs';
 import { runTableClassCheck } from './table-class-check.mjs';
 import { PRIVATE_REVIEW_TABLES } from './lib/catalogue.mjs';
+import { providerFixtureAllowed } from './provider-table-class-check.mjs';
 
 const quote = (name) => `"${String(name).replaceAll('"', '""')}"`;
 
+test('telemetry fixture guard: exact local and Actions targets only, without connecting', () => {
+  const local = {OWNAPI_PG_ALLOW:'1', OWNAPI_PG_HOST:'127.0.0.1', OWNAPI_PG_PORT:'62563', OWNAPI_PG_DATABASE:'hatoove_spike'};
+  const actions = {...local, OWNAPI_PG_PORT:'5432', OWNAPI_PG_DATABASE:'hatoove_ci', CI:'true', GITHUB_ACTIONS:'true'};
+  assert.equal(providerFixtureAllowed(local), true);
+  assert.equal(providerFixtureAllowed(actions), true);
+  for (const valid of [local,actions]) for (const change of [
+    {OWNAPI_PG_ALLOW:undefined}, {OWNAPI_PG_ALLOW:'true'}, {OWNAPI_PG_HOST:'localhost'},
+    {OWNAPI_PG_HOST:'192.0.2.1'}, {OWNAPI_PG_PORT:'55440'}, {OWNAPI_PG_PORT:'4300'},
+    {OWNAPI_PG_PORT:undefined}, {OWNAPI_PG_DATABASE:'hatoove'}, {OWNAPI_PG_DATABASE:undefined},
+  ]) assert.equal(providerFixtureAllowed({...valid,...change}), false, JSON.stringify(change));
+  for (const change of [{CI:undefined}, {GITHUB_ACTIONS:undefined}, {CI:'1'}, {GITHUB_ACTIONS:'1'},
+    {OWNAPI_PG_DATABASE:'hatoove_spike'}, {OWNAPI_PG_PORT:'62563'}]) {
+    assert.equal(providerFixtureAllowed({...actions,...change}), false, JSON.stringify(change));
+  }
+  assert.equal(providerFixtureAllowed({...local,OWNAPI_PG_PORT:'5432'}), false);
+  assert.equal(providerFixtureAllowed({...local,OWNAPI_PG_DATABASE:'hatoove_ci'}), false);
+});
+
 /** A fresh disposable schema + roles, dropped afterwards. Never the installation schema. */
 async function withFixture(run) {
+  assert.equal(providerFixtureAllowed(process.env), true, 'Explicit assigned disposable PostgreSQL required before creating a fixture');
   const db = await createFixture();
   try {
     assert.notEqual(db.schema, process.env.OWNAPI_PG_SCHEMA || 'hatoove',
