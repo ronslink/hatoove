@@ -19,10 +19,9 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
       || !/^browser-\d+@example\.test$/.test(email) || typeof query !== 'function') {
     throw new Error('EXAM-S0 requires app-browser-check disposable ports, synthetic account and SQL callback');
   }
-  const fixturePreparationId = randomUUID();
   const suffix = randomUUID().replaceAll('-', '').slice(0, 12);
-  const exam = `exam-s0-${suffix}`;
-  const setId = `${exam}.lv2`;
+  const exam = 'telc-deutsch-b1';
+  const setId = `exam-s0-${suffix}.lv2`;
   const title = `Synthetische Fassungsprüfung ${suffix}`;
   const payloads = {
     v1: { text: 'S0 Fassung eins: Der Treffpunkt ist der Bahnhof.', questions: [
@@ -37,8 +36,7 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
     + `${jsonSql({ 1: version === 'v1' ? 'a' : 'b' })})`).join(',');
   const seeded = JSON.parse(await query(`WITH fixture(version,payload,digest,answers) AS (VALUES ${rows}),
     exam AS (
-      INSERT INTO hatoove.exam_package (exam_id,exam,level,exam_language,blueprint_version)
-      VALUES (${sql(exam)},'Synthetic S0 browser fixture','B1','de','synthetic-v1') RETURNING exam_id
+      SELECT exam_id FROM hatoove.exam_package WHERE exam_id=${sql(exam)}
     ), content AS (
       INSERT INTO hatoove.content_version
         (content_version_id,kind,family,source_path,review_status,rights_status,content_sha256,exam_id)
@@ -164,7 +162,7 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
     cookie = (await cdp.send('Network.getCookies', { urls: [base] })).cookies.map(c => `${c.name}=${c.value}`).join('; ');
     const prepResponse=await fetch(base+'/api/v1/preparations',{headers:{cookie:cookie}});
     if (!prepResponse.ok) throw new Error('synthetic preparation lookup failed');
-    let preparationId=fixturePreparation(await prepResponse.json());
+    const preparationId=fixturePreparation(await prepResponse.json());
     request = async (route, method = 'GET', body) => {
       const res = await fetch(base + scopedFixtureRoute(route, preparationId), { method, headers: { cookie, origin: base, 'content-type': 'application/json' },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -237,10 +235,8 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
     });
 
     await checks('S0V version-specific objective practice', async () => {
-      // A separate owned context keeps this version test's synthetic exam isolated from real seed sets.
-      await query(`INSERT INTO hatoove.learner_preparation(id,owner_id,exam_id,state,revision)
-        SELECT ${sql(fixturePreparationId)},id,${sql(exam)},'active',1 FROM hatoove."user" WHERE email=${sql(email)}`);
-      preparationId=fixturePreparationId;
+      // Use the existing owned telc preparation: default catalogue access is intentional.
+      // Unique set IDs and catalogue narrowing isolate these two synthetic versions.
       await viewport(cdp, 1440, 900, false);
       await freshApp('prep/'+preparationId+'/heute');
       await cdp.waitFor("document.querySelector('#account-email')?.textContent.includes('@')", 15000);
@@ -249,9 +245,15 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
       const firstRows = await bindingRows();
       record('S0V1 v1 wrong answer is stored against its exact version', firstRows.length === 1
         && firstRows[0].version === 'v1' && firstRows[0].item_id === '1' && firstRows[0].answer === 'b' && firstRows[0].correct === false);
-      const next = await request(`/api/v1/practice/next?exam=${exam}`);
-      record('S0V2 v1 evidence does not mark v2 as seen', next.status === 200 && next.data.set?.set_id === setId
-        && next.data.set?.version === 'v2' && next.data.set?.seen_items === 0);
+      // Shared telc practice has other eligible sets, so this browser must not prescribe its next
+      // recommendation. The exact next-selection/seen discrimination remains in EXAM-S0 PostgreSQL
+      // leg 2, which isolates approved fixture sets. Here the actual export API proves versioned progress.
+      const exported = await request('/api/v1/export');
+      const progress = (exported.data.objective_evidence || []).filter(row => row.set_id === setId);
+      record('S0V2 export retains v1 evidence without inventing v2 progress', exported.status === 200
+        && progress.length === 1 && progress[0].version === 'v1' && progress[0].item_id === '1'
+        && progress[0].preparation_id === preparationId && progress[0].exam_id === exam
+        && progress[0].answer === 'b' && progress[0].correct === false);
       const mark = cdp.events.length;
       await openVersion('v2');
       const text = await cdp.evaluate("return document.querySelector('#view-lesen .skill-practice').textContent");
@@ -319,10 +321,15 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
     } catch (error) {
       record('S0 cleanup restores the synthetic account preferences', false, error.message);
     } finally {
-      await query(`DELETE FROM hatoove.item_evidence WHERE preparation_id=${sql(fixturePreparationId)};
-        DELETE FROM hatoove.learner_preparation WHERE id=${sql(fixturePreparationId)};`);
-      if (cdp) cdp.ws.close();
-      await browser.cleanup();
+      try {
+        // Never delete the shared telc preparation or its other evidence. Content, keys and rights
+        // are immutable fixture rows and remain for the caller's disposable stack/volume teardown.
+        await query(`DELETE FROM hatoove.item_evidence WHERE set_id=${sql(setId)} AND version IN ('v1','v2')
+          AND owner_id=(SELECT id FROM hatoove."user" WHERE email=${sql(email)});`);
+      } finally {
+        if (cdp) cdp.ws.close();
+        await browser.cleanup();
+      }
     }
   }
 }
