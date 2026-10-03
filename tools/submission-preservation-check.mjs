@@ -308,6 +308,49 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
   } }), [{ synthetic: true }]);
   assert.deepEqual(providerQueries, [['SELECT export_owned_provider_attempts() AS value']],
     'the helper reads only the authenticated-owner SQL projection, with no caller-selected owner');
+  // Preserve P07's exact query/return inventory alongside O01's protected provider helper.
+  const inventory = [
+    ['preparations', 'learner_preparation p', 'p.owner_id'],
+    ['balances', 'entitlements', 'owner_id'],
+    ['attempts', 'attempts a', 'a.owner_id'],
+    ['submissions', 'submissions s', 's.owner_id'],
+    ['results', 'submissions s', 's.owner_id'],
+    ['objective_evidence', 'item_evidence', 'owner_id'],
+    ['mock_runs', 'mock_run r', 'owner_id'],
+    ['mock_writing', 'mock_writing', 'owner_id'],
+    ['mock_run_time_groups', 'mock_run_time_group', 'owner_id'],
+    ['listening_playback', 'listening_playback', 'owner_id'],
+    ['writing_explanation_representations', 'writing_explanation_representation', 'owner_id'],
+    ['writing_explanation_heads', 'writing_explanation_head', 'owner_id'],
+    ['payment_orders', 'payment_order', 'owner_id'],
+    ['payment_events', 'payment_event', 'owner_id'],
+    ['payment_grants', 'payment_grant', 'owner_id'],
+    ['payment_checkout_events', 'payment_checkout_event', 'owner_id'],
+  ];
+  const queries = [...exported.matchAll(/const\s+(\w+)\s*=\s*\(await client\.query\(\s*(['"`])([\s\S]*?)\2\s*,\s*(\[[^\]]*\])\s*\)\)\.rows/g)];
+  assert.equal(statements.length, inventory.length, 'every direct export query is accounted for');
+  assert.deepEqual(queries.map((match) => match[1]), inventory.map(([name]) => name),
+    'exactly the P07 export queries remain, including owned explanation representations and heads');
+  const returned = exported.match(/return\s*\{([^{}]+)\};/);
+  assert.ok(returned, 'the export returns its named snapshots');
+  assert.deepEqual(returned[1].split(',').map((name) => name.trim()), [
+    'provider_attempts',
+    ...inventory.filter(([name])=>!name.startsWith('writing_explanation_')).map(([name])=>name),
+    'writing_explanation_representations','writing_explanation_heads','shared_explanation_representations',
+  ], 'every direct snapshot and the authorized shared explanation projection is returned exactly once');
+  assert.match(exported,/const shared_explanation_representations=\[\]/,'shared explanations are a derived projection');
+  assert.match(exported,/for\(const evidence of objective_evidence\)/,'shared practice exports originate in owned evidence');
+  assert.match(exported,/for\(const run of mock_runs\)/,'shared mock exports originate in owned runs');
+  assert.doesNotMatch(exported,/FROM objective_explanation_(?:representation|head)\b/,'no unrestricted shared representation dump');
+  for (const [index, [name, table, ownerColumn]] of inventory.entries()) {
+    const sql = queries[index][3];
+    assert.match(sql, new RegExp(`\\bFROM\\s+${table}\\b`), `${name} reads its expected source`);
+    assert.match(sql, new RegExp(`\\bWHERE\\s+${ownerColumn.replace('.', '\\.')}\\s*=\\s*\\$1\\b`),
+      `${name} is explicitly owner-scoped`);
+    const parameters = name === 'mock_runs'
+      ? "[owner,examCatalogue.ids,contentPolicy().mode==='internal-preview']" : '[owner]';
+    assert.equal(queries[index][4].replace(/\s/g, ''), parameters, `${name} binds the real owner to $1`);
+  }
   for (const table of ['payment_order', 'payment_checkout_event', 'payment_event', 'payment_grant']) {
     const paymentStatements = statements.filter(sql => new RegExp(`FROM ${table}\\b`).test(sql));
     assert.equal(paymentStatements.length, 1, `${table} stays in the account export`);

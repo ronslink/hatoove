@@ -1,14 +1,20 @@
 # PILOT-I18N integration evidence
 
-Status: implementation delivered, independently reviewed and locally verified after corrections; [draft PR130](https://github.com/ronslink/hatoove/pull/130) is published, stacked on128. Hosted CI, merge and product acceptance remain pending. Task129, executions PILOT-I18N-20261003 and its bounded A/B/C review/browser leases. No production deployment, DNS or live payment actions.
+Status: implementation delivered, independently reviewed and locally verified after corrections; [PR130](https://github.com/ronslink/hatoove/pull/130) is published and its source now reconciles with merged128. All seven hosted checks passed at1aa68b62; final reconciled-head checks, merge and product acceptance remain separate outstanding gates. Task129, executions PILOT-I18N-20261003 and its bounded A/B/C review/browser leases. No production deployment, DNS or live payment actions.
 
 Contract: [PILOT-I18N-INTERFACE](../../docs/contracts/PILOT-I18N-INTERFACE.md), frozen83e0331. Selected de/en/uk/ar/tr applies before signup and to account, menus and operational guidance. Exam language and purchasing market remain independent. Original passages, questions, choices, listening, scenarios and writing points are preserved; directions have explicit original and translated representations. Source-language islands remain LTR for German within Arabic chrome.
+
+## Current hosted and migration evidence — 3 October 2026, 22:42 UTC
+
+Exact language head1aa68b625eaca1dc8a565406159b19a7332b28ed passed all seven actual required hosted checks. Optional rendered CI was skipped; local UI evidence below remains the separately executed4c921180 runtime. P07 and O01 subsequently merged as56624c4 andbaa49f3. Language reconciliation751bf8ee changes only the retained migration-EOL and preservation checkers plus P07 evidence; application/runtime files are identical to1aa68b62. The final reconciled head still requires publication, hosted checks and merge.
+
+Author C14962489 corrected exactly five literal forward-migration expectations to include0039; all other assertions remained unchanged. Independent coordinator source review CLEAR. Actual serial PostgreSQL suites passed S3 10, S4 17, media19, S5B16 and payments18 (80 total). Generated schemas/roles/connections were absent after each run, with a separate coordinator verification of all five exact identities. This proves migration/retained contracts, not exam validity or live payment operation.
 
 ## Retained export and HTTP verification — 3 October 2026, 22:10 UTC
 
 Current language runtime63aceab includes independently reviewed S2/history fixture corrections and the narrow saved-explanation export projection fix. The unchanged journey privacy assertion found own internal owner IDs in two SELECT-star exports; explicit columns now preserve all other bindings, payloads, provenance and rights redaction. Focused consumers11/11 and coordinator history10/10 pass. The fresh source-only Compose project `hatoove-journey-check-1791065351164-58124` passed all11 HTTP journeys, zero pending/failures. Coordinator independently verified all project-labelled resources and its exact scratch directory absent. The earlier failing project was also fully cleaned; no assertion was weakened. The final UI runtime/browser evidence below remains4c921180 because these later runtime changes affect only export projection.
 
-PR125 is merged after seven actual hosted successes; PR126/128/130 still require ordered integration and their own actual checks. This does not establish human translation, native-device, security/legal or production acceptance.
+At this22:10 checkpoint, PR125 was merged and PR126/128/130 still required ordered integration and their own actual checks. The later current-status section above records126/128 merged and130 awaiting its final reconciled-head checks/merge. This does not establish human translation, native-device, security/legal or production acceptance.
 
 ## Source and independent review
 
