@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "exam": {
+    "id": "telc-deutsch-b1",
+    "title": "Zertifikat Deutsch / telc Deutsch B1",
+    "language": "de",
+    "levelModel": {
+      "type": "cefr",
+      "levels": [
+        "B1"
+      ]
+    }
+  },
+  "blueprint": {
+    "version": "v1",
+    "timeGroups": [
+      {
+        "id": "lv-sb-90",
+        "seconds": 5400,
+        "sections": [
+          "LV",
+          "SB"
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "id": "LV",
+        "title": "Leseverstehen",
+        "timeGroup": "lv-sb-90",
+        "parts": [
+          {
+            "family": "LV1",
+            "itemCount": 5,
+            "interaction": "matching_headlines",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV2",
+            "itemCount": 5,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV3",
+            "itemCount": 10,
+            "interaction": "matching_ads",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "SB",
+        "title": "Sprachbausteine",
+        "timeGroup": "lv-sb-90",
+        "parts": [
+          {
+            "family": "SB1",
+            "itemCount": 10,
+            "interaction": "gap_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "SB2",
+            "itemCount": 10,
+            "interaction": "gap_bank",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "HV",
+        "title": "Hörverstehen",
+        "timeGroup": null,
+        "parts": [
+          {
+            "family": "HV1",
+            "itemCount": 5,
+            "interaction": "fixed_audio",
+            "mediaRequired": true
+          },
+          {
+            "family": "HV2",
+            "itemCount": 10,
+            "interaction": "fixed_audio",
+            "mediaRequired": true
+          },
+          {
+            "family": "HV3",
+            "itemCount": 5,
+            "interaction": "fixed_audio",
+            "mediaRequired": true
+          }
+        ]
+      },
+      {
+        "id": "writing",
+        "title": "Schriftlicher Ausdruck",
+        "timeGroup": null,
+        "parts": [
+          {
+            "family": "writing",
+            "itemCount": 1,
+            "interaction": "extended_writing",
+            "mediaRequired": false
+          }
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "S1",
+        "kind": "official-web-page",
+        "title": "Zertifikat Deutsch / telc Deutsch B1 — official exam page",
+        "url": "https://www.telc.net/sprachpruefungen/deutsch/zertifikat-deutsch-telc-deutsch-b1/",
+        "retrieved": "2026-09-30",
+        "verification": "HTTP 200; page read"
+      },
+      {
+        "id": "S2",
+        "kind": "official-practice-test-pdf",
+        "title": "Zertifikat Deutsch, telc Deutsch B1 — Übungstest 1, Prüfungsvorbereitung",
+        "url": "https://www.telc.net/fileadmin/user_upload/mock_exams/Deutsch/telc_deutsch_b1.zip",
+        "editionOrDate": "13. Auflage 2020, © 2020 by telc gGmbH",
+        "pages": 48,
+        "sha256": "6fd22ffcc25ca75e5718cc9d55bf2369ed716d4071a1058a1fdd301f58fa2b2f",
+        "retrieved": "2026-09-30",
+        "verification": "Downloaded and text-extracted locally, page by page"
+      },
+      {
+        "id": "S3",
+        "kind": "official-regulations-pdf",
+        "title": "telc Prüfungsregularien (regulations binding for all telc examinations)",
+        "url": "https://www.telc.net/fileadmin/user_upload/pdfs/AGB_Pruefungsordnung/9994-P00-150010.pdf",
+        "editionOrDate": "gültig ab 15.04.2025; document no. P01-9994-P00-150010",
+        "pages": 40,
+        "retrieved": "2026-09-30",
+        "verification": "Downloaded and text-extracted; effective date, document number and scope clause located"
+      },
+      {
+        "id": "S4",
+        "kind": "official-product-sheet-pdf",
+        "title": "Zertifikat Deutsch / telc Deutsch B1 product sheet for the scaled examination telc Deutsch A2·B1 (5060-B00-010101)",
+        "url": "https://www.telc.net/fileadmin/user_upload/pdfs/Produktblatt_1060_Deutsch_A2_B1.pdf",
+        "editionOrDate": "Stand: 10.03.2023",
+        "pages": 2,
+        "retrieved": "2026-09-30",
+        "verification": "Downloaded and text-extracted; documents a DIFFERENT, newer scaled examination and must not replace the classic B1 blueprint"
+      },
+      {
+        "id": "S5",
+        "kind": "official-web-page-recheck",
+        "title": "Zertifikat Deutsch / telc Deutsch B1 — official exam page, metadata re-check",
+        "url": "https://www.telc.net/sprachpruefungen/deutsch/zertifikat-deutsch-telc-deutsch-b1/",
+        "retrieved": "2026-10-03",
+        "verification": "Metadata re-check only (no document downloaded): the current page confirms the shared 90-minute reading + language block and the three reading parts. Historical retrieval provenance stays with S1–S4; no current-day PDF download is asserted."
+      }
+    ]
+  },
+  "release": {
+    "version": "v1",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [
+    {
+      "id": "telc-deutsch-b1.reading.01",
+      "version": "v1",
+      "title": "Leseverstehen – Abschnittsübung",
+      "scope": "section",
+      "sections": [
+        "LV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "telc-deutsch-b1.lv1.01",
+          "version": "v1",
+          "interaction": "matching_headlines",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b1.lv2.01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b1.lv3.01",
+          "version": "v1",
+          "interaction": "matching_ads",
+          "itemCount": 10
+        }
+      ]
+    }
+  ],
+  "sets": []
+}

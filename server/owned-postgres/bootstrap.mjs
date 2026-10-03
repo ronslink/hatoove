@@ -19,6 +19,7 @@
  */
 
 import pg from 'pg';
+import { importDefaultPackage } from './package-importer.mjs';
 import { randomBytes } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { accountSettingsSql, deletionRoleSql, contentCatalogueSql, examScopeSql } from './provisioning-sql.mjs';
@@ -162,6 +163,7 @@ export async function createFixture({ stopBefore = null, ...overrides } = {}) {
     for (const file of contentMigrations.filter((name) => !pending.includes(name))) {
       await pools.migration.query(render(await readFile(new URL(file, migrationDir), 'utf8')));
     }
+    if (!pending.length) await importDefaultPackage(pools.migration);
     /** Apply the migrations `stopBefore` held back, each in its own transaction as the migration role. */
     const applyRemaining = async () => {
       const applied = [];
@@ -180,6 +182,7 @@ export async function createFixture({ stopBefore = null, ...overrides } = {}) {
           client.release();
         }
       }
+      await importDefaultPackage(pools.migration);
       return applied;
     };
 

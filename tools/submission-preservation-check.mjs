@@ -281,7 +281,10 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
     'submit locks the balance before the attempt');
   const exported = body('exportData');
   const statements = exported.split('client.query(').slice(1);
-  assert.equal(statements.length, 6, 'preparations, balances, attempts, submissions, results, objective evidence');
+  assert.equal(statements.length, 7, 'preparations, balances, attempts, submissions, results, objective evidence, saved runs');
+  const savedRuns = statements.filter((sql) => /FROM mock_run r/.test(sql));
+  assert.equal(savedRuns.length, 1, 'saved runs remain part of the account export');
+  assert.match(savedRuns[0], /FROM mock_run r WHERE (?:r\.)?owner_id = \$1/, 'saved run export stays owner-scoped');
   assert.ok(statements.some((sql) => /a\.deleted_at IS NULL/.test(sql)),
     'the attempts list stays live-only (tombstones carry no draft)');
   const history = statements.filter((sql) => /a\.deleted_at AS attempt_deleted_at/.test(sql));

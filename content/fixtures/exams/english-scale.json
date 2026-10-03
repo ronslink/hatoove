@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "exam": {
+    "id": "contract-english",
+    "title": "Synthetic alternative-scale fixture (not a real English examination)",
+    "language": "en",
+    "levelModel": {
+      "type": "band",
+      "min": 0,
+      "max": 9
+    }
+  },
+  "blueprint": {
+    "version": "v1",
+    "timeGroups": [
+      {
+        "id": "fixture-reading-15",
+        "seconds": 900,
+        "sections": [
+          "LV"
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "id": "LV",
+        "title": "Reading",
+        "timeGroup": "fixture-reading-15",
+        "parts": [
+          {
+            "family": "LV1",
+            "itemCount": 1,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          }
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 2.5,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "FIX1",
+        "kind": "synthetic-fixture",
+        "title": "Generated internal fixture structure (no external source retrieved)",
+        "url": null,
+        "locatorNote": "Synthetic fixture authored inside this execution; nothing external was retrieved or copied.",
+        "retrieved": "2026-10-03",
+        "verification": "Authored in this execution as an offline test double; no external document was fetched or copied."
+      }
+    ]
+  },
+  "release": {
+    "version": "v1",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [
+    {
+      "id": "contract-english.reading.01",
+      "version": "v1",
+      "title": "Synthetic internal reading section (offline fixture)",
+      "scope": "section",
+      "sections": [
+        "LV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "contract-english.lv1.01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 1
+        }
+      ]
+    }
+  ],
+  "sets": [
+    {
+      "setId": "contract-english.lv1.01",
+      "version": "v1",
+      "examId": "contract-english",
+      "family": "LV1",
+      "section": "LV",
+      "part": 1,
+      "title": "Synthetic single-choice fixture item (unreviewed)",
+      "payload": {
+        "text": "This synthetic passage exists only to exercise the offline package and importer contract for a non-German exam with a fractional objective scale. It is not real examination material and has not been reviewed.",
+        "questions": [
+          {
+            "n": 1,
+            "question": "Why was this passage generated?",
+            "options": {
+              "a": "Only to exercise the offline package and importer contract.",
+              "b": "To publish a real English examination."
+            }
+          }
+        ]
+      },
+      "itemCount": 1,
+      "interaction": "single_choice",
+      "answers": {
+        "1": "a"
+      },
+      "explanations": {
+        "1": "Synthetic fixture explanation."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/fixtures/exams/english-scale.json"
+    }
+  ]
+}

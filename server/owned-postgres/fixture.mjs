@@ -24,6 +24,7 @@ const FINGERPRINT_TABLES = [
   ['assessments', 'submission_id'], ['usage_ledger', 'submission_id'], ['entitlements', 'owner_id, exam_id'],
   // EXAM-S1: a refused request must leave preparations and evidence untouched too.
   ['learner_preparation', 'id'], ['item_evidence', 'evidence_id'],
+  ['mock_run', 'id'], ['mock_run_event', 'owner_id, event_id'],
 ];
 const INITIAL_EXAM = 'telc-deutsch-b1';
 

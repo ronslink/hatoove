@@ -1,3 +1,4 @@
+import { createMockController } from './mock.js';
 import { createWritingController } from './writing.js';
 import { guideContent } from './guide-content.js';
 import { bindSentenceCheck } from './sentence-check.js';
@@ -62,7 +63,7 @@ const setLabel = (set) => {
   return `${sectionName(set?.section)}${part}`;
 };
 const VIEW_TITLES = {
-  heute: 'Heute', ueben: 'Üben', woerterbuch: 'Wörterbuch', nachschlagen: 'Nachschlagen',
+  abschnitt: 'Abschnittsübung', heute: 'Heute', ueben: 'Üben', woerterbuch: 'Wörterbuch', nachschlagen: 'Nachschlagen',
   // The design organises practice by SKILL. Each maps to a section the catalogue already carries.
   lesen: 'Leseverstehen', sprachbausteine: 'Sprachbausteine',
   hoeren: 'Hörverstehen', schreiben: 'Schreiben',
@@ -94,7 +95,7 @@ function showError(message) {
     box.textContent = (sessionProblem === 'account_changed'
       ? 'Das angemeldete Konto wurde in einem anderen Fenster gewechselt. Dieses Fenster ist gesperrt.'
       : 'Deine Sitzung ist abgelaufen. Dieses Fenster ist gesperrt.')
-      + ' Dein ungespeicherter Text bleibt hier. Kopiere ihn, bevor du dich erneut anmeldest.';
+      + ' Dein ungespeicherter Text und deine Auswahl bleiben hier. Kopiere sie, bevor du dich erneut anmeldest.';
     const signIn = document.createElement('a');
     signIn.href = '/signin'; signIn.className = 'btn'; signIn.textContent = 'Erneut anmelden';
     box.append(' ', signIn); box.hidden = false;
@@ -106,6 +107,7 @@ function showError(message) {
 
 window.addEventListener('hatoove:session-expired', (event) => {
   sessionProblem ||= event.detail?.reason || 'session_expired';
+  mock.refresh();
   showError();
 });
 // A focus check gives early feedback; every individual request also carries the server-side
@@ -139,8 +141,9 @@ function guard(promise) {
 
 function preparationRoute() {
   const path = (location.hash || '#/heute').replace(/^#\/?/, '');
-  const match = /^prep\/([^/]+)\/([a-z]+)$/.exec(path);
-  return { id: match?.[1] || null, view: (match ? match[2] : path) || 'heute' };
+  const saved = /^lauf\/([^/]+)$/.exec(path);
+  const match = /^prep\/([^/]+)\/([a-z]+)(?:\/([^/]+))?$/.exec(path);
+  return { id: match?.[1] || null, view: saved ? 'abschnitt' : (match ? match[2] : path) || 'heute', runId: saved?.[1] || match?.[3] || null };
 }
 
 function rememberPreparation(value) {
@@ -210,22 +213,23 @@ function clearPreparationViews() {
   dictionaryRequest++;
   readAloud.stop();
   writing.dispose();
+  mock.dispose();
   for (const node of document.querySelectorAll('.skill-practice')) { node.replaceChildren(); node.hidden = true; }
-  for (const id of ['history-detail', 'history-list', 'mistake-list', 'practice-next', 'task-list', 'dict-results', 'guide-body']) el(id)?.replaceChildren();
+  for (const id of ['history-detail', 'history-list', 'mock-history', 'mock-host', 'mistake-list', 'practice-next', 'task-list', 'dict-results', 'guide-body']) el(id)?.replaceChildren();
   for (const id of ['mistake-count', 'mistake-count-tab']) el(id).hidden = true;
 }
 
-async function switchPreparation(selection, view = currentView) {
+async function switchPreparation(selection, view = currentView, runId = null) {
   if (!bootReady || sessionProblem || preparationSwitching || settingsSaving) return false;
   preparationSwitching = true;
   routing++; // Invalidate a same-preparation route that may still be waiting for an autosave.
   let completed = false;
-  let destination = { selection, view };
+  let destination = { selection, view, runId };
   el('preparation-picker').disabled = true;
-  el('preparation-state').textContent = 'Dein Text wird vor dem Wechsel gespeichert …';
+  el('preparation-state').textContent = 'Dein Text und deine Antworten werden vor dem Wechsel gespeichert …';
   try {
-    if (!(await writing.flush())) {
-      el('preparation-state').textContent = 'Der Wechsel wurde angehalten. Dein Text bleibt hier; speichere oder löse zuerst den Konflikt.';
+    if (!(await writing.flush()) || !(await mock.flush())) {
+      el('preparation-state').textContent = 'Der Wechsel wurde angehalten. Dein Text und deine Antworten bleiben hier; speichere oder löse zuerst den Konflikt.';
       return false;
     }
     while (!sessionProblem) {
@@ -243,13 +247,13 @@ async function switchPreparation(selection, view = currentView) {
       // paint the intermediate context or let it replace the latest requested destination.
       if (pendingPreparationNavigation) continue;
       if (!response?.ok) { el('preparation-state').textContent = 'Die Vorbereitung konnte nicht gewechselt werden. ' + failure(response); return false; }
-      if (!(await writing.flush())) { el('preparation-state').textContent = 'Dein Text ist noch nicht gespeichert. Der Wechsel bleibt angehalten.'; return false; }
+      if (!(await writing.flush()) || !(await mock.flush())) { el('preparation-state').textContent = 'Dein Text ist noch nicht gespeichert. Der Wechsel bleibt angehalten.'; return false; }
       if (pendingPreparationNavigation) continue;
       clearPreparationViews();
       selectPreparation(response.data);
       renderSettings(); renderChrome();
-      const target = activePreparation() ? destination.view : 'fortschritt';
-      history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + target);
+      const target = activePreparation() || destination.runId ? destination.view : 'fortschritt';
+      history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + target + (destination.runId ? '/' + destination.runId : ''));
       el('preparation-state').textContent = '';
       completed = true;
       break;
@@ -259,7 +263,7 @@ async function switchPreparation(selection, view = currentView) {
     // A failed save leaves the editor in place. Discard the queued request so a refusal cannot
     // trigger an automatic retry loop; the learner can explicitly retry once their text is safe.
     pendingPreparationNavigation = null;
-    if (!completed && state.preparation) history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView);
+    if (!completed && state.preparation) history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView + (mock.runId ? '/' + mock.runId : ''));
     renderPreparation();
   }
   if (completed) await route();
@@ -274,7 +278,13 @@ async function loadPreparations() {
   state.exams = exams.data.exams;
   state.preparations = [];
   for (const prep of preparations.data.preparations) rememberPreparation(prep);
-  const requested = preparationRoute().id;
+  const routeInfo = preparationRoute();
+  let requested = routeInfo.id;
+  if (routeInfo.runId) {
+    const saved = await api.mock.read(routeInfo.runId);
+    if (!saved?.ok) throw new Error('Der verlinkte Abschnitt ist nicht verfügbar.');
+    requested = saved.data.preparation_id;
+  }
   if (requested) {
     const response = await api.preparations.read(requested);
     if (!response?.ok) throw new Error('Die verlinkte Vorbereitung ist nicht verfügbar.');
@@ -327,7 +337,7 @@ async function unlockPreparation() {
   if (sessionProblem || !state.preparation) throw new Error('Bitte melde dich erneut an.');
   renderSettings(); renderChrome(); renderPreparation();
   const info = preparationRoute();
-  history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + (activePreparation() ? info.view : 'fortschritt'));
+  history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + (activePreparation() || info.runId ? info.view : 'fortschritt') + (info.runId ? '/' + info.runId : ''));
   bootReady = true;
   el('app-shell').inert = false;
   el('app-shell').hidden = false;
@@ -771,7 +781,7 @@ function renderChrome() {
 async function renderDashboard() {
   const ticket = contextTicket();
   const pct = (value) => Math.round((value || 0) * 100) + '%';
-  const [next, progress] = await Promise.all([api.practice.next(), api.practice.progress()]);
+  const [next, progress, savedRuns] = await Promise.all([api.practice.next(), api.practice.progress(), api.mock.list()]);
   if (!currentContext(ticket)) return;
   if (!next || !progress) return; // a 401 already redirected
   const start = document.querySelector('.hero-next a');
@@ -790,6 +800,13 @@ async function renderDashboard() {
     el('next-kicker').textContent = 'Als Nächstes';
     el('next-title').textContent = 'Zurzeit nichts freigegeben';
     el('next-detail').textContent = 'Der Server hat gerade nichts Servierbares. Das ist eine Aussage des Servers, keine leere Seite.';
+  }
+  const savedRun = savedRuns?.ok && savedRuns.data?.runs?.find(run => run.state === 'active');
+  if (savedRun && activePreparation()) {
+    el('next-kicker').textContent = 'Gespeicherten Abschnitt fortsetzen';
+    el('next-title').textContent = savedRun.title;
+    el('next-detail').textContent = 'Deine bestätigten Antworten sind gespeichert. Rückmeldung nach dem Abschließen.';
+    if (start) { start.href = '#/lauf/' + savedRun.id; start.textContent = 'Fortsetzen'; }
   }
   if (!activePreparation()) {
     el('next-title').textContent = 'Archivierte Vorbereitung';
@@ -1184,6 +1201,8 @@ const writingApi = { ...api, writing: { ...api.writing, result: async submission
   if (currentContext(ticket) && bootReady) guard(refreshCredits());
   return result;
 } } };
+const mock = createMockController({ api, esc, setLabel, canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
+window.addEventListener('beforeunload', event => mock.preserveOnUnload(event));
 const writing = createWritingController({ api: writingApi, esc, readAloud, onChange: () => { guard(refreshCredits()); if (currentView === 'fortschritt') guard(renderHistory()); } });
 async function openWriting(box, task, options = {}) {
   if (!activePreparation() || preparationSwitching) return false;
@@ -1225,8 +1244,9 @@ async function renderHistory() {
   const ticket = contextTicket();
   const host = el('history-list');
   host.innerHTML = '<p class="muted">Dein Verlauf wird geladen …</p>';
-  const [history, progress] = await Promise.all([api.writing.listAttempts(), api.practice.progress()]);
+  const [history, progress, runs] = await Promise.all([api.writing.listAttempts(), api.practice.progress(), api.mock.list()]);
   if (currentView !== 'fortschritt' || !currentContext(ticket)) return;
+  el('mock-history').innerHTML = '<h2>Gespeicherte Abschnitte</h2>' + (runs?.ok ? mock.historyMarkup(runs.data?.runs || []) : '<p class="err">Die gespeicherten Abschnitte konnten nicht geladen werden.</p>');
   if (!history?.ok) { host.innerHTML = '<p class="err">Der Verlauf konnte nicht geladen werden. Bitte öffne die Ansicht erneut.</p>'; return; }
   const totals = progress?.ok ? progress.data?.totals : null;
   el('history-summary').textContent = totals ? totals.attempts + ' Antworten gespeichert · ' + totals.correct + ' richtig. Keine Prognose für deine Prüfung.' : 'Deine gespeicherten Texte und Rückmeldungen.';
@@ -1252,18 +1272,30 @@ let routing = 0;
 async function route() {
   if (!bootReady || sessionProblem) return;
   const request = ++routing;
-  const info = preparationRoute();
+  let info = preparationRoute();
   if (preparationSwitching || settingsSaving) {
-    pendingPreparationNavigation = { selection: info.id || state.preparation.id, view: VIEW_TITLES[info.view] ? info.view : 'heute' };
+    pendingPreparationNavigation = { selection: info.id || state.preparation.id, view: VIEW_TITLES[info.view] ? info.view : 'heute', runId: info.runId };
     return;
   }
-  if (info.id && info.id !== state.preparation?.id) { await switchPreparation(info.id, info.view); return; }
+  if (mock.active && !(info.view === 'abschnitt' && info.runId === mock.runId)) {
+    if (!(await mock.flush())) { history.replaceState(null, '', '#/prep/' + state.preparation.id + '/abschnitt/' + mock.runId); return; }
+    if (request !== routing) return;
+  }
+  if (info.runId) {
+    const saved = await api.mock.read(info.runId);
+    if (request !== routing || sessionProblem) return;
+    if (!saved?.ok) { showError('Der verlinkte Abschnitt ist nicht verfügbar.'); return; }
+    info = { ...info, id: saved.data.preparation_id };
+  }
+  if (info.id && info.id !== state.preparation?.id) { await switchPreparation(info.id, info.view, info.runId); return; }
   readAloud.stop();
   if (writing.active) {
-    if (!(await writing.flush())) { history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView); return; }
+    if (!(await writing.flush()) || !(await mock.flush())) { history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView + (mock.runId ? '/' + mock.runId : '')); return; }
     if (request !== routing) return;
     writing.dispose();
   }
+  if (mock.active && info.view === 'abschnitt' && info.runId === mock.runId) { history.replaceState(null, '', '#/prep/' + state.preparation.id + '/abschnitt/' + mock.runId); return; }
+  mock.dispose();
   const key = info.view;
   const view = VIEW_TITLES[key] ? key : 'heute';
   /*
@@ -1274,7 +1306,7 @@ async function route() {
    * that is no longer on display. The token is checked before anything is written.
    */
   currentView = view;
-  history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + view);
+  history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + view + (info.runId ? '/' + info.runId : ''));
   for (const name of Object.keys(VIEW_TITLES)) el(`view-${name}`).hidden = name !== view;
   el('page-title').textContent = VIEW_TITLES[view];
   renderChrome();
@@ -1290,6 +1322,7 @@ async function route() {
       if (token === currentView) showError('Die Ansicht konnte nicht geladen werden: ' + (err && err.message ? err.message : err));
     });
   };
+  if (view === 'abschnitt') run(() => info.runId ? mock.showRun(el('mock-host'), info.runId) : mock.list(el('mock-host')));
   if (view === 'heute') run(renderDashboard);
   if (view === 'ueben') { run(renderPracticeNext); run(renderTasks); }
   if (SKILL_SECTIONS[view]) run(() => renderSkill(view));
@@ -1461,11 +1494,11 @@ el('settings-form').addEventListener('submit', async (event) => {
     pendingPreparationNavigation = null;
     if (destination && !sessionProblem) {
       if (settingsSaved) {
-        history.replaceState(null, '', '#/prep/' + destination.selection + '/' + destination.view);
+        history.replaceState(null, '', '#/prep/' + destination.selection + '/' + destination.view + (destination.runId ? '/' + destination.runId : ''));
         await route();
       } else {
         // A refused or uncertain write keeps its choices and explicit recovery action visible.
-        history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView);
+        history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView + (mock.runId ? '/' + mock.runId : ''));
       }
     }
   }
@@ -1473,7 +1506,7 @@ el('settings-form').addEventListener('submit', async (event) => {
 
 el('signout').addEventListener('click', async () => {
   readAloud.stop();
-  if (!(await writing.flush())) return;
+  if (!(await writing.flush()) || !(await mock.flush())) return;
   writing.dispose();
   // Do NOT navigate on a refusal. The server's mutation origin gate can reject a sign-out (403),
   // and the learner would then land on the sign-in page believing the session had ended while the

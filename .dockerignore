@@ -8,6 +8,11 @@
 !server/**
 !public/
 !public/**
+!content/
+!content/exams/
+!content/exams/**
+!tools/
+!tools/import-exam-package.mjs
 
 # Never include host dependencies, private state or credentials, even below a runtime directory.
 **/node_modules

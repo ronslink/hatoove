@@ -27,6 +27,8 @@ import { DEFAULT_TASK_BINDING } from './content-seed.mjs';
 import { contentPolicy, servableReview } from '../content-policy.mjs';
 import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs';
 import { preparationMethods, requireActivePreparation, resolvePreparation } from './preparations.mjs';
+import { mockRunMethods, lockMockOwner } from './mock-runs.mjs';
+import { importedSetGate } from './packages.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -175,6 +177,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     // EXAM-S1: listExams, listPreparations, readPreparation, resolvePreparation, createPreparation,
     // updatePreparation, readCredits — see preparations.mjs.
     ...preparations,
+    ...mockRunMethods({ settle, note, catalogue: examCatalogue }),
     /**
      * PILOT-04 — the servable task catalogue.
      *
@@ -274,6 +277,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
               AND ($5::int IS NULL OR s.part = $5)
               AND c.review_status = ANY($3::text[])
               AND s.media_required = false
+              AND ${importedSetGate()}
               AND COALESCE(cr.basis, c.rights_status) = ANY($6::text[])
             ORDER BY s.family, s.part, s.set_id`,
           [examId, family, statuses, group, part, contentPolicy().rights])).rows;
@@ -310,6 +314,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           WHERE s.set_id = $1 AND s.version = $2
             AND c.review_status = ANY($3::text[])
             AND s.media_required = false
+            AND ${importedSetGate()}
             AND s.exam_id = COALESCE($4, s.exam_id)
             AND COALESCE(cr.basis, c.rights_status) = ANY($5::text[])`,
         [setId, version, statuses, null, contentPolicy().rights])));
@@ -567,6 +572,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.set_id = $1 AND s.version = $2 AND c.review_status = ANY($3::text[])
               AND s.media_required = false
+              AND ${importedSetGate()}
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
           [setId, version, statuses, contentPolicy().rights]));
         if (!set) fail(404, 'not_found');
@@ -627,6 +633,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
            JOIN content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
           WHERE s.media_required = false
+            AND ${importedSetGate()}
             AND s.exam_id = $1
             AND c.review_status = ANY($2::text[])
             AND COALESCE(cr.basis, c.rights_status) = ANY($3::text[])
@@ -679,6 +686,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
           WHERE s.section = $1
             AND s.media_required = false
+            AND ${importedSetGate()}
             AND s.exam_id = $4
             AND c.review_status = ANY($2::text[])
             AND COALESCE(cr.basis, c.rights_status) = ANY($5::text[])
@@ -777,7 +785,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                   s.title, s.item_count
              FROM latest l
              JOIN objective_set s ON s.set_id = l.set_id AND s.version = l.version
+             JOIN content_version c ON c.content_version_id = s.content_version_id
             WHERE l.correct = false
+              AND ${importedSetGate()}
             ORDER BY l.answered_at DESC, l.set_id, l.version, l.item_id
             LIMIT $3`,
           [owner, preparationId, limit])).rows;
@@ -928,7 +938,16 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           `SELECT evidence_id, exam_id, preparation_id, set_id, version, item_id, family, section, answer,
                   correct, latency_ms, answered_at FROM item_evidence
             WHERE owner_id = $1 ORDER BY answered_at, evidence_id`, [owner])).rows;
-        return { preparations, balances, attempts, submissions, results, objective_evidence };
+        // Original pinned identities/responses/results, including archived and rights-blocked runs.
+        // No keys or transcripts are fetched to make an export; result is the immutable learner snapshot.
+        const mock_runs = (await client.query(`SELECT id,preparation_id,exam_id,release_version,blueprint_version,
+          form_id,form_version,title,scope,mode,state,revision,responses,position,
+          CASE WHEN EXISTS (SELECT 1 FROM exam_release_head h JOIN exam_release er
+            ON er.exam_id = h.exam_id AND er.version = h.release_version
+            WHERE h.exam_id = r.exam_id AND coalesce(er.manifest #> '{release,resumeBlockedReleases}', '[]'::jsonb) ? r.release_version)
+            THEN NULL ELSE result END AS result,created_at,updated_at,
+          deadline_at,finalised_at FROM mock_run r WHERE owner_id = $1 ORDER BY created_at,id`, [owner])).rows;
+        return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs };
       }, true);
     },
 
@@ -1143,6 +1162,8 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
   // EXAM-S1: evidence references a preparation, so it goes before the preparations it points at
   // (it would otherwise only cascade from "user", after the preparation delete had already failed).
   ['item_evidence', 'DELETE FROM item_evidence WHERE owner_id = $1'],
+  ['mock_run_event', 'DELETE FROM mock_run_event WHERE owner_id = $1'],
+  ['mock_run', 'DELETE FROM mock_run WHERE owner_id = $1'],
   ['learner_preparation', 'DELETE FROM learner_preparation WHERE owner_id = $1'],
   ['entitlements', 'DELETE FROM entitlements WHERE owner_id = $1'],
   ['learner_settings', 'DELETE FROM learner_settings WHERE user_id = $1'],
@@ -1166,6 +1187,7 @@ export const ACCOUNT_TABLES = Object.freeze([
   ['learner_settings', 'user_id = $1', 'owner'], ['session', '"userId" = $1', 'owner'],
   ['account', '"userId" = $1', 'owner'], ['drafts', 'attempt_id = ANY($1::uuid[])', 'attempts'],
   ['item_evidence', 'owner_id = $1', 'owner'],
+  ['mock_run', 'owner_id = $1', 'owner'], ['mock_run_event', 'owner_id = $1', 'owner'],
   ['learner_preparation', 'owner_id = $1', 'owner'],
   ['"user"', 'id = $1', 'owner'],
 ].map((entry) => Object.freeze(entry)));
@@ -1216,6 +1238,7 @@ export function createPostgresAccountDeletion({ pool, afterStep } = {}) {
       try {
         await client.query('BEGIN');
         await client.query("SELECT set_config('hatoove.owner_id', $1, true)", [owner]);
+        await lockMockOwner(client, owner);
         // Same lock the writer paths take first (F6): every exam balance of the owner, in exam order,
         // so a concurrent submit/retry/remove on any exam either finishes first or sees the deletion.
         await client.query('SELECT 1 FROM entitlements WHERE owner_id = $1 ORDER BY exam_id FOR UPDATE', [owner]);

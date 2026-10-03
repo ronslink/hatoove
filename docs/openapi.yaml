@@ -52,8 +52,129 @@ tags:
     description: The servable task catalogue.
   - name: attempts
     description: Owned writing attempts, submissions and results.
+  - name: mock-runs
+    description: Version-pinned section practice with saved answers and feedback after finalisation.
 
 paths:
+  /api/v1/mock-forms:
+    get:
+      tags: [mock-runs]
+      summary: List released forms for the owned preparation
+      parameters:
+        - $ref: '#/components/parameters/PreparationQuery'
+      description: Only the enabled exam and current permitted release are discoverable. An archived preparation has no startable forms. Internal forms require the internal-preview deployment policy.
+      responses:
+        '200':
+          description: Released form summaries, or an empty list.
+          content:
+            application/json:
+              schema: { type: object, properties: { forms: { type: array, items: { $ref: '#/components/schemas/MockForm' } } } }
+        '404': { description: 'Preparation absent or owned by someone else.' }
+        '422': { description: 'Preparation context missing, invalid or exam unavailable.' }
+        '503': { description: 'Saved-run capability unavailable.' }
+
+  /api/v1/mock-runs:
+    get:
+      tags: [mock-runs]
+      summary: List saved runs for the owned preparation
+      parameters:
+        - $ref: '#/components/parameters/PreparationQuery'
+      description: Newest first, at most 100. Archived preparation history remains readable. Summaries include identity, state and timestamps but no members, responses, position or result.
+      responses:
+        '200':
+          description: Saved run summaries.
+          content:
+            application/json:
+              schema: { type: object, properties: { runs: { type: array, items: { $ref: '#/components/schemas/MockRunSummary' } } } }
+        '404': { description: 'Preparation absent or owned by someone else.' }
+    post:
+      tags: [mock-runs]
+      summary: Start a new version-pinned section practice run
+      description: Pins the exact current release, blueprint and form. The owner comes from the session. Repeating an event with the identical body returns the same run; changing its body conflicts. A retake requires a fresh event. No writing job or credit debit is created.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [preparationId, formId, formVersion, releaseVersion, eventId]
+              properties:
+                preparationId: { type: string, format: uuid }
+                formId: { type: string }
+                formVersion: { type: string, pattern: '^v[0-9]{1,4}$' }
+                releaseVersion: { type: string, pattern: '^v[0-9]{1,4}$' }
+                eventId: { type: string, format: uuid }
+      responses:
+        '201': { description: 'Created. Body is the full run DTO.', content: { application/json: { schema: { $ref: '#/components/schemas/MockRun' } } } }
+        '200': { description: 'Identical event retry. Body is the current full run DTO.', content: { application/json: { schema: { $ref: '#/components/schemas/MockRun' } } } }
+        '404': { description: 'Owned preparation or exact permitted form not found.' }
+        '409': { description: 'Archived preparation or event-body conflict.' }
+        '422': { description: 'Invalid request or disabled exam.' }
+
+  /api/v1/mock-runs/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [mock-runs]
+      summary: Resume or read the exact owned run
+      description: Ordinary release withdrawal preserves pinned history. An explicit rights block keeps the saved answers and identity readable, withholds members and result, and sets blocked_reason. No answers or explanations are revealed while active.
+      responses:
+        '200': { description: 'Full owned run DTO.', content: { application/json: { schema: { $ref: '#/components/schemas/MockRun' } } } }
+        '404': { description: 'Absent or owned by someone else.' }
+    put:
+      tags: [mock-runs]
+      summary: Save the complete answer snapshot and position
+      description: Revision starts at 1. Exact form item IDs and offered answers only. Writes serialize with finalisation, preparation archive and account deletion. An identical event retry returns the current safe acknowledgement; a stale new event conflicts. Finalised, expired, archived or rights-blocked runs cannot be saved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedRevision, eventId, responses, position]
+              properties:
+                expectedRevision: { type: integer, minimum: 1, maximum: 2147483646 }
+                eventId: { type: string, format: uuid }
+                responses: { type: array, maxItems: 500, items: { $ref: '#/components/schemas/MockResponse' } }
+                position: { $ref: '#/components/schemas/MockPosition' }
+      responses:
+        '200': { description: 'Full run with the acknowledged revision.', content: { application/json: { schema: { $ref: '#/components/schemas/MockRun' } } } }
+        '404': { description: 'Absent or owned by someone else.' }
+        '409': { description: 'Revision/event conflict, finalised, expired, archived or content blocked.' }
+        '422': { description: 'Invalid answer, item, position or unknown request field.' }
+
+  /api/v1/mock-runs/{id}/finalise:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [mock-runs]
+      summary: Finalise acknowledged answers and reveal deterministic feedback
+      description: Atomically freezes the saved snapshot and creates version-exact evidence for answered items once. Unanswered items are explicit. An expired run grades only its last acknowledged answers. Repeated finalisation returns the stored result. There is no overall exam grade or pass prediction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedRevision, eventId]
+              properties:
+                expectedRevision: { type: integer, minimum: 1, maximum: 2147483646 }
+                eventId: { type: string, format: uuid }
+      responses:
+        '200': { description: 'Full finalised run with deterministic per-item feedback.', content: { application/json: { schema: { $ref: '#/components/schemas/MockRun' } } } }
+        '404': { description: 'Absent or owned by someone else.' }
+        '409': { description: 'Stale revision, event conflict, archived preparation or content blocked.' }
+        '422': { description: 'Invalid revision, event or unknown request field.' }
+
   /api/health:
     get:
       tags: [liveness]
@@ -704,6 +825,103 @@ components:
       schema: { type: string, format: uuid }
       description: 'EXAM-S1. The preparation this read is scoped to. Missing/malformed `422`; foreign/absent `404`. A retained `exam` query may only restate its exam (`422 preparation_mismatch`).'
   schemas:
+    MockForm:
+      type: object
+      properties:
+        exam_id: { type: string }
+        release_version: { type: string }
+        blueprint_version: { type: string }
+        form_id: { type: string }
+        version: { type: string }
+        title: { type: string }
+        scope: { type: string, enum: [section] }
+        sections: { type: array, items: { type: string } }
+        mode: { type: string, enum: [untimed, timed] }
+        time_limit_seconds: { type: integer, nullable: true }
+        item_count: { type: integer }
+        review_status: { type: string }
+    MockPosition:
+      type: object
+      additionalProperties: false
+      required: [member, item]
+      properties:
+        member: { type: integer, minimum: 0 }
+        item: { type: integer, minimum: 0 }
+    MockResponse:
+      type: object
+      additionalProperties: false
+      required: [setId, version, itemId, answer]
+      properties:
+        setId: { type: string }
+        version: { type: string }
+        itemId: { type: string }
+        answer: { type: string, nullable: true }
+    MockRunSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        preparation_id: { type: string, format: uuid }
+        exam_id: { type: string }
+        release_version: { type: string }
+        blueprint_version: { type: string }
+        form_id: { type: string }
+        form_version: { type: string }
+        title: { type: string }
+        scope: { type: string, enum: [section] }
+        mode: { type: string, enum: [untimed, timed] }
+        state: { type: string, enum: [active, finalised] }
+        revision: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deadline_at: { type: string, format: date-time, nullable: true }
+        finalised_at: { type: string, format: date-time, nullable: true }
+        server_now: { type: string, format: date-time }
+        expired: { type: boolean }
+        blocked_reason: { type: string, nullable: true }
+    MockRun:
+      allOf:
+        - $ref: '#/components/schemas/MockRunSummary'
+        - type: object
+          properties:
+            responses: { type: array, items: { $ref: '#/components/schemas/MockResponse' } }
+            position: { $ref: '#/components/schemas/MockPosition' }
+            members:
+              type: array
+              description: Exact pinned public content, or empty when access is blocked. Contains no keys or explanations.
+              items:
+                type: object
+                properties:
+                  set_id: { type: string }
+                  version: { type: string }
+                  interaction: { type: string }
+                  item_count: { type: integer }
+                  title: { type: string }
+                  family: { type: string }
+                  section: { type: string }
+                  part: { type: integer }
+                  payload: { type: object }
+            result:
+              type: object
+              nullable: true
+              description: Null while active or rights-blocked. Counts describe this section practice only.
+              properties:
+                answered: { type: integer }
+                unanswered: { type: integer }
+                correct: { type: integer }
+                total: { type: integer }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      set_id: { type: string }
+                      version: { type: string }
+                      item_id: { type: string }
+                      answer: { type: string, nullable: true }
+                      correct: { type: boolean }
+                      unanswered: { type: boolean }
+                      correct_answer: { type: string }
+                      explanation: { type: string, nullable: true }
     Preparation:
       type: object
       required: [id, exam_id, exam, exam_language, exam_date, state, revision, created_at, updated_at]

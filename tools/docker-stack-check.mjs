@@ -99,9 +99,10 @@ try{
   const elevated=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',"SELECT count(*) FROM pg_roles WHERE rolname LIKE 'hatoove_%' AND (rolsuper OR rolbypassrls)"]).trim();
   assert.equal(elevated,'0');
   passed(String(migrationCount)+' migrations applied and 6 task versions; application roles not superuser/BYPASSRLS');
-  const rejected=['/app/.git','/app/work','/app/research','/app/tools','/app/handoff','/app/.env',...sentinels.map(p=>'/app/'+p)];
+  const rejected=['/app/.git','/app/work','/app/research','/app/content/fixtures','/app/handoff','/app/.env',...sentinels.map(p=>'/app/'+p)];
   const audit="const fs=require('node:fs');const bad="+JSON.stringify(rejected)+".filter(p=>fs.existsSync(p));if(bad.length)throw Error('private/unneeded image paths: '+bad.join(','));";
   compose(['exec','-T','app','node','-e',audit]);
+  assert.deepEqual(JSON.parse(compose(['exec','-T','app','node','-e',"console.log(JSON.stringify(require('node:fs').readdirSync('/app/tools')))"])),['import-exam-package.mjs'],'only the privileged package CLI belongs in the image tools directory');
   const workerId=compose(['ps','-q','worker']);
   assert.ok(workerId);
   assert.equal(JSON.parse(docker(['inspect',workerId]))[0].Config.Healthcheck,undefined);
@@ -109,6 +110,10 @@ try{
   compose(['run','--rm','--no-deps','migrate']);
   assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc','SELECT count(*) FROM hatoove.hatoove_migrations']).trim(),String(migrationCount));
   passed('re-running migrations leaves the ledger at '+migrationCount+' entries');
+  const packageReceipt=JSON.parse(compose(['run','--rm','--no-deps','migrate','node','tools/import-exam-package.mjs','content/exams/telc-deutsch-b1/manifest.json','--dry-run']));
+  assert.equal(packageReceipt.unchanged,true);
+  assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',"SELECT count(*) FROM hatoove.exam_release_head WHERE exam_id='telc-deutsch-b1' AND release_version='v1'"]).trim(),'1');
+  passed('image includes the exact package source and importer; dry-run is an unchanged publication');
   // `/` IS THE PUBLIC FRONT DOOR (Ron, 2 October 2026: "index.html should be the landing page",
   // and "we need landing/index or just index" → just index).
   //

@@ -318,3 +318,31 @@ code {
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* Saved sections use the same warm-paper cards and choice tiles as single-item practice. */
+.mock-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
+.mock-heading > div, .mock-question, .mock-overview, .mock-form { min-width: 0; }
+.mock-heading p, .mock-heading h2, .mock-form h3, .mock-results { overflow-wrap: anywhere; }
+.mock-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 260px); gap: 20px; align-items: start; }
+.mock-options { display: grid; gap: .65rem; border: 0; padding: 0; min-width: 0; }
+.mock-options legend { white-space: pre-wrap; overflow-wrap: anywhere; margin-block-end: 1rem; line-height: 1.6; }
+.mock-options .option { min-width: 0; white-space: normal; overflow-wrap: anywhere; align-items: flex-start; }
+.mock-options .option input { flex-shrink: 0; margin-top: .35rem; }
+.mock-options .letter { flex-shrink: 0; }
+.mock-options:disabled { opacity: .8; }
+.mock-options .option:focus-within { outline: 2px solid var(--orange-dark); outline-offset: 4px; }
+.mock-passage { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mock-overview .qnav { display: flex; flex-wrap: wrap; gap: .45rem; }
+.mock-overview .btn { min-width: 44px; min-height: 44px; }
+.mock-overview [aria-current="step"] { outline: 2px solid var(--orange); outline-offset: 2px; }
+.mock-overview .mock-answered { background: var(--peach); color: var(--ink); }
+.mock-copy summary { cursor: pointer; min-height: 44px; padding-block: .6rem; }
+.mock-copy textarea { min-height: 7rem; }
+.mock-results { list-style: none; padding: 0; display: grid; gap: .7rem; }
+.mock-results li { display: grid; gap: .25rem; border-bottom: 1px solid var(--line); padding-bottom: .7rem; }
+.mock-finish { margin-block-start: .5rem; }
+#mock-history { margin-block-end: 1rem; }
+@media (max-width: 860px) {
+  .mock-layout { grid-template-columns: minmax(0, 1fr); }
+  .mock-overview { grid-row: 1; }
+}

@@ -29,7 +29,8 @@ export const AUTH_SUPPORT_TABLES = Object.freeze(['auth_throttle']);
  * rights DECISIONS about them (`0020`, guarded by the same `content_immutable` function).
  * Immutable by trigger; no runtime DML.
  */
-export const CONTENT_TABLES = Object.freeze(['content_version', 'rubric_version', 'task_version', 'content_rights']);
+export const CONTENT_TABLES = Object.freeze(['content_version', 'rubric_version', 'task_version', 'content_rights',
+  'exam_blueprint','exam_release','exam_form','exam_form_member','exam_release_form']);
 
 /**
  * The migration-seeded reference catalogue (`0009`-`0014`): exam packages, objective sets (the
@@ -39,6 +40,7 @@ export const CONTENT_TABLES = Object.freeze(['content_version', 'rubric_version'
  */
 export const CATALOGUE_TABLES = Object.freeze([
   'exam_package', 'objective_set', 'vocab_entry', 'noun_entry', 'guide', 'guide_section',
+  'exam_release_head',
 ]);
 
 /**
