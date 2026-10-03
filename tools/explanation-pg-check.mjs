@@ -1,4 +1,4 @@
-/** Restricted-role saved-prose checks. Existing disposable62563 only; every schema is dropped. */
+/** Restricted-role saved-prose checks. Assigned local or explicit Actions fixture; every schema is dropped. */
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {createFixture,rolePool} from '../server/owned-postgres/bootstrap.mjs';
@@ -8,7 +8,11 @@ import {packageHash} from '../server/package-contract.mjs';
 import {extractWritingExplanationSource,extractObjectiveExplanationSource,makeOriginalExplanationRepresentation,projectExplanationView} from '../server/explanation-contract.mjs';
 import {readObjectiveEvidenceExplanation,readFinalisedMockItemExplanation,readExplanationRepresentations,persistWritingExplanations} from '../server/owned-postgres/explanations.mjs';
 import {importObjectiveExplanations} from '../server/owned-postgres/explanation-importer.mjs';
-if(process.env.OWNAPI_PG_ALLOW!=='1'||process.env.OWNAPI_PG_HOST!=='127.0.0.1'||process.env.OWNAPI_PG_PORT!=='62563')throw Error('Explicit disposable127.0.0.1:62563 required');
+const localFixture=process.env.OWNAPI_PG_PORT==='62563'&&process.env.OWNAPI_PG_DATABASE==='hatoove_spike';
+const actionsFixture=process.env.CI==='true'&&process.env.GITHUB_ACTIONS==='true'
+ &&process.env.OWNAPI_PG_PORT==='5432'&&process.env.OWNAPI_PG_DATABASE==='hatoove_ci';
+if(process.env.OWNAPI_PG_ALLOW!=='1'||process.env.OWNAPI_PG_HOST!=='127.0.0.1'||(!localFixture&&!actionsFixture))
+ throw Error('Explicit assigned local or GitHub Actions disposable PostgreSQL required');
 const saved={mode:process.env.B1PREP_CONTENT_MODE,review:process.env.B1PREP_SERVE_REVIEW,rights:process.env.B1PREP_SERVE_RIGHTS};
 process.env.B1PREP_CONTENT_MODE='internal-preview';delete process.env.B1PREP_SERVE_REVIEW;delete process.env.B1PREP_SERVE_RIGHTS;
 const EXAM='telc-deutsch-b1',SET='explanation.synthetic',VERSION='v1';

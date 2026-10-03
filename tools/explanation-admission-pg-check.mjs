@@ -211,13 +211,21 @@ try{
       assert.equal((await db.admin.query(`SELECT 1 FROM ${table} WHERE owner_id=$1`,[a.id])).rowCount,0);
     assert.deepEqual((await db.admin.query('SELECT * FROM objective_explanation_representation ORDER BY representation_version')).rows,shared);
   });
-  console.log(`Saved explanation consumers: ${passed} checks passed`);
 }catch(error){failed=error;}
 finally{
   for(const key of envKeys)if(previous[key]===undefined)delete process.env[key];else process.env[key]=previous[key];
   try{if(db)await db.cleanup();}catch(error){failed??=error;}
+  if(db){
+    const verifier=new db.admin.constructor({...db.config,max:1});
+    try{
+      const row=(await verifier.query(`SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname=$1) AS schema_exists,
+        EXISTS(SELECT 1 FROM pg_roles WHERE rolname=ANY($2::text[])) AS roles_exist`,[db.schema,Object.values(db.roles)])).rows[0];
+      assert.deepEqual(row,{schema_exists:false,roles_exist:false});
+    }catch(error){failed??=error;}finally{try{await verifier.end();}catch(error){failed??=error;}}
+  }
   try{if(mediaRoot){const resolved=path.resolve(mediaRoot);assert.equal(path.dirname(resolved),path.resolve(tmpdir()));
     assert.ok(path.basename(resolved).startsWith('hatoove-explanation-consumers-'));await rm(resolved,{recursive:true,force:true});}}
   catch(error){failed??=error;}
 }
 if(failed)throw failed;
+console.log(`Saved explanation consumers: ${passed} checks passed; disposable schema and roles removed`);

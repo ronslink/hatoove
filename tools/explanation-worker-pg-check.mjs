@@ -14,9 +14,11 @@ import {readExplanationRepresentations} from '../server/owned-postgres/explanati
 import {SIMULATION_LANGUAGES} from '../server/explanation-simulation.mjs';
 import {publishCompleteDtzFixture, syntheticContentReview} from './exam-s6-fixture.mjs';
 
-if (process.env.OWNAPI_PG_ALLOW !== '1' || process.env.OWNAPI_PG_HOST !== '127.0.0.1'
-  || process.env.OWNAPI_PG_PORT !== '62563' || process.env.OWNAPI_PG_DATABASE !== 'hatoove_spike')
-  throw Error('Explicit assigned disposable PostgreSQL 127.0.0.1:62563/hatoove_spike required');
+const localFixture = process.env.OWNAPI_PG_PORT === '62563' && process.env.OWNAPI_PG_DATABASE === 'hatoove_spike';
+const actionsFixture = process.env.CI === 'true' && process.env.GITHUB_ACTIONS === 'true'
+  && process.env.OWNAPI_PG_PORT === '5432' && process.env.OWNAPI_PG_DATABASE === 'hatoove_ci';
+if (process.env.OWNAPI_PG_ALLOW !== '1' || process.env.OWNAPI_PG_HOST !== '127.0.0.1' || (!localFixture && !actionsFixture))
+  throw Error('Explicit assigned local or GitHub Actions disposable PostgreSQL required');
 const policyKeys = ['B1PREP_CONTENT_MODE','B1PREP_SERVE_REVIEW','B1PREP_SERVE_RIGHTS'];
 const savedEnv = Object.fromEntries(policyKeys.map(key => [key, process.env[key]]));
 const catalogue = createExamCatalogue({enabled:['telc-deutsch-b1','dtz-a2-b1']});
