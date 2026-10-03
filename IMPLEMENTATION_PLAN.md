@@ -1,5 +1,9 @@
 # Hatoove implementation plan
 
+## C-03 review contract independently cleared; Q-01 active — 3 October 2026
+
+[Issue122](https://github.com/ronslink/hatoove/issues/122), **PILOT-C03-20261003-A/B**, has an independently cleared [content-review contract](docs/contracts/PILOT-C03-REVIEW.md). It freezes exact-hash authority/decision records, legacy compatibility without invented reviewers, explicit negatives, completed-history preservation and direct SQL backstops. Core0035/CLI and coordinator0036/consumers have separate ownership; implementation requires their bounded assignments. Q-01 is active under issue121; exploratory app scans pass229/229 (199 retained legs,29 scans,one discriminator), with final clean-commit evidence still pending. Saved-explanation design is prepared for a later sequential slice. None of these states imply green hosted CI, merge, real content approval or product acceptance.
+
 ## S6 PR120 delivered; Q-01 accessibility contract ready — 3 October 2026
 
 S6 is delivered at `2f0ca7c` as [PR120](https://github.com/ronslink/hatoove/pull/120), independently reviewed and locally verified. Hosted runs37136635523/37136635553 stopped before tests for the GitHub account payment/spending restriction; integration remains blocked. [Issue121](https://github.com/ronslink/hatoove/issues/121), execution **PILOT-Q01-AXE-20261003-A**, now has a bounded [accessibility contract](docs/contracts/PILOT-Q01-AXE.md): pinned test dependency, actual rendered state coverage, discriminating controls and isolated fixtures. This is ready implementation, not delivered or accepted. Named content-review and saved-explanation contracts are being designed separately; human/device/legal/provider gates remain open.
