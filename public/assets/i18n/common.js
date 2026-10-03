@@ -1,0 +1,9 @@
+import { registerMessages } from './core.js';
+export const commonMessages = Object.freeze({
+  de: { language: 'Sprache', originalInstruction: 'Originalanweisung', translatedInstruction: 'Übersetzte Anweisung', translationUnavailable: 'Diese Übersetzung ist noch nicht verfügbar. Die ursprüngliche Fassung bleibt sichtbar.', loading: 'Wird geladen …', save: 'Speichern', saving: 'Wird gespeichert …', retry: 'Erneut versuchen', cancel: 'Abbrechen', close: 'Schließen' },
+  en: { language: 'Language', originalInstruction: 'Original instructions', translatedInstruction: 'Translated instructions', translationUnavailable: 'This translation is not available yet. The original remains visible.', loading: 'Loading …', save: 'Save', saving: 'Saving …', retry: 'Try again', cancel: 'Cancel', close: 'Close' },
+  uk: { language: 'Мова', originalInstruction: 'Оригінальна інструкція', translatedInstruction: 'Переклад інструкції', translationUnavailable: 'Цей переклад поки недоступний. Оригінал залишається видимим.', loading: 'Завантаження …', save: 'Зберегти', saving: 'Збереження …', retry: 'Спробувати ще раз', cancel: 'Скасувати', close: 'Закрити' },
+  ar: { language: 'اللغة', originalInstruction: 'التعليمات الأصلية', translatedInstruction: 'التعليمات المترجمة', translationUnavailable: 'هذه الترجمة غير متاحة بعد. يبقى النص الأصلي ظاهرًا.', loading: 'جارٍ التحميل …', save: 'حفظ', saving: 'جارٍ الحفظ …', retry: 'المحاولة مجددًا', cancel: 'إلغاء', close: 'إغلاق' },
+  tr: { language: 'Dil', originalInstruction: 'Özgün yönerge', translatedInstruction: 'Çevrilmiş yönerge', translationUnavailable: 'Bu çeviri henüz mevcut değil. Özgün metin görünür kalır.', loading: 'Yükleniyor …', save: 'Kaydet', saving: 'Kaydediliyor …', retry: 'Yeniden dene', cancel: 'İptal', close: 'Kapat' },
+});
+registerMessages('common', commonMessages);
