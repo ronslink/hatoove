@@ -180,7 +180,7 @@ try {
     const pool = wrappedPool(async sql => {
       if (/INSERT INTO writing_explanation_representation/i.test(String(sql)) && ++inserts === 2) throw Error('synthetic_explanation_storage_fault');
     });
-    await assert.rejects(createWorker({pool}).runOnce(),/synthetic_explanation_storage_fault/);
+    await assert.rejects(createWorker({pool}).runOnce(),error => error.code === 'provider_observation_failed' && error.message === 'provider_observation_failed');
     assert.equal(inserts,2);
     assert.deepEqual(await counts(q),{assessment:0,representation:0,head:0,debit:0});
     assert.deepEqual(await one('SELECT used,reserved FROM entitlements WHERE owner_id=$1 AND exam_id=$2',[q.owner,q.attempt.exam_id]),{used:0,reserved:1});
