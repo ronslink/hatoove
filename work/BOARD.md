@@ -1,10 +1,10 @@
 # Hatoove work board
 
-## Interface languages locally verified; publication pending — 3 October 2026
+## Interface languages locally verified and published — 3 October 2026
 
 [Issue129](https://github.com/ronslink/hatoove/issues/129) is delivered and independently reviewed with [local evidence](implementation/PILOT-I18N-RESULT.md). Final clean4c921180 passes13 substantive signed-in browser groups plus setup/four cleanups (18/0 records),116 desktop/mobile screenshots and actual BFCache restoration; public/auth final95/0 separately passes with verified cleanup. Independent screenshot review closed remaining labels and320px title clipping. Original exam content stays in its explicit language; selected-language controls and bilingual directions preserve live drafts, audio, answer/request identity and saved results. Core9/public14/shell24/practice18/payment28, registration PostgreSQL12, S1 PostgreSQL11 and retained checks pass. Hosted CI, merge, human translation/content and physical-device acceptance remain distinct gates.
 
-PR114/116/118/120/123 merged after seven actual hosted successes. PR125 latesta7ea309 has six successes and a remaining retained S2 ownership-fixture failure under bounded repair; it is unmerged. PR126/128 await ordered integration. The language PR will stack on128; no required CI success is inferred from local checks. Hosting recommendation remains one DigitalOcean web origin and private PostgreSQL with app/worker containers; database placement is unconfirmed and no deployment or DNS changes have been made.
+PR114/116/118/120/123 merged after seven actual hosted successes. PR125 latesta7ea309 has six successes and a remaining retained S2 ownership-fixture failure under bounded repair; it is unmerged. PR126/128 await ordered integration. [Draft PR130](https://github.com/ronslink/hatoove/pull/130) is published and stacked on128; no required CI success is inferred from local checks. Hosting recommendation remains one DigitalOcean web origin and private PostgreSQL with app/worker containers; database placement is unconfirmed and no deployment or DNS changes have been made.
 
 ## Full interface languages assembled; browser acceptance pending — 3 October 2026
 

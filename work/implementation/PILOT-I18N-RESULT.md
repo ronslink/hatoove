@@ -1,6 +1,6 @@
 # PILOT-I18N integration evidence
 
-Status: implementation delivered, independently reviewed and locally verified after corrections; hosted CI, merge and product acceptance pending. Task129, executions PILOT-I18N-20261003 and its bounded A/B/C review/browser leases. No production deployment, DNS or live payment actions.
+Status: implementation delivered, independently reviewed and locally verified after corrections; [draft PR130](https://github.com/ronslink/hatoove/pull/130) is published, stacked on128. Hosted CI, merge and product acceptance remain pending. Task129, executions PILOT-I18N-20261003 and its bounded A/B/C review/browser leases. No production deployment, DNS or live payment actions.
 
 Contract: [PILOT-I18N-INTERFACE](../../docs/contracts/PILOT-I18N-INTERFACE.md), frozen83e0331. Selected de/en/uk/ar/tr applies before signup and to account, menus and operational guidance. Exam language and purchasing market remain independent. Original passages, questions, choices, listening, scenarios and writing points are preserved; directions have explicit original and translated representations. Source-language islands remain LTR for German within Arabic chrome.
 
