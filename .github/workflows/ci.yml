@@ -119,6 +119,10 @@ jobs:
         run: node tools/exam-s3-check.mjs
       - name: Grouped reading client and explicit exam choice
         run: node tools/exam-s3-client-check.mjs
+      - name: DTZ writing package, policy and transport contracts
+        run: node tools/exam-s4-check.mjs
+      - name: DTZ writing choice and recovery client contracts
+        run: node tools/exam-s4-client-check.mjs
       - name: Readiness follows database availability and recovers
         run: node tools/readiness-check.mjs
       - name: Public content policy and criterion-specific feedback contracts
@@ -211,6 +215,8 @@ jobs:
         run: node tools/exam-s2-runs-pg-check.mjs
       - name: Internal DTZ reading and exact grouped marking on PostgreSQL
         run: node tools/exam-s3-pg-check.mjs
+      - name: DTZ writing choice, lifecycle and exam-credit PostgreSQL contract
+        run: node tools/exam-s4-pg-check.mjs
       - name: Bounded readiness probes recover after a real PostgreSQL connection loss
         run: node tools/readiness-pg-check.mjs
       - name: The hosted runtime refuses by default
@@ -302,6 +308,11 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s3-browser-check.mjs
+      - name: Isolated DTZ writing choice and mock recovery browser acceptance
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/exam-s4-browser-check.mjs
       # THE SCREENSHOTS ARE THE EVIDENCE, and they live in a gitignored directory that dies with the runner.
       # They are listed on failure so the log says where to look and what was captured; uploading them as an
       # artifact needs a pinned third-party action, which is a decision for the coordinator rather than one I

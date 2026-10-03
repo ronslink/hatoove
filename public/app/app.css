@@ -365,6 +365,8 @@ code {
 .mock-writing-choices .btn { white-space: normal; min-height: 44px; }
 #mock-writing-host { margin-block: 1rem; }
 .writing-prompt, .rubric-bands { overflow-wrap: anywhere; }
+.writing-prompt .card-head { flex-wrap: wrap; }
+.writing-prompt .card-head .chip { flex-shrink: 0; white-space: nowrap; }
 @media (max-width: 860px) {
   .mock-writing-choices { grid-template-columns: minmax(0, 1fr); }
 }

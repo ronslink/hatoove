@@ -108,11 +108,10 @@ meaningful relation to the writing occasion takes ZERO in all four criteria. The
   address or subject line. Informal address can be fully appropriate when it stays consistent.
 - Mechanical shape checks (below) prove structure, identity and absence of prohibited claims;
   they cannot prove pedagogical quality, difficulty or fairness.
-- The backend is adding validator/importer support for the writing fields **concurrently**, so
-  the current base `server/package-contract.mjs` is expected to **reject** the new fields
-  (`writingTasks`, `rubrics`, `writingChoices` and the `writing_choice` interaction). This slice
-  does not change validator code and does **not** claim a contract pass. Acceptance must be
-  re-confirmed by the coordinator's real contract once registered.
+- The integrated S4 validator/importer supports `writingTasks`, `rubrics`, `writingChoices`
+  and the `writing_choice` interaction. The coordinator verified this manifest through the
+  real package validator and restricted PostgreSQL import, after the unchanged S3 manifest.
+  These checks establish structural compatibility, not educational validity.
 
 ## Checking
 

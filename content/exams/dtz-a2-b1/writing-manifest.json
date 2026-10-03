@@ -130,7 +130,7 @@
       "register": "Sie",
       "topic": "Beschädigte Monatskarte — Bitte um Ersatz und Erstattung",
       "situation": "Sie haben eine Monatskarte für Bus und Bahn. Letzte Woche wurde die Karte an einer Haltestelle nicht mehr erkannt; ein Kontrolleur erklärte sie für ungültig, und Sie mussten ein Einzelticket kaufen. Sie schreiben an den Kundenservice des Verkehrsbetriebs, schildern den Vorfall und bitten um eine neue Karte.",
-      "adressat": "Kundenservice des Verkehrsbetriebs (formeller Brief, Anrede „Sehr geehrte Damen und Herren“, durchgehend Sie)",
+      "adressat": "Kundenservice des Verkehrsbetriebs",
       "leitpunkte": [
         "Nennen, warum Sie schreiben und welche Karte betroffen ist.",
         "Den Vorfall an der Haltestelle und mit dem Kontrolleur schildern.",
@@ -141,7 +141,7 @@
       "rubricVersion": "v1",
       "reviewStatus": "unreviewed",
       "rightsStatus": "generated",
-      "source": "content/exams/dtz-a2-b1/writing-manifest.json — original generated internal draft, coordinator authored for EXAM-S4 on 3 October 2026; not copied, translated or adapted from any official examination task."
+      "source": "content/exams/dtz-a2-b1/writing-manifest.json — original generated internal draft by Hermes under coordinator assignment EXAM-S4-HERMES-20261003-A on 3 October 2026; not copied, translated or adapted from an official examination task."
     },
     {
       "taskId": "dtz-a2-b1.writing.original01.b",
@@ -152,7 +152,7 @@
       "register": "du",
       "topic": "Urlaubsvertretung für die Nachbarin — Pflanzen, Post und Schlüssel",
       "situation": "Ihre Nachbarin Frau Novak fährt in zwei Wochen für drei Wochen zu ihrer Familie ins Ausland. Sie haben ihr schon angeboten, in dieser Zeit nach der Wohnung zu sehen. Sie schreiben ihr eine kurze Nachricht und klären, was Sie übernehmen und was Sie dafür brauchen.",
-      "adressat": "Nachbarin Frau Novak (informelle Nachricht, durchgehend du)",
+      "adressat": "Ihre Nachbarin Frau Novak; Sie duzen sich.",
       "leitpunkte": [
         "Den Zeitraum Ihrer Vertretung bestätigen.",
         "Sagen, welche Aufgaben Sie übernehmen (Pflanzen, Post, Lüften).",
@@ -163,7 +163,7 @@
       "rubricVersion": "v1",
       "reviewStatus": "unreviewed",
       "rightsStatus": "generated",
-      "source": "content/exams/dtz-a2-b1/writing-manifest.json — original generated internal draft, coordinator authored for EXAM-S4 on 3 October 2026; not copied, translated or adapted from any official examination task."
+      "source": "content/exams/dtz-a2-b1/writing-manifest.json — original generated internal draft by Hermes under coordinator assignment EXAM-S4-HERMES-20261003-A on 3 October 2026; not copied, translated or adapted from an official examination task."
     }
   ],
   "rubrics": [
@@ -199,7 +199,7 @@
             "B1": "Zweck, Textsorte und Register passen zum Anlass; der Text ist überwiegend zusammenhängend.",
             "A2_PLUS": "Zweck und Register sind im Alltag erkennbar; die Verbindungen sind einfach, aber verständlich.",
             "A2": "Zweck und Register sind teilweise passend; ein Zusammenhang ist in Ansätzen erkennbar.",
-            "A1": "Zweck oder Register sind kaum erkennbar; Verbindungen fehlen weitgehend.",
+            "A1": "Einfache Höflichkeitsformen stellen Kontakt her; einzelne Aussagen sind mit sehr einfachen Verbindungen verknüpft.",
             "ZERO": "Kein erkennbarer kommunikativer Zusammenhang zum Anlass."
           }
         },
@@ -213,7 +213,7 @@
             "B1": "Im Ganzen verständlich; Fehler stören das Verständnis nicht wesentlich.",
             "A2_PLUS": "Überwiegend verständlich; Fehler sind häufiger, die Aussage bleibt aber meist erkennbar.",
             "A2": "Grundsätzlich verständlich; Fehler erschweren einzelne Sätze.",
-            "A1": "Nur teilweise verständlich; Fehler verhindern das Verständnis ganzer Passagen.",
+            "A1": "Wenige vertraute Satzmuster und kurze Wendungen sind verwendbar; die grammatische Kontrolle bleibt stark begrenzt.",
             "ZERO": "Der Text ist nicht verständlich."
           }
         },
@@ -227,14 +227,14 @@
             "B1": "Ausreichender Alltagswortschatz; die Aussage wird klar ausgedrückt.",
             "A2_PLUS": "Einfacher, aber ausreichender Alltagswortschatz; Umschreibungen gelingen meist.",
             "A2": "Grundwortschatz reicht für den Anlass; Umschreibungen bleiben einfach.",
-            "A1": "Sehr begrenzter Wortschatz; Umschreibungen gelingen kaum.",
+            "A1": "Einzelne vertraute Wörter und kurze Wendungen ermöglichen Aussagen zu konkreten Alltagsanliegen.",
             "ZERO": "Zu wenig Wortschatz, um den Anlass zu bearbeiten."
           }
         }
       ],
       "reviewStatus": "unreviewed",
       "rightsStatus": "generated",
-      "source": "Original German paraphrase by the coordinator (3 October 2026) of the DTZ writing band shape for internal practice; wording is not copied. Structure referenced from official practice set 2 (pages 42, 43, 47) and the DTZ FAQ https://www.gast.de/de/forschung-entwicklung/entwicklung/auftraege/deutsch-test-fuer-zuwanderer-dtz/faq — format reference only, not a content licence. Provisional, generated, unreviewed; no licensed assessment."
+      "source": "Original German provisional descriptions by Hermes under EXAM-S4-HERMES-20261003-A, 3 October 2026. Coordinator verified the format in https://www.gast.de/fileadmin/gast.de/GAST/5_DTZ/PDF/gast_DTZ_UEbungssatz_2.pdf pages 42, 43, 47 and the current DTZ FAQ. Generated, unreviewed internal practice; no official wording, content licence or licensed assessment."
     }
   ],
   "sets": []

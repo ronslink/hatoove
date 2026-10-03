@@ -1,0 +1,11 @@
+# DTZ writing: source verification for internal S4
+
+The coordinator retrieved the [official g.a.s.t. practice set 2](https://www.gast.de/fileadmin/gast.de/GAST/5_DTZ/PDF/gast_DTZ_UEbungssatz_2.pdf), edition June 2024, on 3 October 2026. Rendered printed pages 42, 43 and 47 were inspected, including the table headings and the footnote. Source PDF and rendered evidence remain in ignored local QA material.
+
+The writing contract has four distinct dimensions: task fulfilment, communicative organisation, accuracy and vocabulary. Each has six positions mapping to 5, 4, 3, 2, 1 and 0. Task fulfilment uses content-point coverage and adequacy; the three language dimensions have their own descriptors. The upper four positions distinguish stronger and sufficient performance within B1 and A2; A1 and zero follow. The page 42 footnote requires zero across the criteria when the response has essentially no connection to the writing occasion. S4 records this rule without claiming a heuristic or synthetic grader can establish it.
+
+The [current official writing FAQ](https://www.gast.de/de/forschung-entwicklung/entwicklung/auftraege/deutsch-test-fuer-zuwanderer-dtz/faq), checked the same day, confirms that there is no fixed minimum word count. Address forms depend on the recipient and must remain consistent. Dates, postal addresses and subject lines are not mandatory scoring features. Comprehensibility matters; errors are not assessed by a mechanical count. The four content points belong in connected correspondence, and only one selected task is assessed.
+
+The package uses original prompts and provisional paraphrased descriptors, all generated and unreviewed. These sources establish format facts; public access to a model paper does not grant republication rights or educational approval. Human assessment/content/rights review remains required. No official questions or complete official descriptor text are imported.
+
+S4 feedback carries criterion positions with an explicit technical-simulation warning. It has no aggregate writing score, whole-exam result, pass prediction or certified proficiency claim. Live assessment remains behind the existing evaluation, privacy and cost gates. The package stays internal; complete DTZ release is gated by S5/S6 and human acceptance.

@@ -50,7 +50,7 @@ try {
     const form=(await port.listMockForms(a.id,{preparationId:a.telc.id}))[0];
     const old=(await port.startMockRun(a.id,{preparationId:a.telc.id,formId:form.form_id,formVersion:form.version,releaseVersion:form.release_version,eventId:randomUUID()})).run;
     const before=(await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0];
-    assert.deepEqual(await db.applyRemaining(),['0026-grouped-objective-runs.sql']);
+    assert.deepEqual(await db.applyRemaining(),['0026-grouped-objective-runs.sql','0027-dtz-writing.sql']);
     assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0],before);
     assert.equal((await finalise(a,old)).result.total,20);
     const functions=(await db.admin.query("SELECT proname,prosecdef,proconfig FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname IN ('protect_mock_run','finalise_mock_run')")).rows;
