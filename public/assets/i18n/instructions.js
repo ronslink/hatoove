@@ -46,6 +46,13 @@ const unavailable = {
   ar: 'ترجمة هذه التعليمات غير متاحة. تبقى التعليمات الأصلية ظاهرة.',
   tr: 'Bu yönergelerin çevirisi kullanılamıyor. Özgün yönergeler görünür kalır.',
 };
+const originalUnavailable = Object.freeze({
+  de:'Diese Anleitung ist in der Prüfungssprache nicht verfügbar. Eine Übersetzung kann nicht angezeigt werden.',
+  en:'These directions are unavailable in the exam language. A translation cannot be displayed.',
+  uk:'Ця інструкція недоступна мовою іспиту. Переклад неможливо показати.',
+  ar:'هذه التعليمات غير متاحة بلغة الامتحان. لا يمكن عرض ترجمة.',
+  tr:'Bu yönergeler sınav dilinde mevcut değil. Çeviri gösterilemiyor.',
+});
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const format = (template, parameters) => template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (_, key) => String(parameters[key]));
 export function instructionView({ id, examLanguage, original, parameters = {}, locale = getLocale() }) {
@@ -61,7 +68,7 @@ export function instructionView({ id, examLanguage, original, parameters = {}, l
   return { known, id: entry?.id || '', version: entry?.version || '', digest: known ? entry.sourceSha256 : '',
     original: known ? format(entry.original, parameters) : typeof original === 'string' ? original : '',
     examLanguage: typeof examLanguage === 'string' && /^[a-z]{2,3}(?:-[A-Za-z0-9]+)*$/.test(examLanguage) ? examLanguage : 'und',
-    locale: selected, translation: known ? selected === examLanguage ? '' : format(entry.translations[selected], parameters) : unavailable[selected] };
+    locale: selected, translation: known ? selected === examLanguage ? '' : format(entry.translations[selected], parameters) : typeof original === 'string' && original ? unavailable[selected] : originalUnavailable[selected] };
 }
 export function instructionMarkup(options) {
   const view = instructionView(options);
