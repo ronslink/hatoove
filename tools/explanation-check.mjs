@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {packageHash} from '../server/package-contract.mjs';
 import {extractWritingExplanationSource as writing,extractObjectiveExplanationSource as objective,validateExplanationRepresentation as validate,makeOriginalExplanationRepresentation as original,projectExplanationView as project,unavailableExplanationView as unavailable} from '../server/explanation-contract.mjs';
-import {resolveObjectiveExplanationLanguage as language} from '../server/explanation-language-registry.mjs';
+import {resolveObjectiveExplanationLanguage as language,legacySeedLanguageRegistry} from '../server/explanation-language-registry.mjs';
 let passed=0;const check=(name,fn)=>{fn();passed++;console.log('PASS '+name);};
 const input={ownerId:'owner-a',attempt:{id:'attempt',exam_id:'telc-deutsch-b1',task_id:'task',rubric_id:'rubric'},submission:{id:'submission',attempt_id:'attempt',owner_id:'owner-a',task_version:'v1',rubric_version:'v1',explanation_language:'de'},assessment:{feedback:{comment:'  Unveränderte Rückmeldung.  '},model_version:'model',prompt_version:'prompt'}};
 const source=writing(input),rep=original(source),head=r=>({language:r.language,source_sha256:r.source_sha256,representation_version:r.version});
@@ -23,5 +23,24 @@ check('UTF16 bounds and exact ECMAScript whitespace apply without shortening',()
 check('unknown and empty originals remain missing, never invented',()=>{for(const feedback of [{comment:''},{comment:'  '},{kind:'future',data:{private:true}}]){const s=writing({...input,assessment:{feedback}});assert.equal(s.supported,false);assert.equal(project({source:s,requestedLanguage:'en'}).representation,null);}});
 check('invalid languages and duplicate candidates cannot select arbitrary prose',()=>{assert.throws(()=>project({source,requestedLanguage:'fr'}),/invalid_explanation_language/);const r=translated(source);assert.equal(project({source,requestedLanguage:'ar',representations:[r,r],heads:[head(r)]}).state,'fallback');});
 check('objective registry binds exact retained source and refuses modified/unknown bytes',()=>{const seed=JSON.parse(readFileSync(new URL('../data/seed.json',import.meta.url)));const row=seed.LV2[0].questions[0];const query={examId:'telc-deutsch-b1',setId:'telc-deutsch-b1.lv2.01',setVersion:'v1',itemId:String(row.n),originalValue:row.why};assert.equal(language(query),'de');assert.equal(language({...query,originalValue:row.why+' changed'}),null);assert.equal(language({...query,setVersion:'v999'}),null);});
+check('retained seed LF and CRLF produce identical exact language declarations',()=>{
+ const lf=Buffer.from(readFileSync(new URL('../data/seed.json',import.meta.url),'utf8').replace(/\r\n/g,'\n'));
+ const crlf=Buffer.from(lf.toString('utf8').replace(/\n/g,'\r\n'));
+ assert.notDeepEqual(lf,crlf,'the controls must exercise distinct checkout bytes');
+ const a=legacySeedLanguageRegistry(lf),b=legacySeedLanguageRegistry(crlf);
+ assert.ok(a.length>0);assert.deepEqual(b,a);assert.ok(Object.isFrozen(a)&&a.every(Object.isFrozen));
+ const row=JSON.parse(lf).LV2[0].questions[0],declaration=a.find(value=>value.set_id==='telc-deutsch-b1.lv2.01'&&value.item_id===String(row.n));
+ assert.deepEqual(declaration,{exam_id:'telc-deutsch-b1',set_id:'telc-deutsch-b1.lv2.01',set_version:'v1',item_id:String(row.n),original_value_sha256:packageHash(row.why),language:'de'});
+});
+check('seed trust rejects source edits and every normalization beyond CRLF to LF',()=>{
+ const lf=readFileSync(new URL('../data/seed.json',import.meta.url),'utf8').replace(/\r\n/g,'\n');
+ const seed=JSON.parse(lf),changed=structuredClone(seed);changed.LV2[0].questions[0].why+=' changed';
+ const unrelated=structuredClone(seed);unrelated.LV2[0].questions[0].question+=' changed';
+ for(const [label,bytes]of [['prose edit',JSON.stringify(changed)],['unrelated source edit',JSON.stringify(unrelated)],['extra whitespace',lf+' '],['JSON reserialization',JSON.stringify(seed)],['BOM','\ufeff'+lf],['bare CR',lf.replace(/\n/g,'\r')]]){
+  assert.notEqual(bytes,lf,label+' must alter the control');
+  assert.deepEqual(legacySeedLanguageRegistry(Buffer.from(bytes)),[],label+' cannot declare a language');
+ }
+ assert.deepEqual(legacySeedLanguageRegistry(lf),[],'the builder accepts bytes only');
+});
 check('trusted synthetic registry remains exact and conflicting declarations are unknown',()=>{const q={examId:'x',setId:'s',setVersion:'v1',itemId:'1',originalValue:'Synthetic'};const row={exam_id:'x',set_id:'s',set_version:'v1',item_id:'1',original_value_sha256:packageHash(q.originalValue),language:'en'};assert.equal(language(q,{registry:[row]}),'en');assert.equal(language(q,{registry:[row,{...row,language:'de'}]}),null);});
 console.log(`Saved explanation pure checks: ${passed} passed.`);
