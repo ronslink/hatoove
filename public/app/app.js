@@ -695,8 +695,20 @@ function renderObjectiveForm(set, host) {
       const options = item.options || form.options || [];
       return '<section class="card" data-item="' + esc(item.id) + '"><p class="kicker">Aufgabe '
         + (set.payload?.practice_kind === 'grammar-drill' ? index + 1 : esc(item.id)) + '</p><p>' + esc(item.prompt) + '</p><div class="row">'
-        + options.map((o) => '<button class="btn" type="button" data-answer="' + esc(o.id) + '" title="'
-          + esc(o.label) + '">' + esc(o.id) + ') ' + esc(o.label.slice(0, 40)) + '</button>').join('')
+        /*
+         * THE WHOLE OPTION, ON THE SCREEN.
+         *
+         * This rendered `o.label.slice(0, 40)` with the full text in `title=`, so the twelve ads of an
+         * LV3 situation reached the learner as twelve fragments cut at the same column ("Möbeltransport
+         * und Umzugshilfe: Zwei sta") and the only way to read one was to HOVER it — an affordance a
+         * phone does not have, on the one screen where the learner has to compare the options to choose
+         * between them. The label is authored content and is now rendered in full, as the text of the
+         * button itself, with `.answer-option` (app.css) making it wrap inside the card instead of
+         * widening the page. The letter (`o.id`) stays in the same text run, so scoring, `data-answer`
+         * and the server key are untouched.
+         */
+        + options.map((o) => '<button class="btn answer-option" type="button" data-answer="' + esc(o.id) + '">'
+          + esc(o.id) + ') ' + esc(o.label) + '</button>').join('')
         + '</div><p class="small muted result"></p></section>';
     }).join('');
 }
