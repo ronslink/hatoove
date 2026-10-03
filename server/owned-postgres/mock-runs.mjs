@@ -10,7 +10,8 @@ const fail = (status, code) => { throw new Fault(status, code); };
 const first = (r) => r.rows[0];
 const iso = (value) => value instanceof Date ? value.toISOString() : value ?? null;
 const digest = (kind, id, body) => createHash('sha256').update(JSON.stringify({ kind, id, body })).digest('hex');
-const expired = (row) => Boolean(row.deadline_at && new Date(row.server_now) >= new Date(row.deadline_at));
+// A completed run cannot become "expired" merely because its later reader's clock passed the deadline.
+const expired = (row) => Boolean(row.deadline_at && new Date(row.finalised_at ?? row.server_now) >= new Date(row.deadline_at));
 
 /** Also acquired FIRST by account deletion. It prevents a late mock write racing deleted account rows. */
 export async function lockMockOwner(client, owner) {

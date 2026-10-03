@@ -117,9 +117,12 @@ BEGIN
   IF prep_state IS DISTINCT FROM 'active' THEN RAISE EXCEPTION 'preparation_archived' USING ERRCODE = '23514'; END IF;
   -- Runtime has no UPDATE privilege on the publication pointer, so only this narrow trigger takes
   -- its share lock. A concurrent privileged withdrawal either precedes the write or waits for it.
-  SELECT h.release_version,e.manifest,e.state INTO head_version,head_manifest,head_state
-    FROM exam_release_head h JOIN exam_release e ON e.exam_id = h.exam_id AND e.version = h.release_version
-    WHERE h.exam_id = NEW.exam_id FOR SHARE OF h;
+  SELECT h.release_version INTO head_version FROM exam_release_head h
+    WHERE h.exam_id = NEW.exam_id FOR SHARE;
+  -- Read the manifest after obtaining the pointer lock, so a head update that won the lock race
+  -- cannot be paired with the previous release's joined snapshot by READ COMMITTED rechecking.
+  SELECT manifest,state INTO head_manifest,head_state FROM exam_release
+    WHERE exam_id = NEW.exam_id AND version = head_version;
   IF coalesce(head_manifest #> '{release,resumeBlockedReleases}', '[]'::jsonb) ? NEW.release_version
   THEN RAISE EXCEPTION 'mock_rights_blocked' USING ERRCODE = '23514'; END IF;
   IF TG_OP = 'INSERT' AND (head_version IS DISTINCT FROM NEW.release_version OR head_state NOT IN ('internal','available'))
