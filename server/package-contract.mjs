@@ -58,7 +58,8 @@ export function validatePackage(input) {
   demand(text(p.exam.id,64) && /^[a-z0-9][a-z0-9-]{0,63}$/.test(p.exam.id) && text(p.exam.title,200) && text(p.exam.language,40) && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(p.exam.language),'invalid exam');
   demand(object(p.exam.levelModel) && text(p.exam.levelModel.type,40),'invalid level model');
   assertPublicPayload(p.exam);
-  assertPublicPayload(p.blueprint);
+  // The declared scale has a numeric `correct` value; it is a scoring rule, not an answer key.
+  assertPublicPayload({...p.blueprint,assessment:undefined});
   keys(p.blueprint,['version','sections','assessment','sources','timeGroups'],'blueprint');
   demand(VERSION.test(p.blueprint.version),'invalid blueprint version');
   demand(Array.isArray(p.blueprint.sections) && p.blueprint.sections.length>0 && p.blueprint.sections.length<=20,'invalid sections');
