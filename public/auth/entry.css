@@ -26,3 +26,10 @@
 @media (prefers-color-scheme: dark) {
   .auth-brand { padding: 6px 10px; background: #fff; border-radius: 10px; justify-self: start; }
 }
+.interface-language { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-block: 18px; }
+.interface-language select { flex: 1; min-width: 0; min-height: 44px; max-width: 100%; font: inherit; font-size: 16px; padding: 8px 12px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+.interface-language select:focus-visible { outline: 3px solid var(--orange-dark); outline-offset: 3px; }
+.auth-art h2 > span:not(.hero-emphasis) { color: inherit; }
+.auth-box .btn, .auth-box h1, .auth-art h2 { overflow-wrap: anywhere; white-space: normal; }
+.auth-tabs > button { min-width: 0; }
+.auth-box input[dir="ltr"] { unicode-bidi: isolate; text-align: left; }

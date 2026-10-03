@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** COMPLETE-ENTRY: disposable Compose + Chromium checks for the public German entry and recovery.
+/** COMPLETE-ENTRY: disposable Compose + Chromium checks for localized public entry and recovery.
  * Uses synthetic accounts only, no live provider calls. Captured operator links stay in memory.
  * Browser viewport evidence does not replace iPhone Safari / Android Chrome device acceptance.
  */
@@ -44,12 +44,17 @@ async function shot(name) {
   const image = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
   fs.writeFileSync(path.join(shots, name + '.png'), Buffer.from(image.data, 'base64'));
 }
-async function layout(route, width, scheme, name) {
+async function selectLocale(locale) {
+  await cdp.evaluate('const select = document.getElementById("interface-language"); select.value = ' + JSON.stringify(locale) + '; select.dispatchEvent(new Event("change", {bubbles:true}));');
+  await cdp.waitFor('document.documentElement.lang === ' + JSON.stringify(locale), 3000, 'locale update');
+}
+async function layout(route, width, scheme, name, locale = 'de') {
   await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: width < 700 ? 844 : 1000, deviceScaleFactor: 1, mobile: width < 700 });
   await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] });
   await nav(route);
-  const result = await cdp.evaluate('return { overflow: document.documentElement.scrollWidth > innerWidth + 1, font: getComputedStyle(document.body).fontFamily, bg: getComputedStyle(document.body).backgroundColor, language: document.documentElement.lang };');
-  record(name + ' layout', !result.overflow && result.language === 'de' && result.font.includes('Source Sans'), JSON.stringify(result));
+  await selectLocale(locale);
+  const result = await cdp.evaluate('return { overflow: document.documentElement.scrollWidth > innerWidth + 1, font: getComputedStyle(document.body).fontFamily, bg: getComputedStyle(document.body).backgroundColor, language: document.documentElement.lang, direction: document.documentElement.dir, choices: [...document.querySelector("#interface-language").options].map(o => o.value) };');
+  record(name + ' layout', !result.overflow && result.language === locale && result.direction === (locale === 'ar' ? 'rtl' : 'ltr') && result.choices.join(',') === 'de,en,uk,ar,tr', JSON.stringify(result));
   await shot(name);
 }
 function deliveredLink(page) {
@@ -73,16 +78,28 @@ async function main() {
 
     await cdp.send('Network.enable');
     for (const [route, label] of [['/', 'landing'], ['/signin', 'signin'], ['/reset-password', 'reset-request'], ['/verify-email', 'verify-request']]) {
-      for (const [width, scheme] of [[1440, 'light'], [390, 'light'], [320, 'dark']]) await layout(route, width, scheme, label + '-' + width + '-' + scheme);
+      for (const locale of ['de','en','uk','ar','tr']) for (const [width, scheme] of [[1440, 'light'], [390, 'light'], [320, 'dark']]) await layout(route, width, scheme, label + '-' + locale + '-' + width + '-' + scheme, locale);
     }
     await nav('/');
+    await selectLocale('de');
     record('German front door links to registration and sign-in', await cdp.evaluate('return document.querySelector("#nav-start").getAttribute("href") === "/signin?mode=signup" && document.querySelector("#nav-signin").getAttribute("href") === "/signin";'));
     await cdp.click('#answer-options input[value="0"]');
     await submit('answer-form');
     record('landing sample produces German answer explanation', (await cdp.text()).includes('Genau. Alle Einzelheiten passen.'));
+    await cdp.evaluate('window.sampleRadio = document.querySelector("#answer-options input[value=\"0\"]"); window.sampleFeedback = document.querySelector("#feedback");');
+    for (const locale of ['en','uk','ar','tr','de']) {
+      await selectLocale(locale);
+      record('checked sample survives ' + locale, await cdp.evaluate('return window.sampleRadio === document.querySelector("#answer-options input[value=\"0\"]") && window.sampleRadio.checked && window.sampleFeedback === document.querySelector("#feedback") && !window.sampleFeedback.hidden && document.querySelector(".task-stimulus").lang === "de" && document.querySelector(".task-stimulus").dir === "ltr";'));
+    }
     await cdp.click('#tab-writing');
     await fill({ 'writing-response': 'Liebe Mila, ich helfe dir gern.' });
     await cdp.evaluate('document.querySelector("#writing-response").dispatchEvent(new Event("input"));');
+    await cdp.click('#review-writing');
+    await cdp.evaluate('window.sampleDraft = document.querySelector("#writing-response"); window.sampleDraft.focus(); window.sampleDraft.setSelectionRange(6, 10); document.querySelector("[data-review=\"2\"]").click(); document.querySelector(".model-response").open = true;');
+    for (const locale of ['en','uk','ar','tr','de']) {
+      await selectLocale(locale);
+      record('draft and self-review survive ' + locale, await cdp.evaluate('return window.sampleDraft === document.querySelector("#writing-response") && window.sampleDraft.value === "Liebe Mila, ich helfe dir gern." && window.sampleDraft.selectionStart === 6 && window.sampleDraft.selectionEnd === 10 && document.querySelector("[data-review=\"2\"]").checked && document.querySelector(".model-response").open && window.sampleDraft.lang === "de" && window.sampleDraft.dir === "ltr";'));
+    }
     await cdp.click('#tab-reading'); await cdp.click('#tab-writing');
     record('preview draft survives practice-tab navigation', await cdp.evaluate('return document.querySelector("#writing-response").value === "Liebe Mila, ich helfe dir gern.";'));
     const email = 'entry-' + Date.now() + '@example.test';
@@ -104,7 +121,7 @@ async function main() {
     await cdp.waitFor('document.querySelector("#status").textContent.includes("passenden Konto")', 10000, 'generic absent-account response');
     record('unknown account gets identical visible request response', knownMessage === await cdp.evaluate('return document.querySelector("#status").textContent;'));
     await nav(resetLink.pathname + resetLink.search);
-    record('reset token removed from URL without storage', await cdp.evaluate('return !location.search && localStorage.length === 0 && sessionStorage.length === 0;'));
+    record('reset token removed from URL; only explicit locale scalar stored', await cdp.evaluate('return !location.search && localStorage.length === 1 && localStorage.getItem("hatoove.interface-language.v1") === "de" && sessionStorage.length === 0;'));
     record('reset token opens password form', await shown('form-reset') && !(await shown('form-request')));
     await fill({ 'new-password': 'synthetic-entry-new-password', 'confirm-password': 'different-password' });
     await submit('form-reset');
@@ -152,6 +169,9 @@ async function main() {
     await cdp.evaluate('window.fetch = () => new Promise(resolve => { window.finishRequest = resolve; });');
     await fill({ 'request-email': email }); await submit('form-request');
     record('pending requests visibly disable repeat submission', await cdp.evaluate('return document.querySelector("#request-submit").disabled && document.querySelector("#status").textContent.includes("übermittelt");'));
+    await selectLocale('ar');
+    record('pending auth keeps request and fields while copy changes', await cdp.evaluate('return document.querySelector("#request-submit").disabled && document.querySelector("#request-email").value.length > 0 && document.querySelector("#status").dataset.i18n === "auth.requesting" && /[\u0600-\u06ff]/u.test(document.querySelector("#status").textContent);'));
+    await selectLocale('de');
     await cdp.evaluate('window.finishRequest(new Response(JSON.stringify({error:"recovery_unavailable"}), {status:503, headers:{"content-type":"application/json"}}));');
     await cdp.waitFor('!document.querySelector("#error").hidden', 10000, 'unavailable feedback');
     record('unavailable recovery allows retry without false delivery claim', (await cdp.text()).includes('gerade nicht verfügbar') && !(await cdp.text()).includes('erhält das Pilotteam die Anfrage'));

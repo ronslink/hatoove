@@ -1,3 +1,7 @@
+import { LOCALES, initialLocale, getLocale, setLocale, subscribeLocale, t, translateDom } from '../assets/i18n/core.js';
+import '../assets/i18n/common.js';
+import '../assets/i18n/auth-messages.js';
+
 'use strict';
 
 // This public entry must not import the authenticated app module. Keep the narrow validator in
@@ -21,10 +25,16 @@ if (tokenWasProvided) history.replaceState(null, '', location.pathname);
 const tokenValid = token.length > 0 && token.length <= 512;
 let busy = false;
 
-function message(id, text) {
+function bind(id, key) {
   const target = $(id);
-  target.textContent = text;
-  target.hidden = !text;
+  if (key) target.dataset.i18n = 'auth.' + key;
+  else delete target.dataset.i18n;
+  target.textContent = key ? t('auth.' + key) : '';
+}
+function message(id, key) {
+  const target = $(id);
+  bind(id, key);
+  target.hidden = !key;
 }
 function clearMessages() {
   message('error', '');
@@ -41,18 +51,19 @@ function setBusy(value, text = '') {
 }
 function errorMessage(status, payload) {
   const code = payload && (payload.error || payload.code);
-  if (code === 'invalid_token') return 'Dieser Link ist ungültig, abgelaufen oder wurde bereits verwendet. Bitte fordere einen neuen Link an.';
-  if (status === 401) return 'E-Mail oder Passwort ist falsch. Bitte prüfe deine Eingaben.';
-  if (code === 'invalid_email') return 'Bitte gib eine gültige E-Mail-Adresse ein.';
-  if (code === 'invalid_name') return 'Bitte gib deinen Namen ein.';
-  if (code === 'invalid_password') return 'Bitte gib ein Passwort mit höchstens 256 Zeichen ein.';
-  if (code === 'user_exists') return 'Die Registrierung konnte nicht abgeschlossen werden. Versuche, dich anzumelden, oder nutze „Passwort vergessen?“.';
-  if (status === 422) return 'Bitte prüfe deine Eingaben.';
-  if (status === 403) return 'Diese Anfrage ist derzeit nicht freigegeben. Bitte wende dich an das Pilotteam.';
-  if (status === 429) return 'Zu viele Anfragen. Bitte warte einige Minuten und versuche es dann erneut.';
-  if (code === 'recovery_unavailable' || code === 'verification_unavailable') return 'Dieser Dienst ist gerade nicht verfügbar. Bitte versuche es später erneut oder wende dich an das Pilotteam.';
-  if (status >= 500) return 'Der Server ist gerade nicht erreichbar. Bitte versuche es später erneut.';
-  return 'Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es erneut.';
+  if (code === 'invalid_token') return 'invalidToken';
+  if (status === 401) return 'credentials';
+  if (code === 'invalid_email') return 'invalidEmail';
+  if (code === 'invalid_name') return 'invalidName';
+  if (code === 'invalid_password') return 'invalidPassword';
+  if (code === 'invalid_language') return 'invalidLanguage';
+  if (code === 'user_exists') return 'userExists';
+  if (status === 422) return 'invalidInput';
+  if (status === 403) return 'forbidden';
+  if (status === 429) return 'throttled';
+  if (code === 'recovery_unavailable' || code === 'verification_unavailable') return 'unavailable';
+  if (status >= 500) return 'server';
+  return 'failed';
 }
 function invalidateToken() {
   token = '';
@@ -85,8 +96,8 @@ async function post(path, body, pending) {
     return payload;
   } catch (error) {
     message('error', error.name === 'AbortError'
-      ? (page === 'reset' && tokenWasProvided ? 'Der Server hat nicht rechtzeitig geantwortet. Falls dein Passwort bereits geändert wurde, kannst du dich damit anmelden.' : 'Der Server hat nicht rechtzeitig geantwortet. Bitte prüfe deine Verbindung und versuche es erneut.')
-      : 'Keine Verbindung zum Server. Deine Anfrage konnte nicht bestätigt werden. Bitte prüfe deine Internetverbindung und versuche es erneut.');
+      ? (page === 'reset' && tokenWasProvided ? 'resetTimeout' : 'timeout')
+      : 'offline');
     return null;
   } finally {
     clearTimeout(timeout);
@@ -102,8 +113,8 @@ if (page === 'signin') {
     $('form-signup').hidden = signin;
     $('tab-signin').setAttribute('aria-pressed', String(signin));
     $('tab-signup').setAttribute('aria-pressed', String(!signin));
-    $('auth-title').textContent = signin ? 'Willkommen zurück' : 'Dein nächster Schritt';
-    $('auth-intro').textContent = signin ? 'Melde dich an und setze deine Übungen fort.' : 'Erstelle dein kostenloses Konto für den Hatoove-Pilot.';
+    bind('auth-title', signin ? 'welcome' : 'signupTitle');
+    bind('auth-intro', signin ? 'signinIntro' : 'signupIntro');
     clearMessages();
     if (focus) $(signin ? 'si-email' : 'su-name').focus();
   }
@@ -115,9 +126,12 @@ if (page === 'signin') {
       event.preventDefault();
       const prefix = kind === 'signin' ? 'si' : 'su';
       const body = { email: $(`${prefix}-email`).value.trim(), password: $(`${prefix}-password`).value };
-      if (kind === 'signup') body.name = $('su-name').value.trim();
+      if (kind === 'signup') {
+        body.name = $('su-name').value.trim();
+        body.language = getLocale();
+      }
       const result = await post(`/api/auth/sign-${kind === 'signin' ? 'in' : 'up'}/email`, body,
-        kind === 'signin' ? 'Du wirst angemeldet …' : 'Dein Konto wird erstellt …');
+        kind === 'signin' ? 'signingIn' : 'signingUp');
       if (result) location.replace(checkoutAuthReturn(location.search, location.hash));
     });
   }
@@ -125,8 +139,8 @@ if (page === 'signin') {
   const isReset = page === 'reset';
   if (tokenWasProvided) {
     $('form-request').hidden = true;
-    $('auth-title').textContent = isReset ? 'Neues Passwort festlegen' : 'E-Mail-Adresse bestätigen';
-    $('auth-intro').textContent = isReset ? 'Speichere ein neues Passwort für dein Konto.' : 'Dein Link ist bereit. Bestätige jetzt deine E-Mail-Adresse.';
+    bind('auth-title', isReset ? 'resetTitle' : 'verifyTitle');
+    bind('auth-intro', isReset ? 'resetReady' : 'verifyReady');
     $(isReset ? 'form-reset' : 'form-verify').hidden = !tokenValid;
     if (!tokenValid) {
       message('error', errorMessage(400, { error: 'invalid_token' }));
@@ -136,37 +150,65 @@ if (page === 'signin') {
   $('form-request').addEventListener('submit', async event => {
     event.preventDefault();
     const result = await post(isReset ? '/api/auth/request-password-reset' : '/api/auth/send-verification-email',
-      { email: $('request-email').value.trim() }, 'Deine Anfrage wird übermittelt …');
+      { email: $('request-email').value.trim() }, 'requesting');
     if (result) {
-      message('status', 'Wenn diese Adresse zu einem passenden Konto gehört, erhält das Pilotteam die Anfrage. Eine Person sendet dir den Link über den vereinbarten Kontaktweg. Es wurde keine automatische E-Mail verschickt.');
-      $('request-submit').textContent = 'Link erneut anfordern';
+      message('status', 'delivery');
+      bind('request-submit', 'requestAgain');
     }
   });
   $(isReset ? 'form-reset' : 'form-verify').addEventListener('submit', async event => {
     event.preventDefault();
     if (!token || busy) return;
     if (isReset && $('new-password').value !== $('confirm-password').value) {
-      message('error', 'Die beiden Passwörter stimmen nicht überein.');
+      message('error', 'mismatch');
       $('confirm-password').focus();
       return;
     }
     const result = await post(isReset ? '/api/auth/reset-password' : '/api/auth/verify-email',
       isReset ? { token, newPassword: $('new-password').value } : { token },
-      isReset ? 'Dein Passwort wird gespeichert …' : 'Deine E-Mail-Adresse wird bestätigt …');
+      isReset ? 'savingPassword' : 'verifying');
     if (result) {
       token = '';
       event.target.reset();
       event.target.hidden = true;
       event.target.closest('.card').hidden = true;
       $('back-signin').hidden = true;
-      $('auth-title').textContent = isReset ? 'Passwort geändert' : 'Adresse bestätigt';
+      bind('auth-title', isReset ? 'resetDone' : 'verifyDone');
       $('auth-intro').hidden = true;
       document.querySelector('.auth-notice').hidden = true;
       $('request-another').hidden = true;
-      $('success-message').textContent = isReset
-        ? 'Dein Passwort wurde geändert. Frühere Sitzungen sind beendet. Melde dich jetzt mit deinem neuen Passwort an.'
-        : 'Deine E-Mail-Adresse ist bestätigt. Melde dich mit deinem Passwort an, um weiterzuüben.';
+      bind('success-message', isReset
+        ? 'resetSuccess'
+        : 'verifySuccess');
       $('success').hidden = false;
     }
   });
 }
+
+// Locale changes patch copy only: form values, pending bodies and token memory stay intact.
+function localizeEntry() {
+  translateDom(document);
+  for (const input of document.querySelectorAll('input[data-validation-key]')) input.setCustomValidity(t('auth.' + input.dataset.validationKey));
+  $('interface-language').value = getLocale();
+  document.title = t('auth.' + (page === 'signin' ? 'signin' : page === 'reset' ? 'resetTitle' : 'verifyTitle')) + ' · Hatoove';
+}
+// Browser-owned validation bubbles otherwise retain the browser's language.
+for (const input of document.querySelectorAll('form input')) {
+  input.addEventListener('invalid', () => {
+    input.dataset.validationKey = input.validity.valueMissing ? 'required'
+      : input.validity.typeMismatch ? 'invalidEmail' : 'invalidInput';
+    input.setCustomValidity(t('auth.' + input.dataset.validationKey));
+  });
+  input.addEventListener('input', () => {
+    delete input.dataset.validationKey;
+    input.setCustomValidity('');
+  });
+}
+$('interface-language').addEventListener('change', event => {
+  if (LOCALES.includes(event.target.value)) setLocale(event.target.value, { persist: true });
+});
+const unsubscribeLocale = subscribeLocale(localizeEntry);
+addEventListener('pagehide', event => { if (!event.persisted) unsubscribeLocale(); });
+addEventListener('pageshow', event => { if (event.persisted) setLocale(initialLocale()); });
+setLocale(getLocale());
+localizeEntry();
