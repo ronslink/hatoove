@@ -6,6 +6,8 @@ import {importPackage} from '../server/owned-postgres/package-importer.mjs';
 export async function publishCompleteDtzFixture(db,{mediaRoot,version='v9600',availableVersion='v9601'}={}) {
   if(process.env.OWNAPI_PG_ALLOW!=='1'||!/^ownapi_[a-z0-9_]+$/.test(db?.schema||'')||!db.admin||!db.migration)
     throw Error('Synthetic review requires an explicit disposable ownapi fixture');
+  const targets=await Promise.all([db.admin.query('SELECT current_schema() AS schema'),db.migration.query('SELECT current_schema() AS schema')]);
+  if(targets.some(result=>result.rows[0]?.schema!==db.schema))throw Error('Synthetic review connection does not target its disposable schema');
   if(version===availableVersion)throw Error('Synthetic available release requires a new immutable identity');
   const internal=await createCompleteFixture({examId:'dtz-a2-b1',mediaRoot,version,releaseVersion:version,blueprintVersion:version});
   // Keep the real authored manifests unchanged. Every copied reference gets this fixture version.
