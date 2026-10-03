@@ -123,6 +123,7 @@ export function validatePackage(input) {
     demand(unique(s.parts.map(x=>x.family)),'duplicate part');
   }
   demand(unique(p.blueprint.sections.map(x=>x.id)),'duplicate section');
+  validateTimeGroups(p.blueprint);
   const scale=p.blueprint.assessment;
   keys(scale,['policy','correct','incorrect'],'assessment');
   demand(scale.policy==='objective-count-v1' && Number.isFinite(scale.correct) && scale.correct>0 && Number.isFinite(scale.incorrect) && scale.incorrect>=0 && scale.incorrect<scale.correct,'unsupported assessment scale');
@@ -134,12 +135,12 @@ export function validatePackage(input) {
   demand(p.forms.length>0 || ['hidden','withdrawn'].includes(p.release.state),'empty release');
   demand(unique(p.forms.map(f=>f.id+'@'+f.version)),'duplicate form');
   for (const f of p.forms) {
-    keys(f,['id','version','title','scope','sections','mode','timeLimitSeconds','feedback','members','writingChoices','attemptMode'],'form');
+    keys(f,['id','version','title','scope','sections','mode','timeLimitSeconds','feedback','members','writingChoices','writingTask','attemptMode','timingPolicy'],'form');
     demand(text(f.id,128) && ID.test(f.id) && VERSION.test(f.version) && text(f.title,200),'invalid form identity');
     demand(['section','complete_supported_written'].includes(f.scope) && f.feedback==='finalise','unsupported form policy');
     demand(Array.isArray(f.sections) && f.sections.length>0 && unique(f.sections) && f.sections.every(id=>p.blueprint.sections.some(s=>s.id===id)),'invalid form sections');
     demand((f.mode==='untimed' && f.timeLimitSeconds===null) || (f.mode==='timed' && Number.isSafeInteger(f.timeLimitSeconds) && f.timeLimitSeconds>=1 && f.timeLimitSeconds<=86400),'invalid timing');
-    demand(Array.isArray(f.members) && (f.members.length>0 || f.writingChoices?.length===1) && f.members.length<=50 && unique(f.members.map(m=>m.setId+'@'+m.version)),'invalid/duplicate members');
+    demand(Array.isArray(f.members) && (f.members.length>0 || f.writingChoices?.length===1 || f.writingTask!==undefined) && f.members.length<=50 && unique(f.members.map(m=>m.setId+'@'+m.version)),'invalid/duplicate members');
     for (const m of f.members) {
       keys(m,['setId','version','interaction','itemCount'],'member');
       demand(text(m.setId,128) && ID.test(m.setId) && VERSION.test(m.version) && INTERACTIONS.includes(m.interaction) && Number.isSafeInteger(m.itemCount) && m.itemCount>0 && m.itemCount<=100,'invalid member');
@@ -152,6 +153,7 @@ export function validatePackage(input) {
     } else demand(f.attemptMode===undefined,'attemptMode requires listening');
     demand(f.members.reduce((sum,m)=>sum+m.itemCount,0)<=500,'form exceeds saved response limit');
     if (f.writingChoices !== undefined) {
+      demand(f.writingTask===undefined,'writing bindings are mutually exclusive');
       demand(Array.isArray(f.writingChoices) && f.writingChoices.length===1,'one writing choice group required');
       for (const choice of f.writingChoices) {
         keys(choice,['id','section','options'],'writing choice');
@@ -161,11 +163,15 @@ export function validatePackage(input) {
         demand(unique(choice.options.map(o=>o.taskId+'@'+o.taskVersion)),'duplicate writing option');
       }
     }
-    if (f.scope==='complete_supported_written') {
-      // S2 deliberately ships no complete-written capability. A shortened blueprint cannot evade
-      // missing listening/writing by redefining the target examination's supported scope.
-      invalid('complete written forms require the later reviewed media/writing contract');
+    if(f.writingTask!==undefined) {
+      keys(f.writingTask,['section','taskId','taskVersion'],'assigned writing');
+      const t=f.writingTask,part=p.blueprint.sections.find(s=>s.id===t.section)?.parts.find(part=>part.family==='writing');
+      demand(p.exam.id==='telc-deutsch-b1'&&p.exam.language==='de'&&t.section==='writing'&&f.sections.includes(t.section)&&part?.interaction==='extended_writing'&&part.itemCount===1&&!part.mediaRequired,'unsupported assigned writing');
+      demand(text(t.taskId,128)&&ID.test(t.taskId)&&VERSION.test(t.taskVersion),'invalid assigned writing identity');
     }
+    if (f.scope==='complete_supported_written') {
+      validateCompleteForm(p.exam,p.blueprint,f);
+    } else demand(f.timingPolicy===undefined,'ordered timing requires a complete form');
   }
   p.sets ??=[];
   demand(Array.isArray(p.sets) && p.sets.length<=200 && unique(p.sets.map(s=>s.setId+'@'+s.version)),'invalid/duplicate sets');
@@ -209,9 +215,11 @@ export function validatePackage(input) {
     keys(t,['taskId','version','examId','family','section','register','topic','situation','adressat','leitpunkte','rubricId','rubricVersion','reviewStatus','rightsStatus','source'],'writing task');
     demand(text(t.taskId,128)&&ID.test(t.taskId)&&VERSION.test(t.version)&&t.examId===p.exam.id&&t.family==='writing','invalid writing identity');
     const part=p.blueprint.sections.find(s=>s.id===t.section)?.parts.find(x=>x.family===t.family);
-    demand(part?.interaction==='writing_choice'&&part.itemCount===1&&!part.mediaRequired,'writing blueprint mismatch');
+    const assigned=p.exam.id==='telc-deutsch-b1'&&p.exam.language==='de'&&t.section==='writing'&&part?.interaction==='extended_writing';
+    demand((assigned||part?.interaction==='writing_choice')&&part.itemCount===1&&!part.mediaRequired,'writing blueprint mismatch');
     demand(['du','Sie'].includes(t.register)&&text(t.topic,200)&&text(t.situation,12000)&&text(t.adressat,1000)&&Array.isArray(t.leitpunkte)&&t.leitpunkte.length===4&&t.leitpunkte.every(x=>text(x,2000)),'invalid writing prompt');
     demand(text(t.rubricId,128)&&ID.test(t.rubricId)&&VERSION.test(t.rubricVersion),'invalid writing rubric');
+    if(assigned) demand(t.rubricId==='writing.telc-b1'&&t.rubricVersion==='v1','assigned writing requires the exact telc rubric');
     demand(t.reviewStatus==='unreviewed'&&t.rightsStatus==='generated'&&text(t.source,1000),'new writing tasks need separate review');
   }
   if (p.release.state==='available' && p.exam.id==='dtz-a2-b1') {
@@ -222,7 +230,73 @@ export function validatePackage(input) {
   const contentIds=[...p.sets.map(s=>s.setId+'@'+s.version),...(p.media||[]).map(m=>m.mediaId+'@'+m.version),
     ...(p.rubrics||[]).map(r=>r.rubricId+'@'+r.version),...(p.writingTasks||[]).map(t=>t.taskId+'@'+t.version)];
   demand(unique(contentIds),'content identity used by multiple records');
+  for(const f of p.forms.filter(f=>f.scope==='complete_supported_written')) {
+    const resolved=f.members.map(m=>p.sets.find(s=>s.setId===m.setId&&s.version===m.version));
+    validateCompleteMembers(p.exam.id,p.blueprint,f,resolved,{allowMissing:true});
+  }
   return p;
+}
+
+/** Optional historical groups remain partial; complete forms require the whole fixed schedule. */
+export function validateTimeGroups(blueprint) {
+  if(blueprint.timeGroups===undefined) {
+    demand(blueprint.sections.every(s=>s.timeGroup==null),'section references missing time groups');
+    return;
+  }
+  const groups=blueprint.timeGroups;
+  demand(Array.isArray(groups)&&groups.length<=20&&unique(groups.map(g=>g?.id)),'invalid time groups');
+  const assigned=[];
+  for(const group of groups) {
+    keys(group,['id','seconds','sections'],'time group');
+    demand(text(group.id,128)&&ID.test(group.id)&&Number.isSafeInteger(group.seconds)&&group.seconds>0&&group.seconds<=86400,'invalid time group identity/duration');
+    demand(Array.isArray(group.sections)&&group.sections.length>0&&unique(group.sections)&&group.sections.every(id=>blueprint.sections.some(s=>s.id===id&&s.timeGroup===group.id)),'invalid time group sections');
+    assigned.push(...group.sections);
+  }
+  demand(unique(assigned)&&blueprint.sections.every(s=>s.timeGroup==null||groups.some(g=>g.id===s.timeGroup&&g.sections.includes(s.id))),'inconsistent section time group');
+}
+
+const COMPLETE_TARGETS={
+  'telc-deutsch-b1':{
+    sections:['LV','SB','HV','writing'],groups:[[['LV','SB'],5400],[['HV'],1800],[['writing'],1800]],
+    parts:[['LV','LV1',5,'matching_headlines'],['LV','LV2',5,'single_choice'],['LV','LV3',10,'matching_ads'],['SB','SB1',10,'gap_choice'],['SB','SB2',10,'gap_bank'],['HV','HV1',5,'fixed_audio'],['HV','HV2',10,'fixed_audio'],['HV','HV3',5,'fixed_audio'],['writing','writing',1,'extended_writing']]
+  },
+  'dtz-a2-b1':{
+    sections:['HV','LV','SA'],groups:[[['HV'],1500],[['LV'],2700],[['SA'],1800]],
+    parts:[['HV','HV1',4,'fixed_audio'],['HV','HV2',5,'fixed_audio'],['HV','HV3',8,'fixed_audio'],['HV','HV4',3,'fixed_audio'],['LV','LV1',5,'single_choice'],['LV','LV2',5,'matching_ads'],['LV','LV3',6,'grouped_choice'],['LV','LV4',3,'single_choice'],['LV','LV5',6,'gap_choice'],['SA','writing',1,'writing_choice']]
+  }
+};
+
+/** Affirmative target format, reused by publication and runtime readers without mutating bytes. */
+export function validateCompleteForm(exam,blueprint,form) {
+  const target=COMPLETE_TARGETS[exam.id];
+  demand(target&&exam.language==='de','unsupported complete exam');
+  demand(form.scope==='complete_supported_written'&&form.mode==='timed'&&form.attemptMode==='mock'&&form.timingPolicy==='ordered-fixed-v1','invalid complete form policy');
+  demand(canonicalJson(form.sections)===canonicalJson(target.sections)&&canonicalJson(blueprint.sections.map(s=>s.id))===canonicalJson(target.sections),'incorrect complete section order');
+  const parts=blueprint.sections.flatMap(s=>s.parts.map(p=>[s.id,p.family,p.itemCount,p.interaction]));
+  demand(canonicalJson(parts)===canonicalJson(target.parts),'incorrect complete part format');
+  for(const section of blueprint.sections) for(const part of section.parts) {
+    demand(part.mediaRequired===(part.interaction==='fixed_audio'),'incorrect complete media policy');
+    if(part.mediaRequired) validatePlayback(part,exam.id);
+  }
+  validateTimeGroups(blueprint);
+  demand(Array.isArray(blueprint.timeGroups)&&blueprint.timeGroups.length===target.groups.length&&blueprint.timeGroups.every((g,i)=>g.seconds===target.groups[i][1]&&canonicalJson(g.sections)===canonicalJson(target.groups[i][0])),'incorrect complete time groups');
+  demand(form.timeLimitSeconds===target.groups.reduce((n,g)=>n+g[1],0),'incorrect complete duration');
+  const objective=target.parts.filter(p=>INTERACTIONS.includes(p[3]));
+  demand(form.members.length===objective.length&&form.members.every((m,i)=>m.itemCount===objective[i][2]&&m.interaction===objective[i][3]),'incorrect complete member order/count');
+  if(exam.id==='telc-deutsch-b1') demand(form.writingTask?.section==='writing'&&form.writingChoices===undefined,'complete telc requires assigned writing');
+  else demand(form.writingTask===undefined&&form.writingChoices?.length===1&&form.writingChoices[0].section==='SA','complete DTZ requires one A/B group');
+  return blueprint.timeGroups;
+}
+
+/** Resolve identities as well as shape; reference-only forms cannot swap equal-sized families. */
+export function validateCompleteMembers(examId,blueprint,form,rows,{allowMissing=false}={}) {
+  const expected=COMPLETE_TARGETS[examId]?.parts.filter(p=>INTERACTIONS.includes(p[3]));
+  demand(expected&&rows.length===expected.length,'incorrect complete resolved members');
+  for(const [i,row] of rows.entries()) {
+    if(!row&&allowMissing) continue;
+    const m=form.members[i],part=expected[i],section=blueprint.sections.find(s=>s.id===part[0]);
+    demand(row&&(row.set_id??row.setId)===m.setId&&row.version===m.version&&(row.exam_id??row.examId)===examId&&row.section===part[0]&&row.family===part[1]&&(row.item_count??row.itemCount)===part[2]&&row.part===section.parts.findIndex(p=>p.family===part[1])+1,'incorrect complete resolved member order');
+  }
 }
 
 /** Dormant historical blueprints keep their hashes; actual listening needs the exact policy. */

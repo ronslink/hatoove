@@ -1,6 +1,6 @@
 /** Privileged transactional content publisher. Never imported by the HTTP runtime. */
 import { readFile } from 'node:fs/promises';
-import { validatePackage, packageHash, canonicalJson, objectiveItems, validatePlayback } from '../package-contract.mjs';
+import { validatePackage, packageHash, canonicalJson, objectiveItems, validatePlayback, validateCompleteMembers } from '../package-contract.mjs';
 import { readMediaBytes } from '../media-contract.mjs';
 import { BODY_LIMIT_BYTES } from '../owned-api.mjs';
 
@@ -116,6 +116,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
       const coverage=new Map();
       const formMedia=new Set();
       const largestResponses=[];
+      const resolvedMembers=[];
       for(const [i,m] of f.members.entries()) {
         const key=m.setId+'@'+m.version;
         let set=sets.get(key);
@@ -123,6 +124,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
           FROM objective_set s JOIN content_version c ON c.content_version_id=s.content_version_id
           LEFT JOIN content_rights cr ON cr.content_version_id=c.content_version_id WHERE s.set_id=$1 AND s.version=$2`,[m.setId,m.version])).rows[0];
         if(!set || set.exam_id!==p.exam.id || set.media_required!==(m.interaction==='fixed_audio') || set.item_count!==m.itemCount || !f.sections.includes(set.section)) fail('missing or incompatible exact set: '+key);
+        resolvedMembers.push(set);
         const section=p.blueprint.sections.find(s=>s.id===set.section);
         const part=section?.parts.find(x=>x.family===set.family);
         if(!part || part.itemCount!==set.item_count || part.interaction!==m.interaction || part.mediaRequired!==set.media_required) fail('set/blueprint mismatch: '+key);
@@ -159,6 +161,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
         if(!old) commands.push([`INSERT INTO exam_form_member(exam_id,form_id,form_version,position,set_id,set_version,interaction,item_count)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[p.exam.id,f.id,f.version,i,m.setId,m.version,m.interaction,m.itemCount]]);
       }
+      if(f.scope==='complete_supported_written') validateCompleteMembers(p.exam.id,p.blueprint,f,resolvedMembers);
       for(const choice of f.writingChoices||[]) {
         let family;
         for(const o of choice.options) {
@@ -171,6 +174,15 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
           family=t.family;
         }
         coverage.set(choice.section+':'+family,(coverage.get(choice.section+':'+family)||0)+1);
+      }
+      if(f.writingTask) {
+        const binding=f.writingTask;
+        const t=writingTasks.get(binding.taskId+'@'+binding.taskVersion)||(await client.query(`SELECT t.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM task_version t JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE task_id=$1 AND version=$2`,[binding.taskId,binding.taskVersion])).rows[0];
+        if(!t||t.exam_id!==p.exam.id||t.family!=='writing'||t.section!==binding.section||t.rubric_id!=='writing.telc-b1'||t.rubric_version!=='v1'||!['generated','licensed','commissioned'].includes(t.rights_status)) fail('missing or incompatible assigned writing');
+        const r=rubrics.get(t.rubric_id+'@'+t.rubric_version)||(await client.query(`SELECT r.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[t.rubric_id,t.rubric_version])).rows[0];
+        if(!r||r.exam_id!==p.exam.id||r.family!=='writing'||!['generated','licensed','commissioned'].includes(r.rights_status)) fail('incompatible assigned rubric');
+        if(p.release.state==='available'&&(t.review_status!=='approved'||r.review_status!=='approved')) fail('writing needs qualified review');
+        coverage.set(binding.section+':writing',(coverage.get(binding.section+':writing')||0)+1);
       }
       // A section label means every part of that declared section, exactly once.
       for(const id of f.sections) for(const part of p.blueprint.sections.find(s=>s.id===id).parts)

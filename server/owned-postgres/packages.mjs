@@ -1,6 +1,6 @@
 /** Exact package publication reads. Caller owns transaction and session context. */
 import { contentPolicy, contentIsServable } from '../content-policy.mjs';
-import { objectiveItems, validatePlayback } from '../package-contract.mjs';
+import { objectiveItems, validatePlayback, validateCompleteForm, validateCompleteMembers } from '../package-contract.mjs';
 
 function permittedStates() { return contentPolicy().mode==='internal-preview' ? ['internal','available'] : contentPolicy().mode==='public' ? ['available'] : []; }
 
@@ -66,10 +66,19 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
   }
   const writingChoices=[],reviews=rows.map(r=>r.review_status);
   const media=[],mediaIds=new Set();
+  let blueprint,writingTask=null,timeGroups=[];
+  if(rows.some(row=>row.media_required)||form.payload.writingTask||form.payload.scope==='complete_supported_written') {
+    blueprint=(await client.query('SELECT payload FROM exam_blueprint WHERE exam_id=$1 AND version=$2',[examId,form.blueprint_version])).rows[0]?.payload;
+    if(!blueprint) return null;
+  }
+  if(form.payload.scope==='complete_supported_written') {
+    try {
+      timeGroups=validateCompleteForm(blueprint.exam,blueprint,form.payload);
+      validateCompleteMembers(examId,blueprint,form.payload,rows);
+    } catch {return null;}
+  }
   if(rows.some(row=>row.media_required)) {
     if(!['practice','mock'].includes(form.payload.attemptMode)) return null;
-    const blueprint=(await client.query('SELECT payload FROM exam_blueprint WHERE exam_id=$1 AND version=$2',[examId,form.blueprint_version])).rows[0]?.payload;
-    if(!blueprint) return null;
     for(const row of rows.filter(row=>row.media_required)) {
       const part=blueprint.sections.find(section=>section.id===row.section)?.parts.find(part=>part.family===row.family);
       let allowance;
@@ -103,8 +112,16 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
     }
     writingChoices.push({id:choice.id,section:choice.section,options});
   }
+  if(form.payload.writingTask) {
+    const binding=form.payload.writingTask,part=blueprint.sections.find(s=>s.id===binding.section)?.parts.find(p=>p.family==='writing');
+    const task=await readWritingTask(client,binding.taskId,binding.taskVersion);
+    if(form.payload.writingChoices!==undefined||examId!=='telc-deutsch-b1'||blueprint.exam?.language!=='de'||binding.section!=='writing'||!form.payload.sections.includes(binding.section)||part?.interaction!=='extended_writing'||part.itemCount!==1||part.mediaRequired||!task||task.exam_id!==examId||task.family!=='writing'||task.section!==binding.section||task.rubric_id!=='writing.telc-b1'||task.rubric_version!=='v1') return null;
+    if(!writingServable(task)) {if(newStart) return null;blockedReason ||= 'rights_blocked';}
+    reviews.push(task.review_status,task.rubric_review_status);
+    writingTask={section:binding.section,task:writingTaskDto(task)};
+  }
   if (newStart && rows.some(r=>!contentIsServable(r))) return null;
-  return {release,form,members:blockedReason?[]:rows,media:blockedReason?[]:media,writingChoices:blockedReason?[]:writingChoices,blockedReason,
+  return {release,form,members:blockedReason?[]:rows,media:blockedReason?[]:media,writingChoices:blockedReason?[]:writingChoices,writingTask:blockedReason?null:writingTask,timeGroups,blockedReason,
     reviewStatus:reviews.length && reviews.every(r=>r==='approved')?'approved':'unreviewed'};
 }
 
@@ -119,7 +136,7 @@ export async function listReleasedForms(client,examId) {
     const {form,release,members}=item;
     forms.push({exam_id:examId,release_version:release.version,blueprint_version:release.blueprint_version,
       release_state:release.state,form_id:form.form_id,version:form.version,title:form.payload.title,scope:form.payload.scope,sections:form.payload.sections,
-      mode:form.payload.mode,time_limit_seconds:form.payload.timeLimitSeconds,writing_choice_count:(form.payload.writingChoices||[]).length,item_count:members.reduce((n,m)=>n+m.item_count,0),
+      mode:form.payload.mode,time_limit_seconds:form.payload.timeLimitSeconds,writing_choice_count:(form.payload.writingChoices||[]).length,writing_task_count:form.payload.writingTask?1:0,item_count:members.reduce((n,m)=>n+m.item_count,0),
       ...(form.payload.attemptMode?{attempt_mode:form.payload.attemptMode}:{}),
       review_status:item.reviewStatus});
   }
@@ -150,8 +167,9 @@ export async function writingAccess(client,t,{historical=false}={}) {
  FROM exam_release r JOIN exam_release_form rf ON rf.exam_id=r.exam_id AND rf.release_version=r.version
  JOIN exam_form f ON f.exam_id=rf.exam_id AND f.form_id=rf.form_id AND f.version=rf.form_version
  JOIN exam_release_head h ON h.exam_id=r.exam_id JOIN exam_release head ON head.exam_id=h.exam_id AND head.version=h.release_version
- WHERE r.exam_id=$1 AND EXISTS(SELECT 1 FROM jsonb_array_elements(coalesce(f.payload->'writingChoices','[]'::jsonb)) g,
- jsonb_array_elements(g->'options') o WHERE o->>'taskId'=$2 AND o->>'taskVersion'=$3)`,[t.exam_id,t.task_id,t.version])).rows;
+ WHERE r.exam_id=$1 AND (EXISTS(SELECT 1 FROM jsonb_array_elements(coalesce(f.payload->'writingChoices','[]'::jsonb)) g,
+ jsonb_array_elements(g->'options') o WHERE o->>'taskId'=$2 AND o->>'taskVersion'=$3)
+ OR (f.payload->'writingTask'->>'taskId'=$2 AND f.payload->'writingTask'->>'taskVersion'=$3))`,[t.exam_id,t.task_id,t.version])).rows;
  const eligible=rows.filter(r=>(historical||r.version===r.head_version)&&permittedStates().includes(r.state));
  if(!eligible.length) return 'content_policy_blocked';
  return eligible.some(r=>!r.head_manifest?.release?.resumeBlockedReleases?.includes(r.version))?null:'rights_blocked';
@@ -164,6 +182,6 @@ export async function readWritingOrigin(client,attemptId,ownerId) {
    UNION ALL
    SELECT a.id,a.parent_submission_id FROM lineage l JOIN submissions s ON s.id=l.parent_submission_id AND s.owner_id=$2
    JOIN attempts a ON a.id=s.attempt_id AND a.owner_id=$2
- ) SELECT r.*,w.run_id,w.choice_group_id,w.selected_option_id FROM lineage l
+ ) SELECT r.*,w.run_id,w.binding_kind,w.choice_group_id,w.selected_option_id FROM lineage l
  JOIN mock_writing w ON w.attempt_id=l.id AND w.owner_id=$2 JOIN mock_run r ON r.id=w.run_id AND r.owner_id=w.owner_id LIMIT 1`,[attemptId,ownerId])).rows[0]??null;
 }
