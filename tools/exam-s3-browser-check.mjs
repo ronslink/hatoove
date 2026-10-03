@@ -43,12 +43,17 @@ function sourceFixture() {
   // Git's curated source inventory excludes ignored .env, QA data, handoffs, design originals and node_modules.
   const listed = command('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z']).split('\0').filter(Boolean);
   for (const name of listed) {
-    if (/(^|\/)(\.git|\.env(?:\..*)?|\.qa|handoff|design|node_modules)(\/|$)/i.test(name)) continue;
+    if (/^(\.git|\.qa|handoff|design)(\/|$)/i.test(name)
+      || /(^|\/)(\.env(?:\..*)?|node_modules)(\/|$)/i.test(name)) continue;
     const from = path.resolve(root, name), to = path.resolve(source, name);
     if (!from.startsWith(root + path.sep) || !to.startsWith(source + path.sep)) throw new Error('Unsafe source path');
     if (!fs.existsSync(from)) continue; // staged deletion
     if (!fs.lstatSync(from).isFile()) throw new Error(`Non-file source entry: ${name}`);
     fs.mkdirSync(path.dirname(to), { recursive: true }); fs.copyFileSync(from, to);
+  }
+  const design = JSON.parse(fs.readFileSync(path.join(source, 'work/implementation/DESIGN-REFERENCE-MANIFEST.json'), 'utf8'));
+  for (const entry of design.files.filter(entry => entry.path.startsWith('assets/'))) {
+    if (!fs.existsSync(path.join(source, 'public/assets/design', entry.path.slice('assets/'.length)))) throw new Error('Curated design asset missing from source fixture: ' + entry.path);
   }
   // These two changes exist ONLY in the disposable source copy. Browser input cannot select this catalogue.
   replaceOnce(path.join(source, 'server/accounts.mjs'), 'const world = await createPostgresWorld({ fixture });',
