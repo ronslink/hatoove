@@ -368,7 +368,7 @@ export function createWorker({ pool, grade, providerIdentity, reclaimBatchSize=D
   }
   async function observationCommand(client,invocation,disposition,failureCode){
     const head=first(await client.query('SELECT * FROM provider_attempt_observation WHERE attempt_id=$1 ORDER BY revision DESC LIMIT 1',[invocation.attemptId]));
-    let observation=head?.receipt_captured?headValue(head):invocation.observation??placeholder();
+    let observation=head&&(head.receipt_captured||head.transport_status==='definite_not_sent')?headValue(head):invocation.observation??placeholder();
     observation={...observation,disposition:head&&head.disposition!=='pending'?head.disposition:disposition,failureCode:head&&head.disposition!=='pending'?head.failure_code:failureCode};
     return {attemptId:invocation.attemptId,eventId:randomUUID(),expectedRevision:head?.revision??0,observation,leaseToken:invocation.token};
   }
@@ -465,7 +465,7 @@ export function createWorker({ pool, grade, providerIdentity, reclaimBatchSize=D
     if(intent.refusal||!intent.created)return {claimed:true,submissionId,outcome:'stale'};
     const invocation={attemptId:intent.attemptId,jobId:claimed.id,ownerId:row.owner_id,examId:row.exam_id,claimNumber:claimed.tries,token,row};
     const capture=createUsageCapture(identity),started=performance.now();
-    let assessment,graderError=null,receipt,returned=false,captured=false;
+    let assessment,graderFailed=false,receipt,returned=false,captured=false;
     const captureUsage=value=>{const result=capture.captureUsage(value);if(result.accepted)captured=true;return result;};
     try {
       assessment = await gradeFn({
@@ -481,11 +481,11 @@ export function createWorker({ pool, grade, providerIdentity, reclaimBatchSize=D
       },{attemptId:intent.attemptId,captureUsage});
       returned=true;
       if(trustedBuiltin)capture.captureUsage({usageBasis:'not_applicable',modelReported:identity.promptVersion});
-    }catch(error){graderError=error;}finally{receipt=capture.close();}
+    }catch{graderFailed=true;}finally{receipt=capture.close();}
     const duration=performance.now()-started,elapsedMs=Number.isFinite(duration)&&duration>=0&&duration<=MAX_ELAPSED_MS?Math.floor(duration):null;
     invocation.observation={transportStatus:returned||captured?'response':'uncertain',disposition:'pending',failureCode:null,receipt,receiptCaptured:true,elapsedMs,elapsedIssue:elapsedMs===null?(Number.isFinite(duration)?'out_of_range':'unavailable'):null};
     await persistReceipt(invocation);
-    if(graderError)return completeFailure({submissionId,token,code:failureCodeOf(),invocation});
+    if(graderFailed)return completeFailure({submissionId,token,code:failureCodeOf(),invocation});
     try{
       /*
        * THE SHAPE GATE, inside the same try so a bad shape is an ordinary job failure: a stable
