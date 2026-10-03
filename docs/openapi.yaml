@@ -8,15 +8,16 @@ info:
 
     ## Conventions this document is held to
 
-    - **Every route is auth-wrapped except liveness.** Only `GET /api/health` and `GET /api/ready`
-      answer an anonymous caller, because a supervisor or a container healthcheck has no session.
+    - **Routes require sessions unless an explicit alternate boundary applies.** `GET /api/health`
+      and `GET /api/ready` are public. The exact Stripe webhook POST uses its signed raw body.
       Every other route, including `/api/auth/**`, is either public by necessity (you cannot sign in
       from behind a sign-in gate) or requires a verified session.
     - **No data comes from files.** Learner data is served by these endpoints. There is no `/data/`
       route: it is retired and answers 404, deliberately, rather than 401 — a 401 would say "sign in
       and you can have this", which is false.
-    - **Mutating routes require `Content-Type: application/json` and a same-origin `Origin`.** A
+    - **Browser mutations require `Content-Type: application/json` and a same-origin `Origin`.** A
       refused origin is `403 origin_rejected`; a missing content type is `415 json_required`.
+      Only the exact payment webhook POST bypasses Origin/session checks; it verifies Stripe-Signature.
     - **A failure is never a success.** A route that cannot answer says so: `503 not_ready` while the
       runtime is not ready, `401 unauthenticated`, `404 not_found`, `409` on a conflict.
     - **Account consistency.** The learner app supplies optional `X-Hatoove-Account` on owned routes,
@@ -33,6 +34,8 @@ servers:
     description: Local server (Docker Compose). Use ONE host consistently — cookies are host-scoped, so a session created at `localhost` is not sent to `127.0.0.1`.
 
 tags:
+  - name: payments
+    description: Owned test checkout and signature-verified provider events; purchases are off by default.
   - name: liveness
     description: Public. For supervisors and container healthchecks.
   - name: auth
@@ -840,6 +843,71 @@ paths:
   # `provider_config_is_operator_only` token in `tools/retired-surface-check.mjs` (legs R8/R9), 404 to an
   # AUTHENTICATED caller in `tools/docker-stack-check.mjs`, and "no path key declared, and the removal
   # RECORDED" in `tools/api-spec-check.mjs` (`S-absent` / `S-recorded`).
+
+  /api/v1/checkout/offer:
+    get:
+      tags: [payments]
+      summary: List configured markets or read the selected exam offer
+      description: Optional off-by-default test payments. No normal installation seeds commercial offers. Omitted market returns choices and a null offer.
+      parameters:
+        - { in: query, name: exam, required: true, schema: { type: string } }
+        - { in: query, name: market, schema: { type: string, pattern: '^[A-Z]{2}$' } }
+      responses:
+        '200': { description: Configured markets and optional offer with testMode true }
+        '401': { description: Verified session required }
+        '404': { description: No configured offer for this available exam and market }
+        '503': { description: Payments unavailable }
+  /api/v1/checkout/session:
+    post:
+      tags: [payments]
+      summary: Reserve an owned order and create or resume its test checkout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [examId, market, eventId]
+              properties:
+                examId: { type: string }
+                market: { type: string, pattern: '^[A-Z]{2}$' }
+                eventId: { type: string, format: uuid }
+      responses:
+        '201': { description: 'Owned orderId, allowed checkoutUrl, expiresAt and testMode true. Terminal replay returns the same orderId with status and null checkoutUrl; the client must read the owned order before confirming payment.' }
+        '401': { description: Verified session required }
+        '409': { description: Already entitled, conflicting event, pending different market or expired checkout }
+        '422': { description: Invalid or unexpected field }
+        '502': { description: Uncertain provider outcome; retry the same event and order }
+        '503': { description: Payments unavailable }
+  /api/v1/orders/{orderId}:
+    get:
+      tags: [payments]
+      summary: Read the authenticated learner's order and entitlement
+      parameters:
+        - { in: path, name: orderId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Owned order status and entitlement; provider return is not payment proof }
+        '401': { description: Verified session required }
+        '404': { description: Absent order or another owner's order }
+  /api/v1/payments/stripe/webhook:
+    post:
+      tags: [payments]
+      summary: Verify a test Stripe event and atomically record its disposition
+      security: []
+      description: Only this exact POST has a signature-based boundary instead of a session and Origin. Verify exact bounded raw bytes before parsing. Missing mappings and persistence failures remain retryable.
+      parameters:
+        - { in: header, name: Stripe-Signature, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Durable disposition, including a duplicate or irrelevant event }
+        '400': { description: Invalid signature or provider payload }
+        '413': { description: Body too large }
+        '503': { description: Payments unavailable or event needs a retry }
 
 components:
   securitySchemes:

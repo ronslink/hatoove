@@ -29,6 +29,7 @@
   <button id="boot-retry" type="button" class="btn btn-primary" hidden>Erneut versuchen</button>
   <a id="boot-signin" class="btn" href="/signin" hidden>Erneut anmelden</a>
   <div id="boot-choices" class="stack" hidden></div>
+  <div id="checkout-boot-host" class="stack" role="status" aria-live="polite" hidden></div>
 </section>
 
 <div class="app" id="app-shell" hidden inert aria-busy="true">
@@ -314,7 +315,28 @@
     <a class="card more-link" href="#/nachschlagen" data-view="nachschlagen"><strong>Nachschlagen</strong><span>Regeln und Redemittel verständlich erklärt</span></a>
     <a class="card more-link" href="#/fehler" data-view="fehler"><strong>Fehler <span class="count" id="mistake-count-tab" hidden>0</span></strong><span>Offene Fehler noch einmal üben</span></a>
     <a class="card more-link" href="#/einstellungen" data-view="einstellungen"><strong>Konto und Einstellungen</strong><span>Prüfungsdatum, Sprache und deine Daten</span></a>
+    <!-- PAYMENTS-SLICE-01. The pass is a purchase, so it sits with the secondary destinations rather
+         than in the tabbar: it is used once, not every day. -->
+    <a class="card more-link" href="#/checkout" data-view="checkout"><strong>Pass freischalten</strong><span>Schreib-Rückmeldungen für diese Prüfung freischalten</span></a>
   </div>
+</section>
+<!--
+  CHECKOUT (PAYMENTS-SLICE-01). Every state on this screen comes from the server: whether an
+  offer exists at all, what it costs, whether a pass is already active, and — after a payment — the
+  order status. The provider's return URL is never treated as proof that money moved.
+
+  The host is empty on purpose. `checkout.js` fills it, so there is no second place where a price or
+  a purchase state could be written down.
+-->
+<section class="view" id="view-checkout" hidden>
+  <div class="page-head">
+    <div>
+      <p class="kicker">Pass</p>
+      <h2>Pass freischalten</h2>
+      <p>Schreib-Rückmeldungen für deine Prüfung freischalten und den Stand deiner Bestellung ansehen.</p>
+    </div>
+  </div>
+  <div class="stack" id="checkout-host" role="status" aria-live="polite"></div>
 </section>
 <section class="view" id="view-satzbau" hidden>
   <div class="page-head"><div><p class="kicker">Sprachbausteine</p><h2>Satzbau erkunden</h2><p>Untersuche die Struktur eines deutschen Satzes.</p></div></div>

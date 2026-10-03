@@ -17,6 +17,7 @@ import { createPostgresDatastore, createPostgresAccountDeletion } from './adapte
 import { createPostgresSessions } from './sessions.mjs';
 import { createPostgresSettings } from './settings.mjs';
 import { createOwnedApi } from '../../server/owned-api.mjs';
+import { createPostgresPayments } from './payments.mjs';
 
 /** Deterministic table order for `fingerprint()`. */
 const FINGERPRINT_TABLES = [
@@ -43,7 +44,7 @@ export async function createPostgresWorld({
   allowance = 10, fixture, deletion, limits = null, notifier = null,
   // EXAM-S1 test seams, server-side only: a disposable test may offer a second synthetic package and may
   // inject a registration failure. The running server passes neither.
-  examCatalogue, registrationHook,
+  examCatalogue, registrationHook, paymentProvider, publicOrigin,
 } = {}) {
   const db = fixture ?? await createFixture();
   const calls = [];
@@ -69,7 +70,9 @@ export async function createPostgresWorld({
   const settings = db.settings ?? createPostgresSettings({ pool: db.learner });
   const deletionPool = deletion ?? db.deletion ?? null;
   const accountDeletion = deletionPool ? createPostgresAccountDeletion({ pool: deletionPool }) : null;
-  const api = createOwnedApi({ datastore: port, sessions, settings, accountDeletion, throttle });
+  const payments = db.payments ? createPostgresPayments({ pool: db.payments, provider: paymentProvider ?? db.paymentProvider,
+    publicOrigin: publicOrigin ?? db.publicOrigin, ...(examCatalogue ? { examCatalogue } : {}) }) : null;
+  const api = createOwnedApi({ datastore: port, sessions, settings, accountDeletion, throttle, payments });
 
   async function one(sql, params) {
     return (await db.admin.query(sql, params)).rows[0];
@@ -204,6 +207,7 @@ export async function createPostgresWorld({
     // The throttle the api was built with, for the same reason `deletion` is here: a check can then use the
     // SAME wiring the product uses instead of assembling a second one that can disagree with it.
     throttle,
+    payments,
     api,
     // The port the api above was built with, so a caller can exercise the port directly
     // (idempotence, failure injection) without assembling a second, differently-wired api.

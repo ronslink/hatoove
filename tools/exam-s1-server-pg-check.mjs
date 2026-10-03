@@ -345,7 +345,7 @@ check('5. preparations never grant or refill; a second active preparation is ref
     const synth = await w.call('POST', '/api/v1/preparations', { cookie: a.cookie, body: { examId: SYNTH } });
     assert.equal(await w.balance(a.id, SYNTH), null, 'a new exam has no grant');
     assert.deepEqual((await w.call('GET', `/api/v1/preparations/${synth.json.id}/credits`, { cookie: a.cookie })).json,
-      { examId: SYNTH, allowance: 0, used: 0, reserved: 0, available: 0 });
+      { examId: SYNTH, allowance: 0, used: 0, reserved: 0, expiresAt: null, available: 0 });
     const archived = await w.call('PUT', `/api/v1/preparations/${a.telc.id}`, { cookie: a.cookie, body: { expectedRevision: 1, state: 'archived' } });
     assert.equal(archived.json.state, 'archived');
     assert.equal((await w.call('POST', '/api/v1/attempts', { cookie: a.cookie, body: { preparationId: a.telc.id, ...TELC_TASK } })).json.error, 'preparation_archived');

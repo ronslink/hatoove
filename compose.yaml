@@ -58,6 +58,7 @@ services:
     environment:
       <<: *ownapi-env
       OWNAPI_PG_ALLOW: "1"
+      OWNAPI_PG_PAYMENTS_PASSWORD: "${OWNAPI_PG_PAYMENTS_PASSWORD:-}"
     depends_on:
       db:
         condition: service_healthy
@@ -78,6 +79,11 @@ services:
       # public origin. Without this, sign-up answers 403 origin_rejected and NOTHING works for a
       # learner - measured, not assumed. It must match the address the browser actually uses.
       B1PREP_PUBLIC_ORIGIN: "${HATOVE_PUBLIC_ORIGIN:-http://localhost:4300}"
+      # Optional test payments; no offers are seeded and the default refuses purchases.
+      PAYMENTS_MODE: "${HATOVE_PAYMENTS_MODE:-off}"
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
+      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+      OWNAPI_PG_PAYMENTS_PASSWORD: "${OWNAPI_PG_PAYMENTS_PASSWORD:-}"
     depends_on:
       migrate:
         condition: service_completed_successfully

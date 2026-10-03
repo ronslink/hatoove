@@ -85,7 +85,7 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
 // `deletion` is the account-deletion port's role (HARD-DELETE-01 §6): least privilege for the
 // one ordered transaction that removes an account, never used by a learner route.
 // `provisioner` remains in the pool contract but has no entitlement authority (see the header).
-const ROLES = ['migration', 'auth', 'learner', 'worker', 'deletion', 'provisioner'];
+const ROLES = ['migration', 'auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner'];
 
 /**
  * The tracked SQL, in id order. The files are frozen under `server/migrations/`; an id is
@@ -146,7 +146,7 @@ export function migrationChecksumMatches(bytes, recorded) {
  */
 export function renderSql(text, config) {
   let out = text.replaceAll('__SCHEMA__', config.schema);
-  for (const role of ['auth', 'learner', 'worker', 'deletion']) {
+  for (const role of ['auth', 'learner', 'worker', 'deletion', 'payments']) {
     out = out.replaceAll(`__${role.toUpperCase()}__`, config.roles[role]);
   }
   return out;
@@ -368,6 +368,7 @@ export async function provisionPersistent({ config = persistentConfig() } = {}) 
       // The account-deletion port's own connection pool. Built here so every consumer
       // (`server/accounts.mjs`, the checks) takes it from the one provisioning path.
       deletion: persistentRolePool(config, 'deletion'),
+      payments: persistentRolePool(config, 'payments'),
       provisioner: persistentRolePool(config, 'provisioner', { max: 2 }),
       ...result,
       admin,
@@ -443,12 +444,14 @@ export async function openRuntimePools({ config = persistentConfig() } = {}) {
     learner: persistentRolePool(config, 'learner', { max: 4 }),
     worker: persistentRolePool(config, 'worker', { max: 4 }),
     deletion: persistentRolePool(config, 'deletion', { max: 4 }),
+    payments: persistentRolePool(config, 'payments', { max: 4 }),
     provisioner: persistentRolePool(config, 'provisioner', { max: 2 }),
     poolRoles: {
       auth: config.roles.auth,
       learner: config.roles.learner,
       worker: config.roles.worker,
       deletion: config.roles.deletion,
+      payments: config.roles.payments,
       provisioner: config.roles.provisioner,
     },
   };
@@ -459,7 +462,7 @@ export async function openRuntimePools({ config = persistentConfig() } = {}) {
 /** Close the pools `openRuntimePools()` opened. Idempotent. */
 export async function closeRuntimePools(runtime) {
   if (!runtime) return;
-  for (const key of ['auth', 'learner', 'worker', 'deletion', 'provisioner']) {
+  for (const key of ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner']) {
     const pool = runtime[key];
     if (pool && typeof pool.end === 'function') await pool.end().catch(() => {});
   }
@@ -468,7 +471,7 @@ export async function closeRuntimePools(runtime) {
 /** Close every pool `provisionPersistent()` opened. Idempotent. */
 export async function closePersistent(pools) {
   if (!pools) return;
-  for (const key of ['migration', 'auth', 'learner', 'worker', 'deletion', 'provisioner', 'admin']) {
+  for (const key of ['migration', 'auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner', 'admin']) {
     const pool = pools[key];
     if (pool && typeof pool.end === 'function') await pool.end().catch(() => {});
   }

@@ -177,7 +177,21 @@ test('mutation 8: dropping the deletion role\'s learner_preparation policy must 
   });
 });
 
-test('mutation proof: 8/8 mutations are detected', () => {
+test('payment mutations: browser ledger authority and service overreach are detected', async () => {
+  await withFixture(async db => {
+    assert.equal((await classify(db)).ok,true);
+    await db.admin.query(`GRANT INSERT ON payment_grant TO ${quote(db.roles.learner)}`);
+    assert.match(failureFor(await classify(db),'payment_grant').detail,/payment ledger grants mutation/);
+    await db.admin.query(`REVOKE INSERT ON payment_grant FROM ${quote(db.roles.learner)}`);
+    await db.admin.query(`GRANT SELECT(email) ON "user" TO ${quote(db.roles.payments)}`);
+    assert.match(failureFor(await classify(db),'user').detail,/only user.id/);
+    await db.admin.query(`REVOKE SELECT(email) ON "user" FROM ${quote(db.roles.payments)}`);
+    await db.admin.query(`GRANT UPDATE(used) ON entitlements TO ${quote(db.roles.payments)}`);
+    assert.match(failureFor(await classify(db),'entitlements').detail,/only allowance and expiry/);
+  });
+});
+
+test('mutation proof: 8/8 original mutations are detected', () => {
   assert.deepEqual(detected, [
     'drop one owner policy',
     'remove one table from ACCOUNT_TABLES',

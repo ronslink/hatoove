@@ -1,5 +1,15 @@
 'use strict';
 
+// This public entry must not import the authenticated app module. Keep the narrow validator in
+// parity with checkout.js; payment-client-check exercises both against the same hostile inputs.
+export function checkoutAuthReturn(search, hash = '') {
+  const values = new URLSearchParams(search).getAll('returnTo');
+  if (values.length > 1) return '/app/';
+  const target = values.length ? values[0] : '/app/' + hash;
+  const match = /^\/app\/#\/checkout\?order=([^&]+)(?:&checkout=stub)?$/.exec(target);
+  return match && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(match[1]) ? target : '/app/';
+}
+
 // Recovery links are bearer credentials. Keep them only in this page's memory,
 // remove them from the URL immediately, and never put them in logs or storage.
 const $ = id => document.getElementById(id);
@@ -108,7 +118,7 @@ if (page === 'signin') {
       if (kind === 'signup') body.name = $('su-name').value.trim();
       const result = await post(`/api/auth/sign-${kind === 'signin' ? 'in' : 'up'}/email`, body,
         kind === 'signin' ? 'Du wirst angemeldet …' : 'Dein Konto wird erstellt …');
-      if (result) location.replace('/app/');
+      if (result) location.replace(checkoutAuthReturn(location.search, location.hash));
     });
   }
 } else if (page === 'reset' || page === 'verify') {

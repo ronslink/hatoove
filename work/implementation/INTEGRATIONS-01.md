@@ -116,10 +116,11 @@ unauthenticated request is content delivered to an owner that does not exist.
 
 - **Nothing here is built.** No integration port exists for inference, speech, email, payments or
   object storage. This record describes the shape they must take; it does not create them.
-- **No provider is authorized.** Live inference is **R10**, email is **R5** and a data processor for
-  P-03, payments are not authorized at all. Every port here can be built and checked against a stub
-  first, which is the only way to prove the allowance, ledger and isolation behaviour before money
-  or a real account is involved.
+- **No provider is authorized for live traffic.** Live inference is **R10**, email is **R5** and a data
+  processor for P-03, and **payments are in scope with Stripe as the provider** (MASTER-PLAN D15) —
+  built and tested in the provider's test mode until live keys are authorized. Every port here can be
+  built and checked against a stub first, which is the only way to prove the allowance, ledger and
+  isolation behaviour before money or a real account is involved.
 - **The `(text, language, voice)` TTS cache is a design, not a measurement** — per-language voice
   availability is already known to be uneven for uk/ar/tr, so "pooled audio" may be honest for some
   languages and impossible for others until a server-side voice is chosen.

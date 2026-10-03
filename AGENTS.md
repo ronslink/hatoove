@@ -1,5 +1,7 @@
 # Hatoove agent instructions
 
+**Working language (Ron, 3 October 2026):** code identifiers, comments, developer logs, technical documentation and agent coordination use English unless Ron explicitly specifies otherwise. Keep required learner-facing translations and exam-language content in their stipulated languages. New technical routes use English names; the payment route is `checkout`.
+
 ## Canonical workspace
 
 Ron relocated local work to **D:\Hatoove** on 1 October 2026. Use this repository for new local work; read `docs/WORKSPACE_LOCATION.md`. The design reference is `D:\Hatoove\design`, and the shared coordinator handoff is `D:\Hatoove\handoff\ron-agent`. Earlier OneDrive/D-drive paths in historical records are recovery references. Keep local handoffs, design originals and `.qa` recovery material out of commits. Relocation does not resume paused work or renew any lease.
@@ -14,7 +16,7 @@ Use the supplied designs in `D:\Hatoove\design` as the new learner-app visual di
 
 **SaaS-only data/runtime (Ron, 1 October 2026):** remove the prior single-user schema and linked functionality. Use session-derived ownership in one shared PostgreSQL schema; no default local user, progress files, global browser-state blob, file-sync engine or startup fallback to the single-user app. Removing code/schema assumptions does not authorize deleting existing learner records or the live install. PILOT-03 implements the cutover with safe forward migrations and negative acceptance checks, recorded in `work/implementation/RETIRED-CHECKS.md`; it supersedes the separate SAAS-RETIRE-01 slice. Retain useful exam behavior through the new contracts; old single-user compatibility assertions are superseded.
 
-First-release design defaults are email/password registration, per-criterion practice feedback without a /45 total and no daily-time setting. R11 remains an explicit rubric contract decision; never relabel four internal criteria as three telc criteria. No readiness, streaks, study-plan, reminder/purchase UI, automatic Leitpunkt ticks or two-model claim. Include missing async/history/reset/delete/legal/error states. Logo provenance is AI-generated for this project; curate verified font licences and full de/en/uk/ar/tr coverage.
+First-release design defaults are email/password registration, per-criterion practice feedback without a /45 total and no daily-time setting. R11 remains an explicit rubric contract decision; never relabel four internal criteria as three telc criteria. No readiness, streaks, study-plan or reminder UI, automatic Leitpunkt ticks or two-model claim. **A payment path and a purchase screen are in scope** (Ron, 3 October 2026: Stripe is the payment method — see `work/implementation/STRIPE-PAYMENT-PATH-01.md` and `work/implementation/PAYMENTS-SLICE-01.md`). Include missing async/history/reset/delete/legal/error states. Logo provenance is AI-generated for this project; curate verified font licences and full de/en/uk/ar/tr coverage.
 
 ## Coordination
 
@@ -79,6 +81,6 @@ Do not run live AI or recovery scripts as automatic setup. The current `server.j
 
 Keep reviewed tasks/audio versioned, mark objective answers deterministically, preserve unassessed writing failures and save drafts/submissions/results/revisions. The saved DeepSeek benchmark supports provisional formative feedback, not calibrated readiness scores. Runtime fallbacks need separate evaluation.
 
-An independent reviewer checks the diff and evidence before integration. Security-sensitive code requires the human reviews specified in its task. Preparing code and local tests is authorized; publishing the site, changing live DNS, production deployment, live payments and new production access require explicit user authorization. This repository has no deployment workflow.
+An independent reviewer checks the diff and evidence before integration. Security-sensitive code requires the human reviews specified in its task. Preparing code and local tests is authorized; publishing the site, changing live DNS, production deployment, new production access and **charging real money (live payment keys, live mode)** require explicit user authorization. The payment path itself is in scope: build and test it in the provider's test mode.
 
 Report the task/execution ID, commit or PR, tests, screenshots where relevant, outstanding risks and next action. A code change is not done merely because an agent returned a summary.

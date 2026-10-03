@@ -41,6 +41,7 @@ export const CONTENT_TABLES = Object.freeze(['content_version', 'rubric_version'
 export const CATALOGUE_TABLES = Object.freeze([
   'exam_package', 'objective_set', 'vocab_entry', 'noun_entry', 'guide', 'guide_section',
   'exam_release_head',
+  'payment_product', 'payment_price',
 ]);
 
 /**

@@ -11,6 +11,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { Fault } from '../owned-api.mjs';
+import { entitlementExpired } from './entitlement.mjs';
 import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs';
 
 const fail = (status, code) => { throw new Fault(status, code); };
@@ -139,12 +140,14 @@ export function preparationMethods({ settle, note = () => {}, catalogue = create
       return settle(owner, async (client) => {
         const prep = await resolvePreparation(client, owner, id);
         const row = first(await client.query(
-          'SELECT allowance, used, reserved FROM entitlements WHERE owner_id = $1 AND exam_id = $2',
+          'SELECT allowance, used, reserved, expires_at FROM entitlements WHERE owner_id = $1 AND exam_id = $2',
           [owner, prep.exam_id]));
         const allowance = row ? Number(row.allowance) : 0;
         const used = row ? Number(row.used) : 0;
         const reserved = row ? Number(row.reserved) : 0;
-        return { examId: prep.exam_id, allowance, used, reserved, available: Math.max(0, allowance - used - reserved) };
+        return { examId: prep.exam_id, allowance, used, reserved,
+          expiresAt: row?.expires_at == null ? null : new Date(row.expires_at).toISOString(),
+          available: entitlementExpired(row) ? 0 : Math.max(0, allowance - used - reserved) };
       }, true);
     },
   };

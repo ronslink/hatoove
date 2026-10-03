@@ -69,7 +69,7 @@ no view at all.**
 | `plan` | **none** ("Study plan") |
 | `progress` | `fortschritt` — exists, far simpler |
 | `settings` | `einstellungen` — exists |
-| `upgrade` | **none** (deliberately: no purchase UI in the pilot, AGENTS.md) |
+| `upgrade` | `checkout` — the checkout screen (`public/app/checkout.js`, PAYMENTS-01 contract) |
 | `onboarding` | **none** |
 | `login` | `signin.html` — exists as the one public page |
 | `check-email` | **none** (no email flow yet — PILOT-18) |
@@ -89,8 +89,9 @@ the wording.
   it). New chrome goes in `public/app/app.css`.
 - The design's icons are inline SVG in the screens. Reuse them; do not substitute emoji (the older
   client used 🔊 and the design does not).
-- `upgrade.html` is a PAYMENT surface. The pilot has no purchase UI (AGENTS.md), so it is deliberately
-  out of scope even though the design exists.
+- `upgrade.html` is a PAYMENT surface. It is **in scope** (Ron, 3 October 2026; MASTER-PLAN **D15**) and
+  `public/app/checkout.js` implements it. Prices, promotional dates and withdrawal terms still need real
+  contracts, so the screen shows only what the server actually has — never a mockup's figure.
 
 ## 6. Ordered plan
 
@@ -149,7 +150,7 @@ The supplied `dashboard.html` asserts, verbatim:
 
 **A calibrated score estimate, a confidence range, a pass line and a streak.** AGENTS.md and
 MASTER-PLAN forbid every one of them: *"provisional formative feedback, not calibrated readiness
-scores"*; *"no readiness, streaks, study-plan, reminder/purchase UI"*; no pass prediction. The design's
+scores"*; *"no readiness, streaks, study-plan or reminder UI"*; no pass prediction. The design's
 own `.hint` even says *"Practice estimate from your answers, not an exam result"* — the designer knew it
 was an estimate, and the product decided not to ship estimates at all.
 

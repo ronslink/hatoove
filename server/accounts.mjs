@@ -63,6 +63,7 @@ export async function loadOwnedApi({ env = process.env } = {}) {
   const { createPostgresSettings } = await import('./owned-postgres/settings.mjs');
   const { createConsoleNotifier } = await import('./notify.mjs');
   const { createDatabaseReadiness } = await import('./readiness.mjs');
+  const { createPaymentsPort } = await import('./payments/port.mjs');
 
   const runtime = await openRuntimePools({ config: persistentConfig(env) });
   // A3: a `pg` pool whose backend disappears emits `error` on the *pool*; with no listener
@@ -70,13 +71,22 @@ export async function loadOwnedApi({ env = process.env } = {}) {
   // instead of answering a refusal. Attach a listener that logs a secret-free line and lets
   // the request path return its own 5xx. Guarding every pool closes the idle-client case
   // (sockets dropped with nothing in flight) as well as the in-flight one.
-  for (const key of ['auth', 'learner', 'worker', 'deletion', 'provisioner']) {
+  for (const key of ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner']) {
     const pool = runtime[key];
     if (pool && typeof pool.on === 'function') {
       pool.on('error', (error) => {
         console.error(`  DB pool ${key}: ${error && error.message ? error.message : String(error)}`);
       });
     }
+  }
+  let paymentProvider;
+  try {
+    paymentProvider = createPaymentsPort({ mode: env.PAYMENTS_MODE || 'off', secretKey: env.STRIPE_SECRET_KEY,
+      webhookSecret: env.STRIPE_WEBHOOK_SECRET, publicOrigin: env.B1PREP_PUBLIC_ORIGIN });
+  } catch {
+    // Optional payment configuration cannot disable saved work or owned order reads.
+    console.error('  Payments unavailable: invalid payment configuration.');
+    paymentProvider = createPaymentsPort({ mode: 'off' });
   }
   const fixture = {
     schema: runtime.config.schema,
@@ -88,6 +98,9 @@ export async function loadOwnedApi({ env = process.env } = {}) {
     // the api the running server mounts (HARD-DELETE-01 §6). Without this the route is a 503
     // in every configuration this repository can ship.
     deletion: runtime.deletion,
+    payments: runtime.payments,
+    paymentProvider,
+    publicOrigin: env.B1PREP_PUBLIC_ORIGIN,
     // Compatibility alias for fixture inspection only, never a superuser pool.
     // Registration provisions through the migration-owned AFTER INSERT user trigger in its
     // auth transaction; the former provisioner INSERT and column SELECT grants are revoked.
