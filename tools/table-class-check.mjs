@@ -14,6 +14,8 @@
  *                   deletion read-back is vacuous); an FK path to "user"; in ACCOUNT_TABLES
  *   shared content  append-only content records (content_version, rubric_version, task_version,
  *                   content_rights) - no runtime INSERT/UPDATE/DELETE grant; an immutability trigger
+ *   private editorial review authority, decisions and compatibility baseline - no runtime/PUBLIC
+ *                   table or column privilege, including SELECT; enabled immutability triggers
  *   catalogue       migration-seeded reference data (exam_package, objective_set, vocab_entry,
  *                   noun_entry, guide, guide_section) - SELECT for the learner; no runtime DML;
  *                   nothing for auth/deletion/provisioner; no owner column; no key column
@@ -45,7 +47,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ACCOUNT_TABLES } from '../server/owned-postgres/adapter.mjs';
 import {
-  AUTH_TABLES, AUTH_SUPPORT_TABLES, CATALOGUE_TABLES, CONTENT_TABLES, INFRASTRUCTURE_TABLES, KEY_TABLES, OWNER_COLUMNS,
+  AUTH_TABLES, AUTH_SUPPORT_TABLES, CATALOGUE_TABLES, CONTENT_TABLES, PRIVATE_REVIEW_TABLES, INFRASTRUCTURE_TABLES, KEY_TABLES, OWNER_COLUMNS,
   accountTableNames, bare, columnsOf, policiesFor, privilegesFor, isKeyBearing, readCatalogue,
 } from './lib/catalogue.mjs';
 
@@ -110,7 +112,7 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
   // privileges) and has no runtime route; the fixture has no provisioner, hence filter(Boolean).
   const runtimeRoles = [auth, learner, worker, deletion, provisioner, payments].filter(Boolean);
   const accountSet = accountTableNames(accountTables);
-  const classified = new Set([...AUTH_TABLES, ...AUTH_SUPPORT_TABLES, ...CONTENT_TABLES, ...CATALOGUE_TABLES,
+  const classified = new Set([...AUTH_TABLES, ...AUTH_SUPPORT_TABLES, ...CONTENT_TABLES, ...PRIVATE_REVIEW_TABLES, ...CATALOGUE_TABLES,
     ...KEY_TABLES, ...INFRASTRUCTURE_TABLES]);
 
   // A table is account-owned if it has an owner column, or if it is named in ACCOUNT_TABLES
@@ -195,6 +197,28 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
       continue;
     }
 
+    if (PRIVATE_REVIEW_TABLES.includes(name)) {
+      for (const role of [...runtimeRoles, 'PUBLIC']) {
+        const granted = privilegesFor(catalogue, name, role);
+        if (granted.length) fail.push(`private editorial grants ${granted.join('/')} to ${role}`);
+      }
+      // PostgreSQL tgtype bits: ROW=1, BEFORE=2, INSERT=4, DELETE=8, UPDATE=16, TRUNCATE=32.
+      // A disabled/replica-only trigger or a similarly named function is not an append-only guard.
+      const guard = (event, row, fn) => catalogue.triggers.some(t => bare(t.table) === name
+        && ['O', 'A'].includes(t.enabled) && (t.type & 2) && Boolean(t.type & 1) === row
+        && (t.type & event) && t.unconditional && !t.update_columns
+        && t.function_schema === catalogue.schema && t.function_name === fn);
+      for (const [event, mask, row] of [['UPDATE', 16, true], ['DELETE', 8, true], ['TRUNCATE', 32, false]]) {
+        if (!guard(mask, row, 'content_immutable')) fail.push(`no enabled immutability trigger (BEFORE ${event})`);
+      }
+      if (name === 'content_review_baseline' && !guard(4, true, 'sealed_review_baseline')) {
+        fail.push('no enabled baseline seal (BEFORE INSERT)');
+      }
+      rows.push({ table: name, cls: 'private editorial', verdict: note(fail),
+        detail: fail.length ? fail.join('; ') : 'no runtime/PUBLIC table or column privileges; enabled UPDATE/DELETE/TRUNCATE immutability' + (name === 'content_review_baseline' ? '; baseline INSERT sealed' : '') });
+      continue;
+    }
+
     if (CONTENT_TABLES.includes(name)) {
       // Runtime roles only. `migration` OWNS the schema and every table, so PostgreSQL always
       // reports it holding a/r/w/d — the owner's implicit privileges are not a runtime grant.
@@ -257,7 +281,7 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
       continue;
     }
 
-    fail.push('unclassified table: it is not auth, auth support, owned, shared content, catalogue, answer key or the ledger');
+    fail.push('unclassified table: it is not auth, auth support, owned, shared content, private editorial, catalogue, answer key or the ledger');
     rows.push({ table: name, cls: 'unclassified', verdict: 'FAIL', detail: fail.join('; ') });
   }
 

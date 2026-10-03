@@ -35,7 +35,8 @@
  * Usage: node tools/exam-s1-server-pg-check.mjs [--only=<text>]
  */
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
 
 import { createFixture, rolePool } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
@@ -44,6 +45,7 @@ import { createPostgresSessions } from '../server/owned-postgres/sessions.mjs';
 import { createWorker, stubGrade } from '../server/owned-postgres/worker.mjs';
 import { DEFAULT_TASK_BINDING, TELC_B1_WRITING_RUBRIC } from '../server/owned-postgres/content-seed.mjs';
 import { createExamCatalogue } from '../server/preparation-contract.mjs';
+import { syntheticContentReview } from './exam-s6-fixture.mjs';
 
 process.env.B1PREP_CONTENT_MODE = 'internal-preview';
 delete process.env.B1PREP_SERVE_REVIEW;
@@ -62,15 +64,43 @@ const LETTER = 'Liebe Anna, vielen Dank für deine Nachricht. Ich komme gern am 
 
 /* ------------------------------------------------------------------ world */
 
-async function seedContent(sql) {
+async function checkedFixture(options) {
+  const env = process.env;
+  const local = env.OWNAPI_PG_PORT === '62563' && env.OWNAPI_PG_DATABASE === 'hatoove_spike';
+  const ci = env.CI === 'true' && env.GITHUB_ACTIONS === 'true' && env.OWNAPI_PG_PORT === '5432' && env.OWNAPI_PG_DATABASE === 'hatoove_ci';
+  if (env.OWNAPI_PG_ALLOW !== '1' || env.OWNAPI_PG_HOST !== '127.0.0.1' || (!local && !ci)) throw Error('exam_s1_fixture_refused');
+  const db = await createFixture(options);
+  const pg = createRequire(new URL('../server/owned-postgres/bootstrap.mjs', import.meta.url))('pg');
+  const observer = new pg.Pool({ ...db.config, max: 1 });
+  const cleanup = db.cleanup;
+  let closed = false;
+  db.cleanup = async () => {
+    if (closed) return;
+    closed = true;
+    try {
+      await cleanup();
+      assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_namespace WHERE nspname=$1', [db.schema])).rows[0].n, 0);
+      assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_roles WHERE rolname=ANY($1::text[])', [Object.values(db.roles)])).rows[0].n, 0);
+      assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_stat_activity WHERE application_name=$1', [db.schema])).rows[0].n, 0);
+      console.log(`clean ${db.schema}: schema, roles and connections verified absent`);
+    } finally { await observer.end(); }
+  };
+  return db;
+}
+
+async function seedContent(db) {
+  const sql = (text, params) => db.admin.query(text, params);
+  const syntheticRows = [];
   const rights = async (id) => sql(
     `INSERT INTO content_rights(content_version_id, basis, decided_by, note)
      SELECT $1, 'generated', 'exam-s1-check', 'synthetic EXAM-S1 row in a disposable schema'
       WHERE NOT EXISTS (SELECT 1 FROM content_rights WHERE content_version_id = $1)`, [id]);
-  const content = async (id, kind, family, exam) => {
+  const content = async (id, kind, family, exam, payload) => {
+    const sha256 = createHash('sha256').update(JSON.stringify({ id, kind, family, exam, payload })).digest('hex');
     await sql(`INSERT INTO content_version(content_version_id, kind, family, source_path, review_status, rights_status, content_sha256, exam_id)
-               VALUES($1, $2, $3, 'synthetic:exam-s1-server-pg-check', 'unreviewed', 'unknown', 'synthetic', $4)`, [id, kind, family, exam]);
+               VALUES($1, $2, $3, 'synthetic:exam-s1-server-pg-check; no actual educational approval', 'unreviewed', 'unknown', $5, $4)`, [id, kind, family, exam, sha256]);
     await rights(id);
+    syntheticRows.push({ id, exam, sha256 });
   };
   await sql(`INSERT INTO exam_package(exam_id, exam, level, exam_language, blueprint_version)
              VALUES($1, 'Synthetic English B2', 'B2', 'en', 'synthetic@exam-s1') ON CONFLICT DO NOTHING`, [SYNTH]);
@@ -79,12 +109,15 @@ async function seedContent(sql) {
     [TELC_B1_WRITING_RUBRIC.rubricId, TELC_B1_WRITING_RUBRIC.version])).rows[0];
   assert.ok(rubricRow, 'the seeded telc rubric exists');
   await rights(rubricRow.content_version_id);
-  await content('s1.rubric.synth@v1', 'rubric', 'writing', SYNTH);
+  await content('s1.rubric.synth@v1', 'rubric', 'writing', SYNTH, { criteria: TELC_B1_WRITING_RUBRIC.criteria, maxTotal: 45 });
   await sql(`INSERT INTO rubric_version(rubric_id, version, family, criteria, max_total, content_version_id, exam_id)
              VALUES('s1.rubric.synth', 'v1', 'writing', $1::jsonb, 45, 's1.rubric.synth@v1', $2)`,
   [JSON.stringify(TELC_B1_WRITING_RUBRIC.criteria), SYNTH]);
   for (const [task, exam] of [[TELC_TASK, TELC], [SYNTH_TASK, SYNTH]]) {
-    await content(`${task.taskId}@v1`, 'task', 'writing', exam);
+    await content(`${task.taskId}@v1`, 'task', 'writing', exam, {
+      register: 'du', topic: 'EXAM-S1 synthetisch', situation: 'Synthetisch.', adressat: 'Synthetisch (du)',
+      leitpunkte: ['Eins.', 'Zwei.'], rubricId: task.rubricId, rubricVersion: task.rubricVersion,
+    });
     await sql(`INSERT INTO task_version(task_id, version, family, register, topic, situation, adressat, leitpunkte,
                                         rubric_id, rubric_version, content_version_id, exam_id)
                VALUES($1, 'v1', 'writing', 'du', 'EXAM-S1 synthetisch', 'Synthetisch.', 'Synthetisch (du)',
@@ -92,18 +125,41 @@ async function seedContent(sql) {
     [task.taskId, task.rubricId, task.rubricVersion, `${task.taskId}@v1`, exam]);
   }
   for (const [set, exam] of [[TELC_SET, TELC], [SYNTH_SET, SYNTH]]) {
-    await content(`${set}@v1`, 'task', 'lv', exam);
+    await content(`${set}@v1`, 'task', 'lv', exam, { items: [], answers: { 1: 'a' }, explanations: {} });
     await sql(`INSERT INTO objective_set(set_id, version, exam_id, family, section, part, title, payload, item_count, media_required, content_version_id)
                VALUES($1, 'v1', $2, 'LV1', 'LV', 1, 'EXAM-S1 synthetic', '{"items":[]}'::jsonb, 1, false, $3)`, [set, exam, `${set}@v1`]);
     await sql(`INSERT INTO objective_key(set_id, version, answers, explanations) VALUES($1, 'v1', '{"1":"a"}'::jsonb, '{}'::jsonb)`, [set]);
   }
+  // Only these five current synthetic subjects receive simulated named decisions. Existing content
+  // and immutable raw flags remain unchanged; this is never an actual educational approval.
+  const ids = syntheticRows.map(row => row.id).sort();
+  assert.equal(ids.length, 5);
+  const rawBefore = (await sql('SELECT * FROM content_version WHERE content_version_id=ANY($1::text[]) ORDER BY content_version_id', [ids])).rows;
+  const client = await db.migration.connect();
+  try {
+    await client.query('BEGIN');
+    for (const row of syntheticRows) {
+      const before = (await client.query('SELECT * FROM effective_content_review($1)', [row.id])).rows[0];
+      assert.deepEqual([before.review_status, before.review_basis, before.blocked], ['unreviewed', 'none', false]);
+      await syntheticContentReview(db, client, { kind: 'content', examId: row.exam, subjectId: row.id, version: '', sha256: row.sha256 });
+      const after = (await client.query('SELECT * FROM effective_content_review($1)', [row.id])).rows[0];
+      assert.deepEqual([after.review_status, after.review_basis, after.blocked], ['approved', 'named_decision', false]);
+    }
+    await client.query('COMMIT');
+  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  assert.deepEqual((await sql('SELECT subject_id FROM content_review_decision WHERE subject_id=ANY($1::text[]) ORDER BY subject_id', [ids])).rows.map(row => row.subject_id), ids);
+  assert.equal((await sql('SELECT count(*)::int AS n FROM content_review_baseline WHERE subject_id=ANY($1::text[])', [ids])).rows[0].n, 0);
+  assert.deepEqual((await sql('SELECT * FROM content_version WHERE content_version_id=ANY($1::text[]) ORDER BY content_version_id', [ids])).rows, rawBefore);
 }
 
 async function makeWorld(options = {}) {
-  const db = await createFixture();
+  const db = await checkedFixture();
   const sql = (text, params) => db.admin.query(text, params);
-  await seedContent(sql);
-  const world = await createPostgresWorld({ fixture: db, examCatalogue: catalogue, ...options });
+  let world;
+  try {
+    await seedContent(db);
+    world = await createPostgresWorld({ fixture: db, examCatalogue: catalogue, ...options });
+  } catch (error) { await db.cleanup(); throw error; }
   async function call(method, path, { cookie = null, body } = {}) {
     const headers = { accept: 'application/json', ...(cookie ? { cookie } : {}) };
     if (method !== 'GET') headers['content-type'] = 'application/json';
@@ -135,7 +191,7 @@ const check = (name, fn) => legs.push({ name, fn });
 /* ------------------------------------------------------------------- legs */
 
 check('1. upgrade preserves balances, dates, text, IDs and reservations; binds only provable rows', async () => {
-  const db = await createFixture({ stopBefore: '0023-' });
+  const db = await checkedFixture({ stopBefore: '0023-' });
   const sql = (text, params) => db.admin.query(text, params);
   try {
     const users = ['legacy-valid', 'legacy-invalid', 'legacy-none'].map((tag) => `user-${tag}-${randomUUID().slice(0, 8)}`);
@@ -749,7 +805,7 @@ check('10. archive vs save/delete is serialised by row locks, in either order, w
 });
 
 check('11. an unresolved legacy draft is readable and exportable but never edited under a guessed context', async () => {
-  const db = await createFixture({ stopBefore: '0023-' });
+  const db = await checkedFixture({ stopBefore: '0023-' });
   const sql = (text, params) => db.admin.query(text, params);
   try {
     const owner = `user-legacy-draft-${randomUUID().slice(0, 8)}`;
@@ -796,7 +852,7 @@ for (const leg of selected) {
     passed += 1;
     console.log(`ok   ${leg.name}`);
   } catch (error) {
-    console.log(`FAIL ${leg.name}\n     ${error && error.stack ? error.stack.split('\n').slice(0, 4).join('\n     ') : error}`);
+    console.log(`FAIL ${leg.name}\n     ${error && error.stack ? error.stack.split('\n').join('\n     ') : error}`);
   }
 }
 console.log(`\nexam-s1-server-pg-check: ${passed}/${selected.length} passed`);

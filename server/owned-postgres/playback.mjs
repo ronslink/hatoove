@@ -65,8 +65,9 @@ export function playbackMethods({ settle, catalogue, note = () => {}, mediaRoot 
   async function context(client, owner, runId) {
     // This is also the order used by finalisation and account deletion.
     await lockMockOwner(client, owner);
-    const identity = first(await client.query('SELECT preparation_id FROM mock_run WHERE id=$1 AND owner_id=$2', [runId, owner]));
+    const identity = first(await client.query('SELECT preparation_id,exam_id FROM mock_run WHERE id=$1 AND owner_id=$2', [runId, owner]));
     if (!identity) fail(404, 'not_found');
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[identity.exam_id]);
     const prep = await requireActivePreparation(client, owner, identity.preparation_id);
     if (!catalogue.isEnabled(prep.exam_id)) fail(422, 'exam_unavailable');
     const run = first(await client.query('SELECT *,clock_timestamp() AS server_now FROM mock_run WHERE id=$1 AND owner_id=$2 FOR UPDATE', [runId, owner]));
@@ -103,13 +104,18 @@ export function playbackMethods({ settle, catalogue, note = () => {}, mediaRoot 
       note('mutateMockPlayback'); const body = validatePlaybackEvent(input);
       const sha = createHash('sha256').update(JSON.stringify({ runId, body })).digest('hex');
       return transaction(owner, async client => {
+        await lockMockOwner(client,owner);
+        const prior=first(await client.query('SELECT * FROM listening_playback_event WHERE owner_id=$1 AND event_id=$2',[owner,body.eventId]));
+        if(prior&&(prior.run_id!==runId||prior.request_sha256!==sha))fail(409,'playback_conflict');
+        if(prior){
+          const saved=first(await client.query('SELECT *,clock_timestamp() AS server_now FROM listening_playback WHERE owner_id=$1 AND run_id=$2 AND media_id=$3 AND media_version=$4',[owner,runId,body.mediaId,body.mediaVersion]));
+          if(!saved)fail(404,'not_found');
+          return playbackDto(saved,saved,saved.server_now);
+        }
         const { run, bundle, recordings } = await context(client, owner, runId);
         const { recording, media, section } = member(bundle, recordings, body.mediaId, body.mediaVersion);
         await requireMockGroup(client,runId,section);
-        const prior = first(await client.query('SELECT * FROM listening_playback_event WHERE owner_id=$1 AND event_id=$2', [owner, body.eventId]));
-        if (prior && (prior.run_id !== runId || prior.request_sha256 !== sha)) fail(409, 'playback_conflict');
         let row = first(await client.query('SELECT * FROM listening_playback WHERE owner_id=$1 AND run_id=$2 AND media_id=$3 AND media_version=$4 FOR UPDATE', [owner, runId, body.mediaId, body.mediaVersion]));
-        if (prior) return playbackDto(row, recording, run.server_now);
         if (body.action === 'begin') await bytesOf(media); // A missing/corrupt resource never debits.
         const now = first(await client.query('SELECT clock_timestamp() AS now')).now;
         const next = playbackTransition(row, recording, body, now);

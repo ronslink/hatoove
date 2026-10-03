@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {readFile,access} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {createFixture} from '../server/owned-postgres/bootstrap.mjs';
+import {importHistoricalDefaultPackage,assertHistoricalProjectionAbsent} from './historical-content-fixture.mjs';
 import {createPostgresWorld} from '../server/owned-postgres/fixture.mjs';
 import {createPostgresDatastore,createPostgresAccountDeletion} from '../server/owned-postgres/adapter.mjs';
 import {createWorker,stubGrade} from '../server/owned-postgres/worker.mjs';
@@ -11,6 +12,7 @@ import {readReleasedForm} from '../server/owned-postgres/packages.mjs';
 import {importPackage,importDefaultPackage} from '../server/owned-postgres/package-importer.mjs';
 import {createExamCatalogue} from '../server/preparation-contract.mjs';
 import {syntheticS4Package} from './exam-s4-check.mjs';
+import {syntheticContentReview} from './exam-s6-fixture.mjs';
 if(process.env.OWNAPI_PG_ALLOW!=='1'||!process.env.OWNAPI_PG_PORT||[4300,55440].includes(Number(process.env.OWNAPI_PG_PORT))) throw Error('Explicit isolated OWNAPI_PG_ALLOW/PORT required');
 process.env.B1PREP_CONTENT_MODE='internal-preview';delete process.env.B1PREP_SERVE_REVIEW;delete process.env.B1PREP_SERVE_RIGHTS;
 const DTZ='dtz-a2-b1',TELC='telc-deutsch-b1';
@@ -27,7 +29,7 @@ async function saved(o,form='s4-writing',text='Synthetic learner text.',option='
 async function allowance(o,n){await db.admin.query('INSERT INTO entitlements(owner_id,exam_id,allowance,used,reserved) VALUES($1,$2,$3,0,0) ON CONFLICT(owner_id,exam_id) DO UPDATE SET allowance=excluded.allowance',[o.id,DTZ,n]);}
 async function sqlAs(owner,fn){const c=await db.learner.connect();try{await c.query('BEGIN');await c.query("SELECT set_config('hatoove.owner_id',$1,true)",[owner]);const r=await fn(c);await c.query('COMMIT');return r;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}}
 try {
- await importDefaultPackage(db.migration);
+ await importHistoricalDefaultPackage(db);
  await check('forward migration preserves existing telc writing records and unchanged package import hash',async()=>{
    const legacy=await owner('pre-s4');const aid=randomUUID();
    await db.admin.query(`INSERT INTO attempts(id,owner_id,task_id,task_version,rubric_id,rubric_version,preparation_id,exam_id)
@@ -36,7 +38,8 @@ try {
    await db.admin.query('INSERT INTO drafts(attempt_id,revision,text) VALUES($1,1,$2)',[aid,'Synthetic pre-S4 preserved draft.']);
    const before=(await db.admin.query('SELECT a.*,d.text,d.revision FROM attempts a JOIN drafts d ON d.attempt_id=a.id WHERE a.id=$1',[aid])).rows[0];
    const hash=(await db.admin.query("SELECT sha256 FROM exam_release WHERE exam_id='telc-deutsch-b1' ORDER BY version")).rows;
-   assert.deepEqual(await db.applyRemaining(),['0027-dtz-writing.sql','0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql']);
+   await assertHistoricalProjectionAbsent(db);
+   assert.deepEqual(await db.applyRemaining(),['0027-dtz-writing.sql','0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql']);
    assert.deepEqual((await db.admin.query('SELECT a.*,d.text,d.revision FROM attempts a JOIN drafts d ON d.attempt_id=a.id WHERE a.id=$1',[aid])).rows[0],before);
    assert.equal((await importDefaultPackage(db.migration)).unchanged,true);
    assert.deepEqual((await db.admin.query("SELECT sha256 FROM exam_release WHERE exam_id='telc-deutsch-b1' ORDER BY version")).rows,hash);
@@ -58,16 +61,23 @@ try {
  await check('form review label includes every writing task and rubric, including writing-only forms',async()=>{
    const p=syntheticS4Package();
    async function bundle(form,taskReview,rubricReview) {
-     const release={version:'v8100',blueprint_version:'v8100',state:'internal',manifest:{release:{resumeBlockedReleases:[]}}};
-     const client={query:async(sql,args)=>{
-       if(sql.includes('FROM exam_release r JOIN exam_release_form'))return {rows:[release]};
-       if(sql.includes('FROM exam_release_head'))return {rows:[release]};
-       if(sql.startsWith('SELECT * FROM exam_form'))return {rows:[{blueprint_version:'v8100',payload:form}]};
-       if(sql.includes('FROM exam_form_member m'))return {rows:form.members.map(m=>{const t=p.sets.find(t=>t.setId===m.setId);return {set_id:t.setId,version:t.version,payload:t.payload,item_count:t.itemCount,interaction:t.interaction,review_status:'approved',rights_status:'generated',media_required:false};})};
-       if(sql.includes('FROM task_version t'))return {rows:[{task_id:args[0],version:args[1],exam_id:DTZ,section:'SA',review_status:taskReview,rubric_review_status:rubricReview,rights_status:'generated',rubric_rights_status:'generated'}]};
-       throw Error('Unexpected review fixture query');
-     }};
-     return readReleasedForm(client,{examId:DTZ,formId:form.id,formVersion:'v1',releaseVersion:'v8100',newStart:true});
+     const client=await db.migration.connect();
+     try {
+       await client.query('BEGIN');
+       // Real named decisions replace raw review labels; rollback keeps later negative fixtures unreviewed.
+       const ids=[...p.sets.map(x=>x.setId+'@'+x.version),
+         ...(taskReview==='approved'?p.writingTasks.map(x=>x.taskId+'@'+x.version):[]),
+         ...(rubricReview==='approved'?p.rubrics.map(x=>x.rubricId+'@'+x.version):[])];
+       for(const id of ids) {
+         const row=(await client.query('SELECT content_sha256 FROM content_version WHERE content_version_id=$1',[id])).rows[0];
+         await syntheticContentReview(db,client,{kind:'content',examId:DTZ,subjectId:id,version:'',sha256:row.content_sha256});
+       }
+       const bp=(await client.query('SELECT sha256 FROM exam_blueprint WHERE exam_id=$1 AND version=$2',[DTZ,p.blueprint.version])).rows[0];
+       await syntheticContentReview(db,client,{kind:'blueprint',examId:DTZ,subjectId:DTZ,version:p.blueprint.version,sha256:bp.sha256});
+       const row=(await client.query('SELECT sha256 FROM exam_form WHERE exam_id=$1 AND form_id=$2 AND version=$3',[DTZ,form.id,form.version])).rows[0];
+       await syntheticContentReview(db,client,{kind:'form',examId:DTZ,subjectId:form.id,version:form.version,sha256:row.sha256});
+       return await readReleasedForm(client,{examId:DTZ,formId:form.id,formVersion:form.version,releaseVersion:p.release.version,newStart:true});
+     } finally {await client.query('ROLLBACK');client.release();}
    }
    assert.equal((await bundle(p.forms[0],'approved','unreviewed')).reviewStatus,'unreviewed');
    assert.equal((await bundle(p.forms[0],'unreviewed','approved')).reviewStatus,'unreviewed');

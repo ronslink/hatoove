@@ -6,9 +6,10 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {createFixture,rolePool} from '../server/owned-postgres/bootstrap.mjs';
+import {importHistoricalDefaultPackage,assertHistoricalProjectionAbsent} from './historical-content-fixture.mjs';
 import {createPostgresWorld} from '../server/owned-postgres/fixture.mjs';
 import {createPostgresDatastore} from '../server/owned-postgres/adapter.mjs';
-import {importDefaultPackage,importPackage} from '../server/owned-postgres/package-importer.mjs';
+import {importPackage} from '../server/owned-postgres/package-importer.mjs';
 import {createExamCatalogue} from '../server/preparation-contract.mjs';
 import {createCompleteFixture} from './exam-s5b-fixture.mjs';
 import {mockMemberItems} from '../server/mock-contract.mjs';
@@ -50,7 +51,7 @@ try{
  port=createPostgresDatastore({pool:db.learner,examCatalogue:catalogue,mediaRoot});
  peerPool=rolePool(db.config,db.schema,db.roles.learner,1);
  peer=createPostgresDatastore({pool:peerPool,examCatalogue:catalogue,mediaRoot});
- await importDefaultPackage(db.migration);const a=await owner('a'),b=await owner('b');
+ await importHistoricalDefaultPackage(db);const a=await owner('a'),b=await owner('b');
  await check('forward migration preserves legacy run, objective answers, task and content bytes',async()=>{
   const old=await sqlAs(a.id,async c=>(await c.query(`INSERT INTO mock_run
    (id,owner_id,preparation_id,exam_id,release_version,blueprint_version,form_id,form_version,start_event_id,title,scope,mode)
@@ -58,7 +59,8 @@ try{
    FROM exam_form f JOIN exam_release_head h ON h.exam_id=f.exam_id WHERE f.exam_id=$5 ORDER BY f.form_id LIMIT 1 RETURNING *`,[randomUUID(),a.id,a.telc.id,randomUUID(),TELC])).rows[0]);
   await sqlAs(a.id,c=>c.query(`UPDATE mock_run SET responses='[{"setId":"telc-deutsch-b1.lv1.01","version":"v1","itemId":"1","answer":null}]',revision=revision+1 WHERE id=$1`,[old.id]));
   const before=(await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0],content=(await db.admin.query('SELECT * FROM exam_release ORDER BY exam_id,version')).rows;
-  assert.deepEqual(await db.applyRemaining(),['0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql']);
+  await assertHistoricalProjectionAbsent(db);
+  assert.deepEqual(await db.applyRemaining(),['0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql']);
   assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0],before);
   assert.deepEqual((await db.admin.query('SELECT * FROM exam_release ORDER BY exam_id,version')).rows,content);
   const read=await port.readMockRun(a.id,old.id);assert.equal(read.timing,null);assert.equal(read.writing_task,null);

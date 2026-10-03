@@ -28,7 +28,7 @@ export async function verifyExamS6({base,email,newcomerEmail,password,fixture,av
       assert((await api(a,'/api/v1/checkout/session','POST',{examId:DTZ,market:'DE',eventId:randomUUID()})).status===404,'Internal checkout admitted');
       await shot(a,'s6-internal-hidden-desktop');
     });
-    await check('S6B2 exact synthetic approval and normal reference publication enable visible DTZ discovery',async()=>{
+    await check('S6B2 named synthetic review decisions and normal reference publication enable visible DTZ discovery',async()=>{
       publishAvailable();await fresh(a);
       if(await a.evaluate("return !document.querySelector('#boot-choices').hidden"))await clickSel(a,'[data-preparation="new:dtz-a2-b1"]');
       else {await ready(a);await a.evaluate("const picker=document.querySelector('#preparation-picker');if(![...picker.options].some(option=>option.value==='new:dtz-a2-b1'))throw Error('Missing new DTZ option');picker.value='new:dtz-a2-b1';picker.dispatchEvent(new Event('change',{bubbles:true}));return true;");}

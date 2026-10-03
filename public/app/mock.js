@@ -1,5 +1,6 @@
 import { createWritingController, writingPrompt } from './writing.js';
 import { createListeningController } from './listening.js';
+import { contentReviewLabel, reviewHistoryNotice } from './review-labels.js';
 
 /** Saved exam practice. Responses exist only in this document until the server acknowledges them. */
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -40,8 +41,7 @@ export function mockSectionWritable(run, section, instant) {
 }
 export function mockReviewLabel(value) {
   const publication = { internal: 'Interner Entwurf', hidden: 'Nicht veröffentlicht', withdrawn: 'Zurückgezogene Ausgabe' }[value.release_state];
-  const review = { unreviewed: 'Fachliche Prüfung ausstehend', generated: 'Fachliche Prüfung ausstehend', draft: 'Fachliche Prüfung ausstehend', approved: 'Prüfstatus: freigegeben', reviewed: 'Prüfstatus: geprüft' }[value.review_status]
-    || (value.review_status ? 'Prüfstatus: ' + value.review_status : 'Prüfstatus nicht angegeben');
+  const review = contentReviewLabel(value);
   return [publication, review].filter(Boolean).join(' · ');
 }
 export function mockWritingStatus(writing) {
@@ -411,6 +411,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     if (!host.querySelector('#mock-content')) host.innerHTML = '<div id="mock-content"></div><section id="mock-writing-host" class="stack" aria-label="Schreiben"></section><div id="mock-footer"></div>';
     host.querySelector('#mock-content').innerHTML = '<div class="card mock-heading"><div><p class="kicker">' + esc(mockScopeLabel(run)) + ' · ' + esc(run.exam_id) + '</p><h2>' + esc(run.title) + '</h2><p class="small muted mock-review-status">' + esc(mockReviewLabel(run)) + '</p><p class="small muted">Formular ' + esc(run.form_version) + ' · Ausgabe ' + esc(run.release_version) + ' · ' + (run.mode === 'untimed' ? 'Ohne Zeitlimit' : '<span id="mock-deadline"></span>') + '</p></div><p id="mock-save-state" role="status" aria-live="polite">' + esc(status) + '</p></div>'
       + (isArchived() ? '<p class="hint">Archivierte Vorbereitung · schreibgeschützt.</p>' : '')
+      + (run.state === 'finalised' && run.review_withdrawn ? '<p class="hint" data-review-withdrawn>' + esc(reviewHistoryNotice(run)) + '</p>' : '')
       + (expired && run.state === 'active' ? '<p class="err">Die Zeit ist abgelaufen. Abschließen wertet nur bestätigte Antworten aus. Bei ungespeicherten Änderungen: erst die lokale Kopie sichern und den Serverstand laden.</p>' : '')
       + timingMarkup(snapshot) + recovery(snapshot) + body;
     host.querySelector('#mock-footer').innerHTML = draftCopies.map((copy, i) => '<details class="mock-copy" open><summary>Unbestätigten Schreibtext kopieren</summary><label class="field-label" for="mock-draft-copy-' + i + '">Lokale Fassung · nicht als gespeichert bestätigt</label><textarea class="writing-text" id="mock-draft-copy-' + i + '" data-mock-draft-copy readonly>' + esc(copy.text) + '</textarea></details>').join('')

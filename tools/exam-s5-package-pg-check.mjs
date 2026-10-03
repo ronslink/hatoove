@@ -5,6 +5,7 @@ import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
+import {importHistoricalDefaultPackage,assertHistoricalProjectionAbsent} from './historical-content-fixture.mjs';
 import { importPackage, importDefaultPackage } from '../server/owned-postgres/package-importer.mjs';
 import { readReleasedForm, listReleasedForms } from '../server/owned-postgres/packages.mjs';
 import { createListeningFixture } from './exam-s5-fixture.mjs';
@@ -21,11 +22,38 @@ const counts=async()=> (await db.learner.query(`SELECT (SELECT count(*) FROM con
 const args=p=>({examId:p.exam.id,formId:p.forms[0].id,formVersion:p.forms[0].version,releaseVersion:p.release.version});
 try {
   db=await createFixture({stopBefore:'0029-'});
-  await importDefaultPackage(db.migration);
+  await check('historical helper refuses unguarded, mismatched, non-migration and preexisting projection targets without writes',async()=>{
+    const before=(await db.migration.query('SELECT * FROM content_version ORDER BY content_version_id')).rows;
+    const allow=process.env.OWNAPI_PG_ALLOW,port=process.env.OWNAPI_PG_PORT;
+    try {
+      process.env.OWNAPI_PG_ALLOW='0';
+      await assert.rejects(importHistoricalDefaultPackage(db),/explicit isolated ownapi/);
+      process.env.OWNAPI_PG_ALLOW=allow;process.env.OWNAPI_PG_PORT=String(Number(port)===65535?65534:Number(port)+1);
+      await assert.rejects(importHistoricalDefaultPackage(db),/connection target mismatch/);
+    } finally {process.env.OWNAPI_PG_ALLOW=allow;process.env.OWNAPI_PG_PORT=port;}
+    const spoof='ownapi_spoofed';
+    await assert.rejects(importHistoricalDefaultPackage({...db,schema:spoof,roles:{...db.roles,migration:spoof+'_migration'}}),/schema or migration role mismatch/);
+    await assert.rejects(importHistoricalDefaultPackage({...db,migration:db.learner}),/schema or migration role mismatch/);
+    await db.migration.query('CREATE VIEW reviewed_content_version AS SELECT * FROM content_version');
+    try {await assert.rejects(importHistoricalDefaultPackage(db),/projection must be absent/);}
+    finally {await db.migration.query('DROP VIEW reviewed_content_version');}
+    await assertHistoricalProjectionAbsent(db);
+    // Fail the importer after the real temporary view exists; finally must still remove it.
+    const failedImportPool={options:db.migration.options,query:db.migration.query.bind(db.migration),connect:async()=>{
+      assert.equal((await db.migration.query("SELECT to_regclass('reviewed_content_version')::text AS projection")).rows[0].projection,'reviewed_content_version');
+      throw Error('Synthetic importer connection refusal');
+    }};
+    await assert.rejects(importHistoricalDefaultPackage({...db,migration:failedImportPool}),/Synthetic importer connection refusal/);
+    await assertHistoricalProjectionAbsent(db);
+    assert.deepEqual((await db.migration.query('SELECT * FROM content_version ORDER BY content_version_id')).rows,before);
+  });
+  await importHistoricalDefaultPackage(db);
   await check('forward migration preserves existing content/default release and exact reimport hashes',async()=>{
     const before=(await db.learner.query('SELECT * FROM exam_release ORDER BY exam_id,version')).rows;
     const count=(await db.learner.query('SELECT count(*)::int AS n FROM content_version')).rows[0].n;
+    await assertHistoricalProjectionAbsent(db);
     const applied=await db.applyRemaining();assert.equal(applied[0],'0029-fixed-media.sql');
+    await assert.rejects(importHistoricalDefaultPackage(db),/pre0035 schema/);
     assert.deepEqual((await db.learner.query('SELECT * FROM exam_release ORDER BY exam_id,version')).rows,before);
     assert.equal((await db.learner.query('SELECT count(*)::int AS n FROM content_version')).rows[0].n,count);
     assert.equal((await importDefaultPackage(db.migration)).unchanged,true);

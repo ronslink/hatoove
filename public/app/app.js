@@ -5,6 +5,7 @@ import { createCheckoutController, checkoutRoute, checkoutReturnPath } from './c
 import { guideContent } from './guide-content.js';
 import { bindSentenceCheck } from './sentence-check.js';
 import { createReadAloud } from './read-aloud.js';
+import { contentReviewLabel, reviewHistoryNotice } from './review-labels.js';
 /**
  * The Hatoove app shell (PILOT-08).
  *
@@ -544,7 +545,7 @@ async function renderTasks() {
     groups.push('<h3 class="section-head">Schreiben</h3>' + tasks.map((t) => card(
       esc(t.topic), esc(t.family), esc(t.situation),
       'Anrede: ' + esc(t.adressat) + ' &middot; Register: ' + esc(t.register)
-        + ' &middot; Fassung ' + esc(t.version) + ' &middot; Prüfstatus: ' + esc(t.review_status),
+        + ' &middot; Fassung ' + esc(t.version) + ' &middot; ' + esc(contentReviewLabel(t)),
       // The four-part binding, exactly as the Schreiben view binds it; the controller resumes an open
       // draft for this task+version instead of creating a second one.
       '<div class="row"><button class="btn btn-primary" type="button" data-write="' + esc(t.task_id) + '"'
@@ -557,7 +558,7 @@ async function renderTasks() {
     // `LV3 1` into the column. This view was the one place it still reached the screen.
     groups.push('<h3 class="section-head">' + esc([...new Set(sets.map(set => sectionName(set.section)))].join(' und ')) + '</h3>' + sets.map((s) => card(
       esc(setLabel(s)), esc(s.family), s.item_count + ' Aufgaben',
-      'Teil ' + s.part + ' &middot; Fassung ' + esc(s.version) + ' &middot; Prüfstatus: ' + esc(s.review_status),
+      'Teil ' + s.part + ' &middot; Fassung ' + esc(s.version) + ' &middot; ' + esc(contentReviewLabel(s)),
       // The version is the second half of the identity: the read below refuses a mismatch rather than
       // rendering the wrong fassung of the task the learner chose.
       '<div class="row"><button class="btn btn-primary" type="button" data-open="' + esc(s.set_id) + '"'
@@ -963,7 +964,7 @@ async function renderSkill(view) {
       ? tasks.map((t) => '<div class="card"><div class="card-head"><h3>' + esc(t.topic)
         + '</h3><span class="chip">' + esc(t.family) + '</span></div>'
         + '<p class="muted">' + esc(t.situation) + '</p>'
-        + '<p class="small muted">Anrede: ' + esc(t.adressat) + ' &middot; Prüfstatus: ' + esc(t.review_status) + '</p>'
+        + '<p class="small muted">Anrede: ' + esc(t.adressat) + ' &middot; ' + esc(contentReviewLabel(t)) + '</p>'
         /*
          * The binding travels WITH the button. A writing view that creates an attempt without it is bound
          * to the canonical default task, so the learner would read task B and have task A marked — the
@@ -994,7 +995,7 @@ async function renderSkill(view) {
   box.innerHTML = sets.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(setLabel(s))
     + '</h3><span class="chip">' + esc(s.family) + '</span></div>'
     + '<p class="muted">' + s.item_count + ' Aufgaben &middot; Teil ' + s.part + ' &middot; Fassung ' + esc(s.version) + '</p>'
-    + '<p class="small muted">Prüfstatus: ' + esc(s.review_status) + '</p>'
+    + '<p class="small muted">' + esc(contentReviewLabel(s)) + '</p>'
     + '<button class="btn btn-primary" type="button" data-open="' + esc(s.set_id) + '" data-version="' + esc(s.version) + '">Üben</button></div>').join('');
   box.onclick = (event) => {
     const button = event.target?.closest?.('[data-open]');
@@ -1238,6 +1239,7 @@ async function openArchivedWriting(entry) {
     } else if (feedbackState === 'blocked') result = '<p>Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Dein Text bleibt erhalten.</p>';
     else if (['failed', 'unassessed'].includes(feedbackState)) result = '<p>Unbewertet. Dein abgegebener Text bleibt erhalten.</p>';
     else if (entry.submission_id) result = '<p>Die Rückmeldung wird vorbereitet. Du kannst den Stand erneut laden.</p>';
+    if (feedbackState === 'assessed' && data.review_withdrawn) result += '<p class="hint" data-review-withdrawn>' + esc(reviewHistoryNotice(data)) + '</p>';
     host.innerHTML = '<article class="card"><h3>' + esc(entry.topic || 'Gespeicherter Text') + '</h3><p class="small muted">Archiv · schreibgeschützt</p><div class="archived-writing">'
       + esc(entry.submission_id ? data.submission?.text || '' : data.text || '') + '</div>' + result
       + '<div class="row"><button class="btn" id="archived-refresh" type="button">Stand erneut laden</button><button class="btn" id="archived-close" type="button">Schließen</button></div></article>';

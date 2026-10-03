@@ -395,6 +395,9 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
   const run = async (rubricId) => {
     let token = null;
     const writes = [];
+    const binding = { task_id: 'synthetic.task', version: 'v2', exam_id: INITIAL_EXAM, rubric_id: rubricId, rubric_version: 'v1', source_path: 'synthetic:fixture',
+      review_status: 'approved', rubric_review_status: 'approved', rights_status: 'generated', rubric_rights_status: 'generated',
+      review_basis: 'legacy_unattributed', rubric_review_basis: 'legacy_unattributed', review_blocked: false, rubric_review_blocked: false };
     const pool = {
       async query(sql, params) {
         if (/UPDATE jobs SET status = 'running'/.test(sql)) {
@@ -403,8 +406,9 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
         }
         if (/FROM submissions s JOIN attempts a/.test(sql)) {
           return { rows: [{ id: 'sub-1', owner_id: 'owner-1', text: 'Liebe Anna, ich komme gern. Bis bald.',
-            task_version: 'v2', rubric_version: 'v1', explanation_language: 'de', rubric_id: rubricId, deleted_at: null }] };
+            task_id: binding.task_id, exam_id: INITIAL_EXAM, attempt_id: 'attempt-1', task_version: 'v2', rubric_version: 'v1', explanation_language: 'de', rubric_id: rubricId, deleted_at: null }] };
         }
+        if (/FROM task_version t/.test(sql)) return { rows: [binding] };
         return { rows: [] };
       },
       async connect() {
@@ -412,8 +416,10 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
           async query(sql) {
             writes.push(String(sql));
             if (/FROM jobs WHERE submission_id = \$1 FOR UPDATE/.test(sql)) {
-              return { rows: [{ id: 'job-1', owner_id: 'owner-1', status: 'running', lease_token: token }] };
+              return { rows: [{ id: 'job-1', owner_id: 'owner-1', exam_id: INITIAL_EXAM, status: 'running', lease_token: token }] };
             }
+            if (/SELECT owner_id,exam_id FROM jobs WHERE submission_id=\$1/.test(sql)) return { rows: [{ owner_id: 'owner-1', exam_id: INITIAL_EXAM }] };
+            if (/FROM task_version t/.test(sql)) return { rows: [binding] };
             if (/SELECT a\.deleted_at/.test(sql)) return { rows: [{ deleted_at: null }] };
             return { rows: [] };
           },
