@@ -625,7 +625,7 @@ paths:
                     type: object
                     properties:
                       examDate: { type: string, description: 'Read-only legacy value, kept for audit and export. The active exam date is on the preparation (EXAM-S1).' }
-                      language: { type: string, enum: [de, en, uk, ar, tr], description: 'Explanation language only. The interface stays German.' }
+                      language: { type: string, enum: [de, en, uk, ar, tr], description: 'Preferred interface and explanation language. Assessed exam content retains its exam language.' }
                       dailyGoal: { type: string }
                       model: { type: string }
                       theme: { type: string }
@@ -825,6 +825,14 @@ paths:
         Excludes other accounts, passwords, sessions, reset/verification tokens, worker leases,
         objective answer keys, raw provider payloads, price-card internals and operational hashes.
         Missing invocation observations remain empty history; usage or cost is never inferred as zero.
+        For each authorized saved shared context, selections across its explanation rows cover
+        all selectors (null, de, en, uk, ar, tr), with selection_language, state, requested_status,
+        reason and displayed_language. Equal selected representations share one row containing
+        only their matching selector receipts. Blocked or missing selections retain individual
+        receipts with null representation and no prose. Parent-policy-blocked contexts retain
+        their existing context, null representation and blocked_reason shape without selections.
+        Exact educational/native-language review status is public; editorial target records,
+        reviewer identity, evidence, private source-binding metadata and decision IDs are not.
       responses:
         '200': { description: 'The owner-scoped export document.' }
         '401': { description: 'No verified session.' }
