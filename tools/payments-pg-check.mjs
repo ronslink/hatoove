@@ -46,7 +46,7 @@ try {
  const before=await one('SELECT * FROM entitlements WHERE owner_id=$1',[legacy]);
  await check('forward migration preserves legacy balances and seeds no commercial offers',async()=>{
   await assertHistoricalProjectionAbsent(db);
-  assert.deepEqual(await db.applyRemaining(),['0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql','0037-saved-explanations.sql','0038-provider-attempts.sql']);
+  assert.deepEqual(await db.applyRemaining(),['0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql','0037-saved-explanations.sql','0038-provider-attempts.sql','0039-registration-language.sql']);
   assert.deepEqual(await one('SELECT owner_id,exam_id,allowance,used,reserved FROM entitlements WHERE owner_id=$1',[legacy]),before);
   assert.equal((await one('SELECT expires_at FROM entitlements WHERE owner_id=$1',[legacy])).expires_at,null);
   assert.equal((await one('SELECT count(*)::int AS n FROM payment_product')).n,0);

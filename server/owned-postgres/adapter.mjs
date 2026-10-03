@@ -1099,12 +1099,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             result.review_withdrawn=context.review_withdrawn;result.review_basis=context.review_basis;
           }
         }
-        const writing_explanation_representations=(await client.query(`SELECT * FROM writing_explanation_representation
+        const writing_explanation_representations=(await client.query(`SELECT submission_id,source_sha256,language,representation_version,
+          attempt_id,exam_id,task_id,task_version,rubric_id,rubric_version,model_version,prompt_version,
+          original_language,original_format,payload,payload_sha256,provenance,created_at FROM writing_explanation_representation
           WHERE owner_id=$1 ORDER BY submission_id,source_sha256,language,representation_version`,[owner])).rows.map(row=>{
             const blocked=blockedWriting.get(row.submission_id);
             return blocked?{...row,payload:null,blocked_reason:blocked}:row;
           });
-        const writing_explanation_heads=(await client.query(`SELECT * FROM writing_explanation_head
+        const writing_explanation_heads=(await client.query(`SELECT submission_id,source_sha256,language,representation_version FROM writing_explanation_head
           WHERE owner_id=$1 ORDER BY submission_id,source_sha256,language`,[owner])).rows;
         const shared_explanation_representations=[];
         for(const evidence of objective_evidence){
