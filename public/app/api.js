@@ -211,6 +211,7 @@ return Object.freeze({
     start: payload => scopedCall('POST', PATHS.mockRuns, payload),
     read: id => call('GET', PATHS.mockRuns + '/' + encodeURIComponent(id)),
     save: (id, payload) => call('PUT', PATHS.mockRuns + '/' + encodeURIComponent(id), payload, true),
+    chooseWriting: (id, payload) => call('POST', PATHS.mockRuns + '/' + encodeURIComponent(id) + '/writing-choice', payload, true),
     finalise: (id, payload) => call('POST', PATHS.mockRuns + '/' + encodeURIComponent(id) + '/finalise', payload, true),
   }),
 

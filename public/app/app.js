@@ -1,6 +1,6 @@
 import { initialPreparation, preparationChoices } from './preparation.js';
 import { createMockController, mockMember } from './mock.js';
-import { createWritingController } from './writing.js';
+import { createWritingController, writingCriterion, writingFeedbackState } from './writing.js';
 import { guideContent } from './guide-content.js';
 import { bindSentenceCheck } from './sentence-check.js';
 import { createReadAloud } from './read-aloud.js';
@@ -1190,7 +1190,7 @@ const writingApi = { ...api, writing: { ...api.writing, result: async submission
   if (currentContext(ticket) && bootReady) guard(refreshCredits());
   return result;
 } } };
-const mock = createMockController({ api, esc, setLabel, canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
+const mock = createMockController({ api: writingApi, esc, setLabel, readAloud, explanationLanguage: () => state.settings?.language || 'de', canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
 window.addEventListener('beforeunload', event => mock.preserveOnUnload(event));
 const writing = createWritingController({ api: writingApi, esc, readAloud, onChange: () => { guard(refreshCredits()); if (currentView === 'fortschritt') guard(renderHistory()); } });
 async function openWriting(box, task, options = {}) {
@@ -1215,12 +1215,14 @@ async function openArchivedWriting(entry) {
     const language = EXPLANATION_LANGUAGES.includes(feedback?.language || data.submission?.explanation_language)
       ? feedback?.language || data.submission?.explanation_language : 'de';
     let result = '';
-    if (data.job?.status === 'succeeded' && feedback) {
+    const feedbackState = writingFeedbackState(data);
+    if (feedbackState === 'assessed' && feedback) {
       result = '<p class="small muted">Übungsfeedback – keine offizielle Bewertung. Die Rückmeldung im lokalen Pilot stammt aus einer technischen Simulation.</p>';
-      result += Array.isArray(feedback.criteria) ? '<ul>' + feedback.criteria.map(c => '<li><strong>'
-        + esc(CRITERION_LABELS[c.key] || c.key) + ': ' + esc(c.band) + '</strong><p lang="' + language + '" dir="' + (language === 'ar' ? 'rtl' : 'ltr') + '">'
-        + esc(c.comment) + '</p></li>').join('') + '</ul>' : '<p lang="' + language + '" dir="' + (language === 'ar' ? 'rtl' : 'ltr') + '">' + esc(feedback.comment) + '</p>';
-    } else if (data.job?.status === 'failed') result = '<p>Unbewertet. Dein abgegebener Text bleibt erhalten.</p>';
+      result += Array.isArray(feedback.criteria) ? '<ul>' + feedback.criteria.map(c => { const view = writingCriterion(c, data.rubric); return '<li><strong>'
+        + esc(view.label) + ': ' + esc(view.band) + '</strong><p lang="' + language + '" dir="' + (language === 'ar' ? 'rtl' : 'ltr') + '">'
+        + esc(c.comment) + '</p></li>'; }).join('') + '</ul>' : '<p lang="' + language + '" dir="' + (language === 'ar' ? 'rtl' : 'ltr') + '">' + esc(feedback.comment) + '</p>';
+    } else if (feedbackState === 'blocked') result = '<p>Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Dein Text bleibt erhalten.</p>';
+    else if (['failed', 'unassessed'].includes(feedbackState)) result = '<p>Unbewertet. Dein abgegebener Text bleibt erhalten.</p>';
     else if (entry.submission_id) result = '<p>Die Rückmeldung wird vorbereitet. Du kannst den Stand erneut laden.</p>';
     host.innerHTML = '<article class="card"><h3>' + esc(entry.topic || 'Gespeicherter Text') + '</h3><p class="small muted">Archiv · schreibgeschützt</p><div class="archived-writing">'
       + esc(entry.submission_id ? data.submission?.text || '' : data.text || '') + '</div>' + result
@@ -1246,6 +1248,7 @@ async function renderHistory() {
     if (!currentContext(ticket)) return;
     const target = event.target.closest('[data-attempt]'); if (!target) return;
     const entry = rows.find(a => a.id === target.dataset.attempt); if (!entry) return;
+    if (entry.mock_run_id) { location.hash = '#/lauf/' + entry.mock_run_id; return; }
     if (!activePreparation()) { await openArchivedWriting(entry); return; }
     const task = { task_id: entry.task_id, version: entry.task_version, rubric_id: entry.rubric_id, rubric_version: entry.rubric_version, topic: entry.topic };
     if (entry.submission_id) await openWriting(el('history-detail'), task, { submissionId: entry.submission_id });

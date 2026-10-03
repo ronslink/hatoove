@@ -1,3 +1,5 @@
+import { createWritingController, writingPrompt } from './writing.js';
+
 /** Saved section practice. Responses exist only in this document until the server acknowledges them. */
 const clone = value => JSON.parse(JSON.stringify(value));
 const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -10,6 +12,24 @@ export function mockReviewLabel(value) {
   const review = { unreviewed: 'Fachliche Prüfung ausstehend', generated: 'Fachliche Prüfung ausstehend', draft: 'Fachliche Prüfung ausstehend', approved: 'Prüfstatus: freigegeben', reviewed: 'Prüfstatus: geprüft' }[value.review_status]
     || (value.review_status ? 'Prüfstatus: ' + value.review_status : 'Prüfstatus nicht angegeben');
   return [publication, review].filter(Boolean).join(' · ');
+}
+export function mockWritingStatus(writing) {
+  return ({ not_started: 'Schreibentwurf gespeichert', pending: 'Schreiben: Rückmeldung wird vorbereitet', assessed: 'Schreiben: Übungsfeedback gespeichert', failed: 'Schreiben: Rückmeldung fehlgeschlagen · Text erhalten', unassessed: 'Schreiben: Unbewertet · Text erhalten' })[writing?.assessment_state] || '';
+}
+
+/** Finalisation binds the last acknowledged draft; a failed save must never freeze older text. */
+export async function finaliseMockWriting({ session, writing, language = 'de', ready = Promise.resolve(true) }) {
+  const runId = session.state().run?.id;
+  await ready;
+  if (!(await writing.flush()) || session.state().run?.id !== runId || !(await session.flush())) return false;
+  const run = session.state().run;
+  if (!run || run.id !== runId) return false;
+  const fields = run.writing_choices?.length ? { explanationLanguage: language } : {};
+  if (run.writing) {
+    if (writing.active?.attempt !== run.writing.attempt_id || !Number.isInteger(writing.active?.revision)) return false;
+    fields.expectedWritingRevision = writing.active.revision;
+  }
+  return session.finalise(fields);
 }
 export function mockMember(member) {
   const p = member.payload || {};
@@ -47,15 +67,15 @@ export function mockMember(member) {
 export function createMockSession({ api, eventId = () => crypto.randomUUID(), onChange = () => {}, canEdit = () => true, now = () => Date.now() }) {
   let run = null, responses = [], position = { member: 0, item: 0 }, pending = null, flight = null;
   let flushing = null, clockOffset = 0, reloading = false;
-  let epoch = 0, error = null, localCopy = '', finalising = false;
+  let epoch = 0, error = null, localCopy = '', finalising = false, choosing = false;
   const changed = () => onChange();
   const expired = () => Boolean(run?.expired || (run?.state === 'active' && run?.deadline_at && Date.parse(run.deadline_at) <= now() + clockOffset));
-  const writable = () => run?.state === 'active' && !run.blocked_reason && !expired() && canEdit() && !finalising && !reloading && pending?.kind !== 'finalise';
+  const writable = () => run?.state === 'active' && !run.blocked_reason && !expired() && canEdit() && !finalising && !choosing && !reloading && !['finalise', 'chooseWriting'].includes(pending?.kind);
   const dirty = () => Boolean(run && (!sameResponses(responses, run.responses) || !samePosition(position, run.position)));
-  const state = () => ({ run, responses: clone(responses), position: { ...position }, dirty: dirty(), pending: Boolean(pending), busy: Boolean(flight) || reloading, loading: reloading, error, localCopy, finalising, expired: expired(), writable: writable() });
+  const state = () => ({ run, responses: clone(responses), position: { ...position }, dirty: dirty(), pending: Boolean(pending), pendingKind: pending?.kind || null, busy: Boolean(flight) || reloading || choosing, loading: reloading, error, localCopy, finalising, expired: expired(), writable: writable() });
   function load(value, keepCopy = false) {
     epoch++; clockOffset = value.server_now ? Date.parse(value.server_now) - now() : 0; run = clone(value); responses = clone(value.responses || []); position = clone(value.position || { member: 0, item: 0 });
-    run.responses = clone(responses); run.position = clone(position); pending = null; flight = null; flushing = null; reloading = false; error = null; finalising = false;
+    run.responses = clone(responses); run.position = clone(position); pending = null; flight = null; flushing = null; reloading = false; error = null; finalising = false; choosing = false;
     if (!keepCopy) localCopy = ''; changed();
   }
   async function send() {
@@ -72,6 +92,9 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
       if (!value || value.id !== run.id || !Number.isInteger(value.revision)) { error = { status: 0, error: 'invalid_response' }; return false; }
       if (operation.kind === 'save' && value.state === 'active' && (!sameResponses(value.responses || [], operation.body.responses) || !samePosition(value.position, operation.body.position))) {
         error = { status: 409, error: 'run_changed' }; return false;
+      }
+      if (operation.kind === 'chooseWriting' && (value.writing?.choice_group_id !== operation.body.choiceGroupId || value.writing?.selected_option_id !== operation.body.optionId || !value.writing?.attempt_id)) {
+        error = { status: 409, error: 'writing_choice_changed' }; return false;
       }
       // A finalised acknowledgement is authoritative. Retain any divergent local selection as a copy.
       if (value.state === 'finalised') {
@@ -116,15 +139,26 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
       if (!(await flush())) { position = previous; changed(); return false; }
       changed(); return true;
     },
-    async finalise() {
-      if (!run || run.state !== 'active' || run.blocked_reason || !canEdit() || finalising) return false;
-      finalising = true; changed();
+    async chooseWriting(choiceGroupId, optionId) {
+      if (!writable() || run.writing || pending) return false;
+      const choice = run.writing_choices?.find(group => group.id === choiceGroupId);
+      if (!choice?.options?.some(option => option.id === optionId)) return false;
+      const ticket = epoch; choosing = true; changed();
       try {
-        if (!(await flush())) return false;
-        if (run.state === 'finalised') return true;
-        pending = { kind: 'finalise', body: { expectedRevision: run.revision, eventId: eventId() } };
+        if (!(await flush()) || ticket !== epoch) return false;
+        pending = { kind: 'chooseWriting', body: { expectedRevision: run.revision, eventId: eventId(), choiceGroupId, optionId } };
         return await send();
-      } finally { finalising = false; changed(); }
+      } finally { if (ticket === epoch) { choosing = false; changed(); } }
+    },
+    async finalise(writing = {}) {
+      if (!run || run.state !== 'active' || run.blocked_reason || !canEdit() || finalising) return false;
+      const ticket = epoch; finalising = true; changed();
+      try {
+        if (!(await flush()) || ticket !== epoch) return false;
+        if (run.state === 'finalised') return true;
+        pending = { kind: 'finalise', body: { expectedRevision: run.revision, eventId: eventId(), ...writing } };
+        return await send();
+      } finally { if (ticket === epoch) { finalising = false; changed(); } }
     },
     async reload() {
       if (!run || flight || reloading) return false;
@@ -134,13 +168,15 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
       if (!response?.ok) { reloading = false; error = response; changed(); return false; }
       load(response.data, true); return true;
     },
-    dispose() { epoch++; run = null; pending = null; flight = null; flushing = null; reloading = false; error = null; responses = []; localCopy = ''; finalising = false; },
+    dispose() { epoch++; run = null; pending = null; flight = null; flushing = null; reloading = false; error = null; responses = []; localCopy = ''; finalising = false; choosing = false; },
   };
 }
 
-export function createMockController({ api, esc, setLabel = member => member.title, canEdit = () => true, isArchived = () => false, onOpen = () => {}, onChange = () => {} }) {
+export function createMockController({ api, esc, setLabel = member => member.title, canEdit = () => true, isArchived = () => false, readAloud = null, explanationLanguage = () => 'de', onOpen = () => {}, onChange = () => {} }) {
   let host = null, generation = 0, timer = null, deadlineTimer = null, startOperation = null, confirm = false;
   let displayPosition = null, serverOffset = 0, deadlineReached = false;
+  let writingBinding = null, writingReady = Promise.resolve(true), finishing = false;
+  const writing = createWritingController({ api, esc, readAloud, onChange });
   const session = createMockSession({ api, canEdit, onChange: () => { render(); onChange(); } });
   const button = (action, label, primary = false) => '<button type="button" class="btn' + (primary ? ' btn-primary' : '') + '" data-mock-action="' + action + '">' + label + '</button>';
   const date = value => new Date(value).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
@@ -166,13 +202,47 @@ export function createMockController({ api, esc, setLabel = member => member.tit
       + '<p class="mock-review-prompt" lang="de">' + esc(item.text) + '</p><dl class="mock-review-options">'
       + (item.options || form.options || []).map(option => '<div><dt>' + esc(option.id) + '</dt><dd>' + esc(option.label) + '</dd></div>').join('') + '</dl></details>';
   }
+  function renderWriting(snapshot) {
+    const target = host.querySelector('#mock-writing-host'), run = snapshot.run;
+    const attachment = run.writing, groups = run.writing_choices || [];
+    if (!attachment) {
+      if (writing.active) writing.dispose();
+      writingBinding = null;
+      target.hidden = !groups.length;
+      target.innerHTML = !groups.length ? '' : run.blocked_reason ? '<section class="card"><p>Die Schreibaufgaben sind zurzeit gesperrt.</p></section>'
+        : run.state === 'finalised' ? '<section class="card"><h3>Schreiben · Unbewertet</h3><p>Es wurde keine Schreibaufgabe ausgewählt. Der Abschnitt bleibt gespeichert.</p></section>'
+        : '<section class="card stack"><h3>Schreiben · Wähle eine Aufgabe</h3><p>Lies beide Aufgaben. Deine bestätigte Auswahl bleibt für diesen Lauf verbindlich. Anschließend schreibst du zu genau dieser Aufgabe.</p><div class="mock-writing-choices">' + groups.map(group => group.options.map(option => '<article class="card-flat stack"><p class="kicker">Aufgabe ' + esc(option.id) + '</p>' + writingPrompt(option.task || {}, esc) + '<button type="button" class="btn btn-primary" data-mock-choice-group="' + esc(group.id) + '" data-mock-choice-option="' + esc(option.id) + '"' + (!snapshot.writable || snapshot.pending ? ' disabled' : '') + '>Aufgabe ' + esc(option.id) + ' verbindlich wählen</button></article>').join('')).join('') + '</div></section>';
+      return;
+    }
+    target.hidden = false;
+    if (!target.querySelector('#mock-writing-editor')) target.innerHTML = '<p class="kicker" id="mock-writing-binding"></p><div id="mock-writing-editor"></div>';
+    target.querySelector('#mock-writing-binding').textContent = 'Aufgabe ' + attachment.selected_option_id + ' · verbindlich ausgewählt';
+    const binding = [run.id, attachment.attempt_id, attachment.submission_id, run.blocked_reason || '', isArchived()].join(':');
+    if (writingBinding !== binding) {
+      writingBinding = binding;
+      const task = groups.find(group => group.id === attachment.choice_group_id)?.options.find(option => option.id === attachment.selected_option_id)?.task || {};
+      writingReady = writing.open(target.querySelector('#mock-writing-editor'), task, { attached: true, readonly: !canEdit() || Boolean(run.blocked_reason), ...(attachment.submission_id ? { submissionId: attachment.submission_id } : { attemptId: attachment.attempt_id }) }).then(opened => { freezeWriting(); return opened; });
+    }
+    freezeWriting();
+  }
+  function freezeWriting() {
+    const state = session.state();
+    writing.freeze(!canEdit() || Boolean(state.run?.blocked_reason) || (state.run?.state === 'active' && !state.writable) || finishing);
+  }
+  async function flushAll() {
+    if (finishing) return false;
+    clearTimeout(timer);
+    await writingReady;
+    if (!(await writing.flush())) return false;
+    return session.flush();
+  }
   function render() {
     if (!host) return;
     const snapshot = session.state(), run = snapshot.run;
     if (!run) return;
     // Save status updates must not steal keyboard focus from the selected radio.
     const focused = host.contains(document.activeElement) ? document.activeElement?.getAttribute('data-focus') : null;
-    const readonly = !snapshot.writable, members = run.members || [], total = members.reduce((n, m) => n + m.item_count, 0);
+    const readonly = !snapshot.writable || finishing, members = run.members || [], total = members.reduce((n, m) => n + m.item_count, 0);
     const selected = snapshot.responses.filter(row => row.answer !== null).length;
     const status = snapshot.loading ? 'Serverstand wird geladen …' : snapshot.busy ? 'Wird gespeichert …' : snapshot.error ? 'Noch nicht bestätigt' : snapshot.dirty ? 'Änderungen noch nicht gespeichert' : 'Gespeichert · Stand ' + run.revision;
     const position = displayPosition || snapshot.position;
@@ -181,7 +251,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     if (run.blocked_reason) body = '<section class="card"><h3>Dieser Abschnitt ist zurzeit gesperrt</h3><p>Die Inhalte sind nicht verfügbar. Deine gespeicherten Antworten bleiben erhalten und können über dein Konto exportiert werden.</p></section>';
     else if (run.state === 'finalised') {
       const result = run.result;
-      body = '<section class="card stack" id="mock-result"><h3>Abschnitt abgeschlossen</h3><p class="small muted mock-review-status">' + esc(mockReviewLabel(run)) + '</p>' + (result ? '<p><strong>' + esc(result.correct) + ' von ' + esc(result.total) + ' Antworten richtig</strong> · ' + esc(result.unanswered) + ' unbeantwortet.</p><p class="muted">Das ist die Rückmeldung zu diesem geübten Abschnitt.</p><ol class="mock-results">' + result.items.map(row => '<li><strong>Teil ' + esc((members.findIndex(member => member.set_id === row.set_id && member.version === row.version) + 1) || '–') + ' · Aufgabe ' + esc(row.item_id) + '</strong>' + reviewContext(row, members) + '<span>' + (row.unanswered ? 'Unbeantwortet' : 'Deine Antwort: ' + esc(row.answer) + ' · ' + (row.correct ? 'Richtig' : 'Nicht richtig')) + '</span>' + (row.correct_answer !== null && row.correct_answer !== undefined ? '<span>Passende Antwort: ' + esc(row.correct_answer) + '</span>' : '') + (row.explanation ? '<p lang="de">' + esc(row.explanation) + '</p>' : '') + '</li>').join('') + '</ol>' : '<p>Die Rückmeldung ist derzeit nicht verfügbar.</p>') + (canEdit() ? '<a class="btn" href="#/abschnitt">Neue Wiederholung auswählen</a>' : '') + '</section>';
+      body = '<section class="card stack" id="mock-result"><h3>Abschnitt abgeschlossen</h3><p class="small muted mock-review-status">' + esc(mockReviewLabel(run)) + '</p>' + (result ? '<p><strong>' + esc(result.correct) + ' von ' + esc(result.total) + ' Antworten richtig</strong> · ' + esc(result.unanswered) + ' unbeantwortet.</p><p class="muted">Das ist die Rückmeldung zu diesem geübten Abschnitt.</p><ol class="mock-results">' + result.items.map(row => '<li><strong>Teil ' + esc((members.findIndex(member => member.set_id === row.set_id && member.version === row.version) + 1) || '–') + ' · Aufgabe ' + esc(row.item_id) + '</strong>' + reviewContext(row, members) + '<span>' + (row.unanswered ? 'Unbeantwortet' : 'Deine Antwort: ' + esc(row.answer) + ' · ' + (row.correct ? 'Richtig' : 'Nicht richtig')) + '</span>' + (row.correct_answer !== null && row.correct_answer !== undefined ? '<span>Passende Antwort: ' + esc(row.correct_answer) + '</span>' : '') + (row.explanation ? '<p lang="de">' + esc(row.explanation) + '</p>' : '') + '</li>').join('') + '</ol>' : (run.writing_choices?.length && !members.length ? '<p>Dein Schreibteil ist gespeichert. Den Stand der Rückmeldung siehst du unten.</p>' : '<p>Die Rückmeldung ist derzeit nicht verfügbar.</p>')) + (canEdit() ? '<a class="btn" href="#/abschnitt">Neue Wiederholung auswählen</a>' : '') + '</section>';
     } else if (item) {
       const answer = snapshot.responses.find(row => row.setId === member.set_id && row.version === member.version && row.itemId === item.id)?.answer;
       body = '<div class="mock-layout"><section class="card stack mock-question"><p class="kicker">Teil ' + (position.member + 1) + ' von ' + members.length + ' · Aufgabe ' + esc(item.id) + '</p><h3 id="mock-question-title" tabindex="-1">' + esc(setLabel(member)) + '</h3>'
@@ -193,15 +263,18 @@ export function createMockController({ api, esc, setLabel = member => member.tit
           const done = snapshot.responses.some(row => row.setId === m.set_id && row.version === m.version && row.itemId === q.id && row.answer !== null);
           return '<button type="button" class="btn btn-small' + (done ? ' mock-answered' : '') + '" data-mock-member="' + mi + '" data-mock-item="' + qi + '" aria-label="Teil ' + (mi + 1) + ', Aufgabe ' + esc(q.id) + (done ? ', beantwortet' : ', unbeantwortet') + '"' + (position.member === mi && position.item === qi ? ' aria-current="step"' : '') + '>' + esc(q.id) + '</button>';
         }).join('') + '</div></div>').join('') + '<p class="small muted">Rückmeldung erst nach dem Abschließen.</p></aside></div>';
-    } else body = '<section class="card"><p>Dieser Inhalt kann nicht angezeigt werden. Deine Antworten bleiben gespeichert.</p></section>';
+    } else body = run.writing_choices?.length ? '' : '<section class="card"><p>Dieser Inhalt kann nicht angezeigt werden. Deine Antworten bleiben gespeichert.</p></section>';
     const expired = run.expired || (run.deadline_at && Date.parse(run.deadline_at) <= Date.now() + serverOffset);
-    host.innerHTML = '<div class="card mock-heading"><div><p class="kicker">Gespeicherte Abschnittsübung · ' + esc(run.exam_id) + '</p><h2>' + esc(run.title) + '</h2><p class="small muted mock-review-status">' + esc(mockReviewLabel(run)) + '</p><p class="small muted">Formular ' + esc(run.form_version) + ' · Ausgabe ' + esc(run.release_version) + ' · ' + (run.mode === 'untimed' ? 'Ohne Zeitlimit' : '<span id="mock-deadline"></span>') + '</p></div><p id="mock-save-state" role="status" aria-live="polite">' + esc(status) + '</p></div>'
+    // Keep the editor node mounted: objective autosaves must not lose text, selection or IME focus.
+    if (!host.querySelector('#mock-content')) host.innerHTML = '<div id="mock-content"></div><section id="mock-writing-host" class="stack" aria-label="Schreiben"></section><div id="mock-footer"></div>';
+    host.querySelector('#mock-content').innerHTML = '<div class="card mock-heading"><div><p class="kicker">Gespeicherte Abschnittsübung · ' + esc(run.exam_id) + '</p><h2>' + esc(run.title) + '</h2><p class="small muted mock-review-status">' + esc(mockReviewLabel(run)) + '</p><p class="small muted">Formular ' + esc(run.form_version) + ' · Ausgabe ' + esc(run.release_version) + ' · ' + (run.mode === 'untimed' ? 'Ohne Zeitlimit' : '<span id="mock-deadline"></span>') + '</p></div><p id="mock-save-state" role="status" aria-live="polite">' + esc(status) + '</p></div>'
       + (isArchived() ? '<p class="hint">Archivierte Vorbereitung · schreibgeschützt.</p>' : '')
       + (expired && run.state === 'active' ? '<p class="err">Die Zeit ist abgelaufen. Abschließen wertet nur bestätigte Antworten aus. Bei ungespeicherten Änderungen: erst die lokale Kopie sichern und den Serverstand laden.</p>' : '')
-      + recovery(snapshot) + body
-      + (run.state === 'active' && !run.blocked_reason && canEdit() ? '<section class="card stack mock-finish"><p>' + selected + ' von ' + total + ' beantwortet · ' + Math.max(0, total - selected) + ' unbeantwortet.</p>' + (confirm ? '<p>Jetzt abschließen? Danach kannst du diese Antworten nicht mehr ändern. Unbeantwortete Aufgaben bleiben als unbeantwortet erhalten.</p><div class="row">' + button('finalise', 'Verbindlich abschließen', true) + button('cancel', 'Weiter bearbeiten') + '</div>' : '<div class="row">' + button('save', 'Jetzt speichern') + button('confirm', 'Abschnitt abschließen', true) + '</div>') + '</section>' : '')
+      + recovery(snapshot) + body;
+    host.querySelector('#mock-footer').innerHTML = (run.state === 'active' && !run.blocked_reason && canEdit() ? '<section class="card stack mock-finish">' + (total ? '<p>' + selected + ' von ' + total + ' beantwortet · ' + Math.max(0, total - selected) + ' unbeantwortet.</p>' : '') + (confirm ? '<p>Jetzt abschließen? Danach kannst du diese Antworten und den abgegebenen Text nicht mehr ändern. Unbeantwortete Aufgaben und ein leerer Schreibteil bleiben unbewertet erhalten.</p><div class="row">' + button('finalise', 'Verbindlich abschließen', true) + button('cancel', 'Weiter bearbeiten') + '</div>' : '<div class="row">' + button('save', 'Jetzt speichern') + button('confirm', 'Abschnitt abschließen', true) + '</div>') + '</section>' : '')
       + '<a class="btn" href="#/abschnitt">Zur Abschnittsübersicht</a>';
-    if (snapshot.busy || snapshot.finalising) for (const b of host.querySelectorAll('[data-mock-action], [data-mock-member]')) b.disabled = true;
+    renderWriting(snapshot);
+    if (snapshot.busy || snapshot.finalising || finishing) for (const b of host.querySelectorAll('[data-mock-action], [data-mock-member], [data-mock-choice-option]')) b.disabled = true;
     if (focused) host.querySelector('[data-focus="' + focused + '"]')?.focus({ preventScroll: true });
     updateDeadline();
   }
@@ -225,23 +298,32 @@ export function createMockController({ api, esc, setLabel = member => member.tit
       if (item && session.answer(m, item.id, event.target.value)) { clearTimeout(timer); timer = setTimeout(() => void session.flush(), 650); }
     };
     host.onclick = async event => {
-      const element = event.target.closest('[data-mock-action], [data-mock-member]');
+      const element = event.target.closest('[data-mock-action], [data-mock-member], [data-mock-choice-option]');
       if (!element || element.disabled) return;
       const snapshot = session.state(), run = snapshot.run;
       if (!run) return;
       const p = displayPosition || snapshot.position, m = run.members[p.member], form = m && mockMember(m);
       const action = element.dataset.mockAction;
+      if (element.dataset.mockChoiceOption !== undefined) { await session.chooseWriting(element.dataset.mockChoiceGroup, element.dataset.mockChoiceOption); return; }
       if (action === 'clear') { session.answer(m, form.items[p.item].id, null); await session.flush(); }
-      if (['save', 'retry'].includes(action)) await session.flush();
-      if (action === 'reload') { clearTimeout(timer); confirm = false; displayPosition = null; await session.reload(); }
+      if (['save', 'retry'].includes(action)) await flushAll();
+      if (action === 'reload') { if (!(await writing.flush())) return; clearTimeout(timer); confirm = false; displayPosition = null; await session.reload(); }
       if (action === 'confirm') { confirm = true; render(); host.querySelector('[data-mock-action="finalise"]')?.focus(); }
       if (action === 'cancel') { confirm = false; render(); }
-      if (action === 'finalise') { clearTimeout(timer); await session.finalise(); confirm = false; render(); }
+      if (action === 'finalise') {
+        if (finishing) return;
+        finishing = true; writing.freeze(true); render();
+        try {
+          clearTimeout(timer);
+          await finaliseMockWriting({ session, writing, language: explanationLanguage(), ready: writingReady }); confirm = false;
+        } finally { finishing = false; render(); }
+      }
       let next = null;
       if (element.dataset.mockMember !== undefined) next = { member: Number(element.dataset.mockMember), item: Number(element.dataset.mockItem) };
       if (action === 'next') next = p.item + 1 < form.items.length ? { member: p.member, item: p.item + 1 } : p.member + 1 < run.members.length ? { member: p.member + 1, item: 0 } : null;
       if (action === 'previous') next = p.item > 0 ? { member: p.member, item: p.item - 1 } : p.member > 0 ? { member: p.member - 1, item: mockMember(run.members[p.member - 1]).items.length - 1 } : null;
       if (next) {
+        if (!(await writing.flush())) return;
         if (!canEdit() || snapshot.expired) { displayPosition = next; render(); }
         else { displayPosition = p; if (await session.move(next)) displayPosition = null; render(); }
         host.querySelector('#mock-question-title')?.focus();
@@ -249,7 +331,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     };
   }
   async function showRun(target, id) {
-    const ticket = ++generation; stopTimers(); attach(target); host.innerHTML = '<p class="muted" role="status">Gespeicherter Abschnitt wird geladen …</p>';
+    const ticket = ++generation; stopTimers(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); attach(target); host.innerHTML = '<p class="muted" role="status">Gespeicherter Abschnitt wird geladen …</p>';
     const response = await api.mock.read(id);
     if (ticket !== generation) return false;
     if (!response?.ok) { host.innerHTML = '<p class="err">Der gespeicherte Abschnitt konnte nicht geladen werden.</p><a class="btn" href="#/abschnitt">Zur Übersicht</a>'; return false; }
@@ -257,12 +339,12 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     session.load(response.data); deadlineTimer = setInterval(updateDeadline, 1000); return true;
   }
   async function list(target) {
-    const ticket = ++generation; stopTimers(); session.dispose(); attach(target); host.innerHTML = '<p class="muted" role="status">Abschnittsübungen werden geladen …</p>';
+    const ticket = ++generation; stopTimers(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); session.dispose(); attach(target); host.innerHTML = '<p class="muted" role="status">Abschnittsübungen werden geladen …</p>';
     const [forms, runs] = await Promise.all([api.mock.forms(), api.mock.list()]);
     if (ticket !== generation) return;
     const rows = runs?.ok ? runs.data?.runs || [] : [];
     host.innerHTML = '<div class="page-head"><div><p class="kicker">In deinem Tempo</p><h1>Gespeicherte Abschnittsübungen</h1><p>Bearbeite einen Abschnitt und erhalte die Rückmeldung am Ende. Deine bestätigten Antworten kannst du später fortsetzen.</p></div></div><div class="grid-dash"><section class="card stack"><h2>Einen Abschnitt beginnen</h2>'
-      + (!canEdit() ? '<p>Diese Vorbereitung ist archiviert. Gespeicherte Abschnitte bleiben lesbar.</p>' : !forms?.ok ? '<p class="err">Die verfügbaren Abschnitte konnten nicht geladen werden.</p>' : !(forms.data?.forms || []).length ? '<p>Zurzeit ist kein Abschnitt für einen neuen Start verfügbar. Bereits gespeicherte Läufe findest du daneben.</p>' : forms.data.forms.map((form, i) => '<article class="mock-form"><h3>' + esc(form.title) + '</h3><p class="small muted mock-review-status">' + esc(mockReviewLabel(form)) + '</p><p>' + esc(form.item_count) + ' Aufgaben · ' + (form.mode === 'untimed' ? 'Ohne Zeitlimit' : 'Mit Zeitlimit') + '</p><p class="small muted">' + esc(form.exam_id) + ' · Formular ' + esc(form.version) + ' · Ausgabe ' + esc(form.release_version) + '</p><button class="btn btn-primary" type="button" data-mock-start="' + i + '">Neuen Lauf beginnen</button></article>').join(''))
+      + (!canEdit() ? '<p>Diese Vorbereitung ist archiviert. Gespeicherte Abschnitte bleiben lesbar.</p>' : !forms?.ok ? '<p class="err">Die verfügbaren Abschnitte konnten nicht geladen werden.</p>' : !(forms.data?.forms || []).length ? '<p>Zurzeit ist kein Abschnitt für einen neuen Start verfügbar. Bereits gespeicherte Läufe findest du daneben.</p>' : forms.data.forms.map((form, i) => '<article class="mock-form"><h3>' + esc(form.title) + '</h3><p class="small muted mock-review-status">' + esc(mockReviewLabel(form)) + '</p><p>' + (form.item_count ? esc(form.item_count) + ' Aufgaben' : '') + (form.writing_choice_count ? (form.item_count ? ' und ' : '') + 'eine Schreibaufgabe mit Auswahl' : '') + ' · ' + (form.mode === 'untimed' ? 'Ohne Zeitlimit' : 'Mit Zeitlimit') + '</p><p class="small muted">' + esc(form.exam_id) + ' · Formular ' + esc(form.version) + ' · Ausgabe ' + esc(form.release_version) + '</p><button class="btn btn-primary" type="button" data-mock-start="' + i + '">Neuen Lauf beginnen</button></article>').join(''))
       + '<p id="mock-start-state" role="status"></p><button class="btn" type="button" data-mock-refresh>Übersicht erneut laden</button></section><section class="stack"><h2>Deine gespeicherten Abschnitte</h2>' + (!runs?.ok ? '<p class="err">Der Verlauf konnte nicht geladen werden.</p>' : historyMarkup(rows)) + '</section></div>';
     host.onclick = async event => {
       if (event.target.closest('[data-mock-refresh]')) { await list(target); return; }
@@ -281,12 +363,12 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     };
   }
   function historyMarkup(rows) {
-    return rows.length ? rows.map(run => '<article class="card"><p class="kicker">' + esc(run.exam_id) + ' · Abschnittsübung</p><h3>' + esc(run.title) + '</h3><p class="small muted">Formular ' + esc(run.form_version) + ' · ' + esc(date(run.updated_at || run.created_at)) + '</p><p>' + (run.state === 'finalised' ? 'Abgeschlossen' : 'Gespeichert · noch offen') + '</p><a class="btn" data-mock-run="' + esc(run.id) + '" href="#/lauf/' + esc(run.id) + '">' + (run.state === 'finalised' || !canEdit() ? 'Ansehen' : 'Fortsetzen') + '</a></article>').join('') : '<article class="card"><p>Noch keine gespeicherten Abschnitte.</p></article>';
+    return rows.length ? rows.map(run => '<article class="card"><p class="kicker">' + esc(run.exam_id) + ' · Abschnittsübung</p><h3>' + esc(run.title) + '</h3><p class="small muted">Formular ' + esc(run.form_version) + ' · ' + esc(date(run.updated_at || run.created_at)) + '</p><p>' + (run.state === 'finalised' ? 'Abgeschlossen' : 'Gespeichert · noch offen') + '</p>' + (run.writing ? '<p>' + esc(mockWritingStatus(run.writing)) + '</p>' : '') + '<a class="btn" data-mock-run="' + esc(run.id) + '" href="#/lauf/' + esc(run.id) + '">' + (run.state === 'finalised' || !canEdit() ? 'Ansehen' : 'Fortsetzen') + '</a></article>').join('') : '<article class="card"><p>Noch keine gespeicherten Abschnitte.</p></article>';
   }
   return {
-    list, showRun, historyMarkup, refresh: render, flush: () => { clearTimeout(timer); return session.flush(); },
+    list, showRun, historyMarkup, refresh: render, flush: flushAll,
     get active() { return Boolean(session.state().run); }, get runId() { return session.state().run?.id; },
-    dispose() { generation++; stopTimers(); session.dispose(); if (host) { host.onclick = null; host.onchange = null; } host = null; startOperation = null; },
+    dispose() { generation++; stopTimers(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); session.dispose(); if (host) { host.onclick = null; host.onchange = null; } host = null; startOperation = null; },
     preserveOnUnload(event) { const state = session.state(); if (state.dirty || state.pending || state.busy) { event.preventDefault(); event.returnValue = ''; } },
   };
 }
