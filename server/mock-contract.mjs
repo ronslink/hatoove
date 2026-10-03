@@ -67,7 +67,7 @@ export function validateSaveMockRun(body) {
 export function mockMemberItems(member) {
   const p = member.payload;
   if (!object(p)) fail('invalid_mock_form');
-  if (member.interaction === 'grouped_choice') {
+  if (['grouped_choice', 'fixed_audio'].includes(member.interaction)) {
     let parsed;
     try { parsed = objectiveItems(p, member.interaction); } catch { fail('invalid_mock_form'); }
     if (parsed.length !== Number(member.item_count)) fail('invalid_mock_form');
@@ -105,3 +105,27 @@ export function validatePinnedSnapshot(members, responses, position) {
 }
 
 export const MOCK_METHODS = Object.freeze(['listMockForms', 'listMockRuns', 'startMockRun', 'readMockRun', 'saveMockRun', 'finaliseMockRun']);
+
+/** Windows are immutable; their active identity is always derived from server time. */
+export function mockTiming(groups, now) {
+  if (!groups?.length) return null;
+  const time = new Date(now).getTime();
+  const publicGroups = groups.map(g => ({ id: g.group_id, sections: g.sections,
+    starts_at: new Date(g.starts_at).toISOString(), deadline_at: new Date(g.deadline_at).toISOString() }));
+  return { policy: 'ordered-fixed-v1', active_group_id: publicGroups.find(g =>
+    time >= new Date(g.starts_at).getTime() && time < new Date(g.deadline_at).getTime())?.id ?? null, groups: publicGroups };
+}
+
+/** Compare presence as well as value: omission of a closed answer is a mutation. */
+export function validateGroupResponses(members, before, after, timing) {
+  if (!timing) return;
+  const active = timing.groups.find(g => g.id === timing.active_group_id)?.sections ?? [];
+  const key = r => JSON.stringify([r.setId, r.version, r.itemId]);
+  const old = new Map(before.map(r => [key(r), r])), next = new Map(after.map(r => [key(r), r]));
+  for (const id of new Set([...old.keys(), ...next.keys()])) {
+    const a = old.get(id), b = next.get(id);
+    if (a && b && a.answer === b.answer) continue;
+    const r = a ?? b, member = members.find(m => m.set_id === r.setId && m.version === r.version);
+    if (!member || !active.includes(member.section)) throw new Fault(409, 'mock_group_inactive');
+  }
+}

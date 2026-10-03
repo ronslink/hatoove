@@ -31,7 +31,7 @@
  */
 
 import { createExamCatalogue } from '../preparation-contract.mjs';
-import { readWritingTask, writingAccess, readWritingOrigin } from './packages.mjs';
+import { readWritingTask, writingAccess, readWritingOrigin, writingServable, readReleasedForm } from './packages.mjs';
 import { supportedWritingPolicy, DTZ_POLICY, DTZ_KIND, DTZ_INSTRUCTIONS } from '../writing-policy.mjs';
 import { randomUUID } from 'node:crypto';
 import { TELC_B1_WRITING_RUBRIC, FORMATIVE_WRITING_RUBRIC } from './content-seed.mjs';
@@ -336,9 +336,10 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
    * @returns {Promise<{claimed:false} | {claimed:true, submissionId:string, outcome:'succeeded'|'failed'|'stale'|'skipped', code?:string}>}
    */
   async function blockedAttached(client,runId) {
-    return Boolean(first(await client.query(`SELECT 1 FROM mock_run r JOIN exam_release_head h ON h.exam_id=r.exam_id
-      JOIN exam_release e ON e.exam_id=h.exam_id AND e.version=h.release_version
-      WHERE r.id=$1 AND coalesce(e.manifest #> '{release,resumeBlockedReleases}','[]'::jsonb) ? r.release_version`,[runId])));
+    const run=first(await client.query('SELECT * FROM mock_run WHERE id=$1',[runId]));
+    if(!run)return true;
+    const bundle=await readReleasedForm(client,{examId:run.exam_id,formId:run.form_id,formVersion:run.form_version,releaseVersion:run.release_version});
+    return !bundle||Boolean(bundle.blockedReason);
   }
   async function runOnce() {
     const token = randomUUID();
@@ -372,17 +373,28 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
      * result that must be refused. It is a preserved, unassessed failure: text kept, reservation refunded.
      */
     let rubric = rubricFor(row.rubric_id, row.rubric_version),task=null,policy=null,selectedOption=null;
-    if(rubric===undefined) {
-      if(!examCatalogue.isEnabled(row.exam_id)) return completeFailure({submissionId,token,code:UNSUPPORTED_RUBRIC});
-      task=await readWritingTask(pool,row.task_id,row.task_version);
-      if(task&&task.rubric_id===row.rubric_id&&task.rubric_version===row.rubric_version&&supportedWritingPolicy(task,row.exam_id)) {
-        if(await writingAccess(pool,task,{historical:true})) return completeFailure({submissionId,token,code:'content_unavailable'});
-        rubric={rubric_id:task.rubric_id,version:task.rubric_version,criteria:task.criteria,policy:task.policy,feedback_kind:task.feedback_kind};
-        policy=task.policy;
-        const origin=await readWritingOrigin(pool,row.attempt_id,row.owner_id);
-        selectedOption=origin?{choice_group_id:origin.choice_group_id,selected_option_id:origin.selected_option_id,run_id:origin.run_id}:null;
-        if(selectedOption&&await blockedAttached(pool,selectedOption.run_id)) return completeFailure({submissionId,token,code:'content_unavailable'});
-      }
+    // Package origin is independent of rubric dispatch. Assigned telc uses the known rubric,
+    // but still needs its exact prompt and pinned release checked before and after grading.
+    if(rubric===undefined&&!examCatalogue.isEnabled(row.exam_id)) return completeFailure({submissionId,token,code:UNSUPPORTED_RUBRIC});
+    const candidate=await readWritingTask(pool,row.task_id,row.task_version);
+    const origin=await readWritingOrigin(pool,row.attempt_id,row.owner_id);
+    const packageBound=Boolean(origin||candidate?.source_path?.startsWith('content/exams/'));
+    if(packageBound) {
+      if(!examCatalogue.isEnabled(row.exam_id)||!candidate||candidate.exam_id!==row.exam_id
+        ||candidate.rubric_id!==row.rubric_id||candidate.rubric_version!==row.rubric_version
+        ||!writingServable(candidate)||await writingAccess(pool,candidate,{historical:true})
+        ||(origin&&await blockedAttached(pool,origin.run_id)))
+        return completeFailure({submissionId,token,code:'content_unavailable'});
+      task=candidate;
+      selectedOption=origin?{binding_kind:origin.binding_kind||'choice',choice_group_id:origin.choice_group_id,selected_option_id:origin.selected_option_id,run_id:origin.run_id}:null;
+    }
+    if(rubric===undefined&&candidate&&candidate.rubric_id===row.rubric_id&&candidate.rubric_version===row.rubric_version
+      &&supportedWritingPolicy(candidate,row.exam_id)&&examCatalogue.isEnabled(row.exam_id)) {
+      if(!writingServable(candidate)||await writingAccess(pool,candidate,{historical:true}))
+        return completeFailure({submissionId,token,code:'content_unavailable'});
+      task=candidate;
+      rubric={rubric_id:task.rubric_id,version:task.rubric_version,criteria:task.criteria,policy:task.policy,feedback_kind:task.feedback_kind};
+      policy=task.policy;
     }
     if (rubric === undefined) return completeFailure({ submissionId, token, code: UNSUPPORTED_RUBRIC });
 
@@ -432,9 +444,12 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
         `SELECT a.deleted_at FROM attempts a JOIN submissions s ON s.id = $1 WHERE a.id = s.attempt_id`, [submissionId]));
       if (!attempt || attempt.deleted_at) return { claimed: true, submissionId, outcome: 'skipped', code: 'attempt_deleted' };
 
-      const task=rubricFor(row.rubric_id,row.rubric_version)===undefined?await readWritingTask(client,row.task_id,row.task_version):null;
-      const attachment=task?await readWritingOrigin(client,row.attempt_id,row.owner_id):null;
-      if(task?.policy&&(await writingAccess(client,task,{historical:true})||(attachment&&await blockedAttached(client,attachment.run_id)))) {
+      const task=await readWritingTask(client,row.task_id,row.task_version);
+      const attachment=await readWritingOrigin(client,row.attempt_id,row.owner_id);
+      const packageBound=Boolean(attachment||task?.source_path?.startsWith('content/exams/'));
+      if(packageBound&&(!examCatalogue.isEnabled(row.exam_id)||!task||task.exam_id!==row.exam_id
+        ||task.rubric_id!==row.rubric_id||task.rubric_version!==row.rubric_version||!writingServable(task)
+        ||await writingAccess(client,task,{historical:true})||(attachment&&await blockedAttached(client,attachment.run_id)))) {
         await client.query("UPDATE jobs SET status='failed',failure_code='content_unavailable',lease_token=NULL,lease_until=NULL WHERE id=$1",[job.id]);
         await client.query('UPDATE entitlements SET reserved=reserved-1 WHERE owner_id=$1 AND exam_id=$2',[job.owner_id,job.exam_id]);
         return {claimed:true,submissionId,outcome:'failed',code:'content_unavailable'};

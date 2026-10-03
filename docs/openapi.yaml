@@ -131,7 +131,7 @@ paths:
     put:
       tags: [mock-runs]
       summary: Save the complete answer snapshot and position
-      description: Revision starts at 1. Exact form item IDs and offered answers only. Writes serialize with finalisation, preparation archive and account deletion. An identical event retry returns the current safe acknowledgement; a stale new event conflicts. Finalised, expired, archived or rights-blocked runs cannot be saved.
+      description: Revision starts at 1. Exact form item IDs and offered answers only. Writes serialize with finalisation, preparation archive and account deletion. An identical event retry returns the current safe acknowledgement; a stale new event conflicts. Finalised, expired, archived or rights-blocked runs cannot be saved. Complete written runs permit changes only in the active fixed time group; closed and future answers must be retained unchanged, including in full snapshots.
       requestBody:
         required: true
         content:
@@ -148,8 +148,85 @@ paths:
       responses:
         '200': { description: 'Full run with the acknowledged revision.', content: { application/json: { schema: { $ref: '#/components/schemas/MockRun' } } } }
         '404': { description: 'Absent or owned by someone else.' }
-        '409': { description: 'Revision/event conflict, finalised, expired, archived or content blocked.' }
+        '409': { description: 'Revision/event conflict, finalised, expired, archived, content blocked or mock_group_inactive.' }
         '422': { description: 'Invalid answer, item, position or unknown request field.' }
+
+  /api/v1/mock-runs/{id}/playback:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [mock-runs]
+      summary: Read authoritative recording consumption for an active owned run
+      description: Reading does not consume a play. A returned playing record is uncertain and needs explicit same-play recovery. Finalised, expired, archived or rights-blocked playback refuses while saved responses remain readable through the run.
+      responses:
+        '200': { description: 'Pinned recording progress.', content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Playback' } } } } } } }
+        '404': { description: 'Absent or another owner.' }
+        '409': { description: 'Run no longer permits playback.' }
+    post:
+      tags: [mock-runs]
+      summary: Start, checkpoint, pause, complete or explicitly recover one recording
+      description: Session owner and pinned recording determine allowance. Revision is independent of answer autosave. Retrying an event is idempotent; a different body under the same event conflicts. Recover rotates the playback identity and cannot add an allowance. Failed pre-play loading consumes nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [eventId, mediaId, mediaVersion, expectedRevision, action]
+              properties:
+                eventId: { type: string, format: uuid }
+                mediaId: { type: string }
+                mediaVersion: { type: string }
+                expectedRevision: { type: integer, minimum: 0, maximum: 2147483646 }
+                action: { type: string, enum: [begin, checkpoint, pause, complete, recover] }
+                playbackId: { type: string, format: uuid, description: Required after begin; identifies the current play rather than an HTTP request. }
+                positionMs: { type: integer, minimum: 0, maximum: 3600000, description: Required for checkpoint/pause/complete; forbidden on recover. }
+      responses:
+        '200': { description: 'Current safe acknowledgement.', content: { application/json: { schema: { type: object, properties: { playback: { $ref: '#/components/schemas/Playback' } } } } } }
+        '404': { description: 'Absent, another owner or non-member recording.' }
+        '409': { description: 'Revision/event/playback conflict, exhausted allowance, recovery required, expired/finalised run or unavailable media.' }
+        '422': { description: 'Invalid or backward progress; unknown request fields.' }
+
+  /api/v1/mock-runs/{id}/media/{mediaId}/{version}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: mediaId
+        in: path
+        required: true
+        schema: { type: string }
+      - name: version
+        in: path
+        required: true
+        schema: { type: string }
+      - name: Range
+        in: header
+        schema: { type: string }
+    get:
+      tags: [mock-runs]
+      summary: Load exact private recording bytes for an active owned run
+      description: Membership, rights, session/account context and complete checksum are checked before response headers. Preload and byte ranges never consume a play. No public/static media equivalent exists. Replies use private no-store caching, checksum ETag and byte-range headers.
+      responses:
+        '200': { description: 'Exact complete PCM WAV.', content: { audio/wav: { schema: { type: string, format: binary } } } }
+        '206': { description: 'One satisfiable byte range, with Content-Range and exact Content-Length.' }
+        '404': { description: 'Absent, another owner or non-member recording.' }
+        '409': { description: 'Rights/access/deadline refusal or media unavailable/integrity failure.' }
+        '416': { description: 'Invalid, multiple or unsatisfiable byte range.' }
+    head:
+      tags: [mock-runs]
+      summary: Inspect the same protected recording headers without a response body
+      responses:
+        '200': { description: 'Same verified headers and Content-Length as GET; no response body.' }
+        '206': { description: 'Same range headers as GET; no response body.' }
+        '404': { description: 'Absent, another owner or non-member recording.' }
+        '409': { description: 'Rights/access/deadline refusal or media unavailable/integrity failure.' }
+        '416': { description: 'Invalid or unsatisfiable byte range.' }
 
   /api/v1/mock-runs/{id}/writing-choice:
     parameters:
@@ -936,12 +1013,14 @@ components:
         form_id: { type: string }
         version: { type: string }
         title: { type: string }
-        scope: { type: string, enum: [section] }
+        scope: { type: string, enum: [section, complete_supported_written] }
         sections: { type: array, items: { type: string } }
         mode: { type: string, enum: [untimed, timed] }
+        attempt_mode: { type: string, enum: [practice, mock] }
         time_limit_seconds: { type: integer, nullable: true }
         item_count: { type: integer }
         writing_choice_count: { type: integer, minimum: 0, maximum: 1 }
+        writing_task_count: { type: integer, minimum: 0, maximum: 1 }
         review_status: { type: string }
         release_state: { type: string, enum: [hidden, internal, available, withdrawn] }
     MockPosition:
@@ -960,6 +1039,46 @@ components:
         version: { type: string }
         itemId: { type: string }
         answer: { type: string, nullable: true }
+    Playback:
+      type: object
+      properties:
+        media_id: { type: string }
+        media_version: { type: string }
+        revision: { type: integer, minimum: 0 }
+        state: { type: string, enum: [ready, playing, paused, completed] }
+        plays_used: { type: integer, minimum: 0 }
+        max_plays: { type: integer, minimum: 1 }
+        position_ms: { type: integer, minimum: 0 }
+        duration_ms: { type: integer, minimum: 1 }
+        playback_id: { type: string, format: uuid, nullable: true }
+        uncertain: { type: boolean }
+        server_now: { type: string, format: date-time }
+    Recording:
+      type: object
+      properties:
+        id: { type: string }
+        media_id: { type: string }
+        media_version: { type: string }
+        label: { type: string }
+        duration_ms: { type: integer, minimum: 1 }
+        mime_type: { type: string, enum: [audio/wav] }
+        max_plays: { type: integer, minimum: 1 }
+    MockTiming:
+      type: object
+      nullable: true
+      description: Immutable ordered windows for complete written mocks; null for legacy section runs. Only the active group can change answers, writing or playback. Server time determines the active group.
+      properties:
+        policy: { type: string, enum: [ordered-fixed-v1] }
+        active_group_id: { type: string, nullable: true }
+        groups:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              sections: { type: array, items: { type: string } }
+              starts_at: { type: string, format: date-time }
+              deadline_at: { type: string, format: date-time }
     MockRunSummary:
       type: object
       properties:
@@ -973,8 +1092,9 @@ components:
         form_id: { type: string }
         form_version: { type: string }
         title: { type: string }
-        scope: { type: string, enum: [section] }
+        scope: { type: string, enum: [section, complete_supported_written] }
         mode: { type: string, enum: [untimed, timed] }
+        attempt_mode: { type: string, enum: [practice, mock], nullable: true }
         state: { type: string, enum: [active, finalised] }
         revision: { type: integer, minimum: 1 }
         created_at: { type: string, format: date-time }
@@ -984,6 +1104,7 @@ components:
         server_now: { type: string, format: date-time }
         expired: { type: boolean }
         writing: { $ref: '#/components/schemas/MockWriting' }
+        timing: { $ref: '#/components/schemas/MockTiming' }
         blocked_reason:
           type: string
           nullable: true
@@ -995,6 +1116,13 @@ components:
           properties:
             responses: { type: array, items: { $ref: '#/components/schemas/MockResponse' } }
             position: { $ref: '#/components/schemas/MockPosition' }
+            writing_task:
+              type: object
+              nullable: true
+              description: Exact assigned telc prompt; null for choice forms or blocked content. No A/B choice is offered for an assignment.
+              properties:
+                section: { type: string }
+                task: { $ref: '#/components/schemas/TaskVersion' }
             writing_choices:
               type: array
               description: Exact pinned A/B prompts, withheld when content is blocked. No assessment is implied by selection.
@@ -1018,9 +1146,10 @@ components:
                 properties:
                   set_id: { type: string }
                   version: { type: string }
-                  interaction: { type: string, enum: [matching_headlines, single_choice, matching_ads, gap_choice, gap_bank, grouped_choice] }
+                  interaction: { type: string, enum: [matching_headlines, single_choice, matching_ads, gap_choice, gap_bank, grouped_choice, fixed_audio] }
                   review_status: { type: string }
                   item_count: { type: integer }
+                  recordings: { type: array, items: { $ref: '#/components/schemas/Recording' } }
                   title: { type: string }
                   family: { type: string }
                   section: { type: string }
@@ -1029,7 +1158,7 @@ components:
             result:
               type: object
               nullable: true
-              description: Null while active, blocked, or in a writing-only run. Objective counts describe this section practice only; writing has its own assessment state.
+              description: Null while active, blocked, or in a writing-only run. Raw objective counts describe only this saved run; writing has its own assessment state. No official weighted score or overall pass result is returned.
               properties:
                 answered: { type: integer }
                 unanswered: { type: integer }
@@ -1051,10 +1180,11 @@ components:
     MockWriting:
       type: object
       nullable: true
-      description: The original writing attachment remains immutable when independent revisions are created. Null means no option was selected.
+      description: The original writing attachment remains immutable when independent revisions are created. Null means no writing task is attached. Assigned telc writing is attached atomically at start; choice fields are null.
       properties:
-        choice_group_id: { type: string }
-        selected_option_id: { type: string, enum: [A, B] }
+        binding_kind: { type: string, enum: [choice, assigned] }
+        choice_group_id: { type: string, nullable: true }
+        selected_option_id: { type: string, enum: [A, B], nullable: true }
         attempt_id: { type: string, format: uuid }
         draft_revision: { type: integer, minimum: 1 }
         submission_id: { type: string, format: uuid, nullable: true }

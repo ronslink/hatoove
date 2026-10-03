@@ -68,7 +68,7 @@ function invalidate(reason) {
   onSessionInvalid(reason);
   return refusal(reason === 'account_changed' ? 409 : 401, reason);
 }
-async function call(method, path, body, scoped = false) {
+async function call(method, path, body, scoped = false, binary = false) {
   const protectedRequest = path.startsWith('/api/v1/') || path === PATHS.signOut || path === PATHS.session;
   if (protectedRequest && stopped) {
     onSessionInvalid(stopped);
@@ -84,6 +84,7 @@ async function call(method, path, body, scoped = false) {
     res = await fetchImpl(path, {
       method,
       credentials: 'same-origin',
+      ...(binary ? { cache: 'no-store' } : {}),
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -99,7 +100,21 @@ async function call(method, path, body, scoped = false) {
     return refusal(0, 'network');
   }
   let payload = null;
-  try { payload = await res.json(); } catch { /* a refusal may carry no body; the status still counts */ }
+  try {
+    if (binary && res.ok) {
+      if (res.headers?.get('content-type')?.split(';')[0] !== 'audio/wav'
+        || Number(res.headers?.get('content-length')) > 33554432) return refusal(502, 'media_unavailable');
+      payload = await res.blob();
+      if (!payload.size || payload.size > 33554432) return refusal(502, 'media_unavailable');
+    } else payload = await res.json();
+  } catch {
+    if (binary && res.ok) {
+      if (ticket !== generation) return refusal(409, 'stale_session');
+      if (scoped && preparationTicket !== preparationGeneration) return refusal(409, 'stale_preparation');
+      return refusal(0, 'network');
+    }
+    // A refusal may carry no JSON body; its status still counts.
+  }
   // A transport may finish after another request invalidated this tab. Never render that response.
   if (ticket !== generation) return refusal(409, 'stale_session');
   if (protectedRequest && res.status === 401) return invalidate('session_expired');
@@ -190,8 +205,8 @@ return Object.freeze({
    *
    * The response carries NO answers, and that is not a convention this client is trusting: the server
    * does not select the key table AND the learner database role is not granted it, so a mistake here
-   * could not leak one. `media_required` sets are absent by design — the listening families have
-   * transcripts but no audio, and offering one would be a Hören task with nothing to hear.
+   * could not leak one. Listening sets are absent here: their playback needs a durable saved run
+   * and is offered through the mock form contract rather than stateless practice.
    */
   objectiveSets: Object.freeze({
     /** One set WITH its payload. The list is an index and carries none -- see the server's note. */
@@ -216,6 +231,9 @@ return Object.freeze({
     save: (id, payload) => call('PUT', PATHS.mockRuns + '/' + encodeURIComponent(id), payload, true),
     chooseWriting: (id, payload) => call('POST', PATHS.mockRuns + '/' + encodeURIComponent(id) + '/writing-choice', payload, true),
     finalise: (id, payload) => call('POST', PATHS.mockRuns + '/' + encodeURIComponent(id) + '/finalise', payload, true),
+    playback: id => call('GET', PATHS.mockRuns + '/' + encodeURIComponent(id) + '/playback', undefined, true),
+    playbackEvent: (id, payload) => call('POST', PATHS.mockRuns + '/' + encodeURIComponent(id) + '/playback', payload, true),
+    media: (id, mediaId, version) => call('GET', PATHS.mockRuns + '/' + encodeURIComponent(id) + '/media/' + encodeURIComponent(mediaId) + '/' + encodeURIComponent(version), undefined, true, true),
   }),
 
   /** The B1 word list. A reference lexicon: no answers, so nothing to withhold. */

@@ -26,7 +26,7 @@ export function writingPrompt(task, esc) {
 }
 
 /** Owned writing lifecycle. Drafts and submitted feedback stay on the server. */
-export function createWritingController({ api, esc, readAloud = null, onChange = () => {} }) {
+export function createWritingController({ api, esc, readAloud = null, onChange = () => {}, canEdit = () => true }) {
   let active = null;
   let serial = 0;
   let sessionBlocked = false;
@@ -67,7 +67,7 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
   async function save(s) {
     if (sessionBlocked) return false;
     if (!current(s) || !s.attempt || s.submission) return true;
-    if (s.blocked || s.readonly) return !dirty(s);
+    if (s.blocked || s.readonly || !canEdit()) return !dirty(s);
     if (s.conflict) return false;
     if (s.saving) { await s.saving; return current(s) && (dirty(s) ? save(s) : !s.conflict); }
     if (!dirty(s)) return true;
@@ -85,6 +85,11 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
       return true;
     }
     if (sessionBlocked) return false;
+    if (['mock_group_inactive', 'mock_expired', 'mock_finalised'].includes(res?.error)) {
+      s.error = res.error; s.area.readOnly = true;
+      say(s, '<p class="err">Die Schreibzeit ist beendet. Deine unbestätigte Eingabe bleibt zum Kopieren erhalten; sie wurde nicht als gespeichert bestätigt.</p>');
+      onChange(); return false;
+    }
     if (['rights_blocked', 'content_policy_blocked', 'exam_unavailable'].includes(res?.error)) {
       s.blocked = true; s.area.readOnly = true; s.task = {};
       s.host.querySelector('.writing-prompt')?.replaceChildren();
@@ -232,12 +237,12 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     if (result.data.task) s.task = { ...s.task, ...result.data.task };
     const linked = result.data.mock_run_id && !s.attached;
     if (linked) s.readonly = true;
-    host.innerHTML = `<div class="card"><div class="writing-prompt">${s.blocked ? '<h3>Gespeicherter Text</h3>' : prompt(s.task)}</div>${linked ? `<p>Dieser Text gehört zu einer gespeicherten Abschnittsübung.</p><a class="btn" href="#/lauf/${esc(result.data.mock_run_id)}">Abschnitt öffnen</a>` : ''}<label class="field-label" for="writing-text">Dein Text</label><textarea id="writing-text" class="writing-text" lang="de" rows="12" maxlength="12000" aria-describedby="writing-state"></textarea><p class="small muted">${s.blocked ? 'Die Aufgabe ist zurzeit gesperrt. Dein Text bleibt zum Kopieren sichtbar.' : s.readonly ? 'Gespeicherte Fassung · schreibgeschützt.' : s.attached ? 'Dein Entwurf wird beim Schreiben gespeichert. Wähle unten „Abschnitt abschließen“, um diese Fassung unverändert abzugeben.' : 'Dein Entwurf wird beim Schreiben gespeichert. Mit „Abgeben“ bleibt diese Fassung unverändert erhalten.'}</p><div class="row">${s.attached || s.readonly || s.blocked ? '' : button('writing-submit', 'Abgeben', true) + button('writing-new', 'Neu anfangen')}${close}</div><div id="writing-state" class="writing-state" role="status" aria-live="polite"><p class="muted">${s.saved ? 'Gespeicherter Entwurf fortgesetzt.' : 'Noch nichts abgegeben.'}</p></div>${s.blocked ? '' : '<details class="rubric-panel" id="writing-rubric"><summary>Wie wird bewertet?</summary><div id="writing-rubric-body">Wird geladen …</div></details>'}</div>`;
+    host.innerHTML = `<div class="card"><div class="writing-prompt">${s.blocked ? '<h3>Gespeicherter Text</h3>' : prompt(s.task)}</div>${linked ? `<p>Dieser Text gehört zu einem gespeicherten Prüfungslauf.</p><a class="btn" href="#/lauf/${esc(result.data.mock_run_id)}">Lauf öffnen</a>` : ''}<label class="field-label" for="writing-text">Dein Text</label><textarea id="writing-text" class="writing-text" lang="de" rows="12" maxlength="12000" aria-describedby="writing-state"></textarea><p class="small muted">${s.blocked ? 'Die Aufgabe ist zurzeit gesperrt. Dein Text bleibt zum Kopieren sichtbar.' : s.readonly ? 'Gespeicherte Fassung · schreibgeschützt.' : s.attached ? 'Dein Entwurf wird während der Schreibzeit gespeichert. Mit dem Abschließen des Laufs gibst du die bestätigte Fassung unverändert ab.' : 'Dein Entwurf wird beim Schreiben gespeichert. Mit „Abgeben“ bleibt diese Fassung unverändert erhalten.'}</p><div class="row">${s.attached || s.readonly || s.blocked ? '' : button('writing-submit', 'Abgeben', true) + button('writing-new', 'Neu anfangen')}${close}</div><div id="writing-state" class="writing-state" role="status" aria-live="polite"><p class="muted">${s.saved ? 'Gespeicherter Entwurf fortgesetzt.' : 'Noch nichts abgegeben.'}</p></div>${s.blocked ? '' : '<details class="rubric-panel" id="writing-rubric"><summary>Wie wird bewertet?</summary><div id="writing-rubric-body">Wird geladen …</div></details>'}</div>`;
     s.area = host.querySelector('#writing-text'); s.area.value = s.saved;
-    s.area.readOnly = s.readonly || s.blocked;
+    s.area.readOnly = s.readonly || s.blocked || !canEdit();
     s.status = host.querySelector('#writing-state');
     bindClose(s); void rubric(s, result.data.rubric);
-    s.area.addEventListener('input', () => { clearTimeout(s.timer); if (s.conflict) return; say(s, '<p class="muted">Noch nicht gespeichert …</p>'); s.timer = setTimeout(() => save(s), 600); });
+    s.area.addEventListener('input', () => { clearTimeout(s.timer); if (s.conflict || !canEdit()) return; say(s, '<p class="muted">Noch nicht gespeichert …</p>'); s.timer = setTimeout(() => save(s), 600); });
     const submitButton = host.querySelector('#writing-submit');
     if (submitButton) submitButton.onclick = async (e) => {
       const trigger = e.currentTarget;
@@ -284,5 +289,8 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     return true;
   }
   window.addEventListener('beforeunload', (event) => { if (dirty(active) || active?.saving) { event.preventDefault(); event.returnValue = ''; } });
-  return { open, flush, dispose, freeze(value) { if (active?.area) active.area.readOnly = value || active.readonly || active.blocked || Boolean(active.submission); }, get active() { return active; } };
+  return { open, flush, dispose,
+    async settle() { const s = active; if (s?.saving) await s.saving; return active === s; },
+    get localDraft() { return dirty(active) ? { attempt_id: active.attempt, revision: active.revision, text: active.area.value } : null; },
+    freeze(value) { if (value && active) clearTimeout(active.timer); if (active?.area) active.area.readOnly = value || active.readonly || active.blocked || Boolean(active.submission) || !canEdit(); }, get active() { return active; } };
 }

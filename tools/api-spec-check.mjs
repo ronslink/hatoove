@@ -62,7 +62,7 @@ for (const block of pathBlocks) {
   if (!pathMatch) continue;
   const pathname = pathMatch[1];
   const publicByDesign = /^\s+security: \[\]/m.test(block);
-  for (const methodMatch of block.matchAll(/^ {4}(get|post|put|delete|patch):/gm)) {
+  for (const methodMatch of block.matchAll(/^ {4}(get|head|post|put|delete|patch):/gm)) {
     operations.push({ pathname, method: methodMatch[1].toUpperCase(), publicByDesign });
   }
 }
@@ -94,12 +94,12 @@ pass('S0-spec-parseable', `${operations.length} operation(s) declared across ${p
 /** An anonymous request in the exact shape a route requires, so the auth answer is the only variable. */
 async function probe({ pathname, method }) {
   const headers = {};
-  if (method !== 'GET') { headers.origin = BASE; headers['content-type'] = 'application/json'; }
+  if (!['GET','HEAD'].includes(method)) { headers.origin = BASE; headers['content-type'] = 'application/json'; }
   try {
     const res = await fetch(`${BASE}${pathname}`, {
       method,
       headers,
-      body: method === 'GET' ? undefined : '{}',
+      body: ['GET','HEAD'].includes(method) ? undefined : '{}',
       redirect: 'manual',
       signal: AbortSignal.timeout(10000),
     });

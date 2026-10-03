@@ -30,7 +30,7 @@ export const AUTH_SUPPORT_TABLES = Object.freeze(['auth_throttle']);
  * Immutable by trigger; no runtime DML.
  */
 export const CONTENT_TABLES = Object.freeze(['content_version', 'rubric_version', 'task_version', 'content_rights',
-  'exam_blueprint','exam_release','exam_form','exam_form_member','exam_release_form']);
+  'exam_media','exam_blueprint','exam_release','exam_form','exam_form_member','exam_release_form']);
 
 /**
  * The migration-seeded reference catalogue (`0009`-`0014`): exam packages, objective sets (the
