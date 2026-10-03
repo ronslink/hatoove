@@ -43,7 +43,14 @@ function verifyResources() {
     if(kind==='container') {
       assert.ok(['db','checker'].includes(labels['com.docker.compose.service']),'known disposable service');
       assert.equal(Object.keys(row.HostConfig.PortBindings||{}).length,0,'no host ports');
-      assert.equal((row.HostConfig.Binds||[]).length,0,'no host bind mounts');
+      // Docker's HostConfig.Binds also contains named volumes; inspect the resolved mount type.
+      assert.equal((row.Mounts||[]).filter(mount=>mount.Type==='bind').length,0,'no host bind mounts');
+      for(const mount of row.Mounts||[]) {
+        assert.equal(mount.Type,'volume','only the named fixture database volume is allowed');
+        assert.equal(labels['com.docker.compose.service'],'db','only the database has a volume');
+        assert.equal(mount.Destination,'/var/lib/postgresql/data','only the database data path');
+        assert.equal(inspect('volume',mount.Name).Labels?.['com.docker.compose.project'],project,'mounted volume belongs to this project');
+      }
     }
     if(kind==='network')assert.equal(row.Internal,true,'no external egress');
     if(kind==='image')assert.deepEqual(row.RepoTags,[imageName],'only the generated image tag');
