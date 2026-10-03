@@ -36,6 +36,12 @@ The final browser evidence uses the exact delivered frontend. The subsequent bac
 
 Coordinator inspected `s1-preparation-desktop.png`, `s1-preparation-390-light.png` and `s1-settings-write-navigation-recovery.png` in the ignored `.qa/exam-s1-20261003/browser-third/` evidence directory. Preparation identity, exam credits, catalogue controls and recovery messages are readable; narrow layouts have no horizontal overflow. Unique document tokens in the S0/S1 browser helpers prevent hash-only reload races from measuring the preceding page. The failed diagnostic runs are retained rather than counted as passing evidence.
 
+## Integration and local refresh
+
+[PR #105](https://github.com/ronslink/hatoove/pull/105) merged on 3 October 2026 at 08:24 UTC as `bcd69b7c493e92788e8bc5b4705631cabe09226f`. Reviewed head `da1f2fa55d2734ae0982a296ee279ba86b1e015b` passed all seven applicable CI jobs in runs `37109440009` and `37109439962`; the scheduled/manual rendered job was skipped as designed. Final staged screening covered 482 tracked files and 395 text blobs.
+
+The canonical checkout was fast-forwarded and only the local app/worker refreshed after a private database backup. The original database volume remained in place. Migration 0023 applied, retained counters and balance/draft/submission/feedback fingerprints were unchanged, and unresolved attempt/evidence counts were zero. Readiness returned 200, the app was healthy, and the saved local review account signed in and resumed its telc preparation. All task-only fixture projects were disposed; raw evidence, backup and reusable credentials remain ignored local files. Hetzner cleanup and older paused work remain untouched.
+
 ## Next slice and remaining gates
 
 S2 introduces the minimal release/importer contract and a saved telc section mock with exact pinned task versions and durable run recovery. It must retain S1 preparation and exam-credit boundaries, use honest section-practice labels, and keep unsupported complete mocks unavailable. DTZ releases only with supported reading, listening and writing together, one playback per recording in both modes, and exam-specific credits. English remains a later candidate.
