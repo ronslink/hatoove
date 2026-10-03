@@ -63,7 +63,12 @@ async function learner() {
   assert.equal(created.status, 200, `sign-up: ${created.text.slice(0, 120)}`);
   const raw = created.text;
   const cookie = (await world.api.handle({ method: 'POST', path: '/api/auth/sign-in/email', headers: { 'content-type': 'application/json' }, originChecked: true, body: JSON.stringify({ email, password: 'pw-rights-synthetic' }) })).headers['set-cookie'];
-  return { email, cookie: String(cookie).split(';')[0], raw };
+  const sessionCookie = String(cookie).split(';')[0];
+  const preparations = await call('GET', '/api/v1/preparations', { cookie: sessionCookie });
+  assert.equal(preparations.status, 200);
+  const preparation = preparations.json.preparations.find(row => row.exam_id === 'telc-deutsch-b1');
+  assert.ok(preparation, 'synthetic learner has a telc preparation');
+  return { email, cookie: sessionCookie, raw, preparationId: preparation.id };
 }
 
 /*
@@ -113,7 +118,7 @@ check('3. the served catalogue reports the recorded basis, not "unknown"', async
    */
   const shapes = [];
   for (const path of ['/api/v1/objective-sets', '/api/v1/tasks', '/api/v1/vocab']) {
-    const res = await call('GET', path, { cookie: who.cookie });
+    const res = await call('GET', path + '?preparationId=' + who.preparationId, { cookie: who.cookie });
     assert.equal(res.status, 200, `${path}: ${res.text.slice(0, 120)}`);
     assert.ok(Array.isArray(res.json), `${path} is expected to answer a bare array; got ${typeof res.json}`);
     const wrong = res.json.filter((row) => row.rights_status !== 'generated');
@@ -178,25 +183,25 @@ check('5. content with no rights basis is refused while generated content is ser
   await makeRow('licensed');
 
   const who = await learner();
-  const listed = await call('GET', '/api/v1/objective-sets?family=LV1', { cookie: who.cookie });
+  const listed = await call('GET', '/api/v1/objective-sets?family=LV1&preparationId=' + who.preparationId, { cookie: who.cookie });
   assert.equal(listed.status, 200, listed.text.slice(0, 120));
   const titles = (listed.json || []).map((set) => set.title);
   assert.ok(titles.includes('Probe generated'), `generated content must be served; got ${JSON.stringify(titles)}`);
   assert.ok(!titles.includes('Probe unknown'), 'unaccepted content must be excluded from the catalogue');
   assert.ok(!titles.includes('Probe missing'), 'a missing rights decision must fail closed');
   assert.ok(!titles.includes('Probe licensed'), 'an unconfigured basis must fail closed');
-  const refused = await call('GET', `/api/v1/objective-sets/${suffix}.unknown?version=v1`, { cookie: who.cookie });
+  const refused = await call('GET', `/api/v1/objective-sets/${suffix}.unknown?version=v1&preparationId=${who.preparationId}`, { cookie: who.cookie });
   assert.equal(refused.status, 404, 'a direct content URL must not bypass the rights gate');
-  const accepted = await call('GET', `/api/v1/objective-sets/${suffix}.generated?version=v1`, { cookie: who.cookie });
+  const accepted = await call('GET', `/api/v1/objective-sets/${suffix}.generated?version=v1&preparationId=${who.preparationId}`, { cookie: who.cookie });
   assert.equal(accepted.status, 200, 'the generated control must remain readable');
   const marking = await call('POST', `/api/v1/objective-sets/${suffix}.unknown/answers`, {
-    cookie: who.cookie, body: { version: 'v1', itemId: '1', answer: 'a' },
+    cookie: who.cookie, body: { preparationId: who.preparationId, version: 'v1', itemId: '1', answer: 'a' },
   });
   assert.equal(marking.status, 404, 'marking must reject a withheld set before looking up its key');
   const previous = process.env.B1PREP_SERVE_RIGHTS;
   try {
     process.env.B1PREP_SERVE_RIGHTS = 'generated,licensed,unknown';
-    const widened = await call('GET', '/api/v1/objective-sets?family=LV1', { cookie: who.cookie });
+    const widened = await call('GET', '/api/v1/objective-sets?family=LV1&preparationId=' + who.preparationId, { cookie: who.cookie });
     assert.equal(widened.status, 200);
     const allowed = widened.json.map((row) => row.title);
     assert.ok(allowed.includes('Probe generated') && allowed.includes('Probe licensed'));

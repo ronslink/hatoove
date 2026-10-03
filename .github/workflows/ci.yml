@@ -129,6 +129,11 @@ jobs:
         run: node tools/exam-s5-media-check.mjs
       - name: Listening client loading and interrupted-play recovery
         run: node tools/exam-s5-client-check.mjs
+      - name: Complete written mock package, timing and assigned client contracts
+        run: |
+          node tools/exam-s5b-package-check.mjs
+          node tools/exam-s5b-backend-check.mjs
+          node tools/exam-s5b-client-check.mjs
       - name: Payment signatures, test provider and activation refusals
         run: node tools/payment-path-check.mjs
       - name: Payment API ownership and exact webhook boundary
@@ -233,6 +238,11 @@ jobs:
         run: node tools/exam-s5-package-pg-check.mjs
       - name: Owned playback concurrency, recovery and deletion
         run: node tools/exam-s5-media-pg-check.mjs
+      - name: Complete written mocks, immutable timing and rights-fenced grading
+        run: |
+          node tools/exam-s5b-package-pg-check.mjs
+          node tools/exam-s5b-backend-pg-check.mjs
+          node tools/exam-s5b-worker-check.mjs
       - name: Payment upgrade, ownership, concurrent grants and expiry
         run: node tools/payments-pg-check.mjs
       - name: Bounded readiness probes recover after a real PostgreSQL connection loss
@@ -336,6 +346,11 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s5-browser-check.mjs
+      - name: Complete written mock boundaries and assigned or choice writing
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/exam-s5b-browser-check.mjs
       # THE SCREENSHOTS ARE THE EVIDENCE, and they live in a gitignored directory that dies with the runner.
       # They are listed on failure so the log says where to look and what was captured; uploading them as an
       # artifact needs a pinned third-party action, which is a decision for the coordinator rather than one I

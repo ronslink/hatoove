@@ -131,7 +131,7 @@ paths:
     put:
       tags: [mock-runs]
       summary: Save the complete answer snapshot and position
-      description: Revision starts at 1. Exact form item IDs and offered answers only. Writes serialize with finalisation, preparation archive and account deletion. An identical event retry returns the current safe acknowledgement; a stale new event conflicts. Finalised, expired, archived or rights-blocked runs cannot be saved.
+      description: Revision starts at 1. Exact form item IDs and offered answers only. Writes serialize with finalisation, preparation archive and account deletion. An identical event retry returns the current safe acknowledgement; a stale new event conflicts. Finalised, expired, archived or rights-blocked runs cannot be saved. Complete written runs permit changes only in the active fixed time group; closed and future answers must be retained unchanged, including in full snapshots.
       requestBody:
         required: true
         content:
@@ -148,7 +148,7 @@ paths:
       responses:
         '200': { description: 'Full run with the acknowledged revision.', content: { application/json: { schema: { $ref: '#/components/schemas/MockRun' } } } }
         '404': { description: 'Absent or owned by someone else.' }
-        '409': { description: 'Revision/event conflict, finalised, expired, archived or content blocked.' }
+        '409': { description: 'Revision/event conflict, finalised, expired, archived, content blocked or mock_group_inactive.' }
         '422': { description: 'Invalid answer, item, position or unknown request field.' }
 
   /api/v1/mock-runs/{id}/playback:
@@ -1013,13 +1013,14 @@ components:
         form_id: { type: string }
         version: { type: string }
         title: { type: string }
-        scope: { type: string, enum: [section] }
+        scope: { type: string, enum: [section, complete_supported_written] }
         sections: { type: array, items: { type: string } }
         mode: { type: string, enum: [untimed, timed] }
         attempt_mode: { type: string, enum: [practice, mock] }
         time_limit_seconds: { type: integer, nullable: true }
         item_count: { type: integer }
         writing_choice_count: { type: integer, minimum: 0, maximum: 1 }
+        writing_task_count: { type: integer, minimum: 0, maximum: 1 }
         review_status: { type: string }
         release_state: { type: string, enum: [hidden, internal, available, withdrawn] }
     MockPosition:
@@ -1062,6 +1063,22 @@ components:
         duration_ms: { type: integer, minimum: 1 }
         mime_type: { type: string, enum: [audio/wav] }
         max_plays: { type: integer, minimum: 1 }
+    MockTiming:
+      type: object
+      nullable: true
+      description: Immutable ordered windows for complete written mocks; null for legacy section runs. Only the active group can change answers, writing or playback. Server time determines the active group.
+      properties:
+        policy: { type: string, enum: [ordered-fixed-v1] }
+        active_group_id: { type: string, nullable: true }
+        groups:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              sections: { type: array, items: { type: string } }
+              starts_at: { type: string, format: date-time }
+              deadline_at: { type: string, format: date-time }
     MockRunSummary:
       type: object
       properties:
@@ -1075,7 +1092,7 @@ components:
         form_id: { type: string }
         form_version: { type: string }
         title: { type: string }
-        scope: { type: string, enum: [section] }
+        scope: { type: string, enum: [section, complete_supported_written] }
         mode: { type: string, enum: [untimed, timed] }
         attempt_mode: { type: string, enum: [practice, mock], nullable: true }
         state: { type: string, enum: [active, finalised] }
@@ -1087,6 +1104,7 @@ components:
         server_now: { type: string, format: date-time }
         expired: { type: boolean }
         writing: { $ref: '#/components/schemas/MockWriting' }
+        timing: { $ref: '#/components/schemas/MockTiming' }
         blocked_reason:
           type: string
           nullable: true
@@ -1098,6 +1116,13 @@ components:
           properties:
             responses: { type: array, items: { $ref: '#/components/schemas/MockResponse' } }
             position: { $ref: '#/components/schemas/MockPosition' }
+            writing_task:
+              type: object
+              nullable: true
+              description: Exact assigned telc prompt; null for choice forms or blocked content. No A/B choice is offered for an assignment.
+              properties:
+                section: { type: string }
+                task: { $ref: '#/components/schemas/TaskVersion' }
             writing_choices:
               type: array
               description: Exact pinned A/B prompts, withheld when content is blocked. No assessment is implied by selection.
@@ -1133,7 +1158,7 @@ components:
             result:
               type: object
               nullable: true
-              description: Null while active, blocked, or in a writing-only run. Objective counts describe this section practice only; writing has its own assessment state.
+              description: Null while active, blocked, or in a writing-only run. Raw objective counts describe only this saved run; writing has its own assessment state. No official weighted score or overall pass result is returned.
               properties:
                 answered: { type: integer }
                 unanswered: { type: integer }
@@ -1155,10 +1180,11 @@ components:
     MockWriting:
       type: object
       nullable: true
-      description: The original writing attachment remains immutable when independent revisions are created. Null means no option was selected.
+      description: The original writing attachment remains immutable when independent revisions are created. Null means no writing task is attached. Assigned telc writing is attached atomically at start; choice fields are null.
       properties:
-        choice_group_id: { type: string }
-        selected_option_id: { type: string, enum: [A, B] }
+        binding_kind: { type: string, enum: [choice, assigned] }
+        choice_group_id: { type: string, nullable: true }
+        selected_option_id: { type: string, enum: [A, B], nullable: true }
         attempt_id: { type: string, format: uuid }
         draft_revision: { type: integer, minimum: 1 }
         submission_id: { type: string, format: uuid, nullable: true }

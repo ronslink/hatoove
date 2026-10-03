@@ -48,9 +48,14 @@ try {
   const a=await owner('a');const b=await owner('b');
   await check('forward migration preserves existing telc run and protected function/grant boundaries',async()=>{
     const form=(await port.listMockForms(a.id,{preparationId:a.telc.id}))[0];
-    const old=(await port.startMockRun(a.id,{preparationId:a.telc.id,formId:form.form_id,formVersion:form.version,releaseVersion:form.release_version,eventId:randomUUID()})).run;
+    // Exercise the historical schema through its own SQL grant, not a latest-schema adapter.
+    const old=await sqlAs(a.id,async c=>(await c.query(`INSERT INTO mock_run
+      (id,owner_id,preparation_id,exam_id,release_version,blueprint_version,form_id,form_version,start_event_id,title,scope,mode)
+      SELECT $1,$2,$3,f.exam_id,$4,f.blueprint_version,f.form_id,f.version,$5,f.payload->>'title',f.payload->>'scope',f.payload->>'mode'
+      FROM exam_form f WHERE f.exam_id=$6 AND f.form_id=$7 AND f.version=$8 RETURNING *`,
+      [randomUUID(),a.id,a.telc.id,form.release_version,randomUUID(),TELC,form.form_id,form.version])).rows[0]);
     const before=(await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0];
-    assert.deepEqual(await db.applyRemaining(),['0026-grouped-objective-runs.sql','0027-dtz-writing.sql','0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql']);
+    assert.deepEqual(await db.applyRemaining(),['0026-grouped-objective-runs.sql','0027-dtz-writing.sql','0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql']);
     assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0],before);
     assert.equal((await finalise(a,old)).result.total,20);
     const functions=(await db.admin.query("SELECT proname,prosecdef,proconfig FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname IN ('protect_mock_run','finalise_mock_run')")).rows;

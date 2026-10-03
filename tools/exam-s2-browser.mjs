@@ -58,7 +58,7 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
       try {
         await go('abschnitt');await Promise.race([requested,new Promise((_,reject)=>setTimeout(()=>reject(Error('loading fixture request missing')),10000))]);
         assert(await cdp.evaluate("return document.querySelector('#mock-host').textContent.includes('werden geladen')"),'loading state missing');await shot(cdp,'s2-loading-desktop-light');release();
-        await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('Zurzeit ist kein Abschnitt') && document.querySelector('#mock-host').textContent.includes('Noch keine gespeicherten')");await shot(cdp,'s2-empty-desktop-light');
+        await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('Zurzeit ist kein Lauf') && document.querySelector('#mock-host').textContent.includes('Noch keine gespeicherten')");await shot(cdp,'s2-empty-desktop-light');
       } finally {release();await stopIntercept();}
       await intercept('Request',async event=>{if(event.request.method==='GET'){await reply(event,{error:'unavailable'},503);return true;}return false;},'*/api/v1/mock-*');
       try {await clickSel(cdp,'[data-mock-refresh]');await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('konnten nicht geladen')");await shot(cdp,'s2-unavailable-desktop-light');}finally{await stopIntercept();}
