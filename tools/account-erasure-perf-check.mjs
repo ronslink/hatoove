@@ -11,6 +11,7 @@ import { createPostgresAccountDeletion, ACCOUNT_DELETION_STEPS, ACCOUNT_TABLES }
 
 const COHORTS = Object.freeze([100, 1000, 10000]);
 const OPT_IN_COHORTS = Object.freeze([...COHORTS, 100001]);
+const MAX_SEED_BATCH = 10000;
 const PHASES = new Set(['fixture_bootstrap', 'seed_owner', 'seed_bulk_intents', 'seed_cardinality',
   'snapshot_target_before', 'snapshot_rollback', 'snapshot_cancel', 'snapshot_target_after',
   'snapshot_foreign_before', 'snapshot_foreign_after', 'snapshot_foreign_final']);
@@ -48,6 +49,28 @@ export function stepLabel(sql) {
 }
 function errorCode(error) {
   return /^[A-Z0-9]{5}$/.test(error?.code || '') ? error.code : null;
+}
+function claimBatches(count) {
+  if (!Number.isSafeInteger(count) || count < 1 || count > 100001) throw Error('erasure_batch_count_refused');
+  const batches = [];
+  // Claim 1 already exists: it was created through the restricted worker entry point.
+  for (let first = 2; first <= count; first += MAX_SEED_BATCH) {
+    const last = Math.min(count, first + MAX_SEED_BATCH - 1);
+    batches.push({ ordinal: batches.length + 1, first, last, count: last - first + 1 });
+  }
+  return batches;
+}
+async function seedBatches(report, count, insert) {
+  for (const batch of claimBatches(count)) {
+    const started = performance.now(); let outcome = 'ok';
+    try { await insert(batch); }
+    catch (error) { outcome = 'error'; throw error; }
+    finally {
+      // Fixed numeric diagnostics only; never expose the template, SQL or query arguments.
+      report.batchTimings.push({ ordinal: batch.ordinal, count: batch.count,
+        elapsedMs: Math.round((performance.now() - started) * 1000) / 1000, outcome });
+    }
+  }
 }
 async function phase(report, label, count, work) {
   if (!PHASES.has(label) || !(count === null || count === 1 || OPT_IN_COHORTS.includes(count))) throw Error('erasure_phase_refused');
@@ -205,7 +228,7 @@ export async function runDiagnostic(cohorts = COHORTS) {
   const report = { kind: 'synthetic-account-erasure-diagnostic', status: 'failed', shape: 'one-submission,distinct-intents,no-observations',
     deadlineScope: 'per-deletion; cancellation/termination grace is additional', deletionDeadlineMs: LIMITS.deletionMs,
     connectionTimeoutMs: 5000, observerStatementTimeoutMs: 10000, bootstrapGlobalCancellation: false, requiresSupervisedOuterProcessBound: true,
-    requestedCohorts: cohorts, phaseTimings: [], cohorts: [], controls: [], cleanupVerified: false, performanceClaim: false };
+    requestedCohorts: cohorts, phaseTimings: [], batchTimings: [], cohorts: [], controls: [], cleanupVerified: false, performanceClaim: false };
   let db, world, observer, baseline, admin, foreign, foreignBefore;
   const state = { faults: [], clients: new WeakSet(), aborted: false };
   const pg = createRequire(new URL('../server/owned-postgres/bootstrap.mjs', import.meta.url))('pg');
@@ -253,8 +276,21 @@ export async function runDiagnostic(cohorts = COHORTS) {
         return { owner, template };
       });
       // Same explicit volume seam as O01's cap fixture: all INSERT guards/FKs remain enabled.
-      await phase(report, 'seed_bulk_intents', count, () => admin.query(`INSERT INTO provider_attempt SELECT r.* FROM generate_series(2,$2::int) n
-        CROSS JOIN LATERAL jsonb_populate_record(NULL::provider_attempt,$1::jsonb||jsonb_build_object('attempt_id',gen_random_uuid(),'claim_number',n)) r`, [JSON.stringify(template), count]));
+      await phase(report, 'seed_bulk_intents', count, async () => {
+        if (count === 100001) {
+          assert.equal(template.claim_number, 1);
+          await seedBatches(report, count, async (batch) => {
+            requireHealthy(state);
+            const inserted = await admin.query(`INSERT INTO provider_attempt SELECT r.* FROM generate_series($2::int,$3::int) n
+              CROSS JOIN LATERAL jsonb_populate_record(NULL::provider_attempt,$1::jsonb||jsonb_build_object('attempt_id',gen_random_uuid(),'claim_number',n)) r`,
+            [JSON.stringify(template), batch.first, batch.last]);
+            assert.equal(inserted.rowCount, batch.count);
+          });
+        } else {
+          await admin.query(`INSERT INTO provider_attempt SELECT r.* FROM generate_series(2,$2::int) n
+            CROSS JOIN LATERAL jsonb_populate_record(NULL::provider_attempt,$1::jsonb||jsonb_build_object('attempt_id',gen_random_uuid(),'claim_number',n)) r`, [JSON.stringify(template), count]);
+        }
+      });
       const counts = await phase(report, 'seed_cardinality', count, async () => (await admin.query(`SELECT (SELECT count(*)::int FROM submissions WHERE owner_id=$1) submissions,
         (SELECT count(*)::int FROM provider_attempt WHERE owner_id=$1) intents,
         (SELECT count(*)::int FROM provider_attempt_observation WHERE owner_id=$1) observations`, [owner])).rows[0]);
@@ -320,6 +356,31 @@ export async function offlineChecks() {
   assert.equal(parseOptions(['--postgres']).cohorts.includes(100001), false);
   for (const n of OPT_IN_COHORTS) assert.deepEqual(parseOptions(['--postgres', `--cohort=${n}`]).cohorts, [n]);
   for (const arg of ['--cohort=100002', '--cohort=1000000', '--cohort=0', '--cohort=0100', '--anything']) assert.throws(() => parseOptions(['--postgres', arg]));
+  for (const count of [1, 2, 100, 10000, 10001, 10002, 100001]) {
+    const batches = claimBatches(count), claims = [1];
+    for (const [index, batch] of batches.entries()) {
+      assert.equal(batch.ordinal, index + 1); assert(batch.count > 0 && batch.count <= MAX_SEED_BATCH);
+      assert.equal(batch.count, batch.last - batch.first + 1);
+      for (let claim = batch.first; claim <= batch.last; claim++) claims.push(claim);
+    }
+    assert.equal(claims.length, count); assert.equal(new Set(claims).size, count);
+    assert.equal(claims[0], 1); assert.equal(claims.at(-1), count);
+    assert(claims.every((claim, index) => claim === index + 1));
+  }
+  assert.deepEqual(claimBatches(1), []);
+  assert.deepEqual(claimBatches(100001).at(-1), { ordinal: 10, first: 90002, last: 100001, count: 10000 });
+  for (const count of [0, -1, 1.5, NaN, Infinity, 100002]) assert.throws(() => claimBatches(count), /erasure_batch_count_refused/);
+  const batchReport = { batchTimings: [] }, executedBatches = [];
+  const batchError = Error('PRIVATE batch sentinel');
+  await assert.rejects(seedBatches(batchReport, 100001, async (batch) => {
+    executedBatches.push(batch.ordinal); if (batch.ordinal === 2) throw batchError;
+  }), (error) => error === batchError);
+  assert.deepEqual(executedBatches, [1, 2], 'a failed batch must stop every later insert');
+  assert.deepEqual(batchReport.batchTimings.map(({ ordinal, count, outcome }) => ({ ordinal, count, outcome })),
+    [{ ordinal: 1, count: 10000, outcome: 'ok' }, { ordinal: 2, count: 10000, outcome: 'error' }]);
+  assert(batchReport.batchTimings.every((batch) => Number.isFinite(batch.elapsedMs) && batch.elapsedMs >= 0));
+  assert(batchReport.batchTimings.every((batch) => Object.keys(batch).sort().join(',') === 'count,elapsedMs,ordinal,outcome'));
+  assert.equal(JSON.stringify(batchReport).includes('PRIVATE'), false);
   const phaseReport = { phaseTimings: [] };
   assert.equal(await phase(phaseReport, 'seed_bulk_intents', 100001, async () => 7), 7);
   const timeout = Object.assign(Error('PRIVATE phase sentinel'), { code: '57014' });
@@ -359,7 +420,7 @@ export async function offlineChecks() {
     else { assert.equal((await port.deleteAccount('synthetic-offline-owner')).verifiedAbsent, true); assert.equal(seen.at(-1), 'commit'); assert.equal(seen.filter((label) => label.startsWith('delete:')).length, ACCOUNT_DELETION_STEPS.length); }
     assert.equal(released, 1);
   }
-  return { status: 'pass', targetControls: 7, cohortControls: 12, phaseControls: 4, fixedDeletionLabels: ACCOUNT_DELETION_STEPS.length, actualPortOfflinePaths: 2, emitterFaultControls: 3, databaseAccess: false };
+  return { status: 'pass', targetControls: 7, cohortControls: 12, batchRangeControls: 13, batchFailureControls: 1, phaseControls: 4, fixedDeletionLabels: ACCOUNT_DELETION_STEPS.length, actualPortOfflinePaths: 2, emitterFaultControls: 3, databaseAccess: false };
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
