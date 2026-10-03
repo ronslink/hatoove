@@ -95,7 +95,9 @@ try {
     assert.ok(!JSON.stringify(run.members).includes('Synthetic explanation'));
     assert.equal(await count('item_evidence',a.id),0);
     assert.ok(!(Object.keys(run).includes('owner_id')));
-    for(const operation of [port.readMockRun(b.id,run.id),port.saveMockRun(b.id,run.id,snapshot(1)),finalise(b,run)])await rejects(operation,'not_found',404);
+    // Create each expected rejection only when its assertion is attached; eager siblings can reject
+    // before the preceding query settles and terminate Node as an unhandled rejection.
+    for(const operation of [()=>port.readMockRun(b.id,run.id),()=>port.saveMockRun(b.id,run.id,snapshot(1)),()=>finalise(b,run)])await rejects(operation(),'not_found',404);
     await rejects(port.listMockRuns(b.id,{preparationId:a.prep.id}),'not_found',404);
     await rejects(start(b,{preparationId:a.prep.id}),'not_found',404);
     await asLearner(b.id,async c=>assert.equal((await c.query('SELECT * FROM mock_run WHERE id=$1',[run.id])).rowCount,0));
