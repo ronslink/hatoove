@@ -1,11 +1,123 @@
 -- DTZ public admission is one complete, approved current package. History is not rewritten.
+-- Match package-contract.mjs text bounds in UTF-16 code units, including supplementary characters.
+CREATE FUNCTION "__SCHEMA__".s6_payload_text(p_value jsonb,p_max integer) RETURNS boolean
+ LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,"__SCHEMA__" AS $fn$
+ SELECT coalesce(jsonb_typeof(p_value)='string' AND length(p_value#>>'{}')>0
+  AND length(p_value#>>'{}')+length(regexp_replace((p_value#>>'{}') COLLATE "C",U&'[\0001-\FFFF]','','g'))<=p_max,false)
+$fn$;
+REVOKE ALL ON FUNCTION "__SCHEMA__".s6_payload_text(jsonb,integer) FROM PUBLIC;
+
+-- JSON numeric identifiers follow Number.isSafeInteger and String(number); text IDs keep their bytes.
+CREATE FUNCTION "__SCHEMA__".s6_payload_identity(p_value jsonb,p_max integer) RETURNS text
+ LANGUAGE plpgsql IMMUTABLE SET search_path=pg_catalog,"__SCHEMA__" AS $fn$
+DECLARE identity text; n numeric;
+BEGIN
+ IF jsonb_typeof(p_value)='string' THEN identity:=p_value#>>'{}';
+ ELSIF jsonb_typeof(p_value)='number' THEN
+  n:=(p_value#>>'{}')::numeric;
+  IF n<>trunc(n) OR abs(n)>9007199254740991 THEN RETURN NULL; END IF;
+  identity:=trim_scale(n)::text;
+ ELSE RETURN NULL; END IF;
+ IF length(identity) NOT BETWEEN 1 AND p_max OR identity COLLATE "C" !~ '^[a-zA-Z0-9][a-zA-Z0-9._-]*$' THEN RETURN NULL; END IF;
+ RETURN identity;
+END $fn$;
+REVOKE ALL ON FUNCTION "__SCHEMA__".s6_payload_identity(jsonb,integer) FROM PUBLIC;
+
+-- Private canonical public-objective contract. Only the five supported DTZ interactions are admitted.
+-- No payload is returned to callers. Keep parity probes against objectiveItems/readReleasedForm.
+CREATE FUNCTION "__SCHEMA__".complete_dtz_objective_eligible(p jsonb,interaction text,item_count integer,answers jsonb)
+ RETURNS boolean LANGUAGE plpgsql IMMUTABLE SET search_path=pg_catalog,"__SCHEMA__" AS $fn$
+DECLARE rows jsonb; item jsonb; group_item jsonb; option_item jsonb; offered text[]; ids text[]:=ARRAY[]::text[];
+ group_ids text[]:=ARRAY[]::text[]; media_ids text[]:=ARRAY[]::text[]; identity text; group_id text; media_id text;
+ -- ECMAScript trim whitespace, used only for the canonical audio/group nonblank requirements.
+ whitespace text:=U&'[\0009-\000D\0020\00A0\1680\2000-\200A\2028\2029\202F\205F\3000\FEFF]';
+BEGIN
+ IF jsonb_typeof(p) IS DISTINCT FROM 'object' OR interaction NOT IN ('fixed_audio','grouped_choice','single_choice','matching_ads','gap_choice') THEN RETURN false; END IF;
+ IF EXISTS(WITH RECURSIVE nodes(value) AS (
+   SELECT p UNION ALL
+   SELECT child.value FROM nodes n CROSS JOIN LATERAL (
+    SELECT e.value FROM jsonb_each(CASE WHEN jsonb_typeof(n.value)='object' THEN n.value ELSE '{}'::jsonb END) e
+    UNION ALL SELECT a.value FROM jsonb_array_elements(CASE WHEN jsonb_typeof(n.value)='array' THEN n.value ELSE '[]'::jsonb END) a
+   ) child
+  ) SELECT 1 FROM nodes n CROSS JOIN LATERAL jsonb_object_keys(CASE WHEN jsonb_typeof(n.value)='object' THEN n.value ELSE '{}'::jsonb END) key
+   WHERE key COLLATE "C" ~* '^(answer|answers|answer_key|correct|correct_answer|solution|solutions|why|grammar|explanation|explanations|script|transcript)$') THEN RETURN false; END IF;
+ IF interaction IN ('fixed_audio','grouped_choice') THEN
+  IF EXISTS(SELECT 1 FROM jsonb_object_keys(p) key WHERE key<>CASE WHEN interaction='fixed_audio' THEN 'recordings' ELSE 'groups' END) THEN RETURN false; END IF;
+  rows:='[]';
+  IF jsonb_typeof(p->CASE WHEN interaction='fixed_audio' THEN 'recordings' ELSE 'groups' END) IS DISTINCT FROM 'array'
+   OR jsonb_array_length(p->CASE WHEN interaction='fixed_audio' THEN 'recordings' ELSE 'groups' END) NOT BETWEEN 1 AND 100 THEN RETURN false; END IF;
+  FOR group_item IN SELECT value FROM jsonb_array_elements(p->CASE WHEN interaction='fixed_audio' THEN 'recordings' ELSE 'groups' END) LOOP
+   IF jsonb_typeof(group_item) IS DISTINCT FROM 'object' OR jsonb_typeof(group_item->'questions') IS DISTINCT FROM 'array'
+    OR jsonb_array_length(group_item->'questions')=0 THEN RETURN false; END IF;
+   IF interaction='fixed_audio' THEN
+    IF EXISTS(SELECT 1 FROM jsonb_object_keys(group_item) key WHERE key<>ALL(ARRAY['id','mediaId','mediaVersion','label','questions']))
+     OR NOT "__SCHEMA__".s6_payload_text(group_item->'id',128) OR "__SCHEMA__".s6_payload_identity(group_item->'id',128) IS NULL
+     OR NOT "__SCHEMA__".s6_payload_text(group_item->'mediaId',128) OR "__SCHEMA__".s6_payload_identity(group_item->'mediaId',128) IS NULL
+     OR jsonb_typeof(group_item->'mediaVersion') IS DISTINCT FROM 'string' OR group_item->>'mediaVersion' !~ '^v[0-9]{1,4}$'
+     OR NOT "__SCHEMA__".s6_payload_text(group_item->'label',1000) OR length(regexp_replace((group_item->>'label') COLLATE "C",whitespace,'','g'))=0 THEN RETURN false; END IF;
+    group_id:=group_item->>'id';media_id:=(group_item->>'mediaId')||'@'||(group_item->>'mediaVersion');
+    IF media_id=ANY(media_ids) THEN RETURN false; END IF;
+    media_ids:=array_append(media_ids,media_id);
+   ELSE
+    IF EXISTS(SELECT 1 FROM jsonb_object_keys(group_item) key WHERE key<>ALL(ARRAY['id','text','questions']))
+     OR NOT "__SCHEMA__".s6_payload_text(group_item->'text',100000) OR length(regexp_replace((group_item->>'text') COLLATE "C",whitespace,'','g'))=0 THEN RETURN false; END IF;
+    group_id:="__SCHEMA__".s6_payload_identity(group_item->'id',32);
+   END IF;
+   IF group_id IS NULL OR group_id=ANY(group_ids) THEN RETURN false; END IF;
+   group_ids:=array_append(group_ids,group_id);
+   FOR item IN SELECT value FROM jsonb_array_elements(group_item->'questions') LOOP
+    IF jsonb_typeof(item) IS DISTINCT FROM 'object' OR EXISTS(SELECT 1 FROM jsonb_object_keys(item) key WHERE key<>ALL(ARRAY['n','question','options']))
+     OR NOT "__SCHEMA__".s6_payload_text(item->'question',20000) OR length(regexp_replace((item->>'question') COLLATE "C",whitespace,'','g'))=0 THEN RETURN false; END IF;
+   END LOOP;
+   rows:=rows||(group_item->'questions');
+  END LOOP;
+ ELSIF interaction='single_choice' THEN
+  IF NOT "__SCHEMA__".s6_payload_text(p->'text',100000) THEN RETURN false; END IF;
+  rows:=p->'questions';
+ ELSIF interaction='gap_choice' THEN
+  IF NOT "__SCHEMA__".s6_payload_text(p->'letter',100000) THEN RETURN false; END IF;
+  rows:=p->'gaps';
+ ELSE
+  IF jsonb_typeof(p->'ads') IS DISTINCT FROM 'array' OR jsonb_array_length(p->'ads') NOT BETWEEN 2 AND 50 THEN RETURN false; END IF;
+  offered:=ARRAY['x'];
+  FOR option_item IN SELECT value FROM jsonb_array_elements(p->'ads') LOOP
+   IF jsonb_typeof(option_item) IS DISTINCT FROM 'object' OR NOT "__SCHEMA__".s6_payload_text(option_item->'id',32)
+    OR NOT "__SCHEMA__".s6_payload_text(option_item->'text',20000) OR option_item->>'id'=ANY(offered) THEN RETURN false; END IF;
+   offered:=array_append(offered,option_item->>'id');
+  END LOOP;
+  IF cardinality(offered)>50 THEN RETURN false; END IF;
+  rows:=p->'situations';
+ END IF;
+ IF jsonb_typeof(rows) IS DISTINCT FROM 'array' OR jsonb_array_length(rows) NOT BETWEEN 1 AND 100
+  OR jsonb_array_length(rows)<>item_count OR jsonb_typeof(answers) IS DISTINCT FROM 'object'
+  OR (SELECT count(*) FROM jsonb_object_keys(answers))<>item_count THEN RETURN false; END IF;
+ FOR item IN SELECT value FROM jsonb_array_elements(rows) LOOP
+  IF jsonb_typeof(item) IS DISTINCT FROM 'object' THEN RETURN false; END IF;
+  identity:="__SCHEMA__".s6_payload_identity(item->'n',32);
+  IF identity IS NULL OR identity=ANY(ids) OR (item?'id' AND "__SCHEMA__".s6_payload_identity(item->'id',32) IS DISTINCT FROM identity) THEN RETURN false; END IF;
+  ids:=array_append(ids,identity);
+  IF interaction='matching_ads' THEN
+   IF NOT "__SCHEMA__".s6_payload_text(item->'text',20000) THEN RETURN false; END IF;
+  ELSE
+   IF interaction='single_choice' AND NOT "__SCHEMA__".s6_payload_text(item->'question',20000) THEN RETURN false; END IF;
+   IF jsonb_typeof(item->'options') IS DISTINCT FROM 'object' OR (SELECT count(*) FROM jsonb_object_keys(item->'options')) NOT BETWEEN 2 AND 50
+    OR EXISTS(SELECT 1 FROM jsonb_each(item->'options') e WHERE NOT "__SCHEMA__".s6_payload_text(to_jsonb(e.key),32) OR NOT "__SCHEMA__".s6_payload_text(e.value,20000)) THEN RETURN false; END IF;
+   SELECT array_agg(key) INTO offered FROM jsonb_object_keys(item->'options') key;
+  END IF;
+  IF jsonb_typeof(answers->identity) IS DISTINCT FROM 'string' OR NOT coalesce(answers->>identity=ANY(offered),false) THEN RETURN false; END IF;
+ END LOOP;
+ RETURN true;
+EXCEPTION WHEN data_exception OR null_value_not_allowed THEN RETURN false;
+END $fn$;
+REVOKE ALL ON FUNCTION "__SCHEMA__".complete_dtz_objective_eligible(jsonb,text,integer,jsonb) FROM PUBLIC;
+
 -- This private predicate returns no task, key or media payload. Malformed optional forms fail individually.
 CREATE FUNCTION "__SCHEMA__".complete_dtz_form_eligible(p_form text,p_version text,p_blueprint text,p_rights text[])
  RETURNS boolean LANGUAGE plpgsql SET search_path=pg_catalog,"__SCHEMA__" AS $fn$
-DECLARE f jsonb; b jsonb; part jsonb; section jsonb; g jsonb; ref jsonb; rec jsonb; question jsonb; opt jsonb;
+DECLARE f jsonb; b jsonb; part jsonb; section jsonb; g jsonb; ref jsonb; rec jsonb; opt jsonb;
  m record; asset record; task record; criterion jsonb; expected jsonb;
  parts jsonb:='[["HV","HV1",4,"fixed_audio"],["HV","HV2",5,"fixed_audio"],["HV","HV3",8,"fixed_audio"],["HV","HV4",3,"fixed_audio"],["LV","LV1",5,"single_choice"],["LV","LV2",5,"matching_ads"],["LV","LV3",6,"grouped_choice"],["LV","LV4",3,"single_choice"],["LV","LV5",6,"gap_choice"],["SA","writing",1,"writing_choice"]]';
- rows jsonb; answers jsonb; ids text[]; choices text[]; media_ids text[]:=ARRAY[]::text[]; group_ids text[]:=ARRAY[]::text[];
+ answers jsonb; ids text[]; media_ids text[]:=ARRAY[]::text[]; group_ids text[]:=ARRAY[]::text[];
  item_id text; media_key text; i integer:=0; section_index integer; member_position integer;
 BEGIN
  SELECT payload INTO f FROM "__SCHEMA__".exam_form WHERE exam_id='dtz-a2-b1' AND form_id=p_form AND version=p_version AND blueprint_version=p_blueprint;
@@ -24,6 +136,8 @@ BEGIN
    OR g->'sections' IS DISTINCT FROM jsonb_build_array(section->>'id')
    OR g->'seconds' IS DISTINCT FROM to_jsonb((ARRAY[1500,2700,1800])[section_index+1])
    OR jsonb_typeof(g->'id') IS DISTINCT FROM 'string' OR length(g->>'id') NOT BETWEEN 1 AND 128
+   OR "__SCHEMA__".s6_payload_identity(g->'id',128) IS NULL
+   OR EXISTS(SELECT 1 FROM jsonb_object_keys(g) key WHERE key<>ALL(ARRAY['id','seconds','sections']))
    OR g->>'id'=ANY(group_ids) OR section->>'timeGroup' IS DISTINCT FROM g->>'id'
    OR jsonb_typeof(section->'parts') IS DISTINCT FROM 'array' OR jsonb_array_length(section->'parts')<>(ARRAY[4,5,1])[section_index+1] THEN RETURN false; END IF;
   group_ids:=array_append(group_ids,g->>'id');
@@ -49,63 +163,20 @@ BEGIN
    OR m.part IS DISTINCT FROM (CASE WHEN member_position<4 THEN member_position+1 ELSE member_position-3 END)
    OR m.media_required IS DISTINCT FROM (member_position<4) OR m.content_exam IS DISTINCT FROM 'dtz-a2-b1'
    OR m.review_status IS DISTINCT FROM 'approved' OR NOT coalesce(m.rights=ANY(p_rights),false) THEN RETURN false; END IF;
-  rows:='[]';choices:=NULL;ids:=ARRAY[]::text[];
+  SELECT k.answers INTO answers FROM "__SCHEMA__".objective_key k WHERE k.set_id=m.set_id AND k.version=m.version;
+  IF NOT FOUND OR NOT "__SCHEMA__".complete_dtz_objective_eligible(m.payload,m.interaction,m.item_count,answers) THEN RETURN false; END IF;
   IF m.interaction='fixed_audio' THEN
-   IF jsonb_array_length(m.payload->'recordings')<1 THEN RETURN false; END IF;
-   group_ids:=ARRAY[]::text[];
    FOR rec IN SELECT value FROM jsonb_array_elements(m.payload->'recordings') LOOP
     media_key:=(rec->>'mediaId')||'@'||(rec->>'mediaVersion');
-    IF jsonb_typeof(rec->'id') IS DISTINCT FROM 'string' OR length(btrim(rec->>'id'))=0 OR rec->>'id'=ANY(group_ids)
-     OR jsonb_typeof(rec->'label') IS DISTINCT FROM 'string' OR length(btrim(rec->>'label'))=0
-     OR media_key IS NULL OR media_key=ANY(media_ids) OR jsonb_array_length(rec->'questions')<1 THEN RETURN false; END IF;
-    group_ids:=array_append(group_ids,rec->>'id');media_ids:=array_append(media_ids,media_key);
+    IF media_key=ANY(media_ids) THEN RETURN false; END IF;
+    media_ids:=array_append(media_ids,media_key);
     SELECT a.*,c.review_status,c.content_sha256,coalesce(cr.basis,c.rights_status) AS rights INTO asset
      FROM "__SCHEMA__".exam_media a JOIN "__SCHEMA__".content_version c USING(content_version_id)
      LEFT JOIN "__SCHEMA__".content_rights cr USING(content_version_id)
      WHERE a.media_id=rec->>'mediaId' AND a.version=rec->>'mediaVersion' AND a.exam_id='dtz-a2-b1' AND c.exam_id=a.exam_id;
     IF NOT FOUND OR asset.review_status IS DISTINCT FROM 'approved' OR NOT coalesce(asset.rights=ANY(p_rights),false) THEN RETURN false; END IF;
-    rows:=rows||(rec->'questions');
    END LOOP;
-  ELSIF m.interaction='grouped_choice' THEN
-   IF jsonb_array_length(m.payload->'groups')<1 THEN RETURN false; END IF;
-   group_ids:=ARRAY[]::text[];
-   FOR g IN SELECT value FROM jsonb_array_elements(m.payload->'groups') LOOP
-    IF coalesce(g->>'id','')='' OR g->>'id'=ANY(group_ids) OR jsonb_typeof(g->'text') IS DISTINCT FROM 'string'
-     OR length(btrim(g->>'text'))=0 OR jsonb_array_length(g->'questions')<1 THEN RETURN false; END IF;
-    group_ids:=array_append(group_ids,g->>'id');rows:=rows||(g->'questions');
-   END LOOP;
-  ELSIF m.interaction='single_choice' THEN
-   IF jsonb_typeof(m.payload->'text') IS DISTINCT FROM 'string' OR length(btrim(m.payload->>'text'))=0 THEN RETURN false; END IF;
-   rows:=m.payload->'questions';
-  ELSIF m.interaction='matching_ads' THEN
-   IF jsonb_typeof(m.payload->'ads') IS DISTINCT FROM 'array' OR jsonb_array_length(m.payload->'ads')<2 THEN RETURN false; END IF;
-   choices:=ARRAY['x']::text[];
-   FOR opt IN SELECT value FROM jsonb_array_elements(m.payload->'ads') LOOP
-    IF coalesce(opt->>'id','')='' OR opt->>'id'=ANY(choices) OR jsonb_typeof(opt->'text') IS DISTINCT FROM 'string' OR length(btrim(opt->>'text'))=0 THEN RETURN false; END IF;
-    choices:=array_append(choices,opt->>'id');
-   END LOOP;
-   rows:=m.payload->'situations';
-  ELSIF m.interaction='gap_choice' THEN
-   IF jsonb_typeof(m.payload->'letter') IS DISTINCT FROM 'string' OR length(btrim(m.payload->>'letter'))=0 THEN RETURN false; END IF;
-   rows:=m.payload->'gaps';
-  ELSE RETURN false; END IF;
-  IF jsonb_typeof(rows) IS DISTINCT FROM 'array' OR jsonb_array_length(rows)<>m.item_count THEN RETURN false; END IF;
-  SELECT k.answers INTO answers FROM "__SCHEMA__".objective_key k WHERE k.set_id=m.set_id AND k.version=m.version;
-  IF NOT FOUND OR jsonb_typeof(answers) IS DISTINCT FROM 'object' OR (SELECT count(*) FROM jsonb_object_keys(answers))<>m.item_count THEN RETURN false; END IF;
-  FOR question IN SELECT value FROM jsonb_array_elements(rows) LOOP
-   item_id:=question->>'n';
-   IF jsonb_typeof(question->'n') NOT IN ('string','number') OR item_id IS NULL OR item_id !~ '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,31}$' OR item_id=ANY(ids) THEN RETURN false; END IF;
-   ids:=array_append(ids,item_id);
-   IF m.interaction='matching_ads' THEN
-    IF jsonb_typeof(question->'text') IS DISTINCT FROM 'string' OR length(btrim(question->>'text'))=0 THEN RETURN false; END IF;
-   ELSE
-    IF m.interaction<>'gap_choice' AND (jsonb_typeof(question->'question') IS DISTINCT FROM 'string' OR length(btrim(question->>'question'))=0) THEN RETURN false; END IF;
-    IF jsonb_typeof(question->'options') IS DISTINCT FROM 'object' OR (SELECT count(*) FROM jsonb_object_keys(question->'options'))<2 THEN RETURN false; END IF;
-    IF EXISTS(SELECT 1 FROM jsonb_each(question->'options') e WHERE length(e.key)=0 OR jsonb_typeof(e.value)<>'string' OR length(btrim(e.value#>>'{}'))=0) THEN RETURN false; END IF;
-    SELECT array_agg(key) INTO choices FROM jsonb_object_keys(question->'options') key;
-   END IF;
-   IF jsonb_typeof(answers->item_id) IS DISTINCT FROM 'string' OR NOT coalesce(answers->>item_id=ANY(choices),false) THEN RETURN false; END IF;
-  END LOOP;
+  END IF;
  END LOOP;
  g:=f->'writingChoices'->0;
  IF jsonb_typeof(g->'id') IS DISTINCT FROM 'string' OR length(btrim(g->>'id'))=0 OR g->>'section' IS DISTINCT FROM 'SA'
