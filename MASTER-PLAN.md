@@ -1,5 +1,9 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## Saved explanations PR126; invocation-accounting contract ready — 3 October 2026
+
+PILOT07 is published as [PR126](https://github.com/ronslink/hatoove/pull/126), independently reviewed and locally verified, with actual required hosted jobs stopped before any test by the unchanged account billing/spending restriction. The stack remains unmerged. [O01 issue127](https://github.com/ronslink/hatoove/issues/127) now has a [reviewed contract](docs/contracts/PILOT-O01-USAGE.md) for private per-claim usage facts, unknown-aware synthetic estimates, bounded recovery and safe aggregate reporting. This is a contract freeze before separately leased implementation; actual provider prices/calls, invoices, production monitoring, retention and human/live-operation acceptance remain open.
+
 ## Saved explanation mechanics locally delivered — 3 October 2026
 
 PILOT07 [issue124](https://github.com/ronslink/hatoove/issues/124) has independently reviewed storage, worker, API/export/deletion and client delivery with [local evidence](work/implementation/PILOT-07-RESULT.md): final clean browser15/15,45 screenshots, actual disposable PostgreSQL checks and verified cleanup. Simulation variants cover five languages; real native/educational review and translated-content acceptance remain open. Publication follows final record review and staged scan, stacked onC03PR125. Required hosted CI is still account-blocked and this stack remains unmerged. O01 next has a bounded corrected-contract drafting lease only; human/device/provider/privacy/legal/live gates remain separate.

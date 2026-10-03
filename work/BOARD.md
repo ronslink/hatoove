@@ -1,5 +1,9 @@
 # Hatoove work board
 
+## PILOT07 published; O01 contract frozen — 3 October 2026
+
+PILOT07 [PR126](https://github.com/ronslink/hatoove/pull/126), head671b3e0, is independently reviewed with local evidence and final staged guard629/542. Actual hosted runs37145079825/37145079751 have seven required zero-step failures, each confirming the GitHub account payment/spending restriction. No retry or merge. [Issue127](https://github.com/ronslink/hatoove/issues/127) freezes the independently reviewed [O01 contract](../docs/contracts/PILOT-O01-USAGE.md), reserving0038 for private invocation accounting, exact unknown-aware synthetic cost reporting and bounded owner-first worker recovery. Implementation still requires separate bounded leases. No live provider, real prices, production operation or retention approval is implied; human/native/device/privacy/security/legal/provider gates remain open.
+
 ## PILOT07 locally delivered and independently reviewed — 3 October 2026
 
 [Issue124](https://github.com/ronslink/hatoove/issues/124) now delivers immutable saved explanation representations, authorized language reads, atomic simulation variants, export/deletion and shared client states. [Evidence](implementation/PILOT-07-RESULT.md) records independent reviews, core18/worker12/consumer10 PostgreSQL checks,66 classifier controls, final client21 and clean browser15/15 with45 screenshots and verified cleanup. Review corrections are closed; final publication records and staged guard precede a PR stacked on125. Required hosted CI remains a separate account-blocked gate; nothing is merged or product accepted. O01 is limited to a corrected contract draft under a new bounded lease; no usage/reporting implementation is authorized by that lease. Human/native/device/provider/privacy and live-operation gates remain open.
