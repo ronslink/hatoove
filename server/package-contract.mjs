@@ -1,7 +1,7 @@
 /** Pure declarative package validation. No SQL, provider, locale or exam constants. */
 import { createHash } from 'node:crypto';
 
-export const INTERACTIONS = Object.freeze(['matching_headlines','single_choice','matching_ads','gap_choice','gap_bank']);
+export const INTERACTIONS = Object.freeze(['matching_headlines','single_choice','matching_ads','gap_choice','gap_bank','grouped_choice']);
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const VERSION = /^v[0-9]{1,4}$/;
 const object = v => v && typeof v === 'object' && !Array.isArray(v);
@@ -35,6 +35,24 @@ export function objectiveItems(payload,interaction) {
   if (interaction==='matching_headlines') { rows=payload.texts; choices=bank(payload.headlines,'text'); }
   if (interaction==='matching_ads') { rows=payload.situations; choices=[...bank(payload.ads,'text'),'x']; }
   if (interaction==='single_choice') rows=payload.questions;
+  if (interaction==='grouped_choice') {
+    keys(payload,['groups'],'grouped payload');
+    demand(Array.isArray(payload.groups) && payload.groups.length>0 && payload.groups.length<=100,'invalid groups');
+    const groupIds=[];
+    rows=[];
+    for (const group of payload.groups) {
+      keys(group,['id','text','questions'],'group');
+      demand((typeof group.id==='string' || Number.isSafeInteger(group.id)) && text(String(group.id),32) && ID.test(String(group.id)),'invalid group identity');
+      demand(text(group.text,100000) && group.text.trim().length>0 && Array.isArray(group.questions) && group.questions.length>0,'invalid group passage/questions');
+      groupIds.push(String(group.id));
+      for (const row of group.questions) {
+        keys(row,['n','question','options'],'group question');
+        demand(text(row.question,20000) && row.question.trim().length>0,'missing question text');
+        rows.push(row);
+      }
+    }
+    demand(unique(groupIds),'duplicate group');
+  }
   if (interaction==='gap_choice' || interaction==='gap_bank') rows=payload.gaps;
   if (interaction==='gap_bank') choices=bank(payload.bank,'word');
   if (interaction==='single_choice') demand(text(payload.text,100000),'missing passage text');

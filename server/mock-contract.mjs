@@ -1,4 +1,5 @@
 /** EXAM-S2: strict transport and pinned objective-response validation. */
+import { objectiveItems } from './package-contract.mjs';
 import { Fault } from './owned-api.mjs';
 import { requirePreparationId } from './preparation-contract.mjs';
 
@@ -57,6 +58,12 @@ export function validateSaveMockRun(body) {
 export function mockMemberItems(member) {
   const p = member.payload;
   if (!object(p)) fail('invalid_mock_form');
+  if (member.interaction === 'grouped_choice') {
+    let parsed;
+    try { parsed = objectiveItems(p, member.interaction); } catch { fail('invalid_mock_form'); }
+    if (parsed.length !== Number(member.item_count)) fail('invalid_mock_form');
+    return parsed;
+  }
   let items; let shared;
   switch (member.interaction) {
     case 'matching_headlines': items = p.texts; shared = p.headlines?.map((x) => String(x.id)); break;

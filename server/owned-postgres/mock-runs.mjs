@@ -26,15 +26,11 @@ async function readRow(client, owner, id, lock = false) {
   return row;
 }
 
-async function bundleOf(client, row, newStart = false) {
-  return readReleasedForm(client, { examId: row.exam_id, formId: row.form_id, formVersion: row.form_version,
-    releaseVersion: row.release_version, newStart });
-}
-
 function runDto(row, bundle, summary = false) {
   const blocked = bundle?.blockedReason ?? (!bundle ? 'content_unavailable' : null);
   const dto = {
     id: row.id, preparation_id: row.preparation_id, exam_id: row.exam_id, release_version: row.release_version,
+    release_state: bundle?.release.state ?? null, review_status: bundle?.reviewStatus ?? null,
     blueprint_version: row.blueprint_version, form_id: row.form_id, form_version: row.form_version,
     title: row.title, scope: row.scope, mode: row.mode, state: row.state, revision: Number(row.revision),
     created_at: iso(row.created_at), updated_at: iso(row.updated_at), deadline_at: iso(row.deadline_at),
@@ -44,6 +40,7 @@ function runDto(row, bundle, summary = false) {
     responses: row.responses, position: row.position,
     members: blocked ? [] : bundle.members.map((member) => ({
       set_id: member.set_id, version: member.version, interaction: member.interaction, item_count: Number(member.item_count),
+      release_state: bundle.release.state, review_status: member.review_status,
       title: member.title, family: member.family, section: member.section, part: member.part, payload: member.payload,
     })),
     result: blocked || row.state !== 'finalised' ? null : row.result,
@@ -79,6 +76,13 @@ function sqlFault(error) {
 
 export function mockRunMethods({ settle, note = () => {}, catalogue }) {
   const transaction = (owner, work, snapshot = false) => settle(owner, work, snapshot).catch(sqlFault);
+  async function bundleOf(client, row, newStart = false) {
+    const bundle = await readReleasedForm(client, { examId: row.exam_id, formId: row.form_id, formVersion: row.form_version,
+      releaseVersion: row.release_version, newStart });
+    if (bundle && !bundle.blockedReason && ['internal','hidden'].includes(bundle.release.state) && !catalogue.isEnabled(row.exam_id))
+      return { ...bundle, blockedReason: 'exam_unavailable', members: [] };
+    return bundle;
+  }
   async function writable(client, owner, id) {
     await lockMockOwner(client, owner);
     const identity = await readRow(client, owner, id);

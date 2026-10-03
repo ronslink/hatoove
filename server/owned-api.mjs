@@ -877,9 +877,16 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * match is the narrowest case and a group match is the widest.
        */
       const family = query.get('family');
-      const parsedFamily = family === null ? null : parseFamily(family);
-      if (family !== null && !parsedFamily) fault(422, 'invalid_family');
+      let parsedFamily = family === null ? null : parseFamily(family);
       const prep = await preparationContext(query);
+      if (family !== null && !parsedFamily) {
+        // Imported exam parts extend only this owned exam's current published blueprint.
+        // The historical task parser and FAMILY_PARTS deliberately remain unchanged.
+        const match = /^(LV|SB|HV|SA)([1-9][0-9]?)$/.exec(family);
+        if (!match || typeof datastore.hasObjectiveFamily !== 'function'
+          || !await datastore.hasObjectiveFamily(owner, { examId: prep.exam_id, family })) fault(422, 'invalid_family');
+        parsedFamily = { partId: family, group: match[1], part: Number(match[2]), kind: match[1].toLowerCase() };
+      }
       const serveReview = deploymentReview();
       return reply(200, (await datastore.listObjectiveSets(owner, {
         examId: prep.exam_id,
