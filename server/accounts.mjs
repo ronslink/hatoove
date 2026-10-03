@@ -58,10 +58,11 @@ export async function loadOwnedApi({ env = process.env } = {}) {
   // MFP-01: the runtime opens **restricted pools only** — no `admin`, no `migration` — and
   // never applies a migration. It reports whether the applied head is behind what the code
   // expects (`schemaBehind`), which `server.js` maps to `ready:false reason:'schema_behind'`.
-  const { openRuntimePools, closeRuntimePools, persistentConfig } = await import('./owned-postgres/provision.mjs');
+  const { openRuntimePools, closeRuntimePools, persistentConfig, persistentRolePool } = await import('./owned-postgres/provision.mjs');
   const { createPostgresWorld } = await import('./owned-postgres/fixture.mjs');
   const { createPostgresSettings } = await import('./owned-postgres/settings.mjs');
   const { createConsoleNotifier } = await import('./notify.mjs');
+  const { createDatabaseReadiness } = await import('./readiness.mjs');
 
   const runtime = await openRuntimePools({ config: persistentConfig(env) });
   // A3: a `pg` pool whose backend disappears emits `error` on the *pool*; with no listener
@@ -118,13 +119,18 @@ export async function loadOwnedApi({ env = process.env } = {}) {
   // cannot drift apart. Building a second API here with the ports re-supplied by hand is what
   // dropped account settings on the floor once already.
   const api = world.api;
+  // One dedicated restricted learner connection keeps health probes bounded without occupying
+  // the application's query pool. It never reads learner data or holds migration privileges.
+  const readiness = createDatabaseReadiness({ pool: persistentRolePool(runtime.config, 'learner', { max: 1 }) });
 
   return {
     api,
     pools: runtime,
     fixture,
     schemaBehind: runtime.behind,
+    checkReadiness: readiness.check,
     close: async () => {
+      await readiness.close();
       await world.teardown().catch(() => {});
       await closeRuntimePools(runtime);
     },

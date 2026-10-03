@@ -561,7 +561,7 @@ async function handleApi(req, res, pathname, ctx = {}) {
  * is how `node server.js` mounts accounts once the database is ready, without delaying the
  * listening socket.
  */
-export function createServer({ ownedApi = null } = {}) {
+export function createServer({ ownedApi = null, readinessCheck = null } = {}) {
   const resolveOwnedApi = (server) => {
     const value = server.ownedApi !== undefined && server.ownedApi !== null ? server.ownedApi : ownedApi;
     if (!value) return null;
@@ -585,7 +585,21 @@ export function createServer({ ownedApi = null } = {}) {
       // `saasReadiness`; an unset value (an in-process `createServer()` used by a unit check)
       // keeps the library default. The gate below is no longer conditioned on `B1PREP_SAAS`:
       // omitting the mode flag must not re-open the single-user path.
-      const readiness = (serverRef && serverRef.saasReadiness) || { ready: true, reason: 'unset' };
+      let readiness = (serverRef && serverRef.saasReadiness) || { ready: true, reason: 'unset' };
+      // Startup/config/schema refusals take precedence. Once initialized, readiness is a fresh,
+      // bounded database probe; liveness never waits for it. Static fixture readiness remains
+      // supported when no checker is supplied. A probe failure reveals no driver error details.
+      const checkReadiness = serverRef?.readinessCheck || readinessCheck;
+      if (pathname === '/api/ready' && readiness.ready && typeof checkReadiness === 'function') {
+        try {
+          const checked = await checkReadiness();
+          readiness = checked?.ready === true
+            ? { ready: true, reason: 'ready' }
+            : { ready: false, reason: 'database_unavailable' };
+        } catch {
+          readiness = { ready: false, reason: 'database_unavailable' };
+        }
+      }
       if (pathname.startsWith('/api/')) {
         const method = req.method || 'GET';
         if (method !== 'GET' && method !== 'HEAD') {
@@ -782,6 +796,7 @@ if (invokedDirectly) {
         const loaded = await loadOwnedApi();
         if (loaded) {
           server.ownedApi = loaded.api;
+          server.readinessCheck = loaded.checkReadiness;
           summary = accountsSummary(loaded, config);
           // MFP-01: the runtime never migrates. If the applied head is behind what this code
           // expects, readiness is `schema_behind` -- /api/ready refuses (503) and names it, so
