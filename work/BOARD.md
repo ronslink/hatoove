@@ -1,5 +1,11 @@
 # Hatoove work board
 
+## EXAM-S2 implementation — 3 October 2026
+
+**Delivered; final independent approval, CI and integration pending: EXAM-S2-20261003-A**, [issue #107](https://github.com/ronslink/hatoove/issues/107), base `3a010e6`. The minimal package importer/release contract and saved telc reading section are implemented. The first form pins the existing LV1/LV2/LV3 versions, contains 20 items and is labelled untimed section practice; complete written mocks remain unavailable. [Contract](../docs/contracts/EXAM-S2.md), [evidence](implementation/EXAM-S2-RESULT.md).
+
+The coordinator integrated package/import validation, local workers' owned runs/client and actual Docker Hermes' corrected source fixtures. Independent reviews found importer identity/size and client deadline/focus defects; repairs are tested. Browser 199/199, Compose 37/37 (OpenAPI 42/42), package PostgreSQL 14/14 and run PostgreSQL 14/14 pass. Actual Claude remains unavailable until 12:00 UTC; local author-separated reviews replace unavailable external review without changing providers. Current-head review/CI precede merging. Older paused work, the learner preview and existing data volumes stay preserved. Content/device/security/privacy/provider/product acceptance and complete DTZ publication remain separate. S3 internal DTZ reading is next after integration, under a new lease.
+
 ## EXAM-S1 and review fixes — 3 October 2026
 
 **Merged and locally verified: EXAM-S1-20261003-A**, [issue #104](https://github.com/ronslink/hatoove/issues/104), base `0d32619`. Actual Claude delivered preparations, exam-specific credits, atomic registration and archive safeguards; actual Docker Hermes delivered readable objective labels, direct catalogue launches and scoped test fixtures. Hetzner OpenClaw and separate local reviewers checked the source; their registration, concurrency and navigation findings have been repaired. Claude hit its session limit during the last fixture pass, which a bounded local follow-up completed without changing its runtime safeguards.

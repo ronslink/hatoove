@@ -330,7 +330,7 @@ code {
 .mock-options .option input { flex-shrink: 0; margin-top: .35rem; }
 .mock-options .letter { flex-shrink: 0; }
 .mock-options:disabled { opacity: .8; }
-.mock-options input:focus-visible { outline: 2px solid var(--orange); outline-offset: 4px; }
+.mock-options .option:focus-within { outline: 2px solid var(--orange-dark); outline-offset: 4px; }
 .mock-passage { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mock-overview .qnav { display: flex; flex-wrap: wrap; gap: .45rem; }
 .mock-overview .btn { min-width: 44px; min-height: 44px; }

@@ -109,6 +109,12 @@ jobs:
         run: node tools/exam-s1-client-check.mjs
       - name: Preparation API and exam-scoped contract refusals
         run: node tools/exam-s1-server-check.mjs
+      - name: Package source and publication validation
+        run: node tools/exam-s2-package-check.mjs
+      - name: Saved section API and strict request contracts
+        run: node tools/exam-s2-runs-check.mjs
+      - name: Saved section client retries and recovery
+        run: node tools/exam-s2-client-check.mjs
       - name: Readiness follows database availability and recovers
         run: node tools/readiness-check.mjs
       - name: Public content policy and criterion-specific feedback contracts
@@ -195,6 +201,10 @@ jobs:
         run: node tools/exam-s0-server-pg-check.mjs
       - name: Preparation migration registration and credit concurrency on PostgreSQL
         run: node tools/exam-s1-server-pg-check.mjs
+      - name: Package imports and release access on PostgreSQL
+        run: node tools/exam-s2-package-pg-check.mjs
+      - name: Saved section ownership and concurrent finalisation on PostgreSQL
+        run: node tools/exam-s2-runs-pg-check.mjs
       - name: Bounded readiness probes recover after a real PostgreSQL connection loss
         run: node tools/readiness-pg-check.mjs
       - name: The hosted runtime refuses by default

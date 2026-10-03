@@ -99,6 +99,12 @@ await check('deadline uses server time and preserves unacknowledged answers on e
   fixture.session.answer(member,'1','b');now=2001;assert.equal(fixture.session.state().writable,false);assert.equal(await fixture.session.flush(),false);assert.equal(fixture.writes.length,0);
   fixture.saved={...timed,server_now:new Date(11001).toISOString(),expired:true};await fixture.session.reload();assert.match(fixture.session.state().localCopy,/"b"/);assert.equal(await fixture.session.finalise(),true);
 });
+await check('completed timed runs retain the server verdict after the deadline has passed', async()=>{
+  let now=1000;const fixture=setup({now:()=>now});
+  const timed={...base,state:'finalised',server_now:new Date(20000).toISOString(),deadline_at:new Date(11000).toISOString(),finalised_at:new Date(10500).toISOString(),expired:false};
+  fixture.session.load(timed);assert.equal(fixture.session.state().expired,false);now=999999;assert.equal(fixture.session.state().expired,false);
+  fixture.session.load({...timed,expired:true});assert.equal(fixture.session.state().expired,true);
+});
 await check('new document state resumes acknowledged answers only', async()=>{
   const first=setup();first.session.answer(member,'1','a');await first.session.flush();first.session.answer(member,'2','b');
   const next=setup();next.session.load(first.saved);assert.equal(next.session.state().responses.length,1);assert.equal(next.session.state().dirty,false);

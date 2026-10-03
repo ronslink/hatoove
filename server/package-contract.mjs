@@ -28,18 +28,30 @@ export function objectiveItems(payload,interaction) {
   demand(object(payload) && INTERACTIONS.includes(interaction),'unsupported interaction');
   assertPublicPayload(payload);
   let rows,choices;
-  if (interaction==='matching_headlines') { rows=payload.texts; choices=payload.headlines?.map(x=>x.id); }
-  if (interaction==='matching_ads') { rows=payload.situations; choices=payload.ads?.map(x=>x.id); if (choices) choices=[...choices,'x']; }
+  const bank=(values,label)=>{
+    demand(Array.isArray(values) && values.length>1 && values.length<=50 && values.every(x=>object(x)&&text(x.id,32)&&text(x[label],20000)),'invalid option text/bank');
+    return values.map(x=>x.id);
+  };
+  if (interaction==='matching_headlines') { rows=payload.texts; choices=bank(payload.headlines,'text'); }
+  if (interaction==='matching_ads') { rows=payload.situations; choices=[...bank(payload.ads,'text'),'x']; }
   if (interaction==='single_choice') rows=payload.questions;
   if (interaction==='gap_choice' || interaction==='gap_bank') rows=payload.gaps;
-  if (interaction==='gap_bank') choices=payload.bank?.map(x=>x.id);
+  if (interaction==='gap_bank') choices=bank(payload.bank,'word');
+  if (interaction==='single_choice') demand(text(payload.text,100000),'missing passage text');
+  if (interaction==='gap_choice'||interaction==='gap_bank') demand(text(payload.letter,100000),'missing gap-fill text');
   demand(Array.isArray(rows) && rows.length>0 && rows.length<=100,'missing or oversized items');
   if (choices) demand(choices.length>1 && choices.every(x=>text(x,32)) && unique(choices),'invalid answer bank');
   const items=rows.map(row=>{
     demand(object(row),'invalid item');
-    const id=String(row.id??row.n??'');
+    const rawId=interaction==='matching_headlines' ? row.id : row.n;
+    demand(typeof rawId==='string' || Number.isSafeInteger(rawId),'invalid item identity');
+    const id=String(rawId);
+    demand(interaction==='matching_headlines' || row.id===undefined || ((typeof row.id==='string' || Number.isSafeInteger(row.id)) && String(row.id)===id),'conflicting item identity');
+    if(interaction==='matching_headlines'||interaction==='matching_ads') demand(text(row.text,20000),'missing item text');
+    if(interaction==='single_choice') demand(text(row.question,20000),'missing question text');
+    if(!choices) demand(object(row.options)&&Object.values(row.options).every(v=>text(v,20000)),'invalid option text');
     const options=choices || (object(row.options)?Object.keys(row.options):[]);
-    demand(text(id,32) && options.length>1 && options.length<=50 && options.every(x=>text(x,32)) && unique(options),'invalid item identity/options');
+    demand(text(id,32) && ID.test(id) && options.length>1 && options.length<=50 && options.every(x=>text(x,32)) && unique(options),'invalid item identity/options');
     return {id,options};
   });
   demand(unique(items.map(x=>x.id)),'duplicate item');
@@ -85,26 +97,27 @@ export function validatePackage(input) {
   demand(unique(p.forms.map(f=>f.id+'@'+f.version)),'duplicate form');
   for (const f of p.forms) {
     keys(f,['id','version','title','scope','sections','mode','timeLimitSeconds','feedback','members'],'form');
-    demand(ID.test(f.id) && VERSION.test(f.version) && text(f.title,200),'invalid form identity');
+    demand(text(f.id,128) && ID.test(f.id) && VERSION.test(f.version) && text(f.title,200),'invalid form identity');
     demand(['section','complete_supported_written'].includes(f.scope) && f.feedback==='finalise','unsupported form policy');
     demand(Array.isArray(f.sections) && f.sections.length>0 && unique(f.sections) && f.sections.every(id=>p.blueprint.sections.some(s=>s.id===id)),'invalid form sections');
     demand((f.mode==='untimed' && f.timeLimitSeconds===null) || (f.mode==='timed' && Number.isSafeInteger(f.timeLimitSeconds) && f.timeLimitSeconds>=1 && f.timeLimitSeconds<=86400),'invalid timing');
     demand(Array.isArray(f.members) && f.members.length>0 && f.members.length<=50 && unique(f.members.map(m=>m.setId+'@'+m.version)),'invalid/duplicate members');
     for (const m of f.members) {
       keys(m,['setId','version','interaction','itemCount'],'member');
-      demand(ID.test(m.setId) && VERSION.test(m.version) && INTERACTIONS.includes(m.interaction) && Number.isSafeInteger(m.itemCount) && m.itemCount>0 && m.itemCount<=100,'invalid member');
+      demand(text(m.setId,128) && ID.test(m.setId) && VERSION.test(m.version) && INTERACTIONS.includes(m.interaction) && Number.isSafeInteger(m.itemCount) && m.itemCount>0 && m.itemCount<=100,'invalid member');
     }
+    demand(f.members.reduce((sum,m)=>sum+m.itemCount,0)<=500,'form exceeds saved response limit');
     if (f.scope==='complete_supported_written') {
-      demand(p.blueprint.sections.every(s=>f.sections.includes(s.id)),'incomplete written coverage');
-      // S2 has no reviewed fixed-audio or extended-writing importer. Fail closed rather than relabel.
-      demand(p.blueprint.sections.every(s=>s.parts.every(part=>INTERACTIONS.includes(part.interaction) && !part.mediaRequired)),'complete written media/writing unsupported');
+      // S2 deliberately ships no complete-written capability. A shortened blueprint cannot evade
+      // missing listening/writing by redefining the target examination's supported scope.
+      invalid('complete written forms require the later reviewed media/writing contract');
     }
   }
   p.sets ??=[];
   demand(Array.isArray(p.sets) && p.sets.length<=200 && unique(p.sets.map(s=>s.setId+'@'+s.version)),'invalid/duplicate sets');
   for (const s of p.sets) {
     keys(s,['setId','version','examId','family','section','part','title','payload','itemCount','interaction','answers','explanations','reviewStatus','rightsStatus','source'],'set');
-    demand(ID.test(s.setId) && VERSION.test(s.version) && s.examId===p.exam.id && ID.test(s.family) && text(s.title,200) && Number.isInteger(s.part) && s.part>0,'invalid set identity');
+    demand(text(s.setId,128) && ID.test(s.setId) && VERSION.test(s.version) && s.examId===p.exam.id && text(s.family,128) && ID.test(s.family) && text(s.title,200) && Number.isInteger(s.part) && s.part>0,'invalid set identity');
     const section=p.blueprint.sections.find(x=>x.id===s.section);
     const part=section?.parts.find(x=>x.family===s.family);
     demand(part && part.interaction===s.interaction && !part.mediaRequired,'set blueprint mismatch');

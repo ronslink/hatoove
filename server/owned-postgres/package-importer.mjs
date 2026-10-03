@@ -1,6 +1,7 @@
 /** Privileged transactional content publisher. Never imported by the HTTP runtime. */
 import { readFile } from 'node:fs/promises';
 import { validatePackage, packageHash, canonicalJson, objectiveItems } from '../package-contract.mjs';
+import { BODY_LIMIT_BYTES } from '../owned-api.mjs';
 
 const fail=message=>{const e=new Error(message);e.code='package_conflict';throw e;};
 export async function importPackage(pool,input,{dryRun=false,publisher='content-cli'}={}) {
@@ -45,6 +46,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
       const old=(await client.query('SELECT sha256 FROM exam_form WHERE exam_id=$1 AND form_id=$2 AND version=$3',[p.exam.id,f.id,f.version])).rows[0];
       if(old && old.sha256!==formHash) fail('changed form under existing version: '+f.id);
       const coverage=new Map();
+      const largestResponses=[];
       for(const [i,m] of f.members.entries()) {
         const key=m.setId+'@'+m.version;
         let set=sets.get(key);
@@ -55,7 +57,16 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
         const section=p.blueprint.sections.find(s=>s.id===set.section);
         const part=section?.parts.find(x=>x.family===set.family);
         if(!part || part.itemCount!==set.item_count || part.interaction!==m.interaction) fail('set/blueprint mismatch: '+key);
-        if(objectiveItems(set.payload,m.interaction).length!==m.itemCount) fail('payload count mismatch: '+key);
+        const publicItems=objectiveItems(set.payload,m.interaction);
+        if(publicItems.length!==m.itemCount) fail('payload count mismatch: '+key);
+        for(const item of publicItems) {
+          const answer=[null,...item.options].reduce((longest,value)=>Buffer.byteLength(JSON.stringify(value),'utf8')>Buffer.byteLength(JSON.stringify(longest),'utf8')?value:longest,null);
+          largestResponses.push({setId:m.setId,version:m.version,itemId:item.id,answer});
+        }
+        const authored=p.sets.find(s=>s.setId===m.setId&&s.version===m.version);
+        const answerKey=authored?.answers ?? (await client.query('SELECT answers FROM objective_key WHERE set_id=$1 AND version=$2',[m.setId,m.version])).rows[0]?.answers;
+        if(!answerKey || Object.keys(answerKey).length!==publicItems.length || publicItems.some(item=>!item.options.includes(answerKey[item.id])))
+          fail('invalid exact answer key: '+key);
         if(!['generated','licensed','commissioned'].includes(set.rights_status)) fail('unresolved rights: '+key);
         if(p.release.state==='available' && set.review_status!=='approved') fail('release needs exact qualified review: '+key);
         coverage.set(set.section+':'+set.family,(coverage.get(set.section+':'+set.family)||0)+1);
@@ -65,6 +76,8 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
       // A section label means every part of that declared section, exactly once.
       for(const id of f.sections) for(const part of p.blueprint.sections.find(s=>s.id===id).parts)
         if(coverage.get(id+':'+part.family)!==1) fail('incomplete or repeated section coverage: '+id+'/'+part.family);
+      const largestSave={expectedRevision:2147483646,eventId:'00000000-0000-4000-8000-000000000000',responses:largestResponses,position:{member:f.members.length-1,item:99}};
+      if(Buffer.byteLength(JSON.stringify(largestSave),'utf8')>BODY_LIMIT_BYTES) fail('form exceeds saved response byte limit');
       if(!old) {
         changes.push('add form '+f.id+'@'+f.version);
         // Insert the form before its already planned members, all after blueprint/set commands.

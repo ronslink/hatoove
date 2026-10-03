@@ -39,6 +39,7 @@ import { verifyLearnerCompletion } from './learner-completion-browser.mjs';
 import { verifyAccountContext } from './account-context-browser.mjs';
 import { verifyExamS0 } from './exam-s0-browser.mjs';
 import { verifyExamS1 } from './exam-s1-browser.mjs';
+import { verifyExamS2 } from './exam-s2-browser.mjs';
 import { verifyReviewUx } from './review-ux-browser.mjs';
 import { fixturePreparation, scopedFixtureRoute } from './browser-preparation-fixtures.mjs';
 
@@ -2058,6 +2059,7 @@ async function main() {
           INSERT INTO hatoove.learner_preparation(id,owner_id,exam_id,state,revision) SELECT '${id}',id,'synthetic-browser-en','archived',1 FROM hatoove."user" WHERE email='${email}';`);
         return {otherPreparationId:id,cleanup:()=>query(`DELETE FROM hatoove.learner_preparation WHERE id='${id}'; DELETE FROM hatoove.exam_package WHERE exam_id='synthetic-browser-en';`)};
       }});
+    await verifyExamS2({base,email,password:SYNTHETIC.password,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,query:browserQuery});
     await verifyAccountContext({ base, freePort, record, shot, viewport, theme, nav, setInputs, clickSel });
     note('screenshots', SHOTS);
     note('device honesty', 'headless Chromium on desktop is not iPhone Safari or Android Chrome; the real-device gate stays open');

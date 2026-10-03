@@ -83,6 +83,8 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
       await cdp.evaluate("document.querySelector('input[name=mock-answer]:checked').focus();return true;");
       await cdp.send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowDown',code:'ArrowDown',windowsVirtualKeyCode:40});await cdp.send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowDown',code:'ArrowDown',windowsVirtualKeyCode:40});
       await saved();assert(await cdp.evaluate("return document.activeElement?.name==='mock-answer'"),'radio focus lost during save');
+      assert(await cdp.evaluate("const tile=document.activeElement.closest('.option'),s=getComputedStyle(tile);return s.outlineStyle!=='none' && parseFloat(s.outlineWidth)>=2 && s.opacity!=='0'"),'focused option has no visible outline');
+      await shot(cdp,'s2-keyboard-focus-desktop-light');
     });
     await run('S2B4 Heute prioritises saved section and a fresh document resumes it',async()=>{
       await go('heute');await cdp.waitFor(`document.querySelector('.hero-next a').getAttribute('href')==='#/lauf/${runId}'`);
@@ -109,6 +111,9 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
           for(const member of [0,1,2]) {
             await clickSel(cdp,`[data-mock-member="${member}"][data-mock-item="0"]`);await saved();
             assert((await overflow(cdp)).offenderCount===0,`${width}px ${mode} part ${member+1} overflows`);
+            assert(await cdp.evaluate("return !/^(LV|SB|HV)\\d+\\s*\\d*$/i.test(document.querySelector('#mock-question-title').textContent.trim())"),'internal seed identifier shown as a task title');
+            await cdp.evaluate("document.querySelector('input[name=mock-answer]')?.focus();return true;");
+            assert(await cdp.evaluate("const tile=document.activeElement?.closest('.option');return !!tile && parseFloat(getComputedStyle(tile).outlineWidth)>=2"),'mobile focus marker missing');
             await shot(cdp,`s2-part-${member+1}-${width}-${mode}`);
           }
         }
@@ -161,6 +166,14 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
       const timed={...original.data,mode:'timed',server_now:new Date().toISOString(),deadline_at:new Date(Date.now()-1000).toISOString(),expired:false};
       await intercept('Request',async event=>{if(event.request.method==='GET'){await reply(event,timed);return true;}return false;});
       try {await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('Die Zeit ist abgelaufen')");assert(await cdp.evaluate("return [...document.querySelectorAll('input[name=mock-answer]')].every(n=>n.disabled||n.closest('fieldset').disabled)"),'expired answers writable');await clickSel(cdp,'[data-mock-member="1"][data-mock-item="0"]');assert(await cdp.evaluate("return document.querySelector('[data-mock-member=\"1\"][data-mock-item=\"0\"]').getAttribute('aria-current')==='step'"),'elapsed deadline prevented readonly navigation before server refresh');await shot(cdp,'s2-expired-desktop-light');}finally{await stopIntercept();}
+      await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('input[name=mock-answer]')");
+    });
+    await run('S2B11a a timely completed run does not expire when viewed later (synthetic response)',async()=>{
+      const completed=await request('/api/v1/mock-runs/'+runId);
+      const timed={...completed.data,mode:'timed',server_now:new Date().toISOString(),deadline_at:new Date(Date.now()-1000).toISOString(),finalised_at:new Date(Date.now()-2000).toISOString(),expired:false};
+      const activeRun=await cdp.evaluate("return location.hash.split('/').at(-1)");
+      await intercept('Request',async event=>{if(event.request.method==='GET'){await reply(event,timed);return true;}return false;});
+      try {await fresh('#/lauf/'+runId);await cdp.waitFor("document.querySelector('#mock-result') && document.querySelector('#mock-deadline')?.textContent==='Innerhalb der Zeit abgeschlossen'");await shot(cdp,'s2-timed-completed-desktop-light');}finally{await stopIntercept();}
       await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('input[name=mock-answer]')");
     });
     await run('S2B12 account-expiry refusal keeps current answer and copy recovery',async()=>{

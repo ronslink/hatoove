@@ -25,7 +25,7 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
   let flushing = null, clockOffset = 0, reloading = false;
   let epoch = 0, error = null, localCopy = '', finalising = false;
   const changed = () => onChange();
-  const expired = () => run?.expired || Boolean(run?.deadline_at && Date.parse(run.deadline_at) <= now() + clockOffset);
+  const expired = () => Boolean(run?.expired || (run?.state === 'active' && run?.deadline_at && Date.parse(run.deadline_at) <= now() + clockOffset));
   const writable = () => run?.state === 'active' && !run.blocked_reason && !expired() && canEdit() && !finalising && !reloading && pending?.kind !== 'finalise';
   const dirty = () => Boolean(run && (!sameResponses(responses, run.responses) || !samePosition(position, run.position)));
   const state = () => ({ run, responses: clone(responses), position: { ...position }, dirty: dirty(), pending: Boolean(pending), busy: Boolean(flight) || reloading, loading: reloading, error, localCopy, finalising, expired: expired(), writable: writable() });
@@ -114,7 +114,7 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
   };
 }
 
-export function createMockController({ api, esc, canEdit = () => true, isArchived = () => false, onOpen = () => {}, onChange = () => {} }) {
+export function createMockController({ api, esc, setLabel = member => member.title, canEdit = () => true, isArchived = () => false, onOpen = () => {}, onChange = () => {} }) {
   let host = null, generation = 0, timer = null, deadlineTimer = null, startOperation = null, confirm = false;
   let displayPosition = null, serverOffset = 0, deadlineReached = false;
   const session = createMockSession({ api, canEdit, onChange: () => { render(); onChange(); } });
@@ -150,7 +150,7 @@ export function createMockController({ api, esc, canEdit = () => true, isArchive
       body = '<section class="card stack" id="mock-result"><h3>Abschnitt abgeschlossen</h3>' + (result ? '<p><strong>' + esc(result.correct) + ' von ' + esc(result.total) + ' Antworten richtig</strong> · ' + esc(result.unanswered) + ' unbeantwortet.</p><p class="muted">Das ist die Rückmeldung zu diesem geübten Abschnitt.</p><ol class="mock-results">' + result.items.map(row => '<li><strong>Teil ' + esc((members.findIndex(member => member.set_id === row.set_id && member.version === row.version) + 1) || '–') + ' · Aufgabe ' + esc(row.item_id) + '</strong><span>' + (row.unanswered ? 'Unbeantwortet' : 'Deine Antwort: ' + esc(row.answer) + ' · ' + (row.correct ? 'Richtig' : 'Nicht richtig')) + '</span>' + (row.correct_answer !== null && row.correct_answer !== undefined ? '<span>Passende Antwort: ' + esc(row.correct_answer) + '</span>' : '') + (row.explanation ? '<p lang="de">' + esc(row.explanation) + '</p>' : '') + '</li>').join('') + '</ol>' : '<p>Die Rückmeldung ist derzeit nicht verfügbar.</p>') + (canEdit() ? '<a class="btn" href="#/abschnitt">Neue Wiederholung auswählen</a>' : '') + '</section>';
     } else if (item) {
       const answer = snapshot.responses.find(row => row.setId === member.set_id && row.version === member.version && row.itemId === item.id)?.answer;
-      body = '<div class="mock-layout"><section class="card stack mock-question"><p class="kicker">Teil ' + (position.member + 1) + ' von ' + members.length + ' · Aufgabe ' + esc(item.id) + '</p><h3 id="mock-question-title" tabindex="-1">' + esc(member.title) + '</h3>'
+      body = '<div class="mock-layout"><section class="card stack mock-question"><p class="kicker">Teil ' + (position.member + 1) + ' von ' + members.length + ' · Aufgabe ' + esc(item.id) + '</p><h3 id="mock-question-title" tabindex="-1">' + esc(setLabel(member)) + '</h3>'
         + (form.passage ? '<div class="stimulus mock-passage" lang="de">' + esc(form.passage) + '</div>' : '')
         + '<fieldset class="mock-options"' + (readonly ? ' disabled' : '') + '><legend>' + esc(item.text) + '</legend>'
         + (item.options || form.options || []).map((option, i) => '<label class="option' + (answer === option.id ? ' selected' : '') + '"><input type="radio" name="mock-answer" data-focus="option-' + i + '" value="' + esc(option.id) + '"' + (answer === option.id ? ' checked' : '') + '><span class="letter">' + esc(option.id) + '</span><span lang="de">' + esc(option.label) + '</span></label>').join('')
@@ -174,6 +174,10 @@ export function createMockController({ api, esc, canEdit = () => true, isArchive
   function updateDeadline() {
     const run = session.state().run, target = host?.querySelector('#mock-deadline');
     if (!run?.deadline_at || !target) return;
+    if (run.state === 'finalised') {
+      target.textContent = run.expired ? 'Nach Ablauf der Zeit abgeschlossen' : 'Innerhalb der Zeit abgeschlossen';
+      return;
+    }
     const seconds = Math.max(0, Math.ceil((Date.parse(run.deadline_at) - Date.now() - serverOffset) / 1000));
     target.textContent = seconds ? Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0') + ' verbleibend' : 'Zeit abgelaufen';
     if (!seconds && !deadlineReached) { deadlineReached = true; render(); return; }

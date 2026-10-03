@@ -71,6 +71,7 @@
  */
 
 import pg from 'pg';
+import { importDefaultPackage } from './package-importer.mjs';
 import { readFile } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -357,6 +358,7 @@ export async function provisionPersistent({ config = persistentConfig() } = {}) 
     migrationPool = persistentRolePool(config, 'migration', { max: 2 });
     const result = await applyMigrations(migrationPool, config);
     await grantProvisionerRights(migrationPool, config);
+    await importDefaultPackage(migrationPool);
     const pools = {
       config,
       migration: migrationPool,
@@ -393,6 +395,7 @@ export async function migrate({ config = persistentConfig() } = {}) {
     migrationPool = persistentRolePool(config, 'migration', { max: 2 });
     const result = await applyMigrations(migrationPool, config);
     await grantProvisionerRights(migrationPool, config);
+    await importDefaultPackage(migrationPool);
     return { ...result, schema: config.schema };
   } finally {
     if (migrationPool) await migrationPool.end().catch(() => {});
