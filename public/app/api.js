@@ -30,6 +30,8 @@ const PATHS = Object.freeze({
   preparations: '/api/v1/preparations',
   tasks: '/api/v1/tasks',
   objectiveSets: '/api/v1/objective-sets',
+  mockForms: '/api/v1/mock-forms',
+  mockRuns: '/api/v1/mock-runs',
   vocab: '/api/v1/vocab',
   nouns: '/api/v1/nouns',
   guides: '/api/v1/guides',
@@ -200,6 +202,16 @@ return Object.freeze({
       const suffix = query.toString();
       return scopedCall('GET', suffix ? `${PATHS.objectiveSets}?${suffix}` : PATHS.objectiveSets);
     },
+  }),
+
+  /** New starts are scoped; saved identities resolve their original preparation on the server. */
+  mock: Object.freeze({
+    forms: () => scopedCall('GET', PATHS.mockForms),
+    list: () => scopedCall('GET', PATHS.mockRuns),
+    start: payload => scopedCall('POST', PATHS.mockRuns, payload),
+    read: id => call('GET', PATHS.mockRuns + '/' + encodeURIComponent(id)),
+    save: (id, payload) => call('PUT', PATHS.mockRuns + '/' + encodeURIComponent(id), payload, true),
+    finalise: (id, payload) => call('POST', PATHS.mockRuns + '/' + encodeURIComponent(id) + '/finalise', payload, true),
   }),
 
   /** The B1 word list. A reference lexicon: no answers, so nothing to withhold. */
