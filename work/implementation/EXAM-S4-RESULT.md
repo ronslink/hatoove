@@ -23,7 +23,7 @@ Ignored evidence is under `D:/Hatoove/.qa/exam-s4-20261003/`; task/lease/worker 
 | S4 offline contracts | 6/6, including strict package/transport contracts, distinct policy and unequal criterion scale discrimination |
 | S4 client contracts | 16/16; retained S3 12/12, S2 20/20, S1 10/10 and owned client 32/32 |
 | S4 PostgreSQL | 17/17 on combined source: forward upgrade, exact import, original manifests, owner/idempotence/race controls, selected-exam allowance, failures, rights ancestry and deletion |
-| Retained PostgreSQL | S3 10/10; S2 package 15/15 and saved runs 14/14 |
+| Retained PostgreSQL | S3 10/10; S2 package 15/15 and saved runs 14/14; S1 11/11 after the exact-owner concurrency fixture repair |
 | Account deletion | 20/20 independently repeated, including real attachment/draft rollback and subsequent removal |
 | Submission preservation | 9/9, including two controlled PostgreSQL races with the actual owner gate and verified winner/loser backend PIDs |
 | Required offline baseline | All seven scripts pass; design check retains the two existing warnings |
@@ -34,8 +34,9 @@ Ignored evidence is under `D:/Hatoove/.qa/exam-s4-20261003/`; task/lease/worker 
 | Default browser | 199/199 after the retained telc-label correction and explicit design reference root; `browser-default-final`. Subsequent prompt-chip CSS polish is covered by the final S4 browser run |
 | Independent backend review | Approved original 212f044 and deletion-test cb80cca; integrated 448d968 and a3cc64a. Reviewer was not the author. Author evidence and independent offline checks were inspected; integrated PG was repeated by the coordinator |
 | Independent race-test review | Approved exact blob `0a33ed8806d74f5e551627ac7bfac791ab14d80b` and inspected the integrated 9/9 result |
-| Independent client/content/root review | Pending final frozen source and corrected rendered evidence |
-| PR/CI/integration | Pending; delivery, review, green CI, merge and product acceptance remain distinct |
+| Independent retained-test review | Approved author `df0c2e3`, integrated `217ac2c`; coordinator repeated preservation 7/7 and S1 PostgreSQL 11/11 on combined source |
+| Independent client/content/root review | Approved exact source `1816c598baf4dd163c81195e7a69927292652db8`, including final screenshots, by EXAM-S4-REVIEW-20261003-B; no remaining findings |
+| PR/CI/integration | [PR 114](https://github.com/ronslink/hatoove/pull/114) is open and unmerged. Both workflows failed before any test step because GitHub reports an account billing/spending-limit block. No green CI or merge is claimed; no gate bypass or billing change was performed |
 
 Backend and client authors used separate worktrees. The installed Docker Hermes agent authored the original two-file content delivery `bae3d40`, integrated as `4f8ec78`. Coordinator corrections preserve actual provenance and positive A1 descriptors. Claude's installed session was rate limited during its availability probe; no provider configuration was changed.
 
@@ -45,8 +46,10 @@ Initial mobile screenshots revealed cramped long DTZ bands under the inherited o
 
 The existing submission/discard race observer expected the loser at an entitlement row lock. S4 adds an earlier shared owner gate, so the real loser correctly waited there instead. The repaired observer requires the exact advisory gate, restricted learner role and the deliberately paused winner PID in `pg_blocking_pids`; it retains the attempt-lock pause and all result/preservation/balance assertions. Both races pass without changing production locking.
 
+After the hosted-CI block, additional local CI commands exercised persistent provisioning/API/worker behavior, readiness recovery, source policy, eight table-class mutations, RLS discrimination, objective-key isolation, history/export, sentence practice and the complete saved learner API journey. Two retained fixtures needed updates: export now includes an eighth owner-scoped attachment query, and a cross-exam event-reuse barrier could no longer admit two simultaneous lookups after the new owner gate. The latter is replaced with an observed wait on the exact owner advisory key and winner PID while preserving one-submission/job/debit, replay/conflict and untouched-other-exam assertions. These are test-only changes with separate independent review. Local evidence does not stand in for unexecuted hosted Windows/Linux CI.
+
 ## Remaining boundaries
 
 Qualified educational, translation and rights review remains pending. Headless Chromium does not establish physical iPhone/Android keyboard/audio acceptance. S5 listening/full written forms and S6 complete DTZ release acceptance remain separate. Security/privacy/provider/legal/product approvals and production deployment are not granted by this slice.
 
-Learner ports 4300/55440, existing data/volumes, paused work and recovery material remain preserved. Canonical main acquired unrelated uncommitted payment/client work during this execution; it must not be overwritten by a fast-forward. Integration continues in the isolated worktree. Task fixture cleanup and final handoff remain pending integration.
+Learner ports 4300/55440, existing data/volumes, paused work and recovery material remain preserved. Canonical main acquired unrelated uncommitted payment/client work during this execution; it must not be overwritten by a fast-forward. The isolated integration worktree and PR preserve the completed implementation. All task browser/Compose fixtures and the verified `hatoove-s4-pg-20261003` database project/volume have been removed; logs, source snapshots, bundles and screenshots remain preserved. Hosted CI must be restored and pass before merge. Next work is CI recovery and S4 integration, followed by S5 under a new bounded lease; no new slice is active.
