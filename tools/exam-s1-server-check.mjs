@@ -30,13 +30,18 @@ const PACKAGES = {
   [SYNTH]: { exam_id: SYNTH, exam: 'Synthetic English B2', exam_language: 'en', level: 'B2' },
   'synthetic-unpublished': { exam_id: 'synthetic-unpublished', exam: 'Unpublished', exam_language: 'fr', level: 'A2' },
 };
+/*
+ * `approved` synthetic rows, so they are servable under the DEFAULT content policy (`public`: approved only)
+ * without this check touching `B1PREP_CONTENT_MODE`. With `unreviewed` rows every scoped list came back
+ * empty — the route's servability filter worked, and the exam-scoping assertions compared nothing.
+ */
 const SETS = [
-  { set_id: 'telc.lv1.01', version: 'v1', exam_id: TELC, family: 'LV1', review_status: 'unreviewed', rights_status: 'generated' },
-  { set_id: 'synth.r1.01', version: 'v1', exam_id: SYNTH, family: 'LV1', review_status: 'unreviewed', rights_status: 'generated' },
+  { set_id: 'telc.lv1.01', version: 'v1', exam_id: TELC, family: 'LV1', review_status: 'approved', rights_status: 'generated' },
+  { set_id: 'synth.r1.01', version: 'v1', exam_id: SYNTH, family: 'LV1', review_status: 'approved', rights_status: 'generated' },
 ];
 const TASKS = [
-  { task_id: 'writing.telc', version: 'v1', exam_id: TELC, rubric_id: 'r.telc', rubric_version: 'v1', review_status: 'unreviewed', rights_status: 'generated', created_at: '2026-01-01' },
-  { task_id: 'writing.synth', version: 'v1', exam_id: SYNTH, rubric_id: 'r.synth', rubric_version: 'v1', review_status: 'unreviewed', rights_status: 'generated', created_at: '2026-01-01' },
+  { task_id: 'writing.telc', version: 'v1', exam_id: TELC, rubric_id: 'r.telc', rubric_version: 'v1', review_status: 'approved', rights_status: 'generated', created_at: '2026-01-01' },
+  { task_id: 'writing.synth', version: 'v1', exam_id: SYNTH, rubric_id: 'r.synth', rubric_version: 'v1', review_status: 'approved', rights_status: 'generated', created_at: '2026-01-01' },
 ];
 
 const fail = (status, code) => { throw new Fault(status, code); };
@@ -291,10 +296,18 @@ await leg('scoped reads require a preparation and never default to all exams', a
     const examExpected = route.startsWith('/api/v1/attempts') ? 'invalid_query' : 'preparation_mismatch';
     assert.equal((await w.call('a', 'GET', `${route}${sep}preparationId=${telc}&exam=${SYNTH}`)).body.error, examExpected, `${route} exam`);
   }
+  // Each preparation sees exactly its own exam's content: non-empty, so "never default to all exams" and
+  // "never leak the other exam" are compared against real rows rather than against an empty list.
   const telcTasks = await w.call('a', 'GET', `/api/v1/tasks?preparationId=${telc}`);
-  assert.deepEqual(telcTasks.body.map((t) => t.exam_id), [TELC]);
+  assert.equal(telcTasks.status, 200, JSON.stringify(telcTasks.body));
+  assert.deepEqual(telcTasks.body.map((t) => t.task_id), ['writing.telc']);
+  const synthTasks = await w.call('a', 'GET', `/api/v1/tasks?preparationId=${synth}`);
+  assert.deepEqual(synthTasks.body.map((t) => t.task_id), ['writing.synth']);
   const synthSets = await w.call('a', 'GET', `/api/v1/objective-sets?preparationId=${synth}`);
-  assert.deepEqual(synthSets.body.map((s) => s.exam_id), [SYNTH]);
+  assert.equal(synthSets.status, 200, JSON.stringify(synthSets.body));
+  assert.deepEqual(synthSets.body.map((s) => s.set_id), ['synth.r1.01']);
+  const ownRead = await w.call('a', 'GET', `/api/v1/objective-sets/telc.lv1.01?version=v1&preparationId=${telc}`);
+  assert.equal(ownRead.status, 200, 'the same set is readable in its own exam context');
   const crossRead = await w.call('a', 'GET', `/api/v1/objective-sets/telc.lv1.01?version=v1&preparationId=${synth}`);
   assert.equal(crossRead.body.error, 'preparation_mismatch');
 });
