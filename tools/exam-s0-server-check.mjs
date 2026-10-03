@@ -74,7 +74,9 @@ function fakePool(respond = () => null) {
   return { log, pool: { query, connect: async () => ({ query, release() {} }) } };
 }
 
-const row = (id, review, extra = {}) => ({ review_status: review, rights_status: 'generated', ...id, ...extra });
+const INITIAL_EXAM = 'telc-deutsch-b1';
+// EXAM-S1: catalogue rows belong to an exam; the scoped routes filter on it, so the stub carries one.
+const row = (id, review, extra = {}) => ({ exam_id: INITIAL_EXAM, review_status: review, rights_status: 'generated', ...id, ...extra });
 
 /** Catalogue + practice ports that IGNORE `serveReview` and return everything, so the route's own filter is tested. */
 function widePorts(record) {
@@ -111,9 +113,22 @@ function widePorts(record) {
 function wideApi() {
   const record = [];
   const store = createMemoryDatastore();
-  const api = createOwnedApi({ datastore: { ...store.port, ...widePorts(record) }, sessions: createMemorySessions(), settings: store.settings });
-  return { api, record, store };
+  // EXAM-S1: registration provisions the initial preparation + balance, as PostgreSQL does.
+  const sessions = createMemorySessions({ provision: store.provision });
+  const api = createOwnedApi({ datastore: { ...store.port, ...widePorts(record) }, sessions, settings: store.settings });
+  return { api, record, store, sessions };
 }
+
+/** EXAM-S1: the scoped routes need the id of an owned, ACTIVE preparation; resolved, never assumed. */
+async function preparationId(call, cookie) {
+  const res = await call('GET', '/api/v1/preparations', { cookie });
+  assert.equal(res.status, 200, JSON.stringify(res.json));
+  const active = res.json.preparations.find((p) => p.state === 'active');
+  assert.ok(active, `sign-up must provision exactly one active preparation, got ${JSON.stringify(res.json)}`);
+  return active.id;
+}
+/** Append the required preparation context to a path, with or without an existing query string. */
+const scoped = (path, prepId) => `${path}${path.includes('?') ? '&' : '?'}preparationId=${prepId}`;
 
 const legs = [];
 const check = (name, fn) => legs.push({ name, fn });
@@ -124,35 +139,36 @@ check('1. objective read and answer require an explicit version; v1 is honoured 
     const { api, record } = wideApi();
     const call = caller(api);
     const cookie = await signUp(call);
+    const prepId = await preparationId(call, cookie);
     for (const query of ['', '?version=', '?version=latest', '?version=1', '?ver=v1']) {
-      const res = await call('GET', `/api/v1/objective-sets/synthetic.set${query}`, { cookie });
+      const res = await call('GET', scoped(`/api/v1/objective-sets/synthetic.set${query}`, prepId), { cookie });
       assert.equal(res.status, 422, `GET ${query || '(no version)'} must be 422, got ${res.status} ${JSON.stringify(res.json)}`);
       assert.deepEqual(res.json, { error: 'invalid_version' });
     }
     assert.deepEqual(record.filter(([name]) => name === 'readObjectiveSet'), [], 'a refused read never reaches the port');
     for (const version of ['v1', 'v2']) {
-      const res = await call('GET', `/api/v1/objective-sets/synthetic.set?version=${version}`, { cookie });
+      const res = await call('GET', scoped(`/api/v1/objective-sets/synthetic.set?version=${version}`, prepId), { cookie });
       assert.equal(res.status, 200, `explicit ${version}`);
       assert.equal(res.json.version, version);
       assert.equal(res.json.payload.title, version, 'the payload is that exact version');
     }
-    assert.equal((await call('GET', '/api/v1/objective-sets/synthetic.set?version=v9', { cookie })).status, 404,
+    assert.equal((await call('GET', scoped('/api/v1/objective-sets/synthetic.set?version=v9', prepId), { cookie })).status, 404,
       'an unknown exact pair is 404');
 
     const before = record.length;
     for (const body of [{ itemId: '1', answer: 'a' }, { itemId: '1', answer: 'a', version: 1 },
       { itemId: '1', answer: 'a', version: 'latest' }, { itemId: '1', answer: 'a', version: null }]) {
-      const res = await call('POST', '/api/v1/objective-sets/synthetic.set/answers', { cookie, body });
+      const res = await call('POST', '/api/v1/objective-sets/synthetic.set/answers', { cookie, body: { ...body, preparationId: prepId } });
       assert.equal(res.status, 422, `answer ${JSON.stringify(body)} must be 422, got ${res.status}`);
       assert.deepEqual(res.json, { error: 'invalid_version' });
     }
     assert.equal(record.length, before, 'a refused answer never reaches the marking port');
     const v2 = await call('POST', '/api/v1/objective-sets/synthetic.set/answers',
-      { cookie, body: { itemId: '1', answer: 'a', version: 'v2' } });
+      { cookie, body: { itemId: '1', answer: 'a', version: 'v2', preparationId: prepId } });
     assert.equal(v2.status, 201);
     assert.equal(record.at(-1)[1].version, 'v2', 'the supplied version reaches the port unchanged');
     const v1 = await call('POST', '/api/v1/objective-sets/synthetic.set/answers',
-      { cookie, body: { itemId: '1', answer: 'a', version: 'v1' } });
+      { cookie, body: { itemId: '1', answer: 'a', version: 'v1', preparationId: prepId } });
     assert.equal(v1.status, 201);
     assert.equal(record.at(-1)[1].version, 'v1', 'an explicit v1 is preserved');
   });
@@ -209,8 +225,16 @@ check('3. one content policy: public by default, legacy flags cannot widen it, u
 
 /* ------------------------------------------------------------------ 4 */
 check('4. adapter options cannot widen the deployment policy', async () => {
+  const PREP = '11111111-2222-4333-8444-555555555555';
   const statusesFor = async (env) => withEnv(env, async () => {
-    const { log, pool } = fakePool();
+    // EXAM-S1 added an owned, ACTIVE preparation lookup and an exam-consistency check before marking, so
+    // the marking path only reaches its set query with scripted responses for those reads.
+    const { log, pool } = fakePool((sql) => {
+      if (/FROM learner_preparation p/.test(sql)) return { rows: [{ id: PREP, exam_id: INITIAL_EXAM, state: 'active' }] };
+      if (/FROM objective_set s/.test(sql)) return { rows: [{ exam_id: INITIAL_EXAM, family: 'LV', section: 'LV1', version: 'v1' }] };
+      if (/mark_objective_item/.test(sql)) return { rows: [{ correct: true }] };
+      return null;
+    });
     const port = createPostgresDatastore({ pool });
     const wide = { serveReview: 'approved+unreviewed' };
     await port.listTasks('owner', wide);
@@ -218,7 +242,7 @@ check('4. adapter options cannot widen the deployment policy', async () => {
     await port.readObjectiveSet('owner', { setId: 'synthetic.set', version: 'v1', ...wide });
     await port.readRubric('owner', { rubricId: 'r', version: 'v1', ...wide });
     await port.listGuides('owner', wide);
-    await port.answerObjectiveItem('owner', { setId: 'synthetic.set', version: 'v1', itemId: '1', answer: 'a' }).catch(() => {});
+    await port.answerObjectiveItem('owner', { preparationId: PREP, setId: 'synthetic.set', version: 'v1', itemId: '1', answer: 'a' }).catch(() => {});
     const pick = (pattern) => log.find((entry) => pattern.test(entry.sql));
     return {
       tasks: pick(/FROM task_version t/).params[2],
@@ -249,14 +273,15 @@ check('5. public catalogue routes serve approved rows only, even when a port ret
     const { api } = wideApi();
     const call = caller(api);
     const cookie = await signUp(call);
+    const prepId = await preparationId(call, cookie);
     const out = {};
     for (const path of lists) {
-      const res = await call('GET', `${path}?serveReview=approved%2Bunreviewed&review=unreviewed`, { cookie });
+      const res = await call('GET', scoped(`${path}?serveReview=approved%2Bunreviewed&review=unreviewed`, prepId), { cookie });
       assert.equal(res.status, 200, `${path}: ${JSON.stringify(res.json)}`);
       out[path] = res.json.map((r) => r.review_status);
     }
-    out.unreviewedSet = (await call('GET', '/api/v1/objective-sets/synthetic.unreviewed?version=v1', { cookie })).status;
-    out.approvedSet = (await call('GET', '/api/v1/objective-sets/synthetic.set?version=v1', { cookie })).status;
+    out.unreviewedSet = (await call('GET', scoped('/api/v1/objective-sets/synthetic.unreviewed?version=v1', prepId), { cookie })).status;
+    out.approvedSet = (await call('GET', scoped('/api/v1/objective-sets/synthetic.set?version=v1', prepId), { cookie })).status;
     out.rubric = (await call('GET', '/api/v1/rubrics/synthetic.rubric?version=v1', { cookie })).status;
     out.guide = (await call('GET', '/api/v1/guides/unreviewed-guide', { cookie })).status;
     return out;
@@ -279,35 +304,37 @@ check('5. public catalogue routes serve approved rows only, even when a port ret
 /* ------------------------------------------------------------------ 6 */
 check('6. public and unknown modes refuse new writing use; saved history stays readable', async () => {
   const store = createMemoryDatastore();
-  const api = createOwnedApi({ datastore: store.port, sessions: createMemorySessions(), settings: store.settings });
+  // EXAM-S1: registration provisions the initial preparation + balance, as PostgreSQL does.
+  const api = createOwnedApi({ datastore: store.port, sessions: createMemorySessions({ provision: store.provision }), settings: store.settings });
   const call = caller(api);
   const text = 'SYNTHETIC EXAM-S0: Liebe Anna, ich komme am Samstag. Viele Grüße.';
   const state = await withEnv(PREVIEW, async () => {
     const cookie = await signUp(call);
-    const submitted = await call('POST', '/api/v1/attempts', { cookie, body: {} });
+    const prepId = await preparationId(call, cookie);
+    const submitted = await call('POST', '/api/v1/attempts', { cookie, body: { preparationId: prepId } });
     assert.equal(submitted.status, 201, 'preview control: the unreviewed seed is usable');
     await call('PUT', `/api/v1/attempts/${submitted.json.id}`, { cookie, body: { expectedRevision: 1, text } });
     const receipt = await call('POST', `/api/v1/attempts/${submitted.json.id}/submissions`,
       { cookie, body: { expectedRevision: 2, eventId: randomUUID() } });
     assert.equal(receipt.status, 202);
-    const failed = await call('POST', '/api/v1/attempts', { cookie, body: {} });
+    const failed = await call('POST', '/api/v1/attempts', { cookie, body: { preparationId: prepId } });
     await call('PUT', `/api/v1/attempts/${failed.json.id}`, { cookie, body: { expectedRevision: 1, text } });
     const failedReceipt = await call('POST', `/api/v1/attempts/${failed.json.id}/submissions`,
       { cookie, body: { expectedRevision: 2, eventId: randomUUID() } });
     store.worker.claim(failedReceipt.json.submissionId);
     store.worker.fail(failedReceipt.json.submissionId, 'provider_unavailable');
-    const draft = await call('POST', '/api/v1/attempts', { cookie, body: {} });
+    const draft = await call('POST', '/api/v1/attempts', { cookie, body: { preparationId: prepId } });
     await call('PUT', `/api/v1/attempts/${draft.json.id}`, { cookie, body: { expectedRevision: 1, text } });
-    return { cookie, attemptId: submitted.json.id, submissionId: receipt.json.submissionId,
+    return { cookie, prepId, attemptId: submitted.json.id, submissionId: receipt.json.submissionId,
       failedId: failedReceipt.json.submissionId, draftId: draft.json.id };
   });
   for (const env of [{}, { B1PREP_CONTENT_MODE: 'public', B1PREP_SERVE_REVIEW: 'approved+unreviewed' }, { B1PREP_CONTENT_MODE: 'live' }]) {
     await withEnv(env, async () => {
       const label = JSON.stringify(env);
       const before = store.inspect.fingerprint();
-      const { cookie } = state;
+      const { cookie, prepId } = state;
       for (const [what, res] of [
-        ['create', await call('POST', '/api/v1/attempts', { cookie, body: {} })],
+        ['create', await call('POST', '/api/v1/attempts', { cookie, body: { preparationId: prepId } })],
         ['revision', await call('POST', '/api/v1/attempts', { cookie, body: { parentSubmissionId: state.submissionId } })],
         ['submit', await call('POST', `/api/v1/attempts/${state.draftId}/submissions`, { cookie, body: { expectedRevision: 2, eventId: randomUUID() } })],
         ['retry', await call('POST', `/api/v1/submissions/${state.failedId}/retry`, { cookie })],
@@ -323,7 +350,7 @@ check('6. public and unknown modes refuse new writing use; saved history stays r
       assert.equal(result.json.submission.text, text, `${label}: the submitted text is preserved`);
       assert.equal((await call('GET', `/api/v1/submissions/${state.failedId}`, { cookie })).json.job.status, 'failed',
         `${label}: the unassessed failure stays visible`);
-      assert.equal((await call('GET', '/api/v1/attempts', { cookie })).json.attempts.length, 3);
+      assert.equal((await call('GET', `/api/v1/attempts?preparationId=${prepId}`, { cookie })).json.attempts.length, 3);
       assert.equal((await call('GET', `/api/v1/attempts/${state.draftId}`, { cookie })).json.text, text, 'the draft is kept');
     });
   }
