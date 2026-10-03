@@ -281,7 +281,41 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
     'submit locks the balance before the attempt');
   const exported = body('exportData');
   const statements = exported.split('client.query(').slice(1);
-  assert.equal(statements.length, 12, 'preparations, balances, attempts, submissions, results, objective evidence, saved runs, writing attachments, and four payment records');
+  // Closed S5 inventory: schedule and playback snapshots joined the account export.
+  // Name each query and its owner binding rather than merely accepting a larger count.
+  const inventory = [
+    ['preparations', 'learner_preparation p', 'p.owner_id'],
+    ['balances', 'entitlements', 'owner_id'],
+    ['attempts', 'attempts a', 'a.owner_id'],
+    ['submissions', 'submissions s', 's.owner_id'],
+    ['results', 'submissions s', 's.owner_id'],
+    ['objective_evidence', 'item_evidence', 'owner_id'],
+    ['mock_runs', 'mock_run r', 'owner_id'],
+    ['mock_writing', 'mock_writing', 'owner_id'],
+    ['mock_run_time_groups', 'mock_run_time_group', 'owner_id'],
+    ['listening_playback', 'listening_playback', 'owner_id'],
+    ['payment_orders', 'payment_order', 'owner_id'],
+    ['payment_events', 'payment_event', 'owner_id'],
+    ['payment_grants', 'payment_grant', 'owner_id'],
+    ['payment_checkout_events', 'payment_checkout_event', 'owner_id'],
+  ];
+  const queries = [...exported.matchAll(/const\s+(\w+)\s*=\s*\(await client\.query\(\s*(['"`])([\s\S]*?)\2\s*,\s*(\[[^\]]*\])\s*\)\)\.rows/g)];
+  assert.equal(statements.length, inventory.length, 'every direct export query is accounted for');
+  assert.deepEqual(queries.map((match) => match[1]), inventory.map(([name]) => name),
+    'exactly the historical S5 export queries remain, including time groups and playback');
+  const returned = exported.match(/return\s*\{([^{}]+)\};/);
+  assert.ok(returned, 'the export returns its named snapshots');
+  assert.deepEqual(returned[1].split(',').map((name) => name.trim()), inventory.map(([name]) => name),
+    'every queried snapshot is returned exactly once');
+  for (const [index, [name, table, ownerColumn]] of inventory.entries()) {
+    const sql = queries[index][3];
+    assert.match(sql, new RegExp(`\\bFROM\\s+${table}\\b`), `${name} reads its expected source`);
+    assert.match(sql, new RegExp(`\\bWHERE\\s+${ownerColumn.replace('.', '\\.')}\\s*=\\s*\\$1\\b`),
+      `${name} is explicitly owner-scoped`);
+    const parameters = name === 'mock_runs'
+      ? "[owner,examCatalogue.ids,contentPolicy().mode==='internal-preview']" : '[owner]';
+    assert.equal(queries[index][4].replace(/\s/g, ''), parameters, `${name} binds the real owner to $1`);
+  }
   for (const table of ['payment_order', 'payment_checkout_event', 'payment_event', 'payment_grant']) {
     const paymentStatements = statements.filter(sql => new RegExp(`FROM ${table}\\b`).test(sql));
     assert.equal(paymentStatements.length, 1, `${table} stays in the account export`);
