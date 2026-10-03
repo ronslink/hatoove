@@ -91,7 +91,15 @@ try{
   await reject(tx(db.learner,c=>c.query('UPDATE drafts SET revision=revision+1,text=$2 WHERE attempt_id=$1',[draft.id,'Must not replace the saved text']),a),'review_blocked');
   await reject(tx(db.learner,c=>c.query('INSERT INTO submissions(id,attempt_id,owner_id,event_id,draft_revision,text,task_version,rubric_version,explanation_language) VALUES($1,$2,$3,$4,2,$5,$6,$7,$8)',[randomUUID(),draft.id,a,randomUUID(),'Must not create a submission',draft.task_version,draft.rubric_version,'de']),a),'review_blocked');
   assert.deepEqual((await db.admin.query('SELECT revision,text FROM drafts WHERE attempt_id=$1',[draft.id])).rows[0],{revision:2,text:'Saved before withdrawal'});
-  assert.equal((await db.migration.query('SELECT count(*)::int n FROM attempts')).rows[0].n,0,'definer policies do not disclose identities without a bound owner');await decide(taskSubject);
+  // O01's schema-owning migration role needs parent reads for its private definer functions.
+  // Runtime learner/deletion roles still reveal no identities without their bound owner.
+  const authority=(await db.migration.query("SELECT current_user AS caller,pg_get_userbyid(proowner) AS function_owner FROM pg_proc WHERE oid='begin_provider_attempt(uuid,uuid,jsonb)'::regprocedure")).rows[0];
+  assert.deepEqual(authority,{caller:db.roles.migration,function_owner:db.roles.migration});
+  const parentCount=(await db.admin.query('SELECT count(*)::int n FROM attempts')).rows[0].n;
+  assert.ok(parentCount>0,'the denial control has real parent rows');
+  assert.equal((await db.migration.query('SELECT count(*)::int n FROM attempts')).rows[0].n,parentCount,'the reviewed function owner can read its parents');
+  for(const role of ['learner','deletion'])assert.equal((await db[role].query('SELECT count(*)::int n FROM attempts')).rows[0].n,0,role+' cannot read identities without a bound owner');
+  await decide(taskSubject);
  });
  await check('media withdrawal stops active bytes and raw playback updates; exact receipt does not debit again',async()=>{await decide(mediaSubject,'withdraw');await reject(port.readMockMedia(a,active.id,rec.media_id,rec.media_version),'mock_content_unavailable');await reject(tx(db.learner,c=>c.query("UPDATE listening_playback SET revision=revision+1,state='paused',position_ms=0 WHERE run_id=$1",[active.id]),a),'mock_content_unavailable');const receipt=await port.mutateMockPlayback(a,active.id,beginBody);assert.equal(receipt.plays_used,1);assert.equal(receipt.playback_id,begun.playback_id);assert.equal((await db.admin.query('SELECT count(*)::int n FROM listening_playback_event WHERE run_id=$1',[active.id])).rows[0].n,1);await decide(mediaSubject);});
  await check('format withdrawal closes active pinned use even with every content member approved',async()=>{await decide(formSubject,'withdraw');await reject(tx(db.learner,c=>c.query('UPDATE mock_run SET revision=revision+1,updated_at=clock_timestamp() WHERE id=$1',[active.id]),a),'mock_content_unavailable');assert.equal((await port.readMockRun(a,completed.id)).review_withdrawn,true);assert.ok((await port.readMockRun(a,completed.id)).result);await decide(formSubject);});
