@@ -41,6 +41,13 @@ tags:
     description: The signed-in learner's own account.
   - name: settings
     description: Server-stored learner settings.
+  - name: preparations
+    description: |
+      EXAM-S1. A preparation is one learner preparing for one exam package. Tasks, objective sets,
+      practice, attempt lists, objective answers and new writing attempts are scoped to one by a
+      required `preparationId`; missing or malformed is `422 preparation_required`/`invalid_preparation`,
+      another owner's or an absent one is `404`, content of another exam is `422 preparation_mismatch`.
+      Credits are keyed by (account, exam), never by preparation.
   - name: catalogue
     description: The servable task catalogue.
   - name: attempts
@@ -237,6 +244,130 @@ paths:
         '403': { description: 'Origin refused.' }
         '422': { description: 'Blank, non-string, too-long text or unsupported input fields.' }
 
+  /api/v1/exams:
+    get:
+      tags: [preparations]
+      summary: The exam packages this deployment offers
+      description: Server configuration decides; S1 offers telc Deutsch B1 only. A database row alone does not publish a package.
+      responses:
+        '200':
+          description: The offered packages.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exams:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        exam_id: { type: string }
+                        exam: { type: string }
+                        exam_language: { type: string }
+                        level: { type: string }
+        '401': { description: 'No verified session.' }
+
+  /api/v1/preparations:
+    get:
+      tags: [preparations]
+      summary: Every preparation of the account, archived history included
+      responses:
+        '200':
+          description: The preparations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  preparations: { type: array, items: { $ref: '#/components/schemas/Preparation' } }
+        '401': { description: 'No verified session.' }
+    post:
+      tags: [preparations]
+      summary: Start (or return) the active preparation for an exam
+      description: Idempotent. An existing active preparation is returned unchanged with `200`; its date is not overwritten. Never grants or refills credits.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [examId]
+              properties:
+                examId: { type: string }
+      responses:
+        '200': { description: 'The existing active preparation.' }
+        '201': { description: 'A new active preparation.' }
+        '401': { description: 'No verified session.' }
+        '403': { description: 'Origin refused.' }
+        '422': { description: '`invalid_exam`, `exam_unavailable` or `unknown_field`.' }
+
+  /api/v1/preparations/{preparationId}:
+    parameters:
+      - { name: preparationId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [preparations]
+      summary: Read one preparation
+      responses:
+        '200':
+          description: The preparation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Preparation' }
+        '401': { description: 'No verified session.' }
+        '404': { description: 'Absent, or another account''s.' }
+    put:
+      tags: [preparations]
+      summary: Edit the exam date and/or state
+      description: |
+        Revision-guarded. A stale `expectedRevision` is `409 preparation_conflict` with the current
+        preparation in `current`. `examDate` must be a real calendar date or `null`. The exam is
+        immutable. Resuming while another preparation for the same exam is active is
+        `409 active_preparation_exists`. Archiving keeps history readable and pending jobs finishable;
+        no new practice is accepted in an archived preparation (`409 preparation_archived`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedRevision]
+              properties:
+                expectedRevision: { type: integer, minimum: 1 }
+                examDate: { type: string, format: date, nullable: true }
+                state: { type: string, enum: [active, archived] }
+      responses:
+        '200': { description: 'The updated preparation.' }
+        '401': { description: 'No verified session.' }
+        '404': { description: 'Absent, or another account''s.' }
+        '409': { description: '`preparation_conflict` (with `current`) or `active_preparation_exists`.' }
+        '422': { description: '`invalid_exam_date`, `invalid_preparation_update` or `unknown_field`.' }
+
+  /api/v1/preparations/{preparationId}/credits:
+    parameters:
+      - { name: preparationId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [preparations]
+      summary: The exam balance behind a preparation
+      description: Credits belong to (account, exam). An exam with no balance reads as zero; reading never grants.
+      responses:
+        '200':
+          description: The balance.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  examId: { type: string }
+                  allowance: { type: integer }
+                  used: { type: integer }
+                  reserved: { type: integer }
+                  available: { type: integer }
+        '401': { description: 'No verified session.' }
+        '404': { description: 'Absent, or another account''s.' }
+
   /api/v1/settings:
     get:
       tags: [settings]
@@ -252,7 +383,7 @@ paths:
                   settings:
                     type: object
                     properties:
-                      examDate: { type: string, description: 'YYYY-MM-DD, or empty.' }
+                      examDate: { type: string, description: 'Read-only legacy value, kept for audit and export. The active exam date is on the preparation (EXAM-S1).' }
                       language: { type: string, enum: [de, en, uk, ar, tr], description: 'Explanation language only. The interface stays German.' }
                       dailyGoal: { type: string }
                       model: { type: string }
@@ -275,8 +406,10 @@ paths:
                 expectedRevision: { type: integer }
                 settings:
                   type: object
+                  description: '`examDate` is no longer accepted (EXAM-S1): the date is set on the preparation.'
                   properties:
-                    examDate: { type: string }
+                    dailyGoal: { type: integer }
+                    theme: { type: string, enum: [system, light, dark] }
                     language: { type: string, enum: [de, en, uk, ar, tr] }
       responses:
         '200': { description: 'Written; the new revision is returned.' }
@@ -300,11 +433,12 @@ paths:
         mode fails closed and serves nothing. A task is listed only when its declared rubric is servable
         too. A request may NARROW the list and may never widen it.
       parameters:
+        - $ref: '#/components/parameters/PreparationQuery'
         - name: exam
           in: query
           required: false
           schema: { type: string, pattern: '^[a-z0-9][a-z0-9-]{0,63}$' }
-          description: The exam package id, e.g. `telc-deutsch-b1`.
+          description: Optional; may only equal the preparation's exam (`422 preparation_mismatch` otherwise).
         - name: family
           in: query
           required: false
@@ -337,12 +471,13 @@ paths:
         the catalogue. The response shape is unchanged and carries no answer key. The deployment content
         policy applies, as for `/api/v1/tasks`.
       parameters:
+        - $ref: '#/components/parameters/PreparationQuery'
         - name: version
           in: query
           required: true
           schema: { type: string, pattern: '^v[0-9]{1,4}$' }
       responses:
-        '200': { description: 'The set at that exact version, with its learner-visible payload.' }
+        '200': { description: 'The set at that exact version, with its learner-visible payload. A set of another exam is `422 preparation_mismatch`.' }
         '401': { description: 'No verified session.' }
         '404': { description: 'No such servable `(set_id, version)` pair — unknown and withheld are indistinguishable.' }
         '422': { description: 'Missing or invalid `version` (`invalid_version`).' }
@@ -367,8 +502,9 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [version, itemId, answer]
+              required: [preparationId, version, itemId, answer]
               properties:
+                preparationId: { type: string, format: uuid, description: 'EXAM-S1. Must be an owned, active preparation of the set''s exam; checked before marking or writing.' }
                 version: { type: string, pattern: '^v[0-9]{1,4}$' }
                 itemId: { type: string, pattern: '^[A-Za-z0-9._-]{1,64}$' }
                 answer: {}
@@ -391,6 +527,7 @@ paths:
         (draft, pending, unassessed, assessed). Use submission_id to reopen the exact result.
         The existing open=1 query returns unfinished drafts only.
       parameters:
+        - $ref: '#/components/parameters/PreparationQuery'
         - name: open
           in: query
           schema: { type: string, enum: ['1'] }
@@ -417,6 +554,7 @@ paths:
             schema:
               type: object
               properties:
+                preparationId: { type: string, format: uuid, description: 'EXAM-S1. Required for a new attempt. A revision inherits its parent''s preparation; naming a different one is `422 preparation_mismatch`.' }
                 parentSubmissionId: { type: string, format: uuid, description: 'Revision parent. Inherits its exact task/rubric and frozen text when binding is omitted.' }
                 taskId: { type: string }
                 taskVersion: { type: string }
@@ -558,12 +696,34 @@ components:
         The server-side session. `HttpOnly`, `SameSite=Lax`; `Secure` is a TLS-deployment switch and
         is deliberately not required on the local HTTP stack, where a `Secure` cookie would never be
         sent.
+  parameters:
+    PreparationQuery:
+      name: preparationId
+      in: query
+      required: true
+      schema: { type: string, format: uuid }
+      description: 'EXAM-S1. The preparation this read is scoped to. Missing/malformed `422`; foreign/absent `404`. A retained `exam` query may only restate its exam (`422 preparation_mismatch`).'
   schemas:
+    Preparation:
+      type: object
+      required: [id, exam_id, exam, exam_language, exam_date, state, revision, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        exam_id: { type: string }
+        exam: { type: string }
+        exam_language: { type: string }
+        exam_date: { type: string, format: date, nullable: true }
+        state: { type: string, enum: [active, archived] }
+        revision: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     AttemptSummary:
       type: object
       required: [id, task_id, task_version, rubric_id, rubric_version, revision, created_at]
       properties:
         id: { type: string, format: uuid }
+        preparation_id: { type: string, format: uuid, nullable: true }
+        exam_id: { type: string, nullable: true }
         task_id: { type: string }
         task_version: { type: string }
         rubric_id: { type: string }

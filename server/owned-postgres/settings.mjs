@@ -27,6 +27,12 @@
 
 import { Fault, SETTINGS_FIELDS, EXPLANATION_LANGUAGES } from '../owned-api.mjs';
 
+/*
+ * EXAM-S1: `examDate` is READ-ONLY legacy. The active date lives on the preparation; the stored value is
+ * returned and exported for audit, refused on write (it is not in SETTINGS_FIELDS), and never rewritten —
+ * the UPDATE below does not name the column.
+ */
+
 export const SETTINGS_LIMITS = Object.freeze({
   examDate: 10,      // ISO calendar date, `YYYY-MM-DD`
   theme: 16,
@@ -79,13 +85,6 @@ export function validateSettings(input) {
   if (unknown.length) throw new Fault(422, 'invalid_settings');
 
   const out = {};
-  if (input.examDate !== undefined) {
-    if (typeof input.examDate !== 'string' || input.examDate.length > SETTINGS_LIMITS.examDate) {
-      throw new Fault(422, 'invalid_settings');
-    }
-    if (input.examDate !== '' && !DATE_RE.test(input.examDate)) throw new Fault(422, 'invalid_settings');
-    out.examDate = input.examDate;
-  }
   if (input.dailyGoal !== undefined) {
     if (!Number.isSafeInteger(input.dailyGoal) || input.dailyGoal < 1 || input.dailyGoal > 500) {
       throw new Fault(422, 'invalid_settings');
@@ -170,17 +169,18 @@ export function createPostgresSettings({ pool } = {}) {
          * a crash on the first settings save, which is exactly the kind of thing this comment exists to
          * stop someone "restoring".
          */
+        // `exam_date` is not written: a new row takes the column default (''), an existing row keeps its
+        // legacy value untouched (EXAM-S1).
         const row = (await client.query(
-          `INSERT INTO learner_settings (user_id, exam_date, daily_goal, theme, language, revision)
-           VALUES ($1, $2, $3, $4, $5, 1)
+          `INSERT INTO learner_settings (user_id, daily_goal, theme, language, revision)
+           VALUES ($1, $2, $3, $4, 1)
            ON CONFLICT (user_id) DO UPDATE SET
-             exam_date = EXCLUDED.exam_date,
              daily_goal = EXCLUDED.daily_goal,
              theme = EXCLUDED.theme,
              language = EXCLUDED.language,
              revision = learner_settings.revision + 1
            RETURNING revision, exam_date, daily_goal, theme, language`,
-          [owner, next.examDate, next.dailyGoal, next.theme, next.language])).rows[0];
+          [owner, next.dailyGoal, next.theme, next.language])).rows[0];
         return asRow(row);
       });
     },

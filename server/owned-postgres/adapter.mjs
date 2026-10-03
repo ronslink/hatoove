@@ -25,6 +25,8 @@ import { randomUUID } from 'node:crypto';
 import { Fault } from '../../server/owned-api.mjs';
 import { DEFAULT_TASK_BINDING } from './content-seed.mjs';
 import { contentPolicy, servableReview } from '../content-policy.mjs';
+import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs';
+import { preparationMethods, requireActivePreparation, resolvePreparation } from './preparations.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -38,13 +40,25 @@ const requireObjectiveVersion = (version) => {
   return version;
 };
 
+/** The export form of a preparation: the DTO plus how its legacy exam date was dispositioned. */
+const preparationExport = (row) => ({
+  ...preparationDto(row), legacy_exam_date_disposition: row.legacy_exam_date_disposition ?? null,
+});
+
+/** EXAM-S1: practice reads are scoped to one preparation; there is no all-preparations default. */
+const requirePreparationContext = (preparationId) => {
+  if (typeof preparationId !== 'string' || !UUID_RE.test(preparationId)) fail(422, 'preparation_required');
+  return preparationId;
+};
+
 /**
  * Build the owned-attempts datastore port over a pg Pool.
- * @param {{pool: object, onCall?: (name: string) => void}} options
- *   `pool` must connect as the restricted learner role.
+ * @param {{pool: object, onCall?: (name: string) => void, examCatalogue?: object}} options
+ *   `pool` must connect as the restricted learner role. `examCatalogue` is the server-side package
+ *   allowlist (`createExamCatalogue`); only a disposable test passes another one.
  * @returns {object} the port `createOwnedApi({ datastore })` consumes.
  */
-export function createPostgresDatastore({ pool, onCall } = {}) {
+export function createPostgresDatastore({ pool, onCall, examCatalogue = createExamCatalogue() } = {}) {
   if (!pool || typeof pool.connect !== 'function') {
     throw new TypeError('createPostgresDatastore requires a pg Pool');
   }
@@ -88,22 +102,44 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
   });
 
   // Every new use checks the task AND its declared rubric. Existing snapshots remain readable.
+  // Returns the exam both belong to, so a caller can compare it with the preparation BEFORE writing.
   async function requireServableBinding(client, binding) {
     const policy = contentPolicy();
     const row = first(await client.query(
-      `SELECT 1 FROM task_version t
+      `SELECT t.exam_id FROM task_version t
          JOIN content_version c ON c.content_version_id = t.content_version_id
          LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
          JOIN rubric_version r ON r.rubric_id = t.rubric_id AND r.version = t.rubric_version
          JOIN content_version rc ON rc.content_version_id = r.content_version_id
          LEFT JOIN content_rights rr ON rr.content_version_id = rc.content_version_id
         WHERE t.task_id = $1 AND t.version = $2 AND t.rubric_id = $3 AND t.rubric_version = $4
+          AND r.exam_id = t.exam_id
           AND c.review_status = ANY($5::text[]) AND rc.review_status = ANY($5::text[])
           AND COALESCE(cr.basis, c.rights_status) = ANY($6::text[])
           AND COALESCE(rr.basis, rc.rights_status) = ANY($6::text[])`,
       [binding.taskId, binding.taskVersion, binding.rubricId, binding.rubricVersion, policy.review, policy.rights]));
     if (!row) fail(422, 'task_not_servable');
+    return row.exam_id;
   }
+
+  /**
+   * The exam an attempt's credits live in, read WITHOUT a lock so the (owner, exam) balance can be locked
+   * first — the writer paths' lock order is balance, then attempt. `exam_id` is not updatable by any
+   * runtime role, so reading it before the lock cannot race a change.
+   */
+  async function attemptExam(client, owner, id) {
+    const row = first(await client.query(
+      'SELECT exam_id FROM attempts WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL', [id, owner]));
+    if (!row) fail(404, 'not_found');
+    return row.exam_id;
+  }
+
+  async function lockBalance(client, owner, examId) {
+    return first(await client.query(
+      'SELECT * FROM entitlements WHERE owner_id = $1 AND exam_id = $2 FOR UPDATE', [owner, examId]));
+  }
+
+  const preparations = preparationMethods({ settle, note, catalogue: examCatalogue });
 
   // Call only after proving ownership of an attempt. These immutable historical records are
   // deliberately readable when the current deployment no longer offers them for new practice.
@@ -123,6 +159,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
   }
 
   return Object.freeze({
+    // EXAM-S1: listExams, listPreparations, readPreparation, resolvePreparation, createPreparation,
+    // updatePreparation, readCredits — see preparations.mjs.
+    ...preparations,
     /**
      * PILOT-04 — the servable task catalogue.
      *
@@ -498,11 +537,14 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * this table is the raw signal adaptive selection reads and a mutable score would be a claim
      * rather than a record.
      */
-    async answerObjectiveItem(owner, { setId, version, itemId, answer, latencyMs = null } = {}) {
+    async answerObjectiveItem(owner, { preparationId, setId, version, itemId, answer, latencyMs = null } = {}) {
       note('answerObjectiveItem');
       requireObjectiveVersion(version);
+      requirePreparationContext(preparationId);
       const statuses = servableReview();
       return settle(owner, async (client) => {
+        // EXAM-S1: owned (404) and active (409) before anything else; exam match (422) before marking.
+        const prep = await requireActivePreparation(client, owner, preparationId);
         // The set must be one the deployment serves, and this also yields the exam/section the
         // evidence is attributed to. A set that is withheld or absent is 404, not a silent record.
         const set = first(await client.query(
@@ -515,6 +557,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
           [setId, version, statuses, contentPolicy().rights]));
         if (!set) fail(404, 'not_found');
+        if (set.exam_id !== prep.exam_id) fail(422, 'preparation_mismatch');
 
         let marked;
         try {
@@ -531,11 +574,11 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
         const evidenceId = randomUUID();
         await client.query(
           `INSERT INTO item_evidence
-             (evidence_id, owner_id, exam_id, set_id, version, item_id, family, section, answer, correct, latency_ms)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)`,
+             (evidence_id, owner_id, exam_id, set_id, version, item_id, family, section, answer, correct, latency_ms, preparation_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)`,
           [evidenceId, owner, set.exam_id, setId, version, itemId, set.family, set.section,
-            JSON.stringify(answer), marked.correct, latencyMs]);
-        return { evidence_id: evidenceId, item_id: itemId, correct: marked.correct };
+            JSON.stringify(answer), marked.correct, latencyMs, prep.id]);
+        return { evidence_id: evidenceId, item_id: itemId, correct: marked.correct, preparation_id: prep.id, exam_id: prep.exam_id };
       });
     },
     /**
@@ -558,9 +601,12 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * Within the chosen section, sets are ordered by how much evidence they already have, so an
      * unattempted set is preferred and a started one is returned only when the section is exhausted.
      */
-    async nextPractice(owner, { examId = null, serveReview = 'approved+unreviewed' } = {}) {
+    async nextPractice(owner, { preparationId, serveReview = 'approved+unreviewed' } = {}) {
       note('nextPractice');
       const statuses = servableReview(serveReview);
+      requirePreparationContext(preparationId);
+      // The preparation decides the exam; evidence is counted for this preparation only.
+      const { exam_id: examId } = await settle(owner, (client) => resolvePreparation(client, owner, preparationId));
 
       const sections = (await settle(owner, async (client) => (await client.query(
         `SELECT s.section, min(s.family) AS family
@@ -568,7 +614,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
            JOIN content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
           WHERE s.media_required = false
-            AND s.exam_id = COALESCE($1, s.exam_id)
+            AND s.exam_id = $1
             AND c.review_status = ANY($2::text[])
             AND COALESCE(cr.basis, c.rights_status) = ANY($3::text[])
           GROUP BY s.section`,
@@ -579,9 +625,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       const stats = await settle(owner, async (client) => (await client.query(
         `SELECT section, count(*)::int AS attempts, count(*) FILTER (WHERE correct)::int AS correct
            FROM item_evidence
-          WHERE owner_id = $1 AND exam_id = COALESCE($2, exam_id)
+          WHERE owner_id = $1 AND preparation_id = $2
           GROUP BY section`,
-        [owner, examId])).rows);
+        [owner, preparationId])).rows);
       const bySection = new Map(stats.map((row) => [row.section, row]));
 
       const ranked = sections.map((section) => {
@@ -613,21 +659,24 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       const set = first(await settle(owner, async (client) => client.query(
         `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count,
                 (SELECT count(*)::int FROM item_evidence e
-                  WHERE e.owner_id = $3 AND e.set_id = s.set_id AND e.version = s.version) AS seen
+                  WHERE e.owner_id = $3 AND e.preparation_id = $6
+                    AND e.set_id = s.set_id AND e.version = s.version) AS seen
            FROM objective_set s
            JOIN content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
           WHERE s.section = $1
             AND s.media_required = false
-            AND s.exam_id = COALESCE($4, s.exam_id)
+            AND s.exam_id = $4
             AND c.review_status = ANY($2::text[])
             AND COALESCE(cr.basis, c.rights_status) = ANY($5::text[])
           ORDER BY seen, s.part, s.set_id, s.version
           LIMIT 1`,
-        [chosen.section, statuses, owner, examId, contentPolicy().rights])));
+        [chosen.section, statuses, owner, examId, contentPolicy().rights, preparationId])));
 
       if (!set) return null;
       return {
+        preparation_id: preparationId,
+        exam_id: examId,
         reason: chosen.attempts === 0 ? 'section_not_started' : 'weakest_section',
         section: chosen.section,
         family: chosen.family,
@@ -650,17 +699,21 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      *
      * `accuracy` is `null` for a section with no attempts, not 0: never-seen is not the same as failed.
      */
-    async practiceProgress(owner, { examId = null } = {}) {
+    async practiceProgress(owner, { preparationId } = {}) {
       note('practiceProgress');
-      const rows = await settle(owner, async (client) => (await client.query(
-        `SELECT e.section,
-                count(*)::int AS attempts,
-                count(*) FILTER (WHERE e.correct)::int AS correct
-           FROM item_evidence e
-          WHERE e.owner_id = $1 AND e.exam_id = COALESCE($2, e.exam_id)
-          GROUP BY e.section
-          ORDER BY e.section`,
-        [owner, examId])).rows);
+      requirePreparationContext(preparationId);
+      const rows = await settle(owner, async (client) => {
+        await resolvePreparation(client, owner, preparationId);
+        return (await client.query(
+          `SELECT e.section,
+                  count(*)::int AS attempts,
+                  count(*) FILTER (WHERE e.correct)::int AS correct
+             FROM item_evidence e
+            WHERE e.owner_id = $1 AND e.preparation_id = $2
+            GROUP BY e.section
+            ORDER BY e.section`,
+          [owner, preparationId])).rows;
+      });
       const totals = rows.reduce(
         (acc, row) => ({ attempts: acc.attempts + row.attempts, correct: acc.correct + row.correct }),
         { attempts: 0, correct: 0 });
@@ -691,9 +744,11 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * role at all, and a mistakes list that revealed the key would hand over exactly what the practice
      * loop withholds. What comes back is what the LEARNER answered, so they can try again.
      */
-    async listMistakes(owner, { examId = null, limit = 50 } = {}) {
+    async listMistakes(owner, { preparationId, limit = 50 } = {}) {
       note('listMistakes');
+      requirePreparationContext(preparationId);
       return settle(owner, async (client) => {
+        await resolvePreparation(client, owner, preparationId);
         const rows = (await client.query(
           // Latest per exact (set, version, item): a correct v2 answer does not clear a wrong v1 one,
           // because the two versions may ask different questions under the same item id. Ties on the
@@ -702,7 +757,7 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
              SELECT DISTINCT ON (e.set_id, e.version, e.item_id)
                     e.set_id, e.version, e.item_id, e.family, e.section, e.answer, e.correct, e.answered_at
                FROM item_evidence e
-              WHERE e.owner_id = $1 AND e.exam_id = COALESCE($2, e.exam_id)
+              WHERE e.owner_id = $1 AND e.preparation_id = $2
               ORDER BY e.set_id, e.version, e.item_id, e.answered_at DESC, e.evidence_id DESC
            )
            SELECT l.set_id, l.version, l.item_id, l.family, l.section, l.answer, l.answered_at,
@@ -712,8 +767,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
             WHERE l.correct = false
             ORDER BY l.answered_at DESC, l.set_id, l.version, l.item_id
             LIMIT $3`,
-          [owner, examId, limit])).rows;
+          [owner, preparationId, limit])).rows;
         return {
+          preparation_id: preparationId,
           count: rows.length,
           items: rows.map((row) => ({
             set_id: row.set_id,
@@ -737,32 +793,47 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * keys added by migration `0006` make the binding a real, checked reference — an unknown
      * task id/version fails here instead of silently storing an unreviewed claim.
      */
-    async create(owner, parent = null, binding = null) {
+    /**
+     * EXAM-S1: a NEW attempt needs `preparationId`; a REVISION inherits its parent's exact preparation and
+     * exam, and an explicitly different `preparationId` is refused. Ownership (404), state (409) and the
+     * exam of the selected task/rubric (422 `preparation_mismatch`) are all checked before the INSERT, and
+     * migration 0023's composite keys refuse the same mismatch in SQL.
+     */
+    async create(owner, parent = null, binding = null, preparationId = null) {
       note('create');
       return settle(owner, async (client) => {
         let b = binding || DEFAULT_TASK_BINDING;
         let text = '';
+        let prepId = preparationId;
         if (parent) {
           const parentRow = first(await client.query(
-            `SELECT a.task_id, s.task_version, a.rubric_id, s.rubric_version, s.text
+            `SELECT a.task_id, s.task_version, a.rubric_id, s.rubric_version, s.text, a.preparation_id
                FROM submissions s JOIN attempts a ON a.id = s.attempt_id
               WHERE s.id = $1 AND s.owner_id = $2 AND a.owner_id = $2
                 AND a.deleted_at IS NULL FOR UPDATE OF a`, [parent, owner]));
           if (!parentRow) fail(404, 'not_found');
           const inherited = bindingOf(parentRow);
           if (binding && Object.keys(inherited).some((key) => binding[key] !== inherited[key])) fail(422, 'parent_binding_mismatch');
+          if (!parentRow.preparation_id) fail(422, 'preparation_unresolved');
+          if (preparationId && preparationId !== parentRow.preparation_id) fail(422, 'preparation_mismatch');
+          prepId = parentRow.preparation_id;
           b = inherited;
           text = parentRow.text;
         }
-        await requireServableBinding(client, b);
+        requirePreparationContext(prepId);
+        const prep = await requireActivePreparation(client, owner, prepId);
+        const contentExam = await requireServableBinding(client, b);
+        if (contentExam !== prep.exam_id) fail(422, 'preparation_mismatch');
         const id = randomUUID();
         await client.query(
-          `INSERT INTO attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version, parent_submission_id)
-           VALUES($1, $2, $3, $4, $5, $6, $7)`,
-          [id, owner, b.taskId, b.taskVersion, b.rubricId, b.rubricVersion, parent]);
+          `INSERT INTO attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version, parent_submission_id,
+                                preparation_id, exam_id)
+           VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [id, owner, b.taskId, b.taskVersion, b.rubricId, b.rubricVersion, parent, prep.id, prep.exam_id]);
         await client.query('INSERT INTO drafts(attempt_id, revision, text) VALUES($1, 1, $2)', [id, text]);
         return { id, revision: 1, text, task_id: b.taskId, task_version: b.taskVersion,
-          rubric_id: b.rubricId, rubric_version: b.rubricVersion, parent_submission_id: parent };
+          rubric_id: b.rubricId, rubric_version: b.rubricVersion, parent_submission_id: parent,
+          preparation_id: prep.id, exam_id: prep.exam_id };
       });
     },
 
@@ -774,10 +845,13 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       });
     },
 
-    async listAttempts(owner) {
+    async listAttempts(owner, { preparationId } = {}) {
       note('listAttempts');
-      return settle(owner, async (client) => (await client.query(
-        `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version,
+      requirePreparationContext(preparationId);
+      return settle(owner, async (client) => {
+        await resolvePreparation(client, owner, preparationId);
+        return (await client.query(
+        `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version, a.preparation_id, a.exam_id,
                 a.parent_submission_id, d.revision, a.created_at, t.topic, s.id AS submission_id,
                 CASE WHEN s.id IS NULL THEN 'draft'
                      WHEN f.submission_id IS NOT NULL THEN 'assessed'
@@ -788,8 +862,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
            LEFT JOIN submissions s ON s.attempt_id = a.id AND s.owner_id = a.owner_id
            LEFT JOIN jobs j ON j.submission_id = s.id AND j.owner_id = a.owner_id
            LEFT JOIN assessments f ON f.submission_id = s.id AND f.owner_id = a.owner_id
-          WHERE a.owner_id = $1 AND a.deleted_at IS NULL
-          ORDER BY a.created_at DESC, a.id DESC`, [owner])).rows);
+          WHERE a.owner_id = $1 AND a.preparation_id = $2 AND a.deleted_at IS NULL
+          ORDER BY a.created_at DESC, a.id DESC`, [owner, preparationId])).rows;
+      });
     },
 
     /**
@@ -804,30 +879,43 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
     async exportData(owner) {
       note('exportData');
       return settle(owner, async (client) => {
+        // EXAM-S1: every preparation (archived included) and every exam balance, and the context of
+        // each record. Unresolved legacy records carry null context rather than a guessed one.
+        const preparations = (await client.query(
+          `SELECT p.id, p.exam_id, x.exam, x.exam_language, p.exam_date, p.state, p.revision,
+                  p.legacy_exam_date_disposition, p.created_at, p.updated_at
+             FROM learner_preparation p JOIN exam_package x ON x.exam_id = p.exam_id
+            WHERE p.owner_id = $1 ORDER BY p.created_at, p.id`, [owner])).rows
+          .map((row) => ({ ...preparationExport(row) }));
+        const balances = (await client.query(
+          `SELECT exam_id, allowance, used, reserved FROM entitlements
+            WHERE owner_id = $1 ORDER BY exam_id`, [owner])).rows;
         const attempts = (await client.query(
-          `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version,
+          `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version, a.preparation_id, a.exam_id,
                   a.parent_submission_id, a.created_at, d.revision, d.text
              FROM attempts a JOIN drafts d ON d.attempt_id = a.id
             WHERE a.owner_id = $1 AND a.deleted_at IS NULL ORDER BY a.created_at, a.id`, [owner])).rows;
         const submissions = (await client.query(
           `SELECT s.id, s.attempt_id, s.draft_revision, s.text, a.task_id, s.task_version,
                   a.rubric_id, s.rubric_version, s.explanation_language, s.created_at,
+                  a.preparation_id, a.exam_id,
                   a.deleted_at AS attempt_deleted_at
              FROM submissions s JOIN attempts a ON a.id = s.attempt_id AND a.owner_id = s.owner_id
             WHERE s.owner_id = $1 ORDER BY s.created_at, s.id`, [owner])).rows;
         const results = (await client.query(
-          `SELECT s.id AS submission_id, j.status, j.failure_code, j.tries,
+          `SELECT s.id AS submission_id, j.status, j.failure_code, j.tries, j.exam_id AS credit_exam_id,
                   f.feedback, f.model_version, f.prompt_version, f.rubric_version,
+                  a.preparation_id, a.exam_id,
                   a.deleted_at AS attempt_deleted_at
              FROM submissions s JOIN attempts a ON a.id = s.attempt_id AND a.owner_id = s.owner_id
              LEFT JOIN jobs j ON j.submission_id = s.id AND j.owner_id = s.owner_id
              LEFT JOIN assessments f ON f.submission_id = s.id AND f.owner_id = s.owner_id
             WHERE s.owner_id = $1 ORDER BY s.created_at, s.id`, [owner])).rows;
         const objective_evidence = (await client.query(
-          `SELECT evidence_id, exam_id, set_id, version, item_id, family, section, answer,
+          `SELECT evidence_id, exam_id, preparation_id, set_id, version, item_id, family, section, answer,
                   correct, latency_ms, answered_at FROM item_evidence
             WHERE owner_id = $1 ORDER BY answered_at, evidence_id`, [owner])).rows;
-        return { attempts, submissions, results, objective_evidence };
+        return { preparations, balances, attempts, submissions, results, objective_evidence };
       }, true);
     },
 
@@ -843,20 +931,26 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
      * NO TEXT IS SELECTED. The client reads the one attempt it resumes through `read`; a list route that
      * returned letters would put a learner's writing in every response of a poll.
      */
-    async listOpenAttempts(owner) {
+    async listOpenAttempts(owner, { preparationId } = {}) {
       note('listOpenAttempts');
+      requirePreparationContext(preparationId);
       return settle(owner, async (client) => {
+        await resolvePreparation(client, owner, preparationId);
         const rows = (await client.query(
-          `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version, d.revision, a.created_at
+          `SELECT a.id, a.task_id, a.task_version, a.rubric_id, a.rubric_version, a.preparation_id, a.exam_id,
+                  d.revision, a.created_at
              FROM attempts a
              JOIN drafts d ON d.attempt_id = a.id
             WHERE a.owner_id = $1
+              AND a.preparation_id = $2
               AND a.deleted_at IS NULL
               AND NOT EXISTS (SELECT 1 FROM submissions s WHERE s.attempt_id = a.id)
             ORDER BY a.created_at DESC, a.id DESC`,
-          [owner])).rows;
+          [owner, preparationId])).rows;
         return rows.map((row) => ({
           id: row.id,
+          preparation_id: row.preparation_id,
+          exam_id: row.exam_id,
           task_id: row.task_id,
           task_version: row.task_version,
           rubric_id: row.rubric_id,
@@ -887,9 +981,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1 ||
           typeof eventId !== 'string' || !UUID_RE.test(eventId)) fail(422, 'invalid_submission');
       return settle(owner, async (client) => {
-        // Serialize account idempotency and allowance before locking the attempt.
-        const entitlement = first(await client.query(
-          'SELECT * FROM entitlements WHERE owner_id = $1 FOR UPDATE', [owner]));
+        // Serialize idempotency and the attempt's EXAM balance before locking the attempt (EXAM-S1).
+        const examId = await attemptExam(client, owner, id);
+        const entitlement = examId ? await lockBalance(client, owner, examId) : null;
         const attempt = await owned(client, owner, id);
         const prior = first(await client.query(
           'SELECT * FROM submissions WHERE owner_id = $1 AND event_id = $2', [owner, eventId]));
@@ -897,6 +991,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
           if (prior.attempt_id !== attempt.id || prior.draft_revision !== expectedRevision) fail(409, 'idempotency_conflict');
           return { submissionId: prior.id, replay: true };
         }
+        // An unresolved legacy attempt stays readable, but cannot spend a credit of a guessed exam.
+        if (!attempt.preparation_id || !attempt.exam_id) fail(422, 'preparation_unresolved');
+        await requireActivePreparation(client, owner, attempt.preparation_id);
         await requireServableBinding(client, bindingOf(attempt));
         const draft = await draftOf(client, id);
         if (!draft || draft.revision !== expectedRevision) fail(409, 'draft_conflict');
@@ -912,9 +1009,10 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
             typeof explanationLanguage === 'string' && explanationLanguage.length <= 16 && explanationLanguage !== ''
               ? explanationLanguage : 'de']);
         await client.query(
-          "INSERT INTO jobs(id, submission_id, owner_id, status) VALUES($1, $2, $3, 'queued')",
-          [randomUUID(), submissionId, owner]);
-        await client.query('UPDATE entitlements SET reserved = reserved + 1 WHERE owner_id = $1', [owner]);
+          "INSERT INTO jobs(id, submission_id, owner_id, status, exam_id) VALUES($1, $2, $3, 'queued', $4)",
+          [randomUUID(), submissionId, owner, attempt.exam_id]);
+        await client.query('UPDATE entitlements SET reserved = reserved + 1 WHERE owner_id = $1 AND exam_id = $2',
+          [owner, attempt.exam_id]);
         return { submissionId, replay: false };
       });
     },
@@ -934,15 +1032,24 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
           task_id: attempt.task_id, task_version: submission.task_version,
           rubric_id: attempt.rubric_id, rubric_version: submission.rubric_version,
           parent_submission_id: attempt.parent_submission_id,
+          preparation_id: attempt.preparation_id ?? null, exam_id: attempt.exam_id ?? null,
           ...await historicalContent(client, attempt) };
       });
     },
 
+    /**
+     * Retry settles against the balance the job ORIGINALLY reserved from (`jobs.exam_id`), so a failed
+     * job is never re-charged to another exam. Allowed in an archived preparation: finishing pending work
+     * is not new practice.
+     */
     async retry(owner, submissionId) {
       note('retry');
       return settle(owner, async (client) => {
-        const entitlement = first(await client.query(
-          'SELECT * FROM entitlements WHERE owner_id = $1 FOR UPDATE', [owner]));
+        const credit = first(await client.query(
+          `SELECT j.exam_id FROM jobs j JOIN submissions s ON s.id = j.submission_id
+            WHERE j.submission_id = $1 AND s.owner_id = $2`, [submissionId, owner]));
+        if (!credit) fail(404, 'not_found');
+        const entitlement = await lockBalance(client, owner, credit.exam_id);
         const submission = first(await client.query(
           'SELECT * FROM submissions WHERE id = $1 AND owner_id = $2', [submissionId, owner]));
         if (!submission) fail(404, 'not_found');
@@ -955,7 +1062,8 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
         await requireServableBinding(client, bindingOf(attempt));
         if (!entitlement || entitlement.used + entitlement.reserved >= entitlement.allowance) fail(409, 'allowance_exhausted');
         await client.query("UPDATE jobs SET status = 'queued', failure_code = NULL WHERE id = $1", [job.id]);
-        await client.query('UPDATE entitlements SET reserved = reserved + 1 WHERE owner_id = $1', [owner]);
+        await client.query('UPDATE entitlements SET reserved = reserved + 1 WHERE owner_id = $1 AND exam_id = $2',
+          [owner, job.exam_id]);
       });
     },
 
@@ -973,7 +1081,9 @@ export function createPostgresDatastore({ pool, onCall } = {}) {
     async remove(owner, id) {
       note('remove');
       return settle(owner, async (client) => {
-        await client.query('SELECT owner_id FROM entitlements WHERE owner_id = $1 FOR UPDATE', [owner]);
+        // The same (owner, exam) balance lock `submit` takes first, so the two still serialise.
+        const examId = await attemptExam(client, owner, id);
+        if (examId) await lockBalance(client, owner, examId);
         await owned(client, owner, id);
         if (first(await client.query('SELECT id FROM submissions WHERE attempt_id = $1 LIMIT 1', [id]))) {
           fail(409, 'submitted_attempt');
@@ -1004,6 +1114,10 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
   ['drafts', 'DELETE FROM drafts WHERE attempt_id IN (SELECT id FROM attempts WHERE owner_id = $1)'],
   ['submissions', 'DELETE FROM submissions WHERE owner_id = $1'],
   ['attempts', 'DELETE FROM attempts WHERE owner_id = $1'],
+  // EXAM-S1: evidence references a preparation, so it goes before the preparations it points at
+  // (it would otherwise only cascade from "user", after the preparation delete had already failed).
+  ['item_evidence', 'DELETE FROM item_evidence WHERE owner_id = $1'],
+  ['learner_preparation', 'DELETE FROM learner_preparation WHERE owner_id = $1'],
   ['entitlements', 'DELETE FROM entitlements WHERE owner_id = $1'],
   ['learner_settings', 'DELETE FROM learner_settings WHERE user_id = $1'],
   ['session', 'DELETE FROM session WHERE "userId" = $1'],
@@ -1026,6 +1140,7 @@ export const ACCOUNT_TABLES = Object.freeze([
   ['learner_settings', 'user_id = $1', 'owner'], ['session', '"userId" = $1', 'owner'],
   ['account', '"userId" = $1', 'owner'], ['drafts', 'attempt_id = ANY($1::uuid[])', 'attempts'],
   ['item_evidence', 'owner_id = $1', 'owner'],
+  ['learner_preparation', 'owner_id = $1', 'owner'],
   ['"user"', 'id = $1', 'owner'],
 ].map((entry) => Object.freeze(entry)));
 
@@ -1075,8 +1190,9 @@ export function createPostgresAccountDeletion({ pool, afterStep } = {}) {
       try {
         await client.query('BEGIN');
         await client.query("SELECT set_config('hatoove.owner_id', $1, true)", [owner]);
-        // Same lock the writer paths take first, in the same order (F6).
-        await client.query('SELECT 1 FROM entitlements WHERE owner_id = $1 FOR UPDATE', [owner]);
+        // Same lock the writer paths take first (F6): every exam balance of the owner, in exam order,
+        // so a concurrent submit/retry/remove on any exam either finishes first or sees the deletion.
+        await client.query('SELECT 1 FROM entitlements WHERE owner_id = $1 ORDER BY exam_id FOR UPDATE', [owner]);
         // `drafts` is owned through `attempts`, and every attempt will be gone by the time the
         // read-back runs. Capture the ids now and pin them transaction-locally so the read-back
         // (and the drafts policy) can still recognise a draft this account owns.
