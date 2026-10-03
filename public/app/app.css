@@ -17,6 +17,7 @@
 .preparation-heading { flex-wrap: wrap; gap: 12px; }
 .preparation-heading > div { min-width: 0; }
 .preparation-context strong, .preparation-context p { overflow-wrap: anywhere; }
+#next-title { min-width: 0; overflow-wrap: anywhere; }
 .preparation-context .select { width: 100%; max-width: 100%; }
 .preparation-context .row { flex-wrap: wrap; }
 #preparation-state:empty { display: none; }
@@ -437,3 +438,33 @@ code {
 .explanation-view .explanation-prose { white-space: pre-wrap; unicode-bidi: isolate; }
 .explanation-block-label { font-weight: 700; margin-block-end: .25rem; }
 .explanation-view .read-aloud { margin-block: .5rem; }
+/* Selected-language shell. Authored content declares its own language and direction. */
+.locale-control { display:flex; align-items:center; gap:.5rem; min-width:0; }
+.locale-control label { font-size:.82rem; font-weight:650; }
+.locale-control .select { width:auto; min-width:7rem; max-width:12rem; min-height:44px; }
+.topbar { flex-wrap:wrap; }
+.top-actions { flex-wrap:wrap; min-width:0; }
+.locale-feedback { flex-basis:100%; display:flex; align-items:center; gap:.75rem; }
+.locale-feedback:has(#locale-state:empty):has(#locale-reload[hidden]) { display:none; }
+.locale-feedback p { margin:0; overflow-wrap:anywhere; }
+.nav a, .tabbar a, .more-link, .btn { overflow-wrap:anywhere; }
+.btn { white-space:normal; max-width:100%; }
+.side { border-right:0; border-inline-end:1px solid var(--line); }
+.side-foot, .top-actions, .preparation-heading, .spread { min-width:0; }
+.side-foot strong, #account-email-2, .checkout-order-reference bdi { overflow-wrap:anywhere; unicode-bidi:isolate; }
+.guide-content [lang], .stimulus[lang], .answer-option[lang], .archived-writing { unicode-bidi:isolate; text-align:start; }
+.guide-table { max-width:100%; }
+.guide-list, .leitpunkte, .corrections, .rubric-criteria { padding-left:0; padding-inline-start:1.2rem; }
+.evidence { border-left:0; border-inline-start:3px solid var(--orange); padding-inline:.75rem 0; }
+[dir="ltr"] { unicode-bidi:isolate; }
+@media (max-width:860px) {
+  .topbar { gap:.65rem; }
+  .top-actions { flex:1 1 100%; justify-content:space-between; gap:.4rem; }
+  .locale-control { flex:1 1 auto; }
+  .locale-control .select { max-width:11rem; }
+  .tabbar a { text-align:center; overflow-wrap:anywhere; padding-inline:.15rem; }
+  .preparation-heading, .spread { flex-wrap:wrap; gap:.65rem; }
+  .preparation-heading .row { flex-wrap:wrap; }
+  .locale-control label { max-width:5.5rem; }
+  .top-actions #signout { max-width:8rem; }
+}

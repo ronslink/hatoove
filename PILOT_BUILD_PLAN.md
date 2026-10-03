@@ -1,5 +1,9 @@
 # B1 preparation pilot build plan
 
+## Selected interface language — 3 October 2026
+
+Ron requires the landing page, pre-signup/authentication screens, menus, account screens and app guidance to follow the selected de/en/uk/ar/tr language. A prospective learner must understand the offer and controls before signing up. Original exam-language content and directions stay intact; operational directions additionally appear in the selected language, including timed mocks without translated answers or hints. This supersedes the German-only interface rule below. Exam package/language, interface preference and purchasing market remain independent. Arabic interface RTL contains explicitly German/LTR assessed-content islands. The [implementation contract](docs/contracts/PILOT-I18N-INTERFACE.md) distinguishes translated UI from preserved authored learning material and existing saved explanations. Its implementation and native-language acceptance are separate from this owner decision.
+
 ## Adopted mock-preparation direction — 2 October 2026
 
 Ron clarified: "we are only delivering mock exams as part of a preparation effort not a true exam lets adopt the recommendations from claude". Hatoove delivers original mock exams and supporting section practice, saved attempts and formative explanations. It does not administer official exams, certify proficiency or issue overall pass predictions. Accuracy, rights and qualified content review still matter; proctoring and official examination administration are outside scope.

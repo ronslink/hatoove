@@ -1,12 +1,26 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 // --against=<commit> exercises the same contracts against a historical source snapshot.
 const revision = process.argv.find(value => value.startsWith('--against='))?.slice(10);
 const source = path => revision ? execFileSync('git', ['show', `${revision}:${path}`], { encoding: 'utf8' }) : readFileSync(new URL('../' + path, import.meta.url), 'utf8');
-const load = async path => import('data:text/javascript;base64,' + Buffer.from(source(path)).toString('base64'));
+const modules = new Map();
+function moduleUrl(file) {
+  if (modules.has(file)) return modules.get(file);
+  const code = source(file).replace(/((?:\bfrom\s*|\bimport\s*)['"])(\.[^'"]+)(['"])/g, (_, before, specifier, after) => {
+    const dependency = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier));
+    assert.ok(dependency.startsWith('public/'), 'client fixture imports stay inside public source');
+    return before + moduleUrl(dependency) + after;
+  });
+  const url = 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
+  modules.set(file, url);
+  return url;
+}
+const load = async file => import(moduleUrl(file));
 const checkout = await load('public/app/checkout.js');
+if (/assets\/i18n\/core\.js/.test(source('public/app/checkout.js'))) (await load('public/assets/i18n/core.js')).setLocale('de');
 const { createApi } = await load('public/app/api.js');
 const { createCheckoutState, checkoutReturnPath, checkoutAuthReturn, checkoutRoute, checkoutRedirect, checkoutMarkup, checkoutBalance, checkoutError } = checkout;
 const ID = '11111111-1111-4111-8111-111111111111', OTHER = '22222222-2222-4222-8222-222222222222';
@@ -35,16 +49,23 @@ function fixture(options = {}) {
 // controller too, so discrimination is behavioral rather than just a newly exported helper name.
 async function rendered(api, run) {
   const previousWindow = globalThis.window, previousDocument = globalThis.document;
-  const redirects = [], focusCalls = []; let html = '', nodes = new Map();
+  const redirects = [], focusCalls = []; let html = '', nodes = new Map(), elements = [];
   const document = { body: { isConnected: true }, documentElement: { isConnected: true }, activeElement: null };
   document.activeElement = document.body;
-  const control = (id, disabled = false) => ({ id, isConnected: true, disabled, focus() { if (this.isConnected && !this.disabled) { document.activeElement = this; focusCalls.push(this); } } });
+  const control = (id, disabled = false) => ({ id, isConnected: true, disabled, attrs: {}, dataset: {}, children: [], hasAttribute(key) { return Object.hasOwn(this.attrs, key); }, getAttribute(key) { return this.attrs[key] ?? null; }, setAttribute(key, value) { this.attrs[key] = value; }, focus() { if (this.isConnected && !this.disabled) { document.activeElement = this; focusCalls.push(this); } } });
   const host = { isConnected: true, hidden: true, dataset: {}, contains: node => Boolean(node?.isConnected && [...nodes.values()].includes(node)),
     get innerHTML() { return html; }, set innerHTML(value) {
       if (host.contains(document.activeElement)) document.activeElement = document.body;
-      for (const node of nodes.values()) node.isConnected = false;
-      html = value; nodes = new Map([...value.matchAll(/<[^>]+\bid="([^"]+)"[^>]*>/g)].map(match => [match[1], control(match[1], /\bdisabled\b/.test(match[0]))]));
+      for (const node of elements) node.isConnected = false;
+      html = value; nodes = new Map(); elements = [];
+      for (const match of value.matchAll(/<([a-z][a-z0-9]*)\b([^>]*)>/gi)) {
+        const attrs = Object.fromEntries([...match[2].matchAll(/([\w:-]+)(?:="([^"]*)")?/g)].map(([, key, value]) => [key, (value ?? '').replace(/&quot;/g, '"').replace(/&amp;/g, '&')]));
+        const node = control(attrs.id, Object.hasOwn(attrs, 'disabled')); node.attrs = attrs; node.tagName = match[1].toUpperCase();
+        for (const [key, value] of Object.entries(attrs)) if (key.startsWith('data-')) node.dataset[key.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = value;
+        elements.push(node); if (node.id) nodes.set(node.id, node);
+      }
     },
+    querySelectorAll(selector) { const attributes = [...selector.matchAll(/\[([\w-]+)\]/g)].map(match => match[1]); return elements.filter(node => attributes.some(key => node.hasAttribute(key))); },
     querySelector(selector) { return nodes.get(selector.slice(1)) || null; }, replaceChildren() { this.innerHTML = ''; } };
   globalThis.window = { location: { origin: ORIGIN, assign: value => redirects.push(value) } }; globalThis.document = document;
   const controller = checkout.createCheckoutController({ api: { payments: api }, esc });
@@ -179,10 +200,10 @@ await check('strict auth handoff rejects arbitrary, duplicated, encoded and malf
   assert.equal(checkoutAuthReturn('?returnTo=' + encodeURIComponent(encodeURIComponent(RETURN))), '/app/');
 });
 await check('public auth and app return validators agree without an authenticated module dependency', async () => {
-  const documentBefore = globalThis.document, locationBefore = globalThis.location;
-  globalThis.document = { body: { dataset: { page: 'probe' } } }; globalThis.location = { search: '', hash: '' };
-  let auth;
-  try { auth = await load('public/auth/entry.js'); } finally { globalThis.document = documentBefore; globalThis.location = locationBefore; }
+  // Execute the exact exported pure validator; full DOM/auth execution is covered by public-locale-check.
+  const validator = source('public/auth/entry.js').match(/export function checkoutAuthReturn\([^]*?\n\}/)?.[0];
+  assert.ok(validator, 'the public entry exports its own pure return validator');
+  const auth = await import('data:text/javascript;base64,' + Buffer.from(validator).toString('base64'));
   assert.equal(/import .*app\/checkout/.test(source('public/auth/entry.js')), false);
   const cases = [ ['', RETURN.slice(5)], ['', RETURN.slice(5) + '&checkout=stub'], ['?mode=signup', RETURN.slice(5)], ['?returnTo=' + encodeURIComponent(RETURN), '#/checkout?order=bad'], ['?returnTo=bad', RETURN.slice(5)], ['?returnTo=', RETURN.slice(5)], ['?returnTo=' + encodeURIComponent(RETURN) + '&returnTo=' + encodeURIComponent(RETURN), RETURN.slice(5)], ['', '#/checkout?order=bad'], ['', '//evil.test'], ['', RETURN.slice(5) + '&next=bad'] ];
   for (const [search, hash] of cases) assert.equal(auth.checkoutAuthReturn(search, hash), checkoutAuthReturn(search, hash));
@@ -221,7 +242,7 @@ await check('legacy indefinite balance and missing counters are described withou
   const html = checkoutBalance({ allowance: 12, used: 2, reserved: 1, expiresAt: null }, esc); assert.match(html, /Ohne festes Ablaufdatum/); assert.match(html, /<dd>9<\/dd>/);
   assert.match(checkoutBalance({ allowance: 12, used: 2, expiresAt: 'bad' }, esc), /unbekannt/);
   const expired = checkoutBalance({ allowance: 12, used: 2, reserved: 1, expiresAt: '2001-01-01T00:00:00Z' }, esc);
-  assert.match(expired, /Abgelaufen am/); assert.match(expired, /<dt>verfügbar<\/dt><dd>0<\/dd>/);
+  assert.match(expired, /Abgelaufen am/); assert.match(expired, /<dt>(?:<span\b[^>]*>)?verfügbar(?:<\/span>)?<\/dt><dd>0<\/dd>/);
 });
 await check('all UI values are escaped and only verified test offers display an actionable buy control', async () => {
   const f = fixture(); await f.session.open({ examId: 'telc-deutsch-b1', examLabel: '<img src=x>' }); await f.session.loadOffer('DE');

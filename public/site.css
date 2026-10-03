@@ -12,7 +12,7 @@ a { text-decoration: none; }
 .hero { display: grid; grid-template-columns: 1fr 1.05fr; gap: 60px; align-items: center; padding-block: 64px 78px; }
 .hero-copy, .practice-stage { min-width: 0; }
 .hero h1 { font-size: clamp(2.6rem, 4.3vw, 4rem); line-height: 1.02; letter-spacing: -.045em; margin-block: 20px 25px; }
-.hero h1 span { color: var(--orange-dark); }
+.hero h1 .hero-emphasis { color: var(--orange-dark); }
 .hero-intro { font-size: 21px; line-height: 1.4; }
 .hero-description { font-size: 17px; color: var(--muted); line-height: 1.55; margin-top: 18px; max-width: 460px; }
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin-top: 26px; }
@@ -116,3 +116,17 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 @media (prefers-color-scheme: dark) {
   .brand { padding: 6px 10px; background: #fff; border-radius: 10px; }
 }
+.interface-language { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; min-width: 0; }
+.interface-language select { min-height: 44px; max-width: 100%; font: inherit; padding: 8px 12px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+.interface-language select:focus-visible { outline: 3px solid var(--orange-dark); outline-offset: 3px; }
+.nav-wrap { flex-wrap: wrap; padding-block: 14px; }
+.nav-wrap > .interface-language { margin-inline-start: auto; }
+.practice-tabs { flex-wrap: wrap; }
+.practice-tabs button { min-width: 0; overflow-wrap: anywhere; }
+.answer-option, .review-list label, .answer-footer, .practice-top, .stage-top { min-width: 0; }
+.answer-option > span, .review-list label > span { min-width: 0; overflow-wrap: anywhere; }
+.hero h1, .practice-top h2, .approach h2, .start-strip h2, .faq h2, .btn { overflow-wrap: anywhere; }
+.word-count { text-align: end; }
+[lang="de"][dir="ltr"] { text-align: left; unicode-bidi: isolate; }
+[dir="rtl"] .stage-top, [dir="rtl"] .kicker, [dir="rtl"] .approach-art p { letter-spacing: normal; }
+@media (max-width: 640px) { .nav-wrap > .interface-language { flex-basis: 100%; margin-inline-start: 0; justify-content: space-between; } .interface-language select { flex: 1; max-width: 220px; } }

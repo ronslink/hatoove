@@ -1,5 +1,8 @@
 /** Saved-prose client checks: synthetic DTOs/transports only; no service, provider or database. */
 import assert from 'node:assert/strict';
+import { setLocale } from '../public/assets/i18n/core.js';
+// These retained copy assertions deliberately exercise the German interface.
+setLocale('de');
 import {createExplanationState,createExplanationManager,validExplanationView,explanationStatus} from '../public/app/explanations.js';
 import {createApi} from '../public/app/api.js';
 import {createLocalSpeech} from '../public/app/read-aloud.js';

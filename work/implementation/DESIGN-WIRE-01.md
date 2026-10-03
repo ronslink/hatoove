@@ -1,5 +1,7 @@
 # DESIGN-WIRE-01 — new designs and the SaaS cutover
 
+**Language override (Ron, 3 October 2026):** public landing/authentication, menus, account screens and app guidance now follow selected de/en/uk/ar/tr; original exam-language content stays intact and operational directions additionally appear in the selected language. Arabic interface RTL preserves German/LTR exam islands. [PILOT-I18N](../../docs/contracts/PILOT-I18N-INTERFACE.md) governs implementation. Earlier German-only chrome instructions below are historical; the orange design direction and evidence requirements remain current.
+
 **First-release override (1 October 2026):** [PILOT_BUILD_PLAN.md](../../PILOT_BUILD_PLAN.md) governs scope, [MASTER-PLAN.md](../../MASTER-PLAN.md) sets delivery order, and [MFP-DESIGN-DECISIONS](MFP-DESIGN-DECISIONS.md) supersedes the delivery sequence below. The writing-first `FUNCTIONAL-ROADMAP` is withdrawn (MASTER-PLAN §10), so the MFP-07/08/09 and MFP-02b/11 slice IDs named later in this paragraph are historical labels for that client and retirement work, not a current order. This document preserves the full reference inventory and broader domain ideas, not the next-release feature list. MFP-07/08/09 build the small new writing-first client; MFP-02b/11 implement retirement. Listening/mock/review/plan/upgrade are deferred, reading/language conditional. Daily time and readiness/streaks are out. Use the newer state matrix, password/invite default and grades-only practice feedback; R11 remains explicit. No new lease is created here.
 
 

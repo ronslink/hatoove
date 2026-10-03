@@ -8,65 +8,66 @@
 <meta property="og:description" content="Entdecke den kostenlosen Pilot für deine Deutsch-B1-Vorbereitung."><meta property="og:type" content="website">
 <link rel="icon" type="image/svg+xml" href="/assets/design/hatoove-mark.svg">
 <link rel="stylesheet" href="/assets/design/hatoove.css"><link rel="stylesheet" href="/assets/design/fonts-coverage.css">
-<link rel="stylesheet" href="/site.css"><script src="/site.js" defer></script>
+<link rel="stylesheet" href="/assets/i18n/common.css"><link rel="stylesheet" href="/site.css"><script type="module" src="/site.js"></script>
 </head><body>
-<a class="skip" href="#main">Zum Inhalt</a>
+<a class="skip" href="#main" data-i18n="public.skip">Zum Inhalt</a>
 <header class="site-header"><div class="nav-wrap">
-<a class="brand" href="/" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="186" height="34"></a>
-<nav aria-label="Hauptnavigation"><a href="#angebot">Das übst du</a><a href="#fragen">Fragen</a><a href="/signin" id="nav-signin">Anmelden</a></nav>
-<a class="btn btn-primary" href="/signin?mode=signup" id="nav-start">Kostenlos starten</a>
+<a class="brand" href="/" data-i18n-aria-label="public.home" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="186" height="34"></a>
+<nav data-i18n-aria-label="public.navigation" aria-label="Hauptnavigation"><a href="#angebot" data-i18n="public.offer">Das übst du</a><a href="#fragen" data-i18n="public.questions">Fragen</a><a href="/signin" id="nav-signin" data-i18n="public.signin">Anmelden</a></nav>
+<label class="interface-language" for="interface-language"><span data-i18n="public.language">Sprache</span><select id="interface-language"><option value="de" lang="de" dir="ltr">Deutsch</option><option value="en" lang="en" dir="ltr">English</option><option value="uk" lang="uk" dir="ltr">Українська</option><option value="ar" lang="ar" dir="rtl">العربية</option><option value="tr" lang="tr" dir="ltr">Türkçe</option></select></label>
+<a class="btn btn-primary" href="/signin?mode=signup" id="nav-start" data-i18n="public.start">Kostenlos starten</a>
 </div></header>
 <main id="main">
 <section class="hero section-wrap" aria-labelledby="hero-title">
 <div class="hero-copy">
-<p class="kicker">telc Deutsch B1 · Kostenloser Pilot</p>
-<h1 id="hero-title">Die Prüfung kennen.<br>Schritt für Schritt<br><span>üben.</span></h1>
-<p class="hero-intro">Du hast Deutsch gelernt.<br>Jetzt übst du, es in Prüfungsaufgaben anzuwenden.</p>
-<p class="hero-description">Lies genau, finde das passende Wort und schreibe eigene Texte. Mit deinem Konto kannst du Entwürfe speichern und später weiterarbeiten.</p>
-<div class="hero-actions"><a class="btn btn-primary" href="/signin?mode=signup" id="hero-start">Kostenlos starten</a><a class="text-link" href="#practice" id="sample-start">Erst einmal ausprobieren <span aria-hidden="true">↗</span></a></div>
-<p class="hero-note">Schon dabei? <a class="link" href="/app/">Zur App</a></p>
-<div class="hero-track"><span class="language-square" aria-hidden="true">DE</span><div><strong>Dein Fokus: Deutsch B1</strong><p>Unabhängige Vorbereitung auf telc Deutsch B1</p></div></div>
+<p class="kicker" data-i18n="public.pilot">telc Deutsch B1 · Kostenloser Pilot</p>
+<h1 id="hero-title"><span data-i18n="public.hero1">Die Prüfung kennen.</span><br><span data-i18n="public.hero2">Schritt für Schritt</span><br><span class="hero-emphasis" data-i18n="public.hero3">üben.</span></h1>
+<p class="hero-intro"><span data-i18n="public.intro1">Du hast Deutsch gelernt.</span><br><span data-i18n="public.intro2">Jetzt übst du, es in Prüfungsaufgaben anzuwenden.</span></p>
+<p class="hero-description" data-i18n="public.heroDescription">Lies genau, finde das passende Wort und schreibe eigene Texte. Mit deinem Konto kannst du Entwürfe speichern und später weiterarbeiten.</p>
+<div class="hero-actions"><a class="btn btn-primary" href="/signin?mode=signup" id="hero-start" data-i18n="public.start">Kostenlos starten</a><a class="text-link" href="#practice" id="sample-start"><span data-i18n="public.try">Erst einmal ausprobieren</span> <span aria-hidden="true">↗</span></a></div>
+<p class="hero-note"><span data-i18n="public.already">Schon dabei?</span> <a class="link" href="/app/" data-i18n="public.app">Zur App</a></p>
+<div class="hero-track"><span class="language-square" aria-hidden="true">DE</span><div><strong data-i18n="public.focus">Dein Fokus: Deutsch B1</strong><p data-i18n="public.independent">Unabhängige Vorbereitung auf telc Deutsch B1</p></div></div>
 </div>
 <div class="practice-stage" id="practice">
-<div class="stage-top"><span>DEIN ERSTER KLEINER SCHRITT</span><span class="spark" aria-hidden="true">✳</span></div>
+<div class="stage-top"><span data-i18n="public.firstStep">DEIN ERSTER KLEINER SCHRITT</span><span class="spark" aria-hidden="true">✳</span></div>
 <section class="practice-card" aria-labelledby="practice-title">
-<div class="practice-top"><div><p class="kicker">Deutsch B1 · Zum Ausprobieren</p><h2 id="practice-title">Eine Aufgabe. Ein Aha.</h2></div><span class="chip chip-orange">Ohne Konto</span></div>
-<div class="practice-tabs" role="tablist" aria-label="Übungsbereich">
-<button id="tab-reading" type="button" role="tab" aria-selected="true" aria-controls="practice-panel" data-skill="reading">Lesen</button>
-<button id="tab-grammar" type="button" role="tab" aria-selected="false" aria-controls="practice-panel" tabindex="-1" data-skill="grammar">Sprachbausteine</button>
-<button id="tab-writing" type="button" role="tab" aria-selected="false" aria-controls="practice-panel" tabindex="-1" data-skill="writing">Schreiben</button>
+<div class="practice-top"><div><p class="kicker" data-i18n="public.sampleKicker">Deutsch B1 · Zum Ausprobieren</p><h2 id="practice-title" data-i18n="public.sampleTitle">Eine Aufgabe. Ein Aha.</h2></div><span class="chip chip-orange" data-i18n="public.noAccount">Ohne Konto</span></div>
+<div class="practice-tabs" role="tablist" data-i18n-aria-label="public.practiceArea" aria-label="Übungsbereich">
+<button id="tab-reading" type="button" role="tab" aria-selected="true" aria-controls="practice-panel" data-skill="reading" data-i18n="public.reading">Lesen</button>
+<button id="tab-grammar" type="button" role="tab" aria-selected="false" aria-controls="practice-panel" tabindex="-1" data-skill="grammar" data-i18n="public.grammar">Sprachbausteine</button>
+<button id="tab-writing" type="button" role="tab" aria-selected="false" aria-controls="practice-panel" tabindex="-1" data-skill="writing" data-i18n="public.writing">Schreiben</button>
 </div>
 <div class="instruction-row"><span id="sample-label">BEISPIEL 01 / 02</span></div>
-<div id="practice-panel" role="tabpanel" aria-labelledby="tab-reading" tabindex="0"><noscript><p>Aktiviere JavaScript, um die Beispielaufgabe auszuprobieren.</p></noscript></div>
-<p class="sample-note">Eigenes Übungsbeispiel, keine offizielle telc-Aufgabe. Die Vorschau wird nicht in deinem Konto gespeichert.</p>
+<div id="practice-panel" role="tabpanel" aria-labelledby="tab-reading" tabindex="0"><noscript><p lang="de" dir="ltr">Bitte aktiviere JavaScript, um Hatoove zu verwenden.</p><p lang="en" dir="ltr">Please enable JavaScript to use Hatoove.</p><p lang="uk" dir="ltr">Увімкніть JavaScript, щоб користуватися Hatoove.</p><p lang="ar" dir="rtl">يرجى تفعيل JavaScript لاستخدام Hatoove.</p><p lang="tr" dir="ltr">Hatoove kullanmak için JavaScript özelliğini etkinleştirin.</p></noscript></div>
+<p class="sample-note" data-i18n="public.sampleNote">Eigenes Übungsbeispiel, keine offizielle telc-Aufgabe. Die Vorschau wird nicht in deinem Konto gespeichert.</p>
 </section>
-<div class="stage-bottom">Verstehen, warum eine Antwort passt.</div>
+<div class="stage-bottom" data-i18n="public.understand">Verstehen, warum eine Antwort passt.</div>
 </div></section>
 <section class="offer-section" id="angebot" aria-labelledby="offer-title"><div class="section-wrap">
-<div class="section-heading"><div><p class="kicker">Ein Bereich nach dem anderen</p><h2 id="offer-title">Was möchtest du heute üben?</h2></div><p>Du entscheidest, womit du beginnst.<br>Der Pilot startet mit telc Deutsch B1.</p></div>
+<div class="section-heading"><div><p class="kicker" data-i18n="public.oneArea">Ein Bereich nach dem anderen</p><h2 id="offer-title" data-i18n="public.today">Was möchtest du heute üben?</h2></div><p><span data-i18n="public.decide">Du entscheidest, womit du beginnst.</span><br><span data-i18n="public.startsTelc">Der Pilot startet mit telc Deutsch B1.</span></p></div>
 <div class="exam-grid">
-<article><span class="skill-symbol" aria-hidden="true">Aa</span><h3>Lesen</h3><p>Situationen verstehen, Informationen finden und auf die entscheidenden Details achten.</p><a class="link" href="/app/">Leseaufgaben öffnen <span aria-hidden="true">→</span></a></article>
-<article><span class="skill-symbol" aria-hidden="true">[…]</span><h3>Sprachbausteine</h3><p>Wörter und Formen im Zusammenhang auswählen. Antworten werden anhand fester Lösungen geprüft.</p><a class="link" href="/app/">Sprachbausteine üben <span aria-hidden="true">→</span></a></article>
-<article><span class="skill-symbol" aria-hidden="true">✎</span><h3>Schreiben</h3><p>Aufgaben auswählen, eigene Antworten formulieren und gespeicherte Entwürfe wieder aufnehmen.</p><a class="link" href="/app/">Mit einem Text beginnen <span aria-hidden="true">→</span></a></article>
-<article class="coming"><span class="skill-symbol" aria-hidden="true">♫</span><h3>Hören</h3><p>Dieser Bereich wartet noch auf passende Aufnahmen. Hörübungen sind im Pilot derzeit nicht verfügbar.</p><span class="chip">Noch in Vorbereitung</span></article>
+<article><span class="skill-symbol" aria-hidden="true">Aa</span><h3 data-i18n="public.reading">Lesen</h3><p data-i18n="public.readingDescription">Situationen verstehen, Informationen finden und auf die entscheidenden Details achten.</p><a class="link" href="/app/"><span data-i18n="public.readingOpen">Leseaufgaben öffnen</span> <span aria-hidden="true">→</span></a></article>
+<article><span class="skill-symbol" aria-hidden="true">[…]</span><h3 data-i18n="public.grammar">Sprachbausteine</h3><p data-i18n="public.grammarDescription">Wörter und Formen im Zusammenhang auswählen. Antworten werden anhand fester Lösungen geprüft.</p><a class="link" href="/app/"><span data-i18n="public.grammarOpen">Sprachbausteine üben</span> <span aria-hidden="true">→</span></a></article>
+<article><span class="skill-symbol" aria-hidden="true">✎</span><h3 data-i18n="public.writing">Schreiben</h3><p data-i18n="public.writingDescription">Aufgaben auswählen, eigene Antworten formulieren und gespeicherte Entwürfe wieder aufnehmen.</p><a class="link" href="/app/"><span data-i18n="public.writingOpen">Mit einem Text beginnen</span> <span aria-hidden="true">→</span></a></article>
+<article class="coming"><span class="skill-symbol" aria-hidden="true">♫</span><h3 data-i18n="public.listening">Hören</h3><p data-i18n="public.listeningDescription">Dieser Bereich wartet noch auf passende Aufnahmen. Hörübungen sind im Pilot derzeit nicht verfügbar.</p><span class="chip" data-i18n="public.preparing">Noch in Vorbereitung</span></article>
 </div>
-<p class="offer-note">Schreib-Rückmeldungen sind vorläufige Übungshilfen. Die automatische Rückmeldung nutzt im Pilot noch gekennzeichnete Beispiele; eine Live-KI-Bewertung ist nicht freigeschaltet.</p>
+<p class="offer-note" data-i18n="public.feedbackNotice">Schreib-Rückmeldungen sind vorläufige Übungshilfen. Die automatische Rückmeldung nutzt im Pilot noch gekennzeichnete Beispiele; eine Live-KI-Bewertung ist nicht freigeschaltet.</p>
 </div></section>
 <section class="approach section-wrap" aria-labelledby="approach-title">
-<div class="approach-art"><picture><source srcset="/assets/orange-path-900.webp 900w, /assets/orange-path-1400.webp 1400w" sizes="(max-width: 720px) 90vw, 45vw" type="image/webp"><img src="/assets/orange-path-1400.jpg" width="1448" height="1086" loading="lazy" alt="Ein orangefarbener Weg aus Papier führt in kleinen Stufen nach oben."></picture><p>DEIN NÄCHSTER SCHRITT.</p></div>
-<div><p class="kicker">Mit einem klaren Anfang</p><h2 id="approach-title">Ein großes Ziel.<br>Kleine nächste Schritte.</h2>
-<ol class="steps"><li><span>01</span><div><h3>Dein Konto anlegen</h3><p>Mit E-Mail und Passwort starten. Der Pilot ist kostenlos.</p></div></li><li><span>02</span><div><h3>Eine Aufgabe wählen</h3><p>Lesen, Sprachbausteine oder Schreiben – passend zu dem, was du gerade üben möchtest.</p></div></li><li><span>03</span><div><h3>Später weiterarbeiten</h3><p>Deine gespeicherten Entwürfe bleiben in deinem Konto, auch wenn du das Gerät wechselst.</p></div></li></ol>
+<div class="approach-art"><picture><source srcset="/assets/orange-path-900.webp 900w, /assets/orange-path-1400.webp 1400w" sizes="(max-width: 720px) 90vw, 45vw" type="image/webp"><img src="/assets/orange-path-1400.jpg" width="1448" height="1086" loading="lazy" data-i18n-alt="public.artAlt" alt="Ein orangefarbener Weg aus Papier führt in kleinen Stufen nach oben."></picture><p data-i18n="public.nextStep">DEIN NÄCHSTER SCHRITT.</p></div>
+<div><p class="kicker" data-i18n="public.clearStart">Mit einem klaren Anfang</p><h2 id="approach-title"><span data-i18n="public.bigGoal">Ein großes Ziel.</span><br><span data-i18n="public.smallSteps">Kleine nächste Schritte.</span></h2>
+<ol class="steps"><li><span>01</span><div><h3 data-i18n="public.createAccount">Dein Konto anlegen</h3><p data-i18n="public.createDescription">Mit E-Mail und Passwort starten. Der Pilot ist kostenlos.</p></div></li><li><span>02</span><div><h3 data-i18n="public.chooseTask">Eine Aufgabe wählen</h3><p data-i18n="public.chooseDescription">Lesen, Sprachbausteine oder Schreiben – passend zu dem, was du gerade üben möchtest.</p></div></li><li><span>03</span><div><h3 data-i18n="public.continue">Später weiterarbeiten</h3><p data-i18n="public.continueDescription">Deine gespeicherten Entwürfe bleiben in deinem Konto, auch wenn du das Gerät wechselst.</p></div></li></ol>
 </div></section>
-<section class="start-strip"><div class="section-wrap"><div><p class="kicker">In deinem Tempo</p><h2>Deine Prüfung.<br>Dein nächster Schritt.</h2></div><div><p>Probiere eine Aufgabe aus – oder lege dein Konto an und speichere deine Arbeit.</p><a class="btn btn-dark" href="/signin?mode=signup">Kostenlos starten</a></div></div></section>
-<section class="faq section-wrap" id="fragen" aria-labelledby="faq-title"><div><p class="kicker">Gut zu wissen</p><h2 id="faq-title">Noch Fragen?</h2><p>Das kann der Pilot heute.</p></div><div class="faq-list">
-<details><summary>Ist Hatoove ein Deutschkurs?</summary><p>Hatoove ist eine eigenständige Prüfungsvorbereitung für Menschen, die bereits Deutschkenntnisse mitbringen. Du übst Aufgaben und arbeitest an deinen Antworten.</p></details>
-<details><summary>Sind das offizielle telc-Aufgaben?</summary><p>Nein. Hatoove bietet eigene, KI-generierte Übungsinhalte. Die fachliche Prüfung dieser Inhalte ist noch offen. Hatoove ist unabhängig und nicht mit telc verbunden.</p></details>
-<details><summary>Wie wird mein Schreiben bewertet?</summary><p>Die Vorschau auf dieser Seite enthält eine Selbstkontrolle. In der App sind Rückmeldungen pro Kriterium vorgesehen; der Pilot nutzt dafür gekennzeichnete Beispiel-Rückmeldungen. Es gibt keine Gesamtpunktzahl und keine Aussage darüber, ob du die Prüfung bestehen wirst.</p></details>
-<details><summary>Was wird gespeichert?</summary><p>Aufgaben und Entwürfe, die du in deinem Konto bearbeitest, werden auf dem Server gespeichert. Die kleine Vorschau auf dieser Startseite bleibt nur geöffnet, bis du die Seite neu lädst.</p></details>
-<details><summary>Ist der Pilot kostenlos?</summary><p>Ja. Du brauchst keine Zahlungsdaten. Die Anzahl verfügbarer Schreib-Rückmeldungen ist begrenzt und wird in der App angezeigt.</p></details>
-<details><summary>Was ist noch nicht verfügbar?</summary><p>Hörübungen warten auf Aufnahmen. Sprechen gehört nicht zum Pilot. Live-KI-Bewertung und personalisierte mehrsprachige Erklärungen sind noch nicht freigeschaltet.</p></details>
-<details><summary>Ich habe mein Passwort vergessen. Was nun?</summary><p>Du kannst einen <a class="link" href="/reset-password">Link zum Zurücksetzen anfordern</a>. Im Pilot sendet eine Person aus dem Team den Link über den vereinbarten Kontaktweg. Es gibt keinen automatischen E-Mail-Versand.</p></details>
+<section class="start-strip"><div class="section-wrap"><div><p class="kicker" data-i18n="public.pace">In deinem Tempo</p><h2><span data-i18n="public.yourExam">Deine Prüfung.</span><br><span data-i18n="public.yourStep">Dein nächster Schritt.</span></h2></div><div><p data-i18n="public.startDescription">Probiere eine Aufgabe aus – oder lege dein Konto an und speichere deine Arbeit.</p><a class="btn btn-dark" href="/signin?mode=signup" data-i18n="public.start">Kostenlos starten</a></div></div></section>
+<section class="faq section-wrap" id="fragen" aria-labelledby="faq-title"><div><p class="kicker" data-i18n="public.goodToKnow">Gut zu wissen</p><h2 id="faq-title" data-i18n="public.moreQuestions">Noch Fragen?</h2><p data-i18n="public.todayPilot">Das kann der Pilot heute.</p></div><div class="faq-list">
+<details><summary data-i18n="public.faqCourse">Ist Hatoove ein Deutschkurs?</summary><p data-i18n="public.faqCourseAnswer">Hatoove ist eine eigenständige Prüfungsvorbereitung für Menschen, die bereits Deutschkenntnisse mitbringen. Du übst Aufgaben und arbeitest an deinen Antworten.</p></details>
+<details><summary data-i18n="public.faqOfficial">Sind das offizielle telc-Aufgaben?</summary><p data-i18n="public.faqOfficialAnswer">Nein. Hatoove bietet eigene, KI-generierte Übungsinhalte. Die fachliche Prüfung dieser Inhalte ist noch offen. Hatoove ist unabhängig und nicht mit telc verbunden.</p></details>
+<details><summary data-i18n="public.faqWriting">Wie wird mein Schreiben bewertet?</summary><p data-i18n="public.faqWritingAnswer">Die Vorschau auf dieser Seite enthält eine Selbstkontrolle. In der App sind Rückmeldungen pro Kriterium vorgesehen; der Pilot nutzt dafür gekennzeichnete Beispiel-Rückmeldungen. Es gibt keine Gesamtpunktzahl und keine Aussage darüber, ob du die Prüfung bestehen wirst.</p></details>
+<details><summary data-i18n="public.faqSaved">Was wird gespeichert?</summary><p data-i18n="public.faqSavedAnswer">Aufgaben und Entwürfe, die du in deinem Konto bearbeitest, werden auf dem Server gespeichert. Die kleine Vorschau auf dieser Startseite bleibt nur geöffnet, bis du die Seite neu lädst.</p></details>
+<details><summary data-i18n="public.faqFree">Ist der Pilot kostenlos?</summary><p data-i18n="public.faqFreeAnswer">Ja. Du brauchst keine Zahlungsdaten. Die Anzahl verfügbarer Schreib-Rückmeldungen ist begrenzt und wird in der App angezeigt.</p></details>
+<details><summary data-i18n="public.faqUnavailable">Was ist noch nicht verfügbar?</summary><p data-i18n="public.faqUnavailableAnswer">Hörübungen warten auf Aufnahmen. Sprechen gehört nicht zum Pilot. Live-KI-Bewertung und personalisierte mehrsprachige Erklärungen sind noch nicht freigeschaltet.</p></details>
+<details><summary data-i18n="public.faqForgot">Ich habe mein Passwort vergessen. Was nun?</summary><p><span data-i18n="public.resetBefore">Du kannst einen</span> <a class="link" href="/reset-password" data-i18n="public.resetLink">Link zum Zurücksetzen anfordern</a><span data-i18n="public.resetAfter">. Im Pilot sendet eine Person aus dem Team den Link über den vereinbarten Kontaktweg. Es gibt keinen automatischen E-Mail-Versand.</span></p></details>
 </div></section>
 </main>
-<footer class="footer section-wrap"><a class="brand" href="/" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="168" height="32"></a><p>Die Prüfung kennen. Schritt für Schritt üben.</p><a class="link" href="/signin">Anmelden</a><small>© 2026 Hatoove · Unabhängige Prüfungsvorbereitung. Nicht mit telc verbunden.</small></footer>
+<footer class="footer section-wrap"><a class="brand" href="/" data-i18n-aria-label="public.home" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="168" height="32"></a><p data-i18n="public.slogan">Die Prüfung kennen. Schritt für Schritt üben.</p><a class="link" href="/signin" data-i18n="public.signin">Anmelden</a><small data-i18n="public.copyright">© 2026 Hatoove · Unabhängige Prüfungsvorbereitung. Nicht mit telc verbunden.</small></footer>
 </body></html>

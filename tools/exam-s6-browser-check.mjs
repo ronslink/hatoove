@@ -10,13 +10,15 @@ import { fileURLToPath } from 'node:url';
 import { createCompleteFixture } from './exam-s5b-fixture.mjs';
 import { verifyExamS6 } from './exam-s6-browser.mjs';
 import { verifyContentReview } from './content-review-browser.mjs';
+import { verifyI18n } from './i18n-browser.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const stamp=Date.now()+'_'+process.pid,project='hatoove-s6-browser-'+stamp.replace('_','-'),schema='ownapi_s6_browser_'+stamp;
 const scratch=fs.mkdtempSync(path.join(os.tmpdir(),project+'-')),source=path.join(scratch,'source'),envFile=path.join(scratch,'compose.env');
 const index=process.argv.indexOf('--shots'),shots=index<0?path.join(root,'.qa','exam-s6',project):path.resolve(process.argv[index+1]);
 const results=[],fixtureVersion='v9700',availableVersion='v9701',incompleteVersion='v9702';
-const reviewMode=process.argv.includes('--review');
+const reviewMode=process.argv.includes('--review'),localeMode=process.argv.includes('--locale');
+if(reviewMode&&localeMode)throw Error('Choose only one focused browser mode');
 let appPort,dbPort,base,started=false,cleaned=false,fixture,contentIds;
 const testSecret='whsec_synthetic_s6_'+randomUUID().replaceAll('-','');
 const commandEnv=Object.fromEntries(Object.entries(process.env).filter(([key])=>!/^(B1PREP_|OWNAPI_|STRIPE_|PAYMENTS_|HATOVE_|COMPOSE_)/i.test(key)));
@@ -79,7 +81,7 @@ async function sourceFixture(){
     "const {createExamCatalogue}=await import('./preparation-contract.mjs');\n  const world = await createPostgresWorld({ fixture,examCatalogue:createExamCatalogue({enabled:['telc-deutsch-b1','dtz-a2-b1']}) });");
   replaceOnce(path.join(source,'compose.yaml'),'OWNAPI_PG_SCHEMA: hatoove','OWNAPI_PG_SCHEMA: '+schema);
   replaceOnce(path.join(source,'compose.yaml'),'OWNAPI_PG_ROLE_PREFIX: hatoove','OWNAPI_PG_ROLE_PREFIX: '+schema);
-  fixture=await createCompleteFixture({examId:'dtz-a2-b1',mediaRoot:path.join(source,'content/exams'),version:fixtureVersion,releaseVersion:fixtureVersion,blueprintVersion:fixtureVersion});
+  fixture=await createCompleteFixture({examId:'dtz-a2-b1',mediaRoot:path.join(source,'content/exams'),version:fixtureVersion,releaseVersion:fixtureVersion,blueprintVersion:fixtureVersion,...(localeMode?{durationMs:30000}:{})});
   for(const set of fixture.sets)set.version=fixtureVersion;
   for(const rubric of fixture.rubrics)rubric.version=fixtureVersion;
   for(const task of fixture.writingTasks){task.version=fixtureVersion;task.rubricVersion=fixtureVersion;}
@@ -111,7 +113,7 @@ try{
   const email=`browser-${stamp}@example.test`,newcomerEmail=`newcomer-${stamp}@example.test`,password='synthetic-browser-pass-1';
   for(const address of [email,newcomerEmail]){const signup=await fetch(base+'/api/auth/sign-up/email',{method:'POST',headers:{origin:base,'content-type':'application/json'},body:JSON.stringify({email:address,password,name:'S6 Browser Evidence'})});if(signup.status!==200)throw Error('Synthetic signup failed: '+signup.status);}
   record('S6 public runtime uses isolated internal complete DTZ and an injected payment stub',true);
-  await (reviewMode?verifyContentReview:verifyExamS6)({base,email,newcomerEmail,password,fixture,availableVersion,incompleteVersion,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,
+  await (localeMode?verifyI18n:reviewMode?verifyContentReview:verifyExamS6)({base,email,newcomerEmail,password,fixture,availableVersion,incompleteVersion,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,
     publishAvailable:()=>migrateProgram(`for(const id of ids)await review('content',id);await review('blueprint',internal.exam.id,internal.blueprint.version);for(const form of internal.forms)await review('form',form.id,form.version);const published={...internal,release:{version:${JSON.stringify(availableVersion)},state:'available',resumeBlockedReleases:[]},sets:[],media:[],writingTasks:[],rubrics:[]};await importPackage(migration,published,{publisher:'synthetic-s6-browser-public-simulation'});console.log('named synthetic decisions and reference-only available fixture published');`),
     changeReview:(kind,id,version,decision)=>migrateProgram(`await review(${JSON.stringify(kind)},${JSON.stringify(id)},${JSON.stringify(version)},${JSON.stringify(decision)});console.log('exact synthetic decision recorded');`),
     drainWorker:({fail=false}={})=>migrateProgram(`const {createWorker}=await import('./server/owned-postgres/worker.mjs');const {createExamCatalogue}=await import('./server/preparation-contract.mjs');const pool=persistentRolePool(config,'worker');try{console.log(JSON.stringify(await createWorker({pool,${fail?"grade:async()=>{throw Error('Synthetic browser worker failure');},":''}examCatalogue:createExamCatalogue({enabled:['telc-deutsch-b1','dtz-a2-b1']})}).runOnce()));}finally{await pool.end();}`),
@@ -131,7 +133,7 @@ finally{
   }catch(error){record('S6 fixture cleanup',false,error.message);}
   const resolved=fs.realpathSync(scratch);
   if((!started||cleaned)&&path.dirname(resolved)===fs.realpathSync(os.tmpdir())&&path.basename(resolved).startsWith(project+'-'))fs.rmSync(resolved,{recursive:true,force:true});else console.log('Preserved source/Compose recovery files at '+scratch);
-  fs.mkdirSync(shots,{recursive:true});fs.writeFileSync(path.join(shots,'results.json'),JSON.stringify({mode:reviewMode?'review':'s6',sourceRevision,sourceChanges,project,base,dbPort,schema,cleaned,finishedAt:new Date().toISOString(),screenshots:fs.readdirSync(shots).filter(name=>name.endsWith('.png')).sort(),limits:['Synthetic technical content; no human educational approval','Headless Chromium emulation; no physical-device or screen-reader acceptance',...(reviewMode?['C03B2 is a display-only transport projection','C03B4 first submit is an explicit pre-dispatch transport failure; retry refusal is real']:[])],results},null,2));
+  fs.mkdirSync(shots,{recursive:true});fs.writeFileSync(path.join(shots,'results.json'),JSON.stringify({mode:localeMode?'locale':reviewMode?'review':'s6',sourceRevision,sourceChanges,project,base,dbPort,schema,cleaned,finishedAt:new Date().toISOString(),screenshots:fs.readdirSync(shots).filter(name=>name.endsWith('.png')).sort(),limits:['Synthetic technical content; no human educational approval','Headless Chromium emulation; no physical-device or screen-reader acceptance',...(reviewMode?['C03B2 is a display-only transport projection','C03B4 first submit is an explicit pre-dispatch transport failure; retry refusal is real']:[]),...(localeMode?['Locale transport probes hold or discard actual responses; no fabricated server acknowledgement','Composition events are synthetic DOM events, not native IME acceptance','Back navigation reports whether Chromium actually used BFCache','Checkout offer only; no payment session or external provider requested']:[])],results},null,2));
   const failures=results.filter(result=>!result.ok);console.log(`${results.length-failures.length} passed, ${failures.length} failed; screenshots ${shots}`);
   console.log('Headless Chromium and synthetic technical content only; physical devices and human approval remain pending.');process.exitCode=failures.length?1:0;
 }

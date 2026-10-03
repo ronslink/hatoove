@@ -18,7 +18,8 @@
  * and a stale write writes nothing and is refused rather than merged.
  *
  * Scope and limits, stated plainly:
- *   - `language` selects de/en/uk/ar/tr explanations and is snapshotted at submission time.
+ *   - `language` selects de/en/uk/ar/tr interface and preferred explanations; existing submission
+ *     language snapshots remain immutable under their original request/replay semantics.
  *     This setting is not a claim that provisional feedback has passed human language review.
  *   - Values are validated by shape (short strings, an integer in range, a known theme) and
  *     never interpreted. No field here is a security control.
@@ -40,7 +41,7 @@ export const SETTINGS_LIMITS = Object.freeze({
 });
 
 export const SETTINGS_THEMES = Object.freeze(['system', 'light', 'dark']);
-/** Explanation languages supported by the learner contract. */
+/** Interface and preferred explanation languages supported by the learner contract. */
 export const SETTINGS_LANGUAGES = EXPLANATION_LANGUAGES;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -152,13 +153,16 @@ export function createPostgresSettings({ pool } = {}) {
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Fault(422, 'invalid_settings');
       patch = validateSettings(patch);
       return settle(owner, async (client) => {
+        // A missing row cannot be locked with SELECT FOR UPDATE. Serialize the owner's first
+        // write before reading/upserting, in the same owner-first order as deletion and jobs.
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))', [owner]);
         const current = (await client.query(
           'SELECT revision, exam_date, daily_goal, model, theme, language FROM learner_settings WHERE user_id = $1 FOR UPDATE',
           [owner])).rows[0];
         const base = current ? asRow(current) : { revision: 0, settings: { ...SETTINGS_DEFAULTS } };
         if (base.revision !== expectedRevision) {
-          // Nothing is written. The caller gets the server's copy so it can reconcile.
-          throw new Fault(409, 'settings_conflict', { current: base });
+          // Nothing is written. The caller rereads the server copy before reconciling.
+          throw new Fault(409, 'settings_conflict');
         }
         const next = { ...base.settings, ...patch };
         /*

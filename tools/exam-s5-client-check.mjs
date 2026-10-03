@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { setLocale } from '../public/assets/i18n/core.js';
+// These retained copy assertions deliberately exercise the German interface.
+setLocale('de');
 import { mockMember } from '../public/app/mock.js';
 import { createApi } from '../public/app/api.js';
 import { createListeningController, createListeningSession, listeningMessage } from '../public/app/listening.js';

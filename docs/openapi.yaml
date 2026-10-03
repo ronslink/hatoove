@@ -331,9 +331,10 @@ paths:
       tags: [auth]
       summary: Register with email and password
       description: |
-        Creates the account. There is **no invite** (Ron, 2 October 2026) and, at present, no email
-        verification and no throttle — see PILOT-18, which owns the abuse controls. The response sets
-        the session cookie.
+        Creates an account under the registration throttle and sets its session cookie.
+        Optional language initializes the new account's interface and preferred explanation language
+        atomically with registration. Omission preserves the default German preference. Exam content
+        keeps its exam language. Existing account preferences are never changed by registration.
       security: []
       requestBody:
         required: true
@@ -346,11 +347,13 @@ paths:
                 name: { type: string }
                 email: { type: string, format: email }
                 password: { type: string, format: password }
+                language: { type: string, enum: [de, en, uk, ar, tr] }
       responses:
         '200': { description: 'Account created; session cookie set.' }
         '403': { description: 'Origin refused (`origin_rejected`).' }
         '415': { description: 'Content type must be application/json (`json_required`).' }
-        '422': { description: 'Invalid input, or the email already has an account (`user_exists`).' }
+        '422': { description: 'Invalid input (including `invalid_language`), or the email already has an account (`user_exists`).' }
+        '429': { description: 'Registration throttle limit reached.' }
 
   /api/auth/sign-in/email:
     post:

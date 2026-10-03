@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import * as mock from '../public/app/mock.js';
 import { createListeningController, listeningMessage } from '../public/app/listening.js';
 import { createWritingController } from '../public/app/writing.js';
+import { setLocale } from '../public/assets/i18n/core.js';
+setLocale('de');
 
 let passed = 0;
 const check = async (name, fn) => { await fn(); passed++; console.log('PASS ' + name); };
@@ -229,7 +231,7 @@ try {
       writing: { readAttempt: async () => ({ ok: true, data: { id: 'draft', revision: 3, text: 'Acknowledged text' } }), saveDraft: async () => { saves++; return { ok: false, status: 409, error: 'mock_group_inactive' }; } },
       rubrics: { read: async () => ({ ok: true, data: { criteria: [] } }) },
     };
-    const host = new NodePort(), controller = mock.createMockController({ api, esc: String });
+    const host = new NodePort(), controller = mock.createMockController({ api, esc: String, getExamLanguage: () => 'de' });
     await controller.showRun(host, value.id); await new Promise(resolve => setImmediate(resolve));
     const area = host.querySelector('#writing-text'); area.value = 'Exact unconfirmed text at the boundary'; area.dispatchEvent(new Event('input'));
     await new Promise(resolve => setTimeout(resolve, 330));
@@ -237,6 +239,11 @@ try {
     assert.equal(host.querySelector('#writing-text').readOnly, true);
     assert.match(host.querySelector('#mock-footer').innerHTML, /Exact unconfirmed text at the boundary/);
     assert.match(host.querySelector('#mock-footer').innerHTML, /data-mock-draft-copy/);
+    assert.match(host.querySelector('#mock-footer').innerHTML, /lang="de" dir="ltr" data-mock-draft-copy readonly/);
+    const footer = host.querySelector('#mock-footer'), recovered = footer.innerHTML;
+    setLocale('ar'); controller.updateLocale();
+    assert.equal(host.querySelector('#mock-footer'), footer); assert.equal(footer.innerHTML, recovered);
+    setLocale('de');
     assert.equal(await controller.flush(), false); controller.dispose();
   });
   await check('unknown audio boundary receipt survives until authoritative retry before switching workspace', async () => {

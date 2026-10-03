@@ -1,3 +1,6 @@
+import { INSTRUCTIONS, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
+import { getLocale, formatDate } from '../assets/i18n/core.js';
+import { pt, pl, pa, bindPracticeText, updatePracticeLocale } from '../assets/i18n/practice-messages.js';
 import { createWritingController, writingPrompt } from './writing.js';
 import { createListeningController } from './listening.js';
 import { contentReviewLabel, reviewHistoryNotice } from './review-labels.js';
@@ -11,7 +14,7 @@ const samePosition = (a, b) => a?.member === b?.member && a?.item === b?.item;
 const key = row => [row.setId, row.version, row.itemId].join('\u0000');
 const wallNow = () => Date.now();
 const steadyNow = () => globalThis.performance?.now() ?? Date.now();
-export const mockScopeLabel = run => run?.scope === 'complete_supported_written' ? 'Schriftliche Probeprüfung' : 'Abschnittsübung';
+export const mockScopeLabel = run => run?.scope === 'complete_supported_written' ? pt('mockScope') : pt('sectionScope');
 export const mockWritingSection = run => run?.writing_task?.section || run?.writing_choices?.[0]?.section || 'writing';
 export function mockWritingTask(run) {
   if (run?.writing?.binding_kind === 'assigned') return run.writing_task?.task || null;
@@ -39,13 +42,13 @@ export function mockSectionWritable(run, section, instant) {
   const timing = mockTiming(run, instant);
   return !timing || Boolean(timing.valid && timing.active?.sections.includes(section));
 }
-export function mockReviewLabel(value) {
-  const publication = { internal: 'Interner Entwurf', hidden: 'Nicht veröffentlicht', withdrawn: 'Zurückgezogene Ausgabe' }[value.release_state];
-  const review = contentReviewLabel(value);
+export function mockReviewLabel(value, locale = getLocale()) {
+  const publication = { internal: pt('internal',{},locale), hidden: pt('hidden',{},locale), withdrawn: pt('withdrawn',{},locale) }[value.release_state];
+  const review = contentReviewLabel(value,locale);
   return [publication, review].filter(Boolean).join(' · ');
 }
 export function mockWritingStatus(writing) {
-  return ({ not_started: 'Schreibentwurf gespeichert', pending: 'Schreiben: Rückmeldung wird vorbereitet', assessed: 'Schreiben: Übungsfeedback gespeichert', failed: 'Schreiben: Rückmeldung fehlgeschlagen · Text erhalten', unassessed: 'Schreiben: Unbewertet · Text erhalten' })[writing?.assessment_state] || '';
+  return ({ not_started: pt('writingDraft'), pending: pt('writingPending'), assessed: pt('writingAssessed'), failed: pt('writingFailed'), unassessed: pt('writingUnassessed') })[writing?.assessment_state] || '';
 }
 
 /** Finalisation binds the last acknowledged draft; a failed save must never freeze older text. */
@@ -244,29 +247,34 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
   };
 }
 
-export function createMockController({ api, esc, setLabel = member => member.title, canEdit = () => true, isArchived = () => false, readAloud = null, explanations = null, explanationLanguage = () => 'de', onOpen = () => {}, onChange = () => {} }) {
+export function createMockController({ getExamLanguage = () => null, api, esc, setLabel = member => member.title, setLabelLanguage = () => getExamLanguage() || 'und', canEdit = () => true, isArchived = () => false, readAloud = null, explanations = null, explanationLanguage = () => 'de', onOpen = () => {}, onChange = () => {} }) {
   let host = null, generation = 0, timer = null, deadlineTimer = null, startOperation = null, confirm = false;
   let displayPosition = null, deadlineReached = false, workspace = 'objective', observedGroup = null;
   let boundaryChanging = false, boundaryMessage = '', boundaryFlight = null, boundaryAudioPending = false, copyPending = false, draftCopies = [];
   let writingBinding = null, writingReady = Promise.resolve(true), finishing = false;
   const writingAllowed = () => canEdit() && (writing.active && !writing.active.attached || session.state().run?.state === 'finalised' || session.sectionWritable(mockWritingSection(session.state().run)));
-  const writing = createWritingController({ api, esc, readAloud, explanations, canEdit: writingAllowed, onChange: () => { onChange(); if (writing.active?.error === 'mock_group_inactive') void refreshTiming(); } });
-  const listening = createListeningController({ api, esc, canEdit });
+  const writing = createWritingController({ getExamLanguage, api, esc, readAloud, explanations, canEdit: writingAllowed, onChange: () => { onChange(); if (writing.active?.error === 'mock_group_inactive') void refreshTiming(); } });
+  const listening = createListeningController({ getExamLanguage, api, esc, canEdit });
   const session = createMockSession({ api, canEdit, onChange: () => { render(); onChange(); } });
   const button = (action, label, primary = false) => '<button type="button" class="btn' + (primary ? ' btn-primary' : '') + '" data-mock-action="' + action + '">' + label + '</button>';
-  const date = value => new Date(value).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
+  const date = (value,locale=getLocale()) => formatDate(value,{dateStyle:'medium',timeStyle:'short'},locale);
+  const instruction = (id,run) => { const examLanguage=run?.exam_language || getExamLanguage() || 'und'; return instructionMarkup({id,examLanguage,original:INSTRUCTIONS[id]?.examLanguage===examLanguage ? INSTRUCTIONS[id].original : ''}); };
+  const review = value => '<span data-mock-review="' + esc(JSON.stringify({release_state:value.release_state,review_status:value.review_status,review_basis:value.review_basis,review_withdrawn:value.review_withdrawn})) + '">' + esc(mockReviewLabel(value)) + '</span>';
+  const languageAttrs = language => 'lang="'+esc(language || 'und')+'" dir="'+(language === 'ar' ? 'rtl' : 'ltr')+'"';
+  const examAttrs = (source=session.state().run) => languageAttrs(source?.exam_language || getExamLanguage() || 'und');
+  const scope = value => pl(value.scope === 'complete_supported_written' ? 'mockScope' : 'sectionScope');
   function stopTimers() { clearTimeout(timer); clearInterval(deadlineTimer); timer = null; deadlineTimer = null; }
-  function message(error) {
+  function messageKey(error) {
     if (!error) return '';
-    if (error.status === 401 || ['account_changed', 'stale_session'].includes(error.error)) return 'Die Sitzung ist nicht mehr gültig. Deine Auswahl bleibt hier. Kopiere sie vor der erneuten Anmeldung.';
-    if (error.error === 'mock_group_inactive') return 'Die Bearbeitungszeit dieses Abschnitts ist beendet oder noch nicht begonnen. Deine unbestätigte Auswahl bleibt als lokale Kopie erhalten.';
-    if (error.status === 409) return 'Der gespeicherte Stand hat sich geändert oder der Lauf ist gesperrt. Deine Auswahl bleibt hier. Lade den Serverstand ausdrücklich neu; deine lokale Auswahl bleibt als Kopie erhalten.';
-    if (error.status === 0) return 'Die Speicherbestätigung fehlt. Deine Auswahl bleibt hier. Wiederholen verwendet denselben Speichervorgang.';
-    return 'Der Vorgang konnte nicht bestätigt werden. Deine Auswahl bleibt hier. Bitte versuche es erneut oder lade den Serverstand.';
+    if (error.status === 401 || ['account_changed', 'stale_session'].includes(error.error)) return 'mockSession';
+    if (error.error === 'mock_group_inactive') return 'mockGroup';
+    if (error.status === 409) return 'mockConflict';
+    if (error.status === 0) return 'mockUnknown';
+    return 'mockFailure';
   }
   function recovery(snapshot) {
-    return (snapshot.error ? '<div class="err" role="alert"><p>' + esc(message(snapshot.error)) + '</p><div class="row">' + button('retry', 'Vorgang wiederholen') + button('reload', 'Serverstand laden · lokale Kopie behalten') + '</div></div>' : '')
-      + '<details class="mock-copy"' + (snapshot.localCopy ? ' open' : '') + '><summary>Eigene Antworten kopieren</summary><label class="field-label" for="mock-local-copy">' + (snapshot.localCopy ? 'Lokale Auswahl vor dem Laden' : 'Auswahl in diesem Fenster') + '</label><textarea id="mock-local-copy" class="writing-text" readonly>' + esc(snapshot.localCopy || JSON.stringify({ responses: snapshot.responses, position: snapshot.position }, null, 2)) + '</textarea><div class="row">' + button('reload', 'Serverstand laden · lokale Kopie behalten') + '</div></details>';
+    return (snapshot.error ? '<div class="err" role="alert"><p>' + pl(messageKey(snapshot.error)) + '</p><div class="row">' + button('retry', pl('retry')) + button('reload', pl('reloadCopy')) + '</div></div>' : '')
+      + '<details class="mock-copy"' + (snapshot.localCopy ? ' open' : '') + '><summary data-practice-key="ui26">Eigene Antworten kopieren</summary><label class="field-label" for="mock-local-copy">' + pl(snapshot.localCopy ? 'localBefore' : 'localHere') + '</label><textarea id="mock-local-copy" class="writing-text" readonly>' + esc(snapshot.localCopy || JSON.stringify({ responses: snapshot.responses, position: snapshot.position }, null, 2)) + '</textarea><div class="row">' + button('reload', pl('reloadCopy')) + '</div></details>';
   }
   function captureDraft() {
     const value = writing.localDraft;
@@ -288,7 +296,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     const ticket = generation; boundaryChanging = true; clearTimeout(timer);
     listening.freeze(true); writing.freeze(true); captureDraft();
     if (session.state().dirty || session.state().pending) copyPending = true;
-    boundaryMessage = 'Der Zeitabschnitt hat gewechselt. Der bestätigte Serverstand wird geladen; unbestätigte Eingaben bleiben als Kopie erhalten.';
+    boundaryMessage = 'boundaryLoading';
     boundaryFlight = (async () => {
       // A terminal group refusal is an explicit stop, not a successful progress acknowledgement.
       const audioStopped = !listening.needsFlush || await listening.flush();
@@ -297,7 +305,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
         // Keep the exact playback receipt alive until retry yields an acknowledgement or
         // authoritative terminal refusal. Rendering another member would dispose it.
         boundaryAudioPending = true;
-        boundaryMessage = 'Die Hörzeit ist beendet. Die Bestätigung des letzten Hörstands fehlt. Gleiche ihn erneut ab; die feste Prüfungszeit läuft weiter.';
+        boundaryMessage = 'boundaryAudio';
         return false;
       }
       boundaryAudioPending = false;
@@ -311,29 +319,34 @@ export function createMockController({ api, esc, setLabel = member => member.tit
       if (loaded) {
         chooseWorkspace(); confirm = false;
         observedGroup = mockTiming(session.state().run, session.now())?.active?.id || null;
-        boundaryMessage = audioStopped ? 'Der Zeitabschnitt hat gewechselt. Es gilt der bestätigte Serverstand. Die Zeit läuft ohne Pause weiter.' : 'Der Zeitabschnitt hat gewechselt. Der letzte Hörstand wurde nicht bestätigt. Es wird kein neuer Hörversuch gestartet.';
-      } else boundaryMessage = 'Der neue Serverstand konnte nicht geladen werden. Unbestätigte Eingaben bleiben hier erhalten. Bitte lade den Stand erneut.';
+        boundaryMessage = audioStopped ? 'boundaryConfirmed' : 'boundaryUnconfirmed';
+      } else boundaryMessage = 'boundaryFailed';
       return loaded;
     })();
     try { return await boundaryFlight; } finally { if (ticket === generation) { boundaryFlight = null; boundaryChanging = false; render(); } }
   }
   function timingMarkup(snapshot) {
-    const timing = mockTiming(snapshot.run, snapshot.serverNow);
+    const timing = mockTiming(snapshot.run,snapshot.serverNow);
     if (!timing) return '';
-    if (!timing.valid) return '<p class="err" role="alert">Der Zeitplan konnte nicht geprüft werden. Bearbeiten ist gesperrt; deine Antworten bleiben erhalten.</p>';
+    if (!timing.valid) return '<p class="err" role="alert">' + pl('ui27') + '</p>';
     const finalised = snapshot.run.state === 'finalised';
-    return '<section class="card-peach stack mock-timing" aria-label="Zeitplan"><h3>Feste Bearbeitungszeiten</h3><p>' + (finalised ? 'Gespeicherter Zeitplan · dieser Lauf ist abgeschlossen und schreibgeschützt.' : 'Die Abschnitte wechseln automatisch. Verlassen, Neuladen und Prüfungswechsel halten die Zeit nicht an. Ein früherer Wechsel der Bearbeitungszeit ist nicht möglich.') + '</p><ol class="mock-time-groups">'
-      + timing.groups.map(group => '<li data-mock-group-state="' + group.state + '"><button class="btn" type="button" data-mock-group="' + esc(group.id) + '"' + (group.state === 'active' ? ' aria-current="step"' : '') + '>' + esc(group.sections.map(section => ({ LV: 'Lesen', SB: 'Sprachbausteine', HV: 'Hören', SA: 'Schreiben', writing: 'Schreiben' })[section] || section).join(' + ')) + ' · ' + Math.round((group.end - group.start) / 60000) + ' Min.</button><span>' + (finalised ? 'Gespeicherter Zeitabschnitt · schreibgeschützt' : ({ pending: 'Später · schreibgeschützt', active: 'Jetzt bearbeiten', closed: 'Beendet · schreibgeschützt' })[group.state]) + '</span></li>').join('')
-      + '</ol><p data-mock-timing-status role="status" aria-live="polite">' + esc(boundaryChanging ? 'Serverstand wird abgeglichen …' : boundaryMessage) + '</p>' + (boundaryAudioPending ? button('reload', 'Hörstand abgleichen') : '') + '</section>';
+    return '<section class="card-peach stack mock-timing" ' + pa('aria-label','schedule') + '><h3>' + pl('ui28') + '</h3>'
+      + (finalised ? '<p>' + pl('savedSchedule') + '</p>' : instruction('mock.timing',snapshot.run)) + '<ol class="mock-time-groups">'
+      + timing.groups.map(group => '<li data-mock-group-state="' + group.state + '"><button class="btn" type="button" data-mock-group="' + esc(group.id) + '"' + (group.state === 'active' ? ' aria-current="step"' : '') + '>' + esc(groupLabel(group)) + '</button><span>' + pl(finalised ? 'groupSaved' : ({pending:'groupPending',active:'groupActive',closed:'groupClosed'})[group.state]) + '</span></li>').join('')
+      + '</ol><p data-mock-timing-status role="status" aria-live="polite">' + (boundaryChanging ? pl('reconciling') : boundaryMessage ? pl(boundaryMessage) : '') + '</p>' + (boundaryAudioPending ? button('reload',pl('syncAudio')) : '') + '</section>';
+  }
+  function groupLabel(group,locale=getLocale()) {
+    const sections = group.sections.map(section => ({LV:'reading',SB:'grammar',HV:'listening',SA:'ui01',writing:'ui01'})[section] ? pt(({LV:'reading',SB:'grammar',HV:'listening',SA:'ui01',writing:'ui01'})[section],{},locale) : section).join(' + ');
+    return pt('groupMinutes',{sections,minutes:Math.round((group.end-group.start)/60000)},locale);
   }
   function reviewContext(row, members) {
     const member = members.find(value => value.set_id === row.set_id && value.version === row.version);
     const form = member && mockMember(member), item = form?.items.find(value => value.id === String(row.item_id));
     if (!item) return '';
     const passage = item.passage ?? form.passage;
-    return '<details class="mock-review-context" data-review-item="' + esc(row.item_id) + '"><summary>Aufgabe und Text ansehen</summary>'
-      + (passage ? '<div class="stimulus mock-passage" lang="de">' + esc(passage) + '</div>' : '')
-      + '<p class="mock-review-prompt" lang="de">' + esc(item.text) + '</p><dl class="mock-review-options">'
+    return '<details class="mock-review-context" data-review-item="' + esc(row.item_id) + '"><summary data-practice-key="ui29">Aufgabe und Text ansehen</summary>'
+      + (passage ? '<div class="stimulus mock-passage" ' + examAttrs() + '>' + esc(passage) + '</div>' : '')
+      + '<p class="mock-review-prompt" ' + examAttrs() + '>' + esc(item.text) + '</p><dl class="mock-review-options" ' + examAttrs() + '>'
       + (item.options || form.options || []).map(option => '<div><dt>' + esc(option.id) + '</dt><dd>' + esc(option.label) + '</dd></div>').join('') + '</dl></details>';
   }
   function renderWriting(snapshot) {
@@ -345,14 +358,14 @@ export function createMockController({ api, esc, setLabel = member => member.tit
       if (writing.active) writing.dispose();
       writingBinding = null;
       target.hidden = !groups.length && !run.writing_task;
-      target.innerHTML = run.writing_task ? '<section class="card"><p class="err">Der zugewiesene Schreibentwurf konnte nicht geladen werden. Lade den Serverstand erneut.</p></section>' : !groups.length ? '' : run.blocked_reason ? '<section class="card"><p>Die Schreibaufgaben sind zurzeit gesperrt.</p></section>'
-        : run.state === 'finalised' ? '<section class="card"><h3>Schreiben · Unbewertet</h3><p>Es wurde keine Schreibaufgabe ausgewählt. Der Abschnitt bleibt gespeichert.</p></section>'
-        : '<section class="card stack"><h3>Schreiben · Wähle eine Aufgabe</h3><p>Lies beide Aufgaben. Deine bestätigte Auswahl bleibt für diesen Lauf verbindlich. Anschließend schreibst du zu genau dieser Aufgabe.</p>' + (!session.sectionWritable(mockWritingSection(run)) ? '<p class="hint">Außerhalb der Schreibzeit · Auswahl gesperrt.</p>' : '') + '<div class="mock-writing-choices">' + groups.map(group => group.options.map(option => '<article class="card-flat stack"><p class="kicker">Aufgabe ' + esc(option.id) + '</p>' + writingPrompt(option.task || {}, esc) + '<button type="button" class="btn btn-primary" data-mock-choice-group="' + esc(group.id) + '" data-mock-choice-option="' + esc(option.id) + '"' + (!session.sectionWritable(mockWritingSection(run)) || snapshot.pending || boundaryChanging ? ' disabled' : '') + '>Aufgabe ' + esc(option.id) + ' verbindlich wählen</button></article>').join('')).join('') + '</div></section>';
+      target.innerHTML = run.writing_task ? '<section class="card"><p class="err" data-practice-key="ui30">Der zugewiesene Schreibentwurf konnte nicht geladen werden. Lade den Serverstand erneut.</p></section>' : !groups.length ? '' : run.blocked_reason ? '<section class="card"><p data-practice-key="ui31">Die Schreibaufgaben sind zurzeit gesperrt.</p></section>'
+        : run.state === 'finalised' ? '<section class="card"><h3 data-practice-key="ui32">Schreiben · Unbewertet</h3><p data-practice-key="ui33">Es wurde keine Schreibaufgabe ausgewählt. Der Abschnitt bleibt gespeichert.</p></section>'
+        : '<section class="card stack"><h3 data-practice-key="ui34">Schreiben · Wähle eine Aufgabe</h3>' + instruction('writing.choose_one',run) + (!session.sectionWritable(mockWritingSection(run)) ? '<p class="hint" data-practice-key="ui36">Außerhalb der Schreibzeit · Auswahl gesperrt.</p>' : '') + '<div class="mock-writing-choices">' + groups.map(group => group.options.map(option => '<article class="card-flat stack"><p class="kicker">' + pl('taskNumber',{id:option.id}) + '</p>' + writingPrompt(option.task || {},esc,run.exam_language || getExamLanguage() || 'und') + '<button type="button" class="btn btn-primary" data-mock-choice-group="' + esc(group.id) + '" data-mock-choice-option="' + esc(option.id) + '"' + (!session.sectionWritable(mockWritingSection(run)) || snapshot.pending || boundaryChanging ? ' disabled' : '') + '>' + pl('chooseTask',{id:option.id}) + '</button></article>').join('')).join('') + '</div></section>';
       return;
     }
     target.hidden = false;
     if (!target.querySelector('#mock-writing-editor')) target.innerHTML = '<p class="kicker" id="mock-writing-binding" tabindex="-1"></p><div id="mock-writing-editor"></div>';
-    target.querySelector('#mock-writing-binding').textContent = (attachment.binding_kind === 'assigned' ? 'Zugewiesene Schreibaufgabe' : 'Aufgabe ' + attachment.selected_option_id + ' · verbindlich ausgewählt') + (run.state === 'active' && !session.sectionWritable(mockWritingSection(run)) ? ' · außerhalb der Schreibzeit, schreibgeschützt' : '');
+    paintWritingBinding();
     const binding = [run.id, attachment.attempt_id, attachment.submission_id, run.blocked_reason || '', isArchived()].join(':');
     if (writingBinding !== binding) {
       writingBinding = binding;
@@ -368,7 +381,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
   async function flushAll() {
     if (finishing) return false;
     if (boundaryFlight) await boundaryFlight;
-    if (copyPending) { boundaryMessage = 'Sichere zuerst deine lokale Kopie und bestätige dies unten. Danach kannst du den Lauf verlassen.'; render(); return false; }
+    if (copyPending) { boundaryMessage = 'copyFirst'; render(); return false; }
     clearTimeout(timer);
     if (!(await listening.flush())) return false;
     await writingReady;
@@ -384,42 +397,42 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     const listeningFocus = host.contains(document.activeElement) ? document.activeElement?.getAttribute('data-listening-action') : null;
     const members = run.members || [], total = members.reduce((n, m) => n + m.item_count, 0);
     const selected = snapshot.responses.filter(row => row.answer !== null).length;
-    const status = snapshot.loading ? 'Serverstand wird geladen …' : snapshot.busy ? 'Wird gespeichert …' : snapshot.error ? 'Noch nicht bestätigt' : snapshot.dirty ? 'Änderungen noch nicht gespeichert' : 'Gespeichert · Stand ' + run.revision;
+    const status = snapshot.loading ? pl('serverLoading') : snapshot.busy ? pl('ui06') : snapshot.error ? pl('unconfirmed') : snapshot.dirty ? pl('unsaved') : pl('savedRevision',{revision:run.revision});
     const position = displayPosition || snapshot.position;
     const member = members[position.member], form = member && mockMember(member), item = form?.items[position.item];
     const readonly = !snapshot.writable || finishing || boundaryChanging || !mockSectionWritable(run, member?.section, snapshot.serverNow);
     let body = '';
-    if (run.blocked_reason) body = '<section class="card"><h3>Dieser Lauf ist zurzeit gesperrt</h3><p>Die Inhalte sind nicht verfügbar. Deine gespeicherten Antworten bleiben erhalten und können über dein Konto exportiert werden.</p></section>';
+    if (run.blocked_reason) body = '<section class="card"><h3 data-practice-key="ui37">Dieser Lauf ist zurzeit gesperrt</h3><p data-practice-key="ui38">Die Inhalte sind nicht verfügbar. Deine gespeicherten Antworten bleiben erhalten und können über dein Konto exportiert werden.</p></section>';
     else if (run.state === 'finalised') {
       const result = run.result;
-      body = '<section class="card stack" id="mock-result"><h3>' + esc(mockScopeLabel(run)) + ' abgeschlossen</h3><p class="small muted mock-review-status">' + esc(mockReviewLabel(run)) + '</p>' + (result ? '<p><strong>' + esc(result.correct) + ' von ' + esc(result.total) + ' Antworten richtig</strong> · ' + esc(result.unanswered) + ' unbeantwortet.</p><p class="muted">' + (run.scope === 'complete_supported_written' ? 'Gezählte Aufgaben der schriftlichen Probeprüfung. Das Schreibfeedback steht getrennt darunter. Kein Gesamturteil und keine Bestehensprognose.' : 'Das ist die Rückmeldung zu diesem geübten Abschnitt.') + '</p><ol class="mock-results">' + result.items.map((row, index) => '<li><strong>Teil ' + esc((members.findIndex(member => member.set_id === row.set_id && member.version === row.version) + 1) || '–') + ' · Aufgabe ' + esc(row.item_id) + '</strong>' + reviewContext(row, members) + '<span>' + (row.unanswered ? 'Unbeantwortet' : 'Deine Antwort: ' + esc(row.answer) + ' · ' + (row.correct ? 'Richtig' : 'Nicht richtig')) + '</span>' + (row.correct_answer !== null && row.correct_answer !== undefined ? '<span>Passende Antwort: ' + esc(row.correct_answer) + '</span>' : '') + '<div data-mock-explanation="' + index + '"></div>' + '</li>').join('') + '</ol>' : ((run.writing_task || run.writing_choices?.length) && !members.length ? '<p>Dein Schreibteil ist gespeichert. Den Stand der Rückmeldung siehst du unten.</p>' : '<p>Die Rückmeldung ist derzeit nicht verfügbar.</p>')) + (canEdit() ? '<a class="btn" href="#/abschnitt">Neue Wiederholung auswählen</a>' : '') + '</section>';
+      body = '<section class="card stack" id="mock-result"><h3>' + pl(run.scope === 'complete_supported_written' ? 'completeFinished' : 'sectionFinished') + '</h3><p class="small muted mock-review-status">' + review(run) + '</p>' + (result ? '<p><strong>' + pl('resultCount',{correct:result.correct,total:result.total,unanswered:result.unanswered}) + '</strong></p><p class="muted">' + pl(run.scope === 'complete_supported_written' ? 'resultComplete' : 'resultSection') + '</p><ol class="mock-results">' + result.items.map((row, index) => '<li><strong>' + pl('partTask',{part:(members.findIndex(member => member.set_id === row.set_id && member.version === row.version)+1)||'–',id:row.item_id}) + '</strong>' + reviewContext(row, members) + '<span>' + (row.unanswered ? pl('unanswered') : pl('yourAnswer') + ' <span ' + examAttrs() + '>' + esc(row.answer) + '</span> · ' + pl(row.correct ? 'correct' : 'incorrect')) + '</span>' + (row.correct_answer !== null && row.correct_answer !== undefined ? '<span>' + pl('correctAnswer') + ' <span ' + examAttrs() + '>' + esc(row.correct_answer) + '</span></span>' : '') + '<div data-mock-explanation="' + index + '"></div>' + '</li>').join('') + '</ol>' : ((run.writing_task || run.writing_choices?.length) && !members.length ? '<p data-practice-key="ui39">Dein Schreibteil ist gespeichert. Den Stand der Rückmeldung siehst du unten.</p>' : '<p data-practice-key="ui40">Die Rückmeldung ist derzeit nicht verfügbar.</p>')) + (canEdit() ? '<a class="btn" href="#/abschnitt" data-practice-key="ui41">Neue Wiederholung auswählen</a>' : '') + '</section>';
     } else if (item && workspace !== 'writing') {
       const answer = snapshot.responses.find(row => row.setId === member.set_id && row.version === member.version && row.itemId === item.id)?.answer;
-      body = '<div class="mock-layout"><section class="card stack mock-question"><p class="kicker">Teil ' + (position.member + 1) + ' von ' + members.length + ' · Aufgabe ' + esc(item.id) + '</p><h3 id="mock-question-title" tabindex="-1">' + esc(setLabel(member)) + '</h3>'
-        + (item.recordingId ? '<div id="mock-listening-host"></div>' : '')
-        + (run.timing && !mockSectionWritable(run, member.section, snapshot.serverNow) ? '<p class="hint" data-mock-readonly>Außerhalb der Bearbeitungszeit · nur ansehen. Deine bestätigten Antworten bleiben erhalten.</p>' : '')
-        + ((item.passage ?? form.passage) ? '<div class="stimulus mock-passage" lang="de">' + esc(item.passage ?? form.passage) + '</div>' : '')
-        + '<fieldset class="mock-options"' + (readonly ? ' disabled' : '') + '><legend>' + esc(item.text) + '</legend>'
-        + (item.options || form.options || []).map((option, i) => '<label class="option' + (answer === option.id ? ' selected' : '') + '"><input type="radio" name="mock-answer" data-focus="option-' + i + '" value="' + esc(option.id) + '"' + (answer === option.id ? ' checked' : '') + '><span class="letter">' + esc(option.id) + '</span><span lang="de">' + esc(option.label) + '</span></label>').join('')
-        + '</fieldset>' + (!readonly ? button('clear', 'Auswahl zurücknehmen') : '') + '<div class="row">' + button('previous', 'Zurück') + button('next', 'Weiter', true) + '</div></section>'
-        + '<aside class="card-flat stack mock-overview"><h3>Deine Aufgaben</h3>' + members.map((m, mi) => '<div><p class="kicker">Teil ' + (mi + 1) + '</p><div class="qnav">' + (mockMember(m)?.items || []).map((q, qi) => {
+      body = '<div class="mock-layout"><section class="card stack mock-question"><p class="kicker">' + pl('partPosition',{part:position.member+1,total:members.length,id:item.id}) + '</p><h3 id="mock-question-title" tabindex="-1" ' + languageAttrs(setLabelLanguage(member)) + '>' + esc(setLabel(member)) + '</h3>'
+        + instruction(member.interaction,run) + (item.recordingId ? '<div id="mock-listening-host"></div>' : '')
+        + (run.timing && !mockSectionWritable(run, member.section, snapshot.serverNow) ? '<p class="hint" data-mock-readonly data-practice-key="ui42">Außerhalb der Bearbeitungszeit · nur ansehen. Deine bestätigten Antworten bleiben erhalten.</p>' : '')
+        + ((item.passage ?? form.passage) ? '<div class="stimulus mock-passage" ' + examAttrs() + '>' + esc(item.passage ?? form.passage) + '</div>' : '')
+        + '<fieldset class="mock-options"' + (readonly ? ' disabled' : '') + ' ' + examAttrs() + '><legend>' + esc(item.text) + '</legend>'
+        + (item.options || form.options || []).map((option, i) => '<label class="option' + (answer === option.id ? ' selected' : '') + '"><input type="radio" name="mock-answer" data-focus="option-' + i + '" value="' + esc(option.id) + '"' + (answer === option.id ? ' checked' : '') + '><span class="letter">' + esc(option.id) + '</span><span ' + examAttrs() + '>' + esc(option.label) + '</span></label>').join('')
+        + '</fieldset>' + (!readonly ? button('clear', pl('clear')) : '') + '<div class="row">' + button('previous', pl('previous')) + button('next', pl('next'), true) + '</div></section>'
+        + '<aside class="card-flat stack mock-overview"><h3 data-practice-key="ui43">Deine Aufgaben</h3>' + members.map((m, mi) => '<div><p class="kicker">' + pl('part',{part:mi+1}) + '</p><div class="qnav">' + (mockMember(m)?.items || []).map((q, qi) => {
           const done = snapshot.responses.some(row => row.setId === m.set_id && row.version === m.version && row.itemId === q.id && row.answer !== null);
-          return '<button type="button" class="btn btn-small' + (done ? ' mock-answered' : '') + '" data-mock-member="' + mi + '" data-mock-item="' + qi + '" aria-label="Teil ' + (mi + 1) + ', Aufgabe ' + esc(q.id) + (done ? ', beantwortet' : ', unbeantwortet') + '"' + (position.member === mi && position.item === qi ? ' aria-current="step"' : '') + '>' + esc(q.id) + '</button>';
-        }).join('') + '</div></div>').join('') + '<p class="small muted">Rückmeldung erst nach dem Abschließen.</p></aside></div>';
-    } else body = run.writing_task || run.writing_choices?.length ? '' : '<section class="card"><p>Dieser Inhalt kann nicht angezeigt werden. Deine Antworten bleiben gespeichert.</p></section>';
+          return '<button type="button" class="btn btn-small' + (done ? ' mock-answered' : '') + '" data-mock-member="' + mi + '" data-mock-item="' + qi + '" ' + pa('aria-label',done ? 'answeredNav' : 'unansweredNav',{part:mi+1,id:q.id}) + (position.member === mi && position.item === qi ? ' aria-current="step"' : '') + '>' + esc(q.id) + '</button>';
+        }).join('') + '</div></div>').join('') + '<p class="small muted" data-practice-key="ui44">Rückmeldung erst nach dem Abschließen.</p></aside></div>';
+    } else body = run.writing_task || run.writing_choices?.length ? '' : '<section class="card"><p data-practice-key="ui45">Dieser Inhalt kann nicht angezeigt werden. Deine Antworten bleiben gespeichert.</p></section>';
     const expired = snapshot.expired;
     // Keep the editor node mounted: objective autosaves must not lose text, selection or IME focus.
-    if (!host.querySelector('#mock-content')) host.innerHTML = '<div id="mock-content"></div><section id="mock-writing-host" class="stack" aria-label="Schreiben"></section><div id="mock-footer"></div>';
+    if (!host.querySelector('#mock-content')) host.innerHTML = '<div id="mock-content"></div><section id="mock-writing-host" class="stack" data-practice-aria-label="ui01"></section><div id="mock-footer"></div>';
     explanations?.dispose(host.querySelector('#mock-content'));
-    host.querySelector('#mock-content').innerHTML = '<div class="card mock-heading"><div><p class="kicker">' + esc(mockScopeLabel(run)) + ' · ' + esc(run.exam_id) + '</p><h2>' + esc(run.title) + '</h2><p class="small muted mock-review-status">' + esc(mockReviewLabel(run)) + '</p><p class="small muted">Formular ' + esc(run.form_version) + ' · Ausgabe ' + esc(run.release_version) + ' · ' + (run.mode === 'untimed' ? 'Ohne Zeitlimit' : '<span id="mock-deadline"></span>') + '</p></div><p id="mock-save-state" role="status" aria-live="polite">' + esc(status) + '</p></div>'
-      + (isArchived() ? '<p class="hint">Archivierte Vorbereitung · schreibgeschützt.</p>' : '')
+    host.querySelector('#mock-content').innerHTML = '<div class="card mock-heading"><div><p class="kicker">' + scope(run) + ' · ' + esc(run.exam_id) + '</p><h2 ' + examAttrs(run) + '>' + esc(run.title) + '</h2><p class="small muted mock-review-status">' + review(run) + '</p><p class="small muted">' + pl('formRelease',{form:run.form_version,release:run.release_version}) + ' · ' + (run.mode === 'untimed' ? pl('untimed') : '<span id="mock-deadline"></span>') + '</p></div><p id="mock-save-state" role="status" aria-live="polite">' + status + '</p></div>'
+      + (isArchived() ? '<p class="hint" data-practice-key="ui46">Archivierte Vorbereitung · schreibgeschützt.</p>' : '')
       + (run.state === 'finalised' && run.review_withdrawn ? '<p class="hint" data-review-withdrawn>' + esc(reviewHistoryNotice(run)) + '</p>' : '')
-      + (expired && run.state === 'active' ? '<p class="err">Die Zeit ist abgelaufen. Abschließen wertet nur bestätigte Antworten aus. Bei ungespeicherten Änderungen: erst die lokale Kopie sichern und den Serverstand laden.</p>' : '')
+      + (expired && run.state === 'active' ? '<p class="err" data-practice-key="ui47">Die Zeit ist abgelaufen. Abschließen wertet nur bestätigte Antworten aus. Bei ungespeicherten Änderungen: erst die lokale Kopie sichern und den Serverstand laden.</p>' : '')
       + timingMarkup(snapshot) + recovery(snapshot) + body;
-    host.querySelector('#mock-footer').innerHTML = draftCopies.map((copy, i) => '<details class="mock-copy" open><summary>Unbestätigten Schreibtext kopieren</summary><label class="field-label" for="mock-draft-copy-' + i + '">Lokale Fassung · nicht als gespeichert bestätigt</label><textarea class="writing-text" id="mock-draft-copy-' + i + '" data-mock-draft-copy readonly>' + esc(copy.text) + '</textarea></details>').join('')
-      + (copyPending ? '<section class="card-peach stack"><p>Eine lokale Kopie ist noch nicht gesichert. Kopiere die unbestätigten Antworten oder den Text, bevor du diesen Lauf verlässt. Diese Kopien bleiben nur in diesem Fenster.</p>' + button('ack-copy', 'Kopie gesichert · weiter') + '</section>' : '')
-      + (run.state === 'active' && !run.blocked_reason && canEdit() ? '<section class="card stack mock-finish">' + (total ? '<p>' + selected + ' von ' + total + ' beantwortet · ' + Math.max(0, total - selected) + ' unbeantwortet.</p>' : '') + (confirm ? '<p>Jetzt abschließen? Danach kannst du diese Antworten und den abgegebenen Text nicht mehr ändern. Unbeantwortete Aufgaben und ein leerer Schreibteil bleiben unbewertet erhalten.</p><div class="row">' + button('finalise', 'Verbindlich abschließen', true) + button('cancel', 'Weiter bearbeiten') + '</div>' : '<div class="row">' + button('save', 'Jetzt speichern') + button('confirm', mockScopeLabel(run) + ' abschließen', true) + '</div>') + '</section>' : '')
-      + '<a class="btn" href="#/abschnitt">Zur Übersicht der Läufe</a>';
+    host.querySelector('#mock-footer').innerHTML = draftCopies.map((copy, i) => '<details class="mock-copy" open><summary data-practice-key="ui48">Unbestätigten Schreibtext kopieren</summary><label class="field-label" for="mock-draft-copy-' + i + '" data-practice-key="ui49">Lokale Fassung · nicht als gespeichert bestätigt</label><textarea class="writing-text" id="mock-draft-copy-' + i + '" ' + examAttrs() + ' data-mock-draft-copy readonly>' + esc(copy.text) + '</textarea></details>').join('')
+      + (copyPending ? '<section class="card-peach stack"><p data-practice-key="ui50">Eine lokale Kopie ist noch nicht gesichert. Kopiere die unbestätigten Antworten oder den Text, bevor du diesen Lauf verlässt. Diese Kopien bleiben nur in diesem Fenster.</p>' + button('ack-copy', pl('copySaved')) + '</section>' : '')
+      + (run.state === 'active' && !run.blocked_reason && canEdit() ? '<section class="card stack mock-finish">' + (total ? '<p>' + pl('answerCount',{answered:selected,total,unanswered:Math.max(0,total-selected)}) + '</p>' : '') + (confirm ? '<p data-practice-key="ui51">Jetzt abschließen? Danach kannst du diese Antworten und den abgegebenen Text nicht mehr ändern. Unbeantwortete Aufgaben und ein leerer Schreibteil bleiben unbewertet erhalten.</p><div class="row">' + button('finalise', pl('finalise'), true) + button('cancel', pl('continueEdit')) + '</div>' : '<div class="row">' + button('save', pl('saveNow')) + button('confirm', pl(run.scope === 'complete_supported_written' ? 'finishComplete' : 'finishSection'), true) + '</div>') + '</section>' : '')
+      + '<a class="btn" href="#/abschnitt" data-practice-key="ui52">Zur Übersicht der Läufe</a>';
     if (run.state === 'finalised' && !run.blocked_reason) {
       const ticket = generation, runId = run.id, reads = new Map();
       const readLanguage = language => {
@@ -450,13 +463,13 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     if (snapshot.busy || snapshot.finalising || finishing || boundaryChanging) for (const b of host.querySelectorAll('[data-mock-action], [data-mock-member], [data-mock-choice-option], [data-mock-group]')) b.disabled = true;
     if (focused) host.querySelector('[data-focus="' + focused + '"]')?.focus({ preventScroll: true });
     if (listeningFocus) host.querySelector('[data-listening-action="' + listeningFocus + '"]')?.focus({ preventScroll: true });
-    updateDeadline();
+    updateLocale(); updateDeadline();
   }
   function updateDeadline() {
     const snapshot = session.state(), run = snapshot.run, target = host?.querySelector('#mock-deadline');
     if (!run?.deadline_at || !target) return;
     if (run.state === 'finalised') {
-      target.textContent = run.expired ? 'Nach Ablauf der Zeit abgeschlossen' : 'Innerhalb der Zeit abgeschlossen';
+      target.textContent = run.expired ? pt('afterDeadline') : pt('withinDeadline');
       return;
     }
     const timing = mockTiming(run, snapshot.serverNow), group = timing?.active;
@@ -465,7 +478,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
       observedGroup = groupId; void refreshTiming();
     }
     const seconds = Math.max(0, Math.ceil(((group?.end || Date.parse(run.deadline_at)) - snapshot.serverNow) / 1000));
-    target.textContent = seconds ? Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0') + (group ? ' im aktuellen Zeitabschnitt' : ' verbleibend') : 'Zeit abgelaufen';
+    paintDeadline(snapshot);
     if (!seconds && !deadlineReached) { deadlineReached = true; render(); return; }
     if (!seconds) for (const input of host.querySelectorAll('input[name="mock-answer"]')) input.disabled = true;
   }
@@ -476,6 +489,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
       const snapshot = session.state(), p = displayPosition || snapshot.position, m = snapshot.run?.members[p.member], item = m && mockMember(m)?.items[p.item];
       if (item && session.answer(m, item.id, event.target.value)) { clearTimeout(timer); timer = setTimeout(() => void session.flush(), 650); }
     };
+    updateLocale();
     host.onclick = async event => {
       const element = event.target.closest('[data-mock-action], [data-mock-member], [data-mock-choice-option], [data-mock-group]');
       if (!element || element.disabled) return;
@@ -520,24 +534,25 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     };
   }
   async function showRun(target, id) {
-    const ticket = ++generation; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); boundaryChanging = false; boundaryFlight = null; boundaryMessage = ''; boundaryAudioPending = false; copyPending = false; draftCopies = []; workspace = 'objective'; attach(target); host.innerHTML = '<p class="muted" role="status">Gespeicherter Lauf wird geladen …</p>';
+    const ticket = ++generation; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); boundaryChanging = false; boundaryFlight = null; boundaryMessage = ''; boundaryAudioPending = false; copyPending = false; draftCopies = []; workspace = 'objective'; attach(target); host.innerHTML = '<p class="muted" role="status" data-practice-key="ui53">Gespeicherter Lauf wird geladen …</p>'; updateLocale();
     const response = await api.mock.read(id);
     if (ticket !== generation) return false;
-    if (!response?.ok) { host.innerHTML = '<p class="err">Der gespeicherte Lauf konnte nicht geladen werden.</p><a class="btn" href="#/abschnitt">Zur Übersicht</a>'; return false; }
+    if (!response?.ok) { host.innerHTML = '<p class="err" data-practice-key="ui54">Der gespeicherte Lauf konnte nicht geladen werden.</p><a class="btn" href="#/abschnitt" data-practice-key="ui55">Zur Übersicht</a>'; updateLocale(); return false; }
     confirm = false; displayPosition = null; deadlineReached = false;
     observedGroup = mockTiming(response.data, Date.parse(response.data.server_now))?.active?.id || null;
     session.load(response.data); chooseWorkspace(); render(); deadlineTimer = setInterval(updateDeadline, 250); return true;
   }
   async function list(target, { section = null } = {}) {
-    const ticket = ++generation; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); boundaryChanging = false; boundaryFlight = null; boundaryMessage = ''; copyPending = false; draftCopies = []; session.dispose(); attach(target); host.innerHTML = '<p class="muted" role="status">Gespeicherte Übungen werden geladen …</p>';
+    const ticket = ++generation; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); boundaryChanging = false; boundaryFlight = null; boundaryMessage = ''; copyPending = false; draftCopies = []; session.dispose(); attach(target); host.innerHTML = '<p class="muted" role="status" data-practice-key="ui56">Gespeicherte Übungen werden geladen …</p>'; updateLocale();
     const [forms, runs] = await Promise.all([api.mock.forms(), api.mock.list()]);
     if (ticket !== generation) return;
     if (section && forms?.ok) forms.data.forms = (forms.data.forms || []).filter(form => form.sections?.includes(section));
     const rows = runs?.ok ? runs.data?.runs || [] : [];
     const complete = (forms?.data?.forms || []).some(form => form.scope === 'complete_supported_written');
-    host.innerHTML = '<div class="page-head"><div><p class="kicker">Gespeicherte Vorbereitung</p><h1>' + (complete ? 'Abschnittsübungen und schriftliche Probeprüfungen' : 'Gespeicherte Abschnittsübungen') + '</h1><p>Umfang, Zeitplan und Prüfstatus stehen bei jedem Lauf. Die Rückmeldung erscheint erst nach dem Abschließen. Bestätigte Antworten bleiben gespeichert.</p></div></div><div class="grid-dash"><section class="card stack"><h2>Einen Lauf beginnen</h2>'
-      + (!canEdit() ? '<p>Diese Vorbereitung ist archiviert. Gespeicherte Läufe bleiben lesbar.</p>' : !forms?.ok ? '<p class="err">Die verfügbaren Übungen konnten nicht geladen werden.</p>' : !(forms.data?.forms || []).length ? '<p>Zurzeit ist kein Lauf für einen neuen Start verfügbar. Bereits gespeicherte Läufe findest du daneben.</p>' : forms.data.forms.map((form, i) => '<article class="mock-form"><p class="kicker">' + esc(mockScopeLabel(form)) + '</p><h3>' + esc(form.title) + '</h3><p class="small muted mock-review-status">' + esc(mockReviewLabel(form)) + '</p><p>' + (form.item_count ? esc(form.item_count) + ' Aufgaben' : '') + (form.writing_task_count ? (form.item_count ? ' und ' : '') + 'eine zugewiesene Schreibaufgabe' : form.writing_choice_count ? (form.item_count ? ' und ' : '') + 'eine Schreibaufgabe mit Auswahl' : '') + ' · ' + (form.mode === 'untimed' ? 'Ohne Zeitlimit' : Number.isFinite(form.time_limit_seconds) ? Math.round(form.time_limit_seconds / 60) + ' Minuten' : 'Mit Zeitlimit') + '</p>' + (form.scope === 'complete_supported_written' ? '<p class="hint">Die Zeiten beginnen mit dem Start und wechseln automatisch. Keine Pause und kein Zurücksetzen beim Verlassen. Nur schriftliche Vorbereitung; kein Gesamtprüfungsurteil.</p>' : '') + '<p class="small muted">' + esc(form.exam_id) + ' · Formular ' + esc(form.version) + ' · Ausgabe ' + esc(form.release_version) + '</p><button class="btn btn-primary" type="button" data-mock-start="' + i + '">' + (form.scope === 'complete_supported_written' ? 'Schriftliche Probeprüfung beginnen' : 'Neuen Lauf beginnen') + '</button></article>').join(''))
-      + '<p id="mock-start-state" role="status"></p><button class="btn" type="button" data-mock-refresh>Übersicht erneut laden</button></section><section class="stack"><h2>Deine gespeicherten Läufe</h2>' + (!runs?.ok ? '<p class="err">Der Verlauf konnte nicht geladen werden.</p>' : historyMarkup(rows)) + '</section></div>';
+    host.innerHTML = '<div class="page-head"><div><p class="kicker" data-practice-key="ui57">Gespeicherte Vorbereitung</p><h1>' + pl(complete ? 'completeList' : 'sectionList') + '</h1><p data-practice-key="ui58">Umfang, Zeitplan und Prüfstatus stehen bei jedem Lauf. Die Rückmeldung erscheint erst nach dem Abschließen. Bestätigte Antworten bleiben gespeichert.</p></div></div><div class="grid-dash"><section class="card stack"><h2 data-practice-key="ui59">Einen Lauf beginnen</h2>'
+      + (!canEdit() ? '<p data-practice-key="ui60">Diese Vorbereitung ist archiviert. Gespeicherte Läufe bleiben lesbar.</p>' : !forms?.ok ? '<p class="err" data-practice-key="ui61">Die verfügbaren Übungen konnten nicht geladen werden.</p>' : !(forms.data?.forms || []).length ? '<p data-practice-key="ui62">Zurzeit ist kein Lauf für einen neuen Start verfügbar. Bereits gespeicherte Läufe findest du daneben.</p>' : forms.data.forms.map((form, i) => '<article class="mock-form"><p class="kicker">' + scope(form) + '</p><h3 ' + examAttrs(form) + '>' + esc(form.title) + '</h3><p class="small muted mock-review-status">' + review(form) + '</p><p>' + (form.item_count ? pl('tasks',{count:form.item_count}) : '') + (form.writing_task_count ? (form.item_count ? ' ' + pl('and') + ' ' : '') + pl('assignedCount') : form.writing_choice_count ? (form.item_count ? ' ' + pl('and') + ' ' : '') + pl('choiceCount') : '') + ' · ' + (form.mode === 'untimed' ? pl('untimed') : Number.isFinite(form.time_limit_seconds) ? pl('minutes',{minutes:Math.round(form.time_limit_seconds/60)}) : pl('timed')) + '</p>' + (form.scope === 'complete_supported_written' ? '<p class="hint" data-practice-key="ui63">Die Zeiten beginnen mit dem Start und wechseln automatisch. Keine Pause und kein Zurücksetzen beim Verlassen. Nur schriftliche Vorbereitung; kein Gesamtprüfungsurteil.</p>' : '') + '<p class="small muted">' + esc(form.exam_id) + ' · ' + pl('formRelease',{form:form.version,release:form.release_version}) + '</p><button class="btn btn-primary" type="button" data-mock-start="' + i + '">' + pl(form.scope === 'complete_supported_written' ? 'startComplete' : 'startRun') + '</button></article>').join(''))
+      + '<p id="mock-start-state" role="status"></p><button class="btn" type="button" data-mock-refresh data-practice-key="ui64">Übersicht erneut laden</button></section><section class="stack"><h2 data-practice-key="ui65">Deine gespeicherten Läufe</h2>' + (!runs?.ok ? '<p class="err" data-practice-key="ui66">Der Verlauf konnte nicht geladen werden.</p>' : historyMarkup(rows)) + '</section></div>';
+    updateLocale();
     host.onclick = async event => {
       if (event.target.closest('[data-mock-refresh]')) { await list(target, { section }); return; }
       const trigger = event.target.closest('[data-mock-start]'); if (!trigger || trigger.disabled || !canEdit()) return;
@@ -545,20 +560,47 @@ export function createMockController({ api, esc, setLabel = member => member.tit
       for (const b of host.querySelectorAll('[data-mock-start]')) b.disabled = true;
       const binding = { formId: form.form_id, formVersion: form.version, releaseVersion: form.release_version };
       if (!startOperation || !equal(startOperation.binding, binding)) startOperation = { binding, body: { ...binding, eventId: crypto.randomUUID() } };
-      host.querySelector('#mock-start-state').textContent = 'Lauf wird angelegt …';
+      bindPracticeText(host.querySelector('#mock-start-state'),'startingRun');
       const response = await api.mock.start(startOperation.body);
       if (ticket !== generation) return;
       if (!response?.ok) {
-        host.querySelector('#mock-start-state').textContent = message(response); for (const b of host.querySelectorAll('[data-mock-start]')) b.disabled = false; return;
+        bindPracticeText(host.querySelector('#mock-start-state'),messageKey(response)); for (const b of host.querySelectorAll('[data-mock-start]')) b.disabled = false; return;
       }
       startOperation = null; onOpen(response.data);
     };
   }
   function historyMarkup(rows) {
-    return rows.length ? rows.map(run => '<article class="card"><p class="kicker">' + esc(run.exam_id) + ' · ' + esc(mockScopeLabel(run)) + '</p><h3>' + esc(run.title) + '</h3><p class="small muted">Formular ' + esc(run.form_version) + ' · ' + esc(date(run.updated_at || run.created_at)) + '</p><p>' + (run.state === 'finalised' ? 'Abgeschlossen' : 'Gespeichert · noch offen') + '</p>' + (run.writing ? '<p>' + esc(mockWritingStatus(run.writing)) + '</p>' : '') + '<a class="btn" data-mock-run="' + esc(run.id) + '" href="#/lauf/' + esc(run.id) + '">' + (run.state === 'finalised' || !canEdit() ? 'Ansehen' : 'Fortsetzen') + '</a></article>').join('') : '<article class="card"><p>Noch keine gespeicherten Läufe.</p></article>';
+    return rows.length ? rows.map(run => '<article class="card"><p class="kicker">' + esc(run.exam_id) + ' · ' + scope(run) + '</p><h3 ' + examAttrs(run) + '>' + esc(run.title) + '</h3><p class="small muted">' + pl('form',{form:run.form_version}) + ' · <span data-practice-date="' + esc(run.updated_at || run.created_at) + '">' + esc(date(run.updated_at || run.created_at)) + '</span></p><p>' + pl(run.state === 'finalised' ? 'finished' : 'openRun') + '</p>' + (run.writing ? '<p>' + pl(({not_started:'writingDraft',pending:'writingPending',assessed:'writingAssessed',failed:'writingFailed',unassessed:'writingUnassessed'})[run.writing.assessment_state] || 'writingUnassessed') + '</p>' : '') + '<a class="btn" data-mock-run="' + esc(run.id) + '" href="#/lauf/' + esc(run.id) + '">' + pl(run.state === 'finalised' || !canEdit() ? 'view' : 'resume') + '</a></article>').join('') : '<article class="card"><p>' + pl('ui67') + '</p></article>';
+  }
+  function paintWritingBinding(locale=getLocale()) {
+    const snapshot=session.state(),run=snapshot.run,attachment=run?.writing,target=host?.querySelector('#mock-writing-binding');
+    if (!attachment || !target) return;
+    target.textContent=(attachment.binding_kind === 'assigned' ? pt('assigned',{},locale) : pt('chosenTask',{id:attachment.selected_option_id},locale)) + (run.state === 'active' && !mockSectionWritable(run,mockWritingSection(run),snapshot.serverNow) ? ' · '+pt('outsideWriting',{},locale) : '');
+  }
+  function paintDeadline(snapshot,locale=getLocale()) {
+    const run=snapshot.run,target=host?.querySelector('#mock-deadline'); if (!target || !run?.deadline_at) return;
+    if (run.state === 'finalised') { target.textContent=pt(run.expired ? 'afterDeadline' : 'withinDeadline',{},locale); return; }
+    const group=mockTiming(run,snapshot.serverNow)?.active;
+    const seconds=Math.max(0,Math.ceil(((group?.end || Date.parse(run.deadline_at))-snapshot.serverNow)/1000));
+    const time=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+    target.textContent=seconds ? pt(group ? 'groupRemaining' : 'remaining',{time},locale) : pt('timeExpired',{},locale);
+  }
+  function updateLocale(locale=getLocale()) {
+    if (!host?.isConnected) return;
+    updatePracticeLocale(host,locale); translateInstructions(host,locale);
+    writing.updateLocale(locale); listening.updateLocale(locale);
+    const snapshot=session.state(),run=snapshot.run;
+    const title = host.querySelector('#mock-question-title'), position = displayPosition || snapshot.position;
+    const member = run?.members[position.member];
+    if (title && member) { const language = setLabelLanguage(member) || 'und'; title.textContent = setLabel(member); title.lang = language; title.dir = language === 'ar' ? 'rtl' : 'ltr'; }
+    paintWritingBinding(locale); paintDeadline(snapshot,locale);
+    for (const node of host.querySelectorAll('[data-mock-review]')) { let value; try { value=JSON.parse(node.dataset.mockReview); } catch { continue; } node.textContent=mockReviewLabel(value,locale); }
+    for (const node of host.querySelectorAll('[data-review-withdrawn]')) if (run) node.textContent=reviewHistoryNotice({review_withdrawn:true},locale);
+    const timing=mockTiming(run,snapshot.serverNow);
+    for (const node of host.querySelectorAll('[data-mock-group]')) { const group=timing?.groups.find(value=>value.id===node.dataset.mockGroup); if (group) node.textContent=groupLabel(group,locale); }
   }
   return {
-    list, showRun, historyMarkup, refresh: render, flush: flushAll,
+    list, showRun, historyMarkup, updateLocale, refresh: render, flush: flushAll,
     get active() { return Boolean(session.state().run); }, get runId() { return session.state().run?.id; },
     dispose() { if (host) explanations?.dispose(host); generation++; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); boundaryChanging = false; boundaryFlight = null; boundaryMessage = ''; copyPending = false; draftCopies = []; session.dispose(); if (host) { host.onclick = null; host.onchange = null; } host = null; startOperation = null; },
     preserveOnUnload(event) { listening.preserveOnUnload(event); const state = session.state(); if (copyPending || state.dirty || state.pending || state.busy) { event.preventDefault(); event.returnValue = ''; } },

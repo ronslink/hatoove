@@ -1,0 +1,11 @@
+/* Locale controls and bilingual directions retain the shared design's fonts and colors. */
+.interface-language{display:inline-flex;align-items:center;gap:.5rem;max-inline-size:100%;flex-wrap:wrap}
+.interface-language select{font:inherit;max-inline-size:100%;min-block-size:2.75rem;color:inherit;background:inherit}
+.bilingual-instruction{margin-block:1rem;overflow-wrap:anywhere}
+.bilingual-instruction p{margin-block:.35rem}
+.bilingual-instruction [lang=de]{direction:ltr;text-align:start;unicode-bidi:isolate}
+.bilingual-instruction [lang=ar]{direction:rtl;text-align:start;unicode-bidi:isolate}
+[data-exam-language]{unicode-bidi:isolate}
+[data-exam-language][dir=ltr]{direction:ltr;text-align:start}
+.interface-language:focus-within{outline-offset:.2rem}
+@media(max-width:420px){.interface-language{gap:.25rem}.interface-language select{inline-size:100%}}

@@ -1,3 +1,7 @@
+import { getLocale } from '../assets/i18n/core.js';
+import { pt, pl, updatePracticeLocale } from '../assets/i18n/practice-messages.js';
+import { INSTRUCTIONS, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
+
 /** Fixed recording playback. The server owns allowances; this module keeps only document-local state. */
 const copy = value => structuredClone(value);
 const failure = error => ({ ok: false, status: 0, error });
@@ -64,24 +68,24 @@ export function createListeningSession({ api, eventId = () => crypto.randomUUID(
   };
 }
 
-export function listeningMessage(state) {
+export function listeningMessage(state, locale = getLocale()) {
   const code = state.error?.error;
-  if (code === 'mock_group_inactive') return 'Die Hörzeit ist beendet oder noch nicht begonnen. Die Aufnahme bleibt angehalten. Ein unbestätigter Hörstand wurde nicht als gespeichert bestätigt. Deine Antworten bleiben erhalten.';
-  if (['account_changed', 'stale_session', 'session_expired'].includes(code) || state.error?.status === 401) return 'Deine Sitzung ist gesperrt. Die Aufnahme wurde angehalten. Deine Antworten bleiben erhalten.';
-  if (['mock_expired', 'mock_finalised', 'preparation_archived'].includes(code)) return 'Dieser Lauf kann nicht mehr abgespielt werden. Deine Antworten bleiben gespeichert.';
-  if (['mock_rights_blocked', 'rights_blocked', 'media_unavailable', 'media_integrity', 'mock_content_unavailable'].includes(code)) return 'Die Aufnahme ist zurzeit nicht verfügbar. Deine Antworten bleiben erhalten.';
-  if (['playback_conflict', 'playback_recovery_required'].includes(code)) return 'Der Hörstand wurde in einem anderen Fenster geändert. Prüfe den Serverstand, bevor du fortsetzt.';
-  if (code === 'play_rejected') return 'Die Wiedergabe konnte nicht starten. Tippe erneut auf Abspielen. Ein neuer Hörversuch wurde nicht verbraucht.';
-  if (state.error) return state.pending ? 'Die Bestätigung fehlt. Die Aufnahme bleibt angehalten. Wiederholen prüft denselben Vorgang und startet keinen neuen Hörversuch.' : 'Die Aufnahme konnte nicht geladen werden. Bitte erneut versuchen. Deine Antworten bleiben erhalten.';
-  if (state.busy) return 'Hörstand wird bestätigt …';
-  if (state.playback?.uncertain) return 'Die genaue Unterbrechungsstelle ist unsicher. Beim Fortsetzen gilt der vorsichtige Serverstand; ein unbestätigter Abschnitt kann übersprungen werden. Es beginnt kein neuer Hörversuch.';
-  if (state.playback?.state === 'completed') return state.playback.plays_used < state.playback.max_plays ? 'Aufnahme beendet. Ein weiterer Hörversuch ist erlaubt.' : 'Aufnahme beendet. In diesem Lauf ist kein weiterer Hörversuch erlaubt.';
-  if (state.playback?.state === 'paused') return 'Aufnahme angehalten. Fortsetzen verwendet denselben Hörversuch.';
-  return state.playback?.state === 'playing' ? 'Aufnahme läuft. Der Hörstand wird regelmäßig gespeichert.' : 'Lade die Aufnahme und starte sie, wenn du bereit bist.';
+  if (code === 'mock_group_inactive') return pt('audioGroup',{},locale);
+  if (['account_changed', 'stale_session', 'session_expired'].includes(code) || state.error?.status === 401) return pt('audioSession',{},locale);
+  if (['mock_expired', 'mock_finalised', 'preparation_archived'].includes(code)) return pt('audioClosed',{},locale);
+  if (['mock_rights_blocked', 'rights_blocked', 'media_unavailable', 'media_integrity', 'mock_content_unavailable'].includes(code)) return pt('audioUnavailable',{},locale);
+  if (['playback_conflict', 'playback_recovery_required'].includes(code)) return pt('audioConflict',{},locale);
+  if (code === 'play_rejected') return pt('audioRejected',{},locale);
+  if (state.error) return state.pending ? pt('audioUnknown',{},locale) : pt('audioLoadFailed',{},locale);
+  if (state.busy) return pt('audioConfirming',{},locale);
+  if (state.playback?.uncertain) return pt('audioUncertain',{},locale);
+  if (state.playback?.state === 'completed') return state.playback.plays_used < state.playback.max_plays ? pt('audioAnother',{},locale) : pt('audioNoMore',{},locale);
+  if (state.playback?.state === 'paused') return pt('audioPaused',{},locale);
+  return state.playback?.state === 'playing' ? pt('audioPlaying',{},locale) : pt('audioReady',{},locale);
 }
 
 /** Custom controls have no seek/rate affordance. Audio bytes never enter public routes or browser storage. */
-export function createListeningController({ api, esc, canEdit = () => true, createAudio = () => new Audio(),
+export function createListeningController({ getExamLanguage = () => null, api, esc, canEdit = () => true, createAudio = () => new Audio(),
   createObjectURL = blob => URL.createObjectURL(blob), revokeObjectURL = url => URL.revokeObjectURL(url),
   eventId, now = () => Date.now(), onChange = () => {} }) {
   let host = null, binding = null, run = null, recording = null, audio = null, objectUrl = null, generation = 0;
@@ -109,18 +113,19 @@ export function createListeningController({ api, esc, canEdit = () => true, crea
     const btn = (action, label, disabled = false) => '<button type="button" class="btn' + (['play', 'recover'].includes(action) ? ' btn-primary' : '') + '" data-listening-action="' + action + '"' + (disabled ? ' disabled' : '') + '>' + label + '</button>';
     let controls = '';
     if (!stopped) {
-      if (!p) controls = btn('reload', 'Hörstand erneut laden', busy);
-      else if (playing) controls = btn('pause', 'Anhalten und speichern');
-      else if (s.pending) controls = btn('retry', 'Bestätigung erneut prüfen', busy) + btn('reload', 'Serverstand prüfen', busy);
-      else if (s.error && ['playback_conflict', 'playback_recovery_required'].includes(s.error.error)) controls = btn('reload', 'Serverstand prüfen', busy);
-      else if (!ready) controls = btn('load', 'Aufnahme laden', busy);
-      else if (p.state !== 'completed' || p.plays_used < p.max_plays) controls = btn(['playing', 'paused'].includes(p.state) ? 'recover' : 'play', p.state === 'ready' ? 'Abspielen' : p.state === 'completed' ? 'Erlaubten Hörversuch starten' : 'Am gespeicherten Stand fortsetzen', busy);
+      if (!p) controls = btn('reload', pl('audioReload'), busy);
+      else if (playing) controls = btn('pause', pl('audioPause'));
+      else if (s.pending) controls = btn('retry', pl('audioRetry'), busy) + btn('reload', pl('audioServer'), busy);
+      else if (s.error && ['playback_conflict', 'playback_recovery_required'].includes(s.error.error)) controls = btn('reload', pl('audioServer'), busy);
+      else if (!ready) controls = btn('load', pl('audioLoad'), busy);
+      else if (p.state !== 'completed' || p.plays_used < p.max_plays) controls = btn(['playing', 'paused'].includes(p.state) ? 'recover' : 'play', p.state === 'ready' ? pl('audioPlay') : p.state === 'completed' ? pl('audioNext') : pl('audioResume'), busy);
     }
-    host.innerHTML = '<section class="card-flat listening-player stack" aria-label="Höraufnahme"><div class="spread"><h3>' + esc(recording.label) + '</h3><span class="chip">' + (run?.scope === 'complete_supported_written' ? 'Schriftliche Probeprüfung' : run?.attempt_mode === 'mock' ? 'Prüfungsmodus · Abschnitt' : 'Übungsmodus · Abschnitt') + '</span></div>'
-      + (run?.release_state === 'internal' ? '<p class="small muted">Internes Testmaterial · fachliche und Audio-Prüfung ausstehend.</p>' : '')
-      + '<p class="small">' + esc(recording.max_plays) + ' Hörversuch' + (recording.max_plays === 1 ? '' : 'e') + ' je Aufnahme in diesem Lauf. Zurückspulen und Tempoänderungen sind nicht vorgesehen.</p>'
-      + '<div class="listening-progress"><progress data-listening-progress max="' + recording.duration_ms + '" value="' + position() + '" aria-label="Gespeicherter und aktueller Hörfortschritt"></progress><span class="num">' + time(position()) + ' / ' + time(recording.duration_ms) + '</span></div>'
-      + '<p data-listening-status class="listening-status' + (s.error ? ' err' : ' muted') + '" role="status" aria-live="polite">' + esc(ended ? listeningMessage(s) : stopped ? 'Wiedergabe gesperrt. Deine Antworten bleiben erhalten.' : loading ? 'Aufnahme wird geschützt geladen …' : listeningMessage(s)) + '</p><div class="row listening-controls">' + controls + '</div></section>';
+    host.innerHTML = '<section class="card-flat listening-player stack" aria-label="Höraufnahme" data-practice-aria-label="recording"><div class="spread"><h3 lang="' + esc(run.exam_language || getExamLanguage() || 'und') + '" dir="' + ((run.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr') + '">' + esc(recording.label) + '</h3><span class="chip">' + (run?.scope === 'complete_supported_written' ? pl('mockScope') : run?.attempt_mode === 'mock' ? pl('audioMock') : pl('audioPractice')) + '</span></div>'
+      + (run?.release_state === 'internal' ? '<p class="small muted" data-practice-key="ui68">Internes Testmaterial · fachliche und Audio-Prüfung ausstehend.</p>' : '')
+      + instructionMarkup({id:'listening.playback',examLanguage:run.exam_language || getExamLanguage() || 'und',original:INSTRUCTIONS['listening.playback'].examLanguage===(run.exam_language || getExamLanguage()) ? INSTRUCTIONS['listening.playback'].original : '',parameters:{maxPlays:recording.max_plays}})
+      + '<div class="listening-progress"><progress data-listening-progress max="' + recording.duration_ms + '" value="' + position() + '" aria-label="Gespeicherter und aktueller Hörfortschritt" data-practice-aria-label="progress"></progress><span class="num">' + time(position()) + ' / ' + time(recording.duration_ms) + '</span></div>'
+      + '<p data-listening-status class="listening-status' + (s.error ? ' err' : ' muted') + '" role="status" aria-live="polite">' + esc(ended ? listeningMessage(s) : stopped ? pt('audioBlocked') : loading ? pt('audioLoading') : listeningMessage(s)) + '</p><div class="row listening-controls">' + controls + '</div></section>';
+    updateLocale();
     host.onclick = event => {
       const button = event.target.closest('[data-listening-action]'); if (!button || button.disabled) return;
       event.stopPropagation();
@@ -251,8 +256,15 @@ export function createListeningController({ api, esc, canEdit = () => true, crea
     if (ticket !== generation) return false;
     lastPosition = session.state().playback?.position_ms || 0; render(); return ok;
   }
+  function updateLocale(locale = getLocale()) {
+    if (!host?.isConnected) return;
+    updatePracticeLocale(host,locale); translateInstructions(host,locale);
+    const snapshot=state(),ended=terminal(snapshot.error),stopped=!canEdit() || frozen || ended;
+    const target=host.querySelector('[data-listening-status]');
+    if (target) target.textContent=ended ? listeningMessage(snapshot,locale) : stopped ? pt('audioBlocked',{},locale) : loading ? pt('audioLoading',{},locale) : listeningMessage(snapshot,locale);
+  }
   return {
-    state, play, loadMedia, flush, retry, reload,
+    state, play, loadMedia, flush, retry, reload, updateLocale,
     mount(target, value, clip) {
       host = target; run = value;
       const next = [value.id, clip.media_id, clip.media_version].join(':');
