@@ -6,9 +6,10 @@ import { mkdtemp, readFile, writeFile, rm, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
+import {importHistoricalDefaultPackage,assertHistoricalProjectionAbsent} from './historical-content-fixture.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createPostgresDatastore } from '../server/owned-postgres/adapter.mjs';
-import { importDefaultPackage, importPackage } from '../server/owned-postgres/package-importer.mjs';
+import { importPackage } from '../server/owned-postgres/package-importer.mjs';
 import { createExamCatalogue } from '../server/preparation-contract.mjs';
 import { createOwnedApi } from '../server/owned-api.mjs';
 import { createListeningFixture } from './exam-s5-fixture.mjs';
@@ -49,7 +50,7 @@ const mediaUrl = (run, recording) => `/api/v1/mock-runs/${run.id}/media/${record
 const request = (o, url, patch = {}) => api.handle({ method: 'GET', path: url, headers: { cookie: o.cookie, 'x-hatoove-account': o.id }, ...patch });
 
 try {
-  await importDefaultPackage(db.migration);
+  await importHistoricalDefaultPackage(db);
   const a = await owner('a'), b = await owner('b');
   await check('forward migration leaves existing learner run bytes intact and keeps S4 functions protected', async () => {
     // Inspect the pre-upgrade release relation through its historical SQL contract.
@@ -61,6 +62,7 @@ try {
       FROM exam_form f WHERE f.exam_id=$6 AND f.form_id=$7 AND f.version=$8 RETURNING *`,
       [randomUUID(),a.id,a.telc.id,form.release_version,randomUUID(),TELC,form.form_id,form.version])).rows[0]);
     const before = (await db.admin.query('SELECT * FROM mock_run WHERE id=$1', [old.id])).rows[0];
+    await assertHistoricalProjectionAbsent(db);
     assert.deepEqual(await db.applyRemaining(), ['0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql']);
     assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1', [old.id])).rows[0], before);
     assert.equal((await port.finaliseMockRun(a.id, old.id, { expectedRevision: old.revision, eventId: randomUUID() })).result.total, 20);
@@ -213,7 +215,13 @@ try {
     assert.deepEqual(finalised.result.items.map(item => item.item_id), Array.from({ length: 20 }, (_, i) => String(i + 1)));
     assert.equal((await db.admin.query('SELECT count(*)::int AS n FROM item_evidence WHERE mock_run_id=$1', [run.id])).rows[0].n, 20);
     await reject(port.readMockMedia(a.id, run.id, recording.media_id, recording.media_version), 'mock_finalised');
-    await reject(port.mutateMockPlayback(a.id, run.id, beginBody), 'mock_finalised');
+    const beforeReplay=(await db.admin.query('SELECT * FROM listening_playback WHERE run_id=$1 ORDER BY media_id',[run.id])).rows;
+    const receiptCount=(await db.admin.query('SELECT count(*)::int AS n FROM listening_playback_event WHERE run_id=$1',[run.id])).rows[0].n;
+    const replay=await port.mutateMockPlayback(a.id, run.id, beginBody);
+    assert.equal(replay.plays_used,1);
+    await reject(port.mutateMockPlayback(a.id, run.id, {...beginBody,eventId:randomUUID()}), 'mock_finalised');
+    assert.deepEqual((await db.admin.query('SELECT * FROM listening_playback WHERE run_id=$1 ORDER BY media_id',[run.id])).rows,beforeReplay);
+    assert.equal((await db.admin.query('SELECT count(*)::int AS n FROM listening_playback_event WHERE run_id=$1',[run.id])).rows[0].n,receiptCount);
   });
   await check('archive/public-mode/disabled-package boundaries refuse audio and mutations without losing responses', async () => {
     const active = await start(b), rec = firstRecording(active);

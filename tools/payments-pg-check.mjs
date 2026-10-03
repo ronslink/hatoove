@@ -6,12 +6,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { createOwnedApi } from '../server/owned-api.mjs';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
+import {importHistoricalDefaultPackage,assertHistoricalProjectionAbsent} from './historical-content-fixture.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createPostgresPayments } from '../server/owned-postgres/payments.mjs';
 import { createPostgresAccountDeletion } from '../server/owned-postgres/adapter.mjs';
 import { createWorker,stubGrade } from '../server/owned-postgres/worker.mjs';
 import { createExamCatalogue } from '../server/preparation-contract.mjs';
-import { importPackage,importDefaultPackage } from '../server/owned-postgres/package-importer.mjs';
+import { importPackage } from '../server/owned-postgres/package-importer.mjs';
 import { syntheticS4Package } from './exam-s4-check.mjs';
 import { runTableClassCheck } from './table-class-check.mjs';
 import { InvalidSignature,createPaymentsPort } from '../server/payments/port.mjs';
@@ -40,10 +41,11 @@ const eventFor=async(orderId,extra={})=>{const o=await one('SELECT * FROM paymen
 async function asOwner(owner,fn){const c=await db.learner.connect();try{await c.query('BEGIN');await c.query("SELECT set_config('hatoove.owner_id',$1,true)",[owner]);const r=await fn(c);await c.query('COMMIT');return r;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}}
 const resetBalance=(owner,extra='')=>sql(`UPDATE entitlements SET allowance=10,used=10,reserved=0${extra} WHERE owner_id=$1 AND exam_id=$2`,[owner,TELC]);
 try {
- await importDefaultPackage(db.migration);
+ await importHistoricalDefaultPackage(db);
  const legacy=await user('legacy');
  const before=await one('SELECT * FROM entitlements WHERE owner_id=$1',[legacy]);
  await check('forward migration preserves legacy balances and seeds no commercial offers',async()=>{
+  await assertHistoricalProjectionAbsent(db);
   assert.deepEqual(await db.applyRemaining(),['0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql']);
   assert.deepEqual(await one('SELECT owner_id,exam_id,allowance,used,reserved FROM entitlements WHERE owner_id=$1',[legacy]),before);
   assert.equal((await one('SELECT expires_at FROM entitlements WHERE owner_id=$1',[legacy])).expires_at,null);

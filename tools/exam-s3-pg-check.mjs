@@ -4,12 +4,14 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
+import {importHistoricalDefaultPackage,assertHistoricalProjectionAbsent} from './historical-content-fixture.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createPostgresDatastore } from '../server/owned-postgres/adapter.mjs';
-import { importPackage, importDefaultPackage } from '../server/owned-postgres/package-importer.mjs';
+import { importPackage } from '../server/owned-postgres/package-importer.mjs';
 import { createExamCatalogue } from '../server/preparation-contract.mjs';
 import { createOwnedApi } from '../server/owned-api.mjs';
 import { syntheticPackage, originalPackage, S3_EXAM, S3_GROUPED_SET } from './exam-s3-check.mjs';
+import {syntheticContentReview} from './exam-s6-fixture.mjs';
 
 if (process.env.OWNAPI_PG_ALLOW!=='1' || !process.env.OWNAPI_PG_PORT || [4300,55440].includes(Number(process.env.OWNAPI_PG_PORT)))
   throw new Error('Explicit disposable OWNAPI_PG_ALLOW=1 and OWNAPI_PG_PORT required; learner ports forbidden.');
@@ -44,7 +46,7 @@ const answer=(id,value,version='v1')=>({setId:S3_GROUPED_SET,version,itemId:id,a
 const save=(o,run,responses,position={member:0,item:3})=>port.saveMockRun(o.id,run.id,{expectedRevision:run.revision,eventId:randomUUID(),responses,position});
 const finalise=(o,run)=>port.finaliseMockRun(o.id,run.id,{expectedRevision:run.revision,eventId:randomUUID()});
 try {
-  await importDefaultPackage(db.migration);
+  await importHistoricalDefaultPackage(db);
   const a=await owner('a');const b=await owner('b');
   await check('forward migration preserves existing telc run and protected function/grant boundaries',async()=>{
     // Inspect the pre-upgrade release relation through its historical SQL contract.
@@ -56,6 +58,7 @@ try {
       FROM exam_form f WHERE f.exam_id=$6 AND f.form_id=$7 AND f.version=$8 RETURNING *`,
       [randomUUID(),a.id,a.telc.id,form.release_version,randomUUID(),TELC,form.form_id,form.version])).rows[0]);
     const before=(await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0];
+    await assertHistoricalProjectionAbsent(db);
     assert.deepEqual(await db.applyRemaining(),['0026-grouped-objective-runs.sql','0027-dtz-writing.sql','0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql']);
     assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0],before);
     assert.equal((await finalise(a,old)).result.total,20);
@@ -224,20 +227,28 @@ try {
     assert.deepEqual((await db.admin.query('SELECT version FROM exam_blueprint WHERE exam_id=$1 ORDER BY version',[S3_EXAM])).rows.map(r=>r.version),['v1','v2','v8000']);
   });
   await check('available-origin ordinary withdrawal retains permitted public saved-run resume',async()=>{
-    // Only these synthetic rows receive test review status; original draft content is never approved.
+    // Exact named decisions cover only these synthetic rows; no human approval is claimed.
     const p=syntheticPackage({release:'v8101'});p.exam.id=TELC;p.exam.title='Synthetic publication boundary';p.blueprint.version='v8100';
     p.forms[0].id='s3-public-boundary';
     for(const set of p.sets){set.examId=TELC;set.setId='s3-public.'+set.family;}
     p.forms[0].members=p.sets.map(s=>({setId:s.setId,version:s.version,interaction:s.interaction,itemCount:s.itemCount}));
-    for(const set of p.sets) {
-      const cv=set.setId+'@'+set.version;
-      await db.migration.query(`INSERT INTO content_version(content_version_id,kind,family,source_path,review_status,rights_status,content_sha256,exam_id)
-        VALUES($1,'task',$2,'content/exams/synthetic-policy-control','approved','generated','synthetic',$3)`,[cv,set.family,TELC]);
-      await db.migration.query(`INSERT INTO objective_set(set_id,version,exam_id,family,section,part,title,payload,item_count,media_required,content_version_id)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,false,$10)`,[set.setId,set.version,TELC,set.family,set.section,set.part,set.title,JSON.stringify(set.payload),set.itemCount,cv]);
-      await db.migration.query('INSERT INTO objective_key(set_id,version,answers,explanations) VALUES($1,$2,$3::jsonb,$4::jsonb)',[set.setId,set.version,JSON.stringify(set.answers),JSON.stringify(set.explanations)]);
-    }
-    await importPackage(db.migration,{...p,sets:[]},{publisher:'synthetic-s3-policy-control'});
+    await importPackage(db.migration,p,{publisher:'synthetic-s3-policy-control'});
+    const client=await db.migration.connect();
+    try {
+      await client.query('BEGIN');
+      for(const set of p.sets) {
+        const id=set.setId+'@'+set.version;
+        const row=(await client.query('SELECT content_sha256 FROM content_version WHERE content_version_id=$1',[id])).rows[0];
+        await syntheticContentReview(db,client,{kind:'content',examId:TELC,subjectId:id,version:'',sha256:row.content_sha256});
+      }
+      const bp=(await client.query('SELECT sha256 FROM exam_blueprint WHERE exam_id=$1 AND version=$2',[TELC,p.blueprint.version])).rows[0];
+      await syntheticContentReview(db,client,{kind:'blueprint',examId:TELC,subjectId:TELC,version:p.blueprint.version,sha256:bp.sha256});
+      for(const form of p.forms) {
+        const row=(await client.query('SELECT sha256 FROM exam_form WHERE exam_id=$1 AND form_id=$2 AND version=$3',[TELC,form.id,form.version])).rows[0];
+        await syntheticContentReview(db,client,{kind:'form',examId:TELC,subjectId:form.id,version:form.version,sha256:row.sha256});
+      }
+      await client.query('COMMIT');
+    } catch(error) {await client.query('ROLLBACK');throw error;} finally {client.release();}
     const published={...p,release:{version:'v8102',state:'available',resumeBlockedReleases:[]},sets:[]};
     await importPackage(db.migration,published,{publisher:'synthetic-s3-policy-control'});
     process.env.B1PREP_CONTENT_MODE='public';
