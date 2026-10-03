@@ -52,6 +52,7 @@ import {
   requirePreparationId, validateCreatePreparation, validateUpdatePreparation,
 } from './preparation-contract.mjs';
 import { MOCK_METHODS, validateWritingChoice, validateStartMockRun, validateSaveMockRun, validateFinaliseMockRun } from './mock-contract.mjs';
+import { mediaResponse, validatePlaybackEvent } from './media-route.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
@@ -87,6 +88,8 @@ const RETRY_RE = new RegExp(`^/api/v1/submissions/(${UUID})/retry$`, 'i');
 const MOCK_RUN_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})$`, 'i');
 const MOCK_WRITING_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/writing-choice$`, 'i');
 const MOCK_FINALISE_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/finalise$`, 'i');
+const MOCK_PLAYBACK_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/playback$`, 'i');
+const MOCK_MEDIA_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/media/([a-zA-Z0-9][a-zA-Z0-9._-]{0,159})/(v[0-9]{1,4})$`);
 const TOKEN_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const ORDER_RE = new RegExp(`^/api/v1/orders/(${UUID})$`, 'i');
 const WEBHOOK_PATH = '/api/v1/payments/stripe/webhook';
@@ -599,6 +602,28 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
     const who = await identify(headers);
     if (!who) fault(401, 'unauthenticated');
     const owner = who.userId;
+
+    const playback = MOCK_PLAYBACK_RE.exec(pathname);
+    if (playback) {
+      if (query.size) fault(422, 'invalid_query');
+      const id = playback[1].toLowerCase();
+      if (method === 'GET' && typeof datastore.readMockPlayback === 'function')
+        return reply(200, { items: await datastore.readMockPlayback(owner, id) });
+      if (method === 'POST' && typeof datastore.mutateMockPlayback === 'function')
+        return reply(200, { playback: await datastore.mutateMockPlayback(owner, id, validatePlaybackEvent(body)) });
+      fault(['GET', 'POST'].includes(method) ? 503 : 404, ['GET', 'POST'].includes(method) ? 'mock_runs_unavailable' : 'not_found');
+    }
+    const media = MOCK_MEDIA_RE.exec(pathname);
+    if (media && ['GET', 'HEAD'].includes(method)) {
+      if (query.size) fault(422, 'invalid_query');
+      if (typeof datastore.readMockMedia !== 'function') fault(503, 'media_unavailable');
+      const result = await datastore.readMockMedia(owner, media[1].toLowerCase(), media[2], media[3]);
+      // Revoke/account switches while the private file was being checked cannot expose its bytes.
+      const current = await identify(headers);
+      if (!current) fault(401, 'unauthenticated');
+      if (current.userId !== owner) fault(409, 'account_changed');
+      return mediaResponse(result.bytes, result.media, { range: headers.range, method });
+    }
 
     if (pathname === '/api/v1/checkout/offer' && method === 'GET') {
       if (!payments?.offer) fault(503, 'payments_unavailable');

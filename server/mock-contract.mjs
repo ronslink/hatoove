@@ -67,7 +67,7 @@ export function validateSaveMockRun(body) {
 export function mockMemberItems(member) {
   const p = member.payload;
   if (!object(p)) fail('invalid_mock_form');
-  if (member.interaction === 'grouped_choice') {
+  if (['grouped_choice', 'fixed_audio'].includes(member.interaction)) {
     let parsed;
     try { parsed = objectiveItems(p, member.interaction); } catch { fail('invalid_mock_form'); }
     if (parsed.length !== Number(member.item_count)) fail('invalid_mock_form');

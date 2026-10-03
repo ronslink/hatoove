@@ -35,6 +35,7 @@ function runDto(row, bundle, summary = false) {
     release_state: bundle?.release.state ?? null, review_status: bundle?.reviewStatus ?? null,
     blueprint_version: row.blueprint_version, form_id: row.form_id, form_version: row.form_version,
     title: row.title, scope: row.scope, mode: row.mode, state: row.state, revision: Number(row.revision),
+    attempt_mode: bundle?.form.payload.attemptMode ?? null,
     writing:row.writing??null,
     created_at: iso(row.created_at), updated_at: iso(row.updated_at), deadline_at: iso(row.deadline_at),
     finalised_at: iso(row.finalised_at), expired: expired(row), blocked_reason: blocked, server_now: iso(row.server_now),
@@ -46,6 +47,7 @@ function runDto(row, bundle, summary = false) {
       set_id: member.set_id, version: member.version, interaction: member.interaction, item_count: Number(member.item_count),
       release_state: bundle.release.state, review_status: member.review_status,
       title: member.title, family: member.family, section: member.section, part: member.part, payload: member.payload,
+      ...(member.recordings ? { recordings: member.recordings } : {}),
     })),
     result: blocked || row.state !== 'finalised' ? null : row.result,
   });
