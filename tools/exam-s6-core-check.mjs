@@ -1,0 +1,22 @@
+/** SQL remains the only full-form predicate; this checks its narrow policy/transport wrapper. */
+import assert from 'node:assert/strict';
+import {readCurrentReleaseEligibility} from '../server/owned-postgres/release-eligibility.mjs';
+import {createExamCatalogue} from '../server/preparation-contract.mjs';
+const keys=['B1PREP_CONTENT_MODE','B1PREP_SERVE_RIGHTS'],saved=Object.fromEntries(keys.map(key=>[key,process.env[key]]));
+const DTZ='dtz-a2-b1',catalogue=createExamCatalogue({enabled:['telc-deutsch-b1',DTZ]});
+let passed=0;const check=async(name,work)=>{await work();passed++;console.log('PASS '+name);};
+try {
+ process.env.B1PREP_CONTENT_MODE='public';delete process.env.B1PREP_SERVE_RIGHTS;
+ const calls=[];let row={eligible:true,exam_id:DTZ,release_version:'v2',state:'available',reason:'eligible',complete_form_id:'full',complete_form_version:'v1'};
+ const client={query:async(sql,args)=>{calls.push({sql,args});return {rows:sql.startsWith('SELECT *')?[row]:[]};}};
+ await check('default catalogue refuses DTZ without querying private metadata',async()=>{assert.equal((await readCurrentReleaseEligibility(client,DTZ)).eligible,false);assert.equal(calls.length,0);});
+ await check('one SQL predicate supplies only the contracted DTO',async()=>{assert.deepEqual(await readCurrentReleaseEligibility(client,DTZ,{catalogue}),{eligible:true,examId:DTZ,releaseVersion:'v2',state:'available',reason:'eligible',completeForm:{formId:'full',formVersion:'v1'}});assert.deepEqual(calls.at(-1).args,[DTZ,['generated']]);});
+ await check('mutation optionally acquires the exact exam fence before its eligibility query',async()=>{calls.length=0;await readCurrentReleaseEligibility(client,DTZ,{catalogue,lock:true});assert.equal(calls.length,2);assert.match(calls[0].sql,/7351/);assert.deepEqual(calls[0].args,[DTZ]);assert.match(calls[1].sql,/current_release_eligibility/);});
+ await check('available eligibility without exact release and complete-form metadata fails closed',async()=>{const good=row;for(const key of ['release_version','complete_form_id','complete_form_version']){row={...good,[key]:null};assert.equal((await readCurrentReleaseEligibility(client,DTZ,{catalogue})).eligible,false);}row=good;});
+ await check('rights configuration narrows recognized rights and cannot opt unknown provenance in',async()=>{process.env.B1PREP_SERVE_RIGHTS='licensed,unknown,licensed';await readCurrentReleaseEligibility(client,DTZ,{catalogue});assert.deepEqual(calls.at(-1).args,[DTZ,['licensed']]);process.env.B1PREP_SERVE_RIGHTS='unknown';const n=calls.length;assert.equal((await readCurrentReleaseEligibility(client,DTZ,{catalogue})).eligible,false);assert.equal(calls.length,n);delete process.env.B1PREP_SERVE_RIGHTS;});
+ await check('invalid mode fails closed without a query',async()=>{process.env.B1PREP_CONTENT_MODE='typo';const n=calls.length;assert.equal((await readCurrentReleaseEligibility(client,DTZ,{catalogue})).eligible,false);assert.equal(calls.length,n);});
+ await check('public DTZ cannot adopt an internal partial head, while internal preview can',async()=>{row={...row,state:'internal',reason:'internal_preview',complete_form_id:null,complete_form_version:null};process.env.B1PREP_CONTENT_MODE='public';assert.equal((await readCurrentReleaseEligibility(client,DTZ,{catalogue})).eligible,false);process.env.B1PREP_CONTENT_MODE='internal-preview';assert.equal((await readCurrentReleaseEligibility(client,DTZ,{catalogue})).eligible,true);});
+ await check('every call rereads current eligibility and mismatched SQL identities fail closed',async()=>{const n=calls.length;row={...row,eligible:false,reason:'complete_form_unavailable'};assert.equal((await readCurrentReleaseEligibility(client,DTZ,{catalogue})).eligible,false);row={...row,eligible:true,exam_id:'other'};assert.equal((await readCurrentReleaseEligibility(client,DTZ,{catalogue})).eligible,false);assert.equal(calls.length,n+2);});
+ await check('existing telc admission retains its independent per-resource policy',async()=>{row={eligible:true,exam_id:'telc-deutsch-b1',release_version:'v1',state:'internal',reason:'existing_exam'};process.env.B1PREP_CONTENT_MODE='public';assert.equal((await readCurrentReleaseEligibility(client,'telc-deutsch-b1')).eligible,true);});
+ console.log('S6 core wrapper: '+passed+' passed');
+} finally {for(const [key,value]of Object.entries(saved))if(value===undefined)delete process.env[key];else process.env[key]=value;}
