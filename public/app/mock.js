@@ -163,8 +163,8 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     const passage = item.passage ?? form.passage;
     return '<details class="mock-review-context" data-review-item="' + esc(row.item_id) + '"><summary>Aufgabe und Text ansehen</summary>'
       + (passage ? '<div class="stimulus mock-passage" lang="de">' + esc(passage) + '</div>' : '')
-      + '<p class="mock-review-prompt" lang="de">' + esc(item.text) + '</p><ul class="mock-review-options">'
-      + (item.options || form.options || []).map(option => '<li><strong>' + esc(option.id) + '</strong> · ' + esc(option.label) + '</li>').join('') + '</ul></details>';
+      + '<p class="mock-review-prompt" lang="de">' + esc(item.text) + '</p><dl class="mock-review-options">'
+      + (item.options || form.options || []).map(option => '<div><dt>' + esc(option.id) + '</dt><dd>' + esc(option.label) + '</dd></div>').join('') + '</dl></details>';
   }
   function render() {
     if (!host) return;
