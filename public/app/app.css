@@ -346,3 +346,13 @@ code {
   .mock-layout { grid-template-columns: minmax(0, 1fr); }
   .mock-overview { grid-row: 1; }
 }
+
+/* Question-specific passages remain attached to their item in practice and saved review. */
+.mock-review-context { min-width: 0; }
+.mock-review-context summary { cursor: pointer; min-height: 44px; padding-block: .6rem; }
+.mock-review-context .mock-passage { margin-block: .6rem; }
+.mock-review-options { padding-inline-start: 1.4rem; margin-block: .5rem; }
+.mock-review-options li { display: list-item; border: 0; padding-block: .25rem; }
+.mock-review-prompt { white-space: pre-wrap; }
+#boot-choices .btn { white-space: normal; text-align: start; overflow-wrap: anywhere; }
+.mock-options .letter { width: auto; min-width: 30px; max-width: 40%; height: auto; min-height: 30px; padding: .1rem .35rem; }
