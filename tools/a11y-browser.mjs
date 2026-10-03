@@ -182,7 +182,12 @@ export function createA11yAuditor({ suite, enabled = process.argv.includes('--ax
       if (!enabled) return;
       let error;
       try { if (!controlsPassed || scans.length === 0) throw Error('Accessibility engine controls or scans missing'); assertCoverage(required[suite], seen); } catch (failure) { error = failure.message; record('AXE ' + suite + ' required coverage', false, error); }
-      write('summary', { sourceRevision: revision, sourceDirty, context, suite, engine: version, tags, durationMs: Date.now() - startedAt, required: required[suite], completed: [...seen], controls, scans, error: error || null, incompleteAreManual: true });
+      try {
+        write('summary', { sourceRevision: revision, sourceDirty, context, suite, engine: version, tags, durationMs: Date.now() - startedAt, required: required[suite], completed: [...seen], controls, scans, error: error || null, incompleteAreManual: true });
+      } catch (failure) {
+        // Report missing evidence, but never let artifact I/O skip the caller's fixture cleanup.
+        record('AXE ' + suite + ' evidence write', false, failure.message);
+      }
     },
   };
 }
