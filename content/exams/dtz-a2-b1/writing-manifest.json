@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 1,
+  "exam": {
+    "id": "dtz-a2-b1",
+    "title": "Deutsch-Test für Zuwanderer (DTZ), A2–B1",
+    "language": "de",
+    "levelModel": {
+      "type": "cefr-range",
+      "levels": ["A2", "B1"]
+    }
+  },
+  "blueprint": {
+    "version": "v3",
+    "timeGroups": [
+      {
+        "id": "dtz-lv-45",
+        "seconds": 2700,
+        "sections": ["LV"]
+      }
+    ],
+    "sections": [
+      {
+        "id": "LV",
+        "title": "Leseverstehen",
+        "timeGroup": "dtz-lv-45",
+        "parts": [
+          { "family": "LV1", "itemCount": 5, "interaction": "single_choice", "mediaRequired": false },
+          { "family": "LV2", "itemCount": 5, "interaction": "matching_ads", "mediaRequired": false },
+          { "family": "LV3", "itemCount": 6, "interaction": "grouped_choice", "mediaRequired": false },
+          { "family": "LV4", "itemCount": 3, "interaction": "single_choice", "mediaRequired": false },
+          { "family": "LV5", "itemCount": 6, "interaction": "gap_choice", "mediaRequired": false }
+        ]
+      },
+      {
+        "id": "SA",
+        "title": "Schreiben",
+        "timeGroup": null,
+        "parts": [
+          { "family": "writing", "itemCount": 1, "interaction": "writing_choice", "mediaRequired": false }
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "S1",
+        "kind": "official-practice-test-pdf",
+        "title": "Deutsch-Test für Zuwanderer — Übungssatz 2 (Juni 2024), Schreiben",
+        "url": "https://www.gast.de/fileadmin/gast.de/GAST/5_DTZ/PDF/gast_DTZ_UEbungssatz_2.pdf",
+        "pages": [42, 43, 47],
+        "retrieved": "2026-10-03",
+        "verification": "Coordinator retrieved the June 2024 practice set 2 and read rendered pages 42, 43 and 47 on 3 October 2026 to establish the writing task, its four content points and the band-scale shape only. No official task text was copied, translated or reproduced, and this format reference is not a content licence."
+      },
+      {
+        "id": "S2",
+        "kind": "official-faq",
+        "title": "Deutsch-Test für Zuwanderer (DTZ) — FAQ",
+        "url": "https://www.gast.de/de/forschung-entwicklung/entwicklung/auftraege/deutsch-test-fuer-zuwanderer-dtz/faq",
+        "retrieved": "2026-10-03",
+        "verification": "Coordinator read the current FAQ on 3 October 2026 to confirm the writing part's role and the A2–B1 reporting structure only. No official prose is reproduced, and the citation confers no rights to any official material."
+      }
+    ]
+  },
+  "release": {
+    "version": "v3",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [
+    {
+      "id": "dtz-a2-b1.writing.original01",
+      "version": "v1",
+      "title": "Schreiben (Abschnitt SA) — interne Teilübung (Originalentwurf), nicht die vollständige DTZ-Prüfung",
+      "scope": "section",
+      "sections": ["SA"],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "feedback": "finalise",
+      "members": [],
+      "writingChoices": [
+        {
+          "id": "SA1",
+          "section": "SA",
+          "options": [
+            { "id": "A", "taskId": "dtz-a2-b1.writing.original01.a", "taskVersion": "v1" },
+            { "id": "B", "taskId": "dtz-a2-b1.writing.original01.b", "taskVersion": "v1" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dtz-a2-b1.reading-writing.internal01",
+      "version": "v1",
+      "title": "Leseverstehen und Schreiben — interne Teilübung (Originalentwurf), nicht die vollständige DTZ-Prüfung",
+      "scope": "section",
+      "sections": ["LV", "SA"],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "feedback": "finalise",
+      "members": [
+        { "setId": "dtz-a2-b1.lv1.original01", "version": "v1", "interaction": "single_choice", "itemCount": 5 },
+        { "setId": "dtz-a2-b1.lv2.original01", "version": "v1", "interaction": "matching_ads", "itemCount": 5 },
+        { "setId": "dtz-a2-b1.lv3.original01", "version": "v1", "interaction": "grouped_choice", "itemCount": 6 },
+        { "setId": "dtz-a2-b1.lv4.original01", "version": "v1", "interaction": "single_choice", "itemCount": 3 },
+        { "setId": "dtz-a2-b1.lv5.original01", "version": "v1", "interaction": "gap_choice", "itemCount": 6 }
+      ],
+      "writingChoices": [
+        {
+          "id": "SA1",
+          "section": "SA",
+          "options": [
+            { "id": "A", "taskId": "dtz-a2-b1.writing.original01.a", "taskVersion": "v1" },
+            { "id": "B", "taskId": "dtz-a2-b1.writing.original01.b", "taskVersion": "v1" }
+          ]
+        }
+      ]
+    }
+  ],
+  "writingTasks": [
+    {
+      "taskId": "dtz-a2-b1.writing.original01.a",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "writing",
+      "section": "SA",
+      "register": "Sie",
+      "topic": "Beschädigte Monatskarte — Bitte um Ersatz und Erstattung",
+      "situation": "Sie haben eine Monatskarte für Bus und Bahn. Letzte Woche wurde die Karte an einer Haltestelle nicht mehr erkannt; ein Kontrolleur erklärte sie für ungültig, und Sie mussten ein Einzelticket kaufen. Sie schreiben an den Kundenservice des Verkehrsbetriebs, schildern den Vorfall und bitten um eine neue Karte.",
+      "adressat": "Kundenservice des Verkehrsbetriebs (formeller Brief, Anrede „Sehr geehrte Damen und Herren“, durchgehend Sie)",
+      "leitpunkte": [
+        "Nennen, warum Sie schreiben und welche Karte betroffen ist.",
+        "Den Vorfall an der Haltestelle und mit dem Kontrolleur schildern.",
+        "Um eine neue Karte und um Erstattung des Einzeltickets bitten.",
+        "Um eine kurze schriftliche Rückmeldung bitten."
+      ],
+      "rubricId": "writing.dtz-a2-b1",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/writing-manifest.json — original generated internal draft, coordinator authored for EXAM-S4 on 3 October 2026; not copied, translated or adapted from any official examination task."
+    },
+    {
+      "taskId": "dtz-a2-b1.writing.original01.b",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "writing",
+      "section": "SA",
+      "register": "du",
+      "topic": "Urlaubsvertretung für die Nachbarin — Pflanzen, Post und Schlüssel",
+      "situation": "Ihre Nachbarin Frau Novak fährt in zwei Wochen für drei Wochen zu ihrer Familie ins Ausland. Sie haben ihr schon angeboten, in dieser Zeit nach der Wohnung zu sehen. Sie schreiben ihr eine kurze Nachricht und klären, was Sie übernehmen und was Sie dafür brauchen.",
+      "adressat": "Nachbarin Frau Novak (informelle Nachricht, durchgehend du)",
+      "leitpunkte": [
+        "Den Zeitraum Ihrer Vertretung bestätigen.",
+        "Sagen, welche Aufgaben Sie übernehmen (Pflanzen, Post, Lüften).",
+        "Nach dem Ersatzschlüssel oder nach wichtigen Hinweisen fragen.",
+        "Einen kurzen Termin vor der Abreise vorschlagen."
+      ],
+      "rubricId": "writing.dtz-a2-b1",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/writing-manifest.json — original generated internal draft, coordinator authored for EXAM-S4 on 3 October 2026; not copied, translated or adapted from any official examination task."
+    }
+  ],
+  "rubrics": [
+    {
+      "rubricId": "writing.dtz-a2-b1",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "writing",
+      "policy": "dtz-writing-practice-v1",
+      "feedbackKind": "dtz-writing-bands",
+      "criteria": [
+        {
+          "key": "dtz_aufgabe",
+          "label": "Aufgabenbewältigung",
+          "bands": { "B1_PLUS": 5, "B1": 4, "A2_PLUS": 3, "A2": 2, "A1": 1, "ZERO": 0 },
+          "bandLabels": { "B1_PLUS": "B1 gut erfüllt", "B1": "B1 erfüllt", "A2_PLUS": "A2 gut erfüllt", "A2": "A2 erfüllt", "A1": "A1 erfüllt", "ZERO": "Nicht erfüllt" },
+          "descriptors": {
+            "B1_PLUS": "Alle vier Inhaltspunkte sind präzise und auf die Schreibsituation bezogen bearbeitet.",
+            "B1": "Entweder sind alle vier Inhaltspunkte nur teilweise erschließbar vorhanden, oder drei Inhaltspunkte sind angemessen bearbeitet.",
+            "A2_PLUS": "Entweder sind drei Inhaltspunkte nur teilweise erschließbar vorhanden, oder zwei Inhaltspunkte sind angemessen bearbeitet.",
+            "A2": "Entweder sind zwei Inhaltspunkte nur teilweise erschließbar vorhanden, oder ein Inhaltspunkt ist angemessen bearbeitet.",
+            "A1": "Nur ein Inhaltspunkt ist teilweise erschließbar vorhanden.",
+            "ZERO": "Kein relevanter Inhaltspunkt oder eine falsche Schreibsituation."
+          }
+        },
+        {
+          "key": "dtz_kommunikation",
+          "label": "Kommunikative Gestaltung",
+          "bands": { "B1_PLUS": 5, "B1": 4, "A2_PLUS": 3, "A2": 2, "A1": 1, "ZERO": 0 },
+          "bandLabels": { "B1_PLUS": "B1 gut erfüllt", "B1": "B1 erfüllt", "A2_PLUS": "A2 gut erfüllt", "A2": "A2 erfüllt", "A1": "A1 erfüllt", "ZERO": "Nicht erfüllt" },
+          "descriptors": {
+            "B1_PLUS": "Zweck, Textsorte und Register passen sicher zum Anlass; der Text ist durchgehend und klar verbunden.",
+            "B1": "Zweck, Textsorte und Register passen zum Anlass; der Text ist überwiegend zusammenhängend.",
+            "A2_PLUS": "Zweck und Register sind im Alltag erkennbar; die Verbindungen sind einfach, aber verständlich.",
+            "A2": "Zweck und Register sind teilweise passend; ein Zusammenhang ist in Ansätzen erkennbar.",
+            "A1": "Zweck oder Register sind kaum erkennbar; Verbindungen fehlen weitgehend.",
+            "ZERO": "Kein erkennbarer kommunikativer Zusammenhang zum Anlass."
+          }
+        },
+        {
+          "key": "dtz_korrektheit",
+          "label": "Korrektheit",
+          "bands": { "B1_PLUS": 5, "B1": 4, "A2_PLUS": 3, "A2": 2, "A1": 1, "ZERO": 0 },
+          "bandLabels": { "B1_PLUS": "B1 gut erfüllt", "B1": "B1 erfüllt", "A2_PLUS": "A2 gut erfüllt", "A2": "A2 erfüllt", "A1": "A1 erfüllt", "ZERO": "Nicht erfüllt" },
+          "descriptors": {
+            "B1_PLUS": "Trotz einzelner Fehler durchgehend verständlich; Formen und Wortstellung sind sicher genug für das Verständnis.",
+            "B1": "Im Ganzen verständlich; Fehler stören das Verständnis nicht wesentlich.",
+            "A2_PLUS": "Überwiegend verständlich; Fehler sind häufiger, die Aussage bleibt aber meist erkennbar.",
+            "A2": "Grundsätzlich verständlich; Fehler erschweren einzelne Sätze.",
+            "A1": "Nur teilweise verständlich; Fehler verhindern das Verständnis ganzer Passagen.",
+            "ZERO": "Der Text ist nicht verständlich."
+          }
+        },
+        {
+          "key": "dtz_wortschatz",
+          "label": "Wortschatz",
+          "bands": { "B1_PLUS": 5, "B1": 4, "A2_PLUS": 3, "A2": 2, "A1": 1, "ZERO": 0 },
+          "bandLabels": { "B1_PLUS": "B1 gut erfüllt", "B1": "B1 erfüllt", "A2_PLUS": "A2 gut erfüllt", "A2": "A2 erfüllt", "A1": "A1 erfüllt", "ZERO": "Nicht erfüllt" },
+          "descriptors": {
+            "B1_PLUS": "Breiter, treffender Alltagswortschatz; Wendungen sind passend und abwechslungsreich.",
+            "B1": "Ausreichender Alltagswortschatz; die Aussage wird klar ausgedrückt.",
+            "A2_PLUS": "Einfacher, aber ausreichender Alltagswortschatz; Umschreibungen gelingen meist.",
+            "A2": "Grundwortschatz reicht für den Anlass; Umschreibungen bleiben einfach.",
+            "A1": "Sehr begrenzter Wortschatz; Umschreibungen gelingen kaum.",
+            "ZERO": "Zu wenig Wortschatz, um den Anlass zu bearbeiten."
+          }
+        }
+      ],
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original German paraphrase by the coordinator (3 October 2026) of the DTZ writing band shape for internal practice; wording is not copied. Structure referenced from official practice set 2 (pages 42, 43, 47) and the DTZ FAQ https://www.gast.de/de/forschung-entwicklung/entwicklung/auftraege/deutsch-test-fuer-zuwanderer-dtz/faq — format reference only, not a content licence. Provisional, generated, unreviewed; no licensed assessment."
+    }
+  ],
+  "sets": []
+}
