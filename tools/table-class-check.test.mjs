@@ -17,6 +17,7 @@
  *   6. drop the deletion role's `item_evidence` policy -> the owned rule must catch it
  *      (under FORCE RLS the deletion read-back would otherwise be vacuous)
  *   7. grant INSERT on `vocab_entry` to the learner role -> the catalogue rule must catch it
+ *   8. drop the deletion role's `learner_preparation` policy -> the owned rule must catch it (EXAM-S1)
  *
  * A check that passes on both the tree and a mutant proves nothing. The control leg proves the
  * opposite failure mode is impossible: the same fixture PASSES before any mutation, so a
@@ -162,7 +163,21 @@ test('mutation 7: granting INSERT on a catalogue table to the learner role must 
   });
 });
 
-test('mutation proof: 7/7 mutations are detected', () => {
+test('mutation 8: dropping the deletion role\'s learner_preparation policy must fail the owned rule', async () => {
+  await withFixture(async (db) => {
+    assert.equal((await classify(db)).ok, true, 'control: passes before the mutation');
+    // EXAM-S1 (0023): preparations are account rows; the deletion read-back must be able to see them.
+    await db.admin.query(`DROP POLICY deletion_learner_preparation ON ${quote(db.schema)}.learner_preparation`);
+    const report = await classify(db);
+    assert.equal(report.ok, false, 'the check must fail when the preparation read-back would be vacuous');
+    const failure = failureFor(report, 'learner_preparation');
+    assert.ok(failure, 'learner_preparation must be flagged');
+    assert.match(failure.detail, /no owner-scoped policy for the deletion role/);
+    detected.push('drop the deletion policy on learner_preparation');
+  });
+});
+
+test('mutation proof: 8/8 mutations are detected', () => {
   assert.deepEqual(detected, [
     'drop one owner policy',
     'remove one table from ACCOUNT_TABLES',
@@ -171,6 +186,7 @@ test('mutation proof: 7/7 mutations are detected', () => {
     'grant SELECT on objective_key to the worker role',
     'drop the deletion policy on item_evidence',
     'grant INSERT on vocab_entry to the learner role',
+    'drop the deletion policy on learner_preparation',
   ], 'every mutation must have been applied and caught');
-  console.log(`\nmutation proof: ${detected.length}/7 mutations detected\n`);
+  console.log(`\nmutation proof: ${detected.length}/8 mutations detected\n`);
 });

@@ -21,8 +21,11 @@ import { createOwnedApi } from '../../server/owned-api.mjs';
 /** Deterministic table order for `fingerprint()`. */
 const FINGERPRINT_TABLES = [
   ['attempts', 'id'], ['drafts', 'attempt_id'], ['submissions', 'id'], ['jobs', 'id'],
-  ['assessments', 'submission_id'], ['usage_ledger', 'submission_id'], ['entitlements', 'owner_id'],
+  ['assessments', 'submission_id'], ['usage_ledger', 'submission_id'], ['entitlements', 'owner_id, exam_id'],
+  // EXAM-S1: a refused request must leave preparations and evidence untouched too.
+  ['learner_preparation', 'id'], ['item_evidence', 'evidence_id'],
 ];
+const INITIAL_EXAM = 'telc-deutsch-b1';
 
 /**
  * @param {{allowance?: number, fixture?: object, deletion?: object}} options
@@ -35,10 +38,15 @@ const FINGERPRINT_TABLES = [
  *   would be — the route then answers 503 rather than pretending.
  * @returns {Promise<{store: object, sessions: object, settings: object, api: object, deletion: object|null, fixture: object, teardown: Function}>}
  */
-export async function createPostgresWorld({ allowance = 10, fixture, deletion, limits = null, notifier = null } = {}) {
+export async function createPostgresWorld({
+  allowance = 10, fixture, deletion, limits = null, notifier = null,
+  // EXAM-S1 test seams, server-side only: a disposable test may offer a second synthetic package and may
+  // inject a registration failure. The running server passes neither.
+  examCatalogue, registrationHook,
+} = {}) {
   const db = fixture ?? await createFixture();
   const calls = [];
-  const port = createPostgresDatastore({ pool: db.learner, onCall: (name) => calls.push(name) });
+  const port = createPostgresDatastore({ pool: db.learner, onCall: (name) => calls.push(name), ...(examCatalogue ? { examCatalogue } : {}) });
   /*
    * THE NOTIFIER IS INJECTABLE, and in the pilot it is the OPERATOR CONSOLE (D6): nothing leaves the building,
    * and a check can capture deliveries instead of printing them.
@@ -48,7 +56,7 @@ export async function createPostgresWorld({ allowance = 10, fixture, deletion, l
    * reach the real console. The option remains for a caller that builds a world directly.
    */
   const notify = db.notifier ?? notifier ?? createConsoleNotifier({ log: () => {} });
-  const sessions = createPostgresSessions({ pool: db.auth, adminPool: db.admin, allowance, notify });
+  const sessions = createPostgresSessions({ pool: db.auth, adminPool: db.admin, allowance, notify, registrationHook });
   /*
    * THE AUTH THROTTLE, ON THE AUTH POOL — the same restriction the sessions port runs under, because a limit
    * is auth material: only the auth role may see who has been failing to sign in (migration 0019's GRANT).
@@ -95,9 +103,15 @@ export async function createPostgresWorld({ allowance = 10, fixture, deletion, l
       const draft = await one('SELECT revision, text FROM drafts WHERE attempt_id = $1', [id]);
       return { ...row, draft: draft ? { ...draft } : null };
     },
-    async entitlement(owner) {
-      const row = await one('SELECT * FROM entitlements WHERE owner_id = $1', [owner]);
-      return row ? { ...row } : { allowance, used: 0, reserved: 0 };
+    /** One (owner, exam) balance. EXAM-S1: an absent balance is zero, not the sign-up allowance. */
+    async entitlement(owner, examId = INITIAL_EXAM) {
+      const row = await one('SELECT * FROM entitlements WHERE owner_id = $1 AND exam_id = $2', [owner, examId]);
+      return row ? { ...row } : { owner_id: owner, exam_id: examId, allowance: 0, used: 0, reserved: 0 };
+    },
+    /** Every preparation of an owner, archived included, in creation order. */
+    async preparations(owner) {
+      return (await db.admin.query(
+        'SELECT * FROM learner_preparation WHERE owner_id = $1 ORDER BY created_at, id', [owner])).rows.map((row) => ({ ...row }));
     },
     async fingerprint() {
       const state = {};
@@ -135,7 +149,7 @@ export async function createPostgresWorld({ allowance = 10, fixture, deletion, l
         const job = (await client.query(
           // `rubric_id` lives on the ATTEMPT, not on the submission — the submission carries the VERSIONS it
           // froze. Selecting `s.rubric_id` would be a column that does not exist (SQLSTATE 42703).
-          `SELECT j.id, j.status, s.owner_id, s.attempt_id, s.rubric_version, s.text, s.explanation_language,
+          `SELECT j.id, j.status, j.exam_id, s.owner_id, s.attempt_id, s.rubric_version, s.text, s.explanation_language,
                   a.rubric_id
            FROM jobs j JOIN submissions s ON s.id = j.submission_id
                        JOIN attempts a ON a.id = s.attempt_id
@@ -161,7 +175,9 @@ export async function createPostgresWorld({ allowance = 10, fixture, deletion, l
            VALUES($1, $2, $3::jsonb, 'fixture-v1', 'fixture-v1', $4)`,
           [submissionId, job.owner_id, JSON.stringify(feedback), job.rubric_version]);
         await client.query('INSERT INTO usage_ledger(submission_id, owner_id, units) VALUES($1, $2, 1)', [submissionId, job.owner_id]);
-        await client.query('UPDATE entitlements SET reserved = reserved - 1, used = used + 1 WHERE owner_id = $1', [job.owner_id]);
+        // Same original-exam debit as the runtime worker (EXAM-S1).
+        await client.query('UPDATE entitlements SET reserved = reserved - 1, used = used + 1 WHERE owner_id = $1 AND exam_id = $2',
+          [job.owner_id, job.exam_id]);
         await client.query("UPDATE jobs SET status = 'succeeded', lease_token = NULL, lease_until = NULL WHERE id = $1", [job.id]);
         return true;
       });
@@ -169,11 +185,12 @@ export async function createPostgresWorld({ allowance = 10, fixture, deletion, l
     async fail(submissionId, code) {
       return workerTransaction(async (client) => {
         const job = (await client.query(
-          'SELECT j.id, j.status, s.owner_id FROM jobs j JOIN submissions s ON s.id = j.submission_id WHERE j.submission_id = $1 FOR UPDATE OF j',
+          'SELECT j.id, j.status, j.exam_id, s.owner_id FROM jobs j JOIN submissions s ON s.id = j.submission_id WHERE j.submission_id = $1 FOR UPDATE OF j',
           [submissionId])).rows[0];
         if (!job || job.status !== 'running') return false;
         await client.query("UPDATE jobs SET status = 'failed', failure_code = $2, lease_token = NULL, lease_until = NULL WHERE id = $1", [job.id, code]);
-        await client.query('UPDATE entitlements SET reserved = reserved - 1 WHERE owner_id = $1', [job.owner_id]);
+        await client.query('UPDATE entitlements SET reserved = reserved - 1 WHERE owner_id = $1 AND exam_id = $2',
+          [job.owner_id, job.exam_id]);
         return true;
       });
     },

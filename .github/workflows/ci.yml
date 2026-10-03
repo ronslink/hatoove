@@ -105,6 +105,12 @@ jobs:
         run: node tools/owned-client-check.mjs
       - name: Exact objective versions at the browser boundary
         run: node tools/exam-s0-client-check.mjs
+      - name: Explicit preparation transport and stale response fences
+        run: node tools/exam-s1-client-check.mjs
+      - name: Preparation API and exam-scoped contract refusals
+        run: node tools/exam-s1-server-check.mjs
+      - name: Readiness follows database availability and recovers
+        run: node tools/readiness-check.mjs
       - name: Public content policy and criterion-specific feedback contracts
         run: node tools/exam-s0-server-check.mjs
       - name: Stale tabs cannot follow another account cookie
@@ -187,6 +193,10 @@ jobs:
         run: node tools/worker-runner-check.mjs
       - name: Version-specific evidence and public content gates on real PostgreSQL
         run: node tools/exam-s0-server-pg-check.mjs
+      - name: Preparation migration registration and credit concurrency on PostgreSQL
+        run: node tools/exam-s1-server-pg-check.mjs
+      - name: Bounded readiness probes recover after a real PostgreSQL connection loss
+        run: node tools/readiness-pg-check.mjs
       - name: The hosted runtime refuses by default
         run: node tools/saas-runtime-check.mjs
       # CONFIG-ANON-01. The machine-global /api/config write (and its read) is gone from the
@@ -206,7 +216,7 @@ jobs:
         run: node tools/table-class-check.mjs
       # Seven scratch-schema mutations prove the classifier detects policy, deletion-coverage,
       # shared-content, unclassified-table, answer-key and catalogue-grant regressions.
-      - name: The table-class check detects all seven mutations
+      - name: The table-class check detects all eight mutations
         run: node --test tools/table-class-check.test.mjs
       - name: Answer keys are inaccessible to runtime roles while marking still works
         run: node tools/objective-key-access-check.mjs

@@ -5,7 +5,9 @@ import { createOwnedApi } from '../server/owned-api.mjs';
 import { createMemoryDatastore, createMemorySessions } from './owned-api-check.mjs';
 
 const store = createMemoryDatastore();
-const sessions = createMemorySessions();
+// EXAM-S1: registration provisions the initial preparation + (owner, exam) balance, as the PostgreSQL
+// registration transaction does. Without a provisioner a new account would have neither.
+const sessions = createMemorySessions({ provision: store.provision });
 const deleted = [];
 const server = createOwnedApi({ datastore: store.port, sessions, settings: store.settings,
   accountDeletion: { async deleteAccount(owner) { deleted.push(owner); return { existed: true, removed: {} }; } } });

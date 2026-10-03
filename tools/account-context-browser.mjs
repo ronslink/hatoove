@@ -1,3 +1,4 @@
+import { fixturePreparation, scopedFixtureRoute } from './browser-preparation-fixtures.mjs';
 /** Called only with app-browser-check's disposable Compose stack and synthetic accounts. */
 import { randomUUID } from 'node:crypto';
 import { launchBrowser, connectToPage, CDP } from './cdp.js';
@@ -9,7 +10,8 @@ export async function verifyAccountContext({ base, freePort, record, shot, viewp
   const password = 'synthetic-context-browser-password';
   const accounts = [];
   async function raw(cookie, path, method = 'GET', body, expected) {
-    const res = await fetch(base + path, { method, headers: { cookie, origin: base, 'content-type': 'application/json', ...(expected ? { 'X-Hatoove-Account': expected } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    const account=accounts.find(a=>a.cookie===cookie);
+    const res = await fetch(base + scopedFixtureRoute(path, account?.preparationId), { method, headers: { cookie, origin: base, 'content-type': 'application/json', ...(expected ? { 'X-Hatoove-Account': expected } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
     return { status: res.status, data: await res.json(), cookie: res.headers.get('set-cookie')?.split(';')[0] };
   }
   try {
@@ -18,7 +20,8 @@ export async function verifyAccountContext({ base, freePort, record, shot, viewp
       const created = await raw('', '/api/auth/sign-up/email', 'POST', { name: 'Synthetic Context', email, password });
       if (created.status !== 200) throw new Error('Synthetic account setup failed: ' + created.status);
       const identity = await raw(created.cookie, '/api/v1/account');
-      accounts.push({ email, cookie: created.cookie, id: identity.data.id });
+      const preparations=await raw(created.cookie,'/api/v1/preparations');
+      accounts.push({ email, cookie: created.cookie, id: identity.data.id, preparationId:fixturePreparation(preparations.data) });
     }
     a = await connectToPage(port);
     await a.send('Network.enable');

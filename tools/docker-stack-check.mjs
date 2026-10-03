@@ -5,6 +5,7 @@
  * No browser, external provider, real account or host .env is used.
  */
 import assert from 'node:assert/strict';
+import { fixturePreparation, scopedFixtureRoute } from './browser-preparation-fixtures.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -42,7 +43,9 @@ let dbPort=await freePort();
 while(dbPort===appPort) dbPort=await freePort();
 const base='http://127.0.0.1:'+appPort;
 fs.writeFileSync(envFile,'HATOVE_APP_PORT='+appPort+'\nHATOVE_DB_PORT='+dbPort+'\nHATOVE_PUBLIC_ORIGIN='+base+'\n');
+let preparationId;
 async function request(method,url,body,cookie){
+  if(cookie && method==='GET') url=scopedFixtureRoute(url,preparationId);
   const headers={origin:base};
   if(body!==undefined) headers['content-type']='application/json';
   if(cookie) headers.cookie=cookie;
@@ -140,13 +143,19 @@ try{
   assert.equal(signup.status,200,signup.text);
   let cookie=signup.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
   assert.ok(cookie);
+  const preparations=await request('GET','/api/v1/preparations',undefined,cookie);
+  assert.equal(preparations.status,200);
+  preparationId=fixturePreparation(preparations.json);
   const accountBefore=await request('GET','/api/v1/account',undefined,cookie);
   assert.equal(accountBefore.status,200);
   assert.equal((await request('GET','/',undefined,cookie)).status,200);
   const settings=await request('GET','/api/v1/settings',undefined,cookie);
   assert.equal(settings.status,200);
-  const saved=await request('PUT','/api/v1/settings',{expectedRevision:settings.json.revision,settings:{examDate:'2026-12-01',language:'en'}},cookie);
+  const saved=await request('PUT','/api/v1/settings',{expectedRevision:settings.json.revision,settings:{language:'en'}},cookie);
   assert.equal(saved.status,200,saved.text);
+  const preparation=await request('GET','/api/v1/preparations/'+preparationId,undefined,cookie);
+  const savedDate=await request('PUT','/api/v1/preparations/'+preparationId,{expectedRevision:preparation.json.revision,examDate:'2026-12-01'},cookie);
+  assert.equal(savedDate.status,200,savedDate.text);
   passed('synthetic signup, protected shell and owned settings work at configured origin');
 
   /*
@@ -491,7 +500,7 @@ try{
    * the key. This is the spine adaptive selection will read.
    */
   const answerSet = 'telc-deutsch-b1.lv1.01';
-  const post = (payload) => request('POST', `/api/v1/objective-sets/${answerSet}/answers`, { version: 'v1', ...payload }, cookie);
+  const post = (payload) => request('POST', `/api/v1/objective-sets/${answerSet}/answers`, { version: 'v1', preparationId, ...payload }, cookie);
   assert.equal((await request('POST', `/api/v1/objective-sets/${answerSet}/answers`, { itemId: '1', answer: 'b' })).status,
     401, 'answering must require a session');
   const evidenceBefore = Number(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
@@ -684,7 +693,7 @@ try{
     const signIn=await fetch(probeBase+'/api/auth/sign-in/email',{method:'POST',headers:{'content-type':'application/json',origin:probeBase},body:JSON.stringify({email:credentials.email,password:credentials.password}),signal:AbortSignal.timeout(10000)});
     assert.equal(signIn.status,200,'sign-in against the probe failed');
     const probeCookie=signIn.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
-    const closed=await fetch(probeBase+'/api/v1/tasks?family=writing',{headers:{cookie:probeCookie},signal:AbortSignal.timeout(10000)});
+    const closed=await fetch(probeBase+'/api/v1/tasks?family=writing&preparationId='+preparationId,{headers:{cookie:probeCookie},signal:AbortSignal.timeout(10000)});
     assert.equal(closed.status,200);
     const strict=await closed.json();
     assert.ok(Array.isArray(strict),'the task list must be a JSON array');
@@ -699,9 +708,15 @@ try{
   assert.equal(login.status,200,login.text);
   cookie=login.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
   const after=await request('GET','/api/v1/settings',undefined,cookie);
-  assert.equal(after.json.settings.examDate,'2026-12-01');
+  const afterPrep=await request('GET','/api/v1/preparations/'+preparationId,undefined,cookie);
+  assert.equal(afterPrep.status,200);
+  assert.equal(afterPrep.json.exam_date,'2026-12-01');
   assert.equal(after.json.settings.language,'en');
   passed('fresh sign-in after container restart restores saved account settings');
+  const spec = spawnSync(process.execPath, ['tools/api-spec-check.mjs', '--base='+base],
+    {cwd:root,encoding:'utf8',windowsHide:true,timeout:60000});
+  assert.equal(spec.status,0, spec.error?.message || spec.stdout + spec.stderr);
+  passed('OpenAPI anonymous surface matches the disposable server (' + spec.stdout.match(/\d+ passed, 0 failed/)?.[0] + ')');
   console.log(count+' passed; product journeys, auth attack cases and model validity are separate gates.');
 } finally {
   if(started){

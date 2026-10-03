@@ -62,7 +62,7 @@ export function rolePool(config, schema, user, max = 2) {
  * Provision one isolated schema + roles and apply the tracked SQL.
  * @returns {Promise<object>} pools, role names and an idempotent `cleanup()`.
  */
-export async function createFixture(overrides = {}) {
+export async function createFixture({ stopBefore = null, ...overrides } = {}) {
   const config = { ...pgConfig(), ...overrides };
   const schema = `ownapi_${randomBytes(8).toString('hex')}`;
   const roles = Object.fromEntries(['migration', 'auth', 'learner', 'worker', 'deletion'].map((k) => [k, `${schema}_${k}`]));
@@ -137,11 +137,15 @@ export async function createFixture(overrides = {}) {
      * wrong key. 0010+ are therefore APPLIED, not duplicated.
      */
     const migrationDir = new URL('../migrations/', import.meta.url);
+    /*
+     * `stopBefore` (e.g. '0023-') builds the schema as it was BEFORE a migration, so an upgrade check can seed
+     * legacy rows and then apply the rest with `applyRemaining()` — in one transaction per file, as the
+     * persistent path does. Without it every file is applied, as before.
+     */
     const contentMigrations = (await readdir(migrationDir))
       .filter((file) => /^\d{4}-.*\.sql$/.test(file) && file >= '0010-')
       .sort();
-    for (const file of contentMigrations) {
-      const text = await readFile(new URL(file, migrationDir), 'utf8');
+    const render = (text) => {
       /*
        * THE SAME PLACEHOLDERS THE DEPLOYMENT PATH RENDERS, and now in one loop so the two cannot drift.
        * `__AUTH__` was missing here while `renderSql` in `provision.mjs` substituted it: a migration granting
@@ -152,10 +156,34 @@ export async function createFixture(overrides = {}) {
       for (const [key, value] of Object.entries({ SCHEMA: schema, AUTH: roles.auth, LEARNER: roles.learner, WORKER: roles.worker, DELETION: roles.deletion })) {
         rendered = rendered.replaceAll(`__${key}__`, value);
       }
-      await pools.migration.query(rendered);
+      return rendered;
+    };
+    const pending = stopBefore ? contentMigrations.filter((file) => file >= stopBefore) : [];
+    for (const file of contentMigrations.filter((name) => !pending.includes(name))) {
+      await pools.migration.query(render(await readFile(new URL(file, migrationDir), 'utf8')));
     }
+    /** Apply the migrations `stopBefore` held back, each in its own transaction as the migration role. */
+    const applyRemaining = async () => {
+      const applied = [];
+      while (pending.length) {
+        const file = pending.shift();
+        const client = await pools.migration.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query(render(await readFile(new URL(file, migrationDir), 'utf8')));
+          await client.query('COMMIT');
+          applied.push(file);
+        } catch (error) {
+          await client.query('ROLLBACK').catch(() => {});
+          throw error;
+        } finally {
+          client.release();
+        }
+      }
+      return applied;
+    };
 
-    return { schema, roles, config, admin, ...pools, cleanup };
+    return { schema, roles, config, admin, ...pools, cleanup, applyRemaining };
   } catch (error) {
     await cleanup();
     throw error;

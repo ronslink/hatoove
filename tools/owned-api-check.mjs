@@ -47,16 +47,36 @@ import {
   DEFAULT_TASK_BINDING, WRITING_TASKS, WRITING_RUBRIC, taskBindings,
   FORMATIVE_WRITING_RUBRIC, TELC_B1_WRITING_RUBRIC, TELC_B1_TASK_VERSION, CONTENT_VERSION,
 } from '../server/owned-postgres/content-seed.mjs';
+import { createExamCatalogue, preparationDto, INITIAL_EXAM_ID } from '../server/preparation-contract.mjs';
 
 /* ================================================== in-memory ports (TEST ONLY) */
+
+/**
+ * The exam packages the memory datastore knows, standing in for the `exam_package` table. A package is
+ * OFFERED only when it is also in the server-side catalogue (`createExamCatalogue`), exactly as in SQL.
+ */
+export const MEMORY_EXAM_PACKAGES = Object.freeze({
+  [INITIAL_EXAM_ID]: Object.freeze({ exam_id: INITIAL_EXAM_ID, exam: 'telc Deutsch B1', exam_language: 'de', level: 'B1' }),
+});
 
 /**
  * In-memory datastore mirroring spikes/auth-runtime/store.mjs semantics.
  * Test-only: it has no durability, no RLS and no roles. Each method runs without
  * an await, so it is atomic within one event-loop turn, standing in for the
  * spike's single transaction.
+ *
+ * EXAM-S1: preparations and (owner, exam) balances, mirroring `server/owned-postgres/preparations.mjs` and
+ * `adapter.mjs`. An absent balance reads as ZERO and reading never creates one. The ONLY writers of a
+ * balance are `provision()` (registration, like `provision_learner`: insert-only, never a refill) and the
+ * reservation/settlement paths. `allowance` is the default `provision()` grant, not a read-time default.
+ *
+ * For a standalone consumer: `const store = createMemoryDatastore();` then either
+ * `createMemorySessions({ provision: store.provision })` (sign-up provisions an active telc preparation and
+ * balance, as PostgreSQL does) or `const preparationId = store.provision(ownerId)` explicitly.
  */
-export function createMemoryDatastore({ allowance = 10 } = {}) {
+export function createMemoryDatastore({
+  allowance = 10, examCatalogue = createExamCatalogue(), examPackages = MEMORY_EXAM_PACKAGES,
+} = {}) {
   const attempts = new Map();
   const drafts = new Map();
   const submissions = new Map();
@@ -64,16 +84,61 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
   const jobs = new Map();
   const assessments = new Map();
   const entitlements = new Map();
+  const preparations = new Map();
   const calls = [];
 
   const fail = (status, code) => { throw new Fault(status, code); };
-  // Reading an entitlement never creates one, so a rejected request leaves no trace.
-  const entitlement = (owner) => entitlements.get(owner) ?? { allowance, used: 0, reserved: 0 };
-  const adjust = (owner, { used = 0, reserved = 0 }) => {
-    const next = { ...entitlement(owner) };
-    next.used += used;
-    next.reserved += reserved;
-    entitlements.set(owner, next);
+  const balanceKey = (owner, examId) => `${owner}\u0000${examId}`;
+  // Reading a balance never creates one, so a rejected request leaves no trace. Absent is zero.
+  const entitlement = (owner, examId = INITIAL_EXAM_ID) => entitlements.get(balanceKey(owner, examId)) ?? null;
+  const adjust = (owner, examId, { used = 0, reserved = 0 }) => {
+    const current = entitlement(owner, examId);
+    if (!current) return; // a settlement against an absent balance changes nothing (SQL: UPDATE of no row)
+    entitlements.set(balanceKey(owner, examId), { ...current, used: current.used + used, reserved: current.reserved + reserved });
+  };
+  const now = () => new Date().toISOString();
+  const prepDto = (prep) => preparationDto({ ...prep, ...examPackages[prep.exam_id] });
+  // Another owner's preparation is indistinguishable from an absent one.
+  const ownedPreparation = (owner, id) => {
+    const prep = preparations.get(id);
+    if (!prep || prep.owner_id !== owner) fail(404, 'not_found');
+    return prep;
+  };
+  const requirePreparationContext = (id) => {
+    if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) fail(422, 'preparation_required');
+    return id;
+  };
+  const requireActivePreparation = (owner, id) => {
+    const prep = ownedPreparation(owner, id);
+    if (prep.state !== 'active') fail(409, 'preparation_archived');
+    return prep;
+  };
+  // EXAM-S1-D, as `requireEditableContext` in the adapter: a draft is edited only in its own active preparation.
+  const requireEditableContext = (owner, attempt) => {
+    if (!attempt.preparation_id) fail(422, 'preparation_unresolved');
+    return requireActivePreparation(owner, attempt.preparation_id);
+  };
+  const activePreparation = (owner, examId) => [...preparations.values()]
+    .find((p) => p.owner_id === owner && p.exam_id === examId && p.state === 'active');
+  const insertPreparation = (owner, examId) => {
+    const id = randomUUID();
+    const at = now();
+    preparations.set(id, { id, owner_id: owner, exam_id: examId, exam_date: null, state: 'active', revision: 1, created_at: at, updated_at: at });
+    return preparations.get(id);
+  };
+
+  /**
+   * EXPLICIT provisioning, the memory twin of `provision_learner`: an active preparation for `examId` (kept
+   * if one exists) and, unless `grant` is null, a balance for (owner, exam) — INSERT-ONLY, an existing
+   * balance is never refilled. Returns the active preparation id. Not reachable over HTTP.
+   */
+  const provision = (owner, { examId = INITIAL_EXAM_ID, grant = allowance } = {}) => {
+    if (!examPackages[examId]) throw new Error(`unknown exam package: ${examId}`);
+    const prep = activePreparation(owner, examId) ?? insertPreparation(owner, examId);
+    if (grant !== null && !entitlements.has(balanceKey(owner, examId))) {
+      entitlements.set(balanceKey(owner, examId), { allowance: grant, used: 0, reserved: 0 });
+    }
+    return prep.id;
   };
   // Ownership scoping. Another owner's record is indistinguishable from an absent one.
   const ownedAttempt = (owner, id) => {
@@ -108,45 +173,66 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
     if (!contentIsServable({ review_status: 'unreviewed', rights_status: 'generated' })
       || !taskBindings().some((row) => row.taskId === binding.taskId && row.version === binding.taskVersion
         && row.rubricId === binding.rubricId && row.rubricVersion === binding.rubricVersion)) fail(422, 'task_not_servable');
+    // Every seeded writing task and rubric belongs to the initial package (content-seed.mjs).
+    return INITIAL_EXAM_ID;
   };
 
   const port = {
-    async create(owner, parent = null, binding = null) {
+    /*
+     * EXAM-S1, in the adapter's order: a REVISION inherits its parent's exact preparation (an explicit
+     * different one is 422 `preparation_mismatch`, an unresolved parent 422 `preparation_unresolved`); a new
+     * attempt needs an owned (404), active (409) preparation whose exam matches the task's (422).
+     */
+    async create(owner, parent = null, binding = null, preparationId = null) {
       const { contentIsServable } = await import('../server/content-policy.mjs');
       calls.push('create');
       const parentRow = parent ? ownedSubmission(owner, parent) : null;
       let b = binding || DEFAULT_TASK_BINDING;
+      let prepId = preparationId;
       if (parentRow) {
-        const inherited = bindingOf(ownedAttempt(owner, parentRow.attempt_id));
+        const parentAttempt = ownedAttempt(owner, parentRow.attempt_id);
+        const inherited = bindingOf(parentAttempt);
         if (binding && Object.keys(inherited).some((key) => binding[key] !== inherited[key])) fail(422, 'parent_binding_mismatch');
+        if (!parentAttempt.preparation_id) fail(422, 'preparation_unresolved');
+        if (preparationId && preparationId !== parentAttempt.preparation_id) fail(422, 'preparation_mismatch');
+        prepId = parentAttempt.preparation_id;
         b = inherited;
       }
-      requireServableBinding(b, contentIsServable);
+      requirePreparationContext(prepId);
+      const prep = requireActivePreparation(owner, prepId);
+      const contentExam = requireServableBinding(b, contentIsServable);
+      if (contentExam !== prep.exam_id) fail(422, 'preparation_mismatch');
       const id = randomUUID();
       attempts.set(id, {
         id, owner_id: owner, task_id: b.taskId, task_version: b.taskVersion,
         rubric_id: b.rubricId, rubric_version: b.rubricVersion,
-        parent_submission_id: parent, created_at: new Date().toISOString(), deleted_at: null,
+        parent_submission_id: parent, preparation_id: prep.id, exam_id: prep.exam_id,
+        created_at: now(), deleted_at: null,
       });
       drafts.set(id, { revision: 1, text: parentRow?.text || '' });
       return { id, revision: 1, text: parentRow?.text || '',
         task_id: b.taskId, task_version: b.taskVersion, rubric_id: b.rubricId,
-        rubric_version: b.rubricVersion, parent_submission_id: parent };
+        rubric_version: b.rubricVersion, parent_submission_id: parent,
+        preparation_id: prep.id, exam_id: prep.exam_id };
     },
     async read(owner, id) {
       calls.push('read');
       const attempt = ownedAttempt(owner, id);
       return { ...attemptView(attempt), ...historicalContent(attempt) };
     },
-    async listAttempts(owner) {
+    // EXAM-S1: one preparation's history; there is no all-preparations default.
+    async listAttempts(owner, { preparationId } = {}) {
       calls.push('listAttempts');
+      requirePreparationContext(preparationId);
+      ownedPreparation(owner, preparationId);
       return [...attempts.values()]
-        .filter((a) => a.owner_id === owner && !a.deleted_at)
+        .filter((a) => a.owner_id === owner && a.preparation_id === preparationId && !a.deleted_at)
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.id.localeCompare(a.id))
         .map((a) => {
           const s = submissionFor(a.id);
           return { id: a.id, task_id: a.task_id, task_version: a.task_version, rubric_id: a.rubric_id,
-            rubric_version: a.rubric_version, parent_submission_id: a.parent_submission_id,
+            rubric_version: a.rubric_version, preparation_id: a.preparation_id, exam_id: a.exam_id,
+            parent_submission_id: a.parent_submission_id,
             revision: drafts.get(a.id)?.revision, created_at: a.created_at,
             topic: WRITING_TASKS.find((task) => task.taskId === a.task_id)?.topic, submission_id: s?.id ?? null,
             status: !s ? 'draft' : assessments.has(s.id) ? 'assessed'
@@ -161,14 +247,26 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
       const ownSubmissions = [...submissions.values()].filter((s) => s.owner_id === owner
         && attempts.get(s.attempt_id)?.owner_id === owner);
       const deletedAt = (s) => attempts.get(s.attempt_id).deleted_at ?? null;
+      const context = (s) => ({ preparation_id: attempts.get(s.attempt_id).preparation_id ?? null,
+        exam_id: attempts.get(s.attempt_id).exam_id ?? null });
       return {
+        // EXAM-S1: every preparation (archived included) and every exam balance, as the adapter exports them.
+        preparations: [...preparations.values()].filter((p) => p.owner_id === owner)
+          .sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)) || x.id.localeCompare(y.id))
+          .map((p) => ({ ...prepDto(p), legacy_exam_date_disposition: null })),
+        balances: [...entitlements.entries()].filter(([key]) => key.startsWith(`${owner}\u0000`))
+          .map(([key, b]) => ({ exam_id: key.slice(owner.length + 1), ...b }))
+          .sort((x, y) => x.exam_id.localeCompare(y.exam_id)),
         attempts: active.map(({ owner_id, deleted_at, ...a }) => ({ ...a, ...drafts.get(a.id) })),
         submissions: ownSubmissions.map(({ owner_id, event_id, ...s }) => ({ ...s,
           task_id: attempts.get(s.attempt_id).task_id, rubric_id: attempts.get(s.attempt_id).rubric_id,
-          attempt_deleted_at: deletedAt(s) })),
-        results: ownSubmissions.map((s) => ({ submission_id: s.id, ...jobs.get(s.id),
-          ...structuredClone(assessments.get(s.id) || { feedback: null, model_version: null, prompt_version: null, rubric_version: null }),
-          attempt_deleted_at: deletedAt(s) })),
+          ...context(s), attempt_deleted_at: deletedAt(s) })),
+        results: ownSubmissions.map((s) => {
+          const { exam_id: creditExamId, ...job } = jobs.get(s.id);
+          return { submission_id: s.id, ...job, credit_exam_id: creditExamId,
+            ...structuredClone(assessments.get(s.id) || { feedback: null, model_version: null, prompt_version: null, rubric_version: null }),
+            ...context(s), attempt_deleted_at: deletedAt(s) };
+        }),
         objective_evidence: [],
       };
     },
@@ -178,13 +276,18 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
      * decides to resume. A rule enforced in one backend and not the other is a test-only disagreement,
      * which is how a check passes here and fails there.
      */
-    async listOpenAttempts(owner) {
+    async listOpenAttempts(owner, { preparationId } = {}) {
       calls.push('listOpenAttempts');
+      requirePreparationContext(preparationId);
+      ownedPreparation(owner, preparationId);
       return [...attempts.values()]
-        .filter((attempt) => attempt.owner_id === owner && !attempt.deleted_at && !submissionFor(attempt.id))
+        .filter((attempt) => attempt.owner_id === owner && attempt.preparation_id === preparationId
+          && !attempt.deleted_at && !submissionFor(attempt.id))
         .sort((x, y) => String(y.created_at).localeCompare(String(x.created_at)) || String(y.id).localeCompare(String(x.id)))
         .map((attempt) => ({
           id: attempt.id,
+          preparation_id: attempt.preparation_id,
+          exam_id: attempt.exam_id,
           task_id: attempt.task_id,
           task_version: attempt.task_version,
           rubric_id: attempt.rubric_id,
@@ -198,10 +301,11 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1 || typeof text !== 'string' || text.length > 12000) {
         fail(422, 'invalid_draft');
       }
-      ownedAttempt(owner, id);
+      const attempt = ownedAttempt(owner, id);
       const current = drafts.get(id);
       if (current.revision !== expectedRevision) fail(409, 'draft_conflict');
       if (submissionFor(id)) fail(409, 'revision_required');
+      requireEditableContext(owner, attempt);
       const next = { revision: current.revision + 1, text };
       drafts.set(id, next);
       return { ...next };
@@ -209,20 +313,24 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
     async submit(owner, id, expectedRevision, eventId, explanationLanguage = 'de') {
       const { contentIsServable } = await import('../server/content-policy.mjs');
       calls.push('submit');
-      const ent = entitlement(owner);
       const attempt = ownedAttempt(owner, id);
+      // EXAM-S1: the attempt's OWN exam balance; absent is zero.
+      const ent = attempt.exam_id ? entitlement(owner, attempt.exam_id) : null;
       const priorId = events.get(`${owner}\u0000${eventId}`);
       if (priorId) {
         const prior = submissions.get(priorId);
         if (prior.attempt_id !== attempt.id || prior.draft_revision !== expectedRevision) fail(409, 'idempotency_conflict');
         return { submissionId: prior.id, replay: true };
       }
+      // An unresolved legacy attempt stays readable, but cannot spend a credit of a guessed exam.
+      if (!attempt.preparation_id || !attempt.exam_id) fail(422, 'preparation_unresolved');
+      requireActivePreparation(owner, attempt.preparation_id);
       requireServableBinding(bindingOf(attempt), contentIsServable);
       const draft = drafts.get(id);
       if (draft.revision !== expectedRevision) fail(409, 'draft_conflict');
       if (!draft.text.trim()) fail(422, 'empty_submission');
       if (submissionFor(id)) fail(409, 'already_submitted');
-      if (ent.used + ent.reserved >= ent.allowance) fail(409, 'allowance_exhausted');
+      if (!ent || ent.used + ent.reserved >= ent.allowance) fail(409, 'allowance_exhausted');
       const submissionId = randomUUID();
       // Frozen: stands in for the spike's trigger that rejects snapshot updates.
       submissions.set(submissionId, Object.freeze({
@@ -231,8 +339,9 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
         explanation_language: explanationLanguage, created_at: new Date().toISOString(),
       }));
       events.set(`${owner}\u0000${eventId}`, submissionId);
-      jobs.set(submissionId, { status: 'queued', failure_code: null, tries: 0 });
-      adjust(owner, { reserved: 1 });
+      // `exam_id` is the balance this reservation lives in; every settlement uses it, never a later context.
+      jobs.set(submissionId, { status: 'queued', failure_code: null, tries: 0, exam_id: attempt.exam_id });
+      adjust(owner, attempt.exam_id, { reserved: 1 });
       return { submissionId, replay: false };
     },
     async result(owner, submissionId) {
@@ -246,29 +355,95 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
         assessment: assessments.has(submissionId) ? structuredClone(assessments.get(submissionId)) : null,
         task_id: attempt.task_id, task_version: attempt.task_version, rubric_id: attempt.rubric_id,
         rubric_version: attempt.rubric_version, parent_submission_id: attempt.parent_submission_id,
+        preparation_id: attempt.preparation_id ?? null, exam_id: attempt.exam_id ?? null,
         ...historicalContent(attempt),
       };
     },
+    /*
+     * Settles against the balance the job ORIGINALLY reserved from (`job.exam_id`). Allowed in an archived
+     * preparation, as in the adapter: finishing pending work is not new practice.
+     */
     async retry(owner, submissionId) {
       const { contentIsServable } = await import('../server/content-policy.mjs');
       calls.push('retry');
-      const ent = entitlement(owner);
       const submission = ownedSubmission(owner, submissionId);
       const job = jobs.get(submissionId);
+      const ent = entitlement(owner, job.exam_id);
       if (job.status !== 'failed' || job.tries >= 3 || job.failure_code === 'retry_exhausted') fail(409, 'retry_unavailable');
       requireServableBinding(bindingOf(ownedAttempt(owner, submission.attempt_id)), contentIsServable);
-      if (ent.used + ent.reserved >= ent.allowance) fail(409, 'allowance_exhausted');
+      if (!ent || ent.used + ent.reserved >= ent.allowance) fail(409, 'allowance_exhausted');
       job.status = 'queued';
       job.failure_code = null;
-      adjust(owner, { reserved: 1 });
+      adjust(owner, job.exam_id, { reserved: 1 });
     },
     // Only an unsubmitted draft can be discarded; ownership is proven first, so a foreign one stays 404.
+    // EXAM-S1-D: discarding is an edit, so an archived or unresolved context refuses it as in the adapter.
     async remove(owner, id) {
       calls.push('remove');
       const attempt = ownedAttempt(owner, id);
       if (submissionFor(id)) fail(409, 'submitted_attempt');
+      requireEditableContext(owner, attempt);
       attempt.deleted_at = new Date().toISOString();
       drafts.delete(id);
+    },
+
+    /*
+     * EXAM-S1 — the preparation capability, mirroring `owned-postgres/preparations.mjs`. None of these
+     * writes a balance: creating, archiving or resuming a preparation never grants or refills credits.
+     */
+    async listExams() {
+      calls.push('listExams');
+      return examCatalogue.ids.filter((id) => examPackages[id]).map((id) => ({ ...examPackages[id] }));
+    },
+    async listPreparations(owner) {
+      calls.push('listPreparations');
+      return [...preparations.values()].filter((p) => p.owner_id === owner)
+        .sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)) || x.id.localeCompare(y.id))
+        .map(prepDto);
+    },
+    async readPreparation(owner, id) {
+      calls.push('readPreparation');
+      return prepDto(ownedPreparation(owner, id));
+    },
+    async resolvePreparation(owner, id) {
+      calls.push('resolvePreparation');
+      const prep = ownedPreparation(owner, id);
+      return { id: prep.id, exam_id: prep.exam_id, state: prep.state };
+    },
+    async createPreparation(owner, examId) {
+      calls.push('createPreparation');
+      if (!examCatalogue.isEnabled(examId) || !examPackages[examId]) fail(422, 'exam_unavailable');
+      const active = activePreparation(owner, examId);
+      if (active) return { created: false, preparation: prepDto(active) };
+      return { created: true, preparation: prepDto(insertPreparation(owner, examId)) };
+    },
+    async updatePreparation(owner, id, expectedRevision, patch) {
+      calls.push('updatePreparation');
+      const prep = ownedPreparation(owner, id);
+      if (prep.revision !== expectedRevision) {
+        const error = new Fault(409, 'preparation_conflict');
+        error.current = prepDto(prep);
+        throw error;
+      }
+      if (patch.state === 'active' && prep.state !== 'active'
+        && [...preparations.values()].some((p) => p.id !== id && p.owner_id === owner && p.exam_id === prep.exam_id && p.state === 'active')) {
+        fail(409, 'active_preparation_exists');
+      }
+      preparations.set(id, {
+        ...prep,
+        exam_date: patch.examDate !== undefined ? patch.examDate : prep.exam_date,
+        state: patch.state ?? prep.state,
+        revision: prep.revision + 1,
+        updated_at: now(),
+      });
+      return prepDto(preparations.get(id));
+    },
+    async readCredits(owner, id) {
+      calls.push('readCredits');
+      const prep = ownedPreparation(owner, id);
+      const b = entitlement(owner, prep.exam_id) ?? { allowance: 0, used: 0, reserved: 0 };
+      return { examId: prep.exam_id, allowance: b.allowance, used: b.used, reserved: b.reserved,
+        available: Math.max(0, b.allowance - b.used - b.reserved) };
     },
   };
 
@@ -302,7 +477,7 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
           : { kind: 'synthetic-formative', comment },
         model_version: 'fixture-v1', prompt_version: 'fixture-v1', rubric_version: submission.rubric_version,
       }));
-      adjust(submission.owner_id, { reserved: -1, used: 1 });
+      adjust(submission.owner_id, job.exam_id, { reserved: -1, used: 1 });
       job.status = 'succeeded';
       return true;
     },
@@ -311,7 +486,7 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
       if (!job || job.status !== 'running') return false;
       job.status = 'failed';
       job.failure_code = code;
-      adjust(submissions.get(submissionId).owner_id, { reserved: -1 });
+      adjust(submissions.get(submissionId).owner_id, job.exam_id, { reserved: -1 });
       return true;
     },
     /*
@@ -326,7 +501,7 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
         const job = submission.attempt_id === attemptId ? jobs.get(submission.id) : null;
         if (job && (job.status === 'queued' || job.status === 'running')) {
           job.status = 'cancelled';
-          adjust(attempt.owner_id, { reserved: -1 });
+          adjust(attempt.owner_id, job.exam_id, { reserved: -1 });
         }
       }
       attempt.deleted_at = new Date().toISOString();
@@ -341,10 +516,15 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
     submission: (id) => submissions.get(id),
     job: (id) => ({ ...jobs.get(id) }),
     attempt: (id) => (attempts.has(id) ? { ...attempts.get(id), draft: drafts.get(id) ? { ...drafts.get(id) } : null } : null),
-    entitlement: (owner) => ({ ...entitlement(owner) }),
+    /** One (owner, exam) balance, as the PostgreSQL fixture reports it: absent is zero, not the grant. */
+    entitlement: (owner, examId = INITIAL_EXAM_ID) => ({
+      owner_id: owner, exam_id: examId, ...(entitlement(owner, examId) ?? { allowance: 0, used: 0, reserved: 0 }),
+    }),
+    preparations: (owner) => [...preparations.values()].filter((p) => p.owner_id === owner).map((p) => ({ ...p })),
     fingerprint: () => JSON.stringify({
       attempts: [...attempts.values()], drafts: [...drafts.entries()], submissions: [...submissions.values()],
       jobs: [...jobs.entries()], assessments: [...assessments.entries()], entitlements: [...entitlements.entries()],
+      preparations: [...preparations.values()],
     }),
   };
 
@@ -378,11 +558,16 @@ export function createMemoryDatastore({ allowance = 10 } = {}) {
     },
   };
 
-  return { port, settings: settingsPort, worker, inspect };
+  return { port, settings: settingsPort, worker, inspect, provision };
 }
 
-/** In-memory session port. Synthetic accounts only; TEST ONLY, not an auth system. */
-export function createMemorySessions() {
+/**
+ * In-memory session port. Synthetic accounts only; TEST ONLY, not an auth system.
+ * @param {{provision?: (owner: string) => string}} [options] `provision` runs inside sign-up, standing in for
+ *   `provision_learner` in the PostgreSQL registration transaction. Without it a new account has NO
+ *   preparation and NO balance — never an implicit one.
+ */
+export function createMemorySessions({ provision = null } = {}) {
   const COOKIE = 'hatoove_owned_session';
   const users = new Map();
   const sessions = new Map();
@@ -414,6 +599,7 @@ export function createMemorySessions() {
       const salt = randomBytes(16);
       // Auth user ids are opaque text in contract 0.1.0, deliberately not UUIDs.
       const user = { id: `user-${randomBytes(9).toString('base64url')}`, email, salt, hash: hash(password, salt) };
+      if (typeof provision === 'function') provision(user.id);
       users.set(email, user);
       return issue(user.id);
     },
@@ -620,7 +806,7 @@ function cataloguePort() {
 async function catalogueWorld() {
   if (BACKEND !== 'memory') return world(); // the real datastore implements the catalogue already
   const store = createMemoryDatastore({ allowance: 10 });
-  const sessions = createMemorySessions();
+  const sessions = createMemorySessions({ provision: store.provision });
   const api = createOwnedApi({ datastore: { ...store.port, ...cataloguePort() }, sessions, settings: store.settings });
   return { store, sessions, api, browser: () => inProcessBrowser(api) };
 }
@@ -638,7 +824,8 @@ async function world({ allowance } = {}) {
     return { store: pg.store, sessions: pg.sessions, api: pg.api, browser: () => inProcessBrowser(pg.api) };
   }
   const store = createMemoryDatastore({ allowance });
-  const sessions = createMemorySessions();
+  // Sign-up provisions the initial preparation and balance, as the PostgreSQL registration does.
+  const sessions = createMemorySessions({ provision: store.provision });
   const api = createOwnedApi({ datastore: store.port, sessions, settings: store.settings });
   return { store, sessions, api, browser: () => inProcessBrowser(api) };
 }
@@ -692,10 +879,22 @@ async function closeWorlds() {
   for (const pg of openWorlds.splice(0)) await pg.teardown();
 }
 
+/**
+ * EXAM-S1: the one ACTIVE telc preparation registration provisioned, read through the real
+ * `GET /api/v1/preparations` route — never assumed, so a sign-up that provisioned nothing (or two) fails here.
+ */
+function activeInitialPreparation(list) {
+  const active = (list && Array.isArray(list.preparations) ? list.preparations : [])
+    .filter((p) => p.exam_id === INITIAL_EXAM_ID && p.state === 'active');
+  assert.equal(active.length, 1, `registration must provision exactly one active ${INITIAL_EXAM_ID} preparation, got ${JSON.stringify(list)}`);
+  return active[0].id;
+}
+
 async function learner(w, tag = 'a') {
   const b = w.browser();
   const account = await b.client.signUp({ name: `Learner ${tag}`, email: nextEmail(tag), password: `pw-${tag}-synthetic` });
-  return { ...b, account };
+  const preparationId = activeInitialPreparation((await b.raw('GET', '/api/v1/preparations')).json);
+  return { ...b, account, preparationId };
 }
 
 async function expectClientError(promise, code, { status, detail } = {}) {
@@ -711,7 +910,7 @@ async function expectClientError(promise, code, { status, detail } = {}) {
 /** A learner with one submitted attempt. */
 async function submitted(w, tag = 'a', text = 'Liebe Anna, ich komme gern am Samstag.') {
   const who = await learner(w, tag);
-  const attempt = await who.client.createAttempt();
+  const attempt = await who.client.createAttempt({ preparationId: who.preparationId });
   const draft = await who.client.saveDraft(attempt.id, { expectedRevision: 1, text });
   const eventId = randomUUID();
   const receipt = await who.client.submit(attempt.id, { expectedRevision: draft.revision, eventId });
@@ -755,6 +954,11 @@ check('unauthenticated-requests-get-401', async () => {
     ['GET', `/api/v1/attempts/${ATTEMPT_ABSENT}`],
     ['GET', `/api/v1/submissions/${SUBMISSION_ABSENT}`],
     ['GET', '/api/v1/no-such-route'],
+    // EXAM-S1: preparation context is never readable or creatable without a session.
+    ['GET', '/api/v1/preparations'],
+    ['POST', '/api/v1/preparations', { examId: INITIAL_EXAM_ID }],
+    ['GET', `/api/v1/attempts?open=1&preparationId=${ATTEMPT_ABSENT}`],
+    ['POST', '/api/v1/attempts', { preparationId: ATTEMPT_ABSENT }],
   ]) {
     const res = await b.raw(method, url, body);
     assert.equal(res.status, 401, `${method} ${url}`);
@@ -789,9 +993,11 @@ check('get-session-reports-only-the-verified-session', async () => {
 check('client-full-lifecycle-shapes', async () => {
   const w = await world();
   const a = await learner(w);
-  const attempt = await a.client.createAttempt();
+  const attempt = await a.client.createAttempt({ preparationId: a.preparationId });
   assert.equal(attempt.revision, 1, 'draft revisions start at 1');
   assert.equal(attempt.text, '');
+  assert.equal(attempt.preparation_id, a.preparationId, 'the attempt records the preparation it was created in');
+  assert.equal(attempt.exam_id, INITIAL_EXAM_ID);
   const read = await a.client.readAttempt(attempt.id);
   assert.equal(read.id, attempt.id);
   assert.equal(read.owner_id, a.account.id);
@@ -816,7 +1022,7 @@ check('client-full-lifecycle-shapes', async () => {
 check('draft-revision-checked-and-increments-once', async () => {
   const w = await world();
   const a = await learner(w);
-  const attempt = await a.client.createAttempt();
+  const attempt = await a.client.createAttempt({ preparationId: a.preparationId });
   const r2 = await a.client.saveDraft(attempt.id, { expectedRevision: 1, text: 'eins' });
   const r3 = await a.client.saveDraft(attempt.id, { expectedRevision: 2, text: 'zwei' });
   assert.deepEqual([r2.revision, r3.revision], [2, 3]);
@@ -844,7 +1050,7 @@ check('submission-idempotent-on-owner-and-event', async () => {
   assert.equal(await w.store.inspect.submissionCount(s.account.id), 1);
   // The event key is per owner: another account reusing the same eventId gets its own submission.
   const b = await learner(w, 'b');
-  const attemptB = await b.client.createAttempt();
+  const attemptB = await b.client.createAttempt({ preparationId: b.preparationId });
   await b.client.saveDraft(attemptB.id, { expectedRevision: 1, text: 'B Text' });
   const receiptB = await b.client.submit(attemptB.id, { expectedRevision: 2, eventId: s.eventId });
   assert.equal(receiptB.replay, false);
@@ -864,9 +1070,16 @@ check('submission-snapshot-immutable', async () => {
   // Mutating a returned copy cannot reach the stored snapshot.
   result.submission.text = 'caller edit';
   assert.equal((await s.client.readResult(s.receipt.submissionId)).submission.text, 'Original eingereicht');
-  // A new attempt linked to the submission is the only way to revise.
+  // A new attempt linked to the submission is the only way to revise. EXAM-S1: it names no preparation and
+  // INHERITS its parent's; naming a different one is refused and writes nothing.
+  const before = await w.store.inspect.fingerprint();
+  const elsewhere = await s.raw('POST', '/api/v1/attempts', { parentSubmissionId: s.receipt.submissionId, preparationId: randomUUID() });
+  assert.equal(elsewhere.status, 422, `a revision in another preparation must be 422, got ${elsewhere.status}`);
+  assert.equal(elsewhere.json.error, 'preparation_mismatch');
+  assert.equal(await w.store.inspect.fingerprint(), before, 'the refused revision wrote nothing');
   const revision = await s.client.createAttempt({ parentSubmissionId: s.receipt.submissionId });
   assert.equal(revision.revision, 1);
+  assert.equal(revision.preparation_id, s.preparationId, "a revision inherits its parent's preparation");
   assert.equal((await s.client.readAttempt(revision.id)).parent_submission_id, s.receipt.submissionId);
 });
 
@@ -930,34 +1143,43 @@ check('model-is-not-a-learner-setting', async () => {
    * `validateSettings` refuses a patch that resolves to no fields at all. The assertion passed whether
    * or not `model` was accepted, for two different reasons, which is the "a check that cannot fail"
    * failure mode this programme keeps meeting. A payload whose only OTHER outcome is success makes
-   * acceptance visible: if `model` were allowed, `{model, examDate}` would be non-empty, the write would
+   * acceptance visible: if `model` were allowed, `{model, dailyGoal}` would be non-empty, the write would
    * land, and the 422 assertion would fail.
+   *
+   * EXAM-S1: the legal companion is `dailyGoal`, no longer `examDate` — the exam date belongs to the
+   * preparation, and a settings write carrying it is itself refused (asserted at the end of this leg).
    */
-  const legal = '2026-12-12';
-  const nested = await s.raw('PUT', '/api/v1/settings', { expectedRevision: before.revision, settings: { model: 'gpt-4o', examDate: legal } });
+  const legal = before.settings.dailyGoal === 37 ? 38 : 37;
+  const nested = await s.raw('PUT', '/api/v1/settings', { expectedRevision: before.revision, settings: { model: 'gpt-4o', dailyGoal: legal } });
   assert.equal(nested.status, 422, `nested settings.model must be 422, got ${nested.status}`);
-  const inline = await s.raw('PUT', '/api/v1/settings', { expectedRevision: before.revision, model: 'gpt-4o', examDate: legal });
+  const inline = await s.raw('PUT', '/api/v1/settings', { expectedRevision: before.revision, model: 'gpt-4o', dailyGoal: legal });
   assert.equal(inline.status, 422, `inline model must be 422, got ${inline.status}`);
   // The refusal is ATOMIC: the legal field travelling with the illegal one was not written either.
   const after = await s.client.readSettings();
   assert.equal(after.revision, before.revision, 'a refused write must not advance the revision');
-  assert.notEqual(after.settings.examDate, legal, 'a refused write must not store the field that travelled with it');
+  assert.notEqual(after.settings.dailyGoal, legal, 'a refused write must not store the field that travelled with it');
   // The shipped client refuses it locally too, which is defence in depth. `saveSettings` throws
   // SYNCHRONOUSLY for input it will not send, so this cannot use the promise-shaped helper.
   let clientRefusal = null;
   try {
-    s.client.saveSettings({ expectedRevision: after.revision, settings: { model: 'gpt-4o', examDate: legal } });
+    s.client.saveSettings({ expectedRevision: after.revision, settings: { model: 'gpt-4o', dailyGoal: legal } });
   } catch (error) {
     clientRefusal = error;
   }
   assert.ok(clientRefusal, 'the client must refuse a model setting rather than send it');
   assert.equal(clientRefusal.code, 'invalid_request', `client refusal code: ${clientRefusal.code}`);
   // The fields that ARE learner settings still work: tightening the surface is not disabling it.
-  const saved = await s.client.saveSettings({ expectedRevision: after.revision, settings: { examDate: legal, language: 'de' } });
+  const saved = await s.client.saveSettings({ expectedRevision: after.revision, settings: { dailyGoal: legal, language: 'de' } });
   assert.equal(saved.revision, after.revision + 1, 'a real settings write still advances the revision once');
-  assert.equal(saved.settings.examDate, legal);
+  assert.equal(saved.settings.dailyGoal, legal);
   assert.ok(!('model' in saved.settings), 'and no response grows a model field back');
-  return 'model refused by the client AND the server in both shapes (422) while a legal field in the same payload is left unwritten; examDate/language still save; no model in any response';
+  // The legacy exam date is read-only here: the server refuses it in both shapes and writes nothing.
+  for (const body of [{ expectedRevision: saved.revision, examDate: '2026-12-12' },
+    { expectedRevision: saved.revision, settings: { examDate: '2026-12-12' } }]) {
+    assert.equal((await s.raw('PUT', '/api/v1/settings', body)).status, 422, `examDate is not a settings write: ${JSON.stringify(body)}`);
+  }
+  assert.equal((await s.client.readSettings()).revision, saved.revision, 'a refused examDate write must not advance the revision');
+  return 'model refused by the client AND the server in both shapes (422) while a legal field in the same payload is left unwritten; dailyGoal/language still save; examDate refused as a settings write; no model in any response';
 });
 
 /*
@@ -989,7 +1211,7 @@ check('attempt-binds-the-servable-task-the-learner-opened', async () => {
     rubricId: TELC_B1_WRITING_RUBRIC.rubricId,
     rubricVersion: TELC_B1_WRITING_RUBRIC.version,
   };
-  const attempt = await a.client.createAttempt(binding);
+  const attempt = await a.client.createAttempt({ ...binding, preparationId: a.preparationId });
   const read = await a.raw('GET', `/api/v1/attempts/${attempt.id}`);
   assert.equal(read.json.task_id, binding.taskId, 'the attempt must be bound to the task that was opened');
   assert.equal(read.json.task_version, binding.taskVersion, 'and to that VERSION, not to whichever is current');
@@ -997,21 +1219,36 @@ check('attempt-binds-the-servable-task-the-learner-opened', async () => {
   assert.notEqual(read.json.task_id, DEFAULT_TASK_BINDING.taskId, 'and not silently the default task');
 
   const before = await w.store.inspect.fingerprint();
-  const unknown = await a.raw('POST', '/api/v1/attempts', { ...binding, taskId: 'writing.du.nicht-vorhanden' });
+  const scoped = { preparationId: a.preparationId };
+  const unknown = await a.raw('POST', '/api/v1/attempts', { ...binding, ...scoped, taskId: 'writing.du.nicht-vorhanden' });
   assert.equal(unknown.status, 422, `a task the deployment does not serve must be 422, got ${unknown.status}`);
   assert.equal(unknown.json.error, 'task_not_servable', `refusal token: ${unknown.json.error}`);
-  const wrongRubric = await a.raw('POST', '/api/v1/attempts', { ...binding, rubricId: 'writing.own-rubric' });
+  const wrongRubric = await a.raw('POST', '/api/v1/attempts', { ...binding, ...scoped, rubricId: 'writing.own-rubric' });
   assert.equal(wrongRubric.status, 422, `a client-chosen rubric must be refused, got ${wrongRubric.status}`);
-  const incomplete = await a.raw('POST', '/api/v1/attempts', { taskId: binding.taskId });
+  const incomplete = await a.raw('POST', '/api/v1/attempts', { ...scoped, taskId: binding.taskId });
   assert.equal(incomplete.status, 422, `a partial binding must be refused, got ${incomplete.status}`);
   assert.equal(incomplete.json.error, 'invalid_binding', `refusal token: ${incomplete.json.error}`);
-  assert.equal(await w.store.inspect.fingerprint(), before, 'no refused binding may leave an attempt behind');
+  /*
+   * EXAM-S1 — A NEW ATTEMPT NAMES ITS PREPARATION. Missing is never "telc by default", malformed is refused
+   * before any lookup, and an id that is not this learner's is the same 404 as one that does not exist.
+   */
+  for (const [body, status, code] of [
+    [binding, 422, 'preparation_required'],
+    [{}, 422, 'preparation_required'],
+    [{ ...binding, preparationId: 'not-a-uuid' }, 422, 'invalid_preparation'],
+    [{ ...binding, preparationId: randomUUID() }, 404, 'not_found'],
+  ]) {
+    const res = await a.raw('POST', '/api/v1/attempts', body);
+    assert.equal(res.status, status, `${JSON.stringify(body)} must be ${status}, got ${res.status}`);
+    assert.equal(res.json.error, code, `refusal token: ${res.json.error}`);
+  }
+  assert.equal(await w.store.inspect.fingerprint(), before, 'no refused binding or context may leave an attempt behind');
 
   // Omitting the binding keeps the previous behaviour, so an existing caller does not break.
-  const fallback = await a.client.createAttempt();
+  const fallback = await a.client.createAttempt({ preparationId: a.preparationId });
   const fallbackRead = await a.raw('GET', `/api/v1/attempts/${fallback.id}`);
   assert.equal(fallbackRead.json.task_id, DEFAULT_TASK_BINDING.taskId, 'omitting the binding still uses the default task');
-  return `bound to ${binding.taskId}@${binding.taskVersion}; unknown task, foreign rubric and partial binding all refused (422) with nothing written`;
+  return `bound to ${binding.taskId}@${binding.taskVersion}; unknown task, foreign rubric, partial binding and missing/invalid/absent preparation all refused with nothing written`;
 });
 
 /*
@@ -1032,9 +1269,15 @@ check('an-unfinished-attempt-is-resumable-and-a-submitted-one-is-not', async () 
   const w = await world();
   const a = await learner(w, 'a');
   const b = await learner(w, 'b');
+  // EXAM-S1: the index is one preparation's. Missing context is refused, never "every exam".
+  const openOf = (who) => `/api/v1/attempts?open=1&preparationId=${who.preparationId}`;
+  const none = (who) => ({ preparation_id: who.preparationId, attempts: [] });
+  const unscoped = await a.raw('GET', '/api/v1/attempts?open=1');
+  assert.equal(unscoped.status, 422, 'the open index without a preparation is refused');
+  assert.equal(unscoped.json.error, 'preparation_required');
 
   // Nothing open to begin with: a fresh account has no draft to resume.
-  assert.deepEqual((await a.raw('GET', '/api/v1/attempts?open=1')).json, { attempts: [] }, 'a fresh account has nothing to resume');
+  assert.deepEqual((await a.raw('GET', openOf(a))).json, none(a), 'a fresh account has nothing to resume');
   /*
    * THE FLAG SELECTS A READ, IT DOES NOT OPEN THE PATH TO OTHER METHODS. A bare `GET /api/v1/attempts` is
    * no longer asserted 404: it becomes the supported history read, and `?open=1` stays the open index this
@@ -1048,12 +1291,13 @@ check('an-unfinished-attempt-is-resumable-and-a-submitted-one-is-not', async () 
     }
   }
 
-  const attempt = await a.client.createAttempt();
+  const attempt = await a.client.createAttempt({ preparationId: a.preparationId });
   const saved = await a.client.saveDraft(attempt.id, { expectedRevision: 1, text: 'Angefangener Brief' });
-  const open = (await a.raw('GET', '/api/v1/attempts?open=1')).json;
+  const open = (await a.raw('GET', openOf(a))).json;
   assert.equal(open.attempts.length, 1, `exactly one open attempt expected, got ${open.attempts.length}`);
   const entry = open.attempts[0];
   assert.equal(entry.id, attempt.id, 'the open index names the attempt');
+  assert.equal(entry.preparation_id, a.preparationId, 'and the preparation it belongs to');
   assert.equal(entry.revision, saved.revision, 'and the revision the client must save against');
   assert.equal(entry.task_id, DEFAULT_TASK_BINDING.taskId, 'and the task it is bound to, so the view can resume the RIGHT one');
   assert.equal(entry.task_version, DEFAULT_TASK_BINDING.taskVersion, 'including the version');
@@ -1061,20 +1305,25 @@ check('an-unfinished-attempt-is-resumable-and-a-submitted-one-is-not', async () 
   assert.ok(!('text' in entry), 'the open index must not carry the draft text');
   assert.ok(!JSON.stringify(entry).includes('Angefangener Brief'), 'and no field may smuggle it');
 
-  // Another learner sees none of it.
-  assert.deepEqual((await b.raw('GET', '/api/v1/attempts?open=1')).json, { attempts: [] }, 'the index is owner-scoped: a stranger sees nothing');
+  // Another learner sees none of it: not in their own preparation, and A's preparation is a plain 404.
+  assert.deepEqual((await b.raw('GET', openOf(b))).json, none(b), 'the index is owner-scoped: a stranger sees nothing');
+  for (const url of [openOf(a), `/api/v1/attempts?preparationId=${a.preparationId}`]) {
+    const foreign = await b.raw('GET', url);
+    assert.equal(foreign.status, 404, `another learner's preparation must be 404 on ${url}, got ${foreign.status}`);
+    assert.deepEqual(foreign.json, { error: 'not_found' });
+  }
 
   // Submitting ends resumability: the snapshot is frozen and must not come back as an editable draft.
   await a.client.submit(attempt.id, { expectedRevision: saved.revision, eventId: randomUUID() });
-  assert.deepEqual((await a.raw('GET', '/api/v1/attempts?open=1')).json, { attempts: [] },
+  assert.deepEqual((await a.raw('GET', openOf(a))).json, none(a),
     'a submitted attempt is not resumable');
 
   // A deleted attempt is not resumable either.
-  const second = await a.client.createAttempt();
+  const second = await a.client.createAttempt({ preparationId: a.preparationId });
   await a.client.saveDraft(second.id, { expectedRevision: 1, text: 'Wird verworfen' });
-  assert.equal((await a.raw('GET', '/api/v1/attempts?open=1')).json.attempts.length, 1, 'a second draft is open too');
+  assert.equal((await a.raw('GET', openOf(a))).json.attempts.length, 1, 'a second draft is open too');
   await a.client.deleteAttempt(second.id);
-  const afterDelete = (await a.raw('GET', '/api/v1/attempts?open=1')).json;
+  const afterDelete = (await a.raw('GET', openOf(a))).json;
   assert.ok(!afterDelete.attempts.some((x) => x.id === second.id), 'a deleted attempt is not resumable');
   return `resumed ${entry.id}@rev${entry.revision} with no text in the index; empty for a stranger, after submit, and after delete`;
 });
@@ -1095,11 +1344,13 @@ check('an-unfinished-attempt-is-resumable-and-a-submitted-one-is-not', async () 
 check('family-ids-are-one-convention-across-both-catalogue-routes', async () => {
   const w = await catalogueWorld();
   const a = await learner(w);
+  // EXAM-S1: every catalogue read runs in the learner's own preparation.
+  const scope = `&preparationId=${a.preparationId}`;
 
   // ONE PART ID, THE SAME ANSWER — and the kind token keeps working, because the app and
   // docker-stack-check both send it.
-  const byPart = await a.raw('GET', '/api/v1/tasks?family=SA1');
-  const byKind = await a.raw('GET', '/api/v1/tasks?family=writing');
+  const byPart = await a.raw('GET', `/api/v1/tasks?family=SA1${scope}`);
+  const byKind = await a.raw('GET', `/api/v1/tasks?family=writing${scope}`);
   assert.equal(byPart.status, 200, `family=SA1 must be accepted, got ${byPart.status} ${byPart.text.slice(0, 80)}`);
   /*
    * CASE-SIGNIFICANT, and that is the point rather than pedantry: docker-stack-check already asserts that a
@@ -1107,38 +1358,38 @@ check('family-ids-are-one-convention-across-both-catalogue-routes', async () => 
    * conventions wearing one name — the defect this parser exists to end. The two forms are a PART ID and a
    * KIND, not a spelling and its variant.
    */
-  assert.equal((await a.raw('GET', '/api/v1/tasks?family=sa1')).status, 422, 'a lowercase part id must be refused');
+  assert.equal((await a.raw('GET', `/api/v1/tasks?family=sa1${scope}`)).status, 422, 'a lowercase part id must be refused');
   assert.deepEqual(byKind.json, byPart.json, 'the kind token must return the same tasks as its part id');
   assert.ok(Array.isArray(byPart.json) && byPart.json.length >= 1, 'and it must actually return the writing tasks');
   assert.ok(byPart.json.every((t) => t.family === 'writing'), 'all of them from the writing family');
 
   // AN OBJECTIVE PART ID ON THE TASKS ROUTE IS AN EMPTY ANSWER, NOT A REFUSAL: the route narrows, it does
   // not decide which parts exist. Refusing here is what made the two routes disagree.
-  const lvOnTasks = await a.raw('GET', '/api/v1/tasks?family=LV1');
+  const lvOnTasks = await a.raw('GET', `/api/v1/tasks?family=LV1${scope}`);
   assert.equal(lvOnTasks.status, 200, `family=LV1 on the tasks route must narrow, not refuse, got ${lvOnTasks.status}`);
   assert.deepEqual(lvOnTasks.json, [], 'and there are no reading tasks in the writing catalogue');
 
   // THE OBJECTIVE ROUTE, BOTH FORMS: an exact part id and a group. The group form is what makes the two
   // routes speak one language — a KIND is a valid filter everywhere.
-  const onePart = await a.raw('GET', '/api/v1/objective-sets?family=LV1');
+  const onePart = await a.raw('GET', `/api/v1/objective-sets?family=LV1${scope}`);
   assert.equal(onePart.status, 200, `family=LV1 must be accepted, got ${onePart.status}`);
   assert.ok(Array.isArray(onePart.json) && onePart.json.length >= 1, 'and must match the seeded LV1 sets');
   assert.ok(onePart.json.every((s) => s.family === 'LV1' && s.part === 1), 'only LV1, part 1');
-  const group = await a.raw('GET', '/api/v1/objective-sets?family=lv');
+  const group = await a.raw('GET', `/api/v1/objective-sets?family=lv${scope}`);
   assert.equal(group.status, 200, 'the group form must be accepted');
   assert.ok(group.json.length >= onePart.json.length, `the group must be at least as wide as one part (${group.json.length} vs ${onePart.json.length})`);
   assert.ok(group.json.every((s) => String(s.section).toUpperCase() === 'LV'), 'and every row must be Leseverstehen');
-  const writingOnSets = await a.raw('GET', '/api/v1/objective-sets?family=SA1');
+  const writingOnSets = await a.raw('GET', `/api/v1/objective-sets?family=SA1${scope}`);
   assert.equal(writingOnSets.status, 200, 'the writing part id is valid on this route too');
   assert.deepEqual(writingOnSets.json, [], 'and there are no objective sets in it');
 
   // THE CLOSED SET STILL CLOSES: a plausible but non-existent part, an unknown group and junk are all
   // refused on both routes. Accepting either SPELLING is not accepting anything.
   for (const bad of ['SA2', 'LV9', 'SB3', 'XX1', 'nonsense', 'LV1 ', '', 'sa1', 'WRITING']) {
-    const res = await a.raw('GET', `/api/v1/tasks?family=${encodeURIComponent(bad)}`);
+    const res = await a.raw('GET', `/api/v1/tasks?family=${encodeURIComponent(bad)}${scope}`);
     assert.equal(res.status, 422, `tasks family=${JSON.stringify(bad)} must be 422, got ${res.status}`);
     assert.equal(res.json.error, 'invalid_family', `tasks family=${JSON.stringify(bad)} token`);
-    const sets = await a.raw('GET', `/api/v1/objective-sets?family=${encodeURIComponent(bad)}`);
+    const sets = await a.raw('GET', `/api/v1/objective-sets?family=${encodeURIComponent(bad)}${scope}`);
     assert.equal(sets.status, 422, `objective-sets family=${JSON.stringify(bad)} must be 422, got ${sets.status}`);
   }
   return `SA1 and writing agree on the tasks route (${byPart.json.length} task(s)); LV1 exact + lv group on the sets route; 9 invalid spellings refused on both`;
@@ -1148,7 +1399,7 @@ check('the-catalogue-serves-the-telc-rubric-once-per-task', async () => {
   const w = await catalogueWorld();
   const a = await learner(w);
 
-  const listed = await a.raw('GET', '/api/v1/tasks?family=SA1');
+  const listed = await a.raw('GET', `/api/v1/tasks?family=SA1&preparationId=${a.preparationId}`);
   assert.equal(listed.status, 200, `the tasks route must answer, got ${listed.status}`);
 
   /*
@@ -1246,7 +1497,7 @@ check('retry-only-eligible-failed-job-same-identity', async () => {
 check('allowance-exhausted-409', async () => {
   const w = await world({ allowance: 1 });
   const s = await submitted(w);
-  const next = await s.client.createAttempt();
+  const next = await s.client.createAttempt({ preparationId: s.preparationId });
   await s.client.saveDraft(next.id, { expectedRevision: 1, text: 'zweiter Text' });
   await expectClientError(s.client.submit(next.id, { expectedRevision: 2, eventId: randomUUID() }),
     'conflict', { status: 409, detail: 'allowance_exhausted' });
@@ -1270,7 +1521,7 @@ check('delete-is-a-tombstone', async () => {
   assert.equal((await w.store.inspect.entitlement(s.account.id)).reserved, 1, 'the reservation is kept');
   assert.equal((await s.client.readResult(s.receipt.submissionId)).submission.text, s.draft.text, 'the result stays readable');
 
-  const draft = await s.client.createAttempt();
+  const draft = await s.client.createAttempt({ preparationId: s.preparationId });
   await s.client.saveDraft(draft.id, { expectedRevision: 1, text: 'verworfen' });
   assert.deepEqual(await s.client.deleteAttempt(draft.id), { deleted: true });
   assert.ok((await w.store.inspect.attempt(draft.id)).deleted_at, 'tombstone recorded');
@@ -1282,12 +1533,33 @@ check('delete-is-a-tombstone', async () => {
   await expectClientError(s.client.deleteAttempt(draft.id), 'not_found', { status: 404 });
 });
 
+check('archived-drafts-refuse-edits-until-explicit-resume', async () => {
+  const w = await world();
+  const a = await learner(w, 'archive');
+  const draft = await a.client.createAttempt({ preparationId: a.preparationId });
+  await a.client.saveDraft(draft.id, { expectedRevision: 1, text: 'vor dem Archiv' });
+  const archived = await a.raw('PUT', `/api/v1/preparations/${a.preparationId}`, { expectedRevision: 1, state: 'archived' });
+  assert.equal(archived.status, 200);
+  const before = await w.store.inspect.fingerprint();
+  await expectClientError(a.client.saveDraft(draft.id, { expectedRevision: 2, text: 'verweigert' }),
+    'conflict', { status: 409, detail: 'preparation_archived' });
+  await expectClientError(a.client.deleteAttempt(draft.id),
+    'conflict', { status: 409, detail: 'preparation_archived' });
+  assert.equal(await w.store.inspect.fingerprint(), before, 'archived refusals change no draft, history or balance');
+  const read = await a.client.readAttempt(draft.id);
+  assert.deepEqual([read.revision, read.text], [2, 'vor dem Archiv']);
+  const resumed = await a.raw('PUT', `/api/v1/preparations/${a.preparationId}`, { expectedRevision: 2, state: 'active' });
+  assert.equal(resumed.status, 200);
+  assert.equal((await a.client.saveDraft(draft.id, { expectedRevision: 2, text: 'fortgesetzt' })).revision, 3);
+  assert.deepEqual(await a.client.deleteAttempt(draft.id), { deleted: true });
+});
+
 /* -------------------------------------------------------------- ownership */
 
 check('cross-owner-is-404-for-every-route', async () => {
   const w = await world();
   const a = await submitted(w, 'a');
-  const openA = await a.client.createAttempt();
+  const openA = await a.client.createAttempt({ preparationId: a.preparationId });
   await a.client.saveDraft(openA.id, { expectedRevision: 1, text: 'A privat' });
   await w.store.worker.claim(a.receipt.submissionId);
   await w.store.worker.fail(a.receipt.submissionId, 'provider_unavailable'); // retry-eligible for A
@@ -1305,6 +1577,9 @@ check('cross-owner-is-404-for-every-route', async () => {
     ['delete', () => b.client.deleteAttempt(openA.id), () => b.client.deleteAttempt(ATTEMPT_ABSENT)],
     ['parent', () => b.client.createAttempt({ parentSubmissionId: a.receipt.submissionId }),
       () => b.client.createAttempt({ parentSubmissionId: SUBMISSION_ABSENT })],
+    // EXAM-S1: A's preparation is not context B can create in, and looks exactly like an absent one.
+    ['preparation', () => b.client.createAttempt({ preparationId: a.preparationId }),
+      () => b.client.createAttempt({ preparationId: ATTEMPT_ABSENT })],
   ];
   for (const [label, foreign, absent] of attempts) {
     const e1 = await expectClientError(foreign(), 'not_found', { status: 404 });
@@ -1322,7 +1597,7 @@ check('identity-is-never-accepted-from-input', async () => {
   const w = await world();
   const a = await learner(w, 'a');
   const b = await learner(w, 'b');
-  const attemptA = await a.client.createAttempt();
+  const attemptA = await a.client.createAttempt({ preparationId: a.preparationId });
   // Identity smuggled in the body is refused, not honoured.
   for (const [method, url, body] of [
     ['POST', '/api/v1/attempts', { owner_id: a.account.id }],
@@ -1378,7 +1653,7 @@ check('error-404-unknown-routes-and-methods', async () => {
 check('error-400-413-415-422', async () => {
   const w = await world();
   const a = await learner(w);
-  const attempt = await a.client.createAttempt();
+  const attempt = await a.client.createAttempt({ preparationId: a.preparationId });
   const put = `/api/v1/attempts/${attempt.id}`;
   const cases = [
     [400, 'invalid_json', () => a.raw('PUT', put, '{"expectedRevision":1,')],
@@ -1591,7 +1866,7 @@ check('content-seed-and-the-seeded-migration-agree', async () => {
 check('attempt-binds-an-exact-task-and-rubric-version', async () => {
   const w = await world();
   const who = await learner(w, 'bind');
-  const attempt = await who.client.createAttempt();
+  const attempt = await who.client.createAttempt({ preparationId: who.preparationId });
   const read = await who.client.readAttempt(attempt.id);
   assert.equal(read.task_version, DEFAULT_TASK_BINDING.taskVersion, 'the attempt binds the default task version');
   assert.equal(read.rubric_version, DEFAULT_TASK_BINDING.rubricVersion, 'and the real rubric version');
@@ -1605,7 +1880,7 @@ check('attempt-binds-an-exact-task-and-rubric-version', async () => {
   const bound = await w.store.port.create(who.account.id, null, {
     taskId: other.taskId, taskVersion: TELC_B1_TASK_VERSION,
     rubricId: TELC_B1_WRITING_RUBRIC.rubricId, rubricVersion: TELC_B1_WRITING_RUBRIC.version,
-  });
+  }, who.preparationId);
   const readBound = await w.store.port.read(who.account.id, bound.id);
   assert.equal(readBound.task_id, other.taskId);
   assert.equal(readBound.task_version, TELC_B1_TASK_VERSION);
@@ -1736,7 +2011,9 @@ check('server-mount-real-client-over-http', async () => {
   try {
     const a = httpBrowser(ctx.port);
     const account = await a.client.signUp({ name: 'H', email: nextEmail('h'), password: 'pw-http-synthetic' });
-    const attempt = await a.client.createAttempt();
+    const listed = await a.request({ method: 'GET', url: '/api/v1/preparations', headers: { accept: 'application/json' } });
+    assert.equal(listed.status, 200, `the preparation list must answer over HTTP, got ${listed.status}`);
+    const attempt = await a.client.createAttempt({ preparationId: activeInitialPreparation(JSON.parse(listed.text)) });
     const draft = await a.client.saveDraft(attempt.id, { expectedRevision: 1, text: 'über HTTP' });
     const receipt = await a.client.submit(attempt.id, { expectedRevision: draft.revision, eventId: randomUUID() });
     const result = await a.client.readResult(receipt.submissionId);

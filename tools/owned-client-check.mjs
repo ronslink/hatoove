@@ -347,6 +347,20 @@ check('createAttempt without a parent sends an empty JSON object', async () => {
   assert.equal(calls[0].headers['content-type'], 'application/json');
 });
 
+check('a new attempt carries an explicit preparation context', async () => {
+  // EXAM-S1: a NEW unbound attempt names the preparation it is written in; the server refuses one without it.
+  const PREPARATION = '33333333-4444-4555-8666-777777777777';
+  const { client, calls } = await signedIn(() => jsonResponse(201, { id: ATTEMPT, revision: 1, text: '' }));
+  await client.createAttempt({ preparationId: PREPARATION });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, '/api/v1/attempts');
+  assert.equal(calls[0].body, JSON.stringify({ preparationId: PREPARATION }));
+  assert.equal(calls[0].headers['content-type'], 'application/json');
+  // A malformed preparation id is refused locally, exactly like every other identifier.
+  await expectError(() => client.createAttempt({ preparationId: 'not-a-uuid' }), 'invalid_request');
+  assert.equal(calls.length, 1, 'a refused preparation id never produces a request');
+});
+
 check('invalid identifiers are rejected locally and never reach a route', async () => {
   const { client, calls } = await signedIn(() => jsonResponse(200, attemptResource()));
   await expectError(() => client.readAttempt('not-a-uuid'), 'invalid_request');

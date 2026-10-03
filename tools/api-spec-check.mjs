@@ -23,8 +23,8 @@
  *   it fails loudly if it finds no operations rather than silently passing.
  *
  * Usage:
- *   node tools/api-spec-check.mjs [--base=http://localhost:4300]
- *   docker compose up -d --build && node tools/api-spec-check.mjs
+ *   node tools/api-spec-check.mjs --base=http://127.0.0.1:<disposable-app-port>
+ *   tools/docker-stack-check.mjs invokes this against its synthetic Compose project.
  */
 
 import { readFileSync } from 'node:fs';
@@ -34,7 +34,14 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SPEC = path.join(ROOT, 'docs', 'openapi.yaml');
 const baseArg = process.argv.find((a) => a.startsWith('--base='));
-const BASE = (baseArg ? baseArg.slice('--base='.length) : 'http://localhost:4300').replace(/\/$/, '');
+if (!baseArg) throw new Error('API-SPEC-01 requires an explicit disposable --base URL; run tools/docker-stack-check.mjs');
+const target = new URL(baseArg.slice('--base='.length));
+if (target.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(target.hostname)
+    || !target.port || ['4300', '55440'].includes(target.port) || target.username || target.password
+    || target.pathname !== '/' || target.search || target.hash) {
+  throw new Error('API-SPEC-01 requires a disposable loopback app port, never the learner preview');
+}
+const BASE = target.origin;
 
 const results = [];
 const pass = (id, detail) => { results.push('PASS'); console.log(`PASS ${id}`); if (detail) console.log(`     ${detail}`); };

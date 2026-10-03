@@ -48,6 +48,9 @@
 
 import { contentIsServable, contentPolicy } from './content-policy.mjs';
 import { checkSentence, SENTENCE_TEXT_LIMIT } from './sentence-building.mjs';
+import {
+  requirePreparationId, validateCreatePreparation, validateUpdatePreparation,
+} from './preparation-contract.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
@@ -105,6 +108,17 @@ const CATALOGUE_METHODS = ['listTasks', 'listObjectiveSets', 'readObjectiveSet',
  * product.
  */
 const PRACTICE_METHODS = ['answerObjectiveItem', 'nextPractice', 'practiceProgress', 'listMistakes'];
+/**
+ * EXAM-S1 — PREPARATIONS are their own capability, and the scoped routes DEPEND on it: tasks, objective
+ * sets, practice, attempt lists, objective answers and new attempts all need a `preparationId` that this
+ * port resolves. Without it those routes answer 503 `preparations_unavailable`; there is no fallback that
+ * treats a missing context as "all exams" or as telc.
+ */
+const PREPARATION_METHODS = ['listExams', 'listPreparations', 'readPreparation', 'resolvePreparation',
+  'createPreparation', 'updatePreparation', 'readCredits'];
+const PREPARATION_RE = new RegExp(`^/api/v1/preparations/(${UUID})$`, 'i');
+const PREPARATION_CREDITS_RE = new RegExp(`^/api/v1/preparations/(${UUID})/credits$`, 'i');
+const EXAM_QUERY_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 /** `/api/v1/objective-sets/{setId}` — read ONE set, payload included. The list is an index. */
 const OBJECTIVE_SET_RE = /^\/api\/v1\/objective-sets\/([A-Za-z0-9._-]{1,128})$/;
 /**
@@ -182,7 +196,13 @@ export const DELETION_NOT_REMOVED = Object.freeze([
  * for the surface to disagree with itself. The client keeps its own copy deliberately — it must not
  * import server code — but `tools/owned-api-check.mjs` asserts the two agree on `model` being refused.
  */
-export const SETTINGS_FIELDS = ['examDate', 'dailyGoal', 'theme', 'language'];
+/*
+ * EXAM-S1: `examDate` is no longer writable here — the active exam date belongs to the PREPARATION. The
+ * stored legacy value is still READ (and exported) for audit; it is never overwritten.
+ */
+export const SETTINGS_FIELDS = ['dailyGoal', 'theme', 'language'];
+/** Read-only legacy settings, returned by `GET /api/v1/settings` and refused by `PUT`. */
+export const LEGACY_SETTINGS_FIELDS = Object.freeze(['examDate']);
 export const EXPLANATION_LANGUAGES = Object.freeze(['de', 'en', 'uk', 'ar', 'tr']);
 /**
  * FAMILY NAMING — ONE CONVENTION, ONE PARSER.
@@ -237,7 +257,6 @@ export function parseFamily(value) {
  */
 const CONTENT_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
-const SETTINGS_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SETTINGS_TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/;
 const SETTINGS_THEMES = ['system', 'light', 'dark'];
 
@@ -252,11 +271,6 @@ function validateSettings(input) {
   const unknown = Object.keys(input).filter((key) => !SETTINGS_FIELDS.includes(key));
   if (unknown.length) fault(422, 'invalid_settings');
   const out = {};
-  if (input.examDate !== undefined) {
-    if (typeof input.examDate !== 'string' || input.examDate.length > 10) fault(422, 'invalid_settings');
-    if (input.examDate !== '' && !SETTINGS_DATE_RE.test(input.examDate)) fault(422, 'invalid_settings');
-    out.examDate = input.examDate;
-  }
   if (input.dailyGoal !== undefined) {
     if (!Number.isSafeInteger(input.dailyGoal) || input.dailyGoal < 1 || input.dailyGoal > 500) fault(422, 'invalid_settings');
     out.dailyGoal = input.dailyGoal;
@@ -389,6 +403,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
   const deletionWired = implementsAll(accountDeletion, DELETION_METHODS);
   const catalogueWired = implementsAll(datastore, CATALOGUE_METHODS);
   const practiceWired = implementsAll(datastore, PRACTICE_METHODS);
+  const preparationsWired = implementsAll(datastore, PREPARATION_METHODS);
   // The session lifecycle is its own capability: rotation, sweep, revoke-one and revoke-all-on-password-change.
   const sessionLifecycleWired = implementsAll(sessions, SESSION_LIFECYCLE_METHODS);
   /*
@@ -578,6 +593,56 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
     if (!who) fault(401, 'unauthenticated');
     const owner = who.userId;
 
+    /**
+     * EXAM-S1 — the preparation a scoped read runs in, from `?preparationId=`. Missing or malformed is 422;
+     * another owner's or an absent one is 404. A retained `exam` filter may only restate the preparation's
+     * exam: anything else is 422 `preparation_mismatch`, never a widening.
+     */
+    async function preparationContext(query) {
+      if (!preparationsWired) fault(503, 'preparations_unavailable');
+      const id = requirePreparationId(query.get('preparationId'));
+      const exam = query.get('exam');
+      if (exam !== null && !EXAM_QUERY_RE.test(exam)) fault(422, 'invalid_exam');
+      const prep = await datastore.resolvePreparation(owner, id);
+      if (exam !== null && exam !== prep.exam_id) fault(422, 'preparation_mismatch');
+      return prep;
+    }
+
+    if (pathname === '/api/v1/exams' && method === 'GET') {
+      if (!preparationsWired) fault(503, 'preparations_unavailable');
+      if ([...query.keys()].length) fault(422, 'invalid_query');
+      return reply(200, { exams: await datastore.listExams(owner) });
+    }
+    if (pathname === '/api/v1/preparations') {
+      if (!preparationsWired) fault(503, 'preparations_unavailable');
+      if (method === 'GET') return reply(200, { preparations: await datastore.listPreparations(owner) });
+      if (method === 'POST') {
+        // Idempotent: the existing active preparation for the exam is returned (200) unchanged.
+        const { examId } = validateCreatePreparation(body);
+        const outcome = await datastore.createPreparation(owner, examId);
+        return reply(outcome.created ? 201 : 200, outcome.preparation);
+      }
+      fault(404, 'not_found');
+    }
+    {
+      const creditsMatch = PREPARATION_CREDITS_RE.exec(pathname);
+      if (creditsMatch && method === 'GET') {
+        if (!preparationsWired) fault(503, 'preparations_unavailable');
+        return reply(200, await datastore.readCredits(owner, creditsMatch[1].toLowerCase()));
+      }
+      const prepMatch = PREPARATION_RE.exec(pathname);
+      if (prepMatch) {
+        if (!preparationsWired) fault(503, 'preparations_unavailable');
+        const id = prepMatch[1].toLowerCase();
+        if (method === 'GET') return reply(200, await datastore.readPreparation(owner, id));
+        if (method === 'PUT') {
+          const { expectedRevision, patch } = validateUpdatePreparation(body);
+          return reply(200, await datastore.updatePreparation(owner, id, expectedRevision, patch));
+        }
+        fault(404, 'not_found');
+      }
+    }
+
     if (pathname === '/api/v1/account' && method === 'GET') {
       return reply(200, { contractVersion: CONTRACT_VERSION, id: owner, email: who.email });
     }
@@ -730,11 +795,12 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const family = query.get('family');
       const parsedFamily = family === null ? null : parseFamily(family);
       if (family !== null && !parsedFamily) fault(422, 'invalid_family');
-      const exam = query.get('exam');
-      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      // EXAM-S1: the preparation decides the exam; `exam` may only restate it.
+      const prep = await preparationContext(query);
       const serveReview = deploymentReview();
       // The KIND is what the task catalogue stores; the part id is the wire vocabulary (see parseFamily).
-      const tasks = (await datastore.listTasks(owner, { examId: exam, family: parsedFamily ? parsedFamily.kind : null, serveReview })).filter((row) => contentIsServable(row));
+      const tasks = (await datastore.listTasks(owner, { examId: prep.exam_id, family: parsedFamily ? parsedFamily.kind : null, serveReview }))
+        .filter((row) => contentIsServable(row) && row.exam_id === prep.exam_id);
       /*
        * ONE CARD PER TASK, THE NEWEST VERSION.
        *
@@ -785,18 +851,17 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const family = query.get('family');
       const parsedFamily = family === null ? null : parseFamily(family);
       if (family !== null && !parsedFamily) fault(422, 'invalid_family');
-      const exam = query.get('exam');
-      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const prep = await preparationContext(query);
       const serveReview = deploymentReview();
       return reply(200, (await datastore.listObjectiveSets(owner, {
-        examId: exam,
+        examId: prep.exam_id,
         // An exact PART ID is the narrowest filter; a KIND narrows to the group. Both reach the same
         // storage column, which is why one of them is passed as an equality and the other as a prefix.
         family: parsedFamily && parsedFamily.partId ? parsedFamily.partId : null,
         group: parsedFamily && parsedFamily.partId ? null : (parsedFamily ? parsedFamily.group : null),
         part: parsedFamily ? parsedFamily.part : null,
         serveReview,
-      })).filter((row) => contentIsServable(row)));
+      })).filter((row) => contentIsServable(row) && row.exam_id === prep.exam_id));
     }
     if (pathname === '/api/v1/vocab' && method === 'GET') {
       if (!catalogueWired) fault(503, 'catalogue_unavailable');
@@ -906,7 +971,10 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const answerMatch = OBJECTIVE_ANSWER_RE.exec(pathname);
       if (answerMatch && method === 'POST') {
         if (!practiceWired) fault(503, 'practice_unavailable');
-        onlyFields(body, ['itemId', 'answer', 'version', 'latencyMs']);
+        if (!preparationsWired) fault(503, 'preparations_unavailable');
+        onlyFields(body, ['preparationId', 'itemId', 'answer', 'version', 'latencyMs']);
+        // EXAM-S1: required in the body; ownership, state and exam match are checked before any write.
+        const preparationId = requirePreparationId(body.preparationId);
         if (typeof body.itemId !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(body.itemId)) fault(422, 'invalid_item');
         if (body.answer === undefined) fault(422, 'invalid_answer');
         // EXPLICIT, never defaulted (EXAM-S0): v1 and v2 of one set may share item ids with different keys,
@@ -918,7 +986,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
           fault(422, 'invalid_latency');
         }
         return reply(201, await datastore.answerObjectiveItem(owner, {
-          setId: answerMatch[1], version, itemId: body.itemId, answer: body.answer, latencyMs,
+          preparationId, setId: answerMatch[1], version, itemId: body.itemId, answer: body.answer, latencyMs,
         }));
       }
     }
@@ -932,13 +1000,14 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * recorded evidence is repeatable and explainable; a model call is neither, costs tokens on
        * every request, and cannot be justified to the person it is deciding for.
        */
-      const exam = query.get('exam');
-      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const prep = await preparationContext(query);
       const serveReview = deploymentReview();
-      const next = await datastore.nextPractice(owner, { examId: exam, serveReview });
+      const next = await datastore.nextPractice(owner, { preparationId: prep.id, serveReview });
       // Nothing servable is NOT an error: it means the catalogue is empty for this deployment, and the
       // client shows its honest empty state rather than an error page.
-      if (!next) return reply(200, { reason: 'nothing_available', section: null, evidence: null, set: null });
+      if (!next) {
+        return reply(200, { preparation_id: prep.id, exam_id: prep.exam_id, reason: 'nothing_available', section: null, evidence: null, set: null });
+      }
       return reply(200, next);
     }
     {
@@ -953,9 +1022,11 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         // The exact (set, version) pair is required: a missing version is 422, an unknown pair is 404.
         const version = query.get('version');
         if (version === null || !OBJECTIVE_VERSION_RE.test(version)) fault(422, 'invalid_version');
+        const prep = await preparationContext(query);
         const serveReview = deploymentReview();
         const set = await datastore.readObjectiveSet(owner, { setId: setMatch[1], version, serveReview });
         if (!contentIsServable(set)) fault(404, 'not_found');
+        if (set.exam_id !== prep.exam_id) fault(422, 'preparation_mismatch');
         return reply(200, set);
       }
     }
@@ -968,9 +1039,9 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * line; the product forbids both. This is the truthful substitute, and the dashboard renders it
        * without inventing a number to fill the gauge.
        */
-      const exam = query.get('exam');
-      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
-      return reply(200, await datastore.practiceProgress(owner, { examId: exam }));
+      const prep = await preparationContext(query);
+      return reply(200, { preparation_id: prep.id, exam_id: prep.exam_id,
+        ...await datastore.practiceProgress(owner, { preparationId: prep.id }) });
     }
     if (pathname === '/api/v1/practice/mistakes' && method === 'GET') {
       if (!practiceWired) fault(503, 'practice_unavailable');
@@ -979,17 +1050,20 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * key is not readable by this role, and a mistakes list that revealed it would hand over exactly
        * what the practice loop withholds.
        */
-      const exam = query.get('exam');
-      if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
-      return reply(200, await datastore.listMistakes(owner, { examId: exam }));
+      const prep = await preparationContext(query);
+      return reply(200, { exam_id: prep.exam_id,
+        ...await datastore.listMistakes(owner, { preparationId: prep.id }) });
     }
     if (pathname === '/api/v1/attempts' && method === 'GET') {
       // Discovery is owner scoped and carries no letter text. A fresh device can reopen the
       // exact submission, including pending and failed work, without a browser state blob.
-      if ([...query.keys()].some((key) => key !== 'open') || (query.has('open') && query.get('open') !== '1')) fault(422, 'invalid_query');
+      // EXAM-S1: scoped to one preparation, `open=1` included.
+      if ([...query.keys()].some((key) => key !== 'open' && key !== 'preparationId')
+        || (query.has('open') && query.get('open') !== '1')) fault(422, 'invalid_query');
       const indexMethod = query.get('open') === '1' ? 'listOpenAttempts' : 'listAttempts';
       if (typeof datastore[indexMethod] !== 'function') fault(503, 'history_unavailable');
-      return reply(200, { attempts: await datastore[indexMethod](owner) });
+      const prep = await preparationContext(query);
+      return reply(200, { preparation_id: prep.id, attempts: await datastore[indexMethod](owner, { preparationId: prep.id }) });
     }
     if (pathname === '/api/v1/export' && method === 'GET') {
       if (typeof datastore.exportData !== 'function' || !settingsWired) fault(503, 'export_unavailable');
@@ -999,8 +1073,14 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       });
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
-      onlyFields(body, ['parentSubmissionId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion']);
+      onlyFields(body, ['preparationId', 'parentSubmissionId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion']);
       const parent = body.parentSubmissionId === undefined ? null : requireUuid(body.parentSubmissionId, 'invalid_parent');
+      /*
+       * EXAM-S1: a NEW attempt names its preparation. A REVISION inherits its parent's exact preparation;
+       * naming one is allowed only if it is that same preparation (checked in the datastore, 422 otherwise).
+       */
+      if (!preparationsWired) fault(503, 'preparations_unavailable');
+      const preparationId = parent && body.preparationId === undefined ? null : requirePreparationId(body.preparationId);
       /*
        * PILOT-05 — AN ATTEMPT IS BOUND TO THE TASK THE LEARNER OPENED.
        *
@@ -1024,7 +1104,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         }
         binding = { taskId: body.taskId, taskVersion: body.taskVersion, rubricId: body.rubricId, rubricVersion: body.rubricVersion };
       }
-      return reply(201, await datastore.create(owner, parent, binding || undefined));
+      return reply(201, await datastore.create(owner, parent, binding || null, preparationId));
     }
 
     let match = ATTEMPT_RE.exec(pathname);
@@ -1116,6 +1196,10 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         const reply429 = errorReply(error.status, error.code);
         if (error.status === 429 && error.retryAfterSeconds) {
           reply429.headers['retry-after'] = String(error.retryAfterSeconds);
+        }
+        // EXAM-S1: a stale preparation edit returns the caller's own current DTO so it can reconcile.
+        if (error.code === 'preparation_conflict' && isPlainObject(error.current)) {
+          return reply(409, { error: 'preparation_conflict', current: error.current });
         }
         return reply429;
       }

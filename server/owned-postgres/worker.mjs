@@ -399,7 +399,7 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
   async function completeSuccess({ submissionId, token, row, assessment }) {
     return transaction(async (client) => {
       const job = first(await client.query(
-        'SELECT id, owner_id, status, lease_token FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
+        'SELECT id, owner_id, exam_id, status, lease_token FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
       if (!job || job.status !== 'running' || job.lease_token !== token) return { claimed: true, submissionId, outcome: 'stale' };
       const attempt = first(await client.query(
         `SELECT a.deleted_at FROM attempts a JOIN submissions s ON s.id = $1 WHERE a.id = s.attempt_id`, [submissionId]));
@@ -414,8 +414,10 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
         [submissionId, job.owner_id, JSON.stringify(feedback), modelVersion, promptVersion, row.rubric_version]);
       await client.query(
         'INSERT INTO usage_ledger(submission_id, owner_id, units) VALUES($1, $2, 1)', [submissionId, job.owner_id]);
+      // EXAM-S1: the debit lands on the balance the job reserved from, never another exam's.
       await client.query(
-        'UPDATE entitlements SET reserved = reserved - 1, used = used + 1 WHERE owner_id = $1', [job.owner_id]);
+        'UPDATE entitlements SET reserved = reserved - 1, used = used + 1 WHERE owner_id = $1 AND exam_id = $2',
+        [job.owner_id, job.exam_id]);
       await client.query(
         "UPDATE jobs SET status = 'succeeded', lease_token = NULL, lease_until = NULL WHERE id = $1 AND lease_token = $2 AND status = 'running'",
         [job.id, token]);
@@ -427,12 +429,13 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
   async function completeFailure({ submissionId, token, code }) {
     return transaction(async (client) => {
       const job = first(await client.query(
-        'SELECT id, owner_id, status, lease_token FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
+        'SELECT id, owner_id, exam_id, status, lease_token FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
       if (!job || job.status !== 'running' || job.lease_token !== token) return { claimed: true, submissionId, outcome: 'stale' };
       await client.query(
         "UPDATE jobs SET status = 'failed', failure_code = $3, lease_token = NULL, lease_until = NULL WHERE id = $1 AND lease_token = $2 AND status = 'running'",
         [job.id, token, code]);
-      await client.query('UPDATE entitlements SET reserved = reserved - 1 WHERE owner_id = $1', [job.owner_id]);
+      await client.query('UPDATE entitlements SET reserved = reserved - 1 WHERE owner_id = $1 AND exam_id = $2',
+        [job.owner_id, job.exam_id]);
       return { claimed: true, submissionId, outcome: 'failed', code };
     });
   }
@@ -451,7 +454,7 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
   async function reclaimExpired() {
     return transaction(async (client) => {
       const expired = (await client.query(
-        `SELECT id, owner_id, tries FROM jobs
+        `SELECT id, owner_id, exam_id, tries FROM jobs
          WHERE status = 'running' AND lease_until IS NOT NULL AND lease_until <= $1
          FOR UPDATE SKIP LOCKED`, [now()])).rows;
       if (!expired.length) return { requeued: 0, abandoned: 0 };
@@ -466,11 +469,17 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
         await client.query(
           "UPDATE jobs SET status = 'failed', failure_code = $2, lease_token = NULL, lease_until = NULL WHERE id = ANY($1::uuid[])",
           [abandon.map((r) => r.id), RETRY_EXHAUSTED]);
-        // Group by owner so one statement refunds each owner exactly its abandoned count.
-        const byOwner = new Map();
-        for (const r of abandon) byOwner.set(r.owner_id, (byOwner.get(r.owner_id) || 0) + 1);
-        for (const [ownerId, n] of byOwner) {
-          await client.query('UPDATE entitlements SET reserved = reserved - $2 WHERE owner_id = $1', [ownerId, n]);
+        // Group by (owner, exam) so each balance is refunded exactly its own abandoned count (EXAM-S1),
+        // in a stable order so two reclaimers cannot lock balances in opposite orders.
+        const byBalance = new Map();
+        for (const r of abandon) {
+          const key = JSON.stringify([r.owner_id, r.exam_id]);
+          byBalance.set(key, (byBalance.get(key) || 0) + 1);
+        }
+        for (const key of [...byBalance.keys()].sort()) {
+          const [ownerId, examId] = JSON.parse(key);
+          await client.query('UPDATE entitlements SET reserved = reserved - $3 WHERE owner_id = $1 AND exam_id = $2',
+            [ownerId, examId, byBalance.get(key)]);
         }
       }
       return { requeued: requeue.length, abandoned: abandon.length };

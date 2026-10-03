@@ -12,10 +12,12 @@
  * role, which can touch only `"user"`, `session`, `account` and `verification`.
  * It cannot read `attempts`, `drafts` or `submissions`.
  *
- * The only privileged step is provisioning a synthetic entitlement allowance at
- * sign-up, which mirrors `spikes/auth-runtime/test.mjs`'s `account()` helper and
- * `isolation.test.mjs`'s `register()`. That runs through the fixture's admin pool
- * because the restricted roles have no INSERT right on `entitlements`.
+ * EXAM-S1: sign-up provisions the initial preparation and its exam balance INSIDE the auth transaction,
+ * through the migration-owned AFTER INSERT trigger on "user" (migration 0023). Auth cannot invoke its
+ * SECURITY DEFINER function directly or attach it to another trigger. It used to be a separate
+ * post-COMMIT insert through a privileged pool, so a failure there left an account with a session and no
+ * balance. Now a provisioning failure rolls back the account, the credential, the session, the preparation
+ * and the balance together. `adminPool` is used only by the fixture-only `liveSessions` count.
  */
 
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
@@ -68,13 +70,16 @@ function tokenFrom(headers, cookieName) {
 }
 
 /**
- * @param {{pool: object, adminPool: object, allowance?: number, sessionTtlSeconds?: number, cookieName?: string}} options
- *   `pool` connects as the restricted auth role; `adminPool` is the fixture's
- *   privileged pool used only to provision a synthetic entitlement allowance.
+ * @param {{pool: object, adminPool: object, allowance?: number|null, sessionTtlSeconds?: number, cookieName?: string,
+ *   registrationHook?: (stage: string, client: object) => (void|Promise<void>)}} options
+ *   `pool` connects as the restricted auth role. `adminPool` serves only the fixture-only `liveSessions`.
+ *   `allowance` is the initial telc balance (`null` provisions the preparation with no balance).
+ *   `registrationHook` is a TEST seam for failure injection: it runs inside the sign-up transaction after
+ *   provisioning, and a throw rolls the whole registration back.
  */
 export function createPostgresSessions({
   pool, adminPool, allowance = 10, sessionTtlSeconds = 3600, cookieName = COOKIE_DEFAULT,
-  notify = null,
+  notify = null, registrationHook = null,
 } = {}) {
   if (!pool || typeof pool.connect !== 'function') throw new TypeError('createPostgresSessions requires a pg Pool');
   if (!adminPool || typeof adminPool.query !== 'function') throw new TypeError('createPostgresSessions requires an admin Pool');
@@ -165,6 +170,10 @@ export function createPostgresSessions({
       if (existing) throw new Fault(422, 'user_exists');
       try {
         return await inTransaction(async (client) => {
+          // The INSERT-only database trigger owns initial telc provisioning. The configured allowance
+          // is transaction-local; a later UPDATE cannot invoke it or mint another exam's balance.
+          await client.query("SELECT set_config('hatoove.registration_allowance', $1, true)",
+            [allowance === null || allowance === undefined ? '' : String(allowance)]);
           await client.query(
             `INSERT INTO "user"(id, name, email, "emailVerified", "createdAt", "updatedAt")
              VALUES($1, $2, $3, false, now(), now())`, [id, name, email]);
@@ -172,16 +181,11 @@ export function createPostgresSessions({
             `INSERT INTO account(id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt")
              VALUES($1, $2, 'credential', $3, $4, now(), now())`,
             [randomUUID(), id, id, hashPassword(password)]);
+          // Same transaction: account, credential, initial preparation, balance and session commit together.
+          if (typeof registrationHook === 'function') await registrationHook('provisioned', client);
           const cookie = await issueSession(client, id);
-          return { ...cookie, userId: id };
-        }).then(async (created) => {
-          // Synthetic allowance, provisioned as the fixture's privileged step.
-          if (allowance !== null && allowance !== undefined) {
-            await adminPool.query(
-              'INSERT INTO entitlements(owner_id, allowance) VALUES($1, $2) ON CONFLICT (owner_id) DO NOTHING',
-              [id, allowance]);
-          }
-          return { setCookie: created.setCookie };
+          if (typeof registrationHook === 'function') await registrationHook('session', client);
+          return { setCookie: cookie.setCookie };
         });
       } catch (error) {
         if (error && error.code === '23505') throw new Fault(422, 'user_exists');

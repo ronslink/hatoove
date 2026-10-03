@@ -1,4 +1,4 @@
-/** Exact objective versions are required at the browser transport boundary. No network or DB. */
+/** Exact objective versions AND the preparation context are required at the browser transport boundary. No network or DB. */
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -12,6 +12,8 @@ const { createApi } = await import(pathToFileURL(path.join(root, 'public/app/api
 const requests = [];
 let expired = false;
 const invalidations = [];
+// EXAM-S1: every objective read/answer is scoped to one owned, active preparation the client selected.
+const PREPARATION = '11111111-2222-4333-8444-555555555555';
 const api = createApi({
   onSessionInvalid: reason => invalidations.push(reason),
   fetchImpl: async (url, init = {}) => {
@@ -24,6 +26,9 @@ const api = createApi({
 let passed = 0;
 const check = async (name, run) => { await run(); console.log('PASS ' + name); passed++; };
 assert.equal((await api.session()).ok, true);
+// The selection carries context only; the server still verifies ownership, state and exam identity.
+assert.equal(api.preparations.select({ id: PREPARATION, state: 'active' }), true);
+const scoped = (path) => path.includes('?') ? `${path}&preparationId=${PREPARATION}` : `${path}?preparationId=${PREPARATION}`;
 
 await check('missing or empty read version fails before making a request', async () => {
   const before = requests.length;
@@ -37,7 +42,7 @@ await check('missing or empty read version fails before making a request', async
 await check('selected v2 is encoded into the read under the verified account', async () => {
   assert.equal((await api.objectiveSets.read('same/id', 'v2')).ok, true);
   const request = requests.at(-1);
-  assert.equal(request.url, '/api/v1/objective-sets/same%2Fid?version=v2');
+  assert.equal(request.url, scoped('/api/v1/objective-sets/same%2Fid?version=v2'));
   assert.equal(request.headers['X-Hatoove-Account'], 'synthetic-owner');
 });
 await check('missing or empty answer version is rejected without writing', async () => {
@@ -56,12 +61,22 @@ await check('answer retains the selected v2 and exact item/response', async () =
   const request = requests.at(-1);
   assert.equal(request.url, '/api/v1/objective-sets/same%2Fid/answers');
   assert.equal(request.method, 'POST');
-  assert.deepEqual(JSON.parse(request.body), body);
+  assert.deepEqual(JSON.parse(request.body), { ...body, preparationId: PREPARATION });
   assert.equal(request.headers['X-Hatoove-Account'], 'synthetic-owner');
 });
 await check('v1 is still available when explicitly selected', async () => {
   assert.equal((await api.objectiveSets.read('same-id', 'v1')).ok, true);
-  assert.equal(requests.at(-1).url, '/api/v1/objective-sets/same-id?version=v1');
+  assert.equal(requests.at(-1).url, scoped('/api/v1/objective-sets/same-id?version=v1'));
+});
+await check('a read without a selected preparation is refused before any request', async () => {
+  const unscoped = createApi({ onSessionInvalid: () => {}, fetchImpl: async (url, init = {}) => {
+    requests.push({ url, ...init });
+    return { ok: true, status: 200, json: async () => ({ user: { id: 'synthetic-owner' } }) };
+  } });
+  assert.equal((await unscoped.session()).ok, true);
+  const before = requests.length;
+  assert.equal((await unscoped.objectiveSets.read('same-id', 'v2')).error, 'preparation_required');
+  assert.equal(requests.length, before, 'no context means no request');
 });
 await check('exact-version writes retain the expired-session fence', async () => {
   expired = true;

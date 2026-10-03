@@ -52,6 +52,8 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+import { migrate, persistentConfig } from '../server/owned-postgres/provision.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FORBIDDEN = new Set(['postgres', 'template0', 'template1']);
 const DATABASE = process.env.OWNAPI_PG_DATABASE || '';
@@ -537,7 +539,8 @@ check('configured-public-origin-accepted-and-foreign-refused', async () => {
   // origin gate runs before readiness, so the refusals below hold either way.
   const server = await startServer(port, { saas: true, accounts: true, database: true, forceOffline: true });
   try {
-    await waitForReady(port, true);
+    const ready = await waitForReady(port, true);
+    assert.equal(ready && ready.status, 200, `the runtime must be ready before acceptance is measured (${ready && ready.json && ready.json.reason})`);
     // The deployment's own origin is accepted: a same-origin sign-up reaches the account API.
     // CONFIG-ANON-01: this acceptance used to be shown with POST /api/config, which is now
     // gone on a hosted runtime (below). The gate itself is unchanged, so acceptance is shown on
@@ -608,6 +611,15 @@ export async function runSaasRuntimeChecks({ only = null } = {}) {
   if (!DATABASE) throw new Error('OWNAPI_PG_DATABASE must name a disposable database');
   const selected = only ? checks.filter((c) => c.name.includes(only)) : checks;
   if (!selected.length) throw new Error(`no check matches --only=${only}`);
+  if (process.env.OWNAPI_PG_ALLOW !== '1') {
+    throw new Error('set OWNAPI_PG_ALLOW=1 to confirm this is a disposable database the migration command may provision');
+  }
+  /*
+   * The legs that need a READY runtime would otherwise meet `schema_behind` on a fresh disposable schema: the
+   * runtime never migrates (MFP-01). Run the operator's migration command first — idempotent on a current
+   * schema — so a refusal below is the boundary under test, never an unmigrated database.
+   */
+  await migrate({ config: persistentConfig() });
   const results = [];
   for (const { name, run } of selected) {
     try {

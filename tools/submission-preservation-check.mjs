@@ -37,7 +37,9 @@ let emails = 0;
 
 function world({ allowance = 10 } = {}) {
   const store = createMemoryDatastore({ allowance });
-  const api = createOwnedApi({ datastore: store.port, sessions: createMemorySessions(), settings: store.settings });
+  // EXAM-S1: registration provisions the initial preparation + balance, as PostgreSQL does.
+  const sessions = createMemorySessions({ provision: store.provision });
+  const api = createOwnedApi({ datastore: store.port, sessions, settings: store.settings });
   return { store, api };
 }
 
@@ -60,11 +62,21 @@ function browser(api, jar = new Map()) {
 async function learner(w, tag) {
   const b = browser(w.api);
   const account = await b.client.signUp({ name: tag, email: `${tag}-${++emails}@example.invalid`, password: `pw-${tag}-synthetic` });
-  return { ...b, account };
+  return { ...b, account, api: w.api };
+}
+
+/** EXAM-S1: a NEW attempt names an owned, ACTIVE preparation; resolved from the route, never assumed. */
+async function preparationId(who) {
+  const response = await who.api.handle({ method: 'GET', path: '/api/v1/preparations',
+    headers: { cookie: [...who.jar].map(([k, v]) => `${k}=${v}`).join('; ') }, originChecked: true });
+  assert.equal(response.status, 200, response.body);
+  const active = JSON.parse(response.body).preparations.find((p) => p.state === 'active');
+  assert.ok(active, 'sign-up must provision exactly one active preparation');
+  return active.id;
 }
 
 async function submitted(who, text = 'Liebe Anna, ich komme gern am Samstag.') {
-  const attempt = await who.client.createAttempt();
+  const attempt = await who.client.createAttempt({ preparationId: await preparationId(who) });
   const draft = await who.client.saveDraft(attempt.id, { expectedRevision: 1, text });
   const receipt = await who.client.submit(attempt.id, { expectedRevision: draft.revision, eventId: randomUUID() });
   return { attempt, draft, receipt };
@@ -119,7 +131,7 @@ check('a-stale-draft-view-cannot-delete-submitted-work', async () => {
   const laptop = a;
   const phone = browser(w.api, new Map(a.jar)); // same session, second device
   await phone.client.refreshAccount();
-  const attempt = await laptop.client.createAttempt();
+  const attempt = await laptop.client.createAttempt({ preparationId: await preparationId(laptop) });
   const draft = await laptop.client.saveDraft(attempt.id, { expectedRevision: 1, text: 'Vom Laptop' });
   const phoneView = await phone.client.readAttempt(attempt.id);
   assert.equal(phoneView.revision, draft.revision, 'the phone holds the same draft view');
@@ -139,7 +151,7 @@ check('submit-and-delete-racing-never-both-succeed', async () => {
     for (const lag of [0, 1, 3, 10]) {
       const w = world();
       const a = await learner(w, 'a');
-      const attempt = await a.client.createAttempt();
+      const attempt = await a.client.createAttempt({ preparationId: await preparationId(a) });
       const draft = await a.client.saveDraft(attempt.id, { expectedRevision: 1, text: 'Wettlauf' });
       const submit = () => a.client.submit(attempt.id, { expectedRevision: draft.revision, eventId: randomUUID() });
       const remove = async () => {
@@ -174,7 +186,7 @@ check('another-owners-submitted-attempt-is-404-not-409', async () => {
   const a = await learner(w, 'a');
   const b = await learner(w, 'b');
   const s = await submitted(a);
-  const openA = await a.client.createAttempt();
+  const openA = await a.client.createAttempt({ preparationId: await preparationId(a) });
   await a.client.saveDraft(openA.id, { expectedRevision: 1, text: 'A privat' });
   const before = w.store.inspect.fingerprint();
   const foreign = await rejects(b.client.deleteAttempt(s.attempt.id), 'not_found', { status: 404 });
@@ -189,8 +201,8 @@ check('another-owners-submitted-attempt-is-404-not-409', async () => {
 check('an-unsubmitted-draft-is-still-discarded', async () => {
   const w = world();
   const a = await learner(w, 'a');
-  const empty = await a.client.createAttempt();
-  const written = await a.client.createAttempt();
+  const empty = await a.client.createAttempt({ preparationId: await preparationId(a) });
+  const written = await a.client.createAttempt({ preparationId: await preparationId(a) });
   await a.client.saveDraft(written.id, { expectedRevision: 1, text: 'Wird verworfen' });
   for (const id of [empty.id, written.id]) {
     assert.deepEqual(await a.client.deleteAttempt(id), { deleted: true });
@@ -199,7 +211,10 @@ check('an-unsubmitted-draft-is-still-discarded', async () => {
     await rejects(a.client.readAttempt(id), 'not_found', { status: 404 });
     await rejects(a.client.submit(id, { expectedRevision: 2, eventId: randomUUID() }), 'not_found', { status: 404 });
   }
-  assert.deepEqual(w.store.inspect.entitlement(a.account.id), { allowance: 10, used: 0, reserved: 0 }, 'no counter moved');
+  // The (owner, exam) balance carries its identity now, so compare the counters themselves.
+  const ent = w.store.inspect.entitlement(a.account.id);
+  assert.deepEqual({ allowance: ent.allowance, used: ent.used, reserved: ent.reserved },
+    { allowance: 10, used: 0, reserved: 0 }, 'no counter moved');
   return 'empty and written drafts discarded; stale read/submit 404';
 });
 
@@ -252,24 +267,30 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
   };
   const remove = body('remove');
   const steps = [
-    'entitlements WHERE owner_id = $1 FOR UPDATE', 'await owned(client, owner, id)',
+    'lockBalance(client, owner, examId)', 'await owned(client, owner, id)',
     'FROM submissions WHERE attempt_id = $1', "fail(409, 'submitted_attempt')", 'UPDATE attempts SET deleted_at',
   ].map((needle) => { const at = remove.indexOf(needle); assert.ok(at >= 0, `remove() lacks: ${needle}`); return at; });
   assert.deepEqual([...steps].sort((x, y) => x - y), steps,
-    'remove() must lock entitlement, then the attempt, test for a submission, refuse, and only then tombstone');
+    'remove() must lock the balance, then the attempt, test for a submission, refuse, and only then tombstone');
   assert.ok(!/UPDATE jobs|reserved\s*=\s*reserved\s*-/.test(remove), 'remove() must not cancel jobs or release reservations');
+  // EXAM-S1: the (owner, exam) balance lock moved into the shared `lockBalance` helper both writers use.
+  assert.match(source, /SELECT \* FROM entitlements WHERE owner_id = \$1 AND exam_id = \$2 FOR UPDATE/,
+    'the shared balance lock must still be a FOR UPDATE on the (owner, exam) row');
   const submit = body('submit');
-  assert.ok(submit.indexOf('FOR UPDATE') < submit.indexOf('await owned(client, owner, id)'), 'submit locks the entitlement before the attempt');
+  assert.ok(submit.indexOf('lockBalance(') >= 0 && submit.indexOf('lockBalance(') < submit.indexOf('await owned(client, owner, id)'),
+    'submit locks the balance before the attempt');
   const exported = body('exportData');
   const statements = exported.split('client.query(').slice(1);
-  assert.equal(statements.length, 4, 'attempts, submissions, results, objective evidence');
-  assert.match(statements[0], /a\.deleted_at IS NULL/, 'the attempts list stays live-only (tombstones carry no draft)');
-  for (const sql of statements.slice(1, 3)) {
+  assert.equal(statements.length, 6, 'preparations, balances, attempts, submissions, results, objective evidence');
+  assert.ok(statements.some((sql) => /a\.deleted_at IS NULL/.test(sql)),
+    'the attempts list stays live-only (tombstones carry no draft)');
+  const history = statements.filter((sql) => /a\.deleted_at AS attempt_deleted_at/.test(sql));
+  assert.equal(history.length, 2, 'submissions and results carry the tombstone flag');
+  for (const sql of history) {
     assert.ok(!/deleted_at IS NULL/.test(sql), 'submissions/results must not drop tombstoned history');
-    assert.match(sql, /a\.deleted_at AS attempt_deleted_at/, 'and must flag it');
     assert.match(sql, /s\.owner_id = \$1/, 'and stay owner-scoped');
   }
-  return 'remove(): entitlement -> attempt -> submission test -> 409 -> tombstone; export flags tombstones (source shape only)';
+  return 'remove(): balance -> attempt -> submission test -> 409 -> tombstone; export flags tombstones (source shape only)';
 });
 
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));

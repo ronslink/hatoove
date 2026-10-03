@@ -1,3 +1,4 @@
+import { fixturePreparation, scopedFixtureRoute } from './browser-preparation-fixtures.mjs';
 /** Additional real-browser journey legs, called only inside app-browser-check's disposable stack. */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,8 +17,11 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     await clickSel(cdp, '#si-submit');
     await cdp.waitFor("location.pathname.startsWith('/app') && document.querySelector('#account-email')?.innerText.includes('@')", 15000);
     const cookies = (await cdp.send('Network.getCookies', { urls: [base] })).cookies.map(c => `${c.name}=${c.value}`).join('; ');
+    const prepResponse=await fetch(base+'/api/v1/preparations',{headers:{cookie:cookies}});
+    if (!prepResponse.ok) throw new Error('synthetic preparation lookup failed');
+    const preparationId=fixturePreparation(await prepResponse.json());
     const request = async (route, method = 'GET', body) => {
-      const res = await fetch(base + route, { method, headers: { cookie: cookies, origin: base, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+      const res = await fetch(base + scopedFixtureRoute(route, preparationId), { method, headers: { cookie: cookies, origin: base, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
       return { status: res.status, data: await res.json() };
     };
     const history = (await request('/api/v1/attempts')).data.attempts;

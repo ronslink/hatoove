@@ -26,6 +26,8 @@ const PATHS = Object.freeze({
   signOut: '/api/auth/sign-out',
   account: '/api/v1/account',
   settings: '/api/v1/settings',
+  exams: '/api/v1/exams',
+  preparations: '/api/v1/preparations',
   tasks: '/api/v1/tasks',
   objectiveSets: '/api/v1/objective-sets',
   vocab: '/api/v1/vocab',
@@ -48,16 +50,20 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), onSessionIn
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('hatoove:session-expired', { detail: { reason } }));
 } } = {}) {
 let accountId = null;
+let preparation = null;
+let preparationGeneration = 0;
 let generation = 0;
 let stopped = null;
 const refusal = (status, error) => ({ ok: false, status, data: null, error });
 function invalidate(reason) {
   stopped = reason;
+  preparation = null;
+  preparationGeneration++;
   generation++;
   onSessionInvalid(reason);
   return refusal(reason === 'account_changed' ? 409 : 401, reason);
 }
-async function call(method, path, body) {
+async function call(method, path, body, scoped = false) {
   const protectedRequest = path.startsWith('/api/v1/') || path === PATHS.signOut || path === PATHS.session;
   if (protectedRequest && stopped) {
     onSessionInvalid(stopped);
@@ -65,6 +71,7 @@ async function call(method, path, body) {
   }
   if (protectedRequest && path !== PATHS.session && !accountId) return refusal(428, 'account_context_required');
   const ticket = generation;
+  const preparationTicket = preparationGeneration;
   const headers = body === undefined ? {} : { 'content-type': 'application/json' };
   if (protectedRequest && accountId) headers['X-Hatoove-Account'] = accountId;
   let res;
@@ -82,7 +89,9 @@ async function call(method, path, body) {
      * module's own contract (above) says it returns a result rather than throwing, and this is what
      * makes that true. `status: 0` means "no response received"; a write may already have committed.
      */
-    return refusal(0, ticket === generation ? 'network' : 'stale_session');
+    if (ticket !== generation) return refusal(409, 'stale_session');
+    if (scoped && preparationTicket !== preparationGeneration) return refusal(409, 'stale_preparation');
+    return refusal(0, 'network');
   }
   let payload = null;
   try { payload = await res.json(); } catch { /* a refusal may carry no body; the status still counts */ }
@@ -90,14 +99,31 @@ async function call(method, path, body) {
   if (ticket !== generation) return refusal(409, 'stale_session');
   if (protectedRequest && res.status === 401) return invalidate('session_expired');
   if (protectedRequest && res.status === 409 && payload?.error === 'account_changed') return invalidate('account_changed');
+  if (scoped && preparationTicket !== preparationGeneration) return refusal(409, 'stale_preparation');
   if (path === PATHS.session && res.ok) {
     const next = payload?.user?.id;
     if (typeof next !== 'string' || !next) return invalidate('session_expired');
     if (accountId && next !== accountId) return invalidate('account_changed');
     accountId = next;
   }
-  if (path === PATHS.signOut && res.ok) { accountId = null; stopped = 'session_expired'; generation++; }
+  if (path === PATHS.signOut && res.ok) { accountId = null; preparation = null; preparationGeneration++; stopped = 'session_expired'; generation++; }
   return { ok: res.ok, status: res.status, data: payload, error: payload && (payload.error || payload.code) };
+}
+
+// This in-memory selection carries context only. The server verifies ownership, state and
+// exam identity for every request; neither a cookie nor browser storage supplies an exam.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+async function scopedCall(method, path, body) {
+  if (stopped) return call(method, path, body, true);
+  if (!accountId) return refusal(428, 'account_context_required');
+  if (!preparation) return refusal(422, 'preparation_required');
+  if (method === 'GET') {
+    const join = path.includes('?') ? '&' : '?';
+    return call(method, path + join + 'preparationId=' + encodeURIComponent(preparation.id), undefined, true);
+  }
+  if (preparation.state !== 'active') return refusal(409, 'preparation_archived');
+  if (body?.preparationId !== undefined && body.preparationId !== preparation.id) return refusal(422, 'preparation_mismatch');
+  return call(method, path, { ...body, preparationId: preparation.id }, true);
 }
 
 return Object.freeze({
@@ -117,6 +143,22 @@ return Object.freeze({
     remove: () => call('DELETE', PATHS.account, {}),
   }),
 
+  exams: Object.freeze({ list: () => call('GET', PATHS.exams) }),
+  preparations: Object.freeze({
+    list: () => call('GET', PATHS.preparations),
+    create: (examId) => call('POST', PATHS.preparations, { examId }),
+    read: (id) => call('GET', PATHS.preparations + '/' + encodeURIComponent(id)),
+    update: (id, expectedRevision, changes) => call('PUT', PATHS.preparations + '/' + encodeURIComponent(id), { ...changes, expectedRevision }),
+    credits: (id) => call('GET', PATHS.preparations + '/' + encodeURIComponent(id) + '/credits'),
+    select: (value) => {
+      if (!accountId || stopped || !UUID.test(value?.id || '') || !['active', 'archived'].includes(value?.state)) return false;
+      if (preparation?.id !== value.id || preparation.state !== value.state) preparationGeneration++;
+      preparation = { id: value.id, state: value.state };
+      return true;
+    },
+    clear: () => { preparation = null; preparationGeneration++; },
+  }),
+
   settings: Object.freeze({
     read: () => call('GET', PATHS.settings),
     write: (expectedRevision, settings) => call('PUT', PATHS.settings, { expectedRevision, settings }),
@@ -134,7 +176,7 @@ return Object.freeze({
       if (exam) query.set('exam', exam);
       if (family) query.set('family', family);
       const suffix = query.toString();
-      return call('GET', suffix ? `${PATHS.tasks}?${suffix}` : PATHS.tasks);
+      return scopedCall('GET', suffix ? `${PATHS.tasks}?${suffix}` : PATHS.tasks);
     },
   }),
 
@@ -150,13 +192,13 @@ return Object.freeze({
     /** One set WITH its payload. The list is an index and carries none -- see the server's note. */
     read: (setId, version) => typeof version !== 'string' || !version.trim()
       ? Promise.resolve(refusal(422, 'invalid_version'))
-      : call('GET', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}?version=${encodeURIComponent(version)}`),
+      : scopedCall('GET', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}?version=${encodeURIComponent(version)}`),
     list: ({ exam = null, family = null } = {}) => {
       const query = new URLSearchParams();
       if (exam) query.set('exam', exam);
       if (family) query.set('family', family);
       const suffix = query.toString();
-      return call('GET', suffix ? `${PATHS.objectiveSets}?${suffix}` : PATHS.objectiveSets);
+      return scopedCall('GET', suffix ? `${PATHS.objectiveSets}?${suffix}` : PATHS.objectiveSets);
     },
   }),
 
@@ -228,7 +270,7 @@ return Object.freeze({
    * The client never decides what to practise and never marks anything.
    */
   practice: Object.freeze({
-    next: () => call('GET', PATHS.practiceNext),
+    next: () => scopedCall('GET', PATHS.practiceNext),
     /**
      * This learner's own totals and per-section tallies, aggregated by the server from item_evidence.
      *
@@ -236,10 +278,10 @@ return Object.freeze({
      * class of defect that only a browser finds: `node --check` passes, the endpoint exists, and the
      * first screen silently stays on "Wird geladen …". Measured by tools/app-browser-check.mjs (L7/L9).
      */
-    progress: () => call('GET', PATHS.practiceProgress),
+    progress: () => scopedCall('GET', PATHS.practiceProgress),
     answer: (setId, payload) => typeof payload?.version !== 'string' || !payload.version.trim()
       ? Promise.resolve(refusal(422, 'invalid_version'))
-      : call('POST', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}/answers`, payload),
+      : scopedCall('POST', `${PATHS.objectiveSets}/${encodeURIComponent(setId)}/answers`, payload),
     /**
      * The items whose MOST RECENT answer was wrong. A mistake clears itself when the learner gets the
      * item right -- there is no "mark as learned" and no scheduler.
@@ -247,7 +289,7 @@ return Object.freeze({
      * NO CORRECT ANSWER IS RETURNED. It cannot be: the answer key is not readable by the learner's
      * database role at all. What comes back is what the LEARNER answered, so they can try again.
      */
-    mistakes: () => call('GET', PATHS.practiceMistakes),
+    mistakes: () => scopedCall('GET', PATHS.practiceMistakes),
   }),
 
   /**
@@ -271,9 +313,11 @@ return Object.freeze({
      * `readAttempt` once the view has decided which draft it is resuming — one letter per response, not
      * every letter in a list.
      */
-    listAttempts: () => call('GET', PATHS.attempts),
-    openAttempts: () => call('GET', `${PATHS.attempts}?open=1`),
-    createAttempt: (binding = null) => call('POST', PATHS.attempts, binding ? { ...binding } : {}),
+    listAttempts: () => scopedCall('GET', PATHS.attempts),
+    openAttempts: () => scopedCall('GET', `${PATHS.attempts}?open=1`),
+    createAttempt: (binding = null) => binding?.parentSubmissionId
+      ? call('POST', PATHS.attempts, { ...binding })
+      : scopedCall('POST', PATHS.attempts, binding ? { ...binding } : {}),
     /**
      * Abandon a draft. The route is a TOMBSTONE, not an erase: the attempt stops being resumable and the
      * letter is no longer served, which is what "start over" has to mean on the server as well as on

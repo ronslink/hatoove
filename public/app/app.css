@@ -13,6 +13,14 @@
 .view[hidden] { display: none; }
 .app[hidden], #boot-state[hidden], #boot-state [hidden] { display: none; }
 .boot-card { max-width: 34rem; margin: 12vh auto; width: calc(100% - 2rem); }
+.preparation-context { margin-block-end: 24px; min-width: 0; }
+.preparation-heading { flex-wrap: wrap; gap: 12px; }
+.preparation-heading > div { min-width: 0; }
+.preparation-context strong, .preparation-context p { overflow-wrap: anywhere; }
+.preparation-context .select { width: 100%; max-width: 100%; }
+.preparation-context .row { flex-wrap: wrap; }
+#preparation-state:empty { display: none; }
+.archived-writing { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /*
  * `hidden` MUST WIN — and by default it does not.
@@ -279,3 +287,34 @@ code {
 .read-aloud .btn { margin-top: 0; flex-shrink: 0; min-height: 44px; }
 .read-aloud-status { min-width: 0; overflow-wrap: anywhere; }
 .criterion > .read-aloud, .criterion > .evidence { grid-column: 1 / -1; }
+
+/*
+ * A CHOICE MUST BE READABLE IN FULL, NOT ON HOVER (REVIEW-UX).
+ *
+ * The objective answer tiles were rendered as `label.slice(0, 40)` with the full option text in
+ * `title=`. On an LV3 situation — twelve ads the learner has to compare against one another — every
+ * tile was cut at the same column, and the only way to read one was to hover it. A phone cannot hover,
+ * so on the device the design targets the choice was not readable at all. The full authored text is
+ * rendered as the button's own text now; this rule is what makes that fit inside the card.
+ *
+ * A TILE TAKES THE WHOLE ROW and wraps at its own spaces, so two long ads are never laid side by side
+ * in a column too narrow for either. `min-width: 0` is the load-bearing half: a flex item's automatic
+ * minimum size is its MIN-CONTENT width, so without it a long option stays one unbreakable line and
+ * pushes `documentElement` wider than the phone — horizontal overflow, which
+ * tools/app-browser-check.mjs's overflow helper measures and tools/review-ux-browser.mjs asserts at
+ * 320/390 px. `overflow-wrap: anywhere` finishes the job for a single word longer than the row.
+ *
+ * `text-align: start` rather than `center`: with `justify-content: flex-start` the letter label (`a)`)
+ * and the option text stay left-aligned and in reading order, so the answer identity is unchanged.
+ * The `.btn` rule in the pinned system still supplies the face, the 44 px minimum height, the padding
+ * and the neutral ink-on-transparent treatment — no new token, colour or breakpoint is introduced here.
+ */
+.answer-option {
+  flex: 1 1 100%;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

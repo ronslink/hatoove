@@ -45,7 +45,7 @@ const createDeletion = typeof adapter.createPostgresAccountDeletion === 'functio
 /** Every table that holds an account's rows, as HARD-DELETE-01 §1 lists it, plus `account`. */
 const TABLES = [
   'attempts', 'drafts', 'submissions', 'jobs', 'assessments', 'usage_ledger',
-  'entitlements', 'learner_settings', 'item_evidence', 'session', 'account', 'user',
+  'entitlements', 'learner_settings', 'item_evidence', 'learner_preparation', 'session', 'account', 'user',
 ];
 
 /**
@@ -129,6 +129,7 @@ async function snapshot(userId, attemptIds = []) {
     entitlements: await rows('SELECT * FROM entitlements WHERE owner_id = $1', [userId]),
     learner_settings: await rows('SELECT * FROM learner_settings WHERE user_id = $1', [userId]),
     item_evidence: await rows('SELECT * FROM item_evidence WHERE owner_id = $1 ORDER BY evidence_id', [userId]),
+    learner_preparation: await rows('SELECT * FROM learner_preparation WHERE owner_id = $1 ORDER BY id', [userId]),
     session: await rows('SELECT * FROM session WHERE "userId" = $1 ORDER BY id', [userId]),
     account: await rows('SELECT * FROM account WHERE "userId" = $1 ORDER BY id', [userId]),
     user: await rows('SELECT * FROM "user" WHERE id = $1', [userId]),
@@ -152,10 +153,17 @@ async function seed(call, label) {
   const cookie = cookieOf(signUp);
   const who = await call('GET', '/api/v1/account', { cookie });
   const userId = who.json.id;
+  // EXAM-S1: the preparation registration provisioned. Every new attempt and answer names it.
+  const preparations = await call('GET', '/api/v1/preparations', { cookie });
+  assert.equal(preparations.status, 200, `preparations ${label}: ${preparations.status}`);
+  const active = preparations.json.preparations.filter((p) => p.state === 'active');
+  assert.equal(active.length, 1, `${label}: registration provisions one active preparation`);
+  const preparationId = active[0].id;
 
   async function submitted(text) {
-    const created = await call('POST', '/api/v1/attempts', { cookie, body: {} });
-    assert.equal(created.status, 201);
+    const created = await call('POST', '/api/v1/attempts', { cookie, body: { preparationId } });
+    assert.equal(created.status, 201, `create ${label}: ${created.status} ${JSON.stringify(created.json)}`);
+    assert.equal(created.json.preparation_id, preparationId);
     const saved = await call('PUT', `/api/v1/attempts/${created.json.id}`, { cookie, body: { expectedRevision: 1, text } });
     assert.equal(saved.status, 200);
     const sent = await call('POST', `/api/v1/attempts/${created.json.id}/submissions`,
@@ -177,7 +185,7 @@ async function seed(call, label) {
   assert.equal((await call('DELETE', `/api/v1/attempts/${second.attemptId}`, { cookie, body: {} })).status, 409);
   // A draft discard can no longer delete submitted history. Keep that failed submission for
   // hard-account-deletion coverage, and add a genuinely unsubmitted tombstone separately.
-  const discarded = await call('POST', '/api/v1/attempts', { cookie, body: {} });
+  const discarded = await call('POST', '/api/v1/attempts', { cookie, body: { preparationId } });
   assert.equal(discarded.status, 201);
   assert.equal((await call('DELETE', `/api/v1/attempts/${discarded.json.id}`, { cookie, body: {} })).status, 200);
 
@@ -188,12 +196,12 @@ async function seed(call, label) {
   // `mark_objective_item`. Without them `item_evidence` is empty and its read-back is vacuous.
   for (const answer of [true, 'synthetic-wrong']) {
     const answered = await call('POST', `/api/v1/objective-sets/${encodeURIComponent(evidenceItem.setId)}/answers`,
-      { cookie, body: { itemId: evidenceItem.itemId, version: evidenceItem.version, answer } });
+      { cookie, body: { preparationId, itemId: evidenceItem.itemId, version: evidenceItem.version, answer } });
     assert.equal(answered.status, 201, `objective answer ${label}: ${answered.status} ${JSON.stringify(answered.json)}`);
   }
   const signIn = await call('POST', '/api/auth/sign-in/email', { body: { email, password } });
   assert.equal(signIn.status, 200);
-  return { label, userId, cookie, cookie2: cookieOf(signIn), revisionAttemptId: revision.json.id, firstSubmissionId: first.submissionId };
+  return { label, userId, cookie, cookie2: cookieOf(signIn), preparationId, revisionAttemptId: revision.json.id, firstSubmissionId: first.submissionId };
 }
 
 /** The precondition that keeps a later "zero rows" honest: rows exist in every table. */
@@ -201,6 +209,13 @@ function assertPopulated(snap, label) {
   for (const table of TABLES) assert.ok(snap.counts[table] > 0, `${label}: no ${table} row before the deletion (vacuous)`);
   assert.ok(snap.counts.session >= 2, `${label}: expected two live sessions`);
   assert.equal(snap.counts.item_evidence, 2, `${label}: expected the two answered objective items as evidence`);
+  assert.equal(snap.counts.learner_preparation, 1, `${label}: expected the registered preparation`);
+  assert.ok(snap.state.attempts.every((a) => a.preparation_id === snap.state.learner_preparation[0].id),
+    `${label}: every attempt (the revision included) is bound to the account's own preparation`);
+  assert.ok(snap.state.item_evidence.every((e) => e.preparation_id === snap.state.learner_preparation[0].id),
+    `${label}: evidence is bound to the account's own preparation`);
+  assert.ok(snap.state.jobs.every((j) => j.exam_id === snap.state.learner_preparation[0].exam_id),
+    `${label}: every reservation lives in the preparation's exam balance`);
   assert.ok(snap.state.attempts.some((a) => a.parent_submission_id), `${label}: no attempt carries parent_submission_id (no cycle)`);
   assert.ok(snap.state.attempts.some((a) => a.deleted_at), `${label}: no soft-deleted attempt`);
 }
@@ -231,6 +246,8 @@ try {
       LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
      WHERE c.review_status IN ('approved', 'unreviewed') AND s.media_required = false
        AND COALESCE(cr.basis, c.rights_status) = 'generated'
+       -- The registered preparation is telc's, so the evidence must be for a telc set (EXAM-S1).
+       AND s.exam_id = 'telc-deutsch-b1'
      ORDER BY k.set_id, k.version LIMIT 1`))[0];
   assert.ok(evidenceItem && evidenceItem.itemId, 'the fixture serves no objective item to answer (vacuous evidence)');
 
@@ -241,7 +258,7 @@ try {
   const beforeB = await snapshot(B.userId);
   const beforeC = await snapshot(C.userId);
 
-  await check('precondition: A, B and C each have rows in all 12 account tables, the cycle and a soft-deleted attempt', async () => {
+  await check(`precondition: A, B and C each have rows in all ${TABLES.length} account tables, the cycle and a soft-deleted attempt`, async () => {
     assertPopulated(beforeA, 'A'); assertPopulated(beforeB, 'B'); assertPopulated(beforeC, 'C');
     return `A before: ${countLine(beforeA.counts)}\n     B before: ${countLine(beforeB.counts)}`;
   });

@@ -34,6 +34,7 @@ import { createOwnedClient, OwnedClientError } from '../public/js/owned-client.j
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresDatastore } from '../server/owned-postgres/adapter.mjs';
 import { createPostgresSessions } from '../server/owned-postgres/sessions.mjs';
+import { DEFAULT_TASK_BINDING } from '../server/owned-postgres/content-seed.mjs';
 
 const ATTEMPT_ABSENT = '0f0f0f0f-0000-4000-8000-000000000000';
 const SUBMISSION_ABSENT = '0e0e0e0e-0000-4000-8000-000000000000';
@@ -85,6 +86,21 @@ async function expectClientError(promise, code, status) {
   return error;
 }
 
+// Resolve the preparation genuinely created by registration; never infer or provision one in the test client.
+async function registeredPreparation(who) {
+  const response = await who.raw('GET', '/api/v1/preparations');
+  assert.equal(response.status, 200, response.text);
+  const active = response.json.preparations.filter((p) => p.exam_id === 'telc-deutsch-b1' && p.state === 'active');
+  assert.equal(active.length, 1, 'registration supplies exactly one active telc preparation');
+  assert.match(active[0].id, /^[0-9a-f-]{36}$/);
+  return active[0];
+}
+
+async function registeredAttempt(who) {
+  const preparation = await registeredPreparation(who);
+  return who.client.createAttempt({ preparationId: preparation.id, ...DEFAULT_TASK_BINDING });
+}
+
 /* -------------------------------------------------------------- context */
 
 async function buildContext() {
@@ -114,7 +130,7 @@ check('pg-two-accounts-are-seeded-through-the-api', async () => {
     assert.equal(rows.rowCount, 2);
     assert.deepEqual(rows.rows.map((r) => r.email), ['a@pg.example.invalid', 'b@pg.example.invalid']);
     // ...and both are genuinely usable.
-    const attempt = await a.client.createAttempt();
+    const attempt = await registeredAttempt(a);
     assert.equal((await a.client.readAttempt(attempt.id)).owner_id, accountA.id);
   } finally { await ctx.fixture.cleanup(); }
 });
@@ -126,10 +142,10 @@ check('pg-cross-owner-404-on-every-owned-route-leaks-nothing', async () => {
     const b = browser(ctx.api);
     await a.client.signUp({ name: 'A', email: 'a@pg.example.invalid', password: 'pw-a-synthetic' });
     await b.client.signUp({ name: 'B', email: 'b@pg.example.invalid', password: 'pw-b-synthetic' });
-    const attempt = await a.client.createAttempt();
+    const attempt = await registeredAttempt(a);
     const draft = await a.client.saveDraft(attempt.id, { expectedRevision: 1, text: 'A private draft' });
     const receipt = await a.client.submit(attempt.id, { expectedRevision: draft.revision, eventId: randomUUID() });
-    const openB = await b.client.createAttempt();
+    const openB = await registeredAttempt(b);
     await b.client.saveDraft(openB.id, { expectedRevision: 1, text: 'B private draft' });
     const schema = ctx.fixture.schema;
     const counts = async () => {
@@ -211,16 +227,16 @@ check('pg-rls-discrimination-superuser-and-disabled-policy', async () => {
   const scratch = await createFixture();
   try {
     const { learner, admin } = scratch;
-    const ownerA = `user-${randomUUID()}`;
-    const ownerB = `user-${randomUUID()}`;
-    for (const owner of [ownerA, ownerB]) {
-      await admin.query('INSERT INTO "user"(id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES($1, $2, $3, false, now(), now())',
-        [owner, 'Synthetic', `${owner}@pg.example.invalid`]);
-      await admin.query('INSERT INTO entitlements(owner_id, allowance) VALUES($1, 5)', [owner]);
-    }
-    const attemptId = randomUUID();
-    await admin.query(`INSERT INTO attempts(id, owner_id, task_version, rubric_version) VALUES($1, $2, 'synthetic-writing-v1', 'formative-fixture-v1')`, [attemptId, ownerA]);
-    await admin.query('INSERT INTO drafts(attempt_id, revision, text) VALUES($1, 1, $2)', [attemptId, 'A secret']);
+    const port = createPostgresDatastore({ pool: learner });
+    const sessions = createPostgresSessions({ pool: scratch.auth, adminPool: admin, allowance: 5 });
+    const api = createOwnedApi({ datastore: port, sessions });
+    const a = browser(api);
+    const b = browser(api);
+    const ownerA = (await a.client.signUp({ name: 'A', email: 'rls-a@pg.example.invalid', password: 'pw-rls-synthetic' })).id;
+    const ownerB = (await b.client.signUp({ name: 'B', email: 'rls-b@pg.example.invalid', password: 'pw-rls-synthetic' })).id;
+    const attemptId = (await registeredAttempt(a)).id;
+    await a.client.saveDraft(attemptId, { expectedRevision: 1, text: 'A secret' });
+    assert.equal((await a.client.readAttempt(attemptId)).owner_id, ownerA);
 
     const crossOwner = async (client, owner) => {
       await client.query('BEGIN');
@@ -238,10 +254,13 @@ check('pg-rls-discrimination-superuser-and-disabled-policy', async () => {
     // Discrimination 2: disable the policy on a scratch copy -> the SAME restricted
     // role now sees it. That is what makes the passing test meaningful.
     await admin.query('ALTER TABLE attempts DISABLE ROW LEVEL SECURITY');
-    assert.equal(await crossOwner(learner, ownerB), 1, 'with RLS disabled a test like this would pass while proving nothing');
-    // Restore, then prove the restore.
-    await admin.query('ALTER TABLE attempts ENABLE ROW LEVEL SECURITY');
-    await admin.query('ALTER TABLE attempts FORCE ROW LEVEL SECURITY');
+    try {
+      assert.equal(await crossOwner(learner, ownerB), 1, 'with RLS disabled a test like this would pass while proving nothing');
+    } finally {
+      // Restore even if the deliberate mutant fails, then prove the restore below.
+      await admin.query('ALTER TABLE attempts ENABLE ROW LEVEL SECURITY');
+      await admin.query('ALTER TABLE attempts FORCE ROW LEVEL SECURITY');
+    }
     assert.equal(await crossOwner(learner, ownerB), 0, 'policy restored: cross-owner read is empty again');
     assert.equal((await admin.query('SELECT * FROM attempts WHERE id = $1', [attemptId])).rowCount, 1, 'the owner row is intact');
     // A learner cannot switch the policy off for itself: the session setting is
@@ -261,7 +280,7 @@ check('pg-datastore-failure-is-500-never-success', async () => {
   try {
     const a = browser(ctx.api);
     await a.client.signUp({ name: 'A', email: 'a@pg.example.invalid', password: 'pw-a-synthetic' });
-    const attempt = await a.client.createAttempt();
+    const attempt = await registeredAttempt(a);
     // Break the learner pool only; the session still verifies.
     await ctx.fixture.learner.end();
     const res = await a.raw('GET', `/api/v1/attempts/${attempt.id}`);
@@ -366,22 +385,21 @@ check('pg-an-attempt-cannot-bind-content-that-does-not-exist', async () => {
   const ctx = await buildContext();
   const { admin, schema } = ctx.fixture;
   try {
-    const owner = `user-${randomUUID()}`;
-    await admin.query('INSERT INTO "user"(id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES($1, $2, $3, false, now(), now())',
-      [owner, 'Synthetic', `${owner}@pg.example.invalid`]);
+    const a = browser(ctx.api);
+    const owner = (await a.client.signUp({ name: 'FK', email: 'fk@pg.example.invalid', password: 'pw-fk-synthetic' })).id;
+    const preparation = await registeredPreparation(a);
+    // Keep the preparation, owner, exam and rubric valid so ONLY the task-version FK can fail.
+    const insert = `INSERT INTO ${schema}.attempts(id, owner_id, preparation_id, exam_id, task_id, task_version, rubric_id, rubric_version)
+                    VALUES($1, $2, $3, $4, $5, $6, $7, $8)`;
+    const values = (taskId, taskVersion) => [randomUUID(), owner, preparation.id, preparation.exam_id,
+      taskId, taskVersion, DEFAULT_TASK_BINDING.rubricId, DEFAULT_TASK_BINDING.rubricVersion];
     await assert.rejects(
-      admin.query(
-        `INSERT INTO ${schema}.attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version)
-         VALUES($1, $2, 'writing.no.such.task', 'v9', 'writing.formative', 'v1')`,
-        [randomUUID(), owner]),
-      (e) => e.code === '23503',
-      'a task version that does not exist must be rejected by the foreign key',
+      admin.query(insert, values('writing.no.such.task', 'v9')),
+      (e) => e.code === '23503' && e.constraint === 'attempts_task_version_fk',
+      'a missing task version must fail its specific FK, not an unrelated context constraint',
     );
-    // And the real ones are accepted (the negative control that the FK is not simply broken).
-    const ok = await admin.query(
-      `INSERT INTO ${schema}.attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version)
-       VALUES($1, $2, 'writing.du.besuch-einer-freundin', 'v1', 'writing.formative', 'v1')`,
-      [randomUUID(), owner]);
+    // Positive control: the same fully scoped INSERT with the real task identity succeeds.
+    const ok = await admin.query(insert, values(DEFAULT_TASK_BINDING.taskId, DEFAULT_TASK_BINDING.taskVersion));
     assert.equal(ok.rowCount, 1);
   } finally { await ctx.fixture.cleanup(); }
 });
@@ -406,7 +424,7 @@ check('pg-creating-learners-adds-no-table-and-no-role', async () => {
     for (const tag of ['ddl-a', 'ddl-b']) {
       const b = browser(ctx.api);
       await b.client.signUp({ name: tag, email: `${tag}@pg.example.invalid`, password: 'pw-ddl-synthetic' });
-      const attempt = await b.client.createAttempt();
+      const attempt = await registeredAttempt(b);
       assert.ok(attempt.id, 'the learner can create an attempt');
     }
     assert.deepEqual(await counts(), before, 'two learners must add no table and no role');
