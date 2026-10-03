@@ -28,6 +28,7 @@
   <p id="boot-message">Dein Konto und deine Einstellungen werden geladen …</p>
   <button id="boot-retry" type="button" class="btn btn-primary" hidden>Erneut versuchen</button>
   <a id="boot-signin" class="btn" href="/signin" hidden>Erneut anmelden</a>
+  <div id="boot-choices" class="stack" hidden></div>
 </section>
 
 <div class="app" id="app-shell" hidden inert aria-busy="true">
@@ -47,7 +48,7 @@
     </a>
 
     <div class="exam-pill">
-      <strong>telc Deutsch B1</strong>
+      <strong id="sidebar-exam">Prüfung wird geladen</strong>
       <span id="exam-countdown">Kein Prüfungsdatum gesetzt</span>
     </div>
 
@@ -100,6 +101,12 @@
     </header>
 
     <main class="content" id="main">
+      <section class="card preparation-context" aria-label="Deine Prüfungsvorbereitung">
+        <div class="spread preparation-heading"><div><p class="kicker">Deine Vorbereitung</p><strong id="preparation-exam">Prüfung wird geladen</strong><p class="small muted" id="preparation-scope">Einzelne Abschnitte üben</p></div><div class="row"><a class="btn btn-primary" id="preparation-start" href="#/ueben">Abschnitt üben</a><a class="btn" id="preparation-continue" href="#/fortschritt">Gespeicherte Texte fortsetzen</a></div></div>
+        <div class="field" id="preparation-choice" hidden><label for="preparation-picker">Vorbereitung auswählen</label><select class="select" id="preparation-picker"></select></div>
+        <p class="small muted" id="preparation-state" role="status" aria-live="polite"></p>
+        <div class="row"><p class="small muted" id="preparation-credits" role="status">Guthaben wird geladen …</p><button class="btn btn-small" id="credits-retry" type="button" hidden>Guthaben erneut laden</button></div>
+      </section>
 
       <!-- Heute -->
       <section class="view" id="view-heute">
@@ -329,8 +336,9 @@
             <div class="card-head"><h3>Prüfung</h3></div>
             <div class="stack">
               <div class="field">
-                <label for="examDate">Prüfungsdatum</label>
+                <label for="examDate">Prüfungsdatum dieser Vorbereitung (optional)</label>
                 <input class="input" type="date" id="examDate" name="examDate">
+                <p class="small muted">Ohne Termin kannst du direkt üben. Eine archivierte Vorbereitung ist schreibgeschützt.</p>
               </div>
               <div class="field">
                 <label for="language">Erklärungssprache</label>
