@@ -1,5 +1,9 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## C-03 delivered and saved explanations active — 3 October 2026
+
+[PR125](https://github.com/ronslink/hatoove/pull/125) delivers independently reviewed attributable review/withdrawal behavior with [local evidence](work/implementation/PILOT-C03-RESULT.md); Q01 accessibility is PR123 and S6 admission is PR120. The required hosted jobs still cannot start under the GitHub account billing/spending restriction, so none of this stack is merged. [Issue124](https://github.com/ronslink/hatoove/issues/124) implements immutable saved explanation representations and read-only language switching under the [reviewed contract](docs/contracts/PILOT-07-EXPLANATIONS.md), using bounded separate authors and stubs. O01 usage/reporting follows its corrected design after worker/adapter ownership releases. Actual educational/native/audio, device, privacy/security/legal, provider and live-operation gates remain distinct; full pilot completion is not claimed.
+
 ## EXAM-S6 locally verified; remaining pilot engineering — 3 October 2026
 
 Complete public DTZ admission is independently reviewed at `7b3438a`: core16, canonical parity81, wrapper9, admission12, payments16 and browser7 pass. [S6 evidence](work/implementation/EXAM-S6-RESULT.md) records the exact boundaries. Hosted CI and integration remain blocked separately. The next engineering contracts address named exact-version content review and versioned saved-assessment explanations/language switching. The older milestone matrix below is historical and must be reconciled against implemented source/evidence, not treated as the current backlog. Human content/device/privacy/security and live-operation gates remain open; the full pilot goal is not complete.

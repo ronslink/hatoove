@@ -82,6 +82,8 @@ SQL policy floor is exact parent identity, known permitted rights basis (unknown
 
 Writing uses existing historicalContent/writingContext; mock uses readReleasedForm/runDto. Explanation-bearing reads use READ COMMITTED, owner7352 then exact exam7351, then fresh parent/rights/representation statements after waits. Move the current mock repeatable-read path to this explicit sequence when composing explanations; do not lock within its old snapshot and claim fresh authorization. Publisher head promotion uses the same exam fence. Rights withdrawal committed before authorization hides prose. A read authorized before a later withdrawal cannot revoke already delivered bytes. An incomplete newer release alone must not erase eligible pinned history. C03 completed-history facts remain readable after review withdrawal with notice; follow independent rights withholding. New explanation rejection never regrades or erases saved facts.
 
+Export retains its existing coherent REPEATABLE READ READ ONLY snapshot. Independently reviewed clarification (playback,3 October2026): the same protected readers may take a no-lock snapshot branch only when actual transaction_isolation is repeatable read AND transaction_read_only is on. They run every identical context/rights/head check in that snapshot; authorization occurs at snapshot establishment, not after an advisory wait. No advisory locks in this branch, no default-isolation or application-GUC policy override, no additional locator/table grants. Normal READ COMMITTED reads retain owner->exam fences and fresh statements; reject other isolation modes. This exception preserves export coherence and does not claim to revoke bytes from a read authorized before a later withdrawal.
+
 ## Read DTO and review seam
 
 ```text
