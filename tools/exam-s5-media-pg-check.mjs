@@ -52,7 +52,8 @@ try {
   await importDefaultPackage(db.migration);
   const a = await owner('a'), b = await owner('b');
   await check('forward migration leaves existing learner run bytes intact and keeps S4 functions protected', async () => {
-    const form = (await port.listMockForms(a.id, { preparationId: a.telc.id }))[0];
+    // Inspect the pre-upgrade release relation through its historical SQL contract.
+    const form = await sqlAs(a.id, async c => (await c.query('SELECT f.form_id,f.form_version AS version,f.release_version FROM exam_release_form f JOIN exam_release_head h USING(exam_id,release_version) WHERE f.exam_id=$1 ORDER BY f.form_id LIMIT 1',[TELC])).rows[0]);
     // The latest adapter requires the latest schema. Create the historical run using its old SQL grant.
     const old = await sqlAs(a.id, async c => (await c.query(`INSERT INTO mock_run
       (id,owner_id,preparation_id,exam_id,release_version,blueprint_version,form_id,form_version,start_event_id,title,scope,mode)
@@ -60,7 +61,7 @@ try {
       FROM exam_form f WHERE f.exam_id=$6 AND f.form_id=$7 AND f.version=$8 RETURNING *`,
       [randomUUID(),a.id,a.telc.id,form.release_version,randomUUID(),TELC,form.form_id,form.version])).rows[0]);
     const before = (await db.admin.query('SELECT * FROM mock_run WHERE id=$1', [old.id])).rows[0];
-    assert.deepEqual(await db.applyRemaining(), ['0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql']);
+    assert.deepEqual(await db.applyRemaining(), ['0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql']);
     assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1', [old.id])).rows[0], before);
     assert.equal((await port.finaliseMockRun(a.id, old.id, { expectedRevision: old.revision, eventId: randomUUID() })).result.total, 20);
     const f = (await db.admin.query("SELECT proname,prosecdef,proconfig FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname IN ('protect_mock_run','finalise_mock_run','protect_listening_playback')")).rows;

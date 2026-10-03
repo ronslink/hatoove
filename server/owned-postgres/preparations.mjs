@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { Fault } from '../owned-api.mjs';
 import { entitlementExpired } from './entitlement.mjs';
 import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs';
+import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = (result) => result.rows[0];
@@ -48,10 +49,15 @@ export function preparationMethods({ settle, note = () => {}, catalogue = create
     /** The offered packages: enabled by server configuration AND present in the database. */
     async listExams(owner) {
       note('listExams');
-      return settle(owner, async (client) => (await client.query(
+      return settle(owner, async (client) => {
+        const rows = (await client.query(
         `SELECT exam_id, exam, exam_language, level FROM exam_package
-          WHERE exam_id = ANY($1::text[]) ORDER BY exam_id`, [catalogue.ids])).rows
-        .map((row) => ({ exam_id: row.exam_id, exam: row.exam, exam_language: row.exam_language, level: row.level })));
+          WHERE exam_id = ANY($1::text[]) ORDER BY exam_id`, [catalogue.ids])).rows;
+        const offered = [];
+        for (const row of rows) if ((await readCurrentReleaseEligibility(client, row.exam_id, { catalogue })).eligible)
+          offered.push({ exam_id: row.exam_id, exam: row.exam, exam_language: row.exam_language, level: row.level });
+        return offered;
+      }, true);
     },
 
     /** Every preparation of the owner, archived history included, oldest first. */
@@ -82,8 +88,15 @@ export function preparationMethods({ settle, note = () => {}, catalogue = create
      */
     async createPreparation(owner, examId) {
       note('createPreparation');
-      if (!catalogue.isEnabled(examId)) fail(422, 'exam_unavailable');
       return settle(owner, async (client) => {
+        // Match writing/run/SQL guard lock order before any new exam admission.
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))', [owner]);
+        // Returning an existing preparation is resume, even when new admission has closed.
+        const existing = first(await client.query(
+          `${SELECT_PREPARATION} WHERE p.owner_id = $1 AND p.exam_id = $2 AND p.state = 'active'`, [owner, examId]));
+        if (existing) return { created: false, preparation: preparationDto(existing) };
+        if (!(await readCurrentReleaseEligibility(client, examId, { catalogue, lock: true })).eligible)
+          fail(422, 'exam_unavailable');
         const known = first(await client.query('SELECT 1 FROM exam_package WHERE exam_id = $1', [examId]));
         if (!known) fail(422, 'exam_unavailable');
         const inserted = first(await client.query(

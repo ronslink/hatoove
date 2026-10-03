@@ -1,5 +1,18 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## EXAM-S6 locally verified; remaining pilot engineering — 3 October 2026
+
+Complete public DTZ admission is independently reviewed at `7b3438a`: core16, canonical parity81, wrapper9, admission12, payments16 and browser7 pass. [S6 evidence](work/implementation/EXAM-S6-RESULT.md) records the exact boundaries. Hosted CI and integration remain blocked separately. The next engineering contracts address named exact-version content review and versioned saved-assessment explanations/language switching. The older milestone matrix below is historical and must be reconciled against implemented source/evidence, not treated as the current backlog. Human content/device/privacy/security and live-operation gates remain open; the full pilot goal is not complete.
+
+## EXAM-S6 independent review corrections — 3 October 2026
+
+Learner admission and payments are independently reviewed; the reproduced owner/exam lock inversion is corrected in `4464b21` with twelve admission checks. The remaining SQL/canonical-reader parity correction has Ron's explicit approval for code and disposable tests. Public browser acceptance has preliminary7/7 evidence, with final combined verification pending the correction. [Issue119](https://github.com/ronslink/hatoove/issues/119) remains active. This is delivered engineering under review, not green hosted CI, integration or product acceptance. The GitHub account block and human content/device/live-operation gates remain unchanged.
+
+## EXAM-S6 admission gates active — 3 October 2026
+
+**EXAM-S6-20261003-A, [issue119](https://github.com/ronslink/hatoove/issues/119), contract b001985.** Three acknowledged authors own separate core SQL, learner admission and payment paths from reviewed S5 d31a763. [S5 PR118](https://github.com/ronslink/hatoove/pull/118) is open and independently reviewed; local default browser199, full-mock browser8 and Compose37 pass. Its seven required hosted jobs stopped before any test step because of the account billing/spending block (runs37132454660/37132454653). No green CI or merge is claimed. S6 adds one current complete DTZ predicate across discovery, new learner work and offers, with restricted SQL backstops and preserved pinned continuations. Synthetic approval exists only in disposable fixtures. Default telc-only configuration, original learner records and all human/live-operation gates remain unchanged.
+
+
 ## EXAM-S5 engineering delivered; integration pending — 3 October 2026
 
 **EXAM-S5-20261003-A / EXAM-S5B-20261003-A, issue117.** The isolated candidate implements private fixed audio, durable playback recovery, assigned telc writing and complete written mocks with immutable ordered time windows. Exact telc60/DTZ45 objective coverage remains separate from writing feedback. All author slices and review corrections have independent source approval, including rights-withdrawal/assessment serialization and unknown audio receipts at group boundaries. S5A browser12, S5B browser8, focused S5B package9/backend8/client19 and PostgreSQL package13/backend16/worker13 pass; Compose37/OpenAPI51 and forward S3/S4/media/payment checks pass. [Evidence](work/implementation/EXAM-S5-RESULT.md) distinguishes technical signals from approved spoken content and physical-device acceptance. Retained default browser199, classifier11 and deletion20 also pass; final closeout review precedes the stacked PR. Hosted CI remains account-blocked; no merge is claimed. Order stays S4PR114, paymentsPR116, S5, then S6. S6 atomic public DTZ admission is being inventoried separately. Canonical draft/data and human/live-operation gates remain preserved.

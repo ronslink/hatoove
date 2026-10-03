@@ -23,6 +23,12 @@ info:
     - **Account consistency.** The learner app supplies optional `X-Hatoove-Account` on owned routes,
       get-session and sign-out. A mismatch with the verified session returns `409 account_changed`
       before any data operation. This is a precondition, never an ownership selector.
+    - **Current release admission.** The default catalogue remains telc-only. Explicitly enabled public
+      DTZ requires an available current release containing a complete, approved, rights-permitted written
+      form. Discovery, new preparations, standalone practice, new mock runs and new checkout orders use
+      the same eligibility decision. Existing preparations, pinned runs, writing, exact event receipts,
+      order history and payment grants retain their own continuation checks; current-head withdrawal
+      does not erase saved work. Explicit rights blocks still withhold protected content.
     - **Not ready ⇒ 503, in every mode.** Omitting `B1PREP_SAAS` does not re-open a single-user path.
 
     `tools/api-spec-check.mjs` verifies this document against a running server: every operation here
@@ -65,7 +71,7 @@ paths:
       summary: List released forms for the owned preparation
       parameters:
         - $ref: '#/components/parameters/PreparationQuery'
-      description: Only the enabled exam and current permitted release are discoverable. An archived preparation has no startable forms. Internal forms require the internal-preview deployment policy.
+      description: Only the enabled exam and eligible current release are discoverable. Public DTZ additionally requires complete approved written-form coverage. An archived preparation has no startable forms. Internal forms require the internal-preview deployment policy.
       responses:
         '200':
           description: Released form summaries, or an empty list.
@@ -480,7 +486,7 @@ paths:
     get:
       tags: [preparations]
       summary: The exam packages this deployment offers
-      description: Server configuration decides; S1 offers telc Deutsch B1 only. A database row alone does not publish a package.
+      description: Server configuration decides; the default offers telc Deutsch B1 only. Explicit public DTZ is listed only when its current available release has complete approved written-form coverage and permitted rights. Explicit internal-preview retains partial internal packages. A database row alone does not publish a package.
       responses:
         '200':
           description: The offered packages.
@@ -517,7 +523,7 @@ paths:
     post:
       tags: [preparations]
       summary: Start (or return) the active preparation for an exam
-      description: Idempotent. An existing active preparation is returned unchanged with `200`; its date is not overwritten. Never grants or refills credits.
+      description: Idempotent. An existing active preparation is returned unchanged with `200`; its date is not overwritten, including after current-head withdrawal. A new preparation requires current release eligibility or returns `422 exam_unavailable`. Never grants or refills credits.
       requestBody:
         required: true
         content:
@@ -925,7 +931,7 @@ paths:
     get:
       tags: [payments]
       summary: List configured markets or read the selected exam offer
-      description: Optional off-by-default test payments. No normal installation seeds commercial offers. Omitted market returns choices and a null offer.
+      description: Optional off-by-default test payments. No normal installation seeds commercial offers. Markets and offers require current release eligibility. Omitted market returns choices and a null offer.
       parameters:
         - { in: query, name: exam, required: true, schema: { type: string } }
         - { in: query, name: market, schema: { type: string, pattern: '^[A-Z]{2}$' } }
@@ -938,6 +944,7 @@ paths:
     post:
       tags: [payments]
       summary: Reserve an owned order and create or resume its test checkout
+      description: New orders require current release eligibility before an order, receipt or provider call is created. Exact event receipts and pending orders with unchanged server-owned commercial terms remain retryable after release withdrawal; mismatched terms conflict. A provider return never grants credit.
       requestBody:
         required: true
         content:

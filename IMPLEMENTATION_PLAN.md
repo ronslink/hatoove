@@ -1,5 +1,20 @@
 # Hatoove implementation plan
 
+## EXAM-S6 engineering verified; follow-on gaps identified — 3 October 2026
+
+**EXAM-S6-20261003-A, issue119.** Candidate `7b3438a` is independently reviewed and locally verified: core16, parity81, wrapper9, admission12, payments16 and final public browser7 pass. The root inspected desktop/mobile evidence and the browser fixture was removed. [S6 evidence](work/implementation/EXAM-S6-RESULT.md) records corrections, continuation/grant boundaries and limitations. The stacked PR is being prepared; hosted CI is still account-blocked and no merge or product acceptance is claimed. The broader audit identifies named exact-version content-review decisions and versioned saved-assessment language switching as follow-on engineering requiring bounded contracts. Human content/device/security/privacy and live-operation gates remain separate.
+
+## EXAM-S6 independent review corrections — 3 October 2026
+
+**EXAM-S6-20261003-A, issue119.** Learner admission and payment changes are delivered and independently reviewed. Correction `4464b21` closes a reproduced same-owner objective/writing deadlock; twelve admission checks and the original separate-connection schedule pass. Historical fixture repair `b628dec` passes independent core16, S3 reading10 and media19 checks. The independent payment review passes16 focused checks, including both rights-withdrawal orderings and preserved pending-order terms.
+
+The remaining core review finding is SQL acceptance of malformed payloads that the canonical reader refuses. Ron explicitly approved the prepared0034 correction and disposable local tests after automatic approval review requested that exact scope. The author and independent reviewer have separate bounded leases. Public browser acceptance has a preliminary7/7 result; the final run awaits the corrected predicate. CI and API descriptions are being integrated. S6 is not accepted or merged; hosted CI remains account-blocked, and content/device/live-operation gates remain open.
+
+## EXAM-S6 admission gates active — 3 October 2026
+
+**EXAM-S6-20261003-A, [issue119](https://github.com/ronslink/hatoove/issues/119), contract b001985.** Three acknowledged authors own separate core SQL, learner admission and payment paths from reviewed S5 d31a763. [S5 PR118](https://github.com/ronslink/hatoove/pull/118) is open and independently reviewed; local default browser199, full-mock browser8 and Compose37 pass. Its seven required hosted jobs stopped before any test step because of the account billing/spending block (runs37132454660/37132454653). No green CI or merge is claimed. S6 adds one current complete DTZ predicate across discovery, new learner work and offers, with restricted SQL backstops and preserved pinned continuations. Synthetic approval exists only in disposable fixtures. Default telc-only configuration, original learner records and all human/live-operation gates remain unchanged.
+
+
 ## EXAM-S5 engineering delivered; integration pending — 3 October 2026
 
 **EXAM-S5-20261003-A / EXAM-S5B-20261003-A, issue117.** The isolated candidate implements private fixed audio, durable playback recovery, assigned telc writing and complete written mocks with immutable ordered time windows. Exact telc60/DTZ45 objective coverage remains separate from writing feedback. All author slices and review corrections have independent source approval, including rights-withdrawal/assessment serialization and unknown audio receipts at group boundaries. S5A browser12, S5B browser8, focused S5B package9/backend8/client19 and PostgreSQL package13/backend16/worker13 pass; Compose37/OpenAPI51 and forward S3/S4/media/payment checks pass. [Evidence](work/implementation/EXAM-S5-RESULT.md) distinguishes technical signals from approved spoken content and physical-device acceptance. Retained default browser199, classifier11 and deletion20 also pass; final closeout review precedes the stacked PR. Hosted CI remains account-blocked; no merge is claimed. Order stays S4PR114, paymentsPR116, S5, then S6. S6 atomic public DTZ admission is being inventoried separately. Canonical draft/data and human/live-operation gates remain preserved.

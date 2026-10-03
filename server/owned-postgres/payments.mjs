@@ -4,6 +4,7 @@ import { createExamCatalogue } from '../preparation-contract.mjs';
 import { decideActivation } from '../payments/activation.mjs';
 import { InvalidSignature, InvalidPayload } from '../payments/port.mjs';
 import { entitlementDto, entitlementExpired } from './entitlement.mjs';
+import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = result => result.rows[0];
@@ -67,6 +68,7 @@ export function createPostgresPayments({ pool, provider, publicOrigin, examCatal
     async offer(owner, { examId, market }) {
       enabled();
       return transaction(owner, async client => {
+        if (!(await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue, lock: true })).eligible) fail(404, 'not_found');
         const rows = await prices(client, examId);
         if (!rows.length) fail(404, 'not_found');
         const markets = rows.map(({ market, currency }) => ({ market, currency }));
@@ -96,6 +98,8 @@ export function createPostgresPayments({ pool, provider, publicOrigin, examCatal
           if (['market','product_id','currency','amount_minor','allowance','term_days','stripe_price_id'].some(key => row[key] !== price[key])) fail(409, 'checkout_pending');
           safeCheckout(row);
         } else {
+          // Existing receipts and pending orders are continuations; only a new order is admitted here.
+          if (!(await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue, lock: true })).eligible) fail(404, 'not_found');
           row = first(await client.query(`INSERT INTO payment_order(id,owner_id,exam_id,product_id,market,currency,
             amount_minor,display_price,stripe_price_id,allowance,term_days,session_expires_at)
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,

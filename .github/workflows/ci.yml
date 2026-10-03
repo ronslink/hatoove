@@ -134,6 +134,8 @@ jobs:
           node tools/exam-s5b-package-check.mjs
           node tools/exam-s5b-backend-check.mjs
           node tools/exam-s5b-client-check.mjs
+      - name: Complete DTZ admission policy and wrapper refusals
+        run: node tools/exam-s6-core-check.mjs
       - name: Payment signatures, test provider and activation refusals
         run: node tools/payment-path-check.mjs
       - name: Payment API ownership and exact webhook boundary
@@ -243,6 +245,12 @@ jobs:
           node tools/exam-s5b-package-pg-check.mjs
           node tools/exam-s5b-backend-pg-check.mjs
           node tools/exam-s5b-worker-check.mjs
+      - name: Complete DTZ admission, payload parity and pinned continuations
+        run: |
+          node tools/exam-s6-core-pg-check.mjs
+          node tools/exam-s6-parity-pg-check.mjs
+          node tools/exam-s6-admission-pg-check.mjs
+          node tools/exam-s6-payments-pg-check.mjs
       - name: Payment upgrade, ownership, concurrent grants and expiry
         run: node tools/payments-pg-check.mjs
       - name: Bounded readiness probes recover after a real PostgreSQL connection loss
@@ -351,6 +359,11 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s5b-browser-check.mjs
+      - name: Public complete DTZ admission and pinned recovery browser acceptance
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/exam-s6-browser-check.mjs
       # THE SCREENSHOTS ARE THE EVIDENCE, and they live in a gitignored directory that dies with the runner.
       # They are listed on failure so the log says where to look and what was captured; uploading them as an
       # artifact needs a pinned third-party action, which is a decision for the coordinator rather than one I
