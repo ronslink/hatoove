@@ -31,6 +31,7 @@ import { preparationMethods, requireActivePreparation, resolvePreparation } from
 import { mockRunMethods, lockMockOwner, requireMockGroup } from './mock-runs.mjs';
 import { playbackMethods } from './playback.mjs';
 import { importedSetGate, objectiveInteractionSql, releasedObjectiveFamily, readWritingTask, writingAccess, readReleasedForm, readWritingOrigin } from './packages.mjs';
+import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -107,10 +108,18 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     taskId: row.task_id, taskVersion: row.task_version, rubricId: row.rubric_id, rubricVersion: row.rubric_version,
   });
 
+  async function admissionExams(client, examId = null) {
+    const ids = examId === null ? examCatalogue.ids : [examId], admitted = [];
+    for (const id of ids) if ((await readCurrentReleaseEligibility(client, id, { catalogue: examCatalogue })).eligible) admitted.push(id);
+    return admitted;
+  }
+
   // Every new use checks the task AND its declared rubric. Existing snapshots remain readable.
   // Returns the exam both belong to, so a caller can compare it with the preparation BEFORE writing.
   async function requireServableBinding(client, binding, historical=false) {
     const identity=await readWritingTask(client,binding.taskId,binding.taskVersion);
+    if (!historical && (!identity || !(await readCurrentReleaseEligibility(client, identity.exam_id, { catalogue: examCatalogue, lock: true })).eligible))
+      fail(422, 'task_not_servable');
     if(identity?.source_path?.startsWith('content/exams/')) await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[identity.exam_id]);
     const policy = contentPolicy();
     const row = first(await client.query(
@@ -239,6 +248,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       note('listTasks');
       const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
+        const exams = await admissionExams(client, examId);
+        if (!exams.length) return [];
         const rows = (await client.query(
           `SELECT t.task_id, t.version, t.family, t.register, t.topic, t.situation, t.adressat,
                   t.leitpunkte, t.rubric_id, t.rubric_version, t.exam_id, t.created_at,
@@ -251,14 +262,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
              JOIN rubric_version r ON r.rubric_id = t.rubric_id AND r.version = t.rubric_version
              JOIN content_version rc ON rc.content_version_id = r.content_version_id
                   LEFT JOIN content_rights rr ON rr.content_version_id = rc.content_version_id
-            WHERE t.exam_id = COALESCE($1, t.exam_id)
+            WHERE t.exam_id = COALESCE($1, t.exam_id) AND t.exam_id = ANY($5::text[])
               AND ($2::text IS NULL OR t.family = $2)
               AND c.review_status = ANY($3::text[])
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])
               AND rc.review_status = ANY($3::text[])
               AND COALESCE(rr.basis, rc.rights_status) = ANY($4::text[])
             ORDER BY t.task_id, t.version`,
-          [examId, family, statuses, contentPolicy().rights])).rows;
+          [examId, family, statuses, contentPolicy().rights, exams])).rows;
         const permitted=[];
         for(const row of rows) {
           const task=await readWritingTask(client,row.task_id,row.version);
@@ -281,7 +292,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           review_status: row.review_status,
           rights_status: row.rights_status,
         }));
-      });
+      }, true);
     },
     /**
      * OBJECTIVE-SEED-01 — the servable objective sets (reading and language elements).
@@ -306,12 +317,15 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     async hasObjectiveFamily(owner, { examId, family } = {}) {
       note('hasObjectiveFamily');
       if (!examCatalogue.isEnabled(examId)) return false;
-      return settle(owner, client => releasedObjectiveFamily(client, examId, family));
+      return settle(owner, async client => (await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible
+        && releasedObjectiveFamily(client, examId, family), true);
     },
     async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null, serveReview = 'approved+unreviewed' } = {}) {
       note('listObjectiveSets');
       const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
+        const exams = await admissionExams(client, examId);
+        if (!exams.length) return [];
         const rows = (await client.query(
           `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title,
                   s.item_count, s.media_required, ${objectiveInteractionSql()} AS interaction,
@@ -328,7 +342,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
               AND ${importedSetGate()}
               AND COALESCE(cr.basis, c.rights_status) = ANY($6::text[])
             ORDER BY s.family, s.part, s.set_id`,
-          [examId, family, statuses, group, part, contentPolicy().rights, examCatalogue.ids])).rows;
+          [examId, family, statuses, group, part, contentPolicy().rights, exams])).rows;
         return rows.map((row) => ({
           set_id: row.set_id,
           version: row.version,
@@ -343,7 +357,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           review_status: row.review_status,
           rights_status: row.rights_status,
         }));
-      });
+      }, true);
     },
     /**
      * One servable objective set, WITH its authored payload. `null` when it does not exist or the
@@ -354,7 +368,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       note('readObjectiveSet');
       requireObjectiveVersion(version);
       const statuses = servableReview(serveReview);
-      const row = first(await settle(owner, async (client) => client.query(
+      const row = await settle(owner, async (client) => {
+        const found = first(await client.query(
         `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title, s.payload,
                 s.item_count, s.media_required, ${objectiveInteractionSql()} AS interaction, c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
            FROM objective_set s
@@ -366,7 +381,10 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             AND ${importedSetGate()}
             AND s.exam_id = ANY($4::text[])
             AND COALESCE(cr.basis, c.rights_status) = ANY($5::text[])`,
-        [setId, version, statuses, examCatalogue.ids, contentPolicy().rights])));
+        [setId, version, statuses, examCatalogue.ids, contentPolicy().rights]));
+        if (!found || !(await readCurrentReleaseEligibility(client, found.exam_id, { catalogue: examCatalogue })).eligible) return null;
+        return found;
+      }, true);
       if (!row) return null;
       return {
         set_id: row.set_id, version: row.version, exam_id: row.exam_id, family: row.family,
@@ -535,6 +553,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
           [rubricId, version, statuses, contentPolicy().rights]));
         if (!row || !examCatalogue.isEnabled(row.exam_id)) return null;
+        if (!(await readCurrentReleaseEligibility(client, row.exam_id, { catalogue: examCatalogue })).eligible) return null;
         if(row.policy) {
           const tasks=(await client.query('SELECT task_id,version FROM task_version WHERE rubric_id=$1 AND rubric_version=$2',[rubricId,version])).rows;
           let permitted=false;
@@ -553,7 +572,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           rights_status: row.rights_status,
           provisional: row.review_status !== 'approved',
         };
-      });
+      }, true);
     },
 
     async readGuide(owner, { guideId, serveReview = 'approved+unreviewed' } = {}) {      note('readGuide');
@@ -620,6 +639,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         // EXAM-S1: owned (404) and active (409) before anything else; exam match (422) before marking.
         const prep = await requireActivePreparation(client, owner, preparationId);
         if (!examCatalogue.isEnabled(prep.exam_id)) fail(404, 'not_found');
+        if (!(await readCurrentReleaseEligibility(client, prep.exam_id, { catalogue: examCatalogue, lock: true })).eligible)
+          fail(404, 'not_found');
         // The set must be one the deployment serves, and this also yields the exam/section the
         // evidence is attributed to. A set that is withheld or absent is 404, not a silent record.
         const set = first(await client.query(
@@ -681,91 +702,89 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       note('nextPractice');
       const statuses = servableReview(serveReview);
       requirePreparationContext(preparationId);
-      // The preparation decides the exam; evidence is counted for this preparation only.
-      const { exam_id: examId } = await settle(owner, (client) => resolvePreparation(client, owner, preparationId));
-      if (!examCatalogue.isEnabled(examId)) return null;
+      return settle(owner, async client => {
+        // The preparation decides the exam; evidence is counted for this preparation only.
+        const { exam_id: examId } = await resolvePreparation(client, owner, preparationId);
+        if (!(await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible) return null;
 
-      const sections = (await settle(owner, async (client) => (await client.query(
-        `SELECT s.section, min(s.family) AS family
-           FROM objective_set s
-           JOIN content_version c ON c.content_version_id = s.content_version_id
-                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
-          WHERE s.media_required = false
-            AND ${importedSetGate()}
-            AND s.exam_id = $1
-            AND c.review_status = ANY($2::text[])
-            AND COALESCE(cr.basis, c.rights_status) = ANY($3::text[])
-          GROUP BY s.section`,
-        [examId, statuses, contentPolicy().rights])).rows));
+        const sections = (await client.query(
+          `SELECT s.section, min(s.family) AS family
+             FROM objective_set s
+             JOIN content_version c ON c.content_version_id = s.content_version_id
+                    LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+            WHERE s.media_required = false
+              AND ${importedSetGate()}
+              AND s.exam_id = $1
+              AND c.review_status = ANY($2::text[])
+              AND COALESCE(cr.basis, c.rights_status) = ANY($3::text[])
+            GROUP BY s.section`,
+          [examId, statuses, contentPolicy().rights])).rows;
 
-      if (!sections.length) return null;
+        if (!sections.length) return null;
 
-      const stats = await settle(owner, async (client) => (await client.query(
-        `SELECT section, count(*)::int AS attempts, count(*) FILTER (WHERE correct)::int AS correct
-           FROM item_evidence
-          WHERE owner_id = $1 AND preparation_id = $2
-          GROUP BY section`,
-        [owner, preparationId])).rows);
-      const bySection = new Map(stats.map((row) => [row.section, row]));
+        const stats = (await client.query(
+          `SELECT section, count(*)::int AS attempts, count(*) FILTER (WHERE correct)::int AS correct
+             FROM item_evidence
+            WHERE owner_id = $1 AND preparation_id = $2
+            GROUP BY section`,
+          [owner, preparationId])).rows;
+        const bySection = new Map(stats.map((row) => [row.section, row]));
 
-      const ranked = sections.map((section) => {
-        const seen = bySection.get(section.section);
-        const attempts = seen ? seen.attempts : 0;
+        const ranked = sections.map((section) => {
+          const seen = bySection.get(section.section);
+          const attempts = seen ? seen.attempts : 0;
+          return {
+            section: section.section,
+            family: section.family,
+            attempts,
+            correct: seen ? seen.correct : 0,
+            // `null` means NOT STARTED, which is not the same as 0% and must not be sorted as if it
+            // were: a learner who has never seen a section has no accuracy, not a bad one.
+            accuracy: attempts ? (seen.correct / attempts) : null,
+          };
+        }).sort((a, b) => {
+          const av = a.accuracy === null ? -1 : a.accuracy;
+          const bv = b.accuracy === null ? -1 : b.accuracy;
+          if (av !== bv) return av - bv;
+          if (a.attempts !== b.attempts) return a.attempts - b.attempts;
+          return a.section < b.section ? -1 : (a.section > b.section ? 1 : 0);
+        });
+
+        const chosen = ranked[0];
+        // `seen` is per exact (set, version): evidence for v1 says nothing about what v2 asks.
+        const set = first(await client.query(
+          `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count, ${objectiveInteractionSql()} AS interaction,
+                  (SELECT count(*)::int FROM item_evidence e
+                    WHERE e.owner_id = $3 AND e.preparation_id = $6
+                      AND e.set_id = s.set_id AND e.version = s.version) AS seen
+             FROM objective_set s
+             JOIN content_version c ON c.content_version_id = s.content_version_id
+                    LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+            WHERE s.section = $1
+              AND s.media_required = false
+              AND ${importedSetGate()}
+              AND s.exam_id = $4
+              AND c.review_status = ANY($2::text[])
+              AND COALESCE(cr.basis, c.rights_status) = ANY($5::text[])
+            ORDER BY seen, s.part, s.set_id, s.version
+            LIMIT 1`,
+          [chosen.section, statuses, owner, examId, contentPolicy().rights, preparationId]));
+
+        if (!set) return null;
         return {
-          section: section.section,
-          family: section.family,
-          attempts,
-          correct: seen ? seen.correct : 0,
-          // `null` means NOT STARTED, which is not the same as 0% and must not be sorted as if it
-          // were: a learner who has never seen a section has no accuracy, not a bad one.
-          accuracy: attempts ? (seen.correct / attempts) : null,
+          preparation_id: preparationId,
+          exam_id: examId,
+          reason: chosen.attempts === 0 ? 'section_not_started' : 'weakest_section',
+          section: chosen.section,
+          family: chosen.family,
+          // The evidence for the claim, so the client can say WHY rather than just handing over an item.
+          evidence: { attempts: chosen.attempts, correct: chosen.correct, accuracy: chosen.accuracy },
+          set: {
+            set_id: set.set_id, version: set.version, title: set.title, family: set.family,
+            section: set.section, part: set.part, item_count: set.item_count, seen_items: set.seen, interaction: set.interaction,
+          },
         };
-      }).sort((a, b) => {
-        const av = a.accuracy === null ? -1 : a.accuracy;
-        const bv = b.accuracy === null ? -1 : b.accuracy;
-        if (av !== bv) return av - bv;
-        if (a.attempts !== b.attempts) return a.attempts - b.attempts;
-        return a.section < b.section ? -1 : (a.section > b.section ? 1 : 0);
-      });
-
-      const chosen = ranked[0];
-      // `first()` reads a query RESULT (`result.rows[0]`) and is deliberately unguarded, so the
-      // callback must return the RESULT and not the row. Handing it `rows[0]` made `first` evaluate
-      // `row.rows[0]` on a plain object and throw, which surfaced as a 500 on this route -- a failure
-      // that looked like "the selector is broken" and was a misuse of a helper.
-      // `seen` is per exact (set, version): evidence for v1 says nothing about what v2 asks.
-      const set = first(await settle(owner, async (client) => client.query(
-        `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count, ${objectiveInteractionSql()} AS interaction,
-                (SELECT count(*)::int FROM item_evidence e
-                  WHERE e.owner_id = $3 AND e.preparation_id = $6
-                    AND e.set_id = s.set_id AND e.version = s.version) AS seen
-           FROM objective_set s
-           JOIN content_version c ON c.content_version_id = s.content_version_id
-                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
-          WHERE s.section = $1
-            AND s.media_required = false
-            AND ${importedSetGate()}
-            AND s.exam_id = $4
-            AND c.review_status = ANY($2::text[])
-            AND COALESCE(cr.basis, c.rights_status) = ANY($5::text[])
-          ORDER BY seen, s.part, s.set_id, s.version
-          LIMIT 1`,
-        [chosen.section, statuses, owner, examId, contentPolicy().rights, preparationId])));
-
-      if (!set) return null;
-      return {
-        preparation_id: preparationId,
-        exam_id: examId,
-        reason: chosen.attempts === 0 ? 'section_not_started' : 'weakest_section',
-        section: chosen.section,
-        family: chosen.family,
-        // The evidence for the claim, so the client can say WHY rather than just handing over an item.
-        evidence: { attempts: chosen.attempts, correct: chosen.correct, accuracy: chosen.accuracy },
-        set: {
-          set_id: set.set_id, version: set.version, title: set.title, family: set.family,
-          section: set.section, part: set.part, item_count: set.item_count, seen_items: set.seen, interaction: set.interaction,
-        },
-      };
+      }, true);
     },
     /**
      * PILOT-22c — the learner's own practice evidence, aggregated by section.

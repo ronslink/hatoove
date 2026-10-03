@@ -6,6 +6,7 @@ import { validateWritingChoice, validateStartMockRun, validateSaveMockRun, valid
 import { resolvePreparation, requireActivePreparation } from './preparations.mjs';
 import { writingAttachment, attachWriting, finaliseWriting } from './mock-writing.mjs';
 import { listReleasedForms, readReleasedForm } from './packages.mjs';
+import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = (r) => r.rows[0];
@@ -116,6 +117,7 @@ export function mockRunMethods({ settle, note = () => {}, catalogue }) {
         const prep = await resolvePreparation(client, owner, preparationId);
         enabled(catalogue, prep.exam_id);
         if (prep.state !== 'active') return [];
+        if (!(await readCurrentReleaseEligibility(client, prep.exam_id, { catalogue })).eligible) return [];
         return listReleasedForms(client, prep.exam_id);
       }, true);
     },
@@ -136,12 +138,14 @@ export function mockRunMethods({ settle, note = () => {}, catalogue }) {
       return transaction(owner, async (client) => {
         await lockMockOwner(client, owner);
         const prep = await requireActivePreparation(client, owner, body.preparationId);
-        enabled(catalogue, prep.exam_id);
         const replay = await receipt(client, owner, body.eventId, 'start', null, sha);
         if (replay) {
           const row = await readRow(client, owner, replay.run_id);
           return { created: false, run: runDto(row, await bundleOf(client, row)) };
         }
+        enabled(catalogue, prep.exam_id);
+        if (!(await readCurrentReleaseEligibility(client, prep.exam_id, { catalogue, lock: true })).eligible)
+          fail(404, 'not_found');
         const identity = { exam_id: prep.exam_id, form_id: body.formId, form_version: body.formVersion, release_version: body.releaseVersion };
         const bundle = await bundleOf(client, identity, true);
         if (!bundle || bundle.blockedReason) fail(404, 'not_found');
