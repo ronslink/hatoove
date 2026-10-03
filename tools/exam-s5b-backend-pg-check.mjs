@@ -14,13 +14,9 @@ import {createCompleteFixture} from './exam-s5b-fixture.mjs';
 import {mockMemberItems} from '../server/mock-contract.mjs';
 import {readReleasedForm} from '../server/owned-postgres/packages.mjs';
 if(process.env.OWNAPI_PG_ALLOW!=='1'||!process.env.OWNAPI_PG_PORT||[4300,55440].includes(Number(process.env.OWNAPI_PG_PORT)))throw Error('Explicit disposable OWNAPI_PG_ALLOW/PORT required');
-process.env.B1PREP_CONTENT_MODE='internal-preview';delete process.env.B1PREP_SERVE_REVIEW;delete process.env.B1PREP_SERVE_RIGHTS;
-const TELC='telc-deutsch-b1',DTZ='dtz-a2-b1',mediaRoot=await mkdtemp(path.join(tmpdir(),'hatoove-s5b-backend-'));
-const db=await createFixture({stopBefore:'0031-'}),catalogue=createExamCatalogue({enabled:[TELC,DTZ]});
-const world=await createPostgresWorld({fixture:db,examCatalogue:catalogue});
-const port=createPostgresDatastore({pool:db.learner,examCatalogue:catalogue,mediaRoot});
-const peerPool=rolePool(db.config,db.schema,db.roles.learner,1);
-const peer=createPostgresDatastore({pool:peerPool,examCatalogue:catalogue,mediaRoot});
+const savedEnv=Object.fromEntries(['B1PREP_CONTENT_MODE','B1PREP_SERVE_REVIEW','B1PREP_SERVE_RIGHTS'].map(key=>[key,process.env[key]]));
+const TELC='telc-deutsch-b1',DTZ='dtz-a2-b1',catalogue=createExamCatalogue({enabled:[TELC,DTZ]});
+let mediaRoot,db,world,port,peerPool,peer,failure;
 let passed=0;const check=async(name,fn)=>{await fn();passed++;console.log('PASS '+name);};
 const reject=(promise,code)=>assert.rejects(promise,e=>e.code===code);
 async function sqlAs(owner,fn){const c=await db.learner.connect();try{await c.query('BEGIN');await c.query("SELECT set_config('hatoove.owner_id',$1,true)",[owner]);const r=await fn(c);await c.query('COMMIT');return r;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}}
@@ -47,6 +43,13 @@ async function rawRun(o,exam=TELC){return sqlAs(o.id,async c=>(await c.query(`IN
  FROM exam_form f WHERE f.exam_id=$5 AND f.form_id=$6 AND f.version='v9100' RETURNING *`,
  [randomUUID(),o.id,exam===TELC?o.telc.id:o.dtz.id,randomUUID(),exam,`s5b.${exam}.complete`])).rows[0]);}
 try{
+ process.env.B1PREP_CONTENT_MODE='internal-preview';delete process.env.B1PREP_SERVE_REVIEW;delete process.env.B1PREP_SERVE_RIGHTS;
+ mediaRoot=await mkdtemp(path.join(tmpdir(),'hatoove-s5b-backend-'));
+ db=await createFixture({stopBefore:'0031-'});
+ world=await createPostgresWorld({fixture:db,examCatalogue:catalogue});
+ port=createPostgresDatastore({pool:db.learner,examCatalogue:catalogue,mediaRoot});
+ peerPool=rolePool(db.config,db.schema,db.roles.learner,1);
+ peer=createPostgresDatastore({pool:peerPool,examCatalogue:catalogue,mediaRoot});
  await importDefaultPackage(db.migration);const a=await owner('a'),b=await owner('b');
  await check('forward migration preserves legacy run, objective answers, task and content bytes',async()=>{
   const old=await sqlAs(a.id,async c=>(await c.query(`INSERT INTO mock_run
@@ -187,4 +190,16 @@ try{
   await reject(port.readMockRun(a.id,run.id),'not_found');
  });
  console.log(`EXAM-S5B backend PostgreSQL: ${passed} checks passed.`);
-}finally{await peerPool.end();await world.teardown();await rm(mediaRoot,{recursive:true,force:true});}
+}catch(error){failure=error;throw error;}finally{
+ const cleanupErrors=[];
+ // Each resource is independent: a failed close must not skip the remaining cleanup.
+ for(const cleanup of [()=>peerPool?.end(),()=>world?world.teardown():db?.cleanup(),async()=>{
+  if(mediaRoot&&path.dirname(mediaRoot)===tmpdir()&&path.basename(mediaRoot).startsWith('hatoove-s5b-backend-'))
+   await rm(mediaRoot,{recursive:true,force:true});
+ }])try{await cleanup();}catch(error){cleanupErrors.push(error);}
+ for(const [key,value]of Object.entries(savedEnv))if(value===undefined)delete process.env[key];else process.env[key]=value;
+ if(cleanupErrors.length){
+  if(failure)console.error(`Backend fixture cleanup reported ${cleanupErrors.length} additional failure(s).`);
+  else throw new AggregateError(cleanupErrors,'Backend fixture cleanup failed');
+ }
+}
