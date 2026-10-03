@@ -9,7 +9,7 @@ export async function writingAttachment(client,owner,runId) {
     LEFT JOIN jobs j ON j.submission_id=w.submission_id LEFT JOIN assessments f ON f.submission_id=w.submission_id
     WHERE w.run_id=$1 AND w.owner_id=$2`,[runId,owner])).rows[0];
   if(!w) return null;
-  return {choice_group_id:w.choice_group_id,selected_option_id:w.selected_option_id,attempt_id:w.attempt_id,
+  return {binding_kind:w.binding_kind??'choice',choice_group_id:w.choice_group_id,selected_option_id:w.selected_option_id,attempt_id:w.attempt_id,
     draft_revision:Number(w.draft_revision),submission_id:w.submission_id,
     assessment_state:w.assessed?'assessed':w.failure_code?'unassessed':w.status==='failed'?'failed':w.submission_id?'pending':'not_started',
     failure_code:w.failure_code||w.job_failure||null};
@@ -19,8 +19,8 @@ export async function attachWriting(client,owner,row,choice,option) {
   await client.query(`INSERT INTO attempts(id,owner_id,task_id,task_version,rubric_id,rubric_version,preparation_id,exam_id)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[id,owner,t.task_id,t.version,t.rubric_id,t.rubric_version,row.preparation_id,row.exam_id]);
   await client.query('INSERT INTO drafts(attempt_id,revision,text) VALUES($1,1,$2)',[id,'']);
-  await client.query(`INSERT INTO mock_writing(run_id,owner_id,attempt_id,choice_group_id,selected_option_id)
-    VALUES($1,$2,$3,$4,$5)`,[row.id,owner,id,choice.id,option.id]);
+  await client.query(`INSERT INTO mock_writing(run_id,owner_id,attempt_id,choice_group_id,selected_option_id,binding_kind)
+    VALUES($1,$2,$3,$4,$5,$6)`,[row.id,owner,id,choice?.id??null,choice?option.id:null,choice?'choice':'assigned']);
 }
 /** Call after freezing the objective run in the SAME transaction; any conflict rolls it all back. */
 export async function finaliseWriting(client,owner,row,body) {

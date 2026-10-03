@@ -5,7 +5,7 @@ import { validatePlaybackEvent } from '../media-route.mjs';
 import { readMediaBytes } from '../media-contract.mjs';
 import { requireActivePreparation } from './preparations.mjs';
 import { readReleasedForm } from './packages.mjs';
-import { lockMockOwner } from './mock-runs.mjs';
+import { lockMockOwner, requireMockGroup } from './mock-runs.mjs';
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = result => result.rows[0];
@@ -54,7 +54,7 @@ export function playbackTransition(row, recording, body, now) {
 function sqlFault(error) {
   if (error instanceof Fault) throw error;
   const known = ['playback_conflict', 'playback_exhausted', 'playback_recovery_required', 'mock_expired', 'mock_finalised',
-    'mock_rights_blocked', 'mock_content_unavailable', 'preparation_archived'];
+    'mock_rights_blocked', 'mock_content_unavailable', 'mock_group_inactive', 'preparation_archived'];
   if (known.includes(error?.message)) fail(409, error.message);
   if (error?.message === 'not_found') fail(404, 'not_found');
   throw error;
@@ -83,7 +83,8 @@ export function playbackMethods({ settle, catalogue, note = () => {}, mediaRoot 
     const recording = recordings.find(r => r.media_id === mediaId && r.media_version === version);
     const media = bundle.media?.find(m => m.media_id === mediaId && m.version === version);
     if (!recording || !media) fail(404, 'not_found');
-    return { recording, media };
+    const section = bundle.members.find(m => m.recordings?.some(r => r.media_id===mediaId && r.media_version===version))?.section;
+    return { recording, media, section };
   }
   async function bytesOf(media) {
     try { return await readMediaBytes(media, { mediaRoot }); }
@@ -103,7 +104,8 @@ export function playbackMethods({ settle, catalogue, note = () => {}, mediaRoot 
       const sha = createHash('sha256').update(JSON.stringify({ runId, body })).digest('hex');
       return transaction(owner, async client => {
         const { run, bundle, recordings } = await context(client, owner, runId);
-        const { recording, media } = member(bundle, recordings, body.mediaId, body.mediaVersion);
+        const { recording, media, section } = member(bundle, recordings, body.mediaId, body.mediaVersion);
+        await requireMockGroup(client,runId,section);
         const prior = first(await client.query('SELECT * FROM listening_playback_event WHERE owner_id=$1 AND event_id=$2', [owner, body.eventId]));
         if (prior && (prior.run_id !== runId || prior.request_sha256 !== sha)) fail(409, 'playback_conflict');
         let row = first(await client.query('SELECT * FROM listening_playback WHERE owner_id=$1 AND run_id=$2 AND media_id=$3 AND media_version=$4 FOR UPDATE', [owner, runId, body.mediaId, body.mediaVersion]));
@@ -130,10 +132,12 @@ export function playbackMethods({ settle, catalogue, note = () => {}, mediaRoot 
       note('readMockMedia');
       return transaction(owner, async client => {
         const { bundle, recordings } = await context(client, owner, runId);
-        const { media } = member(bundle, recordings, mediaId, version);
+        const { media, section } = member(bundle, recordings, mediaId, version);
+        await requireMockGroup(client,runId,section);
         const bytes = await bytesOf(media);
         // Filesystem I/O may take time: recheck current deadline/publication before returning headers.
         await context(client, owner, runId);
+        await requireMockGroup(client,runId,section);
         return { bytes, media: { mime_type: media.mime_type, sha256: media.sha256 } };
       });
     },

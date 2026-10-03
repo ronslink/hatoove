@@ -28,7 +28,7 @@ import { contentPolicy, servableReview } from '../content-policy.mjs';
 import { entitlementExpired } from './entitlement.mjs';
 import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs';
 import { preparationMethods, requireActivePreparation, resolvePreparation } from './preparations.mjs';
-import { mockRunMethods, lockMockOwner } from './mock-runs.mjs';
+import { mockRunMethods, lockMockOwner, requireMockGroup } from './mock-runs.mjs';
 import { playbackMethods } from './playback.mjs';
 import { importedSetGate, objectiveInteractionSql, releasedObjectiveFamily, readWritingTask, writingAccess, readReleasedForm, readWritingOrigin } from './packages.mjs';
 
@@ -83,6 +83,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       return value;
     } catch (error) {
       try { await client.query('ROLLBACK'); } catch { /* preserve the original failure */ }
+      if (error?.message === 'mock_group_inactive' && !(error instanceof Fault)) fail(409,'mock_group_inactive');
       throw error;
     } finally {
       client.release();
@@ -170,14 +171,16 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     const origin=await readWritingOrigin(client,attempt.id,attempt.owner_id);
     const t=await readWritingTask(client,attempt.task_id,attempt.task_version);
     let blocked=null;
-    if(t?.source_path?.startsWith('content/exams/')) {
+    let writingSection=null;
+    if(t?.source_path?.startsWith('content/exams/') || origin) {
       blocked=!examCatalogue.isEnabled(t.exam_id)?'exam_unavailable':await writingAccess(client,t,{historical:true});
       if(origin&&!blocked) {
         const bundle=await readReleasedForm(client,{examId:origin.exam_id,formId:origin.form_id,formVersion:origin.form_version,releaseVersion:origin.release_version});
         blocked=bundle?.blockedReason??(!bundle?'content_unavailable':null);
+        writingSection=bundle?.writingTask?.section??bundle?.writingChoices?.[0]?.section??null;
       }
     }
-    return {mock_run_id:attached?.id??null,blocked_reason:blocked,attached};
+    return {mock_run_id:attached?.id??null,blocked_reason:blocked,attached,writingSection};
   }
   async function requireWritingMutation(client,attempt,{standalone=false}={}) {
     if(attempt.exam_id) await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[attempt.exam_id]);
@@ -187,6 +190,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     if(context.attached) {
       if(context.attached.state!=='active') fail(409,'mock_finalised');
       if(context.attached.deadline_at&&new Date(context.attached.deadline_at)<=new Date()) fail(409,'mock_expired');
+      await requireMockGroup(client,context.attached.id,context.writingSection);
     }
   }
   async function historicalContent(client, attempt) {
@@ -1009,7 +1013,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
               AND pinned.state IN ('internal','hidden') AND (NOT (r.exam_id=ANY($2::text[])) OR NOT $3::boolean))
             THEN NULL ELSE result END AS result,created_at,updated_at,
           deadline_at,finalised_at FROM mock_run r WHERE owner_id = $1 ORDER BY created_at,id`, [owner, examCatalogue.ids, contentPolicy().mode==='internal-preview'])).rows;
-        const mock_writing=(await client.query('SELECT run_id,attempt_id,choice_group_id,selected_option_id,submission_id,failure_code FROM mock_writing WHERE owner_id=$1 ORDER BY run_id',[owner])).rows;
+        const mock_writing=(await client.query('SELECT run_id,attempt_id,binding_kind,choice_group_id,selected_option_id,submission_id,failure_code FROM mock_writing WHERE owner_id=$1 ORDER BY run_id',[owner])).rows;
+        const mock_run_time_groups=(await client.query('SELECT run_id,ordinal,group_id,sections,starts_at,deadline_at FROM mock_run_time_group WHERE owner_id=$1 ORDER BY run_id,ordinal',[owner])).rows;
         // Transport event IDs/playback UUIDs are deliberately absent from the learner export.
         const listening_playback = (await client.query(`SELECT run_id,media_id,media_version,revision,state,plays_used,
           max_plays,position_ms,duration_ms,created_at,updated_at FROM listening_playback
@@ -1032,7 +1037,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const payment_events = (await client.query('SELECT id,order_id,kind,disposition,created_at FROM payment_event WHERE owner_id=$1 ORDER BY created_at,id', [owner])).rows;
         const payment_grants = (await client.query('SELECT order_id,event_id,exam_id,allowance,expires_at,created_at FROM payment_grant WHERE owner_id=$1 ORDER BY created_at,order_id', [owner])).rows;
         const payment_checkout_events = (await client.query('SELECT event_id,order_id FROM payment_checkout_event WHERE owner_id=$1 ORDER BY event_id', [owner])).rows;
-        return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing, listening_playback, payment_orders, payment_events, payment_grants, payment_checkout_events };
+        return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing, mock_run_time_groups, listening_playback, payment_orders, payment_events, payment_grants, payment_checkout_events };
       }, true);
     },
 
@@ -1264,6 +1269,7 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
   ['mock_run_event', 'DELETE FROM mock_run_event WHERE owner_id = $1'],
   ['listening_playback_event', 'DELETE FROM listening_playback_event WHERE owner_id = $1'],
   ['listening_playback', 'DELETE FROM listening_playback WHERE owner_id = $1'],
+  ['mock_run_time_group', 'DELETE FROM mock_run_time_group WHERE owner_id = $1'],
   ['mock_run', 'DELETE FROM mock_run WHERE owner_id = $1'],
   ['learner_preparation', 'DELETE FROM learner_preparation WHERE owner_id = $1'],
   ['payment_grant', 'DELETE FROM payment_grant WHERE owner_id = $1'],
@@ -1297,6 +1303,7 @@ export const ACCOUNT_TABLES = Object.freeze([
   ['item_evidence', 'owner_id = $1', 'owner'],
   ['mock_run', 'owner_id = $1', 'owner'], ['mock_run_event', 'owner_id = $1', 'owner'],
   ['listening_playback', 'owner_id = $1', 'owner'], ['listening_playback_event', 'owner_id = $1', 'owner'],
+  ['mock_run_time_group', 'owner_id = $1', 'owner'],
   ['learner_preparation', 'owner_id = $1', 'owner'],
   ['"user"', 'id = $1', 'owner'],
 ].map((entry) => Object.freeze(entry)));
