@@ -139,17 +139,18 @@ check('a-fresh-world-still-sees-the-rows-and-the-policy', async () => {
       [ownerA, INITIAL_EXAM_ID])).rows[0];
     assert.ok(preparation, 'registration must provision the initial preparation');
     preparationId = preparation.id;
-    // An attempt carries genuine context: the seeded task/rubric of the preparation's exam.
-    const b = DEFAULT_TASK_BINDING;
-    await first.admin.query(
-      `INSERT INTO ${config.schema}.attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version, preparation_id, exam_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [attemptId, ownerA, b.taskId, b.taskVersion, b.rubricId, b.rubricVersion, preparationId, INITIAL_EXAM_ID]);
-    // One pinned connection, so the transaction-local owner applies to the INSERT it guards.
+    // Both writes use the restricted role and one owner-bound transaction. C03 also checks
+    // the attempt's owner at COMMIT; an admin auto-commit INSERT has no valid owner context.
     const writer = await first.learner.connect();
     try {
       await writer.query(`BEGIN`);
       await writer.query("SELECT set_config('hatoove.owner_id', $1, true)", [ownerA]);
+      // An attempt carries genuine context: the seeded task/rubric of the preparation's exam.
+      const b = DEFAULT_TASK_BINDING;
+      await writer.query(
+        `INSERT INTO ${config.schema}.attempts(id, owner_id, task_id, task_version, rubric_id, rubric_version, preparation_id, exam_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [attemptId, ownerA, b.taskId, b.taskVersion, b.rubricId, b.rubricVersion, preparationId, INITIAL_EXAM_ID]);
       await writer.query(`INSERT INTO ${config.schema}.drafts(attempt_id, revision, text) VALUES ($1, 1, $2)`,
         [attemptId, 'A durable secret']);
       await writer.query(`COMMIT`);
