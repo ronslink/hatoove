@@ -58,6 +58,7 @@ services:
     environment:
       <<: *ownapi-env
       OWNAPI_PG_ALLOW: "1"
+      OWNAPI_PG_PAYMENTS_PASSWORD: "${OWNAPI_PG_PAYMENTS_PASSWORD:-}"
     depends_on:
       db:
         condition: service_healthy
@@ -82,6 +83,7 @@ services:
       PAYMENTS_MODE: "${HATOVE_PAYMENTS_MODE:-off}"
       STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
       STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+      OWNAPI_PG_PAYMENTS_PASSWORD: "${OWNAPI_PG_PAYMENTS_PASSWORD:-}"
     depends_on:
       migrate:
         condition: service_completed_successfully

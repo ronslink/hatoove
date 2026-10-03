@@ -158,6 +158,21 @@ try {
   await actual.webhook(raw,signature);assert.equal((await actual.order(c,stored.id)).order.status,'paid');
   const before=await one('SELECT * FROM entitlements WHERE owner_id=$1',[c]);await actual.webhook(raw,signature);assert.deepEqual(await one('SELECT * FROM entitlements WHERE owner_id=$1',[c]),before);
  });
+ await check('signed irrelevant events have durable receipts while malformed known events remain refused',async()=>{
+  const secret='whsec_synthetic_event_classification';
+  const actual=createPostgresPayments({pool:db.payments,provider:createPaymentsPort({mode:'stub',webhookSecret:secret,publicOrigin:origin}),publicOrigin:origin});
+  const suffix=randomUUID().replaceAll('-','');
+  const deliver=event=>{const raw=Buffer.from(JSON.stringify(event));return actual.webhook(raw,buildSignatureHeader({rawBody:raw,secret,timestamp:Math.floor(Date.now()/1000)}));};
+  const ignored={id:'evt_irrelevant_'+suffix,type:'customer.created',livemode:false,data:{object:{object:'customer',id:'cus_synthetic'}}};
+  const grantsBefore=(await one('SELECT count(*)::int AS n FROM payment_grant')).n;
+  await deliver(ignored);await deliver(ignored);
+  const receipt=await one('SELECT owner_id,order_id,kind,disposition FROM payment_event WHERE id=$1',[ignored.id]);
+  assert.equal(receipt.owner_id,null);assert.equal(receipt.order_id,null);assert.equal(receipt.kind,'ignored');assert.match(receipt.disposition,/^ignore:/);
+  const malformed={...ignored,id:'evt_malformed_'+suffix,type:'checkout.session.completed'};
+  await assert.rejects(deliver(malformed),error=>error.status===400&&error.code==='invalid_webhook');
+  assert.equal(await one('SELECT id FROM payment_event WHERE id=$1',[malformed.id]),undefined);
+  assert.equal((await one('SELECT count(*)::int AS n FROM payment_grant')).n,grantsBefore);
+ });
  await check('signed HTTP du_ dispute retries before intent binding, then records once without changing credits',async()=>{
   const c=await user('dispute');
   await sql("UPDATE entitlements SET allowance=50,used=7,reserved=2,expires_at=now()-interval '1 second' WHERE owner_id=$1",[c]);

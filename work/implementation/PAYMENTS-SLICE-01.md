@@ -1,5 +1,10 @@
 # PAYMENTS-SLICE-01 — frozen API contract and slice plan
 
+**Prototype record, superseded for implementation:** [PAYMENTS-01](../../docs/contracts/PAYMENTS-01.md)
+now governs the English technical route, explicit market selection, idempotency, test-only provider,
+signature/activation requirements, database transactions, expiry and rendered acceptance. The original
+draft below is preserved as design history; its pure policy checks do not establish database exactly-once behavior.
+
 **Status: in progress.** Ron, 3 October 2026: *"start working on it since it can be done independently;
 we need a frontend ui addition as well."* Provider decision: Stripe
 ([STRIPE-PAYMENT-PATH-01.md](STRIPE-PAYMENT-PATH-01.md)).

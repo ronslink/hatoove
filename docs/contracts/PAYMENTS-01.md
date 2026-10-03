@@ -40,6 +40,9 @@ Payments are an optional capability; an unwired port disables only payment route
 * `POST /api/v1/checkout/session` accepts exactly `{examId,market,eventId}` (UUID eventId) and returns
   `201 {orderId,checkoutUrl,expiresAt}`. Snapshot the server's active offer before calling the provider.
   A repeat event with the same inputs resumes the same order; changed inputs return `409 event_conflict`.
+  A terminal replay returns the same 201 order ID with `status`, `checkoutUrl:null`, historical
+  `expiresAt` and `testMode:true`. The client reads that owned order immediately; it never navigates
+  a finished external checkout or treats this POST response alone as activation proof.
   Concurrent requests for the same owner/exam reuse the matching pending order, or return
   `409 checkout_pending` for different market terms. Never open two unresolved sessions for that exam.
   `409 already_entitled` means a usable balance already exists. `502 provider_unavailable` is an
@@ -69,7 +72,7 @@ owned order status. Redirects accept only HTTPS `checkout.stripe.com` or an exac
 `createCheckoutSession({orderId,ownerId,examId,market,price})` returns
 `{url,providerSessionId,expiresAt}`. Price is the persisted server snapshot including
 `stripePriceId,amountMinor,currency`. Bind order ID in client_reference_id, session metadata and
-payment_intent_data metadata. Send quantity 1, mode payment, explicit English provider locale and
+payment_intent_data metadata. Send quantity 1, mode payment, explicit German learner locale (`de`) and
 an order-based Idempotency-Key. Pin the API version and reject non-test provider responses.
 Do not log provider bodies or credentials. A bounded request timeout and sanitized errors are required.
 

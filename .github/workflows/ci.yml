@@ -123,6 +123,12 @@ jobs:
         run: node tools/exam-s4-check.mjs
       - name: DTZ writing choice and recovery client contracts
         run: node tools/exam-s4-client-check.mjs
+      - name: Payment signatures, test provider and activation refusals
+        run: node tools/payment-path-check.mjs
+      - name: Payment API ownership and exact webhook boundary
+        run: node tools/payments-api-check.mjs
+      - name: Checkout market selection, safe redirects and recovery
+        run: node tools/payment-client-check.mjs
       - name: Readiness follows database availability and recovers
         run: node tools/readiness-check.mjs
       - name: Public content policy and criterion-specific feedback contracts
@@ -217,6 +223,8 @@ jobs:
         run: node tools/exam-s3-pg-check.mjs
       - name: DTZ writing choice, lifecycle and exam-credit PostgreSQL contract
         run: node tools/exam-s4-pg-check.mjs
+      - name: Payment upgrade, ownership, concurrent grants and expiry
+        run: node tools/payments-pg-check.mjs
       - name: Bounded readiness probes recover after a real PostgreSQL connection loss
         run: node tools/readiness-pg-check.mjs
       - name: The hosted runtime refuses by default

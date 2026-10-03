@@ -1,5 +1,10 @@
 # STRIPE-PAYMENT-PATH-01 — Stripe as the payment provider (proposal)
 
+**Implementation update:** [PAYMENTS-01](../../docs/contracts/PAYMENTS-01.md), execution
+PAYMENTS-01-20261003-A / issue 115, governs the current bounded work. Migration 0028 follows the
+reviewed S4 migration 0027. Earlier migration numbers and prototype details below are historical.
+Commercial values remain undecided; only synthetic fixtures contain example prices.
+
 **Status: adopted as direction (Ron, 3 October 2026); the provider-agnostic port layer is built and
 checked, the schema and routes are next, and no keys exist.** The former "no purchase UI / no live
 payments" stipulation has been **removed** from [AGENTS.md](../../AGENTS.md),

@@ -281,7 +281,12 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
     'submit locks the balance before the attempt');
   const exported = body('exportData');
   const statements = exported.split('client.query(').slice(1);
-  assert.equal(statements.length, 8, 'preparations, balances, attempts, submissions, results, objective evidence, saved runs, writing attachments');
+  assert.equal(statements.length, 12, 'preparations, balances, attempts, submissions, results, objective evidence, saved runs, writing attachments, and four payment records');
+  for (const table of ['payment_order', 'payment_checkout_event', 'payment_event', 'payment_grant']) {
+    const paymentStatements = statements.filter(sql => new RegExp(`FROM ${table}\\b`).test(sql));
+    assert.equal(paymentStatements.length, 1, `${table} stays in the account export`);
+    assert.match(paymentStatements[0], /WHERE owner_id\s*=\s*\$1/, `${table} export is explicitly owner-scoped`);
+  }
   const attachments = statements.filter((sql) => /FROM mock_writing WHERE owner_id\s*=\s*\$1/.test(sql));
   assert.equal(attachments.length, 1, 'writing attachments remain exported and owner-scoped');
   assert.match(exported, /writingContext\(client,\{id:submission\.attempt_id,owner_id:owner,/,
