@@ -259,10 +259,24 @@ function renderSettings() {
  * UEBEN -- the real catalogue, from the API. No sample data and no placeholder card: this lists what
  * the server is willing to serve, and every row carries its ACTUAL review_status, so a learner is
  * told the truth about the content instead of being shown an implied approval.
+ *
+ * AND A CATALOGUE HAS TO BE USABLE. Until REVIEW-UX this view only DESCRIBED its entries: a writing
+ * card named the topic and nothing could open it, and an objective card said how many items a set has
+ * with no way into them. A catalogue a learner cannot start from is a list of things that exist, not
+ * practice. Every card now carries the one control that opens THAT entry -- "Üben" for an objective
+ * set, "Schreiben" for a writing task -- and the binding travels with the button (set_id + version, or
+ * task_id + version + rubric_id + rubric_version), so opening task B can never mark task A.
  */
 async function renderTasks() {
   const box = el('task-list');
   if (!box) return;
+  /*
+   * ENTERING ÜBEN STARTS AT THE CATALOGUE. The host is the SIBLING the open set/letter is rendered
+   * into; leaving it populated would put last visit's task above this visit's catalogue.
+   */
+  const host = uebenPracticeHost();
+  if (host) { host.hidden = true; host.innerHTML = ''; }
+  box.hidden = false;
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
   const [writing, objective] = await Promise.all([
     api.tasks.list({ family: 'writing' }),
@@ -276,16 +290,22 @@ async function renderTasks() {
   }
   const tasks = Array.isArray(writing.data) ? writing.data : [];
   const sets = Array.isArray(objective.data) ? objective.data : [];
-  const card = (title, chip, line, meta) => '<div class="card"><div class="card-head"><h3>'
+  const card = (title, chip, line, meta, action) => '<div class="card"><div class="card-head"><h3>'
     + title + '</h3><span class="chip">' + chip + '</span></div>'
     + '<p class="muted">' + line + '</p>'
-    + '<p class="small muted">' + meta + '</p></div>';
+    + '<p class="small muted">' + meta + '</p>'
+    + action + '</div>';
   const groups = [];
   if (tasks.length) {
     groups.push('<h3 class="section-head">Schreiben</h3>' + tasks.map((t) => card(
       esc(t.topic), esc(t.family), esc(t.situation),
       'Anrede: ' + esc(t.adressat) + ' &middot; Register: ' + esc(t.register)
         + ' &middot; Fassung ' + esc(t.version) + ' &middot; Prüfstatus: ' + esc(t.review_status),
+      // The four-part binding, exactly as the Schreiben view binds it; the controller resumes an open
+      // draft for this task+version instead of creating a second one.
+      '<div class="row"><button class="btn btn-primary" type="button" data-write="' + esc(t.task_id) + '"'
+        + ' data-version="' + esc(t.version) + '" data-rubric="' + esc(t.rubric_id) + '"'
+        + ' data-rubric-version="' + esc(t.rubric_version) + '">Schreiben</button></div>',
     )).join(''));
   }
   if (sets.length) {
@@ -294,6 +314,10 @@ async function renderTasks() {
     groups.push('<h3 class="section-head">Lesen und Sprachbausteine</h3>' + sets.map((s) => card(
       esc(setLabel(s)), esc(s.family), s.item_count + ' Aufgaben',
       'Teil ' + s.part + ' &middot; Fassung ' + esc(s.version) + ' &middot; Prüfstatus: ' + esc(s.review_status),
+      // The version is the second half of the identity: the read below refuses a mismatch rather than
+      // rendering the wrong fassung of the task the learner chose.
+      '<div class="row"><button class="btn btn-primary" type="button" data-open="' + esc(s.set_id) + '"'
+        + ' data-version="' + esc(s.version) + '">Üben</button></div>',
     )).join(''));
   }
   if (!groups.length) {
@@ -303,6 +327,81 @@ async function renderTasks() {
     return;
   }
   box.innerHTML = groups.join('');
+  box.onclick = (event) => {
+    const button = event.target?.closest?.('[data-open], [data-write]');
+    if (button) guard(launchCatalogueEntry(host, button, tasks));
+  };
+}
+
+/**
+ * The Üben host the open set/letter is rendered into, created once as a SIBLING of the catalogue.
+ *
+ * IT MUST BE A SIBLING: `renderTasks` assigns `#task-list`'s innerHTML, which deletes a nested host —
+ * the failure the skill views already met ("Üben" appeared to do nothing).
+ *
+ * AND THE CATALOGUE MUST BE FINDABLE BY THE CONTROLLERS. Both the objective and the writing controller
+ * restore the catalogue they were opened from by looking for `.stack[id^="skill-"]` among the open
+ * host's siblings; `#task-list` does not carry that prefix, so a task opened from Üben would have left
+ * its catalogue on screen above it and closing would have restored nothing. `#task-list` keeps its id
+ * (the browser checks read it) but is placed inside ONE element the controllers can recognise, and
+ * that is this wrapper's only job. It is not a layout change: one `.stack` around a single `.stack`.
+ */
+function uebenPracticeHost() {
+  const view = el('view-ueben');
+  const list = el('task-list');
+  if (!view || !list) return null;
+  const existing = el('ueben-practice');
+  if (existing) return existing;
+  const catalogue = document.createElement('div');
+  catalogue.className = 'stack';
+  catalogue.id = 'skill-ueben-catalogue';
+  view.insertBefore(catalogue, list);
+  catalogue.appendChild(list);
+  const host = document.createElement('div');
+  host.className = 'stack skill-practice';
+  host.id = 'ueben-practice';
+  host.hidden = true;
+  view.insertBefore(host, catalogue.nextSibling);
+  return host;
+}
+
+/** One launch at a time, so two clicks on the same card cannot race into two creates. */
+let catalogueOpening = false;
+
+/**
+ * Open ONE catalogue entry, from the exact identity its card was rendered with.
+ *
+ * IT CANNOT CREATE TWO ATTEMPTS FROM TWO CLICKS. The writing controller reuses the open draft for the
+ * same task+version, but two clicks dispatched before the first has resolved would both read "no open
+ * draft" and both create one — so the launch is serialised here. `openSet` carries its own guard (a
+ * request token) and both controllers refuse while the session is blocked or the boot gate is closed;
+ * neither is reimplemented here.
+ */
+async function launchCatalogueEntry(host, button, tasks) {
+  if (!host || catalogueOpening || !bootReady || sessionProblem) return;
+  catalogueOpening = true;
+  try {
+    if (button.dataset.write) {
+      const task = tasks.find((t) => t.task_id === button.dataset.write
+        && String(t.version) === String(button.dataset.version));
+      if (!task) {
+        showError('Diese Schreibaufgabe steht nicht mehr in der Liste. Bitte lade die Aufgaben erneut.');
+        return;
+      }
+      await openWriting(host, task);
+      return;
+    }
+    if (!button.dataset.open) return;
+    const version = button.dataset.version;
+    if (!version) {
+      // Same refusal `openSet` makes, said before the request rather than after it.
+      showError('Die Fassung dieser Aufgabe fehlt. Bitte lade die Aufgabenliste erneut.');
+      return;
+    }
+    await openSet(button.dataset.open, version);
+  } finally {
+    catalogueOpening = false;
+  }
 }
 
 
