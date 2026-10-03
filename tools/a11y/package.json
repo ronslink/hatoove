@@ -1,0 +1,7 @@
+{
+  "name": "hatoove-browser-a11y-checks",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Test-only accessibility engine; never shipped by the application image.",
+  "dependencies": { "axe-core": "4.13.0" }
+}

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { launchBrowser, connectToPage, sleep } from './cdp.js';
 
-export async function verifyLearnerCompletion({ base, email, password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, shots }) {
+export async function verifyLearnerCompletion({ base, email, password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, shots, axe }) {
   const port = await freePort();
   const browser = await launchBrowser(port); // Fresh profile: no copied cookies or browser state.
   let cdp;
@@ -33,11 +33,13 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     const count = await cdp.evaluate("return document.querySelectorAll('#history-list [data-attempt]').length");
     record('C1 a fresh browser rediscovers all saved writing through history', count === history.length && count > 0, `${count} UI rows, ${history.length} server rows`);
     await shot(cdp, '25-history-fresh-browser-desktop');
+    await axe.scan(cdp, 'history-list', "document.querySelector('#history-list [data-attempt]')?.getBoundingClientRect().height>0");
     await clickSel(cdp, `[data-attempt="${assessed.id}"]`);
     await cdp.waitFor("document.querySelectorAll('#history-detail .criterion').length === 3", 12000);
     const savedText = await cdp.evaluate("return document.querySelector('#history-detail .submitted-text')?.textContent");
     record('C2 historical feedback opens with its exact immutable submitted text', savedText === original.submission.text, `${savedText?.length} preserved characters; three criteria`);
     await shot(cdp, '26-history-result-desktop');
+    await axe.scan(cdp, 'history-detail', "document.querySelectorAll('#history-detail .criterion').length===3 && document.querySelector('#history-detail .submitted-text')?.getBoundingClientRect().height>0");
     await clickSel(cdp, '#writing-revise');
     await cdp.waitFor("document.querySelector('#history-detail #writing-text')", 12000);
     const inherited = await cdp.evaluate("return document.querySelector('#writing-text').value");
@@ -91,6 +93,7 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     const comparison = await cdp.evaluate("return document.querySelector('#writing-state .submitted-text').textContent");
     record('C6 the conflict comparison shows the actual server version', comparison === remoteText);
     await shot(cdp, '27-writing-conflict-desktop');
+    await axe.scan(cdp, 'recovery-conflict', "document.querySelector('#writing-keep')?.getBoundingClientRect().height>0 && document.querySelector('#writing-state .submitted-text')");
     await clickSel(cdp, '#writing-keep');
     await cdp.waitFor("document.querySelector('#writing-state').innerText.includes('Gespeichert.')", 12000);
     record('C7 only an explicit conflict choice replaces the server draft', (await request('/api/v1/attempts/' + revision.id)).data.text === mine);
@@ -104,6 +107,7 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     await viewport(cdp, 390, 844, true);
     await theme(cdp, 'dark');
     await shot(cdp, '28-writing-offline-mobile-dark');
+    await axe.scan(cdp, 'recovery-offline', "document.querySelector('#writing-save-again')?.getBoundingClientRect().height>0 && document.querySelector('#writing-text')?.value.length>0");
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await clickSel(cdp, '#writing-save-again');
     await cdp.waitFor("document.querySelector('#writing-state').innerText.includes('Gespeichert.')", 12000);
@@ -139,6 +143,7 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     await clickSel(cdp, '#writing-submit');
     await cdp.waitFor("document.querySelector('#writing-submit').textContent.includes('erneut')", 12000);
     record('C10a uncertain submission cannot be discarded as a draft', await cdp.evaluate("return document.querySelector('#writing-new').disabled"));
+    await axe.scan(cdp, 'recovery-uncertain-save', "document.querySelector('#writing-submit')?.textContent.includes('erneut') && document.querySelector('#writing-new')?.disabled");
     await clickSel(cdp, '#writing-submit');
     await cdp.waitFor("Boolean(document.querySelector('#writing-refresh'))", 12000);
     record('C10b accepted submission remains protected when result loading fails', await cdp.evaluate("return document.querySelector('#writing-new').hidden && document.querySelector('#writing-new').disabled"));

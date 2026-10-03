@@ -3,14 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { launchBrowser, connectToPage } from './cdp.js';
 
 export async function verifyPayments({ base, email, password, freePort, record, shot, viewport, theme,
-  nav, setInputs, clickSel, overflow, query, webhook, changeMode }) {
+  nav, setInputs, clickSel, overflow, query, webhook, changeMode, axe }) {
   const origin = new URL(base);
   if (origin.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(origin.hostname)
     || !origin.port || ['4300', '55440'].includes(origin.port) || origin.origin !== base
     || !/^browser-[a-z0-9-]+@example\.test$/i.test(email)) throw Error('Isolated synthetic payment fixture required');
   const browsers = [], connections = [];
   const assert = (condition, message) => { if (!condition) throw Error(message); };
-  const run = async (name, fn) => { try { await fn(); record(name, true); } catch (error) { record(name, false, error.stack || error.message); } };
+  const run = async (name, fn) => { try { await fn(); record(name, true); } catch (error) { record(name, false, error.stack || error.message); if (error.code === 'Q01_A11Y') throw error; } };
   const launch = async () => {
     const port = await freePort(), browser = await launchBrowser(port); browsers.push(browser);
     const cdp = await connectToPage(port); connections.push(cdp);
@@ -41,11 +41,12 @@ export async function verifyPayments({ base, email, password, freePort, record, 
   });
   let cdp, orderId, paidEvent, beforeGrant;
   try {
-    cdp = await launch(); await nav(cdp, base + '/signin'); await signin(cdp);
+    cdp = await launch(); await axe.start(cdp, base); await nav(cdp, base + '/signin'); await signin(cdp);
     await run('PAY-B1 no normal installation has a commercial offer', async () => {
       assert(query('SELECT count(*) FROM hatoove.payment_product') === '0', 'Commercial seed unexpectedly present');
       await open(cdp); await state(cdp, 'missing');
       assert(await cdp.evaluate("return !document.querySelector('#checkout-buy')"), 'Missing offer has buy control');
+      await axe.scan(cdp, 'checkout-unavailable', "document.querySelector('#checkout-host')?.dataset.state==='missing'");
     });
     query("INSERT INTO hatoove.payment_product(id,exam_id,allowance,term_days,active) VALUES('synthetic-telc','telc-deutsch-b1',10,30,true)");
     query("INSERT INTO hatoove.payment_price(product_id,market,currency,amount_minor,display_price,stripe_price_id,active) VALUES('synthetic-telc','DE','EUR',1000,'10,00 €','price_synthetic',true)");
@@ -71,6 +72,7 @@ export async function verifyPayments({ base, email, password, freePort, record, 
       await open(cdp); await market(cdp); await state(cdp, 'ready');
       assert(await cdp.evaluate("return document.querySelector('#checkout-host').textContent.includes('10,00') && document.querySelector('#checkout-buy') && document.querySelector('#checkout-test-mode')"), 'Offer/test badge differs from server');
       beforeGrant = balance();
+      await axe.scan(cdp, 'checkout-offer', "document.querySelector('#checkout-host')?.dataset.state==='ready' && document.querySelector('#checkout-buy')?.getBoundingClientRect().height>0");
     });
     await run('PAY-B3a delayed offers preserve deliberate outside focus and restore replaced controls', async () => {
       for (const moveOutside of [true, false]) {
@@ -112,6 +114,7 @@ export async function verifyPayments({ base, email, password, freePort, record, 
       assert((await request(cdp, '/api/v1/orders/' + orderId)).data.order.status === 'pending', 'Return falsely confirms payment');
       assert(balance().allowance === beforeGrant.allowance, 'Return granted credits');
       await shot(cdp, 'payment-pending-desktop');
+      await axe.scan(cdp, 'checkout-pending', "document.querySelector('#checkout-host')?.dataset.state==='pending'");
     });
     if (!orderId) return;
     await run('PAY-B6 fresh sign-in preserves only the owned checkout return', async () => {
@@ -129,6 +132,7 @@ export async function verifyPayments({ base, email, password, freePort, record, 
         await clickSel(cdp, '#checkout-refresh'); await state(cdp, 'error');
         assert(await cdp.evaluate("return !/Es wurde nichts (gebucht|freigeschaltet)/.test(document.querySelector('#checkout-host').textContent)"), 'Network failure falsely claims no charge');
         await viewport(cdp, 390, 844, true); await shot(cdp, 'payment-network-error-mobile', '#checkout-host');
+        await axe.scan(cdp, 'checkout-error', "document.querySelector('#checkout-host')?.dataset.state==='error' && document.querySelector('#checkout-retry')?.getBoundingClientRect().height>0");
       } finally {
         await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
       }
@@ -151,6 +155,7 @@ export async function verifyPayments({ base, email, password, freePort, record, 
       assert(after.used === beforeGrant.used && after.reserved === beforeGrant.reserved, 'Grant reset counters');
       assert(Date.parse(after.expires_at) > Date.now(), 'Term missing');
       await viewport(cdp, 1440, 900, false); await shot(cdp, 'payment-paid-desktop');
+      await axe.scan(cdp, 'checkout-activated', "document.querySelector('#checkout-host')?.dataset.state==='paid'");
       await viewport(cdp, 390, 844, true); await shot(cdp, 'payment-paid-mobile', '#checkout-host');
     });
     await run('PAY-B9 refund records the fact without inventing removed access', async () => {
