@@ -31,8 +31,7 @@
  */
 
 import { createExamCatalogue } from '../preparation-contract.mjs';
-import { readWritingTask, writingAccess, readWritingOrigin, writingServable } from './packages.mjs';
-import { contentPolicy } from '../content-policy.mjs';
+import { readWritingTask, writingAccess, readWritingOrigin, writingServable, readReleasedForm } from './packages.mjs';
 import { supportedWritingPolicy, DTZ_POLICY, DTZ_KIND, DTZ_INSTRUCTIONS } from '../writing-policy.mjs';
 import { randomUUID } from 'node:crypto';
 import { TELC_B1_WRITING_RUBRIC, FORMATIVE_WRITING_RUBRIC } from './content-seed.mjs';
@@ -337,12 +336,10 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
    * @returns {Promise<{claimed:false} | {claimed:true, submissionId:string, outcome:'succeeded'|'failed'|'stale'|'skipped', code?:string}>}
    */
   async function blockedAttached(client,runId) {
-    const row=first(await client.query(`SELECT r.release_version,pinned.state,head.manifest FROM mock_run r
-      JOIN exam_release pinned ON pinned.exam_id=r.exam_id AND pinned.version=r.release_version
-      LEFT JOIN exam_release_head h ON h.exam_id=r.exam_id
-      LEFT JOIN exam_release head ON head.exam_id=h.exam_id AND head.version=h.release_version WHERE r.id=$1`,[runId]));
-    return !row||(['internal','hidden'].includes(row.state)&&contentPolicy().mode!=='internal-preview')
-      ||Boolean(row.manifest?.release?.resumeBlockedReleases?.includes(row.release_version));
+    const run=first(await client.query('SELECT * FROM mock_run WHERE id=$1',[runId]));
+    if(!run)return true;
+    const bundle=await readReleasedForm(client,{examId:run.exam_id,formId:run.form_id,formVersion:run.form_version,releaseVersion:run.release_version});
+    return !bundle||Boolean(bundle.blockedReason);
   }
   async function runOnce() {
     const token = randomUUID();
