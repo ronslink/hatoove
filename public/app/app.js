@@ -932,10 +932,8 @@ const SKILL_SECTIONS = { lesen: 'LV', sprachbausteine: 'SB', hoeren: 'HV', schre
 /**
  * One skill's practice, from the catalogue.
  *
- * THE LIST IS THE SERVER'S ANSWER, including when it is empty. Hoeren is empty ON PURPOSE: the nine
- * listening sets exist, carry transcripts, and are marked media_required because there is no audio.
- * Serving their items would make a Hoeren task a Lesen task wearing a Hoeren label, so this view says
- * so rather than showing something to fill the space.
+ * Listening uses saved section runs so audio allowance and recovery have a durable attempt identity.
+ * The stateless objective catalogue remains reading/language practice only.
  */
 async function renderSkill(view) {
   const ticket = contextTicket();
@@ -952,6 +950,8 @@ async function renderSkill(view) {
   box.hidden = false;
   if (!activePreparation()) { box.innerHTML = archivedPracticeNotice(); return; }
   box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+
+  if (section === 'HV') { await mock.list(box, { section: 'HV' }); return; }
 
   if (section === 'writing') {
     const res = await api.tasks.list({ family: 'writing' });
@@ -987,11 +987,7 @@ async function renderSkill(view) {
   if (!res.ok) { box.innerHTML = ''; showError('Aufgaben konnten nicht geladen werden: ' + failure(res) + '.'); return; }
   const sets = (Array.isArray(res.data) ? res.data : []).filter((s) => s.section === section);
   if (!sets.length) {
-    box.innerHTML = section === 'HV'
-      ? '<div class="card"><h3>Hörverstehen braucht Ton</h3><p class="muted">Die Aufgaben sind vorhanden, '
-        + 'aber es gibt noch kein Audio. Sie werden deshalb nicht angezeigt — eine Höraufgabe ohne Ton '
-        + 'wäre eine Leseaufgabe mit falschem Etikett.</p></div>'
-      : '<div class="card"><h3>Zurzeit keine Aufgaben</h3><p class="muted">Der Server hat für diesen '
+    box.innerHTML = '<div class="card"><h3>Zurzeit keine Aufgaben</h3><p class="muted">Der Server hat für diesen '
         + 'Bereich gerade nichts Servierbares.</p></div>';
     return;
   }

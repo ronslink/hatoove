@@ -1,4 +1,5 @@
 import { createWritingController, writingPrompt } from './writing.js';
+import { createListeningController } from './listening.js';
 
 /** Saved section practice. Responses exist only in this document until the server acknowledges them. */
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -36,6 +37,22 @@ export function mockMember(member) {
   const options = rows => (rows || []).map(row => ({ id: String(row.id), label: String(row.text ?? row.word ?? '') }));
   const mapped = value => Object.entries(value || {}).map(([id, label]) => ({ id, label: String(label) }));
   switch (member.interaction) {
+    case 'fixed_audio': {
+      if (!Array.isArray(p.recordings) || !p.recordings.length || !Array.isArray(member.recordings)) return null;
+      const ids = new Set(), questions = new Set(), items = [];
+      for (const recording of p.recordings) {
+        const metadata = member.recordings.find(value => value.id === recording.id && value.media_id === recording.mediaId && value.media_version === recording.mediaVersion);
+        if (!metadata || ids.has(recording.id) || !Array.isArray(recording.questions) || !recording.questions.length) return null;
+        ids.add(recording.id);
+        for (const question of recording.questions) {
+          if (!question || !['string', 'number'].includes(typeof question.n) || questions.has(String(question.n)) || typeof question.question !== 'string'
+            || !question.options || Array.isArray(question.options) || Object.keys(question.options).length < 2 || Object.values(question.options).some(value => typeof value !== 'string')) return null;
+          questions.add(String(question.n));
+          items.push({ id: String(question.n), text: question.question, options: mapped(question.options), recordingId: recording.id });
+        }
+      }
+      return { passage: '', items };
+    }
     case 'matching_headlines': return { passage: '', options: options(p.headlines), items: (p.texts || []).map(v => ({ id: String(v.id), text: v.text })) };
     case 'grouped_choice': {
       if (!Array.isArray(p.groups) || !p.groups.length) return null;
@@ -177,6 +194,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
   let displayPosition = null, serverOffset = 0, deadlineReached = false;
   let writingBinding = null, writingReady = Promise.resolve(true), finishing = false;
   const writing = createWritingController({ api, esc, readAloud, onChange });
+  const listening = createListeningController({ api, esc, canEdit });
   const session = createMockSession({ api, canEdit, onChange: () => { render(); onChange(); } });
   const button = (action, label, primary = false) => '<button type="button" class="btn' + (primary ? ' btn-primary' : '') + '" data-mock-action="' + action + '">' + label + '</button>';
   const date = value => new Date(value).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
@@ -232,6 +250,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
   async function flushAll() {
     if (finishing) return false;
     clearTimeout(timer);
+    if (!(await listening.flush())) return false;
     await writingReady;
     if (!(await writing.flush())) return false;
     return session.flush();
@@ -242,6 +261,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     if (!run) return;
     // Save status updates must not steal keyboard focus from the selected radio.
     const focused = host.contains(document.activeElement) ? document.activeElement?.getAttribute('data-focus') : null;
+    const listeningFocus = host.contains(document.activeElement) ? document.activeElement?.getAttribute('data-listening-action') : null;
     const readonly = !snapshot.writable || finishing, members = run.members || [], total = members.reduce((n, m) => n + m.item_count, 0);
     const selected = snapshot.responses.filter(row => row.answer !== null).length;
     const status = snapshot.loading ? 'Serverstand wird geladen …' : snapshot.busy ? 'Wird gespeichert …' : snapshot.error ? 'Noch nicht bestätigt' : snapshot.dirty ? 'Änderungen noch nicht gespeichert' : 'Gespeichert · Stand ' + run.revision;
@@ -255,6 +275,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     } else if (item) {
       const answer = snapshot.responses.find(row => row.setId === member.set_id && row.version === member.version && row.itemId === item.id)?.answer;
       body = '<div class="mock-layout"><section class="card stack mock-question"><p class="kicker">Teil ' + (position.member + 1) + ' von ' + members.length + ' · Aufgabe ' + esc(item.id) + '</p><h3 id="mock-question-title" tabindex="-1">' + esc(setLabel(member)) + '</h3>'
+        + (item.recordingId ? '<div id="mock-listening-host"></div>' : '')
         + ((item.passage ?? form.passage) ? '<div class="stimulus mock-passage" lang="de">' + esc(item.passage ?? form.passage) + '</div>' : '')
         + '<fieldset class="mock-options"' + (readonly ? ' disabled' : '') + '><legend>' + esc(item.text) + '</legend>'
         + (item.options || form.options || []).map((option, i) => '<label class="option' + (answer === option.id ? ' selected' : '') + '"><input type="radio" name="mock-answer" data-focus="option-' + i + '" value="' + esc(option.id) + '"' + (answer === option.id ? ' checked' : '') + '><span class="letter">' + esc(option.id) + '</span><span lang="de">' + esc(option.label) + '</span></label>').join('')
@@ -274,8 +295,15 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     host.querySelector('#mock-footer').innerHTML = (run.state === 'active' && !run.blocked_reason && canEdit() ? '<section class="card stack mock-finish">' + (total ? '<p>' + selected + ' von ' + total + ' beantwortet · ' + Math.max(0, total - selected) + ' unbeantwortet.</p>' : '') + (confirm ? '<p>Jetzt abschließen? Danach kannst du diese Antworten und den abgegebenen Text nicht mehr ändern. Unbeantwortete Aufgaben und ein leerer Schreibteil bleiben unbewertet erhalten.</p><div class="row">' + button('finalise', 'Verbindlich abschließen', true) + button('cancel', 'Weiter bearbeiten') + '</div>' : '<div class="row">' + button('save', 'Jetzt speichern') + button('confirm', 'Abschnitt abschließen', true) + '</div>') + '</section>' : '')
       + '<a class="btn" href="#/abschnitt">Zur Abschnittsübersicht</a>';
     renderWriting(snapshot);
+    const audioHost = host.querySelector('#mock-listening-host');
+    const recording = item?.recordingId && member?.recordings?.find(value => value.id === item.recordingId);
+    if (audioHost && recording && run.state === 'active' && !run.blocked_reason) {
+      listening.mount(audioHost, run, recording);
+      listening.freeze(!canEdit() || snapshot.expired || Boolean(snapshot.error) || finishing);
+    } else listening.dispose();
     if (snapshot.busy || snapshot.finalising || finishing) for (const b of host.querySelectorAll('[data-mock-action], [data-mock-member], [data-mock-choice-option]')) b.disabled = true;
     if (focused) host.querySelector('[data-focus="' + focused + '"]')?.focus({ preventScroll: true });
+    if (listeningFocus) host.querySelector('[data-listening-action="' + listeningFocus + '"]')?.focus({ preventScroll: true });
     updateDeadline();
   }
   function updateDeadline() {
@@ -307,11 +335,12 @@ export function createMockController({ api, esc, setLabel = member => member.tit
       if (element.dataset.mockChoiceOption !== undefined) { await session.chooseWriting(element.dataset.mockChoiceGroup, element.dataset.mockChoiceOption); return; }
       if (action === 'clear') { session.answer(m, form.items[p.item].id, null); await session.flush(); }
       if (['save', 'retry'].includes(action)) await flushAll();
-      if (action === 'reload') { if (!(await writing.flush())) return; clearTimeout(timer); confirm = false; displayPosition = null; await session.reload(); }
+      if (action === 'reload') { if (!(await listening.flush()) || !(await writing.flush())) return; clearTimeout(timer); confirm = false; displayPosition = null; await session.reload(); }
       if (action === 'confirm') { confirm = true; render(); host.querySelector('[data-mock-action="finalise"]')?.focus(); }
       if (action === 'cancel') { confirm = false; render(); }
       if (action === 'finalise') {
         if (finishing) return;
+        if (!(await listening.flush())) return;
         finishing = true; writing.freeze(true); render();
         try {
           clearTimeout(timer);
@@ -323,7 +352,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
       if (action === 'next') next = p.item + 1 < form.items.length ? { member: p.member, item: p.item + 1 } : p.member + 1 < run.members.length ? { member: p.member + 1, item: 0 } : null;
       if (action === 'previous') next = p.item > 0 ? { member: p.member, item: p.item - 1 } : p.member > 0 ? { member: p.member - 1, item: mockMember(run.members[p.member - 1]).items.length - 1 } : null;
       if (next) {
-        if (!(await writing.flush())) return;
+        if (!(await listening.flush()) || !(await writing.flush())) return;
         if (!canEdit() || snapshot.expired) { displayPosition = next; render(); }
         else { displayPosition = p; if (await session.move(next)) displayPosition = null; render(); }
         host.querySelector('#mock-question-title')?.focus();
@@ -331,23 +360,24 @@ export function createMockController({ api, esc, setLabel = member => member.tit
     };
   }
   async function showRun(target, id) {
-    const ticket = ++generation; stopTimers(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); attach(target); host.innerHTML = '<p class="muted" role="status">Gespeicherter Abschnitt wird geladen …</p>';
+    const ticket = ++generation; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); attach(target); host.innerHTML = '<p class="muted" role="status">Gespeicherter Abschnitt wird geladen …</p>';
     const response = await api.mock.read(id);
     if (ticket !== generation) return false;
     if (!response?.ok) { host.innerHTML = '<p class="err">Der gespeicherte Abschnitt konnte nicht geladen werden.</p><a class="btn" href="#/abschnitt">Zur Übersicht</a>'; return false; }
     confirm = false; displayPosition = null; deadlineReached = false; serverOffset = response.data.server_now ? Date.parse(response.data.server_now) - Date.now() : 0;
     session.load(response.data); deadlineTimer = setInterval(updateDeadline, 1000); return true;
   }
-  async function list(target) {
-    const ticket = ++generation; stopTimers(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); session.dispose(); attach(target); host.innerHTML = '<p class="muted" role="status">Abschnittsübungen werden geladen …</p>';
+  async function list(target, { section = null } = {}) {
+    const ticket = ++generation; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); session.dispose(); attach(target); host.innerHTML = '<p class="muted" role="status">Abschnittsübungen werden geladen …</p>';
     const [forms, runs] = await Promise.all([api.mock.forms(), api.mock.list()]);
     if (ticket !== generation) return;
+    if (section && forms?.ok) forms.data.forms = (forms.data.forms || []).filter(form => form.sections?.includes(section));
     const rows = runs?.ok ? runs.data?.runs || [] : [];
     host.innerHTML = '<div class="page-head"><div><p class="kicker">In deinem Tempo</p><h1>Gespeicherte Abschnittsübungen</h1><p>Bearbeite einen Abschnitt und erhalte die Rückmeldung am Ende. Deine bestätigten Antworten kannst du später fortsetzen.</p></div></div><div class="grid-dash"><section class="card stack"><h2>Einen Abschnitt beginnen</h2>'
       + (!canEdit() ? '<p>Diese Vorbereitung ist archiviert. Gespeicherte Abschnitte bleiben lesbar.</p>' : !forms?.ok ? '<p class="err">Die verfügbaren Abschnitte konnten nicht geladen werden.</p>' : !(forms.data?.forms || []).length ? '<p>Zurzeit ist kein Abschnitt für einen neuen Start verfügbar. Bereits gespeicherte Läufe findest du daneben.</p>' : forms.data.forms.map((form, i) => '<article class="mock-form"><h3>' + esc(form.title) + '</h3><p class="small muted mock-review-status">' + esc(mockReviewLabel(form)) + '</p><p>' + (form.item_count ? esc(form.item_count) + ' Aufgaben' : '') + (form.writing_choice_count ? (form.item_count ? ' und ' : '') + 'eine Schreibaufgabe mit Auswahl' : '') + ' · ' + (form.mode === 'untimed' ? 'Ohne Zeitlimit' : 'Mit Zeitlimit') + '</p><p class="small muted">' + esc(form.exam_id) + ' · Formular ' + esc(form.version) + ' · Ausgabe ' + esc(form.release_version) + '</p><button class="btn btn-primary" type="button" data-mock-start="' + i + '">Neuen Lauf beginnen</button></article>').join(''))
       + '<p id="mock-start-state" role="status"></p><button class="btn" type="button" data-mock-refresh>Übersicht erneut laden</button></section><section class="stack"><h2>Deine gespeicherten Abschnitte</h2>' + (!runs?.ok ? '<p class="err">Der Verlauf konnte nicht geladen werden.</p>' : historyMarkup(rows)) + '</section></div>';
     host.onclick = async event => {
-      if (event.target.closest('[data-mock-refresh]')) { await list(target); return; }
+      if (event.target.closest('[data-mock-refresh]')) { await list(target, { section }); return; }
       const trigger = event.target.closest('[data-mock-start]'); if (!trigger || trigger.disabled || !canEdit()) return;
       const form = forms.data.forms[Number(trigger.dataset.mockStart)]; if (!form) return;
       for (const b of host.querySelectorAll('[data-mock-start]')) b.disabled = true;
@@ -368,7 +398,7 @@ export function createMockController({ api, esc, setLabel = member => member.tit
   return {
     list, showRun, historyMarkup, refresh: render, flush: flushAll,
     get active() { return Boolean(session.state().run); }, get runId() { return session.state().run?.id; },
-    dispose() { generation++; stopTimers(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); session.dispose(); if (host) { host.onclick = null; host.onchange = null; } host = null; startOperation = null; },
-    preserveOnUnload(event) { const state = session.state(); if (state.dirty || state.pending || state.busy) { event.preventDefault(); event.returnValue = ''; } },
+    dispose() { generation++; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); session.dispose(); if (host) { host.onclick = null; host.onchange = null; } host = null; startOperation = null; },
+    preserveOnUnload(event) { listening.preserveOnUnload(event); const state = session.state(); if (state.dirty || state.pending || state.busy) { event.preventDefault(); event.returnValue = ''; } },
   };
 }

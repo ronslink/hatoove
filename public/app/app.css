@@ -406,3 +406,15 @@ code {
 .checkout-balance dd { margin: 0; font-size: 1.3rem; font-weight: 700; }
 .checkout-card .btn { min-height: 44px; }
 #checkout-boot-host { margin-block-start: 1rem; }
+
+/* Fixed listening reuses the supplied warm-paper card, orange controls and responsive question layout. */
+.listening-player, #mock-listening-host { min-width: 0; }
+.listening-player .spread { flex-wrap: wrap; gap: .5rem; }
+.listening-player h3, .listening-player p, .listening-player .btn { overflow-wrap: anywhere; }
+.listening-controls { flex-wrap: wrap; }
+.listening-controls .btn { min-height: 44px; white-space: normal; text-align: start; }
+.listening-controls .btn:focus-visible { outline: 2px solid var(--orange-dark); outline-offset: 4px; }
+.listening-status { min-height: 2.5em; }
+.listening-progress { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.listening-progress progress { accent-color: var(--orange); flex: 1 1 8rem; width: 100%; min-width: 0; height: 1rem; }
+.listening-progress .num { flex: 0 0 auto; }
