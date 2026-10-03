@@ -21,7 +21,7 @@ All runtime checks use disposable source-only Docker projects or PostgreSQL sche
 | Check | Result |
 |---|---|
 | New package contract fixtures | 14/14 |
-| Package importer, immutable versions, policy and transport limits on PostgreSQL | 14/14 |
+| Package importer, immutable versions, policy and transport limits on PostgreSQL | 15/15 |
 | Saved-run transport/port contract | 8/8 |
 | Saved-run ownership, finalise/archive/delete/publication races on PostgreSQL | 14/14 |
 | Client state, retry, context and deadline contract | 20/20 |

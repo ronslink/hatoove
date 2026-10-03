@@ -33,6 +33,8 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
       if(old && (old.content_sha256!==digest || old.exam_id!==p.exam.id)) fail('changed set under existing version: '+s.setId);
       if(old) {sets.set(s.setId+'@'+s.version,old);continue;}
       const cv=s.setId+'@'+s.version;
+      if((await client.query('SELECT 1 FROM content_version WHERE content_version_id=$1',[cv])).rowCount)
+        fail('content identity already belongs to another record: '+cv);
       plan('add set '+cv,`INSERT INTO content_version(content_version_id,kind,family,source_path,review_status,rights_status,content_sha256,exam_id)
         VALUES($1,'task',$2,$3,$4,$5,$6,$7)`,[cv,s.family,'content/exams/'+p.exam.id+'/manifest.json#'+cv,s.reviewStatus,s.rightsStatus,digest,p.exam.id]);
       commands.push([`INSERT INTO objective_set(set_id,version,exam_id,family,section,part,title,payload,item_count,media_required,content_version_id)

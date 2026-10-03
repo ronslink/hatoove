@@ -35,6 +35,11 @@ try {
   await check('dry-run validates new package references without storing anything',async()=>{
     const before=await count();const receipt=await importPackage(db.migration,english,{dryRun:true});assert(receipt.changes.length>0);assert.deepEqual(await count(),before);
   });
+  await check('dry-run rejects a shared content identity already used by another content kind',async()=>{
+    const p=clone(english);const occupied=(await db.migration.query("SELECT content_version_id FROM content_version WHERE content_version_id LIKE 'writing.%@v1' LIMIT 1")).rows[0].content_version_id;
+    const setId=occupied.slice(0,-3);p.sets[0].setId=setId;p.forms[0].members[0].setId=setId;
+    const before=await count();await assert.rejects(importPackage(db.migration,p,{dryRun:true}),/content identity already/);assert.deepEqual(await count(),before);
+  });
   await check('conflicting public item aliases cannot create an unfinalisable immutable version',async()=>{
     for(const alias of ['different',[1]]){
       const p=clone(english);p.sets[0].payload.questions[0].id=alias;const before=await count();
