@@ -34,7 +34,8 @@ export function canonicalAmount(coefficient,scale=0){
 export function sumAmounts(values){let scale=0,total=0n;for(const value of values){const [w,f='']=value.split('.');if(f.length>scale){total*=10n**BigInt(f.length-scale);scale=f.length;}total+=BigInt(w+f)*10n**BigInt(scale-f.length);}return canonicalAmount(total,scale);}
 function checkedCard(card){
  if(!record(card,cardKeys)||card.schemaVersion!==1||!['synthetic-usd-v1','synthetic-eur-v1'].includes(card.cardId)||!['USD','EUR'].includes(card.currency)
-  ||!Array.isArray(card.modelIds)||card.modelIds.length!==1||card.modelIds[0]!=='fixture-model-a'||![1,1000,1000000].includes(card.unit))fail('provider_identity_invalid');
+  ||!Array.isArray(card.modelIds)||types.isProxy(card.modelIds)||card.modelIds.length!==1||Object.getOwnPropertyDescriptor(card.modelIds,'0')?.value!=='fixture-model-a'
+  ||Reflect.ownKeys(card.modelIds).some(key=>!['0','length'].includes(key))||card.currency!==(card.cardId==='synthetic-usd-v1'?'USD':'EUR')||![1,1000,1000000].includes(card.unit))fail('provider_identity_invalid');
  for(const key of ['inputRate','outputRate'])decimal(card[key]);for(const key of ['cachedInputRate','reasoningOutputRate'])if(card[key]!==null)decimal(card[key]);
  return Object.fromEntries(cardKeys.map(key=>[key,key==='modelIds'?[...card[key]]:card[key]]));
 }
@@ -53,6 +54,7 @@ function checkedIdentity(identity){
  const builtin=identity.transportMode==='local_stub',policy=identity.adapterId==='local-dtz-stub-v1'?DTZ_POLICY:null;
  const expected=validateProviderIdentity({adapterId:identity.adapterId,pricingCardId:identity.pricingCardId},{builtin,policy});
  const card=identity.pricingCard===null?null:checkedCard(identity.pricingCard);
+ if((expected.pricingCardId===null)!==(card===null)||(card&&card.cardId!==expected.pricingCardId))fail('provider_identity_invalid');
  const normalized={...expected,pricingCard:card,pricingSha256:card?hash(card):null};
  if(identityKeys.some(key=>!['pricingCard','pricingSha256'].includes(key)&&identity[key]!==normalized[key])||identity.pricingSha256!==normalized.pricingSha256)fail('provider_identity_invalid');
  return normalized;

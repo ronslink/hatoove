@@ -38,6 +38,8 @@ import { TELC_B1_WRITING_RUBRIC, FORMATIVE_WRITING_RUBRIC } from './content-seed
 import { extractWritingExplanationSource, makeOriginalExplanationRepresentation, validateExplanationRepresentation } from '../explanation-contract.mjs';
 import { simulationExplanationVariants } from '../explanation-simulation.mjs';
 import { persistWritingExplanations } from './explanations.mjs';
+import {validateProviderIdentity,createUsageCapture,MAX_ELAPSED_MS,DEFAULT_RECLAIM_BATCH_SIZE,MAX_RECLAIM_BATCH_SIZE} from '../provider-attempt-contract.mjs';
+import {beginProviderAttempt,appendProviderObservation} from './provider-attempts.mjs';
 
 export const DEFAULT_LEASE_MS = 60000;
 export const DEFAULT_MAX_TRIES = 3;
@@ -128,11 +130,8 @@ export function stubGrade({ text = '', explanationLanguage = 'de', rubric = null
   };
 }
 
-/** A failure code a caller can trust: the grader's own `code` when it is one, else a constant. */
-function failureCodeOf(error) {
-  const code = error && typeof error.code === 'string' ? error.code : null;
-  return code && CODE_RE.test(code) ? code : GRADER_ERROR;
-}
+/** Arbitrary grader errors never supply persistent or printable failure codes. */
+function failureCodeOf() { return GRADER_ERROR; }
 
 /** The failure code for an assessment whose SHAPE the contract does not allow. */
 export const INVALID_ASSESSMENT = 'invalid_assessment';
@@ -303,13 +302,16 @@ export function validateAssessment(assessment, { rubric = null, text = '' } = {}
  *   drive the clock rather than sleep.
  * @returns {Readonly<{runOnce: Function, reclaimExpired: Function}>}
  */
-export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DEFAULT_LEASE_MS, maxTries = DEFAULT_MAX_TRIES, examCatalogue = createExamCatalogue() } = {}) {
+export function createWorker({ pool, grade, providerIdentity, reclaimBatchSize=DEFAULT_RECLAIM_BATCH_SIZE, now = () => new Date(), leaseMs = DEFAULT_LEASE_MS, maxTries = DEFAULT_MAX_TRIES, examCatalogue = createExamCatalogue() } = {}) {
   if (!pool || typeof pool.connect !== 'function') {
     throw new TypeError('createWorker requires a pg Pool connected as the restricted worker role');
   }
   const gradeFn = typeof grade === 'function' ? grade : stubGrade;
   // Function injection is custom even when its labels and returned bytes imitate stubGrade.
   const trustedBuiltin = typeof grade !== 'function';
+  if(providerIdentity!==undefined&&trustedBuiltin)throw Error('provider_identity_invalid');
+  if(!trustedBuiltin)validateProviderIdentity(providerIdentity,{builtin:false});
+  if(!Number.isInteger(reclaimBatchSize)||reclaimBatchSize<1||reclaimBatchSize>MAX_RECLAIM_BATCH_SIZE)throw Error('provider_observation_invalid');
   if (!Number.isSafeInteger(leaseMs) || leaseMs <= 0) throw new TypeError('leaseMs must be a positive integer');
   if (!Number.isSafeInteger(maxTries) || maxTries < 1) throw new TypeError('maxTries must be a positive integer');
 
@@ -345,6 +347,50 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
     if(!run)return true;
     const bundle=await readReleasedForm(client,{examId:run.exam_id,formId:run.form_id,formVersion:run.form_version,releaseVersion:run.release_version});
     return !bundle||Boolean(bundle.blockedReason);
+  }
+  async function contentBlocked(client,row){
+    const task=await readWritingTask(client,row.task_id,row.task_version);
+    const attachment=await readWritingOrigin(client,row.attempt_id,row.owner_id);
+    const packageBound=Boolean(attachment||task?.source_path?.startsWith('content/exams/'));
+    const reviewBound=packageBound||task?.review_basis!=='legacy_unattributed'||task?.rubric_review_basis!=='legacy_unattributed';
+    return !task||task.review_blocked||task.rubric_review_blocked||(reviewBound&&(!examCatalogue.isEnabled(row.exam_id)||task.exam_id!==row.exam_id
+      ||task.rubric_id!==row.rubric_id||task.rubric_version!==row.rubric_version||!writingServable(task)
+      ||await writingAccess(client,task,{historical:true})||(attachment&&await blockedAttached(client,attachment.run_id))));
+  }
+  const placeholder=()=>({transportStatus:'uncertain',disposition:'pending',failureCode:null,receipt:{modelReported:null,inputTokens:null,outputTokens:null,cachedInputTokens:null,reasoningOutputTokens:null,usageBasis:'missing',receiptIssue:null},receiptCaptured:false,elapsedMs:null,elapsedIssue:'unavailable'});
+  const headValue=head=>({transportStatus:head.transport_status,disposition:head.disposition,failureCode:head.failure_code,
+    receipt:{modelReported:head.model_reported,inputTokens:head.input_tokens===null?null:Number(head.input_tokens),outputTokens:head.output_tokens===null?null:Number(head.output_tokens),cachedInputTokens:head.cached_input_tokens===null?null:Number(head.cached_input_tokens),reasoningOutputTokens:head.reasoning_output_tokens===null?null:Number(head.reasoning_output_tokens),usageBasis:head.usage_basis,receiptIssue:head.receipt_issue},
+    receiptCaptured:head.receipt_captured,elapsedMs:head.elapsed_ms,elapsedIssue:head.elapsed_issue});
+  async function lockInvocation(client,invocation){
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))',[invocation.ownerId]);
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[invocation.examId]);
+    return first(await client.query('SELECT * FROM jobs WHERE id=$1 FOR UPDATE',[invocation.jobId]));
+  }
+  async function observationCommand(client,invocation,disposition,failureCode){
+    const head=first(await client.query('SELECT * FROM provider_attempt_observation WHERE attempt_id=$1 ORDER BY revision DESC LIMIT 1',[invocation.attemptId]));
+    let observation=head?.receipt_captured?headValue(head):invocation.observation??placeholder();
+    observation={...observation,disposition:head&&head.disposition!=='pending'?head.disposition:disposition,failureCode:head&&head.disposition!=='pending'?head.failure_code:failureCode};
+    return {attemptId:invocation.attemptId,eventId:randomUUID(),expectedRevision:head?.revision??0,observation,leaseToken:invocation.token};
+  }
+  async function terminal(client,invocation,disposition,failureCode=null){
+    if(!invocation)return;
+    const command=await observationCommand(client,invocation,disposition,failureCode);
+    invocation.terminalCommand=command;
+    return appendProviderObservation(client,command);
+  }
+  async function persistReceipt(invocation){
+    let command;
+    for(let tries=0;tries<3;tries++){
+      try{return await transaction(async client=>{
+        const job=await lockInvocation(client,invocation);
+        // Retry the exact event before considering any newer head/claim after uncertain COMMIT.
+        if(command)return appendProviderObservation(client,command);
+        const stale=!job||job.status!=='running'||job.lease_token!==invocation.token||job.tries!==invocation.claimNumber;
+        command=await observationCommand(client,invocation,stale?'stale':'pending',stale?'claim_stale':null);
+        return appendProviderObservation(client,command);
+      });}catch(error){if(error?.code==='provider_head_conflict')command=null;}
+    }
+    throw Object.assign(Error('provider_observation_failed'),{code:'provider_observation_failed'});
   }
   async function runOnce() {
     const token = randomUUID();
@@ -405,7 +451,22 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
     }
     if (rubric === undefined) return completeFailure({ submissionId, token, code: UNSUPPORTED_RUBRIC });
 
-    let assessment;
+    const identity=validateProviderIdentity(providerIdentity,{builtin:trustedBuiltin,policy});
+    let intent;
+    try{intent=await transaction(async client=>{
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))',[row.owner_id]);
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[row.exam_id]);
+      const job=first(await client.query('SELECT * FROM jobs WHERE id=$1 FOR UPDATE',[claimed.id]));
+      if(!job||job.status!=='running'||job.lease_token!==token||job.tries!==claimed.tries)return {refusal:'stale'};
+      if(await contentBlocked(client,row))return {refusal:'content_unavailable'};
+      return beginProviderAttempt(client,{jobId:claimed.id,leaseToken:token,identity});
+    });}catch{throw Object.assign(Error('provider_intent_failed'),{code:'provider_intent_failed'});}
+    if(intent.refusal==='content_unavailable')return completeFailure({submissionId,token,code:'content_unavailable'});
+    if(intent.refusal||!intent.created)return {claimed:true,submissionId,outcome:'stale'};
+    const invocation={attemptId:intent.attemptId,jobId:claimed.id,ownerId:row.owner_id,examId:row.exam_id,claimNumber:claimed.tries,token,row};
+    const capture=createUsageCapture(identity),started=performance.now();
+    let assessment,graderError=null,receipt,returned=false,captured=false;
+    const captureUsage=value=>{const result=capture.captureUsage(value);if(result.accepted)captured=true;return result;};
     try {
       assessment = await gradeFn({
         submissionId,
@@ -417,7 +478,15 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
         // SNAPSHOTTED at submit time (migration 0018), so the feedback does not change language later.
         explanationLanguage: row.explanation_language,
         ownerId: row.owner_id,
-      });
+      },{attemptId:intent.attemptId,captureUsage});
+      returned=true;
+      if(trustedBuiltin)capture.captureUsage({usageBasis:'not_applicable',modelReported:identity.promptVersion});
+    }catch(error){graderError=error;}finally{receipt=capture.close();}
+    const duration=performance.now()-started,elapsedMs=Number.isFinite(duration)&&duration>=0&&duration<=MAX_ELAPSED_MS?Math.floor(duration):null;
+    invocation.observation={transportStatus:returned||captured?'response':'uncertain',disposition:'pending',failureCode:null,receipt,receiptCaptured:true,elapsedMs,elapsedIssue:elapsedMs===null?(Number.isFinite(duration)?'out_of_range':'unavailable'):null};
+    await persistReceipt(invocation);
+    if(graderError)return completeFailure({submissionId,token,code:failureCodeOf(),invocation});
+    try{
       /*
        * THE SHAPE GATE, inside the same try so a bad shape is an ordinary job failure: a stable
        * `invalid_assessment` code, the reservation refunded, nothing written. Validating here rather than
@@ -430,7 +499,7 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
        */
       validateAssessment(assessment, { rubric, text: row.text });
     } catch (error) {
-      return completeFailure({ submissionId, token, code: failureCodeOf(error) });
+      return completeFailure({ submissionId, token, code: INVALID_ASSESSMENT, invocation });
     }
     // Bind representations to the exact JSON that PostgreSQL will store (legacy optional
     // undefined fields disappear during JSON encoding), detached from the grader object.
@@ -450,7 +519,7 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
         representations = [original, ...variants];
       } catch { /* original only; no provider retry or regrading */ }
     }
-    return completeSuccess({ submissionId, token, row, assessment, representations });
+    return completeSuccess({ submissionId, token, row, assessment, representations, invocation });
   }
 
   /**
@@ -458,16 +527,16 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
    * are the lease fence: if another worker re-claimed the job after this lease lapsed, the
    * predicate matches no row and nothing is written.
    */
-  async function completeSuccess({ submissionId, token, row, assessment, representations }) {
-    return transaction(async (client) => {
+  async function completeSuccess({ submissionId, token, row, assessment, representations, invocation }) {
+    try{return await transaction(async (client) => {
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))',[row.owner_id]);
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[row.exam_id]);
       const job = first(await client.query(
-        'SELECT id, owner_id, exam_id, status, lease_token FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
-      if (!job || job.status !== 'running' || job.lease_token !== token) return { claimed: true, submissionId, outcome: 'stale' };
+        'SELECT id, owner_id, exam_id, status, lease_token, tries FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
+      if (!job || job.status !== 'running' || job.lease_token !== token || job.tries!==invocation.claimNumber){await terminal(client,invocation,'stale','claim_stale');return { claimed: true, submissionId, outcome: 'stale' };}
       const attempt = first(await client.query(
         `SELECT a.deleted_at FROM attempts a JOIN submissions s ON s.id = $1 WHERE a.id = s.attempt_id`, [submissionId]));
-      if (!attempt || attempt.deleted_at) return { claimed: true, submissionId, outcome: 'skipped', code: 'attempt_deleted' };
+      if (!attempt || attempt.deleted_at){await terminal(client,invocation,'skipped','attempt_deleted');return { claimed: true, submissionId, outcome: 'skipped', code: 'attempt_deleted' };}
 
       const task=await readWritingTask(client,row.task_id,row.task_version);
       const attachment=await readWritingOrigin(client,row.attempt_id,row.owner_id);
@@ -476,6 +545,7 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
       if(!task||task.review_blocked||task.rubric_review_blocked||(reviewBound&&(!examCatalogue.isEnabled(row.exam_id)||!task||task.exam_id!==row.exam_id
         ||task.rubric_id!==row.rubric_id||task.rubric_version!==row.rubric_version||!writingServable(task)
         ||await writingAccess(client,task,{historical:true})||(attachment&&await blockedAttached(client,attachment.run_id))))) {
+        await terminal(client,invocation,'rejected','content_unavailable');
         await client.query("UPDATE jobs SET status='failed',failure_code='content_unavailable',lease_token=NULL,lease_until=NULL WHERE id=$1",[job.id]);
         await client.query('UPDATE entitlements SET reserved=reserved-1 WHERE owner_id=$1 AND exam_id=$2',[job.owner_id,job.exam_id]);
         return {claimed:true,submissionId,outcome:'failed',code:'content_unavailable'};
@@ -490,6 +560,7 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
       // Same owner/exam/lease/deletion-fenced transaction: any storage fault rolls back
       // assessment, representations and heads before the existing single debit can commit.
       await persistWritingExplanations(client, {ownerId: job.owner_id, submissionId, representations});
+      await terminal(client,invocation,'accepted');
       await client.query(
         'INSERT INTO usage_ledger(submission_id, owner_id, units) VALUES($1, $2, 1)', [submissionId, job.owner_id]);
       // EXAM-S1: the debit lands on the balance the job reserved from, never another exam's.
@@ -500,21 +571,31 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
         "UPDATE jobs SET status = 'succeeded', lease_token = NULL, lease_until = NULL WHERE id = $1 AND lease_token = $2 AND status = 'running'",
         [job.id, token]);
       return { claimed: true, submissionId, outcome: 'succeeded' };
-    });
+    });}catch(error){
+      // A lost COMMIT acknowledgement is resolved by the exact immutable receipt, never another grade.
+      if(invocation?.terminalCommand){try{const event=first(await pool.query('SELECT disposition FROM provider_attempt_observation WHERE event_id=$1 AND attempt_id=$2',[invocation.terminalCommand.eventId,invocation.attemptId]));if(event?.disposition==='accepted')return {claimed:true,submissionId,outcome:'succeeded'};}catch{}}
+      throw Object.assign(Error('provider_observation_failed'),{code:'provider_observation_failed'});
+    }
   }
 
   /** Commit a failed grade: a stable `failure_code`, the lease released, the reservation refunded. */
-  async function completeFailure({ submissionId, token, code }) {
+  async function completeFailure({ submissionId, token, code, invocation }) {
     return transaction(async (client) => {
       // Review refusal can race retry/deletion just like a successful completion. Resolve
       // immutable identity without a tuple lock, then take the same owner/exam fences.
       const identity=first(await client.query('SELECT owner_id,exam_id FROM jobs WHERE submission_id=$1',[submissionId]));
-      if(!identity)return {claimed:true,submissionId,outcome:'stale'};
+      if(!identity){await terminal(client,invocation,'stale','claim_stale');return {claimed:true,submissionId,outcome:'stale'};}
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))',[identity.owner_id]);
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[identity.exam_id]);
       const job = first(await client.query(
-        'SELECT id, owner_id, exam_id, status, lease_token FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
-      if (!job || job.status !== 'running' || job.lease_token !== token) return { claimed: true, submissionId, outcome: 'stale' };
+        'SELECT id, owner_id, exam_id, status, lease_token, tries FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
+      if (!job || job.status !== 'running' || job.lease_token !== token || (invocation&&job.tries!==invocation.claimNumber)){await terminal(client,invocation,'stale','claim_stale');return { claimed: true, submissionId, outcome: 'stale' };}
+      if(invocation){
+        const attempt=first(await client.query('SELECT a.deleted_at FROM attempts a JOIN submissions s ON s.attempt_id=a.id WHERE s.id=$1',[submissionId]));
+        if(!attempt||attempt.deleted_at){await terminal(client,invocation,'skipped','attempt_deleted');return {claimed:true,submissionId,outcome:'skipped',code:'attempt_deleted'};}
+        if(await contentBlocked(client,invocation.row))code='content_unavailable';
+      }
+      await terminal(client,invocation,code===INVALID_ASSESSMENT||code==='content_unavailable'?'rejected':'failed',code);
       await client.query(
         "UPDATE jobs SET status = 'failed', failure_code = $3, lease_token = NULL, lease_until = NULL WHERE id = $1 AND lease_token = $2 AND status = 'running'",
         [job.id, token, code]);
@@ -529,45 +610,33 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
    * `maxTries` — mark it `failed retry_exhausted` and REFUND its reservation, so an
    * abandoned submission does not hold an allowance forever.
    *
-   * `FOR UPDATE SKIP LOCKED` in its own transaction means two reclaimers cannot both act
-   * on one row. The comparison uses the injected clock (`$1`), so a test can advance time
-   * instead of sleeping.
+   * Discovery holds no tuple locks. Each finite candidate is rechecked under owner,
+   * exam, then job locks; a renewed/completed/replaced claim is skipped.
    *
    * @returns {Promise<{requeued:number, abandoned:number}>}
    */
   async function reclaimExpired() {
-    return transaction(async (client) => {
-      const expired = (await client.query(
+    const expired = (await pool.query(
         `SELECT id, owner_id, exam_id, tries FROM jobs
          WHERE status = 'running' AND lease_until IS NOT NULL AND lease_until <= $1
-         FOR UPDATE SKIP LOCKED`, [now()])).rows;
-      if (!expired.length) return { requeued: 0, abandoned: 0 };
-      const requeue = expired.filter((r) => r.tries < maxTries).map((r) => r.id);
-      const abandon = expired.filter((r) => r.tries >= maxTries);
-      if (requeue.length) {
-        await client.query(
-          "UPDATE jobs SET status = 'queued', failure_code = NULL, lease_token = NULL, lease_until = NULL WHERE id = ANY($1::uuid[])",
-          [requeue]);
-      }
-      if (abandon.length) {
-        await client.query(
-          "UPDATE jobs SET status = 'failed', failure_code = $2, lease_token = NULL, lease_until = NULL WHERE id = ANY($1::uuid[])",
-          [abandon.map((r) => r.id), RETRY_EXHAUSTED]);
-        // Group by (owner, exam) so each balance is refunded exactly its own abandoned count (EXAM-S1),
-        // in a stable order so two reclaimers cannot lock balances in opposite orders.
-        const byBalance = new Map();
-        for (const r of abandon) {
-          const key = JSON.stringify([r.owner_id, r.exam_id]);
-          byBalance.set(key, (byBalance.get(key) || 0) + 1);
-        }
-        for (const key of [...byBalance.keys()].sort()) {
-          const [ownerId, examId] = JSON.parse(key);
-          await client.query('UPDATE entitlements SET reserved = reserved - $3 WHERE owner_id = $1 AND exam_id = $2',
-            [ownerId, examId, byBalance.get(key)]);
-        }
-      }
-      return { requeued: requeue.length, abandoned: abandon.length };
-    });
+         ORDER BY lease_until,id LIMIT $2`, [now(),reclaimBatchSize])).rows;
+    const result={requeued:0,abandoned:0};
+    for(const candidate of expired){
+      const outcome=await transaction(async client=>{
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))',[candidate.owner_id]);
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[candidate.exam_id]);
+        const job=first(await client.query('SELECT * FROM jobs WHERE id=$1 FOR UPDATE',[candidate.id]));
+        if(!job||job.owner_id!==candidate.owner_id||job.exam_id!==candidate.exam_id||job.status!=='running'||job.tries!==candidate.tries||!job.lease_until||new Date(job.lease_until)>now())return null;
+        const intent=first(await client.query('SELECT attempt_id FROM provider_attempt WHERE job_id=$1 AND claim_number=$2',[job.id,job.tries]));
+        const abandoned=job.tries>=maxTries;
+        if(intent)await terminal(client,{attemptId:intent.attempt_id},abandoned?'failed':'stale',abandoned?RETRY_EXHAUSTED:'lease_reclaimed');
+        await client.query('UPDATE jobs SET status=$2,failure_code=$3,lease_token=NULL,lease_until=NULL WHERE id=$1',[job.id,abandoned?'failed':'queued',abandoned?RETRY_EXHAUSTED:null]);
+        if(abandoned)await client.query('UPDATE entitlements SET reserved=reserved-1 WHERE owner_id=$1 AND exam_id=$2',[job.owner_id,job.exam_id]);
+        return abandoned?'abandoned':'requeued';
+      });
+      if(outcome)result[outcome]++;
+    }
+    return result;
   }
 
   return Object.freeze({ runOnce, reclaimExpired });
