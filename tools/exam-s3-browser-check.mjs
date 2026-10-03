@@ -67,8 +67,11 @@ async function viewport(cdp, width, height, mobile) {
   await cdp.send('Emulation.setTouchEmulationEnabled', mobile ? { enabled: true, maxTouchPoints: 5 } : { enabled: false });
 }
 const theme = (cdp, value) => cdp.send('Emulation.setEmulatedMedia', { media: 'screen', features: [{ name: 'prefers-color-scheme', value }] });
-async function shot(cdp, name) {
+async function shot(cdp, name, selector = null) {
   fs.mkdirSync(shots, { recursive: true });
+  if (selector) {
+    await cdp.evaluate(`const el=document.querySelector(${JSON.stringify(selector)});if(!el||!el.getBoundingClientRect().height)throw Error('Missing/hidden screenshot target');el.scrollIntoView({block:'start'});scrollBy(0,-88);return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))));`);
+  }
   const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
   const file = path.join(shots, `${name}.png`); fs.writeFileSync(file, Buffer.from(data, 'base64')); return file;
 }
