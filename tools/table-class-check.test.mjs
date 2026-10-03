@@ -1,7 +1,7 @@
 /**
  * MFP-14 — the mutation proof for `tools/table-class-check.mjs`.
  *
- * THIS IS WHAT MAKES THE CHECK EVIDENCE RATHER THAN DECORATION. Each of seven mutations is
+ * THIS IS WHAT MAKES THE CHECK EVIDENCE RATHER THAN DECORATION. Each mutation is
  * applied to a **scratch** schema (a random `ownapi_<hex>` schema built by `bootstrap.mjs`,
  * dropped afterwards), and the check is **required to fail** on it. The real installation
  * schema (`OWNAPI_PG_SCHEMA`, default `hatoove`) is never touched.
@@ -18,6 +18,8 @@
  *      (under FORCE RLS the deletion read-back would otherwise be vacuous)
  *   7. grant INSERT on `vocab_entry` to the learner role -> the catalogue rule must catch it
  *   8. drop the deletion role's `learner_preparation` policy -> the owned rule must catch it (EXAM-S1)
+ *   C-03: leak private editorial table/column privileges to each runtime role or PUBLIC,
+ *         or remove/disable append-only guards and the baseline insert seal -> must fail
  *
  * A check that passes on both the tree and a mutant proves nothing. The control leg proves the
  * opposite failure mode is impossible: the same fixture PASSES before any mutation, so a
@@ -26,7 +28,7 @@
  * Safety: disposable PostgreSQL only (`OWNAPI_PG_*`). Synthetic data. No provider call.
  *
  * Run: node --test tools/table-class-check.test.mjs
- *      (or `node tools/table-class-check.test.mjs`, which runs the same legs and prints 7/7.)
+ *      (or `node tools/table-class-check.test.mjs`, which runs the same legs.)
  */
 
 import test from 'node:test';
@@ -35,6 +37,7 @@ import assert from 'node:assert/strict';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { ACCOUNT_TABLES } from '../server/owned-postgres/adapter.mjs';
 import { runTableClassCheck } from './table-class-check.mjs';
+import { PRIVATE_REVIEW_TABLES } from './lib/catalogue.mjs';
 
 const quote = (name) => `"${String(name).replaceAll('"', '""')}"`;
 
@@ -47,6 +50,13 @@ async function withFixture(run) {
     return await run(db);
   } finally {
     await db.cleanup();
+    const verifier = new db.admin.constructor({ ...db.config, max: 1 });
+    try {
+      const remaining = await verifier.query(`SELECT
+        EXISTS(SELECT 1 FROM pg_namespace WHERE nspname=$1) AS schema_exists,
+        EXISTS(SELECT 1 FROM pg_roles WHERE rolname=ANY($2::text[])) AS roles_exist`, [db.schema, Object.values(db.roles)]);
+      assert.deepEqual(remaining.rows[0], { schema_exists: false, roles_exist: false }, 'fixture schema and every generated role were removed');
+    } finally { await verifier.end(); }
   }
 }
 
@@ -55,7 +65,7 @@ const classify = (db, options = {}) =>
 
 const failureFor = (report, table) => report.failures.find((r) => r.table === table);
 
-/** The seven mutation verdicts, so the summary can print `7/7`. */
+/** The original mutation verdicts remain separate from the C-03 controls. */
 const detected = [];
 
 test('control: the check passes on the unmutated scratch schema', async () => {
@@ -203,4 +213,122 @@ test('mutation proof: 8/8 original mutations are detected', () => {
     'drop the deletion policy on learner_preparation',
   ], 'every mutation must have been applied and caught');
   console.log(`\nmutation proof: ${detected.length}/8 mutations detected\n`);
+});
+
+/** Real SQL mutations are rolled back on the same connection used to inspect their catalogue. */
+async function withMutation(db, sql, verify) {
+  const client = await db.admin.connect();
+  // readCatalogue batches independent reads; serialize them on this one transaction connection.
+  let pending = Promise.resolve();
+  const transaction = { query: (...args) => {
+    const result = pending.then(() => client.query(...args));
+    pending = result.catch(() => {});
+    return result;
+  } };
+  try {
+    await transaction.query('BEGIN');
+    assert.equal((await classify(db, { db: transaction })).ok, true, 'control: clean before each private mutation');
+    await transaction.query(sql);
+    await verify(await classify(db, { db: transaction }), transaction);
+  } finally {
+    try { await transaction.query('ROLLBACK'); } finally { client.release(); }
+  }
+  assert.equal((await classify(db)).ok, true, 'control: rollback restores the clean classifier');
+}
+
+const privateDetected = [];
+async function withPrivateFixture(run) {
+  await withFixture(async db => {
+    // Persistent deployments also have a provisioner role; exercise it without changing bootstrap.
+    const provisioner = `${db.schema}_provisioner`;
+    let created = false;
+    try {
+      await db.admin.query(`CREATE ROLE ${quote(provisioner)} NOLOGIN`);
+      created = true;
+      db.roles.provisioner = provisioner;
+      await run(db);
+    } finally {
+      if (created) await db.admin.query(`DROP ROLE ${quote(provisioner)}`);
+    }
+  });
+}
+
+for (const table of PRIVATE_REVIEW_TABLES) {
+  test(`private editorial: ${table} rejects runtime/PUBLIC table and column access`, async () => {
+    await withPrivateFixture(async db => {
+      const column = { content_review_authority: 'reviewer_name', content_review_decision: 'rationale', content_review_baseline: 'subject_sha256' }[table];
+      const target = `${quote(db.schema)}.${quote(table)}`;
+      const roles = [...Object.entries(db.roles).filter(([kind]) => kind !== 'migration').map(([, role]) => role), 'PUBLIC'];
+      const control = (await classify(db)).rows.find(row => row.table === table);
+      assert.equal(control.cls, 'private editorial');
+      assert.equal(control.verdict, 'OK');
+      for (const role of roles) {
+        for (const level of ['table', 'column']) {
+          const grantee = role === 'PUBLIC' ? 'PUBLIC' : quote(role);
+          const privilege = level === 'column' ? `SELECT(${quote(column)})` : 'SELECT';
+          await withMutation(db, `GRANT ${privilege} ON ${target} TO ${grantee}`, async (report, client) => {
+            // Verify a real effective read grant, including PUBLIC leaking to an actual runtime role.
+            const affectedRole = role === 'PUBLIC' ? db.roles.learner : role;
+            const effective = level === 'column'
+              ? await client.query('SELECT has_column_privilege($1,$2,$3,\'SELECT\') AS allowed', [affectedRole, target, column])
+              : await client.query('SELECT has_table_privilege($1,$2,\'SELECT\') AS allowed', [affectedRole, target]);
+            assert.equal(effective.rows[0].allowed, true);
+            assert.equal(report.ok, false);
+            assert.match(failureFor(report, table)?.detail || '', /private editorial grants SELECT/);
+            assert.ok(failureFor(report, table).detail.includes(`to ${role}`));
+            privateDetected.push(`${table}:${role}:${level}:SELECT`);
+          });
+        }
+      }
+      // The private rule forbids every privilege, not only reads or the existing INSERT/UPDATE/DELETE list.
+      for (const role of [db.roles.worker, 'PUBLIC']) {
+        await withMutation(db, `GRANT TRUNCATE ON ${target} TO ${role === 'PUBLIC' ? 'PUBLIC' : quote(role)}`, async report => {
+          assert.equal(report.ok, false);
+          assert.match(failureFor(report, table)?.detail || '', /private editorial grants TRUNCATE/);
+          privateDetected.push(`${table}:${role}:TRUNCATE`);
+        });
+      }
+    });
+  });
+
+  test(`private editorial: ${table} requires enabled complete immutability guards`, async () => {
+    await withFixture(async db => {
+      const target = `${quote(db.schema)}.${quote(table)}`;
+      const immutable = quote(`${table}_immutable`), truncate = quote(`${table}_no_truncate`);
+      const column = { content_review_authority: 'reviewer_name', content_review_decision: 'rationale', content_review_baseline: 'subject_sha256' }[table];
+      const cases = [
+        [`DROP TRIGGER ${immutable} ON ${target}`, /BEFORE UPDATE/, 'drop update/delete'],
+        [`ALTER TABLE ${target} DISABLE TRIGGER ${immutable}`, /BEFORE UPDATE/, 'disable update/delete'],
+        [`ALTER TABLE ${target} ENABLE REPLICA TRIGGER ${immutable}`, /BEFORE UPDATE/, 'replica-only update/delete'],
+        [`DROP TRIGGER ${immutable} ON ${target}; CREATE TRIGGER ${immutable} BEFORE DELETE ON ${target} FOR EACH ROW EXECUTE FUNCTION ${quote(db.schema)}.content_immutable()`, /BEFORE UPDATE/, 'delete-only guard'],
+        [`DROP TRIGGER ${immutable} ON ${target}; CREATE TRIGGER ${immutable} BEFORE UPDATE OF ${quote(column)} ON ${target} FOR EACH ROW EXECUTE FUNCTION ${quote(db.schema)}.content_immutable(); CREATE TRIGGER c03_delete_guard BEFORE DELETE ON ${target} FOR EACH ROW EXECUTE FUNCTION ${quote(db.schema)}.content_immutable()`, /BEFORE UPDATE/, 'column-limited update guard'],
+        [`DROP TRIGGER ${immutable} ON ${target}; CREATE TRIGGER ${immutable} BEFORE UPDATE OR DELETE ON ${target} FOR EACH ROW WHEN (false) EXECUTE FUNCTION ${quote(db.schema)}.content_immutable()`, /BEFORE UPDATE/, 'conditional guard'],
+        [`DROP TRIGGER ${truncate} ON ${target}`, /BEFORE TRUNCATE/, 'drop truncate'],
+        [`ALTER TABLE ${target} DISABLE TRIGGER ${truncate}`, /BEFORE TRUNCATE/, 'disable truncate'],
+      ];
+      for (const [sql, expected, label] of cases) await withMutation(db, sql, async report => {
+        assert.equal(report.ok, false);
+        assert.match(failureFor(report, table)?.detail || '', expected);
+        privateDetected.push(`${table}:${label}`);
+      });
+    });
+  });
+}
+
+test('private editorial: compatibility baseline cannot lose its insert seal', async () => {
+  await withFixture(async db => {
+    const target = `${quote(db.schema)}.content_review_baseline`;
+    for (const sql of [`DROP TRIGGER review_baseline_no_insert ON ${target}`, `ALTER TABLE ${target} DISABLE TRIGGER review_baseline_no_insert`]) {
+      await withMutation(db, sql, async report => {
+        assert.equal(report.ok, false);
+        assert.match(failureFor(report, 'content_review_baseline')?.detail || '', /no enabled baseline seal/);
+        privateDetected.push('baseline insert seal');
+      });
+    }
+  });
+});
+
+test('private editorial mutation proof: every privilege and immutability control ran', () => {
+  assert.equal(privateDetected.length, 74, '42 SELECT grants, 6 TRUNCATE grants, 24 immutability faults and 2 baseline seal faults');
+  console.log(`\nprivate editorial mutation proof: ${privateDetected.length}/74 mutations detected\n`);
 });

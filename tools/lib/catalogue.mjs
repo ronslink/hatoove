@@ -32,6 +32,11 @@ export const AUTH_SUPPORT_TABLES = Object.freeze(['auth_throttle']);
 export const CONTENT_TABLES = Object.freeze(['content_version', 'rubric_version', 'task_version', 'content_rights',
   'exam_media','exam_blueprint','exam_release','exam_form','exam_form_member','exam_release_form']);
 
+/** Private editorial facts: immutable review identities/evidence, never readable by runtime roles. */
+export const PRIVATE_REVIEW_TABLES = Object.freeze([
+  'content_review_authority', 'content_review_decision', 'content_review_baseline',
+]);
+
 /**
  * The migration-seeded reference catalogue (`0009`-`0014`): exam packages, objective sets (the
  * LEARNER side — answers live in `objective_key`), vocabulary, nouns and guides. Written only by
@@ -115,19 +120,19 @@ export async function readPolicies(db, schema) {
     FROM pg_policies WHERE schemaname = $1 ORDER BY tablename, policyname`, [schema]);
 }
 
-/** Table-level grants. */
+/** Table-level grants, including PUBLIC (role_table_grants omits those). */
 export async function readTableGrants(db, schema) {
   return q(db, `
     SELECT table_name AS table, grantee, privilege_type AS privilege
-    FROM information_schema.role_table_grants WHERE table_schema = $1
+    FROM information_schema.table_privileges WHERE table_schema = $1
     ORDER BY table_name, grantee, privilege_type`, [schema]);
 }
 
-/** Column-level grants (the detail a naive classifier misses: `GRANT UPDATE(deleted_at) …`). */
+/** Column-level grants, including PUBLIC and details such as `GRANT UPDATE(deleted_at) …`. */
 export async function readColumnGrants(db, schema) {
   return q(db, `
     SELECT table_name AS table, column_name AS column, grantee, privilege_type AS privilege
-    FROM information_schema.role_column_grants WHERE table_schema = $1
+    FROM information_schema.column_privileges WHERE table_schema = $1
     ORDER BY table_name, column_name, grantee, privilege_type`, [schema]);
 }
 
@@ -167,10 +172,15 @@ export async function readUniqueKeys(db, schema) {
 /** Non-internal triggers with their full definition. */
 export async function readTriggers(db, schema) {
   return q(db, `
-    SELECT c.relname AS table, t.tgname AS name, pg_get_triggerdef(t.oid) AS def
+    SELECT c.relname AS table, t.tgname AS name, pg_get_triggerdef(t.oid) AS def,
+           t.tgenabled AS enabled, t.tgtype::integer AS type,
+           t.tgattr::text AS update_columns, t.tgqual IS NULL AS unconditional,
+           p.proname AS function_name, pn.nspname AS function_schema
     FROM pg_trigger t
     JOIN pg_class c ON c.oid = t.tgrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_proc p ON p.oid = t.tgfoid
+    JOIN pg_namespace pn ON pn.oid = p.pronamespace
     WHERE n.nspname = $1 AND NOT t.tgisinternal
     ORDER BY c.relname, t.tgname`, [schema]);
 }
