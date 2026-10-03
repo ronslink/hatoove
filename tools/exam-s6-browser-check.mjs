@@ -9,15 +9,18 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createCompleteFixture } from './exam-s5b-fixture.mjs';
 import { verifyExamS6 } from './exam-s6-browser.mjs';
+import { verifyContentReview } from './content-review-browser.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const stamp=Date.now()+'_'+process.pid,project='hatoove-s6-browser-'+stamp.replace('_','-'),schema='ownapi_s6_browser_'+stamp;
 const scratch=fs.mkdtempSync(path.join(os.tmpdir(),project+'-')),source=path.join(scratch,'source'),envFile=path.join(scratch,'compose.env');
 const index=process.argv.indexOf('--shots'),shots=index<0?path.join(root,'.qa','exam-s6',project):path.resolve(process.argv[index+1]);
 const results=[],fixtureVersion='v9700',availableVersion='v9701',incompleteVersion='v9702';
+const reviewMode=process.argv.includes('--review');
 let appPort,dbPort,base,started=false,cleaned=false,fixture,contentIds;
 const testSecret='whsec_synthetic_s6_'+randomUUID().replaceAll('-','');
 const commandEnv=Object.fromEntries(Object.entries(process.env).filter(([key])=>!/^(B1PREP_|OWNAPI_|STRIPE_|PAYMENTS_|HATOVE_|COMPOSE_)/i.test(key)));
+const sourceRevision=command('git',['rev-parse','HEAD']),sourceChanges=command('git',['status','--porcelain']);
 function command(binary,args,cwd=root,env=commandEnv) {
   const result=spawnSync(binary,args,{cwd,env,encoding:'utf8',windowsHide:true,timeout:300000,maxBuffer:16*1024*1024});
   if(result.error||result.status!==0)throw Error(`${binary} ${args[0]}: ${(result.error?.message||result.stderr||result.stdout||'').slice(-2500)}`);
@@ -29,7 +32,7 @@ const compose=args=>command('docker',['compose','--env-file',envFile,'-p',projec
 function record(name,ok,detail=''){results.push({name,ok,detail});console.log(`${ok?'PASS':'FAIL'} ${name}${detail?': '+detail:''}`);}
 async function freePort(){const server=net.createServer();await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});const port=server.address().port;await new Promise(resolve=>server.close(resolve));return port;}
 function replaceOnce(file,needle,replacement){const text=fs.readFileSync(file,'utf8');if(text.split(needle).length!==2)throw Error('Fixture seam changed: '+path.basename(file));fs.writeFileSync(file,text.replace(needle,replacement));}
-function labelled(kind){return command('docker',[...(kind==='container'?['ps','-a']:['volume','ls']),'-q','--filter','label=com.docker.compose.project='+project]).split(/\s+/).filter(Boolean);}
+function labelled(kind){const list={container:['ps','-a'],volume:['volume','ls'],network:['network','ls'],image:['image','ls']}[kind];if(!list)throw Error('Unknown resource kind');return command('docker',[...list,'-q','--filter','label=com.docker.compose.project='+project]).split(/\s+/).filter(Boolean);}
 function verifyProject(){
   if(!/^hatoove-s6-browser-\d+-\d+$/.test(project)||[4300,55440].includes(appPort)||[4300,55440].includes(dbPort))throw Error('Unsafe disposable project identity');
   const id=compose(['ps','-q','db']);if(!id||/\s/.test(id))throw Error('Exactly one fixture database required');
@@ -40,12 +43,25 @@ function verifyProject(){
 }
 function migrateProgram(body){
   verifyProject();
-  const program=`import fs from 'node:fs/promises';import {persistentConfig,persistentRolePool,createAdminPool} from './server/owned-postgres/provision.mjs';import {importPackage} from './server/owned-postgres/package-importer.mjs';import {createHash} from 'node:crypto';
+  const program=`import fs from 'node:fs/promises';import {persistentConfig,persistentRolePool,createAdminPool} from './server/owned-postgres/provision.mjs';import {importPackage} from './server/owned-postgres/package-importer.mjs';import {createHash,randomUUID} from 'node:crypto';import {recordReviewerAuthority,recordContentReview} from './server/owned-postgres/content-review.mjs';
 const config=persistentConfig();if(process.env.B1PREP_CONTENT_MODE!=='public'||config.schema!==${JSON.stringify(schema)}||config.admin.host!=='db'||config.admin.database!=='hatoove'||process.env.OWNAPI_PG_ALLOW!=='1')throw Error('Wrong synthetic migrate target');
 const admin=createAdminPool(config),migration=persistentRolePool(config,'migration');
 try{for(const pool of [admin,migration])if((await pool.query('SELECT current_schema() AS schema')).rows[0].schema!==config.schema)throw Error('Wrong synthetic connection schema');
 const internal=JSON.parse(await fs.readFile('./content/exams/dtz-a2-b1/s6-fixture.json','utf8'));const ids=${JSON.stringify(contentIds)};
 if(internal.release.version!==${JSON.stringify(fixtureVersion)}||internal.exam.id!=='dtz-a2-b1'||ids.length!==new Set(ids).size)throw Error('Wrong synthetic content identities');
+async function transaction(fn){const c=await migration.connect();try{await c.query('BEGIN');const r=await fn(c);await c.query('COMMIT');return r;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}}
+async function review(kind,id,version='',decision='approve'){
+ return transaction(async c=>{
+ const row=kind==='content'?(await c.query('SELECT content_sha256 AS sha256,kind FROM content_version WHERE exam_id=$1 AND content_version_id=$2',[internal.exam.id,id])).rows[0]:kind==='blueprint'?(await c.query('SELECT sha256 FROM exam_blueprint WHERE exam_id=$1 AND version=$2',[id,version])).rows[0]:(await c.query('SELECT sha256 FROM exam_form WHERE exam_id=$1 AND form_id=$2 AND version=$3',[internal.exam.id,id,version])).rows[0];
+ if(!row||kind==='content'&&!ids.includes(id)||!['content','blueprint','form'].includes(kind))throw Error('Unknown synthetic review target '+kind+' '+id+' '+version);
+ const category=kind!=='content'?'exam_format':row.kind==='media'?'audio':'educational',language=category==='audio'?'de':'';
+ let auth=(await c.query('SELECT authority_id,action FROM content_review_authority WHERE reviewer_id=$1 AND exam_id=$2 AND category=$3 AND language=$4 ORDER BY revision DESC LIMIT 1',['synthetic.browser-review',internal.exam.id,category,language])).rows[0];
+ if(!auth)auth={authority_id:(await recordReviewerAuthority(c,{eventId:randomUUID(),reviewerId:'synthetic.browser-review',reviewerName:'Synthetic browser fixture — no human approval',examId:internal.exam.id,category,language,action:'grant',expectedAuthorityId:null,evidenceRef:'fixture://browser/appointment',evidenceSha256:'c'.repeat(64),rationale:'Isolated synthetic browser verification only'})).authorityId,action:'grant'};
+ if(auth.action!=='grant')throw Error('Synthetic authority revoked');
+ const projection=kind==='content'?(await c.query('SELECT * FROM effective_content_review($1)',[id])).rows[0]:(await c.query('SELECT * FROM effective_format_review($1,$2,$3,$4)',[internal.exam.id,kind,id,version])).rows[0];
+ return recordContentReview(c,{eventId:randomUUID(),subject:{kind,examId:internal.exam.id,subjectId:id,version,sha256:row.sha256},category,language,authorityId:auth.authority_id,expectedDecisionId:projection.decision_ids[0]||null,decision,evidenceRef:'fixture://browser/decision',evidenceSha256:'c'.repeat(64),rationale:'Isolated synthetic browser verification only; not educational approval',packetSha256:null});
+ });
+}
 ${body}
 }finally{await Promise.allSettled([admin.end(),migration.end()]);}`;
   return compose(['run','--rm','--no-deps','-T','migrate','node','--input-type=module','-e',program]);
@@ -84,7 +100,7 @@ try{
   appPort=await freePort();dbPort=await freePort();while(dbPort===appPort)dbPort=await freePort();
   if([4300,55440].includes(appPort)||[4300,55440].includes(dbPort))throw Error('Reserved learner port');
   base='http://127.0.0.1:'+appPort;
-  if(labelled('container').length||labelled('volume').length)throw Error('Generated project already exists');
+  if(['container','volume','network','image'].some(kind=>labelled(kind).length))throw Error('Generated project already exists');
   fs.writeFileSync(envFile,`HATOVE_APP_PORT=${appPort}\nHATOVE_DB_PORT=${dbPort}\nHATOVE_PUBLIC_ORIGIN=${base}\nHATOVE_CONTENT_MODE=public\n`);
   await sourceFixture();console.log(`Public S6 source fixture: ${project}, ${base}, database127.0.0.1:${dbPort}, schema=${schema}`);
   started=true;compose(['up','--build','-d']);compose(['stop','worker']);verifyProject();
@@ -95,8 +111,12 @@ try{
   const email=`browser-${stamp}@example.test`,newcomerEmail=`newcomer-${stamp}@example.test`,password='synthetic-browser-pass-1';
   for(const address of [email,newcomerEmail]){const signup=await fetch(base+'/api/auth/sign-up/email',{method:'POST',headers:{origin:base,'content-type':'application/json'},body:JSON.stringify({email:address,password,name:'S6 Browser Evidence'})});if(signup.status!==200)throw Error('Synthetic signup failed: '+signup.status);}
   record('S6 public runtime uses isolated internal complete DTZ and an injected payment stub',true);
-  await verifyExamS6({base,email,newcomerEmail,password,fixture,availableVersion,incompleteVersion,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,
-    publishAvailable:()=>migrateProgram(`const client=await admin.connect();try{await client.query('BEGIN');await client.query('SET LOCAL session_replication_role=replica');const rows=await client.query("UPDATE content_version SET review_status='approved' WHERE exam_id='dtz-a2-b1' AND content_version_id=ANY($1::text[]) RETURNING content_version_id",[ids]);if(rows.rowCount!==ids.length)throw Error('Incomplete exact synthetic approval set');await client.query('COMMIT');}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}const published={...internal,release:{version:${JSON.stringify(availableVersion)},state:'available',resumeBlockedReleases:[]},sets:[],media:[],writingTasks:[],rubrics:[]};await importPackage(migration,published,{publisher:'synthetic-s6-browser-public-simulation'});console.log('reference-only available fixture published');`),
+  await (reviewMode?verifyContentReview:verifyExamS6)({base,email,newcomerEmail,password,fixture,availableVersion,incompleteVersion,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,
+    publishAvailable:()=>migrateProgram(`for(const id of ids)await review('content',id);await review('blueprint',internal.exam.id,internal.blueprint.version);for(const form of internal.forms)await review('form',form.id,form.version);const published={...internal,release:{version:${JSON.stringify(availableVersion)},state:'available',resumeBlockedReleases:[]},sets:[],media:[],writingTasks:[],rubrics:[]};await importPackage(migration,published,{publisher:'synthetic-s6-browser-public-simulation'});console.log('named synthetic decisions and reference-only available fixture published');`),
+    changeReview:(kind,id,version,decision)=>migrateProgram(`await review(${JSON.stringify(kind)},${JSON.stringify(id)},${JSON.stringify(version)},${JSON.stringify(decision)});console.log('exact synthetic decision recorded');`),
+    drainWorker:({fail=false}={})=>migrateProgram(`const {createWorker}=await import('./server/owned-postgres/worker.mjs');const {createExamCatalogue}=await import('./server/preparation-contract.mjs');const pool=persistentRolePool(config,'worker');try{console.log(JSON.stringify(await createWorker({pool,${fail?"grade:async()=>{throw Error('Synthetic browser worker failure');},":''}examCatalogue:createExamCatalogue({enabled:['telc-deutsch-b1','dtz-a2-b1']})}).runOnce()));}finally{await pool.end();}`),
+    grantCredits:prepId=>migrateProgram(`const p=(await admin.query("SELECT owner_id FROM learner_preparation WHERE id=$1 AND exam_id='dtz-a2-b1'",[${JSON.stringify(prepId)}])).rows[0];if(!p)throw Error('Synthetic preparation missing');await admin.query("INSERT INTO entitlements(owner_id,exam_id,allowance,used,reserved) VALUES($1,'dtz-a2-b1',10,0,0)",[p.owner_id]);`),
+    withdrawWritingRights:()=>migrateProgram(`const id=internal.writingTasks[0].taskId+'@'+internal.writingTasks[0].version;if(!ids.includes(id))throw Error('Unknown synthetic task');await migration.query("INSERT INTO content_rights(content_version_id,basis,decided_by,note) VALUES($1,'unknown','synthetic C03 browser','Test-only rights withdrawal')",[id]);`),
     publishIncomplete:()=>migrateProgram(`// Privileged malformed-publication seam: the ordinary importer refuses this shape. Test DB only.
 const version=${JSON.stringify(incompleteVersion)},manifest={...internal,forms:[],sets:[],media:[],writingTasks:[],rubrics:[],release:{version,state:'available',resumeBlockedReleases:[]}};const client=await migration.connect();try{await client.query('BEGIN');await client.query("SELECT pg_advisory_xact_lock(hashtextextended('dtz-a2-b1',7351))");await client.query("INSERT INTO exam_release(exam_id,version,blueprint_version,state,manifest,sha256,publisher) VALUES('dtz-a2-b1',$1,$2,'available',$3::jsonb,$4,'synthetic-s6-browser-malformed-head')",[version,internal.blueprint.version,JSON.stringify(manifest),createHash('sha256').update(JSON.stringify(manifest)).digest('hex')]);await client.query("UPDATE exam_release_head SET release_version=$1 WHERE exam_id='dtz-a2-b1'",[version]);await client.query('COMMIT');}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}console.log('incomplete available head injected in synthetic database');`),
     withdrawPinned:()=>migrateProgram(`const contentId=internal.media[0].mediaId+'@'+internal.media[0].version;if(!ids.includes(contentId))throw Error('Unknown synthetic media');await migration.query("INSERT INTO content_rights(content_version_id,basis,decided_by,note) VALUES($1,'unknown','synthetic S6 browser','Test-only rights withdrawal')",[contentId]);console.log('exact synthetic media rights withdrawn');`),
@@ -106,11 +126,12 @@ finally{
   if(started)try{
     // Every removable volume must belong to this unique project; no global pruning or fixed names.
     for(const id of labelled('volume')){const row=JSON.parse(command('docker',['volume','inspect',id]))[0];if(row.Labels?.['com.docker.compose.project']!==project)throw Error('Unsafe cleanup volume');}
-    compose(['down','-v','--remove-orphans']);if(labelled('container').length||labelled('volume').length)throw Error('Disposable resources remain');cleaned=true;console.log('Removed and verified disposable project '+project);
+    for(const id of labelled('image')){const row=JSON.parse(command('docker',['image','inspect',id]))[0];if(row.Config.Labels?.['com.docker.compose.project']!==project||!(row.RepoTags||[]).every(tag=>['app','worker','migrate'].some(service=>tag===project+'-'+service+':latest')))throw Error('Unsafe cleanup image');}
+    compose(['down','-v','--remove-orphans','--rmi','local']);if(['container','volume','network','image'].some(kind=>labelled(kind).length))throw Error('Disposable resources remain');cleaned=true;console.log('Removed and verified disposable project '+project);
   }catch(error){record('S6 fixture cleanup',false,error.message);}
   const resolved=fs.realpathSync(scratch);
   if((!started||cleaned)&&path.dirname(resolved)===fs.realpathSync(os.tmpdir())&&path.basename(resolved).startsWith(project+'-'))fs.rmSync(resolved,{recursive:true,force:true});else console.log('Preserved source/Compose recovery files at '+scratch);
-  fs.mkdirSync(shots,{recursive:true});fs.writeFileSync(path.join(shots,'results.json'),JSON.stringify({project,base,dbPort,schema,results},null,2));
+  fs.mkdirSync(shots,{recursive:true});fs.writeFileSync(path.join(shots,'results.json'),JSON.stringify({mode:reviewMode?'review':'s6',sourceRevision,sourceChanges,project,base,dbPort,schema,cleaned,finishedAt:new Date().toISOString(),screenshots:fs.readdirSync(shots).filter(name=>name.endsWith('.png')).sort(),limits:['Synthetic technical content; no human educational approval','Headless Chromium emulation; no physical-device or screen-reader acceptance',...(reviewMode?['C03B2 is a display-only transport projection','C03B4 first submit is an explicit pre-dispatch transport failure; retry refusal is real']:[])],results},null,2));
   const failures=results.filter(result=>!result.ok);console.log(`${results.length-failures.length} passed, ${failures.length} failed; screenshots ${shots}`);
   console.log('Headless Chromium and synthetic technical content only; physical devices and human approval remain pending.');process.exitCode=failures.length?1:0;
 }
