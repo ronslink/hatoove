@@ -140,51 +140,51 @@
       "part": 1,
       "title": "Nachbarschaftszentrum Sonnenhof — Verzeichnis (Originalentwurf)",
       "payload": {
-        "text": "Nachbarschaftszentrum Sonnenhof\n\nDas Nachbarschaftszentrum Sonnenhof in der Lindenstraße 4 ist ein offener Treffpunkt für alle Menschen im Viertel. Es ist montags bis freitags von 9 bis 18 Uhr geöffnet und am Samstag von 10 bis 14 Uhr. Sonntags bleibt das Haus geschlossen.\n\nJeden Dienstag und Donnerstag findet von 10 bis 11:30 Uhr ein Deutschkurs für Anfänger statt. Der Kurs kostet 2 Euro pro Termin. Wer wenig Geld hat, kann sich von der Gebühr befreien lassen. Eine Anmeldung ist nicht nötig, kommen Sie einfach vorbei.\n\nAm Mittwochnachmittag gibt es ein Familiencafé mit Kaffee und Kuchen. Während die Eltern sich unterhalten, betreuen zwei Erzieherinnen die Kinder in einem eigenen Raum. Für das Familiencafé zahlen Erwachsene 1 Euro, Kinder bezahlen nichts.\n\nWer handwerklich geschickt ist oder es werden möchte, kann donnerstags ab 17 Uhr in der Werkstatt mitarbeiten. Dort reparieren wir gemeinsam Fahrräder und kleine Möbel. Das Werkzeug ist vorhanden, Sie müssen nichts mitbringen.\n\nFür Fragen ist das Büro im Erdgeschoss zuständig. Sie erreichen uns telefonisch unter 0221 44 55 66 oder per E-Mail an info@sonnenhof.example. Bitte beachten Sie: Im August ist das Zentrum wegen Renovierung zwei Wochen lang geschlossen.",
+        "text": "Nachbarschaftszentrum Sonnenhof – Wegweiser\n\nErdgeschoss (EG)\nInformation und Anmeldung für die Wohnberatung · Beratung zu Mietverträgen und Nebenkosten · Kopierer und Drucker · Empfang für Fundsachen\n\n1. Obergeschoss (1. OG)\nSprachbüro: Anmeldung und Beratung für Deutschkurse · Kursräume 101 bis 104 · Lernraum mit Wörterbüchern · Büro der Kursleitung\n\n2. Obergeschoss (2. OG)\nBewegungsraum: Kinderturnen und Gymnastik · Werkstatt: gemeinsame Fahrradreparatur · Ausleihe von Werkzeug · Raum für die Jugendgruppe\n\nDie Information im Erdgeschoss ist montags bis freitags von 9 bis 17 Uhr besetzt. Zu allen Etagen fährt ein Aufzug.",
         "questions": [
           {
             "n": 21,
-            "question": "Wann kann man am Wochenende ins Zentrum kommen?",
+            "question": "Sie möchten sich zu Ihrer Nebenkostenabrechnung beraten lassen. Wohin gehen Sie?",
             "options": {
-              "a": "Am Samstag von 10 bis 14 Uhr.",
-              "b": "Am Sonntag von 10 bis 14 Uhr.",
-              "c": "Am Wochenende ist das Zentrum immer geschlossen."
+              "a": "Ins Erdgeschoss.",
+              "b": "Ins 1. Obergeschoss.",
+              "c": "Ins 2. Obergeschoss."
             }
           },
           {
             "n": 22,
-            "question": "Was gilt für den Deutschkurs?",
+            "question": "Sie möchten sich für einen Deutschkurs anmelden. Wohin gehen Sie?",
             "options": {
-              "a": "Er kostet immer 2 Euro, auch für Menschen mit wenig Geld.",
-              "b": "Er findet am Dienstag und am Donnerstag statt.",
-              "c": "Man muss sich vorher schriftlich anmelden."
+              "a": "Ins Erdgeschoss.",
+              "b": "Ins 1. Obergeschoss.",
+              "c": "Ins 2. Obergeschoss."
             }
           },
           {
             "n": 23,
-            "question": "Was kostet der Besuch des Familiencafés für ein Kind?",
+            "question": "Sie bringen Ihr Kind zum Kinderturnen. Wohin gehen Sie?",
             "options": {
-              "a": "Nichts.",
-              "b": "1 Euro.",
-              "c": "2 Euro."
+              "a": "Ins Erdgeschoss.",
+              "b": "Ins 1. Obergeschoss.",
+              "c": "Ins 2. Obergeschoss."
             }
           },
           {
             "n": 24,
-            "question": "Was kann man in der Werkstatt machen?",
+            "question": "Sie möchten ein Formular ausdrucken. Wohin gehen Sie?",
             "options": {
-              "a": "Fahrräder und kleine Möbel reparieren.",
-              "b": "Werkzeug kaufen.",
-              "c": "Eigene Möbel verkaufen."
+              "a": "Ins Erdgeschoss.",
+              "b": "Ins 1. Obergeschoss.",
+              "c": "Ins 2. Obergeschoss."
             }
           },
           {
             "n": 25,
-            "question": "Was passiert im August?",
+            "question": "Sie möchten Ihr Fahrrad gemeinsam mit anderen reparieren. Wohin gehen Sie?",
             "options": {
-              "a": "Der Deutschkurs findet im Park statt.",
-              "b": "Das Zentrum ist zwei Wochen geschlossen.",
-              "c": "Das Zentrum öffnet auch sonntags."
+              "a": "Ins Erdgeschoss.",
+              "b": "Ins 1. Obergeschoss.",
+              "c": "Ins 2. Obergeschoss."
             }
           }
         ]
@@ -194,16 +194,16 @@
       "answers": {
         "21": "a",
         "22": "b",
-        "23": "a",
+        "23": "c",
         "24": "a",
-        "25": "b"
+        "25": "c"
       },
       "explanations": {
-        "21": "Im Text steht, dass das Zentrum am Samstag von 10 bis 14 Uhr geöffnet ist und sonntags geschlossen bleibt; deshalb ist nur die Samstagszeit am Wochenende möglich.",
-        "22": "Der Text nennt den Kurs an Dienstag und Donnerstag von 10 bis 11:30 Uhr. Wer wenig Geld hat, kann sich von der Gebühr befreien lassen, und eine Anmeldung ist gerade nicht nötig.",
-        "23": "Laut Text zahlen Erwachsene für das Familiencafé 1 Euro, Kinder bezahlen nichts.",
-        "24": "Die Werkstatt öffnet donnerstags ab 17 Uhr; dort werden gemeinsam Fahrräder und kleine Möbel repariert, und das Werkzeug ist vorhanden.",
-        "25": "Im letzten Satz heißt es, dass das Zentrum im August wegen Renovierung zwei Wochen lang geschlossen ist."
+        "21": "Die Beratung zu Nebenkosten gehört zur Wohnberatung im Erdgeschoss.",
+        "22": "Das Sprachbüro im 1. Obergeschoss nimmt Anmeldungen für Deutschkurse entgegen.",
+        "23": "Das Kinderturnen findet im Bewegungsraum im 2. Obergeschoss statt.",
+        "24": "Kopierer und Drucker stehen im Erdgeschoss.",
+        "25": "Die Werkstatt für gemeinsame Fahrradreparaturen liegt im 2. Obergeschoss."
       },
       "reviewStatus": "unreviewed",
       "rightsStatus": "generated",
@@ -288,7 +288,7 @@
         "26": "Anzeige c ist ein Reparaturcafé, in dem Kleingeräte wie Toaster gemeinsam mit den Besuchern repariert werden.",
         "27": "Anzeige b, die Musikschule, bietet Unterricht für Kinder ab sechs Jahren an, unter anderem Klavier und Gitarre.",
         "28": "Anzeige a vermittelt Babysitterinnen im Viertel und nennt ausdrücklich Abende und Wochenenden als mögliche Zeiten.",
-        "29": "Anzeige h vergeben kleine Gärten zum Anbau von Gemüse an Menschen ohne eigenen Garten.",
+        "29": "Anzeige h bietet kleine Gärten zum Anbau von Gemüse an. So kann die Person auch ohne eigenen Garten Gemüse anbauen.",
         "30": "Keine der Anzeigen bietet ein Restaurant oder Speisen an. Anzeige e (Bibliothek) und Anzeige d (Sprachschule) sind keine Gaststätten."
       },
       "reviewStatus": "unreviewed",
@@ -357,7 +357,7 @@
             "questions": [
               {
                 "n": 35,
-                "question": "Die beiden Brüder fahren jeden Tag gemeinsam zur Arbeit.",
+                "question": "Die beiden Geschwister fahren jeden Tag gemeinsam zur Arbeit.",
                 "options": {
                   "richtig": "Richtig",
                   "falsch": "Falsch"
@@ -365,7 +365,7 @@
               },
               {
                 "n": 36,
-                "question": "Wann fahren die Brüder zusammen?",
+                "question": "Wann fahren die Geschwister zusammen?",
                 "options": {
                   "a": "An jedem Arbeitstag.",
                   "b": "Nur am Wochenende.",
@@ -391,7 +391,7 @@
         "32": "Der letzte Satz sagt ausdrücklich: Nur bei starkem Regen nimmt sie noch den Bus.",
         "33": "Im Text steht, dass Frau Yilmaz vorher in einem Büro gearbeitet hat und lieber mit Pflanzen und Menschen arbeiten wollte.",
         "34": "Der Text nennt die Öffnungszeiten montags bis samstags; am Sonntag ist der Laden geschlossen, und Bürobedarf wird nicht verkauft.",
-        "35": "Die Brüder haben verschiedene Arbeitszeiten und fahren deshalb meistens getrennt; gemeinsam fahren sie nur einmal pro Woche.",
+        "35": "Die Geschwister haben verschiedene Arbeitszeiten und fahren deshalb meistens getrennt; gemeinsam fahren sie nur einmal pro Woche.",
         "36": "Laut Text haben beide einmal pro Woche um 16 Uhr Schluss und fahren dann zusammen nach Hause."
       },
       "reviewStatus": "unreviewed",

@@ -20,7 +20,7 @@ anything or grants a learner any access.
 
 | Family | Part | Interaction | Items | IDs |
 | ------ | ---- | ----------- | ----- | --- |
-| LV1 | 1 | `single_choice` (directory/notice) | 5 | 21–25 |
+| LV1 | 1 | `single_choice` (three-floor directory) | 5 | 21–25 |
 | LV2 | 2 | `matching_ads` (8 ads `a`–`h`, `x` = no match) | 5 | 26–30 |
 | LV3 | 3 | `grouped_choice` (3 passages × 1 true/false + 1 three-option) | 6 | 31–36 |
 | LV4 | 4 | `single_choice` with `richtig`/`falsch` options (brochure) | 3 | 37–39 |
@@ -28,7 +28,7 @@ anything or grants a learner any access.
 
 Every item carries exactly one correct private answer and one German, evidence-based explanation,
 kept in the separate `answers` / `explanations` fields — never inside the learner-visible `payload`.
-The majority of part 5 stays a reading task; it is not a DTZ Sprachbausteine section. There is no
+All of part 5 belongs to reading; it is not a DTZ Sprachbausteine section. There is no
 listening, writing, speaking or UI content here, no full written mock and no pass/fail score.
 
 ### `grouped_choice` payload
@@ -40,16 +40,16 @@ unique across the whole set. A true/false question uses option ids `richtig` / `
 multiple-choice question uses `a` / `b` / `c`. Group order then question order defines flattened
 position, so each of the 31–36 questions renders its own group's passage.
 
-Base `470d428` predates the coordinator's parallel `grouped_choice` validation and reports the
-LV3 member as an unsupported interaction; adding that validation is the coordinator's change, not
-this assignment's. This draft is authored to the payload shape the coordinator has declared in
-`EXAM-S3.md`.
+The registered validator and renderer follow [the S3 contract](../../../docs/contracts/EXAM-S3.md).
+Item IDs remain unique across all groups, including when another question has a different answer type.
 
 ## Provenance and review status
 
 - **Originality.** All reading texts, advertisements, situations, statements, questions, options,
   answers and explanations in `manifest.json` were independently authored for this slice. No
   official DTZ, telc or g.a.s.t. exam text was copied, translated or reproduced.
+  The coordinator corrected the directory shape and language issues before the first import;
+  this remains an unreviewed draft, with no published version replaced.
 - **Format source (counts/shape only).** The reading item counts and structural shape follow the
   official g.a.s.t. DTZ practice-set PDF,
   `https://www.gast.de/fileadmin/gast.de/GAST/5_DTZ/PDF/gast_DTZ_UEbungssatz_1.pdf` (page 6),
@@ -65,9 +65,7 @@ this assignment's. This draft is authored to the payload shape the coordinator h
 
 ## Checking
 
-`manifest.json` is checked by JSON parsing and the structural self-check recorded in this
-execution's `RESULT.md` (unique item ids 21–45, option keys present for every answered key, one
-correct response per item, explanation for every item, per-part counts 5/5/6/3/6, eight distinct
-ads, at least one `x` situation, explicit `[40]`–`[45]` placeholders, no protected field inside any
-`payload`). The full `server/package-contract.mjs` acceptance for LV3 cannot be asserted at base
-`470d428`, where `grouped_choice` is not yet a registered interaction.
+Run `node tools/exam-s3-check.mjs` for the registered package contract and original source shape,
+and `node tools/exam-s3-pg-check.mjs` against a disposable database for exact-version marking and
+access boundaries. The isolated `tools/exam-s3-browser-check.mjs` proves the internal two-exam
+journey. The author's structural self-check is not a substitute for these checks or qualified review.

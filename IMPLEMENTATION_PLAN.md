@@ -1,5 +1,9 @@
 # Hatoove implementation plan
 
+## EXAM-S3 implementation — 3 October 2026
+
+**Active: EXAM-S3-20261003-A**, [issue #110](https://github.com/ronslink/hatoove/issues/110), base `470d428`. Ron authorised proceeding and original internal DTZ reading drafts with human approval pending. The [S3 contract](docs/contracts/EXAM-S3.md) covers five parts/25 items, mixed grouped questions, cloze and isolated two-exam save/switch acceptance. Default learner availability stays telc-only. Independent review, tests, CI and integration are pending; no live data/runtime or production changes are authorised by this slice.
+
 ## EXAM-S2 implementation — 3 October 2026
 
 **Merged: EXAM-S2-20261003-A**, [issue #107](https://github.com/ronslink/hatoove/issues/107), [PR #108](https://github.com/ronslink/hatoove/pull/108), merge `7960c61`, reviewed head `d05dbb8`, seven applicable CI jobs green. The minimal package importer/release contract and saved telc reading section are implemented. The first form pins the existing LV1/LV2/LV3 versions, contains 20 items and is labelled untimed section practice; complete written mocks remain unavailable. [Contract](docs/contracts/EXAM-S2.md), [evidence](work/implementation/EXAM-S2-RESULT.md).
