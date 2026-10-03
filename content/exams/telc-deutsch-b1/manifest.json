@@ -13,6 +13,16 @@
   },
   "blueprint": {
     "version": "v1",
+    "timeGroups": [
+      {
+        "id": "lv-sb-90",
+        "seconds": 5400,
+        "sections": [
+          "LV",
+          "SB"
+        ]
+      }
+    ],
     "sections": [
       {
         "id": "LV",
@@ -20,19 +30,19 @@
         "timeGroup": "lv-sb-90",
         "parts": [
           {
-            "family": "lv1",
+            "family": "LV1",
             "itemCount": 5,
             "interaction": "matching_headlines",
             "mediaRequired": false
           },
           {
-            "family": "lv2",
+            "family": "LV2",
             "itemCount": 5,
             "interaction": "single_choice",
             "mediaRequired": false
           },
           {
-            "family": "lv3",
+            "family": "LV3",
             "itemCount": 10,
             "interaction": "matching_ads",
             "mediaRequired": false
@@ -45,13 +55,13 @@
         "timeGroup": "lv-sb-90",
         "parts": [
           {
-            "family": "sb1",
+            "family": "SB1",
             "itemCount": 10,
-            "interaction": "single_choice",
+            "interaction": "gap_choice",
             "mediaRequired": false
           },
           {
-            "family": "sb2",
+            "family": "SB2",
             "itemCount": 10,
             "interaction": "gap_bank",
             "mediaRequired": false
@@ -64,19 +74,19 @@
         "timeGroup": null,
         "parts": [
           {
-            "family": "hv1",
+            "family": "HV1",
             "itemCount": 5,
             "interaction": "fixed_audio",
             "mediaRequired": true
           },
           {
-            "family": "hv2",
+            "family": "HV2",
             "itemCount": 10,
             "interaction": "fixed_audio",
             "mediaRequired": true
           },
           {
-            "family": "hv3",
+            "family": "HV3",
             "itemCount": 5,
             "interaction": "fixed_audio",
             "mediaRequired": true
@@ -84,12 +94,12 @@
         ]
       },
       {
-        "id": "SA",
+        "id": "writing",
         "title": "Schriftlicher Ausdruck",
         "timeGroup": null,
         "parts": [
           {
-            "family": "sa1",
+            "family": "writing",
             "itemCount": 1,
             "interaction": "extended_writing",
             "mediaRequired": false
@@ -141,6 +151,14 @@
         "pages": 2,
         "retrieved": "2026-09-30",
         "verification": "Downloaded and text-extracted; documents a DIFFERENT, newer scaled examination and must not replace the classic B1 blueprint"
+      },
+      {
+        "id": "S5",
+        "kind": "official-web-page-recheck",
+        "title": "Zertifikat Deutsch / telc Deutsch B1 — official exam page, metadata re-check",
+        "url": "https://www.telc.net/sprachpruefungen/deutsch/zertifikat-deutsch-telc-deutsch-b1/",
+        "retrieved": "2026-10-03",
+        "verification": "Metadata re-check only (no document downloaded): the current page confirms the shared 90-minute reading + language block and the three reading parts. Historical retrieval provenance stays with S1–S4; no current-day PDF download is asserted."
       }
     ]
   },

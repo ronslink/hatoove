@@ -1,11 +1,4 @@
 {
-  "fixture": {
-    "synthetic": true,
-    "generated": true,
-    "unreviewed": true,
-    "notForPublication": true,
-    "purpose": "Offline internal importer fixture proving the objective assessment scale and level model are DATA: a non-German exam with a fractional correct value and a band level model. It is not a real English examination product and must never become an available release."
-  },
   "schemaVersion": 1,
   "exam": {
     "id": "contract-english",
@@ -19,6 +12,15 @@
   },
   "blueprint": {
     "version": "v1",
+    "timeGroups": [
+      {
+        "id": "fixture-reading-15",
+        "seconds": 900,
+        "sections": [
+          "LV"
+        ]
+      }
+    ],
     "sections": [
       {
         "id": "LV",
@@ -26,7 +28,7 @@
         "timeGroup": "fixture-reading-15",
         "parts": [
           {
-            "family": "lv1",
+            "family": "LV1",
             "itemCount": 1,
             "interaction": "single_choice",
             "mediaRequired": false
@@ -56,13 +58,34 @@
     "state": "internal",
     "resumeBlockedReleases": []
   },
-  "forms": [],
+  "forms": [
+    {
+      "id": "contract-english.reading.01",
+      "version": "v1",
+      "title": "Synthetic internal reading section (offline fixture)",
+      "scope": "section",
+      "sections": [
+        "LV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "contract-english.lv1.01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 1
+        }
+      ]
+    }
+  ],
   "sets": [
     {
       "setId": "contract-english.lv1.01",
       "version": "v1",
       "examId": "contract-english",
-      "family": "lv1",
+      "family": "LV1",
       "section": "LV",
       "part": 1,
       "title": "Synthetic single-choice fixture item (unreviewed)",
@@ -70,7 +93,7 @@
         "text": "This synthetic passage exists only to exercise the offline package and importer contract for a non-German exam with a fractional objective scale. It is not real examination material and has not been reviewed.",
         "questions": [
           {
-            "id": 1,
+            "n": 1,
             "question": "Why was this passage generated?",
             "options": {
               "a": "Only to exercise the offline package and importer contract.",
@@ -88,7 +111,7 @@
         "1": "Synthetic fixture explanation."
       },
       "reviewStatus": "unreviewed",
-      "rightsStatus": "unknown",
+      "rightsStatus": "generated",
       "source": "content/fixtures/exams/english-scale.json"
     }
   ]
