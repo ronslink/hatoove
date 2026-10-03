@@ -1,5 +1,9 @@
 # Hatoove work board
 
+## S6 PR120 delivered; Q-01 accessibility contract ready — 3 October 2026
+
+S6 is delivered at `2f0ca7c` as [PR120](https://github.com/ronslink/hatoove/pull/120), independently reviewed and locally verified. Hosted runs37136635523/37136635553 stopped before tests for the GitHub account payment/spending restriction; integration remains blocked. [Issue121](https://github.com/ronslink/hatoove/issues/121), execution **PILOT-Q01-AXE-20261003-A**, now has a bounded [accessibility contract](../docs/contracts/PILOT-Q01-AXE.md): pinned test dependency, actual rendered state coverage, discriminating controls and isolated fixtures. This is ready implementation, not delivered or accepted. Named content-review and saved-explanation contracts are being designed separately; human/device/legal/provider gates remain open.
+
 ## EXAM-S6 engineering verified; follow-on gaps identified — 3 October 2026
 
 **EXAM-S6-20261003-A, issue119.** Candidate `7b3438a` is independently reviewed and locally verified: core16, parity81, wrapper9, admission12, payments16 and final public browser7 pass. The root inspected desktop/mobile evidence and the browser fixture was removed. [S6 evidence](implementation/EXAM-S6-RESULT.md) records corrections, continuation/grant boundaries and limitations. The stacked PR is being prepared; hosted CI is still account-blocked and no merge or product acceptance is claimed. The broader audit identifies named exact-version content-review decisions and versioned saved-assessment language switching as follow-on engineering requiring bounded contracts. Human content/device/security/privacy and live-operation gates remain separate.
