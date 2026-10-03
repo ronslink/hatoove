@@ -151,6 +151,83 @@ paths:
         '409': { description: 'Revision/event conflict, finalised, expired, archived or content blocked.' }
         '422': { description: 'Invalid answer, item, position or unknown request field.' }
 
+  /api/v1/mock-runs/{id}/playback:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [mock-runs]
+      summary: Read authoritative recording consumption for an active owned run
+      description: Reading does not consume a play. A returned playing record is uncertain and needs explicit same-play recovery. Finalised, expired, archived or rights-blocked playback refuses while saved responses remain readable through the run.
+      responses:
+        '200': { description: 'Pinned recording progress.', content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Playback' } } } } } } }
+        '404': { description: 'Absent or another owner.' }
+        '409': { description: 'Run no longer permits playback.' }
+    post:
+      tags: [mock-runs]
+      summary: Start, checkpoint, pause, complete or explicitly recover one recording
+      description: Session owner and pinned recording determine allowance. Revision is independent of answer autosave. Retrying an event is idempotent; a different body under the same event conflicts. Recover rotates the playback identity and cannot add an allowance. Failed pre-play loading consumes nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [eventId, mediaId, mediaVersion, expectedRevision, action]
+              properties:
+                eventId: { type: string, format: uuid }
+                mediaId: { type: string }
+                mediaVersion: { type: string }
+                expectedRevision: { type: integer, minimum: 0, maximum: 2147483646 }
+                action: { type: string, enum: [begin, checkpoint, pause, complete, recover] }
+                playbackId: { type: string, format: uuid, description: Required after begin; identifies the current play rather than an HTTP request. }
+                positionMs: { type: integer, minimum: 0, maximum: 3600000, description: Required for checkpoint/pause/complete; forbidden on recover. }
+      responses:
+        '200': { description: 'Current safe acknowledgement.', content: { application/json: { schema: { type: object, properties: { playback: { $ref: '#/components/schemas/Playback' } } } } } }
+        '404': { description: 'Absent, another owner or non-member recording.' }
+        '409': { description: 'Revision/event/playback conflict, exhausted allowance, recovery required, expired/finalised run or unavailable media.' }
+        '422': { description: 'Invalid or backward progress; unknown request fields.' }
+
+  /api/v1/mock-runs/{id}/media/{mediaId}/{version}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: mediaId
+        in: path
+        required: true
+        schema: { type: string }
+      - name: version
+        in: path
+        required: true
+        schema: { type: string }
+      - name: Range
+        in: header
+        schema: { type: string }
+    get:
+      tags: [mock-runs]
+      summary: Load exact private recording bytes for an active owned run
+      description: Membership, rights, session/account context and complete checksum are checked before response headers. Preload and byte ranges never consume a play. No public/static media equivalent exists. Replies use private no-store caching, checksum ETag and byte-range headers.
+      responses:
+        '200': { description: 'Exact complete PCM WAV.', content: { audio/wav: { schema: { type: string, format: binary } } } }
+        '206': { description: 'One satisfiable byte range, with Content-Range and exact Content-Length.' }
+        '404': { description: 'Absent, another owner or non-member recording.' }
+        '409': { description: 'Rights/access/deadline refusal or media unavailable/integrity failure.' }
+        '416': { description: 'Invalid, multiple or unsatisfiable byte range.' }
+    head:
+      tags: [mock-runs]
+      summary: Inspect the same protected recording headers without a response body
+      responses:
+        '200': { description: 'Same verified headers and Content-Length as GET; no response body.' }
+        '206': { description: 'Same range headers as GET; no response body.' }
+        '404': { description: 'Absent, another owner or non-member recording.' }
+        '409': { description: 'Rights/access/deadline refusal or media unavailable/integrity failure.' }
+        '416': { description: 'Invalid or unsatisfiable byte range.' }
+
   /api/v1/mock-runs/{id}/writing-choice:
     parameters:
       - name: id
@@ -939,6 +1016,7 @@ components:
         scope: { type: string, enum: [section] }
         sections: { type: array, items: { type: string } }
         mode: { type: string, enum: [untimed, timed] }
+        attempt_mode: { type: string, enum: [practice, mock] }
         time_limit_seconds: { type: integer, nullable: true }
         item_count: { type: integer }
         writing_choice_count: { type: integer, minimum: 0, maximum: 1 }
@@ -960,6 +1038,30 @@ components:
         version: { type: string }
         itemId: { type: string }
         answer: { type: string, nullable: true }
+    Playback:
+      type: object
+      properties:
+        media_id: { type: string }
+        media_version: { type: string }
+        revision: { type: integer, minimum: 0 }
+        state: { type: string, enum: [ready, playing, paused, completed] }
+        plays_used: { type: integer, minimum: 0 }
+        max_plays: { type: integer, minimum: 1 }
+        position_ms: { type: integer, minimum: 0 }
+        duration_ms: { type: integer, minimum: 1 }
+        playback_id: { type: string, format: uuid, nullable: true }
+        uncertain: { type: boolean }
+        server_now: { type: string, format: date-time }
+    Recording:
+      type: object
+      properties:
+        id: { type: string }
+        media_id: { type: string }
+        media_version: { type: string }
+        label: { type: string }
+        duration_ms: { type: integer, minimum: 1 }
+        mime_type: { type: string, enum: [audio/wav] }
+        max_plays: { type: integer, minimum: 1 }
     MockRunSummary:
       type: object
       properties:
@@ -975,6 +1077,7 @@ components:
         title: { type: string }
         scope: { type: string, enum: [section] }
         mode: { type: string, enum: [untimed, timed] }
+        attempt_mode: { type: string, enum: [practice, mock] }
         state: { type: string, enum: [active, finalised] }
         revision: { type: integer, minimum: 1 }
         created_at: { type: string, format: date-time }
@@ -1018,9 +1121,10 @@ components:
                 properties:
                   set_id: { type: string }
                   version: { type: string }
-                  interaction: { type: string, enum: [matching_headlines, single_choice, matching_ads, gap_choice, gap_bank, grouped_choice] }
+                  interaction: { type: string, enum: [matching_headlines, single_choice, matching_ads, gap_choice, gap_bank, grouped_choice, fixed_audio] }
                   review_status: { type: string }
                   item_count: { type: integer }
+                  recordings: { type: array, items: { $ref: '#/components/schemas/Recording' } }
                   title: { type: string }
                   family: { type: string }
                   section: { type: string }

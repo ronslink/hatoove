@@ -49,11 +49,13 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
       assert((await playback(a,practice.id)).every(p=>p.plays_used===0),'preloading consumed allowance');
     });
     await run('S5B3 failed pre-play network loading retains every allowance',async()=>{
-      await a.send('Network.setBlockedURLs',{urls:['*/api/v1/mock-runs/*/media/*']});await action(a,'load');
-      await a.waitFor("document.querySelector('[data-listening-status]')?.textContent.match(/nicht|fehl|Verbindung|laden/i)",12000);
-      assert((await playback(a,practice.id)).every(p=>p.plays_used===0),'failed media load consumed play');
-      await shot(a,'s5-load-failure-desktop');
-      await a.send('Network.setBlockedURLs',{urls:[]});
+      await a.send('Network.setBlockedURLs',{urls:['*/api/v1/mock-runs/*/media/*']});
+      try {
+        await action(a,'load');
+        await a.waitFor("document.querySelector('[data-listening-status].err')?.textContent.includes('nicht geladen') && document.querySelector('[data-listening-action=load]')?.disabled===false",12000);
+        assert((await playback(a,practice.id)).every(p=>p.plays_used===0),'failed media load consumed play');
+        await shot(a,'s5-load-failure-desktop');
+      } finally { await a.send('Network.setBlockedURLs',{urls:[]}); }
       const retry=await a.evaluate("return Boolean(document.querySelector('[data-listening-action=load]'))");await action(a,retry?'load':'retry');await waitControl(a,'play');
     });
     await run('S5B4 actual HTML audio begins once and persists a pause',async()=>{
@@ -72,7 +74,13 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
       await fresh(a,practice.id);await action(a,'load');await waitControl(a,'recover');await shot(a,'s5-recovery-desktop');
     });
     await run('S5B6 explicit recovery completes same DTZ play with no additional allowance',async()=>{
-      await action(a,'recover');await waitPlayback(a,practice.id,first.media_id,"p.state==='completed'");
+      await a.evaluate("window.__s5Resumed=[];window.__s5Ended=false;const el=document.querySelector('[data-listening-audio]');el.addEventListener('timeupdate',()=>{if(!el.paused)window.__s5Resumed.push(el.currentTime)});el.addEventListener('ended',()=>{window.__s5Ended=true});return true;");
+      await action(a,'recover');
+      await a.waitFor("window.__s5Resumed?.length>=2 && Math.max(...window.__s5Resumed)-Math.min(...window.__s5Resumed)>0.25",10000);
+      const resumed=await a.evaluate("return {first:window.__s5Resumed[0],last:window.__s5Resumed.at(-1)};");
+      assert(resumed.first*1000>=paused.position_ms-100,'recovery resumed before durable pause');
+      await a.waitFor("window.__s5Ended && document.querySelector('[data-listening-audio]')?.ended",12000);
+      await waitPlayback(a,practice.id,first.media_id,"p.state==='completed'");
       const completed=(await playback(a,practice.id)).find(p=>p.media_id===first.media_id);
       assert(completed.plays_used===1,'recovery added a play');
       const restart=await request(a,'/api/v1/mock-runs/'+practice.id+'/playback','POST',{eventId:randomUUID(),mediaId:first.media_id,mediaVersion:first.media_version,expectedRevision:completed.revision,action:'begin'});
@@ -106,4 +114,3 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
     });
   } finally { for(const c of connections)try{c.ws.close();}catch{} for(const browser of browsers)try{await browser.cleanup();}catch{} }
 }
-

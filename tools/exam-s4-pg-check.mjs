@@ -36,7 +36,7 @@ try {
    await db.admin.query('INSERT INTO drafts(attempt_id,revision,text) VALUES($1,1,$2)',[aid,'Synthetic pre-S4 preserved draft.']);
    const before=(await db.admin.query('SELECT a.*,d.text,d.revision FROM attempts a JOIN drafts d ON d.attempt_id=a.id WHERE a.id=$1',[aid])).rows[0];
    const hash=(await db.admin.query("SELECT sha256 FROM exam_release WHERE exam_id='telc-deutsch-b1' ORDER BY version")).rows;
-   assert.deepEqual(await db.applyRemaining(),['0027-dtz-writing.sql','0028-payments.sql']);
+   assert.deepEqual(await db.applyRemaining(),['0027-dtz-writing.sql','0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql']);
    assert.deepEqual((await db.admin.query('SELECT a.*,d.text,d.revision FROM attempts a JOIN drafts d ON d.attempt_id=a.id WHERE a.id=$1',[aid])).rows[0],before);
    assert.equal((await importDefaultPackage(db.migration)).unchanged,true);
    assert.deepEqual((await db.admin.query("SELECT sha256 FROM exam_release WHERE exam_id='telc-deutsch-b1' ORDER BY version")).rows,hash);

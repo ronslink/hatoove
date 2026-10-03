@@ -25,7 +25,8 @@ function command(binary, args, cwd = root, env = process.env) {
   return (r.stdout || '').trim();
 }
 const compose = args => command('docker', ['compose', '--env-file', envFile, '-p', project, '-f', path.join(source, 'compose.yaml'), ...args], source,
-  { ...process.env, HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base, HATOVE_CONTENT_MODE: 'internal-preview' });
+  { ...process.env, HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base, HATOVE_CONTENT_MODE: 'internal-preview',
+    HATOVE_PAYMENTS_MODE: 'off', STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '', OWNAPI_PG_PAYMENTS_PASSWORD: '' });
 const query = sql => compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql]);
 function record(name, ok, detail = '') { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ': ' + detail : ''}`); }
 async function freePort() {
