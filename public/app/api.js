@@ -46,6 +46,7 @@ const PATHS = Object.freeze({
   checkoutSession: '/api/v1/checkout/session',
   orders: '/api/v1/orders',
 });
+const explanationQuery = (language, key = 'explanationLanguage') => language === null || language === undefined ? '' : '?' + key + '=' + encodeURIComponent(language);
 
 /**
  * An owned-route 401 is an explicit failure, with one shell notification. Never redirect an active
@@ -227,7 +228,7 @@ return Object.freeze({
     forms: () => scopedCall('GET', PATHS.mockForms),
     list: () => scopedCall('GET', PATHS.mockRuns),
     start: payload => scopedCall('POST', PATHS.mockRuns, payload),
-    read: id => call('GET', PATHS.mockRuns + '/' + encodeURIComponent(id)),
+    read: (id, language = null) => call('GET', PATHS.mockRuns + '/' + encodeURIComponent(id) + explanationQuery(language), undefined, true),
     save: (id, payload) => call('PUT', PATHS.mockRuns + '/' + encodeURIComponent(id), payload, true),
     chooseWriting: (id, payload) => call('POST', PATHS.mockRuns + '/' + encodeURIComponent(id) + '/writing-choice', payload, true),
     finalise: (id, payload) => call('POST', PATHS.mockRuns + '/' + encodeURIComponent(id) + '/finalise', payload, true),
@@ -341,6 +342,7 @@ return Object.freeze({
    * The client never decides what to practise and never marks anything.
    */
   practice: Object.freeze({
+    explanation: (evidenceId, language = null) => call('GET', '/api/v1/objective-evidence/' + encodeURIComponent(evidenceId) + '/explanation' + explanationQuery(language, 'language'), undefined, true),
     next: () => scopedCall('GET', PATHS.practiceNext),
     /**
      * This learner's own totals and per-section tallies, aggregated by the server from item_evidence.
@@ -404,7 +406,7 @@ return Object.freeze({
       { expectedRevision, text }),
     submit: (attemptId, expectedRevision, eventId) => call('POST', `${PATHS.attempts}/${encodeURIComponent(attemptId)}/submissions`,
       { expectedRevision, eventId }),
-    result: (submissionId) => call('GET', `${PATHS.submissions}/${encodeURIComponent(submissionId)}`),
+    result: (submissionId, language = null) => call('GET', `${PATHS.submissions}/${encodeURIComponent(submissionId)}` + explanationQuery(language), undefined, true),
     retry: (submissionId) => call('POST', `${PATHS.submissions}/${encodeURIComponent(submissionId)}/retry`, {}),
   }),
 });

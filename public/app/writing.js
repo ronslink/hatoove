@@ -28,14 +28,17 @@ export function writingPrompt(task, esc) {
 }
 
 /** Owned writing lifecycle. Drafts and submitted feedback stay on the server. */
-export function createWritingController({ api, esc, readAloud = null, onChange = () => {}, canEdit = () => true }) {
+export function writingExplanationLabels(data) {
+  return Object.fromEntries((data?.assessment?.feedback?.criteria || []).map(c => ['criterion/' + (c.key || c.id) + '/comment', writingCriterion(c, data.rubric).label]));
+}
+export function createWritingController({ api, esc, readAloud = null, explanations = null, onChange = () => {}, canEdit = () => true }) {
   let active = null;
   let serial = 0;
   let sessionBlocked = false;
   const labels = { aufgabe: 'Aufgabenbewältigung', kommunikation: 'Kommunikative Gestaltung', richtigkeit: 'Formale Richtigkeit' };
   const message = (r) => r?.status === 0 ? 'Keine Verbindung zum Server.' : r?.status === 429 ? 'Bitte warte kurz und versuche es erneut.' : 'Die Anfrage konnte nicht abgeschlossen werden.';
   const current = (s) => !sessionBlocked && active === s && s.host.isConnected;
-  const say = (s, html) => { if (current(s)) { readAloud?.clear(s.status); s.status.innerHTML = html; } };
+  const say = (s, html) => { if (current(s)) { explanations?.dispose(s.status); readAloud?.clear(s.status); s.status.innerHTML = html; } };
   const button = (id, text, primary = false) => `<button type="button" class="btn${primary ? ' btn-primary' : ''}" id="${id}">${text}</button>`;
   const prompt = task => writingPrompt(task, esc);
   const dirty = (s) => Boolean(s?.area && !s.submission && s.area.value !== s.saved);
@@ -60,6 +63,7 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     sessionBlocked = true;
   });
   function dispose() {
+    if (active) explanations?.dispose(active.host);
     if (active) readAloud?.clear(active.host);
     if (active?.timer) clearTimeout(active.timer);
     if (active?.poll) clearTimeout(active.poll);
@@ -141,11 +145,12 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
   }
   async function showResult(s, submissionId, tries = 0) {
     if (!current(s)) return;
+    clearTimeout(s.poll); const resultRequest = s.resultRequest = (s.resultRequest || 0) + 1;
     s.submission = submissionId;
     s.status.dataset.submissionId = submissionId;
     const discard = s.host.querySelector('#writing-new'); if (discard) { discard.hidden = true; discard.disabled = true; }
     const res = await api.writing.result(submissionId);
-    if (!current(s)) return;
+    if (!current(s) || resultRequest !== s.resultRequest) return;
     if (!res?.ok) {
       say(s, `<p class="err">${message(res)} Dein abgegebener Text bleibt gespeichert.</p>` + button('writing-refresh', 'Stand erneut laden'));
       s.host.querySelector('#writing-refresh').onclick = () => showResult(s, submissionId);
@@ -168,14 +173,10 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     let html;
     if (state === 'assessed') {
       const f = assessment.feedback || {};
-      const storedLanguage = f.language || data.submission?.explanation_language;
-      const lang = ['de', 'en', 'uk', 'ar', 'tr'].includes(storedLanguage) ? storedLanguage : 'de';
       html = `<p class="muted"><strong>${esc(writingLabels(s.rubric, f.kind).heading)}</strong></p><p class="small muted">Lokaler Pilot: Die Rückmeldung stammt derzeit aus einer technischen Simulation. Sie bewertet deine Sprachleistung nicht verlässlich.</p>`;
       const supported = f.kind === (s.rubric?.feedback_kind || 'telc-b1-bands');
       html += supported && Array.isArray(f.criteria)
-        ? `<ul class="criteria">${f.criteria.map(c => { const view = writingCriterion(c, s.rubric); return `<li class="criterion"><div class="criterion-head"><strong>${esc(view.label || labels[c.key])}</strong><span class="band"><span class="sr-only">Band </span>${esc(view.band)}</span></div><p data-read-comment lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(c.comment || '')}</p>${c.evidence ? `<blockquote class="evidence" lang="de" dir="ltr">${esc(c.evidence)}</blockquote>` : ''}</li>`; }).join('')}</ul>`
-        : `<p ${f.comment ? 'data-read-comment' : ''} lang="${esc(lang)}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">${esc(f.comment || 'Noch keine Rückmeldung verfügbar.')}</p>`;
-      if (Array.isArray(f.corrections) && f.corrections.length) html += `<section lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}"><h4>Korrekturhinweise</h4><ul>${f.corrections.map(text => `<li>${esc(text)}</li>`).join('')}</ul></section>`;
+        ? `<ul class="criteria">${f.criteria.map(c => { const view = writingCriterion(c, s.rubric); return `<li class="criterion"><div class="criterion-head"><strong>${esc(view.label || labels[c.key])}</strong><span class="band"><span class="sr-only">Band </span>${esc(view.band)}</span></div>${c.evidence ? `<blockquote class="evidence" lang="de" dir="ltr">${esc(c.evidence)}</blockquote>` : ''}</li>`; }).join('')}</ul>` : '';
       html += (data.review_withdrawn ? `<p class="hint" data-review-withdrawn>${esc(reviewHistoryNotice(data))}</p>` : '') + sent + (!s.readonly && !data.review_withdrawn ? button('writing-revise', 'Text überarbeiten', true) : '');
     } else if (state === 'blocked') {
       html = '<p class="err">Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Dein abgegebener Text bleibt erhalten.</p>' + sent;
@@ -188,8 +189,24 @@ export function createWritingController({ api, esc, readAloud = null, onChange =
     } else {
       html = '<p class="muted">Abgegeben. Die Rückmeldung wird vorbereitet. Du kannst diese Seite verlassen und den Stand im Verlauf wieder öffnen.</p>' + sent + button('writing-refresh', 'Stand aktualisieren');
     }
-    say(s, html);
-    for (const comment of s.status.querySelectorAll('[data-read-comment]')) readAloud?.mount(comment, { label: 'Kommentar', language: comment.lang });
+    say(s, html + '<div data-writing-explanation></div>');
+    explanations?.mount(s.status.querySelector('[data-writing-explanation]'), {
+      view: data.explanation_view, labels: writingExplanationLabels(data), isCurrent: () => current(s) && s.submission === submissionId && resultRequest === s.resultRequest,
+      read: async language => { const response = await api.writing.result(submissionId, language); return { ...response, data: response?.data?.explanation_view, parent: response?.data }; },
+      onConfirmed: parent => {
+        if (!parent || !current(s)) return;
+        if (parent.review_withdrawn && !parent.blocked_reason) {
+          s.host.querySelector('#writing-revise')?.remove();
+          if (!s.status.querySelector('[data-review-withdrawn]')) { const notice = document.createElement('p'); notice.className = 'hint'; notice.dataset.reviewWithdrawn = ''; notice.textContent = reviewHistoryNotice(parent); s.status.prepend(notice); }
+        }
+        if (!parent.blocked_reason) return;
+        s.blocked = true; s.task = {}; s.result = parent;
+        s.host.querySelector('.writing-prompt')?.replaceChildren(); s.host.querySelector('#writing-rubric')?.remove();
+        s.status.querySelector('.criteria')?.remove();
+        s.status.querySelector('[data-review-withdrawn]')?.remove();
+        s.host.querySelector('#writing-revise')?.remove();
+      },
+    });
     if (tries === 0) s.status.scrollIntoView({ block: 'nearest' });
     s.host.querySelector('#writing-refresh')?.addEventListener('click', () => showResult(s, submissionId));
     s.host.querySelector('#writing-retry')?.addEventListener('click', async (e) => {

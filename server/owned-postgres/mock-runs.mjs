@@ -7,6 +7,8 @@ import { resolvePreparation, requireActivePreparation } from './preparations.mjs
 import { writingAttachment, attachWriting, finaliseWriting } from './mock-writing.mjs';
 import { listReleasedForms, readReleasedForm } from './packages.mjs';
 import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
+import { readFinalisedMockItemExplanation } from './explanations.mjs';
+import { explanationLanguage, blockedExplanation, projectStoredExplanation, protectedExplanationRead, explanationFault } from './explanation-views.mjs';
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = (r) => r.rows[0];
@@ -93,7 +95,7 @@ function sqlFault(error) {
   throw error;
 }
 
-export function mockRunMethods({ settle, note = () => {}, catalogue }) {
+export function mockRunMethods({ settle, note = () => {}, catalogue, explanationLanguageRegistry }) {
   const transaction = (owner, work, snapshot = false) => settle(owner, work, snapshot).catch(sqlFault);
   async function bundleOf(client, row, newStart = false) {
     const bundle = await readReleasedForm(client, { examId: row.exam_id, formId: row.form_id, formVersion: row.form_version,
@@ -162,12 +164,35 @@ export function mockRunMethods({ settle, note = () => {}, catalogue }) {
         return { created: true, run: runDto(row, bundle) };
       });
     },
-    async readMockRun(owner, id) {
+    async readMockRun(owner, id, {explanationLanguage:requestedLanguage=null}={}) {
       note('readMockRun');
+      explanationLanguage(requestedLanguage);
       return transaction(owner, async (client) => {
+        await lockMockOwner(client,owner);
+        const identity=first(await client.query('SELECT exam_id FROM mock_run WHERE id=$1 AND owner_id=$2',[id,owner]));
+        if(!identity)fail(404,'not_found');
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[identity.exam_id]);
         const row = await readRow(client, owner, id);
-        return runDto(row, await bundleOf(client, row));
-      }, true);
+        const dto=runDto(row, await bundleOf(client, row));
+        if(dto.result){
+          const items=[];
+          for(const item of dto.result.items??[]){
+            let explanation_view;
+            try {
+              const bundle=await protectedExplanationRead(client,()=>readFinalisedMockItemExplanation(client,
+                {runId:id,setId:item.set_id,setVersion:item.version,itemId:item.item_id,language:requestedLanguage},
+                {languageRegistry:explanationLanguageRegistry}));
+              explanation_view=await projectStoredExplanation(client,bundle,requestedLanguage);
+            }catch(error){
+              if(error?.message==='explanation_content_blocked')explanation_view=blockedExplanation(requestedLanguage);
+              else explanationFault(error);
+            }
+            items.push({...item,explanation_view});
+          }
+          dto.result={...dto.result,items};
+        }
+        return dto;
+      });
     },
     async saveMockRun(owner, id, input) {
       note('saveMockRun'); const body = validateSaveMockRun(input); const sha = digest('save', id, body);

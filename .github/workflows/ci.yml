@@ -138,6 +138,12 @@ jobs:
         run: node tools/exam-s6-core-check.mjs
       - name: Private content review input and packet boundaries
         run: node tools/content-review-check.mjs
+      - name: Saved explanation provenance language and read-only client contracts
+        run: |
+          node tools/explanation-check.mjs
+          node tools/explanation-worker-check.mjs
+          node tools/explanation-api-check.mjs
+          node tools/explanation-client-check.mjs
       - name: Payment signatures, test provider and activation refusals
         run: node tools/payment-path-check.mjs
       - name: Payment API ownership and exact webhook boundary
@@ -260,6 +266,12 @@ jobs:
           node tools/content-review-fixture-check.mjs
       - name: Payment upgrade, ownership, concurrent grants and expiry
         run: node tools/payments-pg-check.mjs
+      - name: Saved explanation ownership atomicity export and deletion
+        run: |
+          node tools/explanation-pg-check.mjs
+          node tools/explanation-worker-pg-check.mjs
+          node tools/explanation-admission-pg-check.mjs
+          node tools/explanation-table-class-check.mjs
       - name: Bounded readiness probes recover after a real PostgreSQL connection loss
         run: node tools/readiness-pg-check.mjs
       - name: The hosted runtime refuses by default
@@ -382,6 +394,20 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s6-browser-check.mjs --review --shots .qa/browser/c03-review
+      - name: Saved explanation language speech and stale response behavior
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/explanation-browser-check.mjs --shots .qa/browser/pilot07-explanations
+      - name: Retain synthetic explanation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pilot07-explanations-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .qa/browser/pilot07-explanations/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
       - name: Retain synthetic review-withdrawal evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -35,6 +35,9 @@ import { readWritingTask, writingAccess, readWritingOrigin, writingServable, rea
 import { supportedWritingPolicy, DTZ_POLICY, DTZ_KIND, DTZ_INSTRUCTIONS } from '../writing-policy.mjs';
 import { randomUUID } from 'node:crypto';
 import { TELC_B1_WRITING_RUBRIC, FORMATIVE_WRITING_RUBRIC } from './content-seed.mjs';
+import { extractWritingExplanationSource, makeOriginalExplanationRepresentation, validateExplanationRepresentation } from '../explanation-contract.mjs';
+import { simulationExplanationVariants } from '../explanation-simulation.mjs';
+import { persistWritingExplanations } from './explanations.mjs';
 
 export const DEFAULT_LEASE_MS = 60000;
 export const DEFAULT_MAX_TRIES = 3;
@@ -305,6 +308,8 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
     throw new TypeError('createWorker requires a pg Pool connected as the restricted worker role');
   }
   const gradeFn = typeof grade === 'function' ? grade : stubGrade;
+  // Function injection is custom even when its labels and returned bytes imitate stubGrade.
+  const trustedBuiltin = typeof grade !== 'function';
   if (!Number.isSafeInteger(leaseMs) || leaseMs <= 0) throw new TypeError('leaseMs must be a positive integer');
   if (!Number.isSafeInteger(maxTries) || maxTries < 1) throw new TypeError('maxTries must be a positive integer');
 
@@ -427,7 +432,25 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
     } catch (error) {
       return completeFailure({ submissionId, token, code: failureCodeOf(error) });
     }
-    return completeSuccess({ submissionId, token, row, assessment });
+    // Bind representations to the exact JSON that PostgreSQL will store (legacy optional
+    // undefined fields disappear during JSON encoding), detached from the grader object.
+    assessment = {...assessment, feedback: JSON.parse(JSON.stringify(assessment.feedback))};
+    const source = extractWritingExplanationSource({ownerId: row.owner_id,
+      attempt: {id: row.attempt_id, exam_id: row.exam_id, task_id: row.task_id, rubric_id: row.rubric_id},
+      submission: {...row, id: submissionId},
+      assessment: {feedback: assessment.feedback, model_version: assessment.modelVersion || 'unknown', prompt_version: assessment.promptVersion || 'unknown'}});
+    const original = makeOriginalExplanationRepresentation(source);
+    let representations = original ? [original] : [];
+    if (original && trustedBuiltin) {
+      // Translation is optional. An incomplete/invalid dictionary never invalidates a grade.
+      // Prepare and validate the whole optional batch before opening the success transaction.
+      try {
+        const variants = simulationExplanationVariants(source, {trustedBuiltin})
+          .map(variant => validateExplanationRepresentation(source, variant));
+        representations = [original, ...variants];
+      } catch { /* original only; no provider retry or regrading */ }
+    }
+    return completeSuccess({ submissionId, token, row, assessment, representations });
   }
 
   /**
@@ -435,7 +458,7 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
    * are the lease fence: if another worker re-claimed the job after this lease lapsed, the
    * predicate matches no row and nothing is written.
    */
-  async function completeSuccess({ submissionId, token, row, assessment }) {
+  async function completeSuccess({ submissionId, token, row, assessment, representations }) {
     return transaction(async (client) => {
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))',[row.owner_id]);
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[row.exam_id]);
@@ -464,6 +487,9 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
         `INSERT INTO assessments(submission_id, owner_id, feedback, model_version, prompt_version, rubric_version)
          VALUES($1, $2, $3::jsonb, $4, $5, $6)`,
         [submissionId, job.owner_id, JSON.stringify(feedback), modelVersion, promptVersion, row.rubric_version]);
+      // Same owner/exam/lease/deletion-fenced transaction: any storage fault rolls back
+      // assessment, representations and heads before the existing single debit can commit.
+      await persistWritingExplanations(client, {ownerId: job.owner_id, submissionId, representations});
       await client.query(
         'INSERT INTO usage_ledger(submission_id, owner_id, units) VALUES($1, $2, 1)', [submissionId, job.owner_id]);
       // EXAM-S1: the debit lands on the balance the job reserved from, never another exam's.

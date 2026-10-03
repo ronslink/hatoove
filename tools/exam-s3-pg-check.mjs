@@ -59,7 +59,7 @@ try {
       [randomUUID(),a.id,a.telc.id,form.release_version,randomUUID(),TELC,form.form_id,form.version])).rows[0]);
     const before=(await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0];
     await assertHistoricalProjectionAbsent(db);
-    assert.deepEqual(await db.applyRemaining(),['0026-grouped-objective-runs.sql','0027-dtz-writing.sql','0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql']);
+    assert.deepEqual(await db.applyRemaining(),['0026-grouped-objective-runs.sql','0027-dtz-writing.sql','0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql','0037-saved-explanations.sql']);
     assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0],before);
     assert.equal((await finalise(a,old)).result.total,20);
     const functions=(await db.admin.query("SELECT proname,prosecdef,proconfig FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname IN ('protect_mock_run','finalise_mock_run')")).rows;
@@ -155,7 +155,10 @@ try {
       await reject(save(a,active,active.responses),'mock_content_unavailable',409);
     } finally {process.env.B1PREP_CONTENT_MODE='internal-preview';}
     assert.equal((await port.readMockRun(a.id,active.id)).blocked_reason,null);
-    assert.deepEqual((await port.readMockRun(a.id,completed.id)).result,completed.result);
+    const projected=(await port.readMockRun(a.id,completed.id)).result;
+    assert.ok(projected.items.every(item=>item.explanation_view?.schema==='explanation-view-v1'));
+    assert.deepEqual({...projected,items:projected.items.map(({explanation_view,...original})=>original)},completed.result);
+    assert.deepEqual((await db.admin.query('SELECT result FROM mock_run WHERE id=$1',[completed.id])).rows[0].result,completed.result);
     assert.deepEqual((await db.admin.query('SELECT * FROM item_evidence WHERE mock_run_id=$1',[completed.id])).rows,evidenceBefore);
     assert.ok((await port.exportData(a.id)).objective_evidence.some(e=>e.item_id==='33'&&e.version==='v2'));
   });

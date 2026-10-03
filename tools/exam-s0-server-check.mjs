@@ -395,6 +395,7 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
   const run = async (rubricId) => {
     let token = null;
     const writes = [];
+    let savedAssessment = null;
     const binding = { task_id: 'synthetic.task', version: 'v2', exam_id: INITIAL_EXAM, rubric_id: rubricId, rubric_version: 'v1', source_path: 'synthetic:fixture',
       review_status: 'approved', rubric_review_status: 'approved', rights_status: 'generated', rubric_rights_status: 'generated',
       review_basis: 'legacy_unattributed', rubric_review_basis: 'legacy_unattributed', review_blocked: false, rubric_review_blocked: false };
@@ -413,8 +414,19 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
       },
       async connect() {
         return {
-          async query(sql) {
+          async query(sql, params = []) {
             writes.push(String(sql));
+            if (/INSERT INTO assessments\(/.test(sql)) {
+              savedAssessment = { submission_id: params[0], owner_id: params[1], feedback: JSON.parse(params[2]),
+                model_version: params[3], prompt_version: params[4], rubric_version: params[5] };
+              return { rows: [] };
+            }
+            if (/FROM assessments f JOIN submissions s/.test(sql)) {
+              assert.ok(savedAssessment, 'the explanation source must be persisted first');
+              assert.deepEqual(params, [savedAssessment.submission_id, savedAssessment.owner_id]);
+              return { rows: [{ ...savedAssessment, attempt_id: 'attempt-1', exam_id: INITIAL_EXAM,
+                task_id: binding.task_id, rubric_id: rubricId, task_version: 'v2', explanation_language: 'de' }] };
+            }
             if (/FROM jobs WHERE submission_id = \$1 FOR UPDATE/.test(sql)) {
               return { rows: [{ id: 'job-1', owner_id: 'owner-1', exam_id: INITIAL_EXAM, status: 'running', lease_token: token }] };
             }

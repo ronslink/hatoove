@@ -1,5 +1,13 @@
 # Hatoove implementation plan
 
+## PILOT07 locally delivered and independently reviewed — 3 October 2026
+
+[Issue124](https://github.com/ronslink/hatoove/issues/124) now delivers immutable saved explanation representations, authorized language reads, atomic simulation variants, export/deletion and shared client states. [Evidence](work/implementation/PILOT-07-RESULT.md) records independent reviews, core18/worker12/consumer10 PostgreSQL checks,66 classifier controls, final client21 and clean browser15/15 with45 screenshots and verified cleanup. Review corrections are closed; final publication records and staged guard precede a PR stacked on125. Required hosted CI remains a separate account-blocked gate; nothing is merged or product accepted. O01 is limited to a corrected contract draft under a new bounded lease; no usage/reporting implementation is authorized by that lease. Human/native/device/provider/privacy and live-operation gates remain open.
+
+## C-03 PR125 delivered; PILOT07 authors active — 3 October 2026
+
+C03 is published as [PR125](https://github.com/ronslink/hatoove/pull/125) at05c96f0, stacked on123. Final local source guard609/522 and independent evidence review pass. Actual hosted runs37142049424/37142049485 stopped with zero test steps for the account payment/spending restriction; no rerun or merge. [Issue124](https://github.com/ronslink/hatoove/issues/124) now has a frozen [saved-explanation contract](docs/contracts/PILOT-07-EXPLANATIONS.md), reviewed concrete interfaces and separate A storage/B worker/C client authors from7375da0; coordinator owns API/export/deletion and integration. Versioned simulation prose never regrades or adds a debit; actual native quality/provider evaluation remains open. O01 design review identified corrections before a later implementation lease, including bounded owner-first reclaim and exact unknown-aware accounting.
+
 ## C-03 final local acceptance; publication next — 3 October 2026
 
 [C03 evidence](work/implementation/PILOT-C03-RESULT.md) records independently reviewed core/consumers/classification/fixtures and clean-source browser acceptance at `7dec3b4`, adopted `74c776b`. Final S6 7/7 and C03 10/10 pass with61 screenshots; coordinator verified both exact disposable projects absent. Retained PostgreSQL, worker and offline results are recorded separately. Source delivery/local acceptance is complete; final record/PR closeout follows. Required hosted CI remains account-blocked, so no stack merge or product acceptance is claimed. PILOT07's amended saved-explanation contract is independently clear for freeze; O01 remains a design proposal under review. Human review, physical devices and live-operation gates stay open.

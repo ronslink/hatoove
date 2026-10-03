@@ -47,7 +47,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ACCOUNT_TABLES } from '../server/owned-postgres/adapter.mjs';
 import {
-  AUTH_TABLES, AUTH_SUPPORT_TABLES, CATALOGUE_TABLES, CONTENT_TABLES, PRIVATE_REVIEW_TABLES, INFRASTRUCTURE_TABLES, KEY_TABLES, OWNER_COLUMNS,
+  AUTH_TABLES, AUTH_SUPPORT_TABLES, CATALOGUE_TABLES, CONTENT_TABLES, PRIVATE_REVIEW_TABLES, PROTECTED_EXPLANATION_TABLES, INFRASTRUCTURE_TABLES, KEY_TABLES, OWNER_COLUMNS,
   accountTableNames, bare, columnsOf, policiesFor, privilegesFor, isKeyBearing, readCatalogue,
 } from './lib/catalogue.mjs';
 
@@ -113,7 +113,7 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
   const runtimeRoles = [auth, learner, worker, deletion, provisioner, payments].filter(Boolean);
   const accountSet = accountTableNames(accountTables);
   const classified = new Set([...AUTH_TABLES, ...AUTH_SUPPORT_TABLES, ...CONTENT_TABLES, ...PRIVATE_REVIEW_TABLES, ...CATALOGUE_TABLES,
-    ...KEY_TABLES, ...INFRASTRUCTURE_TABLES]);
+    ...KEY_TABLES, ...PROTECTED_EXPLANATION_TABLES, ...INFRASTRUCTURE_TABLES]);
 
   // A table is account-owned if it has an owner column, or if it is named in ACCOUNT_TABLES
   // (this is how `drafts`, which has no owner column, is recognised).
@@ -164,6 +164,31 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
       }
       if (cols.some((c) => OWNER_COLUMNS.includes(c))) fail.push('auth support table carries an owner column (that would make it account data)');
       rows.push({ table: name, cls: 'auth support', verdict: note(fail), detail: fail.length ? fail.join('; ') : `no RLS; ${auth} only; no owner column` });
+      continue;
+    }
+
+    if (PROTECTED_EXPLANATION_TABLES.includes(name)) {
+      for (const role of [...runtimeRoles, 'PUBLIC']) {
+        const granted = privilegesFor(catalogue, name, role);
+        if (granted.length) fail.push(`protected explanation grants ${granted.join('/')} to ${role}`);
+      }
+      if (name === 'objective_explanation_representation') {
+        for (const [event, mask, row] of [['UPDATE', 16, true], ['DELETE', 8, true], ['TRUNCATE', 32, false]]) {
+          const guarded = catalogue.triggers.some(t => bare(t.table) === name
+            && ['O', 'A'].includes(t.enabled) && (t.type & 2) && Boolean(t.type & 1) === row
+            && (t.type & mask) && t.unconditional && !t.update_columns
+            && t.function_schema === catalogue.schema
+            && t.function_name === (mask === 32 ? 'guard_explanation_truncate' : 'guard_explanation_representation'));
+          if (!guarded) fail.push(`no enabled explanation immutability trigger (BEFORE ${event})`);
+        }
+      }
+      if (name === 'objective_explanation_head' && !catalogue.triggers.some(t => bare(t.table) === name
+        && ['O','A'].includes(t.enabled) && (t.type & 2) && !(t.type & 1) && (t.type & 32)
+        && t.unconditional && t.function_schema === catalogue.schema && t.function_name === 'guard_explanation_truncate')) {
+        fail.push('no enabled explanation immutability trigger (BEFORE TRUNCATE)');
+      }
+      rows.push({ table: name, cls: 'protected explanation', verdict: note(fail),
+        detail: fail.length ? fail.join('; ') : 'no runtime/PUBLIC table or column privileges; authorized saved-context reader only' });
       continue;
     }
 
@@ -248,6 +273,27 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
 
     const ownerCol = cols.find((c) => OWNER_COLUMNS.includes(c));
     if (ownerCol || accountSet.has(name)) {
+      if (['writing_explanation_representation', 'writing_explanation_head'].includes(name)) {
+        for (const [event, mask, row] of [['UPDATE',16,true],['TRUNCATE',32,false]]) {
+          const fn = mask === 32 ? 'guard_explanation_truncate' : name.endsWith('_head') ? 'guard_explanation_head' : 'guard_explanation_representation';
+          if (!catalogue.triggers.some(t => bare(t.table) === name && ['O','A'].includes(t.enabled)
+            && (t.type & 2) && Boolean(t.type & 1) === row && (t.type & mask) && t.unconditional
+            && !t.update_columns && t.function_schema === catalogue.schema && t.function_name === fn)) {
+            fail.push(`no enabled explanation immutability trigger (BEFORE ${event})`);
+          }
+        }
+        for (const role of [...runtimeRoles, 'PUBLIC']) {
+          const allowed = role === learner ? ['SELECT'] : role === worker ? ['SELECT', 'INSERT']
+            : role === deletion ? ['SELECT', 'DELETE'] : [];
+          const unexpected = privilegesFor(catalogue, name, role).filter(p => !allowed.includes(p));
+          if (unexpected.length) fail.push(`owned explanation grants unexpected ${unexpected.join('/')} to ${role}`);
+        }
+        for (const [role, required] of [[learner, ['SELECT']], [worker, ['SELECT', 'INSERT']]]) {
+          for (const privilege of required) if (!privilegesFor(catalogue, name, role).includes(privilege)) {
+            fail.push(`owned explanation lacks ${privilege} for ${role}`);
+          }
+        }
+      }
       if (name.startsWith('payment_')) {
         if (name === 'payment_order' && payments && catalogue.columnGrants.some(g => bare(g.table) === name && g.grantee === payments && g.privilege === 'UPDATE' && ['owner_id','exam_id','product_id','market','currency','amount_minor','allowance','term_days','stripe_price_id'].includes(g.column))) fail.push('payments role may not change order identity or terms');
         for (const role of [learner,worker,auth,provisioner].filter(Boolean)) {

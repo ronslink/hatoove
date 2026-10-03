@@ -294,6 +294,8 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
     ['mock_writing', 'mock_writing', 'owner_id'],
     ['mock_run_time_groups', 'mock_run_time_group', 'owner_id'],
     ['listening_playback', 'listening_playback', 'owner_id'],
+    ['writing_explanation_representations', 'writing_explanation_representation', 'owner_id'],
+    ['writing_explanation_heads', 'writing_explanation_head', 'owner_id'],
     ['payment_orders', 'payment_order', 'owner_id'],
     ['payment_events', 'payment_event', 'owner_id'],
     ['payment_grants', 'payment_grant', 'owner_id'],
@@ -302,11 +304,17 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
   const queries = [...exported.matchAll(/const\s+(\w+)\s*=\s*\(await client\.query\(\s*(['"`])([\s\S]*?)\2\s*,\s*(\[[^\]]*\])\s*\)\)\.rows/g)];
   assert.equal(statements.length, inventory.length, 'every direct export query is accounted for');
   assert.deepEqual(queries.map((match) => match[1]), inventory.map(([name]) => name),
-    'exactly the historical S5 export queries remain, including time groups and playback');
+    'exactly the P07 export queries remain, including owned explanation representations and heads');
   const returned = exported.match(/return\s*\{([^{}]+)\};/);
   assert.ok(returned, 'the export returns its named snapshots');
-  assert.deepEqual(returned[1].split(',').map((name) => name.trim()), inventory.map(([name]) => name),
-    'every queried snapshot is returned exactly once');
+  assert.deepEqual(returned[1].split(',').map((name) => name.trim()), [
+    ...inventory.filter(([name])=>!name.startsWith('writing_explanation_')).map(([name])=>name),
+    'writing_explanation_representations','writing_explanation_heads','shared_explanation_representations',
+  ], 'every direct snapshot and the authorized shared explanation projection is returned exactly once');
+  assert.match(exported,/const shared_explanation_representations=\[\]/,'shared explanations are a derived projection');
+  assert.match(exported,/for\(const evidence of objective_evidence\)/,'shared practice exports originate in owned evidence');
+  assert.match(exported,/for\(const run of mock_runs\)/,'shared mock exports originate in owned runs');
+  assert.doesNotMatch(exported,/FROM objective_explanation_(?:representation|head)\b/,'no unrestricted shared representation dump');
   for (const [index, [name, table, ownerColumn]] of inventory.entries()) {
     const sql = queries[index][3];
     assert.match(sql, new RegExp(`\\bFROM\\s+${table}\\b`), `${name} reads its expected source`);
@@ -325,7 +333,7 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
   assert.equal(attachments.length, 1, 'writing attachments remain exported and owner-scoped');
   assert.match(exported, /writingContext\(client,\{id:submission\.attempt_id,owner_id:owner,/,
     'feedback rights follow the owned attempt and its original run through revision ancestry');
-  assert.match(exported, /if\(context\.blocked_reason\) result\.feedback=null/,
+  assert.match(exported, /if\(context\.blocked_reason\)\s*\{?\s*result\.feedback=null/,
     'blocked feedback is withheld while owned submissions stay exportable');
   const savedRuns = statements.filter((sql) => /FROM mock_run r/.test(sql));
   assert.equal(savedRuns.length, 1, 'saved runs remain part of the account export');

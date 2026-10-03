@@ -428,3 +428,12 @@ code {
 .mock-time-groups span, [data-mock-timing-status] { overflow-wrap: anywhere; }
 .mock-time-groups span { font-size: .875rem; }
 .mock-copy textarea { max-width: 100%; }
+
+/* Saved explanation controls retain the warm-paper system; only prose may change direction. */
+.explanation-view { min-width: 0; margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
+.explanation-controls { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem 1rem; }
+.explanation-controls .select { min-width: 0; max-width: 100%; min-height: 44px; }
+.explanation-view p, .explanation-view .btn { overflow-wrap: anywhere; white-space: normal; }
+.explanation-view .explanation-prose { white-space: pre-wrap; unicode-bidi: isolate; }
+.explanation-block-label { font-weight: 700; margin-block-end: .25rem; }
+.explanation-view .read-aloud { margin-block: .5rem; }
