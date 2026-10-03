@@ -72,6 +72,20 @@ function readReport(privateValues=[]){
   assertPrivateReport(report,window,privateValues);
   return report;
 }
+const usageStateTables=Object.freeze(['provider_attempt','provider_attempt_observation','jobs','assessments','usage_ledger','entitlements']);
+function usageStateFingerprint(){
+  // All columns of every row participate, including balance and feedback values. Only hashes
+  // leave PostgreSQL; one statement gives these six table fingerprints the same snapshot.
+  const fields=usageStateTables.map(table=>`'${table}',(SELECT encode(sha256(convert_to(coalesce(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text),'[]'::jsonb)::text,'UTF8')),'hex') FROM hatoove.${table} t)`);
+  return JSON.parse(sql('SELECT jsonb_build_object('+fields.join(',')+')'));
+}
+function assertUsageStateUnchanged(before,after){
+  for(const value of [before,after]){
+    assert.deepEqual(Object.keys(value).sort(),[...usageStateTables].sort());
+    for(const table of usageStateTables)assert.match(value[table],/^[0-9a-f]{64}$/);
+  }
+  assert.deepEqual(after,before,'reporting must not change any existing invocation, job, assessment, ledger or balance row');
+}
 function removeProbe(){
   if(!probeId)return;
   const owned=JSON.parse(docker(['inspect',probeId]))[0];
@@ -277,7 +291,7 @@ try{
     const cliRecords=cliOutput.split(/\r?\n/).filter(Boolean).map(line=>JSON.parse(line));
     assert.ok(cliRecords.some(row=>row.event==='worker_outcome'&&row.outcome==='succeeded'));
     for(const value of privateValues)assert.equal(cliOutput.includes(value),false,'worker CLI output excludes owned identities and text');
-    const beforeRead=sql('SELECT (SELECT count(*) FROM hatoove.provider_attempt)::text || \':\' || (SELECT count(*) FROM hatoove.provider_attempt_observation)::text || \':\' || (SELECT count(*) FROM hatoove.assessments)::text || \':\' || (SELECT sum(units) FROM hatoove.usage_ledger)::text');
+    const beforeRead=usageStateFingerprint();
     const usage=readReport(privateValues);
     assert.equal(usage.totals.intents,2);
     assert.equal(usage.totals.responses,2);
@@ -299,7 +313,7 @@ try{
     assert.equal(local?.notApplicableCount,1);
     assert.equal(local.knownEstimatedSubtotal,null);
     assert.equal(local.estimateCompleteness,'not_applicable');
-    assert.equal(sql('SELECT (SELECT count(*) FROM hatoove.provider_attempt)::text || \':\' || (SELECT count(*) FROM hatoove.provider_attempt_observation)::text || \':\' || (SELECT count(*) FROM hatoove.assessments)::text || \':\' || (SELECT sum(units) FROM hatoove.usage_ledger)::text'),beforeRead,'reporting creates no attempt, observation, assessment or debit');
+    assertUsageStateUnchanged(beforeRead,usageStateFingerprint());
     passed('restricted-worker report preserves real unknown usage, separates the local stub, and exposes no private identities or invented spend');
 
     // Discriminate against a reporting CLI silently using the configured admin role.
@@ -307,17 +321,24 @@ try{
     const deniedWindow=reportWindow();
     sql('REVOKE SELECT ON hatoove.provider_attempt FROM hatoove_worker');
     try{
-      const denied=dockerResult(composeArgs(reportArgs(deniedWindow)));
-      assert.equal(denied.error,undefined);
+      // Keep child stderr separate from Compose's progress messages. Filtering mixed stderr
+      // for JSON alone would overlook an arbitrary leaked error line next to the safe record.
+      const capture=`
+        import {spawnSync} from 'node:child_process';
+        const result=spawnSync(process.execPath,${JSON.stringify(['tools/provider-usage-report.mjs','--from='+deniedWindow.from,'--to='+deniedWindow.to])},{encoding:'utf8',timeout:15000});
+        console.log(JSON.stringify({status:result.status,errorCode:result.error?.code??null,stdout:result.stdout??'',stderr:result.stderr??''}));
+      `;
+      const denied=JSON.parse(compose(['run','--rm','--no-deps','-T','-e','OWNAPI_PG_USER=hatoove_worker','worker','node','--input-type=module','-e',capture]));
+      assert.equal(denied.errorCode,null);
       assert.equal(denied.status,1,'restricted report must fail when its worker table grant is withheld');
       assert.equal(denied.stdout.trim(),'','failure cannot masquerade as an empty healthy report');
-      const failures=denied.stderr.split(/\r?\n/).map(line=>line.trim()).filter(line=>line.startsWith('{')).map(line=>JSON.parse(line));
-      assert.deepEqual(failures,[{event:'provider_report_error',code:'provider_report_unavailable'}]);
+      assert.deepEqual(JSON.parse(denied.stderr.trim()),{event:'provider_report_error',code:'provider_report_unavailable'});
       for(const value of privateValues)assert.equal((denied.stdout+denied.stderr).includes(value),false);
     }finally{
       sql('GRANT SELECT ON hatoove.provider_attempt TO hatoove_worker');
     }
     assert.equal(readReport(privateValues).totals.intents,2,'restoring the original worker grant restores the same report');
+    assertUsageStateUnchanged(beforeRead,usageStateFingerprint());
     passed('report CLI uses restricted database authority and fails closed instead of returning an empty success');
   }finally{
     compose(['start','worker']);
