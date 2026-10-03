@@ -1,6 +1,6 @@
 # PAYMENTS-01 implementation evidence
 
-Execution **PAYMENTS-01-20261003-A**, 3 October 2026; [issue115](https://github.com/ronslink/hatoove/issues/115). Implemented and independently reviewed; hosted CI, merge and product acceptance are separate. The candidate is based on reviewed S4 c2e2163 (PR114 is still unmerged); integration source787d151 plus the reviewed screenshot-positioning correction. Subsequent closeout changes are documentation only.
+Execution **PAYMENTS-01-20261003-A**, 3 October 2026; [issue115](https://github.com/ronslink/hatoove/issues/115). [PR116](https://github.com/ronslink/hatoove/pull/116) is implemented and independently reviewed; hosted CI is billing-blocked, and merge/product acceptance remain separate. The candidate is based on reviewed S4 c2e2163 (PR114 is still unmerged); integration source787d151 plus the reviewed screenshot-positioning correction. The closeout also corrects one retained persistent-role test for the explicit trusted payments authority; product source is unchanged.
 
 ## Delivered behavior
 
@@ -34,6 +34,10 @@ Local OpenClaw is the installed local Clawdbot CLI, actually invoked in bounded 
 | Retained default telc rendered journey |199/199 |
 | Docker Compose/runtime |37/37, including OpenAPI47/47 |
 | Retained S4 / S3 / S1 PostgreSQL |17/17;10/10;11/11 |
+| Persistent provisioning |6/6, including payment authority, owner RLS and forbidden counter/identity writes |
+| Persistent owned API / mounted accounts HTTP |34/34;6/6 |
+| Readiness / SaaS runtime / throttle isolation |2/2;6/6;4/4 |
+| Worker / journey / PostgreSQL history |14/14;11/11;10/10 |
 | Account deletion |20/20 |
 | Submission preservation |9/9 PostgreSQL;7/7 offline |
 | Table-class mutation checks |11/11 |
@@ -42,9 +46,9 @@ Local OpenClaw is the installed local Clawdbot CLI, actually invoked in bounded 
 
 The seven-command offline baseline and the focused payment scripts are wired into the existing CI jobs; the payment browser is a local Docker/browser acceptance check, not a pull-request gate. Root staged guard at787d151 screened547 tracked files/460 text blobs; final closeout is screened again before push.
 
-Evidence is preserved under the ignored local `.qa/payments-20261003/` directory: `root-final-payment-offline.log`, `root-final-payments-pg-check.mjs.log`, retained check logs, `root-default-browser.log`, `root-docker-stack.log` and `root-payment-browser-final.log`. Final screenshots are in `browser-final-framing/`, including1440px desktop and390/320px light/dark offers, pending/paid, sign-in return, network-error, refund and unavailable states. Frames show the actual scrollable mobile layout; viewport screenshots are not physical-device evidence.
+Evidence is preserved under the ignored local `.qa/payments-20261003/` directory: `root-final-payment-offline.log`, `root-final-payments-pg-check.mjs.log`, retained check logs, `root-default-browser.log`, `root-docker-stack.log`, `root-payment-browser-final.log`, `runtime-*.log` and `root-provision-final.log`. Final screenshots are in `browser-final-framing/`, including1440px desktop and390/320px light/dark offers, pending/paid, sign-in return, network-error, refund and unavailable states. Frames show the actual scrollable mobile layout; viewport screenshots are not physical-device evidence.
 
-The browser fixture uses a source-only copy, fresh profiles, explicit synthetic credentials/prices/webhook secret, free loopback ports and its own Compose project. Initial harness-only failures (hidden focus target and cleanup method) were repaired; the complete rerun passes. Screenshots were then positioned deterministically and the14 checks passed again. The older S1 expected DTO now asserts `expiresAt:null`; retained S3/S4 migration expectations include0028; export checks assert ownership for all four payment exports. No security assertion was removed.
+The browser fixture uses a source-only copy, fresh profiles, explicit synthetic credentials/prices/webhook secret, free loopback ports and its own Compose project. Initial harness-only failures (hidden focus target and cleanup method) were repaired; the complete rerun passes. Screenshots were then positioned deterministically and the14 checks passed again. The older S1 expected DTO now asserts `expiresAt:null`; retained S3/S4 migration expectations include0028; export checks assert ownership for all four payment exports. The persistent provisioning test now explicitly permits only the trusted payments role to grant allowance/expiry, proves its missing-owner-context RLS refusal and denied counter/identity/delete writes, and retains every learner/provisioner negative and upgrade-cleanup assertion. No untrusted-role security assertion was removed.
 
 ## Limits and next action
 
@@ -52,4 +56,4 @@ Payment mode defaults to `off`; optional modes are explicit `stub` and `stripe-t
 
 Expired or unrecoverable pending checkout intents intentionally block automatic replacement until a separate recovery policy is approved. Legacy indefinite credit validity is preserved. No automatic refund/dispute clawback is implemented.
 
-Merge order is S4 PR114 first, then retarget this payment branch to main and run current-base hosted CI. Do not merge payment work into S4 merely to bypass that dependency. GitHub Actions was blocked by account billing/spending limits on S4; record the payment PR's actual check status separately. Original canonical payment draft, unrelated diagrams, paused work, learner ports4300/55440 and existing volumes remain preserved. All task browser/Compose fixtures are disposed; the dedicated payment test database is removed after validation. Worktrees and ignored evidence remain recoverable for review.
+Merge order is S4 PR114 first, then retarget this payment branch to main and run current-base hosted CI. Do not merge payment work into S4 merely to bypass that dependency. GitHub Actions was blocked by account billing/spending limits on S4; payment PR116 also had seven failed required jobs with zero test steps at reviewed head1a0a20c. Runs37127495100 and37127495087 explicitly report the same account billing/spending-limit block. No hosted test failure or success can be inferred from jobs that did not start. Restore Actions, rerun S4 and integrate it first, then retarget and verify this PR. Original canonical payment draft, unrelated diagrams, paused work, learner ports4300/55440 and existing volumes remain preserved. All task browser/Compose fixtures are disposed; the dedicated payment test database is removed after validation. Worktrees and ignored evidence remain recoverable for review.

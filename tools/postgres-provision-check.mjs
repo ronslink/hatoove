@@ -2,7 +2,7 @@
  * Persistent-provisioning proof (OWNAPI-03).
  *
  * What this proves, against a real PostgreSQL database:
- *   1. the schema and the four least-privilege roles are created on a fresh database;
+ *   1. the schema and its least-privilege roles are created on a fresh database;
  *   2. a second provisioning run applies **nothing** and changes no role - it is idempotent;
  *   3. data written through the restricted learner role **survives pooling a fresh world**
  *      (the restart analogue: every pool closed, everything re-provisioned, rows still there);
@@ -227,7 +227,7 @@ check('a-fresh-world-still-sees-the-rows-and-the-policy', async () => {
 /*
  * EXAM-S1 — THE PERSISTENT 6-ROLE PATH HAS NO RUNTIME CREDIT AUTHORITY.
  *
- * `bootstrap.mjs` builds five roles and never a provisioner, so a disposable fixture cannot prove what an
+ * `bootstrap.mjs` builds disposable roles but never a provisioner, so a disposable fixture cannot prove what an
  * installation's `<prefix>_provisioner` still holds. Before 0023 that role had INSERT and a column SELECT on
  * `entitlements` (and owner policies) so sign-up could insert a balance; `grantProvisionerRights` now revokes
  * them. This proves, on the persistent path, that (a) the provisioner, learner and worker cannot mint or read
@@ -235,7 +235,7 @@ check('a-fresh-world-still-sees-the-rows-and-the-policy', async () => {
  * attach a trigger, and (c) an UPGRADED installation's leftover provisioner grants and policies are removed
  * by the next provisioning run, not merely absent on a fresh one.
  */
-check('the-persistent-provisioner-and-runtime-roles-cannot-mint-credits', async () => {
+check('persistent-role-credit-authority-is-restricted-to-registration-and-payments', async () => {
   const s = config.schema;
   const entitlements = `${s}.entitlements`;
   const preparations = `${s}.learner_preparation`;
@@ -250,6 +250,11 @@ check('the-persistent-provisioner-and-runtime-roles-cannot-mint-credits', async 
                 has_any_column_privilege($1, $2, 'INSERT') AS ent_insert_column,
                 has_column_privilege($1, $2, 'allowance', 'UPDATE') AS ent_allowance_update,
                 has_column_privilege($1, $2, 'used', 'UPDATE') AS ent_used_update,
+                has_column_privilege($1, $2, 'reserved', 'UPDATE') AS ent_reserved_update,
+                has_column_privilege($1, $2, 'owner_id', 'UPDATE') AS ent_owner_update,
+                has_column_privilege($1, $2, 'exam_id', 'UPDATE') AS ent_exam_update,
+                has_column_privilege($1, $2, 'expires_at', 'UPDATE') AS ent_expiry_update,
+                has_table_privilege($1, $2, 'DELETE') AS ent_delete,
                 has_any_column_privilege($1, $2, 'SELECT') AS ent_select,
                 has_table_privilege($1, $3, 'DELETE') AS prep_delete,
                 has_function_privilege($1, $4, 'EXECUTE') AS provision_execute,
@@ -261,10 +266,18 @@ check('the-persistent-provisioner-and-runtime-roles-cannot-mint-credits', async 
   const leftoverPolicies = async (admin) => (await admin.query(
     `SELECT policyname FROM pg_policies WHERE schemaname = $1 AND tablename = 'entitlements'
        AND policyname LIKE 'provisioner_%' ORDER BY policyname`, [s])).rows.map((row) => row.policyname);
-  function assertNoMinting(state, label) {
+  function assertCreditAuthority(state, label) {
     for (const [role, p] of Object.entries(state)) {
-      assert.equal(p.ent_insert || p.ent_insert_column, false, `${label}: ${role} must not INSERT a balance`);
-      assert.equal(p.ent_allowance_update, false, `${label}: ${role} must not raise an allowance`);
+      if (role === 'payments') {
+        assert.equal(p.ent_insert && p.ent_select && p.ent_allowance_update && p.ent_expiry_update, true,
+          `${label}: the dedicated payments service can grant allowance and validity`);
+        for (const field of ['ent_used_update','ent_reserved_update','ent_owner_update','ent_exam_update','ent_delete']) {
+          assert.equal(p[field], false, `${label}: payments must not gain ${field}`);
+        }
+      } else {
+        assert.equal(p.ent_insert || p.ent_insert_column, false, `${label}: ${role} must not INSERT a balance`);
+        assert.equal(p.ent_allowance_update, false, `${label}: ${role} must not raise an allowance`);
+      }
       assert.equal(p.provision_execute, false, `${label}: ${role} must not execute the registration grant function`);
       assert.equal(p.user_trigger, false, `${label}: ${role} must not attach a trigger to "user"`);
     }
@@ -275,9 +288,23 @@ check('the-persistent-provisioner-and-runtime-roles-cannot-mint-credits', async 
 
   const pools = await provisionPersistent({ config });
   try {
-    assertNoMinting(await privileges(pools.admin), 'fresh/current installation');
+    assertCreditAuthority(await privileges(pools.admin), 'fresh/current installation');
     assert.deepEqual(await leftoverPolicies(pools.admin), [], 'no provisioner policy remains');
 
+    // The trusted payment pool still has owner RLS and cannot rewrite credit counters or identity.
+    assert.ok((await pools.admin.query(`SELECT count(*)::int AS n FROM ${entitlements}`)).rows[0].n > 0,
+      'existing rows make the missing-owner-context test discriminating');
+    assert.deepEqual((await pools.payments.query(`SELECT owner_id FROM ${entitlements}`)).rows, [],
+      'payments without an owner context see no balance');
+    await assert.rejects(pools.payments.query(
+      `INSERT INTO ${entitlements}(owner_id,exam_id,allowance) VALUES($1,$2,999)`,[owner,INITIAL_EXAM_ID]),
+      e => e.code === '42501', 'payments cannot insert without an owner context');
+    for (const column of ['used','reserved','owner_id','exam_id']) {
+      await assert.rejects(pools.payments.query(`UPDATE ${entitlements} SET ${column}=${column}`),
+        e => e.code === '42501', `payments cannot update ${column}`);
+    }
+    await assert.rejects(pools.payments.query(`DELETE FROM ${entitlements}`),
+      e => e.code === '42501', 'payments cannot delete balances');
     // Behaviour, not only catalogue flags: the provisioner's former INSERT and SELECT are refused.
     await assert.rejects(pools.provisioner.query(
       `INSERT INTO ${entitlements}(owner_id, exam_id, allowance) VALUES ($1, $2, 999)`, [owner, INITIAL_EXAM_ID]),
@@ -327,7 +354,7 @@ check('the-persistent-provisioner-and-runtime-roles-cannot-mint-credits', async 
   try {
     if (seedError) throw seedError;
     assert.deepEqual(upgraded.applied, [], 'the upgrade cleanup applies no migration');
-    assertNoMinting(await privileges(upgraded.admin), 'after re-provisioning an upgraded installation');
+    assertCreditAuthority(await privileges(upgraded.admin), 'after re-provisioning an upgraded installation');
     assert.deepEqual(await leftoverPolicies(upgraded.admin), [], 'leftover provisioner policies are dropped');
     await assert.rejects(upgraded.provisioner.query(
       `INSERT INTO ${entitlements}(owner_id, exam_id, allowance) VALUES ($1, $2, 999)`, [owner, INITIAL_EXAM_ID]),
