@@ -94,6 +94,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
   /** Live, owned attempt or 404. Locked for the writer paths. */
   async function owned(client, owner, id) {
     await lockMockOwner(client,owner);
+    const exam=await attemptExam(client,owner,id);
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[exam]);
     const attempt = first(await client.query(
       'SELECT * FROM attempts WHERE id = $1 AND owner_id = $2 FOR UPDATE', [id, owner]));
     if (!attempt || attempt.deleted_at) fail(404, 'not_found');
@@ -120,14 +122,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     const identity=await readWritingTask(client,binding.taskId,binding.taskVersion);
     if (!historical && (!identity || !(await readCurrentReleaseEligibility(client, identity.exam_id, { catalogue: examCatalogue, lock: true })).eligible))
       fail(422, 'task_not_servable');
-    if(identity?.source_path?.startsWith('content/exams/')) await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[identity.exam_id]);
+    if(identity) await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[identity.exam_id]);
     const policy = contentPolicy();
     const row = first(await client.query(
       `SELECT t.exam_id FROM task_version t
-         JOIN content_version c ON c.content_version_id = t.content_version_id
+         JOIN reviewed_content_version c ON c.content_version_id = t.content_version_id
          LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
          JOIN rubric_version r ON r.rubric_id = t.rubric_id AND r.version = t.rubric_version
-         JOIN content_version rc ON rc.content_version_id = r.content_version_id
+         JOIN reviewed_content_version rc ON rc.content_version_id = r.content_version_id
          LEFT JOIN content_rights rr ON rr.content_version_id = rc.content_version_id
         WHERE t.task_id = $1 AND t.version = $2 AND t.rubric_id = $3 AND t.rubric_version = $4
           AND r.exam_id = t.exam_id
@@ -154,6 +156,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
   }
 
   async function lockBalance(client, owner, examId) {
+    await lockMockOwner(client,owner);
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[examId]);
     return first(await client.query(
       'SELECT * FROM entitlements WHERE owner_id = $1 AND exam_id = $2 FOR UPDATE', [owner, examId]));
   }
@@ -175,21 +179,23 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
 
   // Call only after proving ownership of an attempt. These immutable historical records are
   // deliberately readable when the current deployment no longer offers them for new practice.
-  async function writingContext(client,attempt) {
+  async function writingContext(client,attempt,{completed=false}={}) {
     const attached=first(await client.query(`SELECT r.* FROM mock_writing w JOIN mock_run r ON r.id=w.run_id AND r.owner_id=w.owner_id WHERE w.attempt_id=$1 AND w.owner_id=$2`,[attempt.id,attempt.owner_id]));
     const origin=await readWritingOrigin(client,attempt.id,attempt.owner_id);
     const t=await readWritingTask(client,attempt.task_id,attempt.task_version);
-    let blocked=null;
+    let blocked=await writingAccess(client,t,{historical:true,completed});
     let writingSection=null;
+    let reviewWithdrawn=Boolean(t?.review_explicit_negative||t?.rubric_review_explicit_negative);
     if(t?.source_path?.startsWith('content/exams/') || origin) {
-      blocked=!examCatalogue.isEnabled(t.exam_id)?'exam_unavailable':await writingAccess(client,t,{historical:true});
+      blocked=blocked||(!examCatalogue.isEnabled(t?.exam_id)?'exam_unavailable':null);
       if(origin&&!blocked) {
-        const bundle=await readReleasedForm(client,{examId:origin.exam_id,formId:origin.form_id,formVersion:origin.form_version,releaseVersion:origin.release_version});
+        const bundle=await readReleasedForm(client,{examId:origin.exam_id,formId:origin.form_id,formVersion:origin.form_version,releaseVersion:origin.release_version,completed});
         blocked=bundle?.blockedReason??(!bundle?'content_unavailable':null);
+        reviewWithdrawn ||= Boolean(bundle?.reviewWithdrawn);
         writingSection=bundle?.writingTask?.section??bundle?.writingChoices?.[0]?.section??null;
       }
     }
-    return {mock_run_id:attached?.id??null,blocked_reason:blocked,attached,writingSection};
+    return {mock_run_id:attached?.id??null,blocked_reason:blocked,review_withdrawn:reviewWithdrawn,review_basis:t?.review_basis??null,attached,writingSection};
   }
   async function requireWritingMutation(client,attempt,{standalone=false}={}) {
     if(attempt.exam_id) await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[attempt.exam_id]);
@@ -202,8 +208,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       await requireMockGroup(client,context.attached.id,context.writingSection);
     }
   }
-  async function historicalContent(client, attempt) {
-    const {mock_run_id,blocked_reason}=await writingContext(client,attempt);
+  async function historicalContent(client, attempt,{completed=false}={}) {
+    const {mock_run_id,blocked_reason,review_withdrawn,review_basis}=await writingContext(client,attempt,{completed});
     if(blocked_reason) return {task:null,rubric:null,mock_run_id,blocked_reason};
     const task = first(await client.query(
       `SELECT task_id, version, rubric_id, rubric_version, exam_id, family, register, topic,
@@ -211,12 +217,12 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       [attempt.task_id, attempt.task_version]));
     const rubric = first(await client.query(
       `SELECT r.rubric_id, r.version, r.criteria, r.max_total, r.family, r.exam_id, r.policy, r.feedback_kind,
-              c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status,
+              c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative, COALESCE(cr.basis, c.rights_status) AS rights_status,
               c.review_status <> 'approved' AS provisional
-         FROM rubric_version r JOIN content_version c ON c.content_version_id = r.content_version_id
+         FROM rubric_version r JOIN reviewed_content_version c ON c.content_version_id = r.content_version_id
          LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
         WHERE r.rubric_id = $1 AND r.version = $2`, [attempt.rubric_id, attempt.rubric_version]));
-    return { task: task ?? null, rubric: rubric ?? null, mock_run_id, blocked_reason };
+    return { task: task ?? null, rubric: rubric ?? null, mock_run_id, blocked_reason, review_withdrawn, review_basis };
   }
 
   return Object.freeze({
@@ -253,14 +259,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const rows = (await client.query(
           `SELECT t.task_id, t.version, t.family, t.register, t.topic, t.situation, t.adressat,
                   t.leitpunkte, t.rubric_id, t.rubric_version, t.exam_id, t.created_at,
-                  c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
+                  c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM task_version t
-             JOIN content_version c ON c.content_version_id = t.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = t.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
              -- The declared rubric must be servable too (EXAM-S0), or the card would offer a task that
              -- create() refuses. Same rule as requireServableBinding: task AND rubric.
              JOIN rubric_version r ON r.rubric_id = t.rubric_id AND r.version = t.rubric_version
-             JOIN content_version rc ON rc.content_version_id = r.content_version_id
+             JOIN reviewed_content_version rc ON rc.content_version_id = r.content_version_id
                   LEFT JOIN content_rights rr ON rr.content_version_id = rc.content_version_id
             WHERE t.exam_id = COALESCE($1, t.exam_id) AND t.exam_id = ANY($5::text[])
               AND ($2::text IS NULL OR t.family = $2)
@@ -289,7 +295,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           leitpunkte: row.leitpunkte,
           rubric_id: row.rubric_id,
           rubric_version: row.rubric_version,
-          review_status: row.review_status,
+          review_status: row.review_status, review_basis: row.review_basis,
           rights_status: row.rights_status,
         }));
       }, true);
@@ -329,9 +335,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const rows = (await client.query(
           `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title,
                   s.item_count, s.media_required, ${objectiveInteractionSql()} AS interaction,
-                  c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
+                  c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM objective_set s
-             JOIN content_version c ON c.content_version_id = s.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.exam_id = COALESCE($1, s.exam_id) AND s.exam_id = ANY($7::text[])
               AND ($2::text IS NULL OR s.family = $2)
@@ -354,7 +360,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           item_count: row.item_count,
           interaction: row.interaction,
           media_required: row.media_required,
-          review_status: row.review_status,
+          review_status: row.review_status, review_basis: row.review_basis,
           rights_status: row.rights_status,
         }));
       }, true);
@@ -371,9 +377,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       const row = await settle(owner, async (client) => {
         const found = first(await client.query(
         `SELECT s.set_id, s.version, s.exam_id, s.family, s.section, s.part, s.title, s.payload,
-                s.item_count, s.media_required, ${objectiveInteractionSql()} AS interaction, c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
+                s.item_count, s.media_required, ${objectiveInteractionSql()} AS interaction, c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative, COALESCE(cr.basis, c.rights_status) AS rights_status
            FROM objective_set s
-           JOIN content_version c ON c.content_version_id = s.content_version_id
+           JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
           WHERE s.set_id = $1 AND s.version = $2
             AND c.review_status = ANY($3::text[])
@@ -390,7 +396,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         set_id: row.set_id, version: row.version, exam_id: row.exam_id, family: row.family,
         section: row.section, part: row.part, title: row.title, payload: row.payload,
         item_count: row.item_count, media_required: row.media_required, interaction: row.interaction,
-        review_status: row.review_status, rights_status: row.rights_status,
+        review_status: row.review_status, review_basis: row.review_basis, rights_status: row.rights_status,
       };
     },
     /**
@@ -414,9 +420,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT v.entry_id, v.exam_id, v.de, v.en, v.pos, v.plural, v.example, v.example_en,
-                  c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
+                  c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM vocab_entry v
-             JOIN content_version c ON c.content_version_id = v.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = v.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE v.exam_id = COALESCE($1, v.exam_id)
               AND ($2::text IS NULL OR v.pos = $2)
@@ -435,7 +441,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           plural: row.plural,
           example: row.example,
           example_en: row.example_en,
-          review_status: row.review_status,
+          review_status: row.review_status, review_basis: row.review_basis,
           rights_status: row.rights_status,
         }));
       });
@@ -456,9 +462,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT n.entry_id, n.exam_id, n.de, n.en, n.gender, n.plural, n.rule, n.rule_en, n.theme,
-                  n.example, n.example_en, c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
+                  n.example, n.example_en, c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM noun_entry n
-             JOIN content_version c ON c.content_version_id = n.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = n.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE n.exam_id = COALESCE($1, n.exam_id)
               AND ($2::text IS NULL OR n.theme = $2)
@@ -481,7 +487,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           theme: row.theme,
           example: row.example,
           example_en: row.example_en,
-          review_status: row.review_status,
+          review_status: row.review_status, review_basis: row.review_basis,
           rights_status: row.rights_status,
         }));
       });
@@ -499,9 +505,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       return settle(owner, async (client) => {
         const rows = (await client.query(
           `SELECT g.guide_id, g.family, g.title, g.intro, g.section_count,
-                  c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
+                  c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM guide g
-             JOIN content_version c ON c.content_version_id = g.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = g.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE g.exam_id = COALESCE($1, g.exam_id)
               AND c.review_status = ANY($2::text[])
@@ -514,7 +520,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           title: row.title,
           intro: row.intro,
           section_count: row.section_count,
-          review_status: row.review_status,
+          review_status: row.review_status, review_basis: row.review_basis,
           rights_status: row.rights_status,
         }));
       });
@@ -545,9 +551,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       return settle(owner, async (client) => {
         const row = first(await client.query(
           `SELECT r.rubric_id, r.version, r.family, r.criteria, r.max_total, r.exam_id, r.policy, r.feedback_kind,
-                  c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
+                  c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM rubric_version r
-             JOIN content_version c ON c.content_version_id = r.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = r.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE r.rubric_id = $1 AND r.version = $2 AND c.review_status = ANY($3::text[])
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
@@ -568,7 +574,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           exam_id: row.exam_id,
           max_total: row.max_total===null?null:Number(row.max_total),
           criteria: row.criteria,
-          review_status: row.review_status,
+          review_status: row.review_status, review_basis: row.review_basis,
           rights_status: row.rights_status,
           provisional: row.review_status !== 'approved',
         };
@@ -580,9 +586,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       return settle(owner, async (client) => {
         const head = (await client.query(
           `SELECT g.guide_id, g.family, g.title, g.intro, g.intro_en, g.watch_out, g.watch_out_en,
-                  g.section_count, c.review_status, COALESCE(cr.basis, c.rights_status) AS rights_status
+                  g.section_count, c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative, COALESCE(cr.basis, c.rights_status) AS rights_status
              FROM guide g
-             JOIN content_version c ON c.content_version_id = g.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = g.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE g.guide_id = $1 AND c.review_status = ANY($2::text[])
               AND COALESCE(cr.basis, c.rights_status) = ANY($3::text[])`,
@@ -603,7 +609,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           watch_out: head.watch_out,
           watch_out_en: head.watch_out_en,
           section_count: head.section_count,
-          review_status: head.review_status,
+          review_status: head.review_status, review_basis: head.review_basis,
           rights_status: head.rights_status,
           sections: sections.map((row) => ({
             section_id: row.section_id,
@@ -648,7 +654,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const set = first(await client.query(
           `SELECT s.exam_id, s.family, s.section, s.version
              FROM objective_set s
-             JOIN content_version c ON c.content_version_id = s.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.set_id = $1 AND s.version = $2 AND c.review_status = ANY($3::text[])
               AND s.media_required = false
@@ -712,7 +718,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const sections = (await client.query(
           `SELECT s.section, min(s.family) AS family
              FROM objective_set s
-             JOIN content_version c ON c.content_version_id = s.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
                     LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.media_required = false
               AND ${importedSetGate()}
@@ -760,7 +766,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                     WHERE e.owner_id = $3 AND e.preparation_id = $6
                       AND e.set_id = s.set_id AND e.version = s.version) AS seen
              FROM objective_set s
-             JOIN content_version c ON c.content_version_id = s.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
                     LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.section = $1
               AND s.media_required = false
@@ -864,7 +870,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                   s.title, s.item_count
              FROM latest l
              JOIN objective_set s ON s.set_id = l.set_id AND s.version = l.version
-             JOIN content_version c ON c.content_version_id = s.content_version_id
+             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
             WHERE l.correct = false
               AND ${importedSetGate()}
             ORDER BY l.answered_at DESC, l.set_id, l.version, l.item_id
@@ -909,6 +915,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         let text = '';
         let prepId = preparationId;
         if (parent) {
+          const identity=first(await client.query('SELECT a.exam_id FROM submissions s JOIN attempts a ON a.id=s.attempt_id AND a.owner_id=s.owner_id WHERE s.id=$1 AND s.owner_id=$2',[parent,owner]));
+          if(!identity)fail(404,'not_found');
+          await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[identity.exam_id]);
           const parentRow = first(await client.query(
             `SELECT a.id,a.owner_id,a.exam_id,a.task_id, s.task_version, a.rubric_id, s.rubric_version, s.text, a.preparation_id
                FROM submissions s JOIN attempts a ON a.id = s.attempt_id
@@ -1043,14 +1052,16 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         for (const run of mock_runs) {
           if (!run.result) continue;
           const bundle = await readReleasedForm(client, { examId: run.exam_id, formId: run.form_id,
-            formVersion: run.form_version, releaseVersion: run.release_version });
+            formVersion: run.form_version, releaseVersion: run.release_version,completed:run.state==='finalised' });
           if (!bundle || bundle.blockedReason) run.result = null;
+          run.review_withdrawn=Boolean(bundle?.reviewWithdrawn);run.review_basis=bundle?.reviewBasis??null;
         }
         for(const result of results) {
           const submission=submissions.find(s=>s.id===result.submission_id);
           if(submission) {
-            const context=await writingContext(client,{id:submission.attempt_id,owner_id:owner,task_id:submission.task_id,task_version:submission.task_version});
+            const context=await writingContext(client,{id:submission.attempt_id,owner_id:owner,task_id:submission.task_id,task_version:submission.task_version},{completed:Boolean(result.feedback)});
             if(context.blocked_reason) result.feedback=null;
+            result.review_withdrawn=context.review_withdrawn;result.review_basis=context.review_basis;
           }
         }
         const payment_orders = (await client.query(`SELECT id,exam_id,product_id,market,currency,amount_minor,allowance,term_days,status,created_at,paid_at
@@ -1134,13 +1145,13 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const examId = await attemptExam(client, owner, id);
         const entitlement = examId ? await lockBalance(client, owner, examId) : null;
         const attempt = await owned(client, owner, id);
-        await requireWritingMutation(client,attempt,{standalone:true});
         const prior = first(await client.query(
           'SELECT * FROM submissions WHERE owner_id = $1 AND event_id = $2', [owner, eventId]));
         if (prior) {
           if (prior.attempt_id !== attempt.id || prior.draft_revision !== expectedRevision) fail(409, 'idempotency_conflict');
           return { submissionId: prior.id, replay: true };
         }
+        await requireWritingMutation(client,attempt,{standalone:true});
         // An unresolved legacy attempt stays readable, but cannot spend a credit of a guessed exam.
         if (!attempt.preparation_id || !attempt.exam_id) fail(422, 'preparation_unresolved');
         await requireActivePreparation(client, owner, attempt.preparation_id);
@@ -1187,7 +1198,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           'SELECT status, failure_code, tries FROM jobs WHERE submission_id = $1', [submissionId]));
         const assessment = first(await client.query(
           'SELECT feedback, model_version, prompt_version, rubric_version FROM assessments WHERE submission_id = $1', [submissionId]));
-        const content=await historicalContent(client,attempt);
+        const content=await historicalContent(client,attempt,{completed:Boolean(assessment)});
         const attachment=first(await client.query('SELECT failure_code FROM mock_writing WHERE submission_id=$1 AND owner_id=$2',[submissionId,owner]));
         return { submission, job:job??(attachment?.failure_code?{status:'unassessed',failure_code:attachment.failure_code,tries:0}:null), assessment:content.blocked_reason?null:assessment ?? null,
           task_id: attempt.task_id, task_version: submission.task_version,

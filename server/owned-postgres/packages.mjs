@@ -1,5 +1,5 @@
 /** Exact package publication reads. Caller owns transaction and session context. */
-import { contentPolicy, contentIsServable } from '../content-policy.mjs';
+import { contentPolicy, contentIsServable, contentBlockReason } from '../content-policy.mjs';
 import { objectiveItems, validatePlayback, validateCompleteForm, validateCompleteMembers } from '../package-contract.mjs';
 
 function permittedStates() { return contentPolicy().mode==='internal-preview' ? ['internal','available'] : contentPolicy().mode==='public' ? ['available'] : []; }
@@ -44,7 +44,7 @@ export async function releasedObjectiveFamily(client,examId,family) {
   return row.allowed;
 }
 
-export async function readReleasedForm(client,{examId,formId,formVersion,releaseVersion,newStart=false}) {
+export async function readReleasedForm(client,{examId,formId,formVersion,releaseVersion,newStart=false,completed=false}) {
   const release=(await client.query(`SELECT r.* FROM exam_release r JOIN exam_release_form rf
     ON rf.exam_id=r.exam_id AND rf.release_version=r.version
     WHERE r.exam_id=$1 AND r.version=$2 AND rf.form_id=$3 AND rf.form_version=$4`,[examId,releaseVersion,formId,formVersion])).rows[0];
@@ -55,16 +55,22 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
   if (newStart && (!head || head.version!==releaseVersion || !permittedStates().includes(release.state) || blockedReason)) return null;
   const form=(await client.query('SELECT * FROM exam_form WHERE exam_id=$1 AND form_id=$2 AND version=$3',[examId,formId,formVersion])).rows[0];
   if (!form || form.blueprint_version!==release.blueprint_version) return null;
+  const formatReviews=(await client.query(`SELECT * FROM effective_format_review($1,'form',$2,$3) UNION ALL SELECT * FROM effective_format_review($1,'blueprint',$1,$4)`,[examId,formId,formVersion,form.blueprint_version])).rows;
+  const reviewRows=[...formatReviews];
+  for(const review of formatReviews) if (!(completed&&['approved','unreviewed','rejected','withdrawn'].includes(review.review_status)) && (review.blocked||!contentPolicy().review.includes(review.review_status))) {if(newStart)return null;blockedReason ||= 'review_blocked';}
   const rows=(await client.query(`SELECT s.set_id,s.version,s.exam_id,s.family,s.section,s.part,s.title,s.payload,s.item_count,s.media_required,
-    m.position,m.interaction,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status
+    m.position,m.interaction,c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative,COALESCE(cr.basis,c.rights_status) AS rights_status
     FROM exam_form_member m JOIN objective_set s ON s.set_id=m.set_id AND s.version=m.set_version AND s.exam_id=m.exam_id
-    JOIN content_version c ON c.content_version_id=s.content_version_id LEFT JOIN content_rights cr ON cr.content_version_id=c.content_version_id
+    JOIN reviewed_content_version c ON c.content_version_id=s.content_version_id LEFT JOIN content_rights cr ON cr.content_version_id=c.content_version_id
     WHERE m.exam_id=$1 AND m.form_id=$2 AND m.form_version=$3 ORDER BY m.position`,[examId,formId,formVersion])).rows;
   if (rows.length!==form.payload.members.length) return null;
   for (const row of rows) {
     try { if(objectiveItems(row.payload,row.interaction).length!==row.item_count||row.media_required!==(row.interaction==='fixed_audio')) return null; } catch { return null; }
   }
-  const writingChoices=[],reviews=rows.map(r=>r.review_status);
+  const writingChoices=[],reviews=[...formatReviews.map(r=>r.review_status),...rows.map(r=>r.review_status)];
+  reviewRows.push(...rows);
+  const checkContent=row=>contentBlockReason(row,{completed});
+  const checkWriting=task=>writingBlockReason(task,{completed});
   const media=[],mediaIds=new Set();
   let blueprint,writingTask=null,timeGroups=[];
   if(rows.some(row=>row.media_required)||form.payload.writingTask||form.payload.scope==='complete_supported_written') {
@@ -77,7 +83,7 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
       validateCompleteMembers(examId,blueprint,form.payload,rows);
     } catch {return null;}
     // A complete form is one pinned rights boundary, including its reading/language parts.
-    if(rows.some(row=>!contentIsServable(row))) {if(newStart) return null;blockedReason ||= 'rights_blocked';}
+    for(const row of rows) {const reason=checkContent(row);if(reason){if(newStart)return null;if(reason==='rights_blocked'||!blockedReason)blockedReason=reason;}}
   }
   if(rows.some(row=>row.media_required)) {
     if(!['practice','mock'].includes(form.payload.attemptMode)) return null;
@@ -90,17 +96,18 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
         const identity=recording.mediaId+'@'+recording.mediaVersion;
         if(mediaIds.has(identity)) return null;
         mediaIds.add(identity);
-        const asset=(await client.query(`SELECT m.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status
-          FROM exam_media m JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id)
+        const asset=(await client.query(`SELECT m.*,c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative,COALESCE(cr.basis,c.rights_status) AS rights_status
+          FROM exam_media m JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id)
           WHERE m.media_id=$1 AND m.version=$2 AND m.exam_id=$3`,[recording.mediaId,recording.mediaVersion,examId])).rows[0];
         if(!asset) return null;
-        if(!contentIsServable(asset)) {if(newStart) return null;blockedReason ||= 'rights_blocked';}
+        {const reason=checkContent(asset);if(reason){if(newStart)return null;if(reason==='rights_blocked'||!blockedReason)blockedReason=reason;}}
+        reviewRows.push(asset);
         reviews.push(asset.review_status);
         media.push(asset);
         row.recordings.push({id:recording.id,media_id:asset.media_id,media_version:asset.version,label:recording.label,
           duration_ms:asset.duration_ms,mime_type:asset.mime_type,max_plays:allowance});
       }
-      if(!contentIsServable(row)) {if(newStart) return null;blockedReason ||= 'rights_blocked';}
+      {const reason=checkContent(row);if(reason){if(newStart)return null;if(reason==='rights_blocked'||!blockedReason)blockedReason=reason;}}
     }
   }
   for(const choice of form.payload.writingChoices||[]) {
@@ -108,7 +115,8 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
     for(const option of choice.options) {
       const task=await readWritingTask(client,option.taskId,option.taskVersion);
       if(!task||task.exam_id!==examId||task.section!==choice.section) return null;
-      if(!writingServable(task)) { if(newStart) return null; blockedReason ||= 'rights_blocked'; }
+      {const reason=checkWriting(task);if(reason){if(newStart)return null;if(reason==='rights_blocked'||!blockedReason)blockedReason=reason;}}
+      reviewRows.push(task,{review_basis:task.rubric_review_basis,review_explicit_negative:task.rubric_review_explicit_negative});
       reviews.push(task.review_status,task.rubric_review_status);
       options.push({id:option.id,task:writingTaskDto(task)});
     }
@@ -118,12 +126,16 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
     const binding=form.payload.writingTask,part=blueprint.sections.find(s=>s.id===binding.section)?.parts.find(p=>p.family==='writing');
     const task=await readWritingTask(client,binding.taskId,binding.taskVersion);
     if(form.payload.writingChoices!==undefined||examId!=='telc-deutsch-b1'||blueprint.exam?.language!=='de'||binding.section!=='writing'||!form.payload.sections.includes(binding.section)||part?.interaction!=='extended_writing'||part.itemCount!==1||part.mediaRequired||!task||task.exam_id!==examId||task.family!=='writing'||task.section!==binding.section||task.rubric_id!=='writing.telc-b1'||task.rubric_version!=='v1') return null;
-    if(!writingServable(task)) {if(newStart) return null;blockedReason ||= 'rights_blocked';}
+    {const reason=checkWriting(task);if(reason){if(newStart)return null;if(reason==='rights_blocked'||!blockedReason)blockedReason=reason;}}
+      reviewRows.push(task,{review_basis:task.rubric_review_basis,review_explicit_negative:task.rubric_review_explicit_negative});
     reviews.push(task.review_status,task.rubric_review_status);
     writingTask={section:binding.section,task:writingTaskDto(task)};
   }
+  for(const row of rows) if(row.review_explicit_negative&&!completed) blockedReason ||= 'review_blocked';
   if (newStart && rows.some(r=>!contentIsServable(r))) return null;
   return {release,form,members:blockedReason?[]:rows,media:blockedReason?[]:media,writingChoices:blockedReason?[]:writingChoices,writingTask:blockedReason?null:writingTask,timeGroups,blockedReason,
+    reviewWithdrawn:reviewRows.some(r=>r.review_explicit_negative||r.explicit_negative),
+    reviewBasis:reviewRows.every(r=>r.review_basis==='named_decision')?'named_decision':reviewRows.some(r=>r.review_basis==='legacy_unattributed')?'legacy_unattributed':'none',
     reviewStatus:reviews.length && reviews.every(r=>r==='approved')?'approved':'unreviewed'};
 }
 
@@ -140,31 +152,36 @@ export async function listReleasedForms(client,examId) {
       release_state:release.state,form_id:form.form_id,version:form.version,title:form.payload.title,scope:form.payload.scope,sections:form.payload.sections,
       mode:form.payload.mode,time_limit_seconds:form.payload.timeLimitSeconds,writing_choice_count:(form.payload.writingChoices||[]).length,writing_task_count:form.payload.writingTask?1:0,item_count:members.reduce((n,m)=>n+m.item_count,0),
       ...(form.payload.attemptMode?{attempt_mode:form.payload.attemptMode}:{}),
-      review_status:item.reviewStatus});
+      review_status:item.reviewStatus,review_basis:item.reviewBasis});
   }
   return forms;
 }
 
 /** Full immutable writing binding; never chooses a latest rubric version. */
 export async function readWritingTask(client,taskId,version) {
- return (await client.query(`SELECT t.*,c.source_path,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status,
- r.criteria,r.max_total,r.policy,r.feedback_kind,rc.review_status AS rubric_review_status,
+ return (await client.query(`SELECT t.*,c.source_path,c.review_status,c.review_basis,c.review_blocked,c.review_explicit_negative,COALESCE(cr.basis,c.rights_status) AS rights_status,
+ r.criteria,r.max_total,r.policy,r.feedback_kind,rc.review_status AS rubric_review_status,rc.review_basis AS rubric_review_basis,rc.review_blocked AS rubric_review_blocked,rc.review_explicit_negative AS rubric_review_explicit_negative,
  COALESCE(rr.basis,rc.rights_status) AS rubric_rights_status
- FROM task_version t JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id)
+ FROM task_version t JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id)
  JOIN rubric_version r ON r.rubric_id=t.rubric_id AND r.version=t.rubric_version AND r.exam_id=t.exam_id
- JOIN content_version rc ON rc.content_version_id=r.content_version_id LEFT JOIN content_rights rr ON rr.content_version_id=rc.content_version_id
+ JOIN reviewed_content_version rc ON rc.content_version_id=r.content_version_id LEFT JOIN content_rights rr ON rr.content_version_id=rc.content_version_id
  WHERE t.task_id=$1 AND t.version=$2`,[taskId,version])).rows[0];
 }
-export function writingServable(t) { return contentIsServable(t)&&contentIsServable({review_status:t.rubric_review_status,rights_status:t.rubric_rights_status}); }
+export function writingBlockReason(t,{completed=false}={}) {
+ const reasons=[contentBlockReason(t,{completed}),contentBlockReason(t&&{review_status:t.rubric_review_status,rights_status:t.rubric_rights_status,review_blocked:t.rubric_review_blocked,review_explicit_negative:t.rubric_review_explicit_negative},{completed})];
+ return reasons.includes('rights_blocked')?'rights_blocked':reasons.find(Boolean)??null;
+}
+export function writingServable(t) { return writingBlockReason(t)===null; }
 export function writingTaskDto(t) {
- const {task_id,version,exam_id,family,section,register,topic,situation,adressat,leitpunkte,rubric_id,rubric_version,review_status,rights_status}=t;
- return {task_id,version,exam_id,family,section,register,topic,situation,adressat,leitpunkte,rubric_id,rubric_version,review_status,rights_status};
+ const {task_id,version,exam_id,family,section,register,topic,situation,adressat,leitpunkte,rubric_id,rubric_version,review_status,review_basis,rights_status}=t;
+ return {task_id,version,exam_id,family,section,register,topic,situation,adressat,leitpunkte,rubric_id,rubric_version,review_status,review_basis,rights_status};
 }
 /** Imported standalone discovery uses current membership; owned resumes may use an older eligible release. */
-export async function writingAccess(client,t,{historical=false}={}) {
+export async function writingAccess(client,t,{historical=false,completed=false}={}) {
  if(!t) return 'content_unavailable';
+ const reason=writingBlockReason(t,{completed});
+ if(reason)return reason;
  if(!t.source_path?.startsWith('content/exams/')) return null;
- if(!writingServable(t)) return 'rights_blocked';
  const rows=(await client.query(`SELECT r.version,r.state,h.release_version AS head_version,head.manifest AS head_manifest
  FROM exam_release r JOIN exam_release_form rf ON rf.exam_id=r.exam_id AND rf.release_version=r.version
  JOIN exam_form f ON f.exam_id=rf.exam_id AND f.form_id=rf.form_id AND f.version=rf.form_version

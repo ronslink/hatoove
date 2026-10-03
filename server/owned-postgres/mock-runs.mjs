@@ -43,7 +43,7 @@ function runDto(row, bundle, summary = false) {
   const blocked = bundle?.blockedReason ?? (!bundle ? 'content_unavailable' : null);
   const dto = {
     id: row.id, preparation_id: row.preparation_id, exam_id: row.exam_id, release_version: row.release_version,
-    release_state: bundle?.release.state ?? null, review_status: bundle?.reviewStatus ?? null,
+    release_state: bundle?.release.state ?? null, review_status: bundle?.reviewStatus ?? null,review_basis:bundle?.reviewBasis??null,review_withdrawn:Boolean(bundle?.reviewWithdrawn),
     blueprint_version: row.blueprint_version, form_id: row.form_id, form_version: row.form_version,
     title: row.title, scope: row.scope, mode: row.mode, state: row.state, revision: Number(row.revision),
     attempt_mode: bundle?.form.payload.attemptMode ?? null,
@@ -97,7 +97,7 @@ export function mockRunMethods({ settle, note = () => {}, catalogue }) {
   const transaction = (owner, work, snapshot = false) => settle(owner, work, snapshot).catch(sqlFault);
   async function bundleOf(client, row, newStart = false) {
     const bundle = await readReleasedForm(client, { examId: row.exam_id, formId: row.form_id, formVersion: row.form_version,
-      releaseVersion: row.release_version, newStart });
+      releaseVersion: row.release_version, newStart, completed:row.state==='finalised' });
     if (bundle && !bundle.blockedReason && ['internal','hidden'].includes(bundle.release.state) && !catalogue.isEnabled(row.exam_id))
       return { ...bundle, blockedReason: 'exam_unavailable', members: [] };
     return bundle;
@@ -105,6 +105,7 @@ export function mockRunMethods({ settle, note = () => {}, catalogue }) {
   async function writable(client, owner, id) {
     await lockMockOwner(client, owner);
     const identity = await readRow(client, owner, id);
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[identity.exam_id]);
     const prep = await requireActivePreparation(client, owner, identity.preparation_id);
     enabled(catalogue, prep.exam_id);
     const row = await readRow(client, owner, id, true);
@@ -174,9 +175,10 @@ export function mockRunMethods({ settle, note = () => {}, catalogue }) {
         let row = await writable(client, owner, id);
         // A delayed save retry must never reopen or overwrite a finalised snapshot.
         if (row.state !== 'active') fail(409, 'mock_finalised');
-        const bundle = await bundleOf(client, row); writableBundle(bundle);
+        const bundle = await bundleOf(client, row);
         const replay = await receipt(client, owner, body.eventId, 'save', id, sha);
-        if (replay) return runDto(row, bundle); // Current-safe acknowledgement; no stale response overwrites.
+        if (replay) return runDto(row, bundle); // Acknowledges only the saved event, never permission for another write.
+        writableBundle(bundle);
         if (expired(row)) fail(409, 'mock_expired');
         if (row.revision !== body.expectedRevision) fail(409, 'mock_conflict');
         validatePinnedSnapshot(bundle.members, body.responses, body.position);
@@ -193,8 +195,9 @@ export function mockRunMethods({ settle, note = () => {}, catalogue }) {
       note('selectMockWriting'); const body=validateWritingChoice(input),sha=digest('writing_choice',id,body);
       return transaction(owner,async client=>{
         let row=await writable(client,owner,id);
-        const bundle=await bundleOf(client,row);writableBundle(bundle);
+        const bundle=await bundleOf(client,row);
         if(await receipt(client,owner,body.eventId,'writing_choice',id,sha)) return runDto(row,bundle);
+        writableBundle(bundle);
         if(row.state!=='active') fail(409,'mock_finalised');
         if(expired(row)) fail(409,'mock_expired');
         if(row.writing) fail(409,'writing_choice_immutable');
@@ -213,9 +216,10 @@ export function mockRunMethods({ settle, note = () => {}, catalogue }) {
       note('finaliseMockRun'); const body = validateFinaliseMockRun(input); const sha = digest('finalise', id, body);
       return transaction(owner, async (client) => {
         let row = await writable(client, owner, id);
-        const bundle = await bundleOf(client, row); writableBundle(bundle);
+        const bundle = await bundleOf(client, row);
         const replay = await receipt(client, owner, body.eventId, 'finalise', id, sha);
         if (replay) return runDto(row, bundle);
+        writableBundle(bundle);
         if (row.state !== 'finalised') {
           if (row.revision !== body.expectedRevision) fail(409, 'mock_conflict');
           await client.query('SELECT finalise_mock_run($1,$2)', [id, body.expectedRevision]);

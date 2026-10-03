@@ -50,5 +50,14 @@ export function servableReview(serveReview, policy = contentPolicy()) {
 }
 
 export function contentIsServable(row, policy = contentPolicy()) {
-  return Boolean(row && policy.review.includes(row.review_status) && policy.rights.includes(row.rights_status));
+  return contentBlockReason(row, { policy }) === null;
+}
+
+/** Completed facts may survive an explicit review withdrawal, never an independent rights loss. */
+export function contentBlockReason(row, { policy = contentPolicy(), completed = false } = {}) {
+  if (!row) return 'content_unavailable';
+  if (!policy.rights.includes(row.rights_status)) return 'rights_blocked';
+  if (completed && ['approved','unreviewed','rejected','withdrawn'].includes(row.review_status)) return null;
+  if (row.review_blocked || row.review_explicit_negative || !policy.review.includes(row.review_status)) return 'review_blocked';
+  return null;
 }

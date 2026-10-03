@@ -18,6 +18,8 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
   try {
     const role=(await client.query(`SELECT current_user=(SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname=current_schema()) AS publisher`)).rows[0];
     if(!role.publisher) throw new Error('content publishing requires the schema-owner migration role');
+    // The current publisher requires the review consumer migration, including internal imports.
+    await client.query('SELECT content_version_id FROM reviewed_content_version LIMIT 0');
     // Reference-only releases also verify their immutable source bytes before BEGIN. Mutable
     // publication/rights decisions are read again inside the publisher transaction below.
     const verifiedMedia=new Set((p.media||[]).map(m=>m.mediaId+'@'+m.version));
@@ -48,7 +50,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
     for(const m of p.media||[]) {
       const digest=packageHash(m),cv=m.mediaId+'@'+m.version;
       const old=(await client.query(`SELECT m.*,c.content_sha256,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status
-        FROM exam_media m JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id)
+        FROM exam_media m JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id)
         WHERE media_id=$1 AND version=$2`,[m.mediaId,m.version])).rows[0];
       if(old&&(old.content_sha256!==digest||old.exam_id!==p.exam.id)) fail('changed media under existing version: '+m.mediaId);
       if(!old) {
@@ -65,7 +67,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
     for(const s of p.sets) {
       const digest=packageHash(s);
       const old=(await client.query(`SELECT s.*,c.content_sha256,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status
-        FROM objective_set s JOIN content_version c ON c.content_version_id=s.content_version_id
+        FROM objective_set s JOIN reviewed_content_version c ON c.content_version_id=s.content_version_id
         LEFT JOIN content_rights cr ON cr.content_version_id=c.content_version_id WHERE s.set_id=$1 AND s.version=$2`,[s.setId,s.version])).rows[0];
       if(old && (old.content_sha256!==digest || old.exam_id!==p.exam.id)) fail('changed set under existing version: '+s.setId);
       if(old) {sets.set(s.setId+'@'+s.version,old);continue;}
@@ -84,7 +86,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
     for(const r of p.rubrics||[]) {
       const cv=r.rubricId+'@'+r.version,digest=packageHash(r);
       const old=(await client.query(`SELECT r.*,c.content_sha256,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r
-        JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[r.rubricId,r.version])).rows[0];
+        JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[r.rubricId,r.version])).rows[0];
       if(old && (old.content_sha256!==digest||old.exam_id!==p.exam.id)) fail('changed rubric under existing version');
       if(!old) {
         plan('add rubric '+cv,`INSERT INTO content_version(content_version_id,kind,family,source_path,review_status,rights_status,content_sha256,exam_id)
@@ -96,10 +98,10 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
     }
     for(const t of p.writingTasks||[]) {
       const cv=t.taskId+'@'+t.version,digest=packageHash(t);
-      const r=rubrics.get(t.rubricId+'@'+t.rubricVersion)||(await client.query(`SELECT r.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[t.rubricId,t.rubricVersion])).rows[0];
+      const r=rubrics.get(t.rubricId+'@'+t.rubricVersion)||(await client.query(`SELECT r.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[t.rubricId,t.rubricVersion])).rows[0];
       if(!r||r.exam_id!==p.exam.id||!['generated','licensed','commissioned'].includes(r.rights_status)) fail('missing or incompatible exact rubric');
       const old=(await client.query(`SELECT t.*,c.content_sha256,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM task_version t
-        JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE task_id=$1 AND version=$2`,[t.taskId,t.version])).rows[0];
+        JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE task_id=$1 AND version=$2`,[t.taskId,t.version])).rows[0];
       if(old && (old.content_sha256!==digest||old.exam_id!==p.exam.id)) fail('changed writing task under existing version');
       if(!old) {
         plan('add writing task '+cv,`INSERT INTO content_version(content_version_id,kind,family,source_path,review_status,rights_status,content_sha256,exam_id)
@@ -121,7 +123,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
         const key=m.setId+'@'+m.version;
         let set=sets.get(key);
         if(!set) set=(await client.query(`SELECT s.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status
-          FROM objective_set s JOIN content_version c ON c.content_version_id=s.content_version_id
+          FROM objective_set s JOIN reviewed_content_version c ON c.content_version_id=s.content_version_id
           LEFT JOIN content_rights cr ON cr.content_version_id=c.content_version_id WHERE s.set_id=$1 AND s.version=$2`,[m.setId,m.version])).rows[0];
         if(!set || set.exam_id!==p.exam.id || set.media_required!==(m.interaction==='fixed_audio') || set.item_count!==m.itemCount || !f.sections.includes(set.section)) fail('missing or incompatible exact set: '+key);
         resolvedMembers.push(set);
@@ -139,7 +141,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
             let asset=media.get(identity);
             if(!asset) {
               asset=(await client.query(`SELECT m.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status
-                FROM exam_media m JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id)
+                FROM exam_media m JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id)
                 WHERE media_id=$1 AND version=$2`,[recording.mediaId,recording.mediaVersion])).rows[0];
               if(asset) media.set(identity,asset);
             }
@@ -165,10 +167,10 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
       for(const choice of f.writingChoices||[]) {
         let family;
         for(const o of choice.options) {
-          const t=writingTasks.get(o.taskId+'@'+o.taskVersion)||(await client.query(`SELECT t.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM task_version t JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE task_id=$1 AND version=$2`,[o.taskId,o.taskVersion])).rows[0];
+          const t=writingTasks.get(o.taskId+'@'+o.taskVersion)||(await client.query(`SELECT t.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM task_version t JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE task_id=$1 AND version=$2`,[o.taskId,o.taskVersion])).rows[0];
           const part=p.blueprint.sections.find(x=>x.id===choice.section)?.parts.find(x=>x.family===t?.family);
           if(!t||t.exam_id!==p.exam.id||t.section!==choice.section||part?.interaction!=='writing_choice'||!['generated','licensed','commissioned'].includes(t.rights_status)) fail('missing or incompatible writing choice');
-          const r=rubrics.get(t.rubric_id+'@'+t.rubric_version)||(await client.query(`SELECT r.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[t.rubric_id,t.rubric_version])).rows[0];
+          const r=rubrics.get(t.rubric_id+'@'+t.rubric_version)||(await client.query(`SELECT r.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[t.rubric_id,t.rubric_version])).rows[0];
           if(!r||r.exam_id!==p.exam.id||!['generated','licensed','commissioned'].includes(r.rights_status)) fail('incompatible choice rubric');
           if(p.release.state==='available'&&(t.review_status!=='approved'||r.review_status!=='approved')) fail('writing needs qualified review');
           family=t.family;
@@ -177,9 +179,9 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
       }
       if(f.writingTask) {
         const binding=f.writingTask;
-        const t=writingTasks.get(binding.taskId+'@'+binding.taskVersion)||(await client.query(`SELECT t.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM task_version t JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE task_id=$1 AND version=$2`,[binding.taskId,binding.taskVersion])).rows[0];
+        const t=writingTasks.get(binding.taskId+'@'+binding.taskVersion)||(await client.query(`SELECT t.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM task_version t JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE task_id=$1 AND version=$2`,[binding.taskId,binding.taskVersion])).rows[0];
         if(!t||t.exam_id!==p.exam.id||t.family!=='writing'||t.section!==binding.section||t.rubric_id!=='writing.telc-b1'||t.rubric_version!=='v1'||!['generated','licensed','commissioned'].includes(t.rights_status)) fail('missing or incompatible assigned writing');
-        const r=rubrics.get(t.rubric_id+'@'+t.rubric_version)||(await client.query(`SELECT r.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r JOIN content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[t.rubric_id,t.rubric_version])).rows[0];
+        const r=rubrics.get(t.rubric_id+'@'+t.rubric_version)||(await client.query(`SELECT r.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[t.rubric_id,t.rubric_version])).rows[0];
         if(!r||r.exam_id!==p.exam.id||r.family!=='writing'||!['generated','licensed','commissioned'].includes(r.rights_status)) fail('incompatible assigned rubric');
         if(p.release.state==='available'&&(t.review_status!=='approved'||r.review_status!=='approved')) fail('writing needs qualified review');
         coverage.set(binding.section+':writing',(coverage.get(binding.section+':writing')||0)+1);
@@ -213,9 +215,37 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
       for(const f of p.forms) commands.push(['INSERT INTO exam_release_form(exam_id,release_version,form_id,form_version) VALUES($1,$2,$3,$4)',[p.exam.id,p.release.version,f.id,f.version]]);
       plan('activate release '+p.release.version,'INSERT INTO exam_release_head(exam_id,release_version) VALUES($1,$2) ON CONFLICT(exam_id) DO UPDATE SET release_version=excluded.release_version',[p.exam.id,p.release.version]);
     }
+    const reviewProof=[];
+    if(p.release.state==='available') {
+      // Public publication follows an internal import and exact named/baseline review. New
+      // raw-approved manifest flags cannot make a just-created identity eligible.
+      for(const f of p.forms) {
+        const allowed=(await client.query('SELECT form_review_allowed($1,$2,$3,true) AS allowed',[p.exam.id,f.id,f.version])).rows[0].allowed;
+        if(!allowed) fail('release needs effective exact form/member review: '+f.id);
+        const formats=(await client.query(`SELECT 'form' AS kind,$2::text AS subject_id,$3::text AS version,* FROM effective_format_review($1,'form',$2,$3)
+          UNION ALL SELECT 'blueprint',$1,$4,* FROM effective_format_review($1,'blueprint',$1,$4)`,[p.exam.id,f.id,f.version,p.blueprint.version])).rows;
+        const contents=(await client.query(`WITH members AS (
+          SELECT s.* FROM exam_form_member m JOIN objective_set s ON s.set_id=m.set_id AND s.version=m.set_version AND s.exam_id=m.exam_id
+          WHERE m.exam_id=$1 AND m.form_id=$2 AND m.form_version=$3
+        ), tasks AS (
+          SELECT t.* FROM exam_form f CROSS JOIN LATERAL (
+            SELECT o.value AS ref FROM jsonb_array_elements(coalesce(f.payload->'writingChoices','[]'::jsonb)) g CROSS JOIN LATERAL jsonb_array_elements(g->'options') o
+            UNION ALL SELECT f.payload->'writingTask' WHERE jsonb_typeof(f.payload->'writingTask')='object'
+          ) refs JOIN task_version t ON t.task_id=refs.ref->>'taskId' AND t.version=refs.ref->>'taskVersion' AND t.exam_id=f.exam_id
+          WHERE f.exam_id=$1 AND f.form_id=$2 AND f.version=$3
+        ), ids AS (
+          SELECT content_version_id FROM members UNION SELECT content_version_id FROM tasks
+          UNION SELECT r.content_version_id FROM tasks t JOIN rubric_version r ON r.rubric_id=t.rubric_id AND r.version=t.rubric_version AND r.exam_id=t.exam_id
+          UNION SELECT a.content_version_id FROM members s CROSS JOIN LATERAL jsonb_array_elements(coalesce(s.payload->'recordings','[]'::jsonb)) rec
+           JOIN exam_media a ON a.media_id=rec->>'mediaId' AND a.version=rec->>'mediaVersion' AND a.exam_id=s.exam_id
+        ) SELECT 'content' AS kind,c.content_version_id AS subject_id,'' AS version,c.content_sha256 AS sha256,r.*
+          FROM ids JOIN content_version c USING(content_version_id) CROSS JOIN LATERAL effective_content_review(c.content_version_id) r ORDER BY c.content_version_id`,[p.exam.id,f.id,f.version])).rows;
+        reviewProof.push({formId:f.id,formVersion:f.version,blueprintSha256:blueprintHash,formSha256:packageHash({blueprintVersion:p.blueprint.version,form:f}),subjects:[...formats,...contents]});
+      }
+    }
     if(!dryRun) for(const [sql,args] of commands) await client.query(sql,args);
     await client.query(dryRun?'ROLLBACK':'COMMIT');
-    return {examId:p.exam.id,releaseVersion:p.release.version,sha256:digest,publisher,dryRun,changes,unchanged:changes.length===0};
+    return {examId:p.exam.id,releaseVersion:p.release.version,sha256:digest,publisher,dryRun,changes,unchanged:changes.length===0,reviewProof};
   } catch(e) {if(begun) await client.query('ROLLBACK').catch(()=>{});throw e;} finally {client.release();}
 }
 

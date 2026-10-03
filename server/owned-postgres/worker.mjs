@@ -379,7 +379,9 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
     const candidate=await readWritingTask(pool,row.task_id,row.task_version);
     const origin=await readWritingOrigin(pool,row.attempt_id,row.owner_id);
     const packageBound=Boolean(origin||candidate?.source_path?.startsWith('content/exams/'));
-    if(packageBound) {
+    if(!candidate||candidate.review_blocked||candidate.rubric_review_blocked) return completeFailure({submissionId,token,code:'content_unavailable'});
+    const reviewBound=packageBound||candidate.review_basis!=='legacy_unattributed'||candidate.rubric_review_basis!=='legacy_unattributed';
+    if(reviewBound) {
       if(!examCatalogue.isEnabled(row.exam_id)||!candidate||candidate.exam_id!==row.exam_id
         ||candidate.rubric_id!==row.rubric_id||candidate.rubric_version!==row.rubric_version
         ||!writingServable(candidate)||await writingAccess(pool,candidate,{historical:true})
@@ -447,9 +449,10 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
       const task=await readWritingTask(client,row.task_id,row.task_version);
       const attachment=await readWritingOrigin(client,row.attempt_id,row.owner_id);
       const packageBound=Boolean(attachment||task?.source_path?.startsWith('content/exams/'));
-      if(packageBound&&(!examCatalogue.isEnabled(row.exam_id)||!task||task.exam_id!==row.exam_id
+      const reviewBound=packageBound||task?.review_basis!=='legacy_unattributed'||task?.rubric_review_basis!=='legacy_unattributed';
+      if(!task||task.review_blocked||task.rubric_review_blocked||(reviewBound&&(!examCatalogue.isEnabled(row.exam_id)||!task||task.exam_id!==row.exam_id
         ||task.rubric_id!==row.rubric_id||task.rubric_version!==row.rubric_version||!writingServable(task)
-        ||await writingAccess(client,task,{historical:true})||(attachment&&await blockedAttached(client,attachment.run_id)))) {
+        ||await writingAccess(client,task,{historical:true})||(attachment&&await blockedAttached(client,attachment.run_id))))) {
         await client.query("UPDATE jobs SET status='failed',failure_code='content_unavailable',lease_token=NULL,lease_until=NULL WHERE id=$1",[job.id]);
         await client.query('UPDATE entitlements SET reserved=reserved-1 WHERE owner_id=$1 AND exam_id=$2',[job.owner_id,job.exam_id]);
         return {claimed:true,submissionId,outcome:'failed',code:'content_unavailable'};
@@ -477,6 +480,12 @@ export function createWorker({ pool, grade, now = () => new Date(), leaseMs = DE
   /** Commit a failed grade: a stable `failure_code`, the lease released, the reservation refunded. */
   async function completeFailure({ submissionId, token, code }) {
     return transaction(async (client) => {
+      // Review refusal can race retry/deletion just like a successful completion. Resolve
+      // immutable identity without a tuple lock, then take the same owner/exam fences.
+      const identity=first(await client.query('SELECT owner_id,exam_id FROM jobs WHERE submission_id=$1',[submissionId]));
+      if(!identity)return {claimed:true,submissionId,outcome:'stale'};
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))',[identity.owner_id]);
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[identity.exam_id]);
       const job = first(await client.query(
         'SELECT id, owner_id, exam_id, status, lease_token FROM jobs WHERE submission_id = $1 FOR UPDATE', [submissionId]));
       if (!job || job.status !== 'running' || job.lease_token !== token) return { claimed: true, submissionId, outcome: 'stale' };
