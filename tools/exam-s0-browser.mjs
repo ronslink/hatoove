@@ -1,3 +1,4 @@
+import { fixturePreparation, scopedFixtureRoute } from './browser-preparation-fixtures.mjs';
 /**
  * EXAM-S0 browser discrimination, invoked only by app-browser-check's disposable Compose stack.
  * No standalone URL/CLI entry point. All content below is synthetic test data, not approved teaching
@@ -18,6 +19,7 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
       || !/^browser-\d+@example\.test$/.test(email) || typeof query !== 'function') {
     throw new Error('EXAM-S0 requires app-browser-check disposable ports, synthetic account and SQL callback');
   }
+  const fixturePreparationId = randomUUID();
   const suffix = randomUUID().replaceAll('-', '').slice(0, 12);
   const exam = `exam-s0-${suffix}`;
   const setId = `${exam}.lv2`;
@@ -64,7 +66,7 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
 
   const port = await freePort();
   const browser = await launchBrowser(port);
-  let cdp, cookie, originalSettings, request, intercept;
+  let cdp, cookie, originalSettings, originalPreparation, preparationPath, request, intercept;
   const checks = async (name, run) => {
     try { await run(); }
     catch (error) { record(name, false, error.message); }
@@ -124,8 +126,8 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
     // Hash-only Page.navigate keeps the current document. Bootstrap assertions require a new one.
     const token = randomUUID();
     await cdp.evaluate(`window.__s0DocumentProbe=${JSON.stringify(token)}; return true;`);
-    const navigation = await cdp.send('Page.navigate', { url: base + '/app/#/' + hash });
-    if (!navigation.loaderId) await cdp.send('Page.reload', { ignoreCache: false });
+    const navigation = await cdp.send('Page.navigate', { url: base + '/app/?s0Probe=' + token + '#/' + hash });
+    if (!navigation.loaderId) throw new Error('S0 fresh navigation did not create a document');
     await cdp.waitFor(`window.__s0DocumentProbe !== ${JSON.stringify(token)} && document.readyState === 'complete'`, 25000);
   };
   const openVersion = async version => {
@@ -160,15 +162,24 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
     await clickSel(cdp, '#si-submit');
     await cdp.waitFor("location.pathname.startsWith('/app') && document.querySelector('#account-email')?.textContent.includes('@')", 15000);
     cookie = (await cdp.send('Network.getCookies', { urls: [base] })).cookies.map(c => `${c.name}=${c.value}`).join('; ');
+    const prepResponse=await fetch(base+'/api/v1/preparations',{headers:{cookie:cookie}});
+    if (!prepResponse.ok) throw new Error('synthetic preparation lookup failed');
+    let preparationId=fixturePreparation(await prepResponse.json());
     request = async (route, method = 'GET', body) => {
-      const res = await fetch(base + route, { method, headers: { cookie, origin: base, 'content-type': 'application/json' },
+      const res = await fetch(base + scopedFixtureRoute(route, preparationId), { method, headers: { cookie, origin: base, 'content-type': 'application/json' },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
       return { status: res.status, data: await res.json() };
     };
     const settings = await request('/api/v1/settings');
     if (settings.status !== 200) throw new Error('S0 synthetic account settings unavailable');
     originalSettings = settings.data.settings;
-    const wanted = { ...originalSettings, language: 'en', examDate: '2030-06-15' };
+    const wanted = { ...originalSettings, language: 'en' };
+    delete wanted.examDate;
+    preparationPath='/api/v1/preparations/'+preparationId;
+    originalPreparation=(await request(preparationPath)).data;
+    const targetDate='2030-06-15';
+    const dated=await request(preparationPath,'PUT',{expectedRevision:originalPreparation.revision,examDate:targetDate});
+    if(dated.status!==200) throw new Error('S0 preparation date fixture failed');
     const saved = await request('/api/v1/settings', 'PUT', { expectedRevision: settings.data.revision, settings: wanted });
     if (saved.status !== 200) throw new Error('S0 synthetic preference setup failed');
 
@@ -197,8 +208,8 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
       await cdp.waitFor("document.querySelector('#dict-results [lang=\"en\"]') && document.querySelector('#language').value==='en'", 12000);
       const first = await cdp.evaluate("return { hash:location.hash, title:document.querySelector('#page-title').textContent, language:document.querySelector('#lang-label').textContent, date:document.querySelector('#examDate').value, countdown:document.querySelector('#exam-countdown').textContent, english:document.querySelector('#dict-results [lang=\"en\"]')?.textContent, shell:!document.querySelector('#app-shell')?.hidden }");
       const after = await request('/api/v1/settings');
-      record('S0B2 first view uses saved language/date and the latest requested hash', first.hash === '#/woerterbuch'
-        && first.title === 'Wörterbuch' && first.language.includes('English') && first.date === wanted.examDate
+      record('S0B2 first view uses saved language/date and the latest requested hash', first.hash === '#/prep/'+preparationId+'/woerterbuch'
+        && first.title === 'Wörterbuch' && first.language.includes('English') && first.date === targetDate
         && first.countdown.includes('Prüfung am') && first.countdown.includes('15') && Boolean(first.english) && first.shell
         && after.data.revision === saved.data.revision && after.data.settings.language === 'en');
       intercept.assert();
@@ -219,15 +230,19 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
       await clickSel(cdp, '#boot-retry');
       await cdp.waitFor("document.querySelector('#dict-results [lang=\"en\"]') && !document.querySelector('#app-shell').hidden", 12000);
       record('S0B4 retry renders the retained destination and saved preferences on mobile',
-        await cdp.evaluate("return location.hash==='#/woerterbuch' && document.querySelector('#language').value==='en' && document.querySelector('#boot-state').hidden")
+        await cdp.evaluate("return location.hash==='#/prep/'+document.querySelector('#preparation-picker').value+'/woerterbuch' && document.querySelector('#language').value==='en' && document.querySelector('#boot-state').hidden")
         && (await overflow(cdp)).offenderCount === 0);
       intercept.assert();
       await shot(cdp, 's0-preferences-recovered-mobile');
     });
 
     await checks('S0V version-specific objective practice', async () => {
+      // A separate owned context keeps this version test's synthetic exam isolated from real seed sets.
+      await query(`INSERT INTO hatoove.learner_preparation(id,owner_id,exam_id,state,revision)
+        SELECT ${sql(fixturePreparationId)},id,${sql(exam)},'active',1 FROM hatoove."user" WHERE email=${sql(email)}`);
+      preparationId=fixturePreparationId;
       await viewport(cdp, 1440, 900, false);
-      await nav(cdp, base + '/app/#/heute');
+      await freshApp('prep/'+preparationId+'/heute');
       await cdp.waitFor("document.querySelector('#account-email')?.textContent.includes('@')", 15000);
       await openVersion('v1');
       await answerB(); // Wrong in v1; identical item ID and answer are correct in v2.
@@ -295,13 +310,17 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
       if (request && originalSettings) {
         const current = await request('/api/v1/settings');
         const restored = current.status === 200 && await request('/api/v1/settings', 'PUT', {
-          expectedRevision: current.data.revision, settings: originalSettings,
+          expectedRevision: current.data.revision, settings: Object.fromEntries(Object.entries(originalSettings).filter(([key])=>key!=='examDate')),
         });
-        record('S0 cleanup restores the synthetic account preferences', restored?.status === 200);
+        const currentPrep=await request(preparationPath);
+        const restoredPrep=await request(preparationPath,'PUT',{expectedRevision:currentPrep.data.revision,examDate:originalPreparation.exam_date});
+        record('S0 cleanup restores the synthetic account preferences', restored?.status === 200 && restoredPrep.status===200);
       }
     } catch (error) {
       record('S0 cleanup restores the synthetic account preferences', false, error.message);
     } finally {
+      await query(`DELETE FROM hatoove.item_evidence WHERE preparation_id=${sql(fixturePreparationId)};
+        DELETE FROM hatoove.learner_preparation WHERE id=${sql(fixturePreparationId)};`);
       if (cdp) cdp.ws.close();
       await browser.cleanup();
     }

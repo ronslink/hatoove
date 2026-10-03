@@ -1,3 +1,4 @@
+import { fixturePreparation, scopedFixtureRoute } from './browser-preparation-fixtures.mjs';
 /**
  * REVIEW-UX browser evidence — invoked only by app-browser-check's disposable Compose stack.
  *
@@ -90,8 +91,11 @@ export async function verifyReviewUx({ base, email, password, freePort, record, 
     await clickSel(cdp, '#si-submit');
     await cdp.waitFor("location.pathname.startsWith('/app') && document.querySelector('#account-email')?.textContent.includes('@')", 15000);
     const cookie = (await cdp.send('Network.getCookies', { urls: [base] })).cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+    const prepResponse=await fetch(base+'/api/v1/preparations',{headers:{cookie:cookie}});
+    if (!prepResponse.ok) throw new Error('synthetic preparation lookup failed');
+    const preparationId=fixturePreparation(await prepResponse.json());
     const request = async (route, method = 'GET', body) => {
-      const res = await fetch(base + route, {
+      const res = await fetch(base + scopedFixtureRoute(route, preparationId), {
         method,
         headers: { cookie, origin: base, 'content-type': 'application/json' },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),

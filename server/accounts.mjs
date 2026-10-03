@@ -88,11 +88,9 @@ export async function loadOwnedApi({ env = process.env } = {}) {
     // the api the running server mounts (HARD-DELETE-01 §6). Without this the route is a 503
     // in every configuration this repository can ship.
     deletion: runtime.deletion,
-    // NOT an `admin`/superuser pool (MFP-01 §2.4). `sessions.mjs:129-131` needs a pool that can
-    // INSERT the one synthetic `entitlements` row it writes at sign-up; the restricted learner
-    // role has no INSERT there. This is the narrow `_provisioner` role (NOSUPERUSER,
-    // NOBYPASSRLS, INSERT on `entitlements` only). Finding: MFP-02a replaces it with the
-    // `SECURITY DEFINER` `provision_learner` function — a narrower grant, never a superuser.
+    // Compatibility alias for fixture inspection only, never a superuser pool.
+    // Registration provisions through the migration-owned AFTER INSERT user trigger in its
+    // auth transaction; the former provisioner INSERT and column SELECT grants are revoked.
     admin: runtime.provisioner,
     // Account settings are part of the account, so they run on the same restricted learner
     // pool; `createPostgresWorld` would otherwise build its own, which would be a second

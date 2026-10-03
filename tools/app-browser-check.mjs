@@ -38,6 +38,9 @@ import { launchBrowser, connectToPage, sleep } from './cdp.js';
 import { verifyLearnerCompletion } from './learner-completion-browser.mjs';
 import { verifyAccountContext } from './account-context-browser.mjs';
 import { verifyExamS0 } from './exam-s0-browser.mjs';
+import { verifyExamS1 } from './exam-s1-browser.mjs';
+import { verifyReviewUx } from './review-ux-browser.mjs';
+import { fixturePreparation, scopedFixtureRoute } from './browser-preparation-fixtures.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const KEEP = process.argv.includes('--keep');
@@ -264,7 +267,14 @@ async function browserCookie(cdp) {
   return cookies.map((c) => `${c.name}=${c.value}`).join('; ');
 }
 
+const fixtureContexts = new Map();
 async function apiGet(cookie, route) {
+  if (!fixtureContexts.has(cookie)) {
+    const response=await fetch(base+'/api/v1/preparations',{headers:{cookie}});
+    if (!response.ok) throw new Error('synthetic preparation precondition failed');
+    fixtureContexts.set(cookie,fixturePreparation(await response.json()));
+  }
+  route=scopedFixtureRoute(route,fixtureContexts.get(cookie));
   const res = await fetch(base + route, { headers: { cookie, accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
   let body = null;
   try {
@@ -525,7 +535,7 @@ async function main() {
     /* ------------------------------------------------------- the skill views */
 
     await clickSel(cdp, '[data-view="lesen"]');
-    await softWait(cdp, "location.hash === '#/lesen'", 8000, 'the Leseverstehen route');
+    await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/lesen'", 8000, 'the Leseverstehen route');
     await softWait(cdp, "document.querySelector('#skill-lesen .card h3') && !document.querySelector('#skill-lesen').innerText.includes('Wird geladen')", 12000, 'the set list');
     const lesen = await cdp.evaluate(`
       const box = document.getElementById('skill-lesen');
@@ -697,7 +707,7 @@ async function main() {
     /* ------------------------------------------------------------ mistakes  */
 
     await clickSel(cdp, '[data-view="fehler"]');
-    await softWait(cdp, "location.hash === '#/fehler'", 8000, 'the Fehler route');
+    await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/fehler'", 8000, 'the Fehler route');
     await softWait(cdp, "!document.getElementById('mistake-list').innerText.includes('Wird geladen')", 12000, 'the mistakes list');
     const fehler = await cdp.evaluate(`
       const badge = document.getElementById('mistake-count');
@@ -738,7 +748,7 @@ async function main() {
      * action, not to a list that could do it by accident.
      */
     await clickSel(cdp, '[data-view="einstellungen"]');
-    await softWait(cdp, "location.hash === '#/einstellungen'", 8000, 'Einstellungen');
+    await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/einstellungen'", 8000, 'Einstellungen');
     await softWait(cdp, "document.querySelectorAll('#session-list .session').length > 0 || document.getElementById('session-list').innerText.includes('Keine')",
       10000, 'the session list');
     const sessions = await cdp.evaluate(`
@@ -797,7 +807,7 @@ async function main() {
     `);
     // Re-enter the view so the list is fetched again with the new session present.
     await clickSel(cdp, '[data-view="heute"]');
-    await softWait(cdp, "location.hash === '#/heute'", 8000, 'Heute');
+    await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/heute'", 8000, 'Heute');
     await clickSel(cdp, '[data-view="einstellungen"]');
     await softWait(cdp, "document.querySelectorAll('#session-list .session').length >= 2", 12000, 'two sessions');
     const withTwo = await cdp.evaluate(`
@@ -843,7 +853,7 @@ async function main() {
     ];
     for (const [view, hash, selector, name] of viewChecks) {
       await clickSel(cdp, `[data-view="${view}"]`);
-      await softWait(cdp, `location.hash === '${hash}'`, 8000, hash);
+      await softWait(cdp, `location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '${hash.slice(1)}'`, 8000, hash);
       await softWait(cdp, `!document.querySelector('${selector}').innerText.includes('Wird geladen')`, 10000, selector);
       const state = await cdp.evaluate(`
         const view = document.getElementById('view-${view}');
@@ -864,7 +874,7 @@ async function main() {
      * appended a document below the index, and "Zurück" looked like it did nothing.
      */
     await clickSel(cdp, '[data-view="nachschlagen"]');
-    await softWait(cdp, "location.hash === '#/nachschlagen'", 8000, 'Nachschlagen');
+    await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/nachschlagen'", 8000, 'Nachschlagen');
     await softWait(cdp, "document.querySelector('#guide-index button[data-guide]')", 12000, 'the guide index');
     const guidesBefore = await cdp.evaluate(`
       const body = document.getElementById('guide-body');
@@ -1016,7 +1026,7 @@ async function main() {
      * when the reload could not restore anything. A save is only a save if the server agrees.
      */
     const afterType = await cdp.evaluate(`return (async () => {
-      const index = await fetch('/api/v1/attempts?open=1').then((r) => r.json()).catch(() => null);
+      const index = await fetch('/api/v1/attempts?open=1&preparationId='+encodeURIComponent(document.querySelector('#preparation-picker').value)).then((r) => r.json()).catch(() => null);
       const first = index && Array.isArray(index.attempts) ? index.attempts[0] : null;
       const loaded = first ? await fetch('/api/v1/attempts/' + first.id).then((r) => r.json()).catch(() => null) : null;
       return {
@@ -1171,7 +1181,7 @@ async function main() {
       // defect this leg is about, and the DOM cannot tell the two apart. The harness wraps this body in a
       // plain function, so the fetch calls need their own async wrapper (it awaits the returned promise).
       return (async () => {
-        const index = await fetch('/api/v1/attempts?open=1').then((r) => r.json()).catch(() => null);
+        const index = await fetch('/api/v1/attempts?open=1&preparationId='+encodeURIComponent(document.querySelector('#preparation-picker').value)).then((r) => r.json()).catch(() => null);
         const first = index && Array.isArray(index.attempts) ? index.attempts[0] : null;
         const loaded = first ? await fetch('/api/v1/attempts/' + first.id).then((r) => r.json()).catch(() => null) : null;
         return {
@@ -1243,7 +1253,7 @@ async function main() {
     await sleep(900); // let the create land and the state settle
     const afterNew = await cdp.evaluate(`
       return (async () => {
-        const index = await fetch('/api/v1/attempts?open=1').then((r) => r.json()).catch(() => null);
+        const index = await fetch('/api/v1/attempts?open=1&preparationId='+encodeURIComponent(document.querySelector('#preparation-picker').value)).then((r) => r.json()).catch(() => null);
         const mine = index && Array.isArray(index.attempts)
           ? index.attempts.filter((a) => a.task_id === 'writing.du.geburtstag-eines-freundes') : [];
         const loaded = mine.length ? await fetch('/api/v1/attempts/' + mine[0].id).then((r) => r.json()).catch(() => null) : null;
@@ -1469,7 +1479,7 @@ async function main() {
      *     stay LTR even when Arabic is chosen.
      */
     await clickSel(cdp, '[data-view="einstellungen"]');
-    await softWait(cdp, "location.hash === '#/einstellungen'", 8000, 'Einstellungen');
+    await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/einstellungen'", 8000, 'Einstellungen');
     await sleep(400);
     const providerField = await cdp.evaluate(`
       const view = document.getElementById('view-einstellungen');
@@ -1536,7 +1546,7 @@ async function main() {
     await sleep(600);
 
     await clickSel(cdp, '[data-view="heute"]');
-    await softWait(cdp, "location.hash === '#/heute'", 8000, 'Heute');
+    await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/heute'", 8000, 'Heute');
     const components = await cdp.evaluate(`
       const stats = [...document.querySelectorAll('#view-heute .stat-row .stat')];
       const tops = new Set(stats.map((s) => Math.round(s.getBoundingClientRect().top)));
@@ -1641,7 +1651,7 @@ async function main() {
       JSON.stringify(mobileOverflow));
 
     await clickSel(cdp, '#view-mehr [data-view="lesen"]');
-    await softWait(cdp, "location.hash === '#/lesen'", 8000, 'mobile Leseverstehen');
+    await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/lesen'", 8000, 'mobile Leseverstehen');
     await sleep(900);
     await shot(cdp, '15-lesen-mobile-light');
     const mobileLesen = await overflow(cdp);
@@ -1650,7 +1660,7 @@ async function main() {
     await clickSel(cdp, '.tabbar [data-view="mehr"]');
     await softWait(cdp, "!document.querySelector('#view-mehr').hidden", 8000, 'mobile Mehr again');
     await clickSel(cdp, '#view-mehr [data-view="fehler"]');
-    await softWait(cdp, "location.hash === '#/fehler'", 8000, 'mobile Fehler');
+    await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/fehler'", 8000, 'mobile Fehler');
     await sleep(900);
     await shot(cdp, '16-fehler-mobile-light');
     const mobileErrors = errorsSince(cdp, mark);
@@ -2008,7 +2018,7 @@ async function main() {
     ];
     for (const [view, hash, selector, name] of darkViews) {
       await clickSel(cdp, `[data-view="${view}"]`);
-      await softWait(cdp, `location.hash === '${hash}'`, 8000, hash);
+      await softWait(cdp, `location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '${hash.slice(1)}'`, 8000, hash);
       await softWait(cdp, `document.querySelector('${selector}')`, 10000, selector);
       await sleep(500);
       const audit = await cdp.evaluate(contrastAudit);
@@ -2038,6 +2048,16 @@ async function main() {
     await verifyExamS0({ base, email, password: SYNTHETIC.password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow,
       query: sql => compose(['exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'hatoove', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql]),
     });
+    const browserQuery=sql=>compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-At','-v','ON_ERROR_STOP=1','-c',sql]);
+    await verifyReviewUx({base,email,password:SYNTHETIC.password,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,query:browserQuery});
+    await verifyExamS1({base,email,password:SYNTHETIC.password,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,query:browserQuery,
+      preparationFixtures:async ({query,email})=>{
+        if (!/^browser-\d+@example\.test$/.test(email)) throw new Error('unexpected fixture account');
+        const id=crypto.randomUUID();
+        query(`INSERT INTO hatoove.exam_package(exam_id,exam,level,exam_language,blueprint_version) VALUES ('synthetic-browser-en','Synthetic English B2','B2','en','v1');
+          INSERT INTO hatoove.learner_preparation(id,owner_id,exam_id,state,revision) SELECT '${id}',id,'synthetic-browser-en','archived',1 FROM hatoove."user" WHERE email='${email}';`);
+        return {otherPreparationId:id,cleanup:()=>query(`DELETE FROM hatoove.learner_preparation WHERE id='${id}'; DELETE FROM hatoove.exam_package WHERE exam_id='synthetic-browser-en';`)};
+      }});
     await verifyAccountContext({ base, freePort, record, shot, viewport, theme, nav, setInputs, clickSel });
     note('screenshots', SHOTS);
     note('device honesty', 'headless Chromium on desktop is not iPhone Safari or Android Chrome; the real-device gate stays open');

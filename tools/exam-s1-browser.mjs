@@ -58,8 +58,9 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
   const fresh = async hash => {
     const token = randomUUID();
     await cdp.evaluate(`window.__s1Document=${JSON.stringify(token)}; return true;`);
-    const navigation = await cdp.send('Page.navigate', { url: base + '/app/' + hash });
-    if (!navigation.loaderId) await cdp.send('Page.reload', {});
+    // A new query forces a new document before the old page can rewrite a hash-only destination.
+    const navigation = await cdp.send('Page.navigate', { url: base + '/app/?s1Probe=' + token + hash });
+    if (!navigation.loaderId) throw new Error('S1 fresh navigation did not create a document');
     await cdp.waitFor(`window.__s1Document !== ${JSON.stringify(token)} && document.readyState === 'complete'`, 20000);
   };
   const go = async view => {
@@ -277,6 +278,62 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
             && !document.querySelector('#settings-state').textContent.includes('auf deinen Wunsch')`));
         await shot(cdp, 's1-settings-recovery-after-switch');
         await select(preparationId);
+      });
+
+      await run('S1 latest deep link survives a delayed settings write', async () => {
+        await fresh('#/prep/' + preparationId + '/einstellungen'); await ready();
+        let receive, held = false;
+        const write = new Promise(resolve => { receive = resolve; });
+        await hook('*/api/v1/settings', async (event, controls) => {
+          if (!held && event.request.method === 'PUT') { held = true; receive({ event, controls }); }
+          else await controls.proceed(event);
+        });
+        await setInputs(cdp, { language: 'uk' }); await clickSel(cdp, '#save-settings');
+        const delayed = await paused(write);
+        await changeHash('#/prep/' + preparationId + '/heute');
+        await changeHash('#/prep/' + other + '/fortschritt');
+        const mark = cdp.events.length;
+        await delayed.controls.proceed(delayed.event);
+        await cdp.waitFor(`location.hash===${JSON.stringify('#/prep/' + other + '/fortschritt')}
+          && document.querySelector('#preparation-picker').value===${JSON.stringify(other)}
+          && !document.querySelector('#preparation-picker').disabled && !document.querySelector('#view-fortschritt').hidden`, 15000);
+        await cdp.waitFor("!document.querySelector('#history-list').textContent.includes('wird geladen')");
+        const saved = await request('/api/v1/settings');
+        const selected = await request('/api/v1/preparations/' + other);
+        await cdp.waitFor(`document.querySelector('#preparation-credits').textContent.includes(${JSON.stringify(selected.data.exam)})`);
+        const scoped = requestsSince(mark).filter(r => /\/api\/v1\/(tasks|objective-sets|practice\/|attempts$)/.test(new URL(r.url).pathname));
+        record('S1 settings save persists the account choice then routes only to the latest queued preparation',
+          saved.status === 200 && saved.data.settings.language === 'uk' && scoped.length > 0
+          && scoped.every(r => new URL(r.url).searchParams.get('preparationId') === other));
+        await shot(cdp, 's1-navigation-after-settings-save');
+        await select(preparationId);
+      });
+
+      await run('S1 refused settings write preserves recovery and cancels queued navigation', async () => {
+        await fresh('#/prep/' + preparationId + '/einstellungen'); await ready();
+        const before = await request('/api/v1/settings');
+        let receive, held = false;
+        const write = new Promise(resolve => { receive = resolve; });
+        await hook('*/api/v1/settings', async (event, controls) => {
+          if (!held && event.request.method === 'PUT') { held = true; receive({ event, controls }); }
+          else await controls.proceed(event);
+        });
+        await setInputs(cdp, { language: 'tr' }); await clickSel(cdp, '#save-settings');
+        const delayed = await paused(write);
+        await changeHash('#/prep/' + other + '/fortschritt');
+        await changeHash('#/prep/' + preparationId + '/heute');
+        await delayed.controls.reply(delayed.event, 503, { error: 'synthetic_settings_unavailable' });
+        await cdp.waitFor("document.querySelector('#settings-reload') && !document.querySelector('#save-settings').disabled");
+        const after = await request('/api/v1/settings');
+        record('S1 refused settings write retains the original form, unsaved language and explicit recovery',
+          JSON.stringify(before.data) === JSON.stringify(after.data)
+          && await cdp.evaluate(`return location.hash===${JSON.stringify('#/prep/' + preparationId + '/einstellungen')}
+            && document.querySelector('#preparation-picker').value===${JSON.stringify(preparationId)}
+            && !document.querySelector('#view-einstellungen').hidden && document.querySelector('#language').value==='tr'`));
+        await shot(cdp, 's1-settings-write-navigation-recovery');
+        await stopIntercept();
+        await clickSel(cdp, '#settings-reload');
+        await cdp.waitFor("document.querySelector('#settings-state').textContent.includes('auf deinen Wunsch')");
       });
 
       await run('S1 latest deep link survives a delayed autosave', async () => {

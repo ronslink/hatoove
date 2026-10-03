@@ -1253,7 +1253,7 @@ async function route() {
   if (!bootReady || sessionProblem) return;
   const request = ++routing;
   const info = preparationRoute();
-  if (preparationSwitching) {
+  if (preparationSwitching || settingsSaving) {
     pendingPreparationNavigation = { selection: info.id || state.preparation.id, view: VIEW_TITLES[info.view] ? info.view : 'heute' };
     return;
   }
@@ -1382,6 +1382,7 @@ el('settings-form').addEventListener('submit', async (event) => {
   const prep = state.preparation, ticket = contextTicket();
   const date = el('examDate').value || null, language = el('language').value;
   let dateSaved = false;
+  let settingsSaved = false;
   settingsSaving = true;
   status.textContent = 'Wird gespeichert …';
   button.disabled = true;
@@ -1447,6 +1448,7 @@ el('settings-form').addEventListener('submit', async (event) => {
     // re-rendered when they change. It was only rendered from route(): the button kept saying
     // "Erklärungen: Deutsch" after the learner had chosen Arabic, until they navigated somewhere.
     renderChrome();
+    settingsSaved = true;
     status.textContent = 'Gespeichert.';
     setTimeout(() => { if (status.textContent === 'Gespeichert.') status.textContent = ''; }, 4000);
   } catch (err) {
@@ -1455,6 +1457,17 @@ el('settings-form').addEventListener('submit', async (event) => {
     settingsSaving = false;
     button.disabled = Boolean(sessionProblem);
     renderPreparation();
+    const destination = pendingPreparationNavigation;
+    pendingPreparationNavigation = null;
+    if (destination && !sessionProblem) {
+      if (settingsSaved) {
+        history.replaceState(null, '', '#/prep/' + destination.selection + '/' + destination.view);
+        await route();
+      } else {
+        // A refused or uncertain write keeps its choices and explicit recovery action visible.
+        history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView);
+      }
+    }
   }
 });
 
