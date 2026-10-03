@@ -874,7 +874,7 @@ paths:
                 market: { type: string, pattern: '^[A-Z]{2}$' }
                 eventId: { type: string, format: uuid }
       responses:
-        '201': { description: Owned orderId, allowed checkoutUrl, expiresAt and testMode true }
+        '201': { description: 'Owned orderId, allowed checkoutUrl, expiresAt and testMode true. Terminal replay returns the same orderId with status and null checkoutUrl; the client must read the owned order before confirming payment.' }
         '401': { description: Verified session required }
         '409': { description: Already entitled, conflicting event, pending different market or expired checkout }
         '422': { description: Invalid or unexpected field }

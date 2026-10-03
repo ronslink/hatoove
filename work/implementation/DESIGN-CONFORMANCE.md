@@ -69,7 +69,7 @@ no view at all.**
 | `plan` | **none** ("Study plan") |
 | `progress` | `fortschritt` — exists, far simpler |
 | `settings` | `einstellungen` — exists |
-| `upgrade` | `freischalten` — the checkout screen (`public/app/checkout.js`, PAYMENTS-SLICE-01) |
+| `upgrade` | `checkout` — the checkout screen (`public/app/checkout.js`, PAYMENTS-01 contract) |
 | `onboarding` | **none** |
 | `login` | `signin.html` — exists as the one public page |
 | `check-email` | **none** (no email flow yet — PILOT-18) |
