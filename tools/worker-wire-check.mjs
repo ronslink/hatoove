@@ -104,8 +104,13 @@ async function signUp(call, tag) {
 }
 
 async function submit(call, cookie, text, eventId = randomUUID()) {
-  const created = await call('POST', '/api/v1/attempts', { cookie, body: {} });
-  assert.equal(created.status, 201, `create: ${created.status}`);
+  const preparations = await call('GET', '/api/v1/preparations', { cookie });
+  assert.equal(preparations.status, 200);
+  const active = preparations.json.preparations.filter(row => row.state === 'active');
+  assert.equal(active.length, 1, 'synthetic worker account has one active preparation');
+  const created = await call('POST', '/api/v1/attempts', { cookie, body: { preparationId: active[0].id } });
+  assert.equal(created.status, 201, `create: ${created.status} ${JSON.stringify(created.json)}`);
+  assert.equal(created.json.preparation_id, active[0].id);
   const saved = await call('PUT', `/api/v1/attempts/${created.json.id}`, { cookie, body: { expectedRevision: 1, text } });
   assert.equal(saved.status, 200, `save: ${saved.status}`);
   const sent = await call('POST', `/api/v1/attempts/${created.json.id}/submissions`,

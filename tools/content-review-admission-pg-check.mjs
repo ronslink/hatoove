@@ -141,5 +141,14 @@ try{
  await check('independent rights loss still withholds completed facts; saved responses and export remain available',async()=>{await db.migration.query("INSERT INTO content_rights(content_version_id,basis,decided_by,note) VALUES($1,'unknown','Synthetic rights fixture','No real rights change')",[setSubject.subjectId]);const r=await port.readMockRun(a,completed.id);assert.equal(r.blocked_reason,'rights_blocked');assert.equal(r.result,null);const out=await port.exportData(a);assert.equal(out.mock_runs.find(r=>r.id===completed.id).result,null);assert.ok(out.results.find(r=>r.submission_id===graded.s.submissionId).feedback);assert.equal(JSON.stringify(out).includes('fixture://synthetic'),false);assert.equal(JSON.stringify(await port.result(a,graded.s.submissionId)).includes('decision_ids'),false);});
  await check('runtime projections disclose no private evidence and payments gain no content/view access',async()=>{for(const role of['learner','worker','payments'])for(const table of['content_review_authority','content_review_decision','content_review_baseline'])await reject(db[role].query('SELECT * FROM '+table),'42501');await reject(db.payments.query('SELECT * FROM reviewed_content_version'),'42501');for(const role of['learner','worker'])await reject(db[role].query('SELECT form_review_allowed($1,$2,$3,true)',[EXAM,pkg.forms[0].id,pkg.forms[0].version]),'42501');assert.equal((await db.learner.query("SELECT has_table_privilege(current_user,'reviewed_content_version','UPDATE') AS allowed")).rows[0].allowed,false);});
  await check('account deletion remains available after review and rights withdrawal',async()=>{const result=await world.deletion.deleteAccount(a);assert.equal(result.verifiedAbsent,true);assert.equal((await db.admin.query('SELECT count(*)::int n FROM mock_run WHERE owner_id=$1',[a])).rows[0].n,0);});
- console.log(`Content review consumers PostgreSQL: ${passed} checks passed; unique schema cleaned.`);
-}finally{await extraPool?.end();await db?.cleanup();if(mediaRoot)await rm(mediaRoot,{recursive:true,force:true});for(const k of keys){if(saved[k]===undefined)delete process.env[k];else process.env[k]=saved[k];}}
+}finally{
+ const failures=[];
+ for(const cleanup of [()=>extraPool?.end(),()=>db?.cleanup(),async()=>{
+  if(!mediaRoot)return;
+  if(path.dirname(path.resolve(mediaRoot))!==path.resolve(tmpdir())||!path.basename(mediaRoot).startsWith('hatoove-c03-consumers-'))throw Error('Unsafe synthetic media cleanup path');
+  await rm(mediaRoot,{recursive:true,force:true});
+ }]){try{await cleanup();}catch(error){failures.push(error);}}
+ for(const k of keys){if(saved[k]===undefined)delete process.env[k];else process.env[k]=saved[k];}
+ if(failures.length)throw new AggregateError(failures,'Content review fixture cleanup failed');
+}
+console.log(`Content review consumers PostgreSQL: ${passed} checks passed; unique schema cleaned.`);

@@ -257,6 +257,7 @@ jobs:
         run: |
           node tools/content-review-pg-check.mjs
           node tools/content-review-admission-pg-check.mjs
+          node tools/content-review-fixture-check.mjs
       - name: Payment upgrade, ownership, concurrent grants and expiry
         run: node tools/payments-pg-check.mjs
       - name: Bounded readiness probes recover after a real PostgreSQL connection loss
