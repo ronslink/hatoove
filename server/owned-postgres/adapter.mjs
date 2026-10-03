@@ -22,6 +22,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import {readOwnProviderAttempts} from './provider-attempts.mjs';
 import { Fault } from '../../server/owned-api.mjs';
 import { DEFAULT_TASK_BINDING } from './content-seed.mjs';
 import { contentPolicy, servableReview, contentBlockReason } from '../content-policy.mjs';
@@ -1142,7 +1143,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const payment_events = (await client.query('SELECT id,order_id,kind,disposition,created_at FROM payment_event WHERE owner_id=$1 ORDER BY created_at,id', [owner])).rows;
         const payment_grants = (await client.query('SELECT order_id,event_id,exam_id,allowance,expires_at,created_at FROM payment_grant WHERE owner_id=$1 ORDER BY created_at,order_id', [owner])).rows;
         const payment_checkout_events = (await client.query('SELECT event_id,order_id FROM payment_checkout_event WHERE owner_id=$1 ORDER BY event_id', [owner])).rows;
-        return { preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing, mock_run_time_groups, listening_playback, payment_orders, payment_events, payment_grants, payment_checkout_events,
+        const provider_attempts=await readOwnProviderAttempts(client);
+        return { provider_attempts, preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing, mock_run_time_groups, listening_playback, payment_orders, payment_events, payment_grants, payment_checkout_events,
           writing_explanation_representations,writing_explanation_heads,shared_explanation_representations };
       }, true);
     },
@@ -1384,6 +1386,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
  * Each entry is `[name, sql]`; `$1` is the verified owner.
  */
 export const ACCOUNT_DELETION_STEPS = Object.freeze([
+  ['provider_attempt_observation','DELETE FROM provider_attempt_observation WHERE owner_id = $1'],
+  ['provider_attempt','DELETE FROM provider_attempt WHERE owner_id = $1'],
   ['mock_writing', 'DELETE FROM mock_writing WHERE owner_id = $1'],
   ['attempts_unlinked', 'UPDATE attempts SET parent_submission_id = NULL WHERE owner_id = $1 AND parent_submission_id IS NOT NULL'],
   ['writing_explanation_head', 'DELETE FROM writing_explanation_head WHERE owner_id = $1'],
@@ -1423,6 +1427,7 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
  * `attempts`, so it is selected by the attempt ids rather than by the owner (see the port).
  */
 export const ACCOUNT_TABLES = Object.freeze([
+  ['provider_attempt_observation','owner_id = $1','owner'], ['provider_attempt','owner_id = $1','owner'],
   ['writing_explanation_head', 'owner_id = $1', 'owner'], ['writing_explanation_representation', 'owner_id = $1', 'owner'],
   ['payment_order', 'owner_id = $1', 'owner'], ['payment_event', 'owner_id = $1', 'owner'],
   ['payment_grant', 'owner_id = $1', 'owner'], ['payment_checkout_event', 'owner_id = $1', 'owner'],
