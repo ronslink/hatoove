@@ -1,5 +1,11 @@
 # Hatoove work board
 
+## EXAM-S6 independent review corrections — 3 October 2026
+
+**EXAM-S6-20261003-A, issue119.** Learner admission and payment changes are delivered and independently reviewed. Correction `4464b21` closes a reproduced same-owner objective/writing deadlock; twelve admission checks and the original separate-connection schedule pass. Historical fixture repair `b628dec` passes independent core16, S3 reading10 and media19 checks. The independent payment review passes16 focused checks, including both rights-withdrawal orderings and preserved pending-order terms.
+
+The remaining core review finding is SQL acceptance of malformed payloads that the canonical reader refuses. Ron explicitly approved the prepared0034 correction and disposable local tests after automatic approval review requested that exact scope. The author and independent reviewer have separate bounded leases. Public browser acceptance has a preliminary7/7 result; the final run awaits the corrected predicate. CI and API descriptions are being integrated. S6 is not accepted or merged; hosted CI remains account-blocked, and content/device/live-operation gates remain open.
+
 ## EXAM-S6 admission gates active — 3 October 2026
 
 **EXAM-S6-20261003-A, [issue119](https://github.com/ronslink/hatoove/issues/119), contract b001985.** Three acknowledged authors own separate core SQL, learner admission and payment paths from reviewed S5 d31a763. [S5 PR118](https://github.com/ronslink/hatoove/pull/118) is open and independently reviewed; local default browser199, full-mock browser8 and Compose37 pass. Its seven required hosted jobs stopped before any test step because of the account billing/spending block (runs37132454660/37132454653). No green CI or merge is claimed. S6 adds one current complete DTZ predicate across discovery, new learner work and offers, with restricted SQL backstops and preserved pinned continuations. Synthetic approval exists only in disposable fixtures. Default telc-only configuration, original learner records and all human/live-operation gates remain unchanged.

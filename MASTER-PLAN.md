@@ -1,5 +1,9 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## EXAM-S6 independent review corrections — 3 October 2026
+
+Learner admission and payments are independently reviewed; the reproduced owner/exam lock inversion is corrected in `4464b21` with twelve admission checks. The remaining SQL/canonical-reader parity correction has Ron's explicit approval for code and disposable tests. Public browser acceptance has preliminary7/7 evidence, with final combined verification pending the correction. [Issue119](https://github.com/ronslink/hatoove/issues/119) remains active. This is delivered engineering under review, not green hosted CI, integration or product acceptance. The GitHub account block and human content/device/live-operation gates remain unchanged.
+
 ## EXAM-S6 admission gates active — 3 October 2026
 
 **EXAM-S6-20261003-A, [issue119](https://github.com/ronslink/hatoove/issues/119), contract b001985.** Three acknowledged authors own separate core SQL, learner admission and payment paths from reviewed S5 d31a763. [S5 PR118](https://github.com/ronslink/hatoove/pull/118) is open and independently reviewed; local default browser199, full-mock browser8 and Compose37 pass. Its seven required hosted jobs stopped before any test step because of the account billing/spending block (runs37132454660/37132454653). No green CI or merge is claimed. S6 adds one current complete DTZ predicate across discovery, new learner work and offers, with restricted SQL backstops and preserved pinned continuations. Synthetic approval exists only in disposable fixtures. Default telc-only configuration, original learner records and all human/live-operation gates remain unchanged.
