@@ -51,6 +51,7 @@ import { checkSentence, SENTENCE_TEXT_LIMIT } from './sentence-building.mjs';
 import {
   requirePreparationId, validateCreatePreparation, validateUpdatePreparation,
 } from './preparation-contract.mjs';
+import { MOCK_METHODS, validateStartMockRun, validateSaveMockRun, validateFinaliseMockRun } from './mock-contract.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
@@ -83,6 +84,8 @@ const ATTEMPT_RE = new RegExp(`^/api/v1/attempts/(${UUID})$`, 'i');
 const SUBMIT_RE = new RegExp(`^/api/v1/attempts/(${UUID})/submissions$`, 'i');
 const RESULT_RE = new RegExp(`^/api/v1/submissions/(${UUID})$`, 'i');
 const RETRY_RE = new RegExp(`^/api/v1/submissions/(${UUID})/retry$`, 'i');
+const MOCK_RUN_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})$`, 'i');
+const MOCK_FINALISE_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/finalise$`, 'i');
 const TOKEN_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+$/;
 
@@ -404,6 +407,7 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
   const catalogueWired = implementsAll(datastore, CATALOGUE_METHODS);
   const practiceWired = implementsAll(datastore, PRACTICE_METHODS);
   const preparationsWired = implementsAll(datastore, PREPARATION_METHODS);
+  const mocksWired = implementsAll(datastore, MOCK_METHODS);
   // The session lifecycle is its own capability: rotation, sweep, revoke-one and revoke-all-on-password-change.
   const sessionLifecycleWired = implementsAll(sessions, SESSION_LIFECYCLE_METHODS);
   /*
@@ -606,6 +610,30 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const prep = await datastore.resolvePreparation(owner, id);
       if (exam !== null && exam !== prep.exam_id) fault(422, 'preparation_mismatch');
       return prep;
+    }
+
+    if (pathname === '/api/v1/mock-forms' || pathname === '/api/v1/mock-runs'
+      || MOCK_RUN_RE.test(pathname) || MOCK_FINALISE_RE.test(pathname)) {
+      if (!mocksWired) fault(503, 'mock_runs_unavailable');
+      const index = pathname === '/api/v1/mock-forms' || pathname === '/api/v1/mock-runs';
+      const allowedQuery = index && method === 'GET' ? ['preparationId'] : [];
+      if ([...query.keys()].some((key) => !allowedQuery.includes(key))
+        || allowedQuery.some((key) => query.getAll(key).length > 1)) fault(422, 'invalid_query');
+      if (index && method === 'GET') {
+        const preparationId = requirePreparationId(query.get('preparationId'));
+        if (pathname === '/api/v1/mock-forms') return reply(200, { forms: await datastore.listMockForms(owner, { preparationId }) });
+        return reply(200, { runs: await datastore.listMockRuns(owner, { preparationId }) });
+      }
+      if (pathname === '/api/v1/mock-runs' && method === 'POST') {
+        const outcome = await datastore.startMockRun(owner, validateStartMockRun(body));
+        return reply(outcome.created ? 201 : 200, outcome.run);
+      }
+      const run = MOCK_RUN_RE.exec(pathname);
+      if (run && method === 'GET') return reply(200, await datastore.readMockRun(owner, run[1].toLowerCase()));
+      if (run && method === 'PUT') return reply(200, await datastore.saveMockRun(owner, run[1].toLowerCase(), validateSaveMockRun(body)));
+      const finalise = MOCK_FINALISE_RE.exec(pathname);
+      if (finalise && method === 'POST') return reply(200, await datastore.finaliseMockRun(owner, finalise[1].toLowerCase(), validateFinaliseMockRun(body)));
+      fault(404, 'not_found');
     }
 
     if (pathname === '/api/v1/exams' && method === 'GET') {
