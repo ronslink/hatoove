@@ -395,6 +395,7 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
   const run = async (rubricId) => {
     let token = null;
     const writes = [];
+    const providerAttemptId = randomUUID();
     let savedAssessment = null;
     const binding = { task_id: 'synthetic.task', version: 'v2', exam_id: INITIAL_EXAM, rubric_id: rubricId, rubric_version: 'v1', source_path: 'synthetic:fixture',
       review_status: 'approved', rubric_review_status: 'approved', rights_status: 'generated', rubric_rights_status: 'generated',
@@ -427,9 +428,13 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
               return { rows: [{ ...savedAssessment, attempt_id: 'attempt-1', exam_id: INITIAL_EXAM,
                 task_id: binding.task_id, rubric_id: rubricId, task_version: 'v2', explanation_language: 'de' }] };
             }
-            if (/FROM jobs WHERE submission_id = \$1 FOR UPDATE/.test(sql)) {
-              return { rows: [{ id: 'job-1', owner_id: 'owner-1', exam_id: INITIAL_EXAM, status: 'running', lease_token: token }] };
+            if (/FROM jobs WHERE (submission_id = \$1|id=\$1) FOR UPDATE/.test(sql)) {
+              return { rows: [{ id: 'job-1', owner_id: 'owner-1', exam_id: INITIAL_EXAM, status: 'running', lease_token: token, tries: 1 }] };
             }
+            // This rubric-gate fixture acknowledges the metering protocol; its SQL invariants
+            // are exercised against real PostgreSQL by provider-attempt-pg-check.mjs.
+            if (/SELECT \* FROM begin_provider_attempt\(/.test(sql)) return { rows: [{ attempt_id: providerAttemptId, created: true }] };
+            if (/SELECT \* FROM append_provider_observation\(/.test(sql)) return { rows: [{ status: 'recorded', event_id: params[1], revision: params[2] + 1, replay: false }] };
             if (/SELECT owner_id,exam_id FROM jobs WHERE submission_id=\$1/.test(sql)) return { rows: [{ owner_id: 'owner-1', exam_id: INITIAL_EXAM }] };
             if (/FROM task_version t/.test(sql)) return { rows: [binding] };
             if (/SELECT a\.deleted_at/.test(sql)) return { rows: [{ deleted_at: null }] };
@@ -449,6 +454,7 @@ check('8. an unsupported rubric fails before the grader is invoked; a supported 
   assert.ok(unsupported.writes.some((sql) => /SET status = 'failed'/.test(sql)), 'the job is a classified failure');
   assert.ok(unsupported.writes.some((sql) => /reserved = reserved - 1/.test(sql)), 'the reservation is refunded');
   assert.ok(!unsupported.writes.some((sql) => /INSERT INTO assessments/.test(sql)), 'nothing is stored');
+  assert.ok(!unsupported.writes.some((sql) => /begin_provider_attempt/.test(sql)), 'unsupported rubric creates no provider intent');
   const supported = await run('writing.telc-b1');
   assert.equal(supported.calls, 1, 'control: a supported rubric is graded');
   assert.equal(supported.outcome.outcome, 'succeeded');

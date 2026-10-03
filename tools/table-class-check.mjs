@@ -16,6 +16,8 @@
  *                   content_rights) - no runtime INSERT/UPDATE/DELETE grant; an immutability trigger
  *   private editorial review authority, decisions and compatibility baseline - no runtime/PUBLIC
  *                   table or column privilege, including SELECT; enabled immutability triggers
+ *   private-owned telemetry function-only worker writes, safe owner export only; exact composite
+ *                   ownership, owner-scoped hard deletion, immutable observations and deferred acceptance
  *   catalogue       migration-seeded reference data (exam_package, objective_set, vocab_entry,
  *                   noun_entry, guide, guide_section) - SELECT for the learner; no runtime DML;
  *                   nothing for auth/deletion/provisioner; no owner column; no key column
@@ -47,7 +49,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ACCOUNT_TABLES } from '../server/owned-postgres/adapter.mjs';
 import {
-  AUTH_TABLES, AUTH_SUPPORT_TABLES, CATALOGUE_TABLES, CONTENT_TABLES, PRIVATE_REVIEW_TABLES, PROTECTED_EXPLANATION_TABLES, INFRASTRUCTURE_TABLES, KEY_TABLES, OWNER_COLUMNS,
+  AUTH_TABLES, AUTH_SUPPORT_TABLES, CATALOGUE_TABLES, CONTENT_TABLES, PRIVATE_REVIEW_TABLES, PRIVATE_TELEMETRY_TABLES, PROTECTED_EXPLANATION_TABLES, INFRASTRUCTURE_TABLES, KEY_TABLES, OWNER_COLUMNS,
   accountTableNames, bare, columnsOf, policiesFor, privilegesFor, isKeyBearing, readCatalogue,
 } from './lib/catalogue.mjs';
 
@@ -55,6 +57,130 @@ const DML = ['INSERT', 'UPDATE', 'DELETE'];
 
 /** Roles that may hold BYPASSRLS/SUPERUSER without it being a violation. None: every role here is restricted. */
 const OWNER_COL_RE = /owner_id|user_id|hatoove\.owner_id/;
+
+// Compare the installed, fixed policy expression; a mention of owner_id alone is not an owner fence.
+const policyShape = value => String(value || '').replace(/\bNULLIF(?=\()/g, 'nullif').replaceAll('::text', '').replace(/[\s()]/g, '');
+const TELEMETRY_OWNER_POLICY = policyShape("owner_id = nullif(current_setting('hatoove.owner_id', true), '')");
+const TELEMETRY_IDENTITY = ['attempt_id', 'owner_id', 'exam_id', 'job_id', 'submission_id', 'claim_number'];
+
+function telemetryRules(catalogue, table, roles, accountSet, anchors) {
+  const fail = [], name = table.name;
+  const {worker, deletion, migration, learner} = roles;
+  const runtime = Object.entries(roles).filter(([kind]) => kind !== 'migration').map(([,role]) => role).filter(Boolean);
+  const sameColumns = (actual, expected) => colsOf(actual).join(',') === expected.join(',');
+  const hasKey = (target, columns) => catalogue.uniqueKeys.some(key => bare(key.table) === target
+    && sameColumns(key.columns, columns));
+  const hasFk = (columns, target, referenced) => catalogue.foreignKeys.some(fk => bare(fk.table) === name
+    && fk.ref_schema === catalogue.schema && fk.validated === true && bare(fk.ref_table) === target
+    && sameColumns(fk.columns, columns) && sameColumns(fk.ref_columns, referenced) && hasKey(target, referenced));
+  const primaryId = name === 'provider_attempt' ? 'attempt_id' : 'event_id';
+  if (!hasKey(name, [primaryId])) fail.push(`private telemetry lacks globally unique ${primaryId}`);
+  for (const column of new Set([...TELEMETRY_IDENTITY, primaryId])) {
+    if (!catalogue.columns.some(c => c.table === name && c.column === column && c.nullable === false)) {
+      fail.push(`private telemetry identity ${column} must exist and be NOT NULL`);
+    }
+  }
+  if (!table.rls || !table.force_rls) fail.push('private telemetry must ENABLE and FORCE ROW LEVEL SECURITY');
+  if (!accountSet.has(name)) fail.push('private telemetry absent from ACCOUNT_TABLES');
+  if (!anchors.has(name)) fail.push('private telemetry has no FK path to "user"');
+  const grantees = new Set([...runtime, 'PUBLIC', ...catalogue.tableGrants, ...catalogue.columnGrants]
+    .map(value => typeof value === 'string' ? value : value.table === name ? value.grantee : null).filter(Boolean));
+  grantees.delete(migration); // Schema-owner authority is not a runtime grant.
+  for (const role of grantees) {
+    const allowed = role === worker ? ['SELECT'] : role === deletion ? ['SELECT', 'DELETE'] : [];
+    const unexpected = privilegesFor(catalogue, name, role).filter(p => !allowed.includes(p));
+    if (unexpected.length) fail.push(`private telemetry grants unexpected ${unexpected.join('/')} to ${role}`);
+  }
+  // Whole-table grants are required here: a column-only SELECT cannot prove deletion read-back.
+  for (const [role, required] of [[worker, ['SELECT']], [deletion, ['SELECT', 'DELETE']]]) {
+    for (const privilege of required) if (!role || !catalogue.tableGrants.some(g => g.table === name && g.grantee === role && g.privilege === privilege)) {
+      fail.push(`private telemetry lacks ${privilege} for ${role || 'required role'}`);
+    }
+  }
+  const mine = catalogue.policies.filter(p => p.table === name);
+  for (const command of ['SELECT', 'DELETE']) {
+    const policies = policiesFor(catalogue, name, deletion).filter(p => p.cmd === 'ALL' || p.cmd === command);
+    if (!policies.some(p => p.permissive === 'PERMISSIVE' && policyShape(p.using_expr) === TELEMETRY_OWNER_POLICY)) {
+      fail.push(`private telemetry lacks exact deletion owner policy for ${command}`);
+    }
+    if (policies.some(p => policyShape(p.using_expr) !== TELEMETRY_OWNER_POLICY)) {
+      fail.push(`private telemetry deletion ${command} policy widens owner scope`);
+    }
+  }
+  if (!policiesFor(catalogue, name, worker).some(p => p.cmd === 'SELECT' && p.permissive === 'PERMISSIVE' && policyShape(p.using_expr) === 'true')) {
+    fail.push('private telemetry lacks worker SELECT policy');
+  }
+  if (!policiesFor(catalogue, name, migration).some(p => p.cmd === 'ALL' && p.permissive === 'PERMISSIVE'
+    && policyShape(p.using_expr) === 'true' && policyShape(p.check_expr) === 'true')) {
+    fail.push('private telemetry lacks function-owner policy');
+  }
+  for (const policy of mine) {
+    const assigned = policy.roles.split(',').map(x => x.trim());
+    if (assigned.some(role => ![migration, worker, deletion].includes(role))) fail.push('private telemetry policy grants an unexpected role');
+    if (assigned.includes(worker) && policy.cmd !== 'SELECT') fail.push('private telemetry worker policy is not SELECT-only');
+  }
+  const guard = (mask, row, fn) => catalogue.triggers.some(t => bare(t.table) === name
+    && ['O','A'].includes(t.enabled) && (t.type & 2) && Boolean(t.type & 1) === row
+    && (t.type & mask) && t.unconditional && !t.update_columns
+    && t.function_schema === catalogue.schema && t.function_name === fn);
+  const fn = name === 'provider_attempt' ? 'guard_provider_attempt' : 'guard_provider_observation';
+  for (const [event, mask] of [['INSERT',4], ['UPDATE',16], ['DELETE',8]]) {
+    if (!guard(mask, true, fn)) fail.push(`private telemetry lacks enabled BEFORE ${event} row guard`);
+  }
+  if (!guard(32, false, 'guard_provider_truncate')) fail.push('private telemetry lacks enabled BEFORE TRUNCATE statement guard');
+  if (name === 'provider_attempt') {
+    if (!hasKey(name, ['job_id','claim_number'])) fail.push('private telemetry lacks unique job/claim identity');
+    if (!hasKey(name, TELEMETRY_IDENTITY)) fail.push('private telemetry lacks unique complete intent identity');
+    if (!hasFk(['job_id','owner_id','exam_id','submission_id'], 'jobs', ['id','owner_id','exam_id','submission_id'])) fail.push('private telemetry lacks validated exact job identity FK');
+    if (!hasFk(['submission_id','owner_id'], 'submissions', ['id','owner_id'])) fail.push('private telemetry lacks validated exact submission owner FK');
+  } else {
+    if (!hasFk(TELEMETRY_IDENTITY, 'provider_attempt', TELEMETRY_IDENTITY)) fail.push('private telemetry lacks validated exact intent identity FK');
+    if (!hasKey(name, ['attempt_id','revision'])) fail.push('private telemetry lacks unique observation revision');
+    const prior = catalogue.foreignKeys.some(fk => bare(fk.table) === name && fk.ref_schema === catalogue.schema
+      && fk.validated === true && bare(fk.ref_table) === name
+      && colsOf(fk.columns).includes('previous_event_id') && colsOf(fk.columns).includes('attempt_id')
+      && colsOf(fk.columns).map((col,index) => col === 'previous_event_id' ? colsOf(fk.ref_columns)[index] === 'event_id'
+        : col === colsOf(fk.ref_columns)[index]).every(Boolean)
+      && hasKey(name, colsOf(fk.ref_columns)));
+    if (!prior) fail.push('private telemetry lacks validated same-intent previous-event FK');
+    if (!catalogue.triggers.some(t => bare(t.table) === name && t.name === 'provider_observation_accepted'
+      && ['O','A'].includes(t.enabled) && t.type === 5 && t.unconditional && !t.update_columns
+      && t.constraint_trigger && t.deferrable && t.initially_deferred
+      && t.function_schema === catalogue.schema && t.function_name === 'guard_provider_accepted')) {
+      fail.push('private telemetry lacks enabled initially-deferred accepted constraint trigger');
+    }
+  }
+  const access = catalogue.functionAccess || [];
+  const fixedPath = f => f.config.split(/,(?=[a-z_]+=)/)
+    .some(setting => setting.replace(/["\s]/g, '') === `search_path=pg_catalog,${catalogue.schema}`);
+  const requiredFunctions = [
+    ['begin_provider_attempt', 'uuid, uuid, jsonb', worker, true],
+    ['append_provider_observation', 'uuid, uuid, integer, jsonb, uuid', worker, true],
+    ['export_owned_provider_attempts', '', learner, true],
+    [fn, '', null, false], ['guard_provider_truncate', '', null, false],
+    ...(name === 'provider_attempt_observation' ? [['guard_provider_accepted', '', null, true]] : []),
+  ];
+  for (const [functionName, args, caller, definer] of requiredFunctions) {
+    const records = access.filter(f => f.name === functionName && f.argument_types === args);
+    if (!records.length) { fail.push(`private telemetry missing function ${functionName}(${args})`); continue; }
+    if (records.some(f => f.owner !== migration)) fail.push(`private telemetry function ${functionName} has wrong owner`);
+    if (records.some(f => f.security_definer !== definer)) fail.push(`private telemetry function ${functionName} has wrong security mode`);
+    if (definer && records.some(f => !fixedPath(f))) {
+      fail.push(`private telemetry function ${functionName} lacks fixed definer authority`);
+    }
+    if (functionName !== 'export_owned_provider_attempts' && records.some(f => f.volatility !== 'v')) {
+      fail.push(`private telemetry function ${functionName} must be VOLATILE`);
+    }
+    if (caller && !records.some(f => f.grantee === caller && f.privilege === 'EXECUTE')) fail.push(`private telemetry function ${functionName} lacks required EXECUTE`);
+  }
+  for (const record of access.filter(f => /(^|_)provider_/.test(f.name))) {
+    const expected = requiredFunctions.find(([functionName, args]) => record.name === functionName && record.argument_types === args);
+    const allowed = [migration, expected?.[2]].filter(Boolean);
+    if (!allowed.includes(record.grantee)) fail.push(`private telemetry function ${record.name} grants unexpected EXECUTE to ${record.grantee}`);
+    if (record.owner !== migration || (record.security_definer && !fixedPath(record))) fail.push(`private telemetry helper ${record.name} has unsafe authority`);
+  }
+  return fail;
+}
 
 /* --------------------------------------------------------------- anchors */
 
@@ -115,6 +241,7 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
   const classified = new Set([...AUTH_TABLES, ...AUTH_SUPPORT_TABLES, ...CONTENT_TABLES, ...PRIVATE_REVIEW_TABLES, ...CATALOGUE_TABLES,
     ...KEY_TABLES, ...PROTECTED_EXPLANATION_TABLES, ...INFRASTRUCTURE_TABLES]);
 
+  // Private telemetry stays in this ownership graph despite its separate privilege classification.
   // A table is account-owned if it has an owner column, or if it is named in ACCOUNT_TABLES
   // (this is how `drafts`, which has no owner column, is recognised).
   const candidates = catalogue.tables
@@ -128,10 +255,22 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
 
   const note = (failures) => (failures.length ? 'FAIL' : 'OK');
 
+  if (catalogue.tables.some(table => PRIVATE_TELEMETRY_TABLES.includes(table.name))) {
+    for (const name of PRIVATE_TELEMETRY_TABLES) if (!catalogue.tables.some(table => table.name === name)) {
+      rows.push({table:name, cls:'private-owned telemetry', verdict:'FAIL', detail:'private telemetry table is missing from the installed pair'});
+    }
+  }
+
   for (const table of catalogue.tables) {
     const name = table.name;
     const cols = columnsOf(catalogue, name);
     const fail = [];
+    if (PRIVATE_TELEMETRY_TABLES.includes(name)) {
+      fail.push(...telemetryRules(catalogue, table, roles, accountSet, anchors));
+      rows.push({table:name, cls:'private-owned telemetry', verdict:note(fail),
+        detail:fail.length ? fail.join('; ') : 'private worker function writes; exact ownership; owner-scoped deletion; immutable observations'});
+      continue;
+    }
     if (payments) {
       const allowed = ['payment_product','payment_price','payment_order','payment_checkout_event','payment_event','payment_grant','entitlements','exam_package','user'];
       const granted = privilegesFor(catalogue,name,payments);

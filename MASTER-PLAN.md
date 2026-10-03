@@ -1,5 +1,19 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## Actual CI resumed and selected-language implementation began — 3 October 2026
+
+PR114 and PR116 passed all seven repository-policy hosted checks and merged in order as dc3b3ca2/bbf82da5. Remaining PRs are unmerged. [O01 PR128](https://github.com/ronslink/hatoove/pull/128) exposed actual cross-platform registry and retained-fixture defects; reviewed b2dccd5/36892cb corrections await new-head hosted validation. The earlier billing restriction is no longer the active blocker for these runs. [Language issue129](https://github.com/ronslink/hatoove/issues/129) has a separately frozen, independently reviewed contract83e0331; bounded public/auth and shell implementation began, preserving German assessed material and bilingual operational directions. Human/native/device/security/legal/provider and live-operation gates remain open.
+
+## Invocation accounting locally delivered; full interface languages next — 3 October 2026
+
+[O01 issue127](https://github.com/ronslink/hatoove/issues/127) delivers independently reviewed private invocation receipts, safe synthetic reporting and bounded recovery with [local evidence](work/implementation/PILOT-O01-RESULT.md): pure15, PostgreSQL32, classifier173, Compose40/OpenAPI51 and retained regression suites pass. PR publication follows final staged verification. Required hosted CI, ordered integration and product acceptance remain outstanding under the predecessor account restriction; no actual provider spend, production erasure performance or live-operation approval is claimed.
+
+Ron explicitly changed the language requirement: the public landing page, pre-signup screens, navigation, account screens and app guidance follow the selected de/en/uk/ar/tr language. Original exam-language content and instructions remain visible; operational directions also show the selected-language translation. German-only interface preservation is superseded. Tested passages, audio, questions/options, writing scenario and Leitpunkte remain in the exam language; package, language and market stay independent. Read-only discovery precedes bounded implementation and desktop/mobile verification. Native translation review remains a separate acceptance gate.
+
+## Saved explanations PR126; invocation-accounting contract ready — 3 October 2026
+
+PILOT07 is published as [PR126](https://github.com/ronslink/hatoove/pull/126), independently reviewed and locally verified, with actual required hosted jobs stopped before any test by the unchanged account billing/spending restriction. The stack remains unmerged. [O01 issue127](https://github.com/ronslink/hatoove/issues/127) now has a [reviewed contract](docs/contracts/PILOT-O01-USAGE.md) for private per-claim usage facts, unknown-aware synthetic estimates, bounded recovery and safe aggregate reporting. This is a contract freeze before separately leased implementation; actual provider prices/calls, invoices, production monitoring, retention and human/live-operation acceptance remain open.
+
 ## Saved explanation mechanics locally delivered — 3 October 2026
 
 PILOT07 [issue124](https://github.com/ronslink/hatoove/issues/124) has independently reviewed storage, worker, API/export/deletion and client delivery with [local evidence](work/implementation/PILOT-07-RESULT.md): final clean browser15/15,45 screenshots, actual disposable PostgreSQL checks and verified cleanup. Simulation variants cover five languages; real native/educational review and translated-content acceptance remain open. Publication follows final record review and staged scan, stacked onC03PR125. Required hosted CI is still account-blocked and this stack remains unmerged. O01 next has a bounded corrected-contract drafting lease only; human/device/provider/privacy/legal/live gates remain separate.

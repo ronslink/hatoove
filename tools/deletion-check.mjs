@@ -324,7 +324,7 @@ try {
     return 'error 42501 insufficient_privilege - the reason the deletion is a separate port';
   });
 
-  await check('FORCED FAILURE after draft deletion: reply 500, attachment removal and steps 1-8 had really run, then EVERY table of A is intact', async () => {
+  await check('FORCED FAILURE after draft deletion: reply 500, attachment removal and steps 1-10 had really run, then EVERY table of A is intact', async () => {
     assert.ok(createDeletion, 'no createPostgresAccountDeletion in server/owned-postgres/adapter.mjs');
     const reached = [];
     let inFlight = null;
@@ -348,7 +348,7 @@ try {
     const reply = await caller(failingApi)('DELETE', '/api/v1/account', { cookie: A.cookie, body: {} });
     assert.equal(reply.status, 500, `expected 500, got ${reply.status} ${JSON.stringify(reply.json)}`);
     assert.deepEqual(reply.json, { error: 'internal_error' });
-    assert.deepEqual(reached, ['1:mock_writing', '2:attempts_unlinked', '3:writing_explanation_head', '4:writing_explanation_representation', '5:usage_ledger', '6:assessments', '7:jobs', '8:drafts']);
+    assert.deepEqual(reached, ['1:provider_attempt_observation', '2:provider_attempt', '3:mock_writing', '4:attempts_unlinked', '5:writing_explanation_head', '6:writing_explanation_representation', '7:usage_ledger', '8:assessments', '9:jobs', '10:drafts']);
     assert.deepEqual(inFlight, { linked: 0, usage: 0, drafts: 0 }, `in-flight state ${JSON.stringify(inFlight)}`);
     const after = await snapshot(A.userId, beforeA.ids);
     for (const table of TABLES) assert.equal(asJson(after.state[table]), asJson(beforeA.state[table]), `${table} changed`);

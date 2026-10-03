@@ -113,7 +113,7 @@ try {
   });
   await check('a grading exception preserves the submitted assigned text and avoids a successful-review debit',async()=>{
     const value=await queued('v9306');const result=await createWorker({pool:db.worker,grade:async()=>{throw Object.assign(Error('Synthetic outage'),{code:'grader_unavailable'});}}).runOnce();
-    assert.equal(result.code,'grader_unavailable');await assertRefunded(value);
+    assert.equal(result.code,'grader_error');await assertRefunded(value);
   });
   for(const during of [false,true])await check('complete-form media rights withdrawal '+(during?'during':'before')+' known-rubric grading prevents assessment and debit',async()=>{
     const version=during?'v9500':'v9400';const complete=await createCompleteFixture({mediaRoot,version,releaseVersion:version,blueprintVersion:version});

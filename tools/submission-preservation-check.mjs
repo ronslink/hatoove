@@ -281,8 +281,34 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
     'submit locks the balance before the attempt');
   const exported = body('exportData');
   const statements = exported.split('client.query(').slice(1);
-  // Closed S5 inventory: schedule and playback snapshots joined the account export.
-  // Name each query and its owner binding rather than merely accepting a larger count.
+  // Retain the closed query inventory while checking each current export class and its owner scope.
+  // S5/S5B added playback/timing facts; PILOT-07 added personal explanation rows and heads.
+  const queryClasses = new Map([
+    ['learner_preparation', 1], ['entitlements', 1], ['attempts', 1], ['submissions', 2],
+    ['item_evidence', 1], ['mock_run', 1], ['mock_writing', 1], ['mock_run_time_group', 1],
+    ['listening_playback', 1], ['writing_explanation_representation', 1], ['writing_explanation_head', 1],
+    ['payment_order', 1], ['payment_checkout_event', 1], ['payment_event', 1], ['payment_grant', 1],
+  ]);
+  assert.equal(statements.length, [...queryClasses.values()].reduce((sum, count) => sum + count, 0),
+    'no unclassified direct query may enter the owned export');
+  for (const [table, expected] of queryClasses) {
+    const matching = statements.filter(sql => new RegExp(`FROM ${table}\\b`).test(sql));
+    assert.equal(matching.length, expected, `${table} retains its exact export query class`);
+    for (const statement of matching) assert.match(statement, /WHERE (?:[a-z]+\.)?owner_id\s*=\s*\$1/,
+      `${table} export is explicitly owner-scoped`);
+  }
+  assert.match(exported, /const provider_attempts=await readOwnProviderAttempts\(client\)/,
+    'provider history uses the protected owned export helper in the existing transaction');
+  assert.doesNotMatch(exported, /FROM provider_attempt(?:_observation)?\b/,
+    'the learner export must not read raw private provider tables');
+  const { readOwnProviderAttempts } = await import('../server/owned-postgres/provider-attempts.mjs');
+  const providerQueries = [];
+  assert.deepEqual(await readOwnProviderAttempts({ query: async (...args) => {
+    providerQueries.push(args); return { rows: [{ value: { synthetic: true } }] };
+  } }), [{ synthetic: true }]);
+  assert.deepEqual(providerQueries, [['SELECT export_owned_provider_attempts() AS value']],
+    'the helper reads only the authenticated-owner SQL projection, with no caller-selected owner');
+  // Preserve P07's exact query/return inventory alongside O01's protected provider helper.
   const inventory = [
     ['preparations', 'learner_preparation p', 'p.owner_id'],
     ['balances', 'entitlements', 'owner_id'],
@@ -308,6 +334,7 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
   const returned = exported.match(/return\s*\{([^{}]+)\};/);
   assert.ok(returned, 'the export returns its named snapshots');
   assert.deepEqual(returned[1].split(',').map((name) => name.trim()), [
+    'provider_attempts',
     ...inventory.filter(([name])=>!name.startsWith('writing_explanation_')).map(([name])=>name),
     'writing_explanation_representations','writing_explanation_heads','shared_explanation_representations',
   ], 'every direct snapshot and the authorized shared explanation projection is returned exactly once');

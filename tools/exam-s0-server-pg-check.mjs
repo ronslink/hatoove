@@ -336,6 +336,7 @@ check('6. the worker fails an unsupported rubric before invoking the grader', as
   assert.deepEqual([job.status, job.failure_code], ['failed', 'unsupported_rubric']);
   assert.ok(!graded.includes(receipt.json.submissionId), 'the grader was never called for the unsupported rubric');
   assert.equal((await sql('SELECT count(*)::int AS n FROM assessments WHERE submission_id = $1', [receipt.json.submissionId])).rows[0].n, 0);
+  assert.equal((await sql('SELECT count(*)::int AS n FROM provider_attempt WHERE submission_id = $1', [receipt.json.submissionId])).rows[0].n, 0, 'unsupported rubric never creates an invocation intent');
   assert.equal((await sql("SELECT reserved FROM entitlements WHERE owner_id = $1 AND exam_id = 'telc-deutsch-b1'", [f.id])).rows[0].reserved, 0,
     'reservation refunded to the exam balance it was reserved from');
   const result = await call('GET', `/api/v1/submissions/${receipt.json.submissionId}`, { cookie: f.cookie });

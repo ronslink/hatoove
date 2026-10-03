@@ -214,13 +214,22 @@ check('W1. crash recovery end to end: an abandoned running job is completed by a
   assert.equal((await jobRow(s.submissionId)).status, 'queued');
   assert.equal((await entitlement(a.userId)).reserved, 1);
 
-  // A crashed worker, simulated: it CLAIMS the job (tries=1, lease held) and then never
-  // commits because its grade hangs. leaseMs=1 makes the lease already lapsed. A real crash
-  // leaves exactly this state, and a real process cannot be timed against a ~instant stub.
-  const crashed = createWorker({ pool: db.worker, grade: () => new Promise(() => {}), leaseMs: 1 });
+  // Reach the grader under a valid lease and a committed invocation intent, then model
+  // a crash by expiring only that held claim. A one-millisecond dispatch lease can expire
+  // before the durable-intent gate and would test refusal instead of crash recovery.
+  let graderEntered = false;
+  const crashed = createWorker({ pool: db.worker, grade: () => {
+    graderEntered = true;
+    return new Promise(() => {});
+  } });
   float(crashed.runOnce());
-  await until(async () => (await jobRow(s.submissionId)).status === 'running');
-  assert.equal((await jobRow(s.submissionId)).tries, 1, 'the abandoned claim consumed a try');
+  await until(() => graderEntered);
+  const abandoned = await jobRow(s.submissionId);
+  assert.equal(abandoned.status, 'running');
+  assert.equal(abandoned.tries, 1, 'the abandoned claim consumed a try');
+  assert.equal((await one('SELECT count(*)::int AS n FROM provider_attempt WHERE submission_id = $1', [s.submissionId])).n, 1, 'the invocation intent committed before grading');
+  const expired = await db.admin.query("UPDATE jobs SET lease_until = clock_timestamp() - interval '1 second' WHERE submission_id = $1 AND status = 'running' AND tries = 1 AND lease_token = $2 RETURNING id", [s.submissionId, abandoned.lease_token]);
+  assert.equal(expired.rowCount, 1, 'only the abandoned claim was expired');
 
   // DISCRIMINATION: with no recovery process, the abandoned job does not heal itself.
   await new Promise((r) => setTimeout(r, 1200));
@@ -313,11 +322,11 @@ check('W4. a failing grader does not lose the submission: failed + stable code, 
     return stubGrade();
   };
   const outcome = await createWorker({ pool: db.worker, grade: grader }).runOnce();
-  assert.deepEqual(outcome, { claimed: true, submissionId: s.submissionId, outcome: 'failed', code: 'grader_unavailable' });
+  assert.deepEqual(outcome, { claimed: true, submissionId: s.submissionId, outcome: 'failed', code: 'grader_error' });
 
   const failed = await jobRow(s.submissionId);
   assert.equal(failed.status, 'failed');
-  assert.equal(failed.failure_code, 'grader_unavailable', 'a stable failure_code');
+  assert.equal(failed.failure_code, 'grader_error', 'a fixed code without copying the grader-supplied value');
   assert.equal((await entitlement(a.userId)).reserved, 0, 'a failure releases the reservation');
   assert.equal(await assessmentCount(s.submissionId), 0, 'no assessment on failure');
   assert.equal(await ledgerUnits(s.submissionId), 0, 'no debit on failure');
@@ -343,7 +352,7 @@ check('W4. a failing grader does not lose the submission: failed + stable code, 
   } finally {
     await worker.stop();
   }
-  return 'failed(grader_unavailable) with reserved released and text readable -> retry() re-queued -> real process succeeded, assessments=1, used=1/reserved=0';
+  return 'failed(grader_error) with reserved released and text readable -> retry() re-queued -> real process succeeded, assessments=1, used=1/reserved=0';
 });
 
 check('W0. control: with nothing queued, a real worker process claims nothing and writes nothing', async () => {
