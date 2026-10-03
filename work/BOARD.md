@@ -1,5 +1,13 @@
 # Hatoove work board
 
+## C-03 final local acceptance; publication next — 3 October 2026
+
+[C03 evidence](implementation/PILOT-C03-RESULT.md) records independently reviewed core/consumers/classification/fixtures and clean-source browser acceptance at `7dec3b4`, adopted `74c776b`. Final S6 7/7 and C03 10/10 pass with61 screenshots; coordinator verified both exact disposable projects absent. Retained PostgreSQL, worker and offline results are recorded separately. Source delivery/local acceptance is complete; final record/PR closeout follows. Required hosted CI remains account-blocked, so no stack merge or product acceptance is claimed. PILOT07's amended saved-explanation contract is independently clear for freeze; O01 remains a design proposal under review. Human review, physical devices and live-operation gates stay open.
+
+## C-03 source and retained checks clear; browser acceptance pending — 3 October 2026
+
+[Issue122](https://github.com/ronslink/hatoove/issues/122) integration `414c72f` includes independently reviewed core, consumers, safe client labels, classifier and historical fixtures. Core33, consumers25, classifier19 with74 private-ledger mutations, the real two-slot fixture regression and six historical suites94 pass. Final worker-runner14, worker-wire5, S5Bworker13 and ownedAPI-PG34 also pass; coordinator independently reran historical package14. Browser source/evidence review and final clean-source desktop/mobile acceptance remain in progress. Named decisions are synthetic fixtures, not human content approval. Q-01 PR123 and the preceding stack remain unmerged: required hosted CI is account-blocked before tests start. The saved-explanation contract and stub-only O01 design proposal are being reviewed; no live operations are authorized.
+
 ## C-03 combined candidate under verification; Q-01 PR123 — 3 October 2026
 
 Q-01 is published as [PR123](https://github.com/ronslink/hatoove/pull/123) at `c2c25e1`. Its actual hosted workflows37139332094/37139332097 again stopped with zero test steps for the account payment/spending restriction; no merge is authorized by the local results. [Issue122](https://github.com/ronslink/hatoove/issues/122) now combines core `fca4ab0` plus reviewed coverage correction `0b72b5c`, consumers `5dd37d8` and private-ledger classifier `6c43bb9` on a separate integration branch. Core33/consumer25/S6core16/parity81/admission12 pass locally. Coordinator fixture/client source review is clear after terminal-refusal and connection-reuse corrections; full consumer review, remaining retained checks and desktop/mobile review-history evidence are pending. These are synthetic engineering results, not real reviewer appointments or content approval.
