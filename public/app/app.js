@@ -566,7 +566,7 @@ async function renderTasks() {
   const groups = [];
   if (tasks.length) {
     groups.push("<h3 class=\"section-head\"><span data-i18n=\"shell.m005\">Schreiben</span></h3>" + tasks.map((t) => card(
-      '<span ' + examTextAttributes() + '>' + esc(t.topic) + '</span>', esc(t.family), '<span ' + examTextAttributes() + '>' + esc(t.situation) + '</span>',
+      '<span ' + examTextAttributes() + '>' + esc(t.topic) + '</span>', messageMarkup('m005'), '<span ' + examTextAttributes() + '>' + esc(t.situation) + '</span>',
       messageMarkup("m059") + ' <span ' + examTextAttributes() + '>' + esc(t.adressat) + '</span> &middot; ' + messageMarkup('register') + ': <span ' + examTextAttributes() + '>' + esc(t.register) + '</span>'
         + ' &middot; ' + messageMarkup('version') + ' ' + esc(t.version) + ' &middot; ' + reviewMarkup(t),
       // The four-part binding, exactly as the Schreiben view binds it; the controller resumes an open
@@ -989,7 +989,7 @@ async function renderSkill(view) {
     const tasks = Array.isArray(res.data) ? res.data : [];
     setShellHTML(box, tasks.length
       ? tasks.map((t) => '<div class="card"><div class="card-head"><h3 ' + examTextAttributes() + '>' + esc(t.topic)
-        + '</h3><span class="chip">' + esc(t.family) + '</span></div>'
+        + '</h3><span class="chip">' + messageMarkup('m005') + '</span></div>'
         + '<p class="muted" ' + examTextAttributes() + '>' + esc(t.situation) + '</p>'
         + '<p class="small muted"><span data-i18n="shell.m059">Anrede:</span> <span ' + examTextAttributes() + '>' + esc(t.adressat) + '</span> &middot; ' + reviewMarkup(t) + '</p>'
         /*

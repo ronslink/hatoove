@@ -1,5 +1,8 @@
 /** Deterministic browser-speech adapter checks. Synthetic voices; no audio, network, files or provider. */
 import assert from 'node:assert/strict';
+import { setLocale } from '../public/assets/i18n/core.js';
+// These retained copy assertions deliberately exercise the German interface.
+setLocale('de');
 import { createLocalSpeech, READ_ALOUD_LIMIT } from '../public/app/read-aloud.js';
 
 const local = (lang, extra = {}) => ({ lang, localService: true, name: 'Synthetic local voice', ...extra });

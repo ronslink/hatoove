@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 const root = path.resolve(process.argv[2] || '.');
+// Match the tested source root and make German copy assertions independent of the host locale.
+const { setLocale } = await import(pathToFileURL(path.join(root, 'public/assets/i18n/core.js')));
+setLocale('de');
 const { mockMember, mockReviewLabel, createMockSession } = await import(pathToFileURL(path.join(root, 'public/app/mock.js')));
 const { initialPreparation, preparationChoices } = await import(pathToFileURL(path.join(root, 'public/app/preparation.js')));
 const clone = value => JSON.parse(JSON.stringify(value));
