@@ -111,9 +111,10 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
       await a.send('Input.dispatchKeyEvent',{type:'char',text:'\r',unmodifiedText:'\r',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13});
       await a.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
       await waitControl(a,'play');
-      await a.evaluate("document.documentElement.style.zoom='2';return true;");
-      try {const layout=await overflow(a);assert(layout.offenderCount===0,'200% CSS zoom overflow');await shot(a,'s5-player-200percent-css-zoom','.listening-player');}
-      finally {await a.evaluate("document.documentElement.style.zoom='';return true;");}
+      // Reflow equivalent to a1440px browser at200%; CSS zoom alone does not adjust media queries.
+      await a.send('Emulation.setDeviceMetricsOverride',{width:720,height:450,deviceScaleFactor:2,mobile:false});
+      try {const layout=await overflow(a);assert(layout.offenderCount===0,'200% equivalent reflow overflow '+JSON.stringify(layout));await shot(a,'s5-player-200percent-reflow-equivalent','.listening-player');}
+      finally {await viewport(a,1440,900,false);}
     });
     await run('S5B10 expiry during real playback preserves answers and permits leaving and finalising',async()=>{
       const expiring=await start(a,dtz,'expiry');await fresh(a,expiring.id);
