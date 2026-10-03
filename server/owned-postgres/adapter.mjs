@@ -1099,12 +1099,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             result.review_withdrawn=context.review_withdrawn;result.review_basis=context.review_basis;
           }
         }
-        const writing_explanation_representations=(await client.query(`SELECT * FROM writing_explanation_representation
+        const writing_explanation_representations=(await client.query(`SELECT submission_id,source_sha256,language,representation_version,
+          attempt_id,exam_id,task_id,task_version,rubric_id,rubric_version,model_version,prompt_version,
+          original_language,original_format,payload,payload_sha256,provenance,created_at FROM writing_explanation_representation
           WHERE owner_id=$1 ORDER BY submission_id,source_sha256,language,representation_version`,[owner])).rows.map(row=>{
             const blocked=blockedWriting.get(row.submission_id);
             return blocked?{...row,payload:null,blocked_reason:blocked}:row;
           });
-        const writing_explanation_heads=(await client.query(`SELECT * FROM writing_explanation_head
+        const writing_explanation_heads=(await client.query(`SELECT submission_id,source_sha256,language,representation_version FROM writing_explanation_head
           WHERE owner_id=$1 ORDER BY submission_id,source_sha256,language`,[owner])).rows;
         const shared_explanation_representations=[];
         for(const evidence of objective_evidence){
@@ -1199,6 +1201,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       return settle(owner, async (client) => {
         await lockMockOwner(client,owner);
         const attempt = await owned(client, owner, id);
+        // An unresolved historical row has no admission subject; retain its explicit recovery error.
+        if (!attempt.preparation_id) fail(422, 'preparation_unresolved');
         await requireWritingMutation(client,attempt,{});
         const current = await draftOf(client, id);
         if (!current || current.revision !== expectedRevision) fail(409, 'draft_conflict');
@@ -1361,6 +1365,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const examId = await attemptExam(client, owner, id);
         if (examId) await lockBalance(client, owner, examId);
         const attempt = await owned(client, owner, id);
+        if (!attempt.preparation_id) fail(422, 'preparation_unresolved');
         await requireWritingMutation(client,attempt,{standalone:true});
         if (first(await client.query('SELECT id FROM submissions WHERE attempt_id = $1 LIMIT 1', [id]))) {
           fail(409, 'submitted_attempt');

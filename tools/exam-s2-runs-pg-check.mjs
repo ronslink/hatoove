@@ -2,14 +2,19 @@
 /** EXAM-S2 real restricted-role PostgreSQL checks. Dedicated disposable DB only; never app ports. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import {createRequire} from 'node:module';
 import { createFixture, rolePool } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createPostgresDatastore, createPostgresAccountDeletion, ACCOUNT_TABLES } from '../server/owned-postgres/adapter.mjs';
 import { importPackage } from '../server/owned-postgres/package-importer.mjs';
+import { packageHash } from '../server/package-contract.mjs';
 
-if (process.env.OWNAPI_PG_ALLOW !== '1' || [4300,55440].includes(Number(process.env.OWNAPI_PG_PORT))) {
-  throw new Error('Set OWNAPI_PG_ALLOW=1 and explicit disposable OWNAPI_PG_* parameters; live ports prohibited.');
-}
+const env=process.env;
+const local=env.OWNAPI_PG_PORT==='62563'&&env.OWNAPI_PG_DATABASE==='hatoove_spike';
+const ci=env.CI==='true'&&env.GITHUB_ACTIONS==='true'&&env.OWNAPI_PG_PORT==='5432'&&env.OWNAPI_PG_DATABASE==='hatoove_ci';
+if(env.OWNAPI_PG_ALLOW!=='1'||env.OWNAPI_PG_HOST!=='127.0.0.1'||(!local&&!ci))throw Error('exam_s2_fixture_refused');
+const policyKeys=['B1PREP_CONTENT_MODE','B1PREP_SERVE_REVIEW','B1PREP_SERVE_RIGHTS'];
+const previousPolicy=Object.fromEntries(policyKeys.map(key=>[key,process.env[key]]));
 process.env.B1PREP_CONTENT_MODE = 'internal-preview';
 delete process.env.B1PREP_SERVE_REVIEW;
 delete process.env.B1PREP_SERVE_RIGHTS;
@@ -29,11 +34,7 @@ function source({ version = 'v9001', setVersion = 'v1', formVersion = 'v1', stat
       itemCount:2,interaction:'single_choice',answers:{1:setVersion==='v1'?'a':'b',2:'b'},explanations:{1:'Synthetic explanation '+setVersion,2:'Synthetic second explanation'},
       reviewStatus:'unreviewed',rightsStatus:'generated',source:'synthetic:exam-s2-runs-pg-check'}]};
 }
-const db = await createFixture();
-const world = await createPostgresWorld({ fixture:db });
-const parallelPool = rolePool(db.config,db.schema,db.roles.learner,5);
-const port = createPostgresDatastore({ pool:parallelPool });
-const deletion = createPostgresAccountDeletion({ pool:db.deletion });
+let db,world,parallelPool,port,deletion,observer;
 let passed=0;
 const check=async(name,work)=>{await work();passed++;console.log('PASS '+name);};
 const rejects=async(promise,code,status=409)=>assert.rejects(promise,e=>e.code===code&&e.status===status);
@@ -50,11 +51,41 @@ const start=(o,patch={})=>port.startMockRun(o.id,{preparationId:o.prep.id,formId
 const snapshot=(revision,answer='a',patch={})=>({expectedRevision:revision,eventId:randomUUID(),responses:[{setId:SET,version:'v1',itemId:'1',answer}],position:{member:0,item:0},...patch});
 const finalise=(o,run,patch={})=>port.finaliseMockRun(o.id,run.id,{expectedRevision:run.revision,eventId:randomUUID(),...patch});
 const count=async(table,who)=>Number((await db.admin.query(`SELECT count(*)::int AS n FROM ${table} WHERE owner_id=$1`,[who])).rows[0].n);
-async function asLearner(who,work) {
-  const client=await parallelPool.connect();
-  try {await client.query('BEGIN');await client.query("SELECT set_config('hatoove.owner_id',$1,true)",[who]);const result=await work(client);await client.query('COMMIT');return result;}
+function assertVirtualExplanationResult(actual,saved,requestedLanguage=null) {
+  // These synthetic originals have no trusted language-registry declaration. Neither the German
+  // exam nor a requested translation may invent one. Only this exact public projection is additive.
+  const unreviewed={review_status:'unreviewed',review_basis:'none',blocked:false,explicit_negative:false};
+  const expected={...saved,items:saved.items.map(item=>{
+    const identity={exam_id:TELC,set_id:item.set_id,set_version:item.version,item_id:item.item_id};
+    const sourceHash=packageHash({format_version:'explanation-source-v1',kind:'objective',...identity,
+      original_language:null,original_format:'objective-string',original_value:item.explanation});
+    const payload={schema:'explanation-text-v1',blocks:[{slot:'objective/comment',text:item.explanation}]};
+    return {...item,explanation_view:{schema:'explanation-view-v1',source:{kind:'objective',source_sha256:sourceHash,...identity},
+      requested_language:requestedLanguage,original_language:null,displayed_language:null,
+      state:requestedLanguage===null?'original':'fallback',requested_status:requestedLanguage===null?'available':'missing',
+      reason:requestedLanguage===null?null:'translation_unavailable',
+      representation:{version:'legacy-projection-v1',payload_sha256:packageHash(payload),persisted:false,payload,provenance_kind:'virtual-original'},
+      review:{educational:{...unreviewed},native_language:{...unreviewed}},
+      languages:['de','en','uk','ar','tr'].map(language=>({language,status:'missing'})),operation:null}};
+  })};
+  assert.deepEqual(actual,expected,'only the exact authorized virtual-original DTO may extend the frozen result');
+}
+async function frozenRunFacts(runId) {
+  return {
+    run:(await db.admin.query('SELECT result,result::text AS result_bytes,responses,revision,state FROM mock_run WHERE id=$1',[runId])).rows[0],
+    events:(await db.admin.query('SELECT * FROM mock_run_event WHERE run_id=$1 ORDER BY event_id',[runId])).rows,
+    evidence:(await db.admin.query('SELECT * FROM item_evidence WHERE mock_run_id=$1 ORDER BY evidence_id',[runId])).rows,
+    explanationRows:await Promise.all(['objective_explanation_representation','objective_explanation_head',
+      'writing_explanation_representation','writing_explanation_head'].map(async table=>
+      [table,(await db.admin.query(`SELECT count(*)::int AS n FROM ${table}`)).rows[0].n])),
+  };
+}
+async function asOwner(pool,who,work) {
+  const client=await pool.connect();
+  try {await client.query('BEGIN');await client.query("SELECT set_config('hatoove.owner_id',$1,true)",[who??'']);const result=await work(client);await client.query('COMMIT');return result;}
   catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
 }
+const asLearner=(who,work)=>asOwner(parallelPool,who,work);
 async function blockPreparation(o,work) {
   const client=await parallelPool.connect();
   try {
@@ -86,6 +117,14 @@ function pausedPort(pattern) {
   return {port:createPostgresDatastore({pool}),entered,release:()=>release()};
 }
 try {
+  db=await createFixture();
+  const pg=createRequire(new URL('../server/owned-postgres/bootstrap.mjs',import.meta.url))('pg');
+  observer=new pg.Pool({...db.config,max:1});
+  world=await createPostgresWorld({fixture:db});
+  parallelPool=rolePool(db.config,db.schema,db.roles.learner,5);
+  port=createPostgresDatastore({pool:parallelPool});
+  deletion=createPostgresAccountDeletion({pool:db.deletion});
+  console.log('Fixture '+db.schema+' (synthetic S2 content only)');
   await importPackage(db.migration,source(),{publisher:'synthetic-s2-runs-check'});
   const a=await owner('a');const b=await owner('b');
   await check('forms, owned start, exact pin and no early evidence/feedback',async()=>{
@@ -130,6 +169,11 @@ try {
     const finalBody={expectedRevision:saved.revision,eventId:randomUUID()};const before=await count('item_evidence',a.id);
     const finals=await Promise.all([port.finaliseMockRun(a.id,run.id,finalBody),port.finaliseMockRun(a.id,run.id,finalBody),finalise(a,saved)]);
     assert.ok(finals.every(x=>x.state==='finalised'&&x.revision===3));assert.deepEqual(finals[0].result,finals[2].result);
+    const expectedResult={answered:1,unanswered:1,correct:1,total:2,items:[
+      {answer:'a',set_id:SET,correct:true,item_id:'1',version:'v1',unanswered:false,explanation:'Synthetic explanation v1',correct_answer:'a'},
+      {answer:null,set_id:SET,correct:false,item_id:'2',version:'v1',unanswered:true,explanation:'Synthetic second explanation',correct_answer:'b'},
+    ]};
+    for(const final of finals)assert.deepEqual(final.result,expectedResult);
     assert.deepEqual({answered:finals[0].result.answered,unanswered:finals[0].result.unanswered,correct:finals[0].result.correct,total:finals[0].result.total},
       {answered:1,unanswered:1,correct:1,total:2});
     assert.equal(finals[0].result.items[0].correct_answer,'a');assert.equal(finals[0].result.items[0].explanation,'Synthetic explanation v1');
@@ -143,7 +187,32 @@ try {
       set_id,version,item_id,family,section,answer,correct,mock_run_id)
       SELECT gen_random_uuid(),owner_id,exam_id,preparation_id,set_id,version,item_id,family,section,answer,correct,mock_run_id
       FROM item_evidence WHERE mock_run_id=$1`,[run.id])),/invalid_mock_evidence/);
-    assert.deepEqual((await port.readMockRun(a.id,run.id)).result,finals[0].result);
+    const frozen=await frozenRunFacts(run.id);
+    assert.deepEqual(frozen.run.result,expectedResult,'SQL retains the exact original result without public view metadata');
+    assert.ok(frozen.explanationRows.every(([,rows])=>rows===0),'the fixture contains no stored explanation variants to substitute');
+    const read=(await port.readMockRun(a.id,run.id)).result;
+    assertVirtualExplanationResult(read,expectedResult);
+    assertVirtualExplanationResult((await port.readMockRun(a.id,run.id,{explanationLanguage:'ar'})).result,expectedResult,'ar');
+    await rejects(port.readMockRun(b.id,run.id,{explanationLanguage:'ar'}),'not_found',404);
+    assert.deepEqual((await port.finaliseMockRun(a.id,run.id,finalBody)).result,expectedResult,'exact finalise receipt replay retains its original facts');
+    assert.deepEqual(await frozenRunFacts(run.id),frozen,'explanation reads and receipt replay change no result, event, evidence or stored representation');
+    // Discriminate omission, changed original facts and plausible but unauthorized metadata.
+    for(const mutate of [
+      value=>{delete value.items[0].explanation_view;},
+      value=>{value.correct=2;},
+      value=>{value.items[1].explanation_view.source.item_id='1';},
+      value=>{value.items[0].explanation_view.source.source_sha256='0'.repeat(64);},
+      value=>{value.items[0].explanation_view.representation.payload.blocks[0].text='Changed original';},
+      value=>{value.items[0].explanation_view.representation.payload_sha256='0'.repeat(64);},
+      value=>{value.items[0].explanation_view.representation.provenance_kind='publisher-authored';},
+      value=>{value.items[0].explanation_view.representation.persisted=true;},
+      value=>{value.items[0].explanation_view.original_language='de';},
+      value=>{value.items[0].explanation_view.source.owner_id=a.id;},
+      value=>{value.items[0].explanation_view.review.educational.decision_ids=['private'];},
+    ]) {
+      const altered=structuredClone(read);mutate(altered);
+      assert.throws(()=>assertVirtualExplanationResult(altered,expectedResult),assert.AssertionError);
+    }
   });
   await check('save/finalise race serialises without grading unsaved answers or duplicate evidence',async()=>{
     const {run}=await start(a);
@@ -197,7 +266,16 @@ try {
   });
   await check('same-exam SQL foreign keys and identity triggers fail closed',async()=>{
     const {run}=await start(a);
-    await assert.rejects(db.admin.query('UPDATE mock_run SET preparation_id=$2 WHERE id=$1',[run.id,b.prep.id]),/mock_identity_immutable/);
+    const before=(await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[run.id])).rows[0];
+    const changeIdentity=c=>c.query('UPDATE mock_run SET preparation_id=$2 WHERE id=$1',[run.id,b.prep.id]);
+    // C03 checks the bound owner before the immutable-identity trigger. Admin is needed only
+    // to exercise that trigger: the learner's column grant separately refuses this UPDATE.
+    for(const who of [null,b.id])await assert.rejects(asOwner(db.admin,who,changeIdentity),
+      e=>e.code==='P0002'&&e.message==='not_found','missing/wrong owner must not reach identity mutation');
+    await assert.rejects(asLearner(a.id,changeIdentity),e=>e.code==='42501');
+    await assert.rejects(asOwner(db.admin,a.id,changeIdentity),
+      e=>e.code==='23514'&&e.message==='mock_identity_immutable','owner-bound raw DML must reach the exact identity guard');
+    assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[run.id])).rows[0],before,'every refused mutation preserves all run bytes');
     await assert.rejects(asLearner(a.id,c=>c.query(`INSERT INTO mock_run(id,owner_id,preparation_id,exam_id,release_version,blueprint_version,form_id,form_version,start_event_id,title,scope,mode)
       VALUES($1,$2,$3,$4,'v9001','v9000','s2-reading','v1',$5,'x','section','untimed')`,[randomUUID(),a.id,b.prep.id,TELC,randomUUID()])),/preparation_archived/);
     await assert.rejects(asLearner(a.id,c=>c.query("UPDATE mock_run SET responses=$2::jsonb,revision=revision+1 WHERE id=$1",[run.id,JSON.stringify([{setId:SET,version:'v9',itemId:'1',answer:'a'}])])),/unknown_mock_item/);
@@ -281,4 +359,18 @@ try {
     const exported=(await port.exportData(a.id)).mock_runs.find(x=>x.id===run.id);assert.deepEqual(exported.responses,saved.responses);assert.equal(exported.result,null);
   });
   console.log(`\n${passed} passed, 0 failed (real PostgreSQL; disposable schema ${db.schema})`);
-} finally {await parallelPool.end();await world.teardown();}
+} finally {
+  const errors=[];
+  if(parallelPool)try{await parallelPool.end();}catch(error){errors.push(error);}
+  if(world)try{await world.teardown();}catch(error){errors.push(error);}
+  if(db)try{await db.cleanup();}catch(error){errors.push(error);}
+  if(observer&&db)try{
+    assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_namespace WHERE nspname=$1',[db.schema])).rows[0].n,0);
+    assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_roles WHERE rolname=ANY($1::text[])',[Object.values(db.roles)])).rows[0].n,0);
+    assert.equal((await observer.query('SELECT count(*)::int AS n FROM pg_stat_activity WHERE application_name=$1 OR usename=ANY($2::text[])',[db.schema,Object.values(db.roles)])).rows[0].n,0);
+  }catch(error){errors.push(error);}
+  if(observer)try{await observer.end();}catch(error){errors.push(error);}
+  for(const key of policyKeys){if(previousPolicy[key]===undefined)delete process.env[key];else process.env[key]=previousPolicy[key];}
+  if(errors.length)throw Error('exam_s2_fixture_cleanup_failed');
+}
+console.log('Disposable fixture schema, roles and connections verified absent; policy environment restored.');
