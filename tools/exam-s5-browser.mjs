@@ -105,7 +105,10 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
       for(const width of [1440,390,320])for(const mode of ['light','dark']){await viewport(a,width,width===1440?900:844,width!==1440);await theme(a,mode);const layout=await overflow(a);await shot(a,`s5-player-${width}-${mode}`,'.listening-player');assert(layout.offenderCount===0,`${width}/${mode} overflow ${JSON.stringify(layout)}`);}
       await a.evaluate("document.querySelector('[data-listening-action]').focus();return true;");assert(await a.evaluate("return document.activeElement.hasAttribute('data-listening-action')"),'keyboard focus missing');
       await viewport(a,1440,900,false);await theme(a,'light');
-      await a.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+      await a.send('Page.bringToFront');
+      await a.evaluate("document.querySelector('[data-listening-action=load]').focus();return true;");
+      await a.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13});
+      await a.send('Input.dispatchKeyEvent',{type:'char',text:'\r',unmodifiedText:'\r',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13});
       await a.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
       await waitControl(a,'play');
       await a.evaluate("document.documentElement.style.zoom='2';return true;");

@@ -1,5 +1,10 @@
 # Hatoove implementation plan
 
+## EXAM-S5A verification and S5B implementation — 3 October 2026
+
+**S5A source independently reviewed; S5B active: EXAM-S5-20261003-A / EXAM-S5B-20261003-A.** Fixed listening packages, authenticated media, durable allowances and recovery are implemented on the isolated integration branch. Independent review found and fixed expiry navigation, pending-pause access, stale completion and classifier/schema issues. Focused package9/media12/client27, media PostgreSQL19, browser expiry12, classifier11 and retained Compose37 (OpenAPI51) pass; final keyboard/full-player evidence is being recaptured. This is internal technical signal evidence, not spoken-content/device/product approval. The EXAM-S5B contract freezes assigned telc writing, cumulative ordered server time groups and affirmative60/45-item complete-form validation before bounded authors start. Hosted CI remains account-blocked; PR114 then116 merge order and canonical draft/data preservation remain unchanged. No merge or live operation is claimed.
+
+
 ## EXAM-S5 implementation — 3 October 2026
 
 **Active: EXAM-S5-20261003-A**, reviewed base `88ea484`, isolated integration branch. Ron requested a new continuation chat, native goal and bounded agent implementation through remaining pilot work. The read-only inventory is complete: fixed media, durable playback, section timing and assigned telc writing are missing. S5A will prove saved listening sections, then S5B composes complete written forms; S6 verifies cross-package release acceptance. The EXAM-S5 contract freezes package/media/playback interfaces before separate writers begin. S4 PR114 and payment PR116 remain independently reviewed and unmerged behind the GitHub Actions account block; merge order remains S4, then retargeted payments. Safe internal engineering proceeds without rerunning unchanged blocked CI. Canonical dirty draft, learner data and paused work remain preserved. No content/audio approval, physical-device acceptance or production/live-payment operation is claimed.
