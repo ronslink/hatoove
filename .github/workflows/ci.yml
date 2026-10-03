@@ -144,6 +144,10 @@ jobs:
           node tools/explanation-worker-check.mjs
           node tools/explanation-api-check.mjs
           node tools/explanation-client-check.mjs
+      - name: Install locked PostgreSQL client for offline worker CLI contracts
+        run: npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
+      - name: Private invocation receipts and exact synthetic cost contracts
+        run: node tools/provider-attempt-check.mjs
       - name: Payment signatures, test provider and activation refusals
         run: node tools/payment-path-check.mjs
       - name: Payment API ownership and exact webhook boundary
@@ -272,6 +276,10 @@ jobs:
           node tools/explanation-worker-pg-check.mjs
           node tools/explanation-admission-pg-check.mjs
           node tools/explanation-table-class-check.mjs
+      - name: Private invocation ledger recovery reporting and deletion
+        run: |
+          node tools/provider-attempt-pg-check.mjs
+          node tools/provider-table-class-check.mjs
       - name: Bounded readiness probes recover after a real PostgreSQL connection loss
         run: node tools/readiness-pg-check.mjs
       - name: The hosted runtime refuses by default
