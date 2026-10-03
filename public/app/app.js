@@ -65,7 +65,7 @@ const setLabel = (set) => {
   return `${sectionName(set?.section)}${part}`;
 };
 const VIEW_TITLES = {
-  abschnitt: 'Abschnittsübung', heute: 'Heute', ueben: 'Üben', woerterbuch: 'Wörterbuch', nachschlagen: 'Nachschlagen',
+  abschnitt: 'Gespeicherte Prüfungsläufe', heute: 'Heute', ueben: 'Üben', woerterbuch: 'Wörterbuch', nachschlagen: 'Nachschlagen',
   // The design organises practice by SKILL. Each maps to a section the catalogue already carries.
   lesen: 'Leseverstehen', sprachbausteine: 'Sprachbausteine',
   hoeren: 'Hörverstehen', schreiben: 'Schreiben',
@@ -197,7 +197,7 @@ function renderPreparation() {
   el('preparation-exam').textContent = label;
   el('preparation-scope').textContent = prep.state === 'archived'
     ? 'Archiviert · gespeicherte Texte und Rückmeldungen bleiben lesbar.'
-    : 'Einzelne Abschnitte üben · noch keine vollständige Probeprüfung';
+    : 'Umfang, Zeitplan und Prüfstatus stehen beim jeweiligen Übungslauf.';
   el('preparation-continue').href = '#/prep/' + prep.id + '/fortschritt';
   el('preparation-start').hidden = !activePreparation();
   el('preparation-start').href = '#/prep/' + prep.id + '/ueben';
@@ -824,7 +824,7 @@ async function renderDashboard() {
   }
   const savedRun = savedRuns?.ok && savedRuns.data?.runs?.find(run => run.state === 'active');
   if (savedRun && activePreparation()) {
-    el('next-kicker').textContent = 'Gespeicherten Abschnitt fortsetzen';
+    el('next-kicker').textContent = 'Gespeicherten Prüfungslauf fortsetzen';
     el('next-title').textContent = savedRun.title;
     el('next-detail').textContent = 'Deine bestätigten Antworten sind gespeichert. Rückmeldung nach dem Abschließen.';
     if (start) { start.href = '#/lauf/' + savedRun.id; start.textContent = 'Fortsetzen'; }
@@ -1278,7 +1278,7 @@ async function renderHistory() {
   host.innerHTML = '<p class="muted">Dein Verlauf wird geladen …</p>';
   const [history, progress, runs] = await Promise.all([api.writing.listAttempts(), api.practice.progress(), api.mock.list()]);
   if (currentView !== 'fortschritt' || !currentContext(ticket)) return;
-  el('mock-history').innerHTML = '<h2>Gespeicherte Abschnitte</h2>' + (runs?.ok ? mock.historyMarkup(runs.data?.runs || []) : '<p class="err">Die gespeicherten Abschnitte konnten nicht geladen werden.</p>');
+  el('mock-history').innerHTML = '<h2>Gespeicherte Prüfungsläufe</h2>' + (runs?.ok ? mock.historyMarkup(runs.data?.runs || []) : '<p class="err">Die gespeicherten Läufe konnten nicht geladen werden.</p>');
   if (!history?.ok) { host.innerHTML = '<p class="err">Der Verlauf konnte nicht geladen werden. Bitte öffne die Ansicht erneut.</p>'; return; }
   const totals = progress?.ok ? progress.data?.totals : null;
   el('history-summary').textContent = totals ? totals.attempts + ' Antworten gespeichert · ' + totals.correct + ' richtig. Keine Prognose für deine Prüfung.' : 'Deine gespeicherten Texte und Rückmeldungen.';

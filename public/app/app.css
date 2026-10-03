@@ -418,3 +418,13 @@ code {
 .listening-progress { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
 .listening-progress progress { accent-color: var(--orange); flex: 1 1 8rem; width: 100%; min-width: 0; height: 1rem; }
 .listening-progress .num { flex: 0 0 auto; }
+
+/* The immutable mock schedule shares the warm-orange system and wraps at phone widths. */
+.mock-timing { margin-block: 1rem; min-width: 0; }
+.mock-time-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; padding: 0; list-style: none; }
+.mock-time-groups li { display: flex; flex-direction: column; align-items: stretch; gap: .35rem; min-width: 0; }
+.mock-time-groups .btn { white-space: normal; overflow-wrap: anywhere; text-align: start; min-height: 44px; }
+.mock-time-groups [aria-current="step"] { border-color: var(--orange-dark); box-shadow: inset 0 0 0 1px var(--orange-dark); font-weight: 700; }
+.mock-time-groups span, [data-mock-timing-status] { overflow-wrap: anywhere; }
+.mock-time-groups span { font-size: .875rem; }
+.mock-copy textarea { max-width: 100%; }

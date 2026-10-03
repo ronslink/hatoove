@@ -2,7 +2,7 @@
 const copy = value => structuredClone(value);
 const failure = error => ({ ok: false, status: 0, error });
 // Only an authoritative terminal refusal releases navigation. Unknown outcomes stay retryable.
-const terminal = error => error?.status === 409 && ['mock_expired', 'mock_finalised', 'preparation_archived', 'mock_rights_blocked', 'mock_content_unavailable'].includes(error.error);
+const terminal = error => error?.status === 409 && ['mock_group_inactive', 'mock_expired', 'mock_finalised', 'preparation_archived', 'mock_rights_blocked', 'mock_content_unavailable'].includes(error.error);
 const matches = (value, recording) => value?.media_id === recording?.media_id && value?.media_version === recording?.media_version;
 const valid = (value, recording) => matches(value, recording) && Number.isInteger(value.revision) && value.revision >= 0
   && ['ready', 'playing', 'paused', 'completed'].includes(value.state) && Number.isInteger(value.plays_used)
@@ -66,6 +66,7 @@ export function createListeningSession({ api, eventId = () => crypto.randomUUID(
 
 export function listeningMessage(state) {
   const code = state.error?.error;
+  if (code === 'mock_group_inactive') return 'Die Hörzeit ist beendet oder noch nicht begonnen. Die Aufnahme bleibt angehalten. Ein unbestätigter Hörstand wurde nicht als gespeichert bestätigt. Deine Antworten bleiben erhalten.';
   if (['account_changed', 'stale_session', 'session_expired'].includes(code) || state.error?.status === 401) return 'Deine Sitzung ist gesperrt. Die Aufnahme wurde angehalten. Deine Antworten bleiben erhalten.';
   if (['mock_expired', 'mock_finalised', 'preparation_archived'].includes(code)) return 'Dieser Lauf kann nicht mehr abgespielt werden. Deine Antworten bleiben gespeichert.';
   if (['mock_rights_blocked', 'rights_blocked', 'media_unavailable', 'media_integrity', 'mock_content_unavailable'].includes(code)) return 'Die Aufnahme ist zurzeit nicht verfügbar. Deine Antworten bleiben erhalten.';
@@ -115,7 +116,7 @@ export function createListeningController({ api, esc, canEdit = () => true, crea
       else if (!ready) controls = btn('load', 'Aufnahme laden', busy);
       else if (p.state !== 'completed' || p.plays_used < p.max_plays) controls = btn(['playing', 'paused'].includes(p.state) ? 'recover' : 'play', p.state === 'ready' ? 'Abspielen' : p.state === 'completed' ? 'Erlaubten Hörversuch starten' : 'Am gespeicherten Stand fortsetzen', busy);
     }
-    host.innerHTML = '<section class="card-flat listening-player stack" aria-label="Höraufnahme"><div class="spread"><h3>' + esc(recording.label) + '</h3><span class="chip">' + (run?.attempt_mode === 'mock' ? 'Prüfungsmodus · Abschnitt' : 'Übungsmodus · Abschnitt') + '</span></div>'
+    host.innerHTML = '<section class="card-flat listening-player stack" aria-label="Höraufnahme"><div class="spread"><h3>' + esc(recording.label) + '</h3><span class="chip">' + (run?.scope === 'complete_supported_written' ? 'Schriftliche Probeprüfung' : run?.attempt_mode === 'mock' ? 'Prüfungsmodus · Abschnitt' : 'Übungsmodus · Abschnitt') + '</span></div>'
       + (run?.release_state === 'internal' ? '<p class="small muted">Internes Testmaterial · fachliche und Audio-Prüfung ausstehend.</p>' : '')
       + '<p class="small">' + esc(recording.max_plays) + ' Hörversuch' + (recording.max_plays === 1 ? '' : 'e') + ' je Aufnahme in diesem Lauf. Zurückspulen und Tempoänderungen sind nicht vorgesehen.</p>'
       + '<div class="listening-progress"><progress data-listening-progress max="' + recording.duration_ms + '" value="' + position() + '" aria-label="Gespeicherter und aktueller Hörfortschritt"></progress><span class="num">' + time(position()) + ' / ' + time(recording.duration_ms) + '</span></div>'
