@@ -107,6 +107,7 @@ function showError(message) {
 
 window.addEventListener('hatoove:session-expired', (event) => {
   sessionProblem ||= event.detail?.reason || 'session_expired';
+  mock.refresh();
   showError();
 });
 // A focus check gives early feedback; every individual request also carries the server-side
@@ -1200,7 +1201,7 @@ const writingApi = { ...api, writing: { ...api.writing, result: async submission
   if (currentContext(ticket) && bootReady) guard(refreshCredits());
   return result;
 } } };
-const mock = createMockController({ api, esc, canEdit: () => activePreparation() && !sessionProblem, onOpen: run => { location.hash = '#/lauf/' + run.id; } });
+const mock = createMockController({ api, esc, canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
 window.addEventListener('beforeunload', event => mock.preserveOnUnload(event));
 const writing = createWritingController({ api: writingApi, esc, readAloud, onChange: () => { guard(refreshCredits()); if (currentView === 'fortschritt') guard(renderHistory()); } });
 async function openWriting(box, task, options = {}) {
@@ -1493,7 +1494,7 @@ el('settings-form').addEventListener('submit', async (event) => {
     pendingPreparationNavigation = null;
     if (destination && !sessionProblem) {
       if (settingsSaved) {
-        history.replaceState(null, '', '#/prep/' + destination.selection + '/' + destination.view);
+        history.replaceState(null, '', '#/prep/' + destination.selection + '/' + destination.view + (destination.runId ? '/' + destination.runId : ''));
         await route();
       } else {
         // A refused or uncertain write keeps its choices and explicit recovery action visible.

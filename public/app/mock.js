@@ -28,7 +28,7 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
   const expired = () => run?.expired || Boolean(run?.deadline_at && Date.parse(run.deadline_at) <= now() + clockOffset);
   const writable = () => run?.state === 'active' && !run.blocked_reason && !expired() && canEdit() && !finalising && !reloading && pending?.kind !== 'finalise';
   const dirty = () => Boolean(run && (!sameResponses(responses, run.responses) || !samePosition(position, run.position)));
-  const state = () => ({ run, responses: clone(responses), position: { ...position }, dirty: dirty(), pending: Boolean(pending), busy: Boolean(flight) || reloading, loading: reloading, error, localCopy, finalising, writable: writable() });
+  const state = () => ({ run, responses: clone(responses), position: { ...position }, dirty: dirty(), pending: Boolean(pending), busy: Boolean(flight) || reloading, loading: reloading, error, localCopy, finalising, expired: expired(), writable: writable() });
   function load(value, keepCopy = false) {
     epoch++; clockOffset = value.server_now ? Date.parse(value.server_now) - now() : 0; run = clone(value); responses = clone(value.responses || []); position = clone(value.position || { member: 0, item: 0 });
     run.responses = clone(responses); run.position = clone(position); pending = null; flight = null; flushing = null; reloading = false; error = null; finalising = false;
@@ -114,7 +114,7 @@ export function createMockSession({ api, eventId = () => crypto.randomUUID(), on
   };
 }
 
-export function createMockController({ api, esc, canEdit = () => true, onOpen = () => {}, onChange = () => {} }) {
+export function createMockController({ api, esc, canEdit = () => true, isArchived = () => false, onOpen = () => {}, onChange = () => {} }) {
   let host = null, generation = 0, timer = null, deadlineTimer = null, startOperation = null, confirm = false;
   let displayPosition = null, serverOffset = 0, deadlineReached = false;
   const session = createMockSession({ api, canEdit, onChange: () => { render(); onChange(); } });
@@ -162,7 +162,7 @@ export function createMockController({ api, esc, canEdit = () => true, onOpen = 
     } else body = '<section class="card"><p>Dieser Inhalt kann nicht angezeigt werden. Deine Antworten bleiben gespeichert.</p></section>';
     const expired = run.expired || (run.deadline_at && Date.parse(run.deadline_at) <= Date.now() + serverOffset);
     host.innerHTML = '<div class="card mock-heading"><div><p class="kicker">Gespeicherte Abschnittsübung · ' + esc(run.exam_id) + '</p><h2>' + esc(run.title) + '</h2><p class="small muted">Formular ' + esc(run.form_version) + ' · Ausgabe ' + esc(run.release_version) + ' · ' + (run.mode === 'untimed' ? 'Ohne Zeitlimit' : '<span id="mock-deadline"></span>') + '</p></div><p id="mock-save-state" role="status" aria-live="polite">' + esc(status) + '</p></div>'
-      + (!canEdit() ? '<p class="hint">Archivierte Vorbereitung · schreibgeschützt.</p>' : '')
+      + (isArchived() ? '<p class="hint">Archivierte Vorbereitung · schreibgeschützt.</p>' : '')
       + (expired && run.state === 'active' ? '<p class="err">Die Zeit ist abgelaufen. Abschließen wertet nur bestätigte Antworten aus. Bei ungespeicherten Änderungen: erst die lokale Kopie sichern und den Serverstand laden.</p>' : '')
       + recovery(snapshot) + body
       + (run.state === 'active' && !run.blocked_reason && canEdit() ? '<section class="card stack mock-finish"><p>' + selected + ' von ' + total + ' beantwortet · ' + Math.max(0, total - selected) + ' unbeantwortet.</p>' + (confirm ? '<p>Jetzt abschließen? Danach kannst du diese Antworten nicht mehr ändern. Unbeantwortete Aufgaben bleiben als unbeantwortet erhalten.</p><div class="row">' + button('finalise', 'Verbindlich abschließen', true) + button('cancel', 'Weiter bearbeiten') + '</div>' : '<div class="row">' + button('save', 'Jetzt speichern') + button('confirm', 'Abschnitt abschließen', true) + '</div>') + '</section>' : '')
@@ -204,7 +204,7 @@ export function createMockController({ api, esc, canEdit = () => true, onOpen = 
       if (action === 'next') next = p.item + 1 < form.items.length ? { member: p.member, item: p.item + 1 } : p.member + 1 < run.members.length ? { member: p.member + 1, item: 0 } : null;
       if (action === 'previous') next = p.item > 0 ? { member: p.member, item: p.item - 1 } : p.member > 0 ? { member: p.member - 1, item: mockMember(run.members[p.member - 1]).items.length - 1 } : null;
       if (next) {
-        if (!canEdit() || run.expired) { displayPosition = next; render(); }
+        if (!canEdit() || snapshot.expired) { displayPosition = next; render(); }
         else { displayPosition = p; if (await session.move(next)) displayPosition = null; render(); }
         host.querySelector('#mock-question-title')?.focus();
       }
@@ -246,7 +246,7 @@ export function createMockController({ api, esc, canEdit = () => true, onOpen = 
     return rows.length ? rows.map(run => '<article class="card"><p class="kicker">' + esc(run.exam_id) + ' · Abschnittsübung</p><h3>' + esc(run.title) + '</h3><p class="small muted">Formular ' + esc(run.form_version) + ' · ' + esc(date(run.updated_at || run.created_at)) + '</p><p>' + (run.state === 'finalised' ? 'Abgeschlossen' : 'Gespeichert · noch offen') + '</p><a class="btn" data-mock-run="' + esc(run.id) + '" href="#/lauf/' + esc(run.id) + '">' + (run.state === 'finalised' || !canEdit() ? 'Ansehen' : 'Fortsetzen') + '</a></article>').join('') : '<article class="card"><p>Noch keine gespeicherten Abschnitte.</p></article>';
   }
   return {
-    list, showRun, historyMarkup, flush: () => { clearTimeout(timer); return session.flush(); },
+    list, showRun, historyMarkup, refresh: render, flush: () => { clearTimeout(timer); return session.flush(); },
     get active() { return Boolean(session.state().run); }, get runId() { return session.state().run?.id; },
     dispose() { generation++; stopTimers(); session.dispose(); if (host) { host.onclick = null; host.onchange = null; } host = null; startOperation = null; },
     preserveOnUnload(event) { const state = session.state(); if (state.dirty || state.pending || state.busy) { event.preventDefault(); event.returnValue = ''; } },

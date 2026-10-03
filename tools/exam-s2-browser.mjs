@@ -91,6 +91,16 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
       await fresh('#/lauf/'+runId);await cdp.waitFor("document.querySelector('input[name=mock-answer]:checked')");
       assert(await cdp.evaluate(`return document.querySelector('input[name=mock-answer]:checked').value===${JSON.stringify(choice)} && document.querySelector('#preparation-picker').value===${JSON.stringify(preparationId)}`),'fresh document did not resolve original preparation and response');
     });
+    await run('S2B4a queued run link survives a delayed settings save',async()=>{
+      await go('einstellungen');let release;const held=new Promise(resolve=>{release=resolve;});let reached;const requested=new Promise(resolve=>{reached=resolve;});
+      await intercept('Request',async event=>{if(event.request.method==='PUT'&&new URL(event.request.url).pathname==='/api/v1/settings'){reached();await held;}return false;},'*/api/v1/settings');
+      try {
+        await clickSel(cdp,'#save-settings');await Promise.race([requested,new Promise((_,reject)=>setTimeout(()=>reject(Error('delayed settings request missing')),10000))]);
+        await cdp.evaluate(`return new Promise(resolve=>{window.addEventListener('hashchange',()=>resolve(true),{once:true});location.hash='#/lauf/${runId}';});`);
+        assert(await cdp.evaluate("return !document.querySelector('#view-einstellungen').hidden"),'navigation was not queued behind settings');release();
+        await cdp.waitFor(`location.hash.endsWith('/abschnitt/${runId}') && document.querySelector('input[name=mock-answer]') && !document.querySelector('#view-abschnitt').hidden`);
+      }finally{release();await stopIntercept();}
+    });
     await run('S2B5 all three parts render with complete choices at 390/320 in both themes',async()=>{
       for(const width of [390,320]) {
         await viewport(cdp,width,844,true);
@@ -148,9 +158,9 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
       const blocked={...original.data,blocked_reason:'rights_blocked',members:[],result:null};
       await intercept('Request',async event=>{if(event.request.method==='GET'){await reply(event,blocked);return true;}return false;});
       try {await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('zurzeit gesperrt')");assert(await cdp.evaluate("return !document.querySelector('input[name=mock-answer]') && !document.querySelector('[data-mock-action=confirm]') && !!document.querySelector('#mock-local-copy')"),'rights block exposes content or loses response copy');await shot(cdp,'s2-rights-blocked-desktop-light');}finally{await stopIntercept();}
-      const timed={...original.data,mode:'timed',server_now:new Date().toISOString(),deadline_at:new Date(Date.now()-1000).toISOString(),expired:true};
+      const timed={...original.data,mode:'timed',server_now:new Date().toISOString(),deadline_at:new Date(Date.now()-1000).toISOString(),expired:false};
       await intercept('Request',async event=>{if(event.request.method==='GET'){await reply(event,timed);return true;}return false;});
-      try {await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('Die Zeit ist abgelaufen')");assert(await cdp.evaluate("return [...document.querySelectorAll('input[name=mock-answer]')].every(n=>n.disabled||n.closest('fieldset').disabled)"),'expired answers writable');await shot(cdp,'s2-expired-desktop-light');}finally{await stopIntercept();}
+      try {await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('Die Zeit ist abgelaufen')");assert(await cdp.evaluate("return [...document.querySelectorAll('input[name=mock-answer]')].every(n=>n.disabled||n.closest('fieldset').disabled)"),'expired answers writable');await clickSel(cdp,'[data-mock-member="1"][data-mock-item="0"]');assert(await cdp.evaluate("return document.querySelector('[data-mock-member=\"1\"][data-mock-item=\"0\"]').getAttribute('aria-current')==='step'"),'elapsed deadline prevented readonly navigation before server refresh');await shot(cdp,'s2-expired-desktop-light');}finally{await stopIntercept();}
       await fresh('#/lauf/'+activeRun);await cdp.waitFor("document.querySelector('input[name=mock-answer]')");
     });
     await run('S2B12 account-expiry refusal keeps current answer and copy recovery',async()=>{
