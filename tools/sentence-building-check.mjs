@@ -15,6 +15,7 @@ const setId = 'telc-deutsch-b1.sb1.grammar-wortstellung-v1';
 let world;
 let cookie;
 let otherCookie;
+let prepId;
 const pg = process.argv.includes('--backend=postgres');
 
 check('simple sentence exposes a candidate verb and never a correctness or score claim', () => {
@@ -112,17 +113,25 @@ const call = async (method, path, body, sourceCookie = cookie, originChecked = t
 const expect = (response, status = 200) => {
   assert.equal(response.status, status, JSON.stringify(response.body)); return response.body;
 };
+/** EXAM-S1: a scoped read carries the preparation id resolved from the owned, active preparation. */
+const scoped = (path) => `${path}${path.includes('?') ? '&' : '?'}preparationId=${prepId}`;
 check('authenticated sentence route refuses anonymous, foreign-origin and malformed requests', async () => {
   if (pg) {
     const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
     world = await createPostgresWorld();
   } else {
-    const store = createMemoryDatastore(); const sessions = createMemorySessions();
+    const store = createMemoryDatastore();
+    // Sign-up provisions the initial preparation + balance, as the PostgreSQL registration does.
+    const sessions = createMemorySessions({ provision: store.provision });
     world = { store, api: createOwnedApi({ datastore: store.port, sessions, settings: store.settings }) };
   }
   const signup = await call('POST', '/api/auth/sign-up/email',
     { name: 'Synthetic sentence learner', email: `sentence-${randomUUID()}@example.invalid`, password: 'synthetic-sentence-password' }, null);
   expect(signup); cookie = signup.cookie;
+  const provisioned = expect(await call('GET', '/api/v1/preparations', undefined, cookie)).preparations
+    .find((p) => p.state === 'active');
+  assert.ok(provisioned, 'sign-up must provision exactly one active preparation');
+  prepId = provisioned.id;
   const other = await call('POST', '/api/auth/sign-up/email',
     { name: 'Other sentence learner', email: `sentence-${randomUUID()}@example.invalid`, password: 'synthetic-sentence-password' }, null);
   expect(other); otherCookie = other.cookie;
@@ -140,16 +149,16 @@ check('sentence route matches the pure analyser and persists no learner text', a
   const result = expect(await call('POST', '/api/v1/sentence-check', { text }));
   assert.deepEqual(result, checkSentence(text));
   const after = await world.store.inspect.fingerprint(); assert.equal(after, before);
-  assert.deepEqual(expect(await call('GET', '/api/v1/attempts')).attempts, []);
+  assert.deepEqual(expect(await call('GET', scoped('/api/v1/attempts'))).attempts, []);
 });
 
 if (pg) {
   check('forward migration serves only the selected grammar bank with no answer keys', async () => {
-    const all = expect(await call('GET', '/api/v1/objective-sets?family=SB1'));
+    const all = expect(await call('GET', scoped('/api/v1/objective-sets?family=SB1')));
     const entry = all.find((row) => row.set_id === setId);
     assert.ok(entry); assert.equal(entry.item_count, 12);
     assert.equal(entry.review_status, 'unreviewed'); assert.equal(entry.rights_status, 'generated');
-    const detail = expect(await call('GET', `/api/v1/objective-sets/${setId}?version=v1`));
+    const detail = expect(await call('GET', scoped(`/api/v1/objective-sets/${setId}?version=v1`)));
     assert.equal(detail.payload.practice_kind, 'grammar-drill');
     assert.match(detail.payload.instruction, /kein telc-Prüfungssatz/u);
     assert.equal(detail.payload.gaps.length, 12);
@@ -165,27 +174,27 @@ if (pg) {
     await assert.rejects(world.fixture.learner.query('SELECT answers FROM objective_key LIMIT 1'), (error) => error.code === '42501');
   });
   check('every selected item retains identity, key and explanation; marking records owner-scoped evidence', async () => {
-    const detail = expect(await call('GET', `/api/v1/objective-sets/${setId}?version=v1`));
+    const detail = expect(await call('GET', scoped(`/api/v1/objective-sets/${setId}?version=v1`)));
     const key = (await world.fixture.admin.query('SELECT answers,explanations FROM objective_key WHERE set_id=$1 AND version=$2', [setId, 'v1'])).rows[0];
     for (const item of bank.banks.wortstellung_nebensatz) {
       const gap = detail.payload.gaps.find((row) => row.n === item.id);
       assert.ok(gap); assert.equal(gap.prompt, item.q); assert.equal(gap.options[key.answers[item.id]], item.answer);
       assert.equal(key.explanations[item.id], item.why);
       assert.equal(expect(await call('POST', `/api/v1/objective-sets/${setId}/answers`,
-        { version: 'v1', itemId: item.id, answer: key.answers[item.id] }), 201).correct, true);
+        { version: 'v1', itemId: item.id, answer: key.answers[item.id], preparationId: prepId }), 201).correct, true);
     }
     const first = detail.payload.gaps[0];
     const wrong = Object.keys(first.options).find((option) => option !== key.answers[first.n]);
     assert.equal(expect(await call('POST', `/api/v1/objective-sets/${setId}/answers`,
-      { version: 'v1', itemId: first.n, answer: wrong }), 201).correct, false);
+      { version: 'v1', itemId: first.n, answer: wrong, preparationId: prepId }), 201).correct, false);
     const mine = expect(await call('GET', '/api/v1/export')).objective_evidence;
     assert.equal(mine.length, 13); assert.ok(mine.every((row) => row.set_id === setId && row.version === 'v1'));
     assert.deepEqual(expect(await call('GET', '/api/v1/export', undefined, otherCookie)).objective_evidence, []);
     const previous = process.env.B1PREP_SERVE_RIGHTS;
     try {
       process.env.B1PREP_SERVE_RIGHTS = 'licensed';
-      expect(await call('GET', `/api/v1/objective-sets/${setId}?version=v1`), 404);
-      expect(await call('POST', `/api/v1/objective-sets/${setId}/answers`, { version: 'v1', itemId: first.n, answer: wrong }), 404);
+      expect(await call('GET', scoped(`/api/v1/objective-sets/${setId}?version=v1`)), 404);
+      expect(await call('POST', `/api/v1/objective-sets/${setId}/answers`, { version: 'v1', itemId: first.n, answer: wrong, preparationId: prepId }), 404);
     } finally { if (previous === undefined) delete process.env.B1PREP_SERVE_RIGHTS; else process.env.B1PREP_SERVE_RIGHTS = previous; }
   });
 }

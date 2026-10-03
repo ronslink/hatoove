@@ -21,7 +21,8 @@ if (postgres) {
   world = await createPostgresWorld();
 } else {
   const store = createMemoryDatastore();
-  const sessions = createMemorySessions();
+  // EXAM-S1: sign-up provisions the initial preparation + balance, as the PostgreSQL registration does.
+  const sessions = createMemorySessions({ provision: store.provision });
   world = { store, sessions, settings: store.settings,
     api: createOwnedApi({ datastore: store.port, sessions, settings: store.settings }) };
 }
@@ -37,6 +38,20 @@ const expect = (response, status = 200) => {
   assert.equal(response.status, status, JSON.stringify(response.data));
   return response.data;
 };
+/*
+ * EXAM-S1: every scoped read/answer/new attempt names an owned, ACTIVE preparation. It is resolved from
+ * the route (never assumed), so a sign-up that provisioned nothing — or two — fails here.
+ */
+const preparationsByCookie = new Map();
+async function preparationId(sourceCookie) {
+  if (!preparationsByCookie.has(sourceCookie)) {
+    const list = expect(await call('GET', '/api/v1/preparations', sourceCookie)).preparations;
+    const active = list.find((p) => p.state === 'active');
+    assert.ok(active, `sign-up must provision exactly one active preparation, got ${JSON.stringify(list)}`);
+    preparationsByCookie.set(sourceCookie, active.id);
+  }
+  return preparationsByCookie.get(sourceCookie);
+}
 const binding = { taskId: WRITING_TASKS[1].taskId, taskVersion: TELC_B1_TASK_VERSION,
   rubricId: TELC_B1_WRITING_RUBRIC.rubricId, rubricVersion: TELC_B1_WRITING_RUBRIC.version };
 const text = 'SYNTHETIC OWNED LETTER: Liebe Freundin, ich freue mich auf deinen Besuch. Viele Grüße.';
@@ -51,7 +66,9 @@ async function check(name, fn) {
   catch (error) { failures.push(name); console.log(`FAIL ${name}\n  ${error.stack || error}`); }
 }
 async function saveAndSubmit(sourceCookie, letter, customBinding = binding) {
-  const attempt = expect(await call('POST', '/api/v1/attempts', sourceCookie, customBinding), 201);
+  // A NEW attempt names its preparation; a revision would derive it from the parent instead.
+  const attempt = expect(await call('POST', '/api/v1/attempts', sourceCookie,
+    { ...customBinding, preparationId: await preparationId(sourceCookie) }), 201);
   const draft = expect(await call('PUT', `/api/v1/attempts/${attempt.id}`, sourceCookie, { expectedRevision: 1, text: letter }));
   const submission = expect(await call('POST', `/api/v1/attempts/${attempt.id}/submissions`, sourceCookie,
     { expectedRevision: draft.revision, eventId: randomUUID() }), 202);
@@ -67,7 +84,7 @@ try {
     const other = await call('POST', '/api/auth/sign-up/email', null,
       { name: 'Other learner', email: `other-${randomUUID()}@example.invalid`, password });
     expect(other); otherCookie = other.cookie;
-    assert.deepEqual(expect(await call('GET', '/api/v1/attempts', cookie)), { attempts: [] });
+    assert.deepEqual(expect(await call('GET', `/api/v1/attempts?preparationId=${await preparationId(cookie)}`, cookie)).attempts, []);
     expect(await call('GET', '/api/v1/attempts?open=anything', cookie), 422);
     expect(await call('GET', '/api/v1/attempts?owner_id=other', cookie), 422);
   });
@@ -91,20 +108,20 @@ try {
     expect(await call('POST', '/api/auth/sign-out', cookie));
     const login = await call('POST', '/api/auth/sign-in/email', null, { email, password });
     expect(login); cookie = login.cookie;
-    const history = expect(await call('GET', '/api/v1/attempts', cookie)).attempts;
+    const history = expect(await call('GET', `/api/v1/attempts?preparationId=${await preparationId(cookie)}`, cookie)).attempts;
     assert.equal(history.length, 1);
     const row = history[0];
     assert.equal(row.id, created.id); assert.equal(row.submission_id, submitted);
     assert.equal(row.status, 'pending'); assert.equal(row.task_id, binding.taskId);
     assert.equal(row.task_version, binding.taskVersion); assert.equal(row.rubric_id, binding.rubricId);
     assert.equal('text' in row, false);
-    assert.deepEqual(expect(await call('GET', '/api/v1/attempts?open=1', cookie)).attempts, []);
+    assert.deepEqual(expect(await call('GET', `/api/v1/attempts?open=1&preparationId=${await preparationId(cookie)}`, cookie)).attempts, []);
   });
 
   await check('assessed feedback is discoverable and carries the historical task and rubric', async () => {
     assert.equal(await world.store.worker.claim(submitted), true);
     assert.equal(await world.store.worker.complete(submitted, 'Synthetic feedback'), true);
-    assert.equal(expect(await call('GET', '/api/v1/attempts', cookie)).attempts[0].status, 'assessed');
+    assert.equal(expect(await call('GET', `/api/v1/attempts?preparationId=${await preparationId(cookie)}`, cookie)).attempts[0].status, 'assessed');
     const result = expect(await call('GET', `/api/v1/submissions/${submitted}`, cookie));
     assert.equal(result.submission.text, text);
     assert.equal(result.task.task_id, binding.taskId); assert.equal(result.task.version, binding.taskVersion);
@@ -113,11 +130,11 @@ try {
   });
 
   await check('revision inherits exact parent binding and text; conflicting or foreign parents write nothing', async () => {
-    const before = expect(await call('GET', '/api/v1/attempts', cookie)).attempts.length;
+    const before = expect(await call('GET', `/api/v1/attempts?preparationId=${await preparationId(cookie)}`, cookie)).attempts.length;
     expect(await call('POST', '/api/v1/attempts', cookie, { parentSubmissionId: submitted,
       ...binding, taskId: WRITING_TASKS[2].taskId }), 422);
     expect(await call('POST', '/api/v1/attempts', otherCookie, { parentSubmissionId: submitted }), 404);
-    assert.equal(expect(await call('GET', '/api/v1/attempts', cookie)).attempts.length, before);
+    assert.equal(expect(await call('GET', `/api/v1/attempts?preparationId=${await preparationId(cookie)}`, cookie)).attempts.length, before);
     revised = expect(await call('POST', '/api/v1/attempts', cookie, { parentSubmissionId: submitted }), 201);
     assert.equal(revised.text, text); assert.equal(revised.revision, 1);
     assert.equal(revised.task_id, binding.taskId); assert.equal(revised.task_version, binding.taskVersion);
@@ -134,14 +151,15 @@ try {
     failed = await saveAndSubmit(cookie, 'SYNTHETIC failed letter');
     await world.store.worker.claim(failed.submissionId);
     await world.store.worker.fail(failed.submissionId, 'provider_timeout');
-    removed = expect(await call('POST', '/api/v1/attempts', cookie, binding), 201);
+    removed = expect(await call('POST', '/api/v1/attempts', cookie,
+      { ...binding, preparationId: await preparationId(cookie) }), 201);
     expect(await call('DELETE', `/api/v1/attempts/${removed.id}`, cookie));
-    const history = expect(await call('GET', '/api/v1/attempts', cookie)).attempts;
+    const history = expect(await call('GET', `/api/v1/attempts?preparationId=${await preparationId(cookie)}`, cookie)).attempts;
     assert.equal(history.find((r) => r.id === revised.id).status, 'draft');
     assert.equal(history.find((r) => r.id === pending.id).status, 'pending');
     assert.equal(history.find((r) => r.id === failed.id).status, 'unassessed');
     assert.equal(history.some((r) => r.id === removed.id), false);
-    assert.deepEqual(expect(await call('GET', '/api/v1/attempts?open=1', cookie)).attempts.map((r) => r.id), [revised.id]);
+    assert.deepEqual(expect(await call('GET', `/api/v1/attempts?open=1&preparationId=${await preparationId(cookie)}`, cookie)).attempts.map((r) => r.id), [revised.id]);
   });
 
   await check('export contains owned snapshots/results and no other learner or secret columns', async () => {
@@ -175,7 +193,7 @@ try {
        JOIN objective_set s ON s.set_id=k.set_id AND s.version=k.version WHERE s.media_required=false LIMIT 1`)).rows[0];
     assert.ok(key);
     expect(await call('POST', `/api/v1/objective-sets/${key.set_id}/answers`, cookie,
-      { version: key.version, itemId: key.item_id, answer: 'synthetic-answer' }), 201);
+      { version: key.version, itemId: key.item_id, answer: 'synthetic-answer', preparationId: await preparationId(cookie) }), 201);
     const own = expect(await call('GET', '/api/v1/export', cookie)).objective_evidence;
     assert.equal(own.length, 1); assert.equal(own[0].answer, 'synthetic-answer');
     assert.deepEqual(expect(await call('GET', '/api/v1/export', otherCookie)).objective_evidence, []);
@@ -185,8 +203,8 @@ try {
     assert.deepEqual(contentPolicy({ B1PREP_SERVE_RIGHTS: 'generated,licensed+commissioned unknown nonsense' }).rights,
       ['generated', 'licensed', 'commissioned']);
     process.env.B1PREP_SERVE_RIGHTS = 'unknown';
-    expect(await call('POST', '/api/v1/attempts', cookie, {}), 422);
-    expect(await call('POST', '/api/v1/attempts', cookie, binding), 422);
+    expect(await call('POST', '/api/v1/attempts', cookie, { preparationId: await preparationId(cookie) }), 422);
+    expect(await call('POST', '/api/v1/attempts', cookie, { ...binding, preparationId: await preparationId(cookie) }), 422);
     expect(await call('POST', '/api/v1/attempts', cookie, { parentSubmissionId: submitted }), 422);
     expect(await call('POST', `/api/v1/attempts/${revised.id}/submissions`, cookie,
       { expectedRevision: 2, eventId: randomUUID() }), 422);
@@ -198,24 +216,26 @@ try {
   });
 
   if (postgres) await check('all catalogue and practice routes apply the same closed rights policy', async () => {
+    const prep = await preparationId(cookie);
     const routes = ['/api/v1/tasks', '/api/v1/objective-sets', '/api/v1/vocab', '/api/v1/nouns', '/api/v1/guides'];
+    const scoped = (route) => `${route}${route.includes('?') ? '&' : '?'}preparationId=${prep}`;
     const controls = new Map();
     for (const route of routes) {
-      const rows = expect(await call('GET', route, cookie)); assert.ok(rows.length > 0, `positive control ${route}`);
+      const rows = expect(await call('GET', scoped(route), cookie)); assert.ok(rows.length > 0, `positive control ${route}`);
       controls.set(route, rows[0]);
     }
     const set = controls.get('/api/v1/objective-sets');
     const guide = controls.get('/api/v1/guides');
     process.env.B1PREP_SERVE_RIGHTS = 'licensed';
-    for (const route of routes) assert.deepEqual(expect(await call('GET', route + '?rights=generated', cookie)), []);
-    expect(await call('GET', `/api/v1/objective-sets/${set.set_id}?version=${set.version}`, cookie), 404);
+    for (const route of routes) assert.deepEqual(expect(await call('GET', scoped(route + '?rights=generated'), cookie)), []);
+    expect(await call('GET', scoped(`/api/v1/objective-sets/${set.set_id}?version=${set.version}`), cookie), 404);
     expect(await call('GET', `/api/v1/guides/${guide.guide_id}`, cookie), 404);
     expect(await call('GET', `/api/v1/rubrics/${binding.rubricId}?version=${binding.rubricVersion}`, cookie), 404);
-    assert.equal(expect(await call('GET', '/api/v1/practice/next', cookie)).reason, 'nothing_available');
+    assert.equal(expect(await call('GET', scoped('/api/v1/practice/next'), cookie)).reason, 'nothing_available');
     expect(await call('POST', `/api/v1/objective-sets/${set.set_id}/answers`, cookie,
-      { version: set.version, itemId: '1', answer: 'a' }), 404);
+      { version: set.version, itemId: '1', answer: 'a', preparationId: prep }), 404);
     delete process.env.B1PREP_SERVE_RIGHTS;
-    assert.ok(expect(await call('GET', '/api/v1/practice/next', cookie)).set);
+    assert.ok(expect(await call('GET', scoped('/api/v1/practice/next'), cookie)).set);
   });
 } finally {
   if (previousRights === undefined) delete process.env.B1PREP_SERVE_RIGHTS; else process.env.B1PREP_SERVE_RIGHTS = previousRights;
