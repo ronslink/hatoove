@@ -4,6 +4,12 @@ Status: implementation delivered, independently reviewed and locally verified af
 
 Contract: [PILOT-I18N-INTERFACE](../../docs/contracts/PILOT-I18N-INTERFACE.md), frozen83e0331. Selected de/en/uk/ar/tr applies before signup and to account, menus and operational guidance. Exam language and purchasing market remain independent. Original passages, questions, choices, listening, scenarios and writing points are preserved; directions have explicit original and translated representations. Source-language islands remain LTR for German within Arabic chrome.
 
+## Retained export and HTTP verification — 3 October 2026, 22:10 UTC
+
+Current language runtime63aceab includes independently reviewed S2/history fixture corrections and the narrow saved-explanation export projection fix. The unchanged journey privacy assertion found own internal owner IDs in two SELECT-star exports; explicit columns now preserve all other bindings, payloads, provenance and rights redaction. Focused consumers11/11 and coordinator history10/10 pass. The fresh source-only Compose project `hatoove-journey-check-1791065351164-58124` passed all11 HTTP journeys, zero pending/failures. Coordinator independently verified all project-labelled resources and its exact scratch directory absent. The earlier failing project was also fully cleaned; no assertion was weakened. The final UI runtime/browser evidence below remains4c921180 because these later runtime changes affect only export projection.
+
+PR125 is merged after seven actual hosted successes; PR126/128/130 still require ordered integration and their own actual checks. This does not establish human translation, native-device, security/legal or production acceptance.
+
 ## Source and independent review
 
 - Core91bcab9: A independent review and9 focused checks.
