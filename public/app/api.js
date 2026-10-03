@@ -274,13 +274,13 @@ return Object.freeze({
   }),
 
   /**
-   * PAYMENTS (PAYMENTS-SLICE-01). Three session-scoped routes, and the shape of the calls is the
+   * PAYMENTS (PAYMENTS-01). Three account-owned routes, and the shape of the calls is the
    * whole point:
    *
    *   * `offer` asks what is on sale for one exam. The server answers from its own price row, and a
    *     market with no row is a 404 rather than an empty offer. `503 payments_unavailable` is the
    *     pilot's default and is a state the screen must render, not an error to retry silently.
-   *   * `startSession` sends the exam and the market and NOTHING ELSE. No amount, no currency, no
+   *   * `startSession` sends the exam, explicit market and idempotency event ID. No amount, currency or
    *     price id: the contract (§2.2, §7) puts the price on the server, so a client that could name
    *     one could name a different one. Unknown fields are refused with 422 like every other
    *     mutating route, so the body here is the allowlist rather than a convenient superset.
@@ -292,16 +292,18 @@ return Object.freeze({
    * because a preparation happened to be archived would be a bug, not a safeguard.
    */
   payments: Object.freeze({
-    offer: (examId) => {
+    offer: (examId, market = null) => {
       if (typeof examId !== 'string' || !examId.trim()) return Promise.resolve(refusal(422, 'invalid_exam'));
-      return call('GET', `${PATHS.checkoutOffer}?exam=${encodeURIComponent(examId)}`);
+      if (market !== null && !/^[A-Z]{2}$/.test(market)) return Promise.resolve(refusal(422, 'invalid_market'));
+      return call('GET', `${PATHS.checkoutOffer}?exam=${encodeURIComponent(examId)}` + (market ? `&market=${encodeURIComponent(market)}` : ''));
     },
     startSession: (payload = {}) => {
       const examId = typeof payload.examId === 'string' ? payload.examId.trim() : '';
       const market = typeof payload.market === 'string' ? payload.market.trim() : '';
-      // The two documented fields only. Anything else a caller passes is dropped rather than sent.
-      if (!examId || !market) return Promise.resolve(refusal(422, 'invalid_market'));
-      return call('POST', PATHS.checkoutSession, { examId, market });
+      const eventId = payload.eventId;
+      // The three documented fields only; commercial terms always come from the server.
+      if (!examId || !/^[A-Z]{2}$/.test(market) || !UUID.test(eventId || '')) return Promise.resolve(refusal(422, 'invalid_checkout'));
+      return call('POST', PATHS.checkoutSession, { examId, market, eventId });
     },
     order: (orderId) => UUID.test(String(orderId || ''))
       ? call('GET', `${PATHS.orders}/${encodeURIComponent(orderId)}`)

@@ -1,272 +1,186 @@
-/**
- * CHECKOUT — "Pass freischalten" (PAYMENTS-SLICE-01, contract §2.1–2.3).
- *
- * BUYING IS A SERVER DECISION, NOT A SCREEN DECISION. This module renders states and asks the server
- * for them; it never decides what something costs, whether this learner already has it, or whether a
- * payment succeeded. Three consequences shape every line below, and they are the contract's §7 rather
- * than a style preference:
- *
- *   1. NO AMOUNT, CURRENCY, PRICE ID OR MARKET PRICE IS EVER SENT. The session POST carries the exam
- *      and the market and nothing else, because the server resolves the price from its own row. A
- *      client that could name an amount is a client that can be told to name a different one.
- *   2. THE PROVIDER RETURN IS NOT PROOF OF PAYMENT. A `success_url` says the browser came back, not
- *      that money moved: the learner can edit it, and the webhook may not have arrived yet. Every
- *      state after the redirect is read from `GET /api/v1/orders/:id`, and "pending" is rendered as
- *      "Zahlung wird geprüft" — never as a success.
- *   3. NO BROWSER STATE, AND NO MEMORY OF A PURCHASE EITHER. Which order is being watched comes only
- *      from the return URL the server itself was given, for that visit. This module deliberately does
- *      NOT remember the last order id: a reload after the provider redirect loses the module's memory
- *      anyway, so a remembered id could only ever resurface days later and hijack an ordinary visit
- *      with the state of a purchase the learner had long finished with. Losing the id costs one
- *      "Angebot neu laden"; keeping it could show a stranger's stale screen.
- *
- * `purchasable: false` and an unwired port (`503`) both mean THE SAME THING ON SCREEN: no button. A
- * buy control that would be refused is worse than no control, because it teaches the learner that the
- * screen lies.
- *
- * `api` returns `{ ok, status, data, error }` and never throws, so every branch here is a real state
- * rather than an exception handler. `esc` escapes every interpolated value; nothing from the server
- * reaches the DOM unescaped.
- */
-export function createCheckoutController({ api, esc, onChange = () => {} }) {
-  let active = null;
-  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  const AUTO_CHECKS = 5, AUTO_DELAY = 4000;
-  const ORDER_STATUSES = ['pending', 'paid', 'failed', 'refunded', 'disputed'];
-  const current = (s) => active === s && Boolean(s.host) && s.host.isConnected;
-  const asInt = (value) => (Number.isInteger(value) && value >= 0 ? value : null);
-  const failure = (r) => r?.status === 0 ? 'Keine Verbindung zum Server.' : 'Fehler ' + (r?.status ?? 0) + (r?.error ? ' (' + r.error + ')' : '');
-  const button = (id, text, primary = false) => `<button type="button" class="btn${primary ? ' btn-primary' : ''}" id="${id}">${text}</button>`;
+/** Account-owned checkout: prices, payment status and balances come from the API. */
+const UUID_SOURCE = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
+const UUID = new RegExp('^' + UUID_SOURCE + '$', 'i');
+const RETURN = new RegExp('^/app/#/checkout\\?order=(' + UUID_SOURCE + ')(?:&checkout=stub)?$', 'i');
+const ORDER_STATES = ['pending', 'paid', 'failed', 'refunded', 'disputed'];
+const copy = value => structuredClone(value);
 
-  /** A date the learner can act on, or a plain statement that there is none. */
-  function day(value) {
-    if (!value) return 'unbekannt';
-    const date = new Date(String(value));
-    return Number.isNaN(date.getTime()) ? 'unbekannt' : date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  }
-  /** A term in days, said in weeks when it divides evenly — nothing is inferred beyond that. */
-  function term(days) {
-    const value = asInt(days);
-    if (value === null) return 'unbekannt';
-    return value % 7 === 0 ? (value / 7) + ' Wochen' : value + ' Tage';
-  }
-  /** One figure and its label. `value` is escaped here, so callers pass raw numbers or text. */
-  const stat = (label, value) => `<div class="stat"><span class="num">${esc(value)}</span><span>${esc(label)}</span></div>`;
-  /** The pass balance. Every figure is the server's; a missing one is said to be unknown. */
-  const LEDGER_KEYS = { existing: ['allowance', 'used', 'reserved', 'expiresAt'], entitlement: ['allowance', 'used', 'reserved', 'expiresAt'] };
-  const ledger = (entry, context) => {
-    const keys = LEDGER_KEYS[context] || [];
-    if (!keys.length || !entry) return '';
-    const allowance = asInt(entry.allowance), used = asInt(entry.used), reserved = asInt(entry.reserved);
-    const left = allowance !== null && used !== null ? allowance - used - (reserved ?? 0) : null;
-    const label = context === 'existing' ? 'Dein Guthaben' : 'Freigeschaltetes Guthaben';
-    return `<p class="field-label">${esc(label)}</p><div class="stat-row">`
-      + stat('freigeschaltet', allowance === null ? 'unbekannt' : allowance)
-      + stat('verwendet', used === null ? 'unbekannt' : used)
-      + stat('reserviert', reserved === null ? 'unbekannt' : reserved)
-      + stat('verfügbar', left === null ? 'unbekannt' : Math.max(0, left))
-      + `</div><p class="small muted">Gültig bis ${esc(day(entry.expiresAt))}.</p>`;
+/** A deliberately narrow return target shared by the shell and authentication entry. */
+export function checkoutReturnPath(value) {
+  if (typeof value !== 'string' || !RETURN.test(value)) return null;
+  const match = /^\/app\/#\/checkout\?order=([^&]+)(?:&checkout=stub)?$/.exec(value);
+  return match && UUID.test(match[1]) ? value : null;
+}
+export function checkoutAuthReturn(search, hash = '') {
+  const values = new URLSearchParams(search).getAll('returnTo');
+  return values.length ? values.length === 1 ? checkoutReturnPath(values[0]) || '/app/' : '/app/' : checkoutReturnPath('/app/' + hash) || '/app/';
+}
+export function checkoutRoute(hash) {
+  if (hash === '#/checkout') return { isCheckout: true, orderId: null, invalid: false, path: '/app/#/checkout' };
+  if (!String(hash).startsWith('#/checkout?')) return { isCheckout: false, orderId: null, invalid: false, path: null };
+  const path = checkoutReturnPath('/app/' + hash);
+  return { isCheckout: true, orderId: path ? new URLSearchParams(hash.split('?')[1]).get('order') : null, invalid: !path, path };
+}
+export function checkoutRedirect(raw, orderId, origin) {
+  if (!UUID.test(orderId || '') || typeof raw !== 'string' || /[\s\\]/.test(raw)) return null;
+  let url;
+  try { url = new URL(raw); } catch { return null; }
+  if (url.username || url.password) return null;
+  if (url.protocol === 'https:' && url.hostname === 'checkout.stripe.com' && !url.port) return url.href;
+  if (url.origin !== origin || !raw.startsWith(origin + '/app/#/checkout?')) return null;
+  const path = checkoutReturnPath(raw.slice(origin.length));
+  if (!path || new URLSearchParams(path.split('?')[1]).get('order') !== orderId) return null;
+  return raw;
+}
+export function checkoutError(response, operation = 'read') {
+  if (response?.status === 401 || ['account_changed', 'stale_session'].includes(response?.error)) return 'Bitte melde dich erneut an, um den Bestellstand zu prüfen.';
+  const messages = {
+    checkout_pending: 'Für diese Prüfung ist bereits eine Bestellung offen. Schließe sie zuerst ab oder prüfe ihren Stand. Beginne keine weitere Zahlung.',
+    checkout_expired: 'Diese Zahlungsseite ist abgelaufen. Der Bestellstand bleibt gespeichert. Eine neue Zahlung kann hier derzeit nicht begonnen werden.',
+    event_conflict: 'Diese Anfrage passt nicht mehr zur gespeicherten Bestellung. Prüfe den Bestellstand, bevor du erneut zahlst.',
+    already_entitled: 'Für diese Prüfung ist bereits Guthaben verfügbar. Lade das Angebot erneut.',
+    payments_unavailable: 'Das Freischalten eines Passes ist zurzeit nicht verfügbar.',
   };
+  if (messages[response?.error]) return messages[response.error];
+  if (operation === 'start') return 'Die Zahlungsseite konnte nicht bestätigt werden. Der Bestellstand ist unklar. Wiederhole dieselbe Anfrage, bevor du eine weitere Zahlung beginnst.';
+  return response?.status === 404 ? 'Diese Bestellung oder dieses Angebot ist nicht verfügbar.' : 'Der Stand konnte nicht geladen werden. Bitte versuche es erneut.';
+}
 
-  function dispose() {
-    if (!active) return;
-    if (active.timer) clearTimeout(active.timer);
-    active.host.replaceChildren();
-    active.host.hidden = true;
-    active = null;
-    // The shell re-reads its own credit line: a pass this view just granted is what that line shows,
-    // and it is never written down anywhere in the browser.
-    onChange();
-  }
-
-  function render(s) {
-    if (!current(s)) return;
-    const m = s.mode, o = s.offer || {}, e = o.existing || null, order = s.order || {}, ent = order.entitlement || null;
-    let html = '';
-    if (m === 'loading') {
-      html = `<div class="card"><h3>Wird geladen …</h3><p class="muted">Wir fragen den Server nach dem Angebot für diese Prüfung.</p></div>`;
-    } else if (m === 'unavailable') {
-      // Calm, and deliberately without the error treatment: the pilot has no payments port yet, which
-      // is a fact about the installation rather than a mistake the learner made.
-      html = `<div class="card" role="status"><div class="card-head"><h3>Im Pilot noch nicht verfügbar</h3><span class="chip">Hinweis</span></div>`
-        + `<p>Das Freischalten eines Passes ist in diesem Pilot noch nicht eingerichtet. Es ist nichts kaputt und du musst nichts tun.</p>`
-        + `<p class="small muted">Deine Übungen, Texte und Rückmeldungen sind davon nicht betroffen.</p></div>`;
-    } else if (m === 'missing') {
-      html = `<div class="card" role="status"><div class="card-head"><h3>Zurzeit kein Angebot</h3><span class="chip">Hinweis</span></div>`
-        + `<p>Für diese Prüfung ist in diesem Markt kein Preis hinterlegt. Deshalb wird hier nichts zum Kauf angeboten.</p>`
-        + `<p class="small muted">Das ist keine Störung. Sobald ein Preis hinterlegt ist, erscheint das Angebot hier.</p></div>`;
-    } else if (m === 'existing') {
-      html = `<div class="card" role="status"><div class="card-head"><h3>Dein Pass ist noch gültig</h3><span class="chip">Aktiv</span></div>`
-        + `<p>Für diese Prüfung ist bereits ein Pass freigeschaltet. Ein zweiter Kauf ist nicht nötig.</p>`
-        + ledger(e, 'existing')
-        + `<p class="small muted">Diese Zahlen kommen aus deinem Konto auf dem Server.</p>`
-        + `<div class="row">${button('checkout-refresh', 'Stand erneut laden')}</div></div>`;
-    } else if (m === 'ready') {
-      const exam = esc(o.examId || s.examId || 'diese Prüfung');
-      html = `<div class="card"><div class="card-head"><h3>Pass für ${exam}</h3><span class="chip">Angebot</span></div>`
-        + `<div class="spread"><span class="muted">Preis</span><strong class="checkout-price">${esc(o.displayPrice || 'Preis wird auf dem Server ermittelt')}</strong></div>`
-        + `<div class="spread"><span class="muted">Laufzeit</span><strong>${esc(term(o.termDays))}</strong></div>`
-        + `<div class="spread"><span class="muted">Enthalten</span><strong>${esc(asInt(o.allowance) === null ? 'unbekannt' : asInt(o.allowance))} Schreib-Rückmeldungen</strong></div>`
-        + `<p class="small muted">Der Preis wird auf dem Server zu dieser Prüfung und diesem Markt gesucht. Diese Seite sendet keinen Betrag.</p>`
-        + `<div class="row">${button('checkout-buy', 'Pass freischalten', true)}${button('checkout-refresh', 'Angebot neu laden')}</div></div>`;
-    } else if (m === 'starting') {
-      // The redirect is already being prepared: the button stays where it is and says what is happening,
-      // so a second press is impossible rather than merely ignored.
-      html = `<div class="card"><div class="card-head"><h3>Weiterleitung zum Anbieter</h3><span class="chip">Bitte warten</span></div>`
-        + `<p>Die Zahlungsseite wird vorbereitet. Dieses Fenster wird gleich weitergeleitet.</p>`
-        + `<div class="row"><button type="button" class="btn btn-primary" id="checkout-buy" disabled>Weiterleitung läuft …</button></div></div>`;
-    } else if (m === 'pending') {
-      html = `<div class="card" role="status"><div class="card-head"><h3>Zahlung wird geprüft</h3><span class="chip">Offen</span></div>`
-        + `<p>Wir haben deine Rückkehr vom Anbieter erhalten und warten auf die Bestätigung des Zahlungsdienstes.</p>`
-        + `<p class="small muted">Das ist noch <strong>kein</strong> Nachweis, dass die Zahlung angekommen ist. Der Stand kommt aus der Bestellung auf dem Server, nicht aus der Adresse in deinem Browser.</p>`
-        + `<p class="small muted">Bestellung ${esc(order.id || s.orderId || '')} · angelegt am ${esc(day(order.createdAt))}.</p>`
-        + `<div class="row">${button('checkout-refresh', 'Stand erneut prüfen', true)}</div>`
-        + `<p class="small muted" id="checkout-note" role="status" aria-live="polite">${s.autoChecks >= AUTO_CHECKS ? 'Automatische Prüfung beendet. Prüfe den Stand selbst noch einmal.' : 'Wir prüfen den Stand noch einige Male automatisch.'}</p></div>`;
-    } else if (m === 'paid') {
-      html = `<div class="card" role="status"><div class="card-head"><h3>Pass freigeschaltet</h3><span class="chip">Bezahlt</span></div>`
-        + `<p>Die Zahlung ist bestätigt und der Pass ist deinem Konto gutgeschrieben.</p>`
-        + (ent ? ledger(ent, 'entitlement') : `<p class="small muted">Die Höhe des Guthabens meldet der Server mit dem nächsten Aufruf.</p>`)
-        + `<p class="small muted" id="checkout-note" role="status" aria-live="polite"></p>`
-        + `<div class="row">${button('checkout-refresh', 'Stand erneut laden')}</div></div>`;
-    } else if (m === 'failed') {
-      // A failed, refunded or disputed order grants nothing. The text is explicit that the learner's
-      // own records were never at risk, because the entitlement is what a purchase adds — not a
-      // condition for the work already saved.
-      const reason = order.status === 'refunded' ? 'Die Zahlung wurde zurückerstattet.'
-        : order.status === 'disputed' ? 'Zu dieser Zahlung läuft ein Einspruch.'
-        : 'Die Zahlung ist fehlgeschlagen oder wurde abgebrochen.';
-      html = `<div class="card"><div class="card-head"><h3>Pass nicht freigeschaltet</h3><span class="chip">Nicht aktiv</span></div>`
-        + `<p class="err">${esc(reason)}</p>`
-        + `<p>Es wurde nichts freigeschaltet. Deine Texte, Entwürfe und Rückmeldungen sind unverändert und bleiben gespeichert.</p>`
-        + `<div class="row">${button('checkout-refresh', 'Stand erneut laden', true)}</div></div>`;
-    } else {
-      // `broken`: no usable answer from the server — a dropped connection, an unexpected status, or a
-      // body that is not the shape the contract promises. Never rendered as one of the other states.
-      html = `<div class="card"><div class="card-head"><h3>Das hat nicht geklappt</h3><span class="chip">Fehler</span></div>`
-        + `<p class="err">${esc(s.error || 'Die Anfrage konnte nicht abgeschlossen werden.')}</p>`
-        + `<p class="small muted">Es wurde nichts gebucht und nichts freigeschaltet.</p>`
-        + `<div class="row">${button('checkout-retry', 'Erneut versuchen')}</div></div>`;
-    }
-    s.host.innerHTML = html;
-    const bind = (id, handler) => { const node = s.host.querySelector('#' + id); if (node) node.onclick = handler; };
-    // "Erneut versuchen" always repeats the call the learner was waiting for: the order they started,
-    // or the offer they had not been able to read.
-    if (m === 'pending' || m === 'paid' || m === 'failed') bind('checkout-refresh', () => checkOrder(s));
-    if (m === 'existing' || m === 'ready') bind('checkout-refresh', () => loadOffer(s));
-    if (m === 'ready') bind('checkout-buy', () => startSession(s));
-    if (m === 'broken') bind('checkout-retry', () => (s.orderId ? checkOrder(s) : loadOffer(s)));
-  }
-
-  /** Read the offer, and answer with a state for each documented refusal — never with a raw status. */
-  async function loadOffer(s) {
-    s.mode = 'loading'; s.offer = null; s.error = null;
-    render(s);
-    const res = await api.payments.offer(s.examId);
-    if (!current(s)) return;
-    if (res?.ok && res.data?.offer) { s.offer = res.data.offer; return showOffer(s); }
-    if (res?.ok) { s.error = 'Der Server hat kein Angebot geliefert.'; s.mode = 'broken'; render(s); return; }
-    if (res?.status === 503) { s.mode = 'unavailable'; render(s); return; }
-    if (res?.status === 404) { s.mode = 'missing'; render(s); return; }
-    s.error = failure(res); s.mode = 'broken'; render(s);
-  }
-
-  /**
-   * Which shape the offer has is the SERVER's answer, not a client guess: `purchasable: true` is the
-   * only shape that may render a buy button, and the contract's §7 says so in as many words.
-   */
-  function showOffer(s) {
-    const o = s.offer || {};
-    // Taken from the offer the server just resolved for this learner — never defaulted by the client.
-    if (typeof o.market === 'string' && o.market) s.market = o.market;
-    if (o.purchasable === true) s.mode = 'ready';
-    else if (o.existing) s.mode = 'existing';
-    else { s.mode = 'missing'; }
-    render(s);
-  }
-
-  /**
-   * Start a checkout session — the ONLY request this view makes, and the only one it may make.
-   *
-   * The body is `{ examId, market }` and nothing else. No amount, no currency, no price id: the
-   * contract puts the price on the server, and a client that sent one could set its own.
-   */
-  async function startSession(s) {
-    if (s.busy) return;
-    s.busy = true; s.mode = 'starting'; s.error = null;
-    render(s);
-    const res = await api.payments.startSession({ examId: s.examId, market: s.market });
+/** Pure transport boundary: an obsolete response cannot navigate or replace another context. */
+export function createCheckoutState({ api, changed = () => {}, eventId = () => crypto.randomUUID(), navigate = url => window.location.assign(url), origin = () => window.location.origin, beforeRedirect = async () => true, canContinue = () => true, onPaid = () => {}, schedule = setTimeout, cancel = clearTimeout }) {
+  let state = null, epoch = 0, timer = null, request = 0;
+  const current = (s, ticket) => state === s && epoch === ticket;
+  const publish = () => changed();
+  const stopTimer = () => { if (timer !== null) cancel(timer); timer = null; };
+  const snapshot = () => state ? copy(state) : null;
+  const invoke = async action => { try { return await action(); } catch { return { ok: false, status: 0, error: 'network' }; } };
+  function fail(s, response, operation = 'read') { s.mode = 'error'; s.error = checkoutError(response, operation); s.retry = operation; s.busy = false; publish(); }
+  async function loadOffer(market = state?.market || null) {
+    const s = state, ticket = epoch;
+    if (!s || s.busy || s.operation) return false;
+    if (market && !s.markets.some(row => row.market === market)) return false;
+    const serial = ++request;
+    s.market = market; s.mode = 'loading'; s.busy = true; s.offer = null; s.error = ''; publish();
+    const response = await invoke(() => api.payments.offer(s.examId, market));
+    if (!current(s, ticket) || serial !== request) return false;
     s.busy = false;
-    if (!current(s)) return;
-    if (res?.ok && typeof res.data?.orderId === 'string' && UUID.test(res.data.orderId)) {
-      s.orderId = res.data.orderId;
-      const url = res.data?.checkoutUrl;
-      if (typeof url === 'string' && url) { window.location.assign(url); return; }
-      // A session without a URL cannot be paid. Say so rather than leaving a dead button on screen.
-      s.error = 'Die Zahlungsseite konnte nicht geöffnet werden.'; s.mode = 'broken'; render(s); return;
+    if (!response?.ok) {
+      if ([404, 503].includes(response?.status)) { s.mode = response.status === 404 ? 'missing' : 'unavailable'; s.error = checkoutError(response); publish(); return false; }
+      fail(s, response); return false;
     }
-    if (res?.ok) { s.error = 'Die Zahlungsseite konnte nicht geöffnet werden.'; s.mode = 'broken'; render(s); return; }
-    if (res?.status === 503) { s.mode = 'unavailable'; render(s); return; }
-    if (res?.status === 409 && res.error === 'already_entitled') {
-      // Someone else's tab — or this learner's earlier purchase — granted the pass first. Re-ask rather
-      // than showing a buy button the server has just refused.
-      await loadOffer(s); return;
-    }
-    if (res?.status === 502) { s.error = 'Der Zahlungsdienst ist gerade nicht erreichbar. Es wurde nichts gebucht.'; s.mode = 'broken'; render(s); return; }
-    if (res?.status === 422) { s.error = 'Die Anfrage wurde vom Server abgelehnt. Es wurde nichts gebucht.'; s.mode = 'broken'; render(s); return; }
-    s.error = failure(res); s.mode = 'broken'; render(s);
+    const data = response.data, rows = data?.markets;
+    if (!Array.isArray(rows) || rows.some(row => !/^[A-Z]{2}$/.test(row.market) || !/^[A-Z]{3}$/.test(row.currency)) || new Set(rows.map(row => row.market)).size !== rows.length) { fail(s, null); return false; }
+    s.markets = rows; s.testMode = data.testMode === true || data.offer?.testMode === true;
+    if (!market && data.offer === null) { s.mode = rows.length ? 'market' : 'missing'; publish(); return true; }
+    const offer = data.offer;
+    if (!offer || offer.examId !== s.examId || offer.market !== market || offer.testMode !== true || !Number.isInteger(offer.amountMinor) || offer.amountMinor < 0 || typeof offer.displayPrice !== 'string' || !offer.displayPrice.trim() || !Number.isInteger(offer.allowance) || offer.allowance < 1 || !Number.isInteger(offer.termDays) || offer.termDays < 1 || !rows.some(row => row.market === market && row.currency === offer.currency)) { fail(s, null); return false; }
+    s.offer = offer; s.mode = offer.purchasable === true ? 'ready' : offer.purchasable === false && offer.existing ? 'existing' : 'missing'; publish(); return true;
   }
-
-  /**
-   * THE ORDER IS THE ONLY SOURCE OF TRUTH. This is what makes the provider's return URL harmless: the
-   * browser coming back proves nothing, and the status below is read from the server every time.
-   */
-  async function checkOrder(s, extra = 0) {
-    if (!s.orderId || s.busy) return;
-    if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+  async function start() {
+    const s = state, ticket = epoch;
+    if (!s || s.busy || !canContinue() || (!s.operation && (s.mode !== 'ready' || s.offer?.testMode !== true))) return false;
+    s.operation ||= { examId: s.examId, market: s.market, eventId: eventId() };
+    s.busy = true; s.mode = 'starting'; s.error = ''; publish();
+    const response = await invoke(() => api.payments.startSession(copy(s.operation)));
+    if (!current(s, ticket)) return false;
+    s.busy = false;
+    if (!canContinue()) { fail(s, null, 'start'); return false; }
+    if (!response?.ok) {
+      if (response?.error === 'already_entitled') { s.operation = null; return loadOffer(s.market); }
+      fail(s, response, 'start'); return false;
+    }
+    const value = response.data;
+    if (UUID.test(value?.orderId || '')) s.orderId = value.orderId;
+    if (s.orderId && value?.testMode === true && ['paid', 'failed', 'refunded', 'disputed'].includes(value.status)) return checkOrder();
+    const destination = value?.testMode === true ? checkoutRedirect(value.checkoutUrl, value.orderId, origin()) : null;
+    if (!destination) { s.error = 'Die Zahlungsseite konnte nicht sicher geöffnet werden. Prüfe den Bestellstand, bevor du erneut zahlst.'; s.mode = 'error'; s.retry = s.orderId ? 'order' : 'start'; publish(); return false; }
     s.busy = true;
-    const res = await api.payments.order(s.orderId);
+    let saved = false;
+    try { saved = await beforeRedirect(); } catch { /* Preserve the pending order and the draft. */ }
+    if (!current(s, ticket)) return false;
     s.busy = false;
-    if (!current(s)) return;
-    const order = res?.data?.order;
-    if (!res?.ok) {
-      if (res?.status === 404) { s.error = 'Diese Bestellung ist nicht mehr auffindbar.'; s.mode = 'broken'; render(s); return; }
-      s.error = failure(res); s.mode = 'broken'; render(s); return;
-    }
-    if (!order || typeof order !== 'object' || !ORDER_STATUSES.includes(order.status)) {
-      s.error = 'Der Server hat einen unbekannten Bestellstand geliefert.'; s.mode = 'broken'; render(s); return;
-    }
-    s.order = order;
-    if (order.status === 'paid') { s.mode = 'paid'; render(s); return; }
-    if (order.status === 'failed' || order.status === 'refunded' || order.status === 'disputed') { s.mode = 'failed'; render(s); return; }
-    s.mode = 'pending'; render(s);
-    // A slow confirmation is polled a few times and then left to the learner's own button. Nothing is
-    // claimed in the meantime, and the schedule is bounded so a closed tab is not hammering the server.
-    const attempt = s.autoChecks + extra;
-    if (attempt < AUTO_CHECKS && current(s)) {
-      s.autoChecks = attempt + 1;
-      s.timer = setTimeout(() => checkOrder(s), AUTO_DELAY);
-    }
+    if (!canContinue()) { fail(s, null, 'start'); return false; }
+    if (!saved) { s.error = 'Dein Entwurf konnte noch nicht gespeichert werden. Die Weiterleitung wurde angehalten. Speichere deinen Text und versuche es erneut.'; s.mode = 'error'; s.retry = 'start'; publish(); return false; }
+    navigate(destination); return true;
   }
-
-  /**
-   * Open the checkout for one exam on one host. `options.orderId` is the order the server put in its
-   * return URL; with no id, the screen simply shows what is on sale.
-   */
-  async function open(host, options = {}) {
-    dispose();
-    if (!host) return false;
-    const matching = (value) => { const m = UUID.exec(String(value || '')); return m ? m[0] : null; };
-    const examId = typeof options.examId === 'string' && options.examId ? options.examId : null;
-    const market = typeof options.market === 'string' && options.market ? options.market : 'DE';
-    const orderId = matching(options.orderId) || matching(options.returnUrl);
-    if (!examId) { host.hidden = false; host.innerHTML = `<div class="card"><h3>Kein Angebot für diese Ansicht</h3><p class="small muted">Wähle zuerst eine Prüfungsvorbereitung.</p></div>`; return false; }
-    const s = { host, examId, market, mode: 'loading', offer: null, order: null, orderId, error: null, busy: false, autoChecks: 0, timer: null };
-    active = s;
-    host.hidden = false;
-    if (orderId) { render(s); await checkOrder(s, 0); return true; }
-    await loadOffer(s);
+  async function checkOrder(automatic = false) {
+    const s = state, ticket = epoch;
+    if (!s?.orderId || s.busy || !canContinue()) return false;
+    stopTimer(); s.busy = true; if (!automatic) { s.mode = 'loading'; publish(); }
+    const response = await invoke(() => api.payments.order(s.orderId));
+    if (!current(s, ticket)) return false;
+    s.busy = false;
+    const order = response?.data?.order;
+    if (!response?.ok || !order || order.id !== s.orderId || !ORDER_STATES.includes(order.status) || order.testMode !== true) { fail(s, response, 'order'); return false; }
+    s.order = order; s.testMode = true; s.mode = order.status; s.error = '';
+    if (order.status === 'pending' && s.autoChecks < 5) { s.autoChecks++; timer = schedule(() => { timer = null; void checkOrder(true); }, 4000); }
+    publish();
+    if (order.status === 'paid') onPaid(order);
     return true;
   }
+  function dispose() { stopTimer(); epoch++; request++; state = null; }
+  async function open(options = {}) {
+    dispose();
+    state = { examId: options.examId || null, examLabel: options.examLabel || options.examId || '', market: null, markets: [], offer: null, order: null, orderId: options.orderId || null, operation: null, mode: 'loading', error: '', busy: false, testMode: false, retry: 'read', autoChecks: 0 };
+    if (options.invalid || (options.orderId && !UUID.test(options.orderId))) { state.mode = 'invalid'; publish(); return false; }
+    if (state.orderId) return checkOrder();
+    if (!state.examId) { state.mode = 'no_exam'; publish(); return false; }
+    return loadOffer();
+  }
+  return { snapshot, open, dispose, loadOffer, start, checkOrder, retry: () => state?.retry === 'start' ? start() : state?.orderId ? checkOrder() : loadOffer(), get busy() { return Boolean(state?.busy); } };
+}
 
-  return { open, dispose, get active() { return active; } };
+const whole = value => Number.isInteger(value) && value >= 0 ? value : null;
+const date = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleDateString('de-DE') : null;
+export function checkoutBalance(entry, esc) {
+  if (!entry) return '';
+  const allowance = whole(entry.allowance), used = whole(entry.used), reserved = whole(entry.reserved);
+  const expired = Boolean(date(entry.expiresAt) && Date.parse(entry.expiresAt) <= Date.now());
+  const available = expired ? 0 : [allowance, used, reserved].every(value => value !== null) ? Math.max(0, allowance - used - reserved) : null;
+  const expiry = entry.expiresAt === null ? 'Ohne festes Ablaufdatum.' : date(entry.expiresAt) ? (expired ? 'Abgelaufen am ' : 'Gültig bis ') + date(entry.expiresAt) + '.' : 'Gültigkeit derzeit unbekannt.';
+  return '<dl class="checkout-balance">' + [['freigeschaltet', allowance], ['verwendet', used], ['reserviert', reserved], ['verfügbar', available]].map(([label, value]) => '<div><dt>' + label + '</dt><dd>' + esc(value ?? 'unbekannt') + '</dd></div>').join('') + '</dl><p class="small muted">' + esc(expiry) + '</p>';
+}
+export function checkoutMarkup(s, esc) {
+  const button = (id, label, primary = false) => `<button type="button" class="btn${primary ? ' btn-primary' : ''}" id="${id}"${s.busy ? ' disabled' : ''}>${label}</button>`;
+  const heading = (title, body) => '<h3 id="checkout-title" tabindex="-1">' + title + '</h3>' + body;
+  const refresh = button('checkout-refresh', s.orderId ? 'Stand erneut prüfen' : 'Angebot erneut laden');
+  let body = '';
+  if (s.mode === 'loading') body = heading('Wird geladen …', '<p>Der aktuelle Stand wird geladen.</p>');
+  else if (s.mode === 'market') body = heading('Land für deinen Kauf wählen', '<p>Wähle das Land, in dem du den Pass kaufen möchtest.</p>');
+  else if (s.mode === 'ready') body = heading('Pass für ' + esc(s.examLabel), `<dl class="checkout-offer"><div><dt>Preis</dt><dd class="checkout-price">${esc(s.offer.displayPrice)}</dd></div><div><dt>Laufzeit</dt><dd>${esc(s.offer.termDays)} Tage</dd></div><div><dt>Enthalten</dt><dd>${esc(s.offer.allowance)} Schreib-Rückmeldungen</dd></div></dl><div class="row">${button('checkout-buy', 'Testzahlung fortsetzen', true)}${refresh}</div>`);
+  else if (s.mode === 'existing') body = heading('Dein Pass ist noch gültig', '<p>Für diese Prüfung ist bereits Guthaben verfügbar. Ein weiterer Kauf ist derzeit nicht nötig.</p>' + checkoutBalance(s.offer.existing, esc) + refresh);
+  else if (s.mode === 'starting') body = heading('Zahlungsseite wird vorbereitet', '<p>Bitte warte auf die Weiterleitung.</p>');
+  else if (s.mode === 'pending') body = heading('Zahlung wird geprüft', '<p>Die Zahlung ist noch nicht bestätigt. Bitte beginne keine weitere Zahlung für diese Prüfung.</p>' + refresh + '<p id="checkout-note" class="small muted">' + (s.autoChecks >= 5 ? 'Prüfe den Stand bei Bedarf erneut.' : 'Der Stand wird noch einige Male automatisch geprüft.') + '</p>');
+  else if (s.mode === 'paid') body = heading('Pass freigeschaltet', '<p>Die Zahlung wurde bestätigt. Dein Guthaben ist gespeichert.</p>' + checkoutBalance(s.order.entitlement, esc) + refresh);
+  else if (s.mode === 'refunded') body = heading('Zahlung zurückerstattet', '<p>Für diese Bestellung wurde eine Rückerstattung gemeldet.</p>' + checkoutBalance(s.order.entitlement, esc) + refresh);
+  else if (s.mode === 'disputed') body = heading('Zahlung wird geklärt', '<p>Zu dieser Bestellung wurde ein Einspruch gemeldet.</p>' + checkoutBalance(s.order.entitlement, esc) + refresh);
+  else if (s.mode === 'failed') body = heading('Zahlung nicht abgeschlossen', '<p>Diese Bestellung wurde als fehlgeschlagen gemeldet. Deine gespeicherten Übungen und Texte bleiben erhalten.</p>' + refresh);
+  else if (s.mode === 'unavailable') body = heading('Freischalten zurzeit nicht verfügbar', '<p>Bitte versuche es später erneut. Deine gespeicherten Übungen und Texte bleiben erhalten.</p>' + refresh);
+  else if (s.mode === 'missing') body = heading('Zurzeit kein Angebot', '<p>Für diese Prüfung und das gewählte Land ist derzeit kein Angebot verfügbar.</p>' + refresh);
+  else if (s.mode === 'no_exam') body = heading('Keine Prüfung ausgewählt', '<p>Wähle eine Prüfungsvorbereitung, um die verfügbaren Angebote anzusehen.</p>');
+  else if (s.mode === 'invalid') body = heading('Bestelllink nicht gültig', '<p>Dieser Link kann nicht geöffnet werden. Verwende den ursprünglichen Link zu deiner Bestellung.</p>');
+  else body = heading('Stand noch nicht bestätigt', `<p class="err" role="alert">${esc(s.error)}</p><div class="row">${button('checkout-retry', 'Erneut prüfen', true)}${s.orderId && s.retry !== 'order' ? button('checkout-order', 'Bestellstand ansehen') : ''}</div>`);
+  const chooser = !s.orderId && !s.operation && s.markets.length ? '<label class="field-label" for="checkout-market">Land des Kaufs</label><select class="select" id="checkout-market"' + (s.busy ? ' disabled' : '') + '><option value="">Bitte ausdrücklich wählen</option>' + s.markets.map(row => '<option value="' + esc(row.market) + '"' + (s.market === row.market ? ' selected' : '') + '>' + esc(row.market + ' · ' + row.currency) + '</option>').join('') + '</select>' : '';
+  return '<article class="card stack checkout-card" data-checkout-state="' + esc(s.mode) + '" aria-labelledby="checkout-title" aria-busy="' + s.busy + '">' + (s.testMode ? '<p class="chip" id="checkout-test-mode">Testmodus · keine echte Zahlung</p>' : '') + body + chooser + (s.order ? '<p class="small muted checkout-order-reference">Bestellung ' + esc(s.order.id) + ' · ' + esc(s.order.examId) + '</p>' : '') + '</article>';
+}
+
+export function createCheckoutController({ api, esc, onChange = () => {}, beforeRedirect, canContinue = () => true }) {
+  let host = null, restoreFocus = null;
+  const session = createCheckoutState({ api, beforeRedirect, canContinue: () => Boolean(host?.isConnected) && canContinue(), onPaid: onChange, changed: () => {
+    const state = session.snapshot();
+    if (!host?.isConnected || !state) return;
+    const focused = host.contains(document.activeElement) ? document.activeElement.id : null;
+    if (focused) restoreFocus = focused;
+    host.dataset.state = state.mode; host.innerHTML = checkoutMarkup(state, esc);
+    const bind = (id, action) => { const node = host.querySelector('#' + id); if (node) node.onclick = action; };
+    bind('checkout-buy', () => void session.start()); bind('checkout-refresh', () => void (state.orderId ? session.checkOrder() : session.loadOffer()));
+    bind('checkout-retry', () => void session.retry()); bind('checkout-order', () => void session.checkOrder());
+    const picker = host.querySelector('#checkout-market'); if (picker) picker.onchange = event => void session.loadOffer(event.target.value || null);
+    if (restoreFocus && !state.busy) { (host.querySelector('#' + restoreFocus) || host.querySelector('#checkout-title'))?.focus({ preventScroll: true }); restoreFocus = null; }
+  } });
+  return {
+    async open(target, options) { if (host && host !== target) { host.replaceChildren(); host.hidden = true; } host = target; host.hidden = false; return session.open(options); },
+    dispose() { session.dispose(); if (host) { host.replaceChildren(); host.hidden = true; } host = null; restoreFocus = null; },
+    get active() { return session.snapshot(); },
+  };
 }

@@ -394,3 +394,15 @@ code {
 /* The status line of the pending and paid states. Addressed by the id the elements actually carry, so
    the rule cannot be dead: a `.checkout-note` class that no element wears would be decoration. */
 #checkout-note { min-height: 1.2em; margin-top: .6rem; }
+.checkout-card { min-width: 0; }
+.checkout-card h3, .checkout-card p, .checkout-card dd, .checkout-card .btn { overflow-wrap: anywhere; }
+.checkout-card .btn, #checkout-test-mode { white-space: normal; }
+.checkout-card .select { width: 100%; max-width: 100%; min-height: 44px; }
+.checkout-offer, .checkout-balance { margin: 0; }
+.checkout-offer > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem 1rem; padding-block: .5rem; }
+.checkout-offer dd { margin: 0; font-weight: 700; }
+.checkout-balance { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.checkout-balance > div { min-width: 0; }
+.checkout-balance dd { margin: 0; font-size: 1.3rem; font-weight: 700; }
+.checkout-card .btn { min-height: 44px; }
+#checkout-boot-host { margin-block-start: 1rem; }
