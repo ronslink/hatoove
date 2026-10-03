@@ -67,6 +67,28 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
     await cdp.waitFor(`location.hash.startsWith('#/prep/') && location.hash.endsWith('/${view}') && document.querySelector('#view-${view}') && !document.querySelector('#view-${view}').hidden`);
   };
   const requestsSince = mark => cdp.events.slice(mark).filter(event => event.method === 'Network.requestWillBeSent').map(event => event.params.request);
+  const paused = async promise => {
+    let timer;
+    try { return await Promise.race([promise, new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('S1 delayed request did not reach interception')), 12000);
+    })]); } finally { clearTimeout(timer); }
+  };
+  const responseFinished = async event => {
+    if (!event.networkId) throw new Error('S1 delayed request has no Network correlation ID');
+    const until = Date.now() + 12000;
+    while (!cdp.events.some(item => item.method === 'Network.loadingFinished' && item.params.requestId === event.networkId)) {
+      if (Date.now() >= until) throw new Error('S1 delayed response did not finish');
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    await cdp.evaluate('return new Promise(resolve=>requestAnimationFrame(()=>resolve(true)));');
+  };
+  // Resolve after the app has received the hashchange, so a held response is never released before
+  // the new navigation is actually queued. CDP.evaluate wraps a synchronous function and awaits returns.
+  const changeHash = hash => cdp.evaluate(`return new Promise(resolve=>{
+    if(location.hash===${JSON.stringify(hash)}) { resolve(true); return; }
+    window.addEventListener('hashchange',()=>resolve(true),{once:true});
+    location.hash=${JSON.stringify(hash)};
+  });`);
   const ready = () => cdp.waitFor("document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden && document.querySelector('#preparation-picker').value", 15000);
   const select = async id => {
     await cdp.evaluate(`const picker=document.querySelector('#preparation-picker'); picker.value=${JSON.stringify(id)}; picker.dispatchEvent(new Event('change',{bubbles:true})); return true;`);
@@ -79,10 +101,10 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
     await nav(cdp, base + '/signin');
     await setInputs(cdp, { 'si-email': email, 'si-password': password }); await clickSel(cdp, '#si-submit');
     await ready();
-    request = async (route, method = 'GET', body) => cdp.evaluate(`const response=await fetch(${JSON.stringify(route)}, {
+    request = async (route, method = 'GET', body) => cdp.evaluate(`return (async()=>{const response=await fetch(${JSON.stringify(route)}, {
       method:${JSON.stringify(method)}, credentials:'same-origin', headers:{'content-type':'application/json'},
       ${body === undefined ? '' : 'body:' + JSON.stringify(JSON.stringify(body)) + ','}
-    }); let data=null; try { data=await response.json(); } catch {} return {status:response.status,data};`);
+    }); let data=null; try { data=await response.json(); } catch {} return {status:response.status,data};})()`);
     const preparationId = await cdp.evaluate("return document.querySelector('#preparation-picker').value");
     const prepPath = '/api/v1/preparations/' + preparationId;
     const preparation = await request(prepPath), settings = await request('/api/v1/settings');
@@ -216,19 +238,116 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
       if (!/^[0-9a-f-]{36}$/i.test(fixture?.otherPreparationId || '')) throw new Error('S1 second-preparation fixture missing');
       const other = fixture.otherPreparationId;
       await fresh('#/prep/' + preparationId + '/heute'); await ready();
+      await run('S1 settings recovery belongs only to its original form context', async () => {
+        await go('einstellungen');
+        const current = await request(prepPath), otherPrep = await request('/api/v1/preparations/' + other);
+        let holdRecovery = false, held = false, receive;
+        const recoveryRead = new Promise(resolve => { receive = resolve; });
+        await hook('*/api/v1/preparations/*', async (event, controls) => {
+          const path = new URL(event.request.url).pathname;
+          if (path === prepPath && event.request.method === 'PUT') {
+            await controls.reply(event, 409, { error: 'preparation_conflict', current: current.data });
+          } else if (path === prepPath && event.request.method === 'GET' && holdRecovery && !held) {
+            held = true; receive({ event, controls });
+          } else await controls.proceed(event);
+        });
+        await setInputs(cdp, { examDate: '2032-08-17', language: 'en' });
+        await clickSel(cdp, '#save-settings');
+        await cdp.waitFor("document.querySelector('#settings-reload') && !document.querySelector('#preparation-picker').disabled");
+        record('S1 conflict retains unsaved choices until an explicit recovery or context choice', await cdp.evaluate("return document.querySelector('#examDate').value==='2032-08-17' && document.querySelector('#language').value==='en'"));
+        holdRecovery = true;
+        await clickSel(cdp, '#settings-reload');
+        const delayed = await paused(recoveryRead);
+        await select(other);
+        record('S1 successful context switch retires the previous settings recovery action', await cdp.evaluate("return !document.querySelector('#settings-reload') && document.querySelector('#settings-state').textContent===''") );
+        await delayed.controls.proceed(delayed.event);
+        await responseFinished(delayed.event);
+        // An explicit scoped view read also proves the API transport selection agrees with the picker.
+        const mark = cdp.events.length;
+        await go('einstellungen'); await go('fortschritt');
+        await cdp.waitFor("!document.querySelector('#history-list').textContent.includes('wird geladen')");
+        await cdp.waitFor(`document.querySelector('#preparation-credits').textContent.includes(${JSON.stringify(otherPrep.data.exam)})`);
+        const reads = requestsSince(mark).filter(r => new URL(r.url).pathname === '/api/v1/attempts');
+        record('S1 late recovery response cannot replace picker, route, credit or API context', reads.length > 0
+          && reads.every(r => new URL(r.url).searchParams.get('preparationId') === other)
+          && await cdp.evaluate(`return document.querySelector('#preparation-picker').value===${JSON.stringify(other)}
+            && location.hash===${JSON.stringify('#/prep/' + other + '/fortschritt')}
+            && document.querySelector('#preparation-exam').textContent===${JSON.stringify(otherPrep.data.exam)}
+            && document.querySelector('#preparation-credits').textContent.includes(${JSON.stringify(otherPrep.data.exam)})
+            && !document.querySelector('#settings-state').textContent.includes('auf deinen Wunsch')`));
+        await shot(cdp, 's1-settings-recovery-after-switch');
+        await select(preparationId);
+      });
+
+      await run('S1 latest deep link survives a delayed autosave', async () => {
+        await fresh('#/prep/' + preparationId + '/ueben'); await ready();
+        await cdp.waitFor("document.querySelector('#task-list [data-write]')");
+        const binding = await cdp.evaluate("const button=document.querySelector('#task-list [data-write]'); return {task:button.dataset.write,version:button.dataset.version};");
+        await clickSel(cdp, '#task-list [data-write]'); await cdp.waitFor("document.querySelector('#writing-text')");
+        let held = false, receive;
+        const autosave = new Promise(resolve => { receive = resolve; });
+        await hook('*/api/v1/attempts/*', async (event, controls) => {
+          if (!held && event.request.method === 'PUT') { held = true; receive({ event, controls }); }
+          else await controls.proceed(event);
+        });
+        const text = 'Synthetischer Text vor zwei schnellen Navigationen ' + randomUUID();
+        await setInputs(cdp, { 'writing-text': text });
+        await changeHash('#/prep/' + other + '/fortschritt');
+        const delayed = await paused(autosave);
+        await cdp.waitFor("document.querySelector('#preparation-picker').disabled");
+        await changeHash('#/prep/' + preparationId + '/einstellungen');
+        const mark = cdp.events.length;
+        await delayed.controls.proceed(delayed.event);
+        await cdp.waitFor(`location.hash===${JSON.stringify('#/prep/' + preparationId + '/einstellungen')}
+          && document.querySelector('#preparation-picker').value===${JSON.stringify(preparationId)}
+          && !document.querySelector('#preparation-picker').disabled && !document.querySelector('#view-einstellungen').hidden`, 15000);
+        const attempts = await request('/api/v1/attempts?open=1&preparationId=' + preparationId);
+        const draft = attempts.data.attempts?.find(a => a.task_id === binding.task && a.task_version === binding.version);
+        const saved = draft && await request('/api/v1/attempts/' + draft.id);
+        const scopeReads = requestsSince(mark).filter(r => /\/api\/v1\/(tasks|objective-sets|practice\/|attempts$)/.test(new URL(r.url).pathname));
+        record('S1 latest queued deep link wins after saving the original draft without intermediate context reads', saved?.status === 200 && saved.data.text === text
+          && scopeReads.every(r => new URL(r.url).searchParams.get('preparationId') === preparationId));
+        await shot(cdp, 's1-navigation-latest-destination');
+      });
+
+      await run('S1 browser history wins over an obsolete failed preparation read', async () => {
+        await fresh('#/prep/' + preparationId + '/heute'); await ready();
+        await go('ueben'); await cdp.waitFor("document.querySelector('#task-list [data-open]')");
+        let held = false, receive;
+        const prepRead = new Promise(resolve => { receive = resolve; });
+        await hook('*/api/v1/preparations/' + other, async (event, controls) => {
+          if (!held && event.request.method === 'GET') { held = true; receive({ event, controls }); }
+          else await controls.proceed(event);
+        });
+        await changeHash('#/prep/' + other + '/fortschritt');
+        const delayed = await paused(prepRead);
+        await cdp.evaluate("return new Promise(resolve=>{window.addEventListener('hashchange',()=>resolve(true),{once:true}); history.go(-2);});");
+        await delayed.controls.reply(delayed.event, 503, { error: 'synthetic_obsolete_preparation_read' });
+        await cdp.waitFor(`location.hash===${JSON.stringify('#/prep/' + preparationId + '/heute')}
+          && document.querySelector('#preparation-picker').value===${JSON.stringify(preparationId)}
+          && !document.querySelector('#preparation-picker').disabled && !document.querySelector('#view-heute').hidden`, 15000);
+        record('S1 queued back navigation survives an obsolete read failure', await cdp.evaluate("return document.querySelector('#preparation-state').textContent===''") );
+      });
+
       await run('S1 switch waits for a successful draft save', async () => {
         await go('ueben'); await cdp.waitFor("document.querySelector('#task-list [data-write]')");
         const binding = await cdp.evaluate("const button=document.querySelector('#task-list [data-write]'); return {task:button.dataset.write,version:button.dataset.version};");
         await clickSel(cdp, '#task-list [data-write]'); await cdp.waitFor("document.querySelector('#writing-text')");
+        let held = false, receive;
+        const failedSave = new Promise(resolve => { receive = resolve; });
         await hook('*/api/v1/attempts/*', async (event, controls) => {
-          if (event.request.method === 'PUT') await controls.reply(event, 503, { error: 'synthetic_save_unavailable' });
+          if (!held && event.request.method === 'PUT') { held = true; receive({ event, controls }); }
+          else if (event.request.method === 'PUT') await controls.reply(event, 503, { error: 'synthetic_save_unavailable' });
           else await controls.proceed(event);
         });
         const text = 'Synthetischer Text vor dem Vorbereitungswechsel ' + randomUUID();
         await setInputs(cdp, { 'writing-text': text });
         await cdp.evaluate(`const picker=document.querySelector('#preparation-picker'); picker.value=${JSON.stringify(other)}; picker.dispatchEvent(new Event('change',{bubbles:true})); return true;`);
+        const delayed = await paused(failedSave);
+        await changeHash('#/prep/' + preparationId + '/einstellungen');
+        await delayed.controls.reply(delayed.event, 503, { error: 'synthetic_save_unavailable' });
         await cdp.waitFor("document.querySelector('#preparation-state').textContent.includes('angehalten') && !document.querySelector('#preparation-picker').disabled", 12000);
-        record('S1 failed autosave preserves the original context and visible draft', await cdp.evaluate(`return document.querySelector('#preparation-picker').value===${JSON.stringify(preparationId)} && location.hash.includes(${JSON.stringify(preparationId)}) && document.querySelector('#writing-text').value===${JSON.stringify(text)}`));
+        record('S1 failed autosave drops queued navigation and preserves the original context and visible draft', await cdp.evaluate(`return document.querySelector('#preparation-picker').value===${JSON.stringify(preparationId)} && location.hash===${JSON.stringify('#/prep/' + preparationId + '/ueben')} && !document.querySelector('#view-ueben').hidden && document.querySelector('#writing-text').value===${JSON.stringify(text)}`));
         await shot(cdp, 's1-switch-unsaved-recovery');
         await stopIntercept();
         await select(other);

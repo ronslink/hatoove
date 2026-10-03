@@ -80,6 +80,7 @@ let bootLoading = false;
 let objectiveRequest = 0;
 let preparationGeneration = 0;
 let preparationSwitching = false;
+let pendingPreparationNavigation = null;
 let settingsSaving = false;
 const activePreparation = () => state.preparation?.state === 'active';
 const contextTicket = () => preparationGeneration;
@@ -157,6 +158,9 @@ function selectPreparation(value) {
   state.credits = null;
   el('preparation-credits').textContent = 'Guthaben wird geladen …';
   preparationGeneration++;
+  // Recovery controls belong to the preparation/form that created them. An explicit successful
+  // context switch renders the newly selected form and retires any old recovery action with it.
+  el('settings-state').replaceChildren();
 }
 
 function renderPreparation() {
@@ -214,34 +218,52 @@ function clearPreparationViews() {
 async function switchPreparation(selection, view = currentView) {
   if (!bootReady || sessionProblem || preparationSwitching || settingsSaving) return false;
   preparationSwitching = true;
+  routing++; // Invalidate a same-preparation route that may still be waiting for an autosave.
+  let completed = false;
+  let destination = { selection, view };
   el('preparation-picker').disabled = true;
   el('preparation-state').textContent = 'Dein Text wird vor dem Wechsel gespeichert …';
   try {
     if (!(await writing.flush())) {
       el('preparation-state').textContent = 'Der Wechsel wurde angehalten. Dein Text bleibt hier; speichere oder löse zuerst den Konflikt.';
-      history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView);
       return false;
     }
-    const response = selection.startsWith('new:')
-      ? await api.preparations.create(selection.slice(4))
-      : await api.preparations.read(selection);
-    if (!response?.ok) { el('preparation-state').textContent = 'Die Vorbereitung konnte nicht gewechselt werden. ' + failure(response); return false; }
-    if (sessionProblem) return false;
-    if (!(await writing.flush())) { el('preparation-state').textContent = 'Dein Text ist noch nicht gespeichert. Der Wechsel bleibt angehalten.'; return false; }
-    clearPreparationViews();
-    selectPreparation(response.data);
-    renderSettings(); renderChrome(); renderPreparation();
-    const target = activePreparation() ? view : 'fortschritt';
-    history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + target);
-    el('preparation-state').textContent = '';
-    preparationSwitching = false;
-    await route();
-    return true;
+    while (!sessionProblem) {
+      if (pendingPreparationNavigation) {
+        destination = pendingPreparationNavigation;
+        pendingPreparationNavigation = null;
+      }
+      const response = destination.selection === state.preparation.id
+        ? { ok: true, data: state.preparation }
+        : destination.selection.startsWith('new:')
+          ? await api.preparations.create(destination.selection.slice(4))
+          : await api.preparations.read(destination.selection);
+      if (sessionProblem) return false;
+      // A later hash/back-forward choice supersedes this response, including a failed read. Do not
+      // paint the intermediate context or let it replace the latest requested destination.
+      if (pendingPreparationNavigation) continue;
+      if (!response?.ok) { el('preparation-state').textContent = 'Die Vorbereitung konnte nicht gewechselt werden. ' + failure(response); return false; }
+      if (!(await writing.flush())) { el('preparation-state').textContent = 'Dein Text ist noch nicht gespeichert. Der Wechsel bleibt angehalten.'; return false; }
+      if (pendingPreparationNavigation) continue;
+      clearPreparationViews();
+      selectPreparation(response.data);
+      renderSettings(); renderChrome();
+      const target = activePreparation() ? destination.view : 'fortschritt';
+      history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + target);
+      el('preparation-state').textContent = '';
+      completed = true;
+      break;
+    }
   } finally {
     preparationSwitching = false;
-    if (state.preparation) history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView);
+    // A failed save leaves the editor in place. Discard the queued request so a refusal cannot
+    // trigger an automatic retry loop; the learner can explicitly retry once their text is safe.
+    pendingPreparationNavigation = null;
+    if (!completed && state.preparation) history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView);
     renderPreparation();
   }
+  if (completed) await route();
+  return completed;
 }
 
 async function loadPreparations() {
@@ -1228,11 +1250,15 @@ async function renderHistory() {
 let routing = 0;
 
 async function route() {
-  if (!bootReady || sessionProblem || preparationSwitching) return;
+  if (!bootReady || sessionProblem) return;
+  const request = ++routing;
   const info = preparationRoute();
+  if (preparationSwitching) {
+    pendingPreparationNavigation = { selection: info.id || state.preparation.id, view: VIEW_TITLES[info.view] ? info.view : 'heute' };
+    return;
+  }
   if (info.id && info.id !== state.preparation?.id) { await switchPreparation(info.id, info.view); return; }
   readAloud.stop();
-  const request = ++routing;
   if (writing.active) {
     if (!(await writing.flush())) { history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView); return; }
     if (request !== routing) return;
@@ -1362,16 +1388,23 @@ el('settings-form').addEventListener('submit', async (event) => {
   el('preparation-picker').disabled = true;
   showError('');
   const recovery = message => {
+    if (!currentContext(ticket) || state.preparation?.id !== prep.id) return;
     status.textContent = message + ' Deine Eingaben bleiben im Formular.';
     const reload = document.createElement('button');
     reload.type = 'button'; reload.className = 'btn btn-small'; reload.textContent = 'Aktuelle Werte laden';
     reload.id = 'settings-reload';
     status.append(' ', reload);
+    const currentRecoveryForm = () => currentContext(ticket) && state.preparation?.id === prep.id && status.contains(reload);
+    const currentRecovery = () => currentRecoveryForm() && !preparationSwitching && !settingsSaving;
     reload.onclick = () => guard((async () => {
+      if (!currentRecovery()) return;
       reload.disabled = true;
       const [preparation, settings] = await Promise.all([api.preparations.read(prep.id), api.settings.read()]);
-      if (!currentContext(ticket)) return;
-      if (!preparation?.ok || !settings?.ok || !Number.isInteger(settings.data?.revision)) {
+      if (!currentRecovery()) {
+        if (currentRecoveryForm()) reload.disabled = false;
+        return;
+      }
+      if (!preparation?.ok || preparation.data?.id !== prep.id || !settings?.ok || !Number.isInteger(settings.data?.revision)) {
         reload.disabled = false; showError('Die aktuellen Werte konnten nicht geladen werden. Deine Eingaben bleiben erhalten.'); return;
       }
       rememberPreparation(preparation.data);
