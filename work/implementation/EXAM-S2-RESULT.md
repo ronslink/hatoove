@@ -1,6 +1,6 @@
 # EXAM-S2: package imports and saved section practice
 
-Execution **EXAM-S2-20261003-A**, issue [107](https://github.com/ronslink/hatoove/issues/107), base `3a010e64183b470848631e35c1956ee603c4c2ff`. Implementation delivered; final independent review, current-head CI and PR integration are recorded separately. No product acceptance or production deployment is claimed.
+Execution **EXAM-S2-20261003-A**, issue [107](https://github.com/ronslink/hatoove/issues/107), base `3a010e64183b470848631e35c1956ee603c4c2ff`. **Delivered, independently reviewed, seven applicable CI jobs green and merged** through [PR #108](https://github.com/ronslink/hatoove/pull/108) at `7960c613d059be716c5183edfe22c18c26a97aea` on 3 October 2026 at 09:25 UTC. Reviewed CI head: `d05dbb865ebb6cf11abbe874785188e609feec3e`. Product acceptance and production deployment remain separate.
 
 ## Delivered behavior
 
@@ -43,7 +43,11 @@ Regression discrimination: the prior package validator accepted conflicting IDs,
 
 The coordinator owns the package/importer, integration, harness wiring and review repairs. Separate bounded local workers supplied the run API/migration and client. Actual Docker Hermes supplied manifests/fixtures and corrected their first delivery in a separate bounded worktree. Its reports and both deliveries remain preserved in the ignored coordinator handoff.
 
-Actual Claude remained unavailable until 12:00 UTC; no premature retry was made. The recorded OpenClaw provider conflicts with this chat's no-new-DeepSeek boundary, so no remote/provider change was made. A separate local reviewer inspected coordinator packages and backend code; the backend author independently inspected the client. The coordinator inspected fixture delivery and visual evidence. Final reviewed commit IDs and CI/merge receipts are added at integration closeout. No author approves their own slice.
+Actual Claude remained unavailable until 12:00 UTC; no premature retry was made. The recorded OpenClaw provider conflicts with this chat's no-new-DeepSeek boundary, so no remote/provider change was made. A separate local reviewer inspected coordinator packages and backend code; the backend author independently inspected the client. The coordinator inspected fixture delivery and visual evidence. No author approved their own slice.
+
+Client review approved `95f1982a6d13bdc48a4d3b34921c97a9780cba77`; client paths were unchanged afterwards. Package/backend/root integration review approved `7853f5b7886073568a112dd4a07cb8ad3cf0dec0`. The first CI run found an obsolete six-query export assertion. Its test-only repair adds the seventh saved-run family and explicitly checks owner scope; independent follow-up approved `d05dbb865ebb6cf11abbe874785188e609feec3e`, with preservation 7/7. All seven applicable jobs then passed: [offline/server/durable/fixture workflow](https://github.com/ronslink/hatoove/actions/runs/37112855602) and [PostgreSQL pilot contracts](https://github.com/ronslink/hatoove/actions/runs/37112855687). The on-demand rendered CI job was skipped as configured; local rendered evidence is recorded above. [Review receipts](https://github.com/ronslink/hatoove/pull/108#issuecomment-5967723223) retain the separate review scopes.
+
+Canonical `D:\Hatoove` was fast-forwarded to the merge. The unrelated untracked `docs/diagrams/` directory was preserved. The existing learner app/worker were not rebuilt or restarted and their database was not migrated by this execution. All task-owned browser, Compose and PostgreSQL fixtures were removed after evidence was saved. Worker/reviewer execution leases are closed; delivered branches, source and ignored review evidence remain preserved.
 
 ## Remaining gates and next slice
 
