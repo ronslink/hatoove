@@ -92,6 +92,17 @@ try {
     const task=await readWritingTask(db.learner,t.taskId,t.version);assert.equal(await writingAccess(db.learner,task,{historical:true}),'rights_blocked');
     p.release.version='v9102';const before=await snapshot();await assert.rejects(publish(p),/incompatible assigned writing/);assert.deepEqual(await snapshot(),before);
   });
+  await check('non-media objective rights refusal hides every component of current and historical complete forms',async()=>{
+    const p=reference(dtz),set=dtz.sets.find(s=>s.section==='LV'&&s.family==='LV1'),cv=set.setId+'@'+set.version;
+    const before=await readReleasedForm(db.learner,{...args(p),newStart:true});assert.equal(before.members.reduce((n,m)=>n+m.item_count,0),45);assert.equal(before.writingChoices.length,1);
+    assert.equal((await db.learner.query('SELECT 1 FROM content_rights WHERE content_version_id=$1',[cv])).rowCount,0);
+    await db.migration.query("INSERT INTO content_rights(content_version_id,basis,decided_by,note) VALUES($1,'unknown','synthetic test','Complete reading rights-negative test only')",[cv]);
+    assert.equal(await readReleasedForm(db.learner,{...args(p),newStart:true}),null);assert.deepEqual(await listReleasedForms(db.learner,p.exam.id),[]);
+    for(const pinned of [p,dtz]) {
+      const bundle=await readReleasedForm(db.learner,args(pinned));assert.equal(bundle.blockedReason,'rights_blocked');
+      assert.deepEqual(bundle.members,[]);assert.deepEqual(bundle.media,[]);assert.deepEqual(bundle.writingChoices,[]);assert.equal(bundle.writingTask,null);
+    }
+  });
   await check('public registry retains no objective keys or private media paths',async()=>{
     const manifests=(await db.learner.query("SELECT manifest FROM exam_release WHERE version='v9100'")).rows;
     for(const {manifest} of manifests) {assert(!JSON.stringify(manifest).includes('"answers"'));assert(!JSON.stringify(manifest).includes('"explanations"'));assert(manifest.media.every(m=>!Object.hasOwn(m,'path')));}

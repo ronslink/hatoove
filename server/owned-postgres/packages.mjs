@@ -76,6 +76,8 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
       timeGroups=validateCompleteForm(blueprint.exam,blueprint,form.payload);
       validateCompleteMembers(examId,blueprint,form.payload,rows);
     } catch {return null;}
+    // A complete form is one pinned rights boundary, including its reading/language parts.
+    if(rows.some(row=>!contentIsServable(row))) {if(newStart) return null;blockedReason ||= 'rights_blocked';}
   }
   if(rows.some(row=>row.media_required)) {
     if(!['practice','mock'].includes(form.payload.attemptMode)) return null;
