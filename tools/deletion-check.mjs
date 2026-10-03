@@ -38,6 +38,9 @@ import * as adapter from '../server/owned-postgres/adapter.mjs';
 import { createOwnedApi } from '../server/owned-api.mjs';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
+import { importPackage } from '../server/owned-postgres/package-importer.mjs';
+import { createExamCatalogue } from '../server/preparation-contract.mjs';
+import { syntheticS4Package } from './exam-s4-check.mjs';
 
 const createDeletion = typeof adapter.createPostgresAccountDeletion === 'function'
   ? adapter.createPostgresAccountDeletion : null;
@@ -321,7 +324,7 @@ try {
     return 'error 42501 insufficient_privilege - the reason the deletion is a separate port';
   });
 
-  await check('FORCED FAILURE after step 5: reply 500, steps 1-5 had really run, then EVERY table of A is intact', async () => {
+  await check('FORCED FAILURE after draft deletion: reply 500, attachment removal and steps 1-6 had really run, then EVERY table of A is intact', async () => {
     assert.ok(createDeletion, 'no createPostgresAccountDeletion in server/owned-postgres/adapter.mjs');
     const reached = [];
     let inFlight = null;
@@ -329,7 +332,7 @@ try {
       pool: deletionPool,
       afterStep: async (index, name, client) => {
         reached.push(`${index}:${name}`);
-        if (index === 5) {
+        if (name === 'drafts') {
           // Inside the transaction, as the deletion role: the cycle is broken and the
           // dependants are gone - so a rollback has something real to undo.
           inFlight = {
@@ -337,7 +340,7 @@ try {
             usage: (await client.query('SELECT count(*)::int AS n FROM usage_ledger WHERE owner_id = $1', [A.userId])).rows[0].n,
             drafts: (await client.query('SELECT count(*)::int AS n FROM drafts WHERE attempt_id = ANY($1::uuid[])', [beforeA.ids])).rows[0].n,
           };
-          throw new Error('injected failure after step 5');
+          throw new Error('injected failure after draft deletion');
         }
       },
     });
@@ -345,11 +348,11 @@ try {
     const reply = await caller(failingApi)('DELETE', '/api/v1/account', { cookie: A.cookie, body: {} });
     assert.equal(reply.status, 500, `expected 500, got ${reply.status} ${JSON.stringify(reply.json)}`);
     assert.deepEqual(reply.json, { error: 'internal_error' });
-    assert.deepEqual(reached, ['1:attempts_unlinked', '2:usage_ledger', '3:assessments', '4:jobs', '5:drafts']);
+    assert.deepEqual(reached, ['1:mock_writing', '2:attempts_unlinked', '3:usage_ledger', '4:assessments', '5:jobs', '6:drafts']);
     assert.deepEqual(inFlight, { linked: 0, usage: 0, drafts: 0 }, `in-flight state ${JSON.stringify(inFlight)}`);
     const after = await snapshot(A.userId, beforeA.ids);
     for (const table of TABLES) assert.equal(asJson(after.state[table]), asJson(beforeA.state[table]), `${table} changed`);
-    assert.ok(after.state.attempts.some((a) => a.parent_submission_id), 'step 1 (cycle break) was not rolled back');
+    assert.ok(after.state.attempts.some((a) => a.parent_submission_id), 'cycle break was not rolled back');
     assert.equal((await call('GET', '/api/v1/account', { cookie: A.cookie })).status, 200, 'A was signed out by a failed deletion');
     return `A after rollback: ${countLine(after.counts)} (identical, row by row)`;
   });
@@ -474,6 +477,43 @@ try {
     assert.notEqual(who.json.id, A.userId);
     assert.equal((await call('GET', `/api/v1/attempts/${A.revisionAttemptId}`, { cookie: cookieOf(again) })).status, 404);
   });
+  await check('S4 attachment deletion rolls back with its draft, and successful deletion removes both', async () => {
+    await importPackage(db.migration, syntheticS4Package(), { publisher: 'synthetic-deletion-check' });
+    const store = adapter.createPostgresDatastore({ pool: db.learner,
+      examCatalogue: createExamCatalogue({ enabled: ['telc-deutsch-b1', 'dtz-a2-b1'] }) });
+    const victim = await seed(call, 'ATTACHMENT');
+    const preparation = (await store.createPreparation(victim.userId, 'dtz-a2-b1')).preparation;
+    const started = (await store.startMockRun(victim.userId, { preparationId: preparation.id,
+      formId: 's4-writing', formVersion: 'v1', releaseVersion: 'v8100', eventId: randomUUID() })).run;
+    const selected = await store.selectMockWriting(victim.userId, started.id, { expectedRevision: 1,
+      choiceGroupId: 'SA1', optionId: 'B', eventId: randomUUID() });
+    await store.save(victim.userId, selected.writing.attempt_id, 1, 'Synthetic attached draft must survive rollback.');
+    const attachmentRows = () => rows('SELECT * FROM mock_writing WHERE owner_id = $1 ORDER BY run_id', [victim.userId]);
+    const beforeAttachments = await attachmentRows();
+    assert.equal(beforeAttachments.length, 1, 'attachment rollback must have a real row to restore');
+    const before = await snapshot(victim.userId);
+    let observedRemoval = false;
+    const failing = createDeletion({ pool: deletionPool, afterStep: async (index, name, client) => {
+      if (name !== 'drafts') return;
+      assert.equal((await client.query('SELECT count(*)::int AS n FROM mock_writing WHERE owner_id = $1', [victim.userId])).rows[0].n, 0);
+      assert.equal((await client.query('SELECT count(*)::int AS n FROM drafts WHERE attempt_id = $1', [selected.writing.attempt_id])).rows[0].n, 0);
+      observedRemoval = true;
+      throw new Error('synthetic_attachment_rollback');
+    } });
+    await assert.rejects(failing.deleteAccount(victim.userId), /synthetic_attachment_rollback/);
+    assert.ok(observedRemoval, 'failure injection must follow actual attachment and draft removal');
+    assert.equal(asJson(await attachmentRows()), asJson(beforeAttachments), 'attachment was not restored exactly');
+    assert.equal(asJson((await snapshot(victim.userId, before.ids)).state), asJson(before.state), 'owned rows changed after rollback');
+    assert.equal((await store.readMockRun(victim.userId, started.id)).writing.attempt_id, selected.writing.attempt_id);
+    const removed = await createDeletion({ pool: deletionPool }).deleteAccount(victim.userId);
+    assert.equal(removed.verifiedAbsent, true);
+    assert.equal(removed.removed.mock_writing, 1);
+    assert.equal((await attachmentRows()).length, 0);
+    assert.equal((await rows('SELECT 1 FROM mock_run WHERE owner_id = $1', [victim.userId])).length, 0);
+    assert.equal((await rows('SELECT 1 FROM drafts WHERE attempt_id = $1', [selected.writing.attempt_id])).length, 0);
+    return 'real attachment and text restored on rollback; attachment, run and draft absent after success';
+  });
+
   /*
    * The forced-failure check: without it the "one transaction" claim rests on reading the code;
    * with it the claim is demonstrated. The port takes an `afterStep` hook so a test can fail it
@@ -505,7 +545,7 @@ try {
     const hooked = createDeletion({
       pool: deletionPool,
       afterStep: async (index, name) => {
-        if (index === 5) throw new Error(`forced failure after step 5 (${name})`);
+        if (name === 'drafts') throw new Error(`forced failure after draft deletion (step ${index})`);
       },
     });
     try {
