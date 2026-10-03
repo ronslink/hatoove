@@ -1,3 +1,7 @@
+import { getLocale, initialLocale, setLocale, subscribeLocale, validLocale } from '../assets/i18n/core.js';
+import { INSTRUCTIONS, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
+import { updatePracticeLocale } from '../assets/i18n/practice-messages.js';
+import { s as uiText, messageMarkup, bindShellText, setShellHTML, updateShellMessages, createLocalePreference } from './locale-preference.js';
 import { initialPreparation, preparationChoices } from './preparation.js';
 import { createMockController, mockMember } from './mock.js';
 import { createWritingController, writingCriterion, writingFeedbackState, writingExplanationLabels } from './writing.js';
@@ -14,10 +18,8 @@ import { contentReviewLabel, reviewHistoryNotice } from './review-labels.js';
  *
  *   1. THE SERVER IS THE AUTHORITY. Nothing here computes a score, decides a grade or keeps a
  *      copy of learner state. It reads the owned API and renders what it is told.
- *   2. NO BROWSER STATE. There is no client-side store: a fresh browser is recovered by signing in
- *      again, because the session cookie and the server records are the whole of memory. That is
- *      also why nothing here touches the browser's storage APIs — a deliberate omission, not an
- *      oversight, so a stale cache can never disagree with the database.
+ *   2. Account and practice state remain server-owned. Only an explicit guest locale scalar
+ *      may be retained by the shared public locale module.
  *   3. SAY WHAT IS TRUE. Where a route does not exist yet (the task catalogue), the shell says so
  *      rather than filling the space with sample data that would read as a working product.
  */
@@ -28,10 +30,9 @@ const el = (id) => document.getElementById(id);
 
 /** Escape text before it is concatenated into markup. */
 const esc = (value) => String(value ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-bindSentenceCheck({ api, esc });
+const sentenceCheck = bindSentenceCheck({ api, esc });
 const readAloud = createReadAloud();
 
-const LANGUAGE_NAMES = { de: 'Deutsch', en: 'English', uk: 'Українська', ar: 'العربية', tr: 'Türkçe' };
 /**
  * The explanation languages the shell offers. It is the same list as the `<option>` elements in
  * index.html and it is enforced here too: a stored value outside it is not silently displayed as
@@ -45,11 +46,11 @@ const RTL_LANGUAGES = ['ar'];
  *
  * `item_evidence.section` and the catalogue carry `LV`/`SB`/`HV`/`writing`. Those are identifiers, not
  * German words, and printing them at a learner puts the database's vocabulary on the screen: measured
- * on `Heute` ("Als Nächstes · LV") and in the per-section tally. MASTER-PLAN §4 rule 6 makes the
- * interface German, so every place a section reaches the screen goes through this map.
+ * on the overview and in the per-section tally. These operational labels follow the interface.
  */
-const SECTION_NAMES = { LV: 'Leseverstehen', SB: 'Sprachbausteine', HV: 'Hörverstehen', writing: 'Schreiben' };
-const sectionName = (code) => SECTION_NAMES[code] || String(code ?? '');
+const SECTION_NAMES = { LV: 'm002', SB: 'm003', HV: 'm004', writing: 'm005', SA: 'm005' };
+const sectionName = (code) => SECTION_NAMES[code] ? uiText(SECTION_NAMES[code]) : String(code ?? '');
+const sectionMarkup = code => SECTION_NAMES[code] ? messageMarkup(SECTION_NAMES[code]) : esc(code);
 
 /**
  * What to CALL a set on screen.
@@ -63,16 +64,21 @@ const sectionName = (code) => SECTION_NAMES[code] || String(code ?? '');
 const setLabel = (set) => {
   const title = String(set?.title ?? '').trim();
   if (title && !/^(LV|SB|HV)\d+\s+\d+$/.test(title)) return title;
-  const part = set?.part === undefined || set?.part === null ? '' : ` · Teil ${set.part}`;
+  const part = set?.part === undefined || set?.part === null ? '' : ' · ' + uiText('part', {part: set.part});
   return `${sectionName(set?.section)}${part}`;
 };
+const setLabelMarkup = set => {
+  const title = String(set?.title ?? '').trim();
+  if (title && !/^(LV|SB|HV)\d+\s+\d+$/.test(title)) return '<span ' + examTextAttributes() + '>' + esc(title) + '</span>';
+  return sectionMarkup(set?.section) + (set?.part == null ? '' : ' · ' + messageMarkup('part', {part: set.part}));
+};
 const VIEW_TITLES = {
-  abschnitt: 'Gespeicherte Prüfungsläufe', heute: 'Heute', ueben: 'Üben', woerterbuch: 'Wörterbuch', nachschlagen: 'Nachschlagen',
+  abschnitt: 'm006', heute: 'm007', ueben: 'm008', woerterbuch: 'm009', nachschlagen: 'm010',
   // The design organises practice by SKILL. Each maps to a section the catalogue already carries.
-  lesen: 'Leseverstehen', sprachbausteine: 'Sprachbausteine',
-  hoeren: 'Hörverstehen', schreiben: 'Schreiben',
-  fehler: 'Fehler', fortschritt: 'Fortschritt', einstellungen: 'Einstellungen', mehr: 'Mehr', satzbau: 'Satzbau erkunden',
-  checkout: 'Pass freischalten',
+  lesen: 'm002', sprachbausteine: 'm003',
+  hoeren: 'm004', schreiben: 'm005',
+  fehler: 'm011', fortschritt: 'm012', einstellungen: 'm013', mehr: 'm014', satzbau: 'm015',
+  checkout: 'm016',
 };
 
 /** Server state, held in memory only. */
@@ -88,11 +94,18 @@ let preparationGeneration = 0;
 let preparationSwitching = false;
 let pendingPreparationNavigation = null;
 let settingsSaving = false;
+let accountGeneration = 0;
 const activePreparation = () => state.preparation?.state === 'active';
+const getExamLanguage = () => state.preparation?.exam_language || state.exams.find(exam => exam.exam_id === state.preparation?.exam_id)?.exam_language || null;
+const examTextAttributes = () => 'lang="' + esc(getExamLanguage() || 'und') + '" dir="' + (getExamLanguage() === 'ar' ? 'rtl' : 'ltr') + '"';
 const contextTicket = () => preparationGeneration;
 const currentContext = ticket => ticket === preparationGeneration && !sessionProblem;
 let explanationContext = 0, archivedRequest = 0;
 const answerRequests = new WeakMap();
+function reviewMarkup(value, history = false) {
+  const facts = { review_status:value?.review_status, review_basis:value?.review_basis, review_withdrawn:Boolean(value?.review_withdrawn) };
+  return '<span data-shell-review="' + (history ? 'history' : 'label') + '" data-review-facts="' + esc(JSON.stringify(facts)) + '">' + esc(history ? reviewHistoryNotice(facts) : contentReviewLabel(facts)) + '</span>';
+}
 const explanations = createExplanationManager({ readAloud, getLanguage: () => state.settings?.language || 'de',
   getContext: () => [state.account?.id, state.preparation?.id, preparationGeneration, explanationContext, sessionProblem].join('|') });
 
@@ -101,20 +114,23 @@ const explanations = createExplanationManager({ readAloud, getLanguage: () => st
 function showError(message) {
   const box = el('error');
   if (sessionProblem) {
-    box.textContent = (sessionProblem === 'account_changed'
-      ? 'Das angemeldete Konto wurde in einem anderen Fenster gewechselt. Dieses Fenster ist gesperrt.'
-      : 'Deine Sitzung ist abgelaufen. Dieses Fenster ist gesperrt.')
-      + ' Dein ungespeicherter Text und deine Auswahl bleiben hier. Kopiere sie, bevor du dich erneut anmeldest.';
+    bindShellText(box, () => (sessionProblem === 'account_changed'
+      ? uiText("m017")
+      : uiText("m018"))
+      + " " + uiText("m019"));
     const signIn = document.createElement('a');
-    signIn.href = checkoutSignInPath(); signIn.className = 'btn'; signIn.textContent = 'Erneut anmelden';
+    signIn.href = checkoutSignInPath(); signIn.className = 'btn'; bindShellText(signIn, () => uiText("m020"));
     box.append(' ', signIn); box.hidden = false;
     return;
   }
-  box.textContent = message || '';
-  box.hidden = !message;
+  const read = typeof message === 'function' ? message : () => message || '';
+  bindShellText(box, read);
+  box.hidden = !read();
 }
 
 window.addEventListener('hatoove:session-expired', (event) => {
+  accountGeneration++;
+  localePreference.cancel();
   sessionProblem ||= event.detail?.reason || 'session_expired';
   explanations.dispose();
   mock.refresh();
@@ -135,9 +151,9 @@ document.addEventListener('visibilitychange', checkSession);
  * goes through here instead.
  */
 function failure(res) {
-  if (!res) return 'Keine Verbindung zum Server.';
-  if (res.status === 0) return 'Keine Verbindung zum Server.';
-  return 'Fehler ' + res.status + (res.error ? ' (' + res.error + ')' : '');
+  if (!res) return uiText("m021");
+  if (res.status === 0) return uiText("m021");
+  return uiText("m011") + " " + res.status + (res.error ? ' (' + res.error + ')' : '');
 }
 
 /**
@@ -147,7 +163,7 @@ function failure(res) {
  * nothing and the console sees an exception. Every fire-and-forget call goes through here instead.
  */
 function guard(promise) {
-  promise.catch((err) => showError('Etwas ist schiefgelaufen: ' + (err && err.message ? err.message : err)));
+  promise.catch((err) => showError(() => (uiText("m022") + " " + (err && err.message ? err.message : err))));
 }
 
 function preparationRoute() {
@@ -166,7 +182,7 @@ function checkoutSignInPath() {
 
 function rememberPreparation(value) {
   if (!value?.id || !value.exam_id || !['active', 'archived'].includes(value.state)
-      || !Number.isInteger(value.revision)) throw new Error('Die Vorbereitung konnte nicht gelesen werden.');
+      || !Number.isInteger(value.revision)) throw new Error(uiText("m023"));
   const index = state.preparations.findIndex(p => p.id === value.id);
   if (index < 0) state.preparations.push(value);
   else state.preparations[index] = value;
@@ -174,10 +190,10 @@ function rememberPreparation(value) {
 
 function selectPreparation(value) {
   rememberPreparation(value);
-  if (!api.preparations.select(value)) throw new Error('Die Vorbereitung konnte nicht ausgewählt werden.');
+  if (!api.preparations.select(value)) throw new Error(uiText("m024"));
   state.preparation = value;
   state.credits = null;
-  el('preparation-credits').textContent = 'Guthaben wird geladen …';
+  bindShellText(el('preparation-credits'), () => uiText("m025"));
   preparationGeneration++;
   // Recovery controls belong to the preparation/form that created them. An explicit successful
   // context switch renders the newly selected form and retires any old recovery action with it.
@@ -192,7 +208,7 @@ async function refreshSectionNavigation() {
   if (!currentContext(ticket) || !response?.ok || !Array.isArray(response.data)) return null;
   const hasLanguageSection = response.data.some(set => set.section === 'SB');
   for (const link of document.querySelectorAll('[data-view="sprachbausteine"]')) link.hidden = !hasLanguageSection;
-  el('view-satzbau').querySelector('.kicker').textContent = 'Lernhilfe';
+  bindShellText(el('view-satzbau').querySelector('.kicker'), () => uiText("m026"));
   return hasLanguageSection;
 }
 
@@ -200,17 +216,17 @@ function renderPreparation() {
   const prep = state.preparation;
   if (!prep) return;
   const label = prep.exam || state.exams.find(e => e.exam_id === prep.exam_id)?.exam || prep.exam_id;
-  el('sidebar-exam').textContent = label;
-  el('preparation-exam').textContent = label;
-  el('preparation-scope').textContent = prep.state === 'archived'
-    ? 'Archiviert · gespeicherte Texte und Rückmeldungen bleiben lesbar.'
-    : 'Umfang, Zeitplan und Prüfstatus stehen beim jeweiligen Übungslauf.';
+  bindShellText(el('sidebar-exam'), () => label);
+  bindShellText(el('preparation-exam'), () => label);
+  bindShellText(el('preparation-scope'), () => prep.state === 'archived'
+    ? uiText("m027")
+    : uiText("m028"));
   el('preparation-continue').href = '#/prep/' + prep.id + '/fortschritt';
   el('preparation-start').hidden = !activePreparation();
   el('preparation-start').href = '#/prep/' + prep.id + '/ueben';
   const picker = el('preparation-picker');
   const choices = preparationChoices(state.exams, state.preparations);
-  picker.innerHTML = choices.map(choice => '<option value="' + esc(choice.id) + '">' + esc(choice.label) + '</option>').join('');
+  setShellHTML(picker, choices.map(choice => '<option value="' + esc(choice.id) + '">' + esc(choice.label) + '</option>').join(''));
   picker.value = prep.id;
   picker.disabled = preparationSwitching || settingsSaving;
   el('preparation-choice').hidden = choices.length < 2;
@@ -227,14 +243,14 @@ async function refreshCredits() {
   if (!response?.ok || value?.examId !== prep.exam_id
       || !['allowance', 'used', 'reserved', 'available'].every(key => Number.isInteger(value?.[key]) && value[key] >= 0)) {
     state.credits = null;
-    el('preparation-credits').textContent = 'Das Guthaben dieser Prüfung konnte nicht geladen werden.';
+    bindShellText(el('preparation-credits'), () => uiText("m029"));
     el('credits-retry').hidden = false;
     return;
   }
   state.credits = value;
-  el('preparation-credits').textContent = `Schreibrückmeldungen für ${prep.exam || prep.exam_id}: ${value.available} verfügbar · ${value.reserved} reserviert · ${value.used} verwendet.`
-    + (value.expiresAt && Number.isFinite(Date.parse(value.expiresAt)) ? ' Gültig bis ' + new Date(value.expiresAt).toLocaleDateString('de-DE') + '.' : '')
-    + (value.available === 0 ? ' Zurzeit ist keine weitere Rückmeldung verfügbar. Gespeicherte Texte bleiben erhalten.' : '');
+  bindShellText(el('preparation-credits'), () => uiText('credits', {exam: prep.exam || prep.exam_id, available: value.available, reserved: value.reserved, used: value.used})
+    + (value.expiresAt && Number.isFinite(Date.parse(value.expiresAt)) ? " " + uiText("m030") + " " + new Date(value.expiresAt).toLocaleDateString(getLocale()) + '.' : '')
+    + (value.available === 0 ? " " + uiText("m031") : ''));
 }
 
 function clearPreparationViews() {
@@ -258,10 +274,10 @@ async function switchPreparation(selection, view = currentView, runId = null) {
   let destination = { selection, view, runId };
   el('preparation-picker').disabled = true;
   el('preparation-picker').value = state.preparation.id;
-  el('preparation-state').textContent = 'Dein Text und deine Antworten werden vor dem Wechsel gespeichert …';
+  bindShellText(el('preparation-state'), () => uiText("m032"));
   try {
     if (!(await writing.flush()) || !(await mock.flush())) {
-      el('preparation-state').textContent = 'Der Wechsel wurde angehalten. Dein Text und deine Antworten bleiben hier; speichere oder löse zuerst den Konflikt.';
+      bindShellText(el('preparation-state'), () => uiText("m033"));
       return false;
     }
     while (!sessionProblem) {
@@ -278,15 +294,15 @@ async function switchPreparation(selection, view = currentView, runId = null) {
       // A later hash/back-forward choice supersedes this response, including a failed read. Do not
       // paint the intermediate context or let it replace the latest requested destination.
       if (pendingPreparationNavigation) continue;
-      if (!response?.ok) { el('preparation-state').textContent = 'Die Vorbereitung konnte nicht gewechselt werden. ' + failure(response); return false; }
-      if (!(await writing.flush()) || !(await mock.flush())) { el('preparation-state').textContent = 'Dein Text ist noch nicht gespeichert. Der Wechsel bleibt angehalten.'; return false; }
+      if (!response?.ok) { bindShellText(el('preparation-state'), () => uiText("m034") + " " + failure(response)); return false; }
+      if (!(await writing.flush()) || !(await mock.flush())) { bindShellText(el('preparation-state'), () => uiText("m035")); return false; }
       if (pendingPreparationNavigation) continue;
       clearPreparationViews();
       selectPreparation(response.data);
       renderSettings(); renderChrome();
       const target = activePreparation() || destination.runId ? destination.view : 'fortschritt';
       history.replaceState(null, '', destination.checkoutPath || '#/prep/' + state.preparation.id + '/' + target + (destination.runId ? '/' + destination.runId : ''));
-      el('preparation-state').textContent = '';
+      bindShellText(el('preparation-state'), () => '');
       completed = true;
       break;
     }
@@ -305,7 +321,7 @@ async function switchPreparation(selection, view = currentView, runId = null) {
 async function loadPreparations() {
   const [exams, preparations] = await Promise.all([api.exams.list(), api.preparations.list()]);
   if (!exams?.ok || !preparations?.ok || !Array.isArray(exams.data?.exams) || !Array.isArray(preparations.data?.preparations)) {
-    throw new Error('Deine Prüfungsvorbereitung konnte nicht geladen werden.');
+    throw new Error(uiText("m036"));
   }
   state.exams = exams.data.exams;
   state.preparations = [];
@@ -314,12 +330,12 @@ async function loadPreparations() {
   let requested = routeInfo.id;
   if (routeInfo.runId) {
     const saved = await api.mock.read(routeInfo.runId);
-    if (!saved?.ok) throw new Error('Der verlinkte Abschnitt ist nicht verfügbar.');
+    if (!saved?.ok) throw new Error(uiText("m037"));
     requested = saved.data.preparation_id;
   }
   if (requested) {
     const response = await api.preparations.read(requested);
-    if (!response?.ok) throw new Error('Die verlinkte Vorbereitung ist nicht verfügbar.');
+    if (!response?.ok) throw new Error(uiText("m038"));
     selectPreparation(response.data);
     return true;
   }
@@ -332,15 +348,15 @@ async function loadPreparations() {
   }
   if (initial.kind === 'create') {
     const created = await api.preparations.create(initial.examId);
-    if (!created?.ok) throw new Error('Deine Vorbereitung konnte nicht angelegt werden. Bitte versuche es erneut.');
+    if (!created?.ok) throw new Error(uiText("m039"));
     selectPreparation(created.data);
     return true;
   }
   const choices = el('boot-choices');
-  el('boot-message').textContent = state.preparations.length || state.exams.length
-    ? 'Wähle deine Prüfungsvorbereitung. Ein Prüfungstermin ist freiwillig.'
-    : 'Zurzeit ist keine Prüfungsvorbereitung verfügbar. Bitte versuche es später erneut.';
-  choices.innerHTML = preparationChoices(state.exams, state.preparations).map(choice => '<button class="btn' + (choice.isNew ? ' btn-primary' : '') + '" type="button" data-preparation="' + esc(choice.id) + '">' + esc(choice.label) + '</button>').join('');
+  bindShellText(el('boot-message'), () => state.preparations.length || state.exams.length
+    ? uiText("m040")
+    : uiText("m041"));
+  setShellHTML(choices, preparationChoices(state.exams, state.preparations).map(choice => '<button class="btn' + (choice.isNew ? ' btn-primary' : '') + '" type="button" data-preparation="' + esc(choice.id) + '">' + esc(choice.label) + '</button>').join(''));
   choices.hidden = false;
   el('boot-retry').hidden = choices.childElementCount > 0;
   choices.onclick = event => {
@@ -352,10 +368,10 @@ async function loadPreparations() {
       try {
         const choice = button.dataset.preparation;
         const response = choice.startsWith('new:') ? await api.preparations.create(choice.slice(4)) : await api.preparations.read(choice);
-        if (!response?.ok) throw new Error('Die Vorbereitung konnte nicht geöffnet werden. ' + failure(response));
+        if (!response?.ok) throw new Error(uiText("m042") + " " + failure(response));
         selectPreparation(response.data);
         await unlockPreparation();
-      } catch (error) { el('boot-message').textContent = error.message; }
+      } catch (error) { bindShellText(el('boot-message'), () => error.message); }
       finally { bootLoading = false; for (const item of choices.querySelectorAll('button')) item.disabled = false; }
     })());
   };
@@ -363,7 +379,7 @@ async function loadPreparations() {
 }
 
 async function unlockPreparation() {
-  if (sessionProblem || !state.preparation) throw new Error('Bitte melde dich erneut an.');
+  if (sessionProblem || !state.preparation) throw new Error(uiText("m043"));
   renderSettings(); renderChrome(); renderPreparation();
   const info = preparationRoute();
   if (info.view !== 'checkout') history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + (activePreparation() || info.runId ? info.view : 'fortschritt') + (info.runId ? '/' + info.runId : ''));
@@ -386,8 +402,8 @@ el('credits-retry').addEventListener('click', () => guard(refreshCredits()));
  *
  * The tags matter for two reasons. `lang` is what `hatoove.css` keys its font stacks on, so
  * `[lang=ar]` is what puts the Arabic face on Arabic text; and `dir` is what stops a right-to-left
- * language from being laid out as if it were left-to-right. Neither is set on `<html>` — the shell,
- * the navigation and the exam material stay German and LTR.
+ * language from being laid out as if it were left-to-right. The interface root follows the selected
+ * locale; original exam material declares its own language independently.
  */
 function applyExplanationDirection() {
   for (const option of el('language').options) {
@@ -399,10 +415,10 @@ function applyExplanationDirection() {
 
 function renderAccount() {
   const email = state.account?.email || '–';
-  el('account-email').textContent = email;
-  el('account-email-2').textContent = email;
-  el('avatar').textContent = (email[0] || '?').toUpperCase();
-  el('greeting').textContent = email.startsWith('–') ? 'Willkommen' : `Willkommen, ${email.split('@')[0]}`;
+  bindShellText(el('account-email'), () => email);
+  bindShellText(el('account-email-2'), () => email);
+  bindShellText(el('avatar'), () => (email[0] || '?').toUpperCase());
+  bindShellText(el('greeting'), () => email.startsWith('–') ? uiText("m044") : uiText('welcomeName', {name: email.split('@')[0]}));
 }
 
 /**
@@ -424,27 +440,27 @@ async function renderSessions() {
   if (!into) return;
   const res = await api.sessions.list();
   if (!res || !res.ok) {
-    into.innerHTML = '';
+    setShellHTML(into, '');
     if (state) {
-      state.textContent = res && res.status === 503
-        ? 'Dieser Server kann Sitzungen nicht verwalten.'
-        : 'Sitzungen konnten nicht geladen werden: ' + failure(res);
+      bindShellText(state, () => res && res.status === 503
+        ? uiText("m045")
+        : uiText("m046") + " " + failure(res));
     }
     return;
   }
   const sessions = (res.data && res.data.sessions) || [];
-  if (state) state.textContent = '';
+  if (state) bindShellText(state, () => '');
   if (!sessions.length) {
-    into.innerHTML = '<li class="muted small">Keine weiteren Sitzungen.</li>';
+    setShellHTML(into, "<li class=\"muted small\"><span data-i18n=\"shell.m047\">Keine weiteren Sitzungen.</span></li>");
     return;
   }
-  into.innerHTML = sessions.map((session) => '<li class="session">'
-    + '<div><strong>' + (session.current ? 'Dieses Gerät' : 'Anderes Gerät') + '</strong>'
-    + '<span class="small muted"> seit ' + esc(shortDate(session.created_at)) + '</span></div>'
+  setShellHTML(into, sessions.map((session) => '<li class="session">'
+    + '<div><strong>' + (session.current ? messageMarkup("m048") : messageMarkup("m049")) + '</strong>'
+    + "<span class=\"small muted\"> <span data-i18n=\"shell.m050\">seit</span> " + esc(shortDate(session.created_at)) + '</span></div>'
     + (session.current
-      ? '<span class="small muted">aktiv</span>'
-      : '<button type="button" class="btn btn-small" data-revoke="' + esc(String(session.id)) + '">Beenden</button>')
-    + '</li>').join('');
+      ? '<span class="small muted">' + messageMarkup('active') + '</span>'
+      : '<button type="button" class="btn btn-small" data-revoke="' + esc(String(session.id)) + '">' + messageMarkup('end') + '</button>')
+    + '</li>').join(''));
   for (const button of into.querySelectorAll('[data-revoke]')) {
     /*
      * `guard` TAKES A PROMISE, NOT A FUNCTION — it is `promise.catch(...)`, so passing an arrow function made
@@ -461,7 +477,7 @@ async function renderSessions() {
        * status line.
        */
       await renderSessions();
-      if (state) state.textContent = res && res.ok ? 'Sitzung beendet.' : 'Konnte nicht beendet werden: ' + failure(res);
+      if (state) bindShellText(state, () => res && res.ok ? uiText("m051") : uiText("m052") + " " + failure(res));
     })()));
   }
 }
@@ -469,8 +485,8 @@ async function renderSessions() {
 /** A local date, without a time nobody needs on a session list. */
 function shortDate(value) {
   const date = new Date(String(value || ''));
-  return Number.isNaN(date.getTime()) ? 'unbekannt'
-    : date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return Number.isNaN(date.getTime()) ? uiText('unknown')
+    : date.toLocaleDateString(getLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function renderSettings() {
@@ -481,25 +497,24 @@ function renderSettings() {
   el('examDate').value = examDate;
   el('language').value = EXPLANATION_LANGUAGES.includes(language) ? language : 'de';
 
-  el('account-exam').textContent = examDate ? `Prüfung am ${examDate}` : 'Kein Prüfungsdatum';
+  bindShellText(el('account-exam'), () => examDate ? uiText('examOn', {date: examDate}) : uiText("m053"));
 
-  // Arabic is the one explanation language that runs right to left. The shell stays LTR; `dir`
-  // belongs on the text that is actually Arabic, never on <html>.
+  // Native language names retain their own direction inside either interface direction.
   applyExplanationDirection();
 
   // The countdown is arithmetic on a date the learner typed. It is not a study plan, a forecast or
   // a readiness estimate, and it must never be presented as one.
   if (!examDate) {
-    el('countdown').textContent = 'Kein Prüfungsdatum gesetzt';
-    el('countdown-note').textContent = 'Trage dein Prüfungsdatum in den Einstellungen ein, damit der Countdown läuft.';
+    bindShellText(el('countdown'), () => uiText("m054"));
+    bindShellText(el('countdown-note'), () => uiText("m055"));
     return;
   }
   const days = Math.ceil((new Date(`${examDate}T00:00:00`) - new Date()) / 86400000);
-  const when = new Date(`${examDate}T00:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });
-  el('countdown').textContent = days > 1 ? `${days} Tage bis ${when}`
-    : days === 1 ? `Morgen: ${when}`
-      : days === 0 ? `Heute: ${when}` : `Prüfungstermin war am ${when}`;
-  el('countdown-note').textContent = 'Nur eine Zählung bis zum Datum — kein Lernplan und keine Prognose.';
+  const when = () => new Date(`${examDate}T00:00:00`).toLocaleDateString(getLocale(), { day: '2-digit', month: 'long', year: 'numeric' });
+  bindShellText(el('countdown'), () => days > 1 ? uiText('days', {count: days, date: when()})
+    : days === 1 ? uiText('tomorrow', {date: when()})
+      : days === 0 ? uiText('todayDate', {date: when()}) : uiText('pastDate', {date: when()}));
+  bindShellText(el('countdown-note'), () => uiText("m056"));
 }
 
 
@@ -524,11 +539,11 @@ async function renderTasks() {
    * into; leaving it populated would put last visit's task above this visit's catalogue.
    */
   const host = uebenPracticeHost();
-  if (host) { host.hidden = true; host.innerHTML = ''; }
+  if (host) { host.hidden = true; setShellHTML(host, ''); }
   if (el('skill-ueben-catalogue')) el('skill-ueben-catalogue').hidden = false;
   box.hidden = false;
-  if (!activePreparation()) { box.innerHTML = archivedPracticeNotice(); return; }
-  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  if (!activePreparation()) { setShellHTML(box, archivedPracticeNotice()); return; }
+  setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m057\">Wird geladen ...</span></h3></div>");
   const [writing, objective] = await Promise.all([
     api.tasks.list({ family: 'writing' }),
     api.objectiveSets.list(),
@@ -536,8 +551,8 @@ async function renderTasks() {
   if (!currentContext(ticket)) return;
   if (!writing || !objective) return; // a 401 already redirected us to the sign-in page
   if (!writing.ok || !objective.ok) {
-    box.innerHTML = '';
-    showError('Aufgaben konnten nicht geladen werden: ' + failure(writing.ok ? objective : writing) + '.');
+    setShellHTML(box, '');
+    showError(() => (uiText("m058") + " " + failure(writing.ok ? objective : writing) + '.'));
     return;
   }
   const tasks = Array.isArray(writing.data) ? writing.data : [];
@@ -549,36 +564,36 @@ async function renderTasks() {
     + action + '</div>';
   const groups = [];
   if (tasks.length) {
-    groups.push('<h3 class="section-head">Schreiben</h3>' + tasks.map((t) => card(
-      esc(t.topic), esc(t.family), esc(t.situation),
-      'Anrede: ' + esc(t.adressat) + ' &middot; Register: ' + esc(t.register)
-        + ' &middot; Fassung ' + esc(t.version) + ' &middot; ' + esc(contentReviewLabel(t)),
+    groups.push("<h3 class=\"section-head\"><span data-i18n=\"shell.m005\">Schreiben</span></h3>" + tasks.map((t) => card(
+      '<span ' + examTextAttributes() + '>' + esc(t.topic) + '</span>', esc(t.family), '<span ' + examTextAttributes() + '>' + esc(t.situation) + '</span>',
+      messageMarkup("m059") + " " + esc(t.adressat) + ' &middot; ' + messageMarkup('register') + ': ' + esc(t.register)
+        + ' &middot; ' + messageMarkup('version') + ' ' + esc(t.version) + ' &middot; ' + reviewMarkup(t),
       // The four-part binding, exactly as the Schreiben view binds it; the controller resumes an open
       // draft for this task+version instead of creating a second one.
       '<div class="row"><button class="btn btn-primary" type="button" data-write="' + esc(t.task_id) + '"'
         + ' data-version="' + esc(t.version) + '" data-rubric="' + esc(t.rubric_id) + '"'
-        + ' data-rubric-version="' + esc(t.rubric_version) + '">Schreiben</button></div>',
+        + ' data-rubric-version="' + esc(t.rubric_version) + '">' + messageMarkup('m005') + '</button></div>',
     )).join(''));
   }
   if (sets.length) {
     // setLabel(), not s.title: nine seeded sets have no authored title and the generator wrote
     // `LV3 1` into the column. This view was the one place it still reached the screen.
-    groups.push('<h3 class="section-head">' + esc([...new Set(sets.map(set => sectionName(set.section)))].join(' und ')) + '</h3>' + sets.map((s) => card(
-      esc(setLabel(s)), esc(s.family), s.item_count + ' Aufgaben',
-      'Teil ' + s.part + ' &middot; Fassung ' + esc(s.version) + ' &middot; ' + esc(contentReviewLabel(s)),
+    groups.push('<h3 class="section-head">' + [...new Set(sets.map(set => set.section))].map(sectionMarkup).join(" " + messageMarkup("m060") + " ") + '</h3>' + sets.map((s) => card(
+      setLabelMarkup(s), esc(s.family), messageMarkup('tasks', {count: s.item_count}),
+      messageMarkup("part", {part:s.part}) + ' &middot; ' + messageMarkup('version') + ' ' + esc(s.version) + ' &middot; ' + reviewMarkup(s),
       // The version is the second half of the identity: the read below refuses a mismatch rather than
       // rendering the wrong fassung of the task the learner chose.
       '<div class="row"><button class="btn btn-primary" type="button" data-open="' + esc(s.set_id) + '"'
-        + ' data-version="' + esc(s.version) + '">Üben</button></div>',
+        + ' data-version="' + esc(s.version) + "\"><span data-i18n=\"shell.m062\">Üben</span></button></div>",
     )).join(''));
   }
   if (!groups.length) {
-    box.innerHTML = '<div class="card"><h3>Zurzeit keine Aufgaben freigegeben</h3>'
-      + '<p class="muted">Der Server hat für dieses Angebot gerade nichts Servierbares. Das ist eine '
-      + 'Aussage des Servers, keine leere Seite.</p></div>';
+    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m063\">Zurzeit keine Aufgaben freigegeben</span></h3>"
+      + "<p class=\"muted\"><span data-i18n=\"shell.m064\">Der Server hat für dieses Angebot gerade nichts Servierbares. Das ist eine</span> "
+      + "<span data-i18n=\"shell.m065\">Aussage des Servers, keine leere Seite.</span></p></div>");
     return;
   }
-  box.innerHTML = groups.join('');
+  setShellHTML(box, groups.join(''));
   box.onclick = (event) => {
     const button = event.target?.closest?.('[data-open], [data-write]');
     if (button) guard(launchCatalogueEntry(host, button, tasks));
@@ -637,7 +652,7 @@ async function launchCatalogueEntry(host, button, tasks) {
       const task = tasks.find((t) => t.task_id === button.dataset.write
         && String(t.version) === String(button.dataset.version));
       if (!task) {
-        showError('Diese Schreibaufgabe steht nicht mehr in der Liste. Bitte lade die Aufgaben erneut.');
+        showError(() => (uiText("m066")));
         return;
       }
       await openWriting(host, task);
@@ -647,7 +662,7 @@ async function launchCatalogueEntry(host, button, tasks) {
     const version = button.dataset.version;
     if (!version) {
       // Same refusal `openSet` makes, said before the request rather than after it.
-      showError('Die Fassung dieser Aufgabe fehlt. Bitte lade die Aufgabenliste erneut.');
+      showError(() => (uiText("m067")));
       return;
     }
     await openSet(button.dataset.open, version);
@@ -666,35 +681,38 @@ async function launchCatalogueEntry(host, button, tasks) {
  */
 let dictMode = 'vocab';
 let dictionaryRequest = 0;
+function materialNotice() {
+  return '<p class="small muted">' + messageMarkup('material') + '</p><p class="small muted" data-material-unavailable' + (['de','en'].includes(getLocale()) ? ' hidden' : '') + '>' + messageMarkup('translationUnavailable') + '</p>';
+}
 async function renderDictionary() {
   const box = el('dict-results');
   if (!box) return;
   const request = ++dictionaryRequest, mode = dictMode;
   readAloud.clear(box);
   const q = (el('dict-q')?.value || '').trim();
-  if (q.length === 1) { box.innerHTML = '<div class="card"><p class="muted">Mindestens zwei Buchstaben.</p></div>'; return; }
-  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  if (q.length === 1) { setShellHTML(box, "<div class=\"card\"><p class=\"muted\"><span data-i18n=\"shell.m068\">Mindestens zwei Buchstaben.</span></p></div>"); return; }
+  setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m057\">Wird geladen ...</span></h3></div>");
   const res = mode === 'nouns' ? await api.nouns.list({ q: q || null }) : await api.vocab.list({ q: q || null });
   if (request !== dictionaryRequest) return;
   if (!res) return; // a 401 already redirected
-  if (!res.ok) { box.innerHTML = ''; showError('Nachschlagen fehlgeschlagen: ' + failure(res) + '.'); return; }
+  if (!res.ok) { setShellHTML(box, ''); showError(() => (uiText("m069") + " " + failure(res) + '.')); return; }
   const rows = Array.isArray(res.data) ? res.data : [];
   if (!rows.length) {
-    box.innerHTML = '<div class="card"><h3>Nichts gefunden</h3><p class="muted">Der Server hat zu dieser Suche keinen Eintrag.</p></div>';
+    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m070\">Nichts gefunden</span></h3><p class=\"muted\"><span data-i18n=\"shell.m071\">Der Server hat zu dieser Suche keinen Eintrag.</span></p></div>");
     return;
   }
   readAloud.clear(box);
-  box.innerHTML = rows.map((w) => (mode === 'nouns'
-    ? '<div class="card"><div class="card-head"><h3>' + esc(w.de) + '</h3><span class="chip">' + esc(w.gender) + '</span></div>'
-      + (state.settings?.language === 'en' ? '<p class="muted" lang="en">' + esc(w.en) + '</p>' : '')
-      + '<p class="small muted">Plural: ' + esc(w.plural) + ' &middot; Thema: ' + esc(w.theme) + '</p>'
-      + '<p class="small muted">Regel: ' + esc(w.rule) + '</p>'
-      + (w.example ? '<p class="small" lang="de" data-read-example>' + esc(w.example) + '</p>' : '') + '</div>'
-    : '<div class="card"><div class="card-head"><h3>' + esc(w.de) + '</h3><span class="chip">' + esc(w.pos) + '</span></div>'
-      + (state.settings?.language === 'en' ? '<p class="muted" lang="en">' + esc(w.en) + '</p>' : '')
-      + (w.plural ? '<p class="small muted">Plural: ' + esc(w.plural) + '</p>' : '')
-      + (w.example ? '<p class="small" lang="de" data-read-example>' + esc(w.example) + '</p>' : '') + '</div>')).join('');
-  for (const example of box.querySelectorAll('[data-read-example]')) readAloud.mount(example, { label: 'Beispielsatz', language: example.lang });
+  setShellHTML(box, materialNotice() + rows.map((w) => (mode === 'nouns'
+    ? '<div class="card"><div class="card-head"><h3 lang="de" dir="ltr">' + esc(w.de) + '</h3><span class="chip">' + esc(w.gender) + '</span></div>'
+      + (w.en ? '<p class="muted" lang="en" dir="ltr" data-authored-alternative="en"' + (getLocale() === 'en' ? '' : ' hidden') + '>' + esc(w.en) + '</p>' : '')
+      + "<p class=\"small muted\"><span data-i18n=\"shell.m072\">Plural:</span> " + esc(w.plural) + ' &middot; ' + messageMarkup('topic') + ': ' + esc(w.theme) + '</p>'
+      + "<p class=\"small muted\"><span data-i18n=\"shell.m073\">Regel:</span> " + esc(w.rule) + '</p>'
+      + (w.example ? '<p class="small" lang="de" dir="ltr" data-read-example>' + esc(w.example) + '</p>' : '') + '</div>'
+    : '<div class="card"><div class="card-head"><h3 lang="de" dir="ltr">' + esc(w.de) + '</h3><span class="chip">' + esc(w.pos) + '</span></div>'
+      + (w.en ? '<p class="muted" lang="en" dir="ltr" data-authored-alternative="en"' + (getLocale() === 'en' ? '' : ' hidden') + '>' + esc(w.en) + '</p>' : '')
+      + (w.plural ? "<p class=\"small muted\"><span data-i18n=\"shell.m072\">Plural:</span> " + esc(w.plural) + '</p>' : '')
+      + (w.example ? '<p class="small" lang="de" dir="ltr" data-read-example>' + esc(w.example) + '</p>' : '') + '</div>')).join(''));
+  for (const example of box.querySelectorAll('[data-read-example]')) readAloud.mount(example, { label: uiText("m074"), language: example.lang });
 }
 
 /** NACHSCHLAGEN -- the guide index, then one document's sections. */
@@ -703,19 +721,19 @@ async function renderGuides() {
   if (!box) return;
   box.hidden = false;
   el('guide-body').hidden = true;
-  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m057\">Wird geladen ...</span></h3></div>");
   const res = await api.guides.list();
   if (!res) return;
-  if (!res.ok) { box.innerHTML = ''; showError('Nachschlagen fehlgeschlagen: ' + failure(res) + '.'); return; }
+  if (!res.ok) { setShellHTML(box, ''); showError(() => (uiText("m069") + " " + failure(res) + '.')); return; }
   const guides = Array.isArray(res.data) ? res.data : [];
   if (!guides.length) {
-    box.innerHTML = '<div class="card"><h3>Zurzeit keine Nachschlagewerke</h3><p class="muted">Der Server hat gerade nichts Servierbares.</p></div>';
+    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m075\">Zurzeit keine Nachschlagewerke</span></h3><p class=\"muted\"><span data-i18n=\"shell.m076\">Der Server hat gerade nichts Servierbares.</span></p></div>");
     return;
   }
-  box.innerHTML = guides.map((g) => '<div class="card"><div class="card-head"><h3>' + esc(g.title)
-    + '</h3><span class="chip">' + g.section_count + ' Abschnitte</span></div>'
-    + (g.intro ? '<p class="muted">' + esc(g.intro) + '</p>' : '')
-    + '<button class="btn" type="button" data-guide="' + esc(g.guide_id) + '">Öffnen</button></div>').join('');
+  setShellHTML(box, materialNotice() + guides.map((g) => '<div class="card"><div class="card-head"><h3 lang="de" dir="ltr">' + esc(g.title)
+    + '</h3><span class="chip">' + g.section_count + ' ' + messageMarkup('sections') + '</span></div>'
+    + (g.intro ? '<p class="muted" lang="de" dir="ltr">' + esc(g.intro) + '</p>' : '')
+    + '<button class="btn" type="button" data-guide="' + esc(g.guide_id) + "\"><span data-i18n=\"shell.m077\">Öffnen</span></button></div>").join(''));
 }
 
 /** One guide, rendered. */
@@ -725,20 +743,20 @@ async function openGuide(guideId) {
   if (!box || !index) return;
   index.hidden = true;
   box.hidden = false;
-  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m057\">Wird geladen ...</span></h3></div>");
   const res = await api.guides.read(guideId);
   if (!res) return;
-  if (!res.ok) { box.hidden = true; index.hidden = false; showError('Das Nachschlagewerk konnte nicht geladen werden: ' + failure(res) + '.'); return; }
+  if (!res.ok) { box.hidden = true; index.hidden = false; showError(() => (uiText("m078") + " " + failure(res) + '.')); return; }
   const g = res.data;
   const sections = Array.isArray(g.sections) ? g.sections : [];
-  const sectionKinds = { step: 'Schritt', topic: 'Thema', tier: 'Bausteine', gender_rule: 'Genusregel', exception: 'Ausnahme', double_gender: 'Mehrere Bedeutungen', table: 'Übersicht', trigger: 'Auslöser', example: 'Beispiel', phrases: 'Redemittel', phrase_group: 'Redemittel', checklist: 'Checkliste' };
-  box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(g.title)
+  const sectionKinds = { step: uiText("m079"), topic: uiText("m080"), tier: uiText("m081"), gender_rule: uiText("m082"), exception: uiText("m083"), double_gender: uiText("m084"), table: uiText("m085"), trigger: uiText("m086"), example: uiText("m087"), phrases: uiText("m088"), phrase_group: uiText("m088"), checklist: uiText("m089") };
+  setShellHTML(box, '<div class="card"><div class="card-head"><h3 lang="de" dir="ltr">' + esc(g.title)
     + '</h3><span class="chip">' + sections.length + '</span></div>'
-    + '<p class="small muted">Übungsmaterial – noch nicht fachlich geprüft.</p>' + (!['de', 'en'].includes(state.settings?.language || 'de') ? '<p class="small muted">Dieses Nachschlagewerk liegt noch nicht in deiner Erklärungssprache vor. Du siehst die deutsche Fassung.</p>' : '') + '<button class="btn" type="button" id="guide-back">Zurück</button></div>'
-    + sections.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(s.title)
-      + '</h3><span class="chip">' + esc(sectionKinds[s.kind] || 'Nachschlagen') + '</span></div>'
-      + (s.summary ? '<p class="muted">' + esc(s.summary) + '</p>' : '')
-      + '<div class="guide-content">' + guideContent(s.payload, esc, state.settings?.language || 'de') + '</div></div>').join('');
+    + "<p class=\"small muted\"><span data-i18n=\"shell.m090\">Übungsmaterial – noch nicht fachlich geprüft.</span></p>" + materialNotice() + "<button class=\"btn\" type=\"button\" id=\"guide-back\"><span data-i18n=\"shell.m092\">Zurück</span></button></div>"
+    + sections.map((s) => '<div class="card"><div class="card-head"><h3 lang="de" dir="ltr">' + esc(s.title)
+      + '</h3><span class="chip">' + messageMarkup(sectionKinds[s.kind] || uiText('m010')) + '</span></div>'
+      + (s.summary ? '<p class="muted" lang="de" dir="ltr">' + esc(s.summary) + '</p>' : '')
+      + '<div class="guide-content">' + guideContent(s.payload, esc, state.settings?.language || 'de') + '</div></div>').join(''));
   el('guide-back').addEventListener('click', () => { box.hidden = true; index.hidden = false; });
 }
 
@@ -747,22 +765,23 @@ async function renderPracticeNext() {
   const ticket = contextTicket();
   const box = el('practice-next');
   if (!box) return;
-  if (!activePreparation()) { box.innerHTML = ''; return; }
+  if (!activePreparation()) { setShellHTML(box, ''); return; }
   const res = await api.practice.next();
   if (!currentContext(ticket)) return;
   if (!res) return;
   if (!res.ok) return; // the catalogue below still renders; a failed suggestion is not an error page
   const data = res.data || {};
-  if (!data.set) { box.innerHTML = ''; return; }
+  if (!data.set) { setShellHTML(box, ''); return; }
   const e = data.evidence || {};
-  const why = data.reason === 'section_not_started'
-    ? 'Dieser Bereich ist noch neu für dich.'
-    : (e.attempts ? e.correct + ' von ' + e.attempts + ' richtig (' + Math.round((e.accuracy || 0) * 100) + '%).' : '');
-  box.innerHTML = '<div class="card"><div class="card-head"><h3>Deine nächste Aufgabe</h3><span class="chip">'
-    + esc(sectionName(data.section)) + '</span></div>'
-    + '<p><strong>' + esc(setLabel(data.set)) + '</strong> &middot; ' + data.set.item_count + ' Aufgaben</p>'
-    + (why ? '<p class="muted">' + esc(why) + '</p>' : '')
-    + '<p class="small muted">Vom Server gewählt aus deinen bisherigen Antworten &mdash; nicht geraten.</p></div>';
+  const why = () => data.reason === 'section_not_started'
+    ? uiText("m093")
+    : (e.attempts ? e.correct + " " + uiText("m094") + " " + e.attempts + " " + uiText("m095") + Math.round((e.accuracy || 0) * 100) + '%).' : '');
+  setShellHTML(box, "<div class=\"card\"><div class=\"card-head\"><h3><span data-i18n=\"shell.m096\">Deine nächste Aufgabe</span></h3><span class=\"chip\">"
+    + sectionMarkup(data.section) + '</span></div>'
+    + '<p><strong>' + setLabelMarkup(data.set) + '</strong> &middot; ' + messageMarkup('tasks', {count: data.set.item_count}) + '</p>'
+    + (why() ? '<p class="muted" data-practice-reason></p>' : '')
+    + "<p class=\"small muted\"><span data-i18n=\"shell.m097\">Vom Server gewählt aus deinen bisherigen Antworten &mdash; nicht geraten.</span></p></div>");
+  bindShellText(box.querySelector('[data-practice-reason]'), why);
 }
 
 
@@ -775,22 +794,22 @@ function renderChrome() {
   const settings = state.settings || {};
   const examDate = state.preparation?.exam_date;
   const crumb = el('crumb-date');
-  if (crumb) crumb.textContent = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  if (crumb) bindShellText(crumb, () => new Date().toLocaleDateString(getLocale(), { weekday: 'long', day: 'numeric', month: 'long' }));
   const countdown = el('exam-countdown');
   if (countdown) {
     if (examDate) {
       const exam = new Date(examDate + 'T00:00:00');
       const today = new Date(new Date().toDateString());
       const days = Math.round((exam - today) / 86400000);
-      countdown.textContent = days >= 0
-        ? 'Prüfung am ' + exam.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }) + ' · ' + days + (days === 1 ? ' Tag' : ' Tage')
-        : 'Prüfungsdatum liegt in der Vergangenheit';
+      bindShellText(countdown, () => days >= 0
+        ? uiText("m098") + " " + exam.toLocaleDateString(getLocale(), { day: 'numeric', month: 'short' }) + ' · ' + uiText('daysShort', {count:days})
+        : uiText("m099"));
     } else {
-      countdown.textContent = 'Kein Prüfungsdatum gesetzt';
+      bindShellText(countdown, () => uiText("m054"));
     }
   }
   const lang = el('lang-label');
-  if (lang) lang.textContent = 'Erklärungen: ' + (LANGUAGE_NAMES[settings.language] || 'Deutsch');
+  if (lang) bindShellText(lang, () => uiText('locale'));
 }
 
 
@@ -814,62 +833,62 @@ async function renderDashboard() {
   if (!currentContext(ticket)) return;
   if (!next || !progress) return; // a 401 already redirected
   const start = document.querySelector('.hero-next a');
-  if (start) { start.href = activePreparation() ? '#/ueben' : '#/fortschritt'; start.textContent = activePreparation() ? 'Üben' : 'Verlauf öffnen'; }
+  if (start) { start.href = activePreparation() ? '#/ueben' : '#/fortschritt'; bindShellText(start, () => activePreparation() ? uiText("m008") : uiText("m101")); }
 
   if (next.ok && next.data && next.data.set) {
     const d = next.data;
     const e = d.evidence || {};
-    el('next-kicker').textContent = 'Als Nächstes · ' + sectionName(d.section);
-    el('next-title').textContent = setLabel(d.set);
-    el('next-detail').textContent = d.set.item_count + ' Aufgaben'
+    bindShellText(el('next-kicker'), () => uiText("m102") + " " + sectionName(d.section));
+    bindShellText(el('next-title'), () => setLabel(d.set));
+    bindShellText(el('next-detail'), () => uiText('tasks', {count: d.set.item_count})
       + (d.reason === 'section_not_started'
-        ? ' · dieser Bereich ist neu für dich'
-        : (e.attempts ? ' · bisher ' + e.correct + ' von ' + e.attempts + ' richtig' : ''));
+        ? " " + uiText("m103")
+        : (e.attempts ? ' · ' + e.correct + " " + uiText("m094") + " " + e.attempts + " " + uiText("m104") : '')));
   } else {
-    el('next-kicker').textContent = 'Als Nächstes';
-    el('next-title').textContent = 'Zurzeit nichts freigegeben';
-    el('next-detail').textContent = 'Der Server hat gerade nichts Servierbares. Das ist eine Aussage des Servers, keine leere Seite.';
+    bindShellText(el('next-kicker'), () => uiText("m105"));
+    bindShellText(el('next-title'), () => uiText("m106"));
+    bindShellText(el('next-detail'), () => uiText("m107"));
   }
   const savedRun = savedRuns?.ok && savedRuns.data?.runs?.find(run => run.state === 'active');
   if (savedRun && activePreparation()) {
-    el('next-kicker').textContent = 'Gespeicherten Prüfungslauf fortsetzen';
-    el('next-title').textContent = savedRun.title;
-    el('next-detail').textContent = 'Deine bestätigten Antworten sind gespeichert. Rückmeldung nach dem Abschließen.';
-    if (start) { start.href = '#/lauf/' + savedRun.id; start.textContent = 'Fortsetzen'; }
+    bindShellText(el('next-kicker'), () => uiText("m108"));
+    bindShellText(el('next-title'), () => savedRun.title);
+    bindShellText(el('next-detail'), () => uiText("m109"));
+    if (start) { start.href = '#/lauf/' + savedRun.id; bindShellText(start, () => uiText("m110")); }
   }
   if (!activePreparation()) {
-    el('next-title').textContent = 'Archivierte Vorbereitung';
-    el('next-detail').textContent = 'Deine gespeicherten Texte und Rückmeldungen bleiben im Verlauf lesbar.';
+    bindShellText(el('next-title'), () => uiText("m111"));
+    bindShellText(el('next-detail'), () => uiText("m112"));
   }
 
   const totals = (progress.ok && progress.data && progress.data.totals) || { attempts: 0, correct: 0, accuracy: null };
-  el('gauge-count').textContent = String(totals.attempts);
+  bindShellText(el('gauge-count'), () => String(totals.attempts));
   el('gauge-bar').style.width = pct(totals.accuracy);
-  el('gauge-foot').textContent = totals.attempts
-    ? 'aus ' + totals.attempts + (totals.attempts === 1 ? ' Antwort' : ' Antworten')
-    : 'Noch keine Antworten';
-  el('gauge-acc').textContent = totals.accuracy === null ? '–' : totals.correct + ' von ' + totals.attempts + ' richtig';
-  el('stat-answers').textContent = String(totals.attempts);
-  el('stat-correct').textContent = String(totals.correct);
+  bindShellText(el('gauge-foot'), () => totals.attempts
+    ? uiText('answers', { count: totals.attempts })
+    : uiText("m114"));
+  bindShellText(el('gauge-acc'), () => totals.accuracy === null ? '–' : totals.correct + " " + uiText("m094") + " " + totals.attempts + " " + uiText("m104"));
+  bindShellText(el('stat-answers'), () => String(totals.attempts));
+  bindShellText(el('stat-correct'), () => String(totals.correct));
 
   // No `warn` class: the design uses it against a 60% PASS THRESHOLD, and importing that threshold
   // would smuggle the pass line back in through a colour.
   const sections = (progress.ok && Array.isArray(progress.data.sections)) ? progress.data.sections : [];
-  el('parts').innerHTML = sections.length
-    ? sections.map((s) => '<div class="part"><span>' + esc(sectionName(s.section)) + '</span>'
+  setShellHTML(el('parts'), sections.length
+    ? sections.map((s) => '<div class="part"><span>' + sectionMarkup(s.section) + '</span>'
       + '<div class="mini"><i style="width:' + pct(s.accuracy) + '"></i></div>'
       + '<b>' + s.correct + ' / ' + s.attempts + '</b></div>').join('')
-    : '<p class="small muted">Sobald du Aufgaben beantwortest, erscheint hier deine Bilanz je Bereich.</p>';
+    : "<p class=\"small muted\"><span data-i18n=\"shell.m115\">Sobald du Aufgaben beantwortest, erscheint hier deine Bilanz je Bereich.</span></p>");
 
   const examDate = state.preparation?.exam_date;
   if (examDate) {
     const exam = new Date(examDate + 'T00:00:00');
     const days = Math.round((exam - new Date(new Date().toDateString())) / 86400000);
-    el('countdown').textContent = days >= 0
-      ? exam.toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }) + ' · ' + days + (days === 1 ? ' Tag' : ' Tage')
-      : exam.toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }) + ' · liegt in der Vergangenheit';
+    bindShellText(el('countdown'), () => days >= 0
+      ? exam.toLocaleDateString(getLocale(), { day: 'numeric', month: 'long', year: 'numeric' }) + ' · ' + uiText('daysShort', { count: days })
+      : exam.toLocaleDateString(getLocale(), { day: 'numeric', month: 'long', year: 'numeric' }) + " " + uiText("m116"));
   } else {
-    el('countdown').textContent = 'Kein Prüfungsdatum gesetzt';
+    bindShellText(el('countdown'), () => uiText("m054"));
   }
 }
 
@@ -897,7 +916,7 @@ async function renderMistakes() {
   if (!currentContext(ticket)) return;
   if (!res) return; // a 401 already redirected
   if (!res.ok) {
-    if (box) { box.innerHTML = ''; showError('Fehler konnten nicht geladen werden: ' + failure(res) + '.'); }
+    if (box) { setShellHTML(box, ''); showError(() => (uiText("m117") + " " + failure(res) + '.')); }
     return;
   }
   const data = res.data || {};
@@ -905,20 +924,20 @@ async function renderMistakes() {
   const count = Number.isInteger(data.count) ? data.count : items.length;
 
   for (const badge of badges) {
-    badge.textContent = String(count);
+    bindShellText(badge, () => String(count));
     // A badge reading 0 is noise, and it is also the one number a learner does not need told.
     badge.hidden = count === 0;
   }
-  if (el('mistake-heading')) el('mistake-heading').textContent = 'Deine offenen Fehler';
+  if (el('mistake-heading')) bindShellText(el('mistake-heading'), () => uiText("m118"));
   if (el('mistake-note')) {
-    el('mistake-note').textContent = count === 0
-      ? 'Zurzeit nichts offen. Aufgaben, die du zuletzt falsch hattest, erscheinen hier — und verschwinden, sobald du sie richtig hast.'
-      : 'Aufgaben, die du zuletzt falsch beantwortet hast. Sobald du eine richtig hast, verschwindet sie hier von selbst.';
+    bindShellText(el('mistake-note'), () => count === 0
+      ? uiText("m119")
+      : uiText("m120"));
   }
   if (!box) return;
   if (!items.length) {
-    box.innerHTML = '<div class="card"><h3>Nichts offen</h3><p class="muted">Das ist eine Aussage des '
-      + 'Servers über deine eigenen Antworten, keine leere Seite.</p></div>';
+    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m121\">Nichts offen</span></h3><p class=\"muted\"><span data-i18n=\"shell.m122\">Das ist eine Aussage des</span> "
+      + "<span data-i18n=\"shell.m123\">Servers über deine eigenen Antworten, keine leere Seite.</span></p></div>");
     return;
   }
   // The design's `.list` carries the border and the radius, and only `.list-item:first-child` drops its
@@ -927,10 +946,10 @@ async function renderMistakes() {
   // TWO LINES, TWO JOBS: the title is the SET, the sub-line says which SECTION and which item. They both
   // printed the title for a moment (setLabel returns an authored title unchanged), which duplicated it
   // and dropped the section.
-  box.innerHTML = '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>'
-    + esc(setLabel({ title: m.set_title, section: m.section, part: null }))
-    + '</strong><span class="sub">' + esc(sectionName(m.section)) + ' &middot; Fassung ' + esc(m.version) + ' &middot; ' + (/^g_/.test(m.item_id) ? 'Grammatikübung' : 'Aufgabe ' + esc(m.item_id) + ' von ' + m.set_item_count) + '</span></div>'
-    + '<span class="chip chip-orange">deine Antwort: ' + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('') + '</div>';
+  setShellHTML(box, '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>'
+    + setLabelMarkup({ title: m.set_title, section: m.section, part: null })
+    + '</strong><span class="sub">' + sectionMarkup(m.section) + ' &middot; ' + messageMarkup('version') + ' ' + esc(m.version) + ' &middot; ' + (/^g_/.test(m.item_id) ? messageMarkup("m124") : messageMarkup("m125") + " " + esc(m.item_id) + " " + messageMarkup("m094") + " " + m.set_item_count) + '</span></div>'
+    + "<span class=\"chip chip-orange\"><span data-i18n=\"shell.m126\">deine Antwort:</span> " + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('') + '</div>');
 }
 
 
@@ -954,10 +973,10 @@ async function renderSkill(view) {
    * learner who switched skill saw the wrong task above the right catalogue.
    */
   const host = practiceHost(box);
-  if (host) { host.hidden = true; host.innerHTML = ''; }
+  if (host) { host.hidden = true; setShellHTML(host, ''); }
   box.hidden = false;
-  if (!activePreparation()) { box.innerHTML = archivedPracticeNotice(); return; }
-  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  if (!activePreparation()) { setShellHTML(box, archivedPracticeNotice()); return; }
+  setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m057\">Wird geladen ...</span></h3></div>");
 
   if (section === 'HV') { await mock.list(box, { section: 'HV' }); return; }
 
@@ -965,13 +984,13 @@ async function renderSkill(view) {
     const res = await api.tasks.list({ family: 'writing' });
     if (!currentContext(ticket)) return;
     if (!res) return;
-    if (!res.ok) { box.innerHTML = ''; showError('Aufgaben konnten nicht geladen werden: ' + failure(res) + '.'); return; }
+    if (!res.ok) { setShellHTML(box, ''); showError(() => (uiText("m058") + " " + failure(res) + '.')); return; }
     const tasks = Array.isArray(res.data) ? res.data : [];
-    box.innerHTML = tasks.length
-      ? tasks.map((t) => '<div class="card"><div class="card-head"><h3>' + esc(t.topic)
+    setShellHTML(box, tasks.length
+      ? tasks.map((t) => '<div class="card"><div class="card-head"><h3 ' + examTextAttributes() + '>' + esc(t.topic)
         + '</h3><span class="chip">' + esc(t.family) + '</span></div>'
-        + '<p class="muted">' + esc(t.situation) + '</p>'
-        + '<p class="small muted">Anrede: ' + esc(t.adressat) + ' &middot; ' + esc(contentReviewLabel(t)) + '</p>'
+        + '<p class="muted" ' + examTextAttributes() + '>' + esc(t.situation) + '</p>'
+        + "<p class=\"small muted\"><span data-i18n=\"shell.m059\">Anrede:</span> " + esc(t.adressat) + ' &middot; ' + reviewMarkup(t) + '</p>'
         /*
          * The binding travels WITH the button. A writing view that creates an attempt without it is bound
          * to the canonical default task, so the learner would read task B and have task A marked — the
@@ -979,8 +998,8 @@ async function renderSkill(view) {
          */
         + '<button class="btn btn-primary" type="button" data-write="' + esc(t.task_id) + '"'
         + ' data-version="' + esc(t.version) + '" data-rubric="' + esc(t.rubric_id) + '"'
-        + ' data-rubric-version="' + esc(t.rubric_version) + '">Schreiben</button></div>').join('')
-      : '<div class="card"><h3>Zurzeit keine Schreibaufgaben</h3><p class="muted">Der Server hat gerade nichts Servierbares.</p></div>';
+        + ' data-rubric-version="' + esc(t.rubric_version) + '">' + messageMarkup('m005') + '</button></div>').join('')
+      : "<div class=\"card\"><h3><span data-i18n=\"shell.m127\">Zurzeit keine Schreibaufgaben</span></h3><p class=\"muted\"><span data-i18n=\"shell.m076\">Der Server hat gerade nichts Servierbares.</span></p></div>");
     box.onclick = (event) => {
       const button = event.target?.closest?.('[data-write]');
       if (!button) return;
@@ -992,18 +1011,18 @@ async function renderSkill(view) {
   const res = await api.objectiveSets.list();
   if (!currentContext(ticket)) return;
   if (!res) return;
-  if (!res.ok) { box.innerHTML = ''; showError('Aufgaben konnten nicht geladen werden: ' + failure(res) + '.'); return; }
+  if (!res.ok) { setShellHTML(box, ''); showError(() => (uiText("m058") + " " + failure(res) + '.')); return; }
   const sets = (Array.isArray(res.data) ? res.data : []).filter((s) => s.section === section);
   if (!sets.length) {
-    box.innerHTML = '<div class="card"><h3>Zurzeit keine Aufgaben</h3><p class="muted">Der Server hat für diesen '
-        + 'Bereich gerade nichts Servierbares.</p></div>';
+    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m128\">Zurzeit keine Aufgaben</span></h3><p class=\"muted\"><span data-i18n=\"shell.m129\">Der Server hat für diesen</span> "
+        + "<span data-i18n=\"shell.m130\">Bereich gerade nichts Servierbares.</span></p></div>");
     return;
   }
-  box.innerHTML = sets.map((s) => '<div class="card"><div class="card-head"><h3>' + esc(setLabel(s))
+  setShellHTML(box, sets.map((s) => '<div class="card"><div class="card-head"><h3>' + setLabelMarkup(s)
     + '</h3><span class="chip">' + esc(s.family) + '</span></div>'
-    + '<p class="muted">' + s.item_count + ' Aufgaben &middot; Teil ' + s.part + ' &middot; Fassung ' + esc(s.version) + '</p>'
-    + '<p class="small muted">' + esc(contentReviewLabel(s)) + '</p>'
-    + '<button class="btn btn-primary" type="button" data-open="' + esc(s.set_id) + '" data-version="' + esc(s.version) + '">Üben</button></div>').join('');
+    + '<p class="muted">' + messageMarkup('tasks', {count:s.item_count}) + ' &middot; ' + messageMarkup('part', {part:s.part}) + ' &middot; ' + messageMarkup('version') + ' ' + esc(s.version) + '</p>'
+    + '<p class="small muted">' + reviewMarkup(s) + '</p>'
+    + '<button class="btn btn-primary" type="button" data-open="' + esc(s.set_id) + '" data-version="' + esc(s.version) + "\"><span data-i18n=\"shell.m062\">Üben</span></button></div>").join(''));
   box.onclick = (event) => {
     const button = event.target?.closest?.('[data-open]');
     if (button) guard(openSet(button.dataset.open, button.dataset.version));
@@ -1025,7 +1044,8 @@ function objectiveForm(set) {
   const form = mockMember(set);
   if (!form) return null;
   return {
-    passages: form.passage ? [{ label: 'Text', lines: [form.passage] }] : [],
+    interaction: set.interaction,
+    passages: form.passage ? [{ label: uiText("m131"), lines: [form.passage] }] : [],
     options: form.options,
     items: form.items.map(item => ({ ...item, prompt: item.text })),
   };
@@ -1035,18 +1055,18 @@ function objectiveForm(set) {
 function renderObjectiveForm(set, host) {
   const form = objectiveForm(set);
   if (!form) {
-    host.innerHTML = '<div class="card"><h3>Diese Aufgabenart wird noch nicht angezeigt</h3>'
-      + '<p class="muted">Der Inhalt ist vorhanden; die Ansicht für diese Familie fehlt noch.</p></div>';
+    setShellHTML(host, "<div class=\"card\"><h3><span data-i18n=\"shell.m132\">Diese Aufgabenart wird noch nicht angezeigt</span></h3>"
+      + "<p class=\"muted\"><span data-i18n=\"shell.m133\">Der Inhalt ist vorhanden; die Ansicht für diese Familie fehlt noch.</span></p></div>");
     return;
   }
-  host.innerHTML =
-    (form.passages || []).map((passage) => '<section class="card"><div class="card-head"><h3>'
-      + esc(passage.label) + '</h3></div>' + passage.lines.map((l) => '<p>' + esc(l) + '</p>').join('') + '</section>').join('')
+  const instruction = INSTRUCTIONS[form.interaction];
+  setShellHTML(host, (instruction ? instructionMarkup({ id: form.interaction, examLanguage: getExamLanguage() || 'und', original: instruction.examLanguage === getExamLanguage() ? instruction.original : '' }) : '') + (form.passages || []).map((passage) => '<section class="card"><div class="card-head"><h3>'
+      + messageMarkup(passage.label) + '</h3></div>' + passage.lines.map((l) => '<p ' + examTextAttributes() + '>' + esc(l) + '</p>').join('') + '</section>').join('')
     + form.items.map((item, index) => {
       const options = item.options || form.options || [];
-      return '<section class="card" data-item="' + esc(item.id) + '"><p class="kicker">Aufgabe '
+      return '<section class="card" data-item="' + esc(item.id) + "\"><p class=\"kicker\"><span data-i18n=\"shell.m125\">Aufgabe</span> "
         + (set.payload?.practice_kind === 'grammar-drill' ? index + 1 : esc(item.id)) + '</p>'
-        + (item.passage ? '<div class="stimulus mock-passage" lang="de">' + esc(item.passage) + '</div>' : '') + '<p>' + esc(item.prompt) + '</p><div class="row">'
+        + (item.passage ? '<div class="stimulus mock-passage" ' + examTextAttributes() + '>' + esc(item.passage) + '</div>' : '') + '<p ' + examTextAttributes() + '>' + esc(item.prompt) + '</p><div class="row">'
         /*
          * THE WHOLE OPTION, ON THE SCREEN.
          *
@@ -1059,10 +1079,10 @@ function renderObjectiveForm(set, host) {
          * widening the page. The letter (`o.id`) stays in the same text run, so scoring, `data-answer`
          * and the server key are untouched.
          */
-        + options.map((o) => '<button class="btn answer-option" type="button" data-answer="' + esc(o.id) + '">'
+        + options.map((o) => '<button class="btn answer-option" ' + examTextAttributes() + ' type="button" data-answer="' + esc(o.id) + '">'
           + esc(o.id) + ') ' + esc(o.label) + '</button>').join('')
         + '</div><p class="small muted result"></p></section>';
-    }).join('');
+    }).join(''));
 }
 
 /** Post one answer and show what the SERVER said, not what the client guessed. */
@@ -1073,20 +1093,20 @@ async function answerItem(set, card, itemId, answer) {
   answerRequests.set(card, request); explanations.dispose(card);
   card.querySelector('[data-objective-explanation]')?.remove();
   const out = card.querySelector('.result');
-  out.textContent = 'Wird geprüft ...';
+  bindShellText(out, () => uiText("m134"));
   const res = await api.practice.answer(set.set_id, { version: set.version, itemId, answer });
   if (!currentContext(ticket) || !card.isConnected || viewTicket !== explanationContext || answerRequests.get(card) !== request) return;
   if (!res) return;
   const button = card.querySelector('[data-answer="' + answer + '"]');
   if (!res.ok) {
-    out.textContent = res.status === 422 && res.error === 'unknown_item'
-      ? 'Diese Aufgabe gibt es im Schlüssel nicht — der Server hat sie nicht bewertet.'
-      : 'Bewertung fehlgeschlagen: ' + failure(res) + '.';
+    bindShellText(out, () => res.status === 422 && res.error === 'unknown_item'
+      ? uiText("m135")
+      : uiText("m136") + " " + failure(res) + '.');
     return;
   }
   const correct = res.data && res.data.correct === true;
   if (button) button.setAttribute('aria-pressed', String(correct));
-  out.textContent = correct ? 'Richtig.' : 'Noch nicht richtig — die Aufgabe bleibt bei deinen Fehlern.';
+  bindShellText(out, () => correct ? uiText("m137") : uiText("m138"));
   if (res.data?.evidence_id) {
     const target = document.createElement('div'); target.dataset.objectiveExplanation = res.data.evidence_id; out.after(target);
     explanations.mount(target, { read: language => api.practice.explanation(res.data.evidence_id, language),
@@ -1109,7 +1129,7 @@ async function openSet(setId, version) {
   if (!activePreparation() || preparationSwitching) return;
   if (!bootReady || sessionProblem) return;
   if (typeof version !== 'string' || !version.trim()) {
-    showError('Die Fassung dieser Aufgabe fehlt. Bitte lade die Aufgabenliste erneut.');
+    showError(() => (uiText("m067")));
     return;
   }
   const request = ++objectiveRequest;
@@ -1131,27 +1151,27 @@ async function openSet(setId, version) {
   if (list) list.hidden = true;
   box.hidden = false;
   explanations.dispose(box);
-  box.innerHTML = '<div class="card"><h3>Wird geladen ...</h3></div>';
+  setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m057\">Wird geladen ...</span></h3></div>");
   window.scrollTo(0, 0);
   const res = await api.objectiveSets.read(setId, version);
   if (!res || request !== objectiveRequest || navigation !== routing || sessionProblem) return;
   if (!res.ok) {
-    box.innerHTML = '';
+    setShellHTML(box, '');
     if (list) list.hidden = false;
-    showError('Die Aufgaben konnten nicht geladen werden: ' + failure(res) + '.');
+    showError(() => (uiText("m139") + " " + failure(res) + '.'));
     return;
   }
   const set = res.data;
   if (set?.set_id !== setId || set?.version !== version) {
-    box.innerHTML = '';
+    setShellHTML(box, '');
     if (list) list.hidden = false;
-    showError('Die geladene Fassung passt nicht zur ausgewählten Aufgabe. Bitte lade die Aufgabenliste erneut.');
+    showError(() => (uiText("m140")));
     return;
   }
-  box.innerHTML = '<div class="card"><div class="card-head"><h3>' + esc(setLabel(set))
-    + '</h3><span class="chip">' + esc(set.family) + ' · Fassung ' + esc(set.version) + '</span></div>'
-    + '<button class="btn" type="button" id="practice-close">Schließen</button></div>'
-    + '<div class="stack" id="practice-items"></div>';
+  setShellHTML(box, '<div class="card"><div class="card-head"><h3>' + setLabelMarkup(set)
+    + '</h3><span class="chip">' + esc(set.family) + ' · ' + messageMarkup('version') + ' ' + esc(set.version) + '</span></div>'
+    + "<button class=\"btn\" type=\"button\" id=\"practice-close\"><span data-i18n=\"shell.m141\">Schließen</span></button></div>"
+    + '<div class="stack" id="practice-items"></div>');
   renderObjectiveForm(set, box.querySelector('#practice-items'));
   /*
    * ASSIGNMENT, not addEventListener. `box` is the same element for the whole life of the view, so an
@@ -1167,7 +1187,7 @@ async function openSet(setId, version) {
     objectiveRequest++;
     explanations.dispose(box);
     box.hidden = true;
-    box.innerHTML = '';
+    setShellHTML(box, '');
     if (list) list.hidden = false;
   });
 }
@@ -1183,11 +1203,11 @@ async function openSet(setId, version) {
  * A key with no label falls back to the RAW KEY on screen: an unknown criterion must be VISIBLE rather than
  * silently dropped, because a missing row looks like a criterion nobody marked.
  */
-const TELC_FEEDBACK_LABEL = 'Übungsfeedback nach den telc-Kriterien – keine offizielle Bewertung';
+const TELC_FEEDBACK_LABEL = uiText("m142");
 const CRITERION_LABELS = Object.freeze({
-  aufgabe: 'Aufgabenbewältigung',
-  kommunikation: 'Kommunikative Gestaltung',
-  richtigkeit: 'Formale Richtigkeit',
+  aufgabe: uiText("m143"),
+  kommunikation: uiText("m144"),
+  richtigkeit: uiText("m145"),
 });
 
 /*
@@ -1216,22 +1236,74 @@ const writingApi = { ...api, mock: { ...api.mock, read: (runId, language = state
   if (currentContext(ticket) && bootReady) guard(refreshCredits());
   return result;
 } } };
-const mock = createMockController({ api: writingApi, esc, setLabel, readAloud, explanations, explanationLanguage: () => state.settings?.language || 'de', canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
+const mock = createMockController({ api: writingApi, esc, setLabel, readAloud, explanations, getExamLanguage, explanationLanguage: () => state.settings?.language || 'de', canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
 window.addEventListener('beforeunload', event => mock.preserveOnUnload(event));
-const writing = createWritingController({ api: writingApi, esc, readAloud, explanations, onChange: () => { guard(refreshCredits()); if (currentView === 'fortschritt') guard(renderHistory()); } });
+const writing = createWritingController({ api: writingApi, esc, readAloud, explanations, getExamLanguage, onChange: () => { guard(refreshCredits()); if (currentView === 'fortschritt') guard(renderHistory()); } });
 // PAYMENTS-SLICE-01. `onChange` re-reads the credit line, because a granted pass is exactly the thing
 // that line shows; it never writes a learner state anywhere.
 const checkout = createCheckoutController({ api, esc, onChange: () => { if (state.preparation) guard(refreshCredits()); }, beforeRedirect: async () => {
   const ticket = contextTicket();
   return await writing.flush() && await mock.flush() && currentContext(ticket);
 }, canContinue: () => !sessionProblem && !preparationSwitching });
+
+function acceptLocaleSettings(data, { persist = false } = {}) {
+  if (sessionProblem || !validLocale(data?.settings?.language) || !Number.isInteger(data.revision)
+    || (Number.isInteger(state.revision) && data.revision < state.revision)) return;
+  const changed = getLocale() !== data.settings.language;
+  state.settings = data.settings; state.revision = data.revision;
+  setLocale(data.settings.language, { persist });
+  el('language').value = data.settings.language;
+  el('header-language').value = data.settings.language;
+  if (changed) explanations.refresh(data.settings.language);
+}
+const localePreference = createLocalePreference({
+  read: () => api.settings.read(), write: (revision, patch) => api.settings.write(revision, patch),
+  context: () => [state.account?.id, accountGeneration, sessionProblem].join('|'),
+  confirmed: () => ({ settings: state.settings, revision: state.revision }), accept: acceptLocaleSettings,
+  changed: ({ state: status, busy, unresolved }) => {
+    const key = { saving: 'm185', reconciling: 'reconciling', saved: 'm196', reconciled: 'reconciled', conflict: 'conflict', unresolved: 'unresolved', failed: 'm195' }[status];
+    bindShellText(el('locale-state'), () => key ? uiText(key) : '');
+    el('locale-reload').hidden = !unresolved;
+    el('header-language').disabled = busy || Boolean(sessionProblem);
+    el('language').disabled = busy || settingsSaving || Boolean(sessionProblem);
+    el('header-language').value = getLocale();
+  },
+});
+
+function updateLocaleLabels() {
+  updateShellMessages();
+  updatePracticeLocale(document, getLocale());
+  translateInstructions(document);
+  for (const node of document.querySelectorAll('[data-shell-review]')) {
+    const facts = JSON.parse(node.dataset.reviewFacts);
+    node.textContent = node.dataset.shellReview === 'history' ? reviewHistoryNotice(facts) : contentReviewLabel(facts);
+  }
+  writing.updateLocale?.(getLocale()); mock.updateLocale?.(getLocale());
+  explanations.updateLocale?.(getLocale()); readAloud.updateLocale?.(getLocale());
+  sentenceCheck?.updateLocale?.(getLocale()); checkout.updateLocale(getLocale());
+  readAloud.stop();
+  el('header-language').value = getLocale();
+  // Option identities and the chosen preparation are preserved.
+  for (const option of el('preparation-picker').options) {
+    const choice = preparationChoices(state.exams, state.preparations).find(row => row.id === option.value);
+    if (choice) option.textContent = choice.label;
+  }
+  for (const notice of document.querySelectorAll('[data-material-unavailable]')) notice.hidden = ['de', 'en'].includes(getLocale());
+}
+const unsubscribeLocale = subscribeLocale(updateLocaleLabels);
+window.addEventListener('pagehide', event => { if (!event.persisted) unsubscribeLocale(); localePreference.cancel(); readAloud.stop(); });
+el('header-language').addEventListener('change', event => {
+  if (!bootReady || sessionProblem || settingsSaving || preparationSwitching) { event.target.value = getLocale(); return; }
+  guard(localePreference.save(event.target.value));
+});
+el('locale-reload').addEventListener('click', () => guard(localePreference.reconcile()));
 async function openWriting(box, task, options = {}) {
   if (!activePreparation() || preparationSwitching) return false;
   // Keep the task catalogue as a sibling of the editor so closing a letter can restore it.
   return writing.open(box.id.startsWith('skill-') ? practiceHost(box) : box, task, options);
 }
 function archivedPracticeNotice() {
-  return '<div class="card"><h3>Diese Vorbereitung ist archiviert</h3><p>Neue Übungen sind hier nicht möglich. Deine gespeicherten Texte und Rückmeldungen bleiben im Verlauf lesbar.</p><a class="btn" href="#/fortschritt">Verlauf öffnen</a></div>';
+  return "<div class=\"card\"><h3><span data-i18n=\"shell.m146\">Diese Vorbereitung ist archiviert</span></h3><p><span data-i18n=\"shell.m147\">Neue Übungen sind hier nicht möglich. Deine gespeicherten Texte und Rückmeldungen bleiben im Verlauf lesbar.</span></p><a class=\"btn\" href=\"#/fortschritt\"><span data-i18n=\"shell.m101\">Verlauf öffnen</span></a></div>";
 }
 
 async function openArchivedWriting(entry) {
@@ -1240,33 +1312,33 @@ async function openArchivedWriting(entry) {
   const current = () => currentContext(ticket) && currentView === 'fortschritt' && archivedRequest === request && explanationContext === viewTicket;
   explanations.dispose(host);
   host.hidden = false;
-  host.innerHTML = '<p class="muted">Gespeicherter Text wird geladen …</p>';
+  setShellHTML(host, "<p class=\"muted\"><span data-i18n=\"shell.m148\">Gespeicherter Text wird geladen …</span></p>");
   const response = entry.submission_id ? await writingApi.writing.result(entry.submission_id) : await api.writing.readAttempt(entry.id);
   if (!current()) return;
   if (!response?.ok) {
-    host.innerHTML = '<p class="err">Der gespeicherte Text konnte nicht geladen werden.</p><button class="btn" id="archived-refresh" type="button">Erneut laden</button>';
+    setShellHTML(host, "<p class=\"err\"><span data-i18n=\"shell.m149\">Der gespeicherte Text konnte nicht geladen werden.</span></p><button class=\"btn\" id=\"archived-refresh\" type=\"button\"><span data-i18n=\"shell.m150\">Erneut laden</span></button>");
   } else {
     const data = response.data, feedback = data.assessment?.feedback;
     let result = '';
     const feedbackState = writingFeedbackState(data);
     if (feedbackState === 'assessed' && feedback) {
-      result = '<p class="small muted">Übungsfeedback – keine offizielle Bewertung. Die Rückmeldung im lokalen Pilot stammt aus einer technischen Simulation.</p>';
+      result = "<p class=\"small muted\"><span data-i18n=\"shell.m151\">Übungsfeedback – keine offizielle Bewertung. Die Rückmeldung im lokalen Pilot stammt aus einer technischen Simulation.</span></p>";
       result += Array.isArray(feedback.criteria) ? '<ul class="criteria">' + feedback.criteria.map(c => { const view = writingCriterion(c, data.rubric); return '<li><strong>'
-        + esc(view.label) + ': <span class="band"><span class="sr-only">Band </span>' + esc(view.band) + '</span></strong>'
-        + (c.evidence ? '<blockquote class="evidence" lang="de" dir="ltr">' + esc(c.evidence) + '</blockquote>' : '') + '</li>'; }).join('') + '</ul>' : '';
-    } else if (feedbackState === 'blocked') result = '<p>Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Dein Text bleibt erhalten.</p>';
-    else if (['failed', 'unassessed'].includes(feedbackState)) result = '<p>Unbewertet. Dein abgegebener Text bleibt erhalten.</p>';
-    else if (entry.submission_id) result = '<p>Die Rückmeldung wird vorbereitet. Du kannst den Stand erneut laden.</p>';
-    if (feedbackState === 'assessed' && data.review_withdrawn) result += '<p class="hint" data-review-withdrawn>' + esc(reviewHistoryNotice(data)) + '</p>';
-    host.innerHTML = '<article class="card"><h3>' + esc(entry.topic || 'Gespeicherter Text') + '</h3><p class="small muted">Archiv · schreibgeschützt</p><div class="archived-writing">'
+        + '<span ' + examTextAttributes() + '>' + esc(view.label) + '</span>' + ": <span class=\"band\"><span class=\"sr-only\"><span data-i18n=\"shell.m152\">Band</span> </span>" + esc(view.band) + '</span></strong>'
+        + (c.evidence ? '<blockquote class="evidence" ' + examTextAttributes() + '>' + esc(c.evidence) + '</blockquote>' : '') + '</li>'; }).join('') + '</ul>' : '';
+    } else if (feedbackState === 'blocked') result = "<p><span data-i18n=\"shell.m153\">Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Dein Text bleibt erhalten.</span></p>";
+    else if (['failed', 'unassessed'].includes(feedbackState)) result = "<p><span data-i18n=\"shell.m154\">Unbewertet. Dein abgegebener Text bleibt erhalten.</span></p>";
+    else if (entry.submission_id) result = "<p><span data-i18n=\"shell.m155\">Die Rückmeldung wird vorbereitet. Du kannst den Stand erneut laden.</span></p>";
+    if (feedbackState === 'assessed' && data.review_withdrawn) result += '<p class="hint" data-review-withdrawn>' + reviewMarkup(data, true) + '</p>';
+    setShellHTML(host, '<article class="card"><h3>' + (entry.topic ? '<span ' + examTextAttributes() + '>' + esc(entry.topic) + '</span>' : messageMarkup("m156")) + "</h3><p class=\"small muted\"><span data-i18n=\"shell.m157\">Archiv · schreibgeschützt</span></p><div class=\"archived-writing\" "+ examTextAttributes() + ">"
       + esc(entry.submission_id ? data.submission?.text || '' : data.text || '') + '</div>' + result + (entry.submission_id ? '<div data-archived-explanation></div>' : '')
-      + '<div class="row"><button class="btn" id="archived-refresh" type="button">Stand erneut laden</button><button class="btn" id="archived-close" type="button">Schließen</button></div></article>';
+      + "<div class=\"row\"><button class=\"btn\" id=\"archived-refresh\" type=\"button\"><span data-i18n=\"shell.m158\">Stand erneut laden</span></button><button class=\"btn\" id=\"archived-close\" type=\"button\"><span data-i18n=\"shell.m141\">Schließen</span></button></div></article>");
     if (entry.submission_id) explanations.mount(host.querySelector('[data-archived-explanation]'), { view: data.explanation_view, labels: writingExplanationLabels(data), isCurrent: current,
       read: async language => { const r = await api.writing.result(entry.submission_id, language); return { ...r, data: r?.data?.explanation_view, parent: r?.data }; },
       onConfirmed: parent => {
         if (!parent || !current()) return;
-        if (parent.blocked_reason) { host.querySelector('.criteria')?.remove(); host.querySelector('[data-review-withdrawn]')?.remove(); host.querySelector('h3').textContent = 'Gespeicherter Text'; }
-        else if (parent.review_withdrawn && !host.querySelector('[data-review-withdrawn]')) { const notice = document.createElement('p'); notice.className = 'hint'; notice.dataset.reviewWithdrawn = ''; notice.textContent = reviewHistoryNotice(parent); host.querySelector('[data-archived-explanation]').before(notice); }
+        if (parent.blocked_reason) { host.querySelector('.criteria')?.remove(); host.querySelector('[data-review-withdrawn]')?.remove(); bindShellText(host.querySelector('h3'), () => uiText("m156")); }
+        else if (parent.review_withdrawn && !host.querySelector('[data-review-withdrawn]')) { const notice = document.createElement('p'); notice.className = 'hint'; notice.dataset.reviewWithdrawn = ''; bindShellText(notice, () => reviewHistoryNotice(parent)); host.querySelector('[data-archived-explanation]').before(notice); }
       },
     });
     el('archived-close').onclick = () => { archivedRequest++; explanations.dispose(host); host.replaceChildren(); host.hidden = true; };
@@ -1289,7 +1361,7 @@ async function renderCheckout(info = preparationRoute()) {
   if (!host) return;
   const prep = state.preparation;
   if (!prep?.exam_id && !info.orderId && !info.invalid) {
-    host.innerHTML = '<div class="card"><h3>Keine Prüfung ausgewählt</h3><p class="small muted">Wähle zuerst eine Prüfungsvorbereitung.</p></div>';
+    setShellHTML(host, "<div class=\"card\"><h3><span data-i18n=\"shell.m159\">Keine Prüfung ausgewählt</span></h3><p class=\"small muted\"><span data-i18n=\"shell.m160\">Wähle zuerst eine Prüfungsvorbereitung.</span></p></div>");
     return;
   }
   await checkout.open(host, {
@@ -1303,16 +1375,16 @@ async function renderCheckout(info = preparationRoute()) {
 async function renderHistory() {
   const ticket = contextTicket();
   const host = el('history-list');
-  host.innerHTML = '<p class="muted">Dein Verlauf wird geladen …</p>';
+  setShellHTML(host, "<p class=\"muted\"><span data-i18n=\"shell.m161\">Dein Verlauf wird geladen …</span></p>");
   const [history, progress, runs] = await Promise.all([api.writing.listAttempts(), api.practice.progress(), api.mock.list()]);
   if (currentView !== 'fortschritt' || !currentContext(ticket)) return;
-  el('mock-history').innerHTML = '<h2>Gespeicherte Prüfungsläufe</h2>' + (runs?.ok ? mock.historyMarkup(runs.data?.runs || []) : '<p class="err">Die gespeicherten Läufe konnten nicht geladen werden.</p>');
-  if (!history?.ok) { host.innerHTML = '<p class="err">Der Verlauf konnte nicht geladen werden. Bitte öffne die Ansicht erneut.</p>'; return; }
+  setShellHTML(el('mock-history'), "<h2><span data-i18n=\"shell.m006\">Gespeicherte Prüfungsläufe</span></h2>" + (runs?.ok ? mock.historyMarkup(runs.data?.runs || []) : "<p class=\"err\"><span data-i18n=\"shell.m162\">Die gespeicherten Läufe konnten nicht geladen werden.</span></p>"));
+  if (!history?.ok) { setShellHTML(host, "<p class=\"err\"><span data-i18n=\"shell.m163\">Der Verlauf konnte nicht geladen werden. Bitte öffne die Ansicht erneut.</span></p>"); return; }
   const totals = progress?.ok ? progress.data?.totals : null;
-  el('history-summary').textContent = totals ? totals.attempts + ' Antworten gespeichert · ' + totals.correct + ' richtig. Keine Prognose für deine Prüfung.' : 'Deine gespeicherten Texte und Rückmeldungen.';
+  bindShellText(el('history-summary'), () => totals ? uiText('answers', {count:totals.attempts}) + ' · ' + totals.correct + ' ' + uiText('m164') : uiText("m165"));
   const rows = history.data.attempts || [];
-  const statuses = { draft: 'Entwurf', pending: 'Rückmeldung wird vorbereitet', unassessed: 'Unbewertet', assessed: 'Rückmeldung gespeichert' };
-  host.innerHTML = rows.length ? rows.map(a => '<article class="card"><div class="card-head"><h3>' + esc(a.topic || 'Schreibübung') + '</h3><span class="chip">' + esc(statuses[a.status] || a.status) + '</span></div><p class="small muted">' + esc(new Date(a.created_at).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })) + (a.parent_submission_id ? ' · Überarbeitung' : '') + '</p><button type="button" class="btn" data-attempt="' + esc(a.id) + '">' + (a.submission_id ? 'Text und Rückmeldung öffnen' : 'Entwurf fortsetzen') + '</button></article>').join('') : '<div class="card"><h3>Noch keine Schreibübungen</h3><p>Beginne mit einer Aufgabe. Dein Entwurf und jede Abgabe bleiben hier erreichbar.</p><a class="btn btn-primary" href="#/schreiben">Schreiben üben</a></div>';
+  const statuses = { draft: uiText("m166"), pending: uiText("m167"), unassessed: uiText("m168"), assessed: uiText("m169") };
+  setShellHTML(host, rows.length ? rows.map(a => '<article class="card"><div class="card-head"><h3>' + (a.topic ? '<span ' + examTextAttributes() + '>' + esc(a.topic) + '</span>' : messageMarkup("m170")) + '</h3><span class="chip">' + messageMarkup(statuses[a.status] || a.status) + '</span></div><p class="small muted">' + esc(new Date(a.created_at).toLocaleString(getLocale(), { dateStyle: 'medium', timeStyle: 'short' })) + (a.parent_submission_id ? " " + messageMarkup("m171") : '') + '</p><button type="button" class="btn" data-attempt="' + esc(a.id) + '">' + (a.submission_id ? messageMarkup("m172") : messageMarkup("m173")) + '</button></article>').join('') : "<div class=\"card\"><h3><span data-i18n=\"shell.m174\">Noch keine Schreibübungen</span></h3><p><span data-i18n=\"shell.m175\">Beginne mit einer Aufgabe. Dein Entwurf und jede Abgabe bleiben hier erreichbar.</span></p><a class=\"btn btn-primary\" href=\"#/schreiben\"><span data-i18n=\"shell.m176\">Schreiben üben</span></a></div>");
   host.onclick = async (event) => {
     if (!currentContext(ticket)) return;
     const target = event.target.closest('[data-attempt]'); if (!target) return;
@@ -1324,7 +1396,7 @@ async function renderHistory() {
     else await openWriting(el('history-detail'), task, { attemptId: entry.id });
   };
   if (!activePreparation()) {
-    for (const button of host.querySelectorAll('[data-attempt]')) if (button.textContent === 'Entwurf fortsetzen') button.textContent = 'Gespeicherten Entwurf ansehen';
+    for (const button of host.querySelectorAll('[data-attempt]')) if (button.textContent === uiText("m173")) bindShellText(button, () => uiText("m177"));
     host.querySelector('a[href="#/schreiben"]')?.remove();
   }
 }
@@ -1345,7 +1417,7 @@ async function route() {
   if (info.runId) {
     const saved = await api.mock.read(info.runId);
     if (request !== routing || sessionProblem) return;
-    if (!saved?.ok) { showError('Der verlinkte Abschnitt ist nicht verfügbar.'); return; }
+    if (!saved?.ok) { showError(() => (uiText("m037"))); return; }
     info = { ...info, id: saved.data.preparation_id };
   }
   if (info.id && info.id !== state.preparation?.id) { await switchPreparation(info.id, info.view, info.runId); return; }
@@ -1382,7 +1454,7 @@ async function route() {
   if (view !== 'checkout') history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + view + (info.runId ? '/' + info.runId : ''));
   else if (!info.invalid) history.replaceState(null, '', info.orderId ? info.path.slice('/app/'.length) : '#/checkout');
   for (const name of Object.keys(VIEW_TITLES)) el(`view-${name}`).hidden = name !== view;
-  el('page-title').textContent = VIEW_TITLES[view];
+  bindShellText(el('page-title'), () => uiText(VIEW_TITLES[view]));
   renderChrome();
   guard(refreshCredits());
   showError('');
@@ -1393,7 +1465,7 @@ async function route() {
    */
   const run = (render, token = view) => {
     void render().catch((err) => {
-      if (token === currentView) showError('Die Ansicht konnte nicht geladen werden: ' + (err && err.message ? err.message : err));
+      if (token === currentView) showError(() => (uiText("m178") + " " + (err && err.message ? err.message : err)));
     });
   };
   if (view === 'abschnitt') run(() => info.runId ? mock.showRun(el('mock-host'), info.runId) : mock.list(el('mock-host')));
@@ -1421,17 +1493,18 @@ async function route() {
 }
 
 async function refresh() {
+  const ticket = accountGeneration;
   const account = await api.account.read();
-  if (!account?.ok) { showError('Konto konnte nicht geladen werden: ' + failure(account) + '.'); return false; }
+  if (ticket !== accountGeneration || sessionProblem || (state.account && account?.ok && account.data?.id !== state.account.id)) return false;
+  if (!account?.ok) { showError(() => (uiText("m179") + " " + failure(account) + '.')); return false; }
 
   const settings = await api.settings.read();
-  if (settings?.ok && settings.data?.settings && Number.isInteger(settings.data.revision)) {
-    if (sessionProblem) return false;
+  if (ticket !== accountGeneration || sessionProblem) return false;
+  if (settings?.ok && validLocale(settings.data?.settings?.language) && Number.isInteger(settings.data.revision)) {
     state.account = account.data;
-    state.settings = settings.data.settings || {};
-    state.revision = settings.data.revision;
+    acceptLocaleSettings(settings.data);
   } else {
-    showError('Einstellungen konnten nicht geladen werden: ' + failure(settings) + '.');
+    showError(() => (uiText("m180") + " " + failure(settings) + '.'));
     return false;
   }
   renderAccount();
@@ -1461,12 +1534,12 @@ el('password-form').addEventListener('submit', async (event) => {
   const current = el('current-password').value;
   const next = el('new-password').value;
   if (!current || !next) {
-    status.textContent = 'Bitte beide Felder ausfüllen.';
+    bindShellText(status, () => uiText("m181"));
     return;
   }
   const res = await api.sessions.changePassword(current, next);
   if (res && res.ok) {
-    status.textContent = 'Passwort geändert. Alle anderen Sitzungen wurden beendet.';
+    bindShellText(status, () => uiText("m182"));
     el('current-password').value = '';
     el('new-password').value = '';
     /*
@@ -1477,14 +1550,14 @@ el('password-form').addEventListener('submit', async (event) => {
     await refresh();
     return;
   }
-  status.textContent = res && res.status === 403
-    ? 'Das aktuelle Passwort stimmt nicht.'
-    : 'Passwort konnte nicht geändert werden: ' + failure(res);
+  bindShellText(status, () => res && res.status === 403
+    ? uiText("m183")
+    : uiText("m184") + " " + failure(res));
 });
 
 el('settings-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!bootReady || sessionProblem || preparationSwitching || settingsSaving || !Number.isInteger(state.revision)) return;
+  if (!bootReady || sessionProblem || preparationSwitching || settingsSaving || localePreference.busy || localePreference.unresolved || !Number.isInteger(state.revision)) return;
   const status = el('settings-state');
   const button = el('save-settings');
   const prep = state.preparation, ticket = contextTicket();
@@ -1493,15 +1566,15 @@ el('settings-form').addEventListener('submit', async (event) => {
   let settingsSaved = false;
   settingsSaving = true;
   el('language').disabled = true;
-  status.textContent = 'Wird gespeichert …';
+  bindShellText(status, () => uiText("m185"));
   button.disabled = true;
   el('preparation-picker').disabled = true;
   showError('');
   const recovery = message => {
     if (!currentContext(ticket) || state.preparation?.id !== prep.id) return;
-    status.textContent = message + ' Deine Eingaben bleiben im Formular.';
+    bindShellText(status, () => message + ' ' + uiText('formPreserved'));
     const reload = document.createElement('button');
-    reload.type = 'button'; reload.className = 'btn btn-small'; reload.textContent = 'Aktuelle Werte laden';
+    reload.type = 'button'; reload.className = 'btn btn-small'; bindShellText(reload, () => uiText("m186"));
     reload.id = 'settings-reload';
     status.append(' ', reload);
     const currentRecoveryForm = () => currentContext(ticket) && state.preparation?.id === prep.id && status.contains(reload);
@@ -1515,14 +1588,14 @@ el('settings-form').addEventListener('submit', async (event) => {
         return;
       }
       if (!preparation?.ok || preparation.data?.id !== prep.id || !settings?.ok || !Number.isInteger(settings.data?.revision)) {
-        reload.disabled = false; showError('Die aktuellen Werte konnten nicht geladen werden. Deine Eingaben bleiben erhalten.'); return;
+        reload.disabled = false; showError(() => (uiText("m187"))); return;
       }
       rememberPreparation(preparation.data);
       state.preparation = preparation.data;
       api.preparations.select(preparation.data);
-      state.settings = settings.data.settings; state.revision = settings.data.revision;
+      acceptLocaleSettings(settings.data);
       renderSettings(); renderChrome(); renderPreparation();
-      status.textContent = 'Die gespeicherten Werte wurden auf deinen Wunsch geladen. Prüfe sie vor dem nächsten Speichern.';
+      bindShellText(status, () => uiText("m188"));
     })());
   };
   try {
@@ -1532,37 +1605,22 @@ el('settings-form').addEventListener('submit', async (event) => {
       if (!saved?.ok) {
         const current = saved?.data?.current;
         recovery(saved?.status === 409
-          ? 'Das Prüfungsdatum wurde woanders geändert.' + (current ? ' Dort gespeichert: ' + (current.exam_date || 'kein Termin') + '.' : '')
-          : saved?.status === 0 ? 'Ob das Prüfungsdatum gespeichert wurde, ist unklar.' : 'Das Prüfungsdatum konnte nicht gespeichert werden.');
+          ? uiText("m189") + (current ? ' ' + uiText('elsewhere', {value: current.exam_date || uiText('noDate')}) : '')
+          : saved?.status === 0 ? uiText("m190") : uiText("m191"));
         return;
       }
       rememberPreparation(saved.data); state.preparation = saved.data; api.preparations.select(saved.data);
       dateSaved = true; renderChrome();
     }
-    const wanted = { language, ...(state.settings?.theme ? { theme: state.settings.theme } : {}) };
-    const res = await api.settings.write(state.revision, wanted);
+    settingsSaved = await localePreference.save(language);
     if (!currentContext(ticket)) return;
-    if (res?.status === 409 && !sessionProblem) {
-      recovery((dateSaved ? 'Das Prüfungsdatum ist gespeichert. ' : '') + 'Die Kontoeinstellungen wurden woanders geändert; deine Sprachwahl wurde nicht übernommen.');
-      return;
+    if (settingsSaved) {
+      bindShellText(status, () => (dateSaved ? uiText('m192') + ' ' : '') + uiText('m196'));
+    } else {
+      bindShellText(status, () => (dateSaved ? uiText('m192') + ' ' : '') + uiText({ unresolved:'unresolved', conflict:'conflict', reconciled:'reconciled', failed:'m195' }[localePreference.status] || 'm195'));
     }
-    if (!res?.ok) {
-      recovery((dateSaved ? 'Das Prüfungsdatum ist gespeichert. ' : '') + (res?.status === 0 ? 'Ob die Erklärungssprache gespeichert wurde, ist unklar.' : 'Die Erklärungssprache konnte nicht gespeichert werden.'));
-      return;
-    }
-    state.settings = res.data?.settings || wanted;
-    explanations.refresh(state.settings.language);
-    state.revision = res.data?.revision ?? state.revision;
-    renderSettings();
-    // The topbar summarises two settings (the exam pill and the explanation language), so it has to be
-    // re-rendered when they change. It was only rendered from route(): the button kept saying
-    // "Erklärungen: Deutsch" after the learner had chosen Arabic, until they navigated somewhere.
-    renderChrome();
-    settingsSaved = true;
-    status.textContent = 'Gespeichert.';
-    setTimeout(() => { if (status.textContent === 'Gespeichert.') status.textContent = ''; }, 4000);
   } catch (err) {
-    recovery((dateSaved ? 'Das Prüfungsdatum ist gespeichert. ' : '') + 'Speichern konnte nicht vollständig abgeschlossen werden.');
+    recovery((dateSaved ? uiText("m192") + " " : '') + uiText("m197"));
   } finally {
     settingsSaving = false;
     el('language').disabled = Boolean(sessionProblem);
@@ -1593,18 +1651,18 @@ el('signout').addEventListener('click', async () => {
   try {
     const res = await api.auth.signOut();
     if (!res || !res.ok) {
-      showError('Abmelden fehlgeschlagen: ' + failure(res) + ' Die Sitzung ist möglicherweise noch aktiv.');
+      showError(() => (uiText("m198") + " " + failure(res) + " " + uiText("m199")));
       return;
     }
     location.replace('/signin');
   } catch {
-    showError('Abmelden fehlgeschlagen: keine Verbindung zum Server. Die Sitzung ist möglicherweise noch aktiv.');
+    showError(() => (uiText("m200")));
   }
 });
 
 el('delete-account').addEventListener('click', async () => {
   const sure = window.confirm(
-    `Konto ${state.account?.email || ''} endgültig löschen?\n\nDeine eigenen Datensätze werden wirklich entfernt. Das kann nicht rückgängig gemacht werden.`);
+    uiText('deleteConfirm', {email: state.account?.email || ''}));
   if (!sure) return;
   try {
     // `{}` and not no body: the server requires `application/json` on every mutating route, so a
@@ -1612,24 +1670,24 @@ el('delete-account').addEventListener('click', async () => {
     const res = await api.account.remove();
     if (!res) return;
     if (res.ok || res.status === 204) { location.replace('/signin'); return; }
-    showError(res.status === 0 || res.status >= 500
-      ? 'Die Antwort auf deine Löschanfrage fehlt. Ob das Konto gelöscht wurde, ist unklar. Melde dich erneut an, um den Stand zu prüfen.'
-      : 'Löschen fehlgeschlagen: ' + failure(res) + ' Das Konto wurde nicht entfernt.');
+    showError(() => (res.status === 0 || res.status >= 500
+      ? uiText("m201")
+      : uiText("m202") + " " + failure(res) + " " + uiText("m203")));
   } catch {
-    showError('Die Antwort auf deine Löschanfrage fehlt. Ob das Konto gelöscht wurde, ist unklar. Melde dich erneut an, um den Stand zu prüfen.');
+    showError(() => (uiText("m201")));
   }
 });
 
 el('export-data')?.addEventListener('click', async (event) => {
   const trigger = event.currentTarget;
-  trigger.disabled = true; el('export-state').textContent = 'Dein Export wird vorbereitet …';
+  trigger.disabled = true; bindShellText(el('export-state'), () => uiText("m204"));
   const res = await api.account.export();
   trigger.disabled = false;
-  if (!res?.ok) { el('export-state').textContent = 'Der Export konnte nicht erstellt werden. Bitte versuche es erneut.'; return; }
+  if (!res?.ok) { bindShellText(el('export-state'), () => uiText("m205")); return; }
   const url = URL.createObjectURL(new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' }));
   const link = document.createElement('a'); link.href = url; link.download = 'hatoove-meine-daten.json'; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  el('export-state').textContent = 'Dein Export wurde zum Download bereitgestellt.';
+  bindShellText(el('export-state'), () => uiText("m206"));
 });
 window.addEventListener('hashchange', route);
 
@@ -1646,7 +1704,7 @@ el('dict-q')?.addEventListener('input', () => guard(renderDictionary()));
 el('dict-mode-vocab')?.addEventListener('click', () => { dictMode = 'vocab'; guard(renderDictionary()); });
 el('dict-mode-nouns')?.addEventListener('click', () => { dictMode = 'nouns'; guard(renderDictionary()); });
 el('guide-index')?.addEventListener('click', (event) => {
-  const id = event.target?.dataset?.guide;
+  const id = event.target?.closest?.('[data-guide]')?.dataset.guide;
   if (id) guard(openGuide(id));
 });
 
@@ -1655,25 +1713,25 @@ async function boot() {
   bootLoading = true;
   el('boot-retry').hidden = true;
   el('boot-signin').hidden = true;
-  el('boot-message').textContent = 'Dein Konto, deine Einstellungen und deine Prüfungsvorbereitung werden geladen …';
+  bindShellText(el('boot-message'), () => uiText("m207"));
   el('boot-choices').hidden = true;
   try {
     applyExplanationDirection();
     const session = await api.session();
     if (session?.status === 401) { location.replace(checkoutSignInPath()); return; }
-    if (!session?.ok) throw new Error('Die Anmeldung konnte nicht geprüft werden. ' + failure(session));
-    if (!(await refresh())) throw new Error('Dein Konto und deine Einstellungen konnten nicht vollständig geladen werden.');
-    if (sessionProblem) throw new Error('Die Sitzung ist nicht mehr gültig.');
+    if (!session?.ok) throw new Error(uiText("m208") + " " + failure(session));
+    if (!(await refresh())) throw new Error(uiText("m209"));
+    if (sessionProblem) throw new Error(uiText("m210"));
     // Owned orders can be read even before a preparation is selected or available.
     const returnInfo = checkoutRoute(location.hash);
     if (returnInfo.orderId || returnInfo.invalid) await checkout.open(el('checkout-boot-host'), returnInfo);
     if (!(await loadPreparations())) return;
     await unlockPreparation();
   } catch (err) {
-    if (bootReady) { showError('Die Ansicht konnte nicht geladen werden: ' + (err?.message || err)); return; }
-    el('boot-message').textContent = sessionProblem
-      ? 'Die Sitzung ist nicht mehr gültig oder das Konto wurde gewechselt. Bitte melde dich erneut an.'
-      : (err?.message || 'Die Ansicht konnte nicht geladen werden.') + ' Bitte versuche es erneut.';
+    if (bootReady) { showError(() => (uiText("m178") + " " + (err?.message || err))); return; }
+    bindShellText(el('boot-message'), () => sessionProblem
+      ? uiText("m211")
+      : (err?.message || uiText("m212")) + ' ' + uiText('retryLater'));
     el('boot-retry').hidden = Boolean(sessionProblem);
     el('boot-signin').hidden = !sessionProblem;
     el('boot-signin').href = checkoutSignInPath();
@@ -1682,4 +1740,6 @@ async function boot() {
   }
 }
 el('boot-retry').addEventListener('click', () => guard(boot()));
+setLocale(initialLocale());
+updateLocaleLabels();
 guard(boot());

@@ -1,10 +1,11 @@
+import { s as uiText } from './locale-preference.js';
 /** In-memory presentation decisions only. The server owns preparations and availability. */
 export function preparationChoices(exams, preparations) {
   return [
     ...preparations.map(preparation => ({ id: preparation.id, isNew: false,
-      label: (preparation.exam || preparation.exam_id) + (preparation.state === 'archived' ? ' · Archiv ansehen' : ' · Fortsetzen') })),
+      label: (preparation.exam || preparation.exam_id) + (preparation.state === 'archived' ? ' · ' + uiText('archive') : ' · ' + uiText('m110')) })),
     ...exams.filter(exam => !preparations.some(preparation => preparation.exam_id === exam.exam_id && preparation.state === 'active'))
-      .map(exam => ({ id: 'new:' + exam.exam_id, isNew: true, label: (exam.exam || exam.exam_id) + ' · Beginnen' })),
+      .map(exam => ({ id: 'new:' + exam.exam_id, isNew: true, label: (exam.exam || exam.exam_id) + ' · ' + uiText('begin') })),
   ];
 }
 

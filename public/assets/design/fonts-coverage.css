@@ -28,7 +28,7 @@
   --font:"Source Sans","Noto Sans",system-ui,sans-serif;
 }
 
-/* Explanation text follows the learner's language; the shell stays German and LTR.
+/* Interface and explanation text follow their declared language.
    `[lang=ar]` swaps in the Arabic face and its own line height — segment extents differ from the
    Latin faces. `dir`/`dir=rtl` on the text element is set by the client, not here: no check in this
    repository proves shaping or bidirectional layout, and a CSS rule cannot. */
@@ -36,3 +36,9 @@
 [lang=tr]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
 [lang=ar]{font-family:"Noto Sans Arabic","Segoe UI","Geeza Pro",system-ui,sans-serif;line-height:1.75}
 [lang=ar] .num{font-family:"Noto Sans Arabic",system-ui,sans-serif}
+
+/* Keep heading/control fonts script-capable throughout an Arabic or Ukrainian interface. */
+:root:lang(ar){--display:"Noto Sans Arabic","Segoe UI",system-ui,sans-serif;--font:"Noto Sans Arabic","Segoe UI",system-ui,sans-serif}
+:root:lang(uk){--display:"Noto Sans",system-ui,sans-serif;--font:"Source Sans","Noto Sans",system-ui,sans-serif}
+:root:lang(ar) [lang=de],:root:lang(ar) [lang=en],:root:lang(ar) [lang=tr]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
+:root:lang(ar) [lang=de] .num,:root:lang(ar) [lang=en] .num,:root:lang(ar) [lang=tr] .num{font-family:"Bricolage Grotesque","Noto Sans",system-ui,sans-serif}

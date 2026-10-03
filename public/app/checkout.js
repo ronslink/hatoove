@@ -1,3 +1,5 @@
+import { formatDate } from '../assets/i18n/core.js';
+import { s as uiText, messageMarkup, setShellHTML, updateShellMessages } from './locale-preference.js';
 /** Account-owned checkout: prices, payment status and balances come from the API. */
 const UUID_SOURCE = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 const UUID = new RegExp('^' + UUID_SOURCE + '$', 'i');
@@ -33,17 +35,17 @@ export function checkoutRedirect(raw, orderId, origin) {
   return raw;
 }
 export function checkoutError(response, operation = 'read') {
-  if (response?.status === 401 || ['account_changed', 'stale_session'].includes(response?.error)) return 'Bitte melde dich erneut an, um den Bestellstand zu prüfen.';
+  if (response?.status === 401 || ['account_changed', 'stale_session'].includes(response?.error)) return uiText("m213");
   const messages = {
-    checkout_pending: 'Für diese Prüfung ist bereits eine Bestellung offen. Schließe sie zuerst ab oder prüfe ihren Stand. Beginne keine weitere Zahlung.',
-    checkout_expired: 'Diese Zahlungsseite ist abgelaufen. Der Bestellstand bleibt gespeichert. Eine neue Zahlung kann hier derzeit nicht begonnen werden.',
-    event_conflict: 'Diese Anfrage passt nicht mehr zur gespeicherten Bestellung. Prüfe den Bestellstand, bevor du erneut zahlst.',
-    already_entitled: 'Für diese Prüfung ist bereits Guthaben verfügbar. Lade das Angebot erneut.',
-    payments_unavailable: 'Das Freischalten eines Passes ist zurzeit nicht verfügbar.',
+    checkout_pending: uiText("m214"),
+    checkout_expired: uiText("m215"),
+    event_conflict: uiText("m216"),
+    already_entitled: uiText("m217"),
+    payments_unavailable: uiText("m218"),
   };
   if (messages[response?.error]) return messages[response.error];
-  if (operation === 'start') return 'Die Zahlungsseite konnte nicht bestätigt werden. Der Bestellstand ist unklar. Wiederhole dieselbe Anfrage, bevor du eine weitere Zahlung beginnst.';
-  return response?.status === 404 ? 'Diese Bestellung oder dieses Angebot ist nicht verfügbar.' : 'Der Stand konnte nicht geladen werden. Bitte versuche es erneut.';
+  if (operation === 'start') return uiText("m219");
+  return response?.status === 404 ? uiText("m220") : uiText("m221");
 }
 
 /** Pure transport boundary: an obsolete response cannot navigate or replace another context. */
@@ -93,14 +95,14 @@ export function createCheckoutState({ api, changed = () => {}, eventId = () => c
     if (UUID.test(value?.orderId || '')) s.orderId = value.orderId;
     if (s.orderId && value?.testMode === true && ['paid', 'failed', 'refunded', 'disputed'].includes(value.status)) return checkOrder();
     const destination = value?.testMode === true ? checkoutRedirect(value.checkoutUrl, value.orderId, origin()) : null;
-    if (!destination) { s.error = 'Die Zahlungsseite konnte nicht sicher geöffnet werden. Prüfe den Bestellstand, bevor du erneut zahlst.'; s.mode = 'error'; s.retry = s.orderId ? 'order' : 'start'; publish(); return false; }
+    if (!destination) { s.error = uiText("m222"); s.mode = 'error'; s.retry = s.orderId ? 'order' : 'start'; publish(); return false; }
     s.busy = true;
     let saved = false;
     try { saved = await beforeRedirect(); } catch { /* Preserve the pending order and the draft. */ }
     if (!current(s, ticket)) return false;
     s.busy = false;
     if (!canContinue()) { fail(s, null, 'start'); return false; }
-    if (!saved) { s.error = 'Dein Entwurf konnte noch nicht gespeichert werden. Die Weiterleitung wurde angehalten. Speichere deinen Text und versuche es erneut.'; s.mode = 'error'; s.retry = 'start'; publish(); return false; }
+    if (!saved) { s.error = uiText("m223"); s.mode = 'error'; s.retry = 'start'; publish(); return false; }
     navigate(destination); return true;
   }
   async function checkOrder(automatic = false) {
@@ -131,37 +133,35 @@ export function createCheckoutState({ api, changed = () => {}, eventId = () => c
 }
 
 const whole = value => Number.isInteger(value) && value >= 0 ? value : null;
-const date = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleDateString('de-DE') : null;
+const date = value => value && Number.isFinite(Date.parse(value)) ? formatDate(value) : null;
 export function checkoutBalance(entry, esc) {
   if (!entry) return '';
   const allowance = whole(entry.allowance), used = whole(entry.used), reserved = whole(entry.reserved);
   const expired = Boolean(date(entry.expiresAt) && Date.parse(entry.expiresAt) <= Date.now());
   const available = expired ? 0 : [allowance, used, reserved].every(value => value !== null) ? Math.max(0, allowance - used - reserved) : null;
-  const expiry = entry.expiresAt === null ? 'Ohne festes Ablaufdatum.' : date(entry.expiresAt) ? (expired ? 'Abgelaufen am ' : 'Gültig bis ') + date(entry.expiresAt) + '.' : 'Gültigkeit derzeit unbekannt.';
-  return '<dl class="checkout-balance">' + [['freigeschaltet', allowance], ['verwendet', used], ['reserviert', reserved], ['verfügbar', available]].map(([label, value]) => '<div><dt>' + label + '</dt><dd>' + esc(value ?? 'unbekannt') + '</dd></div>').join('') + '</dl><p class="small muted">' + esc(expiry) + '</p>';
+  const expiry = entry.expiresAt === null ? messageMarkup('m224') : date(entry.expiresAt) ? messageMarkup(expired ? 'm225' : 'm030') + ' ' + esc(date(entry.expiresAt)) : messageMarkup('m226');
+  return '<dl class="checkout-balance">' + [['unlocked', allowance], ['used', used], ['reserved', reserved], ['m227', available]].map(([key, value]) => '<div><dt>' + messageMarkup(key) + '</dt><dd>' + (value === null ? messageMarkup('unknown') : esc(value)) + '</dd></div>').join('') + '</dl><p class="small muted">' + expiry + '</p>';
 }
-export function checkoutMarkup(s, esc) {
-  const button = (id, label, primary = false) => `<button type="button" class="btn${primary ? ' btn-primary' : ''}" id="${id}"${s.busy ? ' disabled' : ''}>${label}</button>`;
-  const heading = (title, body) => '<h3 id="checkout-title" tabindex="-1">' + title + '</h3>' + body;
-  const refresh = button('checkout-refresh', s.orderId ? 'Stand erneut prüfen' : 'Angebot erneut laden');
+export function checkoutMarkup(state, esc) {
+  const m = messageMarkup;
+  const button = (id, key, primary = false) => '<button type="button" class="btn' + (primary ? ' btn-primary' : '') + '" id="' + id + '"' + (state.busy ? ' disabled' : '') + '>' + m(key) + '</button>';
+  const heading = (key, body, params = {}) => '<h3 id="checkout-title" tabindex="-1">' + m(key, params) + '</h3>' + body;
+  const refresh = button('checkout-refresh', state.orderId ? 'm228' : 'm229');
+  const descriptions = { loading:['m230','m231'],market:['m232','m233'],starting:['m238','m239'],failed:['m250','m251'],unavailable:['m252','m253'],missing:['m254','m255'],no_exam:['m159','m256'],invalid:['m257','m258'] };
   let body = '';
-  if (s.mode === 'loading') body = heading('Wird geladen …', '<p>Der aktuelle Stand wird geladen.</p>');
-  else if (s.mode === 'market') body = heading('Land für deinen Kauf wählen', '<p>Wähle das Land, in dem du den Pass kaufen möchtest.</p>');
-  else if (s.mode === 'ready') body = heading('Pass für ' + esc(s.examLabel), `<dl class="checkout-offer"><div><dt>Preis</dt><dd class="checkout-price">${esc(s.offer.displayPrice)}</dd></div><div><dt>Laufzeit</dt><dd>${esc(s.offer.termDays)} Tage</dd></div><div><dt>Enthalten</dt><dd>${esc(s.offer.allowance)} Schreib-Rückmeldungen</dd></div></dl><div class="row">${button('checkout-buy', 'Testzahlung fortsetzen', true)}${refresh}</div>`);
-  else if (s.mode === 'existing') body = heading('Dein Pass ist noch gültig', '<p>Für diese Prüfung ist bereits Guthaben verfügbar. Ein weiterer Kauf ist derzeit nicht nötig.</p>' + checkoutBalance(s.offer.existing, esc) + refresh);
-  else if (s.mode === 'starting') body = heading('Zahlungsseite wird vorbereitet', '<p>Bitte warte auf die Weiterleitung.</p>');
-  else if (s.mode === 'pending') body = heading('Zahlung wird geprüft', '<p>Die Zahlung ist noch nicht bestätigt. Bitte beginne keine weitere Zahlung für diese Prüfung.</p>' + refresh + '<p id="checkout-note" class="small muted">' + (s.autoChecks >= 5 ? 'Prüfe den Stand bei Bedarf erneut.' : 'Der Stand wird noch einige Male automatisch geprüft.') + '</p>');
-  else if (s.mode === 'paid') body = heading('Pass freigeschaltet', '<p>Die Zahlung wurde bestätigt. Dein Guthaben ist gespeichert.</p>' + checkoutBalance(s.order.entitlement, esc) + refresh);
-  else if (s.mode === 'refunded') body = heading('Zahlung zurückerstattet', '<p>Für diese Bestellung wurde eine Rückerstattung gemeldet.</p>' + checkoutBalance(s.order.entitlement, esc) + refresh);
-  else if (s.mode === 'disputed') body = heading('Zahlung wird geklärt', '<p>Zu dieser Bestellung wurde ein Einspruch gemeldet.</p>' + checkoutBalance(s.order.entitlement, esc) + refresh);
-  else if (s.mode === 'failed') body = heading('Zahlung nicht abgeschlossen', '<p>Diese Bestellung wurde als fehlgeschlagen gemeldet. Deine gespeicherten Übungen und Texte bleiben erhalten.</p>' + refresh);
-  else if (s.mode === 'unavailable') body = heading('Freischalten zurzeit nicht verfügbar', '<p>Bitte versuche es später erneut. Deine gespeicherten Übungen und Texte bleiben erhalten.</p>' + refresh);
-  else if (s.mode === 'missing') body = heading('Zurzeit kein Angebot', '<p>Für diese Prüfung und das gewählte Land ist derzeit kein Angebot verfügbar.</p>' + refresh);
-  else if (s.mode === 'no_exam') body = heading('Keine Prüfung ausgewählt', '<p>Wähle eine Prüfungsvorbereitung, um die verfügbaren Angebote anzusehen.</p>');
-  else if (s.mode === 'invalid') body = heading('Bestelllink nicht gültig', '<p>Dieser Link kann nicht geöffnet werden. Verwende den ursprünglichen Link zu deiner Bestellung.</p>');
-  else body = heading('Stand noch nicht bestätigt', `<p class="err" role="alert">${esc(s.error)}</p><div class="row">${button('checkout-retry', 'Erneut prüfen', true)}${s.orderId && s.retry !== 'order' ? button('checkout-order', 'Bestellstand ansehen') : ''}</div>`);
-  const chooser = !s.orderId && !s.operation && s.markets.length ? '<label class="field-label" for="checkout-market">Land des Kaufs</label><select class="select" id="checkout-market"' + (s.busy ? ' disabled' : '') + '><option value="">Bitte ausdrücklich wählen</option>' + s.markets.map(row => '<option value="' + esc(row.market) + '"' + (s.market === row.market ? ' selected' : '') + '>' + esc(row.market + ' · ' + row.currency) + '</option>').join('') + '</select>' : '';
-  return '<article class="card stack checkout-card" data-checkout-state="' + esc(s.mode) + '" aria-labelledby="checkout-title" aria-busy="' + s.busy + '">' + (s.testMode ? '<p class="chip" id="checkout-test-mode">Testmodus · keine echte Zahlung</p>' : '') + body + chooser + (s.order ? '<p class="small muted checkout-order-reference">Bestellung ' + esc(s.order.id) + ' · ' + esc(s.order.examId) + '</p>' : '') + '</article>';
+  if (descriptions[state.mode]) {
+    const [title, description] = descriptions[state.mode];
+    body = heading(title, '<p>' + m(description) + '</p>' + (['failed','unavailable','missing'].includes(state.mode) ? refresh : ''));
+  } else if (state.mode === 'ready') {
+    body = heading('passFor', '<dl class="checkout-offer"><div><dt>' + m('price') + '</dt><dd class="checkout-price" dir="ltr">' + esc(state.offer.displayPrice) + '</dd></div><div><dt>' + m('term') + '</dt><dd>' + m('daysShort',{count:state.offer.termDays}) + '</dd></div><div><dt>' + m('included') + '</dt><dd>' + m('feedbackCount',{count:state.offer.allowance}) + '</dd></div></dl><div class="row">' + button('checkout-buy','m235',true) + refresh + '</div>', {exam:state.examLabel});
+  } else if (state.mode === 'existing') body = heading('m236','<p>' + m('m237') + '</p>' + checkoutBalance(state.offer.existing,esc) + refresh);
+  else if (state.mode === 'pending') body = heading('m240','<p>' + m('m241') + '</p>' + refresh + '<p id="checkout-note" class="small muted">' + m(state.autoChecks >= 5 ? 'm242' : 'm243') + '</p>');
+  else if (['paid','refunded','disputed'].includes(state.mode)) {
+    const keys = {paid:['m244','m245'],refunded:['m246','m247'],disputed:['m248','m249']}[state.mode];
+    body = heading(keys[0],'<p>' + m(keys[1]) + '</p>' + checkoutBalance(state.order.entitlement,esc) + refresh);
+  } else body = heading('m259','<p class="err" role="alert">' + m(state.error) + '</p><div class="row">' + button('checkout-retry','m260',true) + (state.orderId && state.retry !== 'order' ? button('checkout-order','m261') : '') + '</div>');
+  const chooser = !state.orderId && !state.operation && state.markets.length ? '<label class="field-label" for="checkout-market">' + m('m262') + '</label><select class="select" id="checkout-market"' + (state.busy ? ' disabled' : '') + '><option value="" data-i18n="shell.m263">' + esc(uiText('m263')) + '</option>' + state.markets.map(row => '<option value="' + esc(row.market) + '"' + (state.market === row.market ? ' selected' : '') + '>' + esc(row.market + ' · ' + row.currency) + '</option>').join('') + '</select>' : '';
+  return '<article class="card stack checkout-card" data-checkout-state="' + esc(state.mode) + '" aria-labelledby="checkout-title" aria-busy="' + state.busy + '">' + (state.testMode ? '<p class="chip" id="checkout-test-mode">' + m('m264') + '</p>' : '') + body + chooser + (state.order ? '<p class="small muted checkout-order-reference">' + m('m265') + ' <bdi>' + esc(state.order.id) + ' · ' + esc(state.order.examId) + '</bdi></p>' : '') + '</article>';
 }
 
 export function createCheckoutController({ api, esc, onChange = () => {}, beforeRedirect, canContinue = () => true }) {
@@ -174,7 +174,7 @@ export function createCheckoutController({ api, esc, onChange = () => {}, before
     // Replacement can leave focus on the document. A deliberate move to another live control
     // cancels the pending restoration, including while an offer request is still in flight.
     else if (active?.isConnected && active !== document.body && active !== document.documentElement && active !== document) restoreFocus = null;
-    host.dataset.state = state.mode; host.innerHTML = checkoutMarkup(state, esc);
+    host.dataset.state = state.mode; setShellHTML(host, checkoutMarkup(state, esc));
     const bind = (id, action) => { const node = host.querySelector('#' + id); if (node) node.onclick = action; };
     bind('checkout-buy', () => void session.start()); bind('checkout-refresh', () => void (state.orderId ? session.checkOrder() : session.loadOffer()));
     bind('checkout-retry', () => void session.retry()); bind('checkout-order', () => void session.checkOrder());
@@ -184,6 +184,7 @@ export function createCheckoutController({ api, esc, onChange = () => {}, before
   return {
     async open(target, options) { if (host && host !== target) { host.replaceChildren(); host.hidden = true; } host = target; host.hidden = false; return session.open(options); },
     dispose() { session.dispose(); if (host) { host.replaceChildren(); host.hidden = true; } host = null; restoreFocus = null; },
+    updateLocale() { if (host?.isConnected) updateShellMessages(host); },
     get active() { return session.snapshot(); },
   };
 }

@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="/assets/design/hatoove-mark.svg">
 <link rel="stylesheet" href="/assets/design/hatoove.css">
 <link rel="stylesheet" href="/assets/design/fonts-coverage.css">
+<link rel="stylesheet" href="/assets/i18n/common.css">
 <link rel="stylesheet" href="/app/app.css">
 <!--
   The Hatoove app shell (PILOT-08).
@@ -15,26 +16,26 @@
   and the reference screens use. It holds no learner state of its own: everything on screen comes
   from the server through the owned API, and a fresh browser recovers by signing in again.
 
-  German chrome, per the recorded decision. Only EXPLANATION text follows the learner's language,
-  and exam material never does.
+  The selected interface language changes labels and operational guidance. Exam material
+  remains in its original language; stored explanation snapshots remain immutable.
 -->
 </head>
 <body>
 
-<a class="skip" href="#main">Zum Inhalt springen</a>
+<a class="skip" href="#main"><span data-i18n="shell.m298">Zum Inhalt springen</span></a>
 
 <section id="boot-state" class="card boot-card" role="status" aria-live="polite">
-  <h1>Hatoove wird geladen</h1>
-  <p id="boot-message">Dein Konto und deine Einstellungen werden geladen …</p>
-  <button id="boot-retry" type="button" class="btn btn-primary" hidden>Erneut versuchen</button>
-  <a id="boot-signin" class="btn" href="/signin" hidden>Erneut anmelden</a>
+  <h1><span data-i18n="shell.m299">Hatoove wird geladen</span></h1>
+  <p id="boot-message"><span data-i18n="shell.m300">Dein Konto und deine Einstellungen werden geladen …</span></p>
+  <button id="boot-retry" type="button" class="btn btn-primary" hidden><span data-i18n="shell.m301">Erneut versuchen</span></button>
+  <a id="boot-signin" class="btn" href="/signin" hidden><span data-i18n="shell.m020">Erneut anmelden</span></a>
   <div id="boot-choices" class="stack" hidden></div>
   <div id="checkout-boot-host" class="stack" role="status" aria-live="polite" hidden></div>
 </section>
 
 <div class="app" id="app-shell" hidden inert aria-busy="true">
-  <aside class="side" aria-label="Hauptnavigation">
-    <a class="logo" href="#/heute" aria-label="Hatoove – Startseite">
+  <aside class="side" aria-label="Hauptnavigation" data-i18n-aria-label="shell.m380">
+    <a class="logo" href="#/heute" aria-label="Hatoove – Startseite" data-i18n-aria-label="shell.m381">
       <!--
         THE LOGO HAS A DARK-MODE COUNTERPART, and the pinned stylesheet does not swap it: `.side .logo img`
         has one rule and no `filter` and no dark-theme override. On the dark surface the ink logo is all but
@@ -49,32 +50,32 @@
     </a>
 
     <div class="exam-pill">
-      <strong id="sidebar-exam">Prüfung wird geladen</strong>
-      <span id="exam-countdown">Kein Prüfungsdatum gesetzt</span>
+      <strong id="sidebar-exam"><span data-i18n="shell.m302">Prüfung wird geladen</span></strong>
+      <span id="exam-countdown"><span data-i18n="shell.m054">Kein Prüfungsdatum gesetzt</span></span>
     </div>
 
-    <nav class="nav" aria-label="App">
-      <a href="#/satzbau" data-view="satzbau"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h11M4 18h16"/></svg><span>Satzbau</span></a>
-      <a href="#/heute" data-view="heute"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg><span>Heute</span></a>
-      <a href="#/fortschritt" data-view="fortschritt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>Fortschritt</span></a>
-      <a href="#/fehler" data-view="fehler"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Fehler</span><span class="count" id="mistake-count" hidden>0</span></a>
-      <a href="#/abschnitt" data-view="abschnitt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Prüfungsläufe</span></a>
-      <p class="kicker nav-label">Lernen</p>
-      <a href="#/lesen" data-view="lesen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span>Leseverstehen</span></a>
-      <a href="#/sprachbausteine" data-view="sprachbausteine"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg><span>Sprachbausteine</span></a>
-      <a href="#/hoeren" data-view="hoeren"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span>Hörverstehen</span></a>
-      <a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 21h8"/><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></svg><span>Schreiben</span></a>
-      <a href="#/woerterbuch" data-view="woerterbuch"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg><span>Wörterbuch</span></a>
-      <a href="#/nachschlagen" data-view="nachschlagen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 21h8"/><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></svg><span>Nachschlagen</span></a>
-      <p class="kicker nav-label">Konto</p>
-      <a href="#/einstellungen" data-view="einstellungen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Einstellungen</span></a>
+    <nav class="nav" aria-label="App" data-i18n-aria-label="shell.m382">
+      <a href="#/satzbau" data-view="satzbau"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h11M4 18h16"/></svg><span><span data-i18n="shell.m303">Satzbau</span></span></a>
+      <a href="#/heute" data-view="heute"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg><span><span data-i18n="shell.m007">Heute</span></span></a>
+      <a href="#/fortschritt" data-view="fortschritt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span><span data-i18n="shell.m012">Fortschritt</span></span></a>
+      <a href="#/fehler" data-view="fehler"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span><span data-i18n="shell.m011">Fehler</span></span><span class="count" id="mistake-count" hidden>0</span></a>
+      <a href="#/abschnitt" data-view="abschnitt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span><span data-i18n="shell.m304">Prüfungsläufe</span></span></a>
+      <p class="kicker nav-label"><span data-i18n="shell.m305">Lernen</span></p>
+      <a href="#/lesen" data-view="lesen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span><span data-i18n="shell.m002">Leseverstehen</span></span></a>
+      <a href="#/sprachbausteine" data-view="sprachbausteine"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg><span><span data-i18n="shell.m003">Sprachbausteine</span></span></a>
+      <a href="#/hoeren" data-view="hoeren"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span><span data-i18n="shell.m004">Hörverstehen</span></span></a>
+      <a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 21h8"/><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></svg><span><span data-i18n="shell.m005">Schreiben</span></span></a>
+      <a href="#/woerterbuch" data-view="woerterbuch"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg><span><span data-i18n="shell.m009">Wörterbuch</span></span></a>
+      <a href="#/nachschlagen" data-view="nachschlagen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 21h8"/><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></svg><span><span data-i18n="shell.m010">Nachschlagen</span></span></a>
+      <p class="kicker nav-label"><span data-i18n="shell.m306">Konto</span></p>
+      <a href="#/einstellungen" data-view="einstellungen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span><span data-i18n="shell.m013">Einstellungen</span></span></a>
     </nav>
 
     <div class="side-foot">
       <span class="avatar" id="avatar" aria-hidden="true">–</span>
       <div>
-        <strong id="account-email">–</strong>
-        <span id="account-exam">Kein Prüfungsdatum</span>
+        <strong id="account-email" dir="ltr">–</strong>
+        <span id="account-exam"><span data-i18n="shell.m053">Kein Prüfungsdatum</span></span>
       </div>
     </div>
   </aside>
@@ -90,34 +91,37 @@
       </div>
       <!-- The design puts the CURRENT VIEW and the date in crumbs, not a bare page title. The <b> keeps
            the id app.js already writes to, so route() does not have to change to stay conformant. -->
-      <p class="crumbs"><b id="page-title">Heute</b> · <span id="crumb-date">–</span></p>
+      <p class="crumbs"><b id="page-title"><span data-i18n="shell.m007">Heute</span></b> · <span id="crumb-date">–</span></p>
       <div class="top-actions">
-        <!-- The explanation language is chosen in Einstellungen, so this control GOES there. As a bare
-             <button> it promised an action in its tooltip and did nothing when clicked. -->
-        <a class="lang-btn" id="lang-btn" href="#/einstellungen" title="Erklärungssprache in den Einstellungen ändern">
-          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20"/></svg><span id="lang-label">Erklärungen: Deutsch</span>
-        </a>
-        <a class="icon-btn" href="#/einstellungen" aria-label="Einstellungen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
-        <button type="button" class="btn btn-ghost" id="signout">Abmelden</button>
+        <!-- This preference is confirmed by the account API before the interface changes. -->
+        <div class="locale-control">
+          <label id="lang-label" for="header-language" data-i18n="shell.locale">Sprache</label>
+          <select class="select" id="header-language" aria-describedby="locale-state">
+            <option value="de" lang="de" dir="ltr">Deutsch</option><option value="en" lang="en" dir="ltr">English</option><option value="uk" lang="uk" dir="ltr">Українська</option><option value="ar" lang="ar" dir="rtl">العربية</option><option value="tr" lang="tr" dir="ltr">Türkçe</option>
+          </select>
+        </div>
+        <a class="icon-btn" href="#/einstellungen" aria-label="Einstellungen" data-i18n-aria-label="shell.m013"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
+        <button type="button" class="btn btn-ghost" id="signout"><span data-i18n="shell.m308">Abmelden</span></button>
       </div>
+      <div class="locale-feedback"><p id="locale-state" class="small muted" role="status" aria-live="polite"></p><button class="btn btn-small" id="locale-reload" type="button" hidden data-i18n="shell.m186">Aktuelle Werte laden</button></div>
     </header>
 
     <main class="content" id="main">
-      <section class="card preparation-context" aria-label="Deine Prüfungsvorbereitung">
-        <div class="spread preparation-heading"><div><p class="kicker">Deine Vorbereitung</p><strong id="preparation-exam">Prüfung wird geladen</strong><p class="small muted" id="preparation-scope">Einzelne Abschnitte üben</p></div><div class="row"><a class="btn btn-primary" id="preparation-start" href="#/ueben">Abschnitt üben</a><a class="btn" id="preparation-continue" href="#/fortschritt">Gespeicherte Texte fortsetzen</a></div></div>
-        <div class="field" id="preparation-choice" hidden><label for="preparation-picker">Vorbereitung auswählen</label><select class="select" id="preparation-picker"></select></div>
+      <section class="card preparation-context" aria-label="Deine Prüfungsvorbereitung" data-i18n-aria-label="shell.m384">
+        <div class="spread preparation-heading"><div><p class="kicker"><span data-i18n="shell.m309">Deine Vorbereitung</span></p><strong id="preparation-exam"><span data-i18n="shell.m302">Prüfung wird geladen</span></strong><p class="small muted" id="preparation-scope"><span data-i18n="shell.m310">Einzelne Abschnitte üben</span></p></div><div class="row"><a class="btn btn-primary" id="preparation-start" href="#/ueben"><span data-i18n="shell.m311">Abschnitt üben</span></a><a class="btn" id="preparation-continue" href="#/fortschritt"><span data-i18n="shell.m312">Gespeicherte Texte fortsetzen</span></a></div></div>
+        <div class="field" id="preparation-choice" hidden><label for="preparation-picker"><span data-i18n="shell.m313">Vorbereitung auswählen</span></label><select class="select" id="preparation-picker"></select></div>
         <p class="small muted" id="preparation-state" role="status" aria-live="polite"></p>
-        <div class="row"><p class="small muted" id="preparation-credits" role="status">Guthaben wird geladen …</p><button class="btn btn-small" id="credits-retry" type="button" hidden>Guthaben erneut laden</button></div>
+        <div class="row"><p class="small muted" id="preparation-credits" role="status"><span data-i18n="shell.m025">Guthaben wird geladen …</span></p><button class="btn btn-small" id="credits-retry" type="button" hidden><span data-i18n="shell.m314">Guthaben erneut laden</span></button></div>
       </section>
 
       <!-- Heute -->
       <section class="view" id="view-heute">
         <div class="page-head">
           <div>
-            <p class="kicker" id="dash-kicker">Willkommen</p>
-            <h1 id="greeting">Noch keine Antworten &mdash; fang mit einer kurzen Aufgabe an.</h1>
-            <p id="countdown-note">Dein Überblick. Alle Angaben kommen aus deinem Konto und aus deinen
-              eigenen Antworten, nicht aus einer Schätzung.</p>
+            <p class="kicker" id="dash-kicker"><span data-i18n="shell.m044">Willkommen</span></p>
+            <h1 id="greeting"><span data-i18n="shell.m315">Noch keine Antworten &mdash; fang mit einer kurzen Aufgabe an.</span></h1>
+            <p id="countdown-note"><span data-i18n="shell.m316">Dein Überblick. Alle Angaben kommen aus deinem Konto und aus deinen
+              eigenen Antworten, nicht aus einer Schätzung.</span></p>
           </div>
         </div>
 
@@ -125,50 +129,50 @@
           <div class="stack">
             <section class="card-peach hero-next" aria-labelledby="next-title">
               <div class="stack">
-                <p class="kicker" id="next-kicker" style="color:var(--orange-dark)">Als Nächstes</p>
-                <h2 id="next-title">Wird geladen &hellip;</h2>
+                <p class="kicker" id="next-kicker" style="color:var(--orange-dark)"><span data-i18n="shell.m105">Als Nächstes</span></p>
+                <h2 id="next-title"><span data-i18n="shell.m317">Wird geladen &hellip;</span></h2>
                 <p class="muted" id="next-detail"></p>
               </div>
-              <a class="btn btn-primary" href="#/ueben">Üben</a>
+              <a class="btn btn-primary" href="#/ueben"><span data-i18n="shell.m008">Üben</span></a>
             </section>
 
             <section class="card" aria-labelledby="stand-title">
               <div class="card-head">
-                <h2 id="stand-title">Dein Stand</h2>
-                <a class="link small" href="#/fortschritt">Details</a>
+                <h2 id="stand-title"><span data-i18n="shell.m318">Dein Stand</span></h2>
+                <a class="link small" href="#/fortschritt"><span data-i18n="shell.m319">Details</span></a>
               </div>
               <div class="gauge">
-                <div class="gauge-top"><span>Beantwortete Aufgaben</span><span><b id="gauge-count">0</b></span></div>
+                <div class="gauge-top"><span><span data-i18n="shell.m320">Beantwortete Aufgaben</span></span><span><b id="gauge-count">0</b></span></div>
                 <div class="bar"><i id="gauge-bar" style="width:0%"></i></div>
-                <div class="gauge-foot"><span id="gauge-foot">Noch keine Antworten</span><span id="gauge-acc">&ndash;</span></div>
+                <div class="gauge-foot"><span id="gauge-foot"><span data-i18n="shell.m114">Noch keine Antworten</span></span><span id="gauge-acc">&ndash;</span></div>
               </div>
               <div class="parts" id="parts"></div>
               <p class="hint">
                 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                Das ist deine Übungsbilanz, kein Prüfungsergebnis. Eine Note oder eine
-                Bestehensprognose gibt es hier bewusst nicht.
+                <span data-i18n="shell.m321">Das ist deine Übungsbilanz, kein Prüfungsergebnis. Eine Note oder eine
+                Bestehensprognose gibt es hier bewusst nicht.</span>
               </p>
             </section>
           </div>
 
           <div class="stack">
             <section class="card" aria-labelledby="exam-title">
-              <div class="card-head"><h2 id="exam-title">Nächste Prüfung</h2></div>
-              <p id="countdown">Kein Prüfungsdatum gesetzt</p>
-              <p class="small muted">Trage dein Prüfungsdatum in den Einstellungen ein, damit der
-                Countdown läuft.</p>
+              <div class="card-head"><h2 id="exam-title"><span data-i18n="shell.m322">Nächste Prüfung</span></h2></div>
+              <p id="countdown"><span data-i18n="shell.m054">Kein Prüfungsdatum gesetzt</span></p>
+              <p class="small muted"><span data-i18n="shell.m055">Trage dein Prüfungsdatum in den Einstellungen ein, damit der
+                Countdown läuft.</span></p>
             </section>
 
             <section class="card" aria-labelledby="stats-title">
-              <div class="card-head"><h2 id="stats-title">Deine Antworten</h2></div>
+              <div class="card-head"><h2 id="stats-title"><span data-i18n="shell.m323">Deine Antworten</span></h2></div>
               <!-- `.stat-row` is the design's three-across tile row (hatoove.css); `.parts` is a
                    one-column grid and stacked the tiles full width. -->
               <div class="stat-row">
                 <div class="stat"><span class="num" id="stat-answers">0</span><span>beantwortet</span></div>
-                <div class="stat"><span class="num" id="stat-correct">0</span><span>richtig</span></div>
+                <div class="stat"><span class="num" id="stat-correct">0</span><span><span data-i18n="shell.m104">richtig</span></span></div>
               </div>
-              <p class="small muted">Gezählt aus deinen eigenen Antworten. Jede zählt, auch eine
-                Korrektur.</p>
+              <p class="small muted"><span data-i18n="shell.m324">Gezählt aus deinen eigenen Antworten. Jede zählt, auch eine
+                Korrektur.</span></p>
             </section>
           </div>
         </div>
@@ -179,13 +183,13 @@
       <section class="view" id="view-ueben" hidden>
         <div class="page-head">
           <div>
-            <h2>Üben</h2>
-            <p>Eine Aufgabe auswählen und Schritt für Schritt üben.</p>
+            <h2><span data-i18n="shell.m008">Üben</span></h2>
+            <p><span data-i18n="shell.m325">Eine Aufgabe auswählen und Schritt für Schritt üben.</span></p>
           </div>
         </div>
-        <a class="card-peach more-link" href="#/abschnitt"><strong>Einen Leseabschnitt zusammenhängend üben</strong><span>Gespeicherte Antworten · Fortsetzen möglich · Rückmeldung am Ende</span></a>
+        <a class="card-peach more-link" href="#/abschnitt"><strong><span data-i18n="shell.m326">Einen Leseabschnitt zusammenhängend üben</span></strong><span><span data-i18n="shell.m327">Gespeicherte Antworten · Fortsetzen möglich · Rückmeldung am Ende</span></span></a>
         <div class="stack" id="practice-next"></div>
-        <div class="stack" id="task-list"><div class="card"><h3>Wird geladen ...</h3></div></div>
+        <div class="stack" id="task-list"><div class="card"><h3><span data-i18n="shell.m057">Wird geladen ...</span></h3></div></div>
       </section>
 
       <section class="view" id="view-abschnitt" hidden><div id="mock-host" class="stack"></div></section>
@@ -194,12 +198,12 @@
       <section class="view" id="view-lesen" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker">Üben</p>
-            <h1>Leseverstehen</h1>
-            <p>Anzeigen, Briefe und Texte lesen und das Passende zuordnen.</p>
+            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <h1><span data-i18n="shell.m002">Leseverstehen</span></h1>
+            <p><span data-i18n="shell.m328">Anzeigen, Briefe und Texte lesen und das Passende zuordnen.</span></p>
           </div>
         </div>
-        <div class="stack" id="skill-lesen"><div class="card"><h3>Wird geladen &hellip;</h3></div></div>
+        <div class="stack" id="skill-lesen"><div class="card"><h3><span data-i18n="shell.m317">Wird geladen &hellip;</span></h3></div></div>
         <!--
           The practice host is a SIBLING of the list, never a child of it. `renderSkill()` assigns the
           list's innerHTML, which deleted a nested host — so `openSet()` found nothing, returned
@@ -213,12 +217,12 @@
       <section class="view" id="view-sprachbausteine" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker">Üben</p>
-            <h1>Sprachbausteine</h1>
-            <p>Lücken in einem Brief füllen: Konnektoren, Präpositionen, Verbformen.</p>
+            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <h1><span data-i18n="shell.m003">Sprachbausteine</span></h1>
+            <p><span data-i18n="shell.m329">Lücken in einem Brief füllen: Konnektoren, Präpositionen, Verbformen.</span></p>
           </div>
         </div>
-        <div class="stack" id="skill-sprachbausteine"><div class="card"><h3>Wird geladen &hellip;</h3></div></div>
+        <div class="stack" id="skill-sprachbausteine"><div class="card"><h3><span data-i18n="shell.m317">Wird geladen &hellip;</span></h3></div></div>
         <div class="stack skill-practice" hidden></div>
       </section>
 
@@ -226,12 +230,12 @@
       <section class="view" id="view-hoeren" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker">Üben</p>
-            <h1>Hörverstehen</h1>
-            <p>Höre feste Aufnahmen in einem gespeicherten Lauf. Dein Hörstand und deine Antworten bleiben diesem Lauf zugeordnet.</p>
+            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <h1><span data-i18n="shell.m004">Hörverstehen</span></h1>
+            <p><span data-i18n="shell.m330">Höre feste Aufnahmen in einem gespeicherten Lauf. Dein Hörstand und deine Antworten bleiben diesem Lauf zugeordnet.</span></p>
           </div>
         </div>
-        <div class="stack" id="skill-hoeren"><div class="card"><h3>Wird geladen &hellip;</h3></div></div>
+        <div class="stack" id="skill-hoeren"><div class="card"><h3><span data-i18n="shell.m317">Wird geladen &hellip;</span></h3></div></div>
         <div class="stack skill-practice" hidden></div>
       </section>
 
@@ -239,12 +243,12 @@
       <section class="view" id="view-schreiben" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker">Üben</p>
-            <h1>Schreiben</h1>
-            <p>Briefe schreiben mit serverseitiger Rückmeldung.</p>
+            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <h1><span data-i18n="shell.m005">Schreiben</span></h1>
+            <p><span data-i18n="shell.m331">Briefe schreiben mit serverseitiger Rückmeldung.</span></p>
           </div>
         </div>
-        <div class="stack" id="skill-schreiben"><div class="card"><h3>Wird geladen &hellip;</h3></div></div>
+        <div class="stack" id="skill-schreiben"><div class="card"><h3><span data-i18n="shell.m317">Wird geladen &hellip;</span></h3></div></div>
         <div class="stack skill-practice" hidden></div>
       </section>
 
@@ -252,20 +256,20 @@
       <section class="view" id="view-fehler" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker">Wiederholen</p>
-            <h1 id="mistake-heading">Deine offenen Fehler</h1>
-            <p id="mistake-note">Aufgaben, die du zuletzt falsch beantwortet hast. Sobald du eine
-              richtig hast, verschwindet sie hier von selbst.</p>
+            <p class="kicker"><span data-i18n="shell.m332">Wiederholen</span></p>
+            <h1 id="mistake-heading"><span data-i18n="shell.m118">Deine offenen Fehler</span></h1>
+            <p id="mistake-note"><span data-i18n="shell.m120">Aufgaben, die du zuletzt falsch beantwortet hast. Sobald du eine
+              richtig hast, verschwindet sie hier von selbst.</span></p>
           </div>
         </div>
         <div class="stack">
           <section class="card-peach stack">
-            <p class="kicker" style="color:var(--orange-dark)">Tipp</p>
-            <h3>Erst wiederholen, dann Neues</h3>
-            <p class="muted">Eine Aufgabe, die du schon kennst, bringt mehr als eine neue, wenn du sie
-              vorher falsch hattest.</p>
+            <p class="kicker" style="color:var(--orange-dark)"><span data-i18n="shell.m333">Tipp</span></p>
+            <h3><span data-i18n="shell.m334">Erst wiederholen, dann Neues</span></h3>
+            <p class="muted"><span data-i18n="shell.m335">Eine Aufgabe, die du schon kennst, bringt mehr als eine neue, wenn du sie
+              vorher falsch hattest.</span></p>
           </section>
-          <div class="stack" id="mistake-list"><div class="card"><h3>Wird geladen &hellip;</h3></div></div>
+          <div class="stack" id="mistake-list"><div class="card"><h3><span data-i18n="shell.m317">Wird geladen &hellip;</span></h3></div></div>
         </div>
       </section>
 
@@ -273,51 +277,51 @@
       <section class="view" id="view-woerterbuch" hidden>
         <div class="page-head">
           <div>
-            <h2>Wörterbuch</h2>
-            <p>Wörter, Artikel und Beispiele zum Nachschlagen. Englische Übersetzungen sind bei Erklärungssprache Englisch sichtbar.</p>
+            <h2><span data-i18n="shell.m009">Wörterbuch</span></h2>
+            <p><span data-i18n="shell.m336">Wörter, Artikel und Beispiele zum Nachschlagen. Englische Übersetzungen sind bei Erklärungssprache Englisch sichtbar.</span></p>
           </div>
         </div>
         <div class="card">
-          <label for="dict-q">Suche</label>
-          <input class="input" id="dict-q" type="search" placeholder="Deutsch oder Englisch, mindestens zwei Buchstaben" autocomplete="off">
+          <label for="dict-q"><span data-i18n="shell.m337">Suche</span></label>
+          <input class="input" id="dict-q" type="search" placeholder="Deutsch oder Englisch, mindestens zwei Buchstaben" data-i18n-placeholder="shell.m385" autocomplete="off">
           <div class="row" style="margin-top:.75rem">
-            <button class="btn" id="dict-mode-vocab" type="button">Wortschatz</button>
-            <button class="btn" id="dict-mode-nouns" type="button">Nomen</button>
+            <button class="btn" id="dict-mode-vocab" type="button"><span data-i18n="shell.m338">Wortschatz</span></button>
+            <button class="btn" id="dict-mode-nouns" type="button"><span data-i18n="shell.m339">Nomen</span></button>
           </div>
         </div>
-        <div class="stack" id="dict-results"><div class="card"><h3>Wird geladen ...</h3></div></div>
+        <div class="stack" id="dict-results"><div class="card"><h3><span data-i18n="shell.m057">Wird geladen ...</span></h3></div></div>
       </section>
 
       <!-- Nachschlagen -->
       <section class="view" id="view-nachschlagen" hidden>
         <div class="page-head">
           <div>
-            <h2>Nachschlagen</h2>
-            <p>Grammatik, Fälle, Genus, Redemittel und Briefe.</p>
+            <h2><span data-i18n="shell.m010">Nachschlagen</span></h2>
+            <p><span data-i18n="shell.m340">Grammatik, Fälle, Genus, Redemittel und Briefe.</span></p>
           </div>
         </div>
-        <div class="stack" id="guide-index"><div class="card"><h3>Wird geladen ...</h3></div></div>
+        <div class="stack" id="guide-index"><div class="card"><h3><span data-i18n="shell.m057">Wird geladen ...</span></h3></div></div>
         <div class="stack" id="guide-body" hidden></div>
       </section>
 
 <section class="view" id="view-fortschritt" hidden>
-  <div class="page-head"><div><p class="kicker">Dein Lernen</p><h2>Fortschritt und Verlauf</h2><p id="history-summary">Deine gespeicherten Texte und Rückmeldungen.</p></div></div>
+  <div class="page-head"><div><p class="kicker"><span data-i18n="shell.m341">Dein Lernen</span></p><h2><span data-i18n="shell.m342">Fortschritt und Verlauf</span></h2><p id="history-summary"><span data-i18n="shell.m165">Deine gespeicherten Texte und Rückmeldungen.</span></p></div></div>
   <div id="mock-history" class="stack"></div><div id="history-detail" class="stack" hidden></div><div id="history-list" class="stack"></div>
 </section>
 <section class="view" id="view-mehr" hidden>
-  <div class="page-head"><div><h2>Mehr entdecken</h2><p>Alles für deine nächste Übung.</p></div></div>
+  <div class="page-head"><div><h2><span data-i18n="shell.m343">Mehr entdecken</span></h2><p><span data-i18n="shell.m344">Alles für deine nächste Übung.</span></p></div></div>
   <div class="more-grid">
-    <a class="card more-link" href="#/satzbau" data-view="satzbau"><strong>Satzbau erkunden</strong><span>Verbposition und Satzklammer im eigenen Satz untersuchen</span></a>
-    <a class="card more-link" href="#/lesen" data-view="lesen"><strong>Leseverstehen</strong><span>Texte lesen und die passende Antwort finden</span></a>
-    <a class="card more-link" href="#/sprachbausteine" data-view="sprachbausteine"><strong>Sprachbausteine</strong><span>Grammatik und Wortschatz im Kontext</span></a>
-    <a class="card more-link" href="#/hoeren" data-view="hoeren"><strong>Hörverstehen</strong><span>Verfügbare Hörabschnitte und gespeicherte Läufe</span></a>
-    <a class="card more-link" href="#/woerterbuch" data-view="woerterbuch"><strong>Wörterbuch</strong><span>Wörter, Artikel und Beispiele</span></a>
-    <a class="card more-link" href="#/nachschlagen" data-view="nachschlagen"><strong>Nachschlagen</strong><span>Regeln und Redemittel verständlich erklärt</span></a>
-    <a class="card more-link" href="#/fehler" data-view="fehler"><strong>Fehler <span class="count" id="mistake-count-tab" hidden>0</span></strong><span>Offene Fehler noch einmal üben</span></a>
-    <a class="card more-link" href="#/einstellungen" data-view="einstellungen"><strong>Konto und Einstellungen</strong><span>Prüfungsdatum, Sprache und deine Daten</span></a>
+    <a class="card more-link" href="#/satzbau" data-view="satzbau"><strong><span data-i18n="shell.m015">Satzbau erkunden</span></strong><span><span data-i18n="shell.m345">Verbposition und Satzklammer im eigenen Satz untersuchen</span></span></a>
+    <a class="card more-link" href="#/lesen" data-view="lesen"><strong><span data-i18n="shell.m002">Leseverstehen</span></strong><span><span data-i18n="shell.m346">Texte lesen und die passende Antwort finden</span></span></a>
+    <a class="card more-link" href="#/sprachbausteine" data-view="sprachbausteine"><strong><span data-i18n="shell.m003">Sprachbausteine</span></strong><span><span data-i18n="shell.m347">Grammatik und Wortschatz im Kontext</span></span></a>
+    <a class="card more-link" href="#/hoeren" data-view="hoeren"><strong><span data-i18n="shell.m004">Hörverstehen</span></strong><span><span data-i18n="shell.m348">Verfügbare Hörabschnitte und gespeicherte Läufe</span></span></a>
+    <a class="card more-link" href="#/woerterbuch" data-view="woerterbuch"><strong><span data-i18n="shell.m009">Wörterbuch</span></strong><span><span data-i18n="shell.m349">Wörter, Artikel und Beispiele</span></span></a>
+    <a class="card more-link" href="#/nachschlagen" data-view="nachschlagen"><strong><span data-i18n="shell.m010">Nachschlagen</span></strong><span><span data-i18n="shell.m350">Regeln und Redemittel verständlich erklärt</span></span></a>
+    <a class="card more-link" href="#/fehler" data-view="fehler"><strong><span data-i18n="shell.m011">Fehler</span> <span class="count" id="mistake-count-tab" hidden>0</span></strong><span><span data-i18n="shell.m351">Offene Fehler noch einmal üben</span></span></a>
+    <a class="card more-link" href="#/einstellungen" data-view="einstellungen"><strong><span data-i18n="shell.m352">Konto und Einstellungen</span></strong><span><span data-i18n="shell.m353">Prüfungsdatum, Sprache und deine Daten</span></span></a>
     <!-- PAYMENTS-SLICE-01. The pass is a purchase, so it sits with the secondary destinations rather
          than in the tabbar: it is used once, not every day. -->
-    <a class="card more-link" href="#/checkout" data-view="checkout"><strong>Pass freischalten</strong><span>Schreib-Rückmeldungen für diese Prüfung freischalten</span></a>
+    <a class="card more-link" href="#/checkout" data-view="checkout"><strong><span data-i18n="shell.m016">Pass freischalten</span></strong><span><span data-i18n="shell.m354">Schreib-Rückmeldungen für diese Prüfung freischalten</span></span></a>
   </div>
 </section>
 <!--
@@ -331,20 +335,20 @@
 <section class="view" id="view-checkout" hidden>
   <div class="page-head">
     <div>
-      <p class="kicker">Pass</p>
-      <h2>Pass freischalten</h2>
-      <p>Schreib-Rückmeldungen für deine Prüfung freischalten und den Stand deiner Bestellung ansehen.</p>
+      <p class="kicker"><span data-i18n="shell.m355">Pass</span></p>
+      <h2><span data-i18n="shell.m016">Pass freischalten</span></h2>
+      <p><span data-i18n="shell.m356">Schreib-Rückmeldungen für deine Prüfung freischalten und den Stand deiner Bestellung ansehen.</span></p>
     </div>
   </div>
   <div class="stack" id="checkout-host" role="status" aria-live="polite"></div>
 </section>
 <section class="view" id="view-satzbau" hidden>
-  <div class="page-head"><div><p class="kicker">Sprachbausteine</p><h2>Satzbau erkunden</h2><p>Untersuche die Struktur eines deutschen Satzes.</p></div></div>
+  <div class="page-head"><div><p class="kicker"><span data-i18n="shell.m003">Sprachbausteine</span></p><h2><span data-i18n="shell.m015">Satzbau erkunden</span></h2><p><span data-i18n="shell.m357">Untersuche die Struktur eines deutschen Satzes.</span></p></div></div>
   <form class="card stack" id="sentence-form">
-    <label class="field-label" for="sentence-text">Dein Satz oder kurzer Text</label>
-    <textarea class="writing-text" id="sentence-text" rows="5" maxlength="2000" required placeholder="Ich bleibe zu Hause, weil ich morgen arbeiten muss." aria-describedby="sentence-limit"></textarea>
-    <p class="small muted" id="sentence-limit">Bis zu 2.000 Zeichen. Dieser Text wird nicht als Entwurf gespeichert. Die Strukturhinweise sind eine begrenzte Lernhilfe auf Deutsch, keine vollständige Grammatikprüfung.</p>
-    <button type="submit" class="btn btn-primary" id="sentence-submit">Strukturhinweise anzeigen</button>
+    <label class="field-label" for="sentence-text"><span data-i18n="shell.m358">Dein Satz oder kurzer Text</span></label>
+    <textarea class="writing-text" id="sentence-text" lang="de" dir="ltr" rows="5" maxlength="2000" required placeholder="Ich bleibe zu Hause, weil ich morgen arbeiten muss."  aria-describedby="sentence-limit"></textarea>
+    <p class="small muted" id="sentence-limit"><span data-i18n="shell.m359">Bis zu 2.000 Zeichen. Dieser Text wird nicht als Entwurf gespeichert. Die Strukturhinweise sind eine begrenzte Lernhilfe auf Deutsch, keine vollständige Grammatikprüfung.</span></p>
+    <button type="submit" class="btn btn-primary" id="sentence-submit"><span data-i18n="shell.m360">Strukturhinweise anzeigen</span></button>
   </form>
   <div class="stack" id="sentence-result" role="status" aria-live="polite"></div>
 </section>
@@ -352,22 +356,22 @@
       <section class="view" id="view-einstellungen" hidden>
         <div class="page-head">
           <div>
-            <h2>Einstellungen</h2>
-            <p>Wird auf dem Server gespeichert und ist in jedem Browser wieder da.</p>
+            <h2><span data-i18n="shell.m013">Einstellungen</span></h2>
+            <p><span data-i18n="shell.m361">Wird auf dem Server gespeichert und ist in jedem Browser wieder da.</span></p>
           </div>
         </div>
 
         <div class="stack">
           <form class="card" id="settings-form">
-            <div class="card-head"><h3>Prüfung</h3></div>
+            <div class="card-head"><h3><span data-i18n="shell.m362">Prüfung</span></h3></div>
             <div class="stack">
               <div class="field">
-                <label for="examDate">Prüfungsdatum dieser Vorbereitung (optional)</label>
+                <label for="examDate"><span data-i18n="shell.m363">Prüfungsdatum dieser Vorbereitung (optional)</span></label>
                 <input class="input" type="date" id="examDate" name="examDate">
-                <p class="small muted">Ohne Termin kannst du direkt üben. Eine archivierte Vorbereitung ist schreibgeschützt.</p>
+                <p class="small muted"><span data-i18n="shell.m364">Ohne Termin kannst du direkt üben. Eine archivierte Vorbereitung ist schreibgeschützt.</span></p>
               </div>
               <div class="field">
-                <label for="language">Erklärungssprache</label>
+                <label for="language"><span data-i18n="shell.m365">Menü- und Erklärungssprache</span></label>
                 <select class="select" id="language" name="language">
                   <option value="de">Deutsch</option>
                   <option value="en">English</option>
@@ -375,25 +379,25 @@
                   <option value="ar">العربية</option>
                   <option value="tr">Türkçe</option>
                 </select>
-                <p class="small muted">Menü und Prüfungsaufgaben bleiben Deutsch. Die gewählte Sprache gilt für Rückmeldungen zu neuen Abgaben. Noch fehlende Übersetzungen werden gekennzeichnet.</p>
+                <p class="small muted"><span data-i18n="shell.m366">Menüs und Hinweise folgen deiner Sprache. Prüfungsinhalte bleiben in ihrer Originalsprache. Fehlende Übersetzungen von Erklärungen werden gekennzeichnet.</span></p>
               </div>
               <div class="spread">
-                <button type="submit" class="btn btn-primary" id="save-settings">Speichern</button>
+                <button type="submit" class="btn btn-primary" id="save-settings"><span data-i18n="shell.m367">Speichern</span></button>
                 <span class="muted small" id="settings-state" role="status"></span>
               </div>
             </div>
           </form>
 
           <div class="card">
-            <div class="card-head"><h3>Konto</h3></div>
+            <div class="card-head"><h3><span data-i18n="shell.m306">Konto</span></h3></div>
             <div class="stack">
-              <div class="spread"><span class="muted">E-Mail</span><strong id="account-email-2">–</strong></div><div class="spread"><span>Eine Kopie deiner Lerndaten</span><button type="button" class="btn" id="export-data">Daten exportieren</button></div><p class="small muted" id="export-state" role="status"></p>
+              <div class="spread"><span class="muted" data-i18n="shell.email">E-Mail</span><strong id="account-email-2" dir="ltr">–</strong></div><div class="spread"><span><span data-i18n="shell.m368">Eine Kopie deiner Lerndaten</span></span><button type="button" class="btn" id="export-data"><span data-i18n="shell.m369">Daten exportieren</span></button></div><p class="small muted" id="export-state" role="status"></p>
               <div class="spread">
-                <span class="muted">Konto endgültig löschen</span>
-                <button type="button" class="btn btn-danger" id="delete-account">Konto löschen</button>
+                <span class="muted"><span data-i18n="shell.m370">Konto endgültig löschen</span></span>
+                <button type="button" class="btn btn-danger" id="delete-account"><span data-i18n="shell.m371">Konto löschen</span></button>
               </div>
-              <p class="small muted">Löschen entfernt deine eigenen Datensätze wirklich. Das kann nicht
-                rückgängig gemacht werden.</p>
+              <p class="small muted"><span data-i18n="shell.m372">Löschen entfernt deine eigenen Datensätze wirklich. Das kann nicht
+                rückgängig gemacht werden.</span></p>
             </div>
           </div>
 
@@ -403,11 +407,11 @@
             no token ever served, and ends one at a time.
           -->
           <div class="card">
-            <div class="card-head"><h3>Sitzungen</h3></div>
+            <div class="card-head"><h3><span data-i18n="shell.m373">Sitzungen</span></h3></div>
             <div class="stack">
-              <p class="small muted">Wo du angemeldet bist. Das Beenden einer Sitzung meldet nur dieses
-                Gerät ab.</p>
-              <ul class="sessions" id="session-list"><li class="muted small">Wird geladen …</li></ul>
+              <p class="small muted"><span data-i18n="shell.m374">Wo du angemeldet bist. Das Beenden einer Sitzung meldet nur dieses
+                Gerät ab.</span></p>
+              <ul class="sessions" id="session-list"><li class="muted small"><span data-i18n="shell.m230">Wird geladen …</span></li></ul>
               <p class="small muted" id="session-state" role="status"></p>
             </div>
           </div>
@@ -418,20 +422,20 @@
             rotated rather than spared, so nothing that existed before the change keeps working.
           -->
           <form class="card" id="password-form">
-            <div class="card-head"><h3>Passwort ändern</h3></div>
+            <div class="card-head"><h3><span data-i18n="shell.m375">Passwort ändern</span></h3></div>
             <div class="stack">
               <div class="field">
-                <label for="current-password">Aktuelles Passwort</label>
+                <label for="current-password"><span data-i18n="shell.m376">Aktuelles Passwort</span></label>
                 <input class="input" type="password" id="current-password" name="currentPassword" autocomplete="current-password">
               </div>
               <div class="field">
-                <label for="new-password">Neues Passwort</label>
+                <label for="new-password"><span data-i18n="shell.m377">Neues Passwort</span></label>
                 <input class="input" type="password" id="new-password" name="newPassword" autocomplete="new-password">
               </div>
-              <p class="small muted">Alle anderen Sitzungen werden dabei beendet. Dieses Gerät bleibt
-                angemeldet.</p>
+              <p class="small muted"><span data-i18n="shell.m378">Alle anderen Sitzungen werden dabei beendet. Dieses Gerät bleibt
+                angemeldet.</span></p>
               <div class="spread">
-                <button type="submit" class="btn" id="save-password">Passwort ändern</button>
+                <button type="submit" class="btn" id="save-password"><span data-i18n="shell.m375">Passwort ändern</span></button>
                 <span class="muted small" id="password-state" role="status"></span>
               </div>
             </div>
@@ -444,7 +448,7 @@
   </div>
 </div>
 
-<nav class="tabbar" aria-label="Navigation"><a href="#/heute" data-view="heute"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5"/></svg><span>Heute</span></a><a href="#/ueben" data-view="ueben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14M3 4h5a4 4 0 0 1 4 3 4 4 0 0 1 4-3h5v14h-5a4 4 0 0 0-4 3 4 4 0 0 0-4-3H3z"/></svg><span>Üben</span></a><a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"/></svg><span>Schreiben</span></a><a href="#/fortschritt" data-view="fortschritt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18M7 15l4-4 3 3 5-6"/></svg><span>Verlauf</span></a><a href="#/mehr" data-view="mehr"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Mehr</span></a></nav>
+<nav class="tabbar" aria-label="Navigation" data-i18n-aria-label="shell.m387"><a href="#/heute" data-view="heute"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5"/></svg><span><span data-i18n="shell.m007">Heute</span></span></a><a href="#/ueben" data-view="ueben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14M3 4h5a4 4 0 0 1 4 3 4 4 0 0 1 4-3h5v14h-5a4 4 0 0 0-4 3 4 4 0 0 0-4-3H3z"/></svg><span><span data-i18n="shell.m008">Üben</span></span></a><a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"/></svg><span><span data-i18n="shell.m005">Schreiben</span></span></a><a href="#/fortschritt" data-view="fortschritt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18M7 15l4-4 3 3 5-6"/></svg><span><span data-i18n="shell.m379">Verlauf</span></span></a><a href="#/mehr" data-view="mehr"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span><span data-i18n="shell.m014">Mehr</span></span></a></nav>
 
 <script type="module" src="/app/app.js"></script>
 </body>
