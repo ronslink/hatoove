@@ -4,6 +4,7 @@ import {readMediaBytes} from '../media-contract.mjs';
 import {packageHash,validateCompleteForm,validateCompleteMembers,objectiveItems,INTERACTIONS} from '../package-contract.mjs';
 import {contentPolicy} from '../content-policy.mjs';
 import {readCurrentReleaseEligibility} from './release-eligibility.mjs';
+import {readExplanationReviewPacket,readExplanationCoverage} from './explanation-review.mjs';
 
 async function operator(client){
  const {rows:[r]}=await client.query('SELECT current_user=pg_get_userbyid(nspowner) AS allowed FROM pg_namespace WHERE nspname=current_schema()');
@@ -21,6 +22,7 @@ export async function recordReviewerAuthority(client,input){
 export async function recordContentReview(client,input,options={}){
  const p=validateContentReview(input);await operator(client);await fence(client,p.subject.examId);
  const old=await client.query('SELECT decision_id FROM content_review_decision WHERE event_id=$1',[p.eventId]);
+ if(!old.rowCount&&p.subject.kind==='explanation'&&p.decision==='approve')await readExplanationReviewPacket(client,p.subject);
  // Lost-response replay survives later authority revocation and missing media; SQL compares exact input.
  if(!old.rowCount&&p.category==='audio'&&p.decision==='approve'){
   const {rows:[m]}=await client.query('SELECT * FROM exam_media WHERE content_version_id=$1 AND exam_id=$2',[p.subject.subjectId,p.subject.examId]);
@@ -38,7 +40,7 @@ const backingQueries={
  media:'SELECT to_jsonb(t) AS data FROM exam_media t WHERE content_version_id=$1',
 };
 export async function readReviewPacket(client,input,options={}){
- const s=validateReviewSubject(input);await operator(client);
+ const s=validateReviewSubject(input);if(s.kind==='explanation')return readExplanationReviewPacket(client,s);await operator(client);
  const {rows:[target]}=await client.query('SELECT * FROM resolve_review_subject($1,$2,$3,$4)',[s.kind,s.examId,s.subjectId,s.version]);
  if(!target||target.subject_sha256!==s.sha256)reviewError('review_subject_mismatch');
  let source,protectedKeys=null,mediaVerified=null;
@@ -59,8 +61,7 @@ export async function readReviewPacket(client,input,options={}){
  const packet=JSON.parse(JSON.stringify({schemaVersion:1,subject:s,requiredReview:{category:target.category,language:target.language},source,protectedKeys,mediaVerified}));
  return {packet,packetSha256:packageHash(packet)};
 }
-/** No artifact registration or learner-writing access exists at this seam yet. */
-export async function readExplanationReview(_client,_identity){return {review_status:'unreviewed',review_basis:'none',blocked:false,explicit_negative:false,decision_ids:[],coverage:'not_modelled'};}
+export {readExplanationReview} from './explanations.mjs';
 
 export async function readContentCoverage(client,{examId,releaseVersion,languages=REVIEW_LANGUAGES},options={}){
  await operator(client);
@@ -188,5 +189,5 @@ export async function readContentCoverage(client,{examId,releaseVersion,language
   legacyEligible:reports.length>0&&reports.every(f=>f.referencesComplete)&&reviews.some(r=>r.review_basis==='legacy_unattributed')&&reviews.every(r=>r.review_status==='approved'),
   rightsAllowed:content.length>0&&content.every(r=>allowedRights.includes(r.rights_status)),
   mediaVerified:content.filter(r=>r.kind==='media').length?content.filter(r=>r.kind==='media').every(r=>r.mediaVerified===true):null,
-  currentAdmission:admitted??null,languages:Object.fromEntries(languages.map(l=>[l,{status:'not_modelled',approved:0,missing:null}])),tagCoverage:'unknown'};
+  currentAdmission:admitted??null,explanations:await readExplanationCoverage(client,{examId,releaseVersion:release.version,languages},options),languages:Object.fromEntries(languages.map(l=>[l,{status:'not_modelled',approved:0,missing:null}])),tagCoverage:'unknown'};
 }

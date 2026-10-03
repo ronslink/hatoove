@@ -1,26 +1,29 @@
 /** Caller owns transaction, parent policy authorization and exact owner context. */
 import {canonicalJson} from '../package-contract.mjs';
-import {extractWritingExplanationSource,extractObjectiveExplanationSource,validateExplanationRepresentation,validateExplanationLanguage,explanationError,unreviewedExplanation} from '../explanation-contract.mjs';
+import {extractWritingExplanationSource,extractObjectiveExplanationSource,validateExplanationRepresentation,validateExplanationLanguage,explanationError,unreviewedExplanation,unavailableExplanationReview} from '../explanation-contract.mjs';
+import {validateExplanationReviewLocator} from '../explanation-review-contract.mjs';
 import {resolveObjectiveExplanationLanguage} from '../explanation-language-registry.mjs';
 
 const rowRepresentation=r=>({language:r.language,version:r.representation_version,source_sha256:r.source_sha256,payload:r.payload,payload_sha256:r.payload_sha256,provenance:r.provenance});
-function envelopeResult(envelope,options){
+function envelopeResult(envelope,options,sourceOrigin){
  if(!envelope||envelope.kind!=='objective'||!envelope.context||!Array.isArray(envelope.representations)||!Array.isArray(envelope.heads)||envelope.representations.length>100)explanationError('invalid_explanation_envelope');
+ const binding=envelope.review_source_binding;
+ if(!binding||typeof binding!=='object'||Array.isArray(binding)||Object.keys(binding).length!==1||!Object.hasOwn(binding,'state')||!['unregistered','registered','unavailable'].includes(binding.state))explanationError('invalid_explanation_envelope');
  const c=envelope.context,input={examId:c.exam_id,setId:c.set_id,setVersion:c.set_version,itemId:c.item_id,originalValue:envelope.originalValue};
  const source=extractObjectiveExplanationSource({...input,originalLanguage:resolveObjectiveExplanationLanguage(input,{registry:options.languageRegistry})});
  const representations=[];
  for(const r of envelope.representations)try{representations.push(validateExplanationRepresentation(source,r));}catch{/* Optional invalid siblings are not exposed. */}
- return {source,representations,heads:envelope.heads};
+ return {source,representations,heads:envelope.heads,sourceOrigin,reviewSourceBinding:{state:binding.state}};
 }
 export async function readObjectiveEvidenceExplanation(client,{evidenceId,language=null},options={}){
  validateExplanationLanguage(language);
  const envelope=(await client.query('SELECT read_objective_evidence_explanation($1,$2) AS envelope',[evidenceId,language])).rows[0]?.envelope;
- return envelopeResult(envelope,options);
+ return envelopeResult(envelope,options,'standalone-key');
 }
 export async function readFinalisedMockItemExplanation(client,{runId,setId,setVersion,itemId,language=null},options={}){
  validateExplanationLanguage(language);
  const envelope=(await client.query('SELECT read_finalised_mock_item_explanation($1,$2,$3,$4,$5) AS envelope',[runId,setId,setVersion,itemId,language])).rows[0]?.envelope;
- return envelopeResult(envelope,options);
+ return envelopeResult(envelope,options,'finalised-snapshot');
 }
 export async function readExplanationRepresentations(client,{source}){
  if(source?.kind!=='writing')explanationError('explanation_context_required');
@@ -32,7 +35,29 @@ export async function readExplanationRepresentations(client,{source}){
  for(const row of rows)try{representations.push(validateExplanationRepresentation(source,rowRepresentation(row)));}catch{/* Preserve the immutable original on an unusable sibling. */}
  return {representations,heads:rows.map(r=>({language:r.language,source_sha256:r.source_sha256,representation_version:r.representation_version}))};
 }
-export async function readExplanationReview(_client,_identity){return unreviewedExplanation();}
+export async function readExplanationReview(client,identity){
+ if(identity?.scope==='writing')return typeof identity.ownerId==='string'&&identity.ownerId.length>0&&identity.ownerId===identity.sourceIdentity?.owner_id
+  ?unreviewedExplanation():unavailableExplanationReview();
+ let locator;
+ try{
+  const {scope,targetKind,sourceIdentity,sourceSha256,language,representationVersion,payloadSha256}=identity??{};
+  locator=validateExplanationReviewLocator({scope,targetKind,sourceIdentity,sourceSha256,language,representationVersion,payloadSha256});
+ }catch{return unavailableExplanationReview();}
+ const p=locator,i=p.sourceIdentity;
+ const rows=(await client.query('SELECT * FROM effective_explanation_review($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+  [i.exam_id,i.set_id,i.set_version,i.item_id,p.sourceSha256,p.language,p.representationVersion,p.payloadSha256,p.targetKind])).rows;
+ const dimensions=['educational','native_language'],result={};
+ if(rows.length!==2)return unavailableExplanationReview();
+ for(const [index,row] of rows.entries()){
+  const status=row.review_status,negative=['rejected','withdrawn'].includes(status);
+  if(row.dimension!==dimensions[index]||!['approved','unreviewed','rejected','withdrawn','unavailable'].includes(status)
+   ||row.review_basis!==(['approved','rejected','withdrawn'].includes(status)?'named_decision':'none')
+   ||row.blocked!==(negative||status==='unavailable')||row.explicit_negative!==negative
+   ||!Array.isArray(row.decision_ids)||!row.decision_ids.every(id=>typeof id==='string'&&id.length===36&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id)))return unavailableExplanationReview();
+  result[row.dimension]={review_status:status,review_basis:row.review_basis,blocked:row.blocked,explicit_negative:row.explicit_negative,decision_ids:[...row.decision_ids]};
+ }
+ return result;
+}
 
 export async function persistWritingExplanations(client,{ownerId,submissionId,representations}){
  if(!Array.isArray(representations)||representations.length>5)explanationError();

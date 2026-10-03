@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createCompleteFixture } from './exam-s5b-fixture.mjs';
-import { verifyExplanations, explanationProviderProbeSource } from './explanation-browser.mjs';
+import { verifyExplanations, explanationProviderProbeSource, explanationReviewFixture } from './explanation-browser.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const stamp=Date.now()+'_'+process.pid,project='hatoove-explanation-browser-'+stamp.replace('_','-'),schema='ownapi_explanation_browser_'+stamp;
@@ -16,7 +16,7 @@ const scratch=fs.mkdtempSync(path.join(os.tmpdir(),project+'-')),source=path.joi
 const index=process.argv.indexOf('--shots'),shots=index<0?path.join(root,'.qa','exam-s6',project):path.resolve(process.argv[index+1]);
 const results=[],fixtureVersion='v9800',availableVersion='v9801';
 let workerProviderCalls=0;
-let appPort,dbPort,base,started=false,cleaned=false,fixture,contentIds;
+let appPort,dbPort,base,started=false,cleaned=false,fixture,contentIds,reviewFixture;
 const testSecret='whsec_synthetic_s6_'+randomUUID().replaceAll('-','');
 const commandEnv=Object.fromEntries(Object.entries(process.env).filter(([key])=>!/^(B1PREP_|OWNAPI_|STRIPE_|PAYMENTS_|HATOVE_|COMPOSE_)/i.test(key)));
 const sourceRevision=command('git',['rev-parse','HEAD']),sourceChanges=command('git',['status','--porcelain']);
@@ -65,6 +65,50 @@ ${body}
 }finally{await Promise.allSettled([admin.end(),migration.end()]);}`;
   return compose(['run','--rm','--no-deps','-T','migrate','node','--input-type=module','-e',program]);
 }
+function reviewExplanation(action){
+  if(!['register','approve','withdraw_translation','withdraw_original'].includes(action)||!reviewFixture)throw Error('Unknown synthetic explanation transition');
+  return migrateProgram(`const {importObjectiveExplanations}=await import('./server/owned-postgres/explanation-importer.mjs');
+const {registerExplanationReviewTarget,readExplanationReviewPacket}=await import('./server/owned-postgres/explanation-review.mjs');
+const spec=${JSON.stringify(reviewFixture)},action=${JSON.stringify(action)};
+const set=internal.sets.find(row=>row.setId===spec.setId&&row.version===spec.setVersion);
+if(!set||!ids.includes(set.setId+'@'+set.version)||set.family!=='LV4'||set.interaction!=='single_choice'||spec.examId!==internal.exam.id)throw Error('Unknown synthetic explanation source');
+const {objectiveItems,packageHash}=await import('./server/package-contract.mjs');
+const {extractObjectiveExplanationSource,validateExplanationRepresentation}=await import('./server/explanation-contract.mjs');
+const original=set.explanations?.[spec.itemId]??set.explanations?._set_why?.[spec.itemId];
+const verified=extractObjectiveExplanationSource({...spec,originalValue:original,originalLanguage:'de'});
+if(!objectiveItems(set.payload,set.interaction).some(item=>item.id===spec.itemId)||original!==spec.original||verified.sourceSha256!==spec.sourceSha256
+ ||packageHash(verified.originalPayload)!==spec.originalPayloadSha256)throw Error('Synthetic explanation identity changed');
+validateExplanationRepresentation(verified,spec.representation);
+await transaction(async c=>{
+ if(action==='register')await importObjectiveExplanations(c,{items:[{examId:spec.examId,setId:spec.setId,setVersion:spec.setVersion,itemId:spec.itemId,sourceSha256:spec.sourceSha256,
+ representations:[spec.representation],heads:[{language:'ar',version:spec.representation.version,expectedVersion:null}]}]},{languageRegistry:spec.registry});
+ for(const targetKind of ['stored','original']){
+  const language=targetKind==='stored'?'ar':'de',representationVersion=targetKind==='stored'?spec.representation.version:'legacy-projection-v1';
+  const locator={scope:'objective',targetKind,sourceIdentity:{exam_id:spec.examId,set_id:spec.setId,set_version:spec.setVersion,item_id:spec.itemId},
+   sourceSha256:spec.sourceSha256,language,representationVersion,payloadSha256:targetKind==='stored'?spec.representation.payload_sha256:spec.originalPayloadSha256};
+  const registered=await registerExplanationReviewTarget(c,locator,{languageRegistry:spec.registry});
+  if(action==='register'||action==='withdraw_translation'&&targetKind!=='stored'||action==='withdraw_original'&&targetKind!=='original')continue;
+  const dimensions=action==='approve'?['educational','native_language']:targetKind==='stored'?['native_language']:['educational'];
+  const packet=action==='approve'?await readExplanationReviewPacket(c,registered.subject):null;
+  for(const dimension of dimensions){
+   const category=dimension==='educational'?'educational':'language',authorityLanguage=category==='educational'?'':language;
+   const reviewerId='synthetic.c06-browser.'+category+'.'+(authorityLanguage||'all');
+   let authority=(await c.query('SELECT authority_id,action FROM content_review_authority WHERE reviewer_id=$1 AND exam_id=$2 AND category=$3 AND language=$4 ORDER BY revision DESC LIMIT 1',
+    [reviewerId,spec.examId,category,authorityLanguage])).rows[0];
+   if(!authority)authority={authority_id:(await recordReviewerAuthority(c,{eventId:randomUUID(),reviewerId,reviewerName:'Synthetic C06 fixture — no human qualification',examId:spec.examId,
+    category,language:authorityLanguage,action:'grant',expectedAuthorityId:null,evidenceRef:'fixture://c06-browser/appointment',evidenceSha256:'c'.repeat(64),rationale:'Isolated technical test only; no real reviewer appointment'})).authorityId,action:'grant'};
+   if(authority.action!=='grant')throw Error('Synthetic explanation authority revoked');
+   const rows=(await c.query('SELECT * FROM effective_explanation_review($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+    [spec.examId,spec.setId,spec.setVersion,spec.itemId,spec.sourceSha256,language,representationVersion,locator.payloadSha256,targetKind])).rows;
+   if(rows.length!==2||rows[0].dimension!=='educational'||rows[1].dimension!=='native_language')throw Error('Synthetic explanation dimensions invalid');
+   const prior=rows.find(row=>row.dimension===dimension);
+   await recordContentReview(c,{eventId:randomUUID(),subject:registered.subject,category,language:authorityLanguage,authorityId:authority.authority_id,
+    expectedDecisionId:prior.decision_ids[0]||null,decision:action==='approve'?'approve':'withdraw',packetSha256:packet?.packetSha256??null,
+    evidenceRef:'fixture://c06-browser/decision',evidenceSha256:'c'.repeat(64),rationale:'Synthetic exact-representation browser test; not educational or native approval'});
+  }
+ }
+});console.log('Synthetic explanation transition completed');`);
+}
 async function sourceFixture(){
   const listed=command('git',['ls-files','--cached','--others','--exclude-standard','-z']).split('\0').filter(Boolean);
   for(const name of listed){
@@ -88,6 +132,11 @@ async function sourceFixture(){
   for(const form of fixture.forms){for(const member of form.members)member.version=fixtureVersion;for(const group of form.writingChoices)for(const option of group.options)option.taskVersion=fixtureVersion;}
   for(const row of [...fixture.sets,...fixture.media,...fixture.writingTasks,...fixture.rubrics])row.source='synthetic:exam-s6-browser; test-only review simulation, no actual educational approval';
   contentIds=[...fixture.sets.map(x=>x.setId+'@'+x.version),...fixture.media.map(x=>x.mediaId+'@'+x.version),...fixture.writingTasks.map(x=>x.taskId+'@'+x.version),...fixture.rubrics.map(x=>x.rubricId+'@'+x.version)];
+  reviewFixture=explanationReviewFixture(fixture);
+  fs.writeFileSync(path.join(source,'content/exams/dtz-a2-b1/c06-browser-language.json'),JSON.stringify(reviewFixture.registry));
+  // Source-only trusted declaration for this exact item/value/version. Other fixture originals stay unknown.
+  replaceOnce(path.join(source,'server/explanation-language-registry.mjs'),'const builtins=Object.freeze(entries);',
+    "entries.push(...JSON.parse(readFileSync(new URL('../content/exams/dtz-a2-b1/c06-browser-language.json',import.meta.url),'utf8')));\nconst builtins=Object.freeze(entries);");
   fs.writeFileSync(path.join(source,'content/exams/dtz-a2-b1/s6-fixture.json'),JSON.stringify(fixture));
 }
 async function nav(cdp,url){await cdp.send('Page.navigate',{url});await cdp.waitFor("document.readyState==='complete'",25000,url);}
@@ -113,10 +162,10 @@ try{
   const email=`browser-${stamp}@example.test`,newcomerEmail=`newcomer-${stamp}@example.test`,password='synthetic-browser-pass-1';
   for(const address of [email,newcomerEmail]){const signup=await fetch(base+'/api/auth/sign-up/email',{method:'POST',headers:{origin:base,'content-type':'application/json'},body:JSON.stringify({email:address,password,name:'Saved Explanation Browser Evidence'})});if(signup.status!==200)throw Error('Synthetic signup failed: '+signup.status);}
   record('P07 isolated source runtime has synthetic named content and refuses external provider I/O',true);
-  await verifyExplanations({base,email,newcomerEmail,password,fixture,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,
+  await verifyExplanations({base,email,newcomerEmail,password,fixture,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,reviewFixture,reviewExplanation,
     publishAvailable:()=>migrateProgram(`for(const id of ids)await review('content',id);await review('blueprint',internal.exam.id,internal.blueprint.version);for(const form of internal.forms)await review('form',form.id,form.version);const published={...internal,release:{version:${JSON.stringify(availableVersion)},state:'available',resumeBlockedReleases:[]},sets:[],media:[],writingTasks:[],rubrics:[]};await importPackage(migration,published,{publisher:'synthetic-s6-browser-public-simulation'});console.log('named synthetic decisions and reference-only available fixture published');`),
     drainWorker:()=>{const result=migrateProgram(`await import('./server/explanation-fixture-provider-probe.mjs');const {createWorker}=await import('./server/owned-postgres/worker.mjs');const {createExamCatalogue}=await import('./server/preparation-contract.mjs');const pool=persistentRolePool(config,'worker');try{await createWorker({pool,examCatalogue:createExamCatalogue({enabled:['telc-deutsch-b1','dtz-a2-b1']})}).runOnce();console.log('PROVIDER_COUNT='+globalThis.__explanationProviderCalls);}finally{await pool.end();}`);const match=/PROVIDER_COUNT=(\d+)/.exec(result);if(!match)throw Error('Worker provider counter missing');workerProviderCalls+=Number(match[1]);},
-    snapshot:()=>{const db=JSON.parse(migrateProgram(`const snapshot={};for(const table of ['submissions','assessments','jobs','usage_ledger','entitlements']){const r=await admin.query('SELECT row_to_json(t) AS value FROM '+table+' t');snapshot[table]=r.rows.map(row=>JSON.stringify(row.value)).sort();}console.log(JSON.stringify(snapshot));`));const count=Number(compose(['exec','-T','app','node','-e',"const fs=require('node:fs');console.log(fs.existsSync('/tmp/explanation-provider-count')?fs.readFileSync('/tmp/explanation-provider-count','utf8').length:0)"]));return {...db,providerAttempts:count+workerProviderCalls};},
+    snapshot:()=>{const db=JSON.parse(migrateProgram(`const snapshot={};for(const table of ['attempts','submissions','assessments','jobs','usage_ledger','entitlements','item_evidence','mock_run','mock_writing','provider_attempt','provider_attempt_observation','objective_explanation_representation','objective_explanation_head','writing_explanation_representation','writing_explanation_head']){const r=await admin.query('SELECT row_to_json(t) AS value FROM '+table+' t');snapshot[table]=r.rows.map(row=>JSON.stringify(row.value)).sort();}console.log(JSON.stringify(snapshot));`));const count=Number(compose(['exec','-T','app','node','-e',"const fs=require('node:fs');console.log(fs.existsSync('/tmp/explanation-provider-count')?fs.readFileSync('/tmp/explanation-provider-count','utf8').length:0)"]));return {...db,providerAttempts:count+workerProviderCalls};},
     grantCredits:prepId=>migrateProgram(`const p=(await admin.query("SELECT owner_id FROM learner_preparation WHERE id=$1 AND exam_id='dtz-a2-b1'",[${JSON.stringify(prepId)}])).rows[0];if(!p)throw Error('Synthetic preparation missing');await admin.query("INSERT INTO entitlements(owner_id,exam_id,allowance,used,reserved) VALUES($1,'dtz-a2-b1',10,0,0)",[p.owner_id]);`),
     withdrawWritingRights:()=>migrateProgram(`const id=internal.writingTasks[0].taskId+'@'+internal.writingTasks[0].version;if(!ids.includes(id))throw Error('Unknown synthetic task');await migration.query("INSERT INTO content_rights(content_version_id,basis,decided_by,note) VALUES($1,'unknown','synthetic C03 browser','Test-only rights withdrawal')",[id]);`),
   });
@@ -130,7 +179,7 @@ finally{
   }catch(error){record('Explanation fixture cleanup',false,error.message);}
   const resolved=fs.realpathSync(scratch);
   if((!started||cleaned)&&path.dirname(resolved)===fs.realpathSync(os.tmpdir())&&path.basename(resolved).startsWith(project+'-'))fs.rmSync(resolved,{recursive:true,force:true});else console.log('Preserved source/Compose recovery files at '+scratch);
-  fs.mkdirSync(shots,{recursive:true});fs.writeFileSync(path.join(shots,'results.json'),JSON.stringify({mode:'saved-explanations',sourceRevision,sourceChanges,project,base,dbPort,schema,cleaned,finishedAt:new Date().toISOString(),screenshots:fs.readdirSync(shots).filter(name=>name.endsWith('.png')).sort(),limits:['Synthetic technical content; no human educational approval','Headless Chromium emulation; no physical-device or screen-reader acceptance','Synthetic pending/failed/representation refusal fixtures test only rendering','Speech uses synthetic local voices; no native audio or physical-device acceptance','Race/failure probes hold real responses or explicitly fail transport; database snapshots remain real'],results},null,2));
+  fs.mkdirSync(shots,{recursive:true});fs.writeFileSync(path.join(shots,'results.json'),JSON.stringify({mode:'saved-explanations',sourceRevision,sourceChanges,project,base,dbPort,schema,cleaned,finishedAt:new Date().toISOString(),screenshots:fs.readdirSync(shots).filter(name=>name.endsWith('.png')).sort(),limits:['Synthetic technical content; no human educational approval','Headless Chromium emulation; no physical-device or screen-reader acceptance','P07B10 synthetic pending/failed/representation refusal fixtures test only rendering','C06B1–5 use actual target registration, named synthetic authority decisions and protected reads; no real reviewer appointment','Speech uses synthetic local voices; no native audio or physical-device acceptance','Race/failure probes hold real responses or explicitly fail transport; database snapshots remain real'],results},null,2));
   const failures=results.filter(result=>!result.ok);console.log(`${results.length-failures.length} passed, ${failures.length} failed; screenshots ${shots}`);
   console.log('Headless Chromium and synthetic technical content only; physical devices and human approval remain pending.');process.exitCode=failures.length?1:0;
 }

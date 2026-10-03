@@ -138,6 +138,8 @@ jobs:
         run: node tools/exam-s6-core-check.mjs
       - name: Private content review input and packet boundaries
         run: node tools/content-review-check.mjs
+      - name: Exact shared explanation review input and operator boundaries
+        run: node tools/explanation-review-check.mjs
       - name: Saved explanation provenance language and read-only client contracts
         run: |
           node tools/explanation-check.mjs
@@ -280,6 +282,7 @@ jobs:
         run: node tools/payments-pg-check.mjs
       - name: Saved explanation ownership atomicity export and deletion
         run: |
+          node tools/explanation-review-pg-check.mjs
           node tools/explanation-pg-check.mjs
           node tools/explanation-worker-pg-check.mjs
           node tools/explanation-admission-pg-check.mjs

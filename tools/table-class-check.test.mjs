@@ -276,7 +276,7 @@ async function withPrivateFixture(run) {
 for (const table of PRIVATE_REVIEW_TABLES) {
   test(`private editorial: ${table} rejects runtime/PUBLIC table and column access`, async () => {
     await withPrivateFixture(async db => {
-      const column = { content_review_authority: 'reviewer_name', content_review_decision: 'rationale', content_review_baseline: 'subject_sha256' }[table];
+      const column = { content_review_authority: 'reviewer_name', content_review_decision: 'rationale', content_review_baseline: 'subject_sha256', explanation_review_target: 'packet_sha256' }[table];
       const target = `${quote(db.schema)}.${quote(table)}`;
       const roles = [...Object.entries(db.roles).filter(([kind]) => kind !== 'migration').map(([, role]) => role), 'PUBLIC'];
       const control = (await classify(db)).rows.find(row => row.table === table);
@@ -315,7 +315,7 @@ for (const table of PRIVATE_REVIEW_TABLES) {
     await withFixture(async db => {
       const target = `${quote(db.schema)}.${quote(table)}`;
       const immutable = quote(`${table}_immutable`), truncate = quote(`${table}_no_truncate`);
-      const column = { content_review_authority: 'reviewer_name', content_review_decision: 'rationale', content_review_baseline: 'subject_sha256' }[table];
+      const column = { content_review_authority: 'reviewer_name', content_review_decision: 'rationale', content_review_baseline: 'subject_sha256', explanation_review_target: 'packet_sha256' }[table];
       const cases = [
         [`DROP TRIGGER ${immutable} ON ${target}`, /BEFORE UPDATE/, 'drop update/delete'],
         [`ALTER TABLE ${target} DISABLE TRIGGER ${immutable}`, /BEFORE UPDATE/, 'disable update/delete'],
@@ -348,7 +348,30 @@ test('private editorial: compatibility baseline cannot lose its insert seal', as
   });
 });
 
+test('private editorial: explanation target requires exact enabled row validation before insert', async () => {
+  await withFixture(async db => {
+    const target = `${quote(db.schema)}.explanation_review_target`;
+    const trigger = 'explanation_review_target_insert';
+    const validation = `${quote(db.schema)}.validate_explanation_review_target()`;
+    const replace = definition => `DROP TRIGGER ${trigger} ON ${target}; CREATE TRIGGER ${trigger} ${definition}`;
+    const cases = [
+      [`DROP TRIGGER ${trigger} ON ${target}`, 'missing'],
+      [`ALTER TABLE ${target} DISABLE TRIGGER ${trigger}`, 'disabled'],
+      [`ALTER TABLE ${target} ENABLE REPLICA TRIGGER ${trigger}`, 'replica-only'],
+      [replace(`BEFORE INSERT ON ${target} FOR EACH ROW WHEN (false) EXECUTE FUNCTION ${validation}`), 'conditional'],
+      [replace(`AFTER INSERT ON ${target} FOR EACH ROW EXECUTE FUNCTION ${validation}`), 'after-only'],
+      [replace(`BEFORE INSERT ON ${target} FOR EACH STATEMENT EXECUTE FUNCTION ${validation}`), 'statement-only'],
+      [replace(`BEFORE INSERT ON ${target} FOR EACH ROW EXECUTE FUNCTION ${quote(db.schema)}.content_immutable()`), 'wrong function'],
+    ];
+    for (const [sql, label] of cases) await withMutation(db, sql, async report => {
+      assert.equal(report.ok, false);
+      assert.match(failureFor(report, 'explanation_review_target')?.detail || '', /no enabled explanation target validation/);
+      privateDetected.push(`explanation target insert:${label}`);
+    });
+  });
+});
+
 test('private editorial mutation proof: every privilege and immutability control ran', () => {
-  assert.equal(privateDetected.length, 74, '42 SELECT grants, 6 TRUNCATE grants, 24 immutability faults and 2 baseline seal faults');
-  console.log(`\nprivate editorial mutation proof: ${privateDetected.length}/74 mutations detected\n`);
+  assert.equal(privateDetected.length, 105, '56 SELECT grants, 8 TRUNCATE grants, 32 immutability faults, 2 baseline seal faults and 7 target validation faults');
+  console.log(`\nprivate editorial mutation proof: ${privateDetected.length}/105 mutations detected\n`);
 });

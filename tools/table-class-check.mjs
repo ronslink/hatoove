@@ -378,8 +378,11 @@ export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TA
       if (name === 'content_review_baseline' && !guard(4, true, 'sealed_review_baseline')) {
         fail.push('no enabled baseline seal (BEFORE INSERT)');
       }
+      if (name === 'explanation_review_target' && !guard(4, true, 'validate_explanation_review_target')) {
+        fail.push('no enabled explanation target validation (BEFORE INSERT)');
+      }
       rows.push({ table: name, cls: 'private editorial', verdict: note(fail),
-        detail: fail.length ? fail.join('; ') : 'no runtime/PUBLIC table or column privileges; enabled UPDATE/DELETE/TRUNCATE immutability' + (name === 'content_review_baseline' ? '; baseline INSERT sealed' : '') });
+        detail: fail.length ? fail.join('; ') : 'no runtime/PUBLIC table or column privileges; enabled UPDATE/DELETE/TRUNCATE immutability' + (name === 'content_review_baseline' ? '; baseline INSERT sealed' : '') + (name === 'explanation_review_target' ? '; target INSERT validated' : '') });
       continue;
     }
 

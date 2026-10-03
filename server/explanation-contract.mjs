@@ -73,6 +73,8 @@ export function makeOriginalExplanationRepresentation(source,{version='original-
 }
 const defaultDimension=()=>({review_status:'unreviewed',review_basis:'none',blocked:false,explicit_negative:false});
 export const unreviewedExplanation=()=>({educational:defaultDimension(),native_language:defaultDimension()});
+export const unavailableExplanationReview=()=>Object.fromEntries(['educational','native_language'].map(dimension=>
+ [dimension,{review_status:'unavailable',review_basis:'none',blocked:true,explicit_negative:false}]));
 function safeReview(value){
  const project=x=>{
   if(!x)return defaultDimension();
@@ -96,7 +98,7 @@ export function unavailableExplanationView({requestedLanguage=null,state,reason}
  if(state==='blocked'){value.requested_status='blocked';value.languages.forEach(x=>x.status='blocked');}
  return value;
 }
-export function projectExplanationView({source,requestedLanguage=null,representations=[],heads=[],review=[]}){
+export function projectExplanationView({source,requestedLanguage=null,representations=[],heads=[],review=[],sourceOrigin,reviewSourceBinding}){
  validateExplanationLanguage(requestedLanguage);
  const requested=requestedLanguage??source?.originalLanguage??null,result=base(requested);
  if(!source)return result;
@@ -110,11 +112,23 @@ export function projectExplanationView({source,requestedLanguage=null,representa
   if(candidates.has(valid.language)){candidates.set(valid.language,null);continue;}candidates.set(valid.language,valid);
  }catch{/* A corrupt optional sibling never changes the original result. */}}
  const virtual={language:source.originalLanguage,version:'legacy-projection-v1',source_sha256:source.sourceSha256,payload:source.originalPayload,payload_sha256:packageHash(source.originalPayload),provenance:{kind:'virtual-original'}};
- const reviewOf=r=>safeReview(review.find(x=>x.language===r.language&&x.version===r.version&&x.source_sha256===r.source_sha256&&x.payload_sha256===r.payload_sha256));
+ const reviewOf=r=>{
+  const targetKind=r===virtual?'original':'stored';
+  const matches=review.filter(x=>x.targetKind===targetKind&&x.language===r.language&&x.version===r.version&&x.source_sha256===r.source_sha256&&x.payload_sha256===r.payload_sha256);
+  return matches.length>1?unavailableExplanationReview():safeReview(matches[0]);
+ };
+ const invalidHead=h=>{
+  const r=candidates.get(h?.language);
+  return !r||heads.filter(other=>other?.language===h?.language).length!==1||h.source_sha256!==r.source_sha256||h.representation_version!==r.version;
+ };
+ const originalHeads=heads.filter(h=>h?.language===source.originalLanguage);
+ const invalidOriginal=source.kind==='objective'&&(source.originalLanguage===null
+  ?!['standalone-key','finalised-snapshot'].includes(sourceOrigin)||reviewSourceBinding?.state!=='unregistered'||heads.some(invalidHead)
+  :originalHeads.some(invalidHead));
  const original=candidates.get(source.originalLanguage)||virtual;
- const originalReview=reviewOf(original);
- for(const language of result.languages){const r=candidates.get(language.language)||(language.language===source.originalLanguage?original:null);if(r)language.status=blocked(reviewOf(r))?'blocked':'available';}
- let selected=requested===source.originalLanguage?original:candidates.get(requested),selectedReview=selected?reviewOf(selected):null;
+ const originalReview=invalidOriginal?unavailableExplanationReview():reviewOf(original);
+ for(const language of result.languages){const r=candidates.get(language.language)||(language.language===source.originalLanguage?original:null);if(r)language.status=blocked(r===original?originalReview:reviewOf(r))?'blocked':'available';}
+ let selected=requested===source.originalLanguage?original:candidates.get(requested),selectedReview=selected?(selected===original?originalReview:reviewOf(selected)):null;
  if(selected&&blocked(selectedReview)){result.requested_status='blocked';result.reason=blockReason(selectedReview);selected=null;}
  else if(selected){result.requested_status='available';result.reason=null;}
  else {result.requested_status='missing';result.reason='translation_unavailable';}

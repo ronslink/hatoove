@@ -15,10 +15,13 @@ import {createExamCatalogue} from '../server/preparation-contract.mjs';
 import {packageHash,objectiveItems} from '../server/package-contract.mjs';
 import {extractObjectiveExplanationSource,explanationPayloadHash} from '../server/explanation-contract.mjs';
 import {importObjectiveExplanations} from '../server/owned-postgres/explanation-importer.mjs';
+import {registerExplanationReviewTarget,readExplanationReviewPacket} from '../server/owned-postgres/explanation-review.mjs';
+import {recordReviewerAuthority,recordContentReview} from '../server/owned-postgres/content-review.mjs';
 import {publishCompleteDtzFixture,syntheticContentReview} from './exam-s6-fixture.mjs';
 
-if(process.env.OWNAPI_PG_ALLOW!=='1'||process.env.OWNAPI_PG_HOST!=='127.0.0.1'
-  ||!process.env.OWNAPI_PG_PORT||[4300,55440].includes(Number(process.env.OWNAPI_PG_PORT)))
+const localTarget=process.env.OWNAPI_PG_PORT==='62563'&&process.env.OWNAPI_PG_DATABASE==='hatoove_spike';
+const ciTarget=process.env.CI==='true'&&process.env.GITHUB_ACTIONS==='true'&&process.env.OWNAPI_PG_PORT==='5432'&&process.env.OWNAPI_PG_DATABASE==='hatoove_ci';
+if(process.env.OWNAPI_PG_ALLOW!=='1'||process.env.OWNAPI_PG_HOST!=='127.0.0.1'||!(localTarget||ciTarget))
   throw Error('Explicit local disposable PostgreSQL required');
 const envKeys=['B1PREP_CONTENT_MODE','B1PREP_SERVE_REVIEW','B1PREP_SERVE_RIGHTS'];
 const previous=Object.fromEntries(envKeys.map(key=>[key,process.env[key]]));
@@ -43,7 +46,8 @@ const check=async(name,fn)=>{await fn();passed++;console.log('PASS '+name);};
 const reject=(promise,code)=>assert.rejects(promise,error=>error.code===code);
 async function fingerprint(){
   const facts=await world.store.inspect.fingerprint(),explanations=[];
-  for(const table of ['writing_explanation_representation','writing_explanation_head','objective_explanation_representation','objective_explanation_head']){
+  for(const table of ['writing_explanation_representation','writing_explanation_head','objective_explanation_representation','objective_explanation_head',
+    'provider_attempt','provider_attempt_observation','explanation_review_target','content_review_authority','content_review_decision']){
     const rows=(await db.admin.query(`SELECT to_jsonb(r) AS value FROM ${table} r ORDER BY to_jsonb(r)::text`)).rows;
     explanations.push([table,rows]);
   }
@@ -66,6 +70,21 @@ async function migration(fn){
 async function reviewContent(contentId,decision){
   const row=(await db.migration.query('SELECT exam_id,content_sha256 FROM content_version WHERE content_version_id=$1',[contentId])).rows[0];
   return migration(client=>syntheticContentReview(db,client,{kind:'content',examId:row.exam_id,subjectId:contentId,version:'',sha256:row.content_sha256},{decision,mediaRoot}));
+}
+async function explanationDecision(target,category,language,decision){
+  return migration(async client=>{
+    const actual=(await client.query('SELECT current_schema() AS schema,current_user AS role')).rows[0];
+    assert.match(db.schema,/^ownapi_[a-f0-9]{16}$/);assert.deepEqual(actual,{schema:db.schema,role:db.roles.migration});
+    const reviewerId='synthetic.c06.consumer.'+category+'.'+(language||'none');
+    const evidence={evidenceRef:'fixture://c06/consumer/no-human-approval',evidenceSha256:'c'.repeat(64),rationale:'Synthetic disposable consumer acceptance; no real appointment or content approval'};
+    const priorAuthority=(await client.query('SELECT authority_id,action FROM content_review_authority WHERE reviewer_id=$1 AND exam_id=$2 AND category=$3 AND language=$4 ORDER BY revision DESC LIMIT 1',[reviewerId,DTZ,category,language])).rows[0];
+    const authority=priorAuthority?.action==='grant'?{authorityId:priorAuthority.authority_id}:await recordReviewerAuthority(client,{...evidence,eventId:randomUUID(),reviewerId,
+      reviewerName:'Synthetic consumer fixture reviewer',examId:DTZ,category,language,action:'grant',expectedAuthorityId:priorAuthority?.authority_id??null});
+    const s=target.subject,previous=(await client.query('SELECT decision_id FROM content_review_decision WHERE exam_id=$1 AND subject_kind=$2 AND subject_id=$3 AND subject_version=$4 AND subject_sha256=$5 AND category=$6 AND language=$7 ORDER BY revision DESC LIMIT 1',
+      [s.examId,s.kind,s.subjectId,s.version,s.sha256,category,language])).rows[0];
+    const packetSha256=decision==='approve'?(await readExplanationReviewPacket(client,s)).packetSha256:null;
+    return recordContentReview(client,{...evidence,eventId:randomUUID(),subject:s,category,language,authorityId:authority.authorityId,expectedDecisionId:previous?.decision_id??null,decision,packetSha256});
+  });
 }
 try{
   process.env.B1PREP_CONTENT_MODE='internal-preview';delete process.env.B1PREP_SERVE_REVIEW;delete process.env.B1PREP_SERVE_RIGHTS;
@@ -168,6 +187,81 @@ try{
     assert.equal((await port.exportData(b.id)).shared_explanation_representations.length,0);
     assert.equal(await fingerprint(),before);
   });
+  const register=async(s,targetKind,representation)=>migration(client=>registerExplanationReviewTarget(client,{scope:'objective',targetKind,sourceIdentity:s.identity,
+    sourceSha256:s.sourceSha256,language:representation.language,representationVersion:representation.version,payloadSha256:representation.payload_sha256},{languageRegistry:registry}));
+  const virtual=s=>({language:s.originalLanguage,version:'legacy-projection-v1',payload_sha256:explanationPayloadHash(s.originalPayload)});
+  const translatedTarget=await register(source,'stored',current),originalTarget=await register(source,'original',virtual(source));
+  const mockView=async(store=port,itemId=item.id)=>{
+    const read=await store.readMockRun(a.id,run.id,{explanationLanguage:'en'});
+    const exact=read.result.items.find(row=>row.set_id===set.setId&&row.version===set.version&&row.item_id===itemId);assert.ok(exact);
+    return exact.explanation_view;
+  };
+  await check('educational and native decisions are independent exact dimensions on both protected reader origins',async()=>{
+    await explanationDecision(translatedTarget,'educational','','approve');
+    let view=await port.readObjectiveEvidenceExplanation(a.id,evidence.evidence_id,{language:'en'});
+    assert.equal(view.review.educational.review_status,'approved');assert.equal(view.review.native_language.review_status,'unreviewed');
+    await explanationDecision(translatedTarget,'language','en','approve');
+    const before=await fingerprint();
+    for(const view of [await port.readObjectiveEvidenceExplanation(a.id,evidence.evidence_id,{language:'en'}),await mockView()]){
+      assert.equal(view.state,'translated');assert.equal(view.review.educational.review_status,'approved');assert.equal(view.review.native_language.review_status,'approved');
+      for(const key of ['decision_ids','reviewer','packet','targetKind','reviewSourceBinding','sourceOrigin'])assert.equal(JSON.stringify(view).includes(key),false);
+    }
+    assert.equal(await fingerprint(),before);
+  });
+  await explanationDecision(originalTarget,'educational','','approve');await explanationDecision(originalTarget,'language','de','approve');
+  await explanationDecision(translatedTarget,'language','en','withdraw');
+  await check('actual translation withdrawal falls back to separately approved original and every export selector survives',async()=>{
+    const before=await fingerprint();
+    for(const view of [await port.readObjectiveEvidenceExplanation(a.id,evidence.evidence_id,{language:'en'}),await mockView()]){
+      assert.equal(view.state,'fallback');assert.equal(view.requested_status,'blocked');assert.equal(view.reason,'representation_withdrawn');
+      assert.equal(view.displayed_language,'de');assert.equal(view.representation.persisted,false);assert.equal(view.review.native_language.review_status,'approved');
+    }
+    const rows=(await port.exportData(a.id)).shared_explanation_representations.filter(row=>row.context.evidence_id===evidence.evidence_id);
+    assert.equal(rows.length,1);assert.deepEqual(rows[0].selections.map(s=>s.selection_language),[null,...languages]);
+    assert.deepEqual(rows[0].selections.find(s=>s.selection_language==='en'),{selection_language:'en',state:'fallback',requested_status:'blocked',reason:'representation_withdrawn',displayed_language:'de'});
+    assert.equal(await fingerprint(),before);
+  });
+  await explanationDecision(originalTarget,'educational','','reject');
+  await check('both exact targets blocked remove selected prose while saved facts and per-selector export refusals survive',async()=>{
+    const before=await fingerprint();
+    for(const view of [await port.readObjectiveEvidenceExplanation(a.id,evidence.evidence_id,{language:'en'}),await mockView()]){assert.equal(view.state,'blocked');assert.equal(view.representation,null);}
+    const rows=(await port.exportData(a.id)).shared_explanation_representations.filter(row=>row.context.evidence_id===evidence.evidence_id);
+    assert.equal(rows.length,6);assert.deepEqual(rows.map(row=>row.selections[0].selection_language),[null,...languages]);
+    assert(rows.every(row=>row.language===null&&row.representation===null&&row.selections.length===1));
+    assert.equal(JSON.stringify(rows).includes(originalValue),false);assert.equal(await fingerprint(),before);
+    assert.deepEqual((await db.admin.query('SELECT result FROM mock_run WHERE id=$1',[run.id])).rows[0].result,storedRun);
+  });
+  await check('registered head-free source cannot evade withdrawal through trusted registry loss in either origin',async()=>{
+    const probe=objectiveItems(set.payload,set.interaction).find(row=>row.id!==item.id);assert.ok(probe);
+    const probeOriginal=set.explanations?.[probe.id]??set.explanations?._set_why?.[probe.id];
+    const probeSource=extractObjectiveExplanationSource({examId:DTZ,setId:set.setId,setVersion:set.version,itemId:probe.id,originalValue:probeOriginal,originalLanguage:'de'});
+    const probeEvidence=await port.answerObjectiveItem(a.id,{preparationId:a.prep.id,setId:set.setId,version:set.version,itemId:probe.id,answer:set.answers[probe.id]});
+    const target=await register(probeSource,'original',virtual(probeSource));await explanationDecision(target,'educational','','withdraw');
+    assert.equal((await db.admin.query('SELECT 1 FROM objective_explanation_head WHERE set_id=$1 AND set_version=$2 AND item_id=$3',[set.setId,set.version,probe.id])).rowCount,0,'no incompatible head may mask a broken binding classifier');
+    const lostRegistry=createPostgresDatastore({pool:db.learner,examCatalogue:catalogue,mediaRoot,explanationLanguageRegistry:[]});
+    const before=await fingerprint();
+    for(const view of [await lostRegistry.readObjectiveEvidenceExplanation(a.id,probeEvidence.evidence_id,{language:'en'}),await mockView(lostRegistry,probe.id)]){
+      assert.equal(view.state,'blocked');assert.equal(view.representation,null);assert.equal(view.original_language,null);assert.equal(view.review.educational.review_status,'unavailable');
+    }
+    const restored=await port.readObjectiveEvidenceExplanation(a.id,probeEvidence.evidence_id,{language:'en'});
+    assert.equal(restored.reason,'representation_withdrawn');assert.equal(restored.representation,null);assert.equal(await fingerprint(),before);
+  });
+  const storedOriginal={language:'de',version:'legacy-projection-v1',source_sha256:source.sourceSha256,payload:structuredClone(source.originalPayload),payload_sha256:explanationPayloadHash(source.originalPayload),
+    provenance:{kind:'publisher-authored',source_sha256:source.sourceSha256,producer_version:'synthetic-consumer-v1'}};
+  await migration(client=>importObjectiveExplanations(client,{items:[{examId:DTZ,setId:set.setId,setVersion:set.version,itemId:item.id,sourceSha256:source.sourceSha256,
+    representations:[storedOriginal],heads:[{language:'de',version:storedOriginal.version,expectedVersion:null}]}]},{languageRegistry:registry}));
+  const storedOriginalTarget=await register(source,'stored',storedOriginal);
+  await explanationDecision(storedOriginalTarget,'educational','','approve');await explanationDecision(storedOriginalTarget,'language','de','approve');
+  await check('stored legacy-projection-v1 approval is distinct from the identically hashed rejected virtual original',async()=>{
+    const before=await fingerprint(),view=await port.readObjectiveEvidenceExplanation(a.id,evidence.evidence_id,{language:'en'});
+    assert.equal(view.state,'fallback');assert.equal(view.representation.persisted,true);assert.equal(view.review.educational.review_status,'approved');assert.equal(await fingerprint(),before);
+  });
+  await explanationDecision(originalTarget,'educational','','approve');await explanationDecision(storedOriginalTarget,'educational','','withdraw');
+  await check('withdrawn stored original never falls through to an approved virtual artifact with the same tuple',async()=>{
+    const before=await fingerprint(),view=await port.readObjectiveEvidenceExplanation(a.id,evidence.evidence_id,{language:'en'});
+    assert.equal(view.state,'blocked');assert.equal(view.representation,null);assert.equal(view.reason,'representation_withdrawn');assert.equal(await fingerprint(),before);
+  });
+  await explanationDecision(storedOriginalTarget,'educational','','approve');await explanationDecision(translatedTarget,'language','en','approve');
   await check('internal-only historical evidence is withheld in public mode while older public history survives an incomplete new head',async()=>{
     const internalSet={...structuredClone(set),setId:'explanation.internal.only',version:'v9700'};
     const internalForm={id:'explanation.internal.reading',version:'v9700',title:'Synthetic internal only',scope:'section',sections:['LV'],mode:'untimed',timeLimitSeconds:null,feedback:'finalise',
@@ -258,8 +352,9 @@ finally{
     const verifier=new db.admin.constructor({...db.config,max:1});
     try{
       const row=(await verifier.query(`SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname=$1) AS schema_exists,
-        EXISTS(SELECT 1 FROM pg_roles WHERE rolname=ANY($2::text[])) AS roles_exist`,[db.schema,Object.values(db.roles)])).rows[0];
-      assert.deepEqual(row,{schema_exists:false,roles_exist:false});
+        EXISTS(SELECT 1 FROM pg_roles WHERE rolname=ANY($2::text[])) AS roles_exist,
+        EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name=$1 OR usename=ANY($2::text[])) AS connections_exist`,[db.schema,Object.values(db.roles)])).rows[0];
+      assert.deepEqual(row,{schema_exists:false,roles_exist:false,connections_exist:false});
     }catch(error){failed??=error;}finally{try{await verifier.end();}catch(error){failed??=error;}}
   }
   try{if(mediaRoot){const resolved=path.resolve(mediaRoot);assert.equal(path.dirname(resolved),path.resolve(tmpdir()));

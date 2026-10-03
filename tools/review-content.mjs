@@ -5,6 +5,7 @@ import {readFile,realpath,open,lstat,readdir} from 'node:fs/promises';
 import {canonicalJson} from '../server/package-contract.mjs';
 import {reviewError} from '../server/content-review-contract.mjs';
 import {recordReviewerAuthority,recordContentReview,readContentCoverage,readReviewPacket} from '../server/owned-postgres/content-review.mjs';
+import {registerExplanationReviewTarget,readExplanationReviewPacket,readExplanationCoverage} from '../server/owned-postgres/explanation-review.mjs';
 const PUBLIC=fileURLToPath(new URL('../public/',import.meta.url));
 const within=(root,target)=>{const r=path.relative(root,target);return r===''||(!r.startsWith('..'+path.sep)&&r!=='..'&&!path.isAbsolute(r));};
 async function assertStaticTreeUnambiguous(root){
@@ -31,7 +32,7 @@ export async function writePrivatePacket(output,value,options){
  return {packetSha256:value.packetSha256};
 }
 export function parseReviewArgs(args){
- const [operation,...rest]=args;if(!['authority','decision','coverage','packet'].includes(operation))reviewError();
+ const [operation,...rest]=args;if(!['authority','decision','coverage','packet','explanation-target','explanation-packet','explanation-coverage'].includes(operation))reviewError();
  const p={operation,apply:false},seen=new Set();
  for(let i=0;i<rest.length;i++){
   const key=rest[i];if(seen.has(key)||!['--apply','--dry-run','--input','--exam','--release','--languages','--subject-file','--output'].includes(key))reviewError();seen.add(key);
@@ -39,19 +40,22 @@ export function parseReviewArgs(args){
   else{const v=rest[++i];if(!v||v.startsWith('--'))reviewError();p[key.slice(2)]=v;}
  }
  if(p.apply&&p.dryRun)reviewError();
- const allowed={authority:['--apply','--dry-run','--input'],decision:['--apply','--dry-run','--input'],coverage:['--exam','--release','--languages'],packet:['--subject-file','--output']}[operation];
- if([...seen].some(k=>!allowed.includes(k))||(['authority','decision'].includes(operation)&&!p.input)||(operation==='coverage'&&!p.exam)||(operation==='packet'&&(!p['subject-file']||!p.output)))reviewError();
+ const allowed={authority:['--apply','--dry-run','--input'],decision:['--apply','--dry-run','--input'],'explanation-target':['--apply','--dry-run','--input'],coverage:['--exam','--release','--languages'],'explanation-coverage':['--exam','--release','--languages'],packet:['--subject-file','--output'],'explanation-packet':['--subject-file','--output']}[operation];
+ if([...seen].some(k=>!allowed.includes(k))||(['authority','decision','explanation-target'].includes(operation)&&!p.input)||(['coverage','explanation-coverage'].includes(operation)&&!p.exam)||(['packet','explanation-packet'].includes(operation)&&(!p['subject-file']||!p.output)))reviewError();
  return p;
 }
 /** Exported transaction runner permits real rollback tests without a second CLI implementation. */
-export async function executeReviewCommand(client,p,{readJson=async f=>JSON.parse(await readFile(f,'utf8')),mediaRoot,packetOptions}={}){
- const writing=['authority','decision'].includes(p.operation);
+export async function executeReviewCommand(client,p,{readJson=async f=>JSON.parse(await readFile(f,'utf8')),mediaRoot,packetOptions,languageRegistry}={}){
+ const writing=['authority','decision','explanation-target'].includes(p.operation);
  await client.query(writing?'BEGIN':'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
  try{
   let result;
-  if(p.operation==='authority')result=await recordReviewerAuthority(client,await readJson(p.input));
+  if(p.operation==='explanation-target')result=await registerExplanationReviewTarget(client,await readJson(p.input),{languageRegistry});
+  else if(p.operation==='explanation-coverage')result=await readExplanationCoverage(client,{examId:p.exam,releaseVersion:p.release,languages:p.languages?.split(',')},{languageRegistry});
+  else if(p.operation==='explanation-packet')result=await writePrivatePacket(p.output,await readExplanationReviewPacket(client,await readJson(p['subject-file'])),packetOptions);
+  else if(p.operation==='authority')result=await recordReviewerAuthority(client,await readJson(p.input));
   else if(p.operation==='decision')result=await recordContentReview(client,await readJson(p.input),{...(mediaRoot?{mediaRoot}:{})});
-  else if(p.operation==='coverage')result=await readContentCoverage(client,{examId:p.exam,releaseVersion:p.release,languages:p.languages?.split(',')},{...(mediaRoot?{mediaRoot}:{})});
+  else if(p.operation==='coverage')result=await readContentCoverage(client,{examId:p.exam,releaseVersion:p.release,languages:p.languages?.split(',')},{...(mediaRoot?{mediaRoot}:{}),languageRegistry});
   else{const packet=await readReviewPacket(client,await readJson(p['subject-file']),{...(mediaRoot?{mediaRoot}:{})});result=await writePrivatePacket(p.output,packet,packetOptions);}
   await client.query(writing&&!p.apply?'ROLLBACK':'COMMIT');
   return writing?{mode:p.apply?'applied':'dry_run',receipt:result}:result;

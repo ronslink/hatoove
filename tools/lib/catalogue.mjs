@@ -34,7 +34,7 @@ export const CONTENT_TABLES = Object.freeze(['content_version', 'rubric_version'
 
 /** Private editorial facts: immutable review identities/evidence, never readable by runtime roles. */
 export const PRIVATE_REVIEW_TABLES = Object.freeze([
-  'content_review_authority', 'content_review_decision', 'content_review_baseline',
+  'content_review_authority', 'content_review_decision', 'content_review_baseline', 'explanation_review_target',
 ]);
 
 /** Private account-owned operational facts: safe export goes through a definer projection. */
