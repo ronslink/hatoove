@@ -1,5 +1,9 @@
 # Hatoove implementation plan
 
+## EXAM-S6 engineering verified; follow-on gaps identified — 3 October 2026
+
+**EXAM-S6-20261003-A, issue119.** Candidate `7b3438a` is independently reviewed and locally verified: core16, parity81, wrapper9, admission12, payments16 and final public browser7 pass. The root inspected desktop/mobile evidence and the browser fixture was removed. [S6 evidence](work/implementation/EXAM-S6-RESULT.md) records corrections, continuation/grant boundaries and limitations. The stacked PR is being prepared; hosted CI is still account-blocked and no merge or product acceptance is claimed. The broader audit identifies named exact-version content-review decisions and versioned saved-assessment language switching as follow-on engineering requiring bounded contracts. Human content/device/security/privacy and live-operation gates remain separate.
+
 ## EXAM-S6 independent review corrections — 3 October 2026
 
 **EXAM-S6-20261003-A, issue119.** Learner admission and payment changes are delivered and independently reviewed. Correction `4464b21` closes a reproduced same-owner objective/writing deadlock; twelve admission checks and the original separate-connection schedule pass. Historical fixture repair `b628dec` passes independent core16, S3 reading10 and media19 checks. The independent payment review passes16 focused checks, including both rights-withdrawal orderings and preserved pending-order terms.

@@ -1,5 +1,9 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## EXAM-S6 locally verified; remaining pilot engineering — 3 October 2026
+
+Complete public DTZ admission is independently reviewed at `7b3438a`: core16, canonical parity81, wrapper9, admission12, payments16 and browser7 pass. [S6 evidence](work/implementation/EXAM-S6-RESULT.md) records the exact boundaries. Hosted CI and integration remain blocked separately. The next engineering contracts address named exact-version content review and versioned saved-assessment explanations/language switching. The older milestone matrix below is historical and must be reconciled against implemented source/evidence, not treated as the current backlog. Human content/device/privacy/security and live-operation gates remain open; the full pilot goal is not complete.
+
 ## EXAM-S6 independent review corrections — 3 October 2026
 
 Learner admission and payments are independently reviewed; the reproduced owner/exam lock inversion is corrected in `4464b21` with twelve admission checks. The remaining SQL/canonical-reader parity correction has Ron's explicit approval for code and disposable tests. Public browser acceptance has preliminary7/7 evidence, with final combined verification pending the correction. [Issue119](https://github.com/ronslink/hatoove/issues/119) remains active. This is delivered engineering under review, not green hosted CI, integration or product acceptance. The GitHub account block and human content/device/live-operation gates remain unchanged.
