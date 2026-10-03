@@ -281,7 +281,13 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
     'submit locks the balance before the attempt');
   const exported = body('exportData');
   const statements = exported.split('client.query(').slice(1);
-  assert.equal(statements.length, 7, 'preparations, balances, attempts, submissions, results, objective evidence, saved runs');
+  assert.equal(statements.length, 8, 'preparations, balances, attempts, submissions, results, objective evidence, saved runs, writing attachments');
+  const attachments = statements.filter((sql) => /FROM mock_writing WHERE owner_id\s*=\s*\$1/.test(sql));
+  assert.equal(attachments.length, 1, 'writing attachments remain exported and owner-scoped');
+  assert.match(exported, /writingContext\(client,\{id:submission\.attempt_id,owner_id:owner,/,
+    'feedback rights follow the owned attempt and its original run through revision ancestry');
+  assert.match(exported, /if\(context\.blocked_reason\) result\.feedback=null/,
+    'blocked feedback is withheld while owned submissions stay exportable');
   const savedRuns = statements.filter((sql) => /FROM mock_run r/.test(sql));
   assert.equal(savedRuns.length, 1, 'saved runs remain part of the account export');
   assert.match(savedRuns[0], /FROM mock_run r WHERE (?:r\.)?owner_id = \$1/, 'saved run export stays owner-scoped');
