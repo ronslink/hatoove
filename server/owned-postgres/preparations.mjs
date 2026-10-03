@@ -89,6 +89,8 @@ export function preparationMethods({ settle, note = () => {}, catalogue = create
     async createPreparation(owner, examId) {
       note('createPreparation');
       return settle(owner, async (client) => {
+        // Match writing/run/SQL guard lock order before any new exam admission.
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))', [owner]);
         // Returning an existing preparation is resume, even when new admission has closed.
         const existing = first(await client.query(
           `${SELECT_PREPARATION} WHERE p.owner_id = $1 AND p.exam_id = $2 AND p.state = 'active'`, [owner, examId]));

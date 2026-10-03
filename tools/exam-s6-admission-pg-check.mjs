@@ -5,7 +5,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
+import { createFixture, rolePool } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createPostgresDatastore } from '../server/owned-postgres/adapter.mjs';
 import { importDefaultPackage, importPackage } from '../server/owned-postgres/package-importer.mjs';
@@ -66,10 +66,10 @@ async function advisoryWait(waiter, blocker) {
   }
   assert.fail('Expected a real separate-connection advisory wait');
 }
-function observedPort({ afterEligibility = null } = {}) {
+function observedPort({ afterEligibility = null, basePool = db.learner } = {}) {
   const connected = deferred(); let pid;
   const pool = { async connect() {
-    const client = await db.learner.connect(); pid = client.processID; connected.resolve();
+    const client = await basePool.connect(); pid = client.processID; connected.resolve();
     return { release: () => client.release(), async query(sql, args) {
       const result = await client.query(sql, args);
       if (sql === 'BEGIN') await client.query("SET LOCAL lock_timeout='6s'; SET LOCAL statement_timeout='8s'");
@@ -199,6 +199,30 @@ try {
     assert.equal(advanced, true); assert.equal(await port.nextPractice(a.id, { preparationId: a.dtz.id }), null);
     assert.equal(connections, 1); assert.deepEqual(begins, ['BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY']);
     await pointHead('v9603');
+  });
+  await check('same-owner objective and writing admissions serialize without an inverted-lock deadlock', async () => {
+    const objectivePool=rolePool(db.config,db.schema,db.roles.learner,1),writingPool=rolePool(db.config,db.schema,db.roles.learner,1);
+    const reached=deferred(),resume=deferred();let held=false,answer,writing;
+    const objectivePort=observedPort({basePool:objectivePool,afterEligibility:async()=>{if(!held){held=true;reached.resolve();await bounded(resume.promise,'release objective barrier');}}});
+    const writingPort=observedPort({basePool:writingPool});
+    try {
+      answer=objectivePort.port.answerObjectiveItem(a.id,objective);answer.catch(()=>{});await bounded(reached.promise,'objective eligibility');
+      writing=writingPort.port.create(a.id,null,binding(task),a.dtz.id);writing.catch(()=>{});await bounded(writingPort.connected,'separate writing connection');
+      assert.notEqual(objectivePort.pid,writingPort.pid);await advisoryWait(writingPort.pid,objectivePort.pid);
+      resume.resolve();assert.ok((await bounded(answer,'objective commit')).evidence_id);assert.ok((await bounded(writing,'writing commit')).id);
+    }finally{resume.resolve();await Promise.allSettled([answer,writing]);await Promise.allSettled([objectivePool.end(),writingPool.end()]);}
+  });
+  await check('new preparation waits for its owner before acquiring the exam fence', async () => {
+    const newcomer=await owner('preparation-order'),pool=rolePool(db.config,db.schema,db.roles.learner,1),observed=observedPort({basePool:pool});
+    const blocker=await db.learner.connect();let operation;
+    try {
+      await blocker.query('BEGIN');await blocker.query("SET LOCAL lock_timeout='6s'; SET LOCAL statement_timeout='8s'");
+      await blocker.query("SELECT set_config('hatoove.owner_id',$1,true)",[newcomer.id]);await blocker.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7352))',[newcomer.id]);
+      operation=observed.port.createPreparation(newcomer.id,DTZ);operation.catch(()=>{});await bounded(observed.connected,'preparation connection');
+      assert.notEqual(observed.pid,blocker.processID);await advisoryWait(observed.pid,blocker.processID);
+      await blocker.query('SELECT pg_advisory_xact_lock(hashtextextended($1,7351))',[DTZ]);await blocker.query('COMMIT');
+      assert.equal((await bounded(operation,'preparation commit')).created,true);
+    }finally{await blocker.query('ROLLBACK');blocker.release();if(operation)await operation.catch(()=>{});await pool.end();}
   });
   await check('publication-first withdrawal waits at the real exam lock then refuses new objective evidence', async () => {
     const publisher = await db.migration.connect(), observed = observedPort(); let operation;

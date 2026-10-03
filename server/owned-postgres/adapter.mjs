@@ -636,6 +636,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       requirePreparationContext(preparationId);
       const statuses = servableReview();
       return settle(owner, async (client) => {
+        // Keep the same owner-before-exam order as writing, run starts and SQL admission guards.
+        await lockMockOwner(client, owner);
         // EXAM-S1: owned (404) and active (409) before anything else; exam match (422) before marking.
         const prep = await requireActivePreparation(client, owner, preparationId);
         if (!examCatalogue.isEnabled(prep.exam_id)) fail(404, 'not_found');
