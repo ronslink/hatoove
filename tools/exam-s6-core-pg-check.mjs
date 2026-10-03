@@ -28,7 +28,8 @@ try {
  pkg=await publishCompleteDtzFixture(db,{mediaRoot,version:'v9800',availableVersion:'v9801'});
  const signup=await world.sessions.signUp({name:'Synthetic S6 core',email:'s6-core-'+randomUUID()+'@example.invalid',password:'synthetic-s6-core-password'});
  owner=(await world.sessions.getSession({cookie:String(signup.setCookie).split(';')[0]})).userId;
- prep=(await world.store.port.createPreparation(owner,DTZ)).preparation;
+ // Seed the historical row through its pre-upgrade restricted SQL grant; current adapters require0034.
+ prep=await asOwner(async c=>(await c.query("INSERT INTO learner_preparation(id,owner_id,exam_id,state,revision) VALUES($1,$2,$3,'active',1) RETURNING id",[randomUUID(),owner,DTZ])).rows[0]);
  parent=await asOwner(async c=>{const attempt=(await insertAttempt(c)).rows[0];const id=randomUUID();await c.query(`INSERT INTO submissions(id,attempt_id,owner_id,event_id,draft_revision,text,task_version,rubric_version,explanation_language)
   VALUES($1,$2,$3,$4,1,'Synthetic saved parent text',$5,$6,'de')`,[id,attempt.id,owner,randomUUID(),pkg.internal.writingTasks[0].version,pkg.internal.writingTasks[0].rubricVersion]);return {attemptId:attempt.id,submissionId:id};});
  const before=(await db.admin.query('SELECT * FROM attempts ORDER BY id')).rows;

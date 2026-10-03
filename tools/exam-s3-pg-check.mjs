@@ -47,7 +47,8 @@ try {
   await importDefaultPackage(db.migration);
   const a=await owner('a');const b=await owner('b');
   await check('forward migration preserves existing telc run and protected function/grant boundaries',async()=>{
-    const form=(await port.listMockForms(a.id,{preparationId:a.telc.id}))[0];
+    // Inspect the pre-upgrade release relation through its historical SQL contract.
+    const form = await sqlAs(a.id, async c => (await c.query('SELECT f.form_id,f.form_version AS version,f.release_version FROM exam_release_form f JOIN exam_release_head h USING(exam_id,release_version) WHERE f.exam_id=$1 ORDER BY f.form_id LIMIT 1',[TELC])).rows[0]);
     // Exercise the historical schema through its own SQL grant, not a latest-schema adapter.
     const old=await sqlAs(a.id,async c=>(await c.query(`INSERT INTO mock_run
       (id,owner_id,preparation_id,exam_id,release_version,blueprint_version,form_id,form_version,start_event_id,title,scope,mode)
@@ -82,7 +83,9 @@ try {
     assert.equal(await defaultPort.nextPractice(a.id,{preparationId:a.dtz.id}),null);
     assert.equal(await defaultPort.readObjectiveSet(a.id,{setId:S3_GROUPED_SET,version:'v1'}),null);
     assert.equal((await get(a,`/api/v1/objective-sets/${S3_GROUPED_SET}?preparationId=${a.dtz.id}&version=v1`,defaultApi)).status,404);
-    await reject(defaultPort.createPreparation(a.id,S3_EXAM),'exam_unavailable',422);
+    // Existing active preparation is an idempotent resume under the S6 contract.
+    const resumedPreparation=await defaultPort.createPreparation(a.id,S3_EXAM);assert.equal(resumedPreparation.created,false);assert.equal(resumedPreparation.preparation.id,a.dtz.id);
+    const fresh=await owner('disabled-new');await reject(defaultPort.createPreparation(fresh.id,S3_EXAM),'exam_unavailable',422);
     await reject(defaultPort.answerObjectiveItem(a.id,{preparationId:a.dtz.id,setId:S3_GROUPED_SET,version:'v1',itemId:'31',answer:'richtig'}),'not_found',404);
     assert.equal((await port.readCredits(a.id,a.dtz.id)).allowance,0);
   });
