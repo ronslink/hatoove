@@ -1,5 +1,17 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## Current delivery and remaining pilot scope — 3 October 2026, 21:44 UTC
+
+PR114/116/118/120/123 merged in order after all seven required hosted checks actually passed. C03 PR125, saved explanations PR126, invocation accounting PR128 and selected-language draft PR130 remain unmerged. Current CI executes; the earlier billing restriction is historical. Reviewed test-fixture corrections preserve the current owner, review and immutable-result contracts. PR125 at a15f65f includes independently checked key-access controls (5/5); new-head hosted validation is pending. Language PR130 at9df40c7 includes the independently reviewed current S2 fixture (14/14); the same key correction is being carried forward.
+
+The [language result](work/implementation/PILOT-I18N-RESULT.md) records final public/auth95/0 and 13 substantive signed-in browser groups plus setup/four cleanups (18/0 records),116 screenshots, and actual BFCache recovery on runtime4c921180. Independent review closed the remaining labels and narrow-title clipping. German assessed material stays original; the selected language covers public/app controls and bilingual operational directions. Human translation, tablet coverage, physical-device and assistive-technology acceptance remain separate.
+
+Read-only completion audit PILOT-COMPLETION-AUDIT-20261003-C confirms accounts, saved work, deterministic adaptive selection and library imports exist; older missing-library and German-only rows below are superseded. The full pilot is not complete. Concrete remaining work includes the deferred exact-representation explanation-review mechanism, reviewed real listening corpus/package assembly, an evaluated provider path after D10 prerequisites, legal/public information after policy inputs, and the recorded large-account deletion performance gap. Monitoring/refill remain proposals with their own prerequisites. Human content/audio/native/security/privacy/legal reviews, payment commercial inputs, backup/rollback rehearsal and live-operation approval cannot be inferred from synthetic checks. A separately leased C06 contract draft addresses only the review mechanism; it authorizes no implementation or personal-reviewer access.
+
+Hosting advice favors app/API and a separate worker on DigitalOcean with private PostgreSQL and one hatoove.com origin. Managed-versus-droplet database placement is unconfirmed. No deployment, DNS change, live key or real charge is authorized or performed.
+
+Earlier dated entries below retain delivery history; use this status and the latest paired implementation/board entries for current work.
+
 ## Actual CI resumed and selected-language implementation began — 3 October 2026
 
 PR114 and PR116 passed all seven repository-policy hosted checks and merged in order as dc3b3ca2/bbf82da5. Remaining PRs are unmerged. [O01 PR128](https://github.com/ronslink/hatoove/pull/128) exposed actual cross-platform registry and retained-fixture defects; reviewed b2dccd5/36892cb corrections await new-head hosted validation. The earlier billing restriction is no longer the active blocker for these runs. [Language issue129](https://github.com/ronslink/hatoove/issues/129) has a separately frozen, independently reviewed contract83e0331; bounded public/auth and shell implementation began, preserving German assessed material and bilingual operational directions. Human/native/device/security/legal/provider and live-operation gates remain open.
