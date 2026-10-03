@@ -1,5 +1,9 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## Actual CI resumed and selected-language implementation began — 3 October 2026
+
+PR114 and PR116 passed all seven repository-policy hosted checks and merged in order as dc3b3ca2/bbf82da5. Remaining PRs are unmerged. [O01 PR128](https://github.com/ronslink/hatoove/pull/128) exposed actual cross-platform registry and retained-fixture defects; reviewed b2dccd5/36892cb corrections await new-head hosted validation. The earlier billing restriction is no longer the active blocker for these runs. [Language issue129](https://github.com/ronslink/hatoove/issues/129) has a separately frozen, independently reviewed contract83e0331; bounded public/auth and shell implementation began, preserving German assessed material and bilingual operational directions. Human/native/device/security/legal/provider and live-operation gates remain open.
+
 ## Invocation accounting locally delivered; full interface languages next — 3 October 2026
 
 [O01 issue127](https://github.com/ronslink/hatoove/issues/127) delivers independently reviewed private invocation receipts, safe synthetic reporting and bounded recovery with [local evidence](work/implementation/PILOT-O01-RESULT.md): pure15, PostgreSQL32, classifier173, Compose40/OpenAPI51 and retained regression suites pass. PR publication follows final staged verification. Required hosted CI, ordered integration and product acceptance remain outstanding under the predecessor account restriction; no actual provider spend, production erasure performance or live-operation approval is claimed.

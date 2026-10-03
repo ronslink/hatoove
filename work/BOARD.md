@@ -1,5 +1,11 @@
 # Hatoove work board
 
+## Hosted execution resumed; first integrations merged — 3 October 2026
+
+PR114 and PR116 passed all seven repository-policy hosted gates and merged as dc3b3ca2 and bbf82da5. O01 [PR128](https://github.com/ronslink/hatoove/pull/128) now has actual execution rather than billing refusals. Its first runs exposed one real LF/CRLF explanation-registry portability defect and retained export/owner-context fixture defects; independently reviewed corrections b2dccd5/36892cb pass focused local checks and await new-head hosted CI. PR118's historical export assertion is under a bounded repair. Remaining PRs are unmerged; no repeated unchanged retries or deployment.
+
+[Issue129](https://github.com/ronslink/hatoove/issues/129) has independently reviewed language contract83e0331 and dated policy overrides on its separate integration branch. Bounded public/auth and shell authors are active in separate worktrees; practice follows its current small CI repair. No completed multilingual interface or native acceptance is claimed.
+
 ## O01 locally verified; full interface languages requested — 3 October 2026
 
 [Issue127](https://github.com/ronslink/hatoove/issues/127) has independently reviewed private invocation accounting, bounded recovery, owned export/deletion and safe aggregate reporting, with [local evidence](implementation/PILOT-O01-RESULT.md): pure15, PostgreSQL32, classifier173 mutation controls, Compose40 including OpenAPI51, and retained regressions pass. Final source-only S0 fixture1967b5b also passes6/6 with independent review. Publication follows staged verification, stacked on PILOT07 PR126. Actual hosted CI and merge remain separate; the prerequisite stack is account-blocked. Synthetic estimates are not actual spend, and production-scale erasure performance remains unproved.
