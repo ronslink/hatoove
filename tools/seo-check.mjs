@@ -13,9 +13,9 @@
  *   2. THE LANGUAGE GUESS ON A GERMAN PAGE. `core.js#initialLocale()` falls back to
  *      `navigator.languages`, and Googlebot reports `en-US`. Before the fix the landing page was
  *      therefore rendered — and indexed — as English with `<html lang="en">`, contradicting its
- *      German canonical URL and its German structured data. Leg S7 evaluates the real
- *      `bootLocale()` out of `public/site.js` with a fake `navigator` present and asserts it still
- *      answers `de`.
+ *      German canonical URL and its German structured data. Leg S7 builds a real locale runtime with
+ *      a browser that reports `en-US` and asserts `storedLocale()` still declines to guess, and it
+ *      holds the companion rule that the read stays in `core.js` rather than in the public shell.
  *
  * The rest is metadata hygiene: one absolute canonical, complete Open Graph and Twitter cards whose
  * image files exist, a parseable JSON-LD graph whose FAQ answers are word-for-word the visible FAQ,
@@ -30,7 +30,7 @@
 import { spawn } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -145,8 +145,16 @@ console.log(`\n=== SEO surface check ===\n`);
   else if (ogImage !== twitterImage) fail('S4', 'Open Graph and Twitter cards are complete', `og:image (${ogImage}) and twitter:image (${twitterImage}) differ`);
   else if (!(await exists(localImage(ogImage) || ''))) fail('S4', 'Open Graph and Twitter cards are complete', `og:image file does not exist in public/: ${ogImage}`);
   else {
-    const w = meta('property', 'og:image:width'); const h = meta('property', 'og:image:height');
-    pass('S4', 'Open Graph and Twitter cards are complete', `${ogImage} (${w}x${h}), card=${meta('name', 'twitter:card')}`);
+    // The declared dimensions are checked against the actual PNG header: a wrong size here is what
+    // makes a social card render cropped or letterboxed, and it is invisible in the markup alone.
+    const w = Number(meta('property', 'og:image:width'));
+    const h = Number(meta('property', 'og:image:height'));
+    const bytes = await readFile(path.join(PUBLIC, localImage(ogImage)));
+    const png = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    const actualW = png ? bytes.readUInt32BE(16) : null;
+    const actualH = png ? bytes.readUInt32BE(20) : null;
+    if (!png || actualW !== w || actualH !== h) fail('S4', 'Open Graph and Twitter cards are complete', `${ogImage} is ${actualW}x${actualH} but the markup declares ${w}x${h}`);
+    else pass('S4', 'Open Graph and Twitter cards are complete', `${ogImage} ${actualW}x${actualH}, card=${meta('name', 'twitter:card')}`);
   }
 }
 
@@ -203,33 +211,44 @@ console.log(`\n=== SEO surface check ===\n`);
   else pass('S6', 'no unsupportable rich-result types', 'no Course, ratings, reviews, offers or prices');
 }
 
-/* S7 — the front door starts in German even for a visitor whose browser says otherwise. */
+/* S7 — the front door starts in German even for a visitor whose browser says otherwise.
+ *
+ * The rule lives in core.js: `storedLocale()` returns the visitor's OWN stored choice or null and
+ * never guesses. This leg builds a REAL locale runtime whose browser reports `en-US` and whose
+ * storage it controls, so the property is tested against the shipped code rather than a copy. It also
+ * holds the companion house rule that the public shell never touches storage itself — the read
+ * belongs to the runtime, and `tools/public-locale-check.mjs` fails a shell that does its own. */
 {
+  const core = await import(pathToFileURL(path.join(PUBLIC, 'assets', 'i18n', 'core.js')).href);
   // Comments in `site.js` NAME `initialLocale()` while explaining why it is not used, so the source
-  // test runs against the code with comments removed.
+  // tests below run against the code with comments removed.
   const code = siteJs.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-  const source = (code.match(/function bootLocale\(\)\s*\{[\s\S]*?\n\}/) || [])[0];
-  if (!source) {
-    fail('S7', 'the landing page starts in German, not in the crawler language', 'bootLocale() not found in public/site.js');
-  } else if (/\binitialLocale\b/.test(code)) {
-    fail('S7', 'the landing page starts in German, not in the crawler language', 'site.js still consults initialLocale(), which falls back to navigator.languages');
-  } else {
-    const validLocale = (value) => ['de', 'en', 'uk', 'ar', 'tr'].includes(value);
-    const run = (read) => {
-      const localStorage = { getItem: read };
-      // eslint-disable-next-line no-new-func
-      return new Function('localStorage', 'LOCALE_STORAGE_KEY', 'validLocale', `${source}\nreturn bootLocale();`)(localStorage, 'hatoove.interface-language.v1', validLocale);
-    };
+  const problems = [];
+  if (typeof core.storedLocale !== 'function') problems.push('core.js does not export storedLocale()');
+  if (/\blocalStorage\b/.test(code)) problems.push('public/site.js reaches storage itself instead of core.js storedLocale()');
+  if (/initialLocale\s*\(/.test(code)) problems.push('public/site.js calls initialLocale(), which falls back to navigator.languages');
+  if (!/setLocale\(storedLocale\(\)\s*\?\?\s*'de'\)/.test(code)) problems.push("public/site.js does not boot as setLocale(storedLocale() ?? 'de')");
+  if (core.LOCALES.join('|') !== 'de|en|uk|ar|tr') problems.push(`core.js LOCALES is "${core.LOCALES.join('|')}"`);
+
+  if (problems.length) fail('S7', 'the landing page starts in German, not in the crawler language', problems.join(' | '));
+  else {
+    const runtimeFor = (getItem) => core.createLocaleRuntime({
+      readStorage: () => ({ getItem }),
+      readNavigator: () => ({ languages: ['en-US'] }),
+      readDocument: () => null,
+    }).storedLocale();
     const cases = [
-      ['no saved choice (Googlebot reports en-US)', () => null, 'de'],
+      ['nothing stored (browser claims en-US)', () => null, null],
       ['stored German', () => 'de', 'de'],
       ['stored Ukrainian', () => 'uk', 'uk'],
-      ['stored junk', () => 'klingon', 'de'],
-      ['storage denied', () => { throw new Error('denied'); }, 'de'],
+      ['stored junk', () => 'klingon', null],
+      ['storage denied', () => { throw new Error('denied'); }, null],
     ];
-    const wrong = cases.filter(([, read, expected]) => run(read) !== expected).map(([label, read, expected]) => `${label}: got ${run(read)}, expected ${expected}`);
+    const wrong = cases
+      .filter(([, getItem, expected]) => runtimeFor(getItem) !== expected)
+      .map(([label, getItem, expected]) => `${label}: got ${runtimeFor(getItem)}, expected ${expected}`);
     if (wrong.length) fail('S7', 'the landing page starts in German, not in the crawler language', wrong.join(' | '));
-    else pass('S7', 'the landing page starts in German, not in the crawler language', `${cases.length} cases, including a stored choice and denied storage`);
+    else pass('S7', 'the landing page starts in German, not in the crawler language', `${cases.length} runtime cases with a browser reporting en-US; storage stays in core.js`);
   }
 }
 

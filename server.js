@@ -751,6 +751,8 @@ export function createServer({ ownedApi = null, readinessCheck = null } = {}) {
             res.writeHead(302, { Location: '/signin', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' });
             res.end();
           } else {
+            // Same reasoning as the not-ready branch above: a refusal is never indexable.
+            res.setHeader('X-Robots-Tag', 'noindex');
             sendJSON(res, 401, { ok: false, error: 'unauthenticated' });
           }
           return;

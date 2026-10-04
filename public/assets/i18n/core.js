@@ -20,11 +20,23 @@ const placeholders = value => [...new Set([...value.matchAll(/\{([a-zA-Z][a-zA-Z
 export function createLocaleRuntime({ readStorage = () => globalThis.localStorage, readNavigator = () => globalThis.navigator, readDocument = () => globalThis.document } = {}) {
   const catalogues = new Map();
   const listeners = new Set();
-  function initialLocale() {
+  /**
+   * The visitor's OWN stored choice, or null. It never guesses from the browser, so a caller can tell
+   * "this person chose a language" apart from "nothing was chosen" — which is what the public front
+   * door needs, because Googlebot reports `en-US` while the page it fetches is German. It exists so
+   * that the storage read stays inside this runtime: `tools/public-locale-check.mjs` fails any public
+   * shell that reaches storage on its own.
+   */
+  function storedLocale() {
     try {
       const saved = readStorage()?.getItem(LOCALE_STORAGE_KEY);
-      if (validLocale(saved)) return saved;
-    } catch { /* Denied storage must not break the interface. */ }
+      return validLocale(saved) ? saved : null;
+    } catch { /* Denied storage is not a language choice. */ }
+    return null;
+  }
+  function initialLocale() {
+    const saved = storedLocale();
+    if (saved) return saved;
     try {
       const navigator = readNavigator();
       const preferred = Array.isArray(navigator?.languages) ? navigator.languages : [navigator?.language];
@@ -130,7 +142,7 @@ export function createLocaleRuntime({ readStorage = () => globalThis.localStorag
     if (!Number.isFinite(date.getTime())) return '—';
     return new Intl.DateTimeFormat(validLocale(language) ? language : locale, options).format(date);
   }
-  return Object.freeze({ initialLocale, getLocale, setLocale, subscribeLocale, registerMessages, t, translateDom, formatNumber, formatDate });
+  return Object.freeze({ initialLocale, storedLocale, getLocale, setLocale, subscribeLocale, registerMessages, t, translateDom, formatNumber, formatDate });
 }
 const runtime = createLocaleRuntime();
-export const { initialLocale, getLocale, setLocale, subscribeLocale, registerMessages, t, translateDom, formatNumber, formatDate } = runtime;
+export const { initialLocale, storedLocale, getLocale, setLocale, subscribeLocale, registerMessages, t, translateDom, formatNumber, formatDate } = runtime;
