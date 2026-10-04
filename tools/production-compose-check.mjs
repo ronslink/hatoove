@@ -176,11 +176,14 @@ function runComposeChecks() {
       return spawnSync('docker',args,{cwd:scratch,env,encoding:'utf8',timeout:30000,maxBuffer:4*1024*1024,windowsHide:true});
     };
     const version = execute(['compose','version','--short']);
-    const versionText = version.stdout?.trim() ?? '', versionMatch = /^v?(\d+)\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?$/.exec(versionText);
+    const versionText = version.stdout?.trim() ?? '', versionMatch = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+][A-Za-z0-9.-]+)?$/.exec(versionText);
     requireThat(!version.error && version.status === 0 && versionMatch && Number(versionMatch[1]) >= 2, 'compose_version_unavailable');
-    // Compare like with like. An unverified release must fail here, with a name that
-    // says why, rather than surfacing later as a misleading model assertion.
-    requireThat(VERIFIED_COMPOSE_VERSIONS.includes(versionText.replace(/^v/, '')), 'compose_version_unverified');
+    // Compare the release, not the build label: a `5.6.0-desktop.1` build shares the
+    // dialect of 5.6.0, and the tolerant regex above already accepts those suffixes.
+    // An unverified release must fail here, named for what is actually wrong, rather
+    // than surfacing later as a misleading model assertion.
+    const release = `${versionMatch[1]}.${versionMatch[2]}.${versionMatch[3]}`;
+    requireThat(VERIFIED_COMPOSE_VERSIONS.includes(release), 'compose_version_unverified');
     const values = {
       HATOVE_APP_IMAGE:`synthetic.invalid/hatoove@sha256:${'a'.repeat(64)}`, HATOVE_CADDY_IMAGE:`caddy@sha256:${'b'.repeat(64)}`,
       HATOVE_POSTGRES_IMAGE:`postgres@sha256:${'c'.repeat(64)}`, OWNAPI_PG_DATABASE:'hatoove_synthetic_config', HATOVE_PG_ADMIN_USER:'synthetic_admin',
