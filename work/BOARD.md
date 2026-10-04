@@ -1,5 +1,11 @@
 # Hatoove work board
 
+## Hosting rehearsal in progress — 4 October 2026, 01:08 UTC
+
+Reviewed production ingress now explicitly refuses unconfigured HTTP/HTTPS Host values with421. Actual stock-Caddy adaptation preserves canonical HTTPS routing and HTTP-01 with TLS-ALPN disabled; the source guard passes4groups/7mutations and actual Compose passes3renderings/30model mutations/5configuration negatives. The disposable runtime harness is independently reviewed and integrated, with13missing-resource and8redacted-diagnostic controls passing.
+
+Three isolated local rehearsals are terminal with independent exact cleanup verification. The first exposed Docker missing-network wording; the second exposed PostgreSQL inet-to-text netmask formatting in the worker probe. Both harness defects are corrected. The third passed configuration, fresh migration/startup, unprivileged app/worker mounted-secret scope and an actual worker-role/container-IP connection, then failed the initial HTTPS probe without an assertion-specific diagnostic. Safe probe diagnostics and an API-contract review are in progress. Full HTTPS/media/webhook, stale-schema/failed-upgrade and managed-variant acceptance, final required CI and hosting PR integration remain pending. This is partial engineering evidence, not production or product acceptance.
+
 ## Hosting source and verified TLS integrated; full runtime acceptance pending — 4 October 2026, 00:38 UTC
 
 [Issue135](https://github.com/ronslink/hatoove/issues/135) has a reviewed frozen contract432a9f4. Independently reviewed cookie21595f4 is integrated as39746a6 with13 focused lifecycle checks passing. Reviewed Compose deliverye36cf765 is integrated as6f288c7; actual configuration rendering passes3 variants,30 unsafe-model controls and5 invalid configurations. Its explicit production allocations total12 connections; this is an allocation ceiling, not evidence of spare managed capacity or throughput. Database placement remains open.
