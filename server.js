@@ -92,6 +92,45 @@ function configuredPublicOrigin(env = process.env) {
   return publicOrigin === null ? null : new URL(publicOrigin);
 }
 
+/*
+ * THE PILOT WINDOW IS CONFIGURATION, NOT PROSE (PILOT-WINDOW-01, 4 October 2026).
+ *
+ * The landing page has always stated the pilot's conditions, but the date lived only in copy, so no
+ * part of the application could read it and nothing kept the page and the deployment in step. This
+ * accessor is the one place the configured date is parsed; `compose.production.yaml` declares it
+ * beside `PAYMENTS_MODE`.
+ *
+ * IT IS READ-ONLY AND DECIDES NOTHING. The enforcement slice is separate: nothing here grants or
+ * refuses access, and no route or entitlement consumes it yet. Making the date readable in advance
+ * of the decision is the point — the copy and the configuration can be held together by
+ * `tools/seo-check.mjs` leg S10 before anything branches on the value.
+ *
+ * FALLBACK, DECIDED AND DOCUMENTED: a missing or malformed `PILOT_FREE_UNTIL` NEVER throws and never
+ * crashes the server — a bad date in the environment must not be able to stop the process booting.
+ * It yields `{ freeUntil: null, valid: false, reason }`. The fallback is deliberately NOT a
+ * hard-coded date: a silent default would let a typo in the environment quietly restore or shift the
+ * free window, which is worse than an obviously absent value. A consumer must therefore treat
+ * `valid: false` as "no free window is configured" — an explicit decision at that call site, not an
+ * inherited guess. `freeUntil` is the validated `YYYY-MM-DD` string (never a Date: a Date acquires
+ * the host's timezone, and this date is a calendar day in every market).
+ */
+export function readPilotFreeUntil(env = process.env) {
+  const raw = env && env.PILOT_FREE_UNTIL;
+  const value = raw === undefined || raw === null ? '' : String(raw).trim();
+  if (value === '') return Object.freeze({ freeUntil: null, valid: false, reason: 'not_configured' });
+  const shape = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!shape) return Object.freeze({ freeUntil: null, valid: false, reason: 'malformed' });
+  // The round-trip rejects a well-shaped impossible day (2027-02-30, 2027-13-01) rather than
+  // normalising it: `Date` would silently roll both over.
+  const [, year, month, day] = shape;
+  const at = new Date(`${value}T00:00:00.000Z`);
+  const impossible = Number.isNaN(at.getTime())
+    || at.toISOString().slice(0, 10) !== value
+    || year === '0000';
+  if (impossible) return Object.freeze({ freeUntil: null, valid: false, reason: 'impossible_date' });
+  return Object.freeze({ freeUntil: value, valid: true, reason: null });
+}
+
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -858,6 +897,10 @@ if (invokedDirectly) {
     // operator's console, not a route: the learner UI is told nothing about the key (D1).
     console.log(`  DeepSeek: ${s.apiKey ? `key set (value hidden), model ${s.model}` : 'NO KEY - offline mode (set DEEPSEEK_API_KEY in the server environment)'}`);
     console.log(`  Exam:     ${s.examDate || 'not set (set EXAM_DATE, or use the learner settings page)'}`);
+    // The date is reported, never enforced, in this slice; an unset or malformed value is named
+    // rather than defaulted, because the free window is a commercial promise made in the copy.
+    const pilot = readPilotFreeUntil();
+    console.log(`  Pilot:    ${pilot.valid ? `free until ${pilot.freeUntil}` : `free-until date NOT CONFIGURED (${pilot.reason}; set PILOT_FREE_UNTIL)`}`);
     if (isSaasMode()) {
       const o = configuredPublicOrigin();
       console.log(`  SaaS:     hosted runtime - trusted origin ${o ? o.origin : 'NOT CONFIGURED (mutations are refused)'}`);

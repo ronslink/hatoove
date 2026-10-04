@@ -22,6 +22,23 @@
  * no rich-result types this product cannot back up, and a sitemap that lists exactly the canonical
  * URLs and nothing invented.
  *
+ *   3. THE FREE WINDOW IS ONE VALUE, IN TWO PLACES. The landing page promises a date ("free until
+ *      14 January 2027") while `compose.production.yaml` declares the one the runtime can read
+ *      (`PILOT_FREE_UNTIL`, parsed by `server.js#readPilotFreeUntil()`). Two copies of a date is
+ *      exactly how a promise goes stale: change one and the page keeps selling the old window. Leg
+ *      S10 reads the date from the configuration and requires the page's FAQ — visible AND JSON-LD —
+ *      to state that same date in German, and to state no other. It also proves the configured date
+ *      is actually parseable, and rejects the whole check if the date is not a four-digit year, so an
+ *      unvalidated value cannot make the leg vacuous. Nothing here enforces the window; enforcement
+ *      is a separate slice.
+ *
+ *      The legs that read the page run against the MARKUP, which only tells the truth to a reader
+ *      with JavaScript disabled — the shipped page replaces those leaves from the catalogue at boot.
+ *      A date fixed in the markup but not in `public.pilot` would still be a stale promise for every
+ *      real visitor, so S10 also holds the German hero kicker to the catalogue's own German value and
+ *      requires both to carry the configured date. Keys whose whole value is copied into the copy,
+ *      such as the FAQ answer, are read straight from the markup because the two must be identical.
+ *
  * Offline: no database, no provider call, no network. The child server is killed in `finally`.
  *
  * Usage: node tools/seo-check.mjs
@@ -159,45 +176,50 @@ console.log(`\n=== SEO surface check ===\n`);
   }
 }
 
-/* S5 — the JSON-LD graph parses, and its FAQ is word-for-word the visible FAQ. */
+/* S5 — the JSON-LD graph parses, and its FAQ is word-for-word the visible FAQ.
+ *
+ * The parsed pair lists are computed ONCE, here, because leg S10 reads the same visible FAQ and the
+ * same JSON-LD answer. Two independent extractions would be two chances to disagree with each other
+ * rather than with the page. */
+const visibleFaq = [...html.matchAll(/<details>([\s\S]*?)<\/details>/gi)].map((match) => {
+  const block = match[1];
+  const summary = (block.match(/<summary[^>]*>([\s\S]*?)<\/summary>/i) || [])[1] || '';
+  return { name: plain(summary), text: plain(block.replace(/<summary[^>]*>[\s\S]*?<\/summary>/i, '')) };
+});
+let jsonLdGraph = null;
+let jsonLdError = null;
+try {
+  jsonLdGraph = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
+    .map((match) => JSON.parse(match[1]))
+    .flatMap((doc) => (Array.isArray(doc['@graph']) ? doc['@graph'] : [doc]));
+} catch (error) {
+  jsonLdError = error.message;
+  jsonLdGraph = null;
+}
 {
-  const blocks = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
-  const details = [...html.matchAll(/<details>([\s\S]*?)<\/details>/gi)].map((match) => match[1]);
-  const fromPage = details.map((block) => {
-    const summary = (block.match(/<summary[^>]*>([\s\S]*?)<\/summary>/i) || [])[1] || '';
-    const answer = block.replace(/<summary[^>]*>[\s\S]*?<\/summary>/i, '');
-    return { name: plain(summary), text: plain(answer) };
-  });
-  if (!blocks.length) fail('S5', 'JSON-LD FAQ matches the visible FAQ', 'no application/ld+json block found');
+  if (jsonLdError) fail('S5', 'JSON-LD FAQ matches the visible FAQ', `invalid JSON: ${jsonLdError}`);
+  else if (!jsonLdGraph.length) fail('S5', 'JSON-LD FAQ matches the visible FAQ', 'no application/ld+json block found');
   else {
-    let graph = null;
-    try {
-      const parsed = blocks.map((block) => JSON.parse(block));
-      graph = parsed.flatMap((doc) => (Array.isArray(doc['@graph']) ? doc['@graph'] : [doc]));
-    } catch (error) {
-      fail('S5', 'JSON-LD FAQ matches the visible FAQ', `invalid JSON: ${error.message}`);
-    }
-    if (graph) {
-      const faq = graph.find((node) => node['@type'] === 'FAQPage');
-      if (!faq) fail('S5', 'JSON-LD FAQ matches the visible FAQ', 'no FAQPage node');
+    const graph = jsonLdGraph;
+    const faq = graph.find((node) => node['@type'] === 'FAQPage');
+    if (!faq) fail('S5', 'JSON-LD FAQ matches the visible FAQ', 'no FAQPage node');
+    else {
+      const entries = Array.isArray(faq.mainEntity) ? faq.mainEntity : [];
+      if (!visibleFaq.length) fail('S5', 'JSON-LD FAQ matches the visible FAQ', 'the page has no <details> FAQ to match');
+      else if (entries.length !== visibleFaq.length) fail('S5', 'JSON-LD FAQ matches the visible FAQ', `JSON-LD has ${entries.length} questions, the page shows ${visibleFaq.length}`);
       else {
-        const entries = Array.isArray(faq.mainEntity) ? faq.mainEntity : [];
-        if (!fromPage.length) fail('S5', 'JSON-LD FAQ matches the visible FAQ', 'the page has no <details> FAQ to match');
-        else if (entries.length !== fromPage.length) fail('S5', 'JSON-LD FAQ matches the visible FAQ', `JSON-LD has ${entries.length} questions, the page shows ${fromPage.length}`);
+        const mismatched = visibleFaq
+          .map((visible, index) => {
+            const entry = entries[index] || {};
+            const name = entry.name; const text = entry.acceptedAnswer && entry.acceptedAnswer.text;
+            return name === visible.name && text === visible.text ? null : `#${index + 1} ${name === visible.name ? '' : `question differs: "${name}" vs "${visible.name}"`}${text === visible.text ? '' : ` answer differs: "${String(text).slice(0, 60)}…" vs "${visible.text.slice(0, 60)}…"`}`.trim();
+          })
+          .filter(Boolean);
+        if (mismatched.length) fail('S5', 'JSON-LD FAQ matches the visible FAQ', mismatched.join(' | '));
         else {
-          const mismatched = fromPage
-            .map((visible, index) => {
-              const entry = entries[index] || {};
-              const name = entry.name; const text = entry.acceptedAnswer && entry.acceptedAnswer.text;
-              return name === visible.name && text === visible.text ? null : `#${index + 1} ${name === visible.name ? '' : `question differs: "${name}" vs "${visible.name}"`}${text === visible.text ? '' : ` answer differs: "${String(text).slice(0, 60)}…" vs "${visible.text.slice(0, 60)}…"`}`.trim();
-            })
-            .filter(Boolean);
-          if (mismatched.length) fail('S5', 'JSON-LD FAQ matches the visible FAQ', mismatched.join(' | '));
-          else {
-            const types = graph.map((node) => node['@type']).filter(Boolean);
-            if (!types.includes('WebSite') || !types.includes('Organization')) fail('S5', 'JSON-LD FAQ matches the visible FAQ', `graph lacks WebSite/Organization: ${types.join(', ')}`);
-            else pass('S5', 'JSON-LD FAQ matches the visible FAQ', `${entries.length} entries word-for-word; graph: ${types.join(', ')}`);
-          }
+          const types = graph.map((node) => node['@type']).filter(Boolean);
+          if (!types.includes('WebSite') || !types.includes('Organization')) fail('S5', 'JSON-LD FAQ matches the visible FAQ', `graph lacks WebSite/Organization: ${types.join(', ')}`);
+          else pass('S5', 'JSON-LD FAQ matches the visible FAQ', `${entries.length} entries word-for-word; graph: ${types.join(', ')}`);
         }
       }
     }
@@ -254,6 +276,89 @@ console.log(`\n=== SEO surface check ===\n`);
       .map(([label, getItem, expected]) => `${label}: got ${runtimeFor(getItem)}, expected ${expected}`);
     if (wrong.length) fail('S7', 'the landing page starts in German, not in the crawler language', wrong.join(' | '));
     else pass('S7', 'the landing page starts in German, not in the crawler language', `${cases.length} runtime cases with a browser reporting en-US; storage stays in core.js`);
+  }
+}
+
+/* S10 — THE PILOT WINDOW DOES NOT DRIFT. The date is configured once
+ * (`compose.production.yaml`: `PILOT_FREE_UNTIL`, the same value `server.js#readPilotFreeUntil()`
+ * parses) and stated in the copy. Two copies of one commitment, in the two files a change is most
+ * likely to touch separately: editing the copy alone leaves the page selling a window the runtime
+ * does not agree with, and editing the configuration alone leaves the page stale. This leg fails on
+ * either, and on a page that states a second, different date.
+ *
+ * It reads the CONFIGURATION as the source of truth rather than a third opinion: the assertion is
+ * "the page states the configured date", so no run of this check can go green by the copy and the
+ * checker agreeing while the deployment says something else.
+ *
+ * What it does NOT do: enforce anything. No route, entitlement or payment decision reads the date in
+ * this slice; this is a copy/configuration agreement, not a gate on a learner.
+ */
+{
+  const compose = await readFile(path.join(ROOT, 'compose.production.yaml'), 'utf8').catch(() => null);
+  const declared = compose === null
+    ? null
+    : (compose.match(/^\s*(?:PILOT_FREE_UNTIL):\s*"?([^"#\r\n]*)"?\s*$/m) || [])[1]?.trim() ?? null;
+  const shape = declared === null ? null : /^(\d{4})-(\d{2})-(\d{2})$/.exec(declared);
+  const asDate = shape ? new Date(`${declared}T00:00:00.000Z`) : null;
+
+  if (compose === null) {
+    fail('S10', 'the landing page states the configured pilot free-until date', 'compose.production.yaml is missing');
+  } else if (!shape) {
+    fail('S10', 'the landing page states the configured pilot free-until date', `compose.production.yaml declares PILOT_FREE_UNTIL as "${declared ?? '(absent)'}"; expected an ISO YYYY-MM-DD date`);
+  } else if (asDate.toISOString().slice(0, 10) !== declared) {
+    fail('S10', 'the landing page states the configured pilot free-until date', `PILOT_FREE_UNTIL "${declared}" is not a real calendar day`);
+  } else {
+    // The date as the German page writes it — day before month, with the German month name. Derived
+    // from the configured value, never typed here: S10 using its own literal would make the leg
+    // unfailable and therefore decoration.
+    const german = Object.fromEntries(new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+      .formatToParts(asDate)
+      .map((part) => [part.type, part.value]));
+    const expected = `${german.day}. ${german.month} ${german.year}`;
+
+    // A date in the day-month-year form the German copy uses, anchored so a longer year or a second
+    // day digit cannot satisfy it by prefix. Matches inside a longer number are excluded.
+    const dateInCopy = new RegExp(`(?<![\\d.])\\d{1,2}\\.\\s*[A-ZÄÖÜ][a-zäöüß]+\\s+\\d{4}(?![\\d.])`, 'g');
+    const datesIn = (text) => [...String(text).matchAll(dateInCopy)].map((match) => match[0]);
+
+    const freeFaq = visibleFaq.find((entry) => entry.name === 'Ist der Pilot kostenlos?');
+    const ldFaq = jsonLdGraph === null ? null : jsonLdGraph.find((node) => node['@type'] === 'FAQPage');
+    const ldFree = ldFaq && Array.isArray(ldFaq.mainEntity)
+      ? ldFaq.mainEntity.find((entry) => entry.name === 'Ist der Pilot kostenlos?')
+      : null;
+    const ldText = ldFree && ldFree.acceptedAnswer && typeof ldFree.acceptedAnswer.text === 'string' ? ldFree.acceptedAnswer.text : null;
+
+    // Both spellings are legitimate German for the same window; both are accepted, and nothing else.
+    const statedCorrectly = (text) => typeof text === 'string'
+      && (text.includes(expected) || text.includes(`bis zum ${expected}`));
+    const correctForms = [expected, `bis zum ${expected}`];
+    const wrongDates = [...new Set([...datesIn(freeFaq ? freeFaq.text : ''), ...datesIn(ldText ?? '')]
+      .filter((date) => !correctForms.some((form) => form.includes(date))))];
+
+    const problems = [];
+    if (!freeFaq) problems.push('the visible FAQ has no "Ist der Pilot kostenlos?" entry');
+    else if (!statedCorrectly(freeFaq.text)) problems.push(`the visible FAQ does not state ${expected}: "${datesIn(freeFaq.text).join(', ') || 'no date found'}"`);
+    if (ldFaq === null) problems.push('the JSON-LD graph has no FAQPage node to read the answer from'); // S5 reports the parse failure
+    else if (ldFree === null) problems.push('the JSON-LD FAQ has no "Ist der Pilot kostenlos?" entry');
+    else if (ldText === null) problems.push('the JSON-LD "Ist der Pilot kostenlos?" entry has no answer text');
+    else if (!statedCorrectly(ldText)) problems.push(`the JSON-LD FAQ does not state ${expected}: "${datesIn(ldText).join(', ') || 'no date found'}"`);
+    if (wrongDates.length) problems.push(`the free FAQ states a different date: ${wrongDates.join(', ')}`);
+
+    /*
+     * The catalogue's German hero kicker is what a real visitor sees; the markup value is the
+     * no-JavaScript fallback. Requiring the markup to equal the catalogue closes the gap this leg
+     * would otherwise leave open: the copy's date corrected in `index.html` while the shipped
+     * catalogue — the text `site.js` actually writes into the page — still states the old one.
+     */
+    const catalogue = await readFile(path.join(PUBLIC, 'assets', 'i18n', 'public-messages.js'), 'utf8').catch(() => null);
+    const catalogueKicker = catalogue === null ? null : (catalogue.match(/^\s*pilot:\s*\[\s*'([^']*)'/m) || [])[1];
+    const markupKicker = ((html.match(/<p class="kicker" data-i18n="public\.pilot">([\s\S]*?)<\/p>/) || [])[1] || '').trim();
+    if (catalogueKicker === null) problems.push('public/assets/i18n/public-messages.js is missing or has no German `pilot` kicker');
+    else if (markupKicker !== catalogueKicker) problems.push(`the markup kicker "${markupKicker}" is not the shipped catalogue's German value "${catalogueKicker}"`);
+    else if (!statedCorrectly(catalogueKicker)) problems.push(`the shipped German kicker does not state ${expected}: "${catalogueKicker}"`);
+
+    if (problems.length) fail('S10', 'the landing page states the configured pilot free-until date', problems.join(' | '));
+    else pass('S10', 'the landing page states the configured pilot free-until date', `PILOT_FREE_UNTIL ${declared} = "${expected}" in the visible FAQ, the JSON-LD answer and the shipped catalogue kicker`);
   }
 }
 

@@ -91,6 +91,12 @@ services:
       B1PREP_BIND: 0.0.0.0
       B1PREP_PORT: "4321"
       PAYMENTS_MODE: "off"
+      # The pilot is free until this calendar day (PILOT-WINDOW-01). It is declared here, beside
+      # PAYMENTS_MODE, so the date the landing page states and the date the runtime can read are one
+      # value rather than two copies of prose. `server.js#readPilotFreeUntil()` parses it and
+      # `tools/seo-check.mjs` leg S10 fails if the page's FAQ states any other date. This slice does
+      # NOT enforce it: no entitlement, access or payment decision reads it yet.
+      PILOT_FREE_UNTIL: "2027-01-14"
       OWNAPI_PG_AUTH_PASSWORD_FILE: /run/secrets/pg_auth
       OWNAPI_PG_LEARNER_PASSWORD_FILE: /run/secrets/pg_learner
       OWNAPI_PG_WORKER_PASSWORD_FILE: /run/secrets/pg_worker

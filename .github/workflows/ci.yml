@@ -80,6 +80,14 @@ jobs:
       # network - it boots the server only to prove the crawler files are public WITHOUT a session.
       - name: SEO surface (crawlability, canonical, structured data)
         run: node tools/seo-check.mjs
+      # THE PILOT WINDOW IS CONFIGURED, NOT PROSE. Leg S10 of the step above holds the landing page's FAQ (and
+      # its JSON-LD answer) to the date declared as `PILOT_FREE_UNTIL` in compose.production.yaml, so
+      # editing one without the other goes red. This step covers the runtime half of the same value:
+      # `server.js#readPilotFreeUntil()` parses it, and a missing, malformed or impossible date falls
+      # back to `null` with a named reason instead of throwing or silently restoring a default. No
+      # entitlement, access or payment decision reads the date in this slice.
+      - name: Pilot free-until date is readable and cannot crash the runtime
+        run: node tools/pilot-window-check.mjs
       # "The provider is operator-only and invisible" USED to run here
       # (tools/provider-config-check.mjs). That check drove `/api/config` anonymously, which the auth
       # wrap now refuses with 401 before any handler — so it had been red since that wrap landed, and
