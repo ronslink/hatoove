@@ -67,44 +67,28 @@ It found one weakness worth acting on and one coverage hole that is now fixed:
 
 ## 3. Slice B — palette, navigation and the exam card
 
-**Open.** Blocked on one input: the studio-look colour list. Ron is sending it; do not invert a palette from
-the pinned tokens in the meantime.
+**Structure delivered** (commit `a0765cd`); colours are still the pinned values by Ron's decision of
+5 October 2026, so the studio-look list is a values-only change. Detail and measurements:
+`work/implementation/REDESIGN-01-SLICE-B.md`.
 
-Constraints that decide the implementation:
-
-- `public/assets/design/hatoove.css` is the **pinned** design system. Its digest is a reviewed contract
-  (`design-assets-check` D2, `app-browser-check` P0b) and it must not be edited.
-- `public/app/app.css` is the shell's own layer and the only stylesheet we may edit. It defines **zero**
-  custom properties today.
-- `design-check` D1 scans `app.css` for raw colour in a *rule* and exempts token-definition lines
-  (`design-check.mjs:80`). So the new palette enters as `--token:` definitions in `app.css` and every rule
-  refers to it through `var()`. A raw hex in an `app.css` rule fails D1.
-- D5b: `app.css` may use only the system breakpoints, 1100 px and 860 px.
-- D3: every token used in `app.css` must be defined (pinned file plus `app.css`).
-
-Contrast: every colour pair slice B introduces is measured before it lands, including the one Ron already
-measured — unanswered tiles need `#7d8ea6`, 3.3:1 on paper, to reach the non-text minimum.
-
-Shell facts the palette has to fit (from `work/implementation/REDESIGN-01-SHELL-MAP.md`):
-
-- 15 routes. Navigation is **already grouped**: an unlabelled group, `.kicker.nav-label` "Lernen"
-  (`shell.m305`, index.html:63) and "Konto" (`shell.m306`, index.html:70).
-- Menu type comes from the pinned `.nav a{font-size:15px}` (`hatoove.css:98`); larger type is an `app.css`
-  override, not a pinned edit.
-- There is **no icon system**: inline hand-authored`<svg class="i">` only, `package.json` dependencies empty,
-  no Lucide/Feather/Heroicons anywhere. Slice B vendors a Lucide subset with its ISC licence and provenance.
-- "Weiter üben" does not exist in the repo today; the nearest controls are `#preparation-continue`
-  (index.html:111) and `#preparation-start`. Orange is the pinned `.btn-primary` pair.
+- The eleven sidebar icons are vendored Lucide paths (lucide-static 1.52.0, ISC) — no dependency, no CDN,
+  works offline.
+- The sidebar is a dark surface in both themes, driven by new tokens in `app.css`; menu type is 16 px.
+- Three defects were found by rendering, not by reading: an unguarded dark-theme block that made the sidebar
+  light on a light device, an idle label at 1.51:1, and an ink logo at 1.05:1 on the dark surface.
+- Still owed: the exam card with the large B1, the orange "Weiter üben" button (its key `shell.m389` exists
+  in all five dictionaries; the button does not), the navy itself, and the colour values.
 
 ## 4. Slice C/D — answer feedback
 
-**Open.** The server now returns `correct_answer` but `public/app/app.js` does not render it yet
-(`answerItem`, app.js:1098-1126 shows only `shell.m137`/`m138` text; `renderMistakes`, app.js:916-970 shows
-`your_answer` only). This slice builds the answer tiles, the verdict box, the question navigator, "Weiter",
-and the part-result screen over that data.
+**Partly delivered** (commit `a0765cd`): the Fehlerheft rows and the practice verdict now show
+`correct_answer`, in the selected interface language, and `tools/app-browser-check.mjs` L19 asserts the reveal
+instead of the behaviour slice A replaced. Still owed: the answer tiles, the full verdict box, the question
+navigator, and the part-result screen — they need the studio-look values to be designed objects.
 
-A check must change with the markup: `tools/shell-locale-check.mjs:224` asserts
-`data-answer="a">a) Original English answer`, pinning the current button text in `app.js:1091-1092`.
+A check had to change with the markup and did: `tools/shell-locale-check.mjs:224` pins
+`data-answer="a">a) Original English answer` in `app.js`, which is unaffected so far because the tiles are
+not built yet.
 
 ## 5. Slice E/F — Fehlerheft and copy cleanup
 
@@ -135,3 +119,18 @@ Impressum and Datenschutz stay **blocked** until the operator entity exists.
 4. A saved bundle and patch under `.qa/redesign-01/bundle/` so the work survives a workspace reset.
 5. Independent review by someone other than the author before integration; no live DNS, deployment,
    production access or real-money action.
+
+## 8. Known state of the rendered check, so no one re-learns it
+
+`tools/app-browser-check.mjs` is **not** a CI gate (`AGENTS.md`), and on the unchanged tree it already fails
+38 legs: several catalogue views render "Loading…" on that harness (L12, L14, L16, L20.woerterbuch) and the
+settings, session and mock legs time out. Those are pre-existing and are not slice B's. `L20.nachschlagen`
+is flaky — it passed in one run and failed in the next two on identical code for that view.
+
+The working method for this branch is therefore a **stashed baseline**: stash the slice, run the harness, run
+it again with the slice, and compare failing leg names. Slice B has zero regressions by that comparison, and
+the logs are in `.qa/redesign-01/` (`baseline-browser.log` against `slice-b-final2-browser.log`).
+
+One useful instrument to keep: `.qa/redesign-01/cascade-probe.html` loads the pinned stylesheet and `app.css`
+in the shell's order on a bare page, so a cascade question can be answered in one browser load without a
+signed-in session.
