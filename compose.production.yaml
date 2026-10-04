@@ -39,7 +39,13 @@ x-database: &database
   # 9 app (including readiness) + 1 runner + 2 concurrent deployment = 12.
   # Required allocation is an operator decision, not evidence of spare shared capacity.
   OWNAPI_PG_CONNECTION_BUDGET: "${OWNAPI_PG_CONNECTION_BUDGET:?Allocate and verify a database connection budget of at least 12}"
-  B1PREP_CONTENT_MODE: public
+  # CONTENT MODE IS AN OPERATOR SETTING, and it decides whether anything is served at all.
+  # `public` requires APPROVED content ("public requires approved content even if legacy flags request
+  # unreviewed", EXAM-S0-20261002-A:21). With it, every release in this installation is `internal` and
+  # unreviewed, so `readReleasedForm` answers null and a learner sees "nothing is released" — which is what
+  # happened in production on 4 October 2026. `internal-preview` is the pilot's documented posture and the
+  # default `compose.yaml` already uses. Pin `public` as soon as the content has actually been approved.
+  B1PREP_CONTENT_MODE: "${HATOVE_CONTENT_MODE:-internal-preview}"
 
 x-runtime: &runtime
   image: "${HATOVE_APP_IMAGE:?Select the reviewed application image by digest}"
