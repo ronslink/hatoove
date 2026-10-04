@@ -18,16 +18,16 @@
  * What this does NOT do, stated plainly:
  *   - It is not an authentication hardening pass. The session port is a small synthetic
  *     implementation, not Better Auth: no expiry sweep, rotation, revocation, email
- *     verification, recovery or abuse controls. A hosted deployment also needs `Secure`
- *     cookies, which loopback testing cannot exercise.
+ *     verification, recovery or abuse controls. Secure cookies are selected only by the
+ *     trusted public-origin policy; genuine HTTPS browser acceptance remains separate.
  *   - It does not migrate the existing single-user progress file. Today's learner data stays
  *     where it is; reconciling it with owned attempts is the next slice, not this one.
  *   - It carries no secret management: database credentials come from the environment.
  */
 
-/**
- * @returns {{enabled: boolean, reason: string}}
- */
+import { readPublicOriginConfig } from './public-origin.mjs';
+
+/** @returns {{enabled: boolean, reason: string}} */
 export function accountsConfig(env = process.env) {
   const flag = env.B1PREP_ACCOUNTS;
   if (flag !== '1') {
@@ -52,6 +52,8 @@ export function accountsConfig(env = process.env) {
  * @returns {Promise<{api: object, pools: object, fixture: object, schemaBehind: object, close: Function} | null>} null when accounts are off
  */
 export async function loadOwnedApi({ env = process.env } = {}) {
+  // Do this before imports/pool creation: a rejected origin must not leak newly opened pools.
+  const originConfig = readPublicOriginConfig(env);
   const config = accountsConfig(env);
   if (!config.enabled) return null;
 
@@ -82,7 +84,7 @@ export async function loadOwnedApi({ env = process.env } = {}) {
   let paymentProvider;
   try {
     paymentProvider = createPaymentsPort({ mode: env.PAYMENTS_MODE || 'off', secretKey: env.STRIPE_SECRET_KEY,
-      webhookSecret: env.STRIPE_WEBHOOK_SECRET, publicOrigin: env.B1PREP_PUBLIC_ORIGIN });
+      webhookSecret: env.STRIPE_WEBHOOK_SECRET, publicOrigin: originConfig.publicOrigin });
   } catch {
     // Optional payment configuration cannot disable saved work or owned order reads.
     console.error('  Payments unavailable: invalid payment configuration.');
@@ -100,7 +102,8 @@ export async function loadOwnedApi({ env = process.env } = {}) {
     deletion: runtime.deletion,
     payments: runtime.payments,
     paymentProvider,
-    publicOrigin: env.B1PREP_PUBLIC_ORIGIN,
+    publicOrigin: originConfig.publicOrigin,
+    requireHttps: originConfig.requireHttps,
     // Compatibility alias for fixture inspection only, never a superuser pool.
     // Registration provisions through the migration-owned AFTER INSERT user trigger in its
     // auth transaction; the former provisioner INSERT and column SELECT grants are revoked.

@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readPublicOriginConfig } from './server/public-origin.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -87,11 +88,8 @@ function isSaasMode(env = process.env) {
 
 /** The deployment's own public origin, or null. http/https, origin only (no path/query/hash). */
 function configuredPublicOrigin(env = process.env) {
-  const raw = String(env.B1PREP_PUBLIC_ORIGIN || '').trim();
-  if (!raw) return null;
-  const url = parseOriginLike(raw);
-  if (!url || url.search || url.hash || (url.pathname !== '' && url.pathname !== '/')) return null;
-  return url;
+  const { publicOrigin } = readPublicOriginConfig(env);
+  return publicOrigin === null ? null : new URL(publicOrigin);
 }
 
 
@@ -562,6 +560,8 @@ async function handleApi(req, res, pathname, ctx = {}) {
  * listening socket.
  */
 export function createServer({ ownedApi = null, readinessCheck = null } = {}) {
+  // Validate trusted configuration before constructing the server or opening account pools.
+  const origin = configuredPublicOrigin();
   const resolveOwnedApi = (server) => {
     const value = server.ownedApi !== undefined && server.ownedApi !== null ? server.ownedApi : ownedApi;
     if (!value) return null;
@@ -578,7 +578,6 @@ export function createServer({ ownedApi = null, readinessCheck = null } = {}) {
 
     try {
       const saas = isSaasMode();
-      const origin = configuredPublicOrigin();
       const serverRef = req.socket.server;
       // Fail closed (SAAS-MODEL-01 Step 2). The runtime is a multi-user service: it is ready
       // only once its account/database configuration has loaded. `node server.js` ALWAYS sets

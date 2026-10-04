@@ -22,6 +22,7 @@
 
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { Fault, EXPLANATION_LANGUAGES } from '../../server/owned-api.mjs';
+import { parsePublicOrigin } from '../public-origin.mjs';
 
 const COOKIE_DEFAULT = 'hatoove_owned_session';
 
@@ -71,7 +72,8 @@ function tokenFrom(headers, cookieName) {
 
 /**
  * @param {{pool: object, adminPool: object, allowance?: number|null, sessionTtlSeconds?: number, cookieName?: string,
- *   registrationHook?: (stage: string, client: object) => (void|Promise<void>)}} options
+ *   registrationHook?: (stage: string, client: object) => (void|Promise<void>),
+ *   publicOrigin?: string|null, requireHttps?: boolean}} options
  *   `pool` connects as the restricted auth role. `adminPool` serves only the fixture-only `liveSessions`.
  *   `allowance` is the initial telc balance (`null` provisions the preparation with no balance).
  *   `registrationHook` is a TEST seam for failure injection: it runs inside the sign-up transaction after
@@ -79,8 +81,10 @@ function tokenFrom(headers, cookieName) {
  */
 export function createPostgresSessions({
   pool, adminPool, allowance = 10, sessionTtlSeconds = 3600, cookieName = COOKIE_DEFAULT,
-  notify = null, registrationHook = null,
+  notify = null, registrationHook = null, publicOrigin, requireHttps = false,
 } = {}) {
+  const trustedOrigin = parsePublicOrigin(publicOrigin, { requireHttps });
+  const secure = trustedOrigin?.startsWith('https:') ? '; Secure' : '';
   if (!pool || typeof pool.connect !== 'function') throw new TypeError('createPostgresSessions requires a pg Pool');
   if (!adminPool || typeof adminPool.query !== 'function') throw new TypeError('createPostgresSessions requires an admin Pool');
 
@@ -127,7 +131,7 @@ export function createPostgresSessions({
       `INSERT INTO session(id, "expiresAt", token, "createdAt", "updatedAt", "userId")
        VALUES($1, now() + make_interval(secs => $2), $3, now(), now(), $4)`,
       [randomUUID(), sessionTtlSeconds, token, userId]);
-    return { setCookie: `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax` };
+    return { setCookie: `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax${secure}` };
   }
 
   /** One session row by token, or null — the shared read every lifecycle operation below starts from. */
@@ -451,7 +455,7 @@ export function createPostgresSessions({
     async signOut(headers) {
       const token = tokenFrom(headers, cookieName);
       if (token) await pool.query('DELETE FROM session WHERE token = $1', [token]);
-      return { setCookie: `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` };
+      return { setCookie: `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}` };
     },
   };
 }
