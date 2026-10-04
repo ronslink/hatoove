@@ -145,6 +145,62 @@ try {
     assert.equal((await importDefaultPackage(db.migration)).unchanged,true);
     assert.equal((await db.learner.query('SELECT release_version FROM exam_release_head WHERE exam_id=$1',[source.exam.id])).rows[0].release_version,head);
   });
+  /*
+   * THE REAL TELC PACKAGE, IMPORTED. Everything above imports synthetic tone fixtures. This imports the
+   * package generated from the authored migration and the nine TTS recordings and asserts what only a
+   * real import shows: the nine media rows exist with their exact identities, the `v2` blueprint and its
+   * pins are in the database, and the reader resolves the allowance PER ATTEMPT MODE from them.
+   * Skipped with a notice when the private audio root is not supplied, so CI stays green without bytes.
+   */
+  await check('the real telc listening package imports as media rows, v2 sets and 1/2/2 pins',async()=>{
+    const realRoot=process.env.HATOVE_LISTENING_MEDIA_ROOT;
+    if(!realRoot){console.log('     skipped: set HATOVE_LISTENING_MEDIA_ROOT to import the real package');return;}
+    assert.ok(path.isAbsolute(realRoot),'HATOVE_LISTENING_MEDIA_ROOT must be an absolute private directory');
+    const source=JSON.parse(await readFile(new URL('../content/exams/telc-deutsch-b1/listening-package.json',import.meta.url),'utf8'));
+    const before=await counts();
+    const formsBefore=await listReleasedForms(db.learner,'telc-deutsch-b1');
+    const result=await importPackage(db.migration,source,{mediaRoot:realRoot});
+    assert(result.changes.length>0);
+    assert.equal((await counts()).media-before.media,9);
+    const rows=(await db.learner.query(`SELECT media_id,version,sha256,byte_length,duration_ms,mime_type FROM exam_media WHERE exam_id='telc-deutsch-b1'`)).rows;
+    for(const descriptor of source.media){
+      const row=rows.find(candidate=>candidate.media_id===descriptor.mediaId&&candidate.version===descriptor.version);
+      assert.ok(row,`missing media row ${descriptor.mediaId}@${descriptor.version}`);
+      assert.equal(row.sha256,descriptor.sha256);assert.equal(row.byte_length,descriptor.byteLength);
+      assert.equal(row.duration_ms,descriptor.durationMs);assert.equal(row.mime_type,'audio/wav');
+    }
+    const sets=(await db.learner.query(`SELECT set_id,item_count FROM objective_set WHERE exam_id='telc-deutsch-b1' AND version='v2' ORDER BY set_id`)).rows;
+    assert.equal(sets.length,9);assert.equal(sets.reduce((total,row)=>total+row.item_count,0),60);
+    const blueprint=(await db.learner.query(`SELECT payload FROM exam_blueprint WHERE exam_id='telc-deutsch-b1' AND version='v2'`)).rows[0];
+    assert.ok(blueprint,'the v2 blueprint row is missing');
+    assert.deepEqual(blueprint.payload.sections.find(section=>section.id==='HV').parts.map(part=>part.playback),
+      [{practice:1,mock:1},{practice:1,mock:2},{practice:1,mock:2}]);
+    const hv2Duration=source.media.find(media=>media.mediaId==='telc-deutsch-b1.hv2.01.audio').durationMs;
+    for(const [formId,expected] of [['telc-deutsch-b1.listening.practice',1],['telc-deutsch-b1.listening.mock',2]]){
+      const bundle=await readReleasedForm(db.learner,{examId:'telc-deutsch-b1',formId,formVersion:'v2',releaseVersion:'v2',newStart:true});
+      assert.ok(bundle,`${formId} did not resolve from the imported package`);
+      assert.equal(bundle.members.reduce((total,member)=>total+(member.item_count??member.itemCount),0),20);
+      assert.equal(bundle.members[1].recordings[0].max_plays,expected,`${formId} HV2 allowance`);
+      assert.equal(bundle.members[0].recordings[0].max_plays,1,`${formId} HV1 allowance`);
+      assert.equal(bundle.members[1].recordings[0].duration_ms,hv2Duration);
+    }
+    /*
+     * NOTHING MAY DISAPPEAR. Activating release v2 replaces its form rows, and the learner's cards come
+     * from `listReleasedForms`, so every form that was listed before the import must still be listed
+     * after it - otherwise adding listening quietly removes something else.
+     */
+    const formsAfter=await listReleasedForms(db.learner,'telc-deutsch-b1');
+    for(const form of formsBefore)
+      assert.ok(formsAfter.some(candidate=>candidate.form_id===form.form_id),
+        `"${form.form_id}" disappeared when the listening release was activated`);
+    assert.equal(formsAfter.filter(form=>form.sections.includes('HV')).length,2);
+    assert.ok(formsAfter.length>formsBefore.length,'the two listening forms must be added');
+    // Listed is not enough: the carried-over reading form has to still START under the new release.
+    const carried=source.forms.find(form=>form.id==='telc-deutsch-b1.reading.01');
+    const reading=await readReleasedForm(db.learner,{examId:'telc-deutsch-b1',formId:carried.id,formVersion:carried.version,releaseVersion:'v2',newStart:true});
+    assert.ok(reading,'the reading form must still start after the listening release is activated');
+    assert.equal(reading.members.length,3);
+  });
 } finally {
   await db?.cleanup();
   assert.equal(path.dirname(path.resolve(root)),path.resolve(os.tmpdir()));assert(path.basename(root).startsWith('hatoove-s5-package-pg-'));await rm(root,{recursive:true,force:true});

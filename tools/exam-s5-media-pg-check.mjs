@@ -174,17 +174,29 @@ try {
     current = await update(a, run, recording, current, { action: 'recover' });
     assert.equal(current.position_ms, pausedPosition); assert.equal(current.plays_used, 1);
   });
-  await check('DTZ completion cannot replay; telc second play remains bounded across returns', async () => {
+  await check('DTZ completion cannot replay; telc allows one play in practice and two in mock for HV2', async () => {
     current = await update(a, run, recording, current, { action: 'complete', positionMs: 30000 });
     await reject(port.mutateMockPlayback(a.id, run.id, event(recording, { expectedRevision: current.revision })), 'playback_exhausted');
-    const telcRun = await start(a, TELC), telcRecording = telcRun.members[1].recordings[0];
-    assert.equal(telcRecording.max_plays, 2);
-    let state = await port.mutateMockPlayback(a.id, telcRun.id, event(telcRecording));
-    state = await update(a, telcRun, telcRecording, state, { action: 'complete', positionMs: 30000 });
-    state = await port.mutateMockPlayback(a.id, telcRun.id, event(telcRecording, { expectedRevision: state.revision }));
+    /*
+     * EXAM-S5.md line 13 fixes telc at 1/2/2, and the allowance is read per attempt mode. The practice
+     * run and the mock run of the SAME recording therefore differ. Asserting only one mode (as this
+     * leg did, in practice mode, expecting the mock number) is what let the implementation collapse
+     * `practice` and `mock` into a single value without any check failing.
+     */
+    const telcPractice = await start(a, TELC), practiceRecording = telcPractice.members[1].recordings[0];
+    assert.equal(practiceRecording.max_plays, 1);
+    const practiceUsed = await port.mutateMockPlayback(a.id, telcPractice.id, event(practiceRecording));
+    const practiceDone = await update(a, telcPractice, practiceRecording, practiceUsed, { action: 'complete', positionMs: 30000 });
+    await reject(port.mutateMockPlayback(a.id, telcPractice.id, event(practiceRecording, { expectedRevision: practiceDone.revision })), 'playback_exhausted');
+    const telcMock = await start(a, TELC, 'mock'), mockRecording = telcMock.members[1].recordings[0];
+    assert.equal(mockRecording.max_plays, 2);
+    assert.equal(telcMock.members[0].recordings[0].max_plays, 1);
+    let state = await port.mutateMockPlayback(a.id, telcMock.id, event(mockRecording));
+    state = await update(a, telcMock, mockRecording, state, { action: 'complete', positionMs: 30000 });
+    state = await port.mutateMockPlayback(a.id, telcMock.id, event(mockRecording, { expectedRevision: state.revision }));
     assert.equal(state.plays_used, 2); assert.equal(state.position_ms, 0);
-    state = await update(a, telcRun, telcRecording, state, { action: 'complete', positionMs: 30000 });
-    await reject(port.mutateMockPlayback(a.id, telcRun.id, event(telcRecording, { expectedRevision: state.revision })), 'playback_exhausted');
+    state = await update(a, telcMock, mockRecording, state, { action: 'complete', positionMs: 30000 });
+    await reject(port.mutateMockPlayback(a.id, telcMock.id, event(mockRecording, { expectedRevision: state.revision })), 'playback_exhausted');
   });
   await check('restricted SQL cannot read another owner, reset progress, raise allowance or delete receipts', async () => {
     assert.equal((await sqlAs(b.id, c => c.query('SELECT * FROM listening_playback WHERE run_id=$1', [run.id]))).rowCount, 0);

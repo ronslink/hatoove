@@ -1,0 +1,1273 @@
+{
+  "schemaVersion": 1,
+  "exam": {
+    "id": "telc-deutsch-b1",
+    "title": "Zertifikat Deutsch / telc Deutsch B1",
+    "language": "de",
+    "levelModel": {
+      "type": "cefr",
+      "levels": [
+        "B1"
+      ]
+    }
+  },
+  "blueprint": {
+    "version": "v2",
+    "timeGroups": [
+      {
+        "id": "lv-sb-90",
+        "seconds": 5400,
+        "sections": [
+          "LV",
+          "SB"
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "id": "LV",
+        "title": "Leseverstehen",
+        "timeGroup": "lv-sb-90",
+        "parts": [
+          {
+            "family": "LV1",
+            "itemCount": 5,
+            "interaction": "matching_headlines",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV2",
+            "itemCount": 5,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV3",
+            "itemCount": 10,
+            "interaction": "matching_ads",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "SB",
+        "title": "Sprachbausteine",
+        "timeGroup": "lv-sb-90",
+        "parts": [
+          {
+            "family": "SB1",
+            "itemCount": 10,
+            "interaction": "gap_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "SB2",
+            "itemCount": 10,
+            "interaction": "gap_bank",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "HV",
+        "title": "Hörverstehen",
+        "timeGroup": null,
+        "parts": [
+          {
+            "family": "HV1",
+            "itemCount": 5,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV2",
+            "itemCount": 10,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 2
+            }
+          },
+          {
+            "family": "HV3",
+            "itemCount": 5,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 2
+            }
+          }
+        ]
+      },
+      {
+        "id": "writing",
+        "title": "Schriftlicher Ausdruck",
+        "timeGroup": null,
+        "parts": [
+          {
+            "family": "writing",
+            "itemCount": 1,
+            "interaction": "extended_writing",
+            "mediaRequired": false
+          }
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "S1",
+        "kind": "official-web-page",
+        "title": "Zertifikat Deutsch / telc Deutsch B1 — official exam page",
+        "url": "https://www.telc.net/sprachpruefungen/deutsch/zertifikat-deutsch-telc-deutsch-b1/",
+        "retrieved": "2026-09-30",
+        "verification": "HTTP 200; page read"
+      },
+      {
+        "id": "S2",
+        "kind": "official-practice-test-pdf",
+        "title": "Zertifikat Deutsch, telc Deutsch B1 — Übungstest 1, Prüfungsvorbereitung",
+        "url": "https://www.telc.net/fileadmin/user_upload/mock_exams/Deutsch/telc_deutsch_b1.zip",
+        "editionOrDate": "13. Auflage 2020, © 2020 by telc gGmbH",
+        "pages": 48,
+        "sha256": "6fd22ffcc25ca75e5718cc9d55bf2369ed716d4071a1058a1fdd301f58fa2b2f",
+        "retrieved": "2026-09-30",
+        "verification": "Downloaded and text-extracted locally, page by page"
+      },
+      {
+        "id": "S3",
+        "kind": "official-regulations-pdf",
+        "title": "telc Prüfungsregularien (regulations binding for all telc examinations)",
+        "url": "https://www.telc.net/fileadmin/user_upload/pdfs/AGB_Pruefungsordnung/9994-P00-150010.pdf",
+        "editionOrDate": "gültig ab 15.04.2025; document no. P01-9994-P00-150010",
+        "pages": 40,
+        "retrieved": "2026-09-30",
+        "verification": "Downloaded and text-extracted; effective date, document number and scope clause located"
+      },
+      {
+        "id": "S4",
+        "kind": "official-product-sheet-pdf",
+        "title": "Zertifikat Deutsch / telc Deutsch B1 product sheet for the scaled examination telc Deutsch A2·B1 (5060-B00-010101)",
+        "url": "https://www.telc.net/fileadmin/user_upload/pdfs/Produktblatt_1060_Deutsch_A2_B1.pdf",
+        "editionOrDate": "Stand: 10.03.2023",
+        "pages": 2,
+        "retrieved": "2026-09-30",
+        "verification": "Downloaded and text-extracted; documents a DIFFERENT, newer scaled examination and must not replace the classic B1 blueprint"
+      },
+      {
+        "id": "S5",
+        "kind": "official-web-page-recheck",
+        "title": "Zertifikat Deutsch / telc Deutsch B1 — official exam page, metadata re-check",
+        "url": "https://www.telc.net/sprachpruefungen/deutsch/zertifikat-deutsch-telc-deutsch-b1/",
+        "retrieved": "2026-10-03",
+        "verification": "Metadata re-check only (no document downloaded): the current page confirms the shared 90-minute reading + language block and the three reading parts. Historical retrieval provenance stays with S1–S4; no current-day PDF download is asserted."
+      }
+    ]
+  },
+  "release": {
+    "version": "v2",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [
+    {
+      "id": "telc-deutsch-b1.reading.01",
+      "version": "v2",
+      "title": "Leseverstehen – Abschnittsübung",
+      "scope": "section",
+      "sections": [
+        "LV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "telc-deutsch-b1.lv1.01",
+          "version": "v1",
+          "interaction": "matching_headlines",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b1.lv2.01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b1.lv3.01",
+          "version": "v1",
+          "interaction": "matching_ads",
+          "itemCount": 10
+        }
+      ]
+    },
+    {
+      "id": "telc-deutsch-b1.listening.practice",
+      "version": "v2",
+      "title": "Hörverstehen – Übung",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "feedback": "finalise",
+      "attemptMode": "practice",
+      "members": [
+        {
+          "setId": "telc-deutsch-b1.hv1.01",
+          "version": "v2",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b1.hv2.01",
+          "version": "v2",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "telc-deutsch-b1.hv3.01",
+          "version": "v2",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        }
+      ]
+    },
+    {
+      "id": "telc-deutsch-b1.listening.mock",
+      "version": "v2",
+      "title": "Hörverstehen – Prüfungsmodus",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 1800,
+      "feedback": "finalise",
+      "attemptMode": "mock",
+      "members": [
+        {
+          "setId": "telc-deutsch-b1.hv1.01",
+          "version": "v2",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b1.hv2.01",
+          "version": "v2",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "telc-deutsch-b1.hv3.01",
+          "version": "v2",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        }
+      ]
+    }
+  ],
+  "sets": [
+    {
+      "setId": "telc-deutsch-b1.hv1.01",
+      "version": "v2",
+      "examId": "telc-deutsch-b1",
+      "family": "HV1",
+      "section": "HV",
+      "part": 1,
+      "title": "Nachrichten von Freunden",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv1.01-recording",
+            "mediaId": "telc-deutsch-b1.hv1.01.audio",
+            "mediaVersion": "v1",
+            "label": "Nachrichten von Freunden",
+            "questions": [
+              {
+                "n": 41,
+                "question": "Anna kann am Freitag nicht ins Kino gehen, weil sie länger arbeiten muss.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 42,
+                "question": "Ben sagt das Fußballtreffen am Samstag ab, weil er arbeiten muss.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 43,
+                "question": "Lisa wartet zehn Minuten am Eingang des Restaurants und fährt dann nach Hause.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 44,
+                "question": "Peter bittet darum, mit dem Auto abgeholt zu werden, weil sein Fahrrad kaputt ist.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 45,
+                "question": "Familie Kaya reserviert einen Tisch für vier Personen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "fixed_audio",
+      "answers": {
+        "41": "richtig",
+        "42": "falsch",
+        "43": "richtig",
+        "44": "richtig",
+        "45": "falsch"
+      },
+      "explanations": {
+        "41": "Anna sagt, dass der Kinobesuch am Freitag nicht klappt, weil sie länger arbeiten muss.",
+        "42": "Ben kann nicht kommen, weil seine Eltern zu Besuch sind – nicht wegen der Arbeit.",
+        "43": "Lisa sagt, dass sie noch zehn Minuten am Eingang wartet und dann nach Hause fährt.",
+        "44": "Peter hat mit dem Fahrrad eine Panne und fragt, ob man ihn mit dem Auto abholt.",
+        "45": "Im Text ist von sechs Personen die Rede, nicht von vier."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "authored in server/migrations/0010-objective-catalogue.sql#telc-deutsch-b1.hv1.01; audio built by tools/listening-tts-build.mjs (Google Cloud TTS, de-DE-Standard-G/H) and pinned in content/exams/telc-deutsch-b1/listening-media.json"
+    },
+    {
+      "setId": "telc-deutsch-b1.hv1.02",
+      "version": "v2",
+      "examId": "telc-deutsch-b1",
+      "family": "HV1",
+      "section": "HV",
+      "part": 1,
+      "title": "Ansagen und Nachrichten zum Thema Reisen",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv1.02-recording",
+            "mediaId": "telc-deutsch-b1.hv1.02.audio",
+            "mediaVersion": "v1",
+            "label": "Ansagen und Nachrichten zum Thema Reisen",
+            "questions": [
+              {
+                "n": 41,
+                "question": "Jonas hat Verspätung und schafft es nicht mehr zum Mittagessen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 42,
+                "question": "Der Zug nach München fährt heute von Gleis acht.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 43,
+                "question": "Sofias Flug nach Lissabon wurde gestrichen, sie fliegt jetzt morgen früh.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 44,
+                "question": "Das Frühstück im Hotel Sonne kostet extra.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 45,
+                "question": "Die reservierten Fahrräder müssen bis achtzehn Uhr abgeholt werden.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "fixed_audio",
+      "answers": {
+        "41": "richtig",
+        "42": "falsch",
+        "43": "richtig",
+        "44": "falsch",
+        "45": "richtig"
+      },
+      "explanations": {
+        "41": "Jonas sagt, sein Zug hat zwanzig Minuten Verspätung, deshalb schafft er das Mittagessen nicht.",
+        "42": "Laut Ansage fährt der ICE nach München heute von Gleis zwölf.",
+        "43": "Der Flug wurde gestrichen und die Airline hat einen neuen Flug für morgen früh um sechs Uhr angeboten.",
+        "44": "Im Text steht, dass das Frühstück im Preis enthalten ist.",
+        "45": "Der Fahrradverleih bittet darum, bis spätestens achtzehn Uhr zu kommen."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "authored in server/migrations/0010-objective-catalogue.sql#telc-deutsch-b1.hv1.02; audio built by tools/listening-tts-build.mjs (Google Cloud TTS, de-DE-Standard-G/H) and pinned in content/exams/telc-deutsch-b1/listening-media.json"
+    },
+    {
+      "setId": "telc-deutsch-b1.hv1.03",
+      "version": "v2",
+      "examId": "telc-deutsch-b1",
+      "family": "HV1",
+      "section": "HV",
+      "part": 1,
+      "title": "Nachrichten rund um Gesundheit und Termine",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv1.03-recording",
+            "mediaId": "telc-deutsch-b1.hv1.03.audio",
+            "mediaVersion": "v1",
+            "label": "Nachrichten rund um Gesundheit und Termine",
+            "questions": [
+              {
+                "n": 41,
+                "question": "Der Termin bei Dr. Noll am Mittwoch wird verschoben, die Praxis bietet Donnerstag oder Freitag an.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 42,
+                "question": "Laura bringt ihrem Vater morgen die neuen Rezepte mit.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 43,
+                "question": "Der Kurs am Dienstag findet wie geplant statt.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 44,
+                "question": "Die Apotheke hat alle bestellten Medikamente vorrätig.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 45,
+                "question": "Der Kontrolltermin beim Zahnarzt ist am Freitag um elf Uhr.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "fixed_audio",
+      "answers": {
+        "41": "richtig",
+        "42": "richtig",
+        "43": "falsch",
+        "44": "falsch",
+        "45": "richtig"
+      },
+      "explanations": {
+        "41": "Die Praxis schlägt Donnerstag um halb elf oder Freitag um zwei Uhr vor.",
+        "42": "Laura sagt, dass sie morgen um zehn kommt und die Rezepte von der Apotheke mitbringt.",
+        "43": "Der Kurs am Dienstag fällt aus, weil die Trainerin krank ist.",
+        "44": "Ein Medikament ist nicht lieferbar und kommt erst am Montag.",
+        "45": "Die Zahnarztpraxis erinnert an den Kontrolltermin am Freitag um elf Uhr."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "authored in server/migrations/0010-objective-catalogue.sql#telc-deutsch-b1.hv1.03; audio built by tools/listening-tts-build.mjs (Google Cloud TTS, de-DE-Standard-G/H) and pinned in content/exams/telc-deutsch-b1/listening-media.json"
+    },
+    {
+      "setId": "telc-deutsch-b1.hv2.01",
+      "version": "v2",
+      "examId": "telc-deutsch-b1",
+      "family": "HV2",
+      "section": "HV",
+      "part": 2,
+      "title": "Interview mit der Ernährungsberaterin Dr. Karin Baum",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv2.01-recording",
+            "mediaId": "telc-deutsch-b1.hv2.01.audio",
+            "mediaVersion": "v1",
+            "label": "Interview mit der Ernährungsberaterin Dr. Karin Baum",
+            "questions": [
+              {
+                "n": 46,
+                "question": "Frau Baum empfiehlt, sofort mit einer strengen Diät zu beginnen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 47,
+                "question": "Ihrer Erfahrung nach halten strenge Diäten meistens nur zwei oder drei Wochen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 48,
+                "question": "Gesundes Essen ist laut Frau Baum immer teurer als Fast Food.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 49,
+                "question": "Spezielle Riegel und Säfte in bunten Packungen hält sie für überflüssig.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 50,
+                "question": "In der Praxis sehen sie immer mehr zehnjährige Kinder mit Übergewicht.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 51,
+                "question": "Frau Baum findet alle Ernährungsvideos im Internet gefährlich.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 52,
+                "question": "Sie empfiehlt, bei Fragen zu Medikamenten eine Ärztin oder einen Arzt zu fragen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 53,
+                "question": "Ein Firmenkurs dauert acht Wochen mit einem Termin pro Woche.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 54,
+                "question": "In den Firmenkursen müssen alle Teilnehmer mitkochen, auch wenn sie nicht wollen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 55,
+                "question": "Kleine Firmen mit weniger als zwanzig Mitarbeitern zahlen 600 Euro für den ganzen Kurs.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 10,
+      "interaction": "fixed_audio",
+      "answers": {
+        "46": "falsch",
+        "47": "richtig",
+        "48": "falsch",
+        "49": "richtig",
+        "50": "richtig",
+        "51": "falsch",
+        "52": "richtig",
+        "53": "richtig",
+        "54": "falsch",
+        "55": "richtig"
+      },
+      "explanations": {
+        "46": "Sie rät ausdrücklich davon ab und empfiehlt kleine Veränderungen im Alltag.",
+        "47": "Frau Baum sagt, dass man eine strenge Diät meistens nur zwei oder drei Wochen durchhält.",
+        "48": "Sie sagt, das stimme nur zum Teil; saisonales Gemüse und Hülsenfrüchte sind nicht teuer.",
+        "49": "Sie sagt am Ende des Absatzes: „Die braucht niemand.“",
+        "50": "Frau Baum berichtet, dass sie immer mehr Zehnjährige mit Übergewicht sehen.",
+        "51": "Sie sagt, ein Teil sei gut und nur ein Teil gefährlich.",
+        "52": "Sie empfiehlt immer, bei einer Ärztin oder einem Arzt nachzufragen.",
+        "53": "Der Kurs dauert acht Wochen, und man trifft sich einmal pro Woche für neunzig Minuten.",
+        "54": "Frau Baum betont, dass niemand mitmachen muss; Freiwilligkeit ist wichtiger als Druck.",
+        "55": "Für kleine Betriebe gibt es einen festen Preis von 600 Euro für den ganzen Kurs."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "authored in server/migrations/0010-objective-catalogue.sql#telc-deutsch-b1.hv2.01; audio built by tools/listening-tts-build.mjs (Google Cloud TTS, de-DE-Standard-G/H) and pinned in content/exams/telc-deutsch-b1/listening-media.json"
+    },
+    {
+      "setId": "telc-deutsch-b1.hv2.02",
+      "version": "v2",
+      "examId": "telc-deutsch-b1",
+      "family": "HV2",
+      "section": "HV",
+      "part": 2,
+      "title": "Interview mit dem Fahrlehrer Thomas Reinhardt",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv2.02-recording",
+            "mediaId": "telc-deutsch-b1.hv2.02.audio",
+            "mediaVersion": "v1",
+            "label": "Interview mit dem Fahrlehrer Thomas Reinhardt",
+            "questions": [
+              {
+                "n": 46,
+                "question": "Herr Reinhardt sagt, dass junge Fahrschüler heute unsicherer sind als früher.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 47,
+                "question": "Viele Fahrschüler haben schon als Kinder viel über Autos gelernt, weil ihre Familien ein Auto haben.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 48,
+                "question": "Vor zwanzig Jahren war der Führerschein meist billiger als heute.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 49,
+                "question": "Wer die Theorieprüfung früh besteht, braucht meistens weniger Fahrstunden.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 50,
+                "question": "Beim begleiteten Fahren reicht es, wenn die Begleitperson einen Führerschein hat.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 51,
+                "question": "Die Begleitperson muss mindestens dreißig Jahre alt sein.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 52,
+                "question": "Für die Fahrschule sind E-Autos im Unterricht völlig unproblematisch.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 53,
+                "question": "Herr Reinhardt erwartet, dass in zehn Jahren fast alle Fahrschulen E-Autos nutzen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 54,
+                "question": "Er sagt, dass man das Fahren in zwei Wochen lernen kann.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 55,
+                "question": "Er möchte, dass Fahrschüler die Regeln lernen, weil sie im Verkehr wichtig sind.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 10,
+      "interaction": "fixed_audio",
+      "answers": {
+        "46": "richtig",
+        "47": "falsch",
+        "48": "richtig",
+        "49": "richtig",
+        "50": "falsch",
+        "51": "richtig",
+        "52": "falsch",
+        "53": "richtig",
+        "54": "falsch",
+        "55": "richtig"
+      },
+      "explanations": {
+        "46": "Er sagt, die jungen Leute sind heute viel unsicherer, wenn sie zum ersten Mal im Auto sitzen.",
+        "47": "Im Gegenteil: Viele kommen aus Familien, in denen niemand ein Auto hat.",
+        "48": "Früher zahlte man 1.200 bis 1.500 Euro, heute oft 2.500 Euro oder mehr.",
+        "49": "So kann man sich im praktischen Unterricht voll auf das Fahren konzentrieren.",
+        "50": "Sie muss außerdem mindestens dreißig Jahre alt sein, seit fünf Jahren den Führerschein haben und darf höchstens einen Punkt haben.",
+        "51": "Herr Reinhardt nennt genau diese Bedingung für die Begleitperson.",
+        "52": "Die Fahrschule braucht eine teure Ladestation, und das Laden dauert länger als das Tanken.",
+        "53": "Er sagt, dass in zehn Jahren fast alle Fahrschulen mit E-Autos fahren werden.",
+        "54": "Er betont: „Fahren lernt man nicht in zwei Wochen.“",
+        "55": "Er wünscht sich, dass sie die Regeln nicht nur für die Prüfung lernen, sondern weil sie im Verkehr wichtig sind."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "authored in server/migrations/0010-objective-catalogue.sql#telc-deutsch-b1.hv2.02; audio built by tools/listening-tts-build.mjs (Google Cloud TTS, de-DE-Standard-G/H) and pinned in content/exams/telc-deutsch-b1/listening-media.json"
+    },
+    {
+      "setId": "telc-deutsch-b1.hv2.03",
+      "version": "v2",
+      "examId": "telc-deutsch-b1",
+      "family": "HV2",
+      "section": "HV",
+      "part": 2,
+      "title": "Interview mit der Umweltberaterin Julia Kessler",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv2.03-recording",
+            "mediaId": "telc-deutsch-b1.hv2.03.audio",
+            "mediaVersion": "v1",
+            "label": "Interview mit der Umweltberaterin Julia Kessler",
+            "questions": [
+              {
+                "n": 46,
+                "question": "In Deutschland produziert jeder Mensch im Durchschnitt etwa 620 Kilogramm Haushaltsabfall pro Jahr.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 47,
+                "question": "Frau Kessler findet, dass Recycling allein ausreicht.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 48,
+                "question": "Joghurtbecher sollte man kurz ausspülen, bevor man sie in den gelben Sack wirft.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 49,
+                "question": "Benutzte Taschentücher gehören ins Altpapier.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 50,
+                "question": "Blaue Glasflaschen gehören meistens zum grünen Glas.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 51,
+                "question": "Alle Gastronomiebetriebe in Deutschland müssen seit 2023 Mehrweg anbieten.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 52,
+                "question": "Studien zufolge sind Mehrwegbecher ab etwa zwanzig Nutzungen besser als Einwegbecher.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 53,
+                "question": "Man muss den Mehrwegbecher in demselben Café zurückgeben, in dem man ihn gekauft hat.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 54,
+                "question": "Frau Kessler empfiehlt, Geräte reparieren zu lassen statt neue zu kaufen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 55,
+                "question": "Die Gemeinde in Bayern hat mit den Tipps 30 Prozent mehr Restmüll produziert.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 10,
+      "interaction": "fixed_audio",
+      "answers": {
+        "46": "richtig",
+        "47": "falsch",
+        "48": "richtig",
+        "49": "falsch",
+        "50": "richtig",
+        "51": "falsch",
+        "52": "richtig",
+        "53": "falsch",
+        "54": "richtig",
+        "55": "falsch"
+      },
+      "explanations": {
+        "46": "Frau Kessler nennt genau diese Zahl von etwa 620 Kilogramm pro Jahr.",
+        "47": "Sie sagt ausdrücklich, dass Recycling allein nicht reicht und wir zuerst weniger produzieren müssen.",
+        "48": "Sie empfiehlt, den Becher kurz auszuspülen, weil Reste von Milchprodukten das Recycling stören.",
+        "49": "Benutzte Taschentücher und Küchenpapier gehören in den Restmüll.",
+        "50": "Frau Kessler sagt, blaue Flaschen sind ein Problem und gehören deshalb meistens zum grünen Glas.",
+        "51": "Kleine Betriebe wie ein Kiosk mit wenigen Mitarbeitern sind davon ausgenommen.",
+        "52": "Genau diese Zahl nennt Frau Kessler mit Verweis auf Studien.",
+        "53": "Es gibt ein einheitliches Pfandsystem, bei dem man den Becher in jedem teilnehmenden Café abgeben kann.",
+        "54": "Das ist einer der fünf Tipps, die sie am Ende gibt.",
+        "55": "Sie hat 30 Prozent weniger Restmüll produziert, nicht mehr."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "authored in server/migrations/0010-objective-catalogue.sql#telc-deutsch-b1.hv2.03; audio built by tools/listening-tts-build.mjs (Google Cloud TTS, de-DE-Standard-G/H) and pinned in content/exams/telc-deutsch-b1/listening-media.json"
+    },
+    {
+      "setId": "telc-deutsch-b1.hv3.01",
+      "version": "v2",
+      "examId": "telc-deutsch-b1",
+      "family": "HV3",
+      "section": "HV",
+      "part": 3,
+      "title": "Ansagen und Nachrichten aus Geschäften und Einrichtungen",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv3.01-recording",
+            "mediaId": "telc-deutsch-b1.hv3.01.audio",
+            "mediaVersion": "v1",
+            "label": "Ansagen und Nachrichten aus Geschäften und Einrichtungen",
+            "questions": [
+              {
+                "n": 56,
+                "question": "Die Torte kann man am Freitag zwischen acht und sechzehn Uhr abholen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 57,
+                "question": "Der Supermarkt schließt heute schon um neunzehn Uhr.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 58,
+                "question": "Das Sofa wird am Dienstag zwischen dreizehn und siebzehn Uhr geliefert.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 59,
+                "question": "Die Straßenbahnlinie 4 fährt heute nur bis zur Haltestelle Marktplatz.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 60,
+                "question": "Das bestellte Buch kann man bis Montag abholen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "fixed_audio",
+      "answers": {
+        "56": "richtig",
+        "57": "richtig",
+        "58": "falsch",
+        "59": "richtig",
+        "60": "falsch"
+      },
+      "explanations": {
+        "56": "Die Bäckerei nennt genau diesen Abholtermin am Freitag.",
+        "57": "Wegen der Inventur schließt der Supermarkt heute ausnahmsweise um neunzehn Uhr.",
+        "58": "Die Lieferung am Dienstag ist nicht möglich; der neue Termin ist Donnerstag zwischen dreizehn und siebzehn Uhr.",
+        "59": "Wegen der Bauarbeiten endet die Linie 4 heute am Marktplatz, dort fahren Busse weiter.",
+        "60": "Man kann das Buch bis Samstag abholen; am Montag wird es weitergegeben."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "authored in server/migrations/0010-objective-catalogue.sql#telc-deutsch-b1.hv3.01; audio built by tools/listening-tts-build.mjs (Google Cloud TTS, de-DE-Standard-G/H) and pinned in content/exams/telc-deutsch-b1/listening-media.json"
+    },
+    {
+      "setId": "telc-deutsch-b1.hv3.02",
+      "version": "v2",
+      "examId": "telc-deutsch-b1",
+      "family": "HV3",
+      "section": "HV",
+      "part": 3,
+      "title": "Durchsagen und Nachrichten für Reisende",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv3.02-recording",
+            "mediaId": "telc-deutsch-b1.hv3.02.audio",
+            "mediaVersion": "v1",
+            "label": "Durchsagen und Nachrichten für Reisende",
+            "questions": [
+              {
+                "n": 56,
+                "question": "Der Regionalexpress nach Stuttgart fährt heute von Gleis zwölf.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 57,
+                "question": "Der Flug nach Rom startet jetzt um sechzehn Uhr fünfzig am Gate B 12.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 58,
+                "question": "Für den Urlaub in Griechenland muss der Reisepass noch mindestens sechs Monate gültig sein.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 59,
+                "question": "Die S-Bahn fährt heute über die Station Universität.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 60,
+                "question": "In der Jugendherberge kostet das Abendessen neun Euro pro Person.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "fixed_audio",
+      "answers": {
+        "56": "falsch",
+        "57": "richtig",
+        "58": "richtig",
+        "59": "falsch",
+        "60": "richtig"
+      },
+      "explanations": {
+        "56": "Laut Durchsage fährt der Zug heute von Gleis neun, nicht von Gleis zwölf.",
+        "57": "Der neue Abflug ist um sechzehn Uhr fünfzig, das Gate ist B 12.",
+        "58": "Das Reisebüro weist ausdrücklich auf diese sechs Monate hin.",
+        "59": "Wegen eines Unfalls fahren die Züge heute nicht über die Station Universität.",
+        "60": "Laut Buchungsbestätigung kostet das Abendessen neun Euro pro Person."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "authored in server/migrations/0010-objective-catalogue.sql#telc-deutsch-b1.hv3.02; audio built by tools/listening-tts-build.mjs (Google Cloud TTS, de-DE-Standard-G/H) and pinned in content/exams/telc-deutsch-b1/listening-media.json"
+    },
+    {
+      "setId": "telc-deutsch-b1.hv3.03",
+      "version": "v2",
+      "examId": "telc-deutsch-b1",
+      "family": "HV3",
+      "section": "HV",
+      "part": 3,
+      "title": "Nachrichten aus Verein, Schule und Musikschule",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv3.03-recording",
+            "mediaId": "telc-deutsch-b1.hv3.03.audio",
+            "mediaVersion": "v1",
+            "label": "Nachrichten aus Verein, Schule und Musikschule",
+            "questions": [
+              {
+                "n": 56,
+                "question": "Das Training der Jugendmannschaft findet am Mittwoch in der Halle statt.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 57,
+                "question": "Die Jahreshauptversammlung ist am 14. März um neunzehn Uhr.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 58,
+                "question": "Der Gitarrenkurs am Donnerstag findet wie geplant statt.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 59,
+                "question": "Der Elternabend der Klasse 4b beginnt um neunzehn Uhr dreißig in Raum 204.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 60,
+                "question": "Der Lesekurs für Erwachsene kostet 25 Euro und dauert sechs Wochen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "fixed_audio",
+      "answers": {
+        "56": "falsch",
+        "57": "richtig",
+        "58": "falsch",
+        "59": "richtig",
+        "60": "richtig"
+      },
+      "explanations": {
+        "56": "Das Training am Mittwoch fällt aus, weil die Halle renoviert wird; am Freitag trainiert man draußen.",
+        "57": "Der neue Termin ist der 14. März, Beginn um neunzehn Uhr im Vereinsheim.",
+        "58": "Der Kurs wurde auf Samstag um elf Uhr verschoben, weil Frau Sommer krank ist.",
+        "59": "Der Elternabend beginnt erst um neunzehn Uhr dreißig, der Raum bleibt Raum 204.",
+        "60": "Die Stadtbücherei nennt sechs Wochen Dauer und 25 Euro Kursgebühr."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "authored in server/migrations/0010-objective-catalogue.sql#telc-deutsch-b1.hv3.03; audio built by tools/listening-tts-build.mjs (Google Cloud TTS, de-DE-Standard-G/H) and pinned in content/exams/telc-deutsch-b1/listening-media.json"
+    }
+  ],
+  "media": [
+    {
+      "mediaId": "telc-deutsch-b1.hv1.01.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv1.01-v1.wav",
+      "sha256": "28ea34480612a2d303aa80972749f3326f46554a81ede4e619625d414bfad894",
+      "byteLength": 3094216,
+      "durationMs": 64462,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H; transcript authored in server/migrations/0010-objective-catalogue.sql#hv1.01"
+    },
+    {
+      "mediaId": "telc-deutsch-b1.hv1.02.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv1.02-v1.wav",
+      "sha256": "db02ccf3439be7aab656b07827833a20862e320b55bd8952d667ec35cba5b9bb",
+      "byteLength": 3135154,
+      "durationMs": 65315,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H; transcript authored in server/migrations/0010-objective-catalogue.sql#hv1.02"
+    },
+    {
+      "mediaId": "telc-deutsch-b1.hv1.03.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv1.03-v1.wav",
+      "sha256": "99385b384d7e5140892fb7c4db13a4804fc6682fc3d330f1799a1fe848498b60",
+      "byteLength": 3091232,
+      "durationMs": 64400,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H; transcript authored in server/migrations/0010-objective-catalogue.sql#hv1.03"
+    },
+    {
+      "mediaId": "telc-deutsch-b1.hv2.01.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv2.01-v1.wav",
+      "sha256": "111f915c308e35013e21291093e9a52bae94e41578bcae712f5ad5fdb48a2b80",
+      "byteLength": 9192586,
+      "durationMs": 191511,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H; transcript authored in server/migrations/0010-objective-catalogue.sql#hv2.01"
+    },
+    {
+      "mediaId": "telc-deutsch-b1.hv2.02.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv2.02-v1.wav",
+      "sha256": "f52021ec2c6be1725d0ca869dc12fe7596ead46cc4a737a090e8a9ca98b9250e",
+      "byteLength": 8116492,
+      "durationMs": 169093,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H; transcript authored in server/migrations/0010-objective-catalogue.sql#hv2.02"
+    },
+    {
+      "mediaId": "telc-deutsch-b1.hv2.03.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv2.03-v1.wav",
+      "sha256": "3f76b49bbde853a5e9cac7d9018e5e335b5c423ac8de4d64ea5ae3f3721ca7f6",
+      "byteLength": 8340144,
+      "durationMs": 173752,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H; transcript authored in server/migrations/0010-objective-catalogue.sql#hv2.03"
+    },
+    {
+      "mediaId": "telc-deutsch-b1.hv3.01.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv3.01-v1.wav",
+      "sha256": "bd13363f74725e5ba56306079370101fb313c363bd6729da01ea7ddaee451a7d",
+      "byteLength": 3523860,
+      "durationMs": 73413,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H; transcript authored in server/migrations/0010-objective-catalogue.sql#hv3.01"
+    },
+    {
+      "mediaId": "telc-deutsch-b1.hv3.02.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv3.02-v1.wav",
+      "sha256": "cde56f3ebaf2f606ef0a43941da40155ce76e557f6b5799d4ab80266c7700a40",
+      "byteLength": 3878000,
+      "durationMs": 80791,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H; transcript authored in server/migrations/0010-objective-catalogue.sql#hv3.02"
+    },
+    {
+      "mediaId": "telc-deutsch-b1.hv3.03.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv3.03-v1.wav",
+      "sha256": "cea2c8801bec64d4b2683873a2f9886c65bdc40e944af11d7d98608428f2ba74",
+      "byteLength": 3652856,
+      "durationMs": 76100,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H; transcript authored in server/migrations/0010-objective-catalogue.sql#hv3.03"
+    }
+  ]
+}
