@@ -158,7 +158,7 @@ export async function buildListeningMedia({ mediaRoot, key, only = null } = {}) 
   if (!mediaRoot || !path.isAbsolute(mediaRoot)) throw new Error('--media-root must be an absolute private directory');
 
   const transcripts = readTranscripts().filter(s => !only || s.setId === only);
-  const outDir = path.join(mediaRoot, 'content', 'exams', EXAM, 'audio');
+  const outDir = path.join(mediaRoot, EXAM, 'audio');
   fs.mkdirSync(outDir, { recursive: true });
 
   const media = [];
@@ -171,7 +171,7 @@ export async function buildListeningMedia({ mediaRoot, key, only = null } = {}) 
     const digest = createHash('sha256').update(wav).digest('hex');
     const file = set.setId.replace(/^telc-deutsch-b1\./, '') + '-' + set.version + '.wav';
     const rel = 'content/exams/' + EXAM + '/audio/' + file;
-    fs.writeFileSync(path.join(mediaRoot, rel), wav);
+    fs.writeFileSync(path.join(mediaRoot, EXAM, 'audio', file), wav);
     media.push({
       mediaId: EXAM + '.' + set.setId.replace(/^telc-deutsch-b1\./, '') + '.audio',
       version: set.version, examId: EXAM, path: rel, sha256: digest,
