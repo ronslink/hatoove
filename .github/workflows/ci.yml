@@ -244,11 +244,26 @@ jobs:
         timeout-minutes: 3
         run: |
           set -eu
-          mkdir -p "$HOME/.docker/cli-plugins"
-          curl -fsSL -o "$HOME/.docker/cli-plugins/docker-compose" \
+          tmp="$(mktemp -d)"
+          curl -fsSL -o "$tmp/docker-compose" \
             https://github.com/docker/compose/releases/download/v5.6.0/docker-compose-linux-x86_64
-          echo "40343e21ca777173e69cff5dbafeb37c6f81f3b0d57d9e597f036e95eb63e76a  $HOME/.docker/cli-plugins/docker-compose" | sha256sum -c -
-          chmod 0755 "$HOME/.docker/cli-plugins/docker-compose"
+          echo "40343e21ca777173e69cff5dbafeb37c6f81f3b0d57d9e597f036e95eb63e76a  $tmp/docker-compose" | sha256sum -c -
+          chmod 0755 "$tmp/docker-compose"
+          # The checker runs docker with an isolated HOME and DOCKER_CONFIG, so the user
+          # plugin directory is invisible to it: the system plugin directory must be
+          # replaced as well, or the render silently uses the runner's older release.
+          replaced=0
+          for dir in /usr/local/lib/docker/cli-plugins /usr/local/libexec/docker/cli-plugins \
+                     /usr/lib/docker/cli-plugins /usr/libexec/docker/cli-plugins; do
+            if [ -e "$dir/docker-compose" ]; then
+              sudo install -m 0755 "$tmp/docker-compose" "$dir/docker-compose"
+              replaced=$((replaced + 1))
+            fi
+          done
+          mkdir -p "$HOME/.docker/cli-plugins"
+          install -m 0755 "$tmp/docker-compose" "$HOME/.docker/cli-plugins/docker-compose"
+          rm -rf "$tmp"
+          test "$replaced" -ge 1
           docker compose version --short
       - name: Production Compose variants render with synthetic configuration only
         timeout-minutes: 2
@@ -405,11 +420,26 @@ jobs:
         timeout-minutes: 3
         run: |
           set -eu
-          mkdir -p "$HOME/.docker/cli-plugins"
-          curl -fsSL -o "$HOME/.docker/cli-plugins/docker-compose" \
+          tmp="$(mktemp -d)"
+          curl -fsSL -o "$tmp/docker-compose" \
             https://github.com/docker/compose/releases/download/v5.6.0/docker-compose-linux-x86_64
-          echo "40343e21ca777173e69cff5dbafeb37c6f81f3b0d57d9e597f036e95eb63e76a  $HOME/.docker/cli-plugins/docker-compose" | sha256sum -c -
-          chmod 0755 "$HOME/.docker/cli-plugins/docker-compose"
+          echo "40343e21ca777173e69cff5dbafeb37c6f81f3b0d57d9e597f036e95eb63e76a  $tmp/docker-compose" | sha256sum -c -
+          chmod 0755 "$tmp/docker-compose"
+          # The checker runs docker with an isolated HOME and DOCKER_CONFIG, so the user
+          # plugin directory is invisible to it: the system plugin directory must be
+          # replaced as well, or the render silently uses the runner's older release.
+          replaced=0
+          for dir in /usr/local/lib/docker/cli-plugins /usr/local/libexec/docker/cli-plugins \
+                     /usr/lib/docker/cli-plugins /usr/libexec/docker/cli-plugins; do
+            if [ -e "$dir/docker-compose" ]; then
+              sudo install -m 0755 "$tmp/docker-compose" "$dir/docker-compose"
+              replaced=$((replaced + 1))
+            fi
+          done
+          mkdir -p "$HOME/.docker/cli-plugins"
+          install -m 0755 "$tmp/docker-compose" "$HOME/.docker/cli-plugins/docker-compose"
+          rm -rf "$tmp"
+          test "$replaced" -ge 1
           docker compose version --short
       - name: A Chrome binary is available
         env:
