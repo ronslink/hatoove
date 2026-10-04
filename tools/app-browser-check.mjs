@@ -766,9 +766,16 @@ async function main() {
     record('L18 Fehler shows exactly what the server recorded, and its badge agrees',
       fehler.badgeHidden === (apiCount === 0) && fehler.rows === apiCount,
       `screen badge=${fehler.badgeHidden ? 'hidden' : fehler.badge} rows=${fehler.rows}; API count=${apiCount}; "${fehler.note}"`);
-    record('L19 a missed item is listed with the LEARNER\'s answer and no correct answer',
-      apiCount === 0 || (fehler.first.length > 0 && !/richtig:/i.test(fehler.first)),
-      fehler.first || 'no mistakes recorded yet');
+    record('L19 a missed item is listed with the LEARNER\'s answer AND the correct one', (() => {
+      const expected = apiMistakes.body?.items?.[0]?.correct_answer;
+      // REDESIGN-01 A/C: the row must carry the learner's own answer, and the correct answer exactly when
+      // the server supplies one (migration 0041 reveals it only for an item this learner has answered).
+      const hasOwn = fehler.first.length > 0;
+      const shown = expected === undefined || expected === null
+        ? true
+        : fehler.first.includes(JSON.stringify(expected));
+      return apiCount === 0 || (hasOwn && shown);
+    })(), `${fehler.first || 'no mistakes recorded yet'} | API correct_answer=${JSON.stringify(apiMistakes.body?.items?.[0]?.correct_answer)}`);
     // The design puts the border and radius on `.list`; bare `.list-item` rows render as detached boxes.
     record('L19b the mistake rows sit inside the design\'s list wrapper',
       apiCount === 0 || fehler.listWrapper === true,

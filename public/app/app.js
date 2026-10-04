@@ -958,7 +958,16 @@ async function renderMistakes() {
   setShellHTML(box, '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>'
     + setLabelMarkup({ title: m.set_title, section: m.section, part: null })
     + '</strong><span class="sub">' + sectionMarkup(m.section) + ' &middot; ' + messageMarkup('version') + ' ' + esc(m.version) + ' &middot; ' + (/^g_/.test(m.item_id) ? messageMarkup("m124") : messageMarkup("m125") + " " + esc(m.item_id) + " " + messageMarkup("m094") + " " + m.set_item_count) + '</span></div>'
-    + "<span class=\"chip chip-orange\"><span data-i18n=\"shell.m126\">deine Antwort:</span> " + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('') + '</div>');
+    + "<span class=\"chip chip-orange\"><span data-i18n=\"shell.m126\">deine Antwort:</span> " + esc(JSON.stringify(m.your_answer)) + '</span>'
+    /*
+     * REDESIGN-01 A/C: the server reveals the correct answer for an item this learner has already
+     * answered (migration 0041, `reveal_objective_answer`). The key table stays unreadable; this is the
+     * one item's answer, and only because this learner's own answer to it is on record. A row that
+     * predates the field, or a backend that does not supply it, renders exactly as before.
+     */
+    + (m.correct_answer === undefined || m.correct_answer === null ? ''
+      : "<span class=\"chip\"><span data-i18n=\"shell.m388\">richtige Antwort:</span> " + esc(JSON.stringify(m.correct_answer)) + '</span>')
+    + '</div>').join('') + '</div>');
 }
 
 
@@ -1116,6 +1125,23 @@ async function answerItem(set, card, itemId, answer) {
   const correct = res.data && res.data.correct === true;
   if (button) button.setAttribute('aria-pressed', String(correct));
   bindShellText(out, () => correct ? uiText("m137") : uiText("m138"));
+  /*
+   * REDESIGN-01 A/C — THE VERDICT BOX SHOWS WHAT WAS RIGHT.
+   *
+   * "Noch nicht richtig" alone left the learner with the question and no answer, which is the one thing
+   * the practice loop could not tell them (the key is not readable by this role). The server now returns
+   * `correct_answer` for the item just answered, through `reveal_objective_answer` (migration 0041), so
+   * the verdict can say what the right option was. Absent field -> the old markup, exactly as before.
+   */
+  const revealed = res.data ? res.data.correct_answer : undefined;
+  if (revealed !== undefined && revealed !== null) {
+    const line = document.createElement('p');
+    line.className = 'revealed-answer';
+    // One binding owns the whole line, so a locale change re-reads both the label and the value rather
+    // than leaving a stale label inside markup (bindShellText replaces the node's single text node).
+    bindShellText(line, () => uiText("m388") + ' ' + JSON.stringify(revealed));
+    out.after(line);
+  }
   if (res.data?.evidence_id) {
     const target = document.createElement('div'); target.dataset.objectiveExplanation = res.data.evidence_id; out.after(target);
     explanations.mount(target, { read: language => api.practice.explanation(res.data.evidence_id, language),
