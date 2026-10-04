@@ -12,11 +12,12 @@ import {writeSourceFixture} from './production-runtime-fixture.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const args=process.argv.slice(2);
-if(args.length!==2||args[0]!=='--run-disposable'||!/^--caddy-image=caddy:2(?:\.[0-9]+){0,2}(?:-alpine)?$/.test(args[1])) {
-  console.error('Usage: node tools/production-runtime-check.mjs --run-disposable --caddy-image=caddy:2[.x.y][-alpine] (requires a separate execution lease and preexisting images)');
+const selfCheck=args.length===1&&args[0]==='--self-check';
+if(!selfCheck&&(args.length!==2||args[0]!=='--run-disposable'||!/^--caddy-image=caddy:2(?:\.[0-9]+){0,2}(?:-alpine)?$/.test(args[1]))) {
+  console.error('Usage: node tools/production-runtime-check.mjs --self-check | --run-disposable --caddy-image=caddy:2[.x.y][-alpine] (runtime requires a separate execution lease and preexisting images)');
   process.exit(2);
 }
-const caddyRef=args[1].slice('--caddy-image='.length);
+const caddyRef=selfCheck?null:args[1].slice('--caddy-image='.length);
 const stamp=Date.now()+'-'+process.pid,deadline=Date.now()+25*60*1000;
 const receipt={scope:'synthetic_hosting_engineering',sourceRevision:null,sourceChanges:null,dockerEndpoint:null,images:{},variants:[],uncertainOperations:[],passed:false,limitations:[
   'No Cloudflare, public DNS or ACME issuance/renewal proof',
@@ -28,11 +29,26 @@ const receipt={scope:'synthetic_hosting_engineering',sourceRevision:null,sourceC
 const evidenceDir=path.join(root,'.qa','hosting-runtime',stamp);
 let controlScratch=null,env;
 // Context metadata is read once, before pinning. Never inherit endpoint, credential or preload overrides.
-let endpoint=null,current=null,stage='local_docker_pin',cancelled=false,operationSequence=0;
+let endpoint=null,current=null,stage='control_scratch',cancelled=false,operationSequence=0;
+const ownFailures=new WeakMap();
+function fail(code) {const error=Error('hosting_runtime_failed');ownFailures.set(error,code);throw error;}
+function failureCode(error) {
+  try {
+    if(ownFailures.has(error))return ownFailures.get(error);
+    if(error instanceof assert.AssertionError)return 'assertion_failed';
+    if(error instanceof SyntaxError)return 'invalid_structured_response';
+    const code=error&&typeof error==='object'?Object.getOwnPropertyDescriptor(error,'code')?.value:null;
+    return new Map([['EACCES','filesystem_access_refused'],['EPERM','filesystem_operation_refused'],['ENOENT','required_file_missing'],['ENOSPC','filesystem_full']]).get(code)??'unclassified_failure';
+  } catch {return 'unclassified_failure';}
+}
+function failedCommand(binary,result) {
+  receipt.lastFailedCommand={kind:binary==='docker'?'docker':binary==='git'?'git':'other',stage,
+    exitCode:Number.isInteger(result.status)?result.status:null};
+}
 const cancel=()=>{cancelled=true;};
-process.on('SIGINT',cancel);process.on('SIGTERM',cancel);
+if(!selfCheck){process.on('SIGINT',cancel);process.on('SIGTERM',cancel);}
 function run(binary,argv,{cwd=root,timeout=90000,allowFailure=false,environment=env,daemonOperation=null}={}) {
-  if((Date.now()>deadline||cancelled)&&!current?.cleaning)throw Error('overall_deadline_or_cancel');
+  if((Date.now()>deadline||cancelled)&&!current?.cleaning)fail('overall_deadline_or_cancel');
   const operation=daemonOperation?{sequence:++operationSequence,kind:daemonOperation,project:current?.project??null,stage,timeoutMs:timeout}:null;
   let result;
   try {result=spawnSync(binary,argv,{cwd,env:environment,encoding:'utf8',windowsHide:true,timeout,maxBuffer:8*1024*1024});}
@@ -41,20 +57,29 @@ function run(binary,argv,{cwd=root,timeout=90000,allowFailure=false,environment=
     // A dead CLI is not proof that a submitted daemon operation stopped. Even an
     // immediately empty listing cannot resolve this uncertainty or authorize reuse.
     receipt.uncertainOperations.push({...operation,outcome:'completion_unconfirmed'});
-    throw Error('daemon_operation_unconfirmed');
+    failedCommand(binary,result);fail('daemon_operation_unconfirmed');
   }
-  if(cancelled&&!current?.cleaning)throw Error('cancelled');
-  if(!allowFailure&&(result.error||result.status!==0))throw Error('command_failed_'+stage);
+  if(cancelled&&!current?.cleaning)fail('cancelled');
+  if(!allowFailure&&(result.error||result.status!==0)){failedCommand(binary,result);fail('command_failed');}
   return result;
 }
 function dockerResult(argv,options){assert.ok(endpoint);return run('docker',['--host',endpoint,...argv],{...options,daemonOperation:['build','run','compose','inspect','ps','network','volume','image'].includes(argv[0])?argv[0]:'other'});}
 function docker(argv,options){return (dockerResult(argv,options).stdout||'').trim();}
+function absentInspection(kind,name,result) {
+  if(result.error||result.status===0)return false;
+  if(/No such (?:object|container|image|volume|network)/i.test(result.stderr))return true;
+  // Docker's network CLI uses a different absence diagnostic. Bind this one
+  // exact message to the requested name, exit status and empty JSON result;
+  // permissions, another missing resource, or generic "not found" still fail.
+  return kind==='network'&&result.status===1&&result.stdout.trim()==='[]'
+    &&result.stderr.trim()==='Error response from daemon: network '+name+' not found';
+}
 function inspect(kind,name) {
   const result=dockerResult(kind==='container'?['inspect',name]:[kind,'inspect',name],{allowFailure:true});
-  if(result.error)throw Error('inspection_timeout');
+  if(result.error)fail('inspection_timeout');
   if(result.status!==0) {
-    if(/No such (?:object|container|image|volume|network)/i.test(result.stderr))return null;
-    throw Error('inspection_failed');
+    if(absentInspection(kind,name,result))return null;
+    failedCommand('docker',result);fail('inspection_failed');
   }
   return JSON.parse(result.stdout)[0];
 }
@@ -85,11 +110,14 @@ function listed(kind) {
   return [...new Set(docker([...command,'-q','--filter','label=org.hatoove.hosting-fixture='+current.project]).split(/\s+/).filter(Boolean))];
 }
 function preflightCompose() {
+  stage='preflight_compose_labels';
   for(const [kind,command] of Object.entries({container:['ps','-a'],network:['network','ls'],volume:['volume','ls'],image:['image','ls']}))
     assert.equal(docker([...command,'-q','--filter','label=com.docker.compose.project='+current.project]),'','Compose project label already exists: '+kind);
+  stage='preflight_service_names';
   for(const service of ['app','worker','migrate','ingress','db','tlsdb','probe'])
     for(const name of [current.project+'-'+service+'-1',current.project+'_'+service+'_1'])
       assert.equal(inspect('container',name),null,'generated service name already exists');
+  stage='preflight_network_names';
   for(const network of ['application','backend','edge'])
     assert.equal(inspect('network',current.project+'_'+network),null,'generated network name already exists');
 }
@@ -105,10 +133,13 @@ function writeJson(file,value){fs.writeFileSync(file,JSON.stringify(value));}
 const volumeLabel=project=>'org.hatoove.hosting-fixture='+project;
 function sourceCopy(target) {
   const git=args=>run('git',['-c','safe.directory='+root,...args]);
-  const revision=git(['rev-parse','HEAD']).stdout.trim(),changes=git(['status','--porcelain']).stdout.trim();
+  stage='source_git_revision';const revision=git(['rev-parse','HEAD']).stdout.trim();
+  stage='source_git_status';const changes=git(['status','--porcelain']).stdout.trim();
   assert.equal(changes,'','freeze a clean source commit before execution');
   if(receipt.sourceRevision)assert.equal(revision,receipt.sourceRevision);else {receipt.sourceRevision=revision;receipt.sourceChanges=changes;}
-  for(const name of git(['ls-files','--cached','-z']).stdout.split('\0').filter(Boolean)) {
+  stage='source_git_inventory';const files=git(['ls-files','--cached','-z']).stdout.split('\0').filter(Boolean);
+  stage='source_tracked_file_copy';
+  for(const name of files) {
     if(/^(?:\.git|\.qa|handoff|design)(?:\/|$)/i.test(name)||/(?:^|\/)(?:\.env(?:\..*)?|node_modules)(?:\/|$)/i.test(name))continue;
     const from=path.resolve(root,name),to=path.resolve(target,name);
     assert.ok(from.startsWith(root+path.sep)&&to.startsWith(target+path.sep));
@@ -175,22 +206,28 @@ function running(service) {
 }
 function preparePhase(name,services){fs.writeFileSync(path.join(current.scratch,name+'.yaml'),JSON.stringify({services}));}
 async function prepare(variant,nodeImage,pgImage,caddyImage) {
+  stage='variant_scratch';
   const project='hatoove-hosting-'+stamp+'-'+variant,schema='ownapi_hosting_'+stamp.replaceAll('-','_')+'_'+variant;
   const scratch=fs.mkdtempSync(path.join(os.tmpdir(),project+'-')),source=path.join(scratch,'source');
   current={project,variant,scratch,source,schema,overlay:path.join(scratch,'fixture.yaml'),envFile:path.join(scratch,'inputs.env'),canCleanup:false,cleaning:false,
     receipt:{project,variant,schema,roles:['migration','auth','learner','worker','deletion','payments','provisioner'].map(role=>schema+'_'+role),checks:[],resources:[],cleanupErrors:[],cleaned:false}};
   receipt.variants.push(current.receipt);
+  stage='preflight_fixture_labels';
   for(const kind of ['container','network','volume','image'])assert.equal(listed(kind).length,0,'generated ownership label already exists');
   preflightCompose();
+  stage='preflight_volume_and_helper_names';
   for(const suffix of ['caddy-data','caddy-config','pg-data'])resourceName('volume',suffix);
   resourceName('container','certificates');resourceName('container','caddy-adapt');
   fs.mkdirSync(source);sourceCopy(source);
+  stage='synthetic_content_generation';
   await writeSourceFixture(source);
+  stage='source_image_definition';
   const tools=['production-runtime-fixture','production-runtime-probe','exam-s5-fixture','exam-s5b-fixture','exam-s6-fixture'];
   fs.appendFileSync(path.join(source,'.dockerignore'),'\n'+tools.map(name=>'!tools/'+name+'.mjs').join('\n')+'\n');
   const dockerfile=fs.readFileSync(path.join(source,'Dockerfile'),'utf8');
   assert.equal(dockerfile.split('FROM node:22-bookworm').length,2);
   fs.writeFileSync(path.join(source,'Dockerfile'),dockerfile.replace('FROM node:22-bookworm','FROM '+nodeImage.digest)+'\n'+tools.map(name=>'COPY tools/'+name+'.mjs ./tools/'+name+'.mjs').join('\n')+'\n');
+  stage='synthetic_secret_inputs';
   for(const name of ['secrets','certificates','trust','ingress-tls','postgres-tls'])fs.mkdirSync(path.join(scratch,name));
   const roles=['admin','migration','auth','learner','worker','deletion','payments','provisioner'];
   for(const role of roles)fs.writeFileSync(path.join(scratch,'secrets',role),randomBytes(32).toString('hex'),{mode:0o600});
@@ -198,14 +235,15 @@ async function prepare(variant,nodeImage,pgImage,caddyImage) {
   fs.writeFileSync(path.join(scratch,'webhook-secret'),webhookSecret,{mode:0o600});
   writeJson(path.join(scratch,'binding.json'),{project,variant,schema,database:'hatoove_hosting_synthetic'});
   const appTag=project+'-app:fixture';
-  assert.equal(inspect('image',appTag),null);
+  stage='preflight_app_image_name';assert.equal(inspect('image',appTag),null);
   current.canCleanup=true;current.appTag=appTag;
   current.receipt.recoveryScope={label:volumeLabel(project),composeProject:project,imageTag:appTag,
     helperNames:[project+'-certificates',project+'-caddy-adapt'],serviceNames:['app','worker','migrate','ingress','db','tlsdb','probe'].map(name=>project+'-'+name+'-1'),
     networkNames:['application','backend','edge'].map(name=>project+'_'+name),volumeNames:['caddy-data','caddy-config',...(variant==='local'?['pg-data']:[])].map(name=>project+'-'+name)};
+  stage='build_source_image';
   docker(['build','--pull=false','--label',volumeLabel(project),'-t',appTag,source],{timeout:300000});current.appImage=inspect('image',appTag).Id;
   current.receipt.appImage=current.appImage;
-  const certName=resourceName('container','certificates');
+  stage='generate_local_certificates';const certName=resourceName('container','certificates');
   const certCommands=[
     'cd /certificates',
     'openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=Hatoove-Hosting-Disposable -keyout ca.key -out ca.crt',
@@ -219,19 +257,20 @@ async function prepare(variant,nodeImage,pgImage,caddyImage) {
     ...['ingress','postgres'].flatMap(name=>['--mount','type=bind,source='+path.join(scratch,name+'-tls')+',target=/'+name+'-tls']),nodeImage.id,'sh','-ceu',certCommands]);
   owned('container',inspect('container',certName));current.receipt.resources.push({kind:'container',name:certName,id:inspect('container',certName).Id});
   fs.copyFileSync(path.join(scratch,'certificates','ca.crt'),path.join(scratch,'trust','provider-ca.pem'));
-  const original=fs.readFileSync(path.join(source,'deploy/Caddyfile'),'utf8');
+  stage='fixture_caddy_definition';const original=fs.readFileSync(path.join(source,'deploy/Caddyfile'),'utf8');
   const tlsBlock=/\ttls \{\r?\n\t\tissuer acme \{\r?\n\t\t\tdisable_tlsalpn_challenge\r?\n\t\t\}\r?\n\t\}/;
   assert.equal((original.match(new RegExp(tlsBlock.source,'g'))??[]).length,1);
   fs.writeFileSync(path.join(scratch,'Caddyfile'),original.replace(tlsBlock,'\ttls /fixture-tls/ingress.crt /fixture-tls/ingress.key'));
-  const adaptName=resourceName('container','caddy-adapt');
+  stage='adapt_original_caddy';const adaptName=resourceName('container','caddy-adapt');
   const adapted=JSON.parse(docker(['run','--name',adaptName,'--label',volumeLabel(project),'--network','none','--pull','never','--cap-drop','ALL','--cap-add','NET_BIND_SERVICE','--tmpfs','/data','--tmpfs','/config','--mount','type=bind,source='+path.join(source,'deploy/Caddyfile')+',target=/etc/caddy/Caddyfile,readonly',caddyImage.id,'caddy','adapt','--config','/etc/caddy/Caddyfile','--adapter','caddyfile']));
   const issuers=adapted.apps?.tls?.automation?.policies?.flatMap(policy=>policy.issuers??[])??[];
   assert.ok(issuers.some(issuer=>issuer.module==='acme'&&issuer.challenges?.['tls-alpn']?.disabled===true&&!issuer.challenges?.http?.disabled));
   record('original_caddy_http01_adaptation');
-  const volumes={};
+  stage='create_owned_volumes';const volumes={};
   for(const suffix of ['caddy-data','caddy-config',...(variant==='local'?['pg-data']:[])]) {
     const name=resourceName('volume',suffix);docker(['volume','create','--label',volumeLabel(project),name]);owned('volume',inspect('volume',name));volumes[suffix]=name;
   }
+  stage='compose_input_definition';
   const values={HATOVE_APP_IMAGE:'hatoove-fixture@'+current.appImage,HATOVE_CADDY_IMAGE:caddyImage.digest,HATOVE_POSTGRES_IMAGE:pgImage.digest,
     OWNAPI_PG_DATABASE:'hatoove_hosting_synthetic',HATOVE_PG_ADMIN_USER:'postgres',OWNAPI_PG_SCHEMA:schema,OWNAPI_PG_ROLE_PREFIX:schema,OWNAPI_PG_CONNECTION_BUDGET:'12',
     HATOVE_CADDY_DATA_VOLUME:volumes['caddy-data'],HATOVE_CADDY_CONFIG_VOLUME:volumes['caddy-config'],HATOVE_PG_DATA_VOLUME:volumes['pg-data']??'unused',
@@ -239,7 +278,8 @@ async function prepare(variant,nodeImage,pgImage,caddyImage) {
   for(const role of roles)values['HATOVE_PG_'+role.toUpperCase()+'_PASSWORD_SOURCE']=path.join(scratch,'secrets',role);
   fs.writeFileSync(current.envFile,Object.entries(values).filter(([,value])=>value!==undefined).map(([key,value])=>key+'='+String(value).replaceAll('\\','/')).join('\n'));
   const baseArgs=['compose','--project-directory',source,'--project-name',project,'--env-file',current.envFile,'-f',path.join(source,'compose.production.yaml'),'-f',path.join(source,'compose.production.'+variant+'-db.yaml'),'config','--format','json'];
-  const baseline=JSON.parse(docker(baseArgs));assertProductionModel(baseline,variant);
+  stage='render_production_pair';const baseline=JSON.parse(docker(baseArgs));
+  stage='validate_production_pair';assertProductionModel(baseline,variant);
   const bind=(file,target,readonly=true)=>({type:'bind',source:file,target,read_only:readonly,bind:{create_host_path:false}});
   const label={'org.hatoove.hosting-fixture':project};
   const services={
@@ -259,8 +299,10 @@ async function prepare(variant,nodeImage,pgImage,caddyImage) {
   for(const [name,service] of Object.entries(services)){overlay+='  '+name+':\n';for(const [key,value] of Object.entries(service))overlay+='    '+key+': '+JSON.stringify(value)+'\n';if(name==='ingress')overlay+='    ports: !reset []\n';}
   overlay+='networks:\n';for(const name of ['application','backend','edge'])overlay+='  '+name+': '+JSON.stringify({internal:true,labels:label})+'\n';
   fs.writeFileSync(current.overlay,overlay);
-  requireClosedOverlay(baseline,jsonOutput(compose(['config','--format','json'])));
+  stage='render_fixture_overlay';const overlaid=jsonOutput(compose(['config','--format','json']));
+  stage='validate_closed_overlay';requireClosedOverlay(baseline,overlaid);
   record('exact_production_pair_and_closed_fixture_overlay');
+  stage='define_webhook_and_migration_faults';
   preparePhase('stub',{app:{environment:{PAYMENTS_MODE:'stub',STRIPE_WEBHOOK_SECRET:webhookSecret}}});
   const faultDir=path.join(scratch,'pending-migrations');fs.mkdirSync(faultDir);
   for(const file of fs.readdirSync(path.join(source,'server/migrations')).filter(name=>/^\d{4}-.*\.sql$/.test(name)))fs.copyFileSync(path.join(source,'server/migrations',file),path.join(faultDir,file));
@@ -271,31 +313,34 @@ async function prepare(variant,nodeImage,pgImage,caddyImage) {
 
 async function executeVariant() {
   const dbService=current.variant==='local'?'db':'tlsdb';
-  stage=current.variant+'_startup';
   preflightCompose(); // Compose itself must not discover/recreate an existing foreign project.
+  stage='start_disposable_database';
   compose(['up','-d','--wait','--wait-timeout','60',dbService]);
+  stage='fresh_successful_migration';
   compose(['up','--no-deps','--force-recreate','--abort-on-container-exit','--exit-code-from','migrate','migrate']);
   const oldMigration=running('migrate');assert.equal(oldMigration.State.ExitCode,0);
+  stage='start_runtime_and_ingress';
   compose(['up','-d','--no-deps','--wait','--wait-timeout','60','app','worker','ingress']);
   assert.equal(running('app').State.Running,true);const worker=running('worker');assert.equal(worker.State.Running,true);
   const workerAddress=worker.NetworkSettings.Networks[current.project+'_backend'].IPAddress;
   assert.match(workerAddress,/^\d{1,3}(?:\.\d{1,3}){3}$/);
   const bindingFile=path.join(current.scratch,'binding.json'),binding=JSON.parse(fs.readFileSync(bindingFile,'utf8'));
   writeJson(bindingFile,{...binding,workerAddress});
+  stage='verify_runtime_secret_scope';
   for(const [service,names] of [['app',['auth','learner','worker','deletion','payments','provisioner']],['worker',['worker']]]) {
     const expected=names.map(name=>'pg_'+name).sort();
     const program="const fs=require('node:fs'),assert=require('node:assert/strict');assert.ok(process.getuid()>0);const expected="+JSON.stringify(expected)+";assert.deepEqual(fs.readdirSync('/run/secrets').sort(),expected);for(const name of expected)assert.ok(fs.readFileSync('/run/secrets/'+name).length>0);console.log(JSON.stringify({uid:process.getuid(),secretScopeVerified:true}));";
     const verified=jsonOutput(compose(['exec','-T',service,'node','-e',program]));assert.equal(verified.secretScopeVerified,true);
     record('unprivileged_'+service+'_exact_readable_secret_scope',{uid:verified.uid});
   }
-  let connections;
+  stage='verify_worker_connection';let connections;
   for(let n=0;n<40;n++){connections=fixture('connections');if(connections.workerConnected)break;await new Promise(resolve=>setTimeout(resolve,250));}
   assert.equal(connections.workerConnected,true);
   if(current.variant==='managed')assert.equal(connections.allTls,true);
   record('fresh_migration_restricted_runtime_and_worker_connected',{tls:connections.allTls});
-  probe('initial');
-  const seed=fixture('seed');record('exact_named_synthetic_publication',seed);
-  probe('public');
+  stage='probe_initial_public_defaults';probe('initial');
+  stage='seed_exact_synthetic_publication';const seed=fixture('seed');record('exact_named_synthetic_publication',seed);
+  stage='probe_authenticated_media';probe('public');
   stage=current.variant+'_webhook';
   compose(['up','-d','--no-deps','--force-recreate','--wait','--wait-timeout','60','app'],{phase:'stub'});
   const before=fixture('snapshot');probe('stub',{phase:'stub'});const after=fixture('snapshot');
@@ -359,6 +404,32 @@ function cleanup() {
   if(errors.length)current.receipt.recoveryScratch=current.scratch;
 }
 
+if(selfCheck) {
+  try {
+    const name='hatoove-hosting-1-2-local_application';
+    const missing={status:1,stdout:'[]\n',stderr:'Error response from daemon: network '+name+' not found\n'};
+    assert.equal(absentInspection('network',name,missing),true);
+    const refused=[{...missing,status:2},{...missing,status:0},{...missing,stdout:'[{"Name":"unexpected"}]'},
+      {...missing,stderr:'Error response from daemon: network another-network not found'},
+      {...missing,stderr:'permission denied'}, {...missing,stderr:'daemon not found'}, {...missing,error:true}];
+    for(const result of refused)assert.equal(absentInspection('network',name,result),false);
+    assert.equal(absentInspection('volume',name,missing),false);
+    for(const [kind,message] of [['volume','get fixture: no such volume'],['image','No such image: fixture'],['container','No such object: fixture']])
+      assert.equal(absentInspection(kind,'fixture',{status:1,stdout:'[]',stderr:message}),true);
+    // The pre-fix classifier demonstrably rejects the observed valid absence.
+    assert.equal(/No such (?:object|container|image|volume|network)/i.test(missing.stderr),false);
+    let getterCalls=0;
+    const accessor=Object.defineProperty(Error('PRIVATE_DIAGNOSTIC_SENTINEL'),'code',{get(){getterCalls++;throw Error('PRIVATE_DIAGNOSTIC_SENTINEL');}});
+    const cases=[[Error('PRIVATE_DIAGNOSTIC_SENTINEL'),'unclassified_failure'],[new SyntaxError('PRIVATE_DIAGNOSTIC_SENTINEL'),'invalid_structured_response'],
+      [new assert.AssertionError({message:'PRIVATE_DIAGNOSTIC_SENTINEL'}),'assertion_failed'],[Object.assign(Error('PRIVATE_DIAGNOSTIC_SENTINEL'),{code:'EACCES'}),'filesystem_access_refused'],
+      [Object.assign(Error('PRIVATE_DIAGNOSTIC_SENTINEL'),{code:'PRIVATE_DIAGNOSTIC_SENTINEL'}),'unclassified_failure'],[accessor,'unclassified_failure'],
+      [new Proxy({}, {getPrototypeOf(){throw Error('PRIVATE_DIAGNOSTIC_SENTINEL');}}),'unclassified_failure']];
+    for(const [error,expected] of cases){assert.equal(failureCode(error),expected);assert.ok(!JSON.stringify({code:failureCode(error)}).includes('PRIVATE_DIAGNOSTIC_SENTINEL'));}
+    assert.equal(getterCalls,0);
+    try {fail('inspection_failed');}catch(error){assert.equal(failureCode(error),'inspection_failed');}
+    console.log('PASS hosting runtime offline: 13 absence controls; 8 redacted diagnostic controls; no subprocess or network');
+  } catch {console.error('hosting_runtime_self_check_failed');process.exitCode=1;}
+} else {
 try {
   controlScratch=fs.mkdtempSync(path.join(os.tmpdir(),'hatoove-hosting-cli-'+stamp+'-'));
   env=isolatedEnvironment(process.env,controlScratch);
@@ -368,11 +439,13 @@ try {
   // Context read is metadata only. All daemon operations below use this exact local endpoint.
   const contextEnv={...env};delete contextEnv.DOCKER_CONFIG;delete contextEnv.HOME;delete contextEnv.USERPROFILE;
   for(const key of ['HOME','USERPROFILE','APPDATA','LOCALAPPDATA'])if(process.env[key])contextEnv[key]=process.env[key];
-  const contexts=JSON.parse(run('docker',['context','inspect'],{environment:contextEnv}).stdout);
+  stage='local_docker_pin';const contexts=JSON.parse(run('docker',['context','inspect'],{environment:contextEnv}).stdout);
   assert.equal(contexts.length,1);endpoint=contexts[0]?.Endpoints?.docker?.Host;
   assert.ok(typeof endpoint==='string'&&(process.platform==='win32'?/^npipe:\/{2,4}\.\/pipe\/[A-Za-z0-9_.-]+$/:/^unix:\/\/\/[^?#\x00\r\n]+$/).test(endpoint));
   receipt.dockerEndpoint=endpoint;
-  const nodeImage=image('node:22-bookworm'),pgImage=image('postgres:17-alpine'),caddyImage=image(caddyRef);
+  stage='inspect_node_image';const nodeImage=image('node:22-bookworm');
+  stage='inspect_postgres_image';const pgImage=image('postgres:17-alpine');
+  stage='inspect_caddy_image';const caddyImage=image(caddyRef);
   for(const variant of ['local','managed']) {
     try {await prepare(variant,nodeImage,pgImage,caddyImage);await executeVariant();}
     finally {if(current)cleanup();}
@@ -380,7 +453,7 @@ try {
     current=null;
   }
   receipt.passed=true;
-} catch {receipt.failureStage=stage;process.exitCode=1;}
+} catch(error) {receipt.failureStage=stage;receipt.failureCode=failureCode(error);process.exitCode=1;}
 finally {
   process.removeListener('SIGINT',cancel);process.removeListener('SIGTERM',cancel);
   try {if(receipt.uncertainOperations.length) {
@@ -401,3 +474,4 @@ finally {
 }
 console.log((receipt.passed?'PASS':'FAIL')+' hosting-runtime; metadata evidence '+evidenceDir);
 process.exitCode=receipt.passed&&receipt.variants.every(result=>result.cleaned)?process.exitCode??0:1;
+}
