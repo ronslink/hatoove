@@ -109,6 +109,46 @@ try {
     await assert.rejects(asOwner(db.learner,owner,client=>mark(client,item.expected,'no-such-item')),e=>e.code==='P0002'&&e.message==='unknown_item');
     return `${item.set_id}@${item.version} item ${item.item_id}`;
   });
+  /*
+   * REDESIGN-01 A (migration 0041): the expected answer is revealed only AFTER the learner's own answer
+   * for that exact item is on record, only to that owner, and never to the worker role.
+   */
+  const reveal = (client) => client.query('SELECT reveal_objective_answer($1, $2, $3) AS v', [item.set_id, item.version, item.item_id]);
+  await leg('REDESIGN-01 A: before any recorded answer, reveal returns nothing; without an owner it refuses', async () => {
+    assert.equal((await asOwner(db.learner,owner,reveal)).rows[0].v, null);
+    await assert.rejects(asOwner(db.learner,null,reveal),e=>e.code==='P0002'&&e.message==='not_found');
+    return 'null before evidence; not_found without owner';
+  });
+  await leg('REDESIGN-01 A: the worker role cannot execute the reveal function', async () => {
+    await assert.rejects(asOwner(db.worker,owner,reveal), denied);
+    return '42501';
+  });
+  await leg('REDESIGN-01 A: a recorded practice answer returns the correct answer, to that owner only', async () => {
+    // A practice answer needs a set served without media; the listening item above is marked directly only.
+    const practice=(await db.admin.query(`
+      SELECT k.set_id,k.version,i.item_id,k.answers -> i.item_id AS expected
+        FROM objective_key k JOIN objective_set s USING(set_id,version)
+        CROSS JOIN LATERAL effective_content_review(s.content_version_id) review
+        CROSS JOIN LATERAL (SELECT min(x) AS item_id FROM jsonb_object_keys(k.answers) x) i
+       WHERE s.exam_id='telc-deutsch-b1' AND NOT review.blocked AND s.media_required=false
+       ORDER BY k.set_id,k.version LIMIT 1`)).rows[0];
+    assert.ok(practice&&practice.item_id,'a non-media practice set is seeded');
+    const revealPractice=(client)=>client.query('SELECT reveal_objective_answer($1, $2, $3) AS v',[practice.set_id,practice.version,practice.item_id]);
+    assert.equal((await asOwner(db.learner,owner,revealPractice)).rows[0].v,null,'nothing before the answer');
+    const prep=(await world.store.port.listPreparations(owner)).find(row=>row.exam_id==='telc-deutsch-b1'&&row.state==='active');
+    const answered=await world.store.port.answerObjectiveItem(owner,{preparationId:prep.id,setId:practice.set_id,version:practice.version,itemId:practice.item_id,answer:{synthetic:'wrong'}});
+    assert.equal(answered.correct,false);
+    assert.deepEqual(answered.correct_answer,practice.expected,'the answer response carries the expected answer');
+    assert.deepEqual((await asOwner(db.learner,owner,revealPractice)).rows[0].v,practice.expected);
+    const mistakes=await world.store.port.listMistakes(owner,{preparationId:prep.id});
+    const row=mistakes.items.find(m=>m.set_id===practice.set_id&&m.item_id===practice.item_id);
+    assert.ok(row,'the wrong answer is listed as a mistake');
+    assert.deepEqual(row.correct_answer,practice.expected,'the mistake row carries the expected answer');
+    const other=await world.sessions.signUp({name:'Synthetic second owner',email:`key2-${randomUUID()}@example.invalid`,password:'synthetic-key-access-password'});
+    const otherSession=await world.sessions.getSession({cookie:String(other.setCookie).split(';')[0]});
+    assert.equal((await asOwner(db.learner,otherSession.userId,revealPractice)).rows[0].v,null,'another owner without evidence gets nothing');
+    return 'answer -> correct_answer; mistakes row -> correct_answer; second owner -> null';
+  });
   await leg('DISCRIMINATION: with the 0010 grant restored, the worker read succeeds (legs 1-2 are the grant, not a dead pool)', async () => {
     await db.admin.query(`GRANT SELECT ON ${quote(db.schema)}.objective_key TO ${quote(db.roles.worker)}`);
     try {
@@ -136,4 +176,4 @@ console.log('Disposable fixture schema and roles verified absent; policy environ
 
 const passed = results.filter(Boolean).length;
 console.log(`\n${passed} passed, ${results.length - passed} failed`);
-process.exit(passed === results.length && results.length === 5 ? 0 : 1);
+process.exit(passed === results.length && results.length === 8 ? 0 : 1);

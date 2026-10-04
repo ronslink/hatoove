@@ -80,7 +80,7 @@ try {
   await sql("UPDATE learner_settings SET exam_date = '2026-12-03' WHERE user_id = $1", [legacy.id]);
   const prior = (await sql('SELECT * FROM learner_settings ORDER BY user_id')).rows;
   await check('forward migration leaves existing preferences and absent rows byte-for-byte unchanged', async () => {
-    assert.deepEqual(await db.applyRemaining(), ['0039-registration-language.sql','0040-explanation-review.sql']);
+    assert.deepEqual(await db.applyRemaining(), ['0039-registration-language.sql','0040-explanation-review.sql','0041-objective-answer-reveal.sql']);
     assert.deepEqual((await sql('SELECT * FROM learner_settings ORDER BY user_id')).rows, prior);
     assert.equal((await sql('SELECT count(*)::int n FROM learner_settings WHERE user_id = $1', [missing.id])).rows[0].n, 0);
   });

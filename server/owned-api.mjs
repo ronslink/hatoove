@@ -1067,7 +1067,8 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       /*
        * PILOT-22 -- answer one objective item. Marking happens SERVER-SIDE inside a SECURITY DEFINER
        * function, because this connection is the learner role and is NOT granted the answer key.
-       * The response is the single boolean the function returns; the expected answer never leaves it.
+       * The response carries the boolean the function returns and, once the evidence row is written, the
+       * item's expected answer (REDESIGN-01 A, migration 0041) so the learner sees what was right.
        *
        * The evidence row is APPEND-ONLY: answering again records a new row rather than rewriting the
        * last, because this is the raw signal adaptive selection reads.
@@ -1150,9 +1151,9 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
     if (pathname === '/api/v1/practice/mistakes' && method === 'GET') {
       if (!practiceWired) fault(503, 'practice_unavailable');
       /*
-       * PILOT-22d -- the items whose MOST RECENT answer was wrong. No correct answer is returned: the
-       * key is not readable by this role, and a mistakes list that revealed it would hand over exactly
-       * what the practice loop withholds.
+       * PILOT-22d -- the items whose MOST RECENT answer was wrong, each with the learner's answer and the
+       * correct one (REDESIGN-01 A). The correct answer is revealed only for items the learner has
+       * already answered, by `reveal_objective_answer` (0041); the key itself stays unreadable.
        */
       const prep = await preparationContext(query);
       return reply(200, { exam_id: prep.exam_id,
