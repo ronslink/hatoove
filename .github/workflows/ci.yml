@@ -16,9 +16,9 @@ on:
   pull_request:
   push:
     branches: [main]
-  # The rendered gate (below) is the only job that needs a browser and Docker, so it runs on a schedule
-  # rather than on every push: 25 minutes of runner time per push would be paid by every unrelated change,
-  # and a slow required check is a check people learn to ignore.
+  # The rendered gate is the only browser job and runs on a schedule rather than on every push.
+  # The required PostgreSQL job also uses Docker for its isolated certificate-verification fixture.
+  # Keeping the longer rendered suite scheduled avoids charging its full run time to every change.
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
@@ -57,6 +57,8 @@ jobs:
       # green now and the check fails on a genuinely raw family, verified by reintroducing one.
       - name: Design language consistency
         run: node tools/design-check.mjs
+      - name: Production deployment source boundaries
+        run: node tools/production-compose-check.mjs
       # Not PostgreSQL-backed, so they belong on both OSes with the rest of the offline set.
       # THE NEGATIVE CHECK FOR THE RETIRED FILE STORE. `progress-scope-check` used to sit here and is
       # gone with the route it drove (see work/implementation/RETIRED-CHECKS.md); this is its
@@ -154,6 +156,10 @@ jobs:
           node tools/practice-locale-check.mjs
       - name: Install locked PostgreSQL client for offline worker CLI contracts
         run: npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
+      - name: PostgreSQL transport secrets and connection budgets without a service
+        run: node tools/postgres-config-check.mjs
+      - name: Trusted public origin and secure session cookie lifecycle without a service
+        run: node tools/session-cookie-check.mjs
       - name: Private invocation receipts and exact synthetic cost contracts
         run: node tools/provider-attempt-check.mjs
       - name: Payment signatures, test provider and activation refusals
@@ -226,6 +232,24 @@ jobs:
           node-version: '24'
       - name: Install the PostgreSQL client the owned server uses
         run: npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
+      - name: Local Docker and Compose are available for isolated hosting checks
+        timeout-minutes: 2
+        run: |
+          docker --host unix:///var/run/docker.sock version
+          docker compose version
+      - name: Production Compose variants render with synthetic configuration only
+        timeout-minutes: 2
+        run: node tools/production-compose-check.mjs --compose
+      - name: Fetch the declared disposable TLS fixture images
+        timeout-minutes: 5
+        run: |
+          docker --host unix:///var/run/docker.sock pull node:22-bookworm
+          docker --host unix:///var/run/docker.sock pull postgres:17-alpine
+      # This checker pins a validated local Docker socket and allocates a separate dynamic loopback
+      # port/database. It must never use the existing Actions PostgreSQL service on port 5432.
+      - name: PostgreSQL certificates and host identities are verified by actual connections
+        timeout-minutes: 8
+        run: node tools/postgres-tls-check.mjs --run-disposable
       - name: Persistent installation is idempotent and a draft survives re-provisioning
         run: node tools/postgres-provision-check.mjs
       - name: Migration line-ending upgrades preserve recorded checksums and reject SQL edits
