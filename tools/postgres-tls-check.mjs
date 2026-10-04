@@ -206,9 +206,15 @@ try {
       'mkdir -p /tmp/hatoove-tls',
       'cp /fixture/server.key /tmp/hatoove-tls/server.key',
       'cp /fixture/server.crt /tmp/hatoove-tls/server.crt',
-      'chown postgres:postgres /tmp/hatoove-tls/server.key /tmp/hatoove-tls/server.crt',
+      // The scratch directory is 0700 and owned by the invoking user, so the
+      // unprivileged server cannot read a file bind-mounted from it: libpq's own
+      // initdb-time server fails with "could not load pg_hba.conf" and the container
+      // exits. Copy it into the container's directory like the key and certificate.
+      'cp /fixture/pg_hba.conf /tmp/hatoove-tls/pg_hba.conf',
+      'chown postgres:postgres /tmp/hatoove-tls/server.key /tmp/hatoove-tls/server.crt /tmp/hatoove-tls/pg_hba.conf',
       'chmod 600 /tmp/hatoove-tls/server.key',
-      'exec docker-entrypoint.sh postgres -c ssl=on -c ssl_key_file=/tmp/hatoove-tls/server.key -c ssl_cert_file=/tmp/hatoove-tls/server.crt -c hba_file=/fixture/pg_hba.conf',
+      'chmod 644 /tmp/hatoove-tls/pg_hba.conf',
+      'exec docker-entrypoint.sh postgres -c ssl=on -c ssl_key_file=/tmp/hatoove-tls/server.key -c ssl_cert_file=/tmp/hatoove-tls/server.crt -c hba_file=/tmp/hatoove-tls/pg_hba.conf',
     ].join('\n')]);
   const running = inspect(dbName);
   assertOwned(running, dbName);
@@ -224,14 +230,23 @@ try {
 
   stage = 'database_readiness';
   let ready = false;
-  for (let attempt = 0; attempt < 80; attempt++) {
-    const probe = result(['exec', dbName, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres', '-d', database]);
+  let attempts = 0;
+  // A deadline rather than a fixed small attempt count, and fail at once when the
+  // server has exited: burning the budget only produces a generic reason, which is
+  // exactly what made the first failure of this stage undiagnosable.
+  while (attempts < 240) {
+    attempts += 1;
+    const probe = result(['exec', dbName, 'pg_isready', '-q', '-h', '127.0.0.1', '-p', '5432', '-U', 'postgres', '-d', database]);
     if (probe.status === 0) { ready = true; break; }
     const state = inspect(dbName);
     assertOwned(state, dbName);
-    assert.equal(state.State.Running, true, 'fixture PostgreSQL exited before readiness');
+    if (state.State.Running !== true) {
+      receipt.readiness = { attempts, status: state.State.Status ?? null, exitCode: state.State.ExitCode ?? null, oomKilled: state.State.OOMKilled ?? null };
+      assert.fail('fixture PostgreSQL exited before readiness');
+    }
     await new Promise(resolve => setTimeout(resolve, 250));
   }
+  if (receipt.readiness === undefined) receipt.readiness = { attempts, status: 'running', exitCode: null, oomKilled: null };
   assert.ok(ready, 'fixture PostgreSQL did not become ready');
 
   ambientSsl = process.env.PGSSLMODE;
