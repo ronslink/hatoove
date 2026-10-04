@@ -400,6 +400,17 @@ jobs:
         run: |
           docker version
           docker compose version
+      # The same rendered dialect as the durable job and the droplet; see that job's note.
+      - name: Pin the reviewed Compose plugin version
+        timeout-minutes: 3
+        run: |
+          set -eu
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL -o "$HOME/.docker/cli-plugins/docker-compose" \
+            https://github.com/docker/compose/releases/download/v5.6.0/docker-compose-linux-x86_64
+          echo "40343e21ca777173e69cff5dbafeb37c6f81f3b0d57d9e597f036e95eb63e76a  $HOME/.docker/cli-plugins/docker-compose" | sha256sum -c -
+          chmod 0755 "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version --short
       - name: A Chrome binary is available
         env:
           CHROME_PATH: /usr/bin/google-chrome
