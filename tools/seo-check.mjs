@@ -80,6 +80,7 @@ const html = await readFile(path.join(PUBLIC, 'index.html'), 'utf8');
 const robots = await readFile(path.join(PUBLIC, 'robots.txt'), 'utf8').catch(() => null);
 const sitemap = await readFile(path.join(PUBLIC, 'sitemap.xml'), 'utf8').catch(() => null);
 const siteJs = await readFile(path.join(PUBLIC, 'site.js'), 'utf8');
+const serverJs = await readFile(path.join(ROOT, 'server.js'), 'utf8');
 
 console.log(`\n=== SEO surface check ===\n`);
 
@@ -227,7 +228,11 @@ console.log(`\n=== SEO surface check ===\n`);
   if (typeof core.storedLocale !== 'function') problems.push('core.js does not export storedLocale()');
   if (/\blocalStorage\b/.test(code)) problems.push('public/site.js reaches storage itself instead of core.js storedLocale()');
   if (/initialLocale\s*\(/.test(code)) problems.push('public/site.js calls initialLocale(), which falls back to navigator.languages');
-  if (!/setLocale\(storedLocale\(\)\s*\?\?\s*'de'\)/.test(code)) problems.push("public/site.js does not boot as setLocale(storedLocale() ?? 'de')");
+  // BOTH call sites, not merely one: the boot and the bfcache `pageshow` restore. Accepting a single
+  // occurrence left the handler free to drift — changing it to `setLocale('de')` kept this leg green —
+  // and that drift would silently drop a returning visitor's stored choice on every back-navigation.
+  const bootCalls = code.match(/setLocale\(storedLocale\(\)\s*\?\?\s*'de'\)/g) || [];
+  if (bootCalls.length !== 2) problems.push(`public/site.js has ${bootCalls.length} \`setLocale(storedLocale() ?? 'de')\` call(s); the boot and the bfcache restore must both use it`);
   if (core.LOCALES.join('|') !== 'de|en|uk|ar|tr') problems.push(`core.js LOCALES is "${core.LOCALES.join('|')}"`);
 
   if (problems.length) fail('S7', 'the landing page starts in German, not in the crawler language', problems.join(' | '));
@@ -315,8 +320,14 @@ try {
     const signin = await probe('/signin', { accept: NAVIGATION });
     if (signin.status !== 200) appProblems.push(`/signin answered ${signin.status}`);
     if (!/<meta[^>]+name=["']robots["'][^>]*noindex/i.test(signin.body)) appProblems.push('/signin has no noindex meta');
+    // The 401 branch cannot be reached offline: with no database the gate answers 503 before it looks
+    // at identity. This one STRUCTURAL assertion stands in for that branch — all three refusals must
+    // set the header — because the alternative is no guard at all. The ready-path 401 behaviour was
+    // verified out-of-band against a stub, and this is stated as structure, not as behaviour.
+    const refusalHeaders = (serverJs.match(/['"]X-Robots-Tag['"]/g) || []).length;
+    if (refusalHeaders !== 3) appProblems.push(`server.js sets X-Robots-Tag ${refusalHeaders} time(s); the 503, 302 and 401 refusals must each set it`);
     if (appProblems.length) fail('S9', 'the gated app stays out of the index', appProblems.join(' | '));
-    else pass('S9', 'the gated app stays out of the index', `/app/ ${appProbe.status} + X-Robots-Tag noindex, /signin noindex`);
+    else pass('S9', 'the gated app stays out of the index', `/app/ ${appProbe.status} + X-Robots-Tag noindex, /signin noindex, all three refusals carry the header`);
   }
 } finally {
   child.kill('SIGTERM');

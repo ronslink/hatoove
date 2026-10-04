@@ -23,6 +23,7 @@ export const LOCALES = Object.freeze(['de', 'en', 'uk', 'ar', 'tr']);
 export const LANGUAGE_NAMES = Object.freeze({de:'Deutsch', en:'English', uk:'Українська', ar:'العربية', tr:'Türkçe'});
 export function validLocale(value); // exact enum; boolean
 export function initialLocale(); // valid guest scalar, then supported navigator language, then de
+export function storedLocale(); // the visitor's OWN stored choice, or null; never guesses from the browser
 export function getLocale();
 export function setLocale(locale, {persist = false} = {}); // validates, updates html lang/dir, then notifies
 export function subscribeLocale(listener); // returns unsubscribe; never accumulates duplicate subscriptions
@@ -34,6 +35,8 @@ export function formatDate(value, options = {}, locale = getLocale());
 ```
 
 Only guest persistence is one string scalar, `hatoove.interface-language.v1`, containing an exact locale enum. No owner/email/session/token/route/draft/progress object. Storage denial or malformed data must not break rendering. Never persist browser-detected language until an explicit user selection; selecting a language may persist this scalar. Existing-account login always obtains the server preference; it must not overwrite that account with a leftover guest scalar. Logout may retain the scalar, but clears all account-specific operations and speech. Fresh browsers recover signed-in preference from the server.
+
+`storedLocale()` exists because the public front door must start in the language its HTML already contains. `initialLocale()` guesses from `navigator.languages` when nothing is stored, which is right inside the gated app but wrong on a page whose canonical URL and structured data are German: a crawler reports `en-US` and would be served an English rendering under `<html lang="en">`. The public shell therefore boots as `setLocale(storedLocale() ?? 'de')`, at both the initial call and the bfcache restore, and it never reaches storage itself — the read belongs to this runtime, and `tools/public-locale-check.mjs` fails a shell that does its own.
 
 `t` returns text, and renderers must escape it before interpolating into markup. Parameters are named scalar values; dictionaries contain no event handlers, executable HTML or CSS. `translateDom` supports `data-i18n` (textContent on an explicitly isolated text node), `data-i18n-title`, `data-i18n-placeholder`, `data-i18n-aria-label` and `data-i18n-alt`; it must not replace parents containing inputs, icons or live state. Visible fallbacks must not falsely imply complete translation. All shipped UI namespaces require full five-language key/placeholder coverage before acceptance. Source content is not translated by scanning arbitrary DOM text.
 
