@@ -8,7 +8,7 @@ import {randomBytes} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {assertProductionModel,isolatedEnvironment} from './production-compose-check.mjs';
-import {writeSourceFixture,PROBE_CHECKS,validateProbeReport} from './production-runtime-fixture.mjs';
+import {writeSourceFixture,PROBE_CHECKS,PROBE_STEPS,validateProbeReport} from './production-runtime-fixture.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const args=process.argv.slice(2);
@@ -450,7 +450,13 @@ if(selfCheck) {
     assert.throws(()=>validateProbeReport(failed,'initial',0));
     assert.throws(()=>validateProbeReport({...success,checks:[],passed:0},'initial',0));
     assert.ok(!JSON.stringify(validateProbeReport(failed,'initial',1)).includes('PRIVATE_PROBE_SENTINEL'));
-    console.log('PASS hosting runtime offline: 13 absence controls; 8 redacted diagnostics; 11 probe-report controls; no subprocess or network');
+    assert.equal(new Set(PROBE_STEPS).size,PROBE_STEPS.length);
+    for(const step of PROBE_STEPS) {
+      const diagnostic={mode:'public',checks:[],passed:0,outcome:'failed',failure:{step,class:'assertion_failed',httpStatus:200}};
+      assert.deepEqual(validateProbeReport(diagnostic,'public',1),diagnostic);
+      assert.throws(()=>validateProbeReport({...diagnostic,failure:{...diagnostic.failure,step:step+' PRIVATE_PROBE_SENTINEL'}},'public',1));
+    }
+    console.log('PASS hosting runtime offline: 13 absence controls; 8 redacted diagnostics; 11 probe-report controls; '+PROBE_STEPS.length+' exact step controls with suffix negatives; no subprocess or network');
   } catch {console.error('hosting_runtime_self_check_failed');process.exitCode=1;}
 } else {
 try {

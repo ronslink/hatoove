@@ -20,7 +20,16 @@ export const PROBE_CHECKS=Object.freeze({
 export const PROBE_STEPS=Object.freeze([...new Set(Object.values(PROBE_CHECKS).flat()),'probe_setup',
   'foreign_https_host','foreign_http_host','foreign_origin_and_forwarding','canonical_http_redirect','security_headers',
   ...['initial','media','foreign'].flatMap(name=>['signup','cookie','read'].map(step=>'account_'+name+'_'+step)),
-  'public_preparations','public_tasks_withheld','payments_off','logout','logout_old_cookie','signin']);
+  'public_preparations','public_tasks_withheld','payments_off','logout','logout_old_cookie','signin',
+  'media_fixture_read','media_preparations','media_forms_status','media_forms_presence','media_start','media_recording','media_metadata','media_expected_bytes',
+  'media_full_status','media_full_bytes','media_full_etag','media_full_length','media_full_accept_ranges',
+  'media_head_status','media_head_body','media_head_length',
+  'media_range_status','media_range_bytes','media_range_header',
+  'media_suffix_status','media_suffix_bytes','media_unsatisfiable_status','media_unsatisfiable_header','media_unsatisfiable_body',
+  ...['full','head','range','unsatisfiable'].flatMap(name=>['cache_no_store','cache_private','nosniff'].map(header=>'media_'+name+'_'+header)),
+  'media_anonymous','media_foreign_owner','media_account_generation','media_forged_forwarding','media_static_path',
+  'stub_secret_read','stub_signature_build','stub_invalid_signature','stub_modified_bytes','stub_first_delivery','stub_replay','stub_sibling_path','stub_body_limit',
+  'stale_health','stale_readiness','stale_protected_route','unavailable_readiness']);
 export const PROBE_ERROR_CLASSES=Object.freeze(['assertion_failed','transport_failed','tls_failed','request_timeout','response_bound','unexpected_failure']);
 /** Accept only bounded, closed metadata parsed from the isolated probe's stdout. */
 export function validateProbeReport(value,mode,exitCode) {

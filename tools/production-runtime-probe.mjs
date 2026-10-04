@@ -53,10 +53,10 @@ async function account(suffix) {
   assert.equal(result.status,200);assert.equal(typeof result.json.id,'string');
   return {id:result.json.id,cookie,credentials};
 }
-function privateHeaders(result) {
-  assert.match(result.headers['cache-control'],/no-store/);
-  assert.match(result.headers['cache-control'],/private/);
-  assert.equal(result.headers['x-content-type-options'],'nosniff');
+function privateHeaders(result,prefix) {
+  enter(prefix+'_cache_no_store',result.status);assert.match(result.headers['cache-control'],/no-store/);
+  enter(prefix+'_cache_private',result.status);assert.match(result.headers['cache-control'],/private/);
+  enter(prefix+'_nosniff',result.status);assert.equal(result.headers['x-content-type-options'],'nosniff');
 }
 async function readiness() {
   const ready=await request('/api/ready');assert.equal(ready.status,200);assert.equal(ready.json.ready,true);
@@ -68,12 +68,12 @@ try {
   assert.equal(process.env.HOSTING_FIXTURE_ID,binding.project);
   ca=await fs.readFile('/fixture/ca.crt');
   if(mode==='unavailable') {
-    await check('stopped_runtime_is_not_served',async()=>assert.equal((await request('/api/ready')).status,502));
+    await check('stopped_runtime_is_not_served',async()=>{enter('unavailable_readiness');assert.equal((await request('/api/ready')).status,502);});
   } else if(mode==='stale') {
     await check('stale_schema_refuses_without_migrating',async()=>{
-      assert.equal((await request('/api/health')).status,200);
-      const ready=await request('/api/ready');assert.equal(ready.status,503);assert.equal(ready.json.reason,'schema_behind');
-      assert.equal((await request('/api/v1/account')).status,503);
+      enter('stale_health');assert.equal((await request('/api/health')).status,200);
+      enter('stale_readiness');const ready=await request('/api/ready');assert.equal(ready.status,503);assert.equal(ready.json.reason,'schema_behind');
+      enter('stale_protected_route');assert.equal((await request('/api/v1/account')).status,503);
     });
   } else {
     await check('canonical_https_ready',readiness);
@@ -113,42 +113,64 @@ try {
     } else if(mode==='public') {
       const a=await account('media'),b=await account('foreign');
       await check('named_public_fixture_and_owned_media_range_transport',async()=>{
+        enter('media_fixture_read');
         const pkg=JSON.parse(await fs.readFile(new URL('../'+fixturePath,import.meta.url),'utf8'));
         const form=pkg.forms.find(row=>row.attemptMode==='practice');assert.ok(form);
+        enter('media_preparations');
         const preps=(await request('/api/v1/preparations',{headers:authHeaders(a)})).json.preparations;
         const prep=preps.find(row=>row.exam_id===EXAM);assert.ok(prep);
+        enter('media_forms_status');
         const forms=await request('/api/v1/mock-forms?preparationId='+prep.id,{headers:authHeaders(a)});
-        assert.equal(forms.status,200);assert.ok(forms.json.forms.some(row=>row.form_id===form.id));
+        assert.equal(forms.status,200);enter('media_forms_presence',forms.status);assert.ok(forms.json.forms.some(row=>row.form_id===form.id));
+        enter('media_start');
         const started=await request('/api/v1/mock-runs',{method:'POST',headers:authHeaders(a),body:{preparationId:prep.id,formId:form.id,formVersion:VERSION,releaseVersion:RELEASE,eventId:randomUUID()}});
         assert.equal(started.status,201);const run=started.json.run??started.json;
+        enter('media_recording',started.status);
         const recording=run.members.flatMap(member=>member.recordings??[])[0];assert.ok(recording);
+        enter('media_metadata');
         const metadata=pkg.media.find(row=>row.mediaId===recording.media_id&&row.version===recording.media_version);assert.ok(metadata);
+        enter('media_expected_bytes');
         const expected=await fs.readFile(pathForMedia(metadata.path));
         const url='/api/v1/mock-runs/'+run.id+'/media/'+recording.media_id+'/'+recording.media_version;
-        const full=await request(url,{headers:authHeaders(a)});assert.equal(full.status,200);privateHeaders(full);
-        assert.deepEqual(full.raw,expected);assert.equal(full.headers.etag,'"sha256-'+createHash('sha256').update(expected).digest('hex')+'"');
-        assert.equal(Number(full.headers['content-length']),expected.length);assert.equal(full.headers['accept-ranges'],'bytes');
-        const head=await request(url,{method:'HEAD',headers:authHeaders(a)});assert.equal(head.status,200);assert.equal(head.raw.length,0);assert.equal(Number(head.headers['content-length']),expected.length);privateHeaders(head);
-        const part=await request(url,{headers:{...authHeaders(a),range:'bytes=2-19'}});assert.equal(part.status,206);assert.deepEqual(part.raw,expected.subarray(2,20));assert.equal(part.headers['content-range'],'bytes 2-19/'+expected.length);privateHeaders(part);
-        const tail=await request(url,{headers:{...authHeaders(a),range:'bytes=-11'}});assert.equal(tail.status,206);assert.deepEqual(tail.raw,expected.subarray(-11));
-        const invalid=await request(url,{headers:{...authHeaders(a),range:'bytes='+expected.length+'-'}});assert.equal(invalid.status,416);assert.equal(invalid.headers['content-range'],'bytes */'+expected.length);assert.equal(invalid.raw.length,0);privateHeaders(invalid);
-        assert.equal((await request(url)).status,401);
-        assert.equal((await request(url,{headers:authHeaders(b)})).status,404);
-        const stale=await request(url,{headers:{...authHeaders(a),'x-hatoove-account':b.id}});assert.equal(stale.status,409);assert.equal(stale.json.error,'account_changed');
-        const forged=await request(url,{headers:{'x-forwarded-for':'127.0.0.1','cf-connecting-ip':'127.0.0.1','x-hatoove-account':a.id}});assert.equal(forged.status,401);
-        assert.equal((await request('/content/exams/'+EXAM+'/s5-technical/'+VERSION+'/hv1-1.wav',{headers:authHeaders(a)})).status,404);
+        enter('media_full_status');const full=await request(url,{headers:authHeaders(a)});assert.equal(full.status,200);
+        privateHeaders(full,'media_full');
+        enter('media_full_bytes',full.status);assert.deepEqual(full.raw,expected);
+        enter('media_full_etag',full.status);assert.equal(full.headers.etag,'"sha256-'+createHash('sha256').update(expected).digest('hex')+'"');
+        enter('media_full_length',full.status);assert.equal(Number(full.headers['content-length']),expected.length);
+        enter('media_full_accept_ranges',full.status);assert.equal(full.headers['accept-ranges'],'bytes');
+        enter('media_head_status');const head=await request(url,{method:'HEAD',headers:authHeaders(a)});assert.equal(head.status,200);
+        enter('media_head_body',head.status);assert.equal(head.raw.length,0);
+        enter('media_head_length',head.status);assert.equal(Number(head.headers['content-length']),expected.length);
+        privateHeaders(head,'media_head');
+        enter('media_range_status');const part=await request(url,{headers:{...authHeaders(a),range:'bytes=2-19'}});assert.equal(part.status,206);
+        enter('media_range_bytes',part.status);assert.deepEqual(part.raw,expected.subarray(2,20));
+        enter('media_range_header',part.status);assert.equal(part.headers['content-range'],'bytes 2-19/'+expected.length);
+        privateHeaders(part,'media_range');
+        enter('media_suffix_status');const tail=await request(url,{headers:{...authHeaders(a),range:'bytes=-11'}});assert.equal(tail.status,206);
+        enter('media_suffix_bytes',tail.status);assert.deepEqual(tail.raw,expected.subarray(-11));
+        enter('media_unsatisfiable_status');const invalid=await request(url,{headers:{...authHeaders(a),range:'bytes='+expected.length+'-'}});assert.equal(invalid.status,416);
+        enter('media_unsatisfiable_header',invalid.status);assert.equal(invalid.headers['content-range'],'bytes */'+expected.length);
+        enter('media_unsatisfiable_body',invalid.status);assert.equal(invalid.raw.length,0);
+        privateHeaders(invalid,'media_unsatisfiable');
+        enter('media_anonymous');assert.equal((await request(url)).status,401);
+        enter('media_foreign_owner');assert.equal((await request(url,{headers:authHeaders(b)})).status,404);
+        enter('media_account_generation');const stale=await request(url,{headers:{...authHeaders(a),'x-hatoove-account':b.id}});assert.equal(stale.status,409);assert.equal(stale.json.error,'account_changed');
+        enter('media_forged_forwarding');const forged=await request(url,{headers:{'x-forwarded-for':'127.0.0.1','cf-connecting-ip':'127.0.0.1','x-hatoove-account':a.id}});assert.equal(forged.status,401);
+        enter('media_static_path');assert.equal((await request('/content/exams/'+EXAM+'/s5-technical/'+VERSION+'/hv1-1.wav',{headers:authHeaders(a)})).status,404);
       });
     } else {
       await check('synthetic_signed_raw_bytes_and_replay',async()=>{
+        enter('stub_secret_read');
         const secret=await fs.readFile('/fixture/webhook-secret','utf8');
         const raw=Buffer.from(' { "id": "evt_hosting_synthetic_bytes", "type": "hosting.synthetic", "livemode": false, "data": {"object": {"note":"Grüße العربية"}} }\n');
+        enter('stub_signature_build');
         const signature=buildSignatureHeader({rawBody:raw,secret,timestamp:Math.floor(Date.now()/1000)});
         const send=(body,signatureHeader=signature,url='/api/v1/payments/stripe/webhook')=>request(url,{method:'POST',headers:{'stripe-signature':signatureHeader,origin:'https://foreign.invalid'},body});
-        assert.equal((await send(raw+' ','bad')).status,400);
-        assert.equal((await send(Buffer.concat([raw,Buffer.from(' ')]))).status,400);
-        for(let n=0;n<2;n++){const result=await send(raw);assert.equal(result.status,200);assert.equal(result.json.received,true);}
-        assert.equal((await send(raw,signature,'/api/v1/payments/stripe/webhook/')).status,403);
-        assert.equal((await send(Buffer.alloc(65537))).status,413);
+        enter('stub_invalid_signature');assert.equal((await send(raw+' ','bad')).status,400);
+        enter('stub_modified_bytes');assert.equal((await send(Buffer.concat([raw,Buffer.from(' ')]))).status,400);
+        for(let n=0;n<2;n++){enter(n===0?'stub_first_delivery':'stub_replay');const result=await send(raw);assert.equal(result.status,200);assert.equal(result.json.received,true);}
+        enter('stub_sibling_path');assert.equal((await send(raw,signature,'/api/v1/payments/stripe/webhook/')).status,403);
+        enter('stub_body_limit');assert.equal((await send(Buffer.alloc(65537))).status,413);
       });
     }
   }
