@@ -33,3 +33,10 @@ hatoove.com {
 		}
 	}
 }
+
+# Unconfigured Host values must receive an explicit refusal on both protocols.
+# Automatic HTTPS inserts the canonical redirect before the HTTP catch-all;
+# its ACME challenge handler remains ahead of the configured HTTP routes.
+http://, https:// {
+	respond 421
+}
