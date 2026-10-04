@@ -149,6 +149,31 @@ try {
     assert.equal((await asOwner(db.learner,otherSession.userId,revealPractice)).rows[0].v,null,'another owner without evidence gets nothing');
     return 'answer -> correct_answer; mistakes row -> correct_answer; second owner -> null';
   });
+  /*
+   * F2 from the independent slice-A review: the legs above answer ONE item and then ask about that same
+   * item, so a mutant that dropped `e.item_id = p_item_id` (or the set/version comparison) would return
+   * the key for a DIFFERENT item and every leg would keep its value. This leg asks for an UNANSWERED
+   * sibling item in the same set: only the answered item may be revealed.
+   */
+  await leg('REDESIGN-01 A: an unanswered SIBLING item in the same set stays hidden', async () => {
+    const practice=(await db.admin.query(`
+      SELECT k.set_id,k.version,i.item_id,k.answers -> i.item_id AS expected
+        FROM objective_key k JOIN objective_set s USING(set_id,version)
+        CROSS JOIN LATERAL effective_content_review(s.content_version_id) review
+        CROSS JOIN LATERAL (SELECT min(x) AS item_id FROM jsonb_object_keys(k.answers) x) i
+       WHERE s.exam_id='telc-deutsch-b1' AND NOT review.blocked AND s.media_required=false
+       ORDER BY k.set_id,k.version LIMIT 1`)).rows[0];
+    const prep=(await world.store.port.listPreparations(owner)).find(row=>row.exam_id==='telc-deutsch-b1'&&row.state==='active');
+    const answered=practice.item_id,
+      sibling=(await db.admin.query('SELECT jsonb_object_keys(answers) AS k FROM objective_key WHERE set_id=$1 AND version=$2',[practice.set_id,practice.version])).rows.map(r=>r.k).find(k=>k!==answered);
+    assert.equal((await asOwner(db.learner,owner,client=>client.query('SELECT reveal_objective_answer($1, $2, $3) AS v',[practice.set_id,practice.version,answered]))).rows[0].v,practice.expected,'the answered item is revealed');
+    if(sibling){
+      assert.equal((await asOwner(db.learner,owner,client=>client.query('SELECT reveal_objective_answer($1, $2, $3) AS v',[practice.set_id,practice.version,sibling]))).rows[0].v,null,'the unanswered sibling item must stay hidden');
+    }
+    const wrongVersion='v999';
+    assert.equal((await asOwner(db.learner,owner,client=>client.query('SELECT reveal_objective_answer($1, $2, $3) AS v',[practice.set_id,wrongVersion,practice.item_id]))).rows[0].v,null,'a version the learner did not answer stays hidden');
+    return sibling?`answered ${answered} revealed; sibling ${sibling} and version ${wrongVersion} null`:`only one item in the set; version ${wrongVersion} null`;
+  });
   await leg('DISCRIMINATION: with the 0010 grant restored, the worker read succeeds (legs 1-2 are the grant, not a dead pool)', async () => {
     await db.admin.query(`GRANT SELECT ON ${quote(db.schema)}.objective_key TO ${quote(db.roles.worker)}`);
     try {
@@ -176,4 +201,4 @@ console.log('Disposable fixture schema and roles verified absent; policy environ
 
 const passed = results.filter(Boolean).length;
 console.log(`\n${passed} passed, ${results.length - passed} failed`);
-process.exit(passed === results.length && results.length === 8 ? 0 : 1);
+process.exit(passed === results.length && results.length === 9 ? 0 : 1);

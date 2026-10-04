@@ -39,6 +39,32 @@ Local evidence (this checkout, `0858196`):
 The PG legs run against a scratch database (`hatoove_redesign01_check`) on the local compose PostgreSQL, never
 the `hatoove` database. Machine-local logs live under `.qa/` and are not committed.
 
+### Independent review of slice A
+
+A reviewer who did not write the change reviewed commit `0858196` and re-ran the evidence itself:
+`objective-key-access-check` 8/8, `owned-api-check --backend=postgres` 34/34, the other seven PG checks green,
+and the offline baseline 8/8. Verdict **PASS WITH NOTES**; the report is `.qa/redesign-01/SLICE-A-REVIEW.md`.
+
+It found one weakness worth acting on and one coverage hole that is now fixed:
+
+- **F2 (fixed in this branch).** No leg pinned the `(set, version, item)` exactness: a mutant that dropped
+  `e.item_id = p_item_id` returned the key for an *unanswered sibling item* while all eight legs kept their
+  values. `objective-key-access-check` now has a fourth REDESIGN-01 A leg asking for an unanswered sibling and
+  for a version the learner did not answer; the count is 9. The leg was checked against deliberate mutants
+  (`.qa/redesign-01/mutant-probe-exactness.mjs`) rather than assumed to be load-bearing.
+- **F1 (open, needs the security review).** The guard is a predicate the caller's own role can satisfy:
+  `__LEARNER__` holds `INSERT` on `item_evidence` (`0015:62`) under only the owner RLS policy (`0015:56-58`), so
+  a caller with raw learner-role SQL can write the evidence row the reveal demands and then read that item's
+  key. No shipped route does this — practice reveals only the item just answered, and mock answers go to
+  `mock_run.responses` — so it is not API-reachable today, but it falsifies the invariant written in
+  `0015:8-9`. Dropping the runtime `INSERT` is not a local edit: `finalise_mock_run` is definer-rights, so a
+  follow-up migration can move the practice evidence write into one definer operation and then revoke INSERT.
+  That is a security-boundary change and is recorded here as the recommended follow-up, not smuggled into a
+  restyle branch.
+- **F3 (clarified).** "A mock run in progress reveals nothing" holds because nothing writes `item_evidence`
+  mid-mock, but it is a workflow fact, not a confidentiality property: `finalise_mock_run` already returns
+  `correct_answer` for every item, answered or not.
+
 ## 3. Slice B — palette, navigation and the exam card
 
 **Open.** Blocked on one input: the studio-look colour list. Ron is sending it; do not invert a palette from

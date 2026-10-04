@@ -658,8 +658,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
      * MARKING IS NOT DONE HERE, and deliberately: this connection is the LEARNER role, which is NOT
      * granted `objective_key`. The comparison happens inside `mark_objective_item`, a SECURITY DEFINER
      * function that reads the key as its owner and returns ONE BOOLEAN. Once the evidence row exists,
-     * `reveal_objective_answer` (0041) returns that one item's expected answer for the result screen. Granting this role SELECT on
-     * the key to make marking possible would have undone the isolation the objective seed exists for.
+     * `reveal_objective_answer` (0041) returns that one item's expected answer for the result screen.
+     * Granting this role SELECT on the key to make marking possible would have undone the isolation the
+     * objective seed exists for.
      *
      * Evidence is APPEND-ONLY. Answering again adds a row; it does not rewrite the last one, because
      * this table is the raw signal adaptive selection reads and a mutable score would be a claim
@@ -924,7 +925,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             set_item_count: row.item_count,
             your_answer: row.answer,
             // REDESIGN-01 A: revealed only because this learner's answer to the item is on record (0041).
-            correct_answer: row.correct_answer === undefined ? null : row.correct_answer,
+            correct_answer: row.correct_answer ?? null,
             answered_at: row.answered_at,
           })),
         };
