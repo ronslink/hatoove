@@ -51,6 +51,8 @@ The second command needs the Docker Compose plugin (major version2 or later) sup
 
 ## HTTPS bootstrap and renewal
 
+The tracked origin serves only `hatoove.com`. A DNS CNAME for `www.hatoove.com` preserves the request hostname; it does not redirect it. This profile does not accept www, which may fail TLS or receive the foreign-host421 response. Before launch, explicitly select, review and verify a Cloudflare canonical redirect with valid edge TLS or a separate accepted hostname/certificate route. Keep the application's canonical origin and foreign-host refusal intact. The saved www alias alone is not a completed launch route.
+
 Stock Caddy uses HTTP-01 only; direct TLS-ALPN is disabled because Cloudflare terminates the public TLS handshake. Before changing authorized apex DNS, prepare the origin firewall, retained external `caddy-data` and `caddy-config` volumes, Caddy configuration and image. Ingress has no dependency on app readiness: certificate bootstrap happens with app/worker stopped. Only the separately authorized operator may create the named volumes and launch ingress.
 
 1. Keep Cloudflare **Full (Strict)**; never use Flexible, Full without validation, or an insecure origin as a bootstrap workaround.
@@ -97,7 +99,11 @@ The app and worker retain `service_completed_successfully` dependencies for ordi
 
 On failure, preserve logs with secrets redacted and leave app/worker stopped. Already committed migrations are not undone by a later failure. Do not blindly deploy an older image against a newer schema, rewrite checksums, delete ledger entries or downgrade SQL. Establish compatibility or rehearse an authorized restore into a separate database first. Never use `down --volumes`, volume pruning, or an existing learner volume as a test fixture.
 
-## Remaining execution evidence and operations
+## Local rehearsal evidence and remaining operations
+
+Source `9b968ac0dd6a3b9aa1632b0e1d3a78313ff66474` passed the explicit disposable runtime checker on4 October2026 with local SCRAM and managed-style verified TLS fixtures:26 outer groups containing20 HTTPS probe checks. The separate actual PostgreSQL TLS/SCRAM checker passed18 cases. Independent review confirmed exact resource and scratch cleanup; all seven local baseline commands passed. These results do not establish public ACME/Cloudflare routing, actual managed-cluster capacity, real provider behavior, recovery objectives or production acceptance.
+
+To repeat the source-only runtime rehearsal under a bounded disposable execution lease, use `node tools/production-runtime-check.mjs --run-disposable --caddy-image=<available-stock-Caddy-image>`. The checker pins local image identities, permits no implicit pulls or host listeners, generates synthetic secrets/accounts/media, runs both variants and saves metadata-only evidence under ignored `.qa/hosting-runtime/`. Read its receipt and independently verify exact cleanup; a successful local run is not permission to deploy.
 
 The separate disposable source-only rehearsal must prove both merged variants, real verified PostgreSQL TLS success/untrusted-CA/wrong-host failure, mounted secret readability, successful fresh migrations, failed upgrade with previously running app/worker staying stopped, stale-schema/readiness refusal, canonical/foreign Host and Origin, Secure issuance/logout, account switching, authorized/unauthorized media Range/HEAD, exact signed synthetic webhook bytes and response/header preservation. Exercise actual Caddy adaptation and HTTPS with isolated test trust; local test certificates are not evidence of Cloudflare/ACME issuance. Use generated projects/isolated ports, synthetic accounts/media/review authority, no provider keys and exact container/network/volume/profile cleanup. Hosted CI and independent reviews remain separate from local evidence.
 

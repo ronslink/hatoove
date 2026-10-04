@@ -1,5 +1,13 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## Hosting engineering verified; live launch gates remain — 4 October 2026, 01:31 UTC
+
+[Issue135](https://github.com/ronslink/hatoove/issues/135) has reviewed production database TLS/credentials/pool limits, trusted-origin Secure cookies and separate Compose/Caddy configurations under [PILOT-HOSTING-01](docs/contracts/PILOT-HOSTING-01.md). Source `9b968ac0dd6a3b9aa1632b0e1d3a78313ff66474` passed both complete disposable hosting variants (26 outer groups, containing20 HTTPS checks), all seven local baseline commands and focused TLS/cookie/configuration checks. Independent cleanup verified all59 recorded/recovery identities absent. Final hosted CI, pull-request review and merge remain pending; the paired implementation plan and board contain detailed evidence.
+
+The approved London4GB/$24-month Droplet is active, its dedicated key is held in1Password, and read-only SSH succeeded. No app deployment, apex DNS cutover, production database mutation or live payment occurred. Cloudflare's saved www alias requires an accepted canonical redirect/hostname route before launch. Full (Strict) remains; the HTTP-01 profile keeps Always Use HTTPS off for bootstrap and renewal. The production connection allocation is12, not proof of spare shared capacity; Paykey/Typeforge and database placement remain protected.
+
+Next engineering evidence is disposable backup/media restore and compatible rollback, followed by bounded load/soak checks. Evaluated grader/provider wiring, real approved exam content, public legal inputs, human security/privacy/commercial/native-device acceptance and production operating policies remain gates. The worker's deterministic grader still blocks deployment. Earlier preparation/pending descriptions below are historical and superseded by this section.
+
 ## Exact explanation review merged; production preparation — 4 October 2026
 
 [PR134](https://github.com/ronslink/hatoove/pull/134) merged as `5435f40ef8e98578cfc695b637ef9740a438043d` on 3 October at 23:38:51 UTC after all seven required hosted checks succeeded on final head `cb6f86529f08a9ab07400b403110302835a19f44`. The independent reviews and disposable evidence in [PILOT-C06-RESULT](work/implementation/PILOT-C06-RESULT.md) remain the acceptance record; delivery, independent source review, hosted CI and merge are complete. This does not approve actual content, appoint human reviewers or establish full product acceptance. Earlier publication/merge-pending entries are historical.
