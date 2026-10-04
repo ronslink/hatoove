@@ -39,6 +39,14 @@
  *      requires both to carry the configured date. Keys whose whole value is copied into the copy,
  *      such as the FAQ answer, are read straight from the markup because the two must be identical.
  *
+ *   4. THE LISTENING COPY AND THE EXAM PACKAGE. The front door told every visitor, in five languages,
+ *      that listening "awaits suitable recordings" and was "not currently available in the pilot".
+ *      That stopped being true when the HV recordings were built. Leg S11 reads the HV section out of
+ *      `content/exams/telc-deutsch-b1/manifest.json` (each part `fixed_audio` with `mediaRequired:
+ *      true`) and requires the copy to AGREE with it in either direction — no denial while the
+ *      package ships the area, and no offer while it does not — and holds the markup tile to the
+ *      catalogue's own German values, so the no-JavaScript page cannot keep a retired sentence.
+ *
  * Offline: no database, no provider call, no network. The child server is killed in `finally`.
  *
  * Usage: node tools/seo-check.mjs
@@ -360,6 +368,97 @@ try {
     if (problems.length) fail('S10', 'the landing page states the configured pilot free-until date', problems.join(' | '));
     else pass('S10', 'the landing page states the configured pilot free-until date', `PILOT_FREE_UNTIL ${declared} = "${expected}" in the visible FAQ, the JSON-LD answer and the shipped catalogue kicker`);
   }
+}
+
+/* S11 — THE LISTENING COPY AND THE EXAM PACKAGE AGREE, IN BOTH DIRECTIONS.
+ *
+ * The landing page used to say, in all five languages, that listening "awaits suitable recordings"
+ * and "is not currently available in the pilot". That was true while the pilot had no fixed
+ * recordings. The exam package declares the HV section and every one of its parts is `fixed_audio`
+ * with `mediaRequired: true`, so the sentence describes the product wrongly now — and no other leg
+ * reads this copy, which is exactly how it would have shipped stale.
+ *
+ * The assertion is AGREEMENT rather than a fixed string, so it keeps working when the package moves:
+ * a page that keeps selling an area the package does not ship is a broken promise in one direction,
+ * and a page that advertises listening a package without HV does not ship is the same promise
+ * broken in the other. The audio bytes are a separate slice (media rows + a private media root, not
+ * files in this repository); this leg holds the copy to the package shape that does live here.
+ */
+{
+  const blueprintPath = path.join(ROOT, 'content', 'exams', 'telc-deutsch-b1', 'manifest.json');
+  const cataloguePath = path.join(PUBLIC, 'assets', 'i18n', 'public-messages.js');
+  const blueprintSource = await readFile(blueprintPath, 'utf8').catch(() => null);
+  const catalogue = await readFile(cataloguePath, 'utf8').catch(() => null);
+
+  // The German value of a catalogue row, read from source (the module is not imported here: S10's
+  // rule is that copied copy is read from the file a visitor actually receives).
+  const german = (key) => {
+    if (catalogue === null) return null;
+    const row = catalogue.match(new RegExp(`^\\s*${key}:\\s*\\[\\s*'([^']*)'`, 'm'));
+    return row === null ? null : row[1];
+  };
+
+  const problems = [];
+  if (catalogue === null) problems.push('public/assets/i18n/public-messages.js is missing, so the shipped copy cannot be read');
+
+  let hv = null;
+  if (blueprintSource === null) problems.push('content/exams/telc-deutsch-b1/manifest.json is missing, so the exam package cannot be read');
+  else {
+    try {
+      const blueprint = JSON.parse(blueprintSource).blueprint;
+      const sections = blueprint && Array.isArray(blueprint.sections) ? blueprint.sections : [];
+      hv = sections.find((section) => section && section.id === 'HV') || null;
+    } catch (error) {
+      problems.push(`content/exams/telc-deutsch-b1/manifest.json is not valid JSON: ${error.message}`);
+    }
+  }
+  const fixedAudioParts = hv && Array.isArray(hv.parts)
+    ? hv.parts.filter((part) => part && part.interaction === 'fixed_audio' && part.mediaRequired === true)
+    : [];
+  const shipsFixedAudio = fixedAudioParts.length > 0;
+
+  const description = german('listeningDescription');
+  const pack = german('listeningPack');
+  const unavailable = german('faqUnavailableAnswer');
+
+  // The sentences this leg exists to retire. Each one tells the visitor the area does not exist.
+  const denials = [
+    /wartet noch auf passende Aufnahmen/i,
+    /Hörübungen sind im Pilot derzeit nicht verfügbar/i,
+    /warten auf Aufnahmen/i,
+    /awaits suitable recordings/i,
+    /Listening practice is not currently available/i,
+  ];
+  // The copy offers listening when the German description names the fixed recordings and the tile's
+  // chip names where they live. Both, because either alone is ambiguous wording rather than an offer.
+  const offersListening = typeof description === 'string' && /Aufnahmen/.test(description)
+    && typeof pack === 'string' && /Guthaben-Paket/i.test(pack);
+
+  if (!problems.length) {
+    if (shipsFixedAudio) {
+      if (!offersListening) {
+        problems.push(`manifest.json ships ${fixedAudioParts.length} HV fixed_audio part(s), but the German copy does not offer listening ("${description ?? '(missing)'}" / "${pack ?? '(missing)'}")`);
+      }
+      const denied = denials.filter((pattern) => pattern.test(String(description)) || pattern.test(String(unavailable)));
+      if (denied.length) problems.push(`manifest.json ships ${fixedAudioParts.length} HV fixed_audio part(s), but the copy still denies the recordings exist: ${denied.map((pattern) => pattern.source).join(', ')}`);
+
+      // The markup is the no-JavaScript page, and the catalogue is what every other visitor reads:
+      // both are load-bearing, so the tile is held to the catalogue's own German values.
+      const tile = (html.match(/<p data-i18n="public\.listeningDescription">([\s\S]*?)<\/p>/) || [])[1];
+      const chip = (html.match(/<span class="chip" data-i18n="public\.listeningPack">([\s\S]*?)<\/span>/) || [])[1];
+      if (tile === undefined) problems.push('public/index.html has no listening tile to read');
+      else if (denials.some((pattern) => pattern.test(tile))) problems.push(`the listening tile still denies the recordings exist: "${plain(tile).slice(0, 90)}"`);
+      else if (plain(tile) !== description) problems.push(`the listening tile "${plain(tile).slice(0, 90)}" is not the shipped catalogue's German value`);
+      if (chip === undefined) problems.push('the listening tile carries no "public.listeningPack" chip');
+      else if (plain(chip) !== pack) problems.push(`the listening pack chip "${plain(chip)}" is not the shipped catalogue's German value "${pack}"`);
+    } else if (offersListening) {
+      problems.push('the German copy offers listening, but the exam blueprint declares no HV fixed_audio part with mediaRequired: true');
+    }
+  }
+
+  if (problems.length) fail('S11', 'the landing page agrees with the exam package about listening', problems.join(' | '));
+  else if (shipsFixedAudio) pass('S11', 'the landing page agrees with the exam package about listening', `manifest.json ships ${fixedAudioParts.length} HV fixed_audio part(s); the copy offers listening in the credit packs and states no denial`);
+  else pass('S11', 'the landing page agrees with the exam package about listening', 'the exam package ships no HV fixed_audio part and the copy does not offer listening');
 }
 
 // ---------------------------------------------------------------- served surface
