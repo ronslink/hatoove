@@ -3,19 +3,56 @@
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  persistentConfig, createAdminPool, persistentRolePool, ensureRolesAndSchema,
-} from '../server/owned-postgres/provision.mjs';
 
-if (process.argv.length !== 3 || process.argv[2] !== '--run-disposable') {
-  console.error('Refusing execution: pass --run-disposable for an isolated Docker TLS fixture.');
+if (process.argv.length !== 3 || !['--run-disposable', '--self-check'].includes(process.argv[2])) {
+  console.error('Refusing execution: pass --run-disposable for an isolated Docker TLS fixture, or --self-check for pure fault controls.');
   process.exit(2);
 }
 
+const poolFault = { seen: false };
+async function withPool(pool, run, fault = poolFault) {
+  // Keep this listener through and after end(): an idle error must never bypass cleanup.
+  pool.on('error', () => { fault.seen = true; });
+  let value, failure, rejected = false;
+  try {
+    if (fault.seen) throw new Error('fixture_pool_error');
+    value = await run(pool);
+  } catch (error) { rejected = true; failure = error; }
+  try { await pool.end(); }
+  catch (error) { if (!rejected) { rejected = true; failure = error; } }
+  if (fault.seen) throw new Error('fixture_pool_error');
+  if (rejected) throw failure;
+  return value;
+}
+
+/** A killed or unstarted CLI cannot establish whether its daemon mutation completed. */
+function uncertainMutation(args, response) {
+  const operation = args[0] === 'run' ? 'container_run'
+    : args[0] === 'container' && args[1] === 'rm' ? 'container_remove' : null;
+  if (!operation) return null;
+  return response.error || response.signal || response.status === null || response.status === undefined
+    || [130, 137, 143].includes(response.status) ? operation : null;
+}
+
+function cleanupDisposition(cleanup, uncertainOperations) {
+  if (uncertainOperations.length) {
+    cleanup.containersAbsent = false;
+    cleanup.scratchRetained = true;
+    cleanup.errors.push('daemon_operation_outcome_unresolved');
+    return false;
+  }
+  return true;
+}
+
+async function runFixture() {
+const {
+  persistentConfig, createAdminPool, persistentRolePool, ensureRolesAndSchema,
+} = await import('../server/owned-postgres/provision.mjs');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const id = `hatoove-pg-tls-${Date.now()}-${randomUUID().slice(0, 8)}`;
 const label = `org.hatoove.tls-fixture=${id}`;
@@ -26,7 +63,8 @@ const certName = `${id}-cert`;
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), `${id}-`));
 const childEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
   !/^(?:HATOVE_|HATOOVE_|OWNAPI_|B1PREP_|STRIPE_|PAYMENTS_|COMPOSE_|PG|DOCKER_(?:HOST|CONTEXT|TLS|TLS_VERIFY|CERT_PATH)$|NODE_OPTIONS$|NODE_PATH$)/i.test(key)));
-const receipt = { fixture: id, checks: [], containers: [], scratch, cleanup: null };
+const receipt = { fixture: id, checks: [], containers: [], scratch, cleanup: null, uncertainOperations: [],
+  recoveryScope: { label, containerNames: [dbName, certName] } };
 let stage = 'initialization';
 let failed = false;
 let ambientSsl;
@@ -58,11 +96,19 @@ function pinLocalDocker() {
 
 function result(args) {
   assert.ok(dockerEndpoint, 'local Docker endpoint must be pinned first');
-  return cliResult(['--host', dockerEndpoint, ...args]);
+  let response;
+  try { response = cliResult(['--host', dockerEndpoint, ...args]); }
+  catch { response = { status: null, error: true }; }
+  const operation = uncertainMutation(args, response);
+  if (operation) receipt.uncertainOperations.push({ operation,
+    identity: operation === 'container_run' ? args[args.indexOf('--name') + 1] : args.at(-1),
+    reason: 'daemon_operation_outcome_unresolved' });
+  return response;
 }
 
 function docker(args) {
   const response = result(args);
+  if (uncertainMutation(args, response)) throw new Error('daemon_operation_outcome_unresolved');
   if (response.error || response.status !== 0) throw new Error('fixture_docker_command_failed');
   return response.stdout.trim();
 }
@@ -81,10 +127,6 @@ function inspect(name) {
 function assertOwned(value, name) {
   assert.equal(value.Name, `/${name}`, 'fixture container name differs');
   assert.equal(value.Config.Labels?.['org.hatoove.tls-fixture'], id, 'fixture ownership differs');
-}
-
-async function withPool(pool, run) {
-  try { return await run(pool); } finally { await pool.end(); }
 }
 
 function config(overrides = {}) {
@@ -107,7 +149,9 @@ function config(overrides = {}) {
 
 async function check(name, run) {
   stage = name;
+  if (poolFault.seen) throw new Error('fixture_pool_error');
   await run();
+  if (poolFault.seen) throw new Error('fixture_pool_error');
   receipt.checks.push(name);
   console.log(`PASS ${name}`);
 }
@@ -241,8 +285,9 @@ try {
 } catch (error) {
   failed = true;
   // Do not print driver/Docker exceptions, which may contain credentials or SQL.
-  receipt.failure = { stage, reason: 'acceptance_check_failed' };
-  console.error(`FAIL ${stage}: acceptance_check_failed`);
+  const reason = poolFault.seen ? 'fixture_pool_error' : 'acceptance_check_failed';
+  receipt.failure = { stage, reason };
+  console.error(`FAIL ${stage}: ${reason}`);
 } finally {
   if (ambientSaved) {
     if (ambientSsl === undefined) delete process.env.PGSSLMODE;
@@ -257,6 +302,7 @@ try {
         const value = inspect(name);
         if (!value) continue;
         assertOwned(value, name);
+        if (!receipt.containers.some(row => row.id === value.Id)) receipt.containers.push({ name, id: value.Id });
         // Exact resource identity, never a wildcard, and no retained data volume is involved.
         docker(['container', 'rm', '--force', '--volumes', value.Id]);
       } catch {
@@ -279,7 +325,7 @@ try {
     // No daemon call is permitted until pinning succeeds, so no container was attempted.
     cleanup.containersAbsent = true;
   }
-  try {
+  if (cleanupDisposition(cleanup, receipt.uncertainOperations)) try {
     const resolvedScratch = fs.realpathSync(scratch);
     const tempRoot = fs.realpathSync(os.tmpdir());
     assert.equal(path.dirname(resolvedScratch), tempRoot, 'scratch must remain an immediate temp child');
@@ -289,6 +335,10 @@ try {
     assert.equal(cleanup.scratchAbsent, true);
   } catch {
     cleanup.errors.push('scratch:removal_not_verified');
+  }
+  if (poolFault.seen) {
+    failed = true;
+    receipt.failure = { stage, reason: 'fixture_pool_error' };
   }
   if (cleanup.errors.length) {
     failed = true;
@@ -300,3 +350,68 @@ try {
   console.log(JSON.stringify(receipt));
   if (failed) process.exitCode = 1;
 }
+}
+
+async function selfCheck() {
+  const sentinel = 'PRIVATE_POOL_ERROR_SENTINEL';
+  assert.throws(() => new EventEmitter().emit('error', new Error(sentinel)), new RegExp(sentinel));
+  for (const phase of ['during_operation', 'during_teardown']) {
+    const fault = { seen: false }, pool = new EventEmitter();
+    let ended = false, continued = false, passed = false, diagnostic;
+    pool.end = async () => {
+      ended = true;
+      if (phase === 'during_teardown') queueMicrotask(() => pool.emit('error', new Error(sentinel)));
+      await Promise.resolve();
+    };
+    try {
+      await withPool(pool, async candidate => {
+        if (phase === 'during_operation') queueMicrotask(() => candidate.emit('error', new Error(sentinel)));
+        await Promise.resolve();
+        return 'completed';
+      }, fault);
+      passed = true;
+    } catch (error) { diagnostic = error.message; }
+    finally { continued = true; }
+    assert.equal(ended, true); assert.equal(continued, true); assert.equal(passed, false);
+    assert.equal(diagnostic, 'fixture_pool_error'); assert.equal(fault.seen, true);
+    assert.ok(!JSON.stringify({ diagnostic }).includes(sentinel));
+  }
+  const lateFault = { seen: false }, latePool = new EventEmitter();
+  latePool.end = async () => {};
+  assert.equal(await withPool(latePool, async () => 42, lateFault), 42);
+  assert.doesNotThrow(() => latePool.emit('error', new Error(sentinel)));
+  assert.equal(lateFault.seen, true);
+  const nextPool = new EventEmitter(); let nextCalled = false, nextEnded = false;
+  nextPool.end = async () => { nextEnded = true; };
+  await assert.rejects(withPool(nextPool, async () => { nextCalled = true; }, lateFault), { message: 'fixture_pool_error' });
+  assert.equal(nextCalled, false); assert.equal(nextEnded, true);
+  const clean = { seen: false }, rejectedPool = new EventEmitter();
+  let rejectedEnded = false;
+  rejectedPool.end = async () => { rejectedEnded = true; };
+  await assert.rejects(withPool(rejectedPool, async () => { throw new Error('expected_operation_failure'); }, clean), /expected_operation_failure/);
+  assert.equal(rejectedEnded, true);
+  const endPool = new EventEmitter(); endPool.end = async () => { throw new Error('expected_end_failure'); };
+  await assert.rejects(withPool(endPool, async () => 1, { seen: false }), /expected_end_failure/);
+  const outcomes = [
+    [{ status: 0 }, null], [{ status: 1 }, null],
+    [{ status: null, error: new Error(sentinel) }, 'container_run'],
+    [{ status: null, signal: 'SIGTERM' }, 'container_run'], [{ status: null }, 'container_run'],
+    [{}, 'container_run'], [{ status: 130 }, 'container_run'], [{ status: 137 }, 'container_run'], [{ status: 143 }, 'container_run'],
+  ];
+  for (const [response, expected] of outcomes) assert.equal(uncertainMutation(['run', '--name', 'synthetic'], response), expected);
+  assert.equal(uncertainMutation(['container', 'rm', '--force', 'synthetic'], { status: null }), 'container_remove');
+  assert.equal(uncertainMutation(['container', 'inspect', 'synthetic'], { status: null }), null);
+  const cleanup = { containersAbsent: true, scratchAbsent: false, errors: [] };
+  const uncertain = [{ operation: 'container_run', identity: 'synthetic', reason: 'daemon_operation_outcome_unresolved' }];
+  assert.equal(cleanupDisposition(cleanup, uncertain), false);
+  assert.equal(cleanup.containersAbsent, false); assert.equal(cleanup.scratchRetained, true);
+  assert.deepEqual(cleanup.errors, ['daemon_operation_outcome_unresolved']);
+  assert.ok(!JSON.stringify({ cleanup, uncertain }).includes(sentinel));
+  assert.equal(cleanupDisposition({ errors: [] }, []), true);
+  console.log('PASS TLS checker offline: 6 pool error controls; 11 command-result controls; 2 cleanup-disposition controls; no database, subprocess or network');
+}
+
+if (process.argv[2] === '--self-check') {
+  try { await selfCheck(); }
+  catch { console.error('FAIL tls_checker_self_check_failed'); process.exitCode = 1; }
+} else await runFixture();
