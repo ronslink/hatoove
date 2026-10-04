@@ -89,9 +89,12 @@ function secretFile(path) {
 export function credentialProperty(target, property, env, key) {
   const hasLiteral = own(env, key), hasFile = own(env, `${key}_FILE`);
   const literal = env[key], file = env[`${key}_FILE`];
+  const localTrust = !own(env, 'OWNAPI_PG_REQUIRE_PASSWORDS') || env.OWNAPI_PG_REQUIRE_PASSWORDS === '0';
   Object.defineProperty(target, property, { enumerable: true, configurable: true,
     get() {
       if (hasLiteral && hasFile) fail('postgres_secret_conflict');
+      // The retained developer Compose supplies an empty literal. Never extend this exception to files or strict mode.
+      if (hasLiteral && literal === '' && localTrust) return null;
       return hasFile ? secretFile(file) : hasLiteral ? validPassword(literal, false) : null;
     },
     set(value) { Object.defineProperty(target, property, { enumerable: true, configurable: true, writable: true, value }); },

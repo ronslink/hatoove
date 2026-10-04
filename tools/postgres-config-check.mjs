@@ -226,7 +226,7 @@ check('file credentials remove exactly one terminal line ending and retain bytes
 
 check('literal conflicts/invalid values and errors stay closed and redacted', () => {
   for (const literal of ['', 'synthetic-secret']) fixed(() => options({ OWNAPI_PG_LEARNER_PASSWORD: literal, OWNAPI_PG_LEARNER_PASSWORD_FILE: '' }), 'postgres_secret_conflict');
-  for (const value of ['', 'secret\n', 'secret\r', 'secret\0', '\ud800', 'x'.repeat(4097), 42]) fixed(() => options({ OWNAPI_PG_LEARNER_PASSWORD: value }), 'postgres_secret_invalid');
+  for (const value of ['secret\n', 'secret\r', 'secret\0', '\ud800', 'x'.repeat(4097), 42]) fixed(() => options({ OWNAPI_PG_LEARNER_PASSWORD: value }), 'postgres_secret_invalid');
   assert.equal(options({ OWNAPI_PG_LEARNER_PASSWORD: ' spaced ' }).password, ' spaced ');
   assert.equal(options({ OWNAPI_PG_LEARNER_PASSWORD: '\ufeffsynthetic' }).password, '\ufeffsynthetic');
   fixed(() => persistentConfig({ OWNAPI_PG_SCHEMA: 'sensitive/invalid' }), 'postgres_configuration_invalid');
@@ -272,6 +272,39 @@ check('retained local trust provisioning still creates all seven roles with NULL
   assert.equal(creation.length, 7); assert.ok(creation.every(text => text.includes('CONNECTION LIMIT 10 PASSWORD NULL')));
   assert.equal(queries[1].startsWith('REVOKE CREATE, TEMPORARY'), true);
   assert.equal(queries.at(-1), 'CREATE SCHEMA IF NOT EXISTS "hatoove" AUTHORIZATION "hatoove_migration"');
+});
+
+check('unchanged Compose empty literal works only in local trust mode', async () => {
+  for (const strict of [undefined, '0', '1']) {
+    const mode = strict === undefined ? {} : { OWNAPI_PG_REQUIRE_PASSWORDS: strict };
+    for (const role of ['admin', 'payments']) {
+      const key = role === 'admin' ? 'OWNAPI_PG_PASSWORD' : 'OWNAPI_PG_PAYMENTS_PASSWORD';
+      const env = { ...mode, [key]: '' };
+      if (strict === '1') fixed(() => options(env, role), 'postgres_secret_invalid');
+      else assert.equal(options(env, role).password, null);
+      fixed(() => options({ ...env, [`${key}_FILE`]: '' }, role), 'postgres_secret_conflict');
+      fixed(() => options({ ...mode, [`${key}_FILE`]: file('') }, role), 'postgres_secret_invalid');
+    }
+    const config = persistentConfig({ ...mode, OWNAPI_PG_PAYMENTS_PASSWORD: '' });
+    const queries = [];
+    const admin = { async query(text) {
+      queries.push(text);
+      return { rows: text.startsWith('SELECT rolname') ? Object.entries(config.roles).filter(([role]) => role !== 'payments').map(([, rolname]) => ({ rolname })) : [] };
+    } };
+    if (strict === '1') {
+      await assert.rejects(ensureRolesAndSchema(admin, config), /postgres_secret_invalid/);
+      assert.equal(queries.length, 1); assert.ok(queries[0].startsWith('SELECT rolname'));
+    } else {
+      await ensureRolesAndSchema(admin, config);
+      assert.equal(queries.filter(text => text.includes('CREATE ROLE')).length, 1);
+      assert.ok(queries.find(text => text.includes('CREATE ROLE')).includes('PASSWORD NULL'));
+      await fakePools(async created => {
+        const runtime = await openRuntimePools({ config });
+        assert.equal(created.length, 6); assert.equal(runtime.payments.options.password, null);
+        await closeRuntimePools(runtime); assert.ok(created.every(value => value.ended));
+      });
+    }
+  }
 });
 
 let passed = 0;
