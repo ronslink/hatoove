@@ -842,7 +842,7 @@ async function renderDashboard() {
   if (!currentContext(ticket)) return;
   if (!next || !progress) return; // a 401 already redirected
   const start = document.querySelector('.hero-next a');
-  if (start) { start.href = activePreparation() ? '#/ueben' : '#/fortschritt'; bindShellText(start, () => activePreparation() ? uiText("m008") : uiText("m101")); }
+  if (start) { start.href = activePreparation() ? '#/ueben' : '#/fortschritt'; bindShellText(start, () => activePreparation() ? uiText("m389") : uiText("m101")); }
 
   if (next.ok && next.data && next.data.set) {
     const d = next.data;
