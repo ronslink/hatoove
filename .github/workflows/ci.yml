@@ -88,6 +88,16 @@ jobs:
       # entitlement, access or payment decision reads the date in this slice.
       - name: Pilot free-until date is readable and cannot crash the runtime
         run: node tools/pilot-window-check.mjs
+      # PILOT-WINDOW-01 CHECKPOINT 2 WENT UNCHEKED. `pilot-window-check.mjs` above covers the ACCESSOR and
+      # `seo-check.mjs` leg S10 covers the COPY, but nothing in CI covered the DECISION: the route
+      # classification of contract §6, the fail-closed default (D6), the refusal contract (§7) and the
+      # requirement that every route the owned API actually serves is classified (acceptance 3). Those legs
+      # existed and passed locally while CI never ran them, which is the gap this step closes. The legs are
+      # deterministic and offline — every instant is passed in, so a leg can stand on either side of
+      # 2027-01-14 without waiting for it — and each one is proven to be able to fail by mutation in a
+      # %TEMP% copy.
+      - name: The pilot window decides access, and every route is classified
+        run: node tools/pilot-window-enforce-check.mjs
       # "The provider is operator-only and invisible" USED to run here
       # (tools/provider-config-check.mjs). That check drove `/api/config` anonymously, which the auth
       # wrap now refuses with 401 before any handler — so it had been red since that wrap landed, and
