@@ -237,6 +237,19 @@ jobs:
         run: |
           docker --host unix:///var/run/docker.sock version
           docker compose version
+      # The configuration under test must be rendered by the same Compose release the
+      # droplet deploys with. Pinning closes the "CI runs a different dialect" gap that
+      # made an older release's JSON look like an unsafe configuration.
+      - name: Pin the reviewed Compose plugin version
+        timeout-minutes: 3
+        run: |
+          set -eu
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL -o "$HOME/.docker/cli-plugins/docker-compose" \
+            https://github.com/docker/compose/releases/download/v5.6.0/docker-compose-linux-x86_64
+          echo "40343e21ca777173e69cff5dbafeb37c6f81f3b0d57d9e597f036e95eb63e76a  $HOME/.docker/cli-plugins/docker-compose" | sha256sum -c -
+          chmod 0755 "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version --short
       - name: Production Compose variants render with synthetic configuration only
         timeout-minutes: 2
         run: node tools/production-compose-check.mjs --compose

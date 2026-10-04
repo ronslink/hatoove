@@ -28,6 +28,10 @@ const passwordKey = role => role === 'admin' ? 'OWNAPI_PG_PASSWORD_FILE' : `OWNA
 const sources = service => (service.secrets ?? []).map(item => typeof item === 'string' ? item : item.source);
 const networkKeys = service => Array.isArray(service.networks) ? service.networks : keys(service.networks);
 const withoutComments = text => text.replace(/#[^\r\n]*/g, '');
+/** Compose releases whose `config --format json` dialect has been empirically verified to
+ * retain an explicit `bind.create_host_path`. CI pins 5.6.0 — the version the droplet runs —
+ * so this check compares like with like instead of interpreting an older release's JSON. */
+const VERIFIED_COMPOSE_VERSIONS = ['5.5.0', '5.6.0'];
 
 export function assertCaddy(text) {
   const source = withoutComments(text);
@@ -174,6 +178,9 @@ function runComposeChecks() {
     const version = execute(['compose','version','--short']);
     const versionText = version.stdout?.trim() ?? '', versionMatch = /^v?(\d+)\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?$/.exec(versionText);
     requireThat(!version.error && version.status === 0 && versionMatch && Number(versionMatch[1]) >= 2, 'compose_version_unavailable');
+    // Compare like with like. An unverified release must fail here, with a name that
+    // says why, rather than surfacing later as a misleading model assertion.
+    requireThat(VERIFIED_COMPOSE_VERSIONS.includes(versionText.replace(/^v/, '')), 'compose_version_unverified');
     const values = {
       HATOVE_APP_IMAGE:`synthetic.invalid/hatoove@sha256:${'a'.repeat(64)}`, HATOVE_CADDY_IMAGE:`caddy@sha256:${'b'.repeat(64)}`,
       HATOVE_POSTGRES_IMAGE:`postgres@sha256:${'c'.repeat(64)}`, OWNAPI_PG_DATABASE:'hatoove_synthetic_config', HATOVE_PG_ADMIN_USER:'synthetic_admin',
