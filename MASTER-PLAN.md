@@ -1,5 +1,15 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+## Exact explanation review merged; production preparation — 4 October 2026
+
+[PR134](https://github.com/ronslink/hatoove/pull/134) merged as `5435f40ef8e98578cfc695b637ef9740a438043d` on 3 October at 23:38:51 UTC after all seven required hosted checks succeeded on final head `cb6f86529f08a9ab07400b403110302835a19f44`. The independent reviews and disposable evidence in [PILOT-C06-RESULT](work/implementation/PILOT-C06-RESULT.md) remain the acceptance record; delivery, independent source review, hosted CI and merge are complete. This does not approve actual content, appoint human reviewers or establish full product acceptance. Earlier publication/merge-pending entries are historical.
+
+Ron selected DigitalOcean Basic Regular 2 vCPU / 4 GiB / 80 GiB in London at $24/month. Its project and Droplet form are prepared; the requested dedicated SSH key must be generated directly in 1Password after desktop authorization. No key or server has been created. Cloudflare's proxied www alias, Full (Strict), minimum TLS 1.2 with TLS 1.3 retained, and private-response cache bypass are saved. Apex DNS and HTTPS redirects await an origin with working TLS. No application deployment, shared database mutation, live payment key or real charge has occurred.
+
+[Issue135](https://github.com/ronslink/hatoove/issues/135) prepares production database TLS, mounted credentials, bounded connection pools, trusted HTTPS Secure cookies and a separate Compose/ingress configuration under [PILOT-HOSTING-01](docs/contracts/PILOT-HOSTING-01.md). The contract is under independent review before implementation leases. Current app pools have a ceiling of 23 including readiness; one app, worker and deployment overlap total 29. The existing shared 1 GiB managed PostgreSQL cluster has 22 available connections across its applications, so database placement and allocated capacity remain unresolved. Preserve Paykey/Typeforge; no automatic resize or role widening.
+
+Remaining product gates are unchanged: reviewed real listening content/package assembly, evaluated provider wiring after D10 prerequisites, legal/public information after policy inputs, security/privacy/content/native/device/commercial acceptance and backup/restore/rollback/load evidence. Functional checks do not prove capacity for 50–200 simultaneous learners. Use this section and the paired current implementation/board entries over older status inventories.
+
 ## Current delivery and remaining pilot scope — 3 October 2026, 23:27 UTC
 
 All seven safe offline baseline commands passed once on94590c9, whose tree exactly matches reviewed integrationaf5fb48. The design checker retains two existing warnings; other pending integration checks below remain separate.

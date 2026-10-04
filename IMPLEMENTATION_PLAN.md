@@ -1,5 +1,13 @@
 # Hatoove implementation plan
 
+## Exact explanation review merged; production preparation — 4 October 2026
+
+[PR134](https://github.com/ronslink/hatoove/pull/134) merged as `5435f40ef8e98578cfc695b637ef9740a438043d` at 23:38:51 UTC on 3 October after seven required successes on final `cb6f86529f08a9ab07400b403110302835a19f44`. [PILOT-C06-RESULT](work/implementation/PILOT-C06-RESULT.md) records independent review, core PostgreSQL21, consumers17, retained review33, classifiers23/105 mutations and158 mutations, 17 browser behavior groups plus3 setup/cleanup records and60 screenshots, with exact disposable cleanup. Merge is complete; human content/reviewer and product acceptance are separate.
+
+[Issue135](https://github.com/ronslink/hatoove/issues/135) owns production preparation. Root authors [PILOT-HOSTING-01](docs/contracts/PILOT-HOSTING-01.md); three independent read-only reviews cover ingress/Compose, PostgreSQL configuration/budgets and Secure session cookies before implementation leases. Local runtime defaults and learner data remain preserved. The selected host is DigitalOcean 2 vCPU / 4 GiB / 80 GiB in LON1, $24/month; server creation waits for the requested vault-held SSH key and 1Password desktop authorization. Cloudflare www/proxy, Full (Strict), TLS1.2 minimum/TLS1.3 and private cache bypass are configured. No Droplet, key, app deployment, production DB mutation or live charge exists yet. Apex DNS waits for a ready TLS origin.
+
+Database placement and capacity remain unresolved: configured one-app ceiling23 plus standalone worker2 and concurrent deployment4 exceeds the existing shared managed cluster's22 available connections before Paykey/Typeforge use. Implement explicit budgets and verified TLS, then measure spare capacity/provider permissions before any reuse. Reviewed listening corpus, D10/provider evaluation, legal inputs and human/native/device/security/privacy/commercial/backup/live gates remain open. Older merge/host-selection-pending entries are historical.
+
 ## Interface languages merged; exact explanation review locally verified — 3 October 2026, 23:27 UTC
 
 All seven safe offline baseline commands passed once on94590c9, whose tree exactly matches reviewed integrationaf5fb48. The design checker retains two existing warnings; other pending integration checks below remain separate.
