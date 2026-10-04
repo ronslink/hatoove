@@ -23,7 +23,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FREE_SURFACE, PILOT_FREE, PILOT_FULL, pilotWindowState, resolvePilotAccess } from '../server/pilot-window.mjs';
+import { FREE_SURFACE, PILOT_FREE, PILOT_FULL, ROUTE_FREE, ROUTE_OPEN, ROUTE_PAID, classifyRoute, matchedRouteRule, pilotWindowRefusal, pilotWindowState, resolvePilotAccess } from '../server/pilot-window.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const results = [];
@@ -172,6 +172,103 @@ const configured = declared === undefined ? null : declared;
   } else {
     record('W6', true, 'the window is ' + state.state + ' and ' + designated.join(', ') + ' is the designated free test');
   }
+}
+
+/* W7 — contract §6: the class of every route family. The mock-run family is asserted as a FAMILY — index,
+ * start, detail, saves, playback and media — because §6's own note ("only runs of the designated free form")
+ * presupposes that a free account HAS runs it can start and resume; the free-surface filter decides what is
+ * visible inside the family, and that is the next checkpoint. */
+{
+  const table = [
+    ['GET', '/api/auth/sign-in/email', ROUTE_OPEN],
+    ['GET', '/api/v1/account', ROUTE_OPEN],
+    ['PUT', '/api/v1/account/password', ROUTE_OPEN],
+    ['DELETE', '/api/v1/sessions', ROUTE_OPEN],
+    ['GET', '/api/v1/export', ROUTE_OPEN],
+    ['PUT', '/api/v1/settings', ROUTE_OPEN],
+    ['GET', '/api/v1/exams', ROUTE_OPEN],
+    ['GET', '/api/v1/preparations', ROUTE_OPEN],
+    ['GET', '/api/v1/tasks', ROUTE_OPEN],
+    ['GET', '/api/v1/checkout/offer', ROUTE_OPEN],
+    ['POST', '/api/v1/checkout/session', ROUTE_OPEN],
+    ['GET', '/api/v1/orders/abc', ROUTE_OPEN],
+    ['POST', '/api/v1/payments/stripe/webhook', ROUTE_OPEN],
+    ['GET', '/api/v1/mock-forms', ROUTE_FREE],
+    ['GET', '/api/v1/mock-runs', ROUTE_FREE],
+    ['POST', '/api/v1/mock-runs', ROUTE_FREE],
+    ['GET', '/api/v1/mock-runs/abc', ROUTE_FREE],
+    ['PUT', '/api/v1/mock-runs/abc', ROUTE_FREE],
+    ['POST', '/api/v1/mock-runs/abc/finalise', ROUTE_FREE],
+    ['GET', '/api/v1/mock-runs/abc/playback', ROUTE_FREE],
+    ['GET', '/api/v1/mock-runs/abc/media/telc-deutsch-b1.hv2.01.audio/v1', ROUTE_FREE],
+    ['GET', '/api/v1/attempts', ROUTE_FREE],
+    ['POST', '/api/v1/attempts', ROUTE_FREE],
+    ['GET', '/api/v1/objective-sets', ROUTE_FREE],
+    ['GET', '/api/v1/practice/next', ROUTE_PAID],
+    ['GET', '/api/v1/vocab', ROUTE_PAID],
+    ['GET', '/api/v1/nouns', ROUTE_PAID],
+    ['GET', '/api/v1/guides', ROUTE_PAID],
+    ['POST', '/api/v1/sentence-check', ROUTE_PAID],
+  ];
+  const wrong = table
+    .filter(([method, route, expected]) => classifyRoute(method, route) !== expected)
+    .map(([method, route, expected]) => `${method} ${route} is ${classifyRoute(method, route)}, expected ${expected}`);
+  if (wrong.length) record('W7', false, wrong.join(' | '));
+  else record('W7', true, table.length + ' route cases match contract §6');
+}
+
+/* W8 — D6: a route no rule covers is PAID, and "uncovered" stays observable instead of invisible. */
+{
+  const unknown = ['/api/v1/invented', '/api/v2/thing', '/api/v1/mock-forms/x', '/', '/api/auth', '/api/v1'];
+  const notPaid = unknown.filter((route) => classifyRoute('GET', route) !== ROUTE_PAID);
+  const claimed = unknown.filter((route) => matchedRouteRule('GET', route) !== null);
+  if (notPaid.length) record('W8', false, 'unclassified routes are not ' + ROUTE_PAID + ': ' + notPaid.join(', '));
+  else if (claimed.length) record('W8', false, 'no rule covers these, yet they are reported as classified: ' + claimed.join(', '));
+  else record('W8', true, unknown.length + ' unclassified routes fail closed to ' + ROUTE_PAID + ' without claiming a rule');
+}
+
+/* W9 — the refusal contract (§7): only a PAID route, and only without a purchase and without an open window,
+ * is refused. The resolution is fed straight into the refusal so the two halves cannot drift. */
+{
+  const closed = { access: PILOT_FREE, reason: 'pilot_window_closed' };
+  const unconfigured = { access: PILOT_FREE, reason: 'pilot_window_unconfigured' };
+  const open = { access: PILOT_FULL, reason: 'pilot_window_open' };
+  const bought = { access: PILOT_FULL, reason: 'purchased_pass' };
+  const cases = [
+    ['closed + paid', pilotWindowRefusal(closed, ROUTE_PAID), { status: 402, code: 'pilot_window_closed' }],
+    ['unconfigured + paid', pilotWindowRefusal(unconfigured, ROUTE_PAID), { status: 402, code: 'pilot_window_unconfigured' }],
+    ['closed + free route', pilotWindowRefusal(closed, ROUTE_FREE), null],
+    ['closed + open route', pilotWindowRefusal(closed, ROUTE_OPEN), null],
+    ['open window + paid', pilotWindowRefusal(open, ROUTE_PAID), null],
+    ['purchase + closed + paid', pilotWindowRefusal(bought, ROUTE_PAID), null],
+  ];
+  const wrong = cases
+    .filter(([, actual, expected]) => JSON.stringify(actual) !== JSON.stringify(expected))
+    .map(([label, actual]) => label + ': got ' + JSON.stringify(actual));
+  // Composed end to end: a real closed window must refuse a paid route with exactly the JSON §7 prints.
+  const live = pilotWindowRefusal(resolvePilotAccess({ window: { state: 'closed' } }), ROUTE_PAID);
+  if (live?.status !== 402 || live.code !== 'pilot_window_closed') {
+    wrong.push('a closed window does not refuse a paid route with 402 pilot_window_closed');
+  }
+  if (wrong.length) record('W9', false, wrong.join(' | '));
+  else record('W9', true, cases.length + 1 + ' refusal cases, including the §7 JSON exactly');
+}
+
+/* W10 — acceptance 3: every route literal the owned API actually serves matched a rule, so a new route cannot
+ * be unclassified by accident, and a leg that finds nothing cannot pass by being vacuous. This reads literals
+ * only: a path built inside a regular expression is covered by D6 rather than enumerated here. */
+{
+  const api = fs.readFileSync(path.join(ROOT, 'server', 'owned-api.mjs'), 'utf8');
+  // `/api/v1` and its trailing-slash form are the mount prefix the gate recognises, not product routes: the
+  // literal appears only because `isOwnedPath` tests `startsWith`, and a request for the bare prefix has no
+  // handler to protect.
+  const literals = [...new Set([...api.matchAll(/'(\/api\/(?:v1|auth)[^']*)'/g)].map((match) => match[1]))]
+    .filter((route) => route !== '/api/v1' && route !== '/api/v1/');
+  const unclassified = literals.filter((route) => !['GET', 'POST', 'PUT', 'DELETE']
+    .some((method) => matchedRouteRule(method, route) !== null));
+  if (!literals.length) record('W10', false, 'no route literals found in server/owned-api.mjs — this leg would be vacuous');
+  else if (unclassified.length) record('W10', false, unclassified.length + ' served route(s) match no rule: ' + unclassified.join(', '));
+  else record('W10', true, 'all ' + literals.length + ' route literals in server/owned-api.mjs are classified');
 }
 
 const failed = results.filter((row) => !row.ok);
