@@ -4,6 +4,32 @@ services:
     image: "${HATOVE_POSTGRES_IMAGE:?Select a verified PostgreSQL 17 image by digest}"
     pull_policy: never
     restart: unless-stopped
+    # Sized for a 4 GiB host shared with another service rather than for a dedicated
+    # database: an eighth of RAM for shared_buffers, an explicit connection ceiling well
+    # below the sum of the per-role limits, and a bounded temp-file ceiling. Set through the
+    # server command rather than ALTER SYSTEM so no unreviewed state lands in the volume.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=1536MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - autovacuum_work_mem=32MB
+      - -c
+      - max_connections=30
+      - -c
+      - max_parallel_workers_per_gather=1
+      - -c
+      - temp_file_limit=2GB
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    pids_limit: 256
+    shm_size: 128mb
     environment:
       POSTGRES_DB: "${OWNAPI_PG_DATABASE:?Select the dedicated installation database}"
       POSTGRES_USER: "${HATOVE_PG_ADMIN_USER:?Select the bootstrap database username}"
