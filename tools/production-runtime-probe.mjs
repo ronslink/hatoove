@@ -62,7 +62,9 @@ try {
     await check('canonical_https_ready',readiness);
     if(mode==='initial') {
       await check('canonical_host_and_origin_and_forwarding_boundaries',async()=>{
-        assert.equal((await request('/api/health',{headers:{host:'foreign.invalid'}})).status,404);
+        assert.equal((await request('/api/health',{headers:{host:'foreign.invalid'}})).status,421);
+        const foreignHttp=await request('/signin',{plain:true,headers:{host:'foreign.invalid'}});
+        assert.equal(foreignHttp.status,421);assert.equal(foreignHttp.headers.location,undefined);
         const refused=await request('/api/auth/sign-up/email',{method:'POST',headers:{origin:'https://foreign.invalid','x-forwarded-host':'hatoove.com','x-forwarded-proto':'https',forwarded:'host=hatoove.com;proto=https'},body:{}});
         assert.equal(refused.status,403);assert.equal(refused.json.code,'origin_rejected');
         const redirected=await request('/signin',{plain:true});assert.equal(redirected.status,308);
