@@ -25,7 +25,7 @@ export async function main(argv=process.argv.slice(2)){
  const stop=signal=>{stopping=true;console.log(JSON.stringify({event:'worker_stopping',signal}));cancelSleep?.();};
  const interrupt=()=>stop('SIGINT'),terminate=()=>stop('SIGTERM');
  try{
-  try{pool=persistentRolePool(config,'worker',{max:2});pool.on('error',()=>{error('worker_iteration_failed');exit=1;stopping=true;cancelSleep?.();});worker=createWorker({pool});}catch{error('worker_initialization_failed');exit=1;}
+  try{pool=persistentRolePool(config,'worker',{allocation:'worker-runner'});pool.on('error',()=>{error('worker_iteration_failed');exit=1;stopping=true;cancelSleep?.();});worker=createWorker({pool});}catch{error('worker_initialization_failed');exit=1;}
   if(!exit){
    process.on('SIGINT',interrupt);process.on('SIGTERM',terminate);console.log(JSON.stringify({event:'worker_started'}));
    try{for(let n=0;!stopping&&n<options.maxIterations;n++){
