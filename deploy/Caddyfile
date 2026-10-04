@@ -1,0 +1,35 @@
+{
+	# No network-accessible administration endpoint and no trusted-proxy/IP inference.
+	admin off
+}
+
+hatoove.com {
+	# HTTP-01 stays reachable on origin80 for bootstrap AND renewal. Cloudflare must
+	# forward its challenge path unchanged; blanket Always Use HTTPS stays off.
+	# Caddy's automatic HTTP redirect leaves its own ACME challenge handler first.
+	tls {
+		issuer acme {
+			disable_tlsalpn_challenge
+		}
+	}
+
+	# Compatible headers only. No CSP/HSTS policy is silently imposed on the client.
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+	}
+
+	# All files, authenticated routes and media remain subject to the Node router.
+	# No cache, compression, body rewriting, error interception or mutation retry.
+	reverse_proxy app:4321 {
+		lb_retries 0
+		header_up -Forwarded
+		header_up -X-Real-IP
+		header_up -CF-Connecting-IP
+		header_up -True-Client-IP
+		transport http {
+			compression off
+		}
+	}
+}

@@ -1,0 +1,23 @@
+# Select with compose.production.yaml. No local db service or dependency is introduced.
+# The trust directory contains only public CA material; it may be empty with Node default roots.
+services:
+  migrate:
+    environment: &managed-connection
+      OWNAPI_PG_HOST: "${HATOVE_MANAGED_PG_HOST:?Select the certificate-matching managed DNS endpoint}"
+      OWNAPI_PG_PORT: "${HATOVE_MANAGED_PG_PORT:?Select the managed PostgreSQL port}"
+      OWNAPI_PG_TLS_MODE: verify-full
+      # Unset means Node default trust. If set, use /run/hatoove/pg-trust/<file>.pem.
+      OWNAPI_PG_TLS_CA_FILE:
+    volumes: &trust-mount
+      - type: bind
+        source: "${HATOVE_PG_TRUST_DIR:?Select a directory containing only optional public CA files}"
+        target: /run/hatoove/pg-trust
+        read_only: true
+        bind:
+          create_host_path: false
+  app:
+    environment: *managed-connection
+    volumes: *trust-mount
+  worker:
+    environment: *managed-connection
+    volumes: *trust-mount
