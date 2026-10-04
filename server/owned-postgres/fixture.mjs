@@ -12,6 +12,7 @@
 import { createFixture } from './bootstrap.mjs';
 import { stubGrade, rubricFor } from './worker.mjs';
 import { createPostgresThrottle } from './throttle.mjs';
+import { createPostgresAccountRequests } from './account-requests.mjs';
 import { createConsoleNotifier } from '../../server/notify.mjs';
 import { createPostgresDatastore, createPostgresAccountDeletion } from './adapter.mjs';
 import { createPostgresSessions } from './sessions.mjs';
@@ -39,7 +40,7 @@ const INITIAL_EXAM = 'telc-deutsch-b1';
  *   `bootstrap.mjs` fixture does) is used when the option is omitted. When neither exists the
  *   API is built without the deletion port, exactly as an installation that has not migrated
  *   would be — the route then answers 503 rather than pretending.
- * @returns {Promise<{store: object, sessions: object, settings: object, api: object, deletion: object|null, fixture: object, teardown: Function}>}
+ * @returns {Promise<{store: object, sessions: object, settings: object, api: object, deletion: object|null, throttle: object, accountRequests: object, fixture: object, teardown: Function}>}
  */
 export async function createPostgresWorld({
   allowance = 10, fixture, deletion, limits = null, notifier = null,
@@ -69,6 +70,12 @@ export async function createPostgresWorld({
    * `limits` is injectable so a check can use a small window instead of waiting out a real one.
    */
   const throttle = createPostgresThrottle({ pool: db.auth, ...(limits ? { policy: limits } : {}) });
+  /*
+   * THE PILOT ACCOUNT-REQUEST QUEUE (`0041`), ON THE SAME AUTH POOL AS THE THROTTLE, for the same reason: a
+   * request carries the address of somebody who is not an account holder yet, so only the auth seam may read
+   * the queue. An injected fixture may supply its own port, exactly as it may supply settings.
+   */
+  const accountRequests = db.accountRequests ?? createPostgresAccountRequests({ pool: db.auth });
   // Account settings are part of the same account, so the world builds them from the same
   // restricted learner pool. An injected fixture may supply its own.
   const settings = db.settings ?? createPostgresSettings({ pool: db.learner });
@@ -76,7 +83,7 @@ export async function createPostgresWorld({
   const accountDeletion = deletionPool ? createPostgresAccountDeletion({ pool: deletionPool }) : null;
   const payments = db.payments ? createPostgresPayments({ pool: db.payments, provider: paymentProvider ?? db.paymentProvider,
     publicOrigin: publicOrigin ?? db.publicOrigin, ...(examCatalogue ? { examCatalogue } : {}) }) : null;
-  const api = createOwnedApi({ datastore: port, sessions, settings, accountDeletion, throttle, payments });
+  const api = createOwnedApi({ datastore: port, sessions, settings, accountDeletion, throttle, payments, accountRequests });
 
   async function one(sql, params) {
     return (await db.admin.query(sql, params)).rows[0];
@@ -212,6 +219,9 @@ export async function createPostgresWorld({
     // SAME wiring the product uses instead of assembling a second one that can disagree with it.
     throttle,
     payments,
+    // The account-request port the api above was built with, for the same reason `deletion` and `throttle`
+    // are here: a check exercises the SAME wiring the product uses instead of assembling a second one.
+    accountRequests,
     api,
     // The port the api above was built with, so a caller can exercise the port directly
     // (idempotence, failure injection) without assembling a second, differently-wired api.

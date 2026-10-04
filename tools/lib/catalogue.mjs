@@ -19,10 +19,13 @@
 /** Better Auth's tables (the pinned library's schema). No RLS; the auth role only. */
 export const AUTH_TABLES = Object.freeze(['user', 'session', 'account', 'verification']);
 
-/** Auth-seam state that is not Better Auth's own schema: the sign-in/sign-up throttle (`0019`).
- *  Its bucket keys can carry an email address, so it is held to the auth rule — the auth role
- *  only — and additionally nothing for the deletion or provisioner roles. */
-export const AUTH_SUPPORT_TABLES = Object.freeze(['auth_throttle']);
+/** Auth-seam state that is not Better Auth's own schema: the sign-in/sign-up throttle (`0019`) and the
+ *  pilot account-request queue (`0041`). The throttle's bucket keys can carry an email address, and a
+ *  request IS an email address of somebody who has no account yet, so both are held to the auth rule —
+ *  the auth role only — and additionally nothing for the deletion or provisioner roles. Neither table
+ *  may carry an owner column: these rows belong to no account, which is the whole reason they are here
+ *  rather than in the owned class. */
+export const AUTH_SUPPORT_TABLES = Object.freeze(['auth_throttle', 'account_request']);
 
 /**
  * The append-only shared content records: the versioned records (#82 migration `0006`) and the

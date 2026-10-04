@@ -57,11 +57,12 @@ function errorMessage(status, payload) {
   if (code === 'invalid_name') return 'invalidName';
   if (code === 'invalid_password') return 'invalidPassword';
   if (code === 'invalid_language') return 'invalidLanguage';
+  if (code === 'invalid_consent') return 'consentRequired';
   if (code === 'user_exists') return 'userExists';
   if (status === 422) return 'invalidInput';
   if (status === 403) return 'forbidden';
   if (status === 429) return 'throttled';
-  if (code === 'recovery_unavailable' || code === 'verification_unavailable') return 'unavailable';
+  if (code === 'recovery_unavailable' || code === 'verification_unavailable' || code === 'requests_unavailable') return 'unavailable';
   if (status >= 500) return 'server';
   return 'failed';
 }
@@ -183,6 +184,49 @@ if (page === 'signin') {
       $('success').hidden = false;
     }
   });
+} else if (page === 'request') {
+  /*
+   * THE PILOT ACCOUNT REQUEST (migration `0041`). The form has no account behind it, so there is no
+   * session, no tab and nothing to pre-fill: three fields and an unticked consent box.
+   *
+   * BOTH CLIENT RULES ARE ALSO SERVER RULES — a form is not a contract. The consent box must be ticked
+   * (the server requires the boolean `true`, and a pre-ticked box would not be consent at all), and the
+   * reply language must be one of the five the product offers.
+   *
+   * THE REPLY LANGUAGE STARTS AS THE LANGUAGE THIS PAGE IS BEING READ IN. That is a visible default the
+   * visitor can change, not a collected preference: it is sent as the request's own `language` field and
+   * nothing else.
+   */
+  const form = $('form-request-access');
+  $('request-language').value = getLocale();
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if ($('request-consent').checked !== true) {
+      message('error', 'consentRequired');
+      $('request-consent').focus();
+      return;
+    }
+    const result = await post('/api/auth/request-access', {
+      name: $('request-name').value.trim(),
+      email: $('request-email').value.trim(),
+      language: $('request-language').value,
+      consent: true,
+    }, 'requesting');
+    if (!result) return;
+    /*
+     * THE FORM IS REPLACED BY THE OUTCOME, and deliberately not left in place. The response is identical
+     * whether or not the address was already in the queue — that is the property that stops this public
+     * form answering "is this address waiting for an account?" — so a second submission would look like a
+     * fresh success while spending the per-address budget. The wording also repeats that no message was
+     * sent automatically, because nothing in this product can send one.
+     */
+    form.hidden = true;
+    form.closest('.card').hidden = true;
+    bind('auth-title', 'requestDone');
+    $('auth-intro').hidden = true;
+    bind('success-message', 'requestSuccess');
+    $('success').hidden = false;
+  });
 }
 
 // Locale changes patch copy only: form values, pending bodies and token memory stay intact.
@@ -190,7 +234,11 @@ function localizeEntry() {
   translateDom(document);
   for (const input of document.querySelectorAll('input[data-validation-key]')) input.setCustomValidity(t('auth.' + input.dataset.validationKey));
   $('interface-language').value = getLocale();
-  document.title = t('auth.' + (page === 'signin' ? 'signin' : page === 'reset' ? 'resetTitle' : 'verifyTitle')) + ' · Hatoove';
+  const titleKey = page === 'signin' ? 'signin'
+    : page === 'reset' ? 'resetTitle'
+      : page === 'request' ? 'requestTitle'
+        : 'verifyTitle';
+  document.title = t('auth.' + titleKey) + ' · Hatoove';
 }
 // Browser-owned validation bubbles otherwise retain the browser's language.
 for (const input of document.querySelectorAll('form input')) {

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#ff6b2b"><title>Konto anfragen · Hatoove</title>
+<meta name="description" content="Anfrage für ein Konto im Hatoove-Pilot: Namen, E-Mail und Antwortsprache eintragen. Eine Person aus dem Team antwortet von hallo@hatoove.com mit einem Zugangscode.">
+<link rel="canonical" href="https://hatoove.com/request-access">
+<link rel="icon" type="image/svg+xml" href="/assets/design/hatoove-mark.svg">
+<link rel="stylesheet" href="/assets/design/hatoove.css">
+<link rel="stylesheet" href="/assets/design/fonts-coverage.css">
+<link rel="stylesheet" href="/assets/i18n/common.css"><link rel="stylesheet" href="/auth/entry.css">
+<script type="module" src="/auth/entry.js"></script>
+</head><body data-page="request">
+<!--
+  PILOT ACCESS REQUEST (migration 0041). The front door links here instead of straight to sign-up
+  during the pilot, and a person on the team provisions each account by hand.
+
+  THE CONSENT SENTENCE HAS A VERSION. It is `auth.requestConsent` below, and the server records the
+  constant `ACCESS_REQUEST_CONSENT_VERSION` from server/owned-api.mjs with every stored request. The two
+  are currently "pilot-2026-10-04": if the sentence changes, bump the constant, so a stored row keeps
+  saying which wording its sender actually agreed to.
+
+  THE FORM NEEDS JAVASCRIPT, and the `<noscript>` block says so in all five languages and names the
+  reply address instead: the API accepts JSON only (`415 json_required` otherwise), and the alternative
+  — a native form GET — would put the sender's email address in the URL, the browser history and any
+  referrer. The page's own information, including how to have a request deleted, is plain HTML and
+  readable with scripting off.
+-->
+<a class="skip" href="#main" data-i18n="auth.skip">Zum Inhalt</a>
+<main class="auth" id="main">
+<section class="auth-art" data-i18n-aria-label="auth.about" aria-label="Über Hatoove">
+<a class="auth-brand" href="/" data-i18n-aria-label="auth.home" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="186" height="34"></a>
+<div class="stack"><p class="kicker" data-i18n="auth.pilot">telc Deutsch B1 · Kostenloser Pilot</p>
+<h2><span data-i18n="auth.hero1">Die Prüfung kennen.</span><br><span data-i18n="auth.hero2">Schritt für Schritt</span><br><span class="hero-emphasis" data-i18n="auth.hero3">üben.</span></h2>
+<p class="muted" data-i18n="auth.requestIntro">Der Pilot wächst langsam. Trag dich hier ein, dann legt eine Person aus dem Team dein Konto an.</p></div>
+<p class="small muted"><span data-i18n="auth.independent">Unabhängige Prüfungsvorbereitung.</span><br><span data-i18n="auth.noPrediction">Keine offizielle telc-Prüfung oder Bestehensprognose.</span></p>
+</section><section class="auth-form"><div class="auth-box">
+<a class="auth-brand" href="/" data-i18n-aria-label="auth.home" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="168" height="32"></a>
+<label class="interface-language" for="interface-language"><span data-i18n="auth.language">Sprache</span><select id="interface-language"><option value="de" lang="de" dir="ltr">Deutsch</option><option value="en" lang="en" dir="ltr">English</option><option value="uk" lang="uk" dir="ltr">Українська</option><option value="ar" lang="ar" dir="rtl">العربية</option><option value="tr" lang="tr" dir="ltr">Türkçe</option></select></label>
+<div class="stack"><h1 id="auth-title" data-i18n="auth.requestTitle">Konto anfragen</h1><p class="muted" id="auth-intro" data-i18n="auth.requestIntroShort">Füll das Formular aus. Eine Person aus dem Team meldet sich per E-Mail.</p></div>
+<div class="card stack">
+<form class="stack" id="form-request-access" method="post" action="/api/auth/request-access">
+<div class="field"><label for="request-name" data-i18n="auth.name">Name</label><input class="input" id="request-name" dir="auto" name="name" type="text" autocomplete="name" maxlength="100" required></div>
+<div class="field"><label for="request-email" data-i18n="auth.email">E-Mail</label><input class="input" id="request-email" name="email" dir="ltr" type="email" autocomplete="email" maxlength="254" required></div>
+<div class="field"><label for="request-language" data-i18n="auth.requestLanguage">Antwortsprache</label><select class="input" id="request-language" name="language"><option value="de" lang="de" dir="ltr">Deutsch</option><option value="en" lang="en" dir="ltr">English</option><option value="uk" lang="uk" dir="ltr">Українська</option><option value="ar" lang="ar" dir="rtl">العربية</option><option value="tr" lang="tr" dir="ltr">Türkçe</option></select>
+<p class="hint" data-i18n="auth.requestLanguageHint">In welcher Sprache soll das Team dir antworten?</p></div>
+<label class="checkbox" for="request-consent"><input type="checkbox" id="request-consent" name="consent" value="yes" required><span data-i18n="auth.requestConsent">Ich bin damit einverstanden, dass Hatoove meinen Namen, meine E-Mail-Adresse und meine Sprache speichert, um meine Anfrage zu bearbeiten.</span></label>
+<p class="hint" data-i18n="auth.requestConsentHint">Die Angaben werden nur für diese Anfrage verwendet.</p>
+<button class="btn btn-primary btn-block" type="submit" id="request-submit" data-i18n="auth.requestSubmit">Anfrage senden</button>
+</form>
+</div>
+<section class="stack" aria-labelledby="request-next-title">
+<h2 id="request-next-title" data-i18n="auth.requestNextTitle">Wie es weitergeht</h2>
+<ol class="request-steps"><li data-i18n="auth.requestNext1">Eine Person aus dem Team liest deine Anfrage.</li><li data-i18n="auth.requestNext2">Du bekommst eine Antwort von hallo@hatoove.com mit einem Zugangscode für dein Konto.</li><li data-i18n="auth.requestNext3">Es gibt keinen automatischen E-Mail-Versand: Die Antwort schreibt eine Person.</li></ol>
+</section>
+<section class="stack" aria-labelledby="request-delete-title">
+<h2 id="request-delete-title" data-i18n="auth.requestDeletionTitle">Anfrage löschen lassen</h2>
+<p class="small muted" data-i18n="auth.requestDeletionBody">Schreib an hallo@hatoove.com, wenn deine Anfrage gelöscht werden soll. Wir entfernen sie dann aus der Liste.</p>
+</section>
+<p class="small muted"><span data-i18n="auth.haveCode">Du hast bereits einen Code?</span> <a class="link" href="/signin?mode=signup" data-i18n="auth.toSignup">Zur Registrierung</a></p>
+<p class="auth-message err" id="error" role="alert" hidden></p>
+<p class="auth-message auth-status" id="status" role="status" hidden></p>
+<div id="success" class="auth-message auth-success stack" role="status" hidden><p id="success-message"></p><a class="btn btn-ghost" href="/signin" data-i18n="auth.toSignin">Zur Anmeldung</a></div>
+<nav class="auth-links auth-footer" data-i18n-aria-label="auth.morePages" aria-label="Weitere Seiten"><a class="link" href="/" data-i18n="auth.toHome">Zur Startseite</a><a class="link" href="/signin" data-i18n="auth.signin">Anmelden</a></nav>
+<noscript><p lang="de" dir="ltr" class="auth-message err">Bitte aktiviere JavaScript, um das Formular zu senden. Ohne JavaScript schreib bitte an hallo@hatoove.com.</p><p lang="en" dir="ltr" class="auth-message err">Please enable JavaScript to send the form. Without JavaScript, please write to hallo@hatoove.com.</p><p lang="uk" dir="ltr" class="auth-message err">Увімкніть JavaScript, щоб надіслати форму. Без JavaScript напишіть на hallo@hatoove.com.</p><p lang="ar" dir="rtl" class="auth-message err">يرجى تفعيل JavaScript لإرسال النموذج. بدون JavaScript اكتب إلى hallo@hatoove.com.</p><p lang="tr" dir="ltr" class="auth-message err">Formu göndermek için JavaScript özelliğini etkinleştirin. JavaScript olmadan lütfen hallo@hatoove.com adresine yazın.</p></noscript>
+</div></section></main></body></html>

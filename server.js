@@ -411,6 +411,14 @@ const PUBLIC_FILES = Object.freeze([
   path.join(PUBLIC_DIR, 'signin.html'),
   path.join(PUBLIC_DIR, 'reset-password.html'),
   path.join(PUBLIC_DIR, 'verify-email.html'),
+  /*
+   * THE PILOT'S ACCOUNT-REQUEST FORM (migration 0041, Ron 4 October 2026). Public for the same reason
+   * `/signin` is: the people who need it have no session, and the landing page sends them here instead of
+   * to sign-up. Forgetting this line is not a 404 — the gate answers 302 to `/signin` for a navigation —
+   * so the failure reads as "the page is there but keeps bouncing me to sign-in"; `tools/page-auth-check.mjs`
+   * leg A9 asserts the 200 without a session, which is what makes this line checkable rather than hopeful.
+   */
+  path.join(PUBLIC_DIR, 'request-access.html'),
   path.join(PUBLIC_DIR, 'auth', 'entry.js'),
   path.join(PUBLIC_DIR, 'auth', 'entry.css'),
   path.join(PUBLIC_DIR, 'favicon.ico'),

@@ -107,7 +107,14 @@ console.log(`\n=== SEO surface check ===\n`);
     fail('S2', 'sitemap.xml lists exactly the canonical URLs', 'public/sitemap.xml is missing');
   } else {
     const locs = [...sitemap.matchAll(/<loc>([^<]*)<\/loc>/g)].map((match) => match[1].trim());
-    const expected = [`${APEX}/`];
+    /*
+     * THE CANONICAL SET, EXPLICIT AND EXACT. `/request-access` is here because it is a real public page a
+     * person should be able to find — the pilot's front door asks for an account rather than opening the
+     * sign-up form (migration 0041) — and the sitemap is the one place that says which pages exist. A page
+     * added to `PUBLIC_FILES` but omitted here is a page nobody is told about; the reverse, a URL listed
+     * here but not served publicly, is a 302 in a crawler's index, which is what this leg must catch.
+     */
+    const expected = [`${APEX}/`, `${APEX}/request-access`];
     const malformed = locs.filter((loc) => !loc.startsWith(`${APEX}/`) || loc !== loc.trim());
     if (!locs.length) fail('S2', 'sitemap.xml lists exactly the canonical URLs', 'no <loc> entries found');
     else if (malformed.length) fail('S2', 'sitemap.xml lists exactly the canonical URLs', `not absolute https apex URLs: ${malformed.join(', ')}`);
@@ -298,16 +305,24 @@ try {
     const robotsProbe = await probe('/robots.txt');
     const sitemapProbe = await probe('/sitemap.xml');
     const rootProbe = await probe('/', { accept: NAVIGATION });
+    const requestProbe = await probe('/request-access', { accept: NAVIGATION });
     const appProbe = await probe('/app/', { accept: NAVIGATION });
     const problems = [];
     if (robotsProbe.status !== 200) problems.push(`/robots.txt answered ${robotsProbe.status}`);
     if (!String(robotsProbe.type || '').startsWith('text/plain')) problems.push(`/robots.txt content-type ${robotsProbe.type}`);
     if (sitemapProbe.status !== 200) problems.push(`/sitemap.xml answered ${sitemapProbe.status}`);
     if (!/xml/.test(String(sitemapProbe.type || ''))) problems.push(`/sitemap.xml content-type ${sitemapProbe.type}`);
+    /*
+     * A URL THE SITEMAP PROMISES MUST BE SERVED, to a crawler with no session. `/request-access` is in the
+     * sitemap (`tools/seo-check.mjs` leg S2), so it is probed here as a crawler would: a page listed but
+     * gated answers 302 to `/signin`, which is a sitemap that lies and a page the pilot's visitors cannot
+     * reach. This is deliberately checked WITHOUT a database, so the failure is caught offline.
+     */
+    if (requestProbe.status !== 200) problems.push(`/request-access (listed in the sitemap) answered ${requestProbe.status}`);
     if (rootProbe.status !== 200) problems.push(`/ answered ${rootProbe.status}`);
     if (rootProbe.robots) problems.push(`/ carries X-Robots-Tag: ${rootProbe.robots}`);
     if (problems.length) fail('S8', 'crawler files are public without a session', problems.join(' | '));
-    else pass('S8', 'crawler files are public without a session', `/robots.txt ${robotsProbe.type}, /sitemap.xml ${sitemapProbe.type}, / 200 with no noindex`);
+    else pass('S8', 'crawler files are public without a session', `/robots.txt ${robotsProbe.type}, /sitemap.xml ${sitemapProbe.type}, / 200 with no noindex, /request-access 200 (sitemap URL served)`);
 
     /* S9 — the gated app is not indexable even if a crawler follows a link into it. Without a
      * database the gate answers 503 (not ready) instead of 302 (redirect to sign-in): BOTH are

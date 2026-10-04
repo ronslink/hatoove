@@ -57,7 +57,7 @@ function makeDocument(html) {
 }
 const moduleBody = source => source.replace(/^import .*;\r?\n/gm,'').replace(/\bexport /g,'');
 function boot(page='signin',locale='de',search='',response=null,sourceOverride=null) {
-  const file=page==='public'?'index':page==='reset'?'reset-password':page==='verify'?'verify-email':'signin';
+  const file=page==='public'?'index':page==='reset'?'reset-password':page==='verify'?'verify-email':page==='request'?'request-access':'signin';
   const document=makeDocument(read('public/'+file+'.html'));const storage=new Map([['hatoove.interface-language.v1',locale]]),writes=[],calls=[],lifecycle={};
   const location={search,hash:'',pathname:'/'+file,replace(target){this.redirect=target;}};
   const context=vm.createContext({document,location,history:{replaceState(){location.search='';}},navigator:{languages:['en-US']},
@@ -74,7 +74,7 @@ function boot(page='signin',locale='de',search='',response=null,sourceOverride=n
 }
 
 await check('all five public and auth dictionaries register; every static binding resolves',()=>{
-  for(const page of ['public','signin','reset','verify'])for(const locale of locales){const app=boot(page,locale);assert.equal(app.document.documentElement.lang,locale);assert.equal(app.document.documentElement.dir,locale==='ar'?'rtl':'ltr');assert.equal(app.node('interface-language').value,locale);assert.equal(app.writes.length,0);
+  for(const page of ['public','signin','reset','verify','request'])for(const locale of locales){const app=boot(page,locale);assert.equal(app.document.documentElement.lang,locale);assert.equal(app.document.documentElement.dir,locale==='ar'?'rtl':'ltr');assert.equal(app.node('interface-language').value,locale);assert.equal(app.writes.length,0);
     for(const node of app.document.querySelectorAll('[data-i18n]')){assert.equal(node.children.length,0,'binding replaces children');assert.equal(node.textContent,app.text(node.dataset.i18n));assert(!/Translation unavailable|Übersetzung nicht verfügbar|Переклад недоступний|الترجمة غير متاحة|Çeviri mevcut değil/.test(node.textContent),node.dataset.i18n);}
   }
 });
@@ -120,6 +120,29 @@ await check('recovery strips bearer URL, waits explicit action and translates su
 });
 await check('offline and timeout messages retain the exact uncertainty distinction',async()=>{
   for(const [page,search,name,key] of [['signin','','TypeError','offline'],['signin','','AbortError','timeout'],['reset','?token=synthetic','AbortError','resetTimeout']]){const app=boot(page,'de',search,async()=>{const error=new Error('synthetic');error.name=name;throw error;});if(page==='reset'){app.node('new-password').value='same';app.node('confirm-password').value='same';}await app.node(page==='signin'?'form-signin':'form-reset').fire('submit');for(const locale of locales){await app.locale(locale);assert.equal(app.node('error').textContent,app.text('auth.'+key));}}
+});
+await check('pilot account request: unticked consent sends nothing, a ticked one sends exactly four fields and promises no email',async()=>{
+  const app=boot('request','uk','',async()=>({ok:true,status:202,json:async()=>({ok:true})}));
+  app.node('request-name').value=' Synthetic Name ';
+  app.node('request-email').value=' Anna@Example.Test ';
+  // THE CONSENT BOX STARTS UNTICKED AND STAYS UNTICKED UNTIL A PERSON TICKS IT. A pre-ticked box is not
+  // consent, so this asserts the state the served markup produces rather than a later script's choice.
+  assert.equal(app.node('request-consent').checked,false,'consent must start unticked');
+  // The reply language defaults to the language this page is being read in, visibly and changeably.
+  assert.equal(app.node('request-language').value,'uk');
+  await app.node('form-request-access').fire('submit');
+  assert.equal(app.calls.length,0,'an unticked consent box must send nothing at all');
+  assert.equal(app.node('error').textContent,app.text('auth.consentRequired'));
+  app.node('request-consent').checked=true;
+  await app.node('form-request-access').fire('submit');
+  assert.equal(app.calls.length,1);
+  assert.equal(app.calls[0].url,'/api/auth/request-access');
+  // TRIMMED, BUT NOT FOLDED: the address is sent as typed and the SERVER decides the stored form, so the
+  // client cannot quietly disagree with the queue's uniqueness rule.
+  assert.deepEqual(JSON.parse(app.calls[0].body),{name:'Synthetic Name',email:'Anna@Example.Test',language:'uk',consent:true});
+  assert.equal(app.node('success').hidden,false);
+  assert.equal(app.node('success-message').textContent,app.text('auth.requestSuccess'));
+  for(const locale of locales){await app.locale(locale);assert.equal(app.node('success-message').textContent,app.text('auth.requestSuccess'));assert.equal(app.node('error').hidden,true);}
 });
 await check('German assessed sample bank, writing points and model are byte-equivalent to the frozen base',()=>{
   const old=execFileSync('git',['-c','safe.directory='+root.replace(/[\\/]$/,''),'show','83e03310f32c02f80dcac01dbbfcef5d01f4ef72:public/site.js'],{cwd:root,encoding:'utf8'});

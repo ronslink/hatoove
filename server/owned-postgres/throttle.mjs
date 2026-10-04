@@ -16,6 +16,9 @@
  *                  budget guard and must never read as a per-learner cap.
  *   * `password` — per USER. The change route verifies a password, so without a limit it is a password oracle
  *                  wearing a friendlier name.
+ *   * `accessRequest` / `accessRequestEmail` — the pilot account request (`0041`). GLOBAL and per ADDRESS, both
+ *                  over a day: every request is a row a person must read and answer by hand, so the queue is
+ *                  the operator's resource; the per-address cap is what stops one address filling it.
  *
  * WHY NOT PER IP ADDRESS: the client's address arrives in a header that anything in front of the app can set,
  * and trusting it without a trusted-proxy configuration would let an attacker CHOOSE their bucket and walk
@@ -45,21 +48,61 @@ export const THROTTLE_POLICY = Object.freeze({
    * limited per ADDRESS for the same anti-lockout reason.
    */
   verify: Object.freeze({ limit: 5, windowSeconds: 900 }),
+  /*
+   * THE PILOT ACCOUNT REQUEST (migration `0041`). TWO BUCKETS FOR ONE PUBLIC FORM, because they protect two
+   * different things: a GLOBAL daily budget on the operator's queue, since every request is a row a person has
+   * to read and answer by hand, and a per-ADDRESS cap so one address cannot fill that queue on its own. A
+   * request is neither an account nor a learner, so no existing bucket covers it.
+   *
+   * THE WINDOW IS A DAY, which is what makes the sweep bound below a live question rather than a theoretical
+   * one: a keep window equal to the longest window would let the opportunistic sweep remove a row at the exact
+   * instant its window ends, so the cleanup and the reset boundary would be the same moment. See
+   * `throttleKeepSeconds`.
+   */
+  accessRequest: Object.freeze({ limit: 50, windowSeconds: 86400 }),
+  accessRequestEmail: Object.freeze({ limit: 3, windowSeconds: 86400 }),
 });
 
 /**
- * How long a spent row is kept before the opportunistic sweep removes it. Comfortably longer than any window
- * above, so a sweep can never delete a counter that is still deciding anything — and short enough that the
- * table is a picture of recent attempts rather than a history of every email anyone ever typed.
+ * The longest window a policy can still be deciding anything in. `0` for an empty policy, which cannot
+ * happen for the shipped one and keeps this total rather than throwing on an input a check may build.
  */
-const KEEP_SECONDS = 86400;
+export const longestWindowSeconds = (policy) => Math.max(0, ...Object.values(policy).map((rule) => rule.windowSeconds));
+
+/**
+ * How long a spent row is kept before the opportunistic sweep removes it.
+ *
+ * DERIVED FROM THE POLICY, NOT FIXED, because a fixed number stops being "comfortably longer than any
+ * window" the moment a window grows to meet it. PILOT-18 chose 24 hours when the longest window was 90
+ * minutes; the account-request budgets are themselves 24-hour windows, so that constant would keep a row
+ * for exactly as long as the window it decides and the sweep would be removing counters at the instant
+ * their window closed. Doubling the longest window keeps the table a picture of recent attempts while
+ * making it impossible for the cleanup to shorten any window; the floor keeps the original day for the
+ * short-window policy.
+ */
+export const throttleKeepSeconds = (policy) => Math.max(86400, longestWindowSeconds(policy) * 2);
+
+/** Whether a keep bound is long enough that the sweep cannot remove a row a window is still deciding in. */
+export const sweepCannotCutWindowShort = (policy, keepSeconds) => keepSeconds > longestWindowSeconds(policy);
+
+/**
+ * The bound PILOT-18 shipped: exactly one day, chosen when no window was longer than 90 minutes. It is kept as
+ * a named value because it is the regression this rule exists to catch — with a 24-hour window in the policy it
+ * no longer satisfies `sweepCannotCutWindowShort`, and a check asserts exactly that rather than trusting a
+ * comment about it.
+ */
+export const SUPERSEDED_KEEP_SECONDS = 86400;
 
 /**
  * @param {{pool: object, policy?: object, keepSeconds?: number}} options `pool` must connect as the restricted
  *   `auth` role; `policy` is injectable so a check can use small limits rather than waiting out a real window.
+ *   `keepSeconds` defaults to the bound the policy implies and is REFUSED when it is not strictly longer than
+ *   the longest window in that policy: the cleanup must not be configurable into shortening a window, so the
+ *   rule is enforced where the bound is chosen rather than merely defaulted correctly here.
  */
-export function createPostgresThrottle({ pool, policy = THROTTLE_POLICY, keepSeconds = KEEP_SECONDS } = {}) {
+export function createPostgresThrottle({ pool, policy = THROTTLE_POLICY, keepSeconds = throttleKeepSeconds(policy) } = {}) {
   if (!pool || typeof pool.query !== 'function') throw new TypeError('createPostgresThrottle requires a pg Pool');
+  if (!sweepCannotCutWindowShort(policy, keepSeconds)) throw new TypeError('throttle_keep_window_too_short');
 
   const bucketFor = (kind, key) => `${kind}:${String(key)}`;
 
@@ -122,7 +165,9 @@ export function createPostgresThrottle({ pool, policy = THROTTLE_POLICY, keepSec
 
   /**
    * Remove rows no window can still be deciding. Opportunistic, like the session sweep, and bounded by
-   * `keepSeconds`: no scheduler to configure, and nothing that has to be remembered.
+   * `keepSeconds`, which `createPostgresThrottle` refuses to accept unless it is strictly longer than the
+   * longest window in the policy: a cleanup that could reach a live counter would be a rate limit that
+   * sometimes forgets, which is worse than no limit because it looks like one.
    * @returns {Promise<number>} rows removed
    */
   async function sweep() {
@@ -131,5 +176,5 @@ export function createPostgresThrottle({ pool, policy = THROTTLE_POLICY, keepSec
     return result.rowCount || 0;
   }
 
-  return { hit, clear, sweep, policy, bucketFor };
+  return { hit, clear, sweep, policy, bucketFor, keepSeconds };
 }
