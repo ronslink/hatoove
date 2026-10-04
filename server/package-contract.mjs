@@ -299,13 +299,27 @@ export function validateCompleteMembers(examId,blueprint,form,rows,{allowMissing
   }
 }
 
+/*
+ * EXAM-S5.md line 13 fixes the target policy: DTZ plays `{practice:1,mock:1}`, and "its telc
+ * allowance 1/2/2 respectively" — one play per recording in practice, and one for HV1 / two for HV2
+ * and HV3 in a mock attempt. The allowance is read PER MODE by `packages.mjs#readReleasedForm` and
+ * again by the SQL playback trigger (`part->'playback'->>attemptMode`), so the two modes are separate
+ * commitments and one shared number cannot express the telc policy. This table is the contract's
+ * 1/2/2, not a new decision: the code previously demanded `practice === mock`, which contradicted the
+ * frozen file and would have refused every correct telc listening package.
+ */
+const TELC_PLAYBACK = Object.freeze({
+  HV1: Object.freeze({ practice: 1, mock: 1 }),
+  HV2: Object.freeze({ practice: 1, mock: 2 }),
+  HV3: Object.freeze({ practice: 1, mock: 2 }),
+});
 /** Dormant historical blueprints keep their hashes; actual listening needs the exact policy. */
 export function validatePlayback(part,examId) {
   demand(part.mediaRequired===true&&part.interaction==='fixed_audio','playback requires fixed audio');
   keys(part.playback,['practice','mock'],'playback');
   demand(['practice','mock'].every(mode=>Number.isSafeInteger(part.playback[mode])&&part.playback[mode]>0&&part.playback[mode]<=10),'invalid playback allowance');
-  const expected=examId==='dtz-a2-b1'?1:examId==='telc-deutsch-b1'?({HV1:1,HV2:2,HV3:2}[part.family]):null;
-  if(expected!==null) demand(expected!==undefined&&part.playback.practice===expected&&part.playback.mock===expected,'incorrect target playback policy');
+  const expected=examId==='dtz-a2-b1'?{practice:1,mock:1}:examId==='telc-deutsch-b1'?TELC_PLAYBACK[part.family]:null;
+  if(expected!==null) demand(expected!==undefined&&part.playback.practice===expected.practice&&part.playback.mock===expected.mock,'incorrect target playback policy');
   return part.playback;
 }
 
