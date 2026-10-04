@@ -123,6 +123,12 @@ export function assertProductionModel(model, variant) {
     requireThat(equalSet(sources(db), ['pg_admin']) && db.environment.POSTGRES_PASSWORD_FILE === '/run/secrets/pg_admin', 'database_secret_changed');
     requireThat(equalSet(networkKeys(db), ['backend']) && services.migrate.depends_on?.db?.condition === 'service_healthy', 'database_health_gate_missing');
     requireThat(model.volumes?.['pg-data']?.external === true && db.volumes?.length === 1 && db.volumes[0].source === 'pg-data' && db.volumes[0].target === '/var/lib/postgresql/data', 'database_volume_not_retained');
+    const ceiling = (db.command ?? []).map(part => /^max_connections=(\d+)$/.exec(String(part))).find(Boolean);
+    requireThat(ceiling !== undefined, 'database_connection_ceiling_missing');
+    // PostgreSQL keeps superuser_reserved_connections (3 by default) outside the pool, so the
+    // configured budget must fit below the ceiling minus that reserve. Without this the local
+    // variant could declare a ceiling below its own budget and fail at connect time.
+    requireThat(Number(ceiling[1]) - 3 >= Number(services.migrate.environment.OWNAPI_PG_CONNECTION_BUDGET), 'database_connection_ceiling_too_low');
   }
 }
 
@@ -241,6 +247,10 @@ function runComposeChecks() {
       ['local',m=>{m.services.ingress.depends_on={app:{condition:'service_healthy'}};}],
       ['local',m=>{m.services.db.environment.POSTGRES_HOST_AUTH_METHOD='trust';}],
       ['local',m=>{m.services.db.ports=[{target:5432,published:'5432'}];}],
+      // The local connection ceiling must cover the declared budget plus PostgreSQL's three
+      // reserved superuser slots, and it must actually be declared.
+      ['local',m=>{m.services.db.command=m.services.db.command.map(part=>part==='max_connections=30'?'max_connections=14':part);}],
+      ['local',m=>{m.services.db.command=m.services.db.command.filter(part=>!/^max_connections=/.test(part));}],
       ['local',m=>{m.volumes['pg-data'].external=false;}],
       ['local',m=>{m.services.ingress.image='caddy:latest';}],
       ['local',m=>{m.services.ingress.volumes.push({source:'/var/run/docker.sock',target:'/var/run/docker.sock'});}],

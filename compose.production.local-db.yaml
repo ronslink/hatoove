@@ -4,20 +4,18 @@ services:
     image: "${HATOVE_POSTGRES_IMAGE:?Select a verified PostgreSQL 17 image by digest}"
     pull_policy: never
     restart: unless-stopped
-    # Sized for a 4 GiB host shared with another service rather than for a dedicated
-    # database: an eighth of RAM for shared_buffers, an explicit connection ceiling well
-    # below the sum of the per-role limits, and a bounded temp-file ceiling. Set through the
-    # server command rather than ALTER SYSTEM so no unreviewed state lands in the volume.
+    # Sized for a 4 GiB host shared with another service rather than for a dedicated database.
+    # Only settings that differ from PostgreSQL's own defaults are pinned: shared_buffers,
+    # effective_cache_size, autovacuum_work_mem, the connection ceiling, parallel gather and a
+    # temp-file ceiling. Set through the server command rather than ALTER SYSTEM so no
+    # unreviewed state lands in the retained volume. temp_file_limit is per backend, not
+    # aggregate, so it bounds one runaway sort rather than the whole server.
     command:
       - postgres
       - -c
       - shared_buffers=512MB
       - -c
       - effective_cache_size=1536MB
-      - -c
-      - work_mem=4MB
-      - -c
-      - maintenance_work_mem=64MB
       - -c
       - autovacuum_work_mem=32MB
       - -c
@@ -41,7 +39,10 @@ services:
     volumes:
       - pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: [CMD-SHELL, "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      # -h 127.0.0.1 is deliberate: without it pg_isready answers against the entrypoint's
+      # socket-only temporary server during initdb, so `service_healthy` could fire before the
+      # real server listens on TCP, which is the only path migrate uses.
+      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 3s
       timeout: 3s
       retries: 40
