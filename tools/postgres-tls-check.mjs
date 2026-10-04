@@ -210,6 +210,10 @@ try {
       // unprivileged server cannot read a file bind-mounted from it: libpq's own
       // initdb-time server fails with "could not load pg_hba.conf" and the container
       // exits. Copy it into the container's directory like the key and certificate.
+      // The admin password file is not copied on purpose: the root entrypoint reads it
+      // before dropping privileges, so /fixture works. Under rootless Docker or
+      // user-namespace remapping every file in this bind mount is affected, which is a
+      // separate change (tmpfs or a named volume), not this one.
       'cp /fixture/pg_hba.conf /tmp/hatoove-tls/pg_hba.conf',
       'chown postgres:postgres /tmp/hatoove-tls/server.key /tmp/hatoove-tls/server.crt /tmp/hatoove-tls/pg_hba.conf',
       'chmod 600 /tmp/hatoove-tls/server.key',
@@ -231,22 +235,32 @@ try {
   stage = 'database_readiness';
   let ready = false;
   let attempts = 0;
-  // A deadline rather than a fixed small attempt count, and fail at once when the
-  // server has exited: burning the budget only produces a generic reason, which is
-  // exactly what made the first failure of this stage undiagnosable.
-  while (attempts < 240) {
+  const readinessDeadline = Date.now() + 60000;
+  // A wall-clock deadline, and fail at once when the server has exited: burning the
+  // budget only produces a generic reason, which is what made this stage's first failure
+  // undiagnosable. The receipt stays metadata-only, with bounded probe output and a log
+  // tail, because the log is the only place a startup failure names itself.
+  while (Date.now() < readinessDeadline) {
     attempts += 1;
-    const probe = result(['exec', dbName, 'pg_isready', '-q', '-h', '127.0.0.1', '-p', '5432', '-U', 'postgres', '-d', database]);
+    const probe = result(['exec', dbName, 'pg_isready', '-h', '127.0.0.1', '-p', '5432', '-U', 'postgres', '-d', database]);
     if (probe.status === 0) { ready = true; break; }
     const state = inspect(dbName);
     assertOwned(state, dbName);
-    if (state.State.Running !== true) {
-      receipt.readiness = { attempts, status: state.State.Status ?? null, exitCode: state.State.ExitCode ?? null, oomKilled: state.State.OOMKilled ?? null };
+    if (state?.State?.Running !== true) {
+      const logs = result(['logs', '--tail', '40', dbName]);
+      receipt.readiness = {
+        attempts,
+        status: state?.State?.Status ?? null,
+        exitCode: state?.State?.ExitCode ?? null,
+        oomKilled: state?.State?.OOMKilled ?? null,
+        probe: `${probe.stdout ?? ''}${probe.stderr ?? ''}`.slice(0, 2048),
+        log: `${logs.stdout ?? ''}${logs.stderr ?? ''}`.slice(0, 2048),
+      };
       assert.fail('fixture PostgreSQL exited before readiness');
     }
     await new Promise(resolve => setTimeout(resolve, 250));
   }
-  if (receipt.readiness === undefined) receipt.readiness = { attempts, status: 'running', exitCode: null, oomKilled: null };
+  if (receipt.readiness === undefined) receipt.readiness = { attempts, status: ready ? 'ready' : 'timeout', exitCode: null, oomKilled: null };
   assert.ok(ready, 'fixture PostgreSQL did not become ready');
 
   ambientSsl = process.env.PGSSLMODE;
