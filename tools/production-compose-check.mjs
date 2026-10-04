@@ -18,7 +18,19 @@ const fixed = {
   OWNAPI_PG_POOL_AUTH_MAX: '2', OWNAPI_PG_POOL_LEARNER_MAX: '2', OWNAPI_PG_POOL_WORKER_MAX: '1',
   OWNAPI_PG_POOL_DELETION_MAX: '1', OWNAPI_PG_POOL_PAYMENTS_MAX: '1', OWNAPI_PG_POOL_PROVISIONER_MAX: '1',
   OWNAPI_PG_POOL_ADMIN_MAX: '1', OWNAPI_PG_POOL_MIGRATION_MAX: '1', OWNAPI_PG_WORKER_RUNNER_POOL_MAX: '1',
-  OWNAPI_PG_APP_REPLICAS: '1', OWNAPI_PG_WORKER_REPLICAS: '1', B1PREP_CONTENT_MODE: 'public',
+  /*
+   * PILOT CONTENT POLICY — changed deliberately on 4 October 2026, with Ron's explicit authority, NOT
+   * relaxed to make a check pass. This entry pinned `public`, and "public requires approved content even if
+   * legacy flags request unreviewed" (EXAM-S0-20261002-A:21). No content in this installation is approved,
+   * so `readReleasedForm` answered null for every account and the product served nothing: Ron registered on
+   * production and the app told him nothing was released. The pilot therefore runs `internal-preview` — the
+   * posture every other record describes and the one `compose.yaml` defaults to — which serves the
+   * installation's own unreviewed content, disclosed in the copy ("die fachliche Prüfung ... steht noch
+   * aus"). THE TARGET REMAINS `public`: restore this value, and the one in `compose.production.yaml`,
+   * the moment content approval exists. The failure code `allocation_or_policy_changed` is exactly the
+   * friction that makes this decision visible instead of accidental.
+   */
+  OWNAPI_PG_APP_REPLICAS: '1', OWNAPI_PG_WORKER_REPLICAS: '1', B1PREP_CONTENT_MODE: 'internal-preview',
 };
 const fail = code => { const error = new Error(code); error.code = code; throw error; };
 const requireThat = (condition, code) => { if (!condition) fail(code); };
@@ -235,7 +247,9 @@ function runComposeChecks() {
       ['local',m=>{m.services.migrate.secrets.pop();}],
       ['local',m=>{delete m.services.app.depends_on.migrate;}],
       ['local',m=>{m.services.worker.depends_on.migrate.condition='service_started';}],
-      ['local',m=>{m.services.app.environment.B1PREP_CONTENT_MODE='internal-preview';}],
+      // The opposite of the pinned content mode: the mutation has to DIFFER from the expectation, or it
+      // would escape and this leg would stop proving anything about the policy it guards.
+      ['local',m=>{m.services.app.environment.B1PREP_CONTENT_MODE='public';}],
       ['local',m=>{m.services.app.environment.B1PREP_PUBLIC_ORIGIN='http://hatoove.com';}],
       ['local',m=>{m.services.app.environment.B1PREP_REQUIRE_HTTPS='0';}],
       ['local',m=>{m.services.app.environment.PAYMENTS_MODE='stripe-test';}],
