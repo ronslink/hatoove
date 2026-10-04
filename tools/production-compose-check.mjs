@@ -247,7 +247,9 @@ function runComposeChecks() {
       ['local',m=>{m.services.migrate.secrets.pop();}],
       ['local',m=>{delete m.services.app.depends_on.migrate;}],
       ['local',m=>{m.services.worker.depends_on.migrate.condition='service_started';}],
-      ['local',m=>{m.services.app.environment.B1PREP_CONTENT_MODE='internal-preview';}],
+      // The opposite of the pinned content mode: the mutation has to DIFFER from the expectation, or it
+      // would escape and this leg would stop proving anything about the policy it guards.
+      ['local',m=>{m.services.app.environment.B1PREP_CONTENT_MODE='public';}],
       ['local',m=>{m.services.app.environment.B1PREP_PUBLIC_ORIGIN='http://hatoove.com';}],
       ['local',m=>{m.services.app.environment.B1PREP_REQUIRE_HTTPS='0';}],
       ['local',m=>{m.services.app.environment.PAYMENTS_MODE='stripe-test';}],
