@@ -116,7 +116,13 @@ export async function main(args=process.argv.slice(2)) {
     else if(args[0]==='snapshot')result=await snapshot(db);
     else {
       assert.match(db.binding.workerAddress,/^\d{1,3}(?:\.\d{1,3}){3}$/);
-      const rows=(await db.admin.query('SELECT a.usename AS role,a.client_addr::text AS address,s.ssl FROM pg_stat_activity a JOIN pg_stat_ssl s ON s.pid=a.pid WHERE a.datname=$1 AND a.usename=ANY($2::text[])',[db.binding.database,Object.values(db.config.roles)])).rows;
+      // PostgreSQL inet::text includes /32; Docker's IPAddress contains only the
+      // host. Exercise the same projection against a fixed documentation address
+      // in the actual fixture DB before applying the exact role+address oracle.
+      const addressProjection='host(a.client_addr)';
+      const formatting=(await db.admin.query(`SELECT ${addressProjection} AS address,a.client_addr::text AS legacy_address FROM (VALUES (inet '192.0.2.10')) a(client_addr)`)).rows[0];
+      assert.deepEqual(formatting,{address:'192.0.2.10',legacy_address:'192.0.2.10/32'});
+      const rows=(await db.admin.query(`SELECT a.usename AS role,${addressProjection} AS address,s.ssl FROM pg_stat_activity a JOIN pg_stat_ssl s ON s.pid=a.pid WHERE a.datname=$1 AND a.usename=ANY($2::text[])`,[db.binding.database,Object.values(db.config.roles)])).rows;
       result={workerConnected:rows.some(row=>row.role===db.config.roles.worker&&row.address===db.binding.workerAddress),runtimeConnections:rows.length,allTls:rows.length>0&&rows.every(row=>row.ssl)};
     }
   } finally {await db.close();}
