@@ -293,6 +293,8 @@ jobs:
         run: node tools/exam-s1-server-pg-check.mjs
       - name: Atomic registration language and concurrent account preferences
         run: node tools/registration-language-pg-check.mjs
+      - name: Pilot account requests, their operator command and their table class on PostgreSQL
+        run: node tools/pilot-access-pg-check.mjs
       - name: Package imports and release access on PostgreSQL
         run: node tools/exam-s2-package-pg-check.mjs
       - name: Saved section ownership and concurrent finalisation on PostgreSQL

@@ -5,6 +5,7 @@
  *
  *   POST /api/auth/sign-up/email   POST /api/auth/sign-in/email
  *   POST /api/auth/sign-out        GET  /api/auth/get-session
+ *   POST /api/auth/request-access  (the pilot's public account request; no session, `0041`)
  *   GET/DELETE /api/v1/account
  *   POST /api/v1/attempts          GET/PUT/DELETE /api/v1/attempts/:id
  *   POST /api/v1/attempts/:id/submissions
@@ -153,6 +154,19 @@ const THROTTLE_METHODS = ['hit', 'clear'];
 const RECOVERY_METHODS = ['requestPasswordReset', 'resetPassword'];
 /** Email verification: ask for a link, and redeem one. Its own capability, so one flow cannot mask the other. */
 const VERIFICATION_METHODS = ['requestEmailVerification', 'verifyEmail'];
+/**
+ * The pilot ACCOUNT REQUEST (`0041`). Four operations on one queue: the public route stores, and the
+ * operator command reads, declines and purges. All four live on the port because they are one subject —
+ * but the API checks only for `submit`, because a process serving HTTP must never be able to purge the
+ * queue even by accident. `server/access.mjs` builds the full port for itself.
+ */
+const ACCOUNT_REQUEST_METHODS = ['submit', 'list', 'decline', 'purge'];
+/**
+ * The version of the consent wording a request is filed under. ONE CONSTANT, never request input: the
+ * database records which wording a person agreed to, and a client that could choose the version could
+ * claim agreement to wording that was never shown. Bump this when the page's consent sentence changes.
+ */
+export const ACCESS_REQUEST_CONSENT_VERSION = 'pilot-2026-10-04';
 const SESSION_METHODS = ['getSession', 'signUp', 'signIn', 'signOut'];
 const SETTINGS_METHODS = ['read', 'write'];
 const DELETION_METHODS = ['deleteAccount'];
@@ -372,11 +386,43 @@ function requireUuid(value, code) {
   return value.toLowerCase();
 }
 
-function requireAuthFields(body, withName) {
-  const { email, password, name } = body;
-  if (typeof email !== 'string' || email !== email.trim() || email.length > 254 || !EMAIL_RE.test(email)) {
+/**
+ * THE ONE EMAIL RULE, in one function, because "a valid address" must not come to mean two different
+ * things in two places. Sign-up and sign-in keep the address EXACTLY as typed (an account created as
+ * `Anna@Example.com` has to stay reachable by typing that, and `sessions.mjs` looks it up verbatim); the
+ * pilot account request has no account behind it yet and is keyed on the folded address, so it calls
+ * `normalizeEmail` below, which is this same rule plus one lowercasing step.
+ */
+function requireEmail(value) {
+  if (typeof value !== 'string' || value !== value.trim() || value.length > 254 || !EMAIL_RE.test(value)) {
     fault(422, 'invalid_email');
   }
+  return value;
+}
+
+/**
+ * The folded, storable form of an address: the rule above, then lowercased. Used wherever the address IS
+ * the key — the request queue's uniqueness is on this form, so `Anna@Example.com` and `anna@example.com`
+ * are one request rather than two.
+ */
+const normalizeEmail = (value) => requireEmail(value).toLowerCase();
+
+/**
+ * The name a request is filed under. Bounded by the column (`0041` allows 1–100 after trimming), trimmed
+ * so a copy-paste with a trailing space cannot create a name the operator has to squint at, and free of
+ * control characters: this value is printed in the operator's terminal by `server/access.mjs`, and a
+ * newline or an escape sequence in it would be a way for a stranger to write into that output.
+ */
+function requireRequestName(value) {
+  if (typeof value !== 'string' || value.length > 100) fault(422, 'invalid_name');
+  const name = value.trim();
+  if (name === '' || /[\u0000-\u001f\u007f]/.test(name)) fault(422, 'invalid_name');
+  return name;
+}
+
+function requireAuthFields(body, withName) {
+  const { password, name } = body;
+  const email = requireEmail(body.email);
   if (typeof password !== 'string' || password.length < 1 || password.length > 256) fault(422, 'invalid_password');
   if (withName && (typeof name !== 'string' || name.trim() === '' || name.length > 200)) fault(422, 'invalid_name');
   return withName ? { name, email, password } : { email, password };
@@ -410,9 +456,13 @@ const errorReply = (status, code) => reply(status, { error: TOKEN_RE.test(code) 
  *   routes only, so the account boundary is unaffected by a missing optional port.
  *   `accountDeletion` is optional in the same way: `deleteAccount(owner) -> {existed, removed}`;
  *   unwired, `DELETE /api/v1/account` answers 503 `deletion_unavailable` and deletes nothing.
+ *   `accountRequests` is optional but FAIL-CLOSED, unlike the throttle:
+ *   `submit({name, email, language, consentVersion}) -> {stored}`; unwired,
+ *   `POST /api/auth/request-access` answers 503 `requests_unavailable` and stores nothing,
+ *   because a 202 that filed no request would be a success the product cannot honour.
  * @returns {{handle: Function, handleNode: Function, matches: Function, configured: boolean}}
  */
-export function createOwnedApi({ datastore, sessions, settings = null, accountDeletion = null, throttle = null, payments = null } = {}) {
+export function createOwnedApi({ datastore, sessions, settings = null, accountDeletion = null, throttle = null, payments = null, accountRequests = null } = {}) {
   // Fail closed: without both ports wired, every owned route answers 503 and no
   // port method is ever reached, so nothing can be served without an identity.
   const configured = implementsAll(datastore, DATASTORE_METHODS) && implementsAll(sessions, SESSION_METHODS);
@@ -439,6 +489,14 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
   // Fail-closed like recovery: a verification route that silently did nothing would leave a learner believing
   // their address was confirmed.
   const verificationWired = implementsAll(sessions, VERIFICATION_METHODS);
+  /*
+   * FAIL-CLOSED, AND FOR A REASON THAT IS NOT SYMMETRY. A request route without a store cannot answer "your
+   * request was stored" truthfully, and the alternative — a cheerful 202 that filed nothing — is the one
+   * failure this route must never have: the person would wait for a reply that nobody knows to send. A 503
+   * with a name costs a retry; a false success costs a person's pilot place. The API needs only `submit`;
+   * the rest of the port is the operator command's, and the list here is what the port must be able to do.
+   */
+  const accountRequestsWired = implementsAll(accountRequests, ACCOUNT_REQUEST_METHODS);
 
   async function identify(headers) {
     const session = await sessions.getSession(headers);
@@ -561,6 +619,41 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         await sessions.requestPasswordReset({ email });
         // Deliberately not `outcome`: whether a message was produced must not be observable.
         return reply(200, { ok: true });
+      }
+      /*
+       * THE PILOT ACCOUNT REQUEST (migration `0041`), and it is an AUTH route rather than an owned one
+       * because there is no account yet: the person asking has no session, so nothing here can be scoped
+       * to an owner. It sits beside the password-reset pair for the same reason — both are the small set
+       * of things somebody with no session must be able to do.
+       *
+       * A PUBLIC FORM IS AN UNTRUSTED INPUT, so: a closed field set (an unknown key is refused, never
+       * dropped), consent must be the boolean `true` rather than merely truthy or absent, the name and the
+       * address are bounded and the address is folded to the form the queue is keyed on, and the language
+       * must be one the product really offers. There is NO free-text field, deliberately: nothing a
+       * stranger types reaches the operator's terminal except a bounded name.
+       *
+       * THE RESPONSE IS ALWAYS `202 {ok:true}`. A new address and one already in the queue get the same
+       * status, the same headers and the same body — asserted byte-for-byte in `tools/owned-api-check.mjs`
+       * — because a response that differed would turn a public form into a way to ask "is this address
+       * already waiting for an account?" about somebody else's address. That is also why the port's
+       * `stored` flag is discarded here and why nothing in the reply names an address.
+       *
+       * THROTTLED TWICE: a global daily budget on the operator's queue, and a per-address cap so one
+       * address cannot fill it. Counted BEFORE the insert, so a refused request writes nothing.
+       */
+      if (key === 'POST /api/auth/request-access') {
+        onlyFields(body, ['name', 'email', 'language', 'consent']);
+        if (!accountRequestsWired) fault(503, 'requests_unavailable');
+        if (body.consent !== true) fault(422, 'invalid_consent');
+        const name = requireRequestName(body.name);
+        const email = normalizeEmail(body.email);
+        if (!EXPLANATION_LANGUAGES.includes(body.language)) fault(422, 'invalid_language');
+        await enforceThrottle('accessRequest', 'global');
+        await enforceThrottle('accessRequestEmail', email);
+        await accountRequests.submit({
+          name, email, language: body.language, consentVersion: ACCESS_REQUEST_CONSENT_VERSION,
+        });
+        return reply(202, { ok: true });
       }
       if (key === 'POST /api/auth/reset-password') {
         onlyFields(body, ['token', 'newPassword']);
@@ -1358,5 +1451,11 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
      * without the port keeps serving, which is right for availability and must not be silent — so the startup
      * summary reads this and says "AUTH THROTTLE OFF" out loud when it is.
      */
-    throttled: throttleWired });
+    throttled: throttleWired,
+    /*
+     * AND WHETHER THE ACCOUNT-REQUEST QUEUE IS WIRED, for the same reason. This one is FAIL-CLOSED, so the
+     * difference it reports is not "a limit is missing" but "the public request form answers 503" — a fact
+     * an operator must be able to see from the startup line rather than discover from a visitor.
+     */
+    requestsWired: accountRequestsWired });
 }

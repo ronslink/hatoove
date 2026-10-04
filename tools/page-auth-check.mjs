@@ -10,6 +10,10 @@
  *
  * WHAT IS PUBLIC, AND WHY
  *   `/signin`                you cannot sign in from behind a sign-in gate
+ *   `/request-access`        the pilot's account-request form (migration 0041). The people who need it
+ *                            have no account and therefore no session, so it is public by the same
+ *                            argument as `/signin`; it stores a request a person answers by hand, and it
+ *                            is listed in `PUBLIC_FILES` for the same reason. Leg A9 asserts it.
  *   `/assets/design/**`      the design system the sign-in page needs; holds no learner data
  *   `/api/auth/**`           the auth endpoints themselves
  *   `/api/health`, `/api/ready`   liveness, for the container healthcheck and a supervisor
@@ -153,6 +157,25 @@ try {
   const css = await probe('/assets/design/hatoove.css');
   if (css.status === 200) pass('A5-design-assets-public', 'the design system is public (it holds no learner data)', `hatoove.css ${css.status}`);
   else fail('A5-design-assets-public', 'the design system is public (it holds no learner data)', `hatoove.css ${css.status}`);
+
+  /*
+   * A9 — THE PILOT'S ACCOUNT-REQUEST FORM IS REACHABLE WITHOUT A SESSION.
+   *
+   * This is the leg that catches the exact failure the slice was warned about: a page that exists but is
+   * missing from `PUBLIC_FILES` does not 404 — the gate sends a navigation to `/signin`, so it looks like a
+   * login redirect rather than a broken page, and only a check that insists on a 200 finds it.
+   */
+  const requestAccess = await probe('/request-access', { accept: 'text/html' });
+  if (requestAccess.status === 200
+    && /id="form-request-access"/.test(requestAccess.body)
+    && /id="request-consent"/.test(requestAccess.body)) {
+    pass('A9-request-access-is-public', '/request-access is public and renders the request form',
+      `${requestAccess.status}, ${requestAccess.body.length} bytes, consent field present`);
+  } else {
+    fail('A9-request-access-is-public', '/request-access is public and renders the request form',
+      `${requestAccess.status}${requestAccess.location ? ` -> ${requestAccess.location}` : ''}`
+      + (requestAccess.status === 200 ? ' but the request form is not in the response' : ''));
+  }
 
   // A6 — liveness stays public for the container healthcheck and any supervisor.
   const ready = await probe('/api/ready');

@@ -394,6 +394,47 @@ paths:
       responses:
         '200': { description: 'The session and its user, or a null session when signed out.' }
 
+  /api/auth/request-access:
+    post:
+      tags: [auth]
+      summary: Request a pilot account
+      description: |
+        The pilot's public account-request form (`server/migrations/0041-pilot-access.sql`). During the
+        pilot the front door leads here instead of straight to sign-up, and a person on the team provisions
+        each account by hand. There is no account yet, so this route needs no session.
+
+        It **always answers `202 {ok:true}`** — including for an address that already has a request — so the
+        form cannot be used to ask whether an address is known. The four fields are validated: `consent`
+        must be the boolean `true`, `language` one of de/en/uk/ar/tr, the address bounded and (for storage)
+        folded, and the name bounded, non-empty after trimming and free of control characters. An unknown
+        field is refused, never dropped.
+
+        A request is STORED for a person to read (`server/access.mjs`, run through `docker compose run`);
+        NOTHING IS EMAILED, because the pilot has no email provider. Throttled per day: 50 requests in
+        total and 3 per address.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, language, consent]
+              properties:
+                name: { type: string, maxLength: 100 }
+                email: { type: string, format: email }
+                language: { type: string, enum: [de, en, uk, ar, tr] }
+                consent:
+                  type: boolean
+                  description: 'Must be exactly `true`; absent, false or non-boolean is refused with `invalid_consent`.'
+      responses:
+        '202': { description: 'The request is stored, or was already stored — the identical answer either way.' }
+        '403': { description: 'Origin refused (`origin_rejected`).' }
+        '415': { description: 'Content type must be application/json (`json_required`).' }
+        '422': { description: 'Invalid input: `invalid_consent`, `invalid_name`, `invalid_email`, `invalid_language` or `unknown_field`.' }
+        '429': { description: 'The daily request budget is reached (`too_many_requests`).' }
+        '503': { description: 'The request queue is not wired (`requests_unavailable`); nothing is stored.' }
+
   /api/v1/account:
     get:
       tags: [account]

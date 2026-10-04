@@ -33,3 +33,7 @@
 .auth-box .btn, .auth-box h1, .auth-art h2 { overflow-wrap: anywhere; white-space: normal; }
 .auth-tabs > button { min-width: 0; }
 .auth-box input[dir="ltr"] { unicode-bidi: isolate; text-align: left; }
+/* The account-request page's two short lists: the design's spacing, with the markers kept, because
+   "what happens next" is a sequence and a reader is entitled to see that it is one. */
+.request-steps { display: grid; gap: 8px; margin: 0; padding-inline-start: 20px; }
+.request-steps li { overflow-wrap: anywhere; }

@@ -40,8 +40,9 @@ import { randomUUID, scryptSync, randomBytes, timingSafeEqual } from 'node:crypt
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
-import { createOwnedApi, Fault, CONTRACT_VERSION } from '../server/owned-api.mjs';
+import { createOwnedApi, Fault, CONTRACT_VERSION, ACCESS_REQUEST_CONSENT_VERSION } from '../server/owned-api.mjs';
 import { stubGrade } from '../server/owned-postgres/worker.mjs';
+import { THROTTLE_POLICY, throttleKeepSeconds, sweepCannotCutWindowShort, SUPERSEDED_KEEP_SECONDS } from '../server/owned-postgres/throttle.mjs';
 import { createOwnedClient, OwnedClientError } from '../public/js/owned-client.js';
 import {
   DEFAULT_TASK_BINDING, WRITING_TASKS, WRITING_RUBRIC, taskBindings,
@@ -615,8 +616,61 @@ export function createMemorySessions({ provision = null } = {}) {
   };
 }
 
-/* ============================================================ fake browsers */
+/**
+ * In-memory account-request queue (migration `0041`; TEST ONLY).
+ *
+ * THE DUPLICATE RULE IS THE POINT OF THIS DOUBLE, so it is implemented as the product implements it rather
+ * than as something convenient: the key is the FOLDED address, a second submission from the same address
+ * KEEPS THE FIRST ROW (its `name`, its language, its consent version and its `created_at`), and the
+ * returned `stored` flag is the only thing that differs. The route discards that flag, and the leg below
+ * asserts the two responses are byte-identical — which is exactly what a test backend that answered
+ * differently would break.
+ */
+export function createMemoryAccountRequests() {
+  const rows = [];
+  const find = (email) => rows.find((row) => row.email === email) || null;
+  return {
+    rows,
+    /** Every stored row, oldest first, as the operator command would read it. */
+    list: ({ status = null } = {}) => rows.filter((row) => status === null || row.status === status).map((row) => ({ ...row })),
+    async submit({ name, email, language, consentVersion }) {
+      // The address arrives already folded from the route; folding again here would hide a route that
+      // forgot to, so this asserts the invariant instead of repairing it.
+      assert.equal(email, email.toLowerCase(), 'the route must fold the address before it reaches the port');
+      if (find(email)) return { stored: false };
+      rows.push({
+        id: `request-${randomBytes(8).toString('hex')}`,
+        email, name, language, consent_version: consentVersion,
+        status: 'open', created_at: new Date(), handled_at: null,
+      });
+      return { stored: true };
+    },
+    async decline(email) {
+      const address = String(email).toLowerCase();
+      const row = find(address);
+      if (!row) return { found: false, declined: false };
+      if (row.status !== 'open') return { found: true, declined: false };
+      row.status = 'declined';
+      row.handled_at = new Date();
+      return { found: true, declined: true };
+    },
+    async purge({ email = null, olderThanDays = null } = {}) {
+      const cutoff = olderThanDays === null ? null : Date.now() - olderThanDays * 86400000;
+      const address = email === null ? null : String(email).toLowerCase();
+      const kept = [];
+      const removed = [];
+      for (const row of rows) {
+        const match = address !== null ? row.email === address : row.created_at.getTime() <= cutoff;
+        (match ? removed : kept).push(row);
+      }
+      rows.length = 0;
+      rows.push(...kept);
+      return { removed: removed.length, emails: removed.map((row) => row.email) };
+    },
+  };
+}
 
+/* ============================================================ fake browsers */
 function applySetCookie(jar, header) {
   if (!header) return;
   for (const line of Array.isArray(header) ? header : [header]) {
@@ -816,18 +870,22 @@ async function world({ allowance } = {}) {
     const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
     const pg = await createPostgresWorld({ allowance });
     openWorlds.push(pg);
-    return { store: pg.store, sessions: pg.sessions, api: pg.api, browser: () => inProcessBrowser(pg.api) };
+    // The throttle and the account-request queue are returned so a leg can use the SAME wiring the product
+    // uses: `throttle` lets a persistent installation start from a clean budget, `accountRequests` is the
+    // queue itself (the PostgreSQL port in this backend, the in-memory double in the next branch).
+    return { store: pg.store, sessions: pg.sessions, api: pg.api, throttle: pg.throttle, accountRequests: pg.accountRequests, browser: () => inProcessBrowser(pg.api) };
   }
   if (BACKEND === 'postgres-persistent') {
     const pg = await persistentWorld({ allowance });
     openWorlds.push(pg);
-    return { store: pg.store, sessions: pg.sessions, api: pg.api, browser: () => inProcessBrowser(pg.api) };
+    return { store: pg.store, sessions: pg.sessions, api: pg.api, throttle: pg.throttle, accountRequests: pg.accountRequests, browser: () => inProcessBrowser(pg.api) };
   }
   const store = createMemoryDatastore({ allowance });
   // Sign-up provisions the initial preparation and balance, as the PostgreSQL registration does.
   const sessions = createMemorySessions({ provision: store.provision });
-  const api = createOwnedApi({ datastore: store.port, sessions, settings: store.settings });
-  return { store, sessions, api, browser: () => inProcessBrowser(api) };
+  const accountRequests = createMemoryAccountRequests();
+  const api = createOwnedApi({ datastore: store.port, sessions, settings: store.settings, accountRequests });
+  return { store, sessions, api, accountRequests, browser: () => inProcessBrowser(api) };
 }
 
 /**
@@ -944,8 +1002,151 @@ check('client-signin-and-wrong-password', async () => {
   assert.equal(account.email, email);
 });
 
-check('unauthenticated-requests-get-401', async () => {
+/* ------------------------------------------- the pilot's public account request */
+
+/*
+ * THREE LEGS FOR ONE PUBLIC FORM (migration `0041`), and each one is about a thing this route must NOT do:
+ * it must not tell anybody whether an address is already in the queue, it must not accept anything outside
+ * the four fields it defines, and it must not answer "stored" when there is no queue to store into.
+ */
+
+check('pilot-account-request-is-stored-and-a-duplicate-is-byte-identical', async () => {
   const w = await world();
+  const b = w.browser();
+  const email = nextEmail('request');
+  // A durable installation keeps every earlier run's rows and its own rate-limit counters, so this leg
+  // starts from a known budget the way `persistentWorld` does for registration.
+  if (w.throttle) {
+    await w.throttle.clear('accessRequest', 'global');
+    await w.throttle.clear('accessRequestEmail', email);
+  }
+  /*
+   * THE QUEUE IS READ THROUGH ITS PORT, never through a backend-specific field: this leg has to mean the
+   * same thing on the in-memory double and on PostgreSQL, and a `.rows` array that only one of them has is
+   * how a check ends up proving something about the test double.
+   */
+  const before = (await w.accountRequests.list()).length;
+
+  const first = await b.raw('POST', '/api/auth/request-access', { name: 'Anna Beispiel', email, language: 'de', consent: true });
+  assert.equal(first.status, 202, `a public request is accepted: ${first.status} ${first.text}`);
+  assert.deepEqual(first.json, { ok: true });
+  // THE BODY NAMES NOTHING: no address, no name, no queue position, no "already there" flag.
+  assert.equal(first.text, '{"ok":true}');
+  // The page states one consent wording and the server records its version; they must be the same fact.
+  assert.equal((await w.accountRequests.list())[0].consent_version, ACCESS_REQUEST_CONSENT_VERSION);
+
+  /*
+   * THE DUPLICATE. The same address, differently cased and with a different name and language, must
+   * produce a response that is IDENTICAL BYTE FOR BYTE — not merely a similar status — and must leave the
+   * first row untouched. Anything else turns a public form into a way to ask "is this address waiting for
+   * an account?" about somebody else's address.
+   */
+  const stored = (await w.accountRequests.list())[0];
+  const second = await b.raw('POST', '/api/auth/request-access',
+    { name: 'Someone Else', email: email.toUpperCase(), language: 'tr', consent: true });
+  assert.equal(second.status, first.status);
+  assert.equal(second.text, first.text, 'a duplicate must answer byte-for-byte what a new address answers');
+  assert.deepEqual(second.headers, first.headers, 'and with the same headers');
+  const queue = await w.accountRequests.list();
+  assert.equal(queue.length, before + 1, 'a duplicate must not create a second row');
+  assert.deepEqual(queue[0], stored, 'the first request is left exactly as it was');
+
+  // NO SESSION WAS EVER NEEDED, and none was created: this is the front door for people without an account.
+  assert.equal(queue[0].email, email.toLowerCase(), 'the address is stored folded');
+  assert.deepEqual([...b.jar.keys()], [], 'the request route sets no cookie');
+});
+
+check('pilot-account-request-refuses-everything-it-does-not-define', async () => {
+  const w = await world();
+  const b = w.browser();
+  const email = nextEmail('request-refuse');
+  if (w.throttle) await w.throttle.clear('accessRequest', 'global');
+  const good = { name: 'Anna', email, language: 'de', consent: true };
+  const cases = [
+    // CONSENT IS THE BOOLEAN TRUTHY `true`, not a truthy value and not an omission.
+    [{ ...good, consent: false }, 'invalid_consent'],
+    [{ ...good, consent: 'true' }, 'invalid_consent'],
+    [{ ...good, consent: 1 }, 'invalid_consent'],
+    [{ name: good.name, email: good.email, language: good.language }, 'invalid_consent'],
+    // LANGUAGE IS A CLOSED SET.
+    [{ ...good, language: 'fr' }, 'invalid_language'],
+    [{ ...good, language: 'DE' }, 'invalid_language'],
+    [{ name: good.name, email: good.email, consent: true }, 'invalid_language'],
+    // THE ADDRESS IS BOUNDED AND UNPADDED, by the one rule sign-up already uses.
+    [{ ...good, email: 'not-an-address' }, 'invalid_email'],
+    [{ ...good, email: ` ${email} ` }, 'invalid_email'],
+    [{ ...good, email: `${'a'.repeat(250)}@example.invalid` }, 'invalid_email'],
+    // THE NAME IS BOUNDED, NON-EMPTY AFTER TRIMMING, AND FREE OF CONTROL CHARACTERS (it is printed in an
+    // operator's terminal by `server/access.mjs`).
+    [{ ...good, name: '   ' }, 'invalid_name'],
+    [{ ...good, name: 'x'.repeat(101) }, 'invalid_name'],
+    [{ ...good, name: 'a\u0000b' }, 'invalid_name'],
+    [{ name: good.name, email: good.email, language: 'de', consent: true, note: 'free text' }, 'unknown_field'],
+    [{ ...good, ownerId: 'somebody-else' }, 'unknown_field'],
+    [{ ...good, status: 'invited' }, 'unknown_field'],
+  ];
+  for (const [payload, code] of cases) {
+    const res = await b.raw('POST', '/api/auth/request-access', payload);
+    assert.equal(res.status, 422, `${JSON.stringify(payload)} -> ${res.status} ${res.text}`);
+    assert.equal(res.json.error, code, `${JSON.stringify(payload)} -> ${res.json.error}`);
+  }
+  const rows = await w.accountRequests.list();
+  assert.equal(rows.filter((row) => row.email === email.toLowerCase()).length, 0, 'a refused request stores nothing');
+  // A GET on the same path is not a route: this is a store, never a read.
+  const read = await b.raw('GET', '/api/auth/request-access');
+  assert.equal(read.status, 404);
+});
+
+check('pilot-account-request-fails-closed-without-a-queue', async () => {
+  /*
+   * FAIL-CLOSED, unlike the throttle. A 202 that filed nothing would tell a person their request was
+   * received when no row exists and nobody knows to answer — the one failure this route must never have.
+   * (The equivalent 503 legs for settings, deletion and recovery live above; this is the same rule.)
+   */
+  const store = createMemoryDatastore({ allowance: 10 });
+  const sessions = createMemorySessions({ provision: store.provision });
+  const api = createOwnedApi({ datastore: store.port, sessions, settings: store.settings });
+  assert.equal(api.requestsWired, false, 'without the port the API must say so');
+  const b = inProcessBrowser(api);
+  const res = await b.raw('POST', '/api/auth/request-access', { name: 'Anna', email: nextEmail('unwired'), language: 'de', consent: true });
+  assert.equal(res.status, 503);
+  assert.deepEqual(res.json, { error: 'requests_unavailable' });
+
+  /*
+   * AND THE PAGE ITSELF: the consent version the server records must be the wording the page shows, and
+   * the box must arrive UNTICKED. A pre-ticked consent box is not consent, so it is asserted on the served
+   * markup rather than trusted to a script.
+   */
+  const page = fs.readFileSync(path.resolve(fileURLToPath(import.meta.url), '..', '..', 'public', 'request-access.html'), 'utf8');
+  assert.ok(page.includes(ACCESS_REQUEST_CONSENT_VERSION), 'the page must name the consent version the server records');
+  assert.match(page, /id="request-consent"[^>]*\brequired\b/, 'the consent box is required');
+  assert.doesNotMatch(page, /id="request-consent"[^>]*\bchecked\b/, 'the consent box must not be pre-ticked');
+  assert.match(page, /data-i18n="auth\.requestConsent"/, 'the consent sentence is a translatable binding');
+  assert.match(page, /hallo@hatoove\.com/, 'the page names the reply channel');
+});
+
+check('the throttle cleanup cannot cut a 24-hour window short', () => {
+  /*
+   * The account-request budgets are 24-hour windows, and the sweep bound used to be a fixed day — chosen
+   * when the longest window was 90 minutes. Equal bounds mean the opportunistic cleanup reaches a counter
+   * at the exact instant its window closes, which is a limit that sometimes forgets.
+   *
+   * THE NEGATIVE CONTROL IS THE OLD CONSTANT: it must NOT satisfy the rule any more, so reverting the
+   * derivation turns this leg red instead of leaving a comment to be believed. This needs no database: it
+   * is a property of the policy and the bound.
+   */
+  const longest = Math.max(...Object.values(THROTTLE_POLICY).map((rule) => rule.windowSeconds));
+  assert.equal(longest, 86400, 'the account-request window is the longest in the shipped policy');
+  assert.equal(sweepCannotCutWindowShort(THROTTLE_POLICY, SUPERSEDED_KEEP_SECONDS), false,
+    'the superseded one-day bound must no longer satisfy the rule now that a window is a day long');
+  assert.equal(sweepCannotCutWindowShort(THROTTLE_POLICY, throttleKeepSeconds(THROTTLE_POLICY)), true,
+    'the derived bound must be strictly longer than every window in the policy');
+  // A policy of short windows keeps at least the original day, so the table stays a picture of recent
+  // attempts rather than a history of every address anyone typed.
+  assert.equal(throttleKeepSeconds({ signin: { windowSeconds: 60 } }), 86400);
+});
+
+check('unauthenticated-requests-get-401', async () => {  const w = await world();
   const b = w.browser();
   assert.equal(await b.client.refreshAccount(), null, 'a 401 account reads as signed out');
   for (const [method, url, body] of [

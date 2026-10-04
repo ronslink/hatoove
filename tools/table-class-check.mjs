@@ -6,8 +6,10 @@
  *
  *   auth            Better Auth's tables (user, session, account, verification)
  *                   no RLS; the auth role only (no learner/worker grant)
- *   auth support    auth-seam state outside Better Auth's schema (auth_throttle, 0019)
- *                   no RLS; the auth role only (nothing for learner/worker/deletion/provisioner)
+ *   auth support    auth-seam state outside Better Auth's schema (auth_throttle 0019,
+ *                   account_request 0041)
+ *                   no RLS; the auth role only (nothing for learner/worker/deletion/provisioner);
+ *                   no owner column
  *   owned           account rows: has owner_id/user_id, or is owned through one (drafts)
  *                   FORCE ROW LEVEL SECURITY; an owner policy for the learner role; an
  *                   owner-scoped policy plus SELECT/DELETE for the deletion role (or the

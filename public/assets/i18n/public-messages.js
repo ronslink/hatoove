@@ -12,7 +12,14 @@ const rows = {
   offer: ['Das übst du','What you can practise','Що можна практикувати','ما يمكنك التدرب عليه','Alıştırma alanları'],
   questions: ['Fragen','Questions','Запитання','الأسئلة','Sorular'],
   signin: ['Anmelden','Sign in','Увійти','تسجيل الدخول','Giriş yap'],
-  start: ['Kostenlos starten','Start for free','Почати безкоштовно','ابدأ مجانًا','Ücretsiz başla'],
+  /*
+   * THE FRONT DOOR'S CALL TO ACTION IS A REQUEST DURING THE PILOT (migration 0041): `/request-access`
+   * instead of straight to sign-up, because a person provisions each account by hand and there is no email
+   * provider. `code` is the small way back for somebody who already received an access code — sign-up
+   * itself stays open in this slice, and that link is the only place the landing page offers it.
+   */
+  requestAccount: ['Konto anfragen','Request an account','Запросити обліковий запис','اطلب حسابًا','Hesap talep et'],
+  code: ['Ich habe einen Code','I already have a code','У мене вже є код','لدي رمز بالفعل','Kodum var'],
   pilot: ['telc Deutsch B1 · Kostenloser Pilot','telc Deutsch B1 · Free pilot','telc Deutsch B1 · Безкоштовний пілот','telc Deutsch B1 · تجربة مجانية','telc Deutsch B1 · Ücretsiz pilot'],
   hero1: ['Die Prüfung kennen.','Know the exam.','Знайомтеся з іспитом.','تعرّف على الامتحان.','Sınavı tanıyın.'],
   hero2: ['Schritt für Schritt','Step by step,','Крок за кроком','خطوة بخطوة','Adım adım'],
@@ -54,8 +61,7 @@ const rows = {
   clearStart: ['Mit einem klaren Anfang','A clear place to start','Зрозумілий початок','بداية واضحة','Net bir başlangıç'],
   bigGoal: ['Ein großes Ziel.','One big goal.','Одна велика мета.','هدف كبير.','Büyük bir hedef.'],
   smallSteps: ['Kleine nächste Schritte.','Small next steps.','Невеликі наступні кроки.','خطوات تالية صغيرة.','Küçük sonraki adımlar.'],
-  createAccount: ['Dein Konto anlegen','Create your account','Створіть обліковий запис','أنشئ حسابك','Hesabınızı oluşturun'],
-  createDescription: ['Mit E-Mail und Passwort starten. Der Pilot ist kostenlos.','Start with an email and password. The pilot is free.','Почніть з електронної пошти й пароля. Пілот безкоштовний.','ابدأ بالبريد الإلكتروني وكلمة المرور. التجربة مجانية.','E-posta ve parola ile başlayın. Pilot ücretsizdir.'],
+  createDescription: ['Trag dich in das Formular ein. Eine Person aus dem Team antwortet mit einem Zugangscode.','Fill in the form. A person from the team replies with an access code.','Заповніть форму. Учасник команди відповість, надіславши код доступу.','املأ النموذج وسيرد أحد أعضاء الفريق برمز وصول.','Formu doldurun. Ekibimizden biri erişim koduyla yanıtlar.'],
   chooseTask: ['Eine Aufgabe wählen','Choose a task','Оберіть завдання','اختر مهمة','Bir görev seçin'],
   chooseDescription: ['Lesen, Sprachbausteine oder Schreiben – passend zu dem, was du gerade üben möchtest.','Reading, language elements or writing — choose what you want to practise now.','Читання, мовні елементи чи письмо — оберіть те, що хочете практикувати зараз.','القراءة أو العناصر اللغوية أو الكتابة — اختر ما تريد التدرب عليه الآن.','Okuma, dil öğeleri veya yazma — şimdi çalışmak istediğinizi seçin.'],
   continue: ['Später weiterarbeiten','Continue later','Продовжуйте пізніше','تابع لاحقًا','Daha sonra devam edin'],
@@ -63,12 +69,19 @@ const rows = {
   pace: ['In deinem Tempo','At your pace','У вашому темпі','بالوتيرة التي تناسبك','Kendi hızınızda'],
   yourExam: ['Deine Prüfung.','Your exam.','Ваш іспит.','امتحانك.','Sizin sınavınız.'],
   yourStep: ['Dein nächster Schritt.','Your next step.','Ваш наступний крок.','خطوتك التالية.','Sonraki adımınız.'],
-  startDescription: ['Probiere eine Aufgabe aus – oder lege dein Konto an und speichere deine Arbeit.','Try a task — or create an account and save your work.','Спробуйте завдання або створіть обліковий запис і зберігайте роботу.','جرّب مهمة أو أنشئ حسابًا واحفظ عملك.','Bir görev deneyin veya hesap oluşturup çalışmanızı kaydedin.'],
+  startDescription: ['Probiere eine Aufgabe aus – oder frag ein Konto an und speichere deine Arbeit.','Try a task — or request an account and save your work.','Спробуйте завдання або запросіть обліковий запис і зберігайте роботу.','جرّب مهمة أو اطلب حسابًا واحفظ عملك.','Bir görev deneyin veya hesap talep edip çalışmanızı kaydedin.'],
   goodToKnow: ['Gut zu wissen','Good to know','Варто знати','من المفيد معرفته','Bilmenizde yarar var'],
   moreQuestions: ['Noch Fragen?','Any questions?','Є запитання?','هل لديك أسئلة؟','Sorularınız mı var?'],
   todayPilot: ['Das kann der Pilot heute.','What the pilot offers today.','Що пілот пропонує сьогодні.','ما تقدمه التجربة اليوم.','Pilotun bugün sundukları.'],
   faqCourse: ['Ist Hatoove ein Deutschkurs?','Is Hatoove a German course?','Hatoove — це курс німецької?','هل Hatoove دورة لتعلم الألمانية؟','Hatoove bir Almanca kursu mu?'],
   faqCourseAnswer: ['Hatoove ist eine eigenständige Prüfungsvorbereitung für Menschen, die bereits Deutschkenntnisse mitbringen. Du übst Aufgaben und arbeitest an deinen Antworten.','Hatoove is independent exam preparation for people who already know some German. You practise tasks and work on your answers.','Hatoove — незалежна підготовка до іспитів для людей, які вже знають німецьку. Ви практикуєте завдання й працюєте над відповідями.','Hatoove تحضير مستقل للامتحان لمن لديهم معرفة سابقة بالألمانية. تتدرّب على المهام وتحسّن إجاباتك.','Hatoove, zaten Almanca bilgisi olanlar için bağımsız sınav hazırlığıdır. Görevler yapar ve yanıtlarınız üzerinde çalışırsınız.'],
+  /*
+   * THE FAQ AND THE PAGE MUST AGREE WORD FOR WORD: `tools/seo-check.mjs` leg S5 compares every visible
+   * `<details>` answer with the JSON-LD FAQ text, so this answer is duplicated in `public/index.html`
+   * twice, and the German here is the copy both places carry.
+   */
+  faqAccount: ['Wie bekomme ich ein Konto?','How do I get an account?','Як отримати обліковий запис?','كيف أحصل على حساب؟','Nasıl hesap alabilirim?'],
+  faqAccountAnswer: ['Während des Pilots füllst du auf der Seite „Konto anfragen“ das Formular aus. Eine Person aus dem Team liest die Anfrage und antwortet von hallo@hatoove.com mit einem Zugangscode. Es gibt keinen automatischen E-Mail-Versand.','During the pilot you fill in the form on the “Request an account” page. A person from the team reads the request and replies from hallo@hatoove.com with an access code. There is no automatic email.','Під час пілоту ви заповнюєте форму на сторінці «Запросити обліковий запис». Учасник команди читає запит і відповідає з hallo@hatoove.com, надсилаючи код доступу. Автоматичного надсилання листів немає.','خلال التجربة تملأ النموذج في صفحة «اطلب حسابًا». يقرأ أحد أعضاء الفريق الطلب ويرد من hallo@hatoove.com مع رمز وصول. لا يوجد إرسال بريد تلقائي.','Pilot sırasında “Hesap talep et” sayfasındaki formu doldurursunuz. Ekibimizden biri talebi okur ve hallo@hatoove.com adresinden bir erişim koduyla yanıtlar. Otomatik e-posta gönderimi yoktur.'],
   faqOfficial: ['Sind das offizielle telc-Aufgaben?','Are these official telc tasks?','Це офіційні завдання telc?','هل هذه مهام رسمية من telc؟','Bunlar resmî telc görevleri mi?'],
   faqOfficialAnswer: ['Nein. Hatoove bietet eigene, KI-generierte Übungsinhalte. Die fachliche Prüfung dieser Inhalte ist noch offen. Hatoove ist unabhängig und nicht mit telc verbunden.','No. Hatoove provides its own AI-generated practice content. Expert review is still pending. Hatoove is independent and not affiliated with telc.','Ні. Hatoove надає власні матеріали, створені ШІ. Фахова перевірка ще очікується. Hatoove незалежний і не пов’язаний із telc.','لا. يقدم Hatoove محتوى تدريبيًا خاصًا به مولّدًا بالذكاء الاصطناعي. المراجعة المتخصصة لم تكتمل بعد. Hatoove مستقل وغير تابع لـ telc.','Hayır. Hatoove kendi yapay zekâ üretimi içeriklerini sunar. Uzman incelemesi henüz tamamlanmamıştır. Hatoove bağımsızdır ve telc ile bağlantılı değildir.'],
   faqWriting: ['Wie wird mein Schreiben bewertet?','How is my writing assessed?','Як оцінюється моє письмо?','كيف تُقيّم كتابتي؟','Yazım nasıl değerlendirilir?'],
