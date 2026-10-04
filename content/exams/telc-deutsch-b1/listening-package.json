@@ -181,6 +181,38 @@
   },
   "forms": [
     {
+      "id": "telc-deutsch-b1.reading.01",
+      "version": "v2",
+      "title": "Leseverstehen – Abschnittsübung",
+      "scope": "section",
+      "sections": [
+        "LV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "telc-deutsch-b1.lv1.01",
+          "version": "v1",
+          "interaction": "matching_headlines",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b1.lv2.01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b1.lv3.01",
+          "version": "v1",
+          "interaction": "matching_ads",
+          "itemCount": 10
+        }
+      ]
+    },
+    {
       "id": "telc-deutsch-b1.listening.practice",
       "version": "v2",
       "title": "Hörverstehen – Übung",

@@ -165,7 +165,21 @@ export async function buildListeningPackage() {
     exam: { ...manifestSource.exam },
     blueprint: { ...manifestSource.blueprint, version: BLUEPRINT_VERSION, sections },
     release: { version: RELEASE_VERSION, state: 'internal', resumeBlockedReleases: [] },
+    /*
+     * THE EXISTING FORMS ARE CARRIED OVER, and this is not cosmetic. Activating a release REPLACES
+     * that release's `exam_release_form` rows with exactly the forms in this package, and the practice
+     * and mock cards are listed from the head release (`listReleasedForms`). A listening-only form list
+     * would therefore delete reading practice from the learner's list while adding listening - the
+     * worst kind of change, because the deploy would look successful.
+     *
+     * THEY ARE RE-VERSIONED, not reused at v1. A form's identity hash is
+     * `packageHash({blueprintVersion, form})`, so the same form under the v2 blueprint is a DIFFERENT
+     * record: resubmitting v1 here is rejected as "changed form under existing version". The payload is
+     * copied verbatim; only the version moves with the blueprint it is resolved against. The v1 rows
+     * stay untouched, so historical runs still resolve.
+     */
     forms: [
+      ...manifestSource.forms.map(form => ({ ...form, version: SET_VERSION })),
       {
         id: `${EXAM}.listening.practice`, version: SET_VERSION, title: 'Hörverstehen – Übung',
         scope: 'section', sections: ['HV'], mode: 'untimed', timeLimitSeconds: null, feedback: 'finalise',

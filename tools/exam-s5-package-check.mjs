@@ -143,11 +143,25 @@ try {
         assert.deepEqual(objectiveItems(set.payload,'fixed_audio').map(item=>Number(item.id)),Array.from({length:count},(_,i)=>first+i));
       }
     }
-    for(const form of source.forms){
+    // Listening forms carry the attempt mode and 20 items.
+    for(const form of source.forms.filter(form=>form.sections.includes('HV'))){
       assert.ok(['practice','mock'].includes(form.attemptMode));
       assert.equal(form.members.length,3);
       assert.equal(form.members.reduce((total,member)=>total+member.itemCount,0),20);
     }
+    /*
+     * THE EXISTING FORMS MUST SURVIVE. Activating a release replaces its `exam_release_form` rows with
+     * the forms in this package, and the learner's practice/mock cards are listed from the head release
+     * (`listReleasedForms`). A listening-only form list would silently remove reading practice, so every
+     * form the exam's own manifest declares has to appear here at the same version.
+     */
+    const manifest=JSON.parse(await readFile(new URL('../content/exams/telc-deutsch-b1/manifest.json',import.meta.url),'utf8'));
+    for(const form of manifest.forms)
+      assert.ok(source.forms.some(candidate=>candidate.id===form.id),
+        `"${form.id}" is missing from the package: activating its release would remove it from the learner's list`);
+    const listeningVersion=source.forms.find(form=>form.sections.includes('HV')).version;
+    for(const form of source.forms.filter(form=>!form.sections.includes('HV')))
+      assert.equal(form.version,listeningVersion,'carried forms move version with the blueprint they are resolved against');
     const mediaRoot=process.env.HATOVE_LISTENING_MEDIA_ROOT;
     if(mediaRoot){
       assert.ok(path.isAbsolute(mediaRoot),'HATOVE_LISTENING_MEDIA_ROOT must be an absolute private directory');

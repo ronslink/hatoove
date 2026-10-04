@@ -158,6 +158,7 @@ try {
     assert.ok(path.isAbsolute(realRoot),'HATOVE_LISTENING_MEDIA_ROOT must be an absolute private directory');
     const source=JSON.parse(await readFile(new URL('../content/exams/telc-deutsch-b1/listening-package.json',import.meta.url),'utf8'));
     const before=await counts();
+    const formsBefore=await listReleasedForms(db.learner,'telc-deutsch-b1');
     const result=await importPackage(db.migration,source,{mediaRoot:realRoot});
     assert(result.changes.length>0);
     assert.equal((await counts()).media-before.media,9);
@@ -183,6 +184,22 @@ try {
       assert.equal(bundle.members[0].recordings[0].max_plays,1,`${formId} HV1 allowance`);
       assert.equal(bundle.members[1].recordings[0].duration_ms,hv2Duration);
     }
+    /*
+     * NOTHING MAY DISAPPEAR. Activating release v2 replaces its form rows, and the learner's cards come
+     * from `listReleasedForms`, so every form that was listed before the import must still be listed
+     * after it - otherwise adding listening quietly removes something else.
+     */
+    const formsAfter=await listReleasedForms(db.learner,'telc-deutsch-b1');
+    for(const form of formsBefore)
+      assert.ok(formsAfter.some(candidate=>candidate.form_id===form.form_id),
+        `"${form.form_id}" disappeared when the listening release was activated`);
+    assert.equal(formsAfter.filter(form=>form.sections.includes('HV')).length,2);
+    assert.ok(formsAfter.length>formsBefore.length,'the two listening forms must be added');
+    // Listed is not enough: the carried-over reading form has to still START under the new release.
+    const carried=source.forms.find(form=>form.id==='telc-deutsch-b1.reading.01');
+    const reading=await readReleasedForm(db.learner,{examId:'telc-deutsch-b1',formId:carried.id,formVersion:carried.version,releaseVersion:'v2',newStart:true});
+    assert.ok(reading,'the reading form must still start after the listening release is activated');
+    assert.equal(reading.members.length,3);
   });
 } finally {
   await db?.cleanup();
