@@ -107,6 +107,7 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
   '.webmanifest': 'application/manifest+json',
 };
@@ -419,6 +420,12 @@ const PUBLIC_FILES = Object.freeze([
   path.join(PUBLIC_DIR, 'index.html'),
   path.join(PUBLIC_DIR, 'site.css'),
   path.join(PUBLIC_DIR, 'site.js'),
+  // CRAWLER FILES ARE PUBLIC BY NECESSITY. A `robots.txt` or sitemap behind the session gate answers
+  // 302/401, and a robots.txt a crawler cannot fetch means "do not crawl this host", while a sitemap
+  // it cannot fetch is never used at all. Neither file carries learner data: robots.txt names the
+  // disallowed API prefix, the sitemap lists the public front door only.
+  path.join(PUBLIC_DIR, 'robots.txt'),
+  path.join(PUBLIC_DIR, 'sitemap.xml'),
 ]);
 /*
  * The whole `assets/` tree is public, and it holds no learner data: `assets/design/**` is the pinned
@@ -730,6 +737,9 @@ export function createServer({ ownedApi = null, readinessCheck = null } = {}) {
       const ownedApi = resolveOwnedApi(serverRef);
       if (!isPublicTarget(resolved)) {
         if (!readiness.ready || !ownedApi) {
+          // A gated page surface is never indexable, ready or not: otherwise a crawler that arrives
+          // while the runtime is starting could keep this host's content as a not-ready app page.
+          res.setHeader('X-Robots-Tag', 'noindex');
           sendJSON(res, 503, { ok: false, code: 'not_ready', error: `The hosted runtime is not ready (${readiness.reason || 'starting'}).` });
           return;
         }
@@ -737,7 +747,8 @@ export function createServer({ ownedApi = null, readinessCheck = null } = {}) {
         if (!identity) {
           if (isNavigation(req)) {
             // 302 and not 401: a browser navigation should land on a sign-in form, not on JSON.
-            res.writeHead(302, { Location: '/signin', 'Cache-Control': 'no-store' });
+            // `X-Robots-Tag` so a crawler that follows a link to the gated app never indexes the shell.
+            res.writeHead(302, { Location: '/signin', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' });
             res.end();
           } else {
             sendJSON(res, 401, { ok: false, error: 'unauthenticated' });

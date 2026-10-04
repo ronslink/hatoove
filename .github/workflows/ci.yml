@@ -68,6 +68,18 @@ jobs:
       # tools/app-browser-check.mjs, which needs Docker and a browser and is not a runner gate.
       - name: The retired single-user store cannot come back
         run: node tools/retired-surface-check.mjs
+      # THE FRONT DOOR MUST STAY CRAWLABLE, CANONICAL AND HONEST, and this step exists because two
+      # real failures got through without it. `robots.txt` and `sitemap.xml` are new ROOT files, and
+      # the static gate only serves files listed in `PUBLIC_FILES` - so an unlisted robots.txt answers
+      # 302/401, which Google reads as "do not crawl this host", and an unfetchable sitemap is never
+      # used. Separately, `core.js#initialLocale()` falls back to `navigator.languages`, and Googlebot
+      # reports `en-US`: the German canonical page was rendered and indexed as English with
+      # `<html lang="en">`. The check also holds the canonical, the Open Graph/Twitter set (whose image
+      # file must exist), the JSON-LD FAQ word-for-word against the visible FAQ, and the absence of
+      # rich-result types this product cannot substantiate. Offline: no database, no provider, no
+      # network - it boots the server only to prove the crawler files are public WITHOUT a session.
+      - name: SEO surface (crawlability, canonical, structured data)
+        run: node tools/seo-check.mjs
       # "The provider is operator-only and invisible" USED to run here
       # (tools/provider-config-check.mjs). That check drove `/api/config` anonymously, which the auth
       # wrap now refuses with 401 before any handler — so it had been red since that wrap landed, and
