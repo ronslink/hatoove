@@ -34,11 +34,12 @@ export function assertCaddy(text) {
   requireThat(/^\s*admin off\s*$/m.test(source), 'caddy_admin_exposed');
   requireThat(/^hatoove\.com\s*\{/m.test(source), 'caddy_canonical_host_missing');
   requireThat(/^http:\/\/, https:\/\/\s*\{\s*respond 421\s*\}/m.test(source), 'caddy_unknown_host_refusal_missing');
+  requireThat(/^http:\/\/hatoove\.com\s*\{\s*redir https:\/\/hatoove\.com\{uri\} 308\s*\}/m.test(source), 'caddy_canonical_redirect_missing');
   requireThat(/^\s*issuer acme\s*\{/m.test(source) && /^\s*disable_tlsalpn_challenge\s*$/m.test(source), 'caddy_http01_missing');
   requireThat((source.match(/\breverse_proxy\b/g) ?? []).length === 1 && /reverse_proxy app:4321\s*\{/.test(source), 'caddy_upstream_changed');
   requireThat(/^\s*lb_retries 0\s*$/m.test(source), 'caddy_retry_enabled');
   requireThat(/^\s*compression off\s*$/m.test(source), 'caddy_compression_enabled');
-  requireThat(!/\b(file_server|root|rewrite|uri|encode|request_body|trusted_proxies|handle_errors|on_demand|insecure_skip_verify|tls_insecure_skip_verify|auto_https|log)\b/.test(source), 'caddy_unsafe_directive');
+  requireThat(!/\b(file_server|root|rewrite|uri|encode|request_body|trusted_proxies|handle_errors|on_demand|insecure_skip_verify|tls_insecure_skip_verify|auto_https|log)\b/.test(source.replaceAll('{uri}', '')), 'caddy_unsafe_directive');
   requireThat(!/header_(?:up|down)\s+[+\-]?(?:Host|Origin|Referer|Cookie|X-Hatoove-Account|Stripe-Signature|Range|Content-Range|Content-Length|Cache-Control|Set-Cookie)\b/i.test(source), 'caddy_protected_header_changed');
   for (const name of ['Forwarded', 'X-Real-IP', 'CF-Connecting-IP', 'True-Client-IP'])
     requireThat(source.includes(`header_up -${name}`), 'caddy_untrusted_header_forwarded');
@@ -136,7 +137,7 @@ function rejected(work, code) {
 function sourceChecks() {
   for (const file of files) requireThat(fs.statSync(path.join(root,file)).isFile(), 'source_file_missing');
   const caddy = fs.readFileSync(path.join(root,'deploy/Caddyfile'),'utf8'); assertCaddy(caddy);
-  for (const source of [caddy.replace('lb_retries 0','lb_retries 1'), caddy.replace('disable_tlsalpn_challenge',''), `${caddy}\nfile_server`, `${caddy}\ntrusted_proxies private_ranges`, `${caddy}\nheader_up Cookie removed`, caddy.replace('respond 421','respond 200'), caddy.replace('http://, https://','https://')])
+  for (const source of [caddy.replace('lb_retries 0','lb_retries 1'), caddy.replace('disable_tlsalpn_challenge',''), `${caddy}\nfile_server`, `${caddy}\ntrusted_proxies private_ranges`, `${caddy}\nheader_up Cookie removed`, caddy.replace('respond 421','respond 200'), caddy.replace('http://, https://','https://'), caddy.replace('redir https://hatoove.com{uri} 308',''), caddy.replace('redir https://hatoove.com{uri} 308','redir https://foreign.invalid{uri} 308'), `${caddy}\nuri strip_prefix /api`])
     rejected(() => assertCaddy(source), 'caddy_mutation_escaped');
   const isolated = isolatedEnvironment({PATH:'synthetic-path', PGPASSWORD:'private-sentinel', STRIPE_SECRET_KEY:'private-sentinel', COMPOSE_FILE:'wrong', DOCKER_HOST:'wrong', OWNAPI_PG_TLS_CA_FILE:'wrong'}, os.tmpdir());
   requireThat(!keys(isolated).some(key => /PGPASSWORD|STRIPE|COMPOSE_FILE|DOCKER_HOST|TLS_CA_FILE/.test(key)), 'ambient_environment_leaked');
@@ -145,7 +146,7 @@ function sourceChecks() {
     requireThat(doc.includes(phrase), 'operational_boundary_missing');
   const template = fs.readFileSync(path.join(root,'deploy/production.env.example'),'utf8');
   requireThat(!template.split('\n').some(line => /^[A-Z0-9_]*(?:SECRET|PASSWORD|TOKEN|KEY)=/.test(line)), 'template_secret_value');
-  return {sourceGroups:4, sourceMutations:7};
+  return {sourceGroups:4, sourceMutations:10};
 }
 
 function runComposeChecks() {

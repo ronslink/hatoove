@@ -6,7 +6,7 @@
 hatoove.com {
 	# HTTP-01 stays reachable on origin80 for bootstrap AND renewal. Cloudflare must
 	# forward its challenge path unchanged; blanket Always Use HTTPS stays off.
-	# Caddy's automatic HTTP redirect leaves its own ACME challenge handler first.
+	# Caddy's built-in ACME challenge handler runs before the HTTP routes below.
 	tls {
 		issuer acme {
 			disable_tlsalpn_challenge
@@ -34,9 +34,13 @@ hatoove.com {
 	}
 }
 
+# Keep the canonical redirect explicit, including when certificates are mounted
+# manually. Caddy's built-in ACME challenge handler still runs before this route.
+http://hatoove.com {
+	redir https://hatoove.com{uri} 308
+}
+
 # Unconfigured Host values must receive an explicit refusal on both protocols.
-# Automatic HTTPS inserts the canonical redirect before the HTTP catch-all;
-# its ACME challenge handler remains ahead of the configured HTTP routes.
 http://, https:// {
 	respond 421
 }
