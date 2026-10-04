@@ -224,7 +224,7 @@ async function prepare(variant,nodeImage,pgImage,caddyImage) {
   assert.equal((original.match(new RegExp(tlsBlock.source,'g'))??[]).length,1);
   fs.writeFileSync(path.join(scratch,'Caddyfile'),original.replace(tlsBlock,'\ttls /fixture-tls/ingress.crt /fixture-tls/ingress.key'));
   const adaptName=resourceName('container','caddy-adapt');
-  const adapted=JSON.parse(docker(['run','--name',adaptName,'--label',volumeLabel(project),'--network','none','--pull','never','--tmpfs','/data','--tmpfs','/config','--mount','type=bind,source='+path.join(source,'deploy/Caddyfile')+',target=/etc/caddy/Caddyfile,readonly',caddyImage.id,'caddy','adapt','--config','/etc/caddy/Caddyfile','--adapter','caddyfile']));
+  const adapted=JSON.parse(docker(['run','--name',adaptName,'--label',volumeLabel(project),'--network','none','--pull','never','--cap-drop','ALL','--cap-add','NET_BIND_SERVICE','--tmpfs','/data','--tmpfs','/config','--mount','type=bind,source='+path.join(source,'deploy/Caddyfile')+',target=/etc/caddy/Caddyfile,readonly',caddyImage.id,'caddy','adapt','--config','/etc/caddy/Caddyfile','--adapter','caddyfile']));
   const issuers=adapted.apps?.tls?.automation?.policies?.flatMap(policy=>policy.issuers??[])??[];
   assert.ok(issuers.some(issuer=>issuer.module==='acme'&&issuer.challenges?.['tls-alpn']?.disabled===true&&!issuer.challenges?.http?.disabled));
   record('original_caddy_http01_adaptation');
