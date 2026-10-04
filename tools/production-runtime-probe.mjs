@@ -5,38 +5,51 @@ import https from 'node:https';
 import http from 'node:http';
 import {randomUUID,createHash} from 'node:crypto';
 import {buildSignatureHeader} from '../server/payments/signature.mjs';
-import {EXAM,VERSION,RELEASE,fixturePath} from './production-runtime-fixture.mjs';
+import {EXAM,VERSION,RELEASE,fixturePath,PROBE_CHECKS,PROBE_STEPS} from './production-runtime-fixture.mjs';
 
-const modes=new Set(['initial','public','stub','stale','unavailable']);
 const mode=process.argv[2];
-assert.equal(process.argv.length,3);assert.ok(modes.has(mode));
-const binding=JSON.parse(await fs.readFile('/fixture/binding.json','utf8'));
-assert.match(binding.project,/^hatoove-hosting-[0-9]+-[0-9]+-(local|managed)$/);
-assert.equal(process.env.HOSTING_FIXTURE_ID,binding.project);
-const ca=await fs.readFile('/fixture/ca.crt');
+if(process.argv.length!==3||!Object.hasOwn(PROBE_CHECKS,mode)){console.error('hosting_probe_arguments_invalid');process.exit(2);}
+let ca,step='probe_setup',httpStatus=null;
+const ownErrors=new WeakMap();
+function transportError(kind){const error=Error('hosting_probe_transport_failed');ownErrors.set(error,kind);return error;}
+function enter(next,status=null){assert.ok(PROBE_STEPS.includes(next));step=next;httpStatus=status;}
+function errorClass(error) {
+  try {
+    if(ownErrors.has(error))return ownErrors.get(error);
+    if(error instanceof assert.AssertionError)return 'assertion_failed';
+    const code=error&&typeof error==='object'?Object.getOwnPropertyDescriptor(error,'code')?.value:null;
+    if(['CERT_HAS_EXPIRED','DEPTH_ZERO_SELF_SIGNED_CERT','SELF_SIGNED_CERT_IN_CHAIN','UNABLE_TO_VERIFY_LEAF_SIGNATURE','UNABLE_TO_GET_ISSUER_CERT_LOCALLY','ERR_TLS_CERT_ALTNAME_INVALID'].includes(code))return 'tls_failed';
+    if(['ENOTFOUND','EAI_AGAIN','ECONNREFUSED','ECONNRESET','ETIMEDOUT','EPIPE'].includes(code))return 'transport_failed';
+  } catch {}
+  return 'unexpected_failure';
+}
 const checks=[];
 const origin='https://hatoove.com';
-async function check(name,work){await work();checks.push(name);}
+async function check(name,work){enter(name);await work();checks.push(name);}
 function request(url,{method='GET',headers={},body,plain=false}={}) {
   assert.ok(url.startsWith('/')&&!url.startsWith('//'));
   const bytes=body===undefined?null:Buffer.isBuffer(body)?body:Buffer.from(JSON.stringify(body));
+  httpStatus=null;
   return new Promise((resolve,reject)=>{
     const req=(plain?http:https).request({hostname:'ingress',port:plain?80:443,servername:'hatoove.com',ca,
       rejectUnauthorized:true,method,path:url,headers:{host:'hatoove.com',connection:'close',...(bytes?{'content-type':'application/json','content-length':bytes.length}:{}),...headers}},
-      res=>{const parts=[];let length=0;res.on('data',part=>{length+=part.length;if(length>3*1024*1024)res.destroy(Error('response_bound'));else parts.push(part);});
+      res=>{httpStatus=Number.isInteger(res.statusCode)&&res.statusCode>=100&&res.statusCode<=599?res.statusCode:null;const parts=[];let length=0;res.on('data',part=>{length+=part.length;if(length>3*1024*1024)res.destroy(transportError('response_bound'));else parts.push(part);});
         res.on('error',reject);res.on('end',()=>{const raw=Buffer.concat(parts);let json;try{json=JSON.parse(raw);}catch{}resolve({status:res.statusCode,headers:res.headers,raw,json});});});
-    req.setTimeout(8000,()=>req.destroy(Error('request_timeout')));req.on('error',reject);req.end(bytes??undefined);
+    req.setTimeout(8000,()=>req.destroy(transportError('request_timeout')));req.on('error',reject);req.end(bytes??undefined);
   });
 }
 const authHeaders=account=>({cookie:account.cookie,'x-hatoove-account':account.id,origin});
 async function account(suffix) {
+  enter('account_'+suffix+'_signup');
   const credentials={name:'Synthetic hosting '+suffix,email:'hosting-'+randomUUID()+'@example.invalid',password:'synthetic-hosting-password-1'};
   const created=await request('/api/auth/sign-up/email',{method:'POST',headers:{origin},body:credentials});
   assert.equal(created.status,200);
+  enter('account_'+suffix+'_cookie',created.status);
   const cookies=created.headers['set-cookie'];assert.ok(Array.isArray(cookies));
   const issued=cookies.find(value=>value.startsWith('hatoove_owned_session='));
   assert.ok(issued);for(const pattern of [/;\s*Secure(?:;|$)/i,/;\s*HttpOnly(?:;|$)/i,/;\s*SameSite=Lax(?:;|$)/i,/;\s*Path=\/(?:;|$)/i])assert.match(issued,pattern);
-  const cookie=issued.split(';')[0],result=await request('/api/v1/account',{headers:{cookie}});
+  const cookie=issued.split(';')[0];enter('account_'+suffix+'_read');
+  const result=await request('/api/v1/account',{headers:{cookie}});
   assert.equal(result.status,200);assert.equal(typeof result.json.id,'string');
   return {id:result.json.id,cookie,credentials};
 }
@@ -50,6 +63,10 @@ async function readiness() {
 }
 
 try {
+  const binding=JSON.parse(await fs.readFile('/fixture/binding.json','utf8'));
+  assert.match(binding.project,/^hatoove-hosting-[0-9]+-[0-9]+-(local|managed)$/);
+  assert.equal(process.env.HOSTING_FIXTURE_ID,binding.project);
+  ca=await fs.readFile('/fixture/ca.crt');
   if(mode==='unavailable') {
     await check('stopped_runtime_is_not_served',async()=>assert.equal((await request('/api/ready')).status,502));
   } else if(mode==='stale') {
@@ -62,29 +79,34 @@ try {
     await check('canonical_https_ready',readiness);
     if(mode==='initial') {
       await check('canonical_host_and_origin_and_forwarding_boundaries',async()=>{
+        enter('foreign_https_host');
         assert.equal((await request('/api/health',{headers:{host:'foreign.invalid'}})).status,421);
+        enter('foreign_http_host');
         const foreignHttp=await request('/signin',{plain:true,headers:{host:'foreign.invalid'}});
         assert.equal(foreignHttp.status,421);assert.equal(foreignHttp.headers.location,undefined);
-        const refused=await request('/api/auth/sign-up/email',{method:'POST',headers:{origin:'https://foreign.invalid','x-forwarded-host':'hatoove.com','x-forwarded-proto':'https',forwarded:'host=hatoove.com;proto=https'},body:{}});
+        enter('foreign_origin_and_forwarding');const refused=await request('/api/auth/sign-up/email',{method:'POST',headers:{origin:'https://foreign.invalid','x-forwarded-host':'hatoove.com','x-forwarded-proto':'https',forwarded:'host=hatoove.com;proto=https'},body:{}});
         assert.equal(refused.status,403);assert.equal(refused.json.code,'origin_rejected');
-        const redirected=await request('/signin',{plain:true});assert.equal(redirected.status,308);
+        enter('canonical_http_redirect');const redirected=await request('/signin',{plain:true});assert.equal(redirected.status,308);
         assert.equal(redirected.headers.location,origin+'/signin');
-        const headers=(await request('/signin')).headers;
+        enter('security_headers');const headers=(await request('/signin')).headers;
         assert.equal(headers['x-content-type-options'],'nosniff');assert.equal(headers['referrer-policy'],'no-referrer');assert.equal(headers['x-frame-options'],'DENY');
       });
       const a=await account('initial');
       await check('public_default_withholds_unreviewed_and_payments_are_off',async()=>{
+        enter('public_preparations');
         const preps=await request('/api/v1/preparations',{headers:authHeaders(a)});
         assert.equal(preps.status,200);const prep=preps.json.preparations.find(p=>p.exam_id===EXAM);assert.ok(prep);
-        const tasks=await request('/api/v1/tasks?preparationId='+prep.id,{headers:authHeaders(a)});
+        enter('public_tasks_withheld');const tasks=await request('/api/v1/tasks?preparationId='+prep.id,{headers:authHeaders(a)});
         assert.equal(tasks.status,200);assert.deepEqual(tasks.json,[]);
-        const off=await request('/api/v1/payments/stripe/webhook',{method:'POST',body:Buffer.from('{}')});
+        enter('payments_off');const off=await request('/api/v1/payments/stripe/webhook',{method:'POST',body:Buffer.from('{}')});
         assert.equal(off.status,503);assert.equal(off.json.error,'payments_unavailable');
       });
       await check('secure_logout_invalidates_and_secure_signin_reissues',async()=>{
+        enter('logout');
         const out=await request('/api/auth/sign-out',{method:'POST',headers:authHeaders(a),body:{}});
         assert.equal(out.status,200);assert.ok(out.headers['set-cookie'].some(value=>/hatoove_owned_session=/.test(value)&&/;\s*Secure(?:;|$)/i.test(value)&&/Max-Age=0/.test(value)));
-        assert.equal((await request('/api/v1/account',{headers:authHeaders(a)})).status,401);
+        enter('logout_old_cookie');assert.equal((await request('/api/v1/account',{headers:authHeaders(a)})).status,401);
+        enter('signin');
         const signed=await request('/api/auth/sign-in/email',{method:'POST',headers:{origin,'x-forwarded-proto':'http'},body:{email:a.credentials.email,password:a.credentials.password}});
         assert.equal(signed.status,200);assert.ok(signed.headers['set-cookie'].some(value=>/;\s*Secure(?:;|$)/i.test(value)));
       });
@@ -130,6 +152,6 @@ try {
       });
     }
   }
-  console.log(JSON.stringify({mode,checks,passed:checks.length}));
-} catch {console.error('hosting_probe_failed_'+mode);process.exitCode=1;}
+  console.log(JSON.stringify({mode,checks,passed:checks.length,outcome:'passed',failure:null}));
+} catch(error) {console.log(JSON.stringify({mode,checks,passed:checks.length,outcome:'failed',failure:{step,class:errorClass(error),httpStatus}}));process.exitCode=1;}
 function pathForMedia(value){assert.ok(value.startsWith('content/exams/'+EXAM+'/s5-technical/'+VERSION+'/')&&!value.includes('..'));return new URL('../'+value,import.meta.url);}

@@ -8,7 +8,7 @@ import {randomBytes} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {assertProductionModel,isolatedEnvironment} from './production-compose-check.mjs';
-import {writeSourceFixture} from './production-runtime-fixture.mjs';
+import {writeSourceFixture,PROBE_CHECKS,validateProbeReport} from './production-runtime-fixture.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const args=process.argv.slice(2);
@@ -196,8 +196,15 @@ function fixture(action) {
   return jsonOutput(compose(['run','--rm','--no-deps','-T','migrate','node','tools/production-runtime-fixture.mjs',action],{timeout:90000}));
 }
 function probe(mode,{phase='base'}={}) {
-  const result=jsonOutput(compose(['run','--rm','--no-deps','-T','probe','node','tools/production-runtime-probe.mjs',mode],{phase,timeout:90000}));
-  assert.equal(result.mode,mode);assert.ok(result.passed>0);record('https_'+mode,{checks:result.checks});
+  const execution=compose(['run','--rm','--no-deps','-T','probe','node','tools/production-runtime-probe.mjs',mode],{phase,timeout:90000,allowFailure:true});
+  let result;
+  try {
+    assert.ok(Buffer.byteLength(execution.stdout??'','utf8')<=4096);
+    result=validateProbeReport(JSON.parse(execution.stdout),mode,execution.status);
+  } catch {failedCommand('docker',execution);fail('probe_report_invalid');}
+  (current.receipt.probes??=[]).push(result);
+  if(result.outcome==='failed'){failedCommand('docker',execution);fail('probe_check_failed');}
+  record('https_'+mode,{checks:result.checks});
 }
 function running(service) {
   const result=compose(['ps','-a','-q',service]);assert.equal(result.status,0);
@@ -427,7 +434,23 @@ if(selfCheck) {
     for(const [error,expected] of cases){assert.equal(failureCode(error),expected);assert.ok(!JSON.stringify({code:failureCode(error)}).includes('PRIVATE_DIAGNOSTIC_SENTINEL'));}
     assert.equal(getterCalls,0);
     try {fail('inspection_failed');}catch(error){assert.equal(failureCode(error),'inspection_failed');}
-    console.log('PASS hosting runtime offline: 13 absence controls; 8 redacted diagnostic controls; no subprocess or network');
+    const success={mode:'initial',checks:[...PROBE_CHECKS.initial],passed:PROBE_CHECKS.initial.length,outcome:'passed',failure:null};
+    assert.deepEqual(validateProbeReport(success,'initial',0),success);
+    const failed={mode:'initial',checks:['canonical_https_ready'],passed:1,outcome:'failed',failure:{step:'account_initial_signup',class:'assertion_failed',httpStatus:503}};
+    assert.deepEqual(validateProbeReport(failed,'initial',1),failed);
+    const invalidReports=[
+      {...failed,failure:{...failed.failure,step:'PRIVATE_PROBE_SENTINEL'}},
+      {...failed,failure:{...failed.failure,class:'PRIVATE_PROBE_SENTINEL'}},
+      {...failed,failure:{...failed.failure,body:'PRIVATE_PROBE_SENTINEL'}},
+      {...failed,headers:'PRIVATE_PROBE_SENTINEL'},
+      {...failed,mode:'public'}, {...failed,failure:{...failed.failure,httpStatus:999}},
+      {...failed,checks:['public_default_withholds_unreviewed_and_payments_are_off']},
+    ];
+    for(const value of invalidReports)assert.throws(()=>validateProbeReport(value,'initial',1));
+    assert.throws(()=>validateProbeReport(failed,'initial',0));
+    assert.throws(()=>validateProbeReport({...success,checks:[],passed:0},'initial',0));
+    assert.ok(!JSON.stringify(validateProbeReport(failed,'initial',1)).includes('PRIVATE_PROBE_SENTINEL'));
+    console.log('PASS hosting runtime offline: 13 absence controls; 8 redacted diagnostics; 11 probe-report controls; no subprocess or network');
   } catch {console.error('hosting_runtime_self_check_failed');process.exitCode=1;}
 } else {
 try {

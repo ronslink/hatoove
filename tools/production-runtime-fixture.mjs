@@ -11,6 +11,35 @@ export const EXAM = 'telc-deutsch-b1';
 export const VERSION = 'v9880';
 export const RELEASE = 'v9881';
 export const fixturePath = 'content/exams/telc-deutsch-b1/hosting-fixture.json';
+export const PROBE_CHECKS=Object.freeze({
+  initial:Object.freeze(['canonical_https_ready','canonical_host_and_origin_and_forwarding_boundaries','public_default_withholds_unreviewed_and_payments_are_off','secure_logout_invalidates_and_secure_signin_reissues']),
+  public:Object.freeze(['canonical_https_ready','named_public_fixture_and_owned_media_range_transport']),
+  stub:Object.freeze(['canonical_https_ready','synthetic_signed_raw_bytes_and_replay']),
+  stale:Object.freeze(['stale_schema_refuses_without_migrating']),unavailable:Object.freeze(['stopped_runtime_is_not_served']),
+});
+export const PROBE_STEPS=Object.freeze([...new Set(Object.values(PROBE_CHECKS).flat()),'probe_setup',
+  'foreign_https_host','foreign_http_host','foreign_origin_and_forwarding','canonical_http_redirect','security_headers',
+  ...['initial','media','foreign'].flatMap(name=>['signup','cookie','read'].map(step=>'account_'+name+'_'+step)),
+  'public_preparations','public_tasks_withheld','payments_off','logout','logout_old_cookie','signin']);
+export const PROBE_ERROR_CLASSES=Object.freeze(['assertion_failed','transport_failed','tls_failed','request_timeout','response_bound','unexpected_failure']);
+/** Accept only bounded, closed metadata parsed from the isolated probe's stdout. */
+export function validateProbeReport(value,mode,exitCode) {
+  const exactKeys=(record,keys)=>{assert.ok(record&&typeof record==='object'&&!Array.isArray(record));assert.deepEqual(Object.keys(record).sort(),keys.slice().sort());};
+  assert.ok(Object.hasOwn(PROBE_CHECKS,mode));
+  exactKeys(value,['mode','checks','passed','outcome','failure']);assert.equal(value.mode,mode);
+  assert.ok(Array.isArray(value.checks)&&value.checks.length<=PROBE_CHECKS[mode].length);
+  assert.deepEqual(value.checks,PROBE_CHECKS[mode].slice(0,value.checks.length));assert.equal(value.passed,value.checks.length);
+  assert.ok(['passed','failed'].includes(value.outcome));
+  let failure=null;
+  if(value.outcome==='passed') {assert.equal(exitCode,0);assert.equal(value.failure,null);assert.deepEqual(value.checks,PROBE_CHECKS[mode]);}
+  else {
+    assert.equal(exitCode,1);exactKeys(value.failure,['step','class','httpStatus']);
+    assert.ok(PROBE_STEPS.includes(value.failure.step));assert.ok(PROBE_ERROR_CLASSES.includes(value.failure.class));
+    assert.ok(value.failure.httpStatus===null||Number.isInteger(value.failure.httpStatus)&&value.failure.httpStatus>=100&&value.failure.httpStatus<=599);
+    failure={step:value.failure.step,class:value.failure.class,httpStatus:value.failure.httpStatus};
+  }
+  return {mode,checks:[...value.checks],passed:value.passed,outcome:value.outcome,failure};
+}
 const marker = 'hosting_upgrade_rollback_marker';
 const pending = '9999-hosting-synthetic-failure';
 const tables = ['user','attempts','drafts','submissions','jobs','assessments','usage_ledger','entitlements','provider_attempt','provider_attempt_observation',
