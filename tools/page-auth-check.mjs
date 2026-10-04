@@ -13,6 +13,11 @@
  *   `/assets/design/**`      the design system the sign-in page needs; holds no learner data
  *   `/api/auth/**`           the auth endpoints themselves
  *   `/api/health`, `/api/ready`   liveness, for the container healthcheck and a supervisor
+ *   `/robots.txt`, `/sitemap.xml` crawler files. A robots.txt or sitemap behind the gate answers
+ *                                 302/401 — which a search engine reads as "do not crawl this host",
+ *                                 and an unfetchable sitemap is never used. Neither carries learner
+ *                                 data: robots.txt names the disallowed API prefix, the sitemap lists
+ *                                 the public front door only. Asserted by tools/seo-check.mjs (S8).
  *
  * EVERYTHING ELSE REQUIRES A VERIFIED SESSION, including the app page, its scripts, its styles and
  * `data/**`.

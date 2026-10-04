@@ -1,4 +1,4 @@
-import { LOCALES, initialLocale, getLocale, setLocale, subscribeLocale, t, translateDom, formatNumber } from './assets/i18n/core.js';
+import { LOCALES, storedLocale, getLocale, setLocale, subscribeLocale, t, translateDom, formatNumber } from './assets/i18n/core.js';
 import './assets/i18n/common.js';
 import './assets/i18n/public-messages.js';
 import { instructionMarkup, translateInstructions } from './assets/i18n/instructions.js';
@@ -191,8 +191,15 @@ $('#interface-language').addEventListener('change', event => {
 });
 const unsubscribeLocale = subscribeLocale(localizePublic);
 addEventListener('pagehide', event => { if (!event.persisted) unsubscribeLocale(); });
-addEventListener('pageshow', event => { if (event.persisted) setLocale(initialLocale()); });
-setLocale(getLocale());
+addEventListener('pageshow', event => { if (event.persisted) setLocale(storedLocale() ?? 'de'); });
+/* The front door starts in German unless THIS visitor already chose an interface language.
+ * `initialLocale()` additionally guesses from `navigator.languages`, which is right inside the gated
+ * app but wrong here: Googlebot reports `en-US`, so this page — whose canonical, metadata and
+ * structured data are all German — was rendered and indexed as English with `<html lang="en">`.
+ * `storedLocale()` is the same stored choice without the browser guess, and it keeps every storage
+ * access inside core.js (tools/public-locale-check.mjs fails a public shell that reads storage
+ * itself). Starting in the language the HTML already contains also removes the post-load text swap. */
+setLocale(storedLocale() ?? 'de');
 render();
 // Optional browser-native action opens a practice tab; it never answers or grades.
 if(document.modelContext && typeof document.modelContext.registerTool === 'function') {

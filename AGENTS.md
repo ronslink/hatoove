@@ -67,6 +67,7 @@ than 101 + 9 + 14):
 node tools/repository-check.mjs
 node tools/design-check.mjs
 node tools/retired-surface-check.mjs
+node tools/seo-check.mjs
 node tools/server-origin-check.mjs
 node tools/keymask-check.mjs
 node tools/owned-api-check.mjs
