@@ -40,8 +40,8 @@
  * What this does NOT do, stated plainly:
  *   - It does not deploy anything and does not create the *database* itself; the operator
  *     supplies an existing database and credentials.
- *   - It carries no secret management. Passwords come from the environment; nothing is
- *     written to disk by this module.
+ *   - Passwords come from explicit environment values or mounted secret files; nothing is
+ *     written to disk by this module and existing role passwords are never rotated.
  *   - It does not replace `bootstrap.mjs`, which stays for the isolated test runs.
  *   - Applying it proves schema and role isolation. It does not close the P-03/X-01 gate.
  *
@@ -76,6 +76,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { connectionSettings, credentialProperty, poolConnectionOptions, selectedPassword } from './config.mjs';
 
 const MIGRATIONS_DIR = process.env.OWNAPI_MIGRATIONS_DIR
   ? new URL(`file://${process.env.OWNAPI_MIGRATIONS_DIR.replaceAll('\\', '/').replace(/\/?$/, '/')}`)
@@ -115,7 +116,15 @@ const ident = (name) => {
 
 /** Literal for a password, or NULL when none is configured. Never logged. */
 const literal = (value) => (typeof value === 'string' && value.length
-  ? `'${value.replaceAll("'", "''")}'` : 'NULL');
+  ? `E'${value.replaceAll('\\', '\\\\').replaceAll("'", "''")}'` : 'NULL');
+
+// Credentials may contain dollar-quote delimiters. Choose a delimiter outside the complete body.
+const anonymousBlock = (body) => {
+  let ordinal = 0;
+  while (body.includes(`$hatoove_role_${ordinal}$`)) ordinal += 1;
+  const delimiter = `$hatoove_role_${ordinal}$`;
+  return `DO ${delimiter}${body}${delimiter};`;
+};
 
 /** The sha256 of a frozen migration's **bytes**. The digest is of the reviewed artifact. */
 export const checksumOf = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -155,41 +164,35 @@ export function renderSql(text, config) {
 export function persistentConfig(env = process.env) {
   const schema = env.OWNAPI_PG_SCHEMA || 'hatoove';
   const prefix = env.OWNAPI_PG_ROLE_PREFIX || 'hatoove';
-  if (!IDENTIFIER.test(schema)) throw new Error(`OWNAPI_PG_SCHEMA is not a safe identifier: ${schema}`);
-  if (!IDENTIFIER.test(prefix)) throw new Error(`OWNAPI_PG_ROLE_PREFIX is not a safe identifier: ${prefix}`);
+  if (!IDENTIFIER.test(schema) || !IDENTIFIER.test(prefix)) throw new Error('postgres_configuration_invalid');
   const roles = Object.fromEntries(ROLES.map((role) => [role, `${prefix}_${role}`]));
   for (const name of Object.values(roles)) {
-    if (name.length > 63) throw new Error(`role name too long: ${name}`);
+    if (name.length > 63) throw new Error('postgres_configuration_invalid');
   }
-  const passwords = Object.fromEntries(
-    ROLES.map((role) => [role, env[`OWNAPI_PG_${role.toUpperCase()}_PASSWORD`] || null]),
-  );
+  const passwords = {};
+  for (const role of ROLES) credentialProperty(passwords, role, env, `OWNAPI_PG_${role.toUpperCase()}_PASSWORD`);
+  const admin = {
+    host: env.OWNAPI_PG_HOST || '127.0.0.1',
+    port: env.OWNAPI_PG_PORT === undefined ? 5432 : Number(env.OWNAPI_PG_PORT),
+    database: env.OWNAPI_PG_DATABASE || 'hatoove',
+    user: env.OWNAPI_PG_USER || 'postgres',
+  };
+  credentialProperty(admin, 'password', env, 'OWNAPI_PG_PASSWORD');
   return {
-    admin: {
-      host: env.OWNAPI_PG_HOST || '127.0.0.1',
-      port: Number(env.OWNAPI_PG_PORT || 5432),
-      database: env.OWNAPI_PG_DATABASE || 'hatoove',
-      user: env.OWNAPI_PG_USER || 'postgres',
-      ...(env.OWNAPI_PG_PASSWORD ? { password: env.OWNAPI_PG_PASSWORD } : {}),
-    },
+    admin,
     schema,
     prefix,
     roles,
     passwords,
+    connection: connectionSettings(env),
   };
 }
 
 /** A pool bound to one restricted role with `search_path` pinned to the schema. */
-export function persistentRolePool(config, role, { max = 4 } = {}) {
-  const user = config.roles[role];
-  if (!user) throw new Error(`unknown role: ${role}`);
+export function persistentRolePool(config, role, options = {}) {
+  if (!ROLES.includes(role)) throw new Error('postgres_role_invalid');
   return new pg.Pool({
-    host: config.admin.host,
-    port: config.admin.port,
-    database: config.admin.database,
-    user,
-    ...(config.passwords[role] ? { password: config.passwords[role] } : {}),
-    max,
+    ...poolConnectionOptions(config, role, options),
     application_name: `${config.schema}:${role}`,
     options: `-c search_path=${config.schema},pg_catalog`,
   });
@@ -200,9 +203,9 @@ export function persistentRolePool(config, role, { max = 4 } = {}) {
  * creating the schema and the roles, and the ledger read a checker needs. The **runtime never
  * builds one of these** — it is the provisioning/checking path only.
  */
-export function createAdminPool(config, { max = 2, applicationName = `${config.schema}:admin` } = {}) {
+export function createAdminPool(config, { max, applicationName = `${config.schema}:admin` } = {}) {
   return new pg.Pool({
-    ...config.admin, max, application_name: applicationName,
+    ...poolConnectionOptions(config, 'admin', { max }), application_name: applicationName,
     options: `-c search_path=${config.schema},pg_catalog`,
   });
 }
@@ -213,15 +216,20 @@ export function createAdminPool(config, { max = 2, applicationName = `${config.s
  * EXISTS`, and the schema is created only when absent so its owner is never changed.
  */
 export async function ensureRolesAndSchema(admin, config) {
+  const { rows } = await admin.query('SELECT rolname FROM pg_roles WHERE rolname = ANY($1::text[])', [Object.values(config.roles)]);
+  const existing = new Set(rows.map(row => row.rolname));
+  const missing = ROLES.filter(role => !existing.has(config.roles[role]));
+  // Validate every new LOGIN credential before the first DDL; existing credentials are never read or rotated.
+  const passwords = new Map(missing.map(role => [role, selectedPassword(config, role)]));
   await admin.query(`REVOKE CREATE, TEMPORARY ON DATABASE ${ident(config.admin.database)} FROM PUBLIC`);
-  for (const role of ROLES) {
+  for (const role of missing) {
     const name = config.roles[role];
-    await admin.query(`DO $$
+    await admin.query(anonymousBlock(`
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${name}') THEN
-          CREATE ROLE ${ident(name)} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 10 PASSWORD ${literal(config.passwords[role])};
+          CREATE ROLE ${ident(name)} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 10 PASSWORD ${literal(passwords.get(role))};
         END IF;
-      END $$;`);
+      END `));
   }
   await admin.query(`CREATE SCHEMA IF NOT EXISTS ${ident(config.schema)} AUTHORIZATION ${ident(config.roles.migration)}`);
 }
@@ -353,28 +361,26 @@ export async function provisionPersistent({ config = persistentConfig() } = {}) 
   // here would fail with `relation "session" does not exist` while every role pool worked.
   const admin = createAdminPool(config);
   let migrationPool = null;
+  const opened = {};
   try {
     await ensureRolesAndSchema(admin, config);
-    migrationPool = persistentRolePool(config, 'migration', { max: 2 });
+    migrationPool = persistentRolePool(config, 'migration');
     const result = await applyMigrations(migrationPool, config);
     await grantProvisionerRights(migrationPool, config);
     await importDefaultPackage(migrationPool);
+    for (const role of ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner']) opened[role] = persistentRolePool(config, role);
     const pools = {
       config,
       migration: migrationPool,
-      auth: persistentRolePool(config, 'auth'),
-      learner: persistentRolePool(config, 'learner', { max: 4 }),
-      worker: persistentRolePool(config, 'worker'),
       // The account-deletion port's own connection pool. Built here so every consumer
       // (`server/accounts.mjs`, the checks) takes it from the one provisioning path.
-      deletion: persistentRolePool(config, 'deletion'),
-      payments: persistentRolePool(config, 'payments'),
-      provisioner: persistentRolePool(config, 'provisioner', { max: 2 }),
+      ...opened,
       ...result,
       admin,
     };
     return pools;
   } catch (error) {
+    await closeRuntimePools(opened);
     if (migrationPool) await migrationPool.end().catch(() => {});
     await admin.end().catch(() => {});
     throw error;
@@ -393,7 +399,7 @@ export async function migrate({ config = persistentConfig() } = {}) {
   let migrationPool = null;
   try {
     await ensureRolesAndSchema(admin, config);
-    migrationPool = persistentRolePool(config, 'migration', { max: 2 });
+    migrationPool = persistentRolePool(config, 'migration');
     const result = await applyMigrations(migrationPool, config);
     await grantProvisionerRights(migrationPool, config);
     await importDefaultPackage(migrationPool);
@@ -440,12 +446,6 @@ export async function schemaBehind(pool, config) {
 export async function openRuntimePools({ config = persistentConfig() } = {}) {
   const runtime = {
     config,
-    auth: persistentRolePool(config, 'auth', { max: 4 }),
-    learner: persistentRolePool(config, 'learner', { max: 4 }),
-    worker: persistentRolePool(config, 'worker', { max: 4 }),
-    deletion: persistentRolePool(config, 'deletion', { max: 4 }),
-    payments: persistentRolePool(config, 'payments', { max: 4 }),
-    provisioner: persistentRolePool(config, 'provisioner', { max: 2 }),
     poolRoles: {
       auth: config.roles.auth,
       learner: config.roles.learner,
@@ -455,8 +455,14 @@ export async function openRuntimePools({ config = persistentConfig() } = {}) {
       provisioner: config.roles.provisioner,
     },
   };
-  runtime.behind = await schemaBehind(runtime.learner, config);
-  return runtime;
+  try {
+    for (const role of ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner']) runtime[role] = persistentRolePool(config, role);
+    runtime.behind = await schemaBehind(runtime.learner, config);
+    return runtime;
+  } catch (error) {
+    await closeRuntimePools(runtime);
+    throw error;
+  }
 }
 
 /** Close the pools `openRuntimePools()` opened. Idempotent. */

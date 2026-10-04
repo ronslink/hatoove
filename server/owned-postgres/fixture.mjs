@@ -18,6 +18,7 @@ import { createPostgresSessions } from './sessions.mjs';
 import { createPostgresSettings } from './settings.mjs';
 import { createOwnedApi } from '../../server/owned-api.mjs';
 import { createPostgresPayments } from './payments.mjs';
+import { parsePublicOrigin } from '../public-origin.mjs';
 
 /** Deterministic table order for `fingerprint()`. */
 const FINGERPRINT_TABLES = [
@@ -44,8 +45,10 @@ export async function createPostgresWorld({
   allowance = 10, fixture, deletion, limits = null, notifier = null,
   // EXAM-S1 test seams, server-side only: a disposable test may offer a second synthetic package and may
   // inject a registration failure. The running server passes neither.
-  examCatalogue, registrationHook, paymentProvider, publicOrigin,
+  examCatalogue, registrationHook, paymentProvider, publicOrigin, requireHttps,
 } = {}) {
+  const trustedRequireHttps = requireHttps ?? fixture?.requireHttps ?? false;
+  const trustedOrigin = parsePublicOrigin(publicOrigin ?? fixture?.publicOrigin, { requireHttps: trustedRequireHttps });
   const db = fixture ?? await createFixture();
   const calls = [];
   const port = createPostgresDatastore({ pool: db.learner, onCall: (name) => calls.push(name), ...(examCatalogue ? { examCatalogue } : {}) });
@@ -58,7 +61,8 @@ export async function createPostgresWorld({
    * reach the real console. The option remains for a caller that builds a world directly.
    */
   const notify = db.notifier ?? notifier ?? createConsoleNotifier({ log: () => {} });
-  const sessions = createPostgresSessions({ pool: db.auth, adminPool: db.admin, allowance, notify, registrationHook });
+  const sessions = createPostgresSessions({ pool: db.auth, adminPool: db.admin, allowance, notify, registrationHook,
+    publicOrigin: trustedOrigin, requireHttps: trustedRequireHttps });
   /*
    * THE AUTH THROTTLE, ON THE AUTH POOL — the same restriction the sessions port runs under, because a limit
    * is auth material: only the auth role may see who has been failing to sign in (migration 0019's GRANT).

@@ -1,0 +1,157 @@
+# Preparation only: the stock worker is a deterministic stub and blocks deployment.
+# Select exactly ONE of the local-db / managed-db overrides. Never combine with compose.yaml.
+name: hatoove-production
+
+x-database: &database
+  OWNAPI_PG_DATABASE: "${OWNAPI_PG_DATABASE:?Select the dedicated installation database}"
+  OWNAPI_PG_USER: "${HATOVE_PG_ADMIN_USER:?Select the bootstrap database username}"
+  OWNAPI_PG_SCHEMA: "${OWNAPI_PG_SCHEMA:-hatoove}"
+  OWNAPI_PG_ROLE_PREFIX: "${OWNAPI_PG_ROLE_PREFIX:-hatoove}"
+  # Invalid deliberately: the base alone must fail before a database connection.
+  OWNAPI_PG_HOST: select-one-database-override.invalid
+  OWNAPI_PG_TLS_MODE: select-one-database-override
+  OWNAPI_PG_REQUIRE_PASSWORDS: "1"
+  OWNAPI_PG_CONNECT_TIMEOUT_MS: "5000"
+  OWNAPI_PG_POOL_AUTH_MAX: "2"
+  OWNAPI_PG_POOL_LEARNER_MAX: "2"
+  OWNAPI_PG_POOL_WORKER_MAX: "1"
+  OWNAPI_PG_POOL_DELETION_MAX: "1"
+  OWNAPI_PG_POOL_PAYMENTS_MAX: "1"
+  OWNAPI_PG_POOL_PROVISIONER_MAX: "1"
+  OWNAPI_PG_POOL_ADMIN_MAX: "1"
+  OWNAPI_PG_POOL_MIGRATION_MAX: "1"
+  OWNAPI_PG_WORKER_RUNNER_POOL_MAX: "1"
+  OWNAPI_PG_APP_REPLICAS: "1"
+  OWNAPI_PG_WORKER_REPLICAS: "1"
+  # 9 app (including readiness) + 1 runner + 2 concurrent deployment = 12.
+  # Required allocation is an operator decision, not evidence of spare shared capacity.
+  OWNAPI_PG_CONNECTION_BUDGET: "${OWNAPI_PG_CONNECTION_BUDGET:?Allocate and verify a database connection budget of at least 12}"
+  B1PREP_CONTENT_MODE: public
+
+x-runtime: &runtime
+  image: "${HATOVE_APP_IMAGE:?Select the reviewed application image by digest}"
+  pull_policy: never
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  networks: [backend]
+
+services:
+  migrate:
+    <<: *runtime
+    command: [node, server/migrate.mjs]
+    restart: "no"
+    environment:
+      <<: *database
+      OWNAPI_PG_ALLOW: "1"
+      OWNAPI_PG_PASSWORD_FILE: /run/secrets/pg_admin
+      OWNAPI_PG_MIGRATION_PASSWORD_FILE: /run/secrets/pg_migration
+      OWNAPI_PG_AUTH_PASSWORD_FILE: /run/secrets/pg_auth
+      OWNAPI_PG_LEARNER_PASSWORD_FILE: /run/secrets/pg_learner
+      OWNAPI_PG_WORKER_PASSWORD_FILE: /run/secrets/pg_worker
+      OWNAPI_PG_DELETION_PASSWORD_FILE: /run/secrets/pg_deletion
+      OWNAPI_PG_PAYMENTS_PASSWORD_FILE: /run/secrets/pg_payments
+      OWNAPI_PG_PROVISIONER_PASSWORD_FILE: /run/secrets/pg_provisioner
+    secrets: [pg_admin, pg_migration, pg_auth, pg_learner, pg_worker, pg_deletion, pg_payments, pg_provisioner]
+
+  app:
+    <<: *runtime
+    command: [node, server.js]
+    restart: unless-stopped
+    stop_grace_period: 60s
+    networks: [application, backend]
+    environment:
+      <<: *database
+      B1PREP_SAAS: "1"
+      B1PREP_ACCOUNTS: "1"
+      B1PREP_REQUIRE_HTTPS: "1"
+      B1PREP_PUBLIC_ORIGIN: https://hatoove.com
+      B1PREP_BIND: 0.0.0.0
+      B1PREP_PORT: "4321"
+      PAYMENTS_MODE: "off"
+      OWNAPI_PG_AUTH_PASSWORD_FILE: /run/secrets/pg_auth
+      OWNAPI_PG_LEARNER_PASSWORD_FILE: /run/secrets/pg_learner
+      OWNAPI_PG_WORKER_PASSWORD_FILE: /run/secrets/pg_worker
+      OWNAPI_PG_DELETION_PASSWORD_FILE: /run/secrets/pg_deletion
+      OWNAPI_PG_PAYMENTS_PASSWORD_FILE: /run/secrets/pg_payments
+      OWNAPI_PG_PROVISIONER_PASSWORD_FILE: /run/secrets/pg_provisioner
+    secrets: [pg_auth, pg_learner, pg_worker, pg_deletion, pg_payments, pg_provisioner]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4321/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      start_period: 20s
+      retries: 6
+
+  worker:
+    <<: *runtime
+    command: [node, server/worker.mjs]
+    restart: unless-stopped
+    stop_grace_period: 60s
+    environment:
+      <<: *database
+      OWNAPI_PG_WORKER_PASSWORD_FILE: /run/secrets/pg_worker
+    secrets: [pg_worker]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  ingress:
+    image: "${HATOVE_CADDY_IMAGE:?Select a verified stock Caddy image by digest}"
+    pull_policy: never
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    ports:
+      - "80:80"
+      - "443:443"
+    networks: [edge, application]
+    volumes:
+      - type: bind
+        source: ./deploy/Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+        bind:
+          create_host_path: false
+      - caddy-data:/data
+      - caddy-config:/config
+    # No app dependency: certificate bootstrap must work while app/worker are stopped.
+
+networks:
+  edge: {}
+  application:
+    internal: true
+  backend: {}
+
+volumes:
+  caddy-data:
+    external: true
+    name: "${HATOVE_CADDY_DATA_VOLUME:?Select the retained certificate volume}"
+  caddy-config:
+    external: true
+    name: "${HATOVE_CADDY_CONFIG_VOLUME:?Select the retained Caddy configuration volume}"
+
+secrets:
+  pg_admin:
+    file: "${HATOVE_PG_ADMIN_PASSWORD_SOURCE:?Select the external admin password file}"
+  pg_migration:
+    file: "${HATOVE_PG_MIGRATION_PASSWORD_SOURCE:?Select the external migration password file}"
+  pg_auth:
+    file: "${HATOVE_PG_AUTH_PASSWORD_SOURCE:?Select the external auth password file}"
+  pg_learner:
+    file: "${HATOVE_PG_LEARNER_PASSWORD_SOURCE:?Select the external learner password file}"
+  pg_worker:
+    file: "${HATOVE_PG_WORKER_PASSWORD_SOURCE:?Select the external worker password file}"
+  pg_deletion:
+    file: "${HATOVE_PG_DELETION_PASSWORD_SOURCE:?Select the external deletion password file}"
+  pg_payments:
+    file: "${HATOVE_PG_PAYMENTS_PASSWORD_SOURCE:?Select the external payments password file}"
+  pg_provisioner:
+    file: "${HATOVE_PG_PROVISIONER_PASSWORD_SOURCE:?Select the external provisioner password file}"
