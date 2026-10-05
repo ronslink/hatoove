@@ -113,7 +113,7 @@ function walk(dir, out = []) {
   for (const entry of fs.readdirSync(new URL(dir, root), { withFileTypes: true })) {
     const path = `${dir}${entry.name}`;
     if (entry.isDirectory()) { walk(`${path}/`, out); continue; }
-    if (!/\.(html|js)$/.test(entry.name)) continue;
+    if (!/\.(html|js|svg)$/.test(entry.name)) continue;
     if (CONTENT_ONLY.some(prefix => path.startsWith(prefix))) continue;
     out.push(path);
   }
@@ -168,6 +168,17 @@ function noscriptDefaults(file) {
   return found;
 }
 
+/** <text> content in a shipped SVG is interface copy baked into the artwork. */
+function svgTextEntries(file) {
+  if (!file.endsWith('.svg')) return [];
+  const found = [];
+  for (const match of read(file).matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)) {
+    const value = normalise(match[1]);
+    if (value) found.push({ file, key: `${file} <text>`, value, index: match.index });
+  }
+  return found;
+}
+
 const shipped = walk('public/').filter(file => inlineDefaults(file).length > 0).sort();
 
 const failures = [];
@@ -197,7 +208,11 @@ for (const file of walk('public/').filter(f => f.endsWith('.html'))) {
     }
   }
 }
-for (const entry of [...informalCatalogue, ...informalInline, ...informalNoscript, ...jsonLd]) {
+const informalSvg = [];
+for (const file of walk('public/').filter(f => f.endsWith('.svg'))) {
+  for (const entry of svgTextEntries(file)) if (INFORMAL.test(entry.value)) informalSvg.push(entry);
+}
+for (const entry of [...informalCatalogue, ...informalInline, ...informalNoscript, ...jsonLd, ...informalSvg]) {
   if (ALLOWED.has(entry.key)) continue;
   fail('R1', `${entry.key || entry.file} uses the informal address: ${String(entry.value).slice(0, 110)}`);
 }
@@ -269,6 +284,7 @@ const germanStrings = [
   ...Object.entries(namespaces).flatMap(([namespace, catalogue]) => Object.entries(catalogue.de || {}).map(([key, value]) => ({ key: `${namespace}.${key}`, value }))),
   ...shipped.flatMap(file => inlineDefaults(file).map(entry => ({ key: `${file} ${entry.key}`, value: entry.value }))),
   ...walk('public/').flatMap(file => noscriptDefaults(file).map(entry => ({ key: entry.key, value: entry.value }))),
+  ...walk('public/').flatMap(file => svgTextEntries(file)),
 ];
 for (const entry of germanStrings) {
   if (typeof entry.value !== 'string') continue;
@@ -282,7 +298,38 @@ for (const entry of germanStrings) {
 }
 for (const entry of suspected) fail('R8', `${entry.key}: "${entry.word}" looks like a 2nd-person singular verb: ${entry.value}`);
 
-const summary = () => `${informalCatalogue.filter(e => !ALLOWED.has(e.key)).length + informalInline.filter(e => !ALLOWED.has(e.key)).length + informalNoscript.length + jsonLd.length} informal, ${drift.length} drifts, ${suspected.length} suspected, ${shipped.length} shipped files`;
+// R9 — an SVG loaded through <img> runs in secure static mode and never fetches external resources, so a
+// font it names by URL silently falls back to system metrics and the artwork lays out wrongly. That is the
+// production landing defect of 5 October 2026; this leg is the gate that would have caught it.
+const externalFonts = [];
+for (const file of walk('public/').filter(f => f.endsWith('.svg'))) {
+  for (const match of read(file).matchAll(/@font-face\{[^}]*?src:\s*url\((["']?)([^"')]+)/g)) {
+    if (!match[2].startsWith('data:')) externalFonts.push({ file, url: match[2] });
+  }
+}
+for (const entry of externalFonts) {
+  fail('R9', `${entry.file} names a font by URL (${entry.url.slice(0, 70)}); an <img>-loaded SVG never fetches it, so the artwork falls back to system metrics`);
+}
+
+// R10 — a direction whose registry entry declares parameters must be rendered with them, or the learner
+// sees the raw "{maxPlays}" token and the "translation unavailable" line instead of the sentence.
+const missingParameters = [];
+for (const file of walk('public/').filter(f => f.endsWith('.js'))) {
+  const text = read(file);
+  for (const match of text.matchAll(/instructionMarkup\(\{/g)) {
+    const call = text.slice(match.index, match.index + 600);
+    for (const idMatch of call.matchAll(/\bid:\s*'([A-Za-z0-9_.]+)'|\bid:\s*"([A-Za-z0-9_.]+)"/g)) {
+      const id = idMatch[1] || idMatch[2];
+      const entry = INSTRUCTIONS[id];
+      if (entry && Object.keys(entry.parameters).length && !/parameters\s*:/.test(call)) missingParameters.push({ file, id });
+    }
+  }
+}
+for (const entry of missingParameters) {
+  fail('R10', `${entry.file} renders ${entry.id} without its declared parameters, so a raw {token} would reach the learner`);
+}
+
+const summary = () => `${informalCatalogue.filter(e => !ALLOWED.has(e.key)).length + informalInline.filter(e => !ALLOWED.has(e.key)).length + informalNoscript.length + jsonLd.length + informalSvg.length} informal, ${drift.length} drifts, ${suspected.length} suspected, ${externalFonts.length} external font(s), ${missingParameters.length} unparameterised direction(s), ${shipped.length} shipped files`;
 
 if (listOnly) {
   console.log('KLARTEXT — German interface register\n');
@@ -294,6 +341,12 @@ if (listOnly) {
   for (const entry of informalNoscript) console.log(`  ${entry.key}\n      ${entry.value}`);
   console.log(`\nJSON-LD strings still informal (${jsonLd.length}):`);
   for (const entry of jsonLd) console.log(`  ${entry.file}\n      ${entry.value}`);
+  console.log(`\nSVG artwork text still informal (${informalSvg.length}):`);
+  for (const entry of informalSvg) console.log(`  ${entry.file}\n      ${entry.value}`);
+  console.log(`\nSVG fonts loaded by URL instead of embedded (${externalFonts.length}):`);
+  for (const entry of externalFonts) console.log(`  ${entry.file}\n      ${entry.url}`);
+  console.log(`\nparameterised directions rendered without parameters (${missingParameters.length}):`);
+  for (const entry of missingParameters) console.log(`  ${entry.file} -> ${entry.id}`);
   console.log(`\ninline defaults disagreeing with the catalogue (${drift.length}):`);
   for (const entry of drift) console.log(`  ${entry.file} [${entry.how}] ${entry.key}\n      inline    : ${entry.value}\n      catalogue : ${entry.catalogue}`);
   console.log(`\nsuspected 2nd-person forms (${suspected.length}):`);
@@ -303,7 +356,7 @@ if (listOnly) {
 }
 
 const legs = [
-  ['R1 no shipped German string uses the informal address', informalCatalogue.filter(e => !ALLOWED.has(e.key)).length + informalInline.filter(e => !ALLOWED.has(e.key)).length + informalNoscript.length + jsonLd.length],
+  ['R1 no shipped German string uses the informal address', informalCatalogue.filter(e => !ALLOWED.has(e.key)).length + informalInline.filter(e => !ALLOWED.has(e.key)).length + informalNoscript.length + jsonLd.length + informalSvg.length],
   ['R2 every inline German default equals the catalogue value', drift.length],
   ['R3 the public hero pair addresses the reader formally', failures.filter(f => f.leg === 'R3').length],
   ['R4 the allowlist is exactly the documented quotation', failures.filter(f => f.leg === 'R4').length],
@@ -311,6 +364,8 @@ const legs = [
   ['R6 the scan covers every shipped declaration, attributes and noscript included', failures.filter(f => f.leg === 'R6').length],
   ['R7 the authored writing stimulus is untouched', failures.filter(f => f.leg === 'R7').length],
   ['R8 no unexplained 2nd-person singular verb form', failures.filter(f => f.leg === 'R8').length],
+  ['R9 every shipped SVG embeds the fonts it names', failures.filter(f => f.leg === 'R9').length],
+  ['R10 parameterised directions are rendered with their parameters', failures.filter(f => f.leg === 'R10').length],
 ];
 for (const [name, count] of legs) console.log(`${count === 0 ? 'PASS' : 'FAIL'}  ${name}${count === 0 ? '' : `  [${count}]`}`);
 
