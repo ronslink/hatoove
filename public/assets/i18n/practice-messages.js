@@ -333,6 +333,27 @@ const rows = {
   mockIntroOral: ["Sprechen ist nicht Teil dieser Probeprüfung. Deshalb zeigt sie nur das schriftliche Teilergebnis; daraus ergibt sich kein Urteil über die ganze Prüfung.","Speaking is not part of this mock exam. It therefore shows only the written partial result; no verdict on the whole exam follows from it.","Усна частина (Sprechen) не входить до цього пробного іспиту. Тому він показує лише письмовий частковий результат; жодного висновку про весь іспит із нього не випливає.","لا يشمل هذا الامتحان التجريبي جزء التحدث. لذلك يعرض النتيجة الجزئية الكتابية فقط؛ ولا ينتج عن ذلك حكم على الامتحان كاملًا.","Sprechen (sözlü bölüm) bu deneme sınavının parçası değildir. Bu nedenle yalnızca yazılı kısmi sonucu gösterir; bundan tüm sınav hakkında bir yargı çıkmaz."],
   mockIntroStartFailed: ["Der Lauf konnte nicht angelegt werden. Bitte versuchen Sie es erneut.","The run could not be created. Please try again.","Не вдалося створити спробу. Спробуйте ще раз.","تعذر إنشاء المحاولة. حاول مجددًا.","Deneme oluşturulamadı. Lütfen yeniden deneyin."],
   mockIntroStartSession: ["Die Sitzung ist nicht mehr gültig. Bitte melden Sie sich erneut an.","The session is no longer valid. Please sign in again.","Сеанс більше не дійсний. Увійдіть знову.","لم تعد الجلسة صالحة. يرجى تسجيل الدخول من جديد.","Oturum artık geçerli değil. Lütfen yeniden giriş yapın."],
+  /*
+   * PRACTICE-UI-01 (slice B) — the Prüfungsteile tile index. Learner-facing copy only: the exam facts
+   * (items, points, play rule, own counts) arrive as data and are never written into a catalogue string.
+   * `partIndexPending` is the placeholder for a fact the payload did not supply — deliberately not a zero,
+   * so an unknown number can never be read as "nothing to practise".
+   */
+  partIndexTitle: ["Prüfungsteile und Punkte","Exam parts and points","Частини іспиту та бали","أجزاء الامتحان والنقاط","Sınav bölümleri ve puanlar"],
+  partIndexListeningTitle: ["Hörverstehen","Listening","Аудіювання","الاستماع","Dinleme"],
+  partIndexLead: ["Die schriftlichen Prüfungsteile mit ihren Punkten und Zeiten. Bei jedem Teil stehen Ihre eigenen Übungszahlen.","The written exam parts with their points and times. Each part shows your own practice counts.","Письмові частини іспиту з балами та часом. Біля кожної частини — ваші власні показники практики.","الأجزاء الكتابية للامتحان مع نقاطها وأوقاتها. تظهر عند كل جزء أعداد تدريبك الخاصة.","Yazılı sınav bölümleri puanları ve süreleriyle. Her bölümde kendi alıştırma sayılarınız görünür."],
+  partIndexSubtests: ["Prüfungsteile","Exam parts","Частини іспиту","أجزاء الامتحان","Sınav bölümleri"],
+  partIndexParts: ["Teile mit verfügbaren Aufgaben","Parts with available tasks","Частини з доступними завданнями","الأجزاء التي تتوفر لها مهام","Görevleri bulunan bölümler"],
+  partIndexListeningParts: ["Hörteile mit verfügbaren Aufgaben","Listening parts with available tasks","Частини аудіювання з доступними завданнями","أجزاء الاستماع التي تتوفر لها مهام","Görevleri bulunan dinleme bölümleri"],
+  partIndexEmpty: ["Zurzeit sind keine Aufgaben verfügbar.","No tasks are available at the moment.","Наразі завдання недоступні.","لا تتوفر مهام حاليًا.","Şu anda görev yok."],
+  partIndexFailed: ["Die Prüfungsteile konnten nicht geladen werden. Bitte laden Sie die Ansicht erneut.","The exam parts could not be loaded. Please reload the view.","Не вдалося завантажити частини іспиту. Перезавантажте сторінку.","تعذر تحميل أجزاء الامتحان. يرجى إعادة تحميل العرض.","Sınav bölümleri yüklenemedi. Lütfen görünümü yeniden yükleyin."],
+  partIndexPending: ["Angabe folgt","Not yet available","Дані відсутні","البيان غير متاح","Bilgi yok"],
+  partIndexPoints: ["Punkte","Points","Бали","النقاط","Puan"],
+  partIndexOpen: ["Teil öffnen","Open part","Відкрити частину","افتح الجزء","Bölümü aç"],
+  partIndexSharedBlock: ["gemeinsamer Zeitblock","shared time block","спільний часовий блок","كتلة زمنية مشتركة","ortak süre bloğu"],
+  partPlays: ["{plays}-mal hören","listen {plays} time(s)","слухати {plays} раз(и)","الاستماع {plays} مرة","{plays} kez dinleme"],
+  partPractised: ["{practised} Aufgaben geübt · {correct} richtig","{practised} tasks practised · {correct} correct","{practised} завдань виконано · {correct} правильно","{practised} مهمة متدرَّبة · {correct} صحيحة","{practised} görev çalışıldı · {correct} doğru"],
+  partNotPractised: ["Noch keine Aufgaben geübt","No tasks practised yet","Ще немає виконаних завдань","لم يتم تدريب أي مهمة بعد","Henüz görev çalışılmadı"],
 };
 export const PRACTICE_MESSAGES = Object.freeze(Object.fromEntries(['de','en','uk','ar','tr'].map((locale,index) => [locale,Object.freeze(Object.fromEntries(Object.entries(rows).map(([key,values]) => [key,values[index]])))])));
 registerMessages('practice', PRACTICE_MESSAGES);

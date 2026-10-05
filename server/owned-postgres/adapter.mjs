@@ -37,6 +37,8 @@ import { extractWritingExplanationSource, unavailableExplanationView } from '../
 import { readExplanationRepresentations, readObjectiveEvidenceExplanation as readEvidenceExplanation, readFinalisedMockItemExplanation } from './explanations.mjs';
 import { explanationLanguage, blockedExplanation, projectStoredExplanation, explanationFault, protectedExplanationRead, selectedExplanationExports } from './explanation-views.mjs';
 import { readGuideTranslations as readTranslations } from '../library-translations.mjs';
+/* PRACTICE-UI-01 (slice B): the pure blueprint → parts normaliser the exam-parts route serves. */
+import { blueprintParts } from '../exam-parts.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -354,6 +356,40 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       if (!examCatalogue.isEnabled(examId)) return false;
       return settle(owner, async client => (await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible
         && releasedObjectiveFamily(client, examId, family), true);
+    },
+    /**
+     * PRACTICE-UI-01 (slice B) — the written examination's parts, from the package blueprint this
+     * installation already publishes.
+     *
+     * READ ONLY: a snapshot transaction, like every other catalogue read. The admission gate is the same
+     * `readCurrentReleaseEligibility` the objective catalogue uses, so a withheld release answers an EMPTY
+     * list, never a partial one, and a blueprint that does not parse is a 503 rather than a short list —
+     * "the package is corrupt" and "this exam has fewer parts" must not look alike to the client.
+     *
+     * WHY THIS IS NOT `/objective-sets`: that query filters `s.media_required = false`, so HV1–HV3 are
+     * structurally absent from it (and that is exactly why slice B's hearing tiles had no source). This
+     * method is the only place the hearing parts' item counts and playback rule are served.
+     *
+     * NO POINTS: the packaged blueprint carries none (contract amendment A6 keeps per-part points as a cited
+     * client constant until a blueprint revision carries them), so this response has no `points` member.
+     */
+    async listExamParts(owner, { examId } = {}) {
+      note('listExamParts');
+      if (typeof examId !== 'string' || !examId) return [];
+      return settle(owner, async (client) => {
+        if (!(await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible) return [];
+        const row = (await client.query(
+          `SELECT b.payload
+             FROM exam_release_head h
+             JOIN exam_release r ON r.exam_id = h.exam_id AND r.version = h.release_version
+             JOIN exam_blueprint b ON b.exam_id = r.exam_id AND b.version = r.blueprint_version
+            WHERE h.exam_id = $1`, [examId])).rows[0];
+        if (!row || !row.payload) return [];
+        let parts;
+        try { parts = blueprintParts(row.payload); }
+        catch { fail(503, 'catalogue_unavailable'); }
+        return [...parts];
+      }, true);
     },
     async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null, serveReview = 'approved+unreviewed' } = {}) {
       note('listObjectiveSets');
@@ -861,9 +897,19 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     async practiceProgress(owner, { preparationId } = {}) {
       note('practiceProgress');
       requirePreparationContext(preparationId);
-      const rows = await settle(owner, async (client) => {
+      const progress = await settle(owner, async (client) => {
         await resolvePreparation(client, owner, preparationId);
-        return (await client.query(
+        /*
+         * PRACTICE-UI-01 (slice B) — the SAME evidence, grouped twice.
+         *
+         * `sections` is the pre-slice answer and is unchanged, member for member. `parts` is the new one:
+         * `item_evidence.family` is the part id (`LV1`…`HV3`, migration 0015-item-evidence.sql), so one more
+         * GROUP BY attributes an attempt to the PART the learner actually practised. That is what a part
+         * tile needs, and it is exactly what a section count must never be used for: "LV: 7 of 10 correct"
+         * says nothing about LV1, LV2 or LV3 individually. Same owner, same preparation filter, so both
+         * groupings necessarily see the same rows.
+         */
+        const sections = await client.query(
           `SELECT e.section,
                   count(*)::int AS attempts,
                   count(*) FILTER (WHERE e.correct)::int AS correct
@@ -871,8 +917,19 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             WHERE e.owner_id = $1 AND e.preparation_id = $2
             GROUP BY e.section
             ORDER BY e.section`,
-          [owner, preparationId])).rows;
+          [owner, preparationId]);
+        const parts = await client.query(
+          `SELECT e.family,
+                  count(*)::int AS attempts,
+                  count(*) FILTER (WHERE e.correct)::int AS correct
+             FROM item_evidence e
+            WHERE e.owner_id = $1 AND e.preparation_id = $2 AND e.family IS NOT NULL
+            GROUP BY e.family
+            ORDER BY e.family`,
+          [owner, preparationId]);
+        return { rows: sections.rows, parts: parts.rows };
       });
+      const rows = progress.rows;
       const totals = rows.reduce(
         (acc, row) => ({ attempts: acc.attempts + row.attempts, correct: acc.correct + row.correct }),
         { attempts: 0, correct: 0 });
@@ -885,6 +942,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         },
         sections: rows.map((row) => ({
           section: row.section,
+          attempts: row.attempts,
+          correct: row.correct,
+          accuracy: row.attempts ? row.correct / row.attempts : null,
+        })),
+        /* PRACTICE-UI-01 (slice B): the same evidence per part. Additive; consumers that ignore it see the
+           exact previous shape, and a part with no evidence is simply absent rather than zero. */
+        parts: progress.parts.map((row) => ({
+          family: row.family,
           attempts: row.attempts,
           correct: row.correct,
           accuracy: row.attempts ? row.correct / row.attempts : null,

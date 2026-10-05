@@ -969,6 +969,33 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         serveReview,
       })).filter((row) => contentIsServable(row) && row.exam_id === prep.exam_id));
     }
+    if (pathname === '/api/v1/exam-parts' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
+      /*
+       * PRACTICE-UI-01 (slice B) — the written examination's parts, for the tile index.
+       *
+       * WHY A ROUTE. A tile must show its part's item count and, for the hearing parts, the playback rule.
+       * Both live in the packaged blueprint the server already reads to validate a form, and neither was
+       * reachable: `/objective-sets` filters `media_required = false`, so HV1–HV3 never appear in it. This
+       * route serves the blueprint's parts and nothing else — no learner data, no answer material.
+       *
+       * ADDITIVE. It is a new path, so no existing response changes shape; the sibling addition on
+       * `/practice/progress` (`parts`) is a new member beside the untouched ones.
+       *
+       * NARROWING ONLY, like every neighbouring catalogue route: the exam is the ACTIVE preparation's, and an
+       * explicit `examId` may only confirm it. A different exam is `preparation_mismatch`, never a second
+       * catalogue, and a malformed id never reaches storage.
+       *
+       * EMPTY IS AN ANSWER. A withheld release yields `parts: []`, which the client renders as "Angabe folgt"
+       * per fact — never as a plausible number.
+       */
+      const asked = query.get('examId');
+      if (asked !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(asked)) fault(422, 'invalid_exam');
+      const prep = await preparationContext(query);
+      if (asked !== null && asked !== prep.exam_id) fault(422, 'preparation_mismatch');
+      const parts = await datastore.listExamParts(owner, { examId: prep.exam_id });
+      return reply(200, { exam_id: prep.exam_id, parts: Array.isArray(parts) ? parts : [] });
+    }
     if (pathname === '/api/v1/vocab' && method === 'GET') {
       if (!catalogueWired) fault(503, 'catalogue_unavailable');
       /*
