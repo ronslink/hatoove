@@ -3849,204 +3849,6 @@
    }
   },
   "speaking-guide": {
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.title": {
-    "en": "Part 1 – Presentation",
-    "uk": "Частина 1 – Презентація",
-    "ar": "الجزء 1 – العرض التقديمي",
-    "tr": "Bölüm 1 – Sunum"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.summary": {
-    "en": "The candidate presents a topic for about three minutes using the four to six keywords on the task card, and then answers one follow-up question.",
-    "uk": "Кандидат приблизно три хвилини презентує тему за чотирма–шістьма ключовими словами з картки завдання, а потім відповідає на одне додаткове запитання.",
-    "ar": "يقدّم المرشح موضوعًا لمدة ثلاث دقائق تقريبًا مستعينًا بأربع إلى ست كلمات مفتاحية على بطاقة المهمة، ثم يجيب عن سؤال متابعة واحد.",
-    "tr": "Aday, görev kartındaki dört ila altı anahtar sözcükle yaklaşık üç dakika bir konu sunar, ardından bir ek soruyu yanıtlar."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[0].hint": {
-    "en": "With these sentences you begin the presentation and name the topic.",
-    "uk": "Цими реченнями ви починаєте презентацію і називаєте тему.",
-    "ar": "بهذه الجمل تبدأ العرض وتذكر الموضوع.",
-    "tr": "Bu cümlelerle sunuma başlar ve konuyu belirtirsiniz."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[0].group": {
-    "en": "Introduction",
-    "uk": "Вступ",
-    "ar": "المقدمة",
-    "tr": "Giriş"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[1].hint": {
-    "en": "These phrases organise your presentation and guide the examiners from point to point.",
-    "uk": "Ці звороти впорядковують вашу презентацію і ведуть екзаменаторів від пункту до пункту.",
-    "ar": "هذه العبارات تنظّم عرضك وتقود الممتحنين من نقطة إلى أخرى.",
-    "tr": "Bu ifadeler sunumunuzu düzenler ve sınav görevlilerini bir noktadan diğerine yönlendirir."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[1].group": {
-    "en": "Structure and order",
-    "uk": "Структура та послідовність",
-    "ar": "البنية والترتيب",
-    "tr": "Yapı ve sıra"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[2].hint": {
-    "en": "Use these sentences when you want to look at a keyword from two sides.",
-    "uk": "Використовуйте ці речення, коли хочете розглянути ключове слово з двох боків.",
-    "ar": "استخدم هذه الجمل عندما تريد تناول كلمة مفتاحية من جانبين.",
-    "tr": "Bir anahtar sözcüğü iki yönden ele almak istediğinizde bu cümleleri kullanın."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[2].group": {
-    "en": "Advantages and disadvantages",
-    "uk": "Переваги та недоліки",
-    "ar": "المزايا والعيوب",
-    "tr": "Avantajlar ve dezavantajlar"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[3].hint": {
-    "en": "With these sentences you make the presentation personal and credible.",
-    "uk": "Цими реченнями ви робите презентацію особистою і переконливою.",
-    "ar": "بهذه الجمل تجعل العرض شخصيًا وجديرًا بالثقة.",
-    "tr": "Bu cümlelerle sunumu kişisel ve inandırıcı kılarsınız."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[3].group": {
-    "en": "Your own experience",
-    "uk": "Власний досвід",
-    "ar": "التجربة الشخصية",
-    "tr": "Kendi deneyiminiz"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[4].hint": {
-    "en": "These sentences end your talk and highlight the most important thought.",
-    "uk": "Ці речення завершують вашу промову й підкреслюють найважливішу думку.",
-    "ar": "هذه الجمل تختم حديثك وتبرز الفكرة الأهم.",
-    "tr": "Bu cümleler konuşmanızı bitirir ve en önemli düşünceyi vurgular."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[4].group": {
-    "en": "Summary",
-    "uk": "Підсумок",
-    "ar": "الخلاصة",
-    "tr": "Özet"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[5].hint": {
-    "en": "If the examiners ask questions, stay calm and answer in full sentences.",
-    "uk": "Якщо екзаменатори ставлять запитання, зберігайте спокій і відповідайте повними реченнями.",
-    "ar": "إذا طرح الممتحنون أسئلة، فحافظ على هدوئك وأجب بجمل كاملة.",
-    "tr": "Sınav görevlileri soru sorarsa sakin kalın ve tam cümlelerle yanıt verin."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[5].group": {
-    "en": "Reacting to follow-up questions",
-    "uk": "Реакція на додаткові запитання",
-    "ar": "الرد على أسئلة المتابعة",
-    "tr": "Ek sorulara yanıt verme"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[0].step": {
-    "en": "Greet the examiners and name the topic",
-    "uk": "Привітайте екзаменаторів і назвіть тему",
-    "ar": "حيِّ الممتحنين واذكر الموضوع",
-    "tr": "Sınav görevlilerini selamlayın ve konuyu söyleyin"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[0].detail": {
-    "en": "One or two sentences. Name the topic clearly so the examiners know straight away what you are talking about.",
-    "uk": "Одне-два речення. Чітко назвіть тему, щоб екзаменатори одразу знали, про що ви говорите.",
-    "ar": "جملة أو جملتان. اذكر الموضوع بوضوح ليعرف الممتحنون فورًا عمّا تتحدث.",
-    "tr": "Bir iki cümle. Konuyu açıkça söyleyin ki sınav görevlileri neden bahsettiğinizi hemen anlasın."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[1].step": {
-    "en": "Give an overview of the keywords",
-    "uk": "Дайте огляд ключових слів",
-    "ar": "قدّم نظرة عامة على الكلمات المفتاحية",
-    "tr": "Anahtar sözcüklere genel bir bakış verin"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[1].detail": {
-    "en": "Say briefly which points you are going to mention. That gives your presentation a clear structure.",
-    "uk": "Коротко скажіть, які пункти ви згадаєте. Це надає презентації чіткої структури.",
-    "ar": "قل باختصار ما النقاط التي ستذكرها. هذا يمنح عرضك بنية واضحة.",
-    "tr": "Hangi noktalardan söz edeceğinizi kısaca söyleyin. Bu, sunumunuza net bir yapı kazandırır."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[2].step": {
-    "en": "Work through the keywords one by one",
-    "uk": "Розкрийте ключові слова по черзі",
-    "ar": "تناول الكلمات المفتاحية واحدة تلو الأخرى",
-    "tr": "Anahtar sözcükleri tek tek işleyin"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[2].detail": {
-    "en": "Turn each keyword into two or three full sentences. Link the points with words such as zuerst, danach and zum Schluss.",
-    "uk": "Перетворіть кожне ключове слово на два-три повні речення. Пов'язуйте пункти словами zuerst, danach і zum Schluss.",
-    "ar": "حوّل كل كلمة مفتاحية إلى جملتين أو ثلاث جمل كاملة. اربط النقاط بكلمات مثل zuerst وdanach وzum Schluss.",
-    "tr": "Her anahtar sözcüğü iki üç tam cümleye dönüştürün. Noktaları zuerst, danach ve zum Schluss gibi sözcüklerle bağlayın."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[3].step": {
-    "en": "Add your own opinion and experience",
-    "uk": "Додайте власну думку й досвід",
-    "ar": "أضف رأيك وتجربتك الشخصية",
-    "tr": "Kendi görüşünüzü ve deneyiminizi ekleyin"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[3].detail": {
-    "en": "Say something about yourself: what have you experienced? What do you think is good or bad? That sounds natural and personal.",
-    "uk": "Розкажіть щось про себе: що ви пережили? Що вважаєте добрим чи поганим? Це звучить природно й особисто.",
-    "ar": "قل شيئًا عن نفسك: ماذا عشت؟ ما الذي تراه جيدًا أو سيئًا؟ هذا يبدو طبيعيًا وشخصيًا.",
-    "tr": "Kendinizden bir şey anlatın: Ne yaşadınız? Neyi iyi ya da kötü buluyorsunuz? Bu doğal ve kişisel görünür."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[4].step": {
-    "en": "Summarise",
-    "uk": "Підсумуйте",
-    "ar": "لخّص",
-    "tr": "Özetleyin"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[4].detail": {
-    "en": "Sum up your most important thought in one or two sentences and thank the listeners.",
-    "uk": "Підсумуйте найважливішу думку одним-двома реченнями і подякуйте слухачам.",
-    "ar": "لخّص فكرتك الأهم في جملة أو جملتين واشكر المستمعين.",
-    "tr": "En önemli düşüncenizi bir iki cümleyle özetleyin ve dinleyicilere teşekkür edin."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[5].step": {
-    "en": "Invite follow-up questions",
-    "uk": "Запропонуйте поставити запитання",
-    "ar": "ادعُ إلى طرح الأسئلة",
-    "tr": "Soru sorulmasını önerin"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[5].detail": {
-    "en": "Offer to answer questions at the end. That shows you can lead the conversation.",
-    "uk": "Наприкінці запропонуйте відповісти на запитання. Це показує, що ви вмієте вести розмову.",
-    "ar": "اعرض في النهاية أن تجيب عن الأسئلة. هذا يُظهر أنك قادر على إدارة الحديث.",
-    "tr": "Sonunda soruları yanıtlamayı önerin. Bu, konuşmayı yönetebildiğinizi gösterir."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.examples[0].topic": {
-    "en": "My home town",
-    "uk": "Моє рідне місто",
-    "ar": "مدينتي",
-    "tr": "Memleketim"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.examples[1].topic": {
-    "en": "My job / my work",
-    "uk": "Моя професія / моя робота",
-    "ar": "مهنتي / عملي",
-    "tr": "Mesleğim / işim"
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.watchOut[0]": {
-    "en": "Do not simply read the keywords out — turn them into full sentences.",
-    "uk": "Не зачитуйте просто ключові слова — перетворюйте їх на повні речення.",
-    "ar": "لا تقرأ الكلمات المفتاحية فقط، بل حوّلها إلى جمل كاملة.",
-    "tr": "Anahtar sözcükleri öylece okumayın, tam cümlelere dönüştürün."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.watchOut[1]": {
-    "en": "The presentation is over after three minutes — practise the timing at home beforehand.",
-    "uk": "Презентація закінчується через три хвилини — заздалегідь потренуйте час удома.",
-    "ar": "ينتهي العرض بعد ثلاث دقائق، فتدرّب على التوقيت في البيت مسبقًا.",
-    "tr": "Sunum üç dakikada biter; zamanlamayı önceden evde çalışın."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.watchOut[2]": {
-    "en": "Do not build long, complicated subordinate clauses; short main clauses are easier to understand.",
-    "uk": "Не будуйте довгих складних підрядних речень; короткі головні речення легше зрозуміти.",
-    "ar": "لا تبنِ جملًا تابعة طويلة ومعقدة؛ فالجمل الرئيسية القصيرة أسهل فهمًا.",
-    "tr": "Uzun ve karmaşık yan cümleler kurmayın; kısa ana cümleler daha kolay anlaşılır."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.watchOut[3]": {
-    "en": "Do not forget your own opinion or experience, otherwise the talk sounds impersonal.",
-    "uk": "Не забувайте про власну думку чи досвід, інакше промова звучить безособово.",
-    "ar": "لا تنسَ رأيك أو تجربتك، وإلا بدا الحديث غير شخصي.",
-    "tr": "Kendi görüşünüzü ya da deneyiminizi unutmayın, yoksa konuşma kişiliksiz görünür."
-   },
-   "speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.watchOut[4]": {
-    "en": "Speaking too quietly and not looking at the examiners — eye contact is part of it.",
-    "uk": "Говорити надто тихо й не дивитися на екзаменаторів — зоровий контакт теж має значення.",
-    "ar": "التحدث بصوت منخفض جدًا وعدم النظر إلى الممتحنين خطأ، فالتواصل البصري جزء من الأداء.",
-    "tr": "Çok sessiz konuşmak ve sınav görevlilerine bakmamak; göz teması da işin parçasıdır."
-   },
    "speaking-guide/telc-deutsch-b1.speaking-guide.sp2.title": {
     "en": "Part 2 – Discussion",
     "uk": "Частина 2 – Обговорення",
@@ -4783,9 +4585,9 @@
    }
   },
   "telc-deutsch-b1.noun.das-familiemitglied": {
-   "de": "das Familiemitglied",
+   "de": "das Familienmitglied",
    "en": "family member",
-   "example_de": "Jedes Familiemitglied bringt etwas zum Buffet mit.",
+   "example_de": "Jedes Familienmitglied bringt etwas zum Buffet mit.",
    "example_en": "Every family member is bringing something for the buffet.",
    "uk": {
     "meaning": "член родини",
@@ -4973,8 +4775,8 @@
   },
   "telc-deutsch-b1.noun.die-moebel": {
    "de": "die Möbel",
-   "en": "piece of furniture",
-   "example_de": "Dieses Möbel passt überhaupt nicht in unser Wohnzimmer.",
+   "en": "furniture",
+   "example_de": "Dieses Möbelstück passt überhaupt nicht in unser Wohnzimmer.",
    "example_en": "This piece of furniture does not fit in our living room at all.",
    "uk": {
     "meaning": "меблі",
