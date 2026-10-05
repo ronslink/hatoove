@@ -26,12 +26,15 @@ const rows = {
   passwordHint: ['Verwenden Sie ein eigenes, langes Passwort für dieses Konto.','Use a unique, long password for this account.','Використовуйте окремий довгий пароль для цього облікового запису.','استخدم كلمة مرور طويلة وفريدة لهذا الحساب.','Bu hesap için benzersiz, uzun bir parola kullanın.'],
   freeHint: ['Der Pilot ist kostenlos. Die verfügbare Schreib-Rückmeldung ist begrenzt und wird in der App angezeigt.','The pilot is free. Available writing feedback is limited and shown in the app.','Пілот безкоштовний. Кількість відгуків на письмо обмежена й показана в застосунку.','التجربة مجانية. عدد ملاحظات الكتابة المتاحة محدود ويظهر في التطبيق.','Pilot ücretsizdir. Yazma geri bildirimi sayısı sınırlıdır ve uygulamada gösterilir.'],
   create: ['Kostenloses Konto erstellen','Create a free account','Створити безкоштовний обліковий запис','أنشئ حسابًا مجانيًا','Ücretsiz hesap oluştur'],
-  verifyPrompt: ['Sie haben bereits ein Konto und möchten Ihre Adresse bestätigen?','Already have an account and want to verify your address?','Уже маєте обліковий запис і хочете підтвердити адресу?','لديك حساب وتريد تأكيد عنوانك؟','Zaten hesabınız var ve adresinizi doğrulamak mı istiyorsunuz?'],
+  /* `verifyPrompt` was removed with the misleading sign-in-page prompt (5 Oct 2026): the pilot has no mail
+   * provider, so "request a verification link" could never deliver one. The `/verify-email` page and its
+   * routes stay reachable for operator-assisted use, which is why `verifyRequest` remains. */
   verifyRequest: ['Bestätigungslink anfordern','Request a verification link','Запросити посилання для підтвердження','اطلب رابط تأكيد','Doğrulama bağlantısı iste'],
   toSignin: ['Zur Anmeldung','Go to sign in','До входу','انتقل إلى تسجيل الدخول','Girişe git'],
   morePages: ['Weitere Seiten','More pages','Інші сторінки','صفحات أخرى','Diğer sayfalar'],
   toHome: ['Zur Startseite','Back to home','На головну','إلى الصفحة الرئيسية','Ana sayfaya dön'],
-  app: ['Zur App','Open the app','До застосунку','افتح التطبيق','Uygulamaya git'],
+  /* `app` was removed with the footer "Zur App" link (5 Oct 2026): on every signed-out page that link
+   * dead-ended at the session gate — `/app/**` answers 401 without a session (server.js:458). */
   resetIntro: ['Fordern Sie einen Link für ein neues Passwort an.','Request a link to set a new password.','Запросіть посилання для нового пароля.','اطلب رابطًا لتعيين كلمة مرور جديدة.','Yeni parola belirlemek için bağlantı isteyin.'],
   deliveryNotice: ['Im Pilot sendet eine Person aus dem Hatoove-Team den Link über den vereinbarten Kontaktweg. Es gibt keinen automatischen E-Mail-Versand.','During the pilot, a Hatoove team member sends the link through the agreed contact channel. There is no automatic email delivery.','Під час пілоту учасник команди Hatoove надішле посилання узгодженим способом зв’язку. Автоматичного надсилання листів немає.','خلال التجربة يرسل أحد أعضاء فريق Hatoove الرابط عبر وسيلة الاتصال المتفق عليها. لا يُرسل بريد إلكتروني تلقائي.','Pilot sırasında Hatoove ekibinden biri bağlantıyı kararlaştırılan iletişim kanalından gönderir. Otomatik e-posta gönderimi yoktur.'],
   accountEmail: ['E-Mail Ihres Kontos','Account email','Електронна пошта облікового запису','بريد حسابك الإلكتروني','Hesabınızın e-postası'],

@@ -55,6 +55,9 @@ import { MOCK_METHODS, validateWritingChoice, validateStartMockRun, validateSave
 import { mediaResponse, validatePlaybackEvent } from './media-route.mjs';
 // LIBRARY-I18N-01 (F2): the one list of interface languages a guide translation may be asked for.
 import { INTERFACE_LOCALES } from './library-translations.mjs';
+// PILOT-FEEDBACK-01 (FB-B): the closed vocabularies live in their own module so the API and the repository can
+// share them without a circular import, and so leg 1b can pin them against the migration and the shell.
+import { FEEDBACK_CATEGORIES, FEEDBACK_ROUTES } from './feedback-vocabulary.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
@@ -372,6 +375,74 @@ function onlyFields(body, allowed) {
   if (Object.keys(body).some((key) => !allowed.includes(key))) fault(422, 'unknown_field');
 }
 
+/*
+ * PILOT-FEEDBACK-01 (FB-B) request validation.
+ *
+ * WHY THE API RE-CHECKS WHAT `0049` ALSO ENFORCES: not to duplicate the rule, but to give the learner a 422 that
+ * names the field instead of a 23514 that reads as a server error. The database remains the authority — if these
+ * two ever disagree, the CHECK wins and the report is refused, which is the safe direction.
+ */
+function requireFeedbackCategory(value) {
+  if (typeof value !== 'string' || !FEEDBACK_CATEGORIES.includes(value)) fault(422, 'invalid_category');
+  return value;
+}
+function requireFeedbackRoute(value) {
+  if (typeof value !== 'string' || !FEEDBACK_ROUTES.includes(value)) fault(422, 'invalid_route');
+  return value;
+}
+function requireFeedbackBody(value) {
+  if (typeof value !== 'string') fault(422, 'invalid_body');
+  const text = value.trim();
+  // Trimmed, because the column stores it trimmed and `   ` is not a description.
+  if (!text || text.length > 2000) fault(422, 'invalid_body');
+  return text;
+}
+/**
+ * THE INTERFACE LANGUAGE (A8), which is NOT the explanation language in settings. It exists only in the browser,
+ * so the client sends it; the server validates it and defaults to `de` when it is absent.
+ */
+function requireInterfaceLanguage(value) {
+  if (value === undefined || value === null) return 'de';
+  if (typeof value !== 'string' || !INTERFACE_LOCALES.includes(value)) fault(422, 'invalid_language');
+  return value;
+}
+/**
+ * The captured context: a closed shape whose VALUES ARE SANITISED RATHER THAN REJECTED.
+ *
+ * THE RULE THIS IMPLEMENTS IS "a stale page never loses the report" (contract §3). An earlier version faulted
+ * 422 whenever a value was not a string between 1 and 160 characters, which broke that rule three separate ways,
+ * all found by an independent review:
+ *
+ *   * a NON-UUID `runId` was accepted here and reached `WHERE id = $1` against a `uuid` column, so PostgreSQL
+ *     refused the cast and the learner got a 500 — on the path that exists to protect their report;
+ *   * the generic 160 cap is WIDER THAN THE COLUMNS: `item_id` is 64 and `version` is 32, so a plausible-length
+ *     id passed here and was refused by the CHECK, which the datastore maps to 422 — report lost;
+ *   * a value could be stored without ever being checked against the column it lands in.
+ *
+ * So each field has its OWN limit, matching the column in `0049`, and an unusable value is DROPPED. An unknown
+ * KEY is still 422: that is a version mismatch between client and server rather than a stale page, and it does
+ * not arise from a learner returning to an old tab.
+ */
+const CONTEXT_LIMITS = Object.freeze({
+  runId: 36, guideId: 128, sectionId: 160, examId: 128, setId: 128, version: 32, itemId: 64,
+});
+function requireFeedbackContext(value) {
+  if (value === undefined || value === null) return {};
+  if (!isPlainObject(value)) fault(422, 'invalid_context');
+  const out = {};
+  for (const [key, raw] of Object.entries(value)) {
+    const limit = CONTEXT_LIMITS[key];
+    if (!limit) fault(422, 'invalid_context');
+    if (typeof raw !== 'string') continue;
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.length > limit) continue;
+    // A run id that is not a UUID must never reach the query that casts it to `uuid`.
+    if (key === 'runId' && !UUID_RE.test(trimmed)) continue;
+    out[key] = trimmed;
+  }
+  return out;
+}
+
 function requireRevision(value, code) {
   if (!Number.isSafeInteger(value) || value < 1) fault(422, code);
   return value;
@@ -412,6 +483,13 @@ function reply(status, value, setCookie) {
 }
 
 const errorReply = (status, code) => reply(status, { error: TOKEN_RE.test(code) ? code : 'internal_error' });
+
+/**
+ * 204 for a route with nothing to say. It does NOT go through `reply`, because a 204 must carry no body and
+ * `reply` would serialise `null` into one — and because a body on a 204 is the kind of thing a client library
+ * silently tolerates while a strict proxy does not.
+ */
+const noContent = () => ({ status: 204, headers: { 'cache-control': 'no-store' }, body: '' });
 
 /**
  * Build the owned API.
@@ -1410,6 +1488,69 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         format: 'hatoove-learner-export-v1', exported_at: new Date().toISOString(),
         settings: await settings.read(owner), ...await datastore.exportData(owner),
       });
+    }
+
+    /*
+     * PILOT-FEEDBACK-01 (FB-B). ONE entry point for the whole app — Ron's decision — so these four routes are
+     * the whole learner-facing surface; there is deliberately no per-question form.
+     */
+    if (pathname === '/api/v1/feedback' && method === 'POST') {
+      if (typeof datastore.createFeedback !== 'function') fault(503, 'feedback_unavailable');
+      // A closed field set: an unknown key is 422 and never silently dropped, so a client that misspells
+      // `category` hears about it instead of filing a report without one.
+      onlyFields(body, ['category', 'body', 'route', 'interfaceLanguage', 'context']);
+      const category = requireFeedbackCategory(body.category);
+      const route = requireFeedbackRoute(body.route);
+      const text = requireFeedbackBody(body.body);
+      const interfaceLanguage = requireInterfaceLanguage(body.interfaceLanguage);
+      const context = requireFeedbackContext(body.context);
+      /*
+       * THROTTLED TWICE, because the two caps cannot share one kind (A9): the account's own allowance and a
+       * global ceiling. Both are wired in production (A12), so this is a real limit rather than a test-only one.
+       */
+      await enforceThrottle('feedback', owner);
+      await enforceThrottle('feedbackGlobal', 'all');
+      return reply(201, await datastore.createFeedback(owner,
+        { category, route, body: text, interfaceLanguage, context,
+          // WHAT THE CLIENT SENT, before sanitising: the datastore needs it to tell "no context" apart from
+          // "every field you sent was unusable", which are different answers to the learner.
+          contextClaimed: isPlainObject(body.context) && Object.keys(body.context).length > 0 }));
+    }
+    if (pathname === '/api/v1/feedback' && method === 'GET') {
+      if (query.size) fault(422, 'invalid_query');
+      if (typeof datastore.listFeedback !== 'function') fault(503, 'feedback_unavailable');
+      return reply(200, { feedback: await datastore.listFeedback(owner) });
+    }
+    if (pathname === '/api/v1/survey/current' && method === 'GET') {
+      if (query.size) fault(422, 'invalid_query');
+      if (typeof datastore.currentSurveyRound !== 'function') fault(503, 'feedback_unavailable');
+      const round = await datastore.currentSurveyRound(owner);
+      /*
+       * 204 when there is nothing to ask — no open round, an account younger than the round's minimum, or a round
+       * already answered or skipped. The client shows the card only for a 200, so the three cases need no
+       * distinct codes, and answering 204 for all of them keeps the response free of a reason a learner could
+       * infer the round list from.
+       */
+      if (!round) return noContent();
+      return reply(200, { round_id: round.round_id, questions: round.questions,
+        opens_at: round.opens_at, closes_at: round.closes_at });
+    }
+    const surveyRound = /^\/api\/v1\/survey\/([a-z0-9][a-z0-9-]{0,63})$/.exec(pathname);
+    if (surveyRound && method === 'POST') {
+      if (typeof datastore.submitSurvey !== 'function') fault(503, 'feedback_unavailable');
+      onlyFields(body, ['answers', 'skip', 'route', 'interfaceLanguage']);
+      if (body.skip !== undefined && typeof body.skip !== 'boolean') fault(422, 'invalid_skip');
+      const skip = body.skip === true;
+      // Either an answer set or a skip: never both, and never neither.
+      if (skip === (body.answers !== undefined)) fault(422, 'invalid_survey');
+      await enforceThrottle('feedback', owner);
+      await enforceThrottle('feedbackGlobal', 'all');
+      return reply(200, await datastore.submitSurvey(owner, surveyRound[1], {
+        answers: body.answers,
+        skip,
+        route: body.route === undefined ? undefined : requireFeedbackRoute(body.route),
+        interfaceLanguage: requireInterfaceLanguage(body.interfaceLanguage),
+      }));
     }
     if (pathname === '/api/v1/attempts' && method === 'POST') {
       onlyFields(body, ['preparationId', 'parentSubmissionId', 'taskId', 'taskVersion', 'rubricId', 'rubricVersion']);

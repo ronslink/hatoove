@@ -51,6 +51,12 @@ const PATHS = Object.freeze({
   attempts: '/api/v1/attempts',
   submissions: '/api/v1/submissions',
   export: '/api/v1/export',
+  /* PILOT-FEEDBACK-01 (FB-C). Not preparation-scoped: the contract's routes carry no exam context, so these
+     travel with `call` rather than `scopedCall` — a report about a listening item is filed from the page the
+     learner is on, not from a selected preparation. */
+  feedback: '/api/v1/feedback',
+  surveyCurrent: '/api/v1/survey/current',
+  surveyRound: '/api/v1/survey',
   sentenceCheck: '/api/v1/sentence-check',
   checkoutOffer: '/api/v1/checkout/offer',
   checkoutSession: '/api/v1/checkout/session',
@@ -128,7 +134,22 @@ async function call(method, path, body, scoped = false, binary = false) {
   }
   // A transport may finish after another request invalidated this tab. Never render that response.
   if (ticket !== generation) return refusal(409, 'stale_session');
-  if (protectedRequest && res.status === 401) return invalidate('session_expired');
+  /*
+   * A 401 FROM THE FEEDBACK ROUTES MUST NOT TEAR DOWN THE RUN (FB-C, contract §6.4). Every protected request
+   * answered 401 normally invalidates the session, and that handler calls `mock.refresh()` and shows the error
+   * screen — so a learner who filed a report after their session had expired would have an in-progress LISTENING
+   * run re-rendered underneath them. An independent reviewer traced exactly this path (`api.js` -> `app.js:163`)
+   * and answered "the structural proof is not enough" on the strength of it.
+   *
+   * Reporting a problem is not worth a re-render. This call returns an ordinary refusal, the sheet says it could
+   * not be sent, and the next ordinary request — or the focus check — still discovers the expiry and locks the
+   * window. Nothing is hidden; the convergence is simply no longer triggered BY the act of reporting.
+   *
+   * The 409 `account_changed` case below deliberately still invalidates: a changed account is a different learner
+   * on the same tab, and that must be acted on immediately whatever the request was.
+   */
+  const quietSession = path === PATHS.feedback || path.startsWith(`${PATHS.feedback}/`);
+  if (protectedRequest && res.status === 401 && !quietSession) return invalidate('session_expired');
   if (protectedRequest && res.status === 409 && payload?.error === 'account_changed') return invalidate('account_changed');
   if (scoped && preparationTicket !== preparationGeneration) return refusal(409, 'stale_preparation');
   if (path === PATHS.session && res.ok) {
@@ -479,6 +500,22 @@ return Object.freeze({
       { expectedRevision, eventId }),
     result: (submissionId, language = null) => call('GET', `${PATHS.submissions}/${encodeURIComponent(submissionId)}` + explanationQuery(language), undefined, true),
     retry: (submissionId) => call('POST', `${PATHS.submissions}/${encodeURIComponent(submissionId)}/retry`, {}),
+  }),
+
+  /**
+   * PILOT-FEEDBACK-01 (FB-C) — the learner's own feedback.
+   *
+   * ONE entry point for the whole app, so these four calls are the entire client surface: file a report, read
+   * your own back, ask whether a survey round is open, and answer or skip it. `submitSurvey` sends either
+   * `{answers}` or `{skip:true}` and never both — the server refuses a request that does both or neither, so the
+   * client must not guess.
+   */
+  feedback: Object.freeze({
+    create: (payload) => call('POST', PATHS.feedback, payload),
+    list: () => call('GET', PATHS.feedback),
+    /** 204 when there is nothing to ask; `call` surfaces the status rather than inventing an empty round. */
+    currentSurvey: () => call('GET', PATHS.surveyCurrent),
+    submitSurvey: (roundId, payload) => call('POST', `${PATHS.surveyRound}/${encodeURIComponent(roundId)}`, payload),
   }),
 });
 }

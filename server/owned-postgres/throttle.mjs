@@ -45,6 +45,16 @@ export const THROTTLE_POLICY = Object.freeze({
    * limited per ADDRESS for the same anti-lockout reason.
    */
   verify: Object.freeze({ limit: 5, windowSeconds: 900 }),
+  /*
+   * PILOT-FEEDBACK-01 (FB-B). TWO KINDS, because this table carries ONE WINDOW PER KIND: a per-account daily
+   * cap and a global hourly cap cannot both live in one entry without one of them silently winning.
+   *
+   * `feedback` is keyed by the owner, so one learner cannot flood the table; `feedbackGlobal` is keyed by a
+   * constant, so a burst from many accounts cannot either. Both are generous on purpose — a learner who hits
+   * either limit has already told us something, and the refusal is what the contract's §6 leg observes.
+   */
+  feedback: Object.freeze({ limit: 20, windowSeconds: 86400 }),
+  feedbackGlobal: Object.freeze({ limit: 200, windowSeconds: 3600 }),
 });
 
 /**

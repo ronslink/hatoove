@@ -763,6 +763,19 @@ async function postgresLegs() {
       const frozen = rows.find((row) => row.id === '0047-pool-01-batch-1');
       assert.ok(frozen, 'the frozen 0047 is in the ledger');
       assert.equal(frozen.checksum, sha256(read(FROZEN_MIGRATION)), 'with the checksum of ITS bytes — an applied migration did not move');
+      /*
+       * AND THE BATCH APPLIES AFTER THE CORPUS IT SPLICES INTO. This assertion is not in main's version of the
+       * leg and it was in PILOT-FEEDBACK-01's, so the merge had to keep it deliberately rather than take one side
+       * whole: `0047` splices its batch into `0010`/`0022`, and a renumbering or a reordering that put it first
+       * would still leave every checksum correct while the pool it builds was wrong. Filename order happens to
+       * guarantee it today — which is exactly why it is worth asserting rather than assuming.
+       */
+      const order = rows.map((row) => row.id);
+      const batch = order.indexOf('0047-pool-01-batch-1');
+      for (const corpus of ['0010-objective-catalogue', '0022-recovered-grammar-drills']) {
+        assert.ok(order.indexOf(corpus) >= 0 && order.indexOf(corpus) < batch,
+          `0047 must apply after ${corpus}: it splices the batch into that corpus`);
+      }
       assert.ok(rows.every((row) => row.checksum), 'every migration carries a checksum');
     });
 

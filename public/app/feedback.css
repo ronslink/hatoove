@@ -1,0 +1,64 @@
+/*
+ * PILOT-FEEDBACK-01 (FB-C) — the report sheet's own layout.
+ *
+ * Everything visual that already exists (surface, border radius, type) comes from the `card`/`btn`/`input`
+ * classes the sheet's markup carries, so this file only adds what is new: the overlay, the category layout and
+ * the context line. LOGICAL PROPERTIES THROUGHOUT (`inline-size`, `margin`, `padding`) because the interface
+ * ships Arabic RTL, and a physical `left`/`right` here would put the × on the wrong side for those learners.
+ */
+.feedback-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  /* A neutral dimming layer: it must read as "behind the sheet" in both themes without claiming a token that
+     means something else in the palette. */
+  background: rgb(0 0 0 / 0.45);
+}
+.feedback-scrim[hidden] { display: none; }
+.feedback-sheet {
+  inline-size: min(34rem, 100%);
+  max-block-size: 88vh;
+  overflow: auto;
+}
+.feedback-categories {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.feedback-categories legend { font-weight: 600; padding-block-end: 0.35rem; }
+.feedback-category { display: flex; align-items: center; gap: 0.5rem; }
+.feedback-context { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0; }
+.feedback-context[hidden] { display: none; }
+.feedback-context-remove {
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding-inline: 0.25rem;
+}
+.feedback-actions { justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; }
+.feedback-message { margin: 0; }
+.feedback-message[hidden] { display: none; }
+.feedback-thanks { font-weight: 600; }
+/* The sheet is modal: nothing behind it should scroll while it is open. */
+html.feedback-open { overflow: hidden; }
+
+/* "Meine Meldungen" — the learner's own reports in Konto. */
+.feedback-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.feedback-item-head { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.25rem; flex-wrap: wrap; }
+.feedback-item-body { margin: 0; white-space: pre-wrap; }
+.feedback-chip {
+  border-radius: 999px;
+  padding-block: 0.1rem;
+  padding-inline: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid currentColor;
+}

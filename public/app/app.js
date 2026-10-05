@@ -1684,6 +1684,40 @@ function unmountModule() {
   mountedView = null;
 }
 
+/**
+ * PILOT-FEEDBACK-01 (FB-C). The report sheet is a SHELL affordance, not a view: no route and no MODULE_VIEWS
+ * entry, opened from the top bar and from Werkzeuge over whatever page the learner is on.
+ *
+ * INSTALLED ONLY AFTER A SUCCESSFUL BOOT, which is also what makes the contract's "every signed-in view and no
+ * public page" true: the public pages are separate documents and never load this file at all. A failure to load
+ * is silent on purpose — the app must work even if the sheet cannot, and this feature must never be the reason a
+ * learner cannot reach their work.
+ */
+let feedbackInstalled = false;
+async function installFeedback() {
+  if (feedbackInstalled) return;
+  feedbackInstalled = true;
+  /*
+   * THE WHOLE BODY IS GUARDED, and that is not belt-and-braces: this call sits inside `boot()`'s `try`, so a
+   * synchronous throw here — a renamed export, a null element, a stylesheet helper that changes shape — would
+   * send the learner to the boot-error screen and take the entire app down. A feedback form must never be the
+   * reason somebody cannot reach their work, so a failure in this feature is swallowed on purpose.
+   *
+   * THIS FIX WAS LOST ONCE AND THE CHECK DID NOT NOTICE. An earlier attempt edited this function, then a
+   * mutation-proof step for the client check ran `git checkout -- public/app/app.js`, which silently reverted the
+   * uncommitted change. The check still passed, because it only asserted that SOME try/catch existed in the body
+   * and the guarded import alone satisfied that. The flag reset below is what the check now requires, so the same
+   * loss cannot pass again.
+   */
+  try {
+    const module = await import('./feedback.js');
+    loadModuleStylesheet('feedback.css');
+    module.installFeedbackEntryPoints({ api, uiText, esc, route: () => currentView });
+  } catch (err) {
+    feedbackInstalled = false;
+  }
+}
+
 /** True when the view's module rendered; false leaves the caller's interim implementation in place. */
 async function mountModule(view) {
   const spec = MODULE_VIEWS[view];
@@ -2072,6 +2106,8 @@ async function boot() {
     if (returnInfo.orderId || returnInfo.invalid) await checkout.open(el('checkout-boot-host'), returnInfo);
     if (!(await loadPreparations())) return;
     await unlockPreparation();
+    // PILOT-FEEDBACK-01 (FB-C): one "Problem melden" entry for the whole app, once the learner is signed in.
+    await installFeedback();
   } catch (err) {
     if (bootReady) { showError(() => (uiText("m178") + " " + (err?.message || err))); return; }
     bindShellText(el('boot-message'), () => sessionProblem
