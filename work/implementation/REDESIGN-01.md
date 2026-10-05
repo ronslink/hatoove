@@ -147,8 +147,7 @@ decide the six new strings.
 
 ## 6. Slice G — landing page, sitemap, OG card
 
-**The artwork is landed** (`c31d08d`, `adabb59`, `fc98e3e`); what remains in this slice is one approval and
-one honest limitation.
+**The artwork and the social card are landed** (`c31d08d`, `adabb59`, `fc98e3e`, `3424425`).
 
 - The front door now shows one telc B1 Sprachbausteine question — the learner's wrong pick red, the keyed
   answer green, the explanation in Ukrainian beside it — instead of the orange paper strip. The strip was
@@ -158,6 +157,11 @@ one honest limitation.
 - **The breakpoint is 1199 px, not the page's 900 px layout breakpoint**, because the wide crop's smallest
   style needs a ~512 px slot. Serving it in the 901–1199 band left text at 12.6–16.0 px, which is exactly the
   failure Ron rejected. Three browser legs now assert which crop each width is *served*.
+- **The social card was in English** while the page is German-first (`og:locale` is `de_DE`, and both the
+  title and description a crawler reads are German), so the one image a share displayed contradicted the
+  share. The replacement is built from the same design tokens in a browser — real Bricolage Grotesque and
+  Source Sans, the page's own H1, the current pilot wording — at exactly 1200×630, with `og:image:alt`
+  updated to describe what ships.
 - An independent verification of the landed page caught four defects, three of them the Lead's: an alt text
   that described the wrong section and inverted the answers, the wrong breakpoint, a "fix" that shrank the
   exam kicker to 11.5–13.2 px at real slots, and a comment claiming font behaviour that does not happen (an
