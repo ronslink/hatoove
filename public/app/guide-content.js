@@ -28,9 +28,17 @@ export function guideContent(value, esc, language = 'de', options = {}) {
   const machineMarker = typeof options.machineMarker === 'string' ? options.machineMarker : '';
   const locale = typeof language === 'string' && language ? language : 'de';
   const alternative = markup => '<div class="muted" lang="en" dir="ltr" data-authored-alternative="en"' + (locale === 'en' ? '' : ' hidden') + '>' + markup + '</div>';
-  /** The learner-language line: visible and dimmed in the library, a hidden `en` alternative otherwise. */
+  /**
+   * The learner-language line, or nothing at all.
+   *
+   * In the library the authored `…En` fields are the English translation and are shown ONLY to a
+   * learner whose language is English: for every other language the contract's German-only path
+   * applies (German source plus one note), and an English paragraph under an Arabic heading would be
+   * a third language nobody asked for.
+   */
   const learnerLine = (markup, lineLanguage, status) => {
     if (!library) return alternative(markup);
+    if (lineLanguage === 'en' && locale !== 'en') return '';
     const machine = status === 'machine_unreviewed';
     return '<div class="library-translation' + (machine ? ' library-machine' : '') + '" lang="' + lineLanguage + '" dir="' + dir(lineLanguage) + '">'
       + markup + (machine && machineMarker ? '<span class="library-machine-note">' + machineMarker + '</span>' : '') + '</div>';

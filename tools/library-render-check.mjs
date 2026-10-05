@@ -202,13 +202,21 @@ const contextFor = (api, language, navigations = []) => ({
 
 const settle = async () => { for (let round = 0; round < 12; round++) await new Promise(resolve => setImmediate(resolve)); };
 
+/**
+ * Mount one view and let it settle. Only one view is ever live: a mounted view re-renders when the
+ * interface language changes (that is the module's job), so leaving earlier views mounted would let a
+ * later `setLocale` rewrite a page an earlier assertion already read.
+ */
+let live = null;
 async function mounted({ documents, nouns, limit, translations = null, language = 'de', route = '#/nachschlagen' }) {
+  if (live) live.unmount();
   setLocale(language);
   const api = fakeApi({ documents, nouns, limit, translations });
   const navigations = [];
   const host = fakeHost();
   const view = createLibraryView(contextFor(api, language, navigations));
   view.mount(host, { route });
+  live = view;
   await settle();
   return { api, host, view, navigations, page: () => host.innerHTML };
 }
@@ -349,6 +357,15 @@ async function assertRtl(guides, nouns) {
   const englishPage = english.page();
   assert.equal(count(englishPage, s('m091')), 0, 'the authored English fields need no note');
   assert.ok(englishPage.includes('In German the article shows what role a noun plays'), 'the authored English intro is rendered readably');
+
+  // Language purity: the authored `…En` fields belong to the English page and to no other. An Arabic
+  // learner must not be handed an English paragraph under a German example (found in the harness).
+  // Both pages are captured before the next mount, because mounting another view changes the language.
+  const phrase = 'With a reflexive verb a small word belongs';
+  const arabicGrammarPage = (await mounted({ documents: guides, nouns, language: 'ar', route: '#/nachschlagen/grammar-guide' })).page();
+  const englishGrammarPage = (await mounted({ documents: guides, nouns, language: 'en', route: '#/nachschlagen/grammar-guide' })).page();
+  assert.ok(!arabicGrammarPage.includes(phrase), 'an Arabic page shows the German source only, never the authored English line');
+  assert.ok(englishGrammarPage.includes(phrase), 'an English page shows the authored English line');
   return true;
 }
 
@@ -536,7 +553,20 @@ function assertMutationProof() {
 
 /* ------------------------------------------------------------------------- harness and static server */
 
-function harnessHtml(guides, nouns) {
+/**
+ * The harness renders dark mode by applying the PINNED dark block under `:root[data-theme=dark]`
+ * instead of through `prefers-color-scheme`, because a headless session cannot emulate the media
+ * feature here. The declarations are lifted verbatim from `hatoove.css`; only the selector changes.
+ */
+function darkThemeCss() {
+  const pinned = fs.readFileSync(path.join(ROOT, 'public/assets/design/hatoove.css'), 'utf8');
+  const block = /@media\s*\(prefers-color-scheme\s*:\s*dark\)\s*\{([\s\S]*?)\n\}/.exec(pinned);
+  if (!block) throw new Error('the pinned stylesheet no longer carries a prefers-color-scheme: dark block');
+  return block[1].replace(':root:not([data-theme=light])', ':root[data-theme=dark]')
+    + '\n:root[data-theme=dark] { color-scheme: dark; }';
+}
+
+function harnessHtml(guides, nouns, prefix) {
   const fixtures = JSON.stringify({ guides, nouns }).replace(/</g, '\\u003c');
   return `<!doctype html>
 <html lang="de">
@@ -544,15 +574,17 @@ function harnessHtml(guides, nouns) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nachschlagen harness — LIBRARY-UI-01</title>
-<link rel="stylesheet" href="../../public/assets/design/hatoove.css">
-<link rel="stylesheet" href="../../public/app/app.css">
-<link rel="stylesheet" href="../../public/app/library.css">
+<link rel="stylesheet" href="${prefix}public/assets/design/hatoove.css">
+<link rel="stylesheet" href="${prefix}public/app/app.css">
+<link rel="stylesheet" href="${prefix}public/app/library.css">
 <style>body { margin: 0; padding: 16px; background: var(--canvas); color: var(--ink); } .harness-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }</style>
+<style id="harness-dark">${darkThemeCss()}</style>
 </head>
 <body>
 <!-- Standalone reviewer harness. Serve the WORKTREE ROOT over HTTP (module imports and file:// do not mix):
      node tools/library-render-check.mjs --serve 4321
-     then open http://127.0.0.1:4321/handoff/ron-agent/library-ui-01/library-harness.html -->
+     then open http://127.0.0.1:4321/handoff/ron-agent/library-ui-01/library-harness.html
+     Regenerate with: node tools/library-render-check.mjs --harness <path> -->
 <div class="harness-bar">
   <label for="route">Route</label>
   <select id="route">
@@ -564,6 +596,7 @@ function harnessHtml(guides, nouns) {
     <option value="#/nachschlagen/gender-rules">#/nachschlagen/gender-rules</option>
     <option value="#/nachschlagen/core-grammar">#/nachschlagen/core-grammar</option>
     <option value="#/nachschlagen/core-phrases">#/nachschlagen/core-phrases</option>
+    <option value="#/nachschlagen/satzbau">#/nachschlagen/satzbau</option>
   </select>
   <label for="locale">Sprache</label>
   <select id="locale"><option>de</option><option>en</option><option>uk</option><option>ar</option><option>tr</option></select>
@@ -572,13 +605,28 @@ function harnessHtml(guides, nouns) {
   <button type="button" id="apply">Laden</button>
 </div>
 <main id="host"></main>
+<p id="harness-error" class="err" hidden></p>
+<script>
+// The harness is a diagnostic: a failure has to be visible in the page, not only in a console.
+function harnessFail(message) {
+  const box = document.getElementById('harness-error');
+  if (!box) return;
+  box.hidden = false;
+  box.textContent = 'HARNESS FAILURE: ' + message;
+}
+window.addEventListener('error', event => harnessFail((event.message || 'script error') + ' @ ' + (event.filename || '') + ':' + (event.lineno || 0)));
+window.addEventListener('unhandledrejection', event => harnessFail('unhandled rejection: ' + (event.reason && event.reason.message ? event.reason.message : String(event.reason))));
+</script>
 <script type="application/json" id="fixtures">${fixtures}</script>
 <script type="module">
-import { createLibraryView } from '../../public/app/library.js';
-import { guideContent } from '../../public/app/guide-content.js';
-import { setLocale } from '../../public/assets/i18n/core.js';
-import { s } from '../../public/app/locale-preference.js';
+window.__harnessStage = 'module-start';
+import { createLibraryView } from '${prefix}public/app/library.js';
+import { guideContent } from '${prefix}public/app/guide-content.js';
+import { setLocale } from '${prefix}public/assets/i18n/core.js';
+import { s } from '${prefix}public/app/locale-preference.js';
+window.__harnessStage = 'imports-done';
 const fixtures = JSON.parse(document.getElementById('fixtures').textContent);
+window.__harnessStage = 'fixtures-parsed';
 const esc = value => String(value ?? '').replace(/[&<>"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[character]));
 function api(limit, translations) {
   return {
@@ -603,16 +651,43 @@ function api(limit, translations) {
 }
 let view = null;
 const host = document.getElementById('host');
+// ?route=cases-guide (or a full #/hash), ?locale=ar, ?nouns=50 preselect the controls, so a reviewer can
+// link to one exact state and a screenshot run needs no clicking.
+(function preselect() {
+  const params = new URLSearchParams(location.search);
+  const route = params.get('route');
+  if (route) {
+    const select = document.getElementById('route');
+    const value = route.startsWith('#') ? route : '#/nachschlagen/' + route;
+    if (![...select.options].some(option => option.value === value)) {
+      const option = document.createElement('option');
+      option.value = value; option.textContent = value; select.append(option);
+    }
+    select.value = value;
+  }
+  const locale = params.get('locale');
+  if (locale) document.getElementById('locale').value = locale;
+  const nouns = params.get('nouns');
+  if (nouns) document.getElementById('nouns').value = nouns;
+  const theme = params.get('theme');
+  if (theme === 'dark') document.documentElement.dataset.theme = 'dark';
+  if (theme === 'light') document.documentElement.dataset.theme = 'light';
+})();
 function load() {
-  const locale = document.getElementById('locale').value;
-  const route = document.getElementById('route').value;
-  const limit = Number(document.getElementById('nouns').value);
-  const translations = locale === 'de' || locale === 'en' ? null : { strings: { title: 'x' } };
-  setLocale(locale);
-  if (view) view.unmount();
-  view = createLibraryView({ api: api(limit, translations), esc, language: locale, uiText: (key, parameters) => s(key, parameters), navigate: hash => { location.hash = hash; },
-    state: { settings: { language: locale } }, guideContent, schedule: run => { run(); return 0; } });
-  view.mount(host, { route });
+  try {
+    const locale = document.getElementById('locale').value;
+    const route = document.getElementById('route').value;
+    const limit = Number(document.getElementById('nouns').value);
+    // ?translations=0 exercises the German-only path: no bundle, so the page must show exactly one note.
+    const wantsBundle = new URLSearchParams(location.search).get('translations') !== '0';
+    const translations = wantsBundle && locale !== 'de' && locale !== 'en' ? { strings: { title: 'x' } } : null;
+    setLocale(locale);
+    if (view) view.unmount();
+    view = createLibraryView({ api: api(limit, translations), esc, language: locale, uiText: (key, parameters) => s(key, parameters), navigate: hash => { location.hash = hash; },
+      state: { settings: { language: locale } }, guideContent, schedule: run => { run(); return 0; } });
+    view.mount(host, { route });
+    window.__harnessStage = 'mounted:' + host.innerHTML.length;
+  } catch (error) { window.__harnessStage = 'failed:' + ((error && error.message) || String(error)); harnessFail((error && error.message) || String(error)); }
 }
 document.getElementById('apply').addEventListener('click', load);
 document.getElementById('route').addEventListener('change', load);
@@ -665,8 +740,10 @@ const harness = option('--harness');
 if (harness) {
   const target = path.resolve(ROOT, harness);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, harnessHtml(guides, nouns));
-  console.log(`harness written: ${target}`);
+  // The harness is written wherever the reviewer asks, so its links to public/ are computed, not assumed.
+  const prefix = path.relative(path.dirname(target), ROOT).split(path.sep).join('/') + '/';
+  fs.writeFileSync(target, harnessHtml(guides, nouns, prefix));
+  console.log(`harness written: ${target} (links prefix "${prefix}")`);
 }
 const port = option('--serve');
 if (port) await serve(Number(port));
