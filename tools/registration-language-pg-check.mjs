@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createFixture, rolePool } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
@@ -15,16 +15,19 @@ const local = env.OWNAPI_PG_PORT === '62563' && env.OWNAPI_PG_DATABASE === 'hato
 const ci = env.CI === 'true' && env.GITHUB_ACTIONS === 'true' && env.OWNAPI_PG_PORT === '5432' && env.OWNAPI_PG_DATABASE === 'hatoove_ci';
 if (env.OWNAPI_PG_ALLOW !== '1' || env.OWNAPI_PG_HOST !== '127.0.0.1' || (!local && !ci)) throw Error('registration_language_fixture_refused');
 /*
- * The fixture stops before `0039-`, so the remainder it must apply is "every migration from 0039 on" — DERIVED
- * from the directory, not listed. The hard-coded three-name list this replaces had gone stale at `0041`, so the
- * check turned red the moment `0042`-`0047` landed: a hand-written inventory with nothing to keep it current,
- * the class this repository keeps producing. Deriving keeps the assertion strict — it still proves the forward
- * migrations applied in order, with none missing and none invented — without scheduling the next stale list.
+ * The fixture stops before `0039-`, so the remainder it must apply is "every migration from 0039 on".
+ * That expectation is taken from `MANIFEST.json`, NOT from the same directory listing the fixture itself uses:
+ * reading the same source with the same filter on both sides makes the assertion a tautology that can never
+ * fail - which is exactly what the first version of this fix did. The manifest is an independent pinned record
+ * of which migrations exist and what their digests are, so comparing against it still proves the forward
+ * migrations applied in order, with none missing and none invented.
  */
 const migrationsDir = new URL('../server/migrations/', import.meta.url);
-const expectedRemainder = readdirSync(migrationsDir)
-  .filter(name => /^\d{4}-.+\.sql$/.test(name) && name >= '0039-')
-  .sort();
+const migrationManifest = JSON.parse(readFileSync(new URL('MANIFEST.json', migrationsDir), 'utf8'));
+const expectedRemainder = Object.keys(migrationManifest.migrations)
+  .filter(name => name >= '0039-')
+  .sort()
+  .map(name => name + '.sql');
 
 let db, world, concurrentPool, observer, passed = 0;
 const check = async (name, work) => { await work(); passed++; console.log('PASS ' + name); };
