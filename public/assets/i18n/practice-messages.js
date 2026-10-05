@@ -309,6 +309,43 @@ const rows = {
   ui71: ["Hinweise zur Struktur","Structure notes","Пояснення структури","ملاحظات البنية","Yapı notları"],
   ui72: ["Es wurden nur die ersten 24 Satzteile untersucht.","Only the first 24 clauses were examined.","Проаналізовано лише перші 24 частини речень.","تم فحص أول 24 جزءًا من الجمل فقط.","Yalnızca ilk 24 cümlecik incelendi."],
   ui73: ["Kein Hinweis aus den bekannten Mustern. Das bestätigt nicht, dass der Satz grammatisch richtig ist.","No note from the known patterns. This does not confirm that the sentence is grammatically correct.","Відомі шаблони не дали підказок. Це не підтверджує граматичної правильності речення.","لا توجد ملاحظة من الأنماط المعروفة. هذا لا يؤكد صحة الجملة نحويًا.","Bilinen kalıplardan bir not yok. Bu, cümlenin dil bilgisi bakımından doğru olduğunu doğrulamaz."],
+  /*
+   * MIRROR-B1PREP-01 slice E/F — the Nachschlagen library. The guides themselves stay in German
+   * (authored exam material); these are INTERFACE labels only, so they carry all five locales and the
+   * formal address. `{count}` is always filled from the served payload, never hard-coded in markup.
+   *
+   * Reused shell keys rather than copies: m010 (Nachschlagen), m057 (loading), m061 (Teil),
+   * m069/m075/m076 (failure and empty states), m070/m071 (nothing found), m077 (open), m079-m090
+   * (section kinds and the unreviewed note), m091 (the single "translation not available" note),
+   * m267/m268/m278/m282/m283/m288 (rule, rules, meaning, article, plural, exceptions),
+   * m272 (watch out), m337 (search), m340 (hub subtitle).
+   */
+  libraryAreasCount: ["{count} Bereiche · alles zum Lesen, nichts wird abgefragt","{count} areas · everything to read, nothing is tested","{count} розділів · усе для читання, без перевірки знань","{count} أقسام · كل شيء للقراءة، دون اختبار","{count} alan · okumak için her şey, sınav yok"],
+  libraryPill: ["Nachschlagen, nicht abgefragt","Reference only, not tested","Довідка, без перевірки","للاطلاع فقط، دون اختبار","Yalnızca başvuru, sınav yok"],
+  libraryJump: ["Direkt zu einem Abschnitt","Jump to a section","Перейти до розділу","الانتقال إلى قسم","Bir bölüme git"],
+  libraryMachineTranslated: ["maschinell übersetzt · Prüfung ausstehend","machine translated · review pending","перекладено машинно · перевірка очікується","ترجمة آلية · المراجعة معلّقة","makine çevirisi · inceleme bekliyor"],
+  libraryCountParts: ["{count} Teile","{count} parts","{count} частин","{count} أجزاء","{count} bölüm"],
+  libraryCountTopics: ["{count} Themen","{count} topics","{count} тем","{count} موضوعات","{count} konu"],
+  libraryCountEntries: ["{count} Einträge","{count} entries","{count} записів","{count} مدخلات","{count} kayıt"],
+  libraryCountNouns: ["{count} Nomen","{count} nouns","{count} іменників","{count} اسمًا","{count} isim"],
+  libraryTool: ["Werkzeug","Tool","Інструмент","أداة","Araç"],
+  libraryAllGenders: ["Alle","All","Усі","الكل","Tümü"],
+  libraryShown: ["{count} angezeigt","{count} shown","Показано: {count}","المعروض: {count}","{count} gösteriliyor"],
+  libraryPartial: ["Nicht alle Einträge passen in eine Liste. Grenzen Sie mit Artikel und Suche ein.","Not every entry fits in one list. Narrow it down with article and search.","Не всі записи вміщуються в один список. Уточніть за допомогою артикля й пошуку.","لا تظهر جميع المدخلات في قائمة واحدة. حُدّد النتائج بأداة التعريف والبحث.","Tüm kayıtlar tek listeye sığmaz. Artikel ve aramayla daraltın."],
+  libraryCasesLegend: ["Hervorgehoben: weicht vom Nominativ ab","Highlighted: differs from the nominative","Виділено: відрізняється від називного","مظلّل: يختلف عن حالة الرفع","Vurgulanan: yalın hâlden farklı"],
+  libraryLexicon: ["Nomen-Lexikon","Noun lexicon","Лексикон іменників","معجم الأسماء","İsim sözlüğü"],
+  libraryAreaSpeaking: ["Redemittel Sprechen","Speaking phrases","Звороти для говоріння","عبارات المحادثة","Konuşma kalıpları"],
+  libraryAreaWriting: ["Briefe schreiben","Writing letters","Написання листів","كتابة الرسائل","Mektup yazma"],
+  libraryAreaCases: ["Fälle & Artikel","Cases & articles","Відмінки й артиклі","الحالات وأدوات التعريف","Hâller ve artikeller"],
+  libraryAreaGender: ["Nomen & Genus","Nouns & gender","Іменники й рід","الأسماء والجنس","İsimler ve cinsiyet"],
+  libraryAreaGrammar: ["Grammatik","Grammar","Граматика","القواعد","Dil bilgisi"],
+  libraryAreaSatzbau: ["Satzbau verstehen","Understanding sentence structure","Розуміння будови речення","فهم بنية الجملة","Cümle yapısını anlama"],
+  libraryDescSpeaking: ["Redemittel und Beispielsätze für die mündliche Prüfung.","Phrases and example sentences for the oral exam.","Звороти та приклади речень для усного іспиту.","عبارات وجمل أمثلة للامتحان الشفهي.","Sözlü sınav için kalıplar ve örnek cümleler."],
+  libraryDescWriting: ["Aufbau, Redemittel und Checklisten für formelle Briefe.","Structure, phrases and checklists for formal letters.","Структура, звороти й переліки для офіційних листів.","البنية والعبارات وقوائم التحقّق للرسائل الرسمية.","Resmî mektuplar için yapı, kalıplar ve kontrol listeleri."],
+  libraryDescCases: ["Die vier Fälle mit Artikeln, Tabellen und typischen Auslösern.","The four cases with articles, tables and typical triggers.","Чотири відмінки з артиклями, таблицями та типовими підказками.","الحالات الأربع مع أدوات التعريف والجداول والمحفّزات الشائعة.","Artikeller, tablolar ve tipik tetikleyicilerle dört hâl."],
+  libraryDescGender: ["Regeln, Ausnahmen und das Nomen-Lexikon mit Artikel, Plural und Bedeutung.","Rules, exceptions and the noun lexicon with article, plural and meaning.","Правила, винятки та лексикон іменників з артиклем, множиною та значенням.","القواعد والاستثناءات ومعجم الأسماء مع أداة التعريف والجمع والمعنى.","Kurallar, istisnalar ve artikeli, çoğulu ve anlamıyla isim sözlüğü."],
+  libraryDescGrammar: ["Regeln, Satzmuster und Tabellen zu den wichtigsten Themen.","Rules, sentence patterns and tables for the main topics.","Правила, моделі речень і таблиці з головних тем.","قواعد وأنماط جمل وجداول لأهم الموضوعات.","Önemli konular için kurallar, cümle kalıpları ve tablolar."],
+  libraryDescSatzbau: ["Hauptsatz, Nebensatz und Fragen im bestehenden Werkzeug.","Main clause, subordinate clause and questions in the existing tool.","Головне речення, підрядне речення та питання в наявному інструменті.","الجملة الرئيسية والجملة الفرعية والأسئلة في الأداة الحالية.","Mevcut araçta ana cümle, yan cümle ve sorular."],
 };
 export const PRACTICE_MESSAGES = Object.freeze(Object.fromEntries(['de','en','uk','ar','tr'].map((locale,index) => [locale,Object.freeze(Object.fromEntries(Object.entries(rows).map(([key,values]) => [key,values[index]])))])));
 registerMessages('practice', PRACTICE_MESSAGES);
