@@ -39,6 +39,13 @@ import { createReadAloud } from './read-aloud.js';
  */
 export const NOUN_PAGE_SIZE = 50;
 
+/**
+ * The two guide documents this module does NOT own: Kerngrammatik and the core phrases are Wortschatz
+ * material (contract section 5 E/F). Slice G renders them in `vocab.js`, which imports this constant so
+ * the boundary has exactly one definition; a deep link here hands over instead of rendering them.
+ */
+export const WORTSCHATZ_GUIDE_IDS = Object.freeze(['core-grammar', 'core-phrases']);
+
 /** The six areas, in the contract's order. `unit` names the catalogue key holding the count pattern. */
 export const LIBRARY_AREAS = Object.freeze([
   { id: 'speaking', guideId: 'speaking-guide', icon: '🗣', title: 'libraryAreaSpeaking', description: 'libraryDescSpeaking', unit: 'libraryCountParts' },
@@ -269,6 +276,17 @@ export function createLibraryView(ctx = {}) {
 
   /* ------------------------------------------------------------------------------- guide pages */
 
+  /**
+   * A deep link to a corpus slice G owns. The library does not render it: it points at Wortschatz, where
+   * the same corpus is presented by its one owner. The link is a plain hash anchor, so it works with or
+   * without this module's JavaScript.
+   */
+  const handoverMarkup = () => page(backLink()
+    + '<div class="card"><h2>' + esc(uiText('m395')) + '</h2>'
+    + '<p>' + esc(message('libraryMovedToVocab')) + '</p>'
+    + '<a class="btn" href="#/wortschatz">' + esc(uiText('m395')) + '</a></div>'
+    + backLink());
+
   const jumpMarkup = jumps => (jumps.length
     ? `<nav class="library-jump" aria-label="${esc(message('libraryJump'))}">`
       + `<p class="library-jump-label small muted">${esc(message('libraryJump'))}</p>`
@@ -456,9 +474,14 @@ export function createLibraryView(ctx = {}) {
     if (!slug) return { name: 'hub', guideId: null, area: null };
     const area = LIBRARY_AREAS.find(candidate => candidate.id === slug) || LIBRARY_AREAS.find(candidate => candidate.guideId === slug);
     if (area?.navigate) return { name: 'hub', guideId: null, area: null };
-    // An area's own guide, or a guide that has no hub card (Kerngrammatik and the core phrases are
-    // Wortschatz material, slice G, but a deep link to the document still has to render it).
-    return { name: 'guide', guideId: area ? area.guideId : slug, area: area ? area.id : null };
+    const guideId = area ? area.guideId : slug;
+    /**
+     * Kerngrammatik and the core phrases are WORTSCHATZ material (contract section 5 E/F: they "leave
+     * this hub for Wortschatz"), and slice G owns them now. A deep link to one of those documents hands
+     * over instead of rendering it: two owners of one corpus would let the two presentations drift.
+     */
+    if (WORTSCHATZ_GUIDE_IDS.includes(guideId)) return { name: 'handover', guideId, area: null };
+    return { name: 'guide', guideId, area: area ? area.id : null };
   };
 
   async function loadIndex() {
@@ -535,7 +558,9 @@ export function createLibraryView(ctx = {}) {
   function render() {
     if (!host) return;
     readAloud?.clear(host);
-    host.innerHTML = view.name === 'guide' ? guidePageMarkup() : hubMarkup();
+    host.innerHTML = view.name === 'guide' ? guidePageMarkup()
+      : view.name === 'handover' ? handoverMarkup()
+        : hubMarkup();
     host.onclick = onClick;
     host.oninput = onInput;
     if (typeof host.querySelectorAll === 'function' && readAloud && document_) {

@@ -391,6 +391,30 @@ const rows = {
   libraryDescGender: ["Regeln, Ausnahmen und das Nomen-Lexikon mit Artikel, Plural und Bedeutung.","Rules, exceptions and the noun lexicon with article, plural and meaning.","Правила, винятки та лексикон іменників з артиклем, множиною та значенням.","القواعد والاستثناءات ومعجم الأسماء مع أداة التعريف والجمع والمعنى.","Kurallar, istisnalar ve artikeli, çoğulu ve anlamıyla isim sözlüğü."],
   libraryDescGrammar: ["Regeln, Satzmuster und Tabellen zu den wichtigsten Themen.","Rules, sentence patterns and tables for the main topics.","Правила, моделі речень і таблиці з головних тем.","قواعد وأنماط جمل وجداول لأهم الموضوعات.","Önemli konular için kurallar, cümle kalıpları ve tablolar."],
   libraryDescSatzbau: ["Hauptsatz, Nebensatz und Fragen im bestehenden Werkzeug.","Main clause, subordinate clause and questions in the existing tool.","Головне речення, підрядне речення та питання в наявному інструменті.","الجملة الرئيسية والجملة الفرعية والأسئلة في الأداة الحالية.","Mevcut araçta ana cümle, yan cümle ve sorular."],
+  /* Slice G moved Kerngrammatik and the core phrases out of Nachschlagen; a deep link hands over. */
+  libraryMovedToVocab: ["Diese Sammlung gehört jetzt zu Wortschatz. Dort finden Sie den Prüfungskern mit Grammatik und Redemitteln.","This collection now belongs to Wortschatz. The exam core with grammar and useful phrases is there.","Ця збірка тепер у розділі Wortschatz. Там ядро іспиту з граматикою та мовними зворотами.","هذه المجموعة أصبحت الآن ضمن Wortschatz. هناك جوهر الامتحان مع القواعد والعبارات المفيدة.","Bu koleksiyon artık Wortschatz bölümünde. Sınav çekirdeği dil bilgisi ve kalıp ifadelerle birlikte orada."],
+  /*
+   * MIRROR-B1PREP-01 slice G (VOCAB-01) — the Wortschatz view. Interface labels only; the corpora stay
+   * German (exam language) and the deck's English gloss is authored content shown on the English page.
+   * Reused rather than copied: shell.m337 (Suche), m385 (the two-character placeholder), m068 (the
+   * minimum), m057 (loading), m070/m071 (nothing found), m087 (Beispiel), m091 (the one German-only
+   * note), m278 (Bedeutung), m283 (Plural), m339 (Nomen), m395 (Wortschatz), and this catalogue's
+   * libraryCountEntries / libraryPill.
+   */
+  vocabIntro: ["Der Prüfungskern zuerst, darunter die Wortliste. Zum Nachschlagen, nicht abgefragt.","The exam core first, then the word list. For reference, not tested.","Спочатку ядро іспиту, далі список слів. Для довідки, без перевірки.","أولاً جوهر الامتحان، ثم قائمة الكلمات. للاطلاع، دون اختبار.","Önce sınav çekirdeği, sonra sözcük listesi. Başvuru için, sınav yok."],
+  vocabCore: ["Prüfungskern","Exam core","Ядро іспиту","جوهر الامتحان","Sınav çekirdeği"],
+  vocabCoreDesc: ["Grammatik und Redemittel, nach Blöcken geordnet. Die Beispiele bleiben deutsch, die Übersetzung steht darunter.","Grammar and useful phrases, arranged in blocks. The examples stay German; the translation sits beneath.","Граматика та мовні звороти, упорядковані за блоками. Приклади залишаються німецькою, переклад — під ними.","القواعد والعبارات المفيدة مرتّبة في مجموعات. تبقى الأمثلة بالألمانية والترجمة تحتها.","Dil bilgisi ve kalıp ifadeler bloklara ayrılmıştır. Örnekler Almanca kalır, çevirisi altındadır."],
+  vocabDeck: ["Wortliste","Word list","Список слів","قائمة الكلمات","Sözcük listesi"],
+  vocabDeckDesc: ["Wörter der Prüfung, nach Wortart geordnet und durchsuchbar.","Exam words, arranged by part of speech and searchable.","Слова іспиту, упорядковані за частинами мови та з пошуком.","كلمات الامتحان مرتّبة حسب نوع الكلمة وقابلة للبحث.","Sınav sözcükleri, sözcük türüne göre düzenli ve aranabilir."],
+  vocabBlocks: ["Blöcke","Blocks","Блоки","المجموعات","Bloklar"],
+  vocabPos: ["Wortart","Part of speech","Частина мови","نوع الكلمة","Sözcük türü"],
+  vocabAll: ["Alle","All","Усі","الكل","Tümü"],
+  vocabPartial: ["Nicht alle Einträge passen in eine Liste. Grenzen Sie mit Wortart und Suche ein.","Not every entry fits in one list. Narrow it down with part of speech and search.","Не всі записи вміщуються в один список. Уточніть за допомогою частини мови й пошуку.","لا تظهر جميع المدخلات في قائمة واحدة. حُدّد النتائج بنوع الكلمة والبحث.","Tüm kayıtlar tek listeye sığmaz. Sözcük türü ve aramayla daraltın."],
+  vocabPosNoun: ["Nomen","Nouns","Іменники","الأسماء","İsimler"],
+  vocabPosVerb: ["Verben","Verbs","Дієслова","الأفعال","Fiiller"],
+  vocabPosAdj: ["Adjektive","Adjectives","Прикметники","الصفات","Sıfatlar"],
+  vocabPosAdv: ["Adverbien","Adverbs","Прислівники","الظروف","Zarflar"],
+  vocabPosPhrase: ["Phrasen","Phrases","Фрази","العبارات","İfadeler"],
 };
 export const PRACTICE_MESSAGES = Object.freeze(Object.fromEntries(['de','en','uk','ar','tr'].map((locale,index) => [locale,Object.freeze(Object.fromEntries(Object.entries(rows).map(([key,values]) => [key,values[index]])))])));
 registerMessages('practice', PRACTICE_MESSAGES);

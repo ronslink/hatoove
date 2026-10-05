@@ -38,7 +38,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { createLibraryView, caseHighlights, LIBRARY_AREAS, SECTION_LABELS, NOUN_PAGE_SIZE, storedTranslationPath } from '../public/app/library.js';
+import { createLibraryView, caseHighlights, LIBRARY_AREAS, SECTION_LABELS, NOUN_PAGE_SIZE, storedTranslationPath, WORTSCHATZ_GUIDE_IDS } from '../public/app/library.js';
 import { guideContent } from '../public/app/guide-content.js';
 import { setLocale, getLocale } from '../public/assets/i18n/core.js';
 import { s } from '../public/app/locale-preference.js';
@@ -290,7 +290,19 @@ function guideKindCounts(guide) {
 }
 
 async function assertGuides(guides, nouns) {
-  for (const guide of guides) {
+  // Slice G owns Kerngrammatik and the core phrases; the library must not render them at all.
+  const libraryGuides = guides.filter(guide => !WORTSCHATZ_GUIDE_IDS.includes(guide.guide_id));
+  assert.equal(libraryGuides.length, guides.length - WORTSCHATZ_GUIDE_IDS.length, 'the two Wortschatz corpora are excluded from the library');
+  for (const guide of guides.filter(guide => WORTSCHATZ_GUIDE_IDS.includes(guide.guide_id))) {
+    const { page, api } = await mounted({ documents: guides, nouns, route: `#/nachschlagen/${guide.guide_id}` });
+    const html = page();
+    assert.ok(html.includes(l('libraryMovedToVocab')), `${guide.guide_id}: a deep link hands over to Wortschatz`);
+    assert.ok(html.includes('href="#/wortschatz"'), `${guide.guide_id}: the hand-over links to the Wortschatz route`);
+    const firstItem = guide.sections[0]?.payload?.items?.[0]?.de ?? '';
+    assert.ok(firstItem && !html.includes(firstItem), `${guide.guide_id}: the library does not render the corpus items it no longer owns`);
+    assert.ok(!api.calls.some(call => call.endpoint === 'guides.read' && call.guideId === guide.guide_id), `${guide.guide_id}: the corpus is not even fetched`);
+  }
+  for (const guide of libraryGuides) {
     const { page, api } = await mounted({ documents: guides, nouns, route: `#/nachschlagen/${guide.guide_id}` });
     const html = page();
     const label = guide.guide_id;
@@ -937,10 +949,10 @@ if (harness) {
 const port = option('--serve');
 if (port) await serve(Number(port));
 
-console.log('PASS library render: 6 hub areas and their payload counts, 7 guide pages with a jump chip per section,');
+console.log('PASS library render: 6 hub areas and their payload counts, 5 library guide pages with a jump chip per section,');
 console.log('     8 case tables marked exactly off the Nominativ reference, Arabic RTL with LTR German islands,');
 console.log('     one German-only note per page, the machine-translated marker, and the lexicon filter/search path.');
-console.log(`     ${guideCount()} guide sections and ${nouns.length} nouns through the module; ${getLocale()} locale left set by the last case.`);
+console.log(`     ${guideCount()} guide sections and ${nouns.length} nouns through the module; the ${WORTSCHATZ_GUIDE_IDS.length} Wortschatz corpora hand over; ${getLocale()} locale left set by the last case.`);
 
 function guideCount() {
   return guides.reduce((total, entry) => total + entry.sections.length, 0);
