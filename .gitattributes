@@ -22,6 +22,13 @@ content/library-translations/*.json -text
 # package pins, and their PCM duration is verified at startup. Make the binary rule explicit rather than
 # relying on git's heuristic, so no checkout can ever transform them.
 *.wav binary
+# PILOT-FEEDBACK-01 (FB-E): the vendored capture library is pinned by SHA-256 in
+# public/assets/vendor/README.md and re-checked by tools/vendor-integrity-check.mjs, for the same reason as the
+# artifacts above — on Windows with core.autocrlf=true an unconverted checkout would change the digest and the
+# gate would fail on a platform rather than on a change. `-text` keeps the bytes identical on every platform.
+# This was caught by git's own warning on the first commit of the file, which is exactly the class
+# `tools/eol-hash-check.mjs` was written for.
+public/assets/vendor/** -text
 # Files a check hashes for a recorded digest must have the same bytes on every platform.
 # Their recorded digests are the committed blob's (LF); without a rule a Windows working tree is
 # CRLF and the hash differs, which made gates pass on one platform and fail on the other.
