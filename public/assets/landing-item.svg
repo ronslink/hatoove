@@ -45,8 +45,8 @@
   [lang=uk]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
   [lang=tr]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
   [lang=ar]{font-family:"Noto Sans Arabic","Segoe UI","Geeza Pro",system-ui,sans-serif}
-  .label{font-weight:750;font-size:22px;letter-spacing:.12em;fill:var(--orange-dark)}   /* .kicker */
-  .chips{font-weight:750;font-size:30px;letter-spacing:.1em;fill:var(--muted);text-anchor:middle}
+  .label{font-weight:750;font-size:30px;letter-spacing:.12em;fill:var(--orange-dark)}   /* .kicker */
+  .chips{font-weight:750;font-size:30px;letter-spacing:.1em;fill:var(--muted);text-anchor:start}
   .task{font-size:40px;fill:var(--ink)}                                                 /* .text-block */
   .opt{font-size:38px;font-weight:700;fill:var(--ink)}                                  /* .option */
   .badge{font-family:var(--display);font-weight:700;font-size:26px;fill:var(--paper);text-anchor:middle}
@@ -69,8 +69,8 @@
 
 <!-- exam context + provenance chip (both inside the social crop) -->
 <text class="label" x="96" y="112">TELC DEUTSCH B1</text>
-<rect x="392" y="84" width="472" height="40" rx="20" fill="var(--canvas)" stroke="var(--line)"/>
-<text class="chips" x="628" y="113">EIGENES ÜBUNGSBEISPIEL</text>
+<rect x="436" y="84" width="428" height="40" rx="20" fill="var(--canvas)" stroke="var(--line)"/>
+<text class="chips" x="456" y="113">EIGENES BEISPIEL</text>
 
 <!-- the task: one German sentence with the gap marked as .gap (orange bottom rule, no fill) -->
 <text class="task" lang="de" dir="ltr" x="96" y="180">Das ist der Kollege, mit</text>
