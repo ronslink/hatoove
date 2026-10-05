@@ -39,6 +39,10 @@ const GROUPS = {
        and the screenshot-owner trigger are all NEGATIVE properties. Nothing else in this group observes them,
        so without this gate the whole slice could ship with the policies inverted and still be green. */
     gate('pilot-feedback-migration-check'),
+    /* PILOT-FEEDBACK-01 (FB-B): the four routes driven through the API. The migration check above proves what
+       the DATABASE enforces; every rule this slice added lives above it - the closed request field set, the
+       422/409/429 mapping, the context-drop rule, the 204 - and none of that is observable from SQL. */
+    gate('pilot-feedback-api-check'),
   ],
   /* The AGENTS.md offline baseline. */
   baseline: [

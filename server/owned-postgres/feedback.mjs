@@ -49,10 +49,16 @@ export function feedbackMethods({ settle, note = () => {}, appVersion = 'unknown
 
     const { runId, guideId, sectionId, examId, setId, version, itemId } = context;
     if (runId) {
+      /*
+       * THE TWO RUN TABLES DO NOT NAME THEIR KEY THE SAME WAY: `mock_run.id` is the run, and `practice_attempt`
+       * has `attempt_id` and no `id` at all. Writing `id` for both made this query fail, and because it runs
+       * while deciding whether to DROP the context, the failure turned the "a stale page never loses the report"
+       * path into a 500 — the opposite of the rule it implements. Caught by `pilot-feedback-api-check` leg 8.
+       */
       const own = (await client.query(
         `SELECT 1 FROM mock_run WHERE id = $1 AND owner_id = $2
          UNION ALL
-         SELECT 1 FROM practice_attempt WHERE id = $1 AND owner_id = $2 LIMIT 1`, [runId, owner])).rowCount > 0;
+         SELECT 1 FROM practice_attempt WHERE attempt_id = $1 AND owner_id = $2 LIMIT 1`, [runId, owner])).rowCount > 0;
       return own ? { context, dropped: false } : { context: null, dropped: true };
     }
     if (guideId && sectionId) {
@@ -79,16 +85,27 @@ export function feedbackMethods({ settle, note = () => {}, appVersion = 'unknown
       return settle(owner, async (client) => {
         const { context, dropped } = await resolveContext(client, owner, input.context ?? {});
         const feedbackId = randomUUID();
-        await client.query(
-          `INSERT INTO pilot_feedback
-             (feedback_id, owner_id, kind, category, body, route,
-              exam_id, set_id, version, item_id, guide_id, section_id, run_id,
-              interface_language, app_version)
-           VALUES ($1,$2,'report',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-          [feedbackId, owner, input.category, body, input.route,
-            context?.examId ?? null, context?.setId ?? null, context?.version ?? null, context?.itemId ?? null,
-            context?.guideId ?? null, context?.sectionId ?? null, context?.runId ?? null,
-            input.interfaceLanguage, appVersion]);
+        try {
+          await client.query(
+            `INSERT INTO pilot_feedback
+               (feedback_id, owner_id, kind, category, body, route,
+                exam_id, set_id, version, item_id, guide_id, section_id, run_id,
+                interface_language, app_version)
+             VALUES ($1,$2,'report',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+            [feedbackId, owner, input.category, body, input.route,
+              context?.examId ?? null, context?.setId ?? null, context?.version ?? null, context?.itemId ?? null,
+              context?.guideId ?? null, context?.sectionId ?? null, context?.runId ?? null,
+              input.interfaceLanguage, appVersion]);
+        } catch (error) {
+          /*
+           * 23514 is the CHECK family — the closed route list, the body bounds, the report shape. The API
+           * validates those first, so reaching here means the two disagreed; answering 422 names it as the
+           * caller's error rather than letting a constraint violation read as a server failure. The database is
+           * still the authority and the row is still refused.
+           */
+          if (error?.code === '23514') throw new Fault(422, 'invalid_feedback');
+          throw error;
+        }
         return { feedback_id: feedbackId, ...(dropped ? { context: 'dropped' } : {}) };
       });
     },
@@ -164,6 +181,9 @@ export function feedbackMethods({ settle, note = () => {}, appVersion = 'unknown
         } catch (error) {
           // The unique partial index is the second-submission guard; name it rather than leaking a 23505.
           if (error?.code === '23505') throw new Fault(409, 'survey_already_answered');
+          // A CHECK failure is `0049`'s trigger refusing an out-of-range rating or an unknown question id.
+          // That is the caller's mistake, so it is a 422 and not a constraint violation surfacing as a 500.
+          if (error?.code === '23514') throw new Fault(422, 'invalid_answers');
           throw error;
         }
         return { round_id: roundId, skipped: Boolean(input.skip) };
