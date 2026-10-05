@@ -26,7 +26,9 @@ const rows = {
   passwordHint: ['Verwenden Sie ein eigenes, langes Passwort für dieses Konto.','Use a unique, long password for this account.','Використовуйте окремий довгий пароль для цього облікового запису.','استخدم كلمة مرور طويلة وفريدة لهذا الحساب.','Bu hesap için benzersiz, uzun bir parola kullanın.'],
   freeHint: ['Der Pilot ist kostenlos. Die verfügbare Schreib-Rückmeldung ist begrenzt und wird in der App angezeigt.','The pilot is free. Available writing feedback is limited and shown in the app.','Пілот безкоштовний. Кількість відгуків на письмо обмежена й показана в застосунку.','التجربة مجانية. عدد ملاحظات الكتابة المتاحة محدود ويظهر في التطبيق.','Pilot ücretsizdir. Yazma geri bildirimi sayısı sınırlıdır ve uygulamada gösterilir.'],
   create: ['Kostenloses Konto erstellen','Create a free account','Створити безкоштовний обліковий запис','أنشئ حسابًا مجانيًا','Ücretsiz hesap oluştur'],
-  verifyPrompt: ['Sie haben bereits ein Konto und möchten Ihre Adresse bestätigen?','Already have an account and want to verify your address?','Уже маєте обліковий запис і хочете підтвердити адресу?','لديك حساب وتريد تأكيد عنوانك؟','Zaten hesabınız var ve adresinizi doğrulamak mı istiyorsunuz?'],
+  /* `verifyPrompt` was removed with the misleading sign-in-page prompt (5 Oct 2026): the pilot has no mail
+   * provider, so "request a verification link" could never deliver one. The `/verify-email` page and its
+   * routes stay reachable for operator-assisted use, which is why `verifyRequest` remains. */
   verifyRequest: ['Bestätigungslink anfordern','Request a verification link','Запросити посилання для підтвердження','اطلب رابط تأكيد','Doğrulama bağlantısı iste'],
   toSignin: ['Zur Anmeldung','Go to sign in','До входу','انتقل إلى تسجيل الدخول','Girişe git'],
   morePages: ['Weitere Seiten','More pages','Інші сторінки','صفحات أخرى','Diğer sayfalar'],
