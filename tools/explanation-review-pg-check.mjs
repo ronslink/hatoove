@@ -9,6 +9,17 @@ import {importObjectiveExplanations} from '../server/owned-postgres/explanation-
 import {registerExplanationReviewTarget,readExplanationReviewPacket,readExplanationCoverage} from '../server/owned-postgres/explanation-review.mjs';
 import {recordReviewerAuthority,recordContentReview} from '../server/owned-postgres/content-review.mjs';
 import {executeReviewCommand,parseReviewArgs} from './review-content.mjs';
+
+/*
+ * The expected forward-migration remainder is DERIVED from `server/migrations/MANIFEST.json`, not listed.
+ * The hard-coded arrays this replaces ended at `0041`, so every one of these checks turned red the moment
+ * `0042`-`0047` landed - and because they sit behind each other in the CI job, only the first was ever seen.
+ * The manifest is an independent pinned record of which migrations exist and their digests, so the assertion
+ * still proves the forward migrations applied in order, with none missing and none invented.
+ */
+const migrationManifest = JSON.parse(readFileSync(new URL('../server/migrations/MANIFEST.json', import.meta.url), 'utf8'));
+const expectedRemainder = from => Object.keys(migrationManifest.migrations).filter(name => name >= from).sort().map(name => name + '.sql');
+
 /** Every cleanup stage is attempted. No success value escapes on a primary or cleanup failure. */
 async function finishFixture(steps,primary={failed:false}){
  const errors=[];let verified;
@@ -72,7 +83,7 @@ try{
  await decide(decision({kind:'content',examId:EXAM,subjectId:SET+'@v1',version:'',sha256:oldContent.content_sha256},oldAuthority.authorityId,null));
  const baseline=(await db.admin.query('SELECT to_jsonb(d) AS value FROM content_review_decision d ORDER BY decision_id')).rows;
  assert.ok(baseline.length>0);
- await check('forward migration preserves existing ledger bytes and seeds no targets or approvals',async()=>{assert.deepEqual(await db.applyRemaining(),['0040-explanation-review.sql','0041-objective-answer-reveal.sql']);assert.deepEqual((await db.admin.query("SELECT to_jsonb(d)-'explanation_target_id' AS value FROM content_review_decision d ORDER BY decision_id")).rows,baseline);assert.equal((await db.admin.query('SELECT count(*)::int n FROM explanation_review_target')).rows[0].n,0);});
+ await check('forward migration preserves existing ledger bytes and seeds no targets or approvals',async()=>{assert.deepEqual(await db.applyRemaining(), expectedRemainder('0040-explanation-review'));assert.deepEqual((await db.admin.query("SELECT to_jsonb(d)-'explanation_target_id' AS value FROM content_review_decision d ORDER BY decision_id")).rows,baseline);assert.equal((await db.admin.query('SELECT count(*)::int n FROM explanation_review_target')).rows[0].n,0);});
  await check('all five runtime roles have no target table, column or private helper authority',async()=>{for(const pool of [db.learner,db.worker,db.auth,db.payments,db.deletion]){for(const sql of ['SELECT * FROM explanation_review_target','SELECT target_id FROM explanation_review_target','DELETE FROM explanation_review_target','TRUNCATE explanation_review_target',"SELECT register_explanation_review_target('{}')","SELECT explanation_review_source_binding('{}','null')"])await assert.rejects(pool.query(sql),e=>e.code==='42501');}assert.equal((await db.admin.query("SELECT count(*)::int n FROM information_schema.table_privileges WHERE table_schema=$1 AND table_name='explanation_review_target' AND grantee='PUBLIC'",[db.schema])).rows[0].n,0);for(const pool of [db.auth,db.payments,db.deletion])await assert.rejects(project(original(),pool),e=>e.code==='42501');assert.equal((await project(original(),db.worker)).length,2);});
  await check('validated unregistered source has two unreviewed dimensions and private unregistered binding',async()=>{assert.deepEqual((await project(original())).map(r=>[r.dimension,r.review_status,r.explicit_negative]),[['educational','unreviewed',false],['native_language','unreviewed',false]]);assert.deepEqual((await binding()).review_source_binding,{state:'unregistered'});assert.deepEqual((await binding('different immutable original')).review_source_binding,{state:'unavailable'});});
  await check('personal scopes and cross-exam, unknown-item, digest and unknown-language inputs refuse',async()=>{for(const p of [{...original(),scope:'writing'},{...original(),sourceIdentity:{...original().sourceIdentity,exam_id:'dtz-a2-b1'}},{...original(),sourceIdentity:{...original().sourceIdentity,item_id:'alien'}},{...original(),sourceSha256:'f'.repeat(64)},{...original(),payloadSha256:'f'.repeat(64)},{...original(),language:'en'}])await assert.rejects(register(p),/review_(input_invalid|subject_mismatch)/);await assert.rejects(tx(c=>registerExplanationReviewTarget(c,original(),{languageRegistry:[]})),/review_source_language_unknown/);});

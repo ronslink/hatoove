@@ -14,6 +14,17 @@ import {createExamCatalogue} from '../server/preparation-contract.mjs';
 import {createCompleteFixture} from './exam-s5b-fixture.mjs';
 import {mockMemberItems} from '../server/mock-contract.mjs';
 import {readReleasedForm} from '../server/owned-postgres/packages.mjs';
+
+/*
+ * The expected forward-migration remainder is DERIVED from `server/migrations/MANIFEST.json`, not listed.
+ * The hard-coded arrays this replaces ended at `0041`, so every one of these checks turned red the moment
+ * `0042`-`0047` landed - and because they sit behind each other in the CI job, only the first was ever seen.
+ * The manifest is an independent pinned record of which migrations exist and their digests, so the assertion
+ * still proves the forward migrations applied in order, with none missing and none invented.
+ */
+const migrationManifest = JSON.parse(readFileSync(new URL('../server/migrations/MANIFEST.json', import.meta.url), 'utf8'));
+const expectedRemainder = from => Object.keys(migrationManifest.migrations).filter(name => name >= from).sort().map(name => name + '.sql');
+
 if(process.env.OWNAPI_PG_ALLOW!=='1'||!process.env.OWNAPI_PG_PORT||[4300,55440].includes(Number(process.env.OWNAPI_PG_PORT)))throw Error('Explicit disposable OWNAPI_PG_ALLOW/PORT required');
 const savedEnv=Object.fromEntries(['B1PREP_CONTENT_MODE','B1PREP_SERVE_REVIEW','B1PREP_SERVE_RIGHTS'].map(key=>[key,process.env[key]]));
 const TELC='telc-deutsch-b1',DTZ='dtz-a2-b1',catalogue=createExamCatalogue({enabled:[TELC,DTZ]});
@@ -60,7 +71,7 @@ try{
   await sqlAs(a.id,c=>c.query(`UPDATE mock_run SET responses='[{"setId":"telc-deutsch-b1.lv1.01","version":"v1","itemId":"1","answer":null}]',revision=revision+1 WHERE id=$1`,[old.id]));
   const before=(await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0],content=(await db.admin.query('SELECT * FROM exam_release ORDER BY exam_id,version')).rows;
   await assertHistoricalProjectionAbsent(db);
-  assert.deepEqual(await db.applyRemaining(),['0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql','0037-saved-explanations.sql','0038-provider-attempts.sql','0039-registration-language.sql','0040-explanation-review.sql','0041-objective-answer-reveal.sql']);
+  assert.deepEqual(await db.applyRemaining(), expectedRemainder('0031-assigned-mock-writing'));
   assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1',[old.id])).rows[0],before);
   assert.deepEqual((await db.admin.query('SELECT * FROM exam_release ORDER BY exam_id,version')).rows,content);
   const read=await port.readMockRun(a.id,old.id);assert.equal(read.timing,null);assert.equal(read.writing_task,null);
