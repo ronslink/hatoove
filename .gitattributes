@@ -23,7 +23,21 @@ content/library-translations/*.json -text
 # relying on git's heuristic, so no checkout can ever transform them.
 *.wav binary
 # Files a check hashes for a recorded digest must have the same bytes on every platform.
-# Their recorded digests are the committed blob's (LF); without this rule a Windows working
-# tree is CRLF and the hash differs, which made one gate pass on Linux and fail on Windows.
+# Their recorded digests are the committed blob's (LF); without a rule a Windows working tree is
+# CRLF and the hash differs, which made gates pass on one platform and fail on the other.
+#
+# EOL-HASH-AUDIT-01: `data/*.json` are the generator sources whose byte digest is recorded in
+# `server/migrations/0011` (vocab), `0012` (nouns) and `0013`/`0014` (the seven guides), so every
+# one of them has to check out identically everywhere. `data/seed.json` keeps its own line below
+# for the two files that were pinned first; the rule above already covers it.
+#
+# ORDER MATTERS. In .gitattributes the LAST matching pattern wins, so a general rule appended after
+# a deliberate pin silently overrides it. These patterns are disjoint from the `-text` pins above
+# (`data/` vs `content/library-translations/`, `public/assets/design/`, `work/design-reference/`),
+# and `git check-attr text eol -- <path>` is the evidence for that. If a future repo-wide `*.json`
+# rule is ever wanted, it MUST go before the `content/library-translations/*.json -text` pin, or the
+# translation bundle's recorded sha256 stops matching its bytes. `tools/eol-hash-check.mjs` fails
+# by name when a path with a recorded digest is not pinned to a stable form.
 data/seed.json          text eol=lf
+data/*.json             text eol=lf
 content/pool-01/*.json  text eol=lf

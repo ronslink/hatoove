@@ -24,6 +24,10 @@ const GROUPS = {
     gate('media-mount-check'),
     gate('review-pack-check'),
     gate('content-corrections-check'),
+    /* Offline and platform-sensitive by nature: this is the gate that fails when a file a check hashes
+       is not pinned to a checkout form that is the same on Windows and on the ubuntu runner. Two
+       Windows-only failures reached CI before it existed, so it belongs in the group both OSes run. */
+    gate('eol-hash-check'),
   ],
   /* The database gates. Each needs OWNAPI_PG_* pointed at a disposable database. */
   'mirror-db': [
