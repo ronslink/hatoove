@@ -186,6 +186,20 @@ check('12. removing the context actually removes it', () => {
     'the × must change what is SENT, or it only hides the context line');
 });
 
+check('13. a report cannot tear down the run it was filed from', () => {
+  /*
+   * THE MECHANISM THE REVIEW TRACED, ASSERTED AT ITS SOURCE. A protected request answered 401 invalidates the
+   * session, and that handler calls `mock.refresh()` and shows the error screen — so a learner who filed a report
+   * after their session expired had an in-progress listening run re-rendered underneath them. The sheet itself
+   * never touches playback (leg 5 proves that); the damage came through the SHARED api port, which is why this
+   * leg reads api.js rather than feedback.js.
+   */
+  assert.ok(/const quietSession = path === PATHS\.feedback/.test(apiCode),
+    'the feedback routes must be recognised as session-quiet in api.js');
+  assert.ok(/res\.status === 401 && !quietSession/.test(apiCode),
+    'a 401 from a feedback route must return a refusal instead of invalidating the session');
+});
+
 const failed = results.filter(([, ok]) => !ok);
 console.log(`\n---- pilot-feedback-client-check: ${results.length - failed.length}/${results.length} passed ----`);
 if (failed.length) {

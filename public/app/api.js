@@ -128,7 +128,22 @@ async function call(method, path, body, scoped = false, binary = false) {
   }
   // A transport may finish after another request invalidated this tab. Never render that response.
   if (ticket !== generation) return refusal(409, 'stale_session');
-  if (protectedRequest && res.status === 401) return invalidate('session_expired');
+  /*
+   * A 401 FROM THE FEEDBACK ROUTES MUST NOT TEAR DOWN THE RUN (FB-C, contract §6.4). Every protected request
+   * answered 401 normally invalidates the session, and that handler calls `mock.refresh()` and shows the error
+   * screen — so a learner who filed a report after their session had expired would have an in-progress LISTENING
+   * run re-rendered underneath them. An independent reviewer traced exactly this path (`api.js` -> `app.js:163`)
+   * and answered "the structural proof is not enough" on the strength of it.
+   *
+   * Reporting a problem is not worth a re-render. This call returns an ordinary refusal, the sheet says it could
+   * not be sent, and the next ordinary request — or the focus check — still discovers the expiry and locks the
+   * window. Nothing is hidden; the convergence is simply no longer triggered BY the act of reporting.
+   *
+   * The 409 `account_changed` case below deliberately still invalidates: a changed account is a different learner
+   * on the same tab, and that must be acted on immediately whatever the request was.
+   */
+  const quietSession = path === PATHS.feedback || path.startsWith(`${PATHS.feedback}/`);
+  if (protectedRequest && res.status === 401 && !quietSession) return invalidate('session_expired');
   if (protectedRequest && res.status === 409 && payload?.error === 'account_changed') return invalidate('account_changed');
   if (scoped && preparationTicket !== preparationGeneration) return refusal(409, 'stale_preparation');
   if (path === PATHS.session && res.ok) {
