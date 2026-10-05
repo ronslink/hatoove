@@ -22,7 +22,7 @@ learner can actually listen.
 
 | file | change |
 |---|---|
-| `server/owned-postgres/adapter.mjs` | `practiceSetForPart` admits a `media_required` set only when **every** `recordings[]` binding resolves to an `exam_media` row for that exam; plus the `cr.rights_status` → `c.rights_status` typo fix (§4) and the two comments that stated the old rule |
+| `server/owned-postgres/adapter.mjs` | `practiceSetForPart` admits a `media_required` set only when **every** `recordings[]` binding resolves to an `exam_media` row for that exam, plus the two comments that stated the old rule. (An earlier revision of this table also claimed a `cr.rights_status` → `c.rights_status` typo fix; **that claim is withdrawn in §4** — there was no typo.) |
 | `public/app/api.js` | `PATHS.practiceAttempts` + `practice.playback` / `playbackEvent` / `media`, mirroring the mock trio (attempt id, `scopedCall`, the same `true, true` raw-bytes read) |
 | `public/app/listening.js` | extracted `listeningPlayerMarkup`, `listeningStatusText`, `restoreListeningFocus`, `focusedListeningAction`; the mock controller now uses them, so both players share one DOM and one set of sentences |
 | `public/app/practice-listening.js` | **new** — the practice state machine: `begin → bytes → play`, the sitting's own refusal copy, `control()` as the single affordance authority |
@@ -58,16 +58,28 @@ lets a partially bound set be served (mutation P2). `checkPracticeAttempt`'s own
 is deliberately **unchanged**: a sitting on a recordingless set is still refused over HTTP and writes no
 evidence row (F4b).
 
-## 4. One pre-existing defect this slice had to fix, and why
+## 4. A claim in this record the integrator WITHDREW — the "pre-existing 42703 typo"
 
-`practiceSetForPart` shipped `COALESCE(cr.basis, cr.rights_status)`, and `content_rights` has no
-`rights_status` column. The shipping method therefore raised `42703 column cr.rights_status does not exist`
-against any database — introduced in `00f7571` (slice C, part 2) and carried through `d65de1a`. It is why
-`tools/practice-selection-check.mjs --postgres` had **never executed a single PostgreSQL leg**: it aborted at
-its first setup step ("every released set of the part checked once"), which the `--postgres` path reports as
-one opaque FAIL. The typo is on the same query line this slice rewrites, so it was fixed here rather than
-left to block the verification; the change is one identifier and every other query in the file already spells
-it `c.rights_status`. It is called out because it is pre-existing and the reviewer should see it as such.
+An earlier revision of this section, and the `feat(server)` commit message, asserted that
+`practiceSetForPart` shipped `COALESCE(cr.basis, cr.rights_status)`, that the shipping method therefore raised
+`42703 column cr.rights_status does not exist` against any database, and that
+`tools/practice-selection-check.mjs --postgres` had **never executed a single PostgreSQL leg** because of it.
+
+**Measured by the integrator on 6 October 2026, every part of that is false:**
+
+- `git show d65de1a:server/owned-postgres/adapter.mjs` contains **no** `cr.rights_status` anywhere. The
+  admission query already read `AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`.
+- `git show 29712d6 -- server/owned-postgres/adapter.mjs` shows that line as **unchanged context**, not as an
+  edit: the slice never changed it.
+- `tools/practice-selection-check.mjs` **does** call `port.practiceSetForPart` (lines 398 and 854), and on the
+  unmodified pre-slice tree (`codex/mirror-release-integration` @ `ee506a9`) it reported **47 legs, 0 failed**
+  with six mutations firing.
+
+So no defect was fixed here, no gate was blocked, and the fix is withdrawn. What this slice actually changes in
+`server/owned-postgres/adapter.mjs` is the admission rule in §3 and its two comments — nothing else. The wrong
+claim is left on the record, struck through by this section, because a record that quietly drops a wrong claim
+teaches the next reader to trust the wrong thing; the integrator's measurement, not the author's summary, is
+what the merge rests on.
 
 ## 5. Evidence
 
