@@ -18,7 +18,7 @@ const GROUPS = {
   /* The offline MIRROR-B1PREP-01 gates: fast, no database, no Docker. */
   mirror: [
     gate('nav-ia-check'), gate('mock-intro-check'), gate('part-index-check'),
-    gate('practice-runner-check'), gate('practice-selection-check'),
+    gate('practice-runner-check'), gate('practice-selection-check'), gate('drill-check'),
     gate('library-render-check'), gate('vocab-check'), gate('library-i18n-check'),
     gate('content-corrections-check'),
   ],
@@ -26,6 +26,7 @@ const GROUPS = {
   'mirror-db': [
     gate('library-i18n-check', '--postgres'), gate('part-index-check', '--postgres'),
     gate('practice-selection-check', '--postgres'), gate('practice-media-check'),
+    gate('drill-check', '--postgres'),
   ],
   /* The AGENTS.md offline baseline. */
   baseline: [
