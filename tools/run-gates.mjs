@@ -28,6 +28,8 @@ const GROUPS = {
     gate('library-i18n-check', '--postgres'), gate('part-index-check', '--postgres'),
     gate('practice-selection-check', '--postgres'), gate('practice-media-check'),
     gate('drill-check', '--postgres'),
+    /* Needs a database (it reads the content_rights decisions), so it belongs here, not in mirror. */
+    gate('content-rights-check', '--postgres'),
   ],
   /* The AGENTS.md offline baseline. */
   baseline: [
