@@ -88,8 +88,8 @@ jobs:
       # entitlement, access or payment decision reads the date in this slice.
       - name: Pilot free-until date is readable and cannot crash the runtime
         run: node tools/pilot-window-check.mjs
-      # MIRROR-B1PREP-01 — THE PROGRAM'S OFFLINE GATES (CI-GATES-01). Eleven gates (nav-ia, mock-intro,
-      # part-index, practice-runner, practice-selection, drill, library-render, vocab, library-i18n,
+      # MIRROR-B1PREP-01 — THE PROGRAM'S OFFLINE GATES (CI-GATES-01). Thirteen gates (nav-ia, mock-intro,
+      # part-index, practice-runner, practice-selection, drill, pool-01-check, library-render, vocab, library-i18n, review-pack-check,
       # media-mount, content-corrections) ran only on a developer's machine before this step: `npm run
       # check` does not include them, so a pull request could show a green tick that said nothing about
       # this program. `run-gates.mjs` is the tallying runner — it runs EVERY gate and prints each
@@ -304,12 +304,6 @@ jobs:
       # refuses inside a world and that, without the reset, the exhaustion would be inherited.
       - name: The sign-up throttle is enforced per world and not accumulated across worlds
         run: node tools/owned-api-throttle-isolation-check.mjs
-      # MIRROR-B1PREP-01 — THE GATES THAT NEED POSTGRESQL (CI-GATES-01). Six gates execute the shipped
-      # SQL (library-i18n, part-index, practice-selection, practice-media, drill, content-rights) and
-      # cannot run in the offline jobs. `mirror-db` is the tallying runner, so every gate runs and each
-      # failure is named rather than the first one hiding the rest.
-      - name: MIRROR-B1PREP-01 gates that need PostgreSQL (tallying runner, per-gate PASS/FAIL)
-        run: node tools/run-gates.mjs mirror-db
       - name: Account deletion removes every row and is one transaction
         run: node tools/deletion-check.mjs
       - name: The worker runner claims, fences, retries and reclaims (stub grader; no provider call)
@@ -411,6 +405,13 @@ jobs:
   # binary. Both are asserted in their own preflight steps, so a missing browser is a named failure rather than
   # a mysterious one, and `CHROME_PATH` is the override that makes the browser's location a configuration value
   # instead of a guess (the check's own candidate list is Windows-shaped plus /usr/bin).
+
+      # MIRROR-B1PREP-01 — THE GATES THAT NEED POSTGRESQL (CI-GATES-01). Seven gates execute the shipped
+      # SQL (library-i18n, part-index, practice-selection, practice-media, drill, content-rights, pool-01) and
+      # cannot run in the offline jobs. `mirror-db` is the tallying runner and runs LAST in this job, so a failing gate here cannot skip the steps below it, so every gate runs and each
+      # failure is named rather than the first one hiding the rest.
+      - name: MIRROR-B1PREP-01 gates that need PostgreSQL (tallying runner, per-gate PASS/FAIL)
+        run: node tools/run-gates.mjs mirror-db
   rendered:
     name: Rendered behaviour (Docker + headless Chrome)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
