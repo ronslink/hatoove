@@ -1,0 +1,326 @@
+{
+  "batch": "POOL-01-B1",
+  "exam_id": "telc-deutsch-b1",
+  "authored_by": "agent drill (task-37), 5 October 2026",
+  "provenance": "Original content authored for Hatoove in the task shape recorded in docs/exam/TELC-B1-SOURCES.md §3.1 and §3.3 (LV1: 5 matching items to headlines a-j, each headline used once; HV1: 5 richtig/falsch heard once; HV2: 10 richtig/falsch from one conversation heard twice; HV3: 5 richtig/falsch from short announcements heard twice each). No published telc material was copied or paraphrased; the shape, item counts, play rules and register follow the sources, the passages, scripts, items, keys and explanations are written for this pool. Review status is 'unreviewed' for every set: no agent marks content reviewed or makes an exam-validity claim.",
+  "release_marker": "Each set carries `release`: 'released' is imported by server/migrations/0047-pool-01-batch-1.sql; 'held' is authored, shape-validated and deliberately NOT imported until task-36's media bind-mount fix lands, because a listening set whose audio cannot play must not enter the pool (Ron's A11(b); lease rule 2). Flipping a held set to 'released' plus a new forward migration is the whole release step.",
+  "apply_hold": null,
+  "apply_hold_history": "HELD from 5 October 2026 (Lead's ruling) until Ron had read the three LV1 sets; LIFTED 5 October 2026 (task-43) — Ron has read them and the batch may be applied. The field is kept so the machine check proves the source and the generated migration agree in EITHER state: a regeneration can neither drop the hold nor silently keep it.",
+  "key_fix_pending": {
+    "set_id": "telc-deutsch-b1.lv1.06",
+    "text_id": "4",
+    "current_answer": "e",
+    "ron": "no I think that should not be a match",
+    "proposed_answer": "j",
+    "proposal": "Of the ten headlines, only j (Möbelmontage und kleine Reparaturen) can hold, and it answers only the HELP half of the text: the text also asks for a Transporter, which j does not supply. Recommended fix: j PLUS a one-line tightening of text 4; alternative: keep text 4 and reword headline e into an offer of moving help. Reasoning per rejected candidate and the second pass over the other four keys are in work/implementation/POOL-01-BATCH-1.md §2. Nothing changes here until Ron confirms.",
+    "shape_check": "e is the key of text 4 only and j is used by no text, so a swap to j creates no duplicate headline; the check asserts this mechanically rather than by eye.",
+    "second_pass": "Keys 1→a, 2→c and 3→d are solid. Key 5→g is DOUBTFUL: headline b (Tagesmutter hat ab September wieder Plätze frei) is a genuine near-tie for text 5, because both describe care for small children. g wins on specificity (zwei Kleinkinder, Erfahrung) and b loses on 'ab September', which the text does not mention — close enough to put to Ron as a second question rather than to leave unrecorded.",
+    "status": "awaiting Ron's confirmation; the authored key stays until he confirms, and tools/pool-01-check.mjs asserts that it does."
+  },
+  "open_question_for_ron": "lv1.06 text 4 asks for a van and help on moving day while its key is headline e, which offers a van for hire; Ron has ruled it must not be the match (task-43). The proposal and the mechanical shape check live in `key_fix_pending` above; do NOT change the key until Ron confirms.",
+  "sets": [
+    {
+      "set_id": "telc-deutsch-b1.lv1.04",
+      "family": "LV1",
+      "release": "released",
+      "title": "Second-Hand, Tausch und Reparatur",
+      "headlines": [
+        { "id": "a", "text": "Kleidung und Bücher für den guten Zweck gesucht" },
+        { "id": "b", "text": "Reparaturcafé sucht Helfer mit eigenem Werkzeug" },
+        { "id": "c", "text": "Fahrradwerkstatt bietet günstige Inspektionen an" },
+        { "id": "d", "text": "Tauschbörse für Kinderkleidung und Spielsachen" },
+        { "id": "e", "text": "Möbelhaus verkauft Ausstellungsstücke mit Rabatt" },
+        { "id": "f", "text": "Haushaltsgeräte zu verschenken, nur Selbstabholung" },
+        { "id": "g", "text": "Werkzeug für Gartenarbeiten am Wochenende ausleihen" },
+        { "id": "h", "text": "Flohmarkt für Antiquitäten und alte Bücher" },
+        { "id": "i", "text": "Nähkurs für Anfängerinnen und Anfänger" },
+        { "id": "j", "text": "Sperrmüll nur nach telefonischer Anmeldung" }
+      ],
+      "texts": [
+        {
+          "id": "1",
+          "text": "Unser Reparaturcafé öffnet wieder am Samstag von zehn bis vierzehn Uhr. Wir suchen noch Freiwillige, die sich mit Elektrik oder Nähmaschinen auskennen und ihr eigenes Werkzeug mitbringen können.",
+          "answer": "b"
+        },
+        {
+          "id": "2",
+          "text": "Wir ziehen um und geben unsere gut erhaltene Waschmaschine, einen Kühlschrank und zwei Stehlampen kostenlos ab. Die Geräte können am Wochenende abgeholt werden, einen Transport müssen Sie selbst organisieren.",
+          "answer": "f"
+        },
+        {
+          "id": "3",
+          "text": "Am Sonntag treffen sich Familien auf dem Schulhof, um gut erhaltene Kinderkleidung und Spielsachen zu tauschen. Geld wird nicht verwendet, jede Familie bringt einfach mit, was zu Hause übrig ist.",
+          "answer": "d"
+        },
+        {
+          "id": "4",
+          "text": "Für unseren Benefizverkauf im Advent nehmen wir gut erhaltene Kleidung, Bücher und Geschirr entgegen. Der Erlös geht vollständig an eine Einrichtung für Obdachlose in der Stadt.",
+          "answer": "a"
+        },
+        {
+          "id": "5",
+          "text": "Wer im Frühjahr den Garten umgraben oder Hecken schneiden möchte, kann bei uns kostenlos eine Heckenschere, einen Spaten und eine Schubkarre ausleihen. Die Ausgabe ist samstags von neun bis zwölf Uhr geöffnet.",
+          "answer": "g"
+        }
+      ],
+      "why": {
+        "1": "Text 1 sucht Freiwillige für ein Reparaturcafé und verlangt ausdrücklich eigenes Werkzeug – das ist Überschrift b.",
+        "2": "Text 2 verschenkt Waschmaschine, Kühlschrank und Lampen und verlangt Selbstabholung – das ist Überschrift f.",
+        "3": "Text 3 beschreibt eine Tauschbörse für Kinderkleidung und Spielsachen ohne Geld – das ist Überschrift d.",
+        "4": "Text 4 sammelt Kleidung und Bücher für einen Benefizverkauf, der Erlös geht an Obdachlose – das ist Überschrift a.",
+        "5": "Text 5 verleiht Werkzeug für Gartenarbeiten am Samstag – das ist Überschrift g."
+      }
+    },
+    {
+      "set_id": "telc-deutsch-b1.lv1.05",
+      "family": "LV1",
+      "release": "released",
+      "title": "Vereine, Feste und Engagement",
+      "headlines": [
+        { "id": "a", "text": "Sportverein sucht Betreuer für die Jugendmannschaft" },
+        { "id": "b", "text": "Stadtteilfest: Helfer für Aufbau und Kuchenbuffet" },
+        { "id": "c", "text": "Chorprobe für Neueinsteiger ohne Vorkenntnisse" },
+        { "id": "d", "text": "Freiwilligenagentur vermittelt Ehrenamt für wenige Stunden" },
+        { "id": "e", "text": "Jugendgruppe plant Ausflug in den Freizeitpark" },
+        { "id": "f", "text": "Musikschule bietet Schnupperstunden für Gitarre an" },
+        { "id": "g", "text": "Kleiderkammer nimmt warme Winterjacken an" },
+        { "id": "h", "text": "Nachbarschaftstreff sucht Fahrdienst am Mittwoch" },
+        { "id": "i", "text": "Fotoclub stellt Bilder im Rathaus aus" },
+        { "id": "j", "text": "Schwimmkurs für Erwachsene am frühen Abend" }
+      ],
+      "texts": [
+        {
+          "id": "1",
+          "text": "Unser Nachbarschaftstreff organisiert jeden Mittwoch Fahrten zum Arzt und zum Einkaufszentrum. Dafür suchen wir jemanden mit Führerschein und eigenem Auto, der zwei Stunden Zeit hat.",
+          "answer": "h"
+        },
+        {
+          "id": "2",
+          "text": "Für das Stadtteilfest am letzten Augustwochenende brauchen wir noch Unterstützung: Wir suchen Helfer, die beim Aufbau der Bühne helfen und am Nachmittag den Kuchenstand betreuen.",
+          "answer": "b"
+        },
+        {
+          "id": "3",
+          "text": "Unsere Jugendmannschaft trainiert zweimal pro Woche. Weil unser Trainer im Herbst aufhört, suchen wir eine zuverlässige Person, die die Gruppe der Zwölf- bis Fünfzehnjährigen übernehmen möchte.",
+          "answer": "a"
+        },
+        {
+          "id": "4",
+          "text": "Sie singen gern, haben aber noch nie in einem Chor gesungen? Dann kommen Sie einfach am Dienstagabend vorbei. Notenkenntnisse sind nicht nötig, wir lernen die Stimmen gemeinsam.",
+          "answer": "c"
+        },
+        {
+          "id": "5",
+          "text": "Sie möchten sich engagieren, haben aber nur wenige Stunden in der Woche Zeit? Wir vermitteln Aufgaben in der Nachbarschaftshilfe, im Tierheim oder in der Bibliothek – ganz nach Ihren Möglichkeiten.",
+          "answer": "d"
+        }
+      ],
+      "why": {
+        "1": "Text 1 sucht für Mittwoch eine Fahrgelegenheit mit eigenem Auto – das ist Überschrift h.",
+        "2": "Text 2 sucht Helfer für Aufbau und Kuchenbuffet beim Stadtteilfest – das ist Überschrift b.",
+        "3": "Text 3 sucht eine Betreuung für die Jugendmannschaft – das ist Überschrift a.",
+        "4": "Text 4 lädt ohne Vorkenntnisse zur Chorprobe ein – das ist Überschrift c.",
+        "5": "Text 5 vermittelt Ehrenamt für wenige Stunden pro Woche – das ist Überschrift d."
+      }
+    },
+    {
+      "set_id": "telc-deutsch-b1.lv1.06",
+      "family": "LV1",
+      "release": "released",
+      "title": "Betreuung, Nachhilfe und Alltagshilfe",
+      "headlines": [
+        { "id": "a", "text": "Nachhilfe in Mathematik für die Klassen 7 bis 10" },
+        { "id": "b", "text": "Tagesmutter hat ab September wieder Plätze frei" },
+        { "id": "c", "text": "Seniorenbegleitung für Spaziergänge und Gespräche" },
+        { "id": "d", "text": "Hundebetreuung am Wochenende" },
+        { "id": "e", "text": "Umzugshilfe mit Transporter zu vermieten" },
+        { "id": "f", "text": "Putzhilfe für Büros am Abend gesucht" },
+        { "id": "g", "text": "Erfahrene Babysitterin für zwei Kleinkinder" },
+        { "id": "h", "text": "Gitarrenunterricht für Anfänger" },
+        { "id": "i", "text": "Sprachkurs Deutsch für den Beruf" },
+        { "id": "j", "text": "Möbelmontage und kleine Reparaturen" }
+      ],
+      "texts": [
+        {
+          "id": "1",
+          "text": "Mein Sohn besucht die neunte Klasse und hat große Schwierigkeiten in Mathematik. Wir suchen eine ruhige Person, die ihm zweimal pro Woche die Aufgaben erklärt und mit ihm für die Klassenarbeiten übt.",
+          "answer": "a"
+        },
+        {
+          "id": "2",
+          "text": "Meine Mutter ist 82 Jahre alt und geht gern spazieren, traut sich aber allein nicht mehr auf die Straße. Wir suchen jemanden, der zweimal in der Woche mit ihr eine Stunde unterwegs ist und sich danach noch etwas zu ihr setzt.",
+          "answer": "c"
+        },
+        {
+          "id": "3",
+          "text": "Wir fahren über das Wochenende zu einer Hochzeit und können unseren freundlichen Labrador nicht mitnehmen. Wer hat Zeit und Lust, mit ihm spazieren zu gehen und ihn zu füttern?",
+          "answer": "d"
+        },
+        {
+          "id": "4",
+          "text": "Wir ziehen Ende des Monats in eine andere Wohnung. Wer hat einen Transporter und kann uns am Umzugstag für ein paar Stunden helfen? Die Bezahlung sprechen wir vorher ab.",
+          "answer": "e"
+        },
+        {
+          "id": "5",
+          "text": "Wir suchen für unsere beiden Kinder von zwei und vier Jahren eine Betreuerin, die schon Erfahrung mit Kleinkindern hat. Wir brauchen sie montags und donnerstags von sieben bis sechzehn Uhr.",
+          "answer": "g"
+        }
+      ],
+      "why": {
+        "1": "Text 1 sucht Nachhilfe in Mathematik für die neunte Klasse – das ist Überschrift a.",
+        "2": "Text 2 sucht jemanden, der mit einer 82-Jährigen spazieren geht – das ist Überschrift c.",
+        "3": "Text 3 sucht Betreuung für einen Hund am Wochenende – das ist Überschrift d.",
+        "4": "Text 4 sucht einen Transporter und Hilfe am Umzugstag – das ist Überschrift e.",
+        "5": "Text 5 sucht eine erfahrene Betreuerin für zwei Kleinkinder – das ist Überschrift g."
+      }
+    },
+    {
+      "set_id": "telc-deutsch-b1.hv1.04",
+      "family": "HV1",
+      "release": "held",
+      "title": "Nachrichten von Kolleginnen und Kollegen",
+      "script": "[Sprecher 1]: Guten Morgen, hier ist Martin Kern aus der Buchhaltung. Die Besprechung am Montag muss leider verschoben werden, weil Herr Aydin den ganzen Tag bei einem Kunden ist. Wir treffen uns jetzt am Dienstag um neun Uhr im kleinen Konferenzraum. Bitte bringen Sie die Unterlagen für die Jahresabschlussprüfung mit.\n\n[Sprecherin 2]: Hallo Sara, hier ist Nadja. Ich stehe seit zwanzig Minuten am Bahnhof, aber der Zug nach Köln hat Verspätung. Ich schaffe es nicht mehr rechtzeitig zum Kundentermin, deshalb fahre ich direkt ins Büro. Kannst du den Termin allein übernehmen?\n\n[Sprecher 3]: Guten Tag, hier ist Herr Petrov von der Personalabteilung. Ihre Bewerbungsunterlagen sind vollständig bei uns eingegangen. Wir laden Sie für Donnerstag um vierzehn Uhr zu einem Gespräch ein. Bitte bestätigen Sie den Termin bis Mittwochabend per E-Mail.\n\n[Sprecherin 4]: Hallo zusammen, hier ist Frau Ludwig. Die Lieferung für das Lager kommt nicht wie geplant am Vormittag, sondern erst am späten Nachmittag. Wer bis dahin nichts zu tun hat, kann gern bei der Inventur helfen – ich brauche zwei Personen.\n\n[Sprecher 5]: Guten Abend, hier ist Tobias Reuter. Ich bin heute krank und bleibe zu Hause. Meine Kundentermine habe ich schon verschoben. Morgen rufe ich noch einmal an, dann besprechen wir den Stand bei der Werbekampagne.",
+      "items": [
+        {
+          "n": 41,
+          "statement": "Die Besprechung am Montag findet nicht statt, weil Herr Aydin bei einem Kunden ist.",
+          "answer": true,
+          "why": "Martin Kern verschiebt die Besprechung auf Dienstag, weil Herr Aydin den ganzen Tag bei einem Kunden ist."
+        },
+        {
+          "n": 42,
+          "statement": "Nadja kommt zu spät zum Kundentermin, weil sie den Termin vergessen hat.",
+          "answer": false,
+          "why": "Nadja kommt zu spät, weil der Zug Verspätung hat – nicht, weil sie den Termin vergessen hätte."
+        },
+        {
+          "n": 43,
+          "statement": "Herr Petrov lädt für Donnerstag um vierzehn Uhr zu einem Gespräch ein.",
+          "answer": true,
+          "why": "Er nennt genau Donnerstag, vierzehn Uhr, und bittet um Bestätigung bis Mittwochabend."
+        },
+        {
+          "n": 44,
+          "statement": "Frau Ludwig sucht zwei Personen, die am Nachmittag bei der Inventur helfen.",
+          "answer": true,
+          "why": "Frau Ludwig verschiebt die Lieferung und fragt ausdrücklich nach zwei Personen für die Inventur."
+        },
+        {
+          "n": 45,
+          "statement": "Tobias Reuter sagt alle seine Termine ab und meldet sich erst nächste Woche wieder.",
+          "answer": false,
+          "why": "Er hat die Kundentermine verschoben, will sich aber schon morgen wieder melden."
+        }
+      ]
+    },
+    {
+      "set_id": "telc-deutsch-b1.hv2.04",
+      "family": "HV2",
+      "release": "held",
+      "title": "Interview mit der Fahrradbeauftragten der Stadt",
+      "script": "[Moderator]: Herzlich willkommen zu unserer Sendung „Stadt im Gespräch“. Bei uns ist heute Frau Nora Feldmann, die seit drei Jahren als Fahrradbeauftragte der Stadt arbeitet. Frau Feldmann, Sie planen seit Jahren neue Radwege. Was hat sich in dieser Zeit verändert?\n\n[Frau Feldmann]: Als ich angefangen habe, gab es in der Innenstadt nur zwei Straßen mit einem eigenen Radweg. Heute sind es elf, und in vier weiteren Straßen ist eine Spur fest eingeplant. Der größte Unterschied ist aber nicht die Zahl, sondern das Verhalten: Immer mehr Menschen fahren das ganze Jahr über Rad, auch im Winter.\n\n[Moderator]: Kritiker sagen, dass die neuen Radwege den Autoverkehr ausbremsen. Was antworten Sie ihnen?\n\n[Frau Feldmann]: Ich verstehe die Sorge, aber die Zahlen sprechen eine andere Sprache. Nach dem Umbau der Hauptstraße ist der Autoverkehr dort um acht Prozent zurückgegangen, und die Fahrzeiten haben sich nicht verlängert. Was wir wirklich verloren haben, sind Parkplätze: Aus zwei Spuren wurden eine Spur und ein Radweg, deshalb sind einundzwanzig Stellplätze weggefallen.\n\n[Moderator]: Wo sehen Sie die größten Probleme?\n\n[Frau Feldmann]: Nicht auf der Straße, sondern am Ziel. Wer mit dem Rad zur Arbeit fährt, braucht einen sicheren Platz für sein Rad. Wir haben im letzten Jahr dreihundert überdachte Fahrradparkplätze gebaut, aber an Bahnhöfen fehlen noch immer Plätze. Deshalb arbeiten wir mit einem System, bei dem man sein Rad in einem geschlossenen Raum einschließt; das nutzen vor allem Pendler, die den ganzen Tag außer Haus sind.\n\n[Moderator]: Und die Unfallzahlen?\n\n[Frau Feldmann]: Sie sind insgesamt leicht gesunken, aber nicht überall. An Kreuzungen ohne eigene Fahrradampel passieren noch zu viele Unfälle, besonders beim Rechtsabbiegen. Wir testen gerade an fünf Kreuzungen eine eigene Grünphase für Radfahrende und werten die Ergebnisse im Frühjahr aus.\n\n[Moderator]: Viele Menschen kaufen sich jetzt ein E-Bike. Ist das ein Problem für die Planung?\n\n[Frau Feldmann]: Nein, aber es verändert sie. Mit einem E-Bike fahren die Menschen weitere Strecken und schneller, deshalb brauchen wir breitere Wege und klare Regeln an Stellen, wo Fußgänger und Radfahrende sich begegnen. Wichtig ist mir: Ein E-Bike ersetzt bei vielen Familien das zweite Auto, und das entlastet die Stadt mehr als jede Umleitung.\n\n[Moderator]: Was wünschen Sie sich für die nächsten Jahre?\n\n[Frau Feldmann]: Dass wir das Radfahren nicht als Freizeitvergnügen behandeln, sondern als Verkehr. Dann wäre auch selbstverständlich, dass der Winterdienst morgens zuerst die Radwege räumt – wenigstens die Hauptstrecken. Genau das habe ich für den nächsten Winter vorgeschlagen.\n\n[Moderator]: Frau Feldmann, vielen Dank für das Gespräch.",
+      "items": [
+        {
+          "n": 46,
+          "statement": "Frau Feldmann arbeitet seit drei Jahren als Fahrradbeauftragte der Stadt.",
+          "answer": true,
+          "why": "Der Moderator sagt zu Beginn, dass sie seit drei Jahren als Fahrradbeauftragte arbeitet."
+        },
+        {
+          "n": 47,
+          "statement": "In der Innenstadt gibt es heute elf Straßen mit einem eigenen Radweg.",
+          "answer": true,
+          "why": "Frau Feldmann nennt genau elf Straßen mit eigenem Radweg."
+        },
+        {
+          "n": 48,
+          "statement": "Nach dem Umbau der Hauptstraße brauchen Autofahrer deutlich länger als vorher.",
+          "answer": false,
+          "why": "Sie sagt ausdrücklich, dass sich die Fahrzeiten nicht verlängert haben."
+        },
+        {
+          "n": 49,
+          "statement": "Durch den Umbau der Hauptstraße sind einundzwanzig Parkplätze weggefallen.",
+          "answer": true,
+          "why": "Frau Feldmann nennt einundzwanzig verlorene Stellplätze."
+        },
+        {
+          "n": 50,
+          "statement": "Das größte Problem sieht Frau Feldmann darin, dass es zu wenige sichere Fahrradparkplätze gibt.",
+          "answer": true,
+          "why": "Sie sagt, das Problem liege nicht auf der Straße, sondern am Ziel: sichere Plätze für das Rad."
+        },
+        {
+          "n": 51,
+          "statement": "Die geschlossenen Fahrradräume am Bahnhof werden vor allem von Pendlern genutzt.",
+          "answer": true,
+          "why": "Sie erklärt, dass vor allem Pendler dieses System nutzen, weil sie den ganzen Tag außer Haus sind."
+        },
+        {
+          "n": 52,
+          "statement": "Die Unfallzahlen sind überall gleich stark gesunken.",
+          "answer": false,
+          "why": "Sie sagt, sie seien insgesamt leicht gesunken, aber nicht überall – an Kreuzungen ohne eigene Ampel passieren weiter zu viele Unfälle."
+        },
+        {
+          "n": 53,
+          "statement": "An fünf Kreuzungen testet die Stadt eine eigene Grünphase für Radfahrende.",
+          "answer": true,
+          "why": "Frau Feldmann nennt genau fünf Kreuzungen mit einer eigenen Grünphase."
+        },
+        {
+          "n": 54,
+          "statement": "E-Bikes sind für die Planung kein Problem, verändern aber die Breite der Wege und die Regeln.",
+          "answer": true,
+          "why": "Sie sagt, E-Bikes seien kein Problem, aber sie brauchten breitere Wege und klare Regeln."
+        },
+        {
+          "n": 55,
+          "statement": "Beim Winterdienst sollen zuerst die Hauptradwege geräumt werden.",
+          "answer": true,
+          "why": "Genau das hat Frau Feldmann für den nächsten Winter vorgeschlagen."
+        }
+      ]
+    },
+    {
+      "set_id": "telc-deutsch-b1.hv3.04",
+      "family": "HV3",
+      "release": "held",
+      "title": "Durchsagen in Bibliothek, Schwimmbad und Kaufhaus",
+      "script": "[Ansage 1]: Liebe Besucherinnen und Besucher der Stadtbibliothek, wir schließen heute wegen einer Fortbildung bereits um sechzehn Uhr. Bitte geben Sie Ihre Bücher bis fünfzehn Uhr dreißig an der Rückgabe ab. Die Lesesäle im ersten Stock bleiben heute den ganzen Tag geschlossen.\n\n[Ansage 2]: Sehr geehrte Gäste, das Schwimmbad schließt in wenigen Minuten. Vergessen Sie bitte nicht, Ihre Wertsachen aus den Schließfächern zu nehmen. Das Lehrschwimmbecken ist ab morgen früh wegen Reparaturarbeiten für zwei Wochen gesperrt, das große Becken bleibt geöffnet.\n\n[Ansage 3]: Kundinnen und Kunden der Möbelabteilung, wir möchten Sie darauf hinweisen, dass unsere Lieferung in dieser Woche nur bis Donnerstag möglich ist. Wer am Freitag oder Samstag Ware bestellt, bekommt sie erst am Montag der folgenden Woche. Unsere Ausstellung bleibt am Sonntag geschlossen.\n\n[Ansage 4]: Achtung, eine Durchsage für die Fahrgäste der Linie 4: Wegen Bauarbeiten an der Haltestelle Marktplatz fährt die Linie 4 bis Freitag nur bis zur Haltestelle Rathaus. Von dort fahren Busse weiter. Bitte planen Sie etwa zehn Minuten mehr Zeit ein.\n\n[Ansage 5]: Liebe Gäste, wir beginnen in zehn Minuten mit der letzten Führung durch die Ausstellung. Der Treffpunkt ist am Eingang gegenüber der Kasse. Für die Führung ist eine Anmeldung nicht nötig, die Teilnahme ist im Eintrittspreis enthalten.",
+      "items": [
+        {
+          "n": 56,
+          "statement": "Die Stadtbibliothek schließt heute schon um sechzehn Uhr.",
+          "answer": true,
+          "why": "Die Ansage nennt genau sechzehn Uhr als frühere Schließzeit."
+        },
+        {
+          "n": 57,
+          "statement": "Im Schwimmbad ist ab morgen auch das große Becken gesperrt.",
+          "answer": false,
+          "why": "Nur das Lehrschwimmbecken ist gesperrt, das große Becken bleibt geöffnet."
+        },
+        {
+          "n": 58,
+          "statement": "Wer am Freitag Möbel bestellt, bekommt die Lieferung noch am Wochenende.",
+          "answer": false,
+          "why": "Bestellungen am Freitag oder Samstag kommen erst am Montag der folgenden Woche."
+        },
+        {
+          "n": 59,
+          "statement": "Die Linie 4 fährt bis Freitag nur bis zur Haltestelle Rathaus.",
+          "answer": true,
+          "why": "Wegen der Bauarbeiten am Marktplatz endet die Linie 4 bis Freitag am Rathaus."
+        },
+        {
+          "n": 60,
+          "statement": "Für die Führung durch die Ausstellung muss man sich anmelden.",
+          "answer": false,
+          "why": "Die Ansage sagt ausdrücklich, dass eine Anmeldung nicht nötig ist."
+        }
+      ]
+    }
+  ]
+}
