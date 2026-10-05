@@ -387,7 +387,9 @@ production and its checksum is frozen.
 - POOL-01 batch generation needs Ron's go-ahead. **Given 5 Oct 2026 — see A11.**
 - **A11 (5 Oct 2026, Ron's decisions on POOL-01, media and evidence).** (a) **POOL-01 goes ahead as the
   priortised top-up (option B of `work/implementation/POOL-01-PROPOSAL.md`)**: six new released sets on the
-  parts a learner meets earliest (HV1–HV3, LV1) as batch 1, the remaining parts in a second batch; a set is
+  parts a learner meets earliest as batch 1, the remaining parts in a second batch; the batch authors six sets,
+  releases the playable ones immediately (LV1 +3, reaching the contract target of six) and holds the three
+  listening sets until (b) is done, then releases them by a follow-up migration with no new authoring; a set is
   authored in the exam's own shape with its items, key and explanations, marked **`unreviewed`** in the
   content ledger, imported through a new forward migration, and never claimed reviewed or valid by an agent.
   (b) **The listening media bind-mount is fixed before any new audio**: the nine existing WAVs are not in git
