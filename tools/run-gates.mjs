@@ -61,6 +61,10 @@ const GROUPS = {
        a FORMULA to Excel/Sheets, so a report could execute in the operator's spreadsheet — a privilege boundary
        crossed by data. Offline and pure, so it costs nothing to run on every change. */
     gate('pilot-feedback-csv-check'),
+    /* PILOT-FEEDBACK-01 (FB-E): what counts as an image. Pure, so the reviewer's four breaking inputs — a
+       header-only PNG, a 16 777 216 px tall canvas, a RIFF over-claiming its own length, and a PNG declared as
+       WebP — are pinned for free. */
+    gate('pilot-feedback-image-check'),
     /* PILOT-FEEDBACK-01 (FB-C): offline and structural. It proves the entry point cannot appear before sign-in,
        that the sheet has no way to navigate or reach the listening controller, that the learner's own text is
        escaped, and that the stylesheet stays RTL-safe. It deliberately does NOT claim the rendered behaviour -
