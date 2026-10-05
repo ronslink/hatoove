@@ -624,5 +624,26 @@ button.btn.answer-option[data-state=wrong] .answer-verdict::before { content: '\
   .exam-level { font-size: 22px; }
 }
 
+/*
+ * REDESIGN-01 E — THE FEHLERHEFT ROWS.
+ *
+ * The row has carried the learner's answer and, since slice A, the correct one; what it lacked was the
+ * separation between "what you answered" and "what was right", which is the whole point of the screen. The
+ * two chips are pushed apart, the correct one uses the design system's own green state pair, and the row's
+ * own title/sub-line hierarchy is left to the pinned `.list-item`. No new colour: `--green`/`--green-bg`
+ * are the system's success pair (measured 6.93:1 for the text on it).
+ *
+ * The chips are `.chip` in the pinned system; these rules only position them within the row.
+ */
+#mistake-list .list-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+#mistake-list .list-item > div { flex: 1 1 60%; min-width: 0; }
+#mistake-list .list-item .chip { flex: 0 0 auto; }
+#mistake-list .list-item .chip:not(.chip-orange) {
+  background: var(--green-bg);
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+  color: var(--green);
+  font-weight: 700;
+}
+
 
 

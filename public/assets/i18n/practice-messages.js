@@ -98,7 +98,7 @@ const rows = {
   incorrect: ["Nicht richtig","Incorrect","Неправильно","غير صحيح","Yanlış"],
   correctAnswer: ["Passende Antwort:","Correct answer:","Правильна відповідь:","الإجابة الصحيحة:","Doğru yanıt:"],
   formRelease: ["Formular {form} · Ausgabe {release}","Form {form} · Release {release}","Форма {form} · Випуск {release}","النموذج {form} · الإصدار {release}","Form {form} · Sürüm {release}"],
-  form: ["Formular {form}","Form {form}","Форма {form}","النموذج {form}","Form {form}"],
+  form: ["Formular {form}","Form {form}","Форма {form}","النموذج {form}","Formular {form}"],
   untimed: ["Ohne Zeitlimit","No time limit","Без обмеження часу","بلا حد زمني","Süre sınırı yok"],
   timed: ["Mit Zeitlimit","Timed","З обмеженням часу","بحد زمني","Süreli"],
   minutes: ["{minutes} Minuten","{minutes} minutes","{minutes} хвилин","{minutes} دقيقة","{minutes} dakika"],
