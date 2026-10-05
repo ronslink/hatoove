@@ -72,9 +72,13 @@
         <a href="#/hoeren" data-view="hoeren"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span><span data-i18n="shell.m399">Hören</span></span></a>
         <a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg><span><span data-i18n="shell.m005">Schreiben</span></span></a>
         <a href="#/probepruefung" data-view="probepruefung"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg><span><span data-i18n="shell.m400">Probeprüfung</span></span></a>
-      </div><div class="nav-group" data-nav-group="werkzeuge"><p class="kicker nav-label"><span data-i18n="shell.m401">Werkzeuge</span></p>
+      <div class="nav-group" data-nav-group="werkzeuge"><p class="kicker nav-label"><span data-i18n="shell.m401">Werkzeuge</span></p>
       <a href="#/nachschlagen" data-view="nachschlagen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/></svg><span><span data-i18n="shell.m010">Nachschlagen</span></span></a>
         <a href="#/einstellungen" data-view="einstellungen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span><span data-i18n="shell.m013">Einstellungen</span></span></a>
+        <!-- PILOT-FEEDBACK-01 (FB-C). A BUTTON, not an <a href="#...">: the sheet opens OVER the current page and
+             must not touch the route. A hash link here would navigate, which is the one thing this feature is
+             forbidden to do. -->
+        <button type="button" class="nav-link feedback-nav" id="feedback-open-side"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg><span data-i18n="shell.feedbackOpen">Problem melden</span></button>
       </div>
     </nav>
 
@@ -100,6 +104,8 @@
            the id app.js already writes to, so route() does not have to change to stay conformant. -->
       <p class="crumbs"><span id="crumb-root" lang="de" dir="ltr">Deutsch B1</span><span id="crumb-group" hidden> / <span id="crumb-group-name"></span></span> · <b id="page-title"><span data-i18n="shell.m007">Heute</span></b> · <span id="crumb-date">–</span></p>
       <div class="top-actions">
+        <!-- PILOT-FEEDBACK-01 (FB-C): the same sheet as the Werkzeuge item, identical on every signed-in page. -->
+        <button type="button" class="btn feedback-flag" id="feedback-open" data-i18n-aria-label="shell.feedbackOpen" data-i18n-title="shell.feedbackOpen" aria-label="Problem melden" title="Problem melden"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg></button>
         <!-- This preference is confirmed by the account API before the interface changes. -->
         <div class="locale-control">
           <label id="lang-label" for="header-language" data-i18n="shell.locale">Sprache</label>
@@ -427,6 +433,13 @@
               </div>
               <p class="small muted"><span data-i18n="shell.m372">Löschen entfernt Ihre eigenen Datensätze wirklich. Das kann nicht rückgängig gemacht werden.</span></p>
             </div>
+          </div>
+
+          <!-- PILOT-FEEDBACK-01 (FB-C). The learner's own reports, newest first. feedback.js fills this; the
+               report text is inserted as TEXT, never as markup, because the learner wrote it. -->
+          <div class="card">
+            <div class="card-head"><h3><span data-i18n="shell.feedbackMineTitle">Meine Meldungen</span></h3></div>
+            <div class="small muted" id="feedback-mine" role="status"></div>
           </div>
 
           <!--

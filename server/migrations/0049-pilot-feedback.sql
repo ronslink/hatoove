@@ -271,3 +271,24 @@ REVOKE ALL ON FUNCTION "__SCHEMA__".guard_pilot_feedback_screenshot() FROM PUBLI
 DROP TRIGGER IF EXISTS pilot_feedback_screenshot_owner ON "__SCHEMA__".pilot_feedback_screenshot;
 CREATE TRIGGER pilot_feedback_screenshot_owner BEFORE INSERT OR UPDATE ON "__SCHEMA__".pilot_feedback_screenshot
   FOR EACH ROW EXECUTE FUNCTION "__SCHEMA__".guard_pilot_feedback_screenshot();
+
+/* ---------------------------------------------------------------- the account's age, for the survey gate */
+
+-- The survey is offered only to an account at least `min_account_age_days` old, and that age lives on
+-- `"user"."createdAt"` — a table the LEARNER role may not read at all (0003 grants it to __AUTH__ only, and
+-- `table-class-check` enforces the class rule that a runtime role holds nothing on it). So the datastore, which
+-- runs on the learner pool, cannot answer "is this account old enough" by itself.
+--
+-- A SECURITY DEFINER reader is the established answer (0041's `reveal_objective_answer` is the shape). It takes
+-- NO ARGUMENT ON PURPOSE: the owner comes from the caller's own `hatoove.owner_id`, so a learner cannot ask
+-- about anybody else's account. Taking an owner parameter would have turned a convenience into a way to probe
+-- when another learner registered, and the refusal would have been invisible in review.
+CREATE OR REPLACE FUNCTION "__SCHEMA__".feedback_account_age_days()
+RETURNS integer LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,"__SCHEMA__" AS $fn$
+  SELECT CASE WHEN u."createdAt" IS NULL THEN NULL
+              ELSE floor(extract(epoch FROM (now() - u."createdAt")) / 86400)::integer END
+    FROM "__SCHEMA__"."user" u
+   WHERE u.id = nullif(current_setting('hatoove.owner_id', true), '')
+$fn$;
+REVOKE ALL ON FUNCTION "__SCHEMA__".feedback_account_age_days() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION "__SCHEMA__".feedback_account_age_days() TO "__LEARNER__";

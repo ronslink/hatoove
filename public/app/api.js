@@ -45,6 +45,12 @@ const PATHS = Object.freeze({
   attempts: '/api/v1/attempts',
   submissions: '/api/v1/submissions',
   export: '/api/v1/export',
+  /* PILOT-FEEDBACK-01 (FB-C). Not preparation-scoped: the contract's routes carry no exam context, so these
+     travel with `call` rather than `scopedCall` — a report about a listening item is filed from the page the
+     learner is on, not from a selected preparation. */
+  feedback: '/api/v1/feedback',
+  surveyCurrent: '/api/v1/survey/current',
+  surveyRound: '/api/v1/survey',
   sentenceCheck: '/api/v1/sentence-check',
   checkoutOffer: '/api/v1/checkout/offer',
   checkoutSession: '/api/v1/checkout/session',
@@ -452,6 +458,22 @@ return Object.freeze({
       { expectedRevision, eventId }),
     result: (submissionId, language = null) => call('GET', `${PATHS.submissions}/${encodeURIComponent(submissionId)}` + explanationQuery(language), undefined, true),
     retry: (submissionId) => call('POST', `${PATHS.submissions}/${encodeURIComponent(submissionId)}/retry`, {}),
+  }),
+
+  /**
+   * PILOT-FEEDBACK-01 (FB-C) — the learner's own feedback.
+   *
+   * ONE entry point for the whole app, so these four calls are the entire client surface: file a report, read
+   * your own back, ask whether a survey round is open, and answer or skip it. `submitSurvey` sends either
+   * `{answers}` or `{skip:true}` and never both — the server refuses a request that does both or neither, so the
+   * client must not guess.
+   */
+  feedback: Object.freeze({
+    create: (payload) => call('POST', PATHS.feedback, payload),
+    list: () => call('GET', PATHS.feedback),
+    /** 204 when there is nothing to ask; `call` surfaces the status rather than inventing an empty round. */
+    currentSurvey: () => call('GET', PATHS.surveyCurrent),
+    submitSurvey: (roundId, payload) => call('POST', `${PATHS.surveyRound}/${encodeURIComponent(roundId)}`, payload),
   }),
 });
 }

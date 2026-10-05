@@ -39,12 +39,21 @@ const GROUPS = {
        and the screenshot-owner trigger are all NEGATIVE properties. Nothing else in this group observes them,
        so without this gate the whole slice could ship with the policies inverted and still be green. */
     gate('pilot-feedback-migration-check'),
+    /* PILOT-FEEDBACK-01 (FB-B): the four routes driven through the API. The migration check above proves what
+       the DATABASE enforces; every rule this slice added lives above it - the closed request field set, the
+       422/409/429 mapping, the context-drop rule, the 204 - and none of that is observable from SQL. */
+    gate('pilot-feedback-api-check'),
   ],
   /* The AGENTS.md offline baseline. */
   baseline: [
     gate('repository-check'), gate('design-check'), gate('retired-surface-check'), gate('seo-check'),
     gate('server-origin-check'), gate('keymask-check'), gate('owned-api-check'), gate('owned-client-check'),
     gate('i18n-register-check'),
+    /* PILOT-FEEDBACK-01 (FB-C): offline and structural. It proves the entry point cannot appear before sign-in,
+       that the sheet has no way to navigate or reach the listening controller, that the learner's own text is
+       escaped, and that the stylesheet stays RTL-safe. It deliberately does NOT claim the rendered behaviour -
+       focus, Escape and audio-while-open need a browser, and that residual is recorded rather than implied. */
+    gate('pilot-feedback-client-check'),
   ],
 };
 
