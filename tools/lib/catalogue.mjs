@@ -57,6 +57,10 @@ export const CATALOGUE_TABLES = Object.freeze([
   'exam_release_head',
   'payment_product', 'payment_price',
   'guide_translation', 'noun_translation',
+  // PILOT-FEEDBACK-01 (0049, FB-A): a survey round is owner-less reference content — written by the operator
+  // seed (FB-D) and read by the learner role. It carries NO row-level security on purpose (contract A10), and
+  // its question set is frozen by trigger so stored answers cannot be silently re-meant.
+  'survey_round',
 ]);
 
 /**
