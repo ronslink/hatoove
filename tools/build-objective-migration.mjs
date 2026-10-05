@@ -57,6 +57,47 @@ const PART_OF = (family) => Number((family.match(/([0-9]+)$/) || [])[1] || 0);
 const sqlText = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const sqlJson = (value) => `${sqlText(JSON.stringify(value))}::jsonb`;
 
+/*
+ * THE SOURCE RECORD IS PLATFORM-DEPENDENT, AND `--check` MUST NOT BE.
+ *
+ * A generated migration records `-- Source: <file> (sha256 <digest>)`, and the digest is taken over the
+ * source bytes AS CHECKED OUT. Neither `data/seed.json` nor `content/pool-01/batch-1.json` carries an `eol`
+ * attribute, so git checks them out CRLF on Windows (`core.autocrlf=true`) and LF everywhere else: the SAME
+ * content has two legitimate digests, and a committed migration can only record the one its generating
+ * platform produced. Measured on 5 October 2026 (POOL-01-CI-01):
+ *
+ *   data/seed.json                   CRLF 93,292 B -> ef26279d…   LF 91,372 B -> 40a0a066…
+ *   content/pool-01/batch-1.json     CRLF 25,114 B -> 45e361a1…   LF 24,774 B -> f39498a1…
+ *
+ * `0010` records ef26279d… and `0047` records 45e361a1… — both the Windows forms. A literal compare
+ * therefore made `--check` a Windows-only gate: on the ubuntu checkout the regenerated text carried the LF
+ * digest, the comparison failed, and CI reported legs 4 and 5 red while the same tree was green on Windows.
+ * The migration BYTES are not the problem: `0010` and `0047` hash identically in both checkouts and the
+ * MANIFEST line matches `0047`'s bytes on both.
+ *
+ * So the comparison canonicalises that ONE recorded token — and only when the value it holds is the digest of
+ * the source file in THIS checkout, in either byte form. A stale record, a hand-edited digest, or a source
+ * that genuinely moved matches neither form and still fails; the accepted set is computed from the file on
+ * disk at comparison time, never from a table of blessed values.
+ */
+function legitimateSourceDigests(file) {
+  const raw = readFileSync(file);
+  const lf = Buffer.from(String(raw).replace(/\r\n/g, '\n'), 'utf8');
+  const crlf = Buffer.from(String(lf).replace(/\n/g, '\r\n'), 'utf8');
+  return new Set([raw, lf, crlf].map((buffer) => createHash('sha256').update(buffer).digest('hex')));
+}
+/*
+ * The record line is INDENTED inside the generated SQL header (`    -- Source: … (sha256 …)`), so the pattern
+ * allows leading and trailing blanks and nothing else: a line that is not exactly this shape is left alone and
+ * therefore still fails a comparison.
+ */
+const SOURCE_RECORD = /^([ \t]*-- Source: .*\(sha256 )([0-9a-f]{64})(\)[ \t]*)$/m;
+/** Replace the record's digest with a placeholder when it is a legitimate digest of `file`, else leave it. */
+function canonicalSourceRecord(text, file) {
+  const allowed = legitimateSourceDigests(file);
+  return text.replace(SOURCE_RECORD, (whole, head, hex, tail) => (allowed.has(hex) ? `${head}<source>${tail}` : whole));
+}
+
 /**
  * Split one authored set into the learner-facing payload and the secret key side.
  * Answers are collected by item id so the key is addressable per item (`texts[0].answer` -> `1`).
@@ -289,7 +330,8 @@ if (batchArg) {
   const { sql: batchText, released, held, families } = buildBatch(batchPath, batchSource);
   if (process.argv.includes('--check')) {
     const current = existsSync(outPath) ? readFileSync(outPath, 'utf8') : '';
-    if (current !== batchText) {
+    // Every byte must match except the platform-dependent source record (see legitimateSourceDigests above).
+    if (canonicalSourceRecord(current, batchPath) !== canonicalSourceRecord(batchText, batchPath)) {
       console.error(`objective-batch: FAILED ${path.relative(ROOT, outPath)} differs from ${path.relative(ROOT, batchPath)}`);
       console.error(`  run: node tools/build-objective-migration.mjs --batch ${batchArg} --out ${outArg}`);
       process.exit(1);
@@ -426,7 +468,8 @@ ${keyRows.join(',\n')}
 
 if (process.argv.includes('--check')) {
   const current = existsSync(TARGET) ? readFileSync(TARGET, 'utf8') : '';
-  if (current !== sql) {
+  // Every byte must match except the platform-dependent source record (see legitimateSourceDigests above).
+  if (canonicalSourceRecord(current, SOURCE) !== canonicalSourceRecord(sql, SOURCE)) {
     console.error('objective-seed: FAILED the generated migration differs from data/seed.json');
     console.error('  run: node tools/build-objective-migration.mjs');
     process.exit(1);
