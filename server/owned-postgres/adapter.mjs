@@ -1501,6 +1501,9 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
   // EXAM-S1: evidence references a preparation, so it goes before the preparations it points at
   // (it would otherwise only cascade from "user", after the preparation delete had already failed).
   ['item_evidence', 'DELETE FROM item_evidence WHERE owner_id = $1'],
+  // PRACTICE-01 (slice C): a practice attempt points at the preparation as well, so it is removed for
+  // the same reason, before the preparations it references.
+  ['practice_attempt', 'DELETE FROM practice_attempt WHERE owner_id = $1'],
   ['mock_run_event', 'DELETE FROM mock_run_event WHERE owner_id = $1'],
   ['listening_playback_event', 'DELETE FROM listening_playback_event WHERE owner_id = $1'],
   ['listening_playback', 'DELETE FROM listening_playback WHERE owner_id = $1'],
@@ -1538,6 +1541,7 @@ export const ACCOUNT_TABLES = Object.freeze([
   ['learner_settings', 'user_id = $1', 'owner'], ['session', '"userId" = $1', 'owner'],
   ['account', '"userId" = $1', 'owner'], ['drafts', 'attempt_id = ANY($1::uuid[])', 'attempts'],
   ['item_evidence', 'owner_id = $1', 'owner'],
+  ['practice_attempt', 'owner_id = $1', 'owner'],
   ['mock_run', 'owner_id = $1', 'owner'], ['mock_run_event', 'owner_id = $1', 'owner'],
   ['listening_playback', 'owner_id = $1', 'owner'], ['listening_playback_event', 'owner_id = $1', 'owner'],
   ['mock_run_time_group', 'owner_id = $1', 'owner'],
