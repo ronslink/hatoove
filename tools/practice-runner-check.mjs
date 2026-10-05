@@ -777,9 +777,13 @@ function requiredDto(stored) {
     return [];
   };
   const items = payload[member].map((item, index) => {
-    /* The server's own field list (`PROMPT_FIELDS = ['question','statement','text']`). The drill's authored
-       items carry `prompt`, which that list does NOT read — a server-side gap leg 12e records. */
-    const promptField = ['question', 'statement', 'text'].find(field => typeof item[field] === 'string');
+    /*
+     * Mirrors the server's `PROMPT_FIELDS`, which now reads `prompt` FIRST. The `0022` grammar drill's twelve
+     * sentences live in `prompt` and the server previously dropped them (12 authored, 0 served); task-25
+     * fixed the field list, and leg 12d caught the difference the moment the fix merged — which is what this
+     * cross-check is for. The order matters: `prompt` first, then the 0010 shapes.
+     */
+    const promptField = ['prompt', 'question', 'statement', 'text'].find(field => typeof item[field] === 'string');
     const options = requiredOptions(item).filter(option => option.id);
     return {
       item_id: String(item.id ?? item.n),
@@ -911,16 +915,19 @@ leg('12e [dto] the migration-0022 drill renders, and the corpus\'s drift from th
   assert.equal(countOf(markup, /data-answer-item="/g), 36, 'every option');
   assert.equal(countOf(markup, /data-runner-evaluate[ >]/g), 1, 'one evaluate control');
 
-  /* SERVER-SIDE GAP, pinned so it cannot grow silently: the drill's authored items carry `prompt`, but the
-     normaliser's field list reads question/statement/text only, so the served prompt is empty. The client
-     reads `prompt` FIRST, so the sentence renders the moment the server serves it. */
-  const authoredPrompts = DRILL.payload.gaps.filter(gap => typeof gap.prompt === 'string' && gap.prompt.trim()).length;
-  assert.equal(authoredPrompts, 12, 'every authored drill item carries a prompt');
-  assert.equal(dto.items.filter(item => item.prompt).length, 0, 'the server field list drops all twelve (owed to the server half)');
+  /*
+   * The gap is CLOSED (task-25): the server's `PROMPT_FIELDS` now reads `prompt`, so the served DTO carries
+   * all twelve sentences. The leg asserts the invariant that matters — served equals authored — rather than
+   * a frozen count, so a future field-list change fails here instead of silently emptying a shipped set.
+   */
+  const authoredPrompts = DRILL.payload.gaps.map(gap => (typeof gap.prompt === 'string' ? gap.prompt.trim() : '')).filter(Boolean);
+  assert.equal(authoredPrompts.length, 12, 'every authored drill item carries a prompt');
+  const servedPrompts = dto.items.map(item => item.prompt).filter(Boolean);
+  assert.deepEqual(servedPrompts, authoredPrompts, 'the served prompts are the authored ones, in order');
   const bridged = runner.readServedItems({ family: 'SB1', payload: DRILL.payload, items: undefined });
   assert.equal(bridged.items.length, 12, 'the bridge reads the authored payload');
   assert.ok(bridged.items.every(item => item.prompt), 'and the client renders the authored prompt when the payload carries it');
-  console.log('      drill: 12 items, 36 options, material.letter present; server-side prompt gap pinned (12 authored, 0 served)');
+  console.log('      drill: 12 items, 36 options, material.letter present; prompts served == authored (12/12)');
 });
 
 leg('12f [dto] the drill\'s disclosure is echoed when the served set carries one (A9(c): labelled, not filtered)', () => {
