@@ -47,8 +47,14 @@ x-ownapi-env: &ownapi-env
 # sets `HATOVE_AUDIO_ROOT` to a directory that is incomplete, the `media` preflight FAILS LOUDLY naming every
 # missing file — that is the point of the override, and it never applies to the default path.
 #
-# `create_host_path: false`: a typo in HATOVE_AUDIO_ROOT must fail `docker compose up` immediately instead of
-# silently creating an empty directory. The default source is tracked, so it always exists in a checkout.
+# `create_host_path: false` is belt-and-braces, NOT the guard. MEASURED on Windows + Docker Desktop: a typo'd
+# or empty HATOVE_AUDIO_ROOT was still CREATED by the daemon, so this option did not stop `up` — the failure
+# came from the `media` preflight, which named every missing file, and from `app`'s
+# `depends_on: media: service_completed_successfully`, which held the API at `Created` with health unreachable
+# instead of letting it serve nothing. (On Linux the daemon may resolve the source differently and refuse it
+# earlier; that is UNMEASURED here, so the guarantees relied on are the preflight and the dependency chain, and
+# the empty-override case is HARMLESS rather than impossible.) The default source is tracked, so it always
+# exists in a checkout.
 x-media-mount: &media-mount
   type: bind
   source: "${HATOVE_AUDIO_ROOT:-./content/exams}"
@@ -147,6 +153,10 @@ services:
   # The worker is a separate container on purpose: the runtime must not carry the worker's
   # privileges, and it connects with the restricted `<prefix>_worker` role. No model provider is
   # called - the grader is the deterministic stub until PILOT-06 injects a real one.
+  # MEDIA-MOUNT-01 RESIDUAL: this service depends only on `migrate`, so it still STARTS when the `media`
+  # preflight fails. Harmless while the worker grades text and never reads a recording — but if it ever
+  # touches audio or serves media, give it the same `depends_on: media: service_completed_successfully`
+  # gate and the media mount, or the gap becomes visible only at a learner's play.
   worker:
     build: .
     command: ["node", "server/worker.mjs"]

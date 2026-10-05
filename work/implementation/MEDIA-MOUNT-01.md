@@ -241,9 +241,17 @@ am recording here: a run that only exercises the interesting override proves the
 **The fix.**
 - `defaultMediaRoot()` resolves to the tracked `content/exams/` tree — so a clean clone and a production image
   need **no environment variable and no host folder**. `B1PREP_MEDIA_ROOT` is now purely an opt-in override.
-- The mount's default source is that same tracked tree (`${HATOVE_AUDIO_ROOT:-./content/exams}`), and
-  `create_host_path: false`: a typo in the override fails `docker compose up` at the mount instead of silently
-  creating an empty directory, while the default source always exists in a checkout.
+- The mount's default source is that same tracked tree (`${HATOVE_AUDIO_ROOT:-./content/exams}`).
+  **`create_host_path: false` is belt-and-braces, not the guard — corrected wording (N1).** MEASURED on
+  Windows + Docker Desktop: a typo'd or empty `HATOVE_AUDIO_ROOT` was still **created** by the daemon, so the
+  option did not stop `up`; the failure came from the **`media` preflight**, which named every missing file,
+  and from **`app`'s `depends_on: media: service_completed_successfully`**, which held the API at `Created`
+  with health unreachable rather than letting it start and serve nothing. On Linux the daemon may resolve the
+  source differently and refuse it earlier, but that is unmeasured here, so the properties relied on are the
+  preflight and the dependency chain: the empty-override case is **harmless, not impossible**.
+- **Residual, recorded rather than fixed: the `worker` depends only on `migrate`, so it starts even when the
+  `media` preflight fails.** Harmless while the worker grades text and never reads a recording. If that ever
+  changes, the worker needs the same `depends_on: media` gate and the media mount.
 - The `media` preflight keeps its loud, file-naming failure **for an incomplete override**, and passes for the
   default; the pointer guard is untouched.
 - Stale comments corrected in `compose.yaml`, `server/media-contract.mjs`, `Dockerfile` and `.gitignore` —
@@ -274,3 +282,12 @@ $ docker compose -p hatoove-f2-ovr-empty run --rm media
 
 Gate groups on this head: `run-gates.mjs mirror`, `baseline`, `mirror-db` against a disposable
 migrated database. Every stack and container removed; `./media` was deleted and the tracked state left clean.
+
+**What this evidence is NOT, stated because the note must not imply otherwise.** The bytes, etag and range
+above come from the **shipped functions the media route calls** (`readMediaBytes`, `mediaResponse`) invoked
+in-process inside the running image — they are **not an HTTP 206 over the wire**. The recording route needs an
+authenticated owner *plus* a mock-attempt context: the non-author review tried and its session attempt was
+refused 403, and the outside review's F3 records the same limit — no shipped set has recordings, `exam_media`
+rows or a `recordings` binding, and the client has no practice-playback transport. The end-to-end HTTP proof is
+its own slice, to be done once a set is bound to real audio. What is proved here is the mount, the default
+path, the preflight and the framing the route uses; not a learner's HTTP request.
