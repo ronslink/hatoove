@@ -49,6 +49,11 @@ const GROUPS = {
     gate('repository-check'), gate('design-check'), gate('retired-surface-check'), gate('seo-check'),
     gate('server-origin-check'), gate('keymask-check'), gate('owned-api-check'), gate('owned-client-check'),
     gate('i18n-register-check'),
+    /* PILOT-FEEDBACK-01 (FB-C): offline and structural. It proves the entry point cannot appear before sign-in,
+       that the sheet has no way to navigate or reach the listening controller, that the learner's own text is
+       escaped, and that the stylesheet stays RTL-safe. It deliberately does NOT claim the rendered behaviour -
+       focus, Escape and audio-while-open need a browser, and that residual is recorded rather than implied. */
+    gate('pilot-feedback-client-check'),
   ],
 };
 
