@@ -68,11 +68,21 @@ function reporter(row) {
 
 const oneLine = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
 
-/** CSV: quoted, CRLF-free, with the BOM Excel needs to read UTF-8 as UTF-8 (umlauts and Arabic intact). */
+/**
+ * CSV cell: quoted where needed, and GUARDED AGAINST FORMULA INJECTION.
+ *
+ * A cell whose text begins with `=`, `+`, `-`, `@`, a tab or a carriage return is a FORMULA to Excel, LibreOffice
+ * and Google Sheets. The learner writes `body`, so `=HYPERLINK(...)` typed into a report would be executed by the
+ * spreadsheet of the person triaging it — the operator — which is a privilege boundary crossed by data rather
+ * than by code. An independent reviewer raised this. Prefixing a single quote is the standard defence: the cell
+ * shows the text and is not evaluated, and a leading apostrophe is what a spreadsheet already means by "literal".
+ */
+const FORMULA_LEAD = /^[=+\-@\t\r]/;
 function csvCell(value) {
   if (value === null || value === undefined) return '';
   const text = String(value);
-  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  const guarded = FORMULA_LEAD.test(text) ? `'${text}` : text;
+  return /[",\n\r\t]/.test(guarded) ? `"${guarded.replaceAll('"', '""')}"` : guarded;
 }
 
 /** Survey answers become their own columns so a spreadsheet can average them without parsing JSON. */
@@ -84,12 +94,14 @@ function answerColumns(rows) {
   return [...ids].sort();
 }
 
-export function buildCsv(rows) {
+export function buildCsv(rows, screenshotFiles = null) {
   const answers = answerColumns(rows);
   const header = ['feedback_id', 'created_at', 'kind', 'category', 'route', 'status',
     'reporter', 'interface_language', 'app_version', 'body',
     'exam_id', 'set_id', 'version', 'item_id', 'survey_round',
     ...answers.map((id) => `answer_${id}`), 'operator_note', 'handled_at'];
+  // The screenshot column is FIRST when it exists, so it sits beside the id it belongs to.
+  if (screenshotFiles) header.unshift('screenshot_file');
   const lines = [header.join(',')];
   for (const row of rows) {
     lines.push([
@@ -100,6 +112,9 @@ export function buildCsv(rows) {
       row.operator_note,
       row.handled_at instanceof Date ? row.handled_at.toISOString() : row.handled_at,
     ].map(csvCell).join(','));
+    if (screenshotFiles) {
+      lines[lines.length - 1] = `${csvCell(screenshotFiles.get(row.feedback_id) ?? '')},${lines[lines.length - 1]}`;
+    }
   }
   // The BOM is what makes Excel read the file as UTF-8; without it, umlauts and Arabic arrive mangled.
   return `\uFEFF${lines.join('\r\n')}\r\n`;
@@ -217,30 +232,25 @@ async function main() {
     if (command === 'export') {
       if (!flags.csv) usage('export currently supports --csv only');
       const rows = await q('SELECT * FROM operator_feedback_list($1,$2,$3,$4)', [null, null, null, parseSince(flags.since)]);
-      let csv = buildCsv(rows);
+      /*
+       * THE SCREENSHOT COLUMN IS BUILT WITH THE CSV, NOT SPLICED INTO IT. The first version wrote the CSV, then
+       * prepended a header by string surgery — which put a SECOND `screenshot_file` on the header line
+       * (`replace` had already renamed the first) and moved the BOM off byte 0, so Excel read the file as the
+       * wrong encoding and the umlauts and Arabic arrived mangled. The reviewer found both. Building the column
+       * where the other columns are built makes those two failures impossible rather than unlikely.
+       */
+      const screenshotFiles = new Map();
       if (flags.screenshots) {
-        // Each image is written beside the CSV and named by feedback_id, so the spreadsheet and the directory
-        // can be read together. The column is added for that reason.
         const dir = path.resolve(String(flags.screenshots));
-        const written = [];
         for (const row of rows) {
           const [shot] = await q('SELECT * FROM operator_feedback_screenshot($1)', [row.feedback_id]);
           if (!shot) continue;
           const suffix = shot.mime_type === 'image/png' ? 'png' : 'webp';
           writeFileSync(path.join(dir, `${row.feedback_id}.${suffix}`), shot.bytes);
-          written.push(`${row.feedback_id}.${suffix}`);
+          screenshotFiles.set(row.feedback_id, `${row.feedback_id}.${suffix}`);
         }
-        csv = csv.replace('feedback_id,created_at', 'screenshot_file,feedback_id,created_at');
-        const lines = csv.split('\r\n');
-        lines[0] = `screenshot_file,${lines[0]}`;
-        for (let i = 1; i < lines.length; i += 1) {
-          if (!lines[i]) continue;
-          const id = lines[i].split(',')[0];
-          lines[i] = `${written.includes(`${id}.webp`) ? `${id}.webp` : written.includes(`${id}.png`) ? `${id}.png` : ''},${lines[i]}`;
-        }
-        csv = lines.join('\r\n');
       }
-      process.stdout.write(csv);
+      process.stdout.write(buildCsv(rows, screenshotFiles.size ? screenshotFiles : null));
       return;
     }
 

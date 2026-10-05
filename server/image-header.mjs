@@ -16,6 +16,13 @@
  *   truncated. A null is a refusal at the call site, never a default.
  */
 
+/**
+ * The largest dimension any screenshot could plausibly have. This is a SANITY bound, not the product policy —
+ * the contract's 1600 px width ceiling lives in the API, where the request is refused with a status the client
+ * can act on. A `VP8X` header can claim 16 777 216 px, and `0050`'s only height constraint is `height > 0`.
+ */
+const MAX_DIMENSION = 20000;
+
 /** PNG signature, then the IHDR chunk: width and height as big-endian uint32 at offsets 16 and 20. */
 function readPng(bytes) {
   const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -23,6 +30,15 @@ function readPng(bytes) {
   for (const [index, byte] of signature.entries()) if (bytes[index] !== byte) return null;
   // The first chunk must be IHDR, or the offsets below mean something else.
   if (bytes.toString('latin1', 12, 16) !== 'IHDR') return null;
+  // AND IHDR MUST DECLARE ITS OWN LENGTH: 13 bytes of image header. Without this a buffer with the right eight
+  // magic bytes and four letters could name dimensions for an image that does not exist.
+  if (bytes.readUInt32BE(8) !== 13) return null;
+  /*
+   * A PNG THAT CONTAINS ONLY A HEADER IS NOT AN IMAGE. The first version accepted any buffer ≥ 24 bytes, so a
+   * 24-byte "PNG" with plausible dimensions passed and would have been stored and later served as an image. A
+   * real PNG needs the signature, IHDR with its CRC, and an IEND — 8 + 25 + 12 = 45 bytes at the very least.
+   */
+  if (bytes.length < 45 || !bytes.includes(Buffer.from('IEND', 'latin1'))) return null;
   return { mimeType: 'image/png', width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
 }
 
@@ -30,6 +46,12 @@ function readPng(bytes) {
 function readWebp(bytes) {
   if (bytes.length < 30) return null;
   if (bytes.toString('latin1', 0, 4) !== 'RIFF' || bytes.toString('latin1', 8, 12) !== 'WEBP') return null;
+  /*
+   * RIFF DECLARES ITS OWN LENGTH, so the file can be checked against its own claim. `size` counts everything
+   * after the eight bytes of `RIFF....`; a 30-byte buffer claiming three megabytes is a header, not a WebP.
+   */
+  const declared = bytes.readUInt32LE(4) + 8;
+  if (declared > bytes.length) return null;
   const chunk = bytes.toString('latin1', 12, 16);
   if (chunk === 'VP8 ') {
     // Lossy: a 3-byte frame tag, the 3-byte start code, then 14-bit dimensions as little-endian uint16.
@@ -71,5 +93,13 @@ export function readImageHeader(bytes, declared = null) {
    */
   if (declared && declared !== header.mimeType) return null;
   if (!Number.isInteger(header.width) || !Number.isInteger(header.height) || header.width < 1 || header.height < 1) return null;
+  /*
+   * AND THE DIMENSIONS MUST BE POSSIBLE. A `VP8X` canvas is stored as 24-bit width and height minus one, so a
+   * header can claim 1 × 16 777 216 — a "screenshot" whose declared height is larger than any screenshot and
+   * which the column would hold happily (`height > 0` is the only constraint in `0050`). The reviewer produced
+   * exactly that. This is a SANITY ceiling, not the product policy: the contract's 1600 px width limit lives in
+   * the API where the request is refused with a status the client can act on.
+   */
+  if (header.width > MAX_DIMENSION || header.height > MAX_DIMENSION) return null;
   return header;
 }
