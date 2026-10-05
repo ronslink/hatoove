@@ -18,7 +18,7 @@ import { messageMarkup } from './locale-preference.js';
  */
 const NAMES = { why:'m266',rule:'m267',rules:'m268',pattern:'m269',example:'m087',examples:'m270',note:'m271',hint:'m271',watchOut:'m272',watch_out:'m272',traps:'m273',items:'m274',points:'m275',pitfalls:'m273',tips:'m276',checklist:'m089',phrases:'m088',table:'m085',tables:'m277',meaning:'m278',usage:'m279',forms:'m280',steps:'m275',ending:'m281',gender:'m282',plural:'m283',question:'m284',answer:'m285',solution:'m286',explanation:'m287',exceptions:'m288',situation:'m289',leitpunkte:'m290',text:'m291',looks:'m292',other:'m293',case:'m294',triggers:'m086' };
 const ORDER = ['title','group','idea','type','intro','why','rule','pattern','detail','hint','situation','leitpunkte','example','examples','good','bad','note'];
-const SPEAKABLE_KEYS = new Set(['example','examples','de']);
+const SPEAKABLE_KEYS = new Set(['example','examples','de','text','phrases']);
 const dir = language => (language === 'ar' ? 'rtl' : 'ltr');
 
 export function guideContent(value, esc, language = 'de', options = {}) {
