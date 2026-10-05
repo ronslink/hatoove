@@ -103,7 +103,23 @@ A check had to change with the markup and did: `tools/shell-locale-check.mjs:224
 `data-answer="a">a) Original English answer` literally. It now parses the tile and asserts the invariant
 instead — the bare option id in `data-answer`, the letter visible and unescaped, the authored label in full.
 
-**Still owed:** the question navigator and the part-result screen, which need the studio-look values.
+**Run navigator and part result delivered** (`slice D`, this round):
+
+- The open set's head carries a live progress line — `shell.m390`, "3 von 5 beantwortet" — updated after
+  every response the **server accepted**, so a request that fails or never returns counts nothing.
+- When the last item of the set is answered, a part-result card appears (`shell.m392` + `shell.m391`,
+  correct/total) with the orange "Weiter üben" action. It is shown once: answering the last item again does
+  not stack a second summary.
+- A response that arrives after the learner opened a **different** set is ignored, and closing the run
+  resets the counter, so a reopened set starts at zero.
+- Pinned by `.qa/redesign-01/run-progress-contract.mjs` (19/19): seven state transitions including a failed
+  request, a foreign set, a one-item set and a zero-item set, plus a source check that the gates are still
+  in `app.js` and that both new keys carry one placeholder shape in all five dictionaries.
+
+`app-browser-check` cannot prove these legs (it cannot drive practice to a verdict on this machine), which is
+exactly why the contract harness exists.
+
+**Still owed:** the mock result's per-part summary, and everything that needs the studio-look values.
 
 ## 5. Slice E/F — Fehlerheft and copy cleanup
 

@@ -583,5 +583,14 @@ button.btn.answer-option[data-state=wrong] .answer-verdict::before { content: '\
 /* The options that took no part in the answer stay readable but stop competing with the verdict. */
 .row[data-answered] button.btn.answer-option:not([data-state]) { opacity: .72; }
 
+/*
+ * REDESIGN-01 D — the run navigator and the part result. Both are one line of text plus, for the result,
+ * the design system's own peach card, so no new token or colour is introduced here.
+ */
+#practice-progress { margin: 6px 0 0; }
+#practice-part-result { margin-top: 20px; }
+.part-result { display: grid; gap: 10px; justify-items: start; }
+.part-result .part-result-count { font-size: 20px; font-weight: 750; margin: 0; }
+
 
 

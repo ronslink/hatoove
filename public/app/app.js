@@ -1129,6 +1129,20 @@ async function answerItem(set, card, itemId, answer) {
   const correct = res.data && res.data.correct === true;
   bindShellText(out, () => correct ? uiText("m137") : uiText("m138"));
   /*
+   * REDESIGN-01 C/D — the navigator counts only what the server accepted: this runs after `res.ok`, so a
+   * request that never answered increases nothing. The set id is checked so a response that arrives after
+   * the learner opened a DIFFERENT set cannot move the new set's counter. The summary appears on the last
+   * item and is guarded by `partSummaryRendered`, because answering the last item again must not stack a
+   * second summary under the first.
+   */
+  if (res.ok && setProgress.setId === set.set_id) {
+    setProgress.answered += 1;
+    if (correct) setProgress.correct += 1;
+    const box = card.closest('.skill-practice') || card.parentElement;
+    renderNavigator(box);
+    if (setProgress.answered >= setProgress.total) renderPartResult(box);
+  }
+  /*
    * REDESIGN-01 C — THE TILE STATES, FROM THE SERVER'S ANSWER ONLY.
    *
    * Every state below comes from `res`: `data.correct` is the server's mark for the option the learner
@@ -1183,6 +1197,32 @@ function practiceHost(box) {
   return box?.parentElement?.querySelector('.skill-practice') || null;
 }
 
+/*
+ * REDESIGN-01 C/D — THE RUN NAVIGATOR AND THE PART RESULT.
+ *
+ * One small state object per OPEN SET, cleared by `openSet`, so a set that is closed and reopened never
+ * inherits a count. It counts what the SERVER accepted: an answer whose response did not arrive is not
+ * counted, because the screen must not claim progress the record does not have. `partSummaryRendered`
+ * keeps the summary from being re-appended when a learner answers the last item twice.
+ */
+let setProgress = { setId: null, answered: 0, correct: 0, total: 0, partSummaryRendered: false };
+
+function renderNavigator(host) {
+  const line = host?.querySelector('#practice-progress');
+  if (!line) return;
+  bindShellText(line, () => uiText('m390', { answered: setProgress.answered, total: setProgress.total }));
+}
+
+function renderPartResult(host) {
+  const target = host?.querySelector('#practice-part-result');
+  if (!target || setProgress.partSummaryRendered) return;
+  setProgress.partSummaryRendered = true;
+  target.hidden = false;
+  setShellHTML(target, '<div class="card card-peach part-result"><p class="kicker">' + messageMarkup('m392') + '</p>'
+    + '<p class="part-result-count">' + messageMarkup('m391', { correct: setProgress.correct, total: setProgress.total }) + '</p>'
+    + '<a class="btn btn-primary" href="#/ueben">' + messageMarkup('m389') + '</a></div>');
+}
+
 /** Open one set of the skill currently on screen. */
 async function openSet(setId, version) {
   if (!activePreparation() || preparationSwitching) return;
@@ -1227,11 +1267,19 @@ async function openSet(setId, version) {
     showError(() => (uiText("m140")));
     return;
   }
+  /*
+   * REDESIGN-01 C/D — the run navigator lives in the set's own head, and the part result is a sibling of
+   * the items so it can be revealed without touching them.
+   */
+  setProgress = { setId: set.set_id, answered: 0, correct: 0, total: set.item_count, partSummaryRendered: false };
   setShellHTML(box, '<div class="card"><div class="card-head"><h3>' + setLabelMarkup(set)
     + '</h3><span class="chip">' + esc(set.family) + ' · ' + messageMarkup('version') + ' ' + esc(set.version) + '</span></div>'
+    + '<p class="small muted" id="practice-progress" role="status" aria-live="polite"></p>'
     + "<button class=\"btn\" type=\"button\" id=\"practice-close\"><span data-i18n=\"shell.m141\">Schließen</span></button></div>"
-    + '<div class="stack" id="practice-items"></div>');
+    + '<div class="stack" id="practice-items"></div>'
+    + '<div id="practice-part-result" hidden></div>');
   renderObjectiveForm(set, box.querySelector('#practice-items'));
+  renderNavigator(box);
   /*
    * ASSIGNMENT, not addEventListener. `box` is the same element for the whole life of the view, so an
    * added listener accumulated one per set opened: opening a second set made one answer POST twice,
@@ -1248,6 +1296,8 @@ async function openSet(setId, version) {
     box.hidden = true;
     setShellHTML(box, '');
     if (list) list.hidden = false;
+    // The run is over: a reopened set must start at zero rather than inherit this run's count.
+    setProgress = { setId: null, answered: 0, correct: 0, total: 0, partSummaryRendered: false };
   });
 }
 
