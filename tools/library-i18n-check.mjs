@@ -193,13 +193,20 @@ function sqlIndexOfKeyword(text, keyword) {
  * holds. REVIEW-LIBRARY-I18N-REPIN-2 is why this exists: `frozenSource()` parsed only the SEED migrations
  * (`0012`/`0013`/`0014`) and so reported the PRE-`0043` rows as "the seeded" values, while the importer reads
  * the corrected rows (`readFrozenSource` against the migrated schema). Two fixtures, two answers about one
- * bundle — and the gate failed on four noun fields that were in fact correct. `0043` is the only correction
- * migration today; scanning every later migration keeps that true by construction.
+ * bundle — and the gate failed on four noun fields that were in fact correct.
  *
- * Deliberately strict: a statement that targets a frozen table and cannot be understood THROWS, so a future
- * correction can never be silently ignored here. Unknown tables and unrelated SQL are ignored.
+ * THE MODEL IS THE ITERATION SOURCE (REVIEW-LIBRARY-I18N-REPIN-2, must-fix). `frozenSource()` builds ONE array
+ * of `{ table, rows }` — the tables this offline source models — and that array drives BOTH the seed parse and
+ * this correction pass. So a correction to ANY modelled table is applied by construction, and adding a modelled
+ * table is one line that the corrections follow automatically. The first version visited two of the three
+ * modelled tables by hand (`noun_entry`, `guide_section`) and skipped `guide`, whose `content_version_id` flows
+ * into `source_content_version`: a correction there would have been silently ignored — a false GREEN, which is
+ * worse than the false red this whole lease exists to close. (Exported so the leg below can prove all three.)
+ *
+ * Deliberately strict: a statement that targets a modelled table and cannot be understood THROWS, so a future
+ * correction can never be silently skipped here. Unrelated SQL is ignored.
  */
-function applyCorrections(sql, table, rows) {
+export function applyCorrections(sql, table, rows) {
   const applied = [];
   for (const statement of sqlStatements(sql)) {
     const match = new RegExp(`^\\s*UPDATE\\s+"__SCHEMA__"\\.${table}\\b([\\s\\S]*)$`, 'i').exec(statement);
@@ -234,9 +241,11 @@ async function frozenSource() {
     content_version_id: value[12],
   }));
   const sections = [];
-  const versions = new Map();
+  // `guide` keeps its SEED ROWS as an array — `versions` is derived from them, so correcting the map in place
+  // is not an option; the map is rebuilt after the correction pass instead.
+  const guides = [];
   for (const sql of [guides13, guides14]) {
-    for (const value of insertRows(sql, 'guide')) versions.set(value[0], value[9]);
+    for (const value of insertRows(sql, 'guide')) guides.push({ guide_id: value[0], content_version_id: value[9] });
     for (const value of insertRows(sql, 'guide_section')) {
       sections.push({
         guide_id: value[0], section_id: value[1], title: value[4], title_en: value[5],
@@ -244,6 +253,16 @@ async function frozenSource() {
       });
     }
   }
+  /*
+   * THE MODEL: the tables this offline source carries, and the ONLY list of them. The parse above and the
+   * correction pass below both iterate it, so a correction to any modelled table is applied and a new modelled
+   * table needs exactly one line here.
+   */
+  const model = [
+    { table: 'noun_entry', rows: entries },
+    { table: 'guide_section', rows: sections },
+    { table: 'guide', rows: guides },
+  ];
   // The seeds above are the state BEFORE the correction migrations; bring them to the state a migrated
   // database holds, so this offline source and `readFrozenSource` cannot disagree again.
   const migrationDir = new URL('../server/migrations/', import.meta.url);
@@ -252,13 +271,12 @@ async function frozenSource() {
   const corrections = [];
   for (const file of later) {
     const sql = await readFile(new URL(file, migrationDir), 'utf8');
-    const applied = [
-      ...applyCorrections(sql, 'noun_entry', entries),
-      ...applyCorrections(sql, 'guide_section', sections),
-    ];
+    const applied = model.flatMap(({ table, rows }) => applyCorrections(sql, table, rows));
     if (applied.length) corrections.push(`${file}: ${applied.join(', ')}`);
   }
-  return { entries, sections, versions, corrections };
+  // Derived AFTER the corrections, so a `guide.content_version_id` correction reaches `source_content_version`.
+  const versions = new Map(guides.map((row) => [row.guide_id, row.content_version_id]));
+  return { entries, sections, versions, corrections, model };
 }
 
 /* --------------------------------------------------------------------------------- offline */
@@ -289,6 +307,46 @@ await check('the offline frozen source carries the corrections the later migrati
   const plan = planNounRows(bundle, source.entries);
   assert.equal(plan.rows.length, EXPECTED_NOUNS * TRANSLATION_LOCALES.length, 'all 240 nouns still bind, none dropped');
   return '2 noun_entry rows and 1 guide_section row carry 0043; all 240 nouns bind';
+});
+
+/*
+ * THE GUARD, PROVED IN BOTH DIRECTIONS (REVIEW-LIBRARY-I18N-REPIN-2, must-fix). One synthetic correction per
+ * MODELLED table — including `guide`, which NO migration corrects today — goes through the same pass
+ * `frozenSource()` runs over its model; and the two-hand-written-table shape this check used to have is shown
+ * to MISS the `guide` correction, so the guard's value is demonstrated rather than asserted. Without this the
+ * hole was a false GREEN: a silently skipped correction certifies a regression, which is worse than the false
+ * red the previous lease closed.
+ */
+await check('a correction to EVERY modelled table is applied, and the old two-table shape would have missed guide', async () => {
+  const synthetic = [
+    `UPDATE "__SCHEMA__".noun_entry SET de = 'neu' WHERE entry_id = 'x';`,
+    `UPDATE "__SCHEMA__".guide_section SET title = 'neu' WHERE section_id = 'g.s1';`,
+    `UPDATE "__SCHEMA__".guide SET content_version_id = 'cases@v2' WHERE guide_id = 'cases-guide';`,
+  ].join('\n');
+  const syntheticModel = [
+    { table: 'noun_entry', rows: [{ entry_id: 'x', de: 'alt', en: 'old', example: 'altE', example_en: 'oldE', content_version_id: 'c@v1' }] },
+    { table: 'guide_section', rows: [{ guide_id: 'cases-guide', section_id: 'g.s1', title: 'alt', title_en: 'old', summary: 'altS', summary_en: 'oldS', payload: {} }] },
+    { table: 'guide', rows: [{ guide_id: 'cases-guide', content_version_id: 'cases@v1' }] },
+  ];
+  assert.deepEqual(syntheticModel.map((entry) => entry.table), source.model.map((entry) => entry.table),
+    'the synthetic model mirrors the real one: these are the tables the correction pass iterates');
+  const applied = syntheticModel.flatMap(({ table, rows }) => applyCorrections(synthetic, table, rows));
+  assert.equal(applied.length, 3, 'one correction per modelled table is applied');
+  assert.equal(syntheticModel[0].rows[0].de, 'neu', 'noun_entry corrected');
+  assert.equal(syntheticModel[1].rows[0].title, 'neu', 'guide_section corrected');
+  assert.equal(syntheticModel[2].rows[0].content_version_id, 'cases@v2', 'guide corrected — the table the old pass skipped');
+  // The OLD shape: two hand-written tables and no `guide`.
+  const guideBefore = JSON.stringify(syntheticModel[2].rows);
+  const oldApplied = syntheticModel.filter((entry) => entry.table !== 'guide')
+    .flatMap(({ table, rows }) => applyCorrections(synthetic, table, rows));
+  assert.equal(oldApplied.length, 2, 'the old pass visited two tables');
+  assert.equal(JSON.stringify(syntheticModel[2].rows), guideBefore, 'and left the guide correction unapplied — the hole');
+  // The strict parser still refuses a shape it cannot model rather than skipping it silently.
+  assert.throws(
+    () => applyCorrections(`UPDATE "__SCHEMA__".guide SET content_version_id = 'x' WHERE guide_id IN ('a','b');`, 'guide', syntheticModel[2].rows),
+    /unsupported correction condition/,
+    'an unparseable WHERE must throw, never skip');
+  return 'noun_entry, guide_section and guide each corrected; the old two-table shape misses guide; an IN-list still throws';
 });
 
 let germanFragments = 0;

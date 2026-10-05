@@ -168,3 +168,61 @@ that fix.
 Also honest: my FIRST import sequence ran against a schema my own earlier `node -e` probe had already populated,
 so its "before" fingerprint was not empty. That measurement is discarded, not reported; the numbers above are
 from the fresh `DROP DATABASE` / `CREATE DATABASE` / `migrate` run.
+
+---
+
+# LEASE 3 (task-29 review → must-fix) — the guard is now driven by the model
+
+**The review returned CLEAR WITH NOTES with ONE must-fix, and it is this lease's own hole.** The correction
+pass visited **two of the three modelled tables by hand** (`noun_entry`, `guide_section`) and skipped `guide`,
+whose `content_version_id` flows into `source_content_version`. No migration corrects `guide` today, so it was
+unreachable — but the guard exists for the NEXT migration, and neither half backstopped it: a
+`guide.content_version_id` change reaches only `source_content_version`, which no binding leg compares. The
+failure mode is a **false GREEN** — a silently skipped correction certifies a regression — the mirror image of
+the false RED this work closed, and worse.
+
+**The fix: the model is the iteration source.** `frozenSource()` builds **one** array of `{ table, rows }` —
+`noun_entry` → entries, `guide_section` → sections, `guide` → its seed rows — and that array drives **both** the
+seed parse and the correction pass (`model.flatMap(({ table, rows }) => applyCorrections(sql, table, rows))`).
+Adding a modelled table is then one line and the corrections follow automatically. `guide` keeps its rows as an
+**array** and `versions` is **rebuilt after** the pass, because a derived `Map` cannot be corrected in place.
+`applyCorrections` is exported so the leg below can drive all three tables; the "true by construction" comment
+that covered two of three tables is corrected.
+
+**Proved in both directions**, offline: `a correction to EVERY modelled table is applied, and the old two-table
+shape would have missed guide` — one synthetic correction per modelled table goes through the same pass; the
+two-hand-written-table shape is then run over the same SQL and shown to leave the `guide` row **untouched** (the
+hole, demonstrated rather than asserted); and an `IN`-list `WHERE` still **throws** `unsupported correction
+condition` rather than skipping.
+
+## Evidence at this head
+
+```text
+node tools/library-i18n-check.mjs             9 passed,  0 failed   (was 8/0; +1 guard leg)
+node tools/library-i18n-check.mjs --postgres 21 passed, 0 failed   (was 20/0)
+  PASS a correction to EVERY modelled table is applied, and the old two-table shape would have missed guide
+  telc-deutsch-b1.noun.das-familiemitglied: offline and database agree (de="das Familienmitglied", en="family member")
+  telc-deutsch-b1.noun.die-moebel:          offline and database agree (de="die Möbel", en="furniture")
+
+fresh container, fresh migrate (applied=43):
+  after migrate   0/0 rows, empty digest
+  --dry-run       plans 2112+720, boundEnglish 704   -> fingerprint UNCHANGED
+  first import    inserts 2112+720                    -> digest 2675124423657b58308b0120892063c0
+  second import   inserts 0, unchanged 2112+720       -> digest IDENTICAL
+
+npm run check:mirror:db
+  on THIS branch (@ this head)     -> 3/4, the one failure being practice-media-check's pre-fix mutation pattern
+                                       (LEASE 2; fixed at 252e20f, on main but not on base 1e9188f)
+  on a TEMP TREE carrying 252e20f  -> 4/4
+    PASS library-i18n-check --postgres (11.1s) · PASS part-index-check --postgres (1.9s)
+    PASS practice-selection-check --postgres (3.4s) · PASS practice-media-check (3.8s)
+```
+
+The 4/4 is **measured, not projected**: the temp tree is this branch plus `git apply` of `252e20f`, a throwaway
+copy that also needed `spikes/` and `docs/` (which `part-index-check` reads and `bootstrap.mjs` imports), so
+integration should land 4/4.
+
+**NOT folded in, by instruction:** the reviewer's finding that a dropped path is **unmarked** — "Übersetzung
+folgt" fires only when a whole member is null, so German-only after this re-pin is indistinguishable from
+never-translated. That is a separate slice for `library-ui` (a per-section marker driven by the recorded
+99-string list) and it is on the board.
