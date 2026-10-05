@@ -14,6 +14,15 @@
  * Needs `server/owned-postgres` installed and a DISPOSABLE database with OWNAPI_PG_ALLOW=1. Synthetic accounts
  * only; no provider, no .env, never the learner's app.
  *
+ * MUTATION PROOFS. Each mutation below was applied to the source, this check re-run, the mutation reverted and
+ * the tree confirmed clean. A guard that cannot fail is not evidence, and this program has shipped six of those.
+ *
+ *   M1  the closed field set removed from POST /feedback    -> leg 3   (an unknown field files the report)
+ *   M2  interface_language defaulted to `en`                -> leg 2   (the stored language is wrong)
+ *   M3  the 23514 -> 422 mapping removed on survey answers  -> leg 17  (a caller's mistake reads as a 500)
+ *   M4  an invalid context kept instead of dropped          -> leg 8   (a stale page stores a bogus run id)
+ *   M5  operator_note added to the GET projection           -> leg 6   (internal triage data reaches the learner)
+ *
  * Usage: node tools/pilot-feedback-api-check.mjs   (exit 0 when every leg passes)
  */
 
@@ -64,6 +73,18 @@ async function main() {
    */
   await admin.query(`UPDATE "${schema}".survey_round SET closes_at = now() - interval '1 hour'
                       WHERE closes_at > now()`);
+
+  /*
+   * THE GLOBAL BUCKET IS SHARED ACROSS RUNS, and it made this check fail on its own second run: `feedbackGlobal`
+   * is 200 per hour and a run files about 25 reports, so a handful of runs exhausted it and legs that expect 201
+   * saw 429. A check that fails on its second run is broken, and the tempting "fix" — deleting the global kind —
+   * would remove a real protection to make a test pass.
+   *
+   * The reset is acceptable only because the protection stays proved: leg 19 spends the ACCOUNT's real daily
+   * allowance and is refused, both kinds go through the same `enforceThrottle` path, and leg 1 pins the shipped
+   * values offline. `owned-api-throttle-isolation-check` resets the signup bucket for the same reason.
+   */
+  await pg.throttle.clear('feedbackGlobal', 'all');
 
   const call = (method, path, { cookie = null, body } = {}) => pg.api.handle({
     method,
