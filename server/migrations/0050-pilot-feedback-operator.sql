@@ -21,6 +21,25 @@
 
 /* ---------------------------------------------------------------- the read path */
 
+/*
+ * THE OWNER-SCOPED POLICY FIRST, and it is not optional. `0049` FORCEs row-level security, and FORCE means the
+ * fence applies to the TABLE OWNER too — so a `SECURITY DEFINER` function owned by the schema owner reads ZERO
+ * rows without a policy of its own. `0045` records the same trap for `practice_attempt`: "a plain read returned
+ * ZERO rows and every play was answered not_found". The first version of this file omitted it, and the reader
+ * silently returned nothing against a table that had rows.
+ *
+ * WHY THE POLICY NAMES THE OWNER ROLE AND NOT `CURRENT_USER`, which is what `0045` and `0025` use: those policies
+ * carry an owner predicate in `USING`, so matching every session is harmless. This reader needs
+ * `USING (true)` — it reads ACROSS owners by design — and `TO CURRENT_USER USING (true)` would then match the
+ * LEARNER as well, who already holds SELECT on this table: every learner would read every other learner's
+ * feedback. Naming the owner role keeps the policy to sessions that are already the schema owner, which is the
+ * only context the definer function runs in.
+ */
+DROP POLICY IF EXISTS operator_feedback_read ON "__SCHEMA__".pilot_feedback;
+CREATE POLICY operator_feedback_read ON "__SCHEMA__".pilot_feedback TO "__MIGRATION__" USING (true);
+DROP POLICY IF EXISTS operator_feedback_screenshot_read ON "__SCHEMA__".pilot_feedback_screenshot;
+CREATE POLICY operator_feedback_screenshot_read ON "__SCHEMA__".pilot_feedback_screenshot TO "__MIGRATION__" USING (true);
+
 -- p_feedback_id, p_status, p_category and p_since are all optional; NULL means "do not filter".
 DROP FUNCTION IF EXISTS "__SCHEMA__".operator_feedback_list(uuid, text, text, timestamptz);
 CREATE FUNCTION "__SCHEMA__".operator_feedback_list(
