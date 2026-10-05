@@ -729,12 +729,37 @@ async function postgresLegs() {
   let db = null;
   try {
     await resetLeg();
-    const migrated = await runNode(['server/migrate.mjs'], { OWNAPI_PG_SCHEMA: leg, OWNAPI_PG_ROLE_PREFIX: leg, OWNAPI_PG_ALLOW: '1' });
-    await pgLeg('P1 SQL: a clean database applies 0048 LAST, with the ledger checksums matching the file bytes', async () => {
+    /*
+     * THE EXPECTED LEDGER HEAD IS DERIVED, NOT THE CONSTANT `0048`.
+     *
+     * This leg used to assert that `0048-pool-01-listening-release` was the last row in
+     * `hatoove_migrations`. That was true only while 0048 was the newest migration in the repository:
+     * the leg provisions a CLEAN database and applies the WHOLE directory, so the very next forward
+     * migration (0049-review-owner-approval) made the assertion fail on a correct, fully migrated
+     * database — a red gate that says nothing about POOL-01. What the leg exists to prove is that a
+     * clean database applies the frozen set in order, ends at the head the CODE expects, and that
+     * every ledger checksum is the digest of the file on disk. So the head is read from the migration
+     * directory that `server/migrate.mjs` uses by default, the same way it is enumerated there.
+     *
+     * `0048` keeps its own assertion below, and it is the one that matters for this slice: its ledger
+     * row must still carry the digest of ITS bytes, because an applied migration never moves.
+     */
+    const expectedHead = fs.readdirSync(path.join(ROOT, 'server', 'migrations'))
+      .filter((name) => /^\d{4}-.*\.sql$/.test(name)).sort().at(-1).replace(/\.sql$/, '');
+    const migrated = await runNode(['server/migrate.mjs'], {
+      OWNAPI_PG_SCHEMA: leg, OWNAPI_PG_ROLE_PREFIX: leg, OWNAPI_PG_ALLOW: '1',
+      // A checker run may itself be pointed at a scratch migration directory; this leg must observe
+      // the real one, so the inherited selection is cleared rather than trusted.
+      OWNAPI_MIGRATIONS_DIR: '',
+    });
+    await pgLeg(`P1 SQL: a clean database applies the frozen migrations in order, ending at ${expectedHead}, with the ledger checksums matching the file bytes`, async () => {
       assert.equal(migrated.code, 0, `migrate must exit 0:\n${migrated.out.slice(-300)}`);
       const rows = (await legAdmin.query(`SELECT id, checksum FROM "${leg}".hatoove_migrations ORDER BY id`)).rows;
-      assert.equal(rows.at(-1).id, '0048-pool-01-listening-release', 'the release migration is applied last');
-      assert.equal(rows.at(-1).checksum, sha256(read(MIGRATION)), 'and its ledger checksum is the sha256 of the generated file');
+      assert.equal(rows.at(-1).id, expectedHead, 'the ledger ends at the newest migration the code ships');
+      assert.equal(rows.at(-1).checksum, sha256(read(`server/migrations/${expectedHead}.sql`)), 'and its ledger checksum is the sha256 of the file on disk');
+      const release = rows.find((row) => row.id === '0048-pool-01-listening-release');
+      assert.ok(release, 'the release migration is in the ledger');
+      assert.equal(release.checksum, sha256(read(MIGRATION)), 'with the checksum of its own bytes — an applied migration did not move');
       const frozen = rows.find((row) => row.id === '0047-pool-01-batch-1');
       assert.ok(frozen, 'the frozen 0047 is in the ledger');
       assert.equal(frozen.checksum, sha256(read(FROZEN_MIGRATION)), 'with the checksum of ITS bytes — an applied migration did not move');
