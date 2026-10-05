@@ -236,6 +236,34 @@ await check('actual shell objective rendering keeps exam language and immutable 
   examLanguage=null;execute({payload:{}},{});assert.match(html,/lang="und" dir="ltr">Original English question\?/);
   assert.equal(form.items[0].options[0].label,'Original English answer');
 });
+/*
+ * REDESIGN-01 C/D — the state slots the stylesheet needs, and the verdict the SERVER decides.
+ *
+ * The tile markup is asserted above for the parts that survive a restyle. This leg asserts the parts a
+ * careless restyle would silently break: every tile must carry the letter badge, the label and the verdict
+ * slot the stylesheet draws its glyph into, and `answerItem` must mark a tile from the server's answer only.
+ * Rename one of those slots and the verdict disappears with every other check still green.
+ */
+await check('the answer tiles keep their state slots and are marked only from the server answer', async () => {
+  const source=await readFile(new URL('../public/app/app.js',import.meta.url),'utf8');
+  const render=source.slice(source.indexOf('function renderObjectiveForm('),source.indexOf('/** Post one answer'));
+  let html='';
+  const form={interaction:'single_choice',passages:[],items:[{id:'1',prompt:'q',options:[{id:'a',label:'A'},{id:'b',label:'B'}]}]};
+  new Function('objectiveForm','setShellHTML','INSTRUCTIONS','instructionMarkup','getExamLanguage','examTextAttributes','messageMarkup','esc',render+'; return renderObjectiveForm;')(
+    ()=>form,(_host,value)=>{html=value;},INSTRUCTIONS,instructionMarkup,()=>'de',()=>'lang="de" dir="ltr"',messageMarkup,esc)({payload:{}},{});
+  const tiles=[...html.matchAll(/<button class="btn answer-option"[^>]*>([\s\S]*?)<\/button>/g)].map(m=>m[1]);
+  assert.equal(tiles.length,2,'one tile per option');
+  for(const [index,inner] of tiles.entries()){
+    assert.match(inner,/class="answer-letter"[^>]*>[ab]\)\s*<\/span>/,`tile ${index} keeps its letter badge`);
+    assert.match(inner,/class="answer-label"[^>]*>[AB]<\/span>/,`tile ${index} keeps its label slot`);
+    assert.match(inner,/class="answer-verdict"[^>]*><\/span>/,`tile ${index} keeps its verdict slot`);
+  }
+  const answer=source.slice(source.indexOf('async function answerItem('),source.indexOf('/** The practice host of a skill view'));
+  assert.match(answer,/const isPicked = id === String\(answer\);/, 'the picked tile is derived from the response, not the click');
+  assert.match(answer,/tile\.dataset\.state = 'correct'/, 'a correct answer marks its tile');
+  assert.match(answer,/tile\.dataset\.state = 'wrong'/, 'a wrong answer marks its tile');
+  assert.match(answer,/tile\.dataset\.state = 'was-correct'/, 'the key is shown for an item the learner has answered');
+});
 await check('actual shell locale hook updates declared leaves without replacing active state or making requests', async () => {
   const source=await readFile(new URL('../public/app/app.js',import.meta.url),'utf8');
   const hook=source.slice(source.indexOf('function updateLocaleLabels()'),source.indexOf('const unsubscribeLocale'));
