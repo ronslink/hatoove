@@ -70,7 +70,16 @@ export function emitMigration({ root, target, sql, summary, argv = process.argv 
     if (current !== sql) {
       console.error('library-seed: FAILED the generated migration differs from its source');
       console.error(`  the committed ${relative} is not what the generator would produce now`);
-      console.error('  fix the source, or re-run the generator without --check to regenerate');
+      /*
+       * MIRROR-B1PREP-01 CONTENT-CORRECTIONS. This advice used to say "re-run the generator without
+       * --check to regenerate", which is dangerous once the migration has been applied anywhere: the
+       * applied file's digest is frozen in server/migrations/MANIFEST.json, so regenerating it would
+       * rewrite an applied seed and break every environment that has it. A correction to seeded content
+       * ships as a NEW forward migration; the source file is fixed so future generations agree.
+       */
+      console.error('  the source moved on: this migration has already been applied somewhere and its');
+      console.error('  committed digest is frozen, so DO NOT regenerate it — ship the correction as a new');
+      console.error('  forward migration and leave the applied file byte-identical (see 0043 for the pattern)');
       process.exit(1);
     }
     console.log(`library-seed: OK ${relative} matches its source`);
