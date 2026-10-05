@@ -36,6 +36,7 @@ import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
 import { extractWritingExplanationSource, unavailableExplanationView } from '../explanation-contract.mjs';
 import { readExplanationRepresentations, readObjectiveEvidenceExplanation as readEvidenceExplanation, readFinalisedMockItemExplanation } from './explanations.mjs';
 import { explanationLanguage, blockedExplanation, projectStoredExplanation, explanationFault, protectedExplanationRead, selectedExplanationExports } from './explanation-views.mjs';
+import { readGuideTranslations as readTranslations } from '../library-translations.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -651,6 +652,23 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           })),
         };
       });
+    },
+    /**
+     * LIBRARY-I18N-01 (F2) — the additive `translations` member of MIRROR-B1PREP-01 §4.3.
+     *
+     * A SHARED CONTENT READ, not an ownership read: the reference library carries no owner column, so
+     * this is a read-only snapshot through the same learner pool as `readGuide` above. It returns
+     * `null` rather than an empty object when the installation has nothing current in that locale, and
+     * it never returns a rejected row or a row generated from a superseded guide version — see
+     * `readGuideTranslations` in `server/library-translations.mjs` for that rule and for why stale and
+     * absent deliberately share one answer.
+     *
+     * The route asks for it ONLY when a `locale` was supplied, so a consumer that does not send one
+     * keeps the exact response shape it had before this slice.
+     */
+    async readGuideTranslations(owner, { guideId, locale } = {}) {
+      note('readGuideTranslations');
+      return settle(owner, (client) => readTranslations(client, { guideId, locale }), true);
     },
     /**
      * PILOT-22 — record one answered objective item, marked server-side.
