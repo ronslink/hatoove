@@ -148,14 +148,20 @@ decide the six new strings.
 
 ## 6. Slice G — landing page, sitemap, OG card
 
-**Open.** Includes replacing the front-door graphic, which Ron judges oversimplified and not meaningful:
-the orange paper strip folded into steps (`public/assets/orange-path-1400.jpg`, with
-`orange-path-900.webp`, `orange-path-1400.webp`, `orange-path.png`). The working direction is a real
-screenshot of the redesigned shell cropped to one answered question — wrong pick red, right pick green, the
-explanation in the learner's own language beside the German task, navy sidebar with the large B1 — with the
-same image cropped as the social preview card. Synthetic content only; no stock or AI imagery, no invented
-scores, no claims. Ron approves the graphic before it goes live. Sitemap and OG card follow the existing
-`seo-check` contract.
+**Open, and waiting on Ron.** `public/sitemap.xml` and `public/assets/og-card.png` already satisfy
+`tools/seo-check.mjs` (11/11), so there is nothing to fix there today. The work that remains is the graphic
+replacement, and it is not a technical question any more:
+
+- The candidate exists and is legible at the real 550 px slot: one Sprachbausteine question, the learner's
+  wrong pick red, the key green, the explanation in their own language, plus a rasterised 1200×630 social
+  card. Proposal and measurements: `work/implementation/REDESIGN-01-LANDING-GRAPHIC.md`, marked **not landed,
+  not approved**.
+- Three decisions are Ron's, recorded in that proposal's §12: the mobile slot width (at a 360 px phone the
+  smallest meaning-bearing type lands near 10 px), the dark theme (`.approach-art` hardcodes a white
+  background, `site.css:87`), and one FAQ sentence that may want a clarifying half-sentence.
+- **The Lead has deliberately not landed it.** Swapping the page's largest image and the social card without
+  approval is not a judgement call this branch should make, and the asset it replaces is the thing Ron
+  explicitly rejected, so the candidate stays ready to apply.
 
 Impressum and Datenschutz stay **blocked** until the operator entity exists.
 
