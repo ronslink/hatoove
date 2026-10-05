@@ -1120,7 +1120,6 @@ async function answerItem(set, card, itemId, answer) {
   const res = await api.practice.answer(set.set_id, { version: set.version, itemId, answer });
   if (!currentContext(ticket) || !card.isConnected || viewTicket !== explanationContext || answerRequests.get(card) !== request) return;
   if (!res) return;
-  const button = card.querySelector('[data-answer="' + answer + '"]');
   if (!res.ok) {
     bindShellText(out, () => res.status === 422 && res.error === 'unknown_item'
       ? uiText("m135")
@@ -1128,7 +1127,6 @@ async function answerItem(set, card, itemId, answer) {
     return;
   }
   const correct = res.data && res.data.correct === true;
-  if (button) button.setAttribute('aria-pressed', String(correct));
   bindShellText(out, () => correct ? uiText("m137") : uiText("m138"));
   /*
    * REDESIGN-01 C — THE TILE STATES, FROM THE SERVER'S ANSWER ONLY.
@@ -1146,6 +1144,7 @@ async function answerItem(set, card, itemId, answer) {
     const id = tile.getAttribute('data-answer');
     const isPicked = id === String(answer);
     const isRight = revealed !== undefined && revealed !== null && id === String(revealed);
+    tile.setAttribute('aria-pressed', String(isPicked && correct));
     if (isPicked && correct) tile.dataset.state = 'correct';
     else if (isPicked) tile.dataset.state = 'wrong';
     else if (isRight) tile.dataset.state = 'was-correct';
