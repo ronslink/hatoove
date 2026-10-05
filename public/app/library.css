@@ -1,0 +1,218 @@
+/*
+ * NACHSCHLAGEN — the library's own layer (MIRROR-B1PREP-01 slice E/F).
+ *
+ * Owned by `public/app/library.js`; the shell adds the <link> once, so no other slice edits this file.
+ * Colours, radii and type come from the pinned design tokens only (no raw colour, no raw font family),
+ * so the dark theme and both system breakpoints work without a second opinion here. There is no
+ * transition or animation of its own.
+ */
+
+.library {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.library-head {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.library-title {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.library-head .muted {
+  margin: 0;
+}
+
+.library-note {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--peach-line);
+  border-radius: var(--r-sm);
+  background: var(--peach);
+  color: var(--orange-dark);
+}
+
+/* ------------------------------------------------------------------------ hub cards */
+
+.library-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.library-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "icon body" "action action";
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.library-icon {
+  grid-area: icon;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.library-card-body {
+  grid-area: body;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.library-card-body h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.library-card-body p {
+  margin: 0;
+}
+
+.library-card > .btn {
+  grid-area: action;
+  justify-self: start;
+}
+
+.library-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.library-pill {
+  background: var(--peach);
+  border-color: var(--peach-line);
+  color: var(--orange-dark);
+}
+
+/* --------------------------------------------------------------- one guide page */
+
+.library-back {
+  margin: 0;
+}
+
+.library-arrow {
+  display: inline-block;
+}
+
+[dir="rtl"] .library-arrow {
+  transform: scaleX(-1);
+}
+
+.library-jump {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.library-jump-label {
+  margin: 0;
+}
+
+.library-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.library-chip {
+  cursor: pointer;
+  min-height: 32px;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.library-chip-active {
+  border-color: var(--orange);
+  color: var(--orange-dark);
+}
+
+.library-section {
+  min-width: 0;
+}
+
+.library-section > .guide-content {
+  min-width: 0;
+}
+
+.library-section .card-head h3 {
+  overflow-wrap: anywhere;
+}
+
+.library-translation {
+  color: var(--muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.library-translation p {
+  margin: 0;
+}
+
+.library-machine-note {
+  display: inline-block;
+  margin-inline-start: 6px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.library-legend {
+  margin: 0;
+}
+
+.library-case-marked {
+  background: var(--peach);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------- noun lexicon */
+
+.library-lexicon .card-head {
+  flex-wrap: wrap;
+}
+
+.library-search {
+  display: grid;
+  gap: 4px;
+  margin-block: 8px;
+  min-width: 0;
+}
+
+.library-search-input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-block: 8px;
+}
+
+.library-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.library-noun {
+  min-width: 0;
+}
+
+.library-noun h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
