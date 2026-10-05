@@ -511,24 +511,40 @@ async function assertRealBundleTranslation(guides, nouns) {
   const speaking = bundle.guides['speaking-guide'];
   const text = path => speaking[path].uk;
 
-  // Three named paths from speaking-guide, including a bracket-indexed payload field.
+  /*
+   * REVIEW-LIBRARY-I18N-REPIN: the re-pin dropped ALL of SP1 (33 paths) because `0043` replaced the
+   * presentation task, so the named paths come from SP2, which keeps its full set. A check that still
+   * demanded the SP1 keys would be freezing the content the correction removed. The dropped paths are
+   * asserted ABSENT below, so a re-introduction is a decision rather than an accident.
+   */
   const named = [
-    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.title',
-    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.summary',
-    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[0].group',
-    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[0].step',
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp2.title',
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp2.summary',
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp2.payload.phrases[0].group',
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp2.payload.approach[0].step',
   ];
   for (const path of named) assert.ok(speaking[path], `the real bundle carries ${path}`);
+  for (const dropped of [
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.title',
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[0].group',
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[0].step',
+  ]) {
+    assert.ok(!speaking[dropped], `the re-pin dropped ${dropped}, which 0043 removed or rewrote`);
+  }
+  // The stored keys are per-locale members; a dropped path must be absent in EVERY locale, not just uk.
+  for (const dropped of Object.keys(speaking).filter(key => key.includes('.sp1'))) {
+    assert.fail(`the bundle still carries ${dropped}`);
+  }
   // The exported key builder must reproduce the stored key byte for byte, brackets included.
   assert.equal(
-    storedTranslationPath('speaking-guide', 'telc-deutsch-b1.speaking-guide.sp1', 'phrases.0.group'),
+    storedTranslationPath('speaking-guide', 'telc-deutsch-b1.speaking-guide.sp2', 'phrases.0.group'),
     named[2], 'the client builds the stored key for a bracket-indexed payload field');
   assert.equal(
     storedTranslationPath('cases-guide', 'telc-deutsch-b1.cases-guide.bestimmter-artikel', 'headers.1'),
     'cases-guide/telc-deutsch-b1.cases-guide.bestimmter-artikel.payload.headers[1]',
     'a header cell keeps its bracket index');
   assert.equal(
-    storedTranslationPath('speaking-guide', 'telc-deutsch-b1.speaking-guide.sp1', 'title'),
+    storedTranslationPath('speaking-guide', 'telc-deutsch-b1.speaking-guide.sp2', 'title'),
     named[0], 'a section column is not given a payload prefix');
   const member = (guideId, options) => (id, locale) => servedMember(bundle, id || guideId, locale || 'uk', options);
 
