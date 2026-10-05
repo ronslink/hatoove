@@ -59,12 +59,8 @@ export function guideContent(value, esc, language = 'de', options = {}) {
     const skip = new Set(['id','kind','source','level','pos','en']);
     let html = '';
     if (Array.isArray(item.headers) && Array.isArray(item.rows)) {
-      const table = (headers, english = false) => {
-        const head = headers.map((h, index) => {
-          const translation = !english && library ? resolve(path ? `${path}.headers.${index}` : `headers.${index}`) : null;
-          const value = translation && translation.text ? translation.text : h;
-          return `<th scope="col" lang="${english || translation ? 'en' : 'de'}" dir="ltr">${esc(String(value))}</th>`;
-        }).join('');
+      const table = (headers, english = false, language = 'de') => {
+        const head = headers.map(h => `<th scope="col" lang="${english ? 'en' : language}" dir="ltr">${esc(String(h ?? ''))}</th>`).join('');
         const body = item.rows.map((row, i) => `<tr>${row.map((cell, j) => {
           const authored = Boolean(english && j === 0 && item.firstColumnEn?.[i]);
           const translation = !english && library ? resolve(path ? `${path}.rows.${i}.${j}` : `rows.${i}.${j}`) : null;
@@ -78,6 +74,18 @@ export function guideContent(value, esc, language = 'de', options = {}) {
       if (Array.isArray(item.headersEn)) {
         const english = table(item.headersEn, true);
         html += library ? learnerLine(english, 'en', null) : alternative(english);
+      }
+      if (library) {
+        // F2 translates header cells too. The GERMAN headers stay, and the translated header row is a
+        // second, dimmed table beneath the first — the same "German first, learner line beneath" rule the
+        // case tables follow. Substituting in place would drop the German source from the page. This runs
+        // even when the payload carries authored `headersEn`, because that table is English-only.
+        const headerHits = item.headers.map((header, index) => resolve(path ? `${path}.headers.${index}` : `headers.${index}`));
+        if (headerHits.some(Boolean)) {
+          const machine = headerHits.some(hit => hit && hit.status === 'machine_unreviewed');
+          const translated = table(item.headers.map((header, index) => (headerHits[index] ? headerHits[index].text : header)), false, locale);
+          html += learnerLine(translated, locale, machine ? 'machine_unreviewed' : null);
+        }
       }
       ['headers','headersEn','rows','firstColumnEn'].forEach(key => skip.add(key));
     }

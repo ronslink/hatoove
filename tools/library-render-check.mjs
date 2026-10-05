@@ -538,15 +538,20 @@ async function assertRealBundleTranslation(guides, nouns) {
     /the client must resolve every real bundle path it renders/,
     'the leg must fail when the served key form is the pre-fix dotted form');
 
-  // A second guide, one plain payload field and one array element.
+  // A second guide, one plain payload field, one array element and a translated table header cell.
   const grammar = bundle.guides['grammar-guide'];
   const grammarPaths = Object.keys(grammar).filter(path => /\.payload\.rule$/.test(path) || /\.payload\.traps\[0\]$/.test(path)).slice(0, 2);
+  const tableHeaderPath = Object.keys(grammar).find(path => /\.payload\.table\.headers\[1\]$/.test(path));
   assert.equal(grammarPaths.length, 2, 'the real bundle carries a grammar rule and a grammar trap');
+  assert.ok(tableHeaderPath, 'the real bundle carries a translated grammar table header');
   const grammarHtml = (await mounted({
     documents: guides, nouns, language: 'uk', route: '#/nachschlagen/grammar-guide',
     translations: (guideId, locale) => servedMember(bundle, guideId, locale, {}),
   })).page();
-  assertResolved(grammarHtml, grammarPaths.map(path => [path, grammar[path].uk]), 'grammar-guide, stored key form');
+  assertResolved(grammarHtml, [...grammarPaths, tableHeaderPath].map(path => [path, grammar[path].uk]), 'grammar-guide, stored key form');
+  // German first: the German header cell is still on the page beside the translated table.
+  assert.ok(grammarHtml.includes('Akkusativ'), 'the German table header survives beside the translated header table');
+  assert.ok(count(grammarHtml, 'library-translation') >= 1, 'the translated header table is a learner line, not a substitution');
 
   // The eight case tables carry translated header cells, which the library renders as a dimmed table.
   const cases = bundle.guides['cases-guide'];

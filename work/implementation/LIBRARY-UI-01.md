@@ -63,6 +63,15 @@ follow the member status. Two things F2 has **no** key space for, recorded rathe
 guide-level watch-out list (it lives on the `guide` row, not on a section) and the document title/intro
 — those stay German-only if the bundle does not carry them.
 
+**One consequence in the shared renderer.** F2 also translates table header cells
+(`<section>.payload.headers[i]` and `<section>.payload.table.headers[i]`). Before this fix those lookups
+never matched, so the German headers always showed; once they match, the pre-existing code path in
+`guide-content.js` would have *substituted* the translated header for the German one — dropping the
+German source from the page and contradicting "German line first, learner line beneath". It now renders
+the German table first and a dimmed second table with the translated headers beneath it, exactly like
+the eight case tables, and only when a translation exists. `tools/guide-render-check.mjs` still passes
+unchanged because the whole behaviour is gated on the optional `options.library` argument.
+
 **The leg that would have caught it** (`tools/library-render-check.mjs`, `assertRealBundleTranslation`):
 it loads the real bundle, builds the served member the way `readGuideTranslations` does (keys taken from
 the bundle, never from the client), and asserts that the rendered page contains the exact bundle text for
