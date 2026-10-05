@@ -823,34 +823,76 @@ function requiredDto(stored) {
   };
 }
 
-const STORED_SETS = [...parseStoredSets(read('server/migrations/0010-objective-catalogue.sql')),
-  ...parseStoredSets(fs.readFileSync(DRILL_MIGRATION_PATH, 'utf8'))];
-const STORED_KEYS = new Map([...parseStoredKeys(read('server/migrations/0010-objective-catalogue.sql')),
-  ...parseStoredKeys(fs.readFileSync(DRILL_MIGRATION_PATH, 'utf8'))]);
+/*
+ * EVERY MIGRATION THAT TOUCHES OBJECTIVE CONTENT, discovered rather than listed: the corpus legs used to name
+ * `0010` and the `0022` drill explicitly, which made them correct for exactly those two files and silently
+ * blind to the next content migration — the same failure mode `bootstrap.mjs` records for the fixture. POOL-01
+ * batch 1 (`0047`) is the first migration that would have been missed. Discovery means a future batch is
+ * covered the moment it lands; `POOL_FIGURES` below is the documented expectation that then fails loudly, so
+ * the pool can never change without this check being updated on purpose.
+ *
+ * A RELEASE DOES NOT HAVE TO BE AN INSERT. A later batch can release a held set by flipping a flag with
+ * `UPDATE … objective_set` rather than re-inserting it, so discovery matches an INSERT **or** an UPDATE on that
+ * table — and leg 12 refuses to let such a file be parsed into zero sets unless it is declared in
+ * `RELEASE_ONLY_MIGRATIONS` with its reason. Silence is what this guards against, not a shape.
+ */
+const touchesObjectiveSet = (sql) => /INSERT INTO "__SCHEMA__"\.objective_set|UPDATE\s+"__SCHEMA__"\.objective_set/.test(sql);
+const OBJECTIVE_MIGRATIONS = fs.readdirSync(path.join(root, 'server', 'migrations'))
+  .filter((name) => /^\d{4}-.*\.sql$/.test(name))
+  .filter((name) => touchesObjectiveSet(fs.readFileSync(path.join(root, 'server', 'migrations', name), 'utf8')))
+  .sort();
+/** Migrations that touch `objective_set` WITHOUT publishing a new set (a pure release or flag change).
+ *  Declaring one here is a decision with a reason, because the corpus legs cannot see inside it. */
+const RELEASE_ONLY_MIGRATIONS = Object.freeze([]);
+const migrationText = (name) => fs.readFileSync(path.join(root, 'server', 'migrations', name), 'utf8');
+const STORED_SETS = OBJECTIVE_MIGRATIONS.flatMap((name) => parseStoredSets(migrationText(name)));
+const STORED_KEYS = new Map(OBJECTIVE_MIGRATIONS.flatMap((name) => [...parseStoredKeys(migrationText(name))]));
+/**
+ * The RELEASED pool per part, as `work/implementation/POOL-01-INVENTORY.md` records it.
+ *
+ * POOL-01 batch 1 (task-37) releases three LV1 sets; its three listening sets are AUTHORED AND HELD until the
+ * media bind-mount is fixed, so they are deliberately absent here (and absent from the database — the
+ * `pool-01-check` legs assert that).
+ */
+const POOL_FIGURES = Object.freeze({ LV1: 6, LV2: 3, LV3: 3, SB1: 4, SB2: 3, HV1: 3, HV2: 3, HV3: 3 });
 /** The key values the payload's own options cannot reach. The server resolves LV3's "no ad fits" with the
  *  `x` sentinel, so this is EMPTY; a non-empty map means a part whose key can never be given correctly. */
 const EXPECTED_UNREACHABLE = {};
 /** The drill, by id: contract A9's fourth SB1 set. */
 export const DRILL_ID = 'telc-deutsch-b1.sb1.grammar-wortstellung-v1';
 const DRILL = STORED_SETS.find(stored => stored.set_id === DRILL_ID) ?? null;
+const POOL_TOTAL = Object.values(POOL_FIGURES).reduce((total, sets) => total + sets, 0);
 
-leg('12 corpus: 25 stored sets across the eight families, SB1 has four, the drill is present (A9)', () => {
-  assert.equal(STORED_SETS.length, 25, '25 released sets (contract A9, measured from a running database)');
-  assert.equal(STORED_KEYS.size, 25, 'one key row per set');
+leg('12 corpus: every migration that publishes content is parsed, and the pool matches the inventory', () => {
+  assert.deepEqual(OBJECTIVE_MIGRATIONS, ['0010-objective-catalogue.sql', '0022-recovered-grammar-drills.sql', '0047-pool-01-batch-1.sql'],
+    'the content-publishing migrations, discovered from the directory (INSERT or UPDATE on objective_set)');
+  /* A migration that touches objective_set but yields no parsed set must be a DECLARED release-only change:
+     this is what makes a release done by UPDATE visible instead of silently uncovered. */
+  const silent = OBJECTIVE_MIGRATIONS.filter((name) => parseStoredSets(migrationText(name)).length === 0
+    && !RELEASE_ONLY_MIGRATIONS.includes(name));
+  assert.deepEqual(silent, [], 'a migration that touches objective_set but publishes no set must be declared in RELEASE_ONLY_MIGRATIONS');
+  assert.equal(STORED_SETS.length, POOL_TOTAL, `the released pool is ${POOL_TOTAL} sets`);
+  assert.equal(STORED_KEYS.size, STORED_SETS.length, 'one key row per set');
   const perFamily = {};
   for (const stored of STORED_SETS) perFamily[stored.family] = (perFamily[stored.family] ?? 0) + 1;
-  assert.deepEqual(perFamily, { LV1: 3, LV2: 3, LV3: 3, SB1: 4, SB2: 3, HV1: 3, HV2: 3, HV3: 3 },
-    'three sets per part EXCEPT SB1, which has four');
+  assert.deepEqual(perFamily, POOL_FIGURES, 'the released sets per part (POOL-01-INVENTORY.md)');
   assert.ok(DRILL, 'the migration-0022 drill is in the corpus: ' + DRILL_ID);
   assert.equal(DRILL.family, 'SB1', 'the drill belongs to SB1');
   assert.equal(DRILL.item_count, 12, 'the drill has twelve items');
   assert.equal(DRILL.item_count, DRILL.payload.gaps.length, 'the declared count matches the authored rows');
   assert.equal(DRILL.payload.practice_kind, 'grammar-drill', 'the drill is labelled as practice, not an exam set');
   assert.match(DRILL.payload.instruction ?? '', /kein telc/, 'the drill carries its own disclosure');
-  console.log('      corpus: 25 sets; SB1: 4; drill=' + DRILL_ID + ' (practice_kind=grammar-drill)');
+  /* POOL-01 batch 1: the three new LV1 sets are released; the held listening sets are NOT in the pool. */
+  for (const setId of ['telc-deutsch-b1.lv1.04', 'telc-deutsch-b1.lv1.05', 'telc-deutsch-b1.lv1.06']) {
+    assert.ok(STORED_SETS.some((stored) => stored.set_id === setId), `${setId} is in the released pool`);
+  }
+  for (const setId of ['telc-deutsch-b1.hv1.04', 'telc-deutsch-b1.hv2.04', 'telc-deutsch-b1.hv3.04']) {
+    assert.ok(!STORED_SETS.some((stored) => stored.set_id === setId), `${setId} is authored and HELD, so it must not be released`);
+  }
+  console.log(`      corpus: ${POOL_TOTAL} sets from ${OBJECTIVE_MIGRATIONS.length} migration(s); SB1: 4; drill=${DRILL_ID} (practice_kind=grammar-drill)`);
 });
 
-leg('12b [dto] the served DTO reaches every answer key, every ITEM, for all 25 sets', () => {
+leg('12b [dto] the served DTO reaches every answer key, every ITEM, for all ' + STORED_SETS.length + ' sets', () => {
   const unreachableBySet = {};
   const kinds = new Set();
   for (const stored of STORED_SETS) {
@@ -897,7 +939,7 @@ leg('12b [dto] the served DTO reaches every answer key, every ITEM, for all 25 s
  * integration; `--server=<path>` only repoints it. When the file cannot serve the corpus the leg FAILS with
  * the reason, because a guard that silently stops running is worse than no guard.
  */
-leg('12d [dto] the served DTO equals the SERVER normaliser over all 25 stored sets (' + path.basename(path.dirname(SERVER_SETS_PATH)) + '/' + path.basename(SERVER_SETS_PATH) + ')', async () => {
+leg('12d [dto] the served DTO equals the SERVER normaliser over all ' + STORED_SETS.length + ' stored sets (' + path.basename(path.dirname(SERVER_SETS_PATH)) + '/' + path.basename(SERVER_SETS_PATH) + ')', async () => {
   let server;
   try {
     server = await import(pathToFileURL(SERVER_SETS_PATH).href);
@@ -966,7 +1008,7 @@ leg('12f [dto] the drill\'s disclosure is echoed when the served set carries one
   assert.match(topLevel, /data-runner-practice-kind="grammar-drill"/, 'the top-level fallback still works');
 });
 
-leg('12c [dto] the client renders the required DTO for every one of the 25 sets', () => {
+leg('12c [dto] the client renders the required DTO for every one of the ' + STORED_SETS.length + ' sets', () => {
   for (const stored of STORED_SETS) {
     const dto = requiredDto(stored);
     const state = runner.runnerStateFromServed({

@@ -423,9 +423,17 @@ const postgresLegs = async () => {
       assert.deepEqual([served.round.checkedSets, served.round.wrapped], [0, false]);
     });
 
+    /*
+     * POOL-01 (task-43): the tier legs craft evidence for EVERY set of the part, not for three of them. The
+     * part this check exercises now holds six released sets (LV1 3 → 6), and a leg that leaves a set unseen
+     * hands the decision to the unseen tier instead of the tier it is testing. Deriving the loop from the pool
+     * keeps these legs about the RULE rather than about a set count.
+     */
     await craft(a, 2, 0, '2026-10-01T10:00:00Z');
     await craft(b, 3, 0, '2026-10-02T10:00:00Z');
-    await craft(familySets[2], 0, 1, '2026-10-03T10:00:00Z');
+    for (const [index, row] of familySets.slice(2).entries()) {
+      await craft(row, 0, 1, `2026-10-${String(3 + index).padStart(2, '0')}T10:00:00Z`);
+    }
     await pgLeg('P2 SQL tier 2: with every set seen, the most wrong is served', async () => {
       const served = await servedNow();
       assert.equal(served.reason, 'most-wrong');
@@ -434,9 +442,9 @@ const postgresLegs = async () => {
     });
 
     await db.admin.query('DELETE FROM item_evidence WHERE owner_id = $1', [owner]);
-    await craft(a, 2, 0, '2026-10-04T10:00:00Z');
-    await craft(b, 2, 0, '2026-10-01T10:00:00Z');
-    await craft(familySets[2], 2, 0, '2026-10-06T10:00:00Z');
+    for (const [index, row] of familySets.entries()) {
+      await craft(row, 2, 0, row.set_id === b.set_id ? '2026-10-01T10:00:00Z' : `2026-10-${String(4 + index).padStart(2, '0')}T10:00:00Z`);
+    }
     await pgLeg('P3 SQL tier 3: equal wrong counts fall back to the oldest first touch', async () => {
       const served = await servedNow();
       assert.equal(served.set.set_id, b.set_id, 'the earliest first touch must win');
@@ -444,17 +452,17 @@ const postgresLegs = async () => {
     });
 
     /*
-     * The A1 wrap, built the way a LEARNER builds it: three sittings, each CHECKED through the shipped
-     * method, then the fourth tap. This replaces a raw `UPDATE practice_attempt SET state='checked'`, which
-     * had two faults. It bypassed the shipped path; and because the rule had served hv1.02 in both P2 and P3,
-     * only TWO distinct sets could ever be checked — so the leg's own setup could not satisfy its assertion.
-     * It had never been executed. Clearing the crafted evidence first makes the rule serve unseen sets, so
-     * three rounds genuinely check three distinct sets.
+     * The A1 wrap, built the way a LEARNER builds it: one sitting per set of the part, each CHECKED through the
+     * shipped method, then one more tap. This replaces a raw `UPDATE practice_attempt SET state='checked'`, which
+     * had two faults. It bypassed the shipped path; and because the rule had served one set in both P2 and P3,
+     * only TWO distinct sets could ever be checked — so the leg's own setup could not satisfy its assertion. It
+     * had never been executed. Clearing the crafted evidence first makes the rule serve unseen sets, so the
+     * rounds genuinely check every distinct set the part holds.
      */
-    await step('three checked practice rounds', async () => {
+    await step('every released set of the part checked once', async () => {
       await db.admin.query('DELETE FROM item_evidence WHERE owner_id = $1', [owner]);
       const rounded = [];
-      for (let round = 1; round <= 3; round += 1) {
+      for (let round = 1; round <= familySets.length; round += 1) {
         const serving = await servedNow();
         if (!serving) throw new Error(`round ${round} served nothing`);
         const keys = await keysFor(serving.set.set_id);
@@ -464,14 +472,17 @@ const postgresLegs = async () => {
         });
         rounded.push(serving.set.set_id);
       }
-      if (new Set(rounded).size !== 3) throw new Error(`three rounds checked ${new Set(rounded).size} distinct set(s): ${rounded.join(', ')}`);
+      if (new Set(rounded).size !== familySets.length) {
+        throw new Error(`${rounded.length} round(s) checked ${new Set(rounded).size} distinct set(s) of ${familySets.length}: ${rounded.join(', ')}`);
+      }
     });
-    await pgLeg('P4 SQL wrap: three checked sets make the fourth tap a wrap, not a restart', async () => {
+    await pgLeg(`P4 SQL wrap: ${familySets.length} checked sets make the next tap a wrap, not a restart`, async () => {
       const checked = (await db.admin.query(
         `SELECT count(DISTINCT set_id)::int AS n FROM practice_attempt
           WHERE owner_id = $1 AND family = $2 AND state = 'checked'`, [owner, family])).rows[0].n;
       const served = await servedNow();
-      assert.ok(checked >= 3, `expected three checked sets, found ${checked}`);
+      assert.ok(checked >= familySets.length, `expected every released set checked, found ${checked} of ${familySets.length}`);
+      assert.equal(served.round.setCount, familySets.length, 'the part reports the pool it actually has');
       assert.equal(served.round.wrapped, true, 'the part must report itself finished');
       assert.equal(served.round.notice, 'practiceAllSets');
       assert.equal(served.round.round, served.round.setCount);
