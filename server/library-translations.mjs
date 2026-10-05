@@ -43,7 +43,10 @@ export const BUNDLE_PATH = new URL('../content/library-translations/hatoove-libr
 export const README_PATH = new URL('../content/library-translations/README.md', import.meta.url);
 
 /** The delivered bundle's counts, also stated in the README. A change here is a new bundle. */
-export const EXPECTED_GUIDE_STRINGS = 737;
+/* LIBRARY-I18N-REPIN (task-27): 737 -> 704 guide strings. `0043` corrected the speaking guide's Teil 1 and
+   the 33 SP1 paths the correction touched were dropped rather than re-translated to the old task; the noun
+   count is unchanged (the two corrected entries were re-bound, not removed). */
+export const EXPECTED_GUIDE_STRINGS = 704;
 export const EXPECTED_NOUNS = 240;
 export const EXPECTED_STRINGS_PER_GUIDE = Object.freeze({
   'cases-guide': 61,
@@ -52,7 +55,7 @@ export const EXPECTED_STRINGS_PER_GUIDE = Object.freeze({
   'core-grammar': 125,
   'core-phrases': 130,
   'writing-guide': 110,
-  'speaking-guide': 99,
+  'speaking-guide': 66,
 });
 
 /** A verification or import failure: a stable lowercase code plus the detail that names the row. */
