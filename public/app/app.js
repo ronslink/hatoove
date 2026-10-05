@@ -762,6 +762,16 @@ async function renderDictionary() {
 }
 
 /*
+ * HÖREN — slice B mounts the same part-index module here with an HV filter, keyed off the host it is given
+ * (#hoeren-host), so "Hören is Prüfungsteile filtered to HV" is one implementation with two entry points.
+ * Until the module is present this falls back to today's skill view, which shows the saved HV runs.
+ */
+async function renderHoerenIndex() {
+  if (await mountModule('hoeren')) return;
+  await renderSkill('hoeren');
+}
+
+/*
  * PRÜFUNGSTEILE (interim) — slice B replaces this with one tile per released part, each carrying the
  * official label, items, points, the listening play rule and the learner's own count. Until then the entry
  * lists the four subtests and opens the skill view, so the group entry is never a dead link.
@@ -1617,8 +1627,11 @@ const MODULE_VIEWS = {
   nachschlagen: { specifier: './library.js', factory: 'createLibraryView', css: 'library.css', host: 'library-host', covers: ['guide-index', 'guide-body'] },
   probepruefung: { specifier: './mock-intro.js', factory: 'createMockIntroView', css: 'mock-intro.css', host: 'mock-intro-host', covers: [] },
   /* Slice B (PRACTICE-UI-01). Until public/app/part-index.js lands the guarded import fails and the interim
-     four-part list stays on screen, so the route is never blank. */
+     four-part list stays on screen, so the route is never blank. Hören is the same module with a different
+     host: the module keys its filter off the host it was given, which keeps "Hören is Prüfungsteile filtered
+     to HV" one implementation. */
   pruefungsteile: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'part-index-host', covers: [] },
+  hoeren: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'hoeren-host', covers: ['skill-hoeren'] },
 };
 let mountedModule = null;
 let mountedView = null;
@@ -1773,10 +1786,12 @@ async function route() {
    */
   if (view === 'abschnitt' && info.runId) run(() => mock.showRun(el('mock-host'), info.runId));
   if (view === 'pruefungsteile') run(renderPartIndex);
+  if (view === 'hoeren') run(renderHoerenIndex);
   if (view === 'probepruefung') run(renderProbepruefung);
   if (view === 'heute') run(renderDashboard);
   if (view === 'ueben') { run(renderPracticeNext); run(renderTasks); }
-  if (SKILL_SECTIONS[view]) run(() => renderSkill(view));
+  /* Hören owns its own dispatch above, so the skill branch must not also render it. */
+  if (view !== 'hoeren' && SKILL_SECTIONS[view]) run(() => renderSkill(view));
   if (view === 'fehler') run(renderMistakes);
   /* Verlauf is the history sub-page of Heute: the old #/fortschritt route aliases onto it. */
   if (view === 'verlauf') run(renderHistory);
