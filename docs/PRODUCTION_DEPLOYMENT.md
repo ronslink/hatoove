@@ -42,6 +42,20 @@ Managed variant: provide the actual certificate-matching DNS endpoint and port; 
 
 The managed operator must confirm permission to create the seven scoped LOGIN roles, revoke PUBLIC CREATE/TEMP on the selected dedicated database, create the schema with the migration owner and run the existing migrations as that owner. A managed administrator is not assumed to be a PostgreSQL superuser. Never point bootstrap at a Paykey/Typeforge database or compensate for insufficient privileges using a privileged runtime connection. Direct managed endpoints are the initial contract; transaction-pooler compatibility is not assumed.
 
+### Listening media: a BUILD-TIME input, because production cannot mount it
+
+The nine telc B1 listening recordings (43.89 MB total) referenced by `content/exams/telc-deutsch-b1/listening-package.json` are **tracked plain in this repository** under `content/exams/telc-deutsch-b1/audio/` — Ron's decision of 5 October 2026 (A12(1)), with their sha256 pinned by that tracked package and their provenance recorded in it (`rightsStatus: generated`; Google Cloud Text-to-Speech from the transcripts authored in `server/migrations/0010-objective-catalogue.sql`). `COPY content/exams/` therefore puts them in the image, which is exactly what production needs. **No environment variable and no host directory is required**: `defaultMediaRoot()` resolves to that tracked tree. `compose.yaml` adds an **opt-in** mount (`HATOVE_AUDIO_ROOT`, defaulting to the same tracked tree; `B1PREP_MEDIA_ROOT` names the root the server reads) so an operator can supply new audio without rebuilding — and when that override is incomplete the `media` preflight fails loudly naming every missing file.
+
+**Production cannot use that mount.** The production services run `read_only` from a digest-pinned image with no runtime volumes and an exactly pinned command — `tools/production-compose-check.mjs` asserts both (`unexpected_runtime_mount`, `runtime_command_changed`). So in production the recordings must be **inside the image**, which means they must be present in the **build context** at the moment the image is built. There is no runtime fetch: the app is read-only and must not pull media while serving.
+
+**The resolution point is therefore the image build/publish step**, and it is the same step whichever source the recordings come from:
+
+1. materialise `content/exams/telc-deutsch-b1/audio/hv1.01-v1.wav` … `hv3.03-v1.wav` in the build context — from git or LFS, from a CI fetch, or from an object store pulled as a build input — before `docker build`;
+2. verify it with `node tools/media-mount-check.mjs --require-recordings`, which reads every recording the tracked packages reference through the shipped reader (byte length, sha256, PCM duration) and exits non-zero **naming every missing file**. The local stack runs it as the `media` service and the API does not start until it passes; in a build pipeline it is the pre-publish gate;
+3. record the source and its checksum evidence with the published digest, so the artifact that reaches production is the one that was verified.
+
+Because the recordings are tracked, that build context is populated by a normal checkout: **no fetch step is required**. If they are ever moved to Git LFS, a checkout without `git-lfs` puts **pointer files** in the context instead of audio, and a pointer fails as `media_integrity` (a 409 "invalid media") rather than `media_unavailable`; `tools/media-mount-check.mjs` now recognises a pointer explicitly and reports *"this is a git-LFS pointer file, not audio — run `git lfs pull`"*, so the operator is not sent after corrupted audio. Verify the context's file sizes before publishing a digest either way.
+
 ## Configuration-only preparation
 
 The checker does not build, pull, start or contact PostgreSQL:
