@@ -1510,7 +1510,7 @@ async function renderHistory() {
   const [history, progress, runs] = await Promise.all([api.writing.listAttempts(), api.practice.progress(), api.mock.list()]);
   if (currentView !== 'fortschritt' || !currentContext(ticket)) return;
   setShellHTML(el('mock-history'), "<h2><span data-i18n=\"shell.m006\">Gespeicherte Prüfungsläufe</span></h2>" + (runs?.ok ? mock.historyMarkup(runs.data?.runs || []) : "<p class=\"err\"><span data-i18n=\"shell.m162\">Die gespeicherten Läufe konnten nicht geladen werden.</span></p>"));
-  if (!history?.ok) { setShellHTML(host, "<p class=\"err\"><span data-i18n=\"shell.m163\">Der Verlauf konnte nicht geladen werden. Bitte öffne die Ansicht erneut.</span></p>"); return; }
+  if (!history?.ok) { setShellHTML(host, "<p class=\"err\"><span data-i18n=\"shell.m163\">Der Verlauf konnte nicht geladen werden. Bitte öffnen Sie die Ansicht erneut.</span></p>"); return; }
   const totals = progress?.ok ? progress.data?.totals : null;
   bindShellText(el('history-summary'), () => totals ? uiText('answers', {count:totals.attempts}) + ' · ' + totals.correct + ' ' + uiText('m164') : uiText("m165"));
   const rows = history.data.attempts || [];

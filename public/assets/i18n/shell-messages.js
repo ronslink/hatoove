@@ -164,7 +164,7 @@ export const shellMessages = {
     "m160": "Wählen Sie zuerst eine Prüfungsvorbereitung.",
     "m161": "Ihr Verlauf wird geladen …",
     "m162": "Die gespeicherten Läufe konnten nicht geladen werden.",
-    "m163": "Der Verlauf konnte nicht geladen werden. Bitte öffne die Ansicht erneut.",
+    "m163": "Der Verlauf konnte nicht geladen werden. Bitte öffnen Sie die Ansicht erneut.",
     "m164": "richtig. Keine Prognose für Ihre Prüfung.",
     "m165": "Ihre gespeicherten Texte und Rückmeldungen.",
     "m166": "Entwurf",

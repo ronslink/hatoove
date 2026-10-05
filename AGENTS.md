@@ -75,14 +75,24 @@ node tools/owned-client-check.mjs
 node tools/i18n-register-check.mjs
 ```
 
-`i18n-register-check.mjs` was added on 5 October 2026 with REDESIGN-01-COPYFIX. It fails when any shipped
-German interface string uses the informal address, when a pre-JavaScript inline default disagrees with the
-catalogue value that replaces it, or when the scan stops covering a shipped file that declares one. It
-exists because the `du` → `Sie` pass converted the i18n catalogues but not the inline defaults, which put
+`i18n-register-check.mjs` was added on 5 October 2026 with REDESIGN-01-COPYFIX. Eight legs fail when: any
+shipped German string uses the informal address; a pre-JavaScript inline default disagrees with the
+catalogue value that replaces it; either half of the public hero pair is informal; the allowlist stops being
+exactly the one documented quotation; a namespace loses or empties a key in any of the five locales; a
+shipped file declares an inline default the scan does not cover; the authored writing stimulus changes; or a
+2nd-person-singular verb form appears that the curated word list does not know. It scans the shell,
+practice, public, auth **and instructions** catalogues, the `data-i18n` / `data-practice-key` inline text,
+the `data-i18n-aria-label` / `-title` / `-placeholder` / `-alt` attribute family, the `<noscript>` German and
+the JSON-LD FAQ.
+
+It exists because the `du` → `Sie` pass converted the i18n catalogues but not the inline defaults, which put
 "Du hast Deutsch gelernt. Jetzt üben Sie, es in Prüfungsaufgaben anzuwenden." on the public front door and
-left 14 strings welding an informal imperative to a formal pronoun. The one allowlisted exception is
-`public.checklist2`, which quotes the word „du"; `public/site.js` carries an authored reading passage whose
-"du" is exam language, not interface copy, and the check asserts that passage is unchanged.
+left strings welding an informal imperative to a formal pronoun.
+
+Two honest limits. The word list is curated and R8 only covers the -st family, so a brand-new informal form
+outside both would still pass. The one allowlisted exception is `public.checklist2`, which quotes the word
+„du"; `public/site.js` carries an authored writing stimulus whose "du" is exam language, not interface copy,
+and the check asserts that sentence is unchanged.
 
 `docker-stack-check.mjs` and `app-browser-check.mjs` need Docker and a browser and are NOT CI gates;
 `owned-api-check --backend=postgres` and the other PostgreSQL checks need a disposable database. These
