@@ -347,6 +347,40 @@ async function main() {
       const removed = (await q(`DELETE FROM ${T('survey_round')} WHERE round_id = $1`, [ROUND]).then(() => null, (e) => e.code));
       assert.ok(removed, 'a round was deleted');
     });
+
+    /* ---------------------------------------------------------------- erasure must actually delete these rows */
+    await check('19. erasing the account removes its report AND its screenshot', async () => {
+      /*
+       * WHY THIS LEG IS NOT REDUNDANT WITH `deletion-check`. That check passes 20/20 and asserts the ordered
+       * steps, but when it runs its synthetic accounts hold NO feedback rows, so both new steps in
+       * ACCOUNT_DELETION_STEPS delete zero rows and would keep passing if they named the wrong table or the
+       * wrong column. A step that removes nothing proves nothing.
+       *
+       * It also needs a VALID screenshot to exist: legs 15-17 only ever observed REFUSALS, so without this
+       * insert the screenshot half would erase nothing and the leg would pass for the wrong reason -- which is
+       * the exact failure shape this file exists to avoid.
+       */
+      const bytes = Buffer.from('RIFF0000WEBPVP8 ', 'binary');
+      const digest = createHash('sha256').update(bytes).digest('hex');
+      await asLearner(pools.learner, A, (client) => client.query(
+        `INSERT INTO ${T('pilot_feedback_screenshot')} (feedback_id, owner_id, mime_type, bytes, width, height, sha256)
+         VALUES ($1,$2,'image/webp',$3,1200,800,$4)`, [aReportId, A, bytes, digest]));
+
+      const counts = async (owner) => (await q(
+        `SELECT (SELECT count(*)::int FROM ${T('pilot_feedback')} WHERE owner_id = $1) AS reports,
+                (SELECT count(*)::int FROM ${T('pilot_feedback_screenshot')} WHERE owner_id = $1) AS shots`, [owner])).rows[0];
+      const before = await counts(A);
+      assert.ok(before.reports >= 1, `the fixture has no report to erase (${before.reports})`);
+      assert.equal(before.shots, 1, `the fixture has no screenshot to erase (${before.shots})`);
+
+      const { createPostgresAccountDeletion } = await import('../server/owned-postgres/adapter.mjs');
+      const erased = await createPostgresAccountDeletion({ pool: pools.deletion }).deleteAccount(A);
+
+      assert.equal(erased.existed, true, 'the synthetic account did not exist, so nothing was erased');
+      const after = await counts(A);
+      assert.equal(after.reports, 0, `the report survived account erasure (${after.reports} left)`);
+      assert.equal(after.shots, 0, `the screenshot survived account erasure (${after.shots} left)`);
+    });
   } finally {
     await closePersistent(pools);
   }
