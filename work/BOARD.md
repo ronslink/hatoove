@@ -1,5 +1,22 @@
 # Hatoove work board
 
+## MIRROR-B1PREP-01 — round 1 integrated, round 2 delivered and in review — 5 October 2026, 16:05 UTC+2
+
+Contract `docs/contracts/MIRROR-B1PREP-01.md`, frozen at `072d29e`, amended six times as the work met reality (A1 pool figures; A2 `stringStatus` + stale≡absent; A3 optional `ctx.examLanguage`; A4 the slice-A review readings; A5 the run-history and D22 word-list readings; A6 slice-B data sourcing and the Hören entry point). All of it on local `main`; **nothing is pushed, no PR is open, nothing is deployed.**
+
+| Slice | Owner | Branch | Status |
+|---|---|---|---|
+| A · NAV-01 information architecture | Lead | `codex/nav-01-mirror-ia` | **integrated** `0d0c8f5` after REVIEW-NAV-01 (CLEAR WITH NOTES; R1 fixed, A4 recorded) |
+| F2 · LIBRARY-I18N-01 translation storage + read path | `library-i18n` | `codex/library-i18n-01-import` | **integrated** `415e278` after REVIEW-LIBRARY-I18N-01 (CLEAR WITH NOTES; F1 fixed by the Lead as `df2ad88` and re-verified by the reviewer) |
+| D · MOCK-01 Probeprüfung intro and history | `mock-intro` | `codex/mock-01-probepruefung` | **integrated** `64b975a` after REVIEW-MOCK-01 (CLEAR WITH NOTES; D1 fixed in the shell as `6fa1fac`, A5 recorded) |
+| E/F · LIBRARY-UI-01/02 hub and guide pages | `library-ui` | `codex/library-ui-01-nachschlagen` | delivered `b5d2fc6`; review `task-7` (**moved from Hermes to `mock-intro`** — Hermes never acknowledged its dispatch) |
+| B · PRACTICE-UI-01 part tiles | `mock-intro` | `codex/practice-ui-01-tiles` | delivered `deca051`; review `task-13` (`library-i18n`) |
+| Content · the three German source defects + `0043` | `library-i18n` | `codex/content-corrections-sources` | delivered `e4bc29a`; review `task-12` (`library-ui`) |
+
+Lead integration fixes already on `main`, each from a slice's own evidence: `api.js` passes the guide locale; the noun route serves the whole 240-noun lexicon with a bounded `limit`; the generator no longer advises regenerating an applied migration (`07f14c2`); the shell mounts slice B's part index for `#/pruefungsteile` and `#/hoeren` and passes `ctx.examLanguage` to every module.
+
+**Round 2 still queued:** `task-9` C PRACTICE-01 (selection rule, practice attempts, migration 0044, the part runner) — not yet leased, no free slot; then G VOCAB-01 and H DRILL-01. **Owed to Ron, not to code:** the POOL-01 batch needs his go-ahead (24 released sets, 8 parts × 3), and native review of the new interface copy and of the imported uk/ar/tr guide translations is outstanding — until it lands the "maschinell übersetzt · Prüfung ausstehend" marker stays and no string is approved.
+
 ## MIRROR-B1PREP-01 under way — contract frozen, slice A delivered — 5 October 2026, 15:20 UTC+2
 
 Ron: *"we need to mirror the structure of the previous app more … use Claude to help put this all in place we also have hermes agent to assist create a goal to get this done"*. His four open decisions (drop the Lernplan; **Probeprüfung**, translated per interface language; the proposal's practice selection rule; generate the uk/ar/tr guides) are frozen with the engineering contract in `docs/contracts/MIRROR-B1PREP-01.md`, committed to main as `072d29e`. The offline translation batch (737 guide strings, 240 nouns, `machine_unreviewed`) is ingested byte-pinned under `content/library-translations/` with its provenance, its review rules and the three German source-data defects; reviewer workbooks and the B1_Prep/Hatoove evidence screens stay untracked under `handoff/ron-agent/`.
