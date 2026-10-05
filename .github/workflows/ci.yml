@@ -96,6 +96,8 @@ jobs:
       # PASS/FAIL, so a first failure cannot hide the rest. Do not replace it with individual steps: that
       # would skip every check behind the first failure, which is how a red gate stayed invisible here
       # before. No database, no Docker, so this job keeps running on both matrix OSes.
+      # Locally the same thing is `npm run check:mirror` (and `npm run check:mirror:db` against a
+      # disposable database), so a developer can reproduce exactly what this job runs.
       - name: MIRROR-B1PREP-01 offline gates (tallying runner, per-gate PASS/FAIL)
         run: node tools/run-gates.mjs mirror
       # "The provider is operator-only and invisible" USED to run here
@@ -302,11 +304,10 @@ jobs:
       # refuses inside a world and that, without the reset, the exhaustion would be inherited.
       - name: The sign-up throttle is enforced per world and not accumulated across worlds
         run: node tools/owned-api-throttle-isolation-check.mjs
-      # MIRROR-B1PREP-01 — THE GATES THAT NEED POSTGRESQL (CI-GATES-01). Five gates execute the shipped
-      # SQL (library-i18n, part-index, practice-selection, practice-media, drill) and cannot run in the
-      # offline jobs. Measured against exactly this job's shape — a bare `hatoove_ci` service database
-      # with OWNAPI_PG_* and NO prior `server/migrate.mjs` — they are 5/5, because each check creates and
-      # drops its own fixture schema. So this step needs no provisioning of its own and none was invented.
+      # MIRROR-B1PREP-01 — THE GATES THAT NEED POSTGRESQL (CI-GATES-01). Six gates execute the shipped
+      # SQL (library-i18n, part-index, practice-selection, practice-media, drill, content-rights) and
+      # cannot run in the offline jobs. `mirror-db` is the tallying runner, so every gate runs and each
+      # failure is named rather than the first one hiding the rest.
       - name: MIRROR-B1PREP-01 gates that need PostgreSQL (tallying runner, per-gate PASS/FAIL)
         run: node tools/run-gates.mjs mirror-db
       - name: Account deletion removes every row and is one transaction
