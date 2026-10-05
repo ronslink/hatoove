@@ -52,6 +52,11 @@ const GROUPS = {
     gate('repository-check'), gate('design-check'), gate('retired-surface-check'), gate('seo-check'),
     gate('server-origin-check'), gate('keymask-check'), gate('owned-api-check'), gate('owned-client-check'),
     gate('i18n-register-check'),
+    /* PILOT-FEEDBACK-01 (FB-E): every vendored browser asset is pinned to its digest and ships its licence. The
+       app makes no third-party request at runtime, and that promise holds only while the vendored files are the
+       ones that were reviewed — a change in `public/assets/vendor/` is served to every learner and nothing else
+       in this repository would notice it. */
+    gate('vendor-integrity-check'),
     /* PILOT-FEEDBACK-01 (FB-C): offline and structural. It proves the entry point cannot appear before sign-in,
        that the sheet has no way to navigate or reach the listening controller, that the learner's own text is
        escaped, and that the stylesheet stays RTL-safe. It deliberately does NOT claim the rendered behaviour -
