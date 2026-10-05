@@ -45,7 +45,7 @@
   [lang=uk]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
   [lang=tr]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
   [lang=ar]{font-family:"Noto Sans Arabic","Segoe UI","Geeza Pro",system-ui,sans-serif}
-  .label{font-weight:750;font-size:30px;letter-spacing:.12em;fill:var(--orange-dark)}   /* .kicker */
+  .label{font-weight:750;font-size:22px;letter-spacing:.12em;fill:var(--orange-dark)}   /* .kicker */
   .chips{font-weight:750;font-size:30px;letter-spacing:.1em;fill:var(--muted);text-anchor:middle}
   .task{font-size:40px;fill:var(--ink)}                                                 /* .text-block */
   .opt{font-size:38px;font-weight:700;fill:var(--ink)}                                  /* .option */

@@ -85,7 +85,18 @@
 <p class="offer-note" data-i18n="public.feedbackNotice">Schreib-Rückmeldungen sind vorläufige Übungshilfen. Die automatische Rückmeldung nutzt im Pilot noch gekennzeichnete Beispiele; eine Live-KI-Bewertung ist nicht freigeschaltet.</p>
 </div></section>
 <section class="approach section-wrap" aria-labelledby="approach-title">
-<div class="approach-art"><picture><source srcset="/assets/orange-path-900.webp 900w, /assets/orange-path-1400.webp 1400w" sizes="(max-width: 720px) 90vw, 45vw" type="image/webp"><img src="/assets/orange-path-1400.jpg" width="1448" height="1086" loading="lazy" data-i18n-alt="public.artAlt" alt="Ein orangefarbener Weg aus Papier führt in kleinen Stufen nach oben."></picture><p data-i18n="public.nextStep">DEIN NÄCHSTER SCHRITT.</p></div>
+<div class="approach-art"><picture>
+<!--
+  REDESIGN-01 G: one artwork, two crops. The wide variant is legible from about a 1100 px viewport up; below
+  the 900 px breakpoint the grid collapses and the slot narrows, so the NARROW crop is served instead. Its
+  smallest meaning-bearing text is 36 file px on a 720 px canvas, which is >=18 px on screen at a 360 px
+  slot. Both are SVG: no raster derivatives, no srcset, and the file carries its own colour tokens and its
+  own @font-face rules because the design system's Latin-1 subsets have no Cyrillic or Arabic — the
+  Ukrainian explanation in the artwork needs the curated Noto faces.
+-->
+<source media="(max-width: 900px)" srcset="/assets/landing-item-narrow.svg" width="720" height="480" type="image/svg+xml">
+<img src="/assets/landing-item.svg" width="960" height="640" loading="lazy" decoding="async" data-i18n-alt="public.artAlt" alt="Übungsaufgabe aus dem Lesen-Teil: Antwort A ist grün als richtig markiert, die gewählte Antwort B rot, daneben die Erklärung auf Ukrainisch.">
+</picture></div>
 <div><p class="kicker" data-i18n="public.clearStart">Mit einem klaren Anfang</p><h2 id="approach-title"><span data-i18n="public.bigGoal">Ein großes Ziel.</span><br><span data-i18n="public.smallSteps">Kleine nächste Schritte.</span></h2>
 <ol class="steps"><li><span>01</span><div><h3 data-i18n="public.createAccount">Dein Konto anlegen</h3><p data-i18n="public.createDescription">Mit E-Mail und Passwort starten. Der Pilot ist bis 14. Januar 2027 kostenlos.</p></div></li><li><span>02</span><div><h3 data-i18n="public.chooseTask">Eine Aufgabe wählen</h3><p data-i18n="public.chooseDescription">Lesen, Sprachbausteine, Hören oder Schreiben – passend zu dem, was du gerade üben möchtest.</p></div></li><li><span>03</span><div><h3 data-i18n="public.continue">Später weiterarbeiten</h3><p data-i18n="public.continueDescription">Deine gespeicherten Entwürfe bleiben in deinem Konto, auch wenn du das Gerät wechselst.</p></div></li></ol>
 </div></section>
