@@ -85,6 +85,11 @@ const rows = {
   partTask: ["Teil {part} · Aufgabe {id}","Part {part} · Task {id}","Частина {part} · Завдання {id}","الجزء {part} · المهمة {id}","Bölüm {part} · Görev {id}"],
   partPosition: ["Teil {part} von {total} · Aufgabe {id}","Part {part} of {total} · Task {id}","Частина {part} з {total} · Завдання {id}","الجزء {part} من {total} · المهمة {id}","{total} bölümden {part} · Görev {id}"],
   part: ["Teil {part}","Part {part}","Частина {part}","الجزء {part}","Bölüm {part}"],
+  /*
+   * REDESIGN-01 D — the per-part line of the mock RESULT. Counted from the learner's own recorded
+   * answers, so it is a count rather than a score and carries no pass line.
+   */
+  partResult: ["Teil {part}: {correct} von {total} richtig","Part {part}: {correct} of {total} correct","Частина {part}: {correct} з {total} правильно","الجزء {part}: {correct} من {total} صحيحة","Bölüm {part}: {total} sorudan {correct} doğru"],
   answeredNav: ["Teil {part}, Aufgabe {id}, beantwortet","Part {part}, task {id}, answered","Частина {part}, завдання {id}, відповідь надано","الجزء {part}، المهمة {id}، تمت الإجابة","Bölüm {part}, görev {id}, yanıtlandı"],
   unansweredNav: ["Teil {part}, Aufgabe {id}, unbeantwortet","Part {part}, task {id}, unanswered","Частина {part}, завдання {id}, без відповіді","الجزء {part}، المهمة {id}، بلا إجابة","Bölüm {part}, görev {id}, yanıtsız"],
   unanswered: ["Unbeantwortet","Unanswered","Без відповіді","بلا إجابة","Yanıtsız"],

@@ -592,5 +592,9 @@ button.btn.answer-option[data-state=wrong] .answer-verdict::before { content: '\
 .part-result { display: grid; gap: 10px; justify-items: start; }
 .part-result .part-result-count { font-size: 20px; font-weight: 750; margin: 0; }
 
+/* REDESIGN-01 D: the mock result's per-part counts. A plain list, no new colour or token. */
+.part-results { margin: 4px 0 0; padding-inline-start: 1.2rem; }
+.part-results li { margin: 2px 0; }
+
 
 
