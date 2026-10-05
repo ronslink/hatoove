@@ -93,6 +93,14 @@ const MOCK_WRITING_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/writing-choice$
 const MOCK_FINALISE_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/finalise$`, 'i');
 const MOCK_PLAYBACK_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/playback$`, 'i');
 const MOCK_MEDIA_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/media/([a-zA-Z0-9][a-zA-Z0-9._-]{0,159})/(v[0-9]{1,4})$`);
+/*
+ * PRACTICE-MEDIA (task-17): the practice-bound twin of the two routes above. The sitting's id is in the path
+ * for the same reason a run's is — the media route needs a stable key — and the DATASTORE is the only place
+ * that decides the allowance, the state and whether a play is permitted. Both routes gate on the METHOD being
+ * present rather than joining PRACTICE_METHODS, so the memory backend's contract is unchanged.
+ */
+const PRACTICE_PLAYBACK_RE = new RegExp(`^/api/v1/practice/attempts/(${UUID})/playback$`, 'i');
+const PRACTICE_MEDIA_RE = new RegExp(`^/api/v1/practice/attempts/(${UUID})/media/([a-zA-Z0-9][a-zA-Z0-9._-]{0,159})/(v[0-9]{1,4})$`);
 const TOKEN_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const ORDER_RE = new RegExp(`^/api/v1/orders/(${UUID})$`, 'i');
 const WEBHOOK_PATH = '/api/v1/payments/stripe/webhook';
@@ -633,6 +641,38 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (query.size) fault(422, 'invalid_query');
       if (typeof datastore.readMockMedia !== 'function') fault(503, 'media_unavailable');
       const result = await datastore.readMockMedia(owner, media[1].toLowerCase(), media[2], media[3]);
+      // Revoke/account switches while the private file was being checked cannot expose its bytes.
+      const current = await identify(headers);
+      if (!current) fault(401, 'unauthenticated');
+      if (current.userId !== owner) fault(409, 'account_changed');
+      return mediaResponse(result.bytes, result.media, { range: headers.range, method });
+    }
+
+    /*
+     * PRACTICE-MEDIA (task-17). The practice-bound playback path. The DTO shape, the event validation and the
+     * byte framing are the MOCK path's own (`playbackDto`, `validatePlaybackEvent`, `mediaResponse`); what
+     * differs is the binding — a practice sitting rather than a mock run — and the rule that every play after
+     * the first requires "Auswerten", enforced in the datastore and again in the SQL trigger.
+     *
+     * GET  returns `{items, sitting}`: one playback state per recording of the served set, plus the sitting's
+     *      own `plays_used`/`replay_used` so a client does not have to re-derive the replay rule.
+     * POST accepts exactly the mock path's playback event and answers `{playback}`.
+     */
+    const practicePlayback = PRACTICE_PLAYBACK_RE.exec(pathname);
+    if (practicePlayback) {
+      if (query.size) fault(422, 'invalid_query');
+      const id = practicePlayback[1].toLowerCase();
+      if (method === 'GET' && typeof datastore.readPracticePlayback === 'function')
+        return reply(200, await datastore.readPracticePlayback(owner, id));
+      if (method === 'POST' && typeof datastore.mutatePracticePlayback === 'function')
+        return reply(200, { playback: await datastore.mutatePracticePlayback(owner, id, validatePlaybackEvent(body)) });
+      fault(['GET', 'POST'].includes(method) ? 503 : 404, ['GET', 'POST'].includes(method) ? 'practice_playback_unavailable' : 'not_found');
+    }
+    const practiceMedia = PRACTICE_MEDIA_RE.exec(pathname);
+    if (practiceMedia && ['GET', 'HEAD'].includes(method)) {
+      if (query.size) fault(422, 'invalid_query');
+      if (typeof datastore.readPracticeMedia !== 'function') fault(503, 'practice_playback_unavailable');
+      const result = await datastore.readPracticeMedia(owner, practiceMedia[1].toLowerCase(), practiceMedia[2], practiceMedia[3]);
       // Revoke/account switches while the private file was being checked cannot expose its bytes.
       const current = await identify(headers);
       if (!current) fault(401, 'unauthenticated');

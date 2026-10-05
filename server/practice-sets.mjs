@@ -167,8 +167,13 @@ const OPTION_BANKS = Object.freeze([
  * it is not a telc exam set — "Ergänze die Sätze. Dies sind einzelne Grammatikübungen, kein
  * telc-Prüfungssatz." A learner meeting 12 gap items with nothing saying so is the defect; the drill stays in
  * the corpus, labelled, rather than being hidden from the part it belongs to.
+ *
+ * `recordings` is the practice playback path's member (task-17): a packaged `fixed_audio` set carries its
+ * recordings at set level, and without the member the serving path answered 500 for exactly the sets that
+ * carry audio. REVIEW-PRACTICE-MEDIA F7 flagged that this line is where both slices diverge; the merge keeps
+ * every member from both, which is the whole point of resolving it by union.
  */
-const MATERIAL_MEMBERS = Object.freeze(['text', 'letter', 'headlines', 'ads', 'bank', 'practice_kind', 'instruction']);
+const MATERIAL_MEMBERS = Object.freeze(['text', 'letter', 'headlines', 'ads', 'bank', 'practice_kind', 'instruction', 'recordings']);
 /** LV3's "no ad fits" choice; `objectiveItems` (package-contract) adds the same sentinel and keys use it. */
 const NO_MATCH = Object.freeze({ id: 'x', text: '', value: 'x' });
 
@@ -201,6 +206,32 @@ const authoredOptions = (item, payload) => {
 };
 
 /**
+ * The authored item rows of a set.
+ *
+ * A PACKAGED `fixed_audio` set keeps its questions inside `recordings[]` — the `listening-package.json` shape
+ * that slice A/B imports — rather than in a top-level member. Those questions ARE the items the learner
+ * answers, so they are flattened here in recording order then question order, which is the order
+ * `finalise_mock_run` and `objectiveItems` already use for the same payload. The recordings themselves stay in
+ * `material.recordings`, so a runner can bind each item to the audio that carries it (each question's `n`).
+ *
+ * Returns `null` when the set carries no items at all, so the caller can fail loudly instead of serving a page
+ * the learner cannot answer.
+ */
+const authoredItems = (payload) => {
+  const member = ITEM_MEMBERS.find((name) => Array.isArray(payload[name]) && payload[name].length);
+  if (member) return payload[member];
+  if (Array.isArray(payload.recordings) && payload.recordings.length) {
+    return payload.recordings.flatMap((recording) => {
+      if (!isPlainObject(recording) || !Array.isArray(recording.questions) || !recording.questions.length) {
+        throw new TypeError('practice_set_invalid');
+      }
+      return recording.questions;
+    });
+  }
+  return null;
+};
+
+/**
  * The served shape of ONE set: the items the learner answers, without a key, a transcript or an explanation.
  *
  * Each item is REBUILT from named fields rather than spread from the payload, so a field that must never reach
@@ -216,9 +247,8 @@ export function normalisePracticeSet(row, playback = null) {
   const version = nonEmpty(row.version);
   if (!setId || !version) throw new TypeError('practice_set_invalid');
   const payload = isPlainObject(row.payload) ? row.payload : {};
-  const member = ITEM_MEMBERS.find((name) => Array.isArray(payload[name]) && payload[name].length);
-  if (!member) throw new TypeError('practice_set_items_unknown');
-  const rawItems = payload[member];
+  const rawItems = authoredItems(payload);
+  if (!rawItems) throw new TypeError('practice_set_items_unknown');
   const declared = positiveInt(row.item_count);
   if (declared !== null && declared !== rawItems.length) throw new TypeError('practice_set_invalid');
   const items = rawItems.map((item, index) => {

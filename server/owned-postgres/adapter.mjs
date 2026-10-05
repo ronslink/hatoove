@@ -31,6 +31,7 @@ import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs
 import { preparationMethods, requireActivePreparation, resolvePreparation } from './preparations.mjs';
 import { mockRunMethods, lockMockOwner, requireMockGroup } from './mock-runs.mjs';
 import { playbackMethods } from './playback.mjs';
+import { practicePlaybackMethods } from './practice-playback.mjs';
 import { importedSetGate, objectiveInteractionSql, releasedObjectiveFamily, readWritingTask, writingAccess, readReleasedForm, readWritingOrigin } from './packages.mjs';
 import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
 import { extractWritingExplanationSource, unavailableExplanationView } from '../explanation-contract.mjs';
@@ -264,6 +265,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     ...preparations,
     ...mockRunMethods({ settle, note, catalogue: examCatalogue, explanationLanguageRegistry }),
     ...playbackMethods({ settle, note, catalogue: examCatalogue, mediaRoot }),
+    // PRACTICE-MEDIA (task-17): the same accounting model bound to a practice sitting instead of a mock run.
+    ...practicePlaybackMethods({ settle, note, catalogue: examCatalogue, mediaRoot }),
     /**
      * PILOT-04 — the servable task catalogue.
      *
@@ -1681,7 +1684,10 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
   // (it would otherwise only cascade from "user", after the preparation delete had already failed).
   ['item_evidence', 'DELETE FROM item_evidence WHERE owner_id = $1'],
   // PRACTICE-01 (slice C): a practice attempt points at the preparation as well, so it is removed for
-  // the same reason, before the preparations it references.
+  // the same reason, before the preparations it references. PRACTICE-MEDIA (task-17) playback rows hang off
+  // the sitting, so they go first (their events cascade from them, but the explicit order matches 0030's).
+  ['practice_playback_event', 'DELETE FROM practice_playback_event WHERE owner_id = $1'],
+  ['practice_playback', 'DELETE FROM practice_playback WHERE owner_id = $1'],
   ['practice_attempt', 'DELETE FROM practice_attempt WHERE owner_id = $1'],
   ['mock_run_event', 'DELETE FROM mock_run_event WHERE owner_id = $1'],
   ['listening_playback_event', 'DELETE FROM listening_playback_event WHERE owner_id = $1'],
@@ -1721,6 +1727,7 @@ export const ACCOUNT_TABLES = Object.freeze([
   ['account', '"userId" = $1', 'owner'], ['drafts', 'attempt_id = ANY($1::uuid[])', 'attempts'],
   ['item_evidence', 'owner_id = $1', 'owner'],
   ['practice_attempt', 'owner_id = $1', 'owner'],
+  ['practice_playback', 'owner_id = $1', 'owner'], ['practice_playback_event', 'owner_id = $1', 'owner'],
   ['mock_run', 'owner_id = $1', 'owner'], ['mock_run_event', 'owner_id = $1', 'owner'],
   ['listening_playback', 'owner_id = $1', 'owner'], ['listening_playback_event', 'owner_id = $1', 'owner'],
   ['mock_run_time_group', 'owner_id = $1', 'owner'],
