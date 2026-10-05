@@ -1,5 +1,32 @@
 # PRACTICE-01 (slice C) — part runner, selection rule, practice attempts
 
+## LEASE 2 STATUS (2026-10-05, later) — read this first
+
+Rebased onto current main **`f0a7657`** (branch head **`ee20411`**); the rebase was clean apart from nothing —
+the N2 comment correction did not collide with my adapter additions.
+
+**AUDIO — the Lead's correction is right, and I confirmed it from the package myself.** `content/exams/telc-deutsch-b1/listening-package.json`
+carries `sets` (9, three per HV family) whose **`payload.recordings[].mediaId`** are real (`telc-deutsch-b1.hv1.01.audio`…
+`hv3.03.audio`), a `media` list with a real `path` and `sha256` per recording, and blueprint HV parts with
+`mediaRequired: true` + `playback`. So the recordings **exist as content**; only the **practice playback path** is
+missing: the shipped player is mock-bound (`public/app/listening.js` → `api.mock.media(run.id, media_id, media_version)`,
+accounted by `listening_playback` rows keyed to a mock run). My earlier "the recording does not exist" was wrong;
+the correct statement is "no practice binding exists". **Decision: (b), and (a) is a slice of its own.** The runner
+must render the items and the play rule, disable playback with a message that names the missing *practice
+playback path*, and recommend (a) — a practice-bound media/playback route reusing the same server-side
+`plays_used`/`max_plays` accounting — as a separate lease, not smuggled into C.
+
+**PostgreSQL legs (priority 1) — WRITTEN, NOT YET GREEN.** `practice-selection-check.mjs --postgres` now carries
+P1–P7 (three tiers through the shipped SQL, the wrap, the sitting's separation from mock runs, the state trigger,
+and the unknown-sitting refusal). Against my disposable database the fixture **publishes exactly the 9 HV sets**
+and setup gets past `createPreparation`, but the run aborts with `not_found` before the tier legs report. So the
+two methods **remain unexecuted** and that priority is **not met** — the next lease starts here, with the
+diagnostics already in the check (`setup step "<label>"`, and a guarded teardown so the cleanup can no longer
+mask the legs' results).
+
+**Still not delivered:** the client half (`part-runner.js`/`.css`, the tile open action, the catalogue keys), the
+runner check, and the rendered evidence.
+
 **Status: PARTIAL — the server half is delivered and committed; the client half is NOT delivered in this
 lease.** Author `library-i18n` (task-9). Branch `codex/practice-01-runner`, worktree
 `D:\Hatoove\.worktrees\practice-01`, based on local main **`88f18e1`**. Nothing pushed, nothing merged.

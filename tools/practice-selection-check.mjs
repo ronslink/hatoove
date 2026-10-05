@@ -141,6 +141,136 @@ const MUTATIONS = [
   ['M5 the served set leaks the key', (source) => source.replace('prompt: typeof item.prompt === \'string\' ? item.prompt : \'\',', "prompt: typeof item.prompt === 'string' ? item.prompt : '', answer: item.answer,")],
 ];
 
+/**
+ * The PostgreSQL legs: the SAME rule through the SHIPPED SQL, with crafted evidence rows.
+ *
+ * The offline legs prove the pure rule; these prove the SQL the adapter runs agrees with it — the three
+ * tiers, the wrap state, the sitting's separation from mock runs, and the state trigger. Everything is
+ * synthetic: the evidence is inserted by the admin role, and the fixture database is disposable.
+ */
+const postgresLegs = async () => {
+  if (process.env.OWNAPI_PG_ALLOW !== '1' || process.env.OWNAPI_PG_HOST !== '127.0.0.1') {
+    throw new Error('explicit local disposable PostgreSQL required (OWNAPI_PG_ALLOW=1, OWNAPI_PG_HOST=127.0.0.1)');
+  }
+  const { randomUUID } = await import('node:crypto');
+  const { createFixture } = await import('../server/owned-postgres/bootstrap.mjs');
+  const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
+  const EXAM = 'telc-deutsch-b1';
+  const outcome = [];
+  const pgLeg = async (name, run) => {
+    try { await run(); outcome.push(['PASS', name]); } catch (error) { outcome.push(['FAIL', `${name}: ${String(error.message).split('\n')[0]}`]); }
+  };
+
+  const db = await createFixture();
+  try {
+    const world = await createPostgresWorld({ fixture: db });
+    const port = world.store.port;
+    const step = async (label, run) => {
+      try { return await run(); } catch (error) { throw new Error(`setup step "${label}" failed: ${error.code || ''} ${String(error.message).split('\n')[0]}`); }
+    };
+    const signup = await step('signUp', () => world.sessions.signUp({
+      name: 'Practice selection', email: `practice-selection-${Date.now()}@example.invalid`,
+      password: 'synthetic-practice-selection-password',
+    }));
+    const owner = (await world.sessions.getSession({ cookie: String(signup.setCookie).split(';')[0] })).userId;
+    const created = await step('createPreparation', () => port.createPreparation(owner, EXAM));
+    const preparationId = (created.preparation ?? created).id;
+
+    const sets = (await db.admin.query(
+      `SELECT set_id, version, family, item_count, media_required FROM objective_set
+        WHERE exam_id = $1 AND family LIKE 'HV%' ORDER BY family, set_id, version`, [EXAM])).rows;
+    console.log(`postgres: ${sets.length} released HV set row(s) published by the fixture`);
+    if (sets.length < 3) throw new Error(`the fixture publishes ${sets.length} HV sets, so the rule cannot be exercised`);
+
+    const family = sets[0].family;
+    const familySets = sets.filter((row) => row.family === family);
+    const [a, b] = familySets;
+    const craft = async (row, wrong, correct, answeredAt) => {
+      for (let index = 0; index < wrong + correct; index += 1) {
+        await db.admin.query(
+          `INSERT INTO item_evidence
+             (evidence_id, owner_id, exam_id, set_id, version, item_id, family, section, answer, correct,
+              latency_ms, preparation_id, answered_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, NULL, $11, $12)`,
+          [randomUUID(), owner, EXAM, row.set_id, row.version, `crafted-${index}`, family, 'HV',
+            JSON.stringify('a'), index >= wrong, preparationId, answeredAt]);
+      }
+    };
+    const servedNow = () => port.practiceSetForPart(owner, { preparationId, family });
+
+    await pgLeg('P1 SQL tier 1: an unseen set is served, and the reason says so', async () => {
+      const served = await servedNow();
+      assert.equal(served.reason, 'unseen', 'an untouched part must report the unseen tier');
+      assert.equal(served.set.set_id, familySets.map((row) => row.set_id).sort()[0], 'total tie-break by set id');
+      assert.equal(served.attempt.state, 'open', 'serving a set opens the sitting');
+      assert.deepEqual([served.round.checkedSets, served.round.wrapped], [0, false]);
+    });
+
+    await craft(a, 2, 0, '2026-10-01T10:00:00Z');
+    await craft(b, 3, 0, '2026-10-02T10:00:00Z');
+    await craft(familySets[2], 0, 1, '2026-10-03T10:00:00Z');
+    await pgLeg('P2 SQL tier 2: with every set seen, the most wrong is served', async () => {
+      const served = await servedNow();
+      assert.equal(served.reason, 'most-wrong');
+      assert.equal(served.set.set_id, b.set_id, 'three wrong must beat two and zero');
+      assert.equal(served.evidence.wrong, 3);
+    });
+
+    await db.admin.query('DELETE FROM item_evidence WHERE owner_id = $1', [owner]);
+    await craft(a, 2, 0, '2026-10-04T10:00:00Z');
+    await craft(b, 2, 0, '2026-10-01T10:00:00Z');
+    await craft(familySets[2], 2, 0, '2026-10-06T10:00:00Z');
+    await pgLeg('P3 SQL tier 3: equal wrong counts fall back to the oldest first touch', async () => {
+      const served = await servedNow();
+      assert.equal(served.set.set_id, b.set_id, 'the earliest first touch must win');
+      assert.equal(served.evidence.wrong, 2);
+    });
+
+    await db.admin.query(
+      `UPDATE practice_attempt SET state = 'checked', checked_at = now(), answered_count = 1, correct_count = 0
+        WHERE owner_id = $1 AND preparation_id = $2 AND family = $3`, [owner, preparationId, family]);
+    await pgLeg('P4 SQL wrap: three checked sets make the fourth tap a wrap, not a restart', async () => {
+      const checked = (await db.admin.query(
+        `SELECT count(DISTINCT set_id)::int AS n FROM practice_attempt
+          WHERE owner_id = $1 AND family = $2 AND state = 'checked'`, [owner, family])).rows[0].n;
+      const served = await servedNow();
+      assert.ok(checked >= 3, `expected three checked sets, found ${checked}`);
+      assert.equal(served.round.wrapped, true, 'the part must report itself finished');
+      assert.equal(served.round.notice, 'practiceAllSets');
+      assert.equal(served.round.round, served.round.setCount);
+    });
+
+    await pgLeg('P5 SQL: the sitting is its own table and its evidence names no mock run', async () => {
+      const row = (await db.admin.query(
+        `SELECT (SELECT count(*)::int FROM practice_attempt WHERE owner_id = $1) AS sittings,
+                (SELECT count(*)::int FROM item_evidence WHERE owner_id = $1 AND mock_run_id IS NULL) AS practice_evidence,
+                (SELECT count(*)::int FROM item_evidence WHERE owner_id = $1 AND mock_run_id IS NOT NULL) AS mock_evidence`,
+        [owner])).rows[0];
+      assert.ok(row.sittings >= 4, `every served set opened a sitting (got ${row.sittings})`);
+      assert.ok(row.practice_evidence > 0, 'practice evidence exists');
+      assert.equal(row.mock_evidence, 0, 'no practice answer may be attributed to a mock run');
+    });
+
+    await pgLeg('P6 SQL: a checked sitting cannot be reopened (the trigger refuses)', async () => {
+      const attempt = (await db.admin.query(
+        'SELECT attempt_id FROM practice_attempt WHERE owner_id = $1 ORDER BY created_at LIMIT 1', [owner])).rows[0];
+      await assert.rejects(
+        db.admin.query(`UPDATE practice_attempt SET state = 'open', checked_at = NULL WHERE attempt_id = $1`, [attempt.attempt_id]),
+        /practice_attempt_reopen_refused/);
+    });
+
+    await pgLeg('P7 SQL: checkPracticeAttempt refuses an unknown sitting rather than inventing one', async () => {
+      await assert.rejects(
+        port.checkPracticeAttempt(owner, { preparationId, attemptId: randomUUID(), answers: [{ item_id: 'crafted-0', answer: 'a' }] }),
+        (error) => error.code === 404 || error.status === 404);
+    });
+    return outcome;
+  } finally {
+    /* The fixture's teardown must not be able to mask the legs' real results. */
+    if (typeof db.cleanup === 'function') { try { await db.cleanup(); } catch (error) { console.log(`postgres: cleanup reported ${String(error.message).split('\n')[0]}`); } }
+  }
+};
+
 const main = async () => {
   const mod = await load(ROOT);
   if (process.argv.includes('--list')) {
@@ -148,6 +278,20 @@ const main = async () => {
     return 0;
   }
   for (const [name, run] of legs(mod)) leg(name, run);
+
+  if (process.argv.includes('--postgres')) {
+    let outcome;
+    try {
+      outcome = await postgresLegs();
+    } catch (error) {
+      outcome = [['FAIL', `postgres legs could not run: ${String(error.message).split('\n')[0]}`]];
+    }
+    for (const [result, name] of outcome) {
+      console.log(`${result} ${name}`);
+      legNames.push(name);
+      if (result === 'FAIL') failures.push(name);
+    }
+  }
 
   /* Mutation proof: each mutation must fail at least one leg, and the pristine copy must keep passing. */
   const control = fs.mkdtempSync(path.join(os.tmpdir(), 'practice-selection-'));
