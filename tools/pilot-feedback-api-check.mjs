@@ -252,6 +252,61 @@ async function main() {
       assert.equal(response.status, 422, `expected 422, got ${response.status} ${response.body}`);
     });
 
+    /*
+     * THE THREE LEGS AN INDEPENDENT REVIEW ASKED FOR. Each one is a way the context path used to LOSE A REPORT,
+     * which is the single outcome contract §3 forbids. They are here because leg 8 only proved the benign case —
+     * a well-formed UUID that simply is not the learner's run.
+     */
+    await check('10a. a non-UUID run id is DROPPED, not a 500', async () => {
+      // It used to reach `WHERE id = $1` against a `uuid` column, so PostgreSQL refused the cast and the learner
+      // got a 500 on the very path that exists to protect their report.
+      const response = await file(a, {
+        category: 'bug', body: 'Kaputte Lauf-ID', route: 'probepruefung',
+        context: { runId: 'not-a-uuid-at-all' },
+      });
+      assert.equal(response.status, 201, `expected the report to be saved, got ${response.status} ${response.body}`);
+      assert.equal(json(response).context, 'dropped');
+    });
+
+    await check('10b. an over-long item id keeps the SET and drops only the item', async () => {
+      /*
+       * `item_id` is 64 characters and the generic cap was 160, so a 100-character id passed the API, reached the
+       * INSERT and was refused by the CHECK — which surfaced as 422 and lost the report. The set is worth keeping
+       * on its own, so the item goes and the report stays.
+       */
+      const set = (await admin.query(
+        `SELECT exam_id, set_id, version FROM "${schema}".objective_set LIMIT 1`)).rows[0];
+      assert.ok(set, 'the seeded corpus must contain an objective set to point at');
+      const response = await file(a, {
+        category: 'content_error', body: 'Aufgabe stimmt nicht.', route: 'lesen',
+        // The wire shape is camelCase; the columns are not. Spreading the row sent `exam_id`, which the closed
+        // field set correctly refused — the test was wrong here, not the validator.
+        context: { examId: set.exam_id, setId: set.set_id, version: set.version, itemId: 'i'.repeat(100) },
+      });
+      assert.equal(response.status, 201, `expected the report to be saved, got ${response.status} ${response.body}`);
+      const row = (await admin.query(
+        `SELECT exam_id, set_id, item_id FROM "${schema}".pilot_feedback WHERE feedback_id = $1`,
+        [json(response).feedback_id])).rows[0];
+      assert.equal(row.set_id, set.set_id, 'the set must survive; only the unusable item is dropped');
+      assert.equal(row.item_id, null, 'an item id that could never be stored must not be guessed at');
+    });
+
+    await check('10c. an over-long version drops the whole item group, and still saves the report', async () => {
+      // `version` is 32 characters. Unlike the item, a wrong version makes the set identity meaningless, so the
+      // group goes as a unit and the report is still filed.
+      const set = (await admin.query(
+        `SELECT exam_id, set_id FROM "${schema}".objective_set LIMIT 1`)).rows[0];
+      const response = await file(a, {
+        category: 'content_error', body: 'Version stimmt nicht.', route: 'lesen',
+        context: { examId: set.exam_id, setId: set.set_id, version: 'v'.repeat(60) },
+      });
+      assert.equal(response.status, 201, `expected the report to be saved, got ${response.status} ${response.body}`);
+      const row = (await admin.query(
+        `SELECT set_id FROM "${schema}".pilot_feedback WHERE feedback_id = $1`,
+        [json(response).feedback_id])).rows[0];
+      assert.equal(row.set_id, null, 'a group with an unusable member must be dropped whole');
+    });
+
     /* ---------------------------------------------------------------- the survey gate */
     await check('11. survey/current is 204 when no round is open', async () => {
       const response = await call('GET', '/api/v1/survey/current', { cookie: a });

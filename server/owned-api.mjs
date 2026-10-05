@@ -427,17 +427,39 @@ function requireInterfaceLanguage(value) {
   if (typeof value !== 'string' || !INTERFACE_LOCALES.includes(value)) fault(422, 'invalid_language');
   return value;
 }
-/** The captured context: a closed shape. Whether it is USABLE is decided in the datastore, which may drop it. */
+/**
+ * The captured context: a closed shape whose VALUES ARE SANITISED RATHER THAN REJECTED.
+ *
+ * THE RULE THIS IMPLEMENTS IS "a stale page never loses the report" (contract §3). An earlier version faulted
+ * 422 whenever a value was not a string between 1 and 160 characters, which broke that rule three separate ways,
+ * all found by an independent review:
+ *
+ *   * a NON-UUID `runId` was accepted here and reached `WHERE id = $1` against a `uuid` column, so PostgreSQL
+ *     refused the cast and the learner got a 500 — on the path that exists to protect their report;
+ *   * the generic 160 cap is WIDER THAN THE COLUMNS: `item_id` is 64 and `version` is 32, so a plausible-length
+ *     id passed here and was refused by the CHECK, which the datastore maps to 422 — report lost;
+ *   * a value could be stored without ever being checked against the column it lands in.
+ *
+ * So each field has its OWN limit, matching the column in `0049`, and an unusable value is DROPPED. An unknown
+ * KEY is still 422: that is a version mismatch between client and server rather than a stale page, and it does
+ * not arise from a learner returning to an old tab.
+ */
+const CONTEXT_LIMITS = Object.freeze({
+  runId: 36, guideId: 128, sectionId: 160, examId: 128, setId: 128, version: 32, itemId: 64,
+});
 function requireFeedbackContext(value) {
   if (value === undefined || value === null) return {};
   if (!isPlainObject(value)) fault(422, 'invalid_context');
-  const allowed = ['runId', 'guideId', 'sectionId', 'examId', 'setId', 'version', 'itemId'];
-  if (Object.keys(value).some((key) => !allowed.includes(key))) fault(422, 'invalid_context');
   const out = {};
   for (const [key, raw] of Object.entries(value)) {
-    if (raw === null || raw === undefined) continue;
-    if (typeof raw !== 'string' || raw.length < 1 || raw.length > 160) fault(422, 'invalid_context');
-    out[key] = raw;
+    const limit = CONTEXT_LIMITS[key];
+    if (!limit) fault(422, 'invalid_context');
+    if (typeof raw !== 'string') continue;
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.length > limit) continue;
+    // A run id that is not a UUID must never reach the query that casts it to `uuid`.
+    if (key === 'runId' && !UUID_RE.test(trimmed)) continue;
+    out[key] = trimmed;
   }
   return out;
 }
@@ -1510,7 +1532,10 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       await enforceThrottle('feedback', owner);
       await enforceThrottle('feedbackGlobal', 'all');
       return reply(201, await datastore.createFeedback(owner,
-        { category, route, body: text, interfaceLanguage, context }));
+        { category, route, body: text, interfaceLanguage, context,
+          // WHAT THE CLIENT SENT, before sanitising: the datastore needs it to tell "no context" apart from
+          // "every field you sent was unusable", which are different answers to the learner.
+          contextClaimed: isPlainObject(body.context) && Object.keys(body.context).length > 0 }));
     }
     if (pathname === '/api/v1/feedback' && method === 'GET') {
       if (query.size) fault(422, 'invalid_query');
