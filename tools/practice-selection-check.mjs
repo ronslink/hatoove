@@ -574,7 +574,7 @@ const postgresLegs = async () => {
      * learner reads must not be built out of answers they could not give honestly. This leg crafts exactly those
      * rows and asserts the figure does not move — while the rows are still in the table.
      */
-    await pgLeg('P8g FIX-F1: tile and section figures IGNORE evidence from a set that cannot play (the rows stay)', async () => {
+    await pgLeg('P8g FIX-F1/N1: a blind PRACTICE guess never reaches the tile figure (the rows stay)', async () => {
       const before = await port.practiceProgress(owner, { preparationId });
       const beforeHv = before.parts.find((row) => row.family === 'HV1') ?? null;
       const beforeSection = before.sections.find((row) => row.section === 'HV') ?? null;
@@ -593,14 +593,26 @@ const postgresLegs = async () => {
       });
       const after = await port.practiceProgress(owner, { preparationId });
       assert.deepEqual(after.parts.find((row) => row.family === 'HV1') ?? null, beforeHv,
-        'three stored listening guesses must not become a number on the Hören tile');
-      assert.deepEqual(after.sections.find((row) => row.section === 'HV') ?? null, beforeSection,
-        'nor a section figure');
-      assert.deepEqual(after.totals, before.totals, 'nor a total');
+        'three blind practice guesses must not become a number on the Hören tile');
+      /*
+       * FIX-N1 — AND THE SECTION FIGURE COUNTS THEM, because that is what it did before F1 and what its contract
+       * says ("unchanged, member for member"). The asymmetry is deliberate: the part figure is what a learner
+       * acts on and what the drill ranks by, the section figure is a historical count of answered items. This
+       * leg asserts BOTH halves so neither can drift into the other.
+       */
+      const afterSection = after.sections.find((row) => row.section === 'HV') ?? null;
+      assert.equal((afterSection?.attempts ?? 0), (beforeSection?.attempts ?? 0) + 3,
+        'the SECTIONS figure counts every answered item, as it did before F1');
+      assert.equal(after.totals.attempts, before.totals.attempts + 3, 'and the totals follow the sections figure');
       const kept = (await db.admin.query(
         `SELECT count(*)::int AS n FROM item_evidence WHERE owner_id = $1 AND family = 'HV1'`, [owner])).rows[0].n;
       assert.equal(kept, 3, 'the rows are KEPT: the fix stops them counting, it does not rewrite the learner');
     });
+
+    /*
+     * FIX-N1's mock leg runs LAST (see the end of this function): importing a packaged listening form adds
+     * HV1–HV3 sets to the fixture, and the legs above must keep seeing the corpus they were written against.
+     */
 
     /*
      * FIX-F1 — the old P9/P10 SERVED an HV set and marked it. That is no longer possible, deliberately: a
@@ -631,8 +643,10 @@ const postgresLegs = async () => {
     });
 
     await pgLeg('P10 the marking LAYER compares JSONB: the string "true" is not the boolean true', async () => {
+      /* The SEEDED corpus set, not merely the first HV1 row: the mock leg below imports a packaged listening
+         form whose family names collide, and its keys are option strings. */
       const row = (await db.admin.query(
-        `SELECT set_id, version FROM objective_set WHERE family = 'HV1' ORDER BY set_id LIMIT 1`)).rows[0];
+        `SELECT set_id, version FROM objective_set WHERE family = 'HV1' AND set_id LIKE 'telc-deutsch-b1.%' ORDER BY set_id LIMIT 1`)).rows[0];
       const itemId = Object.keys(await keysFor(row.set_id))[0];
       /* The marking function is reached through an OWNER-BOUND transaction: its review guard fires for any
          connection without `hatoove.owner_id`, admin included (see the note on `craft`). */
@@ -883,6 +897,109 @@ const postgresLegs = async () => {
       assert.throws(() => normalisePracticeSet({ set_id: 'synthetic.unimported.hv', version: 'v1', item_count: 1, payload: { recordings: [] } }),
         /practice_set_items_unknown/, 'the normaliser does refuse a payload with no items — separately from the route');
       return 'excluded by importedSetGate → nothing_available; the recordings-only shape is refused by the normaliser';
+    });
+    /*
+     * FIX-N1 — THE LEG THAT WAS MISSING, and it runs LAST because importing a packaged listening FORM adds
+     * HV1–HV3 sets to the fixture (every leg above must keep seeing the corpus it was written against). Every
+     * other evidence leg in this repository writes rows with `mock_run_id` NULL, which is exactly why the F1
+     * filter could throw away real Probeprüfung listening results without a single check noticing.
+     *
+     * It runs a REAL mock exam over listening sets through the shipped path (`startMockRun` → `saveMockRun` →
+     * `finaliseMockRun`, which is what writes the rows in `0030-listening-playback.sql`) and then asserts the
+     * learner's own progress figures reflect them: the PART figure (what the tile shows and the drill ranks by)
+     * and the SECTION figure. It uses `tools/exam-s5-fixture.mjs` because the standard fixture ships a reading
+     * form only — a mock run cannot include HV without a form whose members include it, and the guard
+     * `protect_mock_evidence` (0025) refuses fabricated evidence, which is the point: this must be the real path.
+     */
+    await pgLeg('P18 FIX-N1: a finalised Probeprüfung over LISTENING sets counts in the tile AND section figures', async () => {
+      const { mkdtemp } = await import('node:fs/promises');
+      const { tmpdir } = await import('node:os');
+      const { createListeningFixture } = await import('./exam-s5-fixture.mjs');
+      const { importPackage } = await import('../server/owned-postgres/package-importer.mjs');
+      const mediaRoot = await mkdtemp(path.join(tmpdir(), 'n1-media-'));
+      const pkg = await createListeningFixture({ examId: EXAM, mediaRoot, durationMs: 30000 });
+      await importPackage(db.migration, pkg, { mediaRoot });
+
+      const before = await port.practiceProgress(owner, { preparationId });
+      const run = (await port.startMockRun(owner, {
+        preparationId, formId: 's5.telc-deutsch-b1.listening.mock', formVersion: 'v1',
+        releaseVersion: 'v9001', eventId: randomUUID(),
+      })).run;
+      /* Answer every listening item from its OWN key, so the mock records real results, not blanks. The run DTO
+         carries each member's authored `payload` (the questions live in `recordings[]`), not a served item list. */
+      const responses = [];
+      for (const member of run.members) {
+        const keyRow = (await db.admin.query(
+          'SELECT answers FROM objective_key WHERE set_id = $1 AND version = $2', [member.set_id, member.version])).rows[0];
+        assert.ok(keyRow, `the packaged listening set ${member.set_id} has a key`);
+        const questions = (member.payload?.recordings ?? []).flatMap((recording) => recording.questions ?? []);
+        assert.ok(questions.length > 0, `${member.set_id}: the packaged form carries questions`);
+        for (const question of questions) {
+          const itemId = String(question.n ?? question.id);
+          assert.ok(Object.hasOwn(keyRow.answers, itemId), `${member.set_id}/${itemId}: the key names every item`);
+          responses.push({ setId: member.set_id, version: member.version, itemId, answer: keyRow.answers[itemId] });
+        }
+      }
+      assert.ok(responses.length > 0, 'the listening form has items');
+      const saved = await port.saveMockRun(owner, run.id, {
+        eventId: randomUUID(), expectedRevision: run.revision, responses, position: { member: 0, item: 0 },
+      });
+      const finalised = await port.finaliseMockRun(owner, run.id, { eventId: randomUUID(), expectedRevision: saved.revision });
+      assert.equal(finalised.state, 'finalised', 'the mock run finalises through the shipped path');
+      const written = (await db.admin.query(
+        `SELECT family, count(*)::int AS n, count(*) FILTER (WHERE correct)::int AS correct
+           FROM item_evidence WHERE owner_id = $1 AND mock_run_id IS NOT NULL GROUP BY family ORDER BY family`, [owner])).rows;
+      assert.equal(written.length, 3, 'the mock wrote listening evidence for its three parts, with mock_run_id set');
+      assert.ok(written.every((row) => row.correct === row.n), 'and every answer matched its own key');
+
+      const after = await port.practiceProgress(owner, { preparationId });
+      for (const row of written) {
+        const part = after.parts.find((entry) => entry.family === row.family);
+        assert.ok(part, `${row.family}: the tile figure EXISTS — a Probeprüfung result is not a blind guess`);
+        assert.equal(part.attempts, row.n, `${row.family}: the tile counts every answered listening item`);
+        assert.equal(part.correct, row.correct, `${row.family}: and the correct ones`);
+        const beforePart = before.parts.find((entry) => entry.family === row.family) ?? { attempts: 0, correct: 0 };
+        assert.equal(part.attempts, beforePart.attempts + row.n, `${row.family}: the figure MOVED by exactly the mock's answers`);
+      }
+      const section = after.sections.find((entry) => entry.section === 'HV');
+      assert.ok(section && section.attempts >= responses.length, 'the HV section figure reflects them too');
+      return `${written.map((row) => `${row.family} ${row.correct}/${row.n}`).join(', ')} counted in the tile and section figures`;
+    });
+    /*
+     * FIX-N1 MUTATION — THE LEG MUST FAIL BY NAME WHEN THE CLAUSE IS REMOVED. This is the deliverable the review
+     * asked for: P18 proves the figures count a Probeprüfung; this removes the `mock_run_id` clause in a
+     * throwaway copy of `server/` and proves the defect RETURNS for exactly those families, while the shipped
+     * adapter (asserted in the same breath) still counts them. Nothing in the repository is modified.
+     */
+    await pgLeg('P19 MUTATION: without the mock_run_id clause the Probeprüfung listening figures vanish again', async () => {
+      const mockFamilies = (await db.admin.query(
+        `SELECT family, count(*)::int AS n FROM item_evidence
+          WHERE owner_id = $1 AND mock_run_id IS NOT NULL GROUP BY family ORDER BY family`, [owner])).rows;
+      assert.equal(mockFamilies.length, 3, 'P18 left mock listening evidence behind for this mutation to act on');
+      const shipped = await port.practiceProgress(owner, { preparationId });
+      for (const row of mockFamilies) {
+        assert.ok(shipped.parts.some((entry) => entry.family === row.family && entry.attempts >= row.n),
+          `${row.family}: the SHIPPED rule counts the mock result (the control for this mutation)`);
+      }
+      const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'evidence-mutation-'));
+      try {
+        fs.cpSync(path.join(ROOT, 'server'), path.join(sandbox, 'server'), { recursive: true, dereference: true });
+        const adapterPath = path.join(sandbox, 'server', 'owned-postgres', 'adapter.mjs');
+        const source = fs.readFileSync(adapterPath, 'utf8').replaceAll('\r\n', '\n');
+        const mutated = source.replace('(e.mock_run_id IS NOT NULL OR EXISTS (SELECT 1 FROM objective_set ps',
+          '(EXISTS (SELECT 1 FROM objective_set ps');
+        assert.notEqual(mutated, source, 'the mock_run_id clause must be present to remove it');
+        fs.writeFileSync(adapterPath, mutated);
+        const legacyAdapter = await import(pathToFileURL(adapterPath).href);
+        const legacyPort = legacyAdapter.createPostgresDatastore({ pool: db.learner });
+        const dropped = await legacyPort.practiceProgress(owner, { preparationId });
+        for (const row of mockFamilies) {
+          assert.equal(dropped.parts.find((entry) => entry.family === row.family) ?? null, null,
+            `${row.family}: THE DEFECT RETURNS — a real Probeprüfung result disappears from the tile figure again`);
+        }
+      } finally {
+        fs.rmSync(sandbox, { recursive: true, force: true });
+      }
     });
     return outcome;
   } finally {
