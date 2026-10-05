@@ -23,6 +23,13 @@
  *   M4  an invalid context kept instead of dropped          -> leg 8   (a stale page stores a bogus run id)
  *   M5  operator_note added to the GET projection           -> leg 6   (internal triage data reaches the learner)
  *
+ * WHAT LEG 10a DOES AND DOES NOT PROVE, established by mutating it rather than assuming. The non-UUID run id is
+ * guarded in TWO places: the API drops the field, and the datastore re-checks the shape before its query casts to
+ * `uuid`. Removing EITHER guard alone leaves the leg passing, because the other covers it — so the leg proves the
+ * OUTCOME the contract cares about (no 500, the report is saved) and cannot tell the two layers apart. Only
+ * removing both fails it. That is defence in depth working as intended, recorded here so a future reader does not
+ * mistake one guard for the load-bearing one.
+ *
  * Usage: node tools/pilot-feedback-api-check.mjs   (exit 0 when every leg passes)
  */
 
