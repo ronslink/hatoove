@@ -46,12 +46,15 @@
  * one — and `--server=<path>` only repoints it. It FAILS if that file cannot serve the corpus, so the
  * strongest leg cannot go dark behind a green summary; the summary line names the file it used.
  *
- * MUTATION PROOF: `--mutations` automates the four (a copy of `public/` per mutation in %TEMP%, each
+ * MUTATION PROOF: `--mutations` automates the six (a copy of `public/` per mutation in %TEMP%, each
  * hash-verified as changed, then this check re-run as a child). Each must fail ONE leg:
  *   M1 the review drops the key marker          -> leg 2 fails
  *   M2 the fourth tap gets the silent restart   -> leg 6 fails
  *   M3 replay is offered before "Auswerten"     -> leg 7 fails
  *   M4 the served option `value` is stringified -> leg 7 fails
+ *   M5 the practice refusal stops being read    -> leg 7g fails (POOL-01)
+ *   M6 the bytes are fetched before the play    -> leg 7f fails (POOL-01)
+ * M5/M6 mutate `practice-listening.js` rather than the runner, so each mutation names the file it edits.
  * Run `node tools/practice-runner-check.mjs --mutations` for the proof; the child runs add a
  * `--no-mutations` guard so the proof cannot recurse.
  */
@@ -250,16 +253,46 @@ function stubApi({ responses = [], set = dtoSet(), examParts = EXAM_PARTS_FIXTUR
 
 /** A host stub: enough for `createPartRunnerView` / `createPartIndexView`, no DOM library.
  *  `querySelector` hands back a small stand-in node per selector, so the runner's in-place updates (the
- *  answered mark, the progress line, the evaluate button) can be observed without a DOM. */
+ *  answered mark, the progress line, the evaluate button) can be observed without a DOM.
+ *
+ *  POOL-01 made this stateful in ONE respect: assigning `innerHTML` replaces the element's children for real,
+ *  so every node handed out before the assignment is marked DISCONNECTED (`isConnected === false`, and
+ *  `querySelector` then returns a fresh node). That is what the practice player checks before it renders into
+ *  a mount point the runner has already replaced — without it a stub would let a stale-node bug pass. */
 function hostStub(id = 'part-index-host') {
-  const nodes = new Map();
+  let nodes = new Map();
+  const state = { innerHTML: '' };
   return {
-    id, innerHTML: '', onclick: null, onchange: null, dataset: {}, hidden: false, className: '',
+    id, onclick: null, onchange: null, dataset: {}, hidden: false, className: '',
+    get innerHTML() { return state.innerHTML; },
+    set innerHTML(value) {
+      for (const node of nodes.values()) node.isConnected = false;
+      nodes = new Map();
+      state.innerHTML = value;
+    },
     querySelector: (selector) => {
-      if (!nodes.has(selector)) nodes.set(selector, { dataset: {}, textContent: '', disabled: false, setAttribute() {} });
+      if (!nodes.has(selector)) {
+        /*
+         * The practice player renders INTO a host node of its own (`listeningPlayerMarkup` returns markup, the
+         * player assigns it to `[data-listening-mount]`). A plain stub node would swallow that assignment and
+         * the composition could not be observed here, so the mount node keeps its own innerHTML — which is the
+         * ONE piece of DOM behaviour this check models, and it says so.
+         */
+        const node = { dataset: {}, textContent: '', disabled: false, isConnected: true, setAttribute() {}, querySelectorAll: () => [], children: [], innerHTML: '' };
+        if (selector === '[data-listening-mount]') {
+          let markup = '';
+          Object.defineProperty(node, 'innerHTML', {
+            get: () => markup,
+            set: (value) => { markup = String(value); node.isConnected = true; },
+            enumerable: true, configurable: true,
+          });
+        }
+        nodes.set(selector, node);
+      }
       return nodes.get(selector);
     },
-    querySelectorAll: () => [], contains: () => false, matches: () => false, nodes,
+    querySelectorAll: () => [], contains: () => false, matches: () => false,
+    get nodes() { return nodes; },
   };
 }
 const clickEvent = selector => ({ target: { closest: (wanted) => (wanted === selector ? { dataset: {} } : null) } });
@@ -503,21 +536,24 @@ leg('7 [dto] listening shows the EXAM play rule, posts BOOLEAN answers and disab
   assert.ok(markup.includes('data-runner-audio'), 'the player block is rendered');
   assert.ok(markup.includes('data-runner-player'), 'the player itself is rendered');
   assert.match(markup, /data-playback-mock="2"/, 'the EXAM play rule is the served mock number');
-  assert.match(markup, /data-runner-play[^-][^>]*disabled/, 'playback is disabled');
+  assert.match(markup, /data-playback-practice="1"/, 'and the practice rule the server will apply is on the block too');
   assert.ok(textOf(markup).includes('Prüfungsregel: 2-mal hören'), 'the exam rule is printed, not the practice one');
   assert.equal(countOf(markup, /data-runner-replay[ >]/g), 0, 'NO replay control before "Auswerten"');
   assert.ok(textOf(markup).includes('Eine Wiederholung ist erst nach dem Auswerten möglich.'));
   const honest = textOf(markup);
   /*
-   * FIX-F1 — THE COPY IS LEARNER-FACING NOW. The old sentence named an internal path ("Übungs-Wiedergabeweg"),
-   * which is engineering text on a learner's screen. The block itself is also DEFENCE IN DEPTH: the server no
-   * longer serves a listening set at all, so this markup can only appear if one arrives anyway.
+   * FIX-F1 — THE COPY IS LEARNER-FACING NOW, and after POOL-01 the block has TWO honest states. This DTO is a
+   * listening set whose recording is NOT bound to any `exam_media` row (the server would refuse to serve it
+   * at all — `practiceSetForPart`'s admission rule), so the block says the recording cannot be played here
+   * rather than offering a player that cannot start.
    */
   assert.ok(/noch nicht üben/.test(honest), 'it says what the learner cannot do here, in their language');
   assert.ok(!/Wiedergabeweg|Abspielweg|playback path/.test(honest), 'it names no internal path');
   assert.ok(!/nicht vorhanden|existiert nicht|does not exist|no recording/i.test(honest), 'it must never claim the recording is missing');
-  /* The served judgement options carry an EMPTY text and boolean values: the control is decided by
-     `answer_kind`, the labels are the exam's own words, and the POSTed answer keeps its type. */
+  /*
+   * The served judgement options carry an EMPTY text and boolean values: the control is decided by
+   * `answer_kind`, the labels are the exam's own words, and the POSTed answer keeps its type.
+   */
   assert.equal(answering.set.items[0].answer_kind, 'judgement', 'the served answer_kind decides the control');
   assert.deepEqual(answering.set.items[0].options.map(option => option.value), [true, false]);
   assert.ok(markup.includes('data-answer-kind="judgement"'), 'the control is a judgement pair');
@@ -528,16 +564,242 @@ leg('7 [dto] listening shows the EXAM play rule, posts BOOLEAN answers and disab
   assert.equal(typeof stub.calls.check[0].answers[0].answer, 'boolean', 'a boolean is POSTed, never the string "true"');
   assert.equal(stub.calls.check[0].answers[0].answer, true, 'the option VALUE is posted');
   assert.equal(state.phase, 'review');
-  assert.ok(host.innerHTML.includes('data-runner-replay'), 'replay becomes available only in the review');
   assert.ok(!textOf(host.innerHTML).includes('Eine Wiederholung ist erst nach dem Auswerten möglich.'), 'the pre-review replay rule is gone once reviewed');
-  /* A judgement item's explanation is `null` on purpose (the choice-family reader cannot read it), and the
-     review must say something TRUE about that rather than rendering an empty card or "not loaded yet". */
+  /*
+   * A judgement item's explanation is `null` on purpose (the choice-family reader cannot read it), and the
+   * review must say something TRUE about that rather than rendering an empty card or "not loaded yet".
+   */
   assert.match(host.innerHTML, /data-explanation-status="unavailable"/, 'the missing explanation is named as such');
   assert.ok(textOf(host.innerHTML).includes('Für diese Aufgabe ist keine Erklärung verfügbar.'), 'with the honest copy');
   assert.ok(!textOf(host.innerHTML).includes('noch nicht geladen'), 'and never the "not loaded yet" promise');
   assert.equal(countOf(host.innerHTML, /data-runner-explanation-language/g), 0, 'no language control when there is nothing to re-read');
   assert.equal(countOf(host.innerHTML, /data-explanation-slot/g), 0, 'and no explanation prose is invented');
   assert.equal(countOf(host.innerHTML, /data-runner-action="/g), 3, 'the review is still complete: three actions');
+});
+
+/*
+ * POOL-01 — THE PRACTICE PLAYBACK TRANSPORT, AS THE RUNNER RENDERS IT.
+ *
+ * The set below is the shape the release actually serves: `media_required`, a `material.recordings[]` binding
+ * and an open sitting. Here the runner must render a REAL player (the mount point the practice player fills),
+ * print the ONE-PLAY-BEFORE-"AUSWERTEN" rule instead of the exam allowance line, and never promise a second
+ * play before "Auswerten". The mutation proof at the end of this file removes the one-play sentence and this
+ * leg must fail by name.
+ */
+function boundJudgementSet() {
+  return {
+    ...judgementSet(),
+    set_id: 'telc-deutsch-b1.hv1.04', family: 'HV1', section: 'HV', part: 1,
+    title: 'Nachrichten von Kolleginnen und Kollegen',
+    material: { recordings: [{ id: 'hv1.04-recording', mediaId: 'telc-deutsch-b1.hv1.04.audio', mediaVersion: 'v1', label: 'Nachrichten von Kolleginnen und Kollegen' }] },
+  };
+}
+
+leg('7e [dto] a listening set with a recording gets a REAL player and the one-play-before-Auswerten rule', () => {
+  const set = boundJudgementSet();
+  const state = runner.runnerStateFromServed({
+    family: 'HV1', response: nextResponse({ set }),
+    examRule: { family: 'HV1', section: 'HV', part: 1, playback: { practice: 1, mock: 1 } },
+  });
+  const markup = renderState(state);
+  assert.match(markup, /data-runner-audio-source="practice"/, 'the block declares which path plays it');
+  assert.match(markup, /data-audio-state="player"/, 'and that a player is what it is');
+  assert.match(markup, /data-listening-mount/, 'the practice player has a mount point');
+  assert.ok(!markup.includes('data-runner-playback-missing'), 'the "cannot play here" sentence is not printed for a playable set');
+  const text = textOf(markup);
+  assert.ok(text.includes('Erster Höreindruck'), 'the ONE-play-before-Auswerten rule is printed');
+  assert.ok(text.includes('einmal abspielen'), 'and it says how many plays are available before "Auswerten"');
+  assert.ok(text.includes('erst nach „Auswerten“'), 'and what unlocks the rest');
+  assert.ok(!/noch nicht üben/.test(text), 'the unavailable sentence is NOT printed for a playable set');
+  assert.ok(!/Wiedergabeweg|Abspielweg|playback path/.test(text), 'and no internal path is named');
+  /*
+   * The STATIC sentence must not offer a play the server would refuse: it may name the sitting's rule (one
+   * play, the rest after "Auswerten") but must never borrow the EXAM allowance line, which is a different
+   * number and a different rule.
+   */
+  const ruleSentence = text.slice(text.indexOf('Erster Höreindruck'), text.indexOf('Eine Wiederholung'));
+  assert.ok(!/-mal hören/.test(ruleSentence), 'the practice rule does not inherit the exam allowance line');
+});
+
+/*
+ * THE HONEST SENTENCE, DRIVEN THROUGH THE PLAYER ITSELF. The stub below is the practice transport the server
+ * ships: a `ready` sitting with an allowance, `begin`/`pause`/`complete` transitions, and the byte route that
+ * only answers while a play is in progress. Every assertion below fails if the client promises a play the
+ * server would refuse.
+ */
+function practicePlaybackStub({ state = 'ready', playsUsed = 0, maxPlays = 1, checked = false, fail = null } = {}) {
+  const calls = { read: [], post: [], media: [] };
+  let revision = 0;
+  const current = {
+    media_id: 'telc-deutsch-b1.hv1.04.audio', media_version: 'v1', revision, state, plays_used: playsUsed,
+    max_plays: maxPlays, position_ms: 0, duration_ms: 75657, playback_id: state === 'ready' ? null : 'play-1',
+    uncertain: false, server_now: '2026-10-05T12:00:00.000Z',
+  };
+  const api = {
+    practice: {
+      playback: async (attemptId) => {
+        calls.read.push(attemptId);
+        if (fail === 'read') return { ok: false, status: 503, error: 'practice_playback_unavailable', data: null };
+        return { ok: true, status: 200, data: { items: [{ ...current }], sitting: { attempt_id: attemptId, state: checked ? 'checked' : 'open', checked, plays_used: current.plays_used, replay_used: false } } };
+      },
+      playbackEvent: async (attemptId, body) => {
+        calls.post.push({ attemptId, body });
+        if (fail === 'begin') return { ok: false, status: 409, error: 'practice_check_required', data: null };
+        if (fail === 'exhausted') return { ok: false, status: 409, error: 'playback_exhausted', data: null };
+        if (body.action === 'begin') {
+          current.state = 'playing'; current.plays_used += 1; current.playback_id = 'play-' + (++revision);
+        } else if (body.action === 'pause') {
+          current.state = 'paused'; current.position_ms = body.positionMs;
+        } else if (body.action === 'complete') {
+          current.state = 'completed'; current.position_ms = current.duration_ms;
+        } else if (body.action === 'checkpoint') {
+          current.position_ms = body.positionMs;
+        }
+        current.revision = ++revision;
+        return { ok: true, status: 200, data: { playback: { ...current } } };
+      },
+      media: async (attemptId, mediaId, version) => {
+        calls.media.push({ attemptId, mediaId, version });
+        return { ok: true, status: 200, data: { size: 1024 } };
+      },
+    },
+  };
+  return { api, calls, current };
+}
+
+/** A DOM-free audio element, like the s5 client check's: enough for play/pause and the event listeners. */
+function fakeAudio() {
+  const handlers = new Map();
+  return {
+    currentTime: 0, paused: true, ended: false, playbackRate: 1, defaultPlaybackRate: 1, preload: '', controls: false,
+    addEventListener: (name, handler) => handlers.set(name, handler),
+    removeEventListener: (name) => handlers.delete(name),
+    setAttribute() {}, removeAttribute() {}, load() {}, remove() {},
+    play: async () => { return true; },
+    pause() { this.paused = true; },
+    fire(name) { handlers.get(name)?.(); },
+  };
+}
+
+/** Drive the practice player directly, without the runner's DOM, so each state can be inspected. */
+async function drivePlayer(binding, stub, overrides = {}) {
+  /* Resolved from the RUNNER's own directory, so a mutation copy (--module=<copy>) drives the mutated player. */
+  const { createPracticeListeningPlayer } = await import(new URL('./practice-listening.js', pathToFileURL(MODULE_PATH)).href);
+  /* The player reads the locale at render time; the copy legs read German, so pin it as the corpus legs do. */
+  setLocale('de');
+  const player = createPracticeListeningPlayer({
+    api: stub.api, esc, getExamLanguage: () => 'de', createAudio: fakeAudio,
+    createObjectURL: () => 'blob:test', revokeObjectURL: () => {},
+    eventId: (() => { let n = 0; return () => 'event-' + (++n); })(),
+    ...overrides,
+  });
+  return player;
+}
+
+leg('7f the practice transport: the client asks for the bytes only AFTER the server acknowledges a play', async () => {
+  const stub = practicePlaybackStub({ maxPlays: 1 });
+  const clip = { media_id: 'telc-deutsch-b1.hv1.04.audio', media_version: 'v1', label: 'Aufnahme' };
+  const player = await drivePlayer({ attemptId: UUID, recording: clip }, stub);
+  const host = hostStub('player-host');
+  player.mount(host, { attemptId: UUID, recording: clip });
+  await tick();
+  assert.deepEqual(stub.calls.read, [UUID], 'the sitting is read once on mount');
+  assert.equal(stub.calls.post.length, 0, 'and nothing is debited by reading');
+  assert.equal(stub.calls.media.length, 0, 'and no bytes are asked for before a play exists');
+  assert.ok(textOf(host.innerHTML).includes('Erster Höreindruck'), 'the ready copy is the one-play rule');
+  assert.equal(countOf(host.innerHTML, /data-listening-action="play"/g), 1, 'exactly one play control');
+  const started = await player.play();
+  assert.equal(started, true, 'the first play starts');
+  assert.deepEqual(stub.calls.post.map(call => call.body.action), ['begin'], 'begin FIRST');
+  assert.equal(stub.calls.media.length, 1, 'and only then the bytes');
+  assert.equal(stub.calls.post[0].body.mediaId, clip.media_id, 'the event names the served recording');
+  assert.equal(stub.calls.media[0].attemptId, UUID, 'the bytes are addressed by the SITTING, not by the run');
+  player.dispose();
+});
+
+leg('7g the refused second listen is shown as the server\u2019s own decision, never as an available play', async () => {
+  const stub = practicePlaybackStub({ state: 'completed', playsUsed: 1, maxPlays: 2, checked: false, fail: 'begin' });
+  const clip = { media_id: 'telc-deutsch-b1.hv1.04.audio', media_version: 'v1', label: 'Aufnahme' };
+  const player = await drivePlayer({ attemptId: UUID, recording: clip }, stub);
+  const host = hostStub('player-host');
+  player.mount(host, { attemptId: UUID, recording: clip });
+  await tick();
+  const started = await player.play();
+  assert.equal(started, false, 'a refused play does not start');
+  const text = textOf(host.innerHTML);
+  assert.ok(text.includes('erst nach „Auswerten“'), 'the refusal says what unlocks the next play');
+  assert.ok(!text.includes('Erster Höreindruck'), 'and never repeats the ready sentence, which would promise a play');
+  assert.equal(stub.calls.media.length, 0, 'no bytes are fetched for a play the server refused');
+  assert.equal(stub.current.plays_used, 1, 'and the refusal debits nothing');
+  player.dispose();
+});
+
+leg('7h an exhausted allowance is its own sentence, and the transport refusal keeps the FIX-F1 path', async () => {  const clip = { media_id: 'telc-deutsch-b1.hv1.04.audio', media_version: 'v1', label: 'Aufnahme' };
+  const spent = practicePlaybackStub({ state: 'completed', playsUsed: 2, maxPlays: 2, checked: true, fail: 'exhausted' });
+  const player = await drivePlayer({ attemptId: UUID, recording: clip }, spent);
+  const host = hostStub('player-host');
+  player.mount(host, { attemptId: UUID, recording: clip });
+  await tick();
+  await player.play();
+  assert.ok(textOf(host.innerHTML).includes('Hörversuch verbraucht'), 'the spent allowance is named');
+  assert.ok(!textOf(host.innerHTML).includes('Erster Höreindruck'), 'and no further play is offered');
+  const spentAgain = await player.play();
+  assert.equal(spentAgain, false, 'a spent allowance cannot be played again');
+  player.dispose();
+
+  /* The transport itself is absent (503 `practice_playback_unavailable`): the FIX-F1 sentence must survive. */
+  const refused = practicePlaybackStub({ fail: 'read' });
+  const gone = await drivePlayer({ attemptId: UUID, recording: clip }, refused);
+  const goneHost = hostStub('player-host');
+  gone.mount(goneHost, { attemptId: UUID, recording: clip });
+  await tick();
+  assert.ok(textOf(goneHost.innerHTML).includes('noch nicht üben'), 'the honest unavailable sentence is printed');
+  assert.equal(countOf(goneHost.innerHTML, /data-listening-action="play"/g), 0, 'and no play is offered');
+  gone.dispose();
+});
+
+/*
+ * THE RUNNER ITSELF COMPOSES THE PLAYER. The legs above prove the practice player's own states; this one proves
+ * the COMPOSITION the runner owns: a served listening set puts the player into the mount point the audio block
+ * carries, the player renders its own control with the practice transport behind it, and no mock route is
+ * touched.
+ *
+ * WHAT THIS LEG DOES NOT PROVE, stated rather than implied: it does not dispatch a real click through the
+ * runner's delegated handler (the stub host is not a DOM), and it does not render CSS. The handler's routing is
+ * four lines that call `player.play()`; a browser run of `app-browser-check.mjs` against a disposable stack is
+ * the evidence for the rendered path, and this offline leg does not replace it.
+ */
+leg('7i the runner composes the practice player markup into the mount point, with no mock route in the path', async () => {
+  const set = boundJudgementSet();
+  const playback = practicePlaybackStub({ maxPlays: 1 });
+  const mockCalls = [];
+  const practiceCalls = { next: [] };
+  const api = {
+    examParts: { list: async () => ({ ok: true, status: 200, data: { exam_id: 'telc-deutsch-b1', parts: EXAM_PARTS_FIXTURE } }) },
+    practice: {
+      ...playback.api.practice,
+      next: async (family) => { practiceCalls.next.push(family); return nextResponse({ set, family }); },
+      check: async (payload) => ({ ok: true, status: 200, data: checkedFromPayload(payload, set, { allCorrect: true }) }),
+      explanation: async () => ({ ok: true, status: 200, data: explanationView('de') }),
+    },
+    mock: {
+      playback: async (...args) => { mockCalls.push(['playback', ...args]); return { ok: false, status: 500, error: 'mock_must_not_be_used' }; },
+      playbackEvent: async (...args) => { mockCalls.push(['playbackEvent', ...args]); return { ok: false, status: 500, error: 'mock_must_not_be_used' }; },
+      media: async (...args) => { mockCalls.push(['media', ...args]); return { ok: false, status: 500, error: 'mock_must_not_be_used' }; },
+    },
+  };
+  const host = hostStub('part-runner-host');
+  await runner.createPartRunnerView({ ...CTX, family: 'HV1', examParts: EXAM_PARTS_FIXTURE, api }).mount(host);
+  await tick();
+  assert.equal(practiceCalls.next[0], 'HV1', 'the runner asked the server for the part');
+  assert.match(host.innerHTML, /data-listening-mount/, 'the player mount point is in the audio block');
+  /* The player's own subtree, read back from the mount node the runner handed it. */
+  const playerMarkup = host.querySelector('[data-listening-mount]').innerHTML;
+  assert.match(playerMarkup, /data-listening-action="play"/, 'and the practice player rendered its own control');
+  assert.match(playerMarkup, /Erster Höreindruck/, 'with the one-play-before-Auswerten sentence');
+  assert.deepEqual(mockCalls, [], 'nothing mocked the run: the block is bound to the practice sitting');
+  assert.equal(playback.calls.read[0], UUID, 'the playback state was read for the ATTEMPT the server opened');
+  assert.match(host.innerHTML, /data-audio-state="player"/, 'the block reports itself as a player, not as unavailable');
 });
 
 /*
@@ -1222,6 +1484,14 @@ const MUTATIONS = Object.freeze([
   Object.freeze({ id: 'M2', what: 'the exhausted part gets the silent restart label', from: 'key: wrapped ? WRAP_KEY : ACTION_KEYS.next', to: 'key: ACTION_KEYS.next', leg: '6' }),
   Object.freeze({ id: 'M3', what: 'replay is offered before "Auswerten"', from: "const reviewed = state.phase === 'review';", to: 'const reviewed = true;', leg: '7' }),
   Object.freeze({ id: 'M4', what: 'the served option value is stringified (HV would mark wrong)', from: 'return (typeof value === \'boolean\' || typeof value === \'string\' || typeof value === \'number\') ? value : typed(id);', to: 'return String(value ?? typed(id));', leg: '7' }),
+  /*
+   * M5/M6 cover the POOL-01 practice playback transport. Each removes ONE client-side guarantee that leg 7f or
+   * 7g exists for: M5 lets the client stop understanding the server's "a second listen needs Auswerten"
+   * refusal (so the sentence it prints would promise a play), and M6 asks for the bytes BEFORE the play is
+   * acknowledged — the exact order the practice media route refuses.
+   */
+  Object.freeze({ id: 'M5', what: 'the practice refusal "check first" is no longer understood', file: 'practice-listening.js', from: "  if (code === 'practice_check_required') return pt('partRunnerAudioCheckFirst', {}, locale);\n", to: '', leg: '7g' }),
+  Object.freeze({ id: 'M6', what: 'the bytes are fetched BEFORE the play is acknowledged', file: 'practice-listening.js', from: "    if (!mediaReady) {\n      const loaded = await loadBytes();\n      if (ticket !== epoch) return false;\n      if (!loaded) { busy = false; emit(); return false; }\n    }", to: "    if (!mediaReady) {\n      const loaded = await loadBytes();\n      if (ticket !== epoch) return false;\n      if (!loaded) { busy = false; emit(); return false; }\n      await loadBytes();\n    }", leg: '7f' }),
 ]);
 
 async function runMutations() {
@@ -1231,9 +1501,13 @@ async function runMutations() {
   try {
     for (const mutation of MUTATIONS) {
       const dir = path.join(base, mutation.id);
+      /* A FRESH copy per mutation: `cpSync` merges into an existing tree, so a leftover from an interrupted run
+         could mutate a file the previous run already patched and the proof would judge the wrong bytes. */
+      fs.rmSync(dir, { recursive: true, force: true });
       fs.mkdirSync(dir, { recursive: true });
       fs.cpSync(path.join(root, 'public'), path.join(dir, 'public'), { recursive: true });
-      const file = path.join(dir, 'public', 'app', 'part-runner.js');
+      /* Most mutations break the runner; M5/M6 break the practice player it composes, so the file is a member. */
+      const file = path.join(dir, 'public', 'app', mutation.file ?? 'part-runner.js');
       const before = hash(file);
       const source = fs.readFileSync(file, 'utf8');
       const occurrences = source.split(mutation.from).length - 1;
@@ -1241,14 +1515,31 @@ async function runMutations() {
       fs.writeFileSync(file, source.replace(mutation.from, mutation.to));
       const after = hash(file);
       const applied = before !== after;
-      const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url),
-        '--module=' + file,
+      /* The child runs a check that is not expected to hang; a hang is reported as a FAILURE, not waited out. */
+      /* Mutations are applied to `mutation.file`; the check under test always runs the RUNNER. */
+      const runnerPath = path.join(dir, 'public', 'app', 'part-runner.js');
+      const spawnArgs = [fileURLToPath(import.meta.url),
+        '--module=' + runnerPath,
         '--index=' + path.join(dir, 'public', 'app', 'part-index.js'),
         '--messages=' + path.join(dir, 'public', 'assets', 'i18n', 'practice-messages.js'),
         '--css=' + path.join(dir, 'public', 'app', 'part-runner.css'),
         '--server=' + SERVER_SETS_PATH,
-        '--no-mutations'], { encoding: 'utf8', cwd: root });
-      const output = String(child.stdout) + String(child.stderr);
+        '--no-mutations'];
+      for (const required of [file, runnerPath]) {
+        if (!fs.existsSync(required)) {
+          console.log('FAIL  ' + mutation.id + ' the copy is incomplete, missing ' + required);
+          broken++;
+          continue;
+        }
+      }
+      if (process.env.PRACTICE_RUNNER_MUT_DEBUG === '1') console.log('DEBUG spawn ' + JSON.stringify(spawnArgs));
+      const child = spawnSync(process.execPath, spawnArgs, { encoding: 'utf8', cwd: root, timeout: 120000 });      const output = String(child.stdout) + String(child.stderr);
+      if (child.error) {
+        console.log('FAIL  ' + mutation.id + ' the mutated check did not finish: ' + String(child.error.code || child.error.message));
+        if (output.trim()) console.log(output.split('\n').slice(-8).join('\n'));
+        broken++;
+        continue;
+      }
       /* The child prints each failure twice (the live line and the summary); dedupe so ONE leg means one. */
       const failedLegs = [...new Set([...output.matchAll(/^FAIL\s+(\d+[a-z]?)\b/gm)].map(match => match[1]))];
       const ok = applied && failedLegs.length === 1 && failedLegs[0] === mutation.leg;
