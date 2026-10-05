@@ -300,6 +300,17 @@ production and its checksum is frozen.
   module can label authored exam-language text (`lang`/`dir`) the way `mock.js` already does. Absent, a
   module falls back to `lang="und" dir="ltr"`; nothing may require it. The shell passes
   `getExamLanguage()` for every module from integration onwards.
+- **A4 (5 Oct 2026, slice A review).** Three readings are recorded after REVIEW-NAV-01:
+  (a) bare `#/abschnitt` resolves to **`probepruefung`**, not `pruefungsteile` as §4.1's bullet says,
+  because the saved-runs list is the Probeprüfung history surface and slice D carries it there; every
+  in-app link was retargeted so nothing depends on the redirect.
+  (b) The flat `#/satzbau` stays the **canonical** address for the Satzbau tool; `#/nachschlagen/satzbau`
+  resolves as the deep link that §4.1 wants, and the shell's saved-URL writer keeps the `#/prep/<id>/<view>`
+  shape. Satzbau is still reached from Nachschlagen and is no longer a sidebar entry.
+  (c) §4.1's "the writing-feedback allowance moves to Schreiben" is implemented literally: the allowance
+  element lives in the Schreiben view, and the preparation card names where it went.
+  Two scope notes: `public/app/mock.js` entered slice A's scope at review time (three link targets), and the
+  §4.2 module context table is unchanged by this amendment.
 - `PRACTICE-FLOW-FROM-B1PREP-20261005.md` was not found in this repository or in
   `D:\B1_Prep\Claude outputs`; §3 of that document is superseded by §5 here.
 - Push/PR policy for this program: slices are committed to their own local branches and integrated
@@ -309,4 +320,4 @@ production and its checksum is frozen.
   string is marked approved.
 - POOL-01 batch generation needs Ron's go-ahead.
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1, A2 and A3 added 5 October 2026.*
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1, A2, A3 and A4 added 5 October 2026.*
