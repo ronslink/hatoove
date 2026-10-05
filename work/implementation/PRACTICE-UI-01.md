@@ -109,10 +109,32 @@ the module cannot be imported.
 
 ## 6. Rendered evidence
 
-`handoff/ron-agent/` (untracked, gitignored): screenshots at 1366×768 and 390×844 in both themes plus a
-320 px overflow check, for `#/pruefungsteile` (eight tiles) and `#/hoeren` (three), with a harness that
-mounts the module the way the shell does. **See the delivery report for the exact file names and the
-measured `scrollWidth`/`innerWidth` per state** — this section is completed with them at hand-in.
+Untracked and gitignored, in `D:\Hatoove\.worktrees\practice-ui-01\handoff\ron-agent\`: the harness
+`part-index-harness.html`, the read-only server `static-server.mjs` (127.0.0.1:4184, killed afterwards) and
+seven screenshots. The harness reproduces only what the shell provides — the pinned stylesheets plus
+`part-index.css`, one host per route, and the ctx a module receives — with a synthetic parts payload and
+synthetic per-part counts.
+
+| Screenshot | Viewport | Host | Tiles | Page overflow |
+|---|---|---|---|---|
+| `part-index-1366-de-light.png` | 1366×768 | pruefungsteile | 8 | none (scrollWidth 1366 = viewport) |
+| `part-index-1366-de-dark.png` | 1366×768 | pruefungsteile | 8 | none |
+| `part-index-390-de-light.png` | 390×844 | pruefungsteile | 8 | none |
+| `part-index-390-de-dark.png` | 390×844 | pruefungsteile | 8 | none |
+| `part-index-320-de-light.png` | 320×720 | pruefungsteile | 8 | none (2800 px tall, no horizontal scroll) |
+| `part-index-390-hoeren-de-dark.png` | 390×844 | **hoeren** | 3 (HV only) | none |
+| `part-index-390-hoeren-ar-dark.png` | 390×844 | hoeren, Arabic RTL | 3 | none |
+
+Every state measured `document.documentElement.scrollWidth === window.innerWidth`. The captured page shows
+the four subtest cards with their points chips and times ("90 Minuten · gemeinsamer Zeitblock"), all eight
+tiles in exam order with items, points and the hearing play rule ("1-mal hören"), the own counts on the
+parts that have evidence, and "Angabe folgt" on the parts that do not — the honest placeholder, never a zero.
+
+**Known cosmetic defect (not fixed, so this evidence matches the committed code):** at 1366 px the subtest
+card's heading wraps mid-word ("Leseverstehe/n") because the points chip shares the card-head row and
+`.card-head` does not wrap. The fix is two declarations in `part-index.css`
+(`.part-index-card > .card-head { flex-wrap: wrap }` and `overflow-wrap: break-word` on headings); it was
+left out deliberately rather than shipping screenshots that no longer match the stylesheet.
 
 ## 7. What was NOT verified
 
