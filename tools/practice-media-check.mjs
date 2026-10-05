@@ -638,15 +638,34 @@ for (const [label, relative, mutate, exportName, probe] of MUTATIONS) {
     await cp(path.join(ROOT, 'server'), path.join(sandbox, 'server'),
       { recursive: true, filter: (source) => !source.includes('node_modules') });
     const target = path.join(sandbox, ...relative.split('/'));
-    const source = await readFile(target, 'utf8');
+    /*
+     * REVIEW merged-tree M2. M3 is the only multi-line mutation pattern in this file and it joins its lines
+     * with LF, while a Windows working tree is CRLF (`core.autocrlf=true`, and `.gitattributes` pins LF only
+     * for `server/migrations/*.sql`). The pattern therefore matched nothing and the guard aborted BEFORE the
+     * tally, printing a stack trace where a reader expects "N legs, M failed" — green on CI, red on every
+     * Windows tree, which is the worst combination. The read is normalised here (the same idiom the F3 block
+     * already uses) and an unapplicable mutation is recorded as a named failure instead of throwing.
+     */
+    const source = (await readFile(target, 'utf8')).replaceAll('\r\n', '\n');
     const mutated = mutate(source);
-    assert.notEqual(mutated, source, `${label}: the mutation must change the module`);
+    if (mutated === source) {
+      failures.push(`${label}: the mutation must change the module (${relative})`);
+      console.log(`MUTATION ${label} -> the pattern no longer matches the module`);
+      continue;
+    }
     await writeFile(target, mutated);
     const module = await import(pathToFileURL(target).href);
-    assert.equal(typeof module[exportName], 'function', `${label}: the mutated module must still export ${exportName}`);
+    if (typeof module[exportName] !== 'function') {
+      failures.push(`${label}: the mutated module must still export ${exportName}`);
+      continue;
+    }
     // The SAME assertion the leg makes, now against the broken guard: it must fail.
-    assert.throws(() => probe(module[exportName]), `${label}: no leg fails on the mutated module`);
-    console.log(`MUTATION ${label} -> the guarded leg fails (${relative})`);
+    try {
+      probe(module[exportName]);
+      failures.push(`${label}: no leg fails on the mutated module`);
+    } catch {
+      console.log(`MUTATION ${label} -> the guarded leg fails (${relative})`);
+    }
   } finally {
     await rm(sandbox, { recursive: true, force: true }).catch(() => {});
   }
