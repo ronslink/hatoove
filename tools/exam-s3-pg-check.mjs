@@ -12,6 +12,7 @@ import { createExamCatalogue } from '../server/preparation-contract.mjs';
 import { createOwnedApi } from '../server/owned-api.mjs';
 import { syntheticPackage, originalPackage, S3_EXAM, S3_GROUPED_SET } from './exam-s3-check.mjs';
 import {syntheticContentReview} from './exam-s6-fixture.mjs';
+import { readFileSync } from 'node:fs';
 
 /*
  * The expected forward-migration remainder is DERIVED from `server/migrations/MANIFEST.json`, not listed.

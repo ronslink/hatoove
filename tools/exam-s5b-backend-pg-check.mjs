@@ -14,6 +14,7 @@ import {createExamCatalogue} from '../server/preparation-contract.mjs';
 import {createCompleteFixture} from './exam-s5b-fixture.mjs';
 import {mockMemberItems} from '../server/mock-contract.mjs';
 import {readReleasedForm} from '../server/owned-postgres/packages.mjs';
+import { readFileSync } from 'node:fs';
 
 /*
  * The expected forward-migration remainder is DERIVED from `server/migrations/MANIFEST.json`, not listed.

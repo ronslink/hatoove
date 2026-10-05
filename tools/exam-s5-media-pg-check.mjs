@@ -13,6 +13,7 @@ import { importPackage } from '../server/owned-postgres/package-importer.mjs';
 import { createExamCatalogue } from '../server/preparation-contract.mjs';
 import { createOwnedApi } from '../server/owned-api.mjs';
 import { createListeningFixture } from './exam-s5-fixture.mjs';
+import { readFileSync } from 'node:fs';
 
 /*
  * The expected forward-migration remainder is DERIVED from `server/migrations/MANIFEST.json`, not listed.

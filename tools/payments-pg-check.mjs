@@ -17,6 +17,7 @@ import { syntheticS4Package } from './exam-s4-check.mjs';
 import { runTableClassCheck } from './table-class-check.mjs';
 import { InvalidSignature,createPaymentsPort } from '../server/payments/port.mjs';
 import { buildSignatureHeader } from '../server/payments/signature.mjs';
+import { readFileSync } from 'node:fs';
 
 /*
  * The expected forward-migration remainder is DERIVED from `server/migrations/MANIFEST.json`, not listed.

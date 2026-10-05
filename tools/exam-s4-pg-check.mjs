@@ -13,6 +13,7 @@ import {importPackage,importDefaultPackage} from '../server/owned-postgres/packa
 import {createExamCatalogue} from '../server/preparation-contract.mjs';
 import {syntheticS4Package} from './exam-s4-check.mjs';
 import {syntheticContentReview} from './exam-s6-fixture.mjs';
+import { readFileSync } from 'node:fs';
 
 /*
  * The expected forward-migration remainder is DERIVED from `server/migrations/MANIFEST.json`, not listed.

@@ -9,6 +9,7 @@ import {importObjectiveExplanations} from '../server/owned-postgres/explanation-
 import {registerExplanationReviewTarget,readExplanationReviewPacket,readExplanationCoverage} from '../server/owned-postgres/explanation-review.mjs';
 import {recordReviewerAuthority,recordContentReview} from '../server/owned-postgres/content-review.mjs';
 import {executeReviewCommand,parseReviewArgs} from './review-content.mjs';
+import { readFileSync } from 'node:fs';
 
 /*
  * The expected forward-migration remainder is DERIVED from `server/migrations/MANIFEST.json`, not listed.
