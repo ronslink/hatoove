@@ -156,7 +156,13 @@ leg('3 the payload wins: served values override the constant', () => {
   const markup = viewModule.indexMarkup({ esc, uiText, examLanguage: 'de', model });
   assert.equal(attrOf(markup, 'LV1', 'data-items'), '7');
   assert.equal(attrOf(markup, 'LV1', 'data-points'), '31');
-  assert.equal(attrOf(markup, 'HV2', 'data-plays'), '3');
+  /*
+   * REVIEW-PRACTICE-MEDIA F2, Lead decision: the tile shows the EXAM allowance (`mock`), because Ron's
+   * decision 3 makes practice listening follow the exam play rule and that is what the runner enforces.
+   * The fixture deliberately makes the two differ (practice 3, exam 4) so a regression to `practice`
+   * fails here instead of telling a learner one play while the server allows two.
+   */
+  assert.equal(attrOf(markup, 'HV2', 'data-plays'), '4', 'the tile must show the exam allowance, not the practice one');
   assert.ok(textOf(markup).includes('31'), 'the served points render');
   assert.ok(!textOf(markup).includes('25 Punkte'), 'the constant does not leak when the payload answers');
 });

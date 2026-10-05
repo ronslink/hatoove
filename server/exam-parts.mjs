@@ -29,8 +29,14 @@ const nonEmptyString = (value) => (typeof value === 'string' && value.trim() ? v
  * The playback rule the payload states for a part, or null.
  *
  * `practice` is the number of plays a practice attempt allows; `mock` is the examination rule. Both come
- * from the payload — `{practice: 1, mock: 1}` for HV1/HV3 and `{practice: 1, mock: 2}` for HV2 in the
- * delivered telc package. The tile shows the PRACTICE allowance, because the tile leads to practice.
+ * from the payload — `{practice: 1, mock: 1}` for HV1 and `{practice: 1, mock: 2}` for HV2 and HV3, which
+ * is what `content/exams/telc-deutsch-b1/listening-package.json` declares and what
+ * `docs/exam/TELC-B1-SOURCES.md` records for Teil 3 (every text is heard twice). REVIEW-PRACTICE-MEDIA F2
+ * caught this comment claiming `HV3 mock: 1`, which both cited sources contradict.
+ *
+ * The tile renders the EXAM allowance (`mock`), not `practice`: Ron's decision 3 makes practice listening
+ * follow the exam play rule, and the runner enforces and displays that number, so the tile must not say
+ * one play while the server allows two (Lead decision on F2, recorded in amendment A10).
  */
 export function partPlayback(part) {
   if (!isPlainObject(part?.playback)) return null;

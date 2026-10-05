@@ -80,11 +80,20 @@ export const SECTION_ROUTES = Object.freeze({ LV: '#/lesen', SB: '#/sprachbauste
 const defaultEsc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const countOrNull = value => (Number.isInteger(value) && value >= 0 ? value : null);
 const itemCountOf = part => countOrNull(part?.itemCount ?? part?.item_count ?? part?.items);
+/*
+ * REVIEW-PRACTICE-MEDIA F2, decided by the Lead. The tile must show the rule the EXAM applies, not the
+ * `practice` allowance, because Ron's decision 3 makes practice listening follow the exam play rule and
+ * that is what the runner enforces and displays. On HV2/HV3 the two numbers differ (practice 1, exam 2),
+ * so showing `practice` told the learner one play while the server allowed two. `exam` is the number the
+ * tile renders, `practice` is kept because it is part of the served payload and a future practice-specific
+ * rule would have to come from the blueprint, not be invented here.
+ */
 const playbackOf = part => {
   const playback = part?.playback;
+  const exam = countOrNull(playback?.mock);
   const practice = countOrNull(playback?.practice);
-  if (!practice) return null;
-  return { practice, mock: countOrNull(playback?.mock) };
+  if (!exam && !practice) return null;
+  return { exam: exam ?? practice, practice };
 };
 
 /** Which parts this host shows: `hoeren-host` filters to HV; any other host shows every released part. */
@@ -188,7 +197,7 @@ export function indexMarkup({ esc = defaultEsc, uiText = key => key, examLanguag
       tile.items === null ? t('partIndexPending') : t('tasks', { count: tile.items }),
       tile.points === null ? t('partIndexPending') : t('partIndexPoints') + ' ' + esc(String(tile.points)),
     ];
-    if (tile.playback) facts.push(t('partPlays', { plays: tile.playback.practice }));
+    if (tile.playback) facts.push(t('partPlays', { plays: tile.playback.exam }));
     const own = tile.own === null
       /* Unknown is not zero: without per-part evidence the tile says so rather than claiming "not practised". */
       ? '<p class="part-index-own muted" data-own-count="unknown">' + t('partIndexPending') + '</p>'
@@ -197,7 +206,7 @@ export function indexMarkup({ esc = defaultEsc, uiText = key => key, examLanguag
         : '<p class="part-index-own" data-own-count="' + tile.own.attempts + '/' + tile.own.correct + '" data-attempts="' + tile.own.attempts + '" data-correct="' + tile.own.correct + '">'
           + t('partPractised', { practised: tile.own.attempts, correct: tile.own.correct }) + '</p>';
     return '<li class="part-index-tile" data-part="' + esc(tile.family) + '" data-section="' + esc(tile.section) + '" data-part-number="' + esc(String(tile.part)) + '"'
-      + (tile.playback ? ' data-plays="' + esc(String(tile.playback.practice)) + '"' : '')
+      + (tile.playback ? ' data-plays="' + esc(String(tile.playback.exam)) + '"' : '')
       + ' data-items="' + esc(tile.items === null ? '' : String(tile.items)) + '" data-points="' + esc(tile.points === null ? '' : String(tile.points)) + '">'
       + '<p class="kicker">' + esc(tile.family) + '</p>'
       + '<h3' + languageAttributes(examLanguage) + '>' + sectionName(tile.section) + ' · ' + t('part', { part: tile.part }) + '</h3>'

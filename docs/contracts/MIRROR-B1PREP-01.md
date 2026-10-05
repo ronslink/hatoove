@@ -370,6 +370,13 @@ production and its checksum is frozen.
   route is a choice-family reader (`0037`) and a boolean HV answer raised `not_found`. Fixed under the same
   review cycle: a judgement set serves `explanation: null`, a failed explanation read can never discard a
   committed check, and the HTTP leg now drives an HV set as well as LV1.
+- **A10 (5 Oct 2026, F2 of the media review — the play rule the learner is shown).** A part tile renders the
+  **exam** allowance (`playback.mock`), not the `practice` allowance. Ron's decision 3 makes practice
+  listening follow the exam play rule, and the practice playback path enforces and displays that same
+  number, so a tile showing `practice` told an HV2/HV3 learner one play while the server allowed two. The
+  `practice` value stays in the payload and in the tile's model (a future practice-specific rule must come
+  from the blueprint, not be invented in the client). `server/exam-parts.mjs`'s comment claiming
+  `HV3 mock: 1` is corrected — both cited sources say Teil 3 is heard twice.
 - `PRACTICE-FLOW-FROM-B1PREP-20261005.md` was not found in this repository or in
   `D:\B1_Prep\Claude outputs`; §3 of that document is superseded by §5 here.
 - Push/PR policy for this program: slices are committed to their own local branches and integrated
@@ -379,4 +386,4 @@ production and its checksum is frozen.
   string is marked approved.
 - POOL-01 batch generation needs Ron's go-ahead.
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A9 added 5 October 2026.*
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A10 added 5 October 2026.*
