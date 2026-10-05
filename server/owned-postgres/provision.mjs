@@ -162,8 +162,15 @@ export function migrationChecksumMatches(bytes, recorded) {
  */
 export function renderSql(text, config) {
   let out = text.replaceAll('__SCHEMA__', config.schema);
-  for (const role of ['auth', 'learner', 'worker', 'deletion', 'payments']) {
-    out = out.replaceAll(`__${role.toUpperCase()}__`, config.roles[role]);
+  /*
+   * DERIVED FROM `config.roles`, NOT A HARD-CODED LIST. This named five roles, so the first migration to use a
+   * placeholder outside that set — `__OPERATOR__` in FB-D's `0050` — failed at deploy time with
+   * `role "__OPERATOR__" does not exist`, because the placeholder survived into the SQL. Every role in ROLES is
+   * now substituted, so adding one there is enough for the renderer to know it. That is the property that keeps
+   * the two in step, and the reason this is a fix rather than a seventh name.
+   */
+  for (const [role, name] of Object.entries(config.roles)) {
+    out = out.replaceAll(`__${role.toUpperCase()}__`, name);
   }
   return out;
 }
