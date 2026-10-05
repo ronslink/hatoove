@@ -84,14 +84,26 @@ It found one weakness worth acting on and one coverage hole that is now fixed:
 
 ## 4. Slice C/D — answer feedback
 
-**Partly delivered** (commit `a0765cd`): the Fehlerheft rows and the practice verdict now show
-`correct_answer`, in the selected interface language, and `tools/app-browser-check.mjs` L19 asserts the reveal
-instead of the behaviour slice A replaced. Still owed: the answer tiles, the full verdict box, the question
-navigator, and the part-result screen — they need the studio-look values to be designed objects.
+**Answer tiles, verdict and the reveal are delivered** (`f9e51fa`, `af57d29`):
 
-A check had to change with the markup and did: `tools/shell-locale-check.mjs:224` pins
-`data-answer="a">a) Original English answer` in `app.js`, which is unaffected so far because the tiles are
-not built yet.
+- Each option is a tile with a letter badge, the full authored label and a verdict slot. `data-state` comes
+  only from the server's response — `correct`, `wrong`, or `was-correct` for the key when the learner got it
+  wrong — and every state carries a glyph (✓/✗) as well as a colour. An unanswered tile has no state at all.
+- The Fehlerheft rows and the practice verdict both name the correct answer, in the selected interface
+  language.
+- Contrast is measured in both themes for tile text, glyph and border; every pair passes (the table is in
+  `work/implementation/REDESIGN-01-SLICE-B.md`).
+- The tile-state rule is pinned by `.qa/redesign-01/tile-state-contract.mjs` (16/16), because the rendered
+  harness cannot drive practice to a verdict on this machine: nine `(picked, correct, key)` combinations,
+  including a pick that is also the key and a backend with no `correct_answer`, plus a source check that
+  `answerItem` still contains the branch order. The file is a contract harness, not a unit test of the
+  imported module — `public/app/app.js` is a DOM-bound entry point that Node cannot import.
+
+A check had to change with the markup and did: `tools/shell-locale-check.mjs:224` used to pin
+`data-answer="a">a) Original English answer` literally. It now parses the tile and asserts the invariant
+instead — the bare option id in `data-answer`, the letter visible and unescaped, the authored label in full.
+
+**Still owed:** the question navigator and the part-result screen, which need the studio-look values.
 
 ## 5. Slice E/F — Fehlerheft and copy cleanup
 
