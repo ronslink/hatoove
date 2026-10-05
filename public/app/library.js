@@ -61,6 +61,30 @@ const dir = language => (language === 'ar' ? 'rtl' : 'ltr');
 const text = value => String(value ?? '');
 
 /**
+ * The path a served translation is keyed by, exactly as slice F2 stores it.
+ *
+ * `guide_translation.path` is the bundle key verbatim and `readGuideTranslations` serves
+ * `strings[row.path]` (`server/library-translations.mjs`, store `planGuideStrings` and read
+ * `readGuideTranslations`; contract section 4.3 as amended by A2). The shape is
+ * `<guide_id>/<section_id>.<field path>`, where a payload field keeps the store's own syntax:
+ * `title` / `summary` for the two section columns, and `payload.` plus BRACKET indices for anything
+ * inside the payload — `payload.phrases[0].hint`, `payload.table.headers[1]`, `payload.items[3].example`.
+ *
+ * Exported so `tools/library-render-check.mjs` can assert the client builds the key the real bundle
+ * uses rather than a form it invented. That was the defect this fixes: the client's dotted,
+ * prefix-free keys matched 0 of 50 requested paths, which renders as "German only" and is
+ * indistinguishable from "no translations were imported".
+ */
+export function storedTranslationPath(guideId, sectionId, relative) {
+  if (!guideId || !sectionId || !relative) return '';
+  const bracketed = String(relative).split('.').reduce((accumulated, token) => (
+    /^\d+$/.test(token) && accumulated ? `${accumulated}[${token}]` : (accumulated ? `${accumulated}.${token}` : token)
+  ), '');
+  const field = (relative === 'title' || relative === 'summary') ? relative : `payload.${bracketed}`;
+  return `${guideId}/${sectionId}.${field}`;
+}
+
+/**
  * Which cells of a case table differ from the Nominativ reference, and where that reference is.
  *
  * A table either LABELS its rows with the case (`bestimmter_artikel`: the Nominativ row is the
@@ -172,20 +196,40 @@ export function createLibraryView(ctx = {}) {
     }
     return null;
   };
-  /** The path set a bundle may use for one section member, widest first. */
-  const sectionPaths = (section, relative) => {
+  /**
+   * The path set for one section member, F2's stored key first (see `storedTranslationPath`) and the
+   * older, prefix-free forms after it so a hand-written or future-normalised bundle still resolves.
+   */
+  const columnPaths = (guideId, section, column) => {
     const id = section?.section_id ? text(section.section_id) : '';
     const ordinal = Number.isInteger(section?.ordinal) ? section.ordinal : null;
+    // F2's key space is `<guide>/<section_id>.<field>`; a bare `title` is never a section member's key.
+    const stored = storedTranslationPath(guideId, id, column);
     const paths = [];
-    if (id) paths.push(`${id}.${relative}`, `sections.${id}.${relative}`, `${id}.payload.${relative}`);
-    if (ordinal !== null) paths.push(`sections.${ordinal}.${relative}`, `sections.${ordinal}.payload.${relative}`);
-    // A bundle keyed by the bare payload path is accepted, but never by the bare member name: a bare
-    // `title` belongs to the DOCUMENT, and resolving it for every section would put one string on
-    // twenty lines (which is exactly how this was found).
-    if (!relative.startsWith('payload.')) paths.push(`payload.${relative}`);
+    if (stored) paths.push(stored);
+    if (id) paths.push(`${id}.${column}`, `sections.${id}.${column}`);
+    if (ordinal !== null) paths.push(`sections.${ordinal}.${column}`);
     return paths;
   };
-  const sectionResolver = (section, bundle) => (relative) => resolveString(bundle, sectionPaths(section, relative));
+  const payloadPaths = (guideId, section, relative) => {
+    const id = section?.section_id ? text(section.section_id) : '';
+    const ordinal = Number.isInteger(section?.ordinal) ? section.ordinal : null;
+    const bracketed = String(relative).split('.').reduce((accumulated, token) => (
+      /^\d+$/.test(token) && accumulated ? `${accumulated}[${token}]` : (accumulated ? `${accumulated}.${token}` : token)
+    ), '');
+    const stored = storedTranslationPath(guideId, id, relative);
+    const paths = [];
+    if (stored) paths.push(stored);
+    if (id) paths.push(`${id}.payload.${bracketed}`, `${id}.${bracketed}`, `sections.${id}.payload.${bracketed}`);
+    if (ordinal !== null) paths.push(`sections.${ordinal}.payload.${bracketed}`);
+    if (!relative.startsWith('payload.')) paths.push(`payload.${bracketed}`);
+    return paths;
+  };
+  const sectionResolver = (guideId, section, bundle) => (relative) => resolveString(bundle, payloadPaths(guideId, section, relative));
+  /** Strings that belong to the guide document rather than a section: F2 has no key space for them. */
+  const documentPaths = (guideId, member) => [
+    `${guideId}/${member}`, `${guideId}.${member}`, `guide.${guideId}.${member}`, member,
+  ];
   /** The ONE note a page shows when the learner's language has no translation at all. */
   const translationNote = bundle => {
     const language = locale();
@@ -231,16 +275,16 @@ export function createLibraryView(ctx = {}) {
       + `<span class="library-chips">${jumps.map(jump => `<button class="chip library-chip" type="button" data-library-jump="${esc(jump.id)}">${esc(jump.label)}</button>`).join('')}</span></nav>`
     : '');
 
-  const caseTableMarkup = (section, bundle) => {
+  const caseTableMarkup = (section, bundle, guideId) => {
     const payload = section.payload && typeof section.payload === 'object' ? section.payload : {};
     const headers = Array.isArray(payload.headers) ? payload.headers : [];
     const rows = Array.isArray(payload.rows) ? payload.rows : [];
     if (!headers.length || !rows.length) return '';
     const highlight = caseHighlights(payload);
-    const table = (headerRow, english) => '<div class="guide-table" tabindex="0" role="region" aria-label="Grammatiktabelle"'
+    const table = (headerRow, english, language = 'de') => '<div class="guide-table" tabindex="0" role="region" aria-label="Grammatiktabelle"'
       + ` data-library-case-table="${esc(text(section.section_id || section.ordinal))}">`
       + '<table lang="de" dir="ltr"><thead><tr>'
-      + headerRow.map(header => `<th scope="col" lang="${english ? 'en' : 'de'}" dir="ltr">${esc(text(header))}</th>`).join('')
+      + headerRow.map(header => `<th scope="col" lang="${english ? 'en' : language}" dir="ltr">${esc(text(header))}</th>`).join('')
       + '</tr></thead><tbody>'
       + rows.map((row, r) => `<tr>${row.map((cell, c) => {
         const marked = highlight.marked.has(`${r}:${c}`);
@@ -249,24 +293,35 @@ export function createLibraryView(ctx = {}) {
       + '</tbody></table></div>';
     const englishHeaders = Array.isArray(payload.headersEn) ? payload.headersEn : null;
     const english = englishHeaders && englishHeaders.length ? authoredLine(table(englishHeaders, true)) : '';
+    // F2 translates the eight tables' header cells (`<section>.payload.headers[i]`), so the German table
+    // is followed by a dimmed learner-language table with the same body cells. One marker covers the
+    // block: the headers are the machine-translated part, and the cells are the German forms themselves.
+    const resolve = sectionResolver(guideId, section, bundle);
+    const headerHits = headers.map((header, index) => resolve(`headers.${index}`));
+    const translated = headerHits.some(Boolean)
+      ? translationMarkup(
+        table(headers.map((header, index) => (headerHits[index] ? headerHits[index].text : header)), false, locale()),
+        locale(),
+        headerHits.some(hit => hit && hit.status === 'machine_unreviewed'))
+      : '';
     const legend = highlight.marked.size ? `<p class="library-legend small muted">${esc(message('libraryCasesLegend'))}</p>` : '';
-    return table(headers, false) + english + legend;
+    return table(headers, false) + english + translated + legend;
   };
 
-  const sectionMarkup = (section, bundle) => {
+  const sectionMarkup = (section, bundle, guideId) => {
     const kind = text(section.kind);
     const ordinal = Number.isInteger(section.ordinal) ? section.ordinal : 0;
     const anchor = `library-section-${ordinal}`;
     const headingId = `${anchor}-heading`;
     const speak = SPEAKING_KINDS.has(kind) && text(section.title).trim().length > 0;
     const payload = section.payload && typeof section.payload === 'object' ? section.payload : {};
-    const titleTranslation = resolveString(bundle, sectionPaths(section, 'title'))
+    const titleTranslation = resolveString(bundle, columnPaths(guideId, section, 'title'))
       || (locale() === 'en' ? { text: section.title_en || payload.en || '' } : null);
-    const summaryTranslation = resolveString(bundle, sectionPaths(section, 'summary'))
+    const summaryTranslation = resolveString(bundle, columnPaths(guideId, section, 'summary'))
       || (locale() === 'en' ? { text: section.summary_en || '' } : null);
-    const resolve = sectionResolver(section, bundle);
+    const resolve = sectionResolver(guideId, section, bundle);
     const content = kind === 'table'
-      ? (caseTableMarkup(section, bundle) || '<div class="guide-content">' + renderContent(payload, esc, locale(), { library: true, speaker: true, resolve, machineMarker: message('libraryMachineTranslated') }) + '</div>')
+      ? (caseTableMarkup(section, bundle, guideId) || '<div class="guide-content">' + renderContent(payload, esc, locale(), { library: true, speaker: true, resolve, machineMarker: message('libraryMachineTranslated') }) + '</div>')
       : '<div class="guide-content">' + renderContent(payload, esc, locale(), { library: true, speaker: true, resolve, machineMarker: message('libraryMachineTranslated') }) + '</div>';
     return `<article class="card library-section" id="${anchor}" data-library-section="${esc(kind)}">`
       + '<div class="card-head">'
@@ -281,7 +336,12 @@ export function createLibraryView(ctx = {}) {
       + '</article>';
   };
 
-  const watchOutMarkup = (doc, ordinal) => {
+  /**
+   * The guide-level watch-out block. It lives on the `guide` row, not on a `guide_section`, so F2's key
+   * space (`<guide>/<section_id>.<field>`) has no slot for it and the block stays German-only today.
+   * The lookups are kept for a bundle that chooses to carry the list; nothing here invents a key.
+   */
+  const watchOutMarkup = (doc, ordinal, guideId) => {
     const items = Array.isArray(doc.watch_out) ? doc.watch_out : [];
     if (!items.length) return '';
     const anchor = `library-section-${ordinal}`;
@@ -292,7 +352,7 @@ export function createLibraryView(ctx = {}) {
       + (english.length
         ? learnerLine(locale() === 'en'
           ? { text: english.join(' · ') }
-          : resolveString(bundleFor(doc), ['watch_out', 'watchOut', `${view.guideId}.watch_out`]))
+          : resolveString(bundleFor(doc), [...documentPaths(guideId, 'watch_out'), 'watchOut', 'watch_out']))
         : '')
       + '</article>';
   };
@@ -345,6 +405,11 @@ export function createLibraryView(ctx = {}) {
     if (!record.ok) return page(backLink() + `<p class="err">${esc(uiText('m069'))} ${esc(failure(record))}</p>` + backLink());
     const doc = record.data && typeof record.data === 'object' ? record.data : {};
     const bundle = bundleFor(doc);
+    /**
+     * The guide id F2's keys are prefixed with. Taken from the SERVED document (falling back to the
+     * route) because that is the id the server stored the translation rows against.
+     */
+    const guideId = text(doc.guide_id || view.guideId);
     const sections = Array.isArray(doc.sections) ? doc.sections : [];
     const watchOut = Array.isArray(doc.watch_out) ? doc.watch_out : [];
     const kinds = new Map();
@@ -360,8 +425,11 @@ export function createLibraryView(ctx = {}) {
       ...(area && area.lexicon ? [{ id: 'library-section-lexicon', label: message('libraryLexicon') }] : []),
     ];
     const title = text(doc.title);
-    const titleTranslation = resolveString(bundle, ['title', `${view.guideId}.title`]) || (locale() === 'en' ? { text: doc.title_en || '' } : null);
-    const introTranslation = resolveString(bundle, ['intro', `${view.guideId}.intro`]) || (locale() === 'en' ? { text: doc.intro_en || '' } : null);
+    // F2's key space is the section (`<guide>/<section>.<field>`); the document title and intro have no
+    // key there, so these two lookups can only succeed for a bundle that chose to carry them, and the
+    // German source stands otherwise. Recorded rather than invented.
+    const titleTranslation = resolveString(bundle, documentPaths(guideId, 'title')) || (locale() === 'en' ? { text: doc.title_en || '' } : null);
+    const introTranslation = resolveString(bundle, documentPaths(guideId, 'intro')) || (locale() === 'en' ? { text: doc.intro_en || '' } : null);
     return page(backLink()
       + '<header class="library-head">'
       + `<h2 class="library-title" lang="de" dir="ltr">${esc(title)}</h2>`
@@ -373,8 +441,8 @@ export function createLibraryView(ctx = {}) {
       + translationNote(bundle)
       + '</header>'
       + jumpMarkup(jumps)
-      + sections.map(section => sectionMarkup(section, bundle)).join('')
-      + watchOutMarkup(doc, sections.length)
+      + sections.map(section => sectionMarkup(section, bundle, guideId)).join('')
+      + watchOutMarkup(doc, sections.length, guideId)
       + (area && area.lexicon ? lexiconMarkup(bundle) : '')
       + backLink());
   };

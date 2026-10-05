@@ -38,7 +38,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { createLibraryView, caseHighlights, LIBRARY_AREAS, SECTION_LABELS, NOUN_PAGE_SIZE } from '../public/app/library.js';
+import { createLibraryView, caseHighlights, LIBRARY_AREAS, SECTION_LABELS, NOUN_PAGE_SIZE, storedTranslationPath } from '../public/app/library.js';
 import { guideContent } from '../public/app/guide-content.js';
 import { setLocale, getLocale } from '../public/assets/i18n/core.js';
 import { s } from '../public/app/locale-preference.js';
@@ -56,11 +56,34 @@ const readData = name => JSON.parse(fs.readFileSync(path.join(ROOT, 'data', `${n
 const section = (kind, id, title, titleEn, summary, summaryEn, payload) => ({
   section_id: id, kind, title, title_en: titleEn, summary, summary_en: summaryEn, payload,
 });
-const document_ = (guideId, family, title, intro, introEn, watchOut, watchOutEn, sections) => ({
-  guide_id: guideId, family, title, intro, intro_en: introEn,
-  watch_out: watchOut || [], watch_out_en: watchOutEn || [],
-  section_count: sections.length, sections: sections.map((entry, ordinal) => ({ ...entry, ordinal })),
-});
+/**
+ * Section ids exactly as the generators make them (`tools/lib/library-seed.mjs` `slug`/`makeIdFactory`),
+ * because slice F2's translation keys are `<guide_id>/<section_id>.<field>` and the real bundle uses
+ * these ids. The fixture has to speak production's id language for the translation leg to mean anything.
+ */
+const slug = term => String(term).toLowerCase()
+  .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const storedSectionId = (guideId, headword) => `telc-deutsch-b1.${guideId}.${slug(headword)}`;
+/** The same assignment the generators run, including their `-2`, `-3` collision suffixes. */
+function sectionIdFactory(guideId) {
+  const seen = new Map();
+  return headword => {
+    const base = storedSectionId(guideId, headword);
+    const count = (seen.get(base) || 0) + 1;
+    seen.set(base, count);
+    return count === 1 ? base : `${base}-${count}`;
+  };
+}
+const document_ = (guideId, family, title, intro, introEn, watchOut, watchOutEn, sections) => {
+  const idFor = sectionIdFactory(guideId);
+  return {
+    guide_id: guideId, family, title, intro, intro_en: introEn,
+    watch_out: watchOut || [], watch_out_en: watchOutEn || [],
+    section_count: sections.length,
+    sections: sections.map((entry, ordinal) => ({ ...entry, section_id: idFor(entry.section_id), ordinal })),
+  };
+};
 
 /**
  * The seven guide documents, mapped exactly as the two generators map them. The expected section
@@ -122,7 +145,16 @@ function buildGuides() {
 }
 
 function buildNouns() {
-  return readData('noun-lexicon').nouns.map((noun, index) => ({ entry_id: `noun-${index + 1}`, ...noun }));
+  // Ids exactly as `tools/build-noun-migration.mjs` makes them: one `makeIdFactory('telc-deutsch-b1.noun')`
+  // over the whole file, so slice F2's `nouns[entry_id]` key space is the one production has.
+  const seen = new Map();
+  return readData('noun-lexicon').nouns.map((noun, index) => {
+    const base = storedSectionId('noun', noun.de);
+    const count = (seen.get(base) || 0) + 1;
+    seen.set(base, count);
+    const entry_id = count === 1 ? base : `${base}-${count}`;
+    return { entry_id, ...noun };
+  });
 }
 
 const EXPECTED_SECTIONS = {
@@ -317,7 +349,7 @@ async function assertCaseTables(guides, nouns) {
   assert.equal(blocks.length, cases.tables.length, `all ${cases.tables.length} case tables render`);
   for (const block of blocks) {
     const id = block[1];
-    const table = cases.tables.find(entry => entry.id === id);
+    const table = cases.tables.find(entry => storedSectionId('cases-guide', entry.id) === id);
     assert.ok(table, `the rendered table ${id} exists in the source`);
     const marks = new Set([...block[0].matchAll(/data-library-case="(\d+):(\d+)"/g)].map(match => `${match[1]}:${match[2]}`));
     const expected = expectedHighlights(table);
@@ -327,7 +359,7 @@ async function assertCaseTables(guides, nouns) {
     assert.equal(hasLegend, expected.size > 0, `${id}: the legend appears exactly when something is marked`);
   }
   // Hand-derived expectations for two tables, so the algorithmic comparison has a second witness.
-  const byId = id => blocks.find(block => block[1] === id)[0];
+  const byId = localId => blocks.find(block => block[1] === storedSectionId('cases-guide', localId))[0];
   const marksOf = id => [...new Set([...byId(id).matchAll(/data-library-case="(\d+):(\d+)"/g)].map(match => `${match[1]}:${match[2]}`))].sort();
   assert.deepEqual(marksOf('bestimmter_artikel'), ['1:1', '2:1', '2:2', '2:3', '2:4', '3:1', '3:2', '3:3', '3:4'], 'bestimmter_artikel: hand-derived marks');
   assert.deepEqual(marksOf('adjektivendungen_bestimmt'), ['1:1', '2:1', '2:2', '2:3', '3:1', '3:2', '3:3'], 'adjektivendungen_bestimmt: hand-derived marks (the Plural column is -en in every row, so nothing there differs)');
@@ -369,30 +401,173 @@ async function assertRtl(guides, nouns) {
   return true;
 }
 
-function machineBundle() {
+/**
+ * A small fixture member in the STORED key form (`<guide>/<section_id>.<field>`), which is what
+ * `server/library-translations.mjs` serves. It exists only to pin the per-line marker and the
+ * fallback behaviour; the leg over the REAL bundle is `assertRealBundleTranslation` below.
+ */
+function machineBundle(guides, { legacyKeys = false, status = 'machine_unreviewed' } = {}) {
+  const cases = guides.find(entry => entry.guide_id === 'cases-guide');
+  const table = cases.sections.find(entry => entry.section_id.endsWith('.bestimmter-artikel'));
+  const key = suffix => (legacyKeys ? `${table.section_id}.${suffix}` : `cases-guide/${table.section_id}.${suffix}`);
   const bundle = {
-    locale: 'ar', guideVersion: 'telc-deutsch-b1.cases-guide@v1', status: 'machine_unreviewed',
+    locale: 'ar', guideVersion: 'telc-deutsch-b1.cases-guide@v1', status,
     strings: {
-      'title': 'الحالات وأدوات التعريف',
-      'bestimmter_artikel.title': 'أداة التعريف المحددة',
-      'cases-guide.intro': 'تقديم الحالات',
+      [key('title')]: 'أداة التعريف المحددة',
+      [key('payload.headers[1]')]: 'المذكّر',
     },
-    nouns: { 'noun-1': { meaning: 'الجار', example: 'جارنا يساعدنا', rule: 'لا قاعدة' } },
+    stringStatus: {
+      [key('title')]: status,
+      [key('payload.headers[1]')]: status,
+    },
+    // The noun key space is the entry id, not a path — `nouns[entry_id]` per contract section 4.3.
+    nouns: { 'telc-deutsch-b1.noun.der-nachbar': { meaning: 'الجار', example: 'جارنا يساعدنا', rule: 'لا قاعدة' } },
   };
   return () => JSON.parse(JSON.stringify(bundle));
 }
 
 async function assertTranslatedPath(guides, nouns) {
-  const translated = await mounted({ documents: guides, nouns, language: 'ar', route: '#/nachschlagen/cases-guide', translations: machineBundle() });
+  const translated = await mounted({ documents: guides, nouns, language: 'ar', route: '#/nachschlagen/cases-guide', translations: machineBundle(guides) });
   const html = translated.page();
-  assert.ok(html.includes('الحالات وأدوات التعريف'), 'the bundle title is rendered');
-  assert.ok(html.includes('أداة التعريف المحددة'), 'a section title path is resolved');
-  // The bundle carries three strings for this page: the document title, its intro and one section
-  // title. Each resolved line carries the marker exactly once — and no other line does.
-  assert.equal(count(html, l('libraryMachineTranslated')), 3, 'each machine-translated line carries the marker, and only those');
+  assert.ok(html.includes('أداة التعريف المحددة'), 'a section title in the stored key form is resolved');
+  assert.ok(html.includes('المذكّر'), 'a payload header in the stored key form is resolved');
+  // Two resolved strings on this page, each with the marker once, and nothing else marked.
+  assert.equal(count(html, l('libraryMachineTranslated')), 2, 'each machine-translated block carries the marker, and only those');
   assert.equal(count(html, s('m091')), 0, 'a page WITH a bundle shows no German-only note');
-  assert.ok(html.includes('bestimmter_artikel') || html.includes('Bestimmter Artikel'), 'the German source is still present');
+  assert.ok(html.includes('Bestimmter Artikel'), 'the German source is still present');
+
+  // The pre-fix key forms are kept as secondary fallbacks, so an older or hand-written bundle still
+  // resolves — this is the assertion that pins that promise.
+  const legacy = await mounted({ documents: guides, nouns, language: 'ar', route: '#/nachschlagen/cases-guide', translations: machineBundle(guides, { legacyKeys: true }) });
+  assert.ok(legacy.page().includes('أداة التعريف المحددة'), 'the legacy `<section_id>.<field>` key form still resolves as a fallback');
+
+  // An approved member must NOT carry the marker even though lines are rendered (per-line status).
+  const approved = await mounted({ documents: guides, nouns, language: 'ar', route: '#/nachschlagen/cases-guide', translations: machineBundle(guides, { status: 'approved' }) });
+  assert.ok(approved.page().includes('أداة التعريف المحددة'), 'an approved bundle still renders its lines');
+  assert.equal(count(approved.page(), l('libraryMachineTranslated')), 0, 'an approved line carries no marker');
   assert.ok(translated.api.calls.some(call => call.endpoint === 'guides.read' && call.locale === 'ar'), 'the read path was asked for the locale');
+  return true;
+}
+
+/* ------------------------------------------- the served member, over the REAL bundle (F2 key space) */
+
+const F2_BUNDLE_PATH = 'content/library-translations/hatoove-library-translations-uk-ar-tr.json';
+
+/** The client's OLD key form (dotted, prefix-free) — used only to prove the new leg can fail. */
+const dottedKey = (guideId, path) => {
+  const rest = path.slice(guideId.length + 1);
+  const sectionId = rest.split('.')[0];
+  return `${sectionId}.${rest.slice(sectionId.length + 1).replace(/\[(\d+)\]/g, '.$1')}`;
+};
+
+/**
+ * The additive `translations` member exactly as the merged server builds it
+ * (`server/library-translations.mjs` `readGuideTranslations`: `strings[row.path] = text`,
+ * `stringStatus[row.path] = review_status`, `nouns[entry_id] = { meaning, example, rule }`, and
+ * `status` = machine while any served row is machine). The KEYS come from the real bundle, so a client
+ * that invented its own key form cannot pass by construction — which is the defect this leg exists for:
+ * before the fix the client's dotted, prefix-free keys matched 0 of 50 requested paths, so a learner saw
+ * no translated line at all and could not tell that from "no translations were imported".
+ *
+ * `keyForm: 'dotted'` is the mutation: the same member with the server-side key form replaced by the
+ * client's old form. The leg must fail against it.
+ */
+function servedMember(bundle, guideId, locale, { keyForm = 'stored', status = 'machine_unreviewed' } = {}) {
+  const strings = {};
+  const stringStatus = {};
+  for (const [path, members] of Object.entries(bundle.guides[guideId] || {})) {
+    const key = keyForm === 'stored' ? path : dottedKey(guideId, path);
+    strings[key] = members[locale];
+    stringStatus[key] = status;
+  }
+  const nouns = {};
+  for (const [entryId, members] of Object.entries(bundle.nouns)) {
+    const translated = members[locale];
+    nouns[entryId] = { meaning: translated.meaning, example: translated.example, rule: translated.rule };
+  }
+  return { locale, guideVersion: `${guideId}@v1`, status, strings, stringStatus, nouns };
+}
+
+/** Every real path the caller names must appear in the rendered page. Returns nothing; throws if not. */
+function assertResolved(html, expected, label) {
+  const missing = expected.filter(([, value]) => !html.includes(value)).map(([path]) => path);
+  assert.deepEqual(missing, [], `${label}: the client must resolve every real bundle path it renders`);
+}
+
+async function assertRealBundleTranslation(guides, nouns) {
+  const bundle = JSON.parse(fs.readFileSync(path.join(ROOT, F2_BUNDLE_PATH), 'utf8'));
+  const speaking = bundle.guides['speaking-guide'];
+  const text = path => speaking[path].uk;
+
+  // Three named paths from speaking-guide, including a bracket-indexed payload field.
+  const named = [
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.title',
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.summary',
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.phrases[0].group',
+    'speaking-guide/telc-deutsch-b1.speaking-guide.sp1.payload.approach[0].step',
+  ];
+  for (const path of named) assert.ok(speaking[path], `the real bundle carries ${path}`);
+  // The exported key builder must reproduce the stored key byte for byte, brackets included.
+  assert.equal(
+    storedTranslationPath('speaking-guide', 'telc-deutsch-b1.speaking-guide.sp1', 'phrases.0.group'),
+    named[2], 'the client builds the stored key for a bracket-indexed payload field');
+  assert.equal(
+    storedTranslationPath('cases-guide', 'telc-deutsch-b1.cases-guide.bestimmter-artikel', 'headers.1'),
+    'cases-guide/telc-deutsch-b1.cases-guide.bestimmter-artikel.payload.headers[1]',
+    'a header cell keeps its bracket index');
+  assert.equal(
+    storedTranslationPath('speaking-guide', 'telc-deutsch-b1.speaking-guide.sp1', 'title'),
+    named[0], 'a section column is not given a payload prefix');
+  const member = (guideId, options) => (id, locale) => servedMember(bundle, id || guideId, locale || 'uk', options);
+
+  const speakingHtml = (await mounted({
+    documents: guides, nouns, language: 'uk', route: '#/nachschlagen/speaking-guide',
+    translations: (guideId, locale) => servedMember(bundle, guideId, locale, {}),
+  })).page();
+  assertResolved(speakingHtml, named.map(path => [path, text(path)]), 'speaking-guide, stored key form');
+  assert.equal(count(speakingHtml, s('m091')), 0, 'a page with a real bundle shows no German-only note');
+  assert.ok(count(speakingHtml, l('libraryMachineTranslated')) >= named.length, 'every real machine-translated line carries the marker');
+
+  // A mutation of the SERVED key form (not of the server, not of the client) must fail the same leg.
+  const mutatedHtml = (await mounted({
+    documents: guides, nouns, language: 'uk', route: '#/nachschlagen/speaking-guide',
+    translations: (guideId, locale) => servedMember(bundle, guideId, locale, { keyForm: 'dotted' }),
+  })).page();
+  assert.throws(
+    () => assertResolved(mutatedHtml, named.map(path => [path, text(path)]), 'speaking-guide, dotted key form'),
+    /the client must resolve every real bundle path it renders/,
+    'the leg must fail when the served key form is the pre-fix dotted form');
+
+  // A second guide, one plain payload field and one array element.
+  const grammar = bundle.guides['grammar-guide'];
+  const grammarPaths = Object.keys(grammar).filter(path => /\.payload\.rule$/.test(path) || /\.payload\.traps\[0\]$/.test(path)).slice(0, 2);
+  assert.equal(grammarPaths.length, 2, 'the real bundle carries a grammar rule and a grammar trap');
+  const grammarHtml = (await mounted({
+    documents: guides, nouns, language: 'uk', route: '#/nachschlagen/grammar-guide',
+    translations: (guideId, locale) => servedMember(bundle, guideId, locale, {}),
+  })).page();
+  assertResolved(grammarHtml, grammarPaths.map(path => [path, grammar[path].uk]), 'grammar-guide, stored key form');
+
+  // The eight case tables carry translated header cells, which the library renders as a dimmed table.
+  const cases = bundle.guides['cases-guide'];
+  const headerPath = Object.keys(cases).find(path => /\.payload\.headers\[1\]$/.test(path));
+  assert.ok(headerPath, 'the real bundle carries a translated case-table header');
+  const casesHtml = (await mounted({
+    documents: guides, nouns, language: 'uk', route: '#/nachschlagen/cases-guide',
+    translations: (guideId, locale) => servedMember(bundle, guideId, locale, {}),
+  })).page();
+  assertResolved(casesHtml, [[headerPath, cases[headerPath].uk]], 'cases-guide translated header');
+
+  // The noun lexicon is a different key space: `nouns[entry_id]`, not a path.
+  const nounId = 'telc-deutsch-b1.noun.die-moebel';
+  const nounBundle = bundle.nouns[nounId];
+  assert.ok(nounBundle && nounBundle.uk && nounBundle.uk.meaning, 'the real bundle carries the noun');
+  const genderHtml = (await mounted({
+    documents: guides, nouns, limit: 500, language: 'uk', route: '#/nachschlagen/gender-rules',
+    translations: (guideId, locale) => servedMember(bundle, guideId, locale, {}),
+  })).page();
+  assertResolved(genderHtml, [[`nouns[${nounId}].meaning`, nounBundle.uk.meaning]], 'noun lexicon, entry_id key space');
+  assert.ok(genderHtml.includes(nounBundle.uk.example), 'the noun example translation is rendered too');
   return true;
 }
 
@@ -439,7 +614,7 @@ async function assertLexicon(guides, nouns) {
   assert.ok(count(fullPage, 'data-library-speak') > 100, 'every example line is marked for the read-aloud control');
 
   // A bundle translates the meanings, and an unreviewed one is marked.
-  const bundled = await mounted({ documents: guides, nouns, limit: 500, language: 'ar', route: '#/nachschlagen/gender', translations: machineBundle() });
+  const bundled = await mounted({ documents: guides, nouns, limit: 500, language: 'ar', route: '#/nachschlagen/gender', translations: machineBundle(guides) });
   const bundledPage = bundled.page();
   assert.ok(bundledPage.includes('الجار'), 'a noun meaning comes from the bundle');
   assert.ok(count(bundledPage, l('libraryMachineTranslated')) > 0, 'an unreviewed noun translation is marked');
@@ -567,7 +742,14 @@ function darkThemeCss() {
 }
 
 function harnessHtml(guides, nouns, prefix) {
-  const fixtures = JSON.stringify({ guides, nouns }).replace(/</g, '\\u003c');
+  // The real bundle, served per guide and locale exactly as `readGuideTranslations` would, so the
+  // harness renders actual uk/ar/tr lines with their markers instead of a placeholder string.
+  const bundle = JSON.parse(fs.readFileSync(path.join(ROOT, F2_BUNDLE_PATH), 'utf8'));
+  const served = { de: null, en: null };
+  for (const locale of ['uk', 'ar', 'tr']) {
+    served[locale] = Object.fromEntries(guides.map(entry => [entry.guide_id, servedMember(bundle, entry.guide_id, locale)]));
+  }
+  const fixtures = JSON.stringify({ guides, nouns, served }).replace(/</g, '\\u003c');
   return `<!doctype html>
 <html lang="de">
 <head>
@@ -628,15 +810,17 @@ window.__harnessStage = 'imports-done';
 const fixtures = JSON.parse(document.getElementById('fixtures').textContent);
 window.__harnessStage = 'fixtures-parsed';
 const esc = value => String(value ?? '').replace(/[&<>"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[character]));
-function api(limit, translations) {
+function api(limit, wantsTranslations) {
   return {
     guides: {
       list: async () => ({ ok: true, status: 200, data: fixtures.guides.map(entry => ({ guide_id: entry.guide_id, family: entry.family, title: entry.title, intro: entry.intro, section_count: entry.sections.length })) }),
       read: async (guideId, locale) => {
         const entry = fixtures.guides.find(candidate => candidate.guide_id === guideId);
         if (!entry) return { ok: false, status: 404, error: 'not_found' };
-        const bundle = translations ? { locale, status: 'machine_unreviewed', strings: { title: 'ترجمة آلية للعنوان' } } : null;
-        return { ok: true, status: 200, data: { ...entry, translations: bundle } };
+        // Exactly the server's rule: de/en and an unimported locale answer null; uk/ar/tr carry the
+        // member built from the real bundle (strings[storedPath], stringStatus[storedPath], nouns[entry_id]).
+        const member = wantsTranslations && fixtures.served[locale] ? fixtures.served[locale][guideId] : null;
+        return { ok: true, status: 200, data: { ...entry, translations: member || null } };
       },
     },
     nouns: {
@@ -679,11 +863,10 @@ function load() {
     const route = document.getElementById('route').value;
     const limit = Number(document.getElementById('nouns').value);
     // ?translations=0 exercises the German-only path: no bundle, so the page must show exactly one note.
-    const wantsBundle = new URLSearchParams(location.search).get('translations') !== '0';
-    const translations = wantsBundle && locale !== 'de' && locale !== 'en' ? { strings: { title: 'x' } } : null;
+    const wantsTranslations = new URLSearchParams(location.search).get('translations') !== '0';
     setLocale(locale);
     if (view) view.unmount();
-    view = createLibraryView({ api: api(limit, translations), esc, language: locale, uiText: (key, parameters) => s(key, parameters), navigate: hash => { location.hash = hash; },
+    view = createLibraryView({ api: api(limit, wantsTranslations), esc, language: locale, uiText: (key, parameters) => s(key, parameters), navigate: hash => { location.hash = hash; },
       state: { settings: { language: locale } }, guideContent, schedule: run => { run(); return 0; } });
     view.mount(host, { route });
     window.__harnessStage = 'mounted:' + host.innerHTML.length;
@@ -733,6 +916,7 @@ await assertGuides(guides, nouns);
 await assertCaseTables(guides, nouns);
 await assertRtl(guides, nouns);
 await assertTranslatedPath(guides, nouns);
+await assertRealBundleTranslation(guides, nouns);
 await assertLexicon(guides, nouns);
 assertMutationProof();
 
