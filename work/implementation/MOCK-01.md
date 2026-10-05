@@ -106,7 +106,7 @@ node tools/i18n-register-check.mjs
 node tools/practice-locale-check.mjs
   Practice locale: 18 checks passed
 
-node tools/repository-check.mjs            Repository check passed: 699 tracked files
+node tools/repository-check.mjs            Repository check passed: 703 tracked files, 621 text blobs
 node tools/retired-surface-check.mjs       10 passed, 0 failed
 node tools/seo-check.mjs                   11/11 checks passed
 node tools/server-origin-check.mjs         OK 8 check(s) passed
