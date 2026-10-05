@@ -367,14 +367,24 @@ export function drillMarkup(state, { esc = defaultEsc, uiText = (key) => key, ex
      */
     if (state.poolBlocked === 'listening') {
       const evidence = state.evidence ?? {};
+      const attempts = countOrNull(evidence.attempts) ?? 0;
+      const correct = countOrNull(evidence.correct) ?? 0;
+      /*
+       * FIX-N1 — THE NUMBERS COME FROM THE FILTER'S OWN COUNT, SO THEY CANNOT CONTRADICT THE SENTENCE. The
+       * server sends the same numbers it ranked with; when this part has NO counted result the drill does not
+       * call it the weakest and does not print "0 von 0 richtig" — it says there is no counted result yet,
+       * which is true. A part with counted results (including Probeprüfung listening results, which FIX-N1
+       * stopped discarding) prints them.
+       */
+      const body = attempts > 0
+        ? t(esc, 'drillListeningBlocked', { family: state.family ?? '', correct, attempts }, locale)
+        : t(esc, 'drillListeningBlockedNoCount', { family: state.family ?? '' }, locale);
       return '<section' + attrs + '>' + head + '</header>'
         + audioMarkup(state, { esc, locale })
-        + '<div class="card" data-drill-listening-blocked>'
+        + '<div class="card" data-drill-listening-blocked data-drill-listening-counted="' + (attempts > 0 ? 'true' : 'false') + '">'
         + '<h2 class="drill-empty-title">' + t(esc, 'drillListeningTitle', {}, locale) + '</h2>'
         /* The body carries the part AND its numbers, so there is no second reason line repeating them. */
-        + '<p class="muted" data-drill-listening-body>' + t(esc, 'drillListeningBlocked', {
-          family: state.family ?? '', correct: countOrNull(evidence.correct) ?? 0, attempts: countOrNull(evidence.attempts) ?? 0,
-        }, locale) + '</p>'
+        + '<p class="muted" data-drill-listening-body>' + body + '</p>'
         + '<div class="drill-actions"><button type="button" class="btn" data-drill-part-index>'
         + t(esc, 'drillListeningAction', {}, locale) + '</button></div>'
         + '</div></section>';

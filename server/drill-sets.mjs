@@ -99,30 +99,42 @@ export function drillPartTier(stats) {
 }
 
 /**
- * FIX-F1 — THE EVIDENCE THAT MAY STEER A CHOICE: rows about a set this deployment can actually serve AND play.
+ * THE EVIDENCE THAT MAY STEER A CHOICE — the pure twin of the adapter's `COUNTED_EVIDENCE` (FIX-N1).
  *
- * Why this exists rather than a SQL filter in one place. Listening sets cannot be attempted honestly today,
- * so any evidence about one is a guess about audio nobody heard; those rows must not make a part look weak.
- * They are NOT deleted — they are the learner's own record — they simply stop counting, here, in the pure
- * layer, so the rule is testable without a database and cannot differ between the surfaces that read it.
+ * Why this exists rather than a SQL filter in one place: the drill ranks parts in memory, so it needs the rule
+ * as code; the adapter aggregates in SQL, so it needs the rule as a WHERE clause. Both implement the SAME
+ * sentence, and each names the other so a change to one is visibly a change to both.
  *
- * Two filters, both deliberate:
- *   * the set must be one of `candidates` (what this deployment releases and serves), so evidence for a set
- *     that is no longer served — or never was — is ignored rather than guessed at;
- *   * the candidate must not be `media_required`, because there is no playback path for it.
+ * THE RULE (corrected by FIX-N1, which found the first version too broad): a PRACTICE answer to a set this
+ * deployment cannot play is a guess about audio nobody heard and must not make a part look weak — but the MOCK
+ * EXAM writes evidence for those same sets with `mock_run_id` set, and there the audio really plays. So:
  *
- * Returns a new array; the input rows are not touched.
+ *   * the set must be one of `candidates` (what this deployment releases and serves), so evidence for a set that
+ *     is no longer served — or never was — is ignored rather than guessed at;
+ *   * and the row must either come from a run where the audio played (`mock_run_id`) or sit on a candidate that
+ *     does not require media.
+ *
+ * Rows are NOT deleted — they are the learner's own record — they simply stop counting. Returns a new array.
  */
 export function playableEvidence(evidence, candidates) {
   const playable = new Set();
+  const mediaBound = new Set();
   for (const row of Array.isArray(candidates) ? candidates : []) {
-    if (!isPlainObject(row) || row.media_required === true) continue;
+    if (!isPlainObject(row)) continue;
     const setId = nonEmpty(row.set_id);
     const version = nonEmpty(row.version);
-    if (setId && version) playable.add(`${setId}@${version}`);
+    if (!setId || !version) continue;
+    playable.add(`${setId}@${version}`);
+    if (row.media_required === true) mediaBound.add(`${setId}@${version}`);
   }
-  return (Array.isArray(evidence) ? evidence : []).filter((row) => isPlainObject(row)
-    && playable.has(`${nonEmpty(row.set_id) ?? ''}@${nonEmpty(row.version) ?? ''}`));
+  return (Array.isArray(evidence) ? evidence : []).filter((row) => {
+    if (!isPlainObject(row)) return false;
+    const key = `${nonEmpty(row.set_id) ?? ''}@${nonEmpty(row.version) ?? ''}`;
+    if (!playable.has(key)) return false;
+    /* FIX-N1: a result from a run in which the recording played counts even on a media-bound set. */
+    if (nonEmpty(row.mock_run_id)) return true;
+    return !mediaBound.has(key);
+  });
 }
 
 /** The per-family attempt numbers the ranking consumes, from the evidence that may count. */

@@ -139,13 +139,14 @@ export function drillMethods({ settle, note = () => {}, catalogue } = {}) {
         const candidates = (await client.query(CANDIDATE_SQL, [examId, statuses, contentPolicy().rights])).rows;
         if (!candidates.length) return null;
         /*
-         * FIX-F1 — the evidence that may steer this choice. `playableEvidence` drops rows about a set this
-         * deployment cannot serve or cannot play (a listening set has no playback path), so the guesses the
-         * runner used to record for HV neither make a part look weak nor pick a set. The rows themselves stay
-         * in `item_evidence`: they are the learner's own history and are not ours to delete.
+         * FIX-N1 — the evidence that may steer this choice. `playableEvidence` drops rows about a set this
+         * deployment cannot serve or cannot play (a listening set has no practice playback path), so blind
+         * guesses neither make a part look weak nor pick a set. `mock_run_id` is fetched because a result from a
+         * run in which the recording PLAYED — the Probeprüfung — is not a blind guess and must still count.
+         * The rows themselves stay in `item_evidence`: they are the learner's own history.
          */
         const evidence = playableEvidence((await client.query(
-          `SELECT set_id, version, family, correct, answered_at
+          `SELECT set_id, version, family, correct, answered_at, mock_run_id
              FROM item_evidence
             WHERE owner_id = $1 AND preparation_id = $2`, [owner, preparationId])).rows, candidates);
         /* The per-family numbers come from THAT evidence, in the pure layer, so the rule is one rule. */
@@ -183,6 +184,13 @@ export function drillMethods({ settle, note = () => {}, catalogue } = {}) {
             /* The part's section, so the client can print the exam play rule for it. */
             section: byFamily.get(target.part.family)?.[0]?.section ?? null,
             reason: target.part.tier,
+            /*
+             * FIX-N1 — THE SAME NUMBERS THE FILTER USES. These come from `drillStatsFromEvidence` over the
+             * evidence `playableEvidence` kept, so they can no longer be "0 von 0 richtig" for a part the drill
+             * calls the weakest: if the part ranks as `weak` there is counted evidence behind it, and if there
+             * is none the tier is `unseen`, which the copy distinguishes (the client switches key on
+             * `attempts === 0` rather than printing a contradiction).
+             */
             evidence: { attempts: target.part.attempts, correct: target.part.correct, accuracy: target.part.accuracy },
             attempt: null,
             round: null,

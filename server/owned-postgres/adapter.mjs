@@ -52,24 +52,37 @@ const OBJECTIVE_VERSION_RE = /^v[0-9]{1,4}$/;
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = (result) => result.rows[0];
 /**
- * FIX-F1 (outside review §F1) — WHICH EVIDENCE MAY COUNT.
+ * FIX-N1 (second-pass review §N1) — WHICH EVIDENCE MAY COUNT.
  *
- * A listening set cannot be attempted honestly: the recordings exist as authored content but there is no
- * playback path in the app yet, so an answer to one is a guess about audio nobody heard. Those guesses were
- * recorded (the runner served the set with a dead player beside live controls), and one wrong guess makes a
- * part `weak` in the drill's ranking, which then sent the learner back to listening. Deleting the rows would
- * rewrite a learner's own history, so they STAY and stop counting instead: this predicate is the single
- * definition of "evidence about a set this deployment can actually play", and the aggregates that feed a
- * learner-visible number use it.
+ * FIX-F1 established the right principle and implemented it too broadly. The principle: a PRACTICE answer to a
+ * listening set the app cannot play is a guess about audio nobody heard, so it must not become a number a
+ * learner reads nor a signal that steers the drill. The implementation was `media_required = true`, which is
+ * about the SET — and the MOCK EXAM writes evidence for those very sets, with `mock_run_id` set
+ * (`0030-listening-playback.sql:286-290`), where the audio really does play. Filtering on the set therefore
+ * threw away real Probeprüfung listening results: after a full mock the Hören tiles said "nicht geübt".
  *
- * It is written as `EXISTS` on `objective_set` rather than a join so it can be dropped into any aggregate over
- * `item_evidence e` without changing that query's grouping. When a practice playback transport lands, the
- * predicate gains the recording check; `media_required` is today's whole truth, because no released practice
- * set has recordings (`PRACTICE-MEDIA.md` §4 item 4).
+ * So the rule is about the ROW, not the set:
+ *
+ *   * `e.mock_run_id IS NOT NULL` — the answer came from a run in which the recording played. It counts, even
+ *     when its set is media-bound, because the learner really did hear it.
+ *   * otherwise the set must be one this deployment can play (`media_required = false`). A practice guess at a
+ *     set with no playback path is the only thing dropped.
+ *
+ * Written as a boolean expression rather than a join so it can be dropped into any aggregate over
+ * `item_evidence e` without changing that query's grouping. The JS twin is `playableEvidence` in
+ * `server/drill-sets.mjs` (the drill ranks in memory); both implement this same rule and each names the other.
+ *
+ * THE SERVING FILTERS ARE A DIFFERENT RULE and are deliberately NOT this predicate: `practiceSetForPart`,
+ * `checkPracticeAttempt`, `drillCheckItem` and the drill's `CANDIDATE_SQL`/`readSet` use
+ * `s.media_required = false` because a SET with no playable recording must not be SERVED or MARKED at all.
+ * Mock evidence does not make a set playable — it records that one was playable somewhere else (the mock's
+ * packaged form), which is exactly the distinction this predicate fixes. The deeper fix when recordings land is
+ * for "playable" to mean "has a recording", which is why the two rules are kept visibly separate rather than
+ * merged into one switch that would silently change serving too.
  */
-const PLAYABLE_EVIDENCE = `EXISTS (SELECT 1 FROM objective_set ps
-                                    WHERE ps.set_id = e.set_id AND ps.version = e.version
-                                      AND ps.media_required = false)`;
+const COUNTED_EVIDENCE = `(e.mock_run_id IS NOT NULL OR EXISTS (SELECT 1 FROM objective_set ps
+                                     WHERE ps.set_id = e.set_id AND ps.version = e.version
+                                       AND ps.media_required = false))`;
 /** No default version (EXAM-S0): v1 and v2 of a set may share item ids with different keys. */
 const requireObjectiveVersion = (version) => {
   if (typeof version !== 'string' || !OBJECTIVE_VERSION_RE.test(version)) fail(422, 'invalid_version');
@@ -1140,6 +1153,13 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
          * tile needs, and it is exactly what a section count must never be used for: "LV: 7 of 10 correct"
          * says nothing about LV1, LV2 or LV3 individually. Same owner, same preparation filter, so both
          * groupings necessarily see the same rows.
+         *
+         * FIX-N1 RESTORED THAT PROMISE FOR `sections`. FIX-F1 had dropped the "unchanged, member for member"
+         * sentence by putting the playability filter on BOTH aggregates, which also made the section figure
+         * lose every Probeprüfung listening result. `sections` is back to counting every answered item — the
+         * pre-slice behaviour, verbatim — and only `parts` carries the evidence rule, because a part figure is
+         * what a learner acts on and what the drill's ranking reads. The asymmetry is deliberate: the section
+         * number is a historical count, the part number is a live signal.
          */
         const sections = await client.query(
           `SELECT e.section,
@@ -1147,7 +1167,6 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                   count(*) FILTER (WHERE e.correct)::int AS correct
              FROM item_evidence e
             WHERE e.owner_id = $1 AND e.preparation_id = $2
-              AND ${PLAYABLE_EVIDENCE}
             GROUP BY e.section
             ORDER BY e.section`,
           [owner, preparationId]);
@@ -1157,7 +1176,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                   count(*) FILTER (WHERE e.correct)::int AS correct
              FROM item_evidence e
             WHERE e.owner_id = $1 AND e.preparation_id = $2 AND e.family IS NOT NULL
-              AND ${PLAYABLE_EVIDENCE}
+              AND ${COUNTED_EVIDENCE}
             GROUP BY e.family
             ORDER BY e.family`,
           [owner, preparationId]);

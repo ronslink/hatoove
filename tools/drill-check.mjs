@@ -629,6 +629,21 @@ function buildLegs({ pure, client, pt, catalogues }) {
         'so the listening part never becomes the weakest part by guessing');
       assert.deepEqual(pure.playableEvidence(rows, []), [], 'with nothing servable, nothing counts');
       assert.deepEqual(pure.drillStatsFromEvidence(pure.playableEvidence(rows, candidates)).map((row) => row.family), ['LV1']);
+      /*
+       * FIX-N1 — AND A PROBEPRÜFUNG LISTENING RESULT DOES COUNT. The row's `mock_run_id` is the difference: in
+       * the mock the recording played, so the answering is real evidence even though nothing in the practice
+       * surface can play that set. Mutation M9 removes this clause and fails THIS leg.
+       */
+      const withMock = [...rows, { set_id: 'telc-deutsch-b1.hv1.01', version: 'v1', family: 'HV1', correct: false, mock_run_id: 'run-1' }];
+      const counted = pure.playableEvidence(withMock, candidates);
+      assert.deepEqual(counted.map((row) => row.mock_run_id ?? null), [null, 'run-1'],
+        'the blind guesses are dropped and the mock result is kept — the set cannot be played HERE, but it was played there');
+      assert.deepEqual(pure.drillStatsFromEvidence(counted), [{ family: 'LV1', attempts: 1, correct: 0 }, { family: 'HV1', attempts: 1, correct: 0 }],
+        'so a real listening weakness is visible to the ranking again');
+      /* An answer is judged by the ROW, not by the set: a mock row for a playable set counts once, not twice. */
+      const mockOnPlayable = [{ set_id: 'telc-deutsch-b1.lv1.01', version: 'v1', family: 'LV1', correct: true, mock_run_id: 'run-2' }];
+      assert.deepEqual(pure.drillStatsFromEvidence(pure.playableEvidence(mockOnPlayable, candidates)), [{ family: 'LV1', attempts: 1, correct: 1 }],
+        'a mock result on a playable set is one row, exactly like a practice answer');
     }],
     ['24 [client] F1: the listening note appears only when nothing playable is left, and offers no controls', async () => {
       /* (1) The server's own note for that state: the part is named, no item, no controls, and a way forward. */
@@ -659,11 +674,28 @@ function buildLegs({ pure, client, pt, catalogues }) {
       const text = textOf(markup);
       assert.ok(text.includes('HV1'), 'the part is named');
       assert.ok(text.includes('0 von 3 richtig'), 'with the learner\'s own numbers');
-      assert.ok(/nur Hörtelle/.test(text), 'it says the available parts are listening parts — not an internal path');
+      assert.ok(/nur Hörteile/.test(text), 'it says the available parts are listening parts — and spells Hörteile correctly');
+      assert.ok(!/Hörtelle/.test(text), 'the shipped typo is gone');
       assert.ok(!/Wiedergabeweg|Abspielweg|playback path/.test(text), 'and names no engineering concept');
       assert.match(markup, /data-drill-play[^-][^>]*disabled/, 'the player is present and disabled');
       host.onclick({ target: { closest: (wanted) => (wanted === '[data-drill-part-index]' ? {} : null) } });
       assert.deepEqual(navigated, ['#/pruefungsteile'], 'the way forward is the part practice');
+      /*
+       * FIX-N1 — NO CONTRADICTION IN THE NUMBERS. The server sends the same counts it ranked with, so a part
+       * with counted results prints them and a part with none says so instead of being called "the weakest of
+       * them" while displaying "0 von 0 richtig".
+       */
+      const noCount = { ...blockedResponse, data: { ...blockedResponse.data, evidence: { attempts: 0, correct: 0, accuracy: null }, reason: 'unseen' } };
+      const noCountView = client.createDrillView({
+        esc, uiText, language: 'de', examLanguage: 'de', api: stubApi({ next: noCount }).api,
+        navigate: () => {}, examParts: [{ family: 'HV1', section: 'HV', part: 1, itemCount: 5, playback: { practice: 1, mock: 1 } }],
+      });
+      await noCountView.mount(hostStub());
+      const noCountMarkup = noCountView.markup();
+      assert.match(noCountMarkup, /data-drill-listening-counted="false"/, 'the card knows it has no counted result');
+      assert.ok(!/0 von 0 richtig/.test(textOf(noCountMarkup)), 'and does not print "0 von 0 richtig"');
+      assert.ok(/kein gezähltes Ergebnis/.test(textOf(noCountMarkup)), 'it says there is no counted result yet');
+      assert.ok(!/schwächste/.test(textOf(noCountMarkup)), 'it does not call a part with no counted result the weakest');
       /* (2) Defence in depth: even if a server ever SERVES a media item, it is never an exercise here. */
       const listeningSet = setDto({ family: 'HV1', section: 'HV', part: 1, media_required: true, material: {} });
       const served = stubApi({ item: JUDGEMENT_ITEM, key: true, set: listeningSet });
@@ -1279,9 +1311,16 @@ const MUTATIONS = [
    * FIX-F1 MUTATION B: THE EVIDENCE FILTER IS REMOVED, so a guess about inaudible audio makes the listening
    * part look weak again and can steer the choice. The pure legs that assert the filter must fail.
    */
-  ['M8 the playability filter is removed, so listening guesses count', (source) => source.replace(
-    '    if (!isPlainObject(row) || row.media_required === true) continue;',
-    '    if (!isPlainObject(row)) continue; // M8: unplayable sets count again')],
+  ['M8 the playability filter is removed, so blind listening guesses count', (source) => source.replace(
+    '    if (nonEmpty(row.mock_run_id)) return true;\n    return !mediaBound.has(key);',
+    '    return true; // M8: unplayable sets count again')],
+  /*
+   * FIX-N1 MUTATION: THE MOCK CLAUSE IS REMOVED, which is the defect the second-pass review found — real
+   * Probeprüfung listening results thrown away by a rule meant for blind guesses. THIS leg must fail by name.
+   */
+  ['M9 the mock_run_id clause is removed, so a Probeprüfung listening result is dropped again', (source) => source.replace(
+    '    if (nonEmpty(row.mock_run_id)) return true;\n    return !mediaBound.has(key);',
+    '    return !mediaBound.has(key); // M9: mock evidence filtered out again')],
 ];
 
 const CLIENT_MUTATIONS = [
