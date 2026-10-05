@@ -1,0 +1,166 @@
+/*
+ * WORTSCHATZ — the vocabulary view's own layer (MIRROR-B1PREP-01 slice G, VOCAB-01).
+ *
+ * Owned by `public/app/vocab.js`; the shell injects this stylesheet only after the module imports, so
+ * nothing here may depend on `library.css` being on the page. Colours, radii and type come from the
+ * pinned design tokens only (no raw colour, no raw font family), so the dark theme and the system
+ * breakpoints work without a second opinion, and there is no transition or animation of its own.
+ */
+
+.vocab {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.vocab-head {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.vocab-head h2,
+.vocab-head h3,
+.vocab-head p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.vocab-chunk {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.vocab-chunk > .vocab-head {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.vocab-corpus,
+.vocab-block,
+.vocab-word {
+  min-width: 0;
+}
+
+.vocab-corpus h4,
+.vocab-block h5,
+.vocab-word h4 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.vocab-block h5 {
+  font-size: 1rem;
+}
+
+.vocab-blocks-label {
+  margin: 6px 0 0;
+}
+
+.vocab-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 6px;
+  min-width: 0;
+}
+
+.vocab-chip {
+  cursor: pointer;
+  min-height: 32px;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.vocab-chip-active {
+  border-color: var(--orange);
+  color: var(--orange-dark);
+}
+
+.vocab-chip-count {
+  color: var(--faint);
+  margin-inline-start: 4px;
+}
+
+.vocab-block-list {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.vocab-items,
+.vocab-results {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.vocab-item {
+  display: grid;
+  gap: 2px;
+  padding-block: 6px;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.vocab-term {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.vocab-example {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.vocab-translation {
+  color: var(--muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.vocab-translation p {
+  margin: 0;
+}
+
+.vocab-machine-note {
+  display: inline-block;
+  margin-inline-start: 6px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.vocab-note {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--peach-line);
+  border-radius: var(--r-sm);
+  background: var(--peach);
+  color: var(--orange-dark);
+}
+
+.vocab-search {
+  display: grid;
+  gap: 4px;
+  margin-block: 8px;
+  min-width: 0;
+}
+
+.vocab-search-input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.vocab-count {
+  margin: 0;
+}
+
+.vocab-results .vocab-word {
+  display: grid;
+  gap: 2px;
+}
