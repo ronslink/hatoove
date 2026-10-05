@@ -15,12 +15,18 @@
  * Re-checking those here would create a second, weaker rule that can drift from the one that actually holds.
  * This layer adds what SQL cannot: the closed request field set, the context rule, and the 409/422 mapping.
  */
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { Fault } from '../owned-api.mjs';
 import { FEEDBACK_CATEGORIES, FEEDBACK_ROUTES } from '../feedback-vocabulary.mjs';
 
 const BODY_MAX = 2000;
+/**
+ * PILOT-FEEDBACK-01 (FB-E, §2): a screenshot may be attached only within ten minutes of filing the report. The
+ * window is what makes "the page the learner was on" true — an image attached an hour later is a picture of
+ * something else, and the learner cannot file a report about a page and photograph a different one.
+ */
+const SCREENSHOT_WINDOW_SECONDS = 600;
 
 export { FEEDBACK_CATEGORIES, FEEDBACK_ROUTES };
 
@@ -77,6 +83,47 @@ export function feedbackMethods({ settle, note = () => {}, appVersion = 'unknown
   }
 
   return Object.freeze({
+    /**
+     * Attach the page image to one of the learner's own reports (FB-E).
+     *
+     * EVERY READ HERE IS FENCED BY THE LEARNER'S OWN POLICY, so another learner's report is invisible and answers
+     * the same 404 as one that does not exist — the route cannot be used to discover which ids are real.
+     *
+     * The order of refusals follows from what the learner did: a report that is not there (404), not a report at
+     * all (422), filed too long ago to be photographing now (409), or already carrying an image (409). The API
+     * has already refused a body that is not a PNG or WebP whose bytes agree with its declared type, and has read
+     * the dimensions from those bytes; the CHECKs in `0049` refuse a size, width or digest the server would not
+     * have written.
+     */
+    async putFeedbackScreenshot(owner, feedbackId, { mimeType, bytes, width, height }) {
+      note('putFeedbackScreenshot');
+      return settle(owner, async (client) => {
+        const { rows } = await client.query(
+          `SELECT kind, EXTRACT(EPOCH FROM (now() - created_at))::int AS age_seconds
+             FROM pilot_feedback WHERE feedback_id = $1`, [feedbackId]);
+        if (!rows.length) throw new Fault(404, 'feedback_not_found');
+        if (rows[0].kind !== 'report') throw new Fault(422, 'not_a_report');
+        if (rows[0].age_seconds > SCREENSHOT_WINDOW_SECONDS) throw new Fault(409, 'screenshot_window_closed');
+        const existing = await client.query(
+          'SELECT 1 FROM pilot_feedback_screenshot WHERE feedback_id = $1', [feedbackId]);
+        if (existing.rows.length) throw new Fault(409, 'screenshot_exists');
+        const sha256 = createHash('sha256').update(bytes).digest('hex');
+        try {
+          await client.query(
+            `INSERT INTO pilot_feedback_screenshot
+               (feedback_id, owner_id, mime_type, bytes, width, height, sha256)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            [feedbackId, owner, mimeType, bytes, width, height, sha256]);
+        } catch (error) {
+          // 23505 is the one-screenshot index: the pre-check above can lose a race, and this is the authority.
+          if (error?.code === '23505') throw new Fault(409, 'screenshot_exists');
+          if (error?.code === '23514') throw new Fault(422, 'invalid_screenshot');
+          throw error;
+        }
+        return null;
+      });
+    },
+
     /** File a report. The API has already validated the closed field set, the category, the route and the body. */
     async createFeedback(owner, input) {
       note('createFeedback');
