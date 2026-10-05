@@ -102,3 +102,31 @@ Downstream figures this batch touched: this file; `tools/practice-runner-check.m
 discover every content migration and assert the figures above instead of the retired "25"); the contract's
 §3/A9 pool line (the Lead's to edit). `tools/practice-selection-check.mjs` needed **no** change — its corpus
 and wrap legs read the counts from the served pool.
+
+## POOL-01 batch 1, listening half (task-48, 5 October 2026) — THE CURRENT FIGURES
+
+The paragraph above said releasing the held three was "a one-word change of their `release` marker … plus a new
+forward migration". It was that plus the audio, and it has happened: Ron authorised AI synthesis of the three
+recordings and their release, so `hv1.04`, `hv2.04` and `hv3.04` are released by
+`server/migrations/0048-pool-01-listening-release.sql`, which also carries the three `exam_media` rows their
+`recordings[]` bindings resolve against. Measured from a migrated database after `0048` (and asserted by
+`tools/pool-01-check.mjs --postgres` P2 and `tools/practice-runner-check.mjs` leg 12):
+
+| Part | Before batch 1 | After batch 1, listening half released | Items per set |
+|---|---|---|---|
+| LV1 | 3 | **6** | 5 |
+| LV2 | 3 | 3 | 5 |
+| LV3 | 3 | 3 | 10 |
+| SB1 | 4 | 4 | 10 / 10 / 10 / 12 |
+| SB2 | 3 | 3 | 10 |
+| HV1 | 3 | **4** (+`hv1.04`) | 5 |
+| HV2 | 3 | **4** (+`hv2.04`) | 10 |
+| HV3 | 3 | **4** (+`hv3.04`) | 5 |
+| **Total** | **25** | **31** | 227 items |
+
+Every one of the six batch sets stays **`unreviewed`** (rights basis `generated`), and the three recordings are
+machine speech from machine-drafted scripts: the pool figure is complete, the content review is not. The audio
+facts, the change set, the gate results and the mutation evidence are in
+[POOL-01-LISTENING-RELEASE.md](POOL-01-LISTENING-RELEASE.md); the contract's §3/A9 pool line remains the Lead's
+to edit, and `tools/docker-stack-check.mjs`'s pre-batch corpus totals remain the stale line the Lead ruled out
+of scope in task-37.
