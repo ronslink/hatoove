@@ -41,6 +41,7 @@ research/mistral-feasibility/study-summary.json
 /design/
 /handoff/
 
-# MEDIA-MOUNT-01: the listening recordings are a host/deployment asset, not a tracked one (Ron's decision is
-# open between git/LFS, a documented prefix, and object storage). Keep a populated root out of commits.
+# MEDIA-MOUNT-01: the recordings themselves are TRACKED (A12(1)) at content/exams/telc-deutsch-b1/audio/.
+# This entry is for the OPT-IN host mount directory only (`HATOVE_AUDIO_ROOT`), so a locally staged audio root
+# can never be committed by accident.
 media/

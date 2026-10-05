@@ -226,3 +226,51 @@ without any image or migration change. A TTS pass needs the authored batch-1 scr
 step with model/voice/settings/date/operator recorded as provenance, the WAVs added to this same tracked path,
 the package's `media` entries and sha256s updated, and this check run — it verifies byte length, sha256 and PCM
 duration, so a mis-generated or truncated file fails at startup rather than at play time.
+
+## 8. FIX-F2 (task-40) — the default path is the tracked tree, and the mount is opt-in
+
+**The defect the outside review found, and it was mine.** `compose.yaml` bind-mounted
+`${HATOVE_AUDIO_ROOT:-./media}` with `create_host_path: true` and set `B1PREP_MEDIA_ROOT=/app/media`
+unconditionally. `./media` is gitignored, so on a **clean checkout it was created empty**, the `media`
+preflight failed, and `app` — which waits on it — **never started**, on a branch that tracks the nine WAVs and
+an image that copies them. It would have taken down the local install and broken mock listening, which plays
+from the image. Worse, my own evidence could not have caught it: the only full-stack run set
+`HATOVE_AUDIO_ROOT` to a scratch directory, so **the default path was never exercised**. That is the lesson I
+am recording here: a run that only exercises the interesting override proves the override, not the default.
+
+**The fix.**
+- `defaultMediaRoot()` resolves to the tracked `content/exams/` tree — so a clean clone and a production image
+  need **no environment variable and no host folder**. `B1PREP_MEDIA_ROOT` is now purely an opt-in override.
+- The mount's default source is that same tracked tree (`${HATOVE_AUDIO_ROOT:-./content/exams}`), and
+  `create_host_path: false`: a typo in the override fails `docker compose up` at the mount instead of silently
+  creating an empty directory, while the default source always exists in a checkout.
+- The `media` preflight keeps its loud, file-naming failure **for an incomplete override**, and passes for the
+  default; the pointer guard is untouched.
+- Stale comments corrected in `compose.yaml`, `server/media-contract.mjs`, `Dockerfile` and `.gitignore` —
+  they still said the recordings were untracked and "Ron is deciding".
+- `.gitattributes` gains `*.wav binary`, so the byte-exact rule is explicit like every other pinned artifact.
+
+**Evidence — the case the previous run skipped.**
+
+```text
+# DEFAULT: clean tracked state, NO HATOVE_AUDIO_ROOT, NO ./media directory
+$ docker compose -p hatoove-f2 up -d --build
+  db healthy · media Exited (0) · migrate Exited (0) · app Up (healthy) · worker Up
+$ docker compose exec -T app node -e "<readMediaBytes + mediaResponse over media[0]>"
+  default root: /app/media · bytes 3094216 · 200 audio/wav · etag "sha256-28ea34480612…"
+  range: 206 bytes 0-99/3094216, body 100
+$ docker compose exec -T app node tools/media-mount-check.mjs --media-root /app/content/exams --require-recordings
+  PASS --require-recordings: all 9 referenced recording(s) are present under /app/content/exams
+  3 passed, 0 failed          <- the IMAGE's own copy, i.e. mock listening without any mount
+
+# OVERRIDE POPULATED (HATOVE_AUDIO_ROOT=<scratch with the real bytes>)
+$ docker compose -p hatoove-f2-ovr run --rm media
+  rule: B1PREP_MEDIA_ROOT · all 9 referenced recording(s) are present under /app/media · 3 passed, 0 failed
+
+# OVERRIDE EMPTY
+$ docker compose -p hatoove-f2-ovr-empty run --rm media
+  exit 1 · 9 MISSING lines naming every file
+```
+
+Gate groups on this head: `run-gates.mjs mirror`, `baseline`, `mirror-db` against a disposable
+migrated database. Every stack and container removed; `./media` was deleted and the tracked state left clean.

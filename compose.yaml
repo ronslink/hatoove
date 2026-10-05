@@ -31,28 +31,31 @@ x-ownapi-env: &ownapi-env
   # defaults to public/approved-only; make this local preview choice explicit for app and worker.
   B1PREP_CONTENT_MODE: "${HATOVE_CONTENT_MODE:-internal-preview}"
 
-# MEDIA-MOUNT-01 — the listening recordings, as a MOUNTED host path.
+# MEDIA-MOUNT-01 (FIX-F2) — the listening recordings are TRACKED, and this mount is an OPT-IN override.
 #
-# The nine telc B1 recordings (~46 MB, generated with Google TTS from our own transcripts) are NOT tracked in
-# git; Ron is deciding between tracking them, a documented deployment prerequisite and object storage. This
-# mount is agnostic to that choice: it serves them from a durable HOST directory, so a local run does not
-# depend on an image layer and new audio (POOL-01's HV sets) needs no rebuild.
+# A12(1), decided by Ron on 5 Oct 2026: the nine telc B1 recordings are tracked PLAIN in this repository under
+# `content/exams/telc-deutsch-b1/audio/` (43.89 MB total, sha256-matching the package's `media` rows), so
+# `COPY content/exams/` puts them in the image and a clean clone works with NO environment variable and NO host
+# folder. The default source below is therefore that same tracked tree, not an untracked host directory: a
+# first `docker compose up --build` cannot be stopped by a media directory that does not exist.
 #
-# Layout: the host directory mirrors the inside of `content/exams/`, i.e. `./media/telc-deutsch-b1/audio/*.wav`
-# for `<HATOVE_AUDIO_ROOT>/telc-deutsch-b1/audio/hv1.01-v1.wav`. Populate it from the recovery copies with:
-#   mkdir -p media && cp -r .qa/listening-media-20261004/content/exams/* media/
-# `server/media-contract.mjs` reads `B1PREP_MEDIA_ROOT` (set to `/app/media` below), which is the SAME
-# override the startup gate uses, so the preflight checks the root the API will actually read.
+# The mount exists so an operator can supply audio WITHOUT rebuilding — POOL-01's new HV sets, a re-recording,
+# or object storage staged to disk:
+#   HATOVE_AUDIO_ROOT=/srv/hatoove/media docker compose up -d --build
+# The directory must mirror the inside of `content/exams/`, i.e. `<HATOVE_AUDIO_ROOT>/telc-deutsch-b1/audio/…`.
+# `server/media-contract.mjs` reads `B1PREP_MEDIA_ROOT` (defaulted to the mount target below); when an operator
+# sets `HATOVE_AUDIO_ROOT` to a directory that is incomplete, the `media` preflight FAILS LOUDLY naming every
+# missing file — that is the point of the override, and it never applies to the default path.
 #
-# `create_host_path: true` creates the directory when it is absent, and lets `tools/media-mount-check.mjs`
-# name EVERY referenced file that is missing — a mount error would only name the directory.
+# `create_host_path: false`: a typo in HATOVE_AUDIO_ROOT must fail `docker compose up` immediately instead of
+# silently creating an empty directory. The default source is tracked, so it always exists in a checkout.
 x-media-mount: &media-mount
   type: bind
-  source: "${HATOVE_AUDIO_ROOT:-./media}"
+  source: "${HATOVE_AUDIO_ROOT:-./content/exams}"
   target: /app/media
   read_only: true
   bind:
-    create_host_path: true
+    create_host_path: false
 
 services:
   db:
@@ -84,7 +87,7 @@ services:
     environment:
       <<: *ownapi-env
       OWNAPI_PG_ALLOW: "1"
-      B1PREP_MEDIA_ROOT: /app/media
+      B1PREP_MEDIA_ROOT: "${HATOVE_MEDIA_ROOT:-/app/media}"
       OWNAPI_PG_PAYMENTS_PASSWORD: "${OWNAPI_PG_PAYMENTS_PASSWORD:-}"
     depends_on:
       db:
@@ -100,7 +103,7 @@ services:
     command: ["node", "tools/media-mount-check.mjs", "--require-recordings"]
     volumes: [*media-mount]
     environment:
-      B1PREP_MEDIA_ROOT: /app/media
+      B1PREP_MEDIA_ROOT: "${HATOVE_MEDIA_ROOT:-/app/media}"
     restart: "no"
 
   app:
@@ -120,7 +123,7 @@ services:
       # learner - measured, not assumed. It must match the address the browser actually uses.
       B1PREP_PUBLIC_ORIGIN: "${HATOVE_PUBLIC_ORIGIN:-http://localhost:4300}"
       # Optional test payments; no offers are seeded and the default refuses purchases.
-      B1PREP_MEDIA_ROOT: /app/media
+      B1PREP_MEDIA_ROOT: "${HATOVE_MEDIA_ROOT:-/app/media}"
       PAYMENTS_MODE: "${HATOVE_PAYMENTS_MODE:-off}"
       STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
       STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"

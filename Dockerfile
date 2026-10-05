@@ -25,21 +25,18 @@ RUN npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
 COPY package.json server.js ./
 COPY server/ ./server/
 COPY public/ ./public/
-# MEDIA-MOUNT-01 — WHAT THIS IMAGE DOES AND DOES NOT CARRY.
+# MEDIA-MOUNT-01 — the recordings ARE in this image, deliberately.
 #
-# `COPY content/exams/` brings the exam MANIFESTS. It does NOT bring the nine listening recordings: they are
-# ~46 MB of generated audio that is not tracked in git yet (Ron is deciding between tracking them, a
-# documented deployment prerequisite and object storage — see `work/implementation/MEDIA-MOUNT-01.md`).
+# The nine telc B1 recordings are tracked PLAIN in the repository (A12(1), 5 Oct 2026 — 43.89 MB,
+# sha256-matching the package's `media` rows), so `COPY content/exams/` below carries both the manifests and
+# the audio. That is what production needs: `compose.production*.yaml` runs a digest-pinned `read_only` image
+# with no runtime volumes and an exactly pinned command (`tools/production-compose-check.mjs` asserts both), so
+# the bytes must be inside the reviewed artifact.
 #
-# So the recordings must arrive from OUTSIDE the image, and `server/media-contract.mjs` now honours
-# `B1PREP_MEDIA_ROOT` for that: `compose.yaml` bind-mounts the host's `./media` at `/app/media` and sets the
-# variable, so a local run serves them from a durable host path with no rebuild for new audio (POOL-01).
-#
-# For a production image this is the documented prerequisite that option 2 names: populate
-# `content/exams/telc-deutsch-b1/audio/` in the build context (the `.qa/` recovery copy is the source) BEFORE
-# building the digest-pinned image, because production runs no runtime volumes by contract
-# (`tools/production-compose-check.mjs`). `tools/media-mount-check.mjs` is the check that makes a missing
-# recording loud at startup instead of a 404 at play time.
+# Locally, `compose.yaml` binds the same tracked tree (or an operator's HATOVE_AUDIO_ROOT) at `/app/media` and
+# points B1PREP_MEDIA_ROOT at it, so new audio can be exercised without an image rebuild. A clean clone needs
+# neither: the default mount source is the tracked tree. `tools/media-mount-check.mjs` runs as the `media`
+# service and makes a missing recording loud at startup instead of a 404 at play time.
 COPY content/exams/ ./content/exams/
 COPY tools/import-exam-package.mjs ./tools/import-exam-package.mjs
 COPY tools/review-content.mjs ./tools/review-content.mjs
