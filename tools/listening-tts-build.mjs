@@ -8,11 +8,21 @@
  * AUDIO. This tool is the missing half: it turns those transcripts into the private PCM WAV files the transport
  * already knows how to serve, and emits the metadata the package importer needs.
  *
+ * POOL-01 BATCH MODE (`--batch`, task-48). The three listening sets of `content/pool-01/batch-1.json` are
+ * authored there, not in `0010`: flipping one from `held` to `released` needs audio that exists, so the same
+ * synthesis is run over THAT source and the descriptors are written to
+ * `content/exams/telc-deutsch-b1/pool-listening-media.json` — beside the exam's own descriptors, so
+ * `tools/media-mount-check.mjs` verifies those bytes too (it walks every `content/exams/**\/*.json`). The
+ * transcript is the AUTHORED script; nothing here is re-typed. There is no fake-audio fallback: without the
+ * provider key this tool fails, and it never writes a descriptor for audio it did not produce.
+ *
  * VOICES (owner decision, 4 October 2026: "female standard voice always or the cheapest"):
  *   `de-DE-Standard-G` (female) and `de-DE-Standard-H` (male) are BOTH in the Standard tier — the
  *   cheapest ($4 per 1M characters after 4M free). The transcript's own labels decide which is which: a female
  *   speaker is `G`, a male speaker is `H`. That is not a preference, it is what the text says, and the tool
- *   FAILS on a label it cannot place rather than silently reading a man's line in a woman's voice.
+ *   FAILS on a label it cannot place rather than silently reading a man's line in a woman's voice. A public
+ *   announcement (`Durchsage`, `Ansage 1`…`Ansage 5`) is the male `H`, consistent with the seeded corpus;
+ *   `Frau Feldmann` is female because the transcript says she is a woman.
  *
  * OUTPUT IS WAV, NOT MP3. `server/migrations/0029-fixed-media.sql` constrains `exam_media.mime_type` to
  * `audio/wav`, and `server/media-contract.mjs#parsePcmWav` re-parses every byte at publication time. Google's
@@ -24,6 +34,8 @@
  *
  * Usage:
  *   GOOGLE_TTS_API_KEY=... node tools/listening-tts-build.mjs --media-root /abs/private/media [--only hv1.01]
+ *   node tools/listening-tts-build.mjs --batch content/pool-01/batch-1.json --media-root D:\Hatoove\content\exams \
+ *        --key-file D:\Hatoove\.qa\google-tts-key.txt [--only telc-deutsch-b1.hv1.04] [--descriptors <out>]
  */
 
 import fs from 'node:fs';
@@ -35,17 +47,30 @@ import { parsePcmWav } from '../server/media-contract.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const EXAM = 'telc-deutsch-b1';
 const MIGRATION = path.join(ROOT, 'server', 'migrations', '0010-objective-catalogue.sql');
+const EXAM_MEDIA_DIR = path.join(ROOT, 'content', 'exams', EXAM);
 const SAMPLE_RATE = 24000;
 const GAP_MS = 700;
+/** The listening families. Anything else in a batch source is not audio material. */
+const MEDIA_FAMILIES = new Set(['HV1', 'HV2', 'HV3']);
 
 /** Speaker label -> voice. Every label in the seeded transcripts must appear here; see the header. */
 const VOICES = Object.freeze({
-  'Sprecherin 1': 'de-DE-Standard-G', 'Sprecherin 3': 'de-DE-Standard-G', 'Sprecherin 5': 'de-DE-Standard-G',
-  'Sprecher 2': 'de-DE-Standard-H', 'Sprecher 4': 'de-DE-Standard-H',
+  'Sprecherin 1': 'de-DE-Standard-G', 'Sprecherin 2': 'de-DE-Standard-G', 'Sprecherin 3': 'de-DE-Standard-G',
+  'Sprecherin 4': 'de-DE-Standard-G', 'Sprecherin 5': 'de-DE-Standard-G',
+  'Sprecher 1': 'de-DE-Standard-H', 'Sprecher 2': 'de-DE-Standard-H', 'Sprecher 3': 'de-DE-Standard-H',
+  'Sprecher 4': 'de-DE-Standard-H', 'Sprecher 5': 'de-DE-Standard-H',
   // HV2 is an interview: the guest is "die Ernährungsberaterin Dr. Karin Baum" — female; the host is male.
   'Gast': 'de-DE-Standard-G', 'Moderator': 'de-DE-Standard-H',
   // HV3 alternates an answering machine and a public announcement.
   'Anrufbeantworter': 'de-DE-Standard-G', 'Durchsage': 'de-DE-Standard-H',
+  /*
+   * POOL-01 batch 1 (task-48). HV2.04 is an interview with "die Fahrradbeauftragte der Stadt" — the
+   * transcript names her `Frau Feldmann` and calls her a woman, so she is G. HV3.04 is five public
+   * announcements, the same register as the seeded `Durchsage`, so they are H.
+   */
+  'Frau Feldmann': 'de-DE-Standard-G',
+  'Ansage 1': 'de-DE-Standard-H', 'Ansage 2': 'de-DE-Standard-H', 'Ansage 3': 'de-DE-Standard-H',
+  'Ansage 4': 'de-DE-Standard-H', 'Ansage 5': 'de-DE-Standard-H',
 });
 const NARRATOR = 'de-DE-Standard-G';
 
@@ -62,7 +87,28 @@ function readTranscripts() {
   const row = /\('telc-deutsch-b1\.(hv\d\.\d+)',\s*'v1',\s*'(\{[\s\S]*?\})'::jsonb,\s*'(\{[\s\S]*?\})'::jsonb,\s*'([\s\S]*?)'\),\n/g;
   for (const m of block.matchAll(row)) sets.push({ setId: m[1], version: 'v1', answers: m[2], transcript: m[4] });
   if (sets.length !== 9) throw new Error('expected 9 seeded HV transcripts, found ' + sets.length);
-  return sets;
+  return sets.map((set) => ({ ...set, setId: `${EXAM}.${set.setId}`, authoredIn: `server/migrations/0010-objective-catalogue.sql#telc-deutsch-b1.${set.setId}` }));
+}
+
+/**
+ * The listening sets of an authored BATCH source — `content/pool-01/batch-1.json` — which is where the
+ * released pool's sets live. A set with no full script is refused rather than synthesised from a fragment.
+ */
+function readBatchTranscripts(batchPath) {
+  const source = JSON.parse(fs.readFileSync(batchPath, 'utf8'));
+  const sets = (source.sets ?? []).filter((entry) => MEDIA_FAMILIES.has(entry.family));
+  if (!sets.length) throw new Error('the batch source carries no listening set');
+  return sets.map((entry) => {
+    if (typeof entry.set_id !== 'string' || !entry.set_id.startsWith(`${EXAM}.`)) throw new Error('a batch listening set has no usable set_id');
+    if (typeof entry.script !== 'string' || entry.script.trim().length < 300) throw new Error(`${entry.set_id}: no full recording script is authored`);
+    return {
+      setId: entry.set_id,
+      version: 'v1',
+      label: typeof entry.title === 'string' ? entry.title : entry.set_id,
+      transcript: entry.script,
+      authoredIn: `${path.relative(ROOT, batchPath).replaceAll('\\', '/')}#${entry.set_id}`,
+    };
+  });
 }
 
 /** Split a transcript into speaker turns. Text before the first label is narration read in the narrator voice. */
@@ -150,14 +196,20 @@ function assemble(segments) {
 }
 
 /**
- * Build every recording (or one, with \`only\`) into \`mediaRoot\`. Exported so a caller that already holds the key
- * in memory can run it without the key ever crossing a process boundary or a command line.
+ * Build recordings into `mediaRoot` and write their descriptors.
+ *
+ * Exported so a caller that already holds the key in memory can run it without the key ever crossing a process
+ * boundary or a command line. `batch` (a path to an authored batch source) selects POOL-01 mode; without it the
+ * nine seeded recordings of `0010` are rebuilt.
  */
-export async function buildListeningMedia({ mediaRoot, key, only = null } = {}) {
+export async function buildListeningMedia({ mediaRoot, key, only = null, batch = null, descriptorsOut = null } = {}) {
   if (!key) throw new Error('a key is required; the key is never a CLI argument');
   if (!mediaRoot || !path.isAbsolute(mediaRoot)) throw new Error('--media-root must be an absolute private directory');
 
-  const transcripts = readTranscripts().filter(s => !only || s.setId === only);
+  const batchPath = batch ? path.resolve(ROOT, batch) : null;
+  const transcripts = (batchPath ? readBatchTranscripts(batchPath) : readTranscripts())
+    .filter((set) => !only || set.setId === only || set.setId === `${EXAM}.${only}`);
+  if (!transcripts.length) throw new Error('nothing matched --only ' + String(only));
   const outDir = path.join(mediaRoot, EXAM, 'audio');
   fs.mkdirSync(outDir, { recursive: true });
 
@@ -169,21 +221,30 @@ export async function buildListeningMedia({ mediaRoot, key, only = null } = {}) 
     const wav = assemble(rendered);
     const parsed = parsePcmWav(wav);                       // the same parser publication runs
     const digest = createHash('sha256').update(wav).digest('hex');
-    const file = set.setId.replace(/^telc-deutsch-b1\./, '') + '-' + set.version + '.wav';
+    const short = set.setId.replace(new RegExp('^' + EXAM + '\\.'), '');
+    const file = short + '-' + set.version + '.wav';
     const rel = 'content/exams/' + EXAM + '/audio/' + file;
     fs.writeFileSync(path.join(mediaRoot, EXAM, 'audio', file), wav);
     media.push({
-      mediaId: EXAM + '.' + set.setId.replace(/^telc-deutsch-b1\./, '') + '.audio',
+      mediaId: EXAM + '.' + short + '.audio',
       version: set.version, examId: EXAM, path: rel, sha256: digest,
       byteLength: parsed.byteLength, durationMs: parsed.durationMs, mimeType: parsed.mimeType,
       reviewStatus: 'unreviewed', rightsStatus: 'generated',
-      source: 'Google Cloud Text-to-Speech, de-DE-Standard-G/H; transcript authored in server/migrations/0010-objective-catalogue.sql#' + set.setId,
+      source: 'Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in ' + set.authoredIn,
     });
     console.log('OK ' + set.setId + '  turns=' + segments.length + '  bytes=' + parsed.byteLength + '  duration=' + (parsed.durationMs / 1000).toFixed(1) + 's  voices=' + [...new Set(segments.map(s => s.voice))].join('+'));
   }
 
-  const out = path.join(ROOT, 'content', 'exams', EXAM, 'listening-media.json');
-  const document = { schemaVersion: 1, examId: EXAM, generatedBy: 'tools/listening-tts-build.mjs', media };
+  const out = descriptorsOut
+    ? path.resolve(ROOT, descriptorsOut)
+    : (batchPath ? path.join(EXAM_MEDIA_DIR, 'pool-listening-media.json') : path.join(EXAM_MEDIA_DIR, 'listening-media.json'));
+  // A partial run (--only) must not overwrite a full descriptor set with one row: merge by mediaId.
+  let existing = [];
+  if (only && fs.existsSync(out)) {
+    try { existing = (JSON.parse(fs.readFileSync(out, 'utf8')).media ?? []).filter((row) => !media.some((entry) => entry.mediaId === row.mediaId)); }
+    catch { existing = []; }
+  }
+  const document = { schemaVersion: 1, examId: EXAM, generatedBy: 'tools/listening-tts-build.mjs', media: [...existing, ...media] };
   fs.writeFileSync(out, JSON.stringify(document, null, 2) + '\n');
   const chars = transcripts.reduce((n, s) => n + s.transcript.replace(/\s+/g, ' ').trim().length, 0);
   console.log('\n' + media.length + ' recording(s), ' + chars + ' characters synthesised this run.');
@@ -197,6 +258,8 @@ function main() {
   return buildListeningMedia({
     mediaRoot: arg('media-root'),
     only: arg('only'),
+    batch: arg('batch'),
+    descriptorsOut: arg('descriptors'),
     key: process.env.GOOGLE_TTS_API_KEY || (keyFile ? fs.readFileSync(keyFile, 'utf8').trim() : ''),
   });
 }
