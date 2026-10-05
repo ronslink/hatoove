@@ -384,6 +384,17 @@ production and its checksum is frozen.
 - Native review of the new uk/ar/tr interface copy and of the guide translations is **owed**. Until
   it happens, translations render with the "maschinell übersetzt · Prüfung ausstehend" marker and no
   string is marked approved.
-- POOL-01 batch generation needs Ron's go-ahead.
+- POOL-01 batch generation needs Ron's go-ahead. **Given 5 Oct 2026 — see A11.**
+- **A11 (5 Oct 2026, Ron's decisions on POOL-01, media and evidence).** (a) **POOL-01 goes ahead as the
+  priortised top-up (option B of `work/implementation/POOL-01-PROPOSAL.md`)**: six new released sets on the
+  parts a learner meets earliest (HV1–HV3, LV1) as batch 1, the remaining parts in a second batch; a set is
+  authored in the exam's own shape with its items, key and explanations, marked **`unreviewed`** in the
+  content ledger, imported through a new forward migration, and never claimed reviewed or valid by an agent.
+  (b) **The listening media bind-mount is fixed before any new audio**: the nine existing WAVs are not in git
+  and must come from a mounted, verified path that fails loudly when a referenced recording is missing,
+  before batch 1's HV recordings are produced. (c) The interactive evidence the drill's verdict shot needs
+  requires lifting this session's read-only browser posture; until that pass happens the leg-based proof
+  stands (server `correct`/`expected` over the shipped route, the client verdict legs with their mutation,
+  and the measured pre-answer DOM including "no key before the check").
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A10 added 5 October 2026.*
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A11 added 5 October 2026.*
