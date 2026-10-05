@@ -190,9 +190,12 @@
             <p><span data-i18n="shell.m325">Eine Aufgabe auswählen und Schritt für Schritt üben.</span></p>
           </div>
         </div>
-        <a class="card-peach more-link" href="#/probepruefung"><strong><span data-i18n="shell.m326">Einen Leseabschnitt zusammenhängend üben</span></strong><span><span data-i18n="shell.m327">Gespeicherte Antworten · Fortsetzen möglich · Rückmeldung am Ende</span></span></a>
+        <a class="card-peach more-link" id="ueben-more-link" href="#/probepruefung"><strong><span data-i18n="shell.m326">Einen Leseabschnitt zusammenhängend üben</span></strong><span><span data-i18n="shell.m327">Gespeicherte Antworten · Fortsetzen möglich · Rückmeldung am Ende</span></span></a>
         <div class="stack" id="practice-next"></div>
         <div class="stack" id="task-list"><div class="card"><h3><span data-i18n="shell.m057">Wird geladen ...</span></h3></div></div>
+        <!-- Slice H mounts public/app/drill.js here: one item at a time with instant feedback. The three
+             interim nodes above are covered while it is mounted, so the route is never blank without it. -->
+        <div class="stack" id="drill-host" hidden></div>
       </section>
 
       <section class="view" id="view-abschnitt" hidden><div id="mock-host" class="stack"></div></section>

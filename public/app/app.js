@@ -762,6 +762,16 @@ async function renderDictionary() {
 }
 
 /*
+ * EINZELÜBUNGEN — slice H ships the one-item-at-a-time drill as public/app/drill.js. Until that module is
+ * present this falls back to today's view: the adaptive recommendation plus the task catalogue.
+ */
+async function renderUeben() {
+  if (await mountModule('ueben')) return;
+  await renderPracticeNext();
+  await renderTasks();
+}
+
+/*
  * WORTSCHATZ — slice G ships the Prüfungskern blocks and the word deck as public/app/vocab.js. Until that
  * module is present this falls back to today's dictionary, which still serves search and the noun lexicon.
  */
@@ -1643,6 +1653,9 @@ const MODULE_VIEWS = {
   hoeren: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'hoeren-host', covers: ['skill-hoeren'] },
   /* Slice G (VOCAB-01). Until public/app/vocab.js lands the guarded import fails and the dictionary stays. */
   wortschatz: { specifier: './vocab.js', factory: 'createVocabView', css: 'vocab.css', host: 'vocab-host', covers: ['dict-interim-head', 'dict-interim-search', 'dict-results'] },
+  /* Slice H (DRILL-01). One item at a time with instant feedback; the interim recommendation, catalogue and
+     cross-link stay visible until the module is present. */
+  ueben: { specifier: './drill.js', factory: 'createDrillView', css: 'drill.css', host: 'drill-host', covers: ['ueben-more-link', 'practice-next', 'task-list'] },
 };
 let mountedModule = null;
 let mountedView = null;
@@ -1800,7 +1813,7 @@ async function route() {
   if (view === 'hoeren') run(renderHoerenIndex);
   if (view === 'probepruefung') run(renderProbepruefung);
   if (view === 'heute') run(renderDashboard);
-  if (view === 'ueben') { run(renderPracticeNext); run(renderTasks); }
+  if (view === 'ueben') run(renderUeben);
   /* Hören owns its own dispatch above, so the skill branch must not also render it. */
   if (view !== 'hoeren' && SKILL_SECTIONS[view]) run(() => renderSkill(view));
   if (view === 'fehler') run(renderMistakes);
