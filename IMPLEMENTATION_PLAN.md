@@ -1,5 +1,16 @@
 # Hatoove implementation plan
 
+## Incident closed: mangled front-door artwork and unusable listening — 5 October 2026, 13:30 UTC
+
+PR [#150](https://github.com/ronslink/hatoove/pull/150) merged as `f3b5011eee95de85b72f05535c28d09895f12068` and deployed (image `d70b5eb15c2f`, fresh migrate SUCCESS, app+worker healthy, live `/`, `/api/health`, `/api/ready` 200). Two production defects, both real:
+
+- **Front-door artwork mangled.** `landing-item.svg` is loaded through `<img>`, which runs in SVG secure static mode and never fetches external resources, so its `@font-face` URLs were silently ignored and fallback fonts with 5–11 % wider metrics broke the layout — the cross touched "den" and the verdict labels collided with the badges. Fixed by embedding glyph subsets as `data:` URIs and re-laying the tiles so no position depends on a text width. Live: 3 embedded fonts, 0 external font URLs.
+- **Listening unusable while a recording played.** One question per page forced Weiter mid-recording, and navigation flushes the listening controller, halting playback. Fixed by rendering every question that shares a recording under that recording, with Next/Back stepping over the group and question numbers only scrolling.
+
+The bundle was cut before the register fix, so both commits were cherry-picked onto current main; one `mock.js` conflict was resolved by taking the hotfix structure and re-running the catalogue sync (11 inline defaults restored). Follow-ups on the branch: `DEINE ANTWORT` → `IHRE ANTWORT` in the artwork (the register check never scanned SVG text; it does now) and two new gates — **R9** a shipped SVG must embed the fonts it names (this leg reproduces the production defect and fails on it) and **R10** a parameterised direction must be rendered with its parameters. Both mutation-proven. Baseline green including seo 11/11, i18n-register 10/10, exam-s5-client 27/27, exam-s5b-client 19/19, exam-s5-media 12/12.
+
+The `{maxPlays}` literal in the reported screenshot is not a production defect: the live v2 blueprint carries the allowances and `practice-locale-check` pins the unknown-parameter fallback, so the screen came from the author's synthetic harness; R10 gates the class statically. Residuals: no independent review preceded the deploy (integration, not review), the listening grouping is not click-tested with real audio, the browser cache blocks live screenshots, and the register/to-bind-mount/native-review items stay open. Full record: [INCIDENT-20261005-A.md](handoff/ron-agent/INCIDENT-20261005-A.md).
+
 ## German formal register fixed and live — 5 October 2026, 11:05 UTC
 
 PR [#148](https://github.com/ronslink/hatoove/pull/148) merged as `87f853b4c093bc4a0ee927eeff8ded7ef56076db` (merge tree identical to the CI head `8068d1c`) and deployed: image `hatoove-app@sha256:3dc71d25182f36a8bc956845af1f436199fd0553b1d59b0d62be26c6de98e2c2`, fresh migrate SUCCESS, app+worker healthy, live `/`, `/api/health`, `/api/ready` 200. The nine listening recordings were re-injected **from the running image** this time, under the same hard byte-equality gate (`df5b0ddc…`), because they are still not in git.
