@@ -1001,9 +1001,10 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       /*
        * LIBRARY-SEED-01 — the B1 core vocabulary, 300 entries.
        *
-       * `q` is bounded and `limit` is fixed by the server. A learner may narrow the lexicon; the
-       * server decides how much of it one response may carry, so a crafted request cannot ask for the
-       * whole table on every keystroke.
+       * `q` is bounded by the server. The response used to be capped by the DATASTORE's own default of 50,
+       * which the route never overrode, so the lexicon page could only ever show 50 of its 300 entries — and
+       * the response carries no total to say so. The corpus is bounded, so the route serves all of it by
+       * default and keeps `limit` as a bounded override: never an unbounded door on a reference table.
        */
       const pos = query.get('pos');
       if (pos !== null && !/^(noun|verb|adj|adv|phrase)$/.test(pos)) fault(422, 'invalid_pos');
@@ -1011,9 +1012,16 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const limitRaw = query.get('limit');
+      let vocabLimit = 500;
+      if (limitRaw !== null) {
+        if (!/^[0-9]{1,3}$/.test(limitRaw)) fault(422, 'invalid_limit');
+        vocabLimit = Number(limitRaw);
+        if (vocabLimit < 1 || vocabLimit > 500) fault(422, 'invalid_limit');
+      }
       const serveReview = deploymentReview();
       return reply(200, (await datastore.listVocab(owner, {
-        examId: exam, pos, q: q === null ? null : q.trim(), serveReview,
+        examId: exam, pos, q: q === null ? null : q.trim(), serveReview, limit: vocabLimit,
       })).filter((row) => contentIsServable(row)));
     }
     if (pathname === '/api/v1/nouns' && method === 'GET') {
@@ -1156,6 +1164,53 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         }));
       }
     }
+    if (pathname === '/api/v1/practice/check' && method === 'POST') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      if (typeof datastore.checkPracticeAttempt !== 'function') fault(503, 'practice_unavailable');
+      /*
+       * PRACTICE-01 (slice C) -- "Auswerten". ONE request closes the sitting and returns the whole review:
+       * per item the verdict, the learner's own answer and the key (0041 reveals it only after the learner's
+       * own evidence row exists), and the explanation through the EXISTING context-authorized reader rather
+       * than a second path to the same content.
+       */
+      onlyFields(body, ['preparationId', 'attemptId', 'answers', 'language']);
+      const preparationId = requirePreparationId(body.preparationId);
+      const language = body.language === undefined ? null : body.language;
+      if (language !== null && !INTERFACE_LOCALES.includes(language)) fault(422, 'invalid_language');
+      const checked = await datastore.checkPracticeAttempt(owner, {
+        preparationId, attemptId: body.attemptId, answers: body.answers,
+      });
+      /*
+       * REVIEW-PRACTICE-01-SERVER D1 — THE EXPLANATION IS ENRICHMENT, AND IT MUST NEVER DECIDE THIS RESPONSE.
+       *
+       * The check above is already COMMITTED when this runs: the answers are marked, the evidence rows are
+       * written and the sitting is closed. So a failure here can only lose the learner's review — never the
+       * sitting — and a learner whose sitting is checked but whose review was discarded has no way back
+       * (the retry answers 409 `attempt_already_checked`). Two guards, because the reader is a CHOICE-family
+       * reader BY DESIGN (0037 `read_objective_evidence_explanation` refuses `jsonb_typeof(answer) <> 'string'`
+       * and refuses any `media_required` set):
+       *   1. a judgement item, or any item of a media_required set, is not asked for at all — it serves
+       *      `explanation: null`, which is the truth, instead of a refusal;
+       *   2. ANY failure from the reader becomes `explanation: null`, so no future reader fault can turn a
+       *      committed review into an error response.
+       * Before this, HV1/HV2/HV3 answered 404 not_found for every listening set, after committing the check.
+       */
+      const reviewItems = Array.isArray(checked.items) ? checked.items : [];
+      const explainable = typeof datastore.readObjectiveEvidenceExplanation === 'function'
+        && checked.media_required !== true;
+      for (const item of reviewItems) {
+        // A datastore that does not disclose `answer_kind` keeps the previous behaviour (ask the reader).
+        const answerKind = typeof item.answer_kind === 'string' ? item.answer_kind : 'choice';
+        if (!explainable || answerKind !== 'choice') { item.explanation = null; continue; }
+        try {
+          item.explanation = await datastore.readObjectiveEvidenceExplanation(owner, item.evidence_id, { language });
+        } catch {
+          // A withheld, missing or unsupported explanation is null. It is never a failed review.
+          item.explanation = null;
+        }
+      }
+      return reply(200, checked);
+    }
     if (pathname === '/api/v1/practice/next' && method === 'GET') {
       if (!practiceWired) fault(503, 'practice_unavailable');
       /*
@@ -1168,6 +1223,21 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        */
       const prep = await preparationContext(query);
       const serveReview = deploymentReview();
+      const family = query.get('family');
+      if (family !== null) {
+        /*
+         * PRACTICE-01 (slice C) -- one released SET of this part, chosen by the rule, plus the open sitting.
+         * The same practice path with one extra parameter: the part index's tile opens a set, and the runner
+         * needs the set and the attempt id it will check.
+         */
+        if (!/^[A-Za-z]{2}\d?$/.test(family)) fault(422, 'invalid_family');
+        if (typeof datastore.practiceSetForPart !== 'function') fault(503, 'practice_unavailable');
+        const part = await datastore.practiceSetForPart(owner, { preparationId: prep.id, family, serveReview });
+        if (!part) {
+          return reply(200, { preparation_id: prep.id, exam_id: prep.exam_id, reason: 'nothing_available', family, section: null, evidence: null, attempt: null, set: null });
+        }
+        return reply(200, part);
+      }
       const next = await datastore.nextPractice(owner, { preparationId: prep.id, serveReview });
       // Nothing servable is NOT an error: it means the catalogue is empty for this deployment, and the
       // client shows its honest empty state rather than an error page.
