@@ -322,6 +322,24 @@ production and its checksum is frozen.
   through the same native review as the other interface copy. No prediction ships today.
   A3 is now honoured in code: the shell passes `examLanguage` to every module (REVIEW-MOCK-01 D1 found it
   missing, which had rendered exam-language islands as `lang="und"`).
+- **A6 (5 Oct 2026, slice B data sourcing).** The slice-B author proved, with file/line evidence, that
+  four of the five facts a tile must show were **not reachable from any served payload**: the
+  objective-sets list filters `media_required = false` so it can never contain HV1–HV3; the mock-forms DTO
+  carries no per-part breakdown; no served source carries per-part points; and practice progress groups by
+  section (LV/SB/HV) rather than by part. Sourcing is therefore fixed as:
+  (a) items, section/part, item count and the HV play rule come from a new read-only
+  `GET /api/v1/exam-parts?examId=…`, assembled from the blueprint the server already holds
+  (`exam_blueprint.payload`, `listening-package.json`);
+  (b) per-part own-counts come from the existing practice-progress result extended with
+  `parts: [{family, attempts, correct}]` over `item_evidence.family`;
+  (c) per-part **points** are a documented client constant citing `docs/exam/telc-b1-written-draft.json`
+  and `docs/exam/TELC-B1-SOURCES.md` §4 (25/25/25 for lv-t1…hv-t3, 15/15 for sb-t1/t2), and the module
+  prefers a served value when one exists. Follow-up owed: move per-part points into the packaged blueprint
+  at its next revision so the client constant can be deleted;
+  (d) no migration and no MANIFEST line are involved — the data already exists.
+  The same amendment records the Hören entry point: `#/hoeren` mounts the same part-index module into
+  `#hoeren-host` and the module keys its filter off the host it is given, so "Hören is Prüfungsteile
+  filtered to HV" stays one implementation with two entry points and the ctx interface is unchanged.
 - `PRACTICE-FLOW-FROM-B1PREP-20261005.md` was not found in this repository or in
   `D:\B1_Prep\Claude outputs`; §3 of that document is superseded by §5 here.
 - Push/PR policy for this program: slices are committed to their own local branches and integrated
@@ -331,4 +349,4 @@ production and its checksum is frozen.
   string is marked approved.
 - POOL-01 batch generation needs Ron's go-ahead.
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A5 added 5 October 2026.*
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A6 added 5 October 2026.*
