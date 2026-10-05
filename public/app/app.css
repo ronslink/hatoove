@@ -333,6 +333,9 @@ code {
 .mock-options .option input { flex-shrink: 0; margin-top: .35rem; }
 .mock-options .letter { flex-shrink: 0; }
 .mock-options:disabled { opacity: .8; }
+.mock-recording-question { padding-block-start: 1rem; border-block-start: 1px solid var(--line); }
+.mock-recording-question:first-of-type { border-block-start: 0; padding-block-start: 0; }
+.mock-question-number { display: inline-block; min-width: 2ch; font-weight: 700; color: var(--orange-dark); }
 .mock-options .option:focus-within { outline: 2px solid var(--orange-dark); outline-offset: 4px; }
 .mock-passage { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mock-overview .qnav { display: flex; flex-wrap: wrap; gap: .45rem; }
@@ -351,14 +354,16 @@ code {
 }
 
 /* Question-specific passages remain attached to their item in practice and saved review. */
-.mock-review-context { min-width: 0; }
-.mock-review-context summary { cursor: pointer; min-height: 44px; padding-block: .6rem; }
-.mock-review-context .mock-passage { margin-block: .6rem; }
-.mock-review-options { display: grid; gap: .5rem; margin-block: .5rem; }
-.mock-review-options > div { display: flex; gap: .5rem; min-width: 0; }
-.mock-review-options dt { font-weight: 700; }
-.mock-review-options dd { margin: 0; }
-.mock-review-prompt { white-space: pre-wrap; }
+.mock-review-context { min-width: 0; display: grid; gap: .5rem; margin-block: .5rem; }
+.mock-review-passage summary { cursor: pointer; min-height: 44px; padding-block: .6rem; }
+.mock-review-passage .mock-passage { margin-block: .6rem; }
+.mock-review-options { display: grid; gap: .45rem; margin: 0; padding: 0; list-style: none; }
+.mock-review-options > li { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: .55rem .75rem; border: 1px solid var(--line); border-radius: 10px; overflow-wrap: anywhere; }
+.mock-review-options > li[data-state=correct], .mock-review-options > li[data-state=was-correct] { background: var(--green-bg); border-color: var(--green); }
+.mock-review-options > li[data-state=wrong] { background: var(--red-bg); border-color: var(--red); }
+.mock-review-options > li[data-state=correct] .answer-verdict::before, .mock-review-options > li[data-state=was-correct] .answer-verdict::before { content: '\2713'; color: var(--green); }
+.mock-review-options > li[data-state=wrong] .answer-verdict::before { content: '\2717'; color: var(--red); }
+.mock-review-prompt { white-space: pre-wrap; font-weight: 600; margin: 0; }
 #boot-choices .btn { white-space: normal; text-align: start; overflow-wrap: anywhere; }
 .mock-options .letter { width: auto; min-width: 30px; max-width: 40%; height: auto; min-height: 30px; padding: .1rem .35rem; }
 .mock-writing-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
