@@ -153,21 +153,66 @@ check('4. a decision record cannot be updated or deleted', async () => {
 /*
  * 5. FAIL CLOSED — the leg that makes the gate worth having.
  *
- * A synthetic content row whose basis is `unknown` must NOT be served, while an otherwise identical one whose
- * basis is `generated` must be. This is the difference between carrying a field and enforcing it.
+ * A content row whose basis the deployment has not accepted must NOT be served, while an otherwise identical
+ * one whose basis is `generated` must be. Four rows are inserted, identical except for the rights decision:
+ * generated, licensed, unknown, and one with NO decision at all. This is the difference between carrying a
+ * field and enforcing it.
+ *
+ * WHY THE ROWS ARE SHAPED THE WAY THEY ARE — the first version of this leg was VACUOUS, and this is the
+ * measurement that showed it rather than a reading of the leg's name:
+ *
+ *   It inserted `kind='objective'` and `content_sha256='probe'`. `resolve_review_subject`
+ *   (server/migrations/0035-content-review.sql:67) resolves a content subject only for the kinds it knows —
+ *   task, rubric, guide, lexicon, media; there is no `objective` branch, so `ok` stays false — and :84
+ *   RETURNS unless `content_sha256 ~ '^[0-9a-f]{64}$'`. Every synthetic row therefore projected
+ *   `review_status='unavailable', blocked=true`: the row was refused by the REVIEW projection before the
+ *   rights filter was ever consulted. The control assert failed, and the three negative asserts
+ *   ("Probe unknown/licensed/missing" are absent) passed for the wrong reason — nothing synthetic was served
+ *   at all. A rights regression would have been invisible: had `rights_blocked` stopped being returned for
+ *   `unknown`, or had the query stopped filtering on rights, this leg would still have printed PASS.
+ *
+ *   Two small shapes make the fixture real, and the anti-vacuity guard below asserts both the projection and
+ *   the decision for every probe row. That guard is the point: if a row stops being review-servable, the leg
+ *   fails BY NAME instead of the negatives quietly passing by accident again.
+ *
+ * NO RELEASE/FORM FIXTURE IS NEEDED, which the same measurement corrected. `listObjectiveSets`
+ * (server/owned-postgres/adapter.mjs:431) reads `objective_set` directly, and `importedSetGate`
+ * (packages.mjs:20) admits a set with no `exam_form_member` row when its `source_path` is not under
+ * `content/exams/`. Requiring a form membership is true of a different route (`readReleasedForm`, the
+ * pinned-service path), not of this catalogue.
+ *
+ * The CONTROL is both a real seeded set that serves today and the synthetic `generated` row, so the leg
+ * proves the catalogue works rather than only that it refuses.
  */
 check('5. content with no rights basis is refused while generated content is served', async () => {
   const suffix = `rights-probe-${Date.now()}`;
+  /*
+   * A REAL 64-hex digest, because 0035:84 refuses anything else. This is not decoration: with 'probe' here
+   * the row never reaches the rights filter and the leg becomes vacuous.
+   */
+  const digest = 'c'.repeat(64);
+  const probeNote = 'synthetic probe row for the fail-closed leg';
+
+  /** The sets that already serve, captured BEFORE the probe rows exist — the real control. */
+  const seeded = await all(
+    `SELECT s.set_id, s.version FROM objective_set s
+      JOIN content_version c USING(content_version_id)
+      WHERE s.exam_id = 'telc-deutsch-b1' AND s.family = 'LV1' AND s.media_required = false`);
+  assert.ok(seeded.length >= 2, `the seeded LV1 catalogue must serve something for this leg to have a control; got ${seeded.length}`);
+
   const makeRow = async (basis) => {
     const id = `${suffix}-${basis}`;
+    /*
+     * `kind='task'` is the branch that accepts a content row backed by an objective_set (0035:76-77). With
+     * `kind='objective'` there is no branch at all, so the subject does not resolve.
+     */
     await db.admin.query(
       `INSERT INTO content_version(content_version_id, kind, family, source_path, review_status, rights_status, content_sha256, exam_id)
-       VALUES($1, 'objective', 'lv', 'probe', 'approved', 'unknown', 'probe', 'telc-deutsch-b1')`, [id]);
+       VALUES($1, 'task', 'lv', 'probe', 'approved', 'unknown', $2, 'telc-deutsch-b1')`, [id, digest]);
     if (basis !== 'missing') await db.admin.query(
-      `INSERT INTO content_rights(content_version_id, basis, decided_by, note)
-       VALUES($1, $2, 'check', 'synthetic probe row for the fail-closed leg')`, [id, basis]);
+      `INSERT INTO content_rights(content_version_id, basis, decided_by, note) VALUES($1, $2, 'check', $3)`, [id, basis, probeNote]);
     /*
-     * A VALID family and part, so the rows can be filtered for: the first version stored family `LV9`, which
+     * A VALID family and part, so the rows can be filtered for: an earlier version stored family `LV9`, which
      * the route's own `parseFamily` correctly refuses as a spelling that does not exist — and the leg then read
      * its own 422 as a product failure. LV1 with part 1 is a real, servable shape.
      */
@@ -177,50 +222,92 @@ check('5. content with no rights basis is refused while generated content is ser
       [`${suffix}.${basis}`, `Probe ${basis}`, id]);
     return id;
   };
-  await makeRow('generated');
-  await makeRow('unknown');
-  await makeRow('missing');
-  await makeRow('licensed');
+  /** The basis the route must report for each probe row: `missing` falls back to the seed-time column. */
+  const expectedBasis = { generated: 'generated', licensed: 'licensed', unknown: 'unknown', missing: 'unknown' };
+  const ids = {};
+  const setIdFor = (basis) => `${suffix}.${basis}`;
+  for (const basis of Object.keys(expectedBasis)) ids[basis] = await makeRow(basis);
+
+  /*
+   * THE ANTI-VACUITY GUARD. Every probe row must be review-servable and must carry the basis under test.
+   * Without this, a row that never reaches the rights filter makes the three negative asserts below pass for
+   * the wrong reason — which is exactly the defect this leg is being repaired for.
+   */
+  for (const [basis, id] of Object.entries(ids)) {
+    const shape = await one(
+      `SELECT c.content_version_id, e.review_status, e.blocked, COALESCE(cr.basis, c.rights_status) AS served_rights
+         FROM content_version c
+         CROSS JOIN LATERAL effective_content_review(c.content_version_id) e
+         LEFT JOIN content_rights cr USING(content_version_id)
+        WHERE c.content_version_id = $1`, [id]);
+    assert.ok(shape, `the ${basis} probe row must resolve a review subject at all (a non-hex digest or an unknown kind returns nothing here)`);
+    assert.equal(shape.blocked, false, `the ${basis} probe row must be review-servable, or the rights assertions below would be vacuous`);
+    assert.ok(['approved', 'unreviewed'].includes(shape.review_status),
+      `the ${basis} probe row must carry a review status this deployment serves; got ${shape.review_status}`);
+    assert.equal(shape.served_rights, expectedBasis[basis], `the ${basis} probe row must carry the basis under test`);
+  }
 
   const who = await learner();
   const listed = await call('GET', '/api/v1/objective-sets?family=LV1&preparationId=' + who.preparationId, { cookie: who.cookie });
   assert.equal(listed.status, 200, listed.text.slice(0, 120));
-  const titles = (listed.json || []).map((set) => set.title);
-  assert.ok(titles.includes('Probe generated'), `generated content must be served; got ${JSON.stringify(titles)}`);
+  const served = listed.json || [];
+  const titles = served.map((set) => set.title);
+  const servedIds = new Set(served.map((set) => `${set.set_id}@${set.version}`));
+
+  // The control, twice over: the catalogue still serves what it served, and the accepted probe row is served.
+  for (const row of seeded) {
+    assert.ok(servedIds.has(`${row.set_id}@${row.version}`),
+      `the seeded control set ${row.set_id} must still be served; got ${JSON.stringify([...servedIds])}`);
+  }
+  assert.ok(titles.includes('Probe generated'), `accepted content must be served; got ${JSON.stringify(titles)}`);
+  assert.equal(servedIds.has(`${setIdFor('generated')}@v1`), true, 'the accepted probe row must be in the served catalogue');
+
+  // And the negatives, now that the rows are demonstrably reachable by the rights filter.
   assert.ok(!titles.includes('Probe unknown'), 'unaccepted content must be excluded from the catalogue');
   assert.ok(!titles.includes('Probe missing'), 'a missing rights decision must fail closed');
   assert.ok(!titles.includes('Probe licensed'), 'an unconfigured basis must fail closed');
-  const refused = await call('GET', `/api/v1/objective-sets/${suffix}.unknown?version=v1&preparationId=${who.preparationId}`, { cookie: who.cookie });
+  const leaked = served.filter((row) => row.rights_status !== 'generated');
+  assert.deepEqual(leaked.map((row) => [row.set_id, row.rights_status]), [],
+    'no served row may report a basis the deployment has not accepted');
+
+  const refused = await call('GET', `/api/v1/objective-sets/${setIdFor('unknown')}?version=v1&preparationId=${who.preparationId}`, { cookie: who.cookie });
   assert.equal(refused.status, 404, 'a direct content URL must not bypass the rights gate');
-  const accepted = await call('GET', `/api/v1/objective-sets/${suffix}.generated?version=v1&preparationId=${who.preparationId}`, { cookie: who.cookie });
+  const accepted = await call('GET', `/api/v1/objective-sets/${setIdFor('generated')}?version=v1&preparationId=${who.preparationId}`, { cookie: who.cookie });
   assert.equal(accepted.status, 200, 'the generated control must remain readable');
-  const marking = await call('POST', `/api/v1/objective-sets/${suffix}.unknown/answers`, {
+  const marking = await call('POST', `/api/v1/objective-sets/${setIdFor('unknown')}/answers`, {
     cookie: who.cookie, body: { preparationId: who.preparationId, version: 'v1', itemId: '1', answer: 'a' },
   });
   assert.equal(marking.status, 404, 'marking must reject a withheld set before looking up its key');
+
   const previous = process.env.B1PREP_SERVE_RIGHTS;
   try {
     process.env.B1PREP_SERVE_RIGHTS = 'generated,licensed,unknown';
     const widened = await call('GET', '/api/v1/objective-sets?family=LV1&preparationId=' + who.preparationId, { cookie: who.cookie });
     assert.equal(widened.status, 200);
     const allowed = widened.json.map((row) => row.title);
-    assert.ok(allowed.includes('Probe generated') && allowed.includes('Probe licensed'));
+    assert.ok(allowed.includes('Probe generated') && allowed.includes('Probe licensed'),
+      'an operator may widen to another KNOWN basis');
     assert.ok(!allowed.includes('Probe unknown') && !allowed.includes('Probe missing'),
       'deployment configuration cannot turn unknown or absent provenance into accepted content');
   } finally {
     if (previous === undefined) delete process.env.B1PREP_SERVE_RIGHTS;
     else process.env.B1PREP_SERVE_RIGHTS = previous;
   }
-  return `served ${JSON.stringify(titles)} — "Probe unknown" is absent`;
+  return `${served.length} served (${seeded.length} seeded + 1 probe); "Probe unknown"/"missing"/"licensed" absent while all four probe rows review as servable`;
 });
 
 /*
  * 6. AND THE SEED-TIME FACT IS PRESERVED, which is why the table exists rather than a column flip.
  */
 check('6. the content rows still carry what was true when they were written', async () => {
+  /*
+   * Scoped to the SEEDED rows: leg 5's probe rows are `kind='task'` too and sort before these, and this leg's
+   * claim is about the seed-time fact of real content, not about a synthetic fixture.
+   */
   const row = await one(`SELECT c.rights_status, r.basis FROM content_version c
     JOIN content_rights r ON r.content_version_id = c.content_version_id
-    WHERE c.kind = 'task' ORDER BY c.content_version_id LIMIT 1`);
+    WHERE c.kind = 'task' AND c.content_version_id NOT LIKE 'rights-probe-%'
+    ORDER BY c.content_version_id LIMIT 1`);
   assert.equal(row.rights_status, 'unknown', 'the row itself must NOT have been rewritten — immutability held');
   assert.equal(row.basis, 'generated', 'while the decision records what is now known');
   return `row says "${row.rights_status}" (true at seed time), decision says "${row.basis}"`;
