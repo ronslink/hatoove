@@ -1,8 +1,13 @@
-# REVIEW-PACK-APPLIER-01 (task-49) — attacking the applier, and closing four open gaps
+# REVIEW-PACK-APPLIER-01 (task-49, extended by task-53) — attacking the applier, and closing four open gaps
 
 **Status: delivered, not independently reviewed, not merged.** Author: teammate `practice-client`.
 Worktree `D:\Hatoove\.worktrees\review-pack-applier`, branch **`codex/review-pack-applier`**, cut from
 `codex/review-pack-01` @ **`a9051e1`**. Nothing pushed, nothing merged; no other worktree written to.
+
+**task-53 follow-up (N2 of Claude's second pass): the guard on the OTHER axis.** The task-49 guard compared
+`current` (the translation) and not the German, so a translation approval survived a correction to its German
+source. That is fixed on branch `codex/fix-n2-n5` (cut from main `d5bee34`), mutation-proved, and recorded in
+§10 below. Everything above §10 is the task-49 revision.
 
 Files: `tools/apply-review-decisions.mjs`, `tools/review-pack-check.mjs`, `tools/build-review-pack.mjs`
 (the applier's requirement had to reach the generated README and the JSON template), and this note.
@@ -260,3 +265,82 @@ currently runs.
    the 15 `removed` paths are deliberately `not-applicable`.
 4. Optional follow-ups, both cheap and both named above: exact CSV header validation, and validating the
    `where` column against the scan.
+
+## 10. N2 (task-53) — the German-source half of the guard
+
+**The hole, confirmed.** The applier compared `current`, the TRANSLATED text, against the freshly enumerated
+row, and `applyLedger` did the same; the CSV carried `source_de` and the ledger did not store it at all. So:
+German is corrected IN PLACE — migration `0043` did exactly that, under an unchanged `content_version` — the
+uk string is untouched, and the row stays `approved` as a translation **of German that no longer exists**. A
+reviewer reading the pack would have no way to see it. Same failure as task-49, on the axis that was not
+covered.
+
+**The fix (four files).**
+
+- `tools/build-review-pack.mjs`: `CSV_COLUMNS` gains **`source_de_at_review`** beside `source_de`;
+  `applyLedger` requires it and compares it with the fresh `row.source_de`, reporting
+  **`stale_approval_source`** when the German moved and **`ledger_entry_without_source_text`** when an entry
+  (any ledger written before this change) records none — such an entry no longer approves anything. The
+  generated README, the help table and the JSON template now say both texts are required.
+- `tools/apply-review-decisions.mjs`: the CSV carries `source_de` as `sourceQuoted`; a decision file carries
+  `source_de_at_review`; **both** must be present and match the fresh row or the whole file is refused, in the
+  same all-or-nothing way as before. The ledger entry gains `source_de_at_review`, taken from the fresh source
+  the guard has just proved equal.
+- `tools/review-pack-check.mjs`: the approved-row inspection checks the German as well
+  (`stale_approval_source`, `approval_without_source_text`), and the ledger scan reports
+  `ledger_entry_without_source_text`.
+
+**The mutations (the deliverable).** `node tools/review-pack-check.mjs` is one command; the relevant output:
+
+```text
+PASS M6 a stale TRANSLATION approval fails as stale_approval
+     uk: [stale_approval] ui/shell.conflict was approved against a translation the pack no longer carries
+PASS M9 a stale GERMAN approval fails as stale_approval_source (the axis N2 found open)
+     uk: [stale_approval_source] ui/shell.conflict was approved against German the pack no longer carries
+PASS M10 a ledger entry that records no German fails as approval_without_source_text
+     uk: [ledger_entry_without_source_text] ledger entry ui/shell.conflict records no source_de_at_review
+PASS A7 a decision whose text no longer matches the source is REFUSED (both axes)
+PASS A7d a spreadsheet that re-saves multi-line cells as CRLF is ACCEPTED (line endings are not text)
+     row #9 re-saved with CRLF inside a multi-line cell: accepted, ledger records the canonical text
+PASS A12 removing the translation guard makes the stale-text refusal disappear
+     guard removed -> the stale decision is accepted and recorded against the NEW text: the guard is load-bearing
+PASS A13 removing the GERMAN guard makes the stale-source refusal disappear (N2)
+     guard removed -> a translation approval survives a change to its German source: that is exactly N2, and the guard is what closes it
+32/32 checks passed
+```
+
+A13 is the proof N2 needed: **remove the new guard and the German-stale approval is written** (exit 0, and the
+ledger records the new German the human never read); the shipped applier refuses the same input with
+`the German source changed since this pack was generated (the reviewer judged this translation against
+different German); re-generate the pack … — nothing written`.
+
+**The all-or-nothing question, answered.** One mismatched row still refuses the whole file — that is the
+integrity rule and it stays. Two things are true about the ergonomics:
+
+1. **The refusal names every offending row**, not just the first: the applier prints
+   `N problem(s), nothing written` followed by one `id: reason` line per row (no truncation), so a reviewer
+   can fix the file rather than guess. That is the part worth having, and it is already there.
+2. **Line endings are not text, so they no longer reject the file.** A spreadsheet that re-saves a multi-line
+   cell as CRLF used to make the whole pack unreviewable through the easiest return path. Both sides are now
+   compared with CRLF normalised to LF (`sameText`), which preserves the rule — any real character change
+   still fails, as A7e asserts — while an encoding artefact no longer does. The ledger records the CANONICAL
+   text, not the spreadsheet's line-ending form (asserted in A7d).
+   Recommendation: keep it that way, and do **not** weaken the all-or-nothing rule further. If a reviewer ever
+   needs a partial apply, that is a different, explicitly-named tool — not a relaxation of this one.
+
+**Evidence for this section** (worktree `D:\Hatoove\.worktrees\fix-n2-n5`, branch `codex/fix-n2-n5`):
+
+```text
+node tools/review-pack-check.mjs                                        32/32 checks passed
+node tools/review-pack-check.mjs --pack-dir handoff/ron-agent/review-packs-fresh     33/33 checks passed
+node tools/review-pack-check.mjs --pack-dir handoff/ron-agent/review-packs-delivered 32/33 — ONE expected
+    failure: ui/practice.partRunnerListeningUnavailable is missing from those packs. They are DERIVED output
+    generated at a9051e1, when `practice` had 447 keys; main now has 448, so the delivered packs are stale by
+    exactly that one key. Regenerating them is owed (they are gitignored, and I did not touch the shared copy).
+node tools/run-gates.mjs mirror        all gates passed (13, review-pack-check included)
+node tools/run-gates.mjs baseline      all gates passed (9)
+node tools/run-gates.mjs mirror-db     all gates passed (7, pool-01-check --postgres included)
+```
+
+The cross-check's own reading of the older delivered packs is unaffected: those packs carry **0 approved
+rows**, so the new German checks cannot fire on them.

@@ -15,11 +15,15 @@
  *     - a blank decision column stays blank: untouched strings simply stay unreviewed;
  *     - `fix` without replacement text, `reject`/`not-applicable` without a reason, an id that is not
  *       in the pack, and an approval of a string that has no text yet are all errors, not warnings.
- *     - **the text the reviewer judged must still be the text the pack shows.** A decision is about a
- *       string the human READ. If the source moved after the pack was generated, applying the decision
- *       would silently re-attribute that human's judgement to text they never saw, so the whole file is
- *       refused and the reviewer is asked to re-generate and re-read. The CSV carries that text in its
- *       `current` column; a decision file must carry it as `text_at_review`.
+ *     - **the text the reviewer judged must still be the text the pack shows — BOTH texts.** A translation
+ *       decision is a decision about a pair: the German and the translation beside it. If either moved
+ *       after the pack was generated, applying the decision would silently re-attribute that human's
+ *       judgement to text they never saw, so the whole file is refused and the reviewer is asked to
+ *       re-generate and re-read. German is corrected in place (`0043` did, under an unchanged
+ *       `content_version`), which is exactly why the German is compared too. The CSV carries both in its
+ *       `source_de` and `current` columns; a decision file must carry them as `source_de_at_review` and
+ *       `text_at_review`. Line-ending form is not text: CRLF is normalised before comparing, so a
+ *       spreadsheet that re-saves a multi-line cell as CRLF does not reject the file.
  *
  *   It does NOT edit `public/assets/i18n/**` or the translation bundle. Landing a decision is a
  *   separate, owned change (the German/interface catalogues are one lease's files; the bundle is
@@ -90,10 +94,14 @@ function readDecisions(options) {
       const raw = String(row.decision ?? '').trim();
       if (!raw) continue;
       /* `current` is the text the pack PRINTED, so it is what the reviewer judged. It is carried through
-         and compared below: a decision about text that has since moved is not a decision about this text. */
+         and compared below: a decision about text that has since moved is not a decision about this text.
+         `source_de` is carried for the same reason and compared the same way: a translation decision is a
+         decision about a PAIR, and German is corrected in place (migration 0043 did, under an unchanged
+         content_version), so an approval must not survive a change to the German it was made against. */
       decisions.push({
         id: row.id, raw, correction: String(row.correction ?? '').trim(), note: String(row.note ?? '').trim(),
         quoted: String(row.current ?? ''), quotedFrom: 'the pack row\'s current column',
+        sourceQuoted: String(row.source_de ?? ''), sourceQuotedFrom: 'the pack row\'s source_de column',
       });
     }
     return {
@@ -109,6 +117,8 @@ function readDecisions(options) {
     correction: String(entry?.correction ?? '').trim(), note: String(entry?.note ?? '').trim(),
     quoted: entry?.text_at_review === undefined || entry?.text_at_review === null ? null : String(entry.text_at_review),
     quotedFrom: 'text_at_review',
+    sourceQuoted: entry?.source_de_at_review === undefined || entry?.source_de_at_review === null ? null : String(entry.source_de_at_review),
+    sourceQuotedFrom: 'source_de_at_review',
   })).filter((entry) => entry.raw);
   return {
     file: options.json, language: options.language ?? parsed.language ?? null,
@@ -177,20 +187,35 @@ async function main() {
       continue;
     }
     /*
-     * THE SECOND RULE THAT MATTERS, and the one that keeps an approval honest over time.
+     * THE SECOND RULE THAT MATTERS, and the one that keeps an approval honest over time — on BOTH axes.
      *
-     * The reviewer judged the text the pack PRINTED. `row.current` here is the text the sources carry
-     * NOW. If they differ, the source moved after the pack was generated: writing the decision would
-     * record a human's judgement against text they never read, and the pack would then show `approved`
-     * for that new text. Refused for every decision kind, not only for approvals — a `fix` correction
-     * is equally about the sentence the reviewer saw.
+     * The reviewer judged a PAIR: the German the pack printed and the translation beside it. `row.current`
+     * and `row.source_de` here are what the sources carry NOW. If either differs, the source moved after
+     * the pack was generated: writing the decision would record a human's judgement against text they never
+     * read, and the pack would then show `approved` for that new text. German in particular is corrected IN
+     * PLACE (migration 0043 did, under an unchanged content_version), so a translation approval that only
+     * checked the translation would survive a change to the German it was made against.
+     *
+     * Refused for every decision kind, not only approvals — a `fix` correction is equally about the pair
+     * the reviewer saw. Line-ending form is NOT part of the text: a spreadsheet that re-saves a multi-line
+     * cell as CRLF must not reject the whole file, so both sides are compared with CRLF normalised to LF.
+     * Any real character change still fails.
      */
+    const sameText = (left, right) => String(left).replace(/\r\n/g, '\n') === String(right).replace(/\r\n/g, '\n');
     if (entry.quoted === null || entry.quoted === undefined) {
       problems.push(`${id}: this decision carries no ${entry.quotedFrom}, so there is no way to tell which text was judged; ${entry.quotedFrom === 'text_at_review' ? 'add text_at_review (the row\'s current column) to the entry' : 're-export the pack CSV'}`);
       continue;
     }
-    if (String(entry.quoted) !== String(row.current ?? '')) {
-      problems.push(`${id}: the text changed since this pack was generated (the reviewer judged a different sentence); re-generate the pack with \`node tools/build-review-pack.mjs\` and re-review — nothing written`);
+    if (entry.sourceQuoted === null || entry.sourceQuoted === undefined) {
+      problems.push(`${id}: this decision carries no ${entry.sourceQuotedFrom}, so there is no way to tell which German it was judged against; ${entry.sourceQuotedFrom === 'source_de_at_review' ? 'add source_de_at_review (the row\'s source_de column) to the entry' : 're-export the pack CSV'}`);
+      continue;
+    }
+    if (!sameText(entry.quoted, String(row.current ?? ''))) {
+      problems.push(`${id}: the translated text changed since this pack was generated (the reviewer judged a different sentence); re-generate the pack with \`node tools/build-review-pack.mjs\` and re-review — nothing written`);
+      continue;
+    }
+    if (!sameText(entry.sourceQuoted, String(row.source_de ?? ''))) {
+      problems.push(`${id}: the German source changed since this pack was generated (the reviewer judged this translation against different German); re-generate the pack with \`node tools/build-review-pack.mjs\` and re-review — nothing written`);
       continue;
     }
     accepted.push({ id, decision, correction: entry.correction, note: entry.note, row });
@@ -210,6 +235,9 @@ async function main() {
     note: entry.note,
     correction: entry.decision === 'fix' ? entry.correction : '',
     text_at_review: entry.row.current,
+    /* The OTHER half of the pair. Recorded from the fresh source, which the guard above has just proved
+       equal to what the reviewer judged (modulo line-ending form). */
+    source_de_at_review: entry.row.source_de,
     source_file: entry.row.source_file,
     source_locator: entry.row.source_locator,
     section: entry.row.section,
