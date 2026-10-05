@@ -250,7 +250,8 @@ export async function renderMyReports({ api, uiText, esc }) {
  * change can never take the whole app down through this feature.
  */
 export function installFeedbackEntryPoints(ctx) {
-  const refresh = () => { void renderMyReports(ctx); };
+  /* A rejected refresh would otherwise surface as an unhandled rejection on the shell's own boot path. */
+  const refresh = () => { renderMyReports(ctx).catch(() => {}); };
   const sheet = createFeedbackSheet({ ...ctx, onSent: refresh });
   const wire = (id) => {
     const node = document.getElementById(id);

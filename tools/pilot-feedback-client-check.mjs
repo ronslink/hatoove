@@ -129,12 +129,20 @@ check('8. the client calls the four routes the contract defines', () => {
   }
 });
 
-check('9. the sheet is installed only after a successful boot', () => {
+check('9. the sheet is installed only after a successful boot, and cannot break it', () => {
   const bootAt = appCode.indexOf('async function boot()');
+  const fnAt = appCode.indexOf('async function installFeedback()');
   const installAt = appCode.indexOf('await installFeedback();');
   assert.ok(bootAt >= 0 && installAt > bootAt, 'installFeedback must be called from boot(), so it appears only once signed in');
-  assert.ok(/await import\('\.\/feedback\.js'\)/.test(appCode), 'the module must be imported lazily');
-  assert.ok(/catch \(err\) \{ return; \}/.test(appCode), 'a failed import must be silent: the app must work without the sheet');
+  assert.ok(fnAt >= 0, 'installFeedback must exist as its own function');
+  /*
+   * THE WHOLE BODY MUST BE GUARDED, not just the import. This call sits inside `boot()`'s `try`, so a synchronous
+   * throw in the feature — a renamed export, a null element — would send the learner to the boot-error screen and
+   * take the app down. An earlier version guarded only the `import`, which is why this leg checks the body.
+   */
+  const body = appCode.slice(fnAt, appCode.indexOf('\n}', fnAt));
+  assert.ok(/try \{/.test(body) && /catch/.test(body), 'the install body must be wrapped, or a feature failure takes boot down with it');
+  assert.ok(/await import\('\.\/feedback\.js'\)/.test(body), 'the module must be imported lazily');
 });
 
 check('10. the stylesheet stays RTL-safe', () => {
