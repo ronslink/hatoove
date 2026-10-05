@@ -124,8 +124,14 @@ leg('2 citation: the client constant equals both cited sources (items, points, p
     const cited = blueprintItems.get(family);
     if (!cited) { problems.push(family + ': absent from content/exams/telc-deutsch-b1/listening-package.json'); continue; }
     if (entry.itemCount !== cited.itemCount) problems.push(`${family}: EXAM_PARTS items ${entry.itemCount} != listening-package ${cited.itemCount}`);
-    const playback = cited.playback ? cited.playback.practice : null;
-    if ((entry.playback?.practice ?? null) !== playback) problems.push(`${family}: EXAM_PARTS practice plays ${entry.playback?.practice ?? null} != listening-package ${playback}`);
+    /*
+     * REVIEW-PRACTICE-UI-01 F2: comparing only `practice` let a wrong `mock` allowance survive a mutation
+     * (HV3 mock 99 passed 11/11). Both source files carry both numbers, so both are compared.
+     */
+    const citedPractice = cited.playback ? cited.playback.practice : null;
+    const citedMock = cited.playback ? cited.playback.mock : null;
+    if ((entry.playback?.practice ?? null) !== citedPractice) problems.push(`${family}: EXAM_PARTS practice plays ${entry.playback?.practice ?? null} != listening-package ${citedPractice}`);
+    if ((entry.playback?.mock ?? null) !== citedMock) problems.push(`${family}: EXAM_PARTS mock plays ${entry.playback?.mock ?? null} != listening-package ${citedMock}`);
     const points = draftPoints.get(family);
     if (points === undefined) problems.push(family + ': absent from docs/exam/telc-b1-written-draft.json');
     else if (entry.points !== points) problems.push(`${family}: EXAM_PARTS points ${entry.points} != telc-b1-written-draft ${points}`);

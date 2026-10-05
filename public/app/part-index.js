@@ -44,7 +44,7 @@ export const BLOCK_MINUTES = Object.freeze({ 'lv-sb-90': 90, 'hv-30': 30, 'writi
 export const PLAYBACK = Object.freeze({
   HV1: Object.freeze({ practice: 1, mock: 1 }),
   HV2: Object.freeze({ practice: 1, mock: 2 }),
-  HV3: Object.freeze({ practice: 1, mock: 1 }),
+  HV3: Object.freeze({ practice: 1, mock: 2 }),
 });
 /** The eight parts, in examination order. */
 export const PART_ORDER = Object.freeze(['LV1', 'LV2', 'LV3', 'SB1', 'SB2', 'HV1', 'HV2', 'HV3']);
@@ -99,7 +99,23 @@ export async function readExamParts(api) {
     let response;
     try { response = await api.examParts.list(); } catch { response = { ok: false, status: 0 }; }
     const parts = Array.isArray(response?.data?.parts) ? response.data.parts.filter(part => typeof part?.family === 'string') : [];
-    if (response?.ok && parts.length) return { source: 'payload', parts, error: null };
+    if (response?.ok && parts.length) {
+      /*
+       * REVIEW-PRACTICE-UI-01 F1. The published blueprint carries family, itemCount, interaction and
+       * mediaRequired — it has no `part` number and no `points`, so those arrive as null. Replacing the
+       * cited table with that shape would drop "Teil 1" from a heading and print "Angabe folgt" where the
+       * documented source has a number. A served value therefore wins only where it is actually non-null,
+       * and every field it cannot answer keeps the cited one. This is what makes amendment A6's upgrade
+       * path ("move the numbers into the blueprint later, no client edit") true.
+       */
+      const documented = new Map(EXAM_PARTS.map(part => [part.family, part]));
+      const merged = parts.map((part) => {
+        const fallback = documented.get(part.family) || {};
+        const pref = (key) => (part[key] === null || part[key] === undefined ? (fallback[key] ?? null) : part[key]);
+        return { ...part, part: pref('part'), itemCount: pref('itemCount'), points: pref('points'), playback: pref('playback') };
+      });
+      return { source: 'payload', parts: merged, error: null };
+    }
     return { source: 'unavailable', parts: [], error: response?.error ?? 'exam_parts_unavailable' };
   }
   return { source: 'documented', parts: EXAM_PARTS.map(part => ({ ...part })), error: null };
