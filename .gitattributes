@@ -12,3 +12,9 @@ work/design-reference/**  -text
 # Migration checksums record raw bytes. Keep future checkouts stable across platforms;
 # provision.mjs separately recognises the exact LF/CRLF variants of older applied files.
 server/migrations/*.sql text eol=lf
+
+# MIRROR-B1PREP-01: the imported translation bundle is pinned by SHA-256 in
+# content/library-translations/README.md and re-checked by the F2 importer, for the same reason as
+# the design artifacts above: on Windows with core.autocrlf=true an unconverted checkout would
+# change the digest. `-text` keeps the bytes identical to the reviewed artifact on every platform.
+content/library-translations/*.json -text
