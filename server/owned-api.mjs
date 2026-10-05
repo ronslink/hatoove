@@ -59,6 +59,7 @@ import { INTERFACE_LOCALES } from './library-translations.mjs';
 // share them without a circular import, and so leg 1b can pin them against the migration and the shell.
 import { FEEDBACK_CATEGORIES, FEEDBACK_ROUTES } from './feedback-vocabulary.mjs';
 import { readImageHeader } from './image-header.mjs';
+import { SCREENSHOT_UPLOAD_PATH, isBinaryUploadPath } from './upload-path.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
@@ -74,13 +75,16 @@ export const SCREENSHOT_LIMIT_BYTES = 1536 * 1024;
 /** §2's ceiling: a wider capture is a client bug, and storing it would make every operator view slow. */
 export const SCREENSHOT_MAX_WIDTH = 1600;
 const SCREENSHOT_TYPES = Object.freeze(['image/png', 'image/webp']);
-const SCREENSHOT_UPLOAD_PATH =
-  /^\/api\/v1\/feedback\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/screenshot$/;
 
-/** The body limit for one request. A path-scoped exception, not a raised ceiling for everything. */
+/**
+ * The body limit for one request. A path-scoped exception, not a raised ceiling for everything.
+ *
+ * The path itself lives in `server/upload-path.mjs`, because `server.js` has to agree with this file about it:
+ * the server refuses a non-JSON body with a 415 before the owned API is reached, so the two definitions
+ * drifting would mean a route ready to accept an image the server never delivers.
+ */
 export function bodyLimitFor(method, rawPath) {
-  const pathname = String(rawPath ?? '').split('?')[0];
-  return method === 'PUT' && SCREENSHOT_UPLOAD_PATH.test(pathname) ? SCREENSHOT_LIMIT_BYTES : BODY_LIMIT_BYTES;
+  return isBinaryUploadPath(method, rawPath) ? SCREENSHOT_LIMIT_BYTES : BODY_LIMIT_BYTES;
 }
 export const TEXT_LIMIT = 12000;
 
