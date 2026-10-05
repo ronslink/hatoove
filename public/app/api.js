@@ -36,6 +36,7 @@ const PATHS = Object.freeze({
   nouns: '/api/v1/nouns',
   guides: '/api/v1/guides',
   practiceNext: '/api/v1/practice/next',
+  practiceCheck: '/api/v1/practice/check',
   practiceProgress: '/api/v1/practice/progress',
   practiceMistakes: '/api/v1/practice/mistakes',
   attempts: '/api/v1/attempts',
@@ -350,7 +351,26 @@ return Object.freeze({
    */
   practice: Object.freeze({
     explanation: (evidenceId, language = null) => call('GET', '/api/v1/objective-evidence/' + encodeURIComponent(evidenceId) + '/explanation' + explanationQuery(language, 'language'), undefined, true),
-    next: () => scopedCall('GET', PATHS.practiceNext),
+    /**
+     * PRACTICE-01 (slice C) — the two calls the part runner makes, and why they live HERE rather than in
+     * the runner.
+     *
+     * `next(family)` is the same route as `next()` with the one documented query member: the server's
+     * selection rule serves ONE released set of that part together with the open sitting it created, so
+     * the runner can answer the set and then check it. Called with no argument the request is
+     * byte-identical to before this slice (the `?family=` member is appended only for a non-empty
+     * string), which is what makes this additive for every existing caller.
+     *
+     * `check(payload)` is "Auswerten": ONE request marks every answer server-side and returns the whole
+     * review. It is `scopedCall` like its neighbours, so the preparation context travels the same way
+     * as every other practice call; the runner never marks anything itself.
+     *
+     * The URLs stay in this module because this module is the only place in `public/app/` that knows
+     * one. Agreed with the Lead (task-16, 5 October 2026) rather than opened as a second transport.
+     */
+    next: (family = null) => scopedCall('GET', PATHS.practiceNext
+      + (typeof family === 'string' && family ? '?family=' + encodeURIComponent(family) : '')),
+    check: (payload) => scopedCall('POST', PATHS.practiceCheck, payload),
     /**
      * This learner's own totals and per-section tallies, aggregated by the server from item_evidence.
      *
