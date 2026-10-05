@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
+import { readdirSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createFixture, rolePool } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
@@ -13,6 +14,17 @@ const env = process.env;
 const local = env.OWNAPI_PG_PORT === '62563' && env.OWNAPI_PG_DATABASE === 'hatoove_spike';
 const ci = env.CI === 'true' && env.GITHUB_ACTIONS === 'true' && env.OWNAPI_PG_PORT === '5432' && env.OWNAPI_PG_DATABASE === 'hatoove_ci';
 if (env.OWNAPI_PG_ALLOW !== '1' || env.OWNAPI_PG_HOST !== '127.0.0.1' || (!local && !ci)) throw Error('registration_language_fixture_refused');
+/*
+ * The fixture stops before `0039-`, so the remainder it must apply is "every migration from 0039 on" — DERIVED
+ * from the directory, not listed. The hard-coded three-name list this replaces had gone stale at `0041`, so the
+ * check turned red the moment `0042`-`0047` landed: a hand-written inventory with nothing to keep it current,
+ * the class this repository keeps producing. Deriving keeps the assertion strict — it still proves the forward
+ * migrations applied in order, with none missing and none invented — without scheduling the next stale list.
+ */
+const migrationsDir = new URL('../server/migrations/', import.meta.url);
+const expectedRemainder = readdirSync(migrationsDir)
+  .filter(name => /^\d{4}-.+\.sql$/.test(name) && name >= '0039-')
+  .sort();
 
 let db, world, concurrentPool, observer, passed = 0;
 const check = async (name, work) => { await work(); passed++; console.log('PASS ' + name); };
@@ -80,7 +92,7 @@ try {
   await sql("UPDATE learner_settings SET exam_date = '2026-12-03' WHERE user_id = $1", [legacy.id]);
   const prior = (await sql('SELECT * FROM learner_settings ORDER BY user_id')).rows;
   await check('forward migration leaves existing preferences and absent rows byte-for-byte unchanged', async () => {
-    assert.deepEqual(await db.applyRemaining(), ['0039-registration-language.sql','0040-explanation-review.sql','0041-objective-answer-reveal.sql']);
+    assert.deepEqual(await db.applyRemaining(), expectedRemainder);
     assert.deepEqual((await sql('SELECT * FROM learner_settings ORDER BY user_id')).rows, prior);
     assert.equal((await sql('SELECT count(*)::int n FROM learner_settings WHERE user_id = $1', [missing.id])).rows[0].n, 0);
   });
