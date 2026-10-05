@@ -51,7 +51,11 @@ Tie-breaks inside a tier, in this order — the full comparator, and a **total**
 Set choice inside the chosen part is **slice C's rule unchanged** (`selectPracticeSet`: unseen set → most
 wrong items → oldest → set id) — one implementation, not a second opinion.
 
-### 1.2 THE POOL RULE (REVIEW-DRILL-01 H1) — an unplayable item is not a candidate
+### 1.2 THE POOL RULE — an unplayable item is not a candidate (H1, CORRECTED by FIX-F1)
+
+**This section was rewritten by FIX-F1 (task-39, outside review §F1, adopted as A13). The rule below replaces
+the first H1 shape, which blocked on the first weak listening part. That shape was wrong about what feeds the
+ranking, and the correction is recorded rather than quietly edited.**
 
 The review measured the chain: the drill served an HV item whose audio the client cannot play, the learner
 could only guess, the guess was written as `item_evidence`, and `rankDrillParts` consumes exactly those rows —
@@ -59,33 +63,59 @@ so the drill weighted itself toward the family whose items are unplayable, where
 Among unseen parts, family-ascending put `HV` first, so that was the **default first experience** of a new
 learner.
 
-The fix is in the pool, in `selectDrillTarget(ranked)`, walking the ranking from the top:
+**WHAT WAS WRONG WITH THE FIRST FIX.** It assumed only the drill's own items produced listening evidence, and
+returned `{kind: 'listening_blocked'}` at the first weak media part — even when a weak *playable* part ranked
+below it. But the **part runner** was writing that evidence: it served HV sets with a disabled player beside
+live answer controls, and `/practice/check` recorded the blind guesses. Blind guessing on a richtig/falsch item
+is about 50 %, so HV was usually the weakest part, and **one such weakness closed Einzelübungen for almost
+every learner who had ever opened Hören** — the same learner the block then sent back to Hören, where the
+runner let them guess again. Blocking on a part the drill cannot serve, when it *can* serve another part the
+learner is also weak in, is a dead end, not honesty.
 
-* a part that is **not** media → that is the target (`{kind: 'item'}`); the caller then picks the set and the
-  item inside it. **This is the only outcome that serves anything.**
-* a part that **is** media and is `weak` → `{kind: 'listening_blocked'}`: no item, no guess, and the part is
-  **named**, so the learner is told why instead of being switched silently to another part. Nothing is
-  written: no sitting, no evidence row, no key.
-* a part that **is** media but `unseen` or `strong` → skipped, and the walk continues. A part with no evidence
-  (or no recorded wrong answer) is not a weakness the drill must report — which is what stops a brand-new
-  learner being blocked by `HV1` merely because `HV` sorts first.
+The rule now walks the ranking and **passes a media part over**, whatever its tier:
+
+* a part that is **not** media → that is the target (`{kind: 'item'}`). The caller then picks the set and the
+  item inside it. **This is the only outcome that serves an exercise.**
+* a part that **is** media → skipped, and the walk continues. Skipping is silent in the served response: the
+  learner asked for an exercise, not a report about the parts that are unavailable.
+* **nothing playable in the whole ranking, but at least one media part** → `{kind: 'listening_only'}`, naming
+  the highest-ranked listening part. This is the honest note, and it is reserved for the case where there is
+  genuinely nothing to serve. Nothing is written: no sitting, no evidence row, no key.
 
 `families` rows therefore carry `media`, and it **fails closed**: a caller that does not declare a part
-playable gets `media: true`, because the cost of assuming playable is serving an item whose audio cannot be
-played.
+playable never gets an item from it.
 
-The client has a **second, independent layer**: a served item whose set needs media is never rendered as an
-exercise (`drillStateFromServed` turns it into the same blocked state), so no future path can put answer
-controls on an unplayable item and write a guess into the learner's evidence. And the blocked state offers the
-way forward — a button to `#/pruefungsteile`, which is a real route.
+**THE EVIDENCE RULE (FIX-F1 requirement 4) — do not delete the guesses, stop them counting.**
+`playableEvidence(evidence, candidates)` (pure, `server/drill-sets.mjs`) keeps only rows about a set this
+deployment serves AND can play, and `drillStatsFromEvidence` builds the per-part numbers from that filtered
+list. So the listening guesses a learner already has stay in `item_evidence` — they are their own history —
+and can no longer make a part look weak or pick a set. The same rule protects the learner-visible figures:
+`practiceProgress`'s two aggregates (the part tiles and the section counts) exclude evidence from a set whose
+`media_required` is true, so a number a learner reads is never built out of answers they could not give
+honestly.
+
+**REQUIREMENT 1 AND 2 SIT IN THE RUNNER, AND THAT IS THE MORE IMPORTANT HALF.** `practiceSetForPart`
+(`server/owned-postgres/adapter.mjs`) had **no** `media_required` filter, unlike the five catalogue queries
+that carry it. It now has one, so a listening part answers `nothing_available` instead of serving an exercise
+the learner cannot do. `checkPracticeAttempt` refuses to mark a media sitting at all (`409 media_unavailable`),
+as does the drill's `drillCheckItem`, so no path can write a guess about inaudible audio into
+`item_evidence`. The runner's empty state distinguishes the two reasons: a listening part says why it is not
+available (`partRunnerListeningUnavailable`), a part with no released set keeps the generic sentence.
+
+The client keeps a **second, independent layer**: a served item whose set needs media is never rendered as an
+exercise (`drillStateFromServed` turns it into the same empty state), so no future path can put answer controls
+on an unplayable item. The honest listening note offers a real way forward — a button to `#/pruefungsteile`.
+**The learner-facing copy was rewritten in all five locales**: the old `partRunnerAudioUnavailable` named an
+internal path ("Übungs-Wiedergabeweg") on a learner's screen; it now says what the learner can and cannot do,
+and names no engineering concept.
 
 **THE DEPENDENCY, recorded where it will change:** listening becomes drillable when the client has a
 practice-playback transport. The contract already has the path on the SERVER (`practice_attempt`-bound
 `/api/v1/practice/attempts/:id/playback`, task-17) and its accounting; the missing piece is the client
-transport in `api.js` (which carries only mock playback today, and `part-runner.js` disables audio for the
-same reason). When it lands, `media` stops being a reason to block and the walk serves HV like any other part.
-The marking path for a judgement item is already proved (P5) so that day is a transport change, not a
-marking change.
+transport in `api.js` (which carries only mock playback today). When it lands, `media` stops being a reason to
+skip, `listening_only` disappears, the runner's filter becomes a recording check rather than
+`media_required`, and the judgement marking path (still proved at the marking layer, and still refused for an
+unplayable set) is exercised through the runner again.
 
 ### 1.3 The sitting, and the per-item check
 
@@ -127,15 +157,16 @@ assertion is caught by the schema rather than by silence.
 
 `public/app/drill.js` + `public/app/drill.css` implement the frozen §4.2 interface
 `createDrillView(ctx)` → `{ mount(host), unmount() }`, mounted by the shell into `#drill-host` (the Lead's
-commit `75ef73a`). One item at a time, instant feedback, and honest states for: the empty pool, the listening
-block, a missing transport, a failed load, an unrenderable item and a refused check. **The DTO readers are
-imported from `part-runner.js`** — `readServedItems`, `optionLabel`, `readMaterial`, `materialBlocks`,
-`readDisclosure`, `readExamRule`, `explanationBlocks`, `checkFailureOf` — so there is one reader for the served
-shape, not two.
+commit `75ef73a`). One item at a time, instant feedback, and honest states for: the empty pool, the
+listening-only state, a missing transport, a failed load, an unrenderable item and a refused check. **The DTO
+readers are imported from `part-runner.js`** — `readServedItems`, `optionLabel`, `readMaterial`,
+`materialBlocks`, `readDisclosure`, `readExamRule`, `explanationBlocks`, `checkFailureOf` — so there is one
+reader for the served shape, not two.
 
-A listening item shows the EXAM play rule from `/api/v1/exam-parts` and names the missing practice playback
-path, in slice C's own words (`partRunnerAudioRule` / `partRunnerAudioUnavailable`): the recordings exist, the
-client has no transport for practice playback, and the drill must not serve an unplayable item silently.
+A listening item shows the EXAM play rule from `/api/v1/exam-parts`. The copy it shows is **learner-facing
+since FIX-F1**: it no longer names an internal path, and the same rewrite covers the runner's block
+(`partRunnerAudioUnavailable`) and the drill's listening-only title/body, in all five locales. A listening item
+reaching this client at all is now a defence-in-depth case: the server withholds those sets.
 
 No URL literal and no `fetch` in the module: it goes through `ctx.api.practice.drillNext/drillCheck`. Those
 two members are the **additive** api.js change the Lead authorised (`practiceDrillNext`, `practiceDrillCheck`,
@@ -154,7 +185,7 @@ both `scopedCall`); nothing existing was touched.
 | `public/app/drill.js`, `public/app/drill.css` | new — the view, the pool gate, the blocked card, a tokens-only layer |
 | `public/app/api.js` | +17 — the two additive transport members (authorised by the Lead) |
 | `public/assets/i18n/practice-messages.js` | +28 — 28 `drill*` keys in all five locales |
-| `tools/drill-check.mjs` | new — 24 offline legs, 12 PostgreSQL legs, 7 migration legs, 7 mutations, and a named failure when a slice file is absent |
+| `tools/drill-check.mjs` | new — 24 offline legs, 12 PostgreSQL legs, 7 migration legs, 8 mutations, and a named failure when a slice file is absent |
 | `work/implementation/DRILL-01.md` | this note |
 
 ---
@@ -167,15 +198,17 @@ app, the live DNS and learner data were never touched. The container was removed
 
 | Command | Result |
 |---|---|
-| `node tools/drill-check.mjs --postgres` | **43 legs, 0 failed** (24 offline + 12 PostgreSQL + 7 migration) plus the 7 mutations below |
-| `node tools/practice-selection-check.mjs --postgres` | **44 legs, 0 failed** + M1–M6 + P15 |
-| `node tools/practice-media-check.mjs --postgres` | **19 legs, 0 failed** + M1–M4 |
+| `node tools/drill-check.mjs --postgres` | **43 legs, 0 failed** (24 offline + 12 PostgreSQL + 7 migration) plus the 8 mutations below |
+| `node tools/practice-selection-check.mjs --postgres` | **45 legs, 0 failed** + M1–M6 + the F1 sandbox mutation (P15) |
+| `node tools/practice-media-check.mjs --postgres` | **19 legs, 0 failed** + M1–M4 (the listening sitting is crafted: §4 of this note) |
+| `node tools/practice-runner-check.mjs --postgres` | **38 passed, 0 failed** |
 | `node tools/migrate-check.mjs` | **6 passed, 0 failed** (44 migrations on a fresh schema; tamper refused; ledger digests match) |
 | `node tools/table-class-check.mjs` | **90 table rows; 0 failures; 0 findings** |
 | `node tools/owned-api-check.mjs` | **35 passed, 0 failed** (memory) |
 | `node tools/owned-api-check.mjs --backend=postgres` | **35 passed, 0 failed** |
 | `node tools/run-gates.mjs mirror` | **9/9** |
 | `node tools/run-gates.mjs baseline` | **9/9** |
+| `node tools/run-gates.mjs mirror-db` | **5/5** (the group FIX-F1 touches: media, drill, selection, part-index, library) |
 | `node tools/run-gates.mjs mirror-db` | **4/4** |
 
 `drill-check` is not yet in `tools/run-gates.mjs` (that file is the Lead's). The review measured that a
@@ -204,13 +237,24 @@ tally explains itself. It belongs in both groups (`mirror`, `mirror-db --postgre
 * **P8** `mode` keeps the two paths apart in BOTH directions, and `mode` is immutable.
 * **P9/P10** the drill's answers reach the `parts[]` DTO the tiles read and the mistakes list, and the part's
   round state is the SAME counter the runner's wrap rule uses.
-* **P11 (H1)** a learner whose ONLY recorded weakness is listening gets `blocked: 'listening'`, the part
-  `HV1` NAMED with its own numbers, `item: null`, `set: null`, `attempt: null` — and the database is
-  **unchanged**: no `item_evidence` row and no `practice_attempt` row for the skipped item.
-* **P12 (H1)** a listening guess cannot steer the drill: with only wrong HV evidence the response is the
-  block (never an item), with STRONG HV evidence plus a weak playable part the served family is the playable
-  one (`served.family !== 'HV1'`, `set.media_required === false`), and an unseen listening part does not block
-  a fresh learner at all.
+* **P11 (F1, corrected)** a learner whose ONLY recorded weakness is listening is served the weakest **playable**
+  part (`LV1`, `reason: 'unseen'`, `set.media_required === false`), an item IS served and one sitting is opened;
+  the three stored listening guesses are still in `item_evidence` and are **not counted**. The first H1 shape
+  asserted the opposite (a named block) and was wrong: see §1.2.
+* **P12 (F1)** a listening guess cannot steer the drill at all: with only wrong HV evidence the served family is
+  the unseen playable one (never an item from HV, and never a block), with STRONG HV evidence plus a weak
+  playable part the served family is the playable one (`served.family !== 'HV1'`, `set.media_required === false`),
+  an unseen listening part does not enter the decision for a fresh learner, and — the pure part — five stored
+  listening guesses produce **zero** ranking rows through `playableEvidence`/`drillStatsFromEvidence`.
+* **P5 (F1)** a listening sitting cannot be MARKED through the drill either: `drillCheckItem` answers
+  `409 media_unavailable`, the sitting stays `open` at `answered_count 0`, and **no** `item_evidence` row is
+  written. The JSON-boolean marking fact this leg used to prove now lives at the marking layer
+  (`practice-selection-check` P10), where no serving path is involved.
+* **F1 in the practice path (`practice-selection-check`)**: P8f (HV1/HV2/HV3 serve **nothing** and open no
+  sitting), P9 (a crafted listening sitting cannot be marked → 409, row counts unchanged), P14 (the refusal over
+  HTTP, with the sitting left `open`, while the choice families keep their explanations), P8g (the tile and
+  section figures ignore evidence from a set that cannot play, and the rows stay), P15 (a sandboxed copy with
+  BOTH F1 halves removed reproduces the old D1 defect, so that guard is still exercised).
 * **M1–M7** (migration 0046, applied the hard way): a scratch schema is migrated to the **0045 head**, a
   RUNNER sitting is inserted while the table has **no `mode` column**, and only then is 0046 applied —
   asserting it applies **alone** (1 migration), that the pre-existing row reads **`part`**, that the new
@@ -218,21 +262,24 @@ tally explains itself. It belongs in both groups (`mirror`, `mirror-db --postgre
   `practice_attempt_mode_check`, that the trigger refuses to re-label a sitting, and that the MANIFEST entry
   is the migrator's own sha256 of the reviewed bytes.
 
-### 2.2 Mutation proof (7 mutations, all must bite — `MUTATION` lines in the run output)
+### 2.2 Mutation proof (8 mutations, all must bite — `MUTATION` lines in the run output)
 
 | Mutation | Legs that fail |
 |---|---|
 | M1 the weak tier no longer outranks unseen and strong | 2 |
 | M2 the drill serves the FIRST item instead of the next | 1 |
 | M3 the OLDEST sitting wins instead of the newest | 1 |
-| M4 an unseen part is called weak | 4 |
-| **M7 an unplayable listening part is treated as drillable** | **1** (the H1 pure leg) |
+| M4 an unseen part is called weak | 3 |
+| **M7 a weak listening part BLOCKS again (FIX-F1's correction undone)** | **1** (leg 23, the skip leg) |
+| **M8 the playability filter is removed, so listening guesses count** | **1** (leg 23) |
 | M5 the client posts the option ID instead of its typed value | 1 |
 | M6 the client marks its own answer instead of reading the server verdict | 1 |
 
 The pristine copies pass every leg before and after (the control run is part of the gate). Mutations are
 compared on LF, because the Windows working copy is CRLF and a mutation written with `\n` would otherwise
-match nothing and "pass" without changing the module.
+match nothing and "pass" without changing the module. `practice-selection-check`'s P15 adds the fourth
+F1-specific proof: a sandboxed copy with the serving filter AND the marking guard removed reproduces the old
+D1 defect exactly, so the guard underneath them is still exercised rather than unreachable.
 
 ### 2.3 THE SHELL-INTEGRATED RENDER (REVIEW-DRILL-01 M1)
 
@@ -348,16 +395,33 @@ numbers, contain no unfilled `{}` and not be the fallback. Re-rendered through t
 
 1. `checkPracticeAttempt` did not distinguish the two sitting kinds — not a defect in slice C (the distinction
    did not exist until this slice) but it would have become one: the guard is part of this change, and
-   `practice-selection-check --postgres` (44/0) confirms slice C's behaviour is otherwise untouched.
+   `practice-selection-check --postgres` (45/0) confirms slice C's behaviour is otherwise untouched.
 2. `practice-media-check` was red on every Windows tree before this slice (its multi-line mutation pattern
    joins with LF against a CRLF working copy and aborted before its tally). The Lead's `252e20f` fixes it;
    this branch is rebased onto it. No change of mine was involved and no workaround was written here.
 3. The `drillReasonStrong` placeholder mismatch (§2.4) was mine, found by the render the review demanded.
+4. **My own H1 shape was half wrong (FIX-F1).** Fixing the drill's pool while the runner still served listening
+   sets blocked Einzelübungen for nearly every learner who had opened Hören. The record is in §1.2; the leg
+   that asserted the block is re-pointed, not deleted (leg 23 now asserts the skip, and mutations M7/M8 restore
+   the two old behaviours and fail it).
+5. **A content migration without a rights decision is invisible, not merely ungated** — found in POOL-01 batch 1
+   (task-37): the serving policy allows only `generated`/`licensed`/`commissioned`, so `content_version` rows
+   with `rights_status='unknown'` and no `content_rights` row fail closed. `tools/content-rights-check.mjs`
+   leg 1 asserts the invariant, and it is in **no** gate group.
 
 ## 6. Next actions for the Lead
 
 1. Register `tools/drill-check.mjs` in `tools/run-gates.mjs`: `mirror` and `mirror-db` (`--postgres`).
 2. Take the two click-driven shell shots (`#/ueben` answer → verdict) or lift the browser posture for one
    pass; everything else in the render already exists.
-3. Independent review of the fix (a reviewer who is not the author), then integration.
-4. Native review of the 28 `drill*` strings; no string is marked approved by an agent.
+3. Independent review of the fix (a reviewer who is not the author), then integration. FIX-F1 changes behaviour
+   a non-author must re-measure: the runner withholds a listening part, the drill skips it, and the tile
+   figures ignore evidence from a set that cannot play.
+4. Native review of the 28 `drill*` strings; no string is marked approved by an agent. **FIX-F1 rewrote three
+   of them** (`partRunnerAudioUnavailable`, and the drill's listening title/body) and added
+   `partRunnerListeningUnavailable` — five locales each, formal address, no internal path.
+5. `tools/content-rights-check.mjs` is in no gate group (defect 5 above); the two lines to add are
+   `gate('content-rights-check', '--postgres')` and the same in `mirror-db`.
+6. `tools/practice-media-check.mjs` was edited by FIX-F1 (§4 of this note): the listening sitting its playback
+   legs need is now CRAFTED, because the serving path deliberately withholds it. The playback path itself is
+   untouched.

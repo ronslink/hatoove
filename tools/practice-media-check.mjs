@@ -232,12 +232,37 @@ try {
   await leg('F8 pure: the grammar drill\'s twelve authored prompts reach the DTO', expectDrillPromptsServed);
 
   /* ---------------------------------------------------------------- the served sitting and its audio */
-  const served = await port.practiceSetForPart(owner.id, { preparationId: owner.preparationId, family: 'HV1' });
-  const servedHv3 = await port.practiceSetForPart(owner.id, { preparationId: owner.preparationId, family: 'HV3' });
+  /*
+   * FIX-F1 — THE SITTING IS CRAFTED, and this file is the one place where that is the honest choice. The runner
+   * no longer serves a listening set: there is no practice playback transport yet, so serving one put live
+   * answer controls beside a player that could not play and recorded the blind guesses as `item_evidence`. The
+   * subject of THIS check is the PLAYBACK path (`practice-playback.mjs`, its allowance, its byte route), which
+   * is unchanged and still owed its transport; the serving DECISION has its own legs in
+   * `practice-selection-check` (P8f/P9/P14). So the sitting is opened here the way the serving path used to open
+   * it — same table, same columns, `mode` defaulting to `part` — and everything downstream is untouched.
+   */
+  const openMediaSitting = async (setId) => {
+    const setRow = (await db.admin.query(
+      `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count, s.media_required, s.payload
+         FROM objective_set s WHERE s.set_id = $1`, [setId])).rows[0];
+    assert.ok(setRow, `${setId} must exist in the fixture`);
+    assert.equal(setRow.media_required, true, `${setId} is a listening set`);
+    const set = normalisePracticeSet({ ...setRow, items: undefined }, setRow.payload?.playback ?? null);
+    const attemptId = randomUUID();
+    await db.admin.query(
+      `INSERT INTO practice_attempt
+         (attempt_id, owner_id, exam_id, preparation_id, set_id, version, family, section, item_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [attemptId, owner.id, EXAM, owner.preparationId, setRow.set_id, setRow.version, setRow.family,
+        setRow.section, set.item_count]);
+    return { set, attempt: { attempt_id: attemptId, state: 'open' } };
+  };
+  const served = await openMediaSitting(LISTENING_SET);
+  const servedHv3 = await openMediaSitting('s5.telc-deutsch-b1.hv3');
   let hv1State = null;
 
-  await leg('M3 the serving path hands over the authored set WITH its audio and the exam allowance', async () => {
-    assert.ok(served, 'HV1 must serve a set');
+  await leg('M3 the PLAYBACK path hands over the authored set WITH its audio and the exam allowance', async () => {
+    assert.ok(served, 'the sitting exists');
     assert.equal(served.set.set_id, LISTENING_SET, 'the imported listening set is the one carrying audio');
     assert.equal(served.set.items.length, 5);
     assert.deepEqual(served.set.items.map((item) => item.item_id), ['1', '2', '3', '4', '5']);
@@ -309,11 +334,18 @@ try {
 
   /* ---------------------------------------------------------------- after Auswerten */
   await leg('M7 after Auswerten the replay is allowed, and then the allowance is genuinely spent', async () => {
-    const keys = await keysFor(servedHv3.set.set_id);
-    const checked = await port.checkPracticeAttempt(owner.id, {
-      preparationId: owner.preparationId, attemptId: servedHv3.attempt.attempt_id,
-      answers: servedHv3.set.items.map((item) => ({ item_id: item.item_id, answer: keys[item.item_id] })),
-    });
+    /*
+     * FIX-F1: the practice CHECK refuses a listening sitting (there is no honest answer to inaudible audio), so
+     * the "after Auswerten" state is produced directly here. The subject of this leg is the REPLAY rule, which
+     * reads `state = 'checked'`; that state is unreachable through the shipped path until the practice playback
+     * transport lands, and asserting the refusal instead is `practice-selection-check` P14's job.
+     */
+    await db.admin.query(
+      `UPDATE practice_attempt
+          SET state = 'checked', answered_count = item_count, correct_count = item_count, checked_at = now()
+        WHERE attempt_id = $1`, [servedHv3.attempt.attempt_id]);
+    const checked = (await db.admin.query(
+      'SELECT state FROM practice_attempt WHERE attempt_id = $1', [servedHv3.attempt.attempt_id])).rows[0];
     assert.equal(checked.state, 'checked');
     // The replay of the FIRST recording, whose one play was completed before Auswerten.
     const replay = await call(owner, 'POST', playbackUrl(servedHv3.attempt.attempt_id), begin(hv3Recording, { expectedRevision: hv3Current.revision }));

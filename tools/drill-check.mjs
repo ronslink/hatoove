@@ -530,7 +530,13 @@ function buildLegs({ pure, client, pt, catalogues }) {
       assert.ok(/NEW\.mode/.test(sql), 'mode is part of the trigger\'s immutable identity row');
       assert.ok(/GRANT INSERT \([^)]*mode\)/.test(sql), 'the learner may insert the mode and not update it');
     }],
-    ['22 [client] a LISTENING item shows the EXAM play rule and names the missing playback path', async () => {
+    ['22 [client] a LISTENING set that somehow arrives still shows the EXAM play rule and disables playback', async () => {
+      /*
+       * FIX-F1: the drill no longer serves a listening set at all (`selectDrillTarget` passes a media part
+       * over), so this leg is DEFENCE IN DEPTH — if an item of a media set ever reaches the client, the player
+       * is present and disabled and the sentence is one a learner can understand. It no longer asserts that the
+       * copy talks about a "practice playback path": that is engineering text.
+       */
       const partRules = [{ family: 'HV1', section: 'HV', part: 1, itemCount: 5, points: 25, playback: { practice: 1, mock: 1 } }];
       const listeningSet = setDto({ set_id: 'telc-deutsch-b1.hv1.01', family: 'HV1', section: 'HV', part: 1, media_required: true, material: {} });
       const { api } = stubApi({ item: JUDGEMENT_ITEM, key: true, set: listeningSet });
@@ -543,8 +549,8 @@ function buildLegs({ pure, client, pt, catalogues }) {
       assert.ok(textOf(markup).includes('Prüfungsregel: 1-mal hören'), 'the exam rule is printed, not the practice one');
       assert.match(markup, /data-drill-play[^-][^>]*disabled/, 'playback is disabled rather than pretending');
       const honest = textOf(markup);
-      assert.ok(honest.includes('Die Aufnahmen sind vorhanden.'), 'it names that the recordings EXIST');
-      assert.ok(/Übungs-Wiedergabeweg/.test(honest), 'and it names the missing practice playback path');
+      assert.ok(!/Wiedergabeweg|playback path|Abspielweg/.test(honest), 'the copy names no internal path');
+      assert.ok(/noch nicht üben/.test(honest), 'it says what the learner can and cannot do here');
       assert.ok(!/nicht vorhanden|existiert nicht|does not exist|no recording/i.test(honest), 'it must never claim the recording is missing');
       const choice = stubApi({});
       const host2 = hostStub();
@@ -552,51 +558,80 @@ function buildLegs({ pure, client, pt, catalogues }) {
       await view2.mount(host2);
       assert.ok(!view2.markup().includes('data-drill-audio'), 'a reading item renders no audio block at all');
     }],
-    ['23 (H1, pure) a part whose audio cannot be played is NEVER the target: weak blocks by name, unseen/strong are skipped', () => {
+    ['23 (F1, pure) a part whose audio cannot be played is PASSED OVER — never a target, never a dead end', () => {
       const families = [
         { family: 'HV1', sets: 3, media: true },
         { family: 'LV1', sets: 3, media: false },
         { family: 'LV2', sets: 3, media: false },
       ];
-      /* A recorded weakness in the listening part BLOCKS, and names it. */
-      const blocked = pure.selectDrillTarget(pure.rankDrillParts({ families, parts: [{ family: 'HV1', attempts: 3, correct: 0 }] }));
-      assert.equal(blocked.kind, 'listening_blocked');
-      assert.equal(blocked.part.family, 'HV1', 'the part is named, not silently switched away from');
-      assert.equal(blocked.part.tier, 'weak');
-      /* An UNSEEN listening part is skipped, even though HV sorts first — the fresh-learner case. */
-      const fresh = pure.selectDrillTarget(pure.rankDrillParts({ families, parts: [] }));
-      assert.equal(fresh.kind, 'item');
-      assert.equal(fresh.part.family, 'LV1', 'HV1 is unseen and media, so the walk skips it');
-      assert.equal(fresh.part.media, false);
-      /* A STRONG listening part is skipped too: nothing wrong there is a weakness to report. */
-      const strongMedia = pure.selectDrillTarget(pure.rankDrillParts({ families, parts: [{ family: 'HV1', attempts: 4, correct: 4 }] }));
-      assert.equal(strongMedia.kind, 'item');
-      assert.equal(strongMedia.part.family, 'LV1');
-      /* A weaker PLAYABLE part does NOT outrank the learner's weakest part when that one is listening: the
-         drill names the listening weakness instead of switching silently to a different part. */
+      /*
+       * THE CORRECTION (FIX-F1). The first H1 rule BLOCKED at the first weak media part. That was wrong about
+       * what feeds the ranking: the part runner was recording listening guesses, so HV was usually the weakest
+       * part and the block closed Einzelübungen for almost every learner who had opened Hören — and sent them
+       * back to Hören to guess again. A weak listening part is now walked PAST, silently, and the weakest part
+       * the learner can actually play is served.
+       */
+      const weakListening = pure.selectDrillTarget(pure.rankDrillParts({ families, parts: [{ family: 'HV1', attempts: 3, correct: 0 }] }));
+      assert.equal(weakListening.kind, 'item', 'a weak listening part does not stop the walk');
+      assert.equal(weakListening.part.family, 'LV1', 'the weakest PLAYABLE part is the target');
+      assert.equal(weakListening.part.media, false);
+      /* The case the old rule got wrong: a weak listening part AND a weak playable part. */
       const both = pure.selectDrillTarget(pure.rankDrillParts({ families, parts: [
         { family: 'HV1', attempts: 4, correct: 0 }, { family: 'LV2', attempts: 4, correct: 1 },
       ] }));
-      assert.equal(both.kind, 'listening_blocked', 'the weakest part cannot be drilled, so it is named');
-      assert.equal(both.part.family, 'HV1');
-      /* ...but a STRONGER listening weakness (0.5) loses the ranking to a playable 0.25, which is served. */
-      const playableWins = pure.selectDrillTarget(pure.rankDrillParts({ families, parts: [
-        { family: 'HV1', attempts: 4, correct: 2 }, { family: 'LV2', attempts: 4, correct: 1 },
-      ] }));
-      assert.equal(playableWins.kind, 'item');
-      assert.equal(playableWins.part.family, 'LV2', 'the weaker PLAYABLE part is the target');
-      assert.equal(playableWins.part.media, false);
-      /* Only media parts available: nothing to serve. */
-      assert.equal(pure.selectDrillTarget(pure.rankDrillParts({ families: [{ family: 'HV1', sets: 3, media: true }], parts: [] })).kind, 'none');
+      assert.equal(both.kind, 'item', 'the learner is given an exercise, not a report');
+      assert.equal(both.part.family, 'LV2', 'the weakest part they can play');
+      /* An unseen listening part is skipped as well — the fresh-learner case, unchanged by the correction. */
+      const fresh = pure.selectDrillTarget(pure.rankDrillParts({ families, parts: [] }));
+      assert.equal(fresh.kind, 'item');
+      assert.equal(fresh.part.family, 'LV1');
+      /* A strong listening part is skipped too: nothing wrong there is a weakness to report. */
+      const strongMedia = pure.selectDrillTarget(pure.rankDrillParts({ families, parts: [{ family: 'HV1', attempts: 4, correct: 4 }] }));
+      assert.equal(strongMedia.kind, 'item');
+      assert.equal(strongMedia.part.family, 'LV1');
+      /*
+       * The honest note is reserved for the case where NOTHING playable is left: a deployment whose released
+       * parts are listening parts. It names the highest-ranked one and serves nothing.
+       */
+      const onlyMedia = pure.selectDrillTarget(pure.rankDrillParts({
+        families: [{ family: 'HV1', sets: 3, media: true }, { family: 'HV2', sets: 3, media: true }],
+        parts: [{ family: 'HV1', attempts: 4, correct: 0 }, { family: 'HV2', attempts: 4, correct: 1 }],
+      }));
+      assert.equal(onlyMedia.kind, 'listening_only', 'nothing playable: the state is named, not guessed at');
+      assert.equal(onlyMedia.part.family, 'HV1', 'the highest-ranked listening part');
+      assert.equal(pure.selectDrillTarget(pure.rankDrillParts({ families: [{ family: 'HV1', sets: 3, media: true }], parts: [] })).kind, 'listening_only');
+      assert.equal(pure.selectDrillTarget(pure.rankDrillParts({ families: [], parts: [] })).kind, 'none');
       assert.equal(pure.selectDrillTarget([]).kind, 'none');
       assert.equal(pure.selectDrillTarget(null).kind, 'none');
-      /* FAIL CLOSED: a caller that omits the media flag does not get an item served from a part it never
-         declared playable — the cost of guessing is an unplayable exercise (H1). */
+      /* FAIL CLOSED: a caller that omits the media flag does not get an item from a part it never declared
+         playable — and does not get a block either; it is simply not a target. */
       const unspecified = pure.selectDrillTarget(pure.rankDrillParts({ families: [{ family: 'LV1', sets: 3 }], parts: [] }));
       assert.notEqual(unspecified.kind, 'item', 'an undeclared part is treated as unplayable');
+      assert.equal(unspecified.kind, 'listening_only', 'and with nothing else, the state is still honest');
+      /*
+       * THE EVIDENCE RULE (requirement 4): a guess about inaudible audio must not make a part look weak. The
+       * filter is pure, so it is proved here; the database leg proves the same rule through the port.
+       */
+      const candidates = [
+        { set_id: 'telc-deutsch-b1.lv1.01', version: 'v1', media_required: false },
+        { set_id: 'telc-deutsch-b1.hv1.01', version: 'v1', media_required: true },
+      ];
+      const rows = [
+        { set_id: 'telc-deutsch-b1.lv1.01', version: 'v1', family: 'LV1', correct: false },
+        { set_id: 'telc-deutsch-b1.hv1.01', version: 'v1', family: 'HV1', correct: false },
+        { set_id: 'telc-deutsch-b1.hv1.01', version: 'v1', family: 'HV1', correct: false },
+        { set_id: 'telc-deutsch-b1.lv9.01', version: 'v1', family: 'LV9', correct: false },
+      ];
+      const kept = pure.playableEvidence(rows, candidates);
+      assert.deepEqual(kept.map((row) => row.set_id), ['telc-deutsch-b1.lv1.01'],
+        'listening guesses and evidence for a set this deployment does not serve are both ignored');
+      assert.deepEqual(pure.drillStatsFromEvidence(kept), [{ family: 'LV1', attempts: 1, correct: 0 }],
+        'so the listening part never becomes the weakest part by guessing');
+      assert.deepEqual(pure.playableEvidence(rows, []), [], 'with nothing servable, nothing counts');
+      assert.deepEqual(pure.drillStatsFromEvidence(pure.playableEvidence(rows, candidates)).map((row) => row.family), ['LV1']);
     }],
-    ['24 [client] H1: an unplayable part is an honest BLOCKED state with no answer controls at all', async () => {
-      /* (1) The server's own blocked payload: the part is named, no item, no controls, and the way forward. */
+    ['24 [client] F1: the listening note appears only when nothing playable is left, and offers no controls', async () => {
+      /* (1) The server's own note for that state: the part is named, no item, no controls, and a way forward. */
       const blockedResponse = {
         ok: true, status: 200, error: null,
         data: {
@@ -624,7 +659,8 @@ function buildLegs({ pure, client, pt, catalogues }) {
       const text = textOf(markup);
       assert.ok(text.includes('HV1'), 'the part is named');
       assert.ok(text.includes('0 von 3 richtig'), 'with the learner\'s own numbers');
-      assert.ok(/Abspielweg/.test(text), 'and the reason: the playback path is missing');
+      assert.ok(/nur Hörtelle/.test(text), 'it says the available parts are listening parts — not an internal path');
+      assert.ok(!/Wiedergabeweg|Abspielweg|playback path/.test(text), 'and names no engineering concept');
       assert.match(markup, /data-drill-play[^-][^>]*disabled/, 'the player is present and disabled');
       host.onclick({ target: { closest: (wanted) => (wanted === '[data-drill-part-index]' ? {} : null) } });
       assert.deepEqual(navigated, ['#/pruefungsteile'], 'the way forward is the part practice');
@@ -863,13 +899,12 @@ async function postgresLegs() {
       assert.notEqual(second.item.item_id, drill.item.item_id, 'the NEXT item, not the same one again');
     });
 
-    await pgLeg('P5 SQL: a JUDGEMENT item keys by a JSON BOOLEAN — the string form is silently wrong', async () => {
+    await pgLeg('P5 SQL (F1): a listening sitting cannot be marked through the drill either — no evidence is written', async () => {
       /*
-       * H1 moved listening parts OUT of the drill's candidate pool, so this leg no longer starts at
-       * `drillNext` (P11 proves it will not serve HV). The marking capability still has to be proved: when the
-       * practice-playback transport lands, HV items are exactly what the drill will serve, and the boolean
-       * trap does not change. The sitting is therefore created the way the drill creates one — `mode='drill'`,
-       * same columns — and driven through `drillCheckItem`, the shipped per-item path.
+       * This leg used to prove the JSON-BOOLEAN key by driving a crafted HV sitting through `drillCheckItem`.
+       * FIX-F1 refuses that marking (a guess about inaudible audio must not enter `item_evidence` through ANY
+       * path), so the leg now proves the REFUSAL, and the boolean-keying fact stays proved at the marking layer
+       * (`practice-selection-check` P10) where no serving path is involved.
        */
       await clearEvidence();
       await resetDrillSittings();
@@ -887,60 +922,70 @@ async function postgresLegs() {
       const items = await servedItemsOf(hvSet.set_id, hvSet.version);
       const keys = await keysFor(hvSet.set_id, hvSet.version);
       const first = items[0];
-      assert.equal(first.answer_kind, 'judgement', 'a listening item is a judgement item');
+      assert.equal(first.answer_kind, 'judgement', 'a listening item IS a judgement item (the shape is unchanged)');
       assert.deepEqual(first.options.map((option) => option.value), [true, false]);
-      const key = keys[first.item_id];
-      assert.equal(typeof key, 'boolean', 'a listening key is a boolean');
-      const right = await port.drillCheckItem(owner, { preparationId, attemptId, itemId: first.item_id, answer: key });
-      assert.equal(right.correct, true, 'the typed boolean marks right');
-      assert.equal(right.expected, key);
-      assert.equal(right.answer_kind, 'judgement');
-      const second = items[1];
-      const key2 = keys[second.item_id];
-      assert.equal(typeof key2, 'boolean');
-      const wrong = await port.drillCheckItem(owner, { preparationId, attemptId, itemId: second.item_id, answer: String(key2) });
-      assert.equal(wrong.correct, false, 'the STRING "true"/"false" is not the key\'s boolean, and is marked wrong');
+      assert.equal(typeof keys[first.item_id], 'boolean');
+      await assert.rejects(
+        port.drillCheckItem(owner, { preparationId, attemptId, itemId: first.item_id, answer: keys[first.item_id] }),
+        (error) => error.status === 409 && error.code === 'media_unavailable',
+        'the drill refuses to mark an exercise the learner could not hear');
+      const after = await attemptRow(attemptId);
+      assert.equal(after.state, 'open', 'the sitting is untouched');
+      assert.equal(after.answered_count, 0, 'and nothing advanced');
+      const rows = (await db.admin.query(
+        'SELECT count(*)::int AS n FROM item_evidence WHERE owner_id = $1', [owner])).rows[0].n;
+      assert.equal(rows, 0, 'NOT ONE evidence row was written');
     });
 
-    await pgLeg('P11 SQL (H1): an item whose audio cannot be played is NEVER served, and nothing is written for it', async () => {
+    await pgLeg('P11 SQL (F1): a weak LISTENING part does not block — the weakest PLAYABLE part is served', async () => {
       await clearEvidence();
       await resetDrillSittings();
-      /* The learner's ONLY recorded weakness is a listening part: exactly the case the reviewer measured. */
+      /* The learner's ONLY recorded weakness is a listening part: exactly the case the reviewer measured. That
+         used to close Einzelübungen on them; now the listening part is passed over. */
       const hvSet = await setOf('HV1');
       await craft('HV1', 'HV', hvSet.set_id, hvSet.version, 3, 0);
       const before = (await db.admin.query(
         `SELECT (SELECT count(*)::int FROM item_evidence WHERE owner_id = $1) AS evidence,
                 (SELECT count(*)::int FROM practice_attempt WHERE owner_id = $1) AS sittings`, [owner])).rows[0];
       const drill = await port.drillNext(owner, { preparationId });
-      assert.ok(drill, 'the route answers');
-      assert.equal(drill.blocked, 'listening', 'the honest blocked state, not an item');
-      assert.equal(drill.family, 'HV1', 'the part is NAMED');
-      assert.equal(drill.reason, 'weak');
-      assert.equal(drill.item, null, '(a) no HV item is ever served while there is no playback transport');
-      assert.equal(drill.set, null);
-      assert.equal(drill.attempt, null);
-      assert.equal(drill.evidence.attempts, 3, 'the numbers behind the block are the learner\'s own');
+      assert.ok(drill, 'the drill answers with an exercise');
+      assert.equal(drill.blocked, undefined, 'NO block: the listening weakness is passed over, not reported');
+      assert.notEqual(drill.family, 'HV1', 'and the target is not the listening part');
+      assert.equal(drill.family, 'LV1', 'it is the weakest part the learner can actually play');
+      assert.equal(drill.reason, 'unseen', 'the playable parts have no evidence of their own');
+      assert.equal(drill.set.media_required, false, 'the served set needs no audio');
+      assert.ok(drill.item && typeof drill.item.item_id === 'string', 'and an item IS served');
+      assert.ok(Array.isArray(drill.item.options) && drill.item.options.length >= 2);
+      assert.equal(drill.attempt && drill.attempt.state, 'open', 'a sitting is opened for it');
+      /* The listening guesses are still there and still ignored: they are the learner's own record. */
+      const kept = (await db.admin.query(
+        `SELECT count(*)::int AS n FROM item_evidence WHERE owner_id = $1 AND family = 'HV1'`, [owner])).rows[0].n;
+      assert.equal(kept, 3, 'the stored listening guesses are KEPT');
       const after = (await db.admin.query(
         `SELECT (SELECT count(*)::int FROM item_evidence WHERE owner_id = $1) AS evidence,
                 (SELECT count(*)::int FROM practice_attempt WHERE owner_id = $1) AS sittings`, [owner])).rows[0];
-      assert.equal(after.evidence, before.evidence, '(b) no evidence row is written for a skipped item');
-      assert.equal(after.sittings, before.sittings, '(b) and no sitting is opened for it either');
-      /* The client cannot answer what was never served: the served payload carries no item and no attempt. */
-      assert.equal(JSON.stringify(drill).includes('"options"'), false, 'no answer options reach the client');
+      assert.equal(after.evidence, before.evidence, 'serving the playable part writes no evidence of its own yet');
+      assert.equal(after.sittings, before.sittings + 1, 'and opens exactly one sitting');
+      /* The same call twice is stable (the drill resumes its own sitting rather than re-choosing). */
+      const again = await port.drillNext(owner, { preparationId });
+      assert.equal(again.family, 'LV1');
+      assert.equal(again.attempt.attempt_id, drill.attempt.attempt_id, 'the drill continues its own sitting');
     });
 
-    await pgLeg('P12 SQL (H1): a listening guess cannot steer the drill onto a listening item', async () => {
+    await pgLeg('P12 SQL (F1): a listening guess cannot steer the drill at all — playable evidence decides', async () => {
       await clearEvidence();
       await resetDrillSittings();
-      /* (d1) ONLY listening evidence, and it is wrong: the served family is still not HV, and nothing is served. */
+      /* (d1) ONLY listening evidence, and it is wrong: the served family is decided by the playable evidence,
+         which is empty, so it is the unseen-order part — and never HV. */
       const hvSet = await setOf('HV1');
       await craft('HV1', 'HV', hvSet.set_id, hvSet.version, 4, 0);
-      const blocked = await port.drillNext(owner, { preparationId });
-      assert.equal(blocked.blocked, 'listening');
-      assert.notEqual(blocked.family, WEAK, 'the block names the listening part, not a silent switch');
-      assert.equal(blocked.item, null, 'no item, so no guess can be recorded');
+      const first = await port.drillNext(owner, { preparationId });
+      assert.equal(first.family, 'LV1', 'the listening part is passed over, not named as a block');
+      assert.equal(first.set.media_required, false, 'and what is served is playable');
+      assert.notEqual(first.family, 'HV1', 'HV is never the chosen family from listening evidence');
       /* (d2) listening evidence that is STRONG (nothing wrong) never becomes the chosen family either. */
       await clearEvidence();
+      await resetDrillSittings();
       await craft('HV1', 'HV', hvSet.set_id, hvSet.version, 0, 4);
       const weakSet = await setOf(WEAK);
       await craft(WEAK, 'LV', weakSet.set_id, weakSet.version, 3, 1);
@@ -948,12 +993,24 @@ async function postgresLegs() {
       assert.equal(served.family, WEAK, 'the playable weak part is served');
       assert.notEqual(served.family, 'HV1', 'HV is never the chosen family');
       assert.equal(served.set.media_required, false, 'the served set needs no audio');
-      /* (d3) and a listening part that is merely UNSEEN does not block a fresh learner (P1 has the whole case). */
+      /* (d3) a listening part that is merely UNSEEN does not even enter the decision for a fresh learner. */
       await clearEvidence();
       await resetDrillSittings();
       const fresh = await port.drillNext(owner, { preparationId });
       assert.equal(fresh.blocked, undefined, 'an unseen listening part is not a weakness to report');
       assert.equal(fresh.set.media_required, false);
+      /* (d4) ...and the guesses never even reach the ranking: the pure filter drops them. */
+      const candidate = (await db.admin.query(
+        `SELECT set_id, version FROM objective_set WHERE family = 'HV1' ORDER BY set_id LIMIT 1`)).rows[0];
+      await craft('HV1', 'HV', candidate.set_id, candidate.version, 5, 0);
+      assert.equal((await db.admin.query(
+        `SELECT count(*)::int AS n FROM item_evidence WHERE owner_id = $1 AND family = 'HV1'`, [owner])).rows[0].n, 5,
+      'five listening guesses are stored');
+      const pureModule = await import(pathToFileURL(path.join(ROOT, PURE)).href);
+      const stats = pureModule.drillStatsFromEvidence(pureModule.playableEvidence(
+        (await db.admin.query('SELECT set_id, version, family, correct FROM item_evidence WHERE owner_id = $1', [owner])).rows,
+        (await db.admin.query('SELECT set_id, version, media_required FROM objective_set')).rows));
+      assert.deepEqual(stats, [], 'and NOT ONE of them is allowed to make a part look weak');
     });
 
     await pgLeg('P6 SQL: an out-of-order or unknown item is refused, and nothing is written', async () => {
@@ -1208,12 +1265,23 @@ const MUTATIONS = [
   ['M4 an unseen part is called weak', (source) => source.replace(
     "  if (attempts === 0) return 'unseen';",
     "  if (attempts === 0) return 'weak';")],
-  /* REVIEW-DRILL-01 H1: with the media branch gone, a listening part becomes an ordinary target and the
-     pooled rule serves exactly what the reviewer measured. */
-  ['M7 an unplayable listening part is treated as drillable', (source) => source.replace(
-    '    if (part.media === true && part.tier === \'weak\') return { kind: \'listening_blocked\', part };\n'
-    + '    if (part.media !== true) return { kind: \'item\', part };',
-    '    return { kind: \'item\', part }; // M7: the media rule is gone')],
+  /*
+   * FIX-F1 MUTATION A: the SKIP IS TURNED BACK INTO A BLOCK. This is the rule the first H1 fix got wrong, so
+   * the mutation restores exactly that behaviour: a weak listening part stops the walk and is named. The legs
+   * that must fail are the drill ones that now assert a playable part is SERVED.
+   */
+  ['M7 a weak listening part blocks the drill again (the corrected H1 rule)', (source) => source.replace(
+    '    if (part.media === true) {\n      if (!mediaPart) mediaPart = part;\n      continue;\n    }\n'
+    + '    return { kind: \'item\', part };',
+    '    if (part.media === true && part.tier === \'weak\') return { kind: \'listening_blocked\', part }; // M7\n'
+    + '    if (part.media !== true) return { kind: \'item\', part };')],
+  /*
+   * FIX-F1 MUTATION B: THE EVIDENCE FILTER IS REMOVED, so a guess about inaudible audio makes the listening
+   * part look weak again and can steer the choice. The pure legs that assert the filter must fail.
+   */
+  ['M8 the playability filter is removed, so listening guesses count', (source) => source.replace(
+    '    if (!isPlainObject(row) || row.media_required === true) continue;',
+    '    if (!isPlainObject(row)) continue; // M8: unplayable sets count again')],
 ];
 
 const CLIENT_MUTATIONS = [

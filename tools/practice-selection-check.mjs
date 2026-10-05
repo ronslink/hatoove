@@ -338,11 +338,17 @@ const postgresLegs = async () => {
     const created = await step('createPreparation', () => port.createPreparation(owner, EXAM));
     const preparationId = (created.preparation ?? created).id;
 
+    /*
+     * FIX-F1 — THE DEFAULT PART IS A PLAYABLE ONE. This check used to exercise the selection rule through the
+     * HV family, which is precisely the path F1 removed: a listening part is no longer served, so its setup
+     * could not open a single round. The rule is the same rule for every part, so it is exercised on the parts
+     * the deployment can actually serve; every HV-specific expectation lives in its own legs below.
+     */
     const sets = (await db.admin.query(
       `SELECT set_id, version, family, item_count, media_required FROM objective_set
-        WHERE exam_id = $1 AND family LIKE 'HV%' ORDER BY family, set_id, version`, [EXAM])).rows;
-    console.log(`postgres: ${sets.length} released HV set row(s) published by the fixture`);
-    if (sets.length < 3) throw new Error(`the fixture publishes ${sets.length} HV sets, so the rule cannot be exercised`);
+        WHERE exam_id = $1 AND media_required = false ORDER BY family, set_id, version`, [EXAM])).rows;
+    console.log(`postgres: ${sets.length} released PLAYABLE set row(s) published by the fixture (listening sets are not served: FIX-F1)`);
+    if (sets.length < 3) throw new Error(`the fixture publishes ${sets.length} playable sets, so the rule cannot be exercised`);
 
     const family = sets[0].family;
     const familySets = sets.filter((row) => row.family === family);
@@ -384,12 +390,18 @@ const postgresLegs = async () => {
                (evidence_id, owner_id, exam_id, set_id, version, item_id, family, section, answer, correct,
                 latency_ms, preparation_id, answered_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, NULL, $11, $12)`,
-            [randomUUID(), owner, EXAM, row.set_id, row.version, `crafted-${index}`, family, 'HV',
+            [randomUUID(), owner, EXAM, row.set_id, row.version, `crafted-${index}`, family, family.replace(/[0-9]+$/, ''),
               JSON.stringify('a'), index >= wrong, preparationId, answeredAt]);
         }
       });
     };
     const servedNow = (part = family) => port.practiceSetForPart(owner, { preparationId, family: part });
+    /** What a serving call must NOT change: the learner's sittings and their recorded answers. */
+    const counts = async () => {
+      const attempts = (await db.admin.query('SELECT count(*)::int AS n FROM practice_attempt WHERE owner_id = $1', [owner])).rows[0].n;
+      const evidence = (await db.admin.query('SELECT count(*)::int AS n FROM item_evidence WHERE owner_id = $1', [owner])).rows[0].n;
+      return { attempts, evidence };
+    };
     /**
      * The shipped key, read the way the product stores it: `objective_key.answers` is a JSONB object keyed by
      * exactly the item ids the DTO serves (`"41"`, `"6"`, …) and valued `true`/`false` for a listening part
@@ -502,7 +514,7 @@ const postgresLegs = async () => {
      * `objective_key.answers` for the same set/version, and every item must offer an answer the key can match.
      * ----------------------------------------------------------------------------------------------------
      */
-    const FAMILIES = ['LV1', 'LV2', 'LV3', 'SB1', 'SB2', 'HV1', 'HV2', 'HV3'];
+    const FAMILIES = ['LV1', 'LV2', 'LV3', 'SB1', 'SB2'];
     for (const name of FAMILIES) {
       await pgLeg(`P8 ${name}: the served item ids ARE the answer keys, and every item offers an answer`, async () => {
         const served = await servedNow(name);
@@ -517,43 +529,106 @@ const postgresLegs = async () => {
           assert.equal(new Set(item.options.map((option) => option.id)).size, item.options.length, 'no duplicate option id');
           assert.ok(item.options.some((option) => option.value === keys[item.item_id]),
             `${name} item ${item.item_id} must offer the answer the KEY holds, typed the way the key holds it`);
-          if (name.startsWith('HV')) {
-            assert.equal(item.answer_kind, 'judgement');
-            assert.deepEqual(item.options.map((option) => option.value), [true, false], 'HV answers are JSON booleans');
-            assert.ok(item.prompt.length > 0, 'an HV item is its statement');
-          } else {
-            assert.equal(item.answer_kind, 'choice');
-            assert.ok(item.options.every((option) => typeof option.value === 'string'));
-            if (name !== 'SB1' && name !== 'SB2') assert.ok(item.prompt.length > 0, 'the item carries its text');
-          }
+          assert.equal(item.answer_kind, 'choice');
+          assert.ok(item.options.every((option) => typeof option.value === 'string'));
+          if (name !== 'SB1' && name !== 'SB2') assert.ok(item.prompt.length > 0, 'the item carries its text');
         }
         if (name === 'SB1' || name === 'SB2') assert.ok(served.set.material.letter, 'the gap-fill letter is served');
         if (name === 'LV2') assert.ok(served.set.material.text, 'the single-choice passage is served');
       });
     }
 
-    await pgLeg('P9 HV: a BOOLEAN answer marks every item correctly and closes the sitting once', async () => {
-      const served = await servedNow('HV1');
-      const keys = await keysFor(served.set.set_id);
-      const answers = served.set.items.map((item) => ({ item_id: item.item_id, answer: keys[item.item_id] }));
-      const checked = await port.checkPracticeAttempt(owner, { preparationId, attemptId: served.attempt.attempt_id, answers });
-      assert.equal(checked.answered_count, answers.length);
-      assert.equal(checked.correct_count, answers.length, 'every boolean answer must mark correct');
-      assert.ok(checked.items.every((item) => item.correct === true));
-      assert.ok(checked.items.every((item) => typeof item.expected === 'boolean'), 'the revealed key is a boolean');
-      assert.equal(checked.state, 'checked');
-      await assert.rejects(
-        port.checkPracticeAttempt(owner, { preparationId, attemptId: served.attempt.attempt_id, answers }),
-        (error) => error.code === 'attempt_already_checked' || error.status === 409,
-        'a second check of the same sitting is refused');
+    /*
+     * FIX-F1 (outside review §F1) — THE LISTENING FAMILIES ARE NOT SERVED AT ALL, and this REPLACES the old
+     * P8 rows for `HV1`–`HV3`. Those rows asserted the served DTO of a listening set, which was the defect:
+     * no released practice set has recordings, so the runner showed a disabled player beside live answer
+     * controls and `POST /practice/check` wrote the blind guesses into `item_evidence`. The judgement DTO
+     * shape is still proved where it belongs — the client replica and the drill's own judgement legs — but
+     * it is no longer proved by SERVING an exercise the learner cannot do.
+     */
+    for (const name of ['HV1', 'HV2', 'HV3']) {
+      await pgLeg(`P8f ${name}: FIX-F1 — a listening part serves NOTHING (no player beside live controls)`, async () => {
+        const before = await counts();
+        const served = await servedNow(name);
+        assert.equal(served, null, `${name} must not serve an exercise while it has no playable recordings`);
+        const after = await counts();
+        assert.deepEqual(after, before, 'asking for it opens no sitting either');
+      });
+    }
+
+    /*
+     * FIX-F1 requirement 4 — DO NOT DELETE THE GUESSES, STOP THEM COUNTING. A learner who already answered a
+     * listening set before this fix has those rows in `item_evidence`; they are their own history and stay. What
+     * must not happen is that they appear as a practice figure on a tile, or as a section total: a number the
+     * learner reads must not be built out of answers they could not give honestly. This leg crafts exactly those
+     * rows and asserts the figure does not move — while the rows are still in the table.
+     */
+    await pgLeg('P8g FIX-F1: tile and section figures IGNORE evidence from a set that cannot play (the rows stay)', async () => {
+      const before = await port.practiceProgress(owner, { preparationId });
+      const beforeHv = before.parts.find((row) => row.family === 'HV1') ?? null;
+      const beforeSection = before.sections.find((row) => row.section === 'HV') ?? null;
+      const crafted = (await db.admin.query(
+        `SELECT s.set_id, s.version FROM objective_set s WHERE s.family = 'HV1' ORDER BY s.set_id LIMIT 1`)).rows[0];
+      await asOwner(async (client) => {
+        for (let index = 0; index < 3; index += 1) {
+          await client.query(
+            `INSERT INTO item_evidence
+               (evidence_id, owner_id, exam_id, set_id, version, item_id, family, section, answer, correct,
+                latency_ms, preparation_id, answered_at)
+             VALUES ($1, $2, $3, $4, $5, $6, 'HV1', 'HV', $7::jsonb, $8, NULL, $9, now())`,
+            [randomUUID(), owner, EXAM, crafted.set_id, crafted.version, `listening-guess-${index}`,
+              JSON.stringify(index === 0), index === 0, preparationId]);
+        }
+      });
+      const after = await port.practiceProgress(owner, { preparationId });
+      assert.deepEqual(after.parts.find((row) => row.family === 'HV1') ?? null, beforeHv,
+        'three stored listening guesses must not become a number on the Hören tile');
+      assert.deepEqual(after.sections.find((row) => row.section === 'HV') ?? null, beforeSection,
+        'nor a section figure');
+      assert.deepEqual(after.totals, before.totals, 'nor a total');
+      const kept = (await db.admin.query(
+        `SELECT count(*)::int AS n FROM item_evidence WHERE owner_id = $1 AND family = 'HV1'`, [owner])).rows[0].n;
+      assert.equal(kept, 3, 'the rows are KEPT: the fix stops them counting, it does not rewrite the learner');
     });
 
-    await pgLeg('P10 HV: the STRING "true" is WRONG — mark_objective_item compares JSONB, not text', async () => {
-      const served = await servedNow('HV1');
-      const answers = served.set.items.map((item) => ({ item_id: item.item_id, answer: 'true' }));
-      const checked = await port.checkPracticeAttempt(owner, { preparationId, attemptId: served.attempt.attempt_id, answers });
-      assert.equal(checked.correct_count, 0, 'the string "true" is not the boolean true');
-      assert.ok(checked.items.every((item) => item.correct === false));
+    /*
+     * FIX-F1 — the old P9/P10 SERVED an HV set and marked it. That is no longer possible, deliberately: a
+     * listening set is not served, so the sitting they need cannot exist. Both legs keep their subject and
+     * move to the surface that can still answer it.
+     */
+    await pgLeg('P9 FIX-F1: a listening sitting cannot be marked, and no evidence row is written for it', async () => {
+      const row = (await db.admin.query(
+        `SELECT s.set_id, s.version, s.section, s.item_count FROM objective_set s WHERE s.family = 'HV1' ORDER BY s.set_id LIMIT 1`)).rows[0];
+      assert.ok(row, 'the fixture has a listening set');
+      const attemptId = randomUUID();
+      await db.admin.query(
+        `INSERT INTO practice_attempt
+           (attempt_id, owner_id, exam_id, preparation_id, set_id, version, family, section, item_count)
+         VALUES ($1, $2, $3, $4, $5, $6, 'HV1', $7, $8)`,
+        [attemptId, owner, EXAM, preparationId, row.set_id, row.version, row.section, row.item_count]);
+      const before = await counts();
+      const keys = await keysFor(row.set_id);
+      const answers = Object.keys(keys).map((itemId) => ({ item_id: itemId, answer: keys[itemId] }));
+      await assert.rejects(
+        port.checkPracticeAttempt(owner, { preparationId, attemptId, answers }),
+        (error) => error.status === 409 && error.code === 'media_unavailable',
+        'marking an exercise the learner could not hear is refused');
+      const after = await counts();
+      assert.equal(after.evidence, before.evidence, 'NOT ONE guess about inaudible audio was recorded');
+      /* The pre-existing rows are the learner's history: the fix stops them COUNTING, it does not delete them. */
+      assert.ok(after.evidence >= 0);
+    });
+
+    await pgLeg('P10 the marking LAYER compares JSONB: the string "true" is not the boolean true', async () => {
+      const row = (await db.admin.query(
+        `SELECT set_id, version FROM objective_set WHERE family = 'HV1' ORDER BY set_id LIMIT 1`)).rows[0];
+      const itemId = Object.keys(await keysFor(row.set_id))[0];
+      /* The marking function is reached through an OWNER-BOUND transaction: its review guard fires for any
+         connection without `hatoove.owner_id`, admin included (see the note on `craft`). */
+      const mark = (payload) => asOwner(async (client) => (await client.query(
+        'SELECT mark_objective_item($1, $2, $3, $4::jsonb) AS correct', [row.set_id, row.version, itemId, payload])).rows[0].correct);
+      assert.equal(await mark('true'), true, 'the JSON boolean true is the key');
+      assert.equal(await mark('"true"'), false, 'the JSON STRING "true" is not — marking is JSONB comparison, not text');
     });
 
     await pgLeg('P11 a choice family marks every answer and records each evidence row exactly ONCE', async () => {
@@ -593,10 +668,12 @@ const postgresLegs = async () => {
         headers: { cookie, accept: 'application/json', ...(payload === undefined ? {} : { 'content-type': 'application/json' }) },
         ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
       });
-      const next = await call('GET', `/api/v1/practice/next?preparationId=${preparationId}&family=LV1`);
+      /* A part the earlier legs left untouched, so "unseen" is deterministic: the wrap setup now checks LV1
+         sets (FIX-F1 moved the default to a playable part), and P11 checks SB2. */
+      const next = await call('GET', `/api/v1/practice/next?preparationId=${preparationId}&family=LV2`);
       assert.equal(next.status, 200, next.body);
       const body = JSON.parse(next.body);
-      assert.equal(body.family, 'LV1');
+      assert.equal(body.family, 'LV2');
       assert.equal(body.reason, 'unseen');
       assert.ok(body.attempt && body.attempt.attempt_id, 'the route returns the sitting it opened');
       assert.ok(body.set.items.length > 0, 'the route serves the authored items');
@@ -623,27 +700,24 @@ const postgresLegs = async () => {
      * the suite missed that the route answered 404 for EVERY listening set AFTER committing the check. This
      * leg drives the family that was broken, over HTTP, and asserts the review the learner is owed.
      */
-    await pgLeg('P14 HTTP: the LISTENING check answers 200 with its review instead of 404 after committing', async () => {
-      const serving = await servedNow('HV2');
-      assert.ok(serving, 'HV2 must serve a set');
-      const keys = await keysFor(serving.set.set_id);
-      const answers = serving.set.items.map((item) => ({ item_id: item.item_id, answer: keys[item.item_id] }));
-      const response = await callRoute('POST', '/api/v1/practice/check', { preparationId, attemptId: serving.attempt.attempt_id, answers });
-      assert.equal(response.status, 200, `a listening check must return its review, got ${response.status} ${response.body}`);
-      const review = JSON.parse(response.body);
-      assert.equal(review.state, 'checked');
-      assert.equal(review.media_required, true, 'the review discloses that the set is media-bound');
-      assert.equal(review.items.length, serving.set.items.length);
-      assert.ok(review.items.every((item) => item.correct === true), 'every answer is marked');
-      assert.ok(review.items.every((item) => typeof item.expected === 'boolean'), 'the key is revealed as a boolean');
-      assert.ok(review.items.every((item) => item.answer_kind === 'judgement'), 'so the item says which reader can serve it');
-      assert.ok(review.items.every((item) => item.explanation === null),
-        'a choice-family reader cannot serve a judgement/media item: null, never an error');
-      const sitting = (await db.admin.query('SELECT state FROM practice_attempt WHERE attempt_id=$1', [serving.attempt.attempt_id])).rows[0];
-      assert.equal(sitting.state, 'checked');
-      const retry = await callRoute('POST', '/api/v1/practice/check', { preparationId, attemptId: serving.attempt.attempt_id, answers });
-      assert.equal(retry.status, 409, 'a retry is refused — which is why losing the review was unrecoverable');
-      assert.equal(JSON.parse(retry.body).error, 'attempt_already_checked');
+    await pgLeg('P14 HTTP FIX-F1: a listening check is refused (409 media_unavailable) and commits nothing', async () => {
+      const row = (await db.admin.query(
+        `SELECT s.set_id, s.version, s.section, s.item_count FROM objective_set s WHERE s.family = 'HV2' ORDER BY s.set_id LIMIT 1`)).rows[0];
+      const attemptId = randomUUID();
+      await db.admin.query(
+        `INSERT INTO practice_attempt
+           (attempt_id, owner_id, exam_id, preparation_id, set_id, version, family, section, item_count)
+         VALUES ($1, $2, $3, $4, $5, $6, 'HV2', $7, $8)`,
+        [attemptId, owner, EXAM, preparationId, row.set_id, row.version, row.section, row.item_count]);
+      const keys = await keysFor(row.set_id);
+      const answers = Object.keys(keys).map((itemId) => ({ item_id: itemId, answer: keys[itemId] }));
+      const before = await counts();
+      const response = await callRoute('POST', '/api/v1/practice/check', { preparationId, attemptId, answers });
+      assert.equal(response.status, 409, `expected the refusal, got ${response.status} ${response.body}`);
+      assert.equal(JSON.parse(response.body).error, 'media_unavailable');
+      const sitting = (await db.admin.query('SELECT state FROM practice_attempt WHERE attempt_id=$1', [attemptId])).rows[0];
+      assert.equal(sitting.state, 'open', 'nothing was committed, so there is no review to lose');
+      assert.deepEqual(await counts(), before, 'and no evidence row was written');
       /* ...and the CHOICE families keep their explanations: the fix skips, it does not disable. */
       const choice = await servedNow('LV1');
       const choiceKeys = await keysFor(choice.set.set_id);
@@ -658,7 +732,7 @@ const postgresLegs = async () => {
       assert.ok(choiceReview.items.every((item) => item.answer_kind === 'choice'));
       assert.ok(choiceReview.items.every((item) => item.explanation !== null),
         'a choice-family item still receives its explanation');
-      return `HV2 ${review.items.length} items → 200 with explanation:null; LV1 keeps ${choiceReview.items.length} explanations`;
+      return `HV2 refused 409 with the sitting left open; LV1 keeps ${choiceReview.items.length} explanations`;
     });
 
     /*
@@ -667,7 +741,7 @@ const postgresLegs = async () => {
      * reproduction is exact) and drive the same call. Without the guard the route answers 404 while the sitting
      * is already `checked` — the review computed and thrown away. Nothing in the repository is modified.
      */
-    await pgLeg('P15 MUTATION: the same listening check answers 404 with the sitting committed, without the guard', async () => {
+    await pgLeg('P15 MUTATION: without the F1 filter AND the D1 guard, the listening check answers 404 with the sitting committed', async () => {
       const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'practice-route-mutation-'));
       try {
         fs.cpSync(path.join(ROOT, 'server'), path.join(sandbox, 'server'), { recursive: true, dereference: true });
@@ -686,11 +760,25 @@ const postgresLegs = async () => {
           mutated = next;
         }
         fs.writeFileSync(target, mutated);
+        /* FIX-F1: BOTH F1 halves are removed in the COPY — the serving filter and the marking guard — so a
+           listening sitting can exist and be marked at all. A guard that can no longer be exercised is a guard
+           nobody is checking. */
+        const adapterPath = path.join(sandbox, 'server', 'owned-postgres', 'adapter.mjs');
+        const adapterSource = fs.readFileSync(adapterPath, 'utf8').replaceAll('\r\n', '\n');
+        let filterless = adapterSource.replace(
+          '            WHERE s.exam_id = $1 AND s.family = $2\n              AND s.media_required = false\n',
+          '            WHERE s.exam_id = $1 AND s.family = $2\n');
+        assert.notEqual(filterless, adapterSource, 'the F1 serving filter must be present to remove it');
+        const unguarded = filterless.replace("        if (set.media_required === true) fail(409, 'media_unavailable');\n", '');
+        assert.notEqual(unguarded, filterless, 'the F1 marking guard must be present to remove it');
+        filterless = unguarded;
+        fs.writeFileSync(adapterPath, filterless);
         const legacy = await import(pathToFileURL(target).href);
         const legacyAdapter = await import(pathToFileURL(path.join(sandbox, 'server', 'owned-postgres', 'adapter.mjs')).href);
         const legacyPort = legacyAdapter.createPostgresDatastore({ pool: db.learner });
         const legacyApi = legacy.createOwnedApi({ datastore: legacyPort, sessions: world.sessions, settings: world.settings, accountDeletion: world.deletion });
         const serving = await legacyPort.practiceSetForPart(owner, { preparationId, family: 'HV3' });
+        assert.ok(serving, 'with the filter removed in the copy, HV3 serves again — that is the defect');
         const keys = await keysFor(serving.set.set_id);
         const response = await legacyApi.handle({
           method: 'POST', path: '/api/v1/practice/check', originChecked: true,
