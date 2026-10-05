@@ -19,6 +19,7 @@ const GROUPS = {
   mirror: [
     gate('nav-ia-check'), gate('mock-intro-check'), gate('part-index-check'),
     gate('practice-runner-check'), gate('practice-selection-check'), gate('drill-check'),
+    gate('pool-01-check'),
     gate('library-render-check'), gate('vocab-check'), gate('library-i18n-check'),
     gate('media-mount-check'),
     gate('content-corrections-check'),
@@ -28,6 +29,7 @@ const GROUPS = {
     gate('library-i18n-check', '--postgres'), gate('part-index-check', '--postgres'),
     gate('practice-selection-check', '--postgres'), gate('practice-media-check'),
     gate('drill-check', '--postgres'), gate('content-rights-check', '--postgres'),
+    gate('pool-01-check', '--postgres'),
   ],
   /* The AGENTS.md offline baseline. */
   baseline: [
