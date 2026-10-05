@@ -1,0 +1,55 @@
+/*
+ * PRACTICE-UI-01 (slice B) — the styles this module owns.
+ *
+ * Tokens only, from public/assets/design/hatoove.css: no literal colour, no second brand face, and only the
+ * design system's own 860 px step (the shell already defines it; this module adds no breakpoint of its own).
+ * Every direction is logical, so the Arabic RTL interface mirrors without a second rule set, and the exam
+ * language island on a tile heading keeps its own direction.
+ */
+
+.part-index { display: grid; gap: 20px; min-width: 0; }
+.part-index > * { min-width: 0; }
+.part-index h1, .part-index h2, .part-index h3, .part-index p { overflow-wrap: anywhere; }
+
+.part-index-lead { color: var(--ink-2); font-size: 1.05rem; max-width: 68ch; }
+
+/* ---------- one card per subtest ---------- */
+
+.part-index-subtests {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+.part-index-card { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.part-index-card p { margin: 0; }
+
+/* ---------- one tile per part ---------- */
+
+.part-index-parts { min-width: 0; }
+.part-index-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+.part-index-tile {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: 0;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.part-index-tile h3 { margin: 0; }
+.part-index-facts { margin: 0; }
+.part-index-own { margin: 4px 0 0; font-weight: 650; color: var(--ink-2); }
+.part-index-own.muted { font-weight: 400; }
+
+@media (max-width: 860px) {
+  .part-index { gap: 16px; }
+  .part-index-subtests, .part-index-grid { grid-template-columns: minmax(0, 1fr); }
+}
