@@ -140,9 +140,14 @@ Module allocation: `library.js` (E/F), `mock-intro.js` (D), `part-runner.js` (C 
 Additive only; existing consumers of `GET /api/v1/guides` and `…/guides/:id` must not change shape.
 
 - `GET /api/v1/guides/:id?locale=<l>` gains an optional `translations` member:
-  `{ locale, guideVersion, status, strings: { "<path>": "<text>" }, nouns: { "<entry_id>": { meaning, example, rule } } }`.
+  `{ locale, guideVersion, status, stringStatus: { "<path>": "<status>" }, strings: { "<path>": "<text>" },
+  nouns: { "<entry_id>": { meaning, example, rule } } }`
+  (`stringStatus` added by amendment A2: §4.3 requires per-string review status and the original member
+  list had no slot for it. `status` is the bundle marker, `statusText` per line is the client's job.)
 - When a locale has no imported, non-rejected bundle, `translations` is `null` and the client renders
-  German only with one "Übersetzung folgt" note per page.
+  German only with one "Übersetzung folgt" note per page. A **stale** bundle also answers `null`; the
+  frozen shape carries no discriminator, so never-imported and imported-but-stale are indistinguishable
+  through this API for now (recorded limitation, A2).
 - Per-string review status is exposed so the client can mark `machine_unreviewed` lines:
   `"maschinell übersetzt · Prüfung ausstehend"`.
 - Translations attach to the guide version they were generated from (`…@v1`). A new guide version
@@ -287,6 +292,14 @@ production and its checksum is frozen.
   running database). The production `objective_set` row count of 34 spans exam packages and is not the
   telc B1 per-part set count. Every part therefore has released content and gets a tile in slice B; C's
   wrap rule stands at three sets per part.
+- **A2 (5 Oct 2026, F2 read path).** `stringStatus` is part of the `translations` member: §4.3 requires
+  per-string review status and the original five-member list had no slot for it. Accepted, not a slice
+  deviation. The same amendment records that a stale bundle and an absent bundle both answer
+  `translations: null`, so the API cannot currently distinguish never-imported from imported-and-stale.
+- **A3 (5 Oct 2026, slice D).** The ctx object in §4.2 gains one optional member, `examLanguage`, so a
+  module can label authored exam-language text (`lang`/`dir`) the way `mock.js` already does. Absent, a
+  module falls back to `lang="und" dir="ltr"`; nothing may require it. The shell passes
+  `getExamLanguage()` for every module from integration onwards.
 - `PRACTICE-FLOW-FROM-B1PREP-20261005.md` was not found in this repository or in
   `D:\B1_Prep\Claude outputs`; §3 of that document is superseded by §5 here.
 - Push/PR policy for this program: slices are committed to their own local branches and integrated
@@ -296,4 +309,4 @@ production and its checksum is frozen.
   string is marked approved.
 - POOL-01 batch generation needs Ron's go-ahead.
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1 added 5 October 2026.*
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1, A2 and A3 added 5 October 2026.*
