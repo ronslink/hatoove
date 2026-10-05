@@ -219,7 +219,33 @@ check('3. mistakes are latest per (set, version, item), ordered deterministicall
   assert.equal((await answer(b, 'v1', '1', 'a')).status, 201); // now right under v1
   list = await mistakes(b);
   assert.deepEqual(mine(list.items), ['v1:2', 'v2:2'], 'the latest v1 answer clears only the v1 mistake');
-  assert.ok(list.items.every((item) => !('correct_answer' in item) && !('answers' in item)), 'no key is returned');
+  /*
+   * REDESIGN-01 A changed this assertion, on purpose.
+   *
+   * The old leg required that NO correct answer came back at all. That was the behaviour before migration
+   * 0041: the mistakes list handed the learner their own wrong answer and nothing else, because the key is
+   * not readable by the learner role. Now `reveal_objective_answer` returns ONE item's expected answer, and
+   * only for an item this learner has already answered — so the row does carry `correct_answer`, and a leg
+   * asserting its absence would fail while the product was working exactly as designed.
+   *
+   * What must still hold, and is asserted here instead:
+   *   1. the whole KEY never leaves the server — no `answers`, and no object mapping item ids to answers;
+   *   2. each row's `correct_answer` is that row's OWN expected answer from the fixture key, not a
+   *      neighbour's — the exactness that the slice-A review proved a mutant could break;
+   *   3. and every row here is an item this learner answered, which is the only condition under which a
+   *      reveal is allowed at all.
+   */
+  assert.ok(list.items.every((item) => !('answers' in item)), 'the whole key is never returned');
+  for (const item of list.items.filter((row) => row.set_id === SET)) {
+    const expected = KEYS[item.version]?.[item.item_id];
+    assert.ok(expected !== undefined, `the fixture key has ${item.version}:${item.item_id}`);
+    assert.deepEqual(item.correct_answer, expected,
+      `${item.version}:${item.item_id} reveals ITS OWN key (${expected}), not a neighbour's`);
+  }
+  const revealed = JSON.stringify(list.items.map((item) => item.correct_answer ?? null));
+  assert.ok(!/"answers"/.test(JSON.stringify(list)), 'no key object is smuggled through any field');
+  assert.equal(list.items.filter((item) => item.set_id === SET && item.your_answer === null).length, 0,
+    'every listed row is an item this learner answered — the condition the reveal depends on');
   const stranger = await mistakes(c);
   assert.deepEqual(mine(stranger.items), [], 'another owner sees none of these mistakes');
   assert.deepEqual((await call('GET', scoped(c, '/api/v1/practice/progress'), { cookie: c.cookie })).json.totals.attempts, 0,
