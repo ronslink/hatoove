@@ -346,3 +346,31 @@ personal-data export, not a shareable report. Its destination and retention foll
 **Stage 1 deploys A + B + C** (the learner-facing half); **Stage 2 deploys D and E** (A2). An earlier line here
 said "Stage 1 deploys A+B+C+D" — that was a leftover from before A2 was revised and it is wrong: D carries the
 operator role and the production secret that A2 exists to keep out of Stage 1.
+
+### A15 — §2's screenshot upload cannot be served by the current admission code, and needs a scoped limit plus a binary path
+
+Found while starting FB-E, before any client code was written. §2 specifies the upload as a **raw image body**
+(`image/webp` or `image/png`), **≤1.5 MB**. The owned API cannot receive that today, for two independent reasons,
+both in `server/owned-api.mjs`:
+
+1. **`BODY_LIMIT_BYTES` is 64 KB**, enforced twice — in the `handleNode` read loop, which stops reading and
+   answers 413, and again in `decodeBody`. A 150 KB WebP never reaches a route.
+2. **`decodeBody` decodes the body as UTF-8 text** and faults `invalid_utf8` on bytes that are not valid UTF-8,
+   which image bytes almost never are. Raising the limit alone would therefore not be enough: binary data is not
+   representable on that path at all.
+
+**Decision — a path-scoped limit and a binary branch, following the webhook precedent.** `handle()` already
+special-cases `POST /api/v1/payments/stripe/webhook` ahead of the JSON requirement, because a signature must be
+verified over raw bytes (`owned-api.mjs:1639-1645`). FB-E adds the same shape for one route:
+
+* `SCREENSHOT_LIMIT_BYTES = 1.5 MB`, applied **only** to `PUT /api/v1/feedback/<uuid>/screenshot`;
+* `BODY_LIMIT_BYTES` is **unchanged** for every other route, so the request-size surface this installation has
+  already accepted does not grow;
+* the binary branch sits **after** the origin check and the `configured` check, so the upload is origin-checked
+  and fail-closed like every other mutation — unlike the webhook, which cannot carry an Origin;
+* the capability is guarded by the same per-route `typeof datastore.putFeedbackScreenshot !== 'function'` check
+  FB-B's routes use, so a datastore without it answers 503 on that route alone and `DATASTORE_METHODS` — which
+  governs the core CRUD and is checked at construction — does not change.
+
+**Unchanged by this amendment:** §2's status codes, the ten-minute window, the one-screenshot rule, the
+magic-byte and dimension checks, the 1600 px ceiling, and "the report is saved first".
