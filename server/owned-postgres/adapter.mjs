@@ -1491,7 +1491,17 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const payment_grants = (await client.query('SELECT order_id,event_id,exam_id,allowance,expires_at,created_at FROM payment_grant WHERE owner_id=$1 ORDER BY created_at,order_id', [owner])).rows;
         const payment_checkout_events = (await client.query('SELECT event_id,order_id FROM payment_checkout_event WHERE owner_id=$1 ORDER BY event_id', [owner])).rows;
         const provider_attempts=await readOwnProviderAttempts(client);
+        // PILOT-FEEDBACK-01 (0049, FB-A): the learner's OWN reports and survey rows, with `status` and WITHOUT
+        // `operator_note` — that note is the operator's internal triage record, not the learner's data. The
+        // screenshot bytes belong in the export as FILES (FB-E), so this projection carries no bytes and no
+        // image metadata; it must never grow an `operator_note`.
+        const feedback = (await client.query(
+          `SELECT feedback_id, kind, category, body, route, exam_id, set_id, version, item_id,
+                  guide_id, section_id, run_id, interface_language, app_version, survey_round,
+                  survey_answers, status, created_at, handled_at
+             FROM pilot_feedback WHERE owner_id = $1 ORDER BY created_at, feedback_id`, [owner])).rows;
         return { provider_attempts, preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing, mock_run_time_groups, listening_playback, payment_orders, payment_events, payment_grants, payment_checkout_events,
+          feedback,
           writing_explanation_representations,writing_explanation_heads,shared_explanation_representations };
       }, true);
     },

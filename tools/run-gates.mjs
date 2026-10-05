@@ -35,6 +35,10 @@ const GROUPS = {
     gate('practice-selection-check', '--postgres'), gate('practice-media-check'),
     gate('drill-check', '--postgres'), gate('content-rights-check', '--postgres'),
     gate('pool-01-check', '--postgres'),
+    /* PILOT-FEEDBACK-01 (FB-A): the owner fence, the update/delete refusals, the one-survey-per-round index
+       and the screenshot-owner trigger are all NEGATIVE properties. Nothing else in this group observes them,
+       so without this gate the whole slice could ship with the policies inverted and still be green. */
+    gate('pilot-feedback-migration-check'),
   ],
   /* The AGENTS.md offline baseline. */
   baseline: [
