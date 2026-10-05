@@ -161,6 +161,21 @@ leg('the "Ihre Vorbereitung" card is restricted to Heute', () => {
     'app.js no longer hides the preparation card outside Heute');
 });
 
+/*
+ * REVIEW-NAV-01 R1, fixed 5 October 2026. §4.1 moves the writing-feedback allowance to Schreiben. The only
+ * allowance element is #preparation-credits, and restricting the card to Heute would otherwise have made
+ * the allowance *less* reachable than before the slice. This leg pins the move, so a later refactor cannot
+ * quietly undo it by putting the card back or by dropping the refresh.
+ */
+leg('the writing-feedback allowance lives with the Schreiben view, not the card', () => {
+  const schreiben = html.slice(html.indexOf('id="view-schreiben"'), html.indexOf('id="view-fehler"'));
+  assert.ok(/id="preparation-credits"/.test(schreiben), 'the allowance is not inside #view-schreiben');
+  const card = html.slice(html.indexOf('id="preparation-context"'), html.indexOf('id="view-heute"'));
+  assert.ok(!/id="preparation-credits"/.test(card), 'the allowance is still inside the preparation card');
+  assert.ok(/guard\(refreshCredits\(\)\)/.test(app), 'route() no longer refreshes the allowance');
+  assert.ok(!/<a[^>]+href="#\/abschnitt"/.test(html), 'a link still targets the retired bare #/abschnitt');
+});
+
 leg('the shell mounts module views through the frozen interface', () => {
   assert.ok(/const MODULE_VIEWS = \{/.test(app), 'MODULE_VIEWS is missing');
   assert.ok(/createLibraryView/.test(app) && /createMockIntroView/.test(app),

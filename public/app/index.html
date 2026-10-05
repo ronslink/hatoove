@@ -118,7 +118,7 @@
         <div class="spread preparation-heading"><div><p class="kicker"><span data-i18n="shell.m309">Ihre Vorbereitung</span></p><div class="exam-identity"><strong id="preparation-exam"><span data-i18n="shell.m302">Prüfung wird geladen</span></strong><span class="exam-level" id="preparation-level" hidden></span></div><p class="small muted" id="preparation-scope"><span data-i18n="shell.m310">Einzelne Abschnitte üben</span></p></div><div class="row"><a class="btn btn-primary" id="preparation-start" href="#/ueben"><span data-i18n="shell.m311">Abschnitt üben</span></a><a class="btn" id="preparation-continue" href="#/verlauf"><span data-i18n="shell.m312">Gespeicherte Texte fortsetzen</span></a></div></div>
         <div class="field" id="preparation-choice" hidden><label for="preparation-picker"><span data-i18n="shell.m313">Vorbereitung auswählen</span></label><select class="select" id="preparation-picker"></select></div>
         <p class="small muted" id="preparation-state" role="status" aria-live="polite"></p>
-        <div class="row"><p class="small muted" id="preparation-credits" role="status"><span data-i18n="shell.m025">Guthaben wird geladen …</span></p><button class="btn btn-small" id="credits-retry" type="button" hidden><span data-i18n="shell.m314">Guthaben erneut laden</span></button></div>
+        <!-- The writing-feedback allowance moved to the Schreiben view (§4.1). -->
       </section>
 
       <!-- Heute -->
@@ -186,11 +186,11 @@
       <section class="view" id="view-ueben" hidden>
         <div class="page-head">
           <div>
-            <h2><span data-i18n="shell.m008">Üben</span></h2>
+            <h2><span data-i18n="shell.m394">Einzelübungen</span></h2>
             <p><span data-i18n="shell.m325">Eine Aufgabe auswählen und Schritt für Schritt üben.</span></p>
           </div>
         </div>
-        <a class="card-peach more-link" href="#/abschnitt"><strong><span data-i18n="shell.m326">Einen Leseabschnitt zusammenhängend üben</span></strong><span><span data-i18n="shell.m327">Gespeicherte Antworten · Fortsetzen möglich · Rückmeldung am Ende</span></span></a>
+        <a class="card-peach more-link" href="#/probepruefung"><strong><span data-i18n="shell.m326">Einen Leseabschnitt zusammenhängend üben</span></strong><span><span data-i18n="shell.m327">Gespeicherte Antworten · Fortsetzen möglich · Rückmeldung am Ende</span></span></a>
         <div class="stack" id="practice-next"></div>
         <div class="stack" id="task-list"><div class="card"><h3><span data-i18n="shell.m057">Wird geladen ...</span></h3></div></div>
       </section>
@@ -212,7 +212,7 @@
       <section class="view" id="view-lesen" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <p class="kicker"><span data-i18n="shell.m397">Prüfungstraining</span></p>
             <h1><span data-i18n="shell.m002">Leseverstehen</span></h1>
             <p><span data-i18n="shell.m328">Anzeigen, Briefe und Texte lesen und das Passende zuordnen.</span></p>
           </div>
@@ -231,7 +231,7 @@
       <section class="view" id="view-sprachbausteine" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <p class="kicker"><span data-i18n="shell.m397">Prüfungstraining</span></p>
             <h1><span data-i18n="shell.m003">Sprachbausteine</span></h1>
             <p><span data-i18n="shell.m329">Lücken in einem Brief füllen: Konnektoren, Präpositionen, Verbformen.</span></p>
           </div>
@@ -244,7 +244,7 @@
       <section class="view" id="view-hoeren" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <p class="kicker"><span data-i18n="shell.m397">Prüfungstraining</span></p>
             <h1><span data-i18n="shell.m004">Hörverstehen</span></h1>
             <p><span data-i18n="shell.m330">Hören Sie feste Aufnahmen in einem gespeicherten Lauf. Ihr Hörstand und Ihre Antworten bleiben diesem Lauf zugeordnet.</span></p>
           </div>
@@ -257,13 +257,17 @@
       <section class="view" id="view-schreiben" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <p class="kicker"><span data-i18n="shell.m397">Prüfungstraining</span></p>
             <h1><span data-i18n="shell.m005">Schreiben</span></h1>
             <p><span data-i18n="shell.m331">Briefe schreiben mit serverseitiger Rückmeldung.</span></p>
           </div>
         </div>
         <div class="stack" id="skill-schreiben"><div class="card"><h3><span data-i18n="shell.m317">Wird geladen &hellip;</span></h3></div></div>
         <div class="stack skill-practice" hidden></div>
+        <!-- MIRROR-B1PREP-01 §4.1: the writing-feedback allowance lives with the writing surface, not in a
+             card that repeated on every page. It used to sit inside the "Ihre Vorbereitung" block, which is
+             Heute-only now, so the allowance would have become less reachable than before nav-01. -->
+        <div class="row" id="writing-allowance"><p class="small muted" id="preparation-credits" role="status"><span data-i18n="shell.m025">Guthaben wird geladen …</span></p><button class="btn btn-small" id="credits-retry" type="button" hidden><span data-i18n="shell.m314">Guthaben erneut laden</span></button></div>
       </section>
 
       <!-- Fehler (Mistakes) -->

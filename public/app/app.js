@@ -86,9 +86,9 @@ const VIEW_TITLES = {
  * NAV-01 — the redirect and alias layer.
  *
  * The sidebar lists ten entries; a URL that was saved, bookmarked or shared before the mirror must still
- * land on a real screen. VIEW_ALIAS keeps the retired view names as first-class routes, VIEW_SECTION maps
- * a view to the DOM section that renders it while a later slice replaces that section, and NAV_GROUP
- * drives the breadcrumb group in the topbar. Nothing here renders; route() reads it.
+ * land on a real screen. VIEW_ALIAS keeps the retired view names as first-class routes, DEEP_LINKS keeps
+ * the two-segment links that are no longer sidebar entries, and NAV_GROUP drives the breadcrumb group in
+ * the topbar. Every view owns #view-<view> itself; nothing here renders, route() reads it.
  */
 const VIEW_ALIAS = { woerterbuch: 'wortschatz', fortschritt: 'verlauf' };
 /* A view's section is #view-<view> directly; the alias layer above only redirects retired routes. */
@@ -1759,7 +1759,11 @@ async function route() {
   };
   /* Leaving a module view tears it down before the next screen paints. */
   if (mountedModule && mountedView !== view) unmountModule();
-  if (view === 'abschnitt') run(() => info.runId ? mock.showRun(el('mock-host'), info.runId) : mock.list(el('mock-host')));
+  /*
+   * A bare saved-runs address resolves to Probeprüfung (resolveView), so 'abschnitt' is only ever reached
+   * with a run id: it is the run player. There is deliberately no list branch here.
+   */
+  if (view === 'abschnitt' && info.runId) run(() => mock.showRun(el('mock-host'), info.runId));
   if (view === 'pruefungsteile') run(renderPartIndex);
   if (view === 'probepruefung') run(renderProbepruefung);
   if (view === 'heute') run(renderDashboard);

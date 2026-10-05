@@ -45,13 +45,14 @@ view. Leseverstehen and Sprachbausteine keep their deep links without a sidebar 
 ## Checks run
 
 All from `.worktrees/nav-01` (worktree root, `node` 24.4.1, no npm dependencies installed):
+the numbers below are the final run **after** the review response, with `nav-ia-check` at 12 legs.
 
 | Check | Result |
 |---|---|
-| `node tools/nav-ia-check.mjs` | **passed, 11 legs** |
+| `node tools/nav-ia-check.mjs` | **passed, 12 legs** |
 | `node tools/design-check.mjs` | **passed, 14 legs, 0 failed** (2 pre-existing warnings) |
 | `node tools/i18n-register-check.mjs` | **passed, 0 findings** across 11 shipped files |
-| `node tools/repository-check.mjs` | passed, 699 tracked files |
+| `node tools/repository-check.mjs` | passed, 701 tracked files (699 base + this slice's check and note) |
 | `node tools/retired-surface-check.mjs` | passed, 10/10 |
 | `node tools/seo-check.mjs` | passed, 11/11 |
 | `node tools/server-origin-check.mjs` | passed, 8/8 |
@@ -88,6 +89,28 @@ and the real `app.css`/design stylesheets served over HTTP on `127.0.0.1:8788`; 
 reveal that `app.js` performs after boot. It proves the shell, the sidebar, the breadcrumb and the
 preparation-card rule — it does **not** exercise the API, the interim part index or the saved-run list,
 which `app.js` renders at runtime. No signed-in run was performed, and no real phone or tablet was used.
+
+## Review response — REVIEW-NAV-01 (library-i18n), 5 October 2026
+
+The independent review returned **CLEAR WITH NOTES**: the sidebar matches §4.1, all 17 routes own a
+section, every retired route resolves, the module loader was proven to degrade by extracting and running
+its five paths, and all eleven checks were re-run green. It also reproduced all four mutation legs plus a
+fifth of its own. Three deviations were unrecorded and one of them was learner-facing.
+
+| Finding | Disposition |
+|---|---|
+| **R1** §4.1 says the writing-feedback allowance moves to Schreiben; nothing moved, and because the only allowance element (`#preparation-credits`) sat inside the preparation card, restricting the card to Heute made the allowance **less** reachable than before. | **Fixed.** The allowance row now lives in `#view-schreiben` and the card carries a comment naming the move. `tools/nav-ia-check.mjs` gained a leg that fails if the allowance returns to the card, if the Schreiben view loses it, or if `route()` stops refreshing it. |
+| **R2** §4.1 says bare `#/abschnitt` → `#/pruefungsteile`; the code resolves it to `probepruefung`. | **Contract amendment A4** records `probepruefung`: the saved-runs list *is* the history surface for Probeprüfung, and slice D's intro carries it, so the redirect lands on the screen that lists the runs rather than on the tiles. The four `#/abschnitt` links in `index.html` and `mock.js` were retargeted to `#/probepruefung` so no in-app link depends on the redirect. |
+| **R3** `#/satzbau` is still canonical; `#/nachschlagen/satzbau` resolves and is rewritten back to the flat form. | **Contract amendment A4** records it: Satzbau is reached from Nachschlagen (both cards link to it) and the deep link resolves; the flat address stays canonical because the shell writes saved URLs as `#/prep/<id>/<view>`. |
+| Stale comment describing the removed `VIEW_SECTION`. | Fixed. |
+| Unreachable `mock.list(el('mock-host'))` branch. | Fixed: `view-abschnitt` is only reachable with a run id, so the dispatch is guarded by `info.runId` and a comment records why there is no list branch. |
+| `repository-check` reports **701** tracked files in this worktree, not the 699 the first draft of this note claimed. | Corrected here; the two extra files are this slice's `tools/nav-ia-check.mjs` and this note. |
+| Mutation 2 was attributed to "the locale-coverage leg"; it actually throws `TypeError: incomplete_locale_catalogue` while loading `shell-messages.js`, before the check's own leg runs. | Corrected above: the catalogue guard fires first. The reviewer's fifth mutation (a locale value equal to the German one) proves the locale leg itself works when reached. |
+| Four copy notes for the owed native review (ar `m393` loses the possessive; en `m394` "Single exercises" where uk/ar/tr say individual; uk `m397` reads "preparation for the exam"; tr `m395` uses `Kelime hazinesi` where `Kelime dağarcığı` is usual). | Recorded for the native review; **not** changed here, because native review owns that pass. |
+| Dead `shell.m012` key ("Fortschritt"); four skill views showed the old kicker `m008` "Üben" while the new group label is `m397` "Prüfungstraining". | The kickers are fixed (the four skill views and the Einzelübungen heading now use `m394`/`m397`). `shell.m012` is left in the catalogue: removing a key is a catalogue change that the register check would have to be re-proven against, and an unused key is not a defect. |
+
+**A fourth file entered this slice's scope at review time:** `public/app/mock.js` (three `#/abschnitt`
+links retargeted). It is shell-side and had no other writer in round 1; recorded as amendment A4.
 
 ## Not verified / residual risk
 
