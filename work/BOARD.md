@@ -15,6 +15,20 @@ Contract `docs/contracts/MIRROR-B1PREP-01.md`, frozen at `072d29e`, amended six 
 
 Registering all five new gates in `package.json` (`check:mirror`, `check:mirror:db`, `071b089`) means one command runs them from now on.
 
+**Round 3 — slice C split and re-leased (5 October 2026, 17:15 UTC+2).** `library-i18n` delivered C's server half (`0044-practice-attempts.sql`, the pure selection rule, `GET /api/v1/practice/next?family=`, `POST /api/v1/practice/check`) on `codex/practice-01-runner` @ `c839079`, rebased onto `f0a7657`, then ran out of context and handed over honestly: **the two new methods have never executed against a database, so their SQL is unverified and must not be integrated**, and the client half was not started. The slice is therefore split into two disjoint leases plus its own queued media slice:
+
+| Lease | Owner | Scope |
+|---|---|---|
+| `task-15` server verification | `practice-server` (fresh) | make `practice-selection-check --postgres` green: find the `not_found` in fixture setup, prove the three tiers, the wrap, the sitting's separation from mock runs and the key-reveal ordering through the shipped SQL, then prove both routes end to end |
+| `task-16` client runner | `practice-client` (fresh) | `part-runner.js`/`.css`, the tile open action, the three actions and the wrap copy, the full review, the check and rendered evidence |
+| `task-17` practice media | unleased, `blocked_by` task-15 | the practice-bound listening playback path |
+
+**The audio ruling, measured:** the HV recordings exist as content — `listening-package.json` carries nine sets with real `payload.recordings[].mediaId`, a nine-entry `media` list with a real `path` and sha256 per recording, and the blueprint's per-family `playback` rule — but the shipped player is **mock-run-bound** (`api.mock.media(run.id, …)` with server-side play accounting), so there is no practice playback path. The runner must show the rule and name the missing path; it must never say the recording does not exist. The nine WAV files remain outside git (the owed media bind-mount fix), which the practice path inherits.
+
+**Agent-capacity record, updated:** the Hermes agent never acknowledged its E/F dispatch; `mock-intro` failed three times (twice on reviews, once before it could start the runner lease, leaving no files); `library-i18n` hit its context ceiling mid-slice and handed over rather than overclaiming. Its implementation work was sound throughout — the failures are session capacity, not judgement — so the remaining leases went to fresh sessions.
+
+`VOCAB-01` (`task-14`, slice G) is in flight with `library-ui` against the shell hook I added at `88f18e1`.
+
 Lead integration fixes already on `main`, each from a slice's own evidence: `api.js` passes the guide locale; the noun route serves the whole 240-noun lexicon with a bounded `limit`; the generator no longer advises regenerating an applied migration (`07f14c2`); the shell mounts slice B's part index for `#/pruefungsteile` and `#/hoeren` and passes `ctx.examLanguage` to every module.
 
 **Round 2 still queued:** `task-9` C PRACTICE-01 (selection rule, practice attempts, migration 0044, the part runner) — not yet leased, no free slot; then G VOCAB-01 and H DRILL-01. **Owed to Ron, not to code:** the POOL-01 batch needs his go-ahead (24 released sets, 8 parts × 3), and native review of the new interface copy and of the imported uk/ar/tr guide translations is outstanding — until it lands the "maschinell übersetzt · Prüfung ausstehend" marker stays and no string is approved.
