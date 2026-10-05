@@ -272,8 +272,13 @@ const MUTATIONS = [
   ['M3 oldest becomes newest', (source) => source.replace('if (at !== bt) return at - bt;', 'if (at !== bt) return bt - at;')],
   ['M4 the wrap never fires', (source) => source.replace("const wrapped = total > 0 && done >= total;", 'const wrapped = false;')],
   ['M5 the served item stops being rebuilt and the raw authored row rides along', (source) => source.replace('      item_id: String(rawId),', '      ...item,\n      item_id: String(rawId),')],
+  /*
+   * REVIEW-PRACTICE-MEDIA F7 fallout: matching the whole MATERIAL_MEMBERS line broke the moment the media
+   * merge added `recordings` to it — the mutation silently stopped changing anything and the harness caught
+   * it ("the mutation must change the module"). The regex keeps the mutation honest as the member list grows.
+   */
   ['M6 the set stops disclosing what kind of practice it is (D2)', (source) => source.replace(
-    "const MATERIAL_MEMBERS = Object.freeze(['text', 'letter', 'headlines', 'ads', 'bank', 'practice_kind', 'instruction']);",
+    /const MATERIAL_MEMBERS = Object\.freeze\(\[[^\]]*\]\);/,
     "const MATERIAL_MEMBERS = Object.freeze(['text', 'letter', 'headlines', 'ads', 'bank']);")],
 ];
 

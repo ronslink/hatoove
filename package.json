@@ -7,9 +7,9 @@
   "main": "server.js",
   "scripts": {
     "check": "node tools/repository-check.mjs && node tools/design-check.mjs && node tools/retired-surface-check.mjs && node tools/server-origin-check.mjs && node tools/keymask-check.mjs && node tools/owned-api-check.mjs && node tools/owned-client-check.mjs && node tools/payment-path-check.mjs",
-    "check:mirror": "node tools/nav-ia-check.mjs && node tools/mock-intro-check.mjs && node tools/part-index-check.mjs && node tools/library-render-check.mjs && node tools/library-i18n-check.mjs && node tools/content-corrections-check.mjs",
+    "check:mirror": "node tools/nav-ia-check.mjs && node tools/mock-intro-check.mjs && node tools/part-index-check.mjs && node tools/practice-runner-check.mjs && node tools/practice-selection-check.mjs && node tools/library-render-check.mjs && node tools/vocab-check.mjs && node tools/library-i18n-check.mjs && node tools/content-corrections-check.mjs",
     "check:db": "node tools/postgres-provision-check.mjs && node tools/owned-api-check.mjs --backend=postgres-persistent && node tools/deletion-check.mjs && node tools/worker-runner-check.mjs && node tools/saas-runtime-check.mjs && node tools/table-class-check.mjs && node tools/journey-api-check.mjs",
-    "check:mirror:db": "node tools/library-i18n-check.mjs --postgres && node tools/part-index-check.mjs --postgres",
+    "check:mirror:db": "node tools/library-i18n-check.mjs --postgres && node tools/part-index-check.mjs --postgres && node tools/practice-selection-check.mjs --postgres && node tools/practice-media-check.mjs",
     "check:docker": "node tools/docker-stack-check.mjs && node tools/app-browser-check.mjs",
     "check:payments": "node tools/payment-path-check.mjs && node tools/payments-api-check.mjs && node tools/payment-client-check.mjs",
     "check:payments:db": "node tools/payments-pg-check.mjs",
