@@ -119,7 +119,14 @@ instead — the bare option id in `data-answer`, the letter visible and unescape
 `app-browser-check` cannot prove these legs (it cannot drive practice to a verdict on this machine), which is
 exactly why the contract harness exists.
 
-**Still owed:** the mock result's per-part summary, and everything that needs the studio-look values.
+**Mock result per-part line delivered** (`169a73a`): the mock result now names each part's count — "Teil 1:
+4 von 5 richtig" — counted from the learner's own recorded responses against each part's item count. A count,
+not a score: no percentage, no pass line, and nothing claimed about parts the learner never saw. The key
+`partResult` carries one placeholder shape in all five languages.
+
+**Still owed:** everything that needs the studio-look values (the exam card with the large B1, the navy, the
+question navigator's visual design), the Fehlerheft card styling, the five-language copy audit, and the
+landing page.
 
 ## 5. Slice E/F — Fehlerheft and copy cleanup
 
