@@ -84,9 +84,9 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .exam-grid a { display: inline-flex; min-height: 44px; align-items: center; gap: 5px; font-size: 14px; }
 .offer-note { font-size: 14px; color: var(--muted); border-inline-start: 3px solid var(--orange); padding-inline-start: 14px; margin-top: 30px; max-width: 900px; }
 .approach { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 85px; padding-block: 80px; }
-.approach-art { border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: #fff; }
+.approach-art { border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: var(--card); }
 .approach-art img { display: block; width: 100%; height: auto; }
-.approach-art p { padding: 18px 22px; font-size: 11px; letter-spacing: .1em; color: #62615c; font-weight: 750; }
+.approach-art p { padding: 18px 22px; font-size: 11px; letter-spacing: .1em; color: var(--muted); font-weight: 750; }
 .approach h2, .start-strip h2 { font-size: 42px; letter-spacing: -.04em; margin-top: 16px; }
 .steps { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 25px; }
 .steps li { display: flex; gap: 16px; }
@@ -95,9 +95,9 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .steps p { color: var(--muted); font-size: 16px; margin-top: 6px; }
 .start-strip { background: var(--orange); color: var(--orange-ink); padding-block: 48px; }
 .start-strip > div { display: grid; grid-template-columns: 1fr 1fr; gap: 85px; align-items: center; }
-.start-strip .kicker { color: #53331e; }
+.start-strip .kicker { color: var(--orange-ink); }
 .start-strip p { font-size: 20px; max-width: 470px; }
-.start-strip .btn { margin-top: 20px; background: #242320; color: #fff; }
+.start-strip .btn { margin-top: 20px; background: var(--ink); color: var(--paper); }
 .faq { display: grid; grid-template-columns: .7fr 1.3fr; gap: 75px; padding-block: 72px; }
 .faq h2 { font-size: 36px; margin-top: 16px; }
 .faq > div > p:last-child { color: var(--muted); margin-top: 16px; }
