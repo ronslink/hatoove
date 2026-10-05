@@ -769,6 +769,8 @@ async function renderDictionary() {
 async function renderPartIndex() {
   const host = el('part-index-host');
   if (!host) return;
+  /* Slice B's module replaces the interim list the moment it is present; absent, this stays. */
+  if (await mountModule('pruefungsteile')) return;
   const parts = [
     { view: 'lesen', label: 'm002', note: 'm346' },
     { view: 'sprachbausteine', label: 'm003', note: 'm347' },
@@ -1614,6 +1616,9 @@ async function renderHistory() {
 const MODULE_VIEWS = {
   nachschlagen: { specifier: './library.js', factory: 'createLibraryView', css: 'library.css', host: 'library-host', covers: ['guide-index', 'guide-body'] },
   probepruefung: { specifier: './mock-intro.js', factory: 'createMockIntroView', css: 'mock-intro.css', host: 'mock-intro-host', covers: [] },
+  /* Slice B (PRACTICE-UI-01). Until public/app/part-index.js lands the guarded import fails and the interim
+     four-part list stays on screen, so the route is never blank. */
+  pruefungsteile: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'part-index-host', covers: [] },
 };
 let mountedModule = null;
 let mountedView = null;
@@ -1661,6 +1666,9 @@ async function mountModule(view) {
     mountedModule = create({
       api, uiText, esc, state, guideContent,
       language: state.settings?.language || 'de',
+      /* Amendment A3: every module gets the exam language, so an authored German fragment stays an
+         exam-language island for assistive tech. REVIEW-MOCK-01 D1 found this member missing. */
+      examLanguage: getExamLanguage() || 'und',
       navigate: (hash) => { location.hash = hash; },
     });
     mountedModule.mount(host);
