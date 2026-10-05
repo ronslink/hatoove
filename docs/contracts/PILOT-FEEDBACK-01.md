@@ -271,6 +271,27 @@ hard-code them).
 
 **Later, only if Ron asks:** a read-only feedback page inside the app, or the Gmail notice via OPERATOR-MAIL-01.
 
+### Who sent it — Ron, 5 Oct 2026: *"we need to ensure we are recording the user that sent the message"*
+
+**The recorder already exists and is now proved unforgeable.** Every row carries `owner_id`: `text NOT NULL`,
+foreign key to `"user"(id)`, bound **server-side from the session** and never accepted from the client — the
+INSERT policy's `WITH CHECK` requires `owner_id = current_setting('hatoove.owner_id')`, so a learner cannot file
+a report attributed to someone else. That property has its own leg (`5b` of
+`tools/pilot-feedback-migration-check.mjs`) and it fails the moment the `WITH CHECK`'s owner clause is removed
+(mutation M5). `GET /api/v1/feedback` is likewise fenced to the owner, so a learner sees only their own.
+
+**What is missing is surfacing it, and that is FB-D's job.** `list`, `show` and `export --csv` must resolve
+`owner_id` through the `SECURITY DEFINER` reader to the learner's **name and e-mail**, so a human reading a
+report knows who sent it. `tools/pilot-feedback-operator-check.mjs` must assert those columns are present and
+non-empty, and that a report whose `owner_id` has no account is reported as such rather than rendered blank.
+
+**No snapshot is stored on the feedback row**, deliberately: the account is deleted together with its reports
+and nothing renames an account, so a join cannot go stale — and copying the learner's identity into a second
+table would widen where their personal data lives for no gain.
+
+**Consequence to state plainly:** the operator CSV then carries learner names and e-mail addresses, so it is a
+personal-data export, not a shareable report. Its destination and retention follow §5.
+
 ## 5. Privacy
 
 - Free text may contain personal data; it belongs to the learner, appears in their export, and is deleted with
@@ -303,7 +324,9 @@ hard-code them).
    more than 10 minutes after the report, and a second upload are each refused; account deletion removes the
    images; the export contains them.
 7. **Operator tool:** the CSV opens in Excel with umlauts and Arabic intact; `summary` matches a hand count on a
-   fixture.
+   fixture; and **every listing names the reporting learner** — `list`, `show` and `export --csv` resolve
+   `owner_id` to a name and e-mail, never print a bare `owner_id`, and never render a report with a blank
+   reporter (a row whose account is gone must say so explicitly).
 
 ## 7. Slices and allowed paths
 
