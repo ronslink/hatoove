@@ -27,7 +27,7 @@ Registering all five new gates in `package.json` (`check:mirror`, `check:mirror:
 
 **Agent-capacity record, updated:** the Hermes agent never acknowledged its E/F dispatch; `mock-intro` failed three times (twice on reviews, once before it could start the runner lease, leaving no files); `library-i18n` hit its context ceiling mid-slice and handed over rather than overclaiming. Its implementation work was sound throughout — the failures are session capacity, not judgement — so the remaining leases went to fresh sessions.
 
-`VOCAB-01` (`task-14`, slice G) is in flight with `library-ui` against the shell hook I added at `88f18e1`.
+`VOCAB-01` (`task-14`, slice G) is **integrated** (`a8df415`, review fixes `6bc5780`) after REVIEW-VOCAB-01 (CLEAR WITH NOTES; G1/G2 fixed, G3–G7 recorded). Slice C's two halves are delivered and in review: the server half (`codex/practice-01-pg` @ `15c8ded`, five real defects found and fixed — the normaliser was wrong for seven of eight families, the sitting INSERT ran inside a READ ONLY transaction, plus the vocab 50-of-300 cap) under `task-19`, and the client runner (`codex/practice-01-client` @ `779bdbf`, 29 legs with four mutation proofs and a leg that drives the real normaliser) queued as the next review. `task-17` PRACTICE-MEDIA is in flight with `practice-server`; `task-9` H (DRILL-01) still follows C.
 
 Lead integration fixes already on `main`, each from a slice's own evidence: `api.js` passes the guide locale; the noun route serves the whole 240-noun lexicon with a bounded `limit`; the generator no longer advises regenerating an applied migration (`07f14c2`); the shell mounts slice B's part index for `#/pruefungsteile` and `#/hoeren` and passes `ctx.examLanguage` to every module.
 
