@@ -4,10 +4,80 @@
 `codex/practice-01-pg` @ `15c8ded` (task-15, the verified practice sitting). **Server-only**, per the Lead's
 scope correction (task revision 3).
 
-**Result: 15 legs and 2 mutation proofs green on a disposable PostgreSQL; 0045 applies cleanly; the full
-gate set is green; the client switch is documented below as one function.**
+**Result: 19 legs and 4 mutation proofs green on a disposable PostgreSQL; 0045 applies cleanly; the full
+gate set is green; the client switch is documented below as one function.** (19/4 is after task-25; the first
+delivery was 15/2 — see §0.)
 
 ---
+
+## 0. Follow-up lease task-25 — REVIEW-PRACTICE-MEDIA's findings fixed
+
+REVIEW-PRACTICE-MEDIA (teammate `reviewer`) verified this slice independently and returned **CLEAR WITH
+NOTES**, confirming the central design claim — genuinely the mock path's own DTO, transition, validator,
+framing and byte reader, not a second player. Four things are fixed here; **F2 is the Lead's** and **F7 is
+integration order**.
+
+### 0.1 F1 — the practice rule pre-empted the shared transition and masked its codes
+
+`practicePlaybackTransition` ran its own `begin`-with-one-play check **before** `playbackTransition`, so once a
+recording had one play and the sitting was open **every** `begin` answered `practice_check_required`: a stale
+`expectedRevision` (`playback_conflict`), a spent allowance (`playback_exhausted`) and a play still running
+(`playback_recovery_required`) were all swallowed — and this note's own comment claimed the opposite. A client
+that decides "re-check or resync the revision" from the code was told the wrong thing. The SQL trigger already
+had the right precedence (structural checks first, `practice_check_required` last), so the two layers
+disagreed.
+
+**Fixed:** the shared transition now runs **first** and the practice rule applies to its result, matching the
+trigger exactly. **Proved** by a pure leg that pins all four outcomes, and by **mutation M3**, which puts the
+old ordering back and makes that leg fail. The acceptance criterion is unchanged: the second listen is still
+refused.
+
+### 0.2 F3 — the missing-playback guard could not fire
+
+`Number(null)` is `0` and `Number.isInteger(0)` is `true`, and `(part->'playback'->>'mock')::integer` is NULL
+for a part with no playback rule — so the intended `practice_playback_unavailable` passed a NULL straight
+through, `recordingsOf` reported `max_plays: 0`, and the learner got a code that had nothing to do with the
+problem. **Fixed:** NULL and absent are detected explicitly and a non-positive allowance is refused the same
+way.
+
+**Proved with the partial-import fixture the reviewer could not build.** A listening *package* cannot express
+this state (its validator refuses a `fixed_audio` part without `playback`), and `exam_blueprint` is immutable —
+its own trigger says "create a new version instead" — so the state is built the way an import leaves it: a new
+blueprint version without the HV2 rule, a new release pointing at it, and the head moved for the length of the
+leg (`server/practice-media-check.mjs`, `F3 DB`). The leg asserts the new guard answers
+`practice_playback_unavailable`, then mutates the guard back in a sandbox copy and **measures both halves of
+the reviewer's reasoning**, which had been reasoned rather than observed: the old guard serves an item with
+`max_plays: 0`, the transition then answers a misleading code, and a raw insert with `max_plays 0` is refused by
+the trigger as `invalid_playback_identity`. The head is restored in a `finally`.
+
+### 0.3 F8 — the drill's twelve sentences were served as empty prompts
+
+Found by the **client** review and confirmed from the seeded migration: `PROMPT_FIELDS` omitted **`prompt`**,
+which is where the `0022` grammar drill keeps all twelve sentences (measured in the migration: 12 `prompt`,
+0 `question`/`statement`/`text`). So every served drill item had `prompt: ''` — twelve gap items with no
+sentences (the client measured `tasks=12, emptyPrompts=12`). This is the **same class of defect as the original
+normaliser bug**: an assumption about the authored shape never checked against the corpus. **Fixed:** `prompt`
+is the first entry in `PROMPT_FIELDS`; **proved** by a pure leg on the drill's real item shape **and** by a leg
+that reads the actual seeded drill row from the database and asserts twelve non-empty prompts, with
+**mutation M4** taking `prompt` back out so the leg fails.
+
+### 0.4 F4/F6 — note corrections
+
+The `CURRENT_USER` policy is owner-fenced but is the **same predicate** as 0025's `finalise_mock_run` family,
+not narrower (corrected in §1). And `repository-check` at this head is **733 files / 650 blobs** — measured, not
+inherited; the earlier figure was `15c8ded`'s (corrected in §3).
+
+### 0.5 F2 (the Lead's) and F7 (integration order) — recorded, not acted on
+
+**F2:** the enforced allowance is the exam rule and the **tile** must be corrected to show it; the stale
+`HV3 mock=1` comment in `server/exam-parts.mjs:31-33` is fixed at integration. I did not touch the tile or that
+comment, and I do not object: the DTO's `max_plays` already carries the exam rule, so both surfaces can read
+one number. The claim in §1 is corrected.
+
+**F7:** this branch and task-20's both diverge from `15c8ded` and `MATERIAL_MEMBERS` is the same line on both
+(`[…,'bank','recordings']` here, `[…,'bank','practice_kind','instruction']` there). The Lead merges task-20
+first and resolves that line to carry **all four** additions. Nothing was merged here, and neither slice's
+check exercises the merged tree — so **both** checks must be re-run on the merge commit.
 
 ## 1. What was built
 
@@ -35,11 +105,17 @@ new account-deletion/read-back entries.
 ### The rule, exactly
 
 - **Allowance = the blueprint's EXAM rule per family**: `part.playback->>'mock'` — telc B1 HV1 1, HV2 2,
-  HV3 2. This is the number slice B already serves to the learner through `/api/v1/exam-parts`, so the enforced
-  allowance and the displayed rule cannot disagree. (The blueprint also carries `playback.practice` = 1 for
-  all three; `.mock` is used deliberately so the learner practises under the exam's own play rule. If the
-  product ever wants practice to be strictly one play, that is a one-token change in 0045 and the DTO needs
-  no change.)
+  HV3 2. `playback.practice` is 1 for all three; `.mock` is used deliberately so the learner practises under
+  the exam's own play rule. **CORRECTED by REVIEW-PRACTICE-MEDIA F2:** this note first claimed it was "the
+  number slice B already serves … so the enforced allowance and the displayed rule cannot disagree". The
+  *payload* carries both numbers, but the **tile** renders `playback.practice` (`part-index.js:191`,
+  `data-plays` at `:200`), i.e. **1** for every HV part, while the runner reads `mock` — so on HV2/HV3 the tile
+  said one play and the server allowed two. That is a product decision, and the **Lead has made it**: the exam
+  rule is authoritative for practice listening (Ron's decision 3), the tile is to be corrected to show the
+  exam rule, and `server/exam-parts.mjs:31-33`'s stale "HV3 mock=1" comment is fixed at integration. I did not
+  touch either. Also measured by the reviewer, and recorded here: the **installed** blueprint carries no
+  `playback` at all (HV1/HV2/HV3 `practice=NULL, mock=NULL`), so `/api/v1/exam-parts` serves no HV rule today —
+  "what slice B serves now" and "what this path enforces after a listening import" are different states.
 - **On top of the allowance, exactly ONE play before "Auswerten".** Every play after the first requires the
   sitting to be `checked`. So a second listen before Auswerten is refused **even when the exam allowance would
   still permit a play** — with a 409 `practice_check_required`, produced by the pure transition *and*
@@ -71,9 +147,16 @@ CREATE POLICY practice_playback_sitting ON practice_attempt TO CURRENT_USER
   WITH CHECK (owner_id = nullif(current_setting('hatoove.owner_id', true), ''));
 ```
 
-It is narrower than 0025's version — owner-fenced, so the definer sees only the acting learner's rows, never
-the whole table. **Migration 0044 and its MANIFEST line are untouched**: this is additive DDL in a later
-migration, which is how 0021 added a policy to the earlier `item_evidence`.
+**CORRECTED by REVIEW-PRACTICE-MEDIA F4:** the predicate is the **same** expression as the existing policies
+(`owned_practice_attempt`, `deletion_practice_attempt`) and the same as 0025's `finalise_mock_run` /
+`finalise_mock_evidence` / `finalise_mock_preparation`. So this note's earlier "narrower than 0025's version"
+was wrong: it is **owner-fenced** — the definer sees only the acting learner's rows, never the whole table
+(measured by the reviewer with the defining role: owner bound → 1 row; unbound, someone else's owner, or never
+set → 0 rows) — but it is the **same idiom applied to a table that lacked it**, not a stricter variant. Nothing
+is opened by it: the policy grants no table access (grants still gate), only the learner and deletion roles
+hold grants, and both already had owner-fenced policies. **Migration 0044 and its MANIFEST line are
+untouched**: this is additive DDL in a later migration, which is how 0021 added a policy to the earlier
+`item_evidence`.
 
 ### One file outside the listed scope — announced
 
@@ -175,7 +258,7 @@ imported through the real `importPackage`, plus a temporary media root this chec
 
 ```text
 node server/migrate.mjs                     → applied=43 skipped=0 (0001..0045), migrate: OK
-node tools/practice-media-check.mjs         → 15 legs, 0 failed  + 2 mutation proofs
+node tools/practice-media-check.mjs         → 19 legs, 0 failed  + 4 mutation proofs (task-25)
 node tools/practice-selection-check.mjs --postgres  → 38 legs, 0 failed (task-15 still green)
 node tools/practice-selection-check.mjs     → 18 legs, 0 failed
 node tools/migrate-check.mjs                → 6 passed, 0 failed
@@ -185,7 +268,7 @@ node tools/owned-api-check.mjs              → 35 passed, 0 failed (memory)
 node tools/owned-api-check.mjs --backend=postgres → 35 passed, 0 failed
 node tools/owned-api-pg-check.mjs           → 9 passed, 0 failed
 node tools/part-index-check.mjs             → 11 passed, 0 failed
-node tools/repository-check.mjs             → 729 tracked files; 646 text blobs screened
+node tools/repository-check.mjs             → 733 tracked files; 650 text blobs screened (this head)
 design-check / retired-surface-check / seo-check / server-origin-check / keymask-check /
 owned-client-check (32) / i18n-register-check (0 findings)  → all green
 ```
@@ -196,6 +279,10 @@ The legs, and what each proves:
 |---|---|
 | M1 (pure) | a used recording needs a CHECKED sitting, so the second listen is refused by the transition |
 | M2 (pure) | a packaged `fixed_audio` set keeps its questions in `recordings[]` and serves them as items |
+| **F1 (pure)** | **the practice rule keeps the shared STRUCTURAL codes** — `playback_conflict`, `playback_exhausted`, `playback_recovery_required` — and applies `practice_check_required` last |
+| **F8 (pure)** | **the grammar drill's twelve authored `prompt` sentences reach the DTO** |
+| **F8 DB** | **the drill row the migrations SEED serves twelve non-empty prompts** (read from `objective_set`) |
+| **F3 DB** | **a set with recordings whose part has no playback rule answers `practice_playback_unavailable`**, and the sandbox mutation measures what the old guard did instead (`max_plays: 0`, a misleading code, and `invalid_playback_identity` at the trigger) |
 | M3 | the serving path hands over the imported set **with its audio** and the exam allowance |
 | M4 | the allowance is the BLUEPRINT rule per family: HV3 → 2, HV1 → 1 |
 | M5 | **over HTTP**, the first listen is acknowledged and the SECOND before Auswerten is 409 `practice_check_required`, with `plays_used` still 1 |
@@ -214,9 +301,13 @@ The legs, and what each proves:
 re-run against the broken guard):
 
 ```text
-MUTATION M1 practice-playback: the AFTER-AUSWERTEN rule removed -> the guarded leg fails
-MUTATION M2 practice-sets: the recordings[] shape removed        -> the guarded leg fails
+MUTATION M1 practice-playback: the AFTER-AUSWERTEN rule removed                    -> the guarded leg fails
+MUTATION M2 practice-sets: the recordings[] shape removed                          -> the guarded leg fails
+MUTATION M3 practice-playback: the practice rule moved back BEFORE the shared      -> the F1 leg fails
+                              transition (F1)
+MUTATION M4 practice-sets: `prompt` dropped from PROMPT_FIELDS (F8)                -> the F8 leg fails
 ```
+Plus the F3 leg's own in-place mutation, which measures the old guard rather than asserting it.
 
 ---
 
@@ -265,7 +356,7 @@ MUTATION M2 practice-sets: the recordings[] shape removed        -> the guarded 
 | `server/owned-postgres/adapter.mjs` | import + spread the port; `practice_playback`/`practice_playback_event` in `ACCOUNT_DELETION_STEPS` and `ACCOUNT_TABLES` |
 | `server/owned-api.mjs` | `GET`/`POST /api/v1/practice/attempts/<id>/playback`, `GET`/`HEAD …/media/<mediaId>/<version>`, method-gated so the memory backend is unchanged |
 | `server/practice-sets.mjs` | **outside the listed scope, announced:** `recordings[].questions` flatten into items; `recordings` joins `material` |
-| `tools/practice-media-check.mjs` (new) | the 15 legs and the 2 mutation proofs |
+| `tools/practice-media-check.mjs` (new) | the 19 legs and the 4 mutation proofs |
 | `work/implementation/PRACTICE-MEDIA.md` | this note |
 
 `server/owned-postgres/node_modules/pg` is a read-only junction to the canonical checkout (gitignored, not
