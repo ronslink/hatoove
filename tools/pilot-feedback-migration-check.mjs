@@ -32,6 +32,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { FEEDBACK_ROUTES } from '../server/owned-postgres/feedback.mjs';
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATION = path.join(HERE, '..', 'server', 'migrations', '0049-pilot-feedback.sql');
 const MANIFEST = path.join(HERE, '..', 'server', 'migrations', 'MANIFEST.json');
@@ -156,6 +158,20 @@ async function main() {
       assert.deepEqual(onlySql, [], `the CHECK accepts route(s) no screen produces: ${onlySql.join(', ')}`);
       assert.deepEqual(onlyShell, [],
         `the shell has view id(s) the CHECK rejects, so a report filed from them is LOST: ${onlyShell.join(', ')}`);
+
+      /*
+       * THE THIRD COPY. FB-B validates `route` in the API as well, so the list now exists in three places and any
+       * one of them drifting loses reports: the migration's CHECK refuses the row (23514), or the API refuses the
+       * request (422), or the shell offers a view the other two reject. FEEDBACK_ROUTES is the only JavaScript
+       * copy, and it is compared here against the migration file AND against the shell.
+       */
+      const inApi = new Set(FEEDBACK_ROUTES);
+      const onlyApi = [...inApi].filter((view) => !inSql.has(view)).sort();
+      const missingFromApi = [...inSql].filter((view) => !inApi.has(view)).sort();
+      assert.deepEqual(onlyApi, [],
+        `FEEDBACK_ROUTES accepts route(s) the CHECK rejects, so the API would accept a report the database then refuses: ${onlyApi.join(', ')}`);
+      assert.deepEqual(missingFromApi, [],
+        `the CHECK accepts route(s) FEEDBACK_ROUTES would refuse with a 422: ${missingFromApi.join(', ')}`);
     });
 
     /* ---------------------------------------------------------------- A10: the content table has NO rls */

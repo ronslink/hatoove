@@ -34,6 +34,7 @@ import { playbackMethods } from './playback.mjs';
 import { practicePlaybackMethods } from './practice-playback.mjs';
 /* DRILL-01 (slice H): the drill's own port, composed the way task-17 composed its playback twin. */
 import { drillMethods } from '../drill-pg.mjs';
+import { feedbackMethods } from './feedback.mjs';
 import { importedSetGate, objectiveInteractionSql, releasedObjectiveFamily, readWritingTask, writingAccess, readReleasedForm, readWritingOrigin } from './packages.mjs';
 import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
 import { extractWritingExplanationSource, unavailableExplanationView } from '../explanation-contract.mjs';
@@ -303,6 +304,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     ...practicePlaybackMethods({ settle, note, catalogue: examCatalogue, mediaRoot }),
     // DRILL-01 (slice H): the Einzelübungen port — `drillNext` and `drillCheckItem`. Additive.
     ...drillMethods({ settle, note, catalogue: examCatalogue }),
+    // PILOT-FEEDBACK-01 (FB-B): the learner's own reports and the survey. Additive; the tables' policies carry
+    // the ownership and triage rules, so this port only adds the closed request shapes and the 409/422 mapping.
+    ...feedbackMethods({ settle, note }),
     /**
      * PILOT-04 — the servable task catalogue.
      *
