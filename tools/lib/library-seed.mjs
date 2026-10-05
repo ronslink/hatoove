@@ -86,6 +86,21 @@ export function emitMigration({ root, target, sql, summary, argv = process.argv 
     for (const line of summary) console.log(`  ${line}`);
     process.exit(0);
   }
+  /*
+   * MIRROR-B1PREP-01 CONTENT-CORRECTIONS N1. The write path was the dangerous half of the same trap: a
+   * migration that has been applied anywhere has a frozen digest in the ledger and in MANIFEST.json, so
+   * overwriting it — which is exactly what the old failure message told a human to do — would rewrite an
+   * applied seed and break every environment that has it (and, in this repository's case, move a seeded
+   * entry id that translations and checks bind to). Regenerating is now an explicit act.
+   */
+  if (existsSync(target) && readFileSync(target, 'utf8') !== sql && !argv.includes('--force-regenerate')) {
+    console.error(`library-seed: REFUSING to overwrite ${relative}`);
+    console.error('  it already exists and differs from what this source would generate now, which means it');
+    console.error('  may be applied. An applied migration is frozen: ship the correction as a NEW forward');
+    console.error('  migration (0043 is the pattern) and leave this file byte-identical.');
+    console.error('  Only if the file has never been applied, regenerate deliberately with --force-regenerate.');
+    process.exit(1);
+  }
   writeFileSync(target, sql);
   console.log(`library-seed: wrote ${relative}`);
   for (const line of summary) console.log(`  ${line}`);
