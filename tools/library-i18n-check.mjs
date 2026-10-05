@@ -5,9 +5,9 @@
  * Offline (no database):
  *   1. the bundle's sha256 is the digest pinned in `content/library-translations/README.md`
  *   2. a tampered bundle, an ambiguous pin or a wrong byte count are REFUSED
- *   3. the bundle header and its counts are the delivered artifact (737 strings, 240 nouns, per guide)
+ *   3. the bundle header and its counts are the delivered artifact (704 strings, 240 nouns, per guide)
  *   4. the frozen German/English source parses out of 0012/0013/0014: 240 nouns and 123 sections
- *   5. every one of the 737 guide strings binds to that source: the path names a real section and a
+ *   5. every one of the 704 guide strings binds to that source: the path names a real section and a
  *      real field, and the bundle's `en` equals the source's own English field byte for byte
  *   6. the German example sentences are unchanged: the 240 nouns' `de`/`example_de`/`en`/`example_en`
  *      equal the seeded columns, and every German article+noun fragment the translations quote
@@ -16,7 +16,7 @@
  *      a COPY of the bundle makes legs 5 and 6 fail
  *
  * PostgreSQL (`--postgres`, disposable database only):
- *   8. the import writes 2211 guide rows + 720 noun rows, every one `machine_unreviewed`, and touches
+ *   8. the import writes EXPECTED_GUIDE_STRINGS x 3 guide rows + 240 x 3 noun rows, every one `machine_unreviewed`, and touches
  *      neither `guide_section`, `guide` nor `noun_entry`
  *   9. a second import inserts nothing and leaves the row fingerprint identical (byte idempotence)
  *  10. the read path: no locale = the exact pre-slice response; `de`/`en`/unimported locale = `null`;
@@ -30,7 +30,7 @@
  */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 
 import {
   GERMAN_NOUN_PHRASE, INTERFACE_LOCALES, LibraryTranslationError, TRANSLATION_LOCALES,
@@ -99,6 +99,130 @@ function insertRows(sql, table) {
   return rows;
 }
 
+/**
+ * Split SQL into statements, respecting single-quoted literals (with `''` escaping) and `--` comments, so a
+ * semicolon inside a literal or a comment cannot cut a statement in half.
+ */
+function sqlStatements(sql) {
+  const statements = [];
+  let current = '';
+  let inString = false;
+  for (let index = 0; index < sql.length; index += 1) {
+    const char = sql[index];
+    if (inString) {
+      current += char;
+      if (char === "'") {
+        if (sql[index + 1] === "'") { current += sql[index + 1]; index += 1; } else inString = false;
+      }
+      continue;
+    }
+    if (char === "'") { inString = true; current += char; continue; }
+    if (char === '-' && sql[index + 1] === '-') {
+      while (index < sql.length && sql[index] !== '\n') index += 1;
+      current += '\n';
+      continue;
+    }
+    if (char === ';') { statements.push(current); current = ''; continue; }
+    current += char;
+  }
+  if (current.trim()) statements.push(current);
+  return statements;
+}
+
+/** `'a''b'` -> `a'b`; anything that is not a string literal is a correction shape this check does not know. */
+const sqlString = (literal) => {
+  const text = literal.trim();
+  if (!/^'(?:[^']|'')*'$/.test(text)) throw new Error(`unsupported correction value: ${text.slice(0, 60)}`);
+  return text.slice(1, -1).replaceAll("''", "'");
+};
+/**
+ * Split on a separator that appears OUTSIDE single-quoted literals. The guide payload is one long JSON literal
+ * full of commas, so a naive split on a comma would cut it in half — which the strict parse below then refuses,
+ * rather than mis-applying a correction.
+ */
+const sqlSplit = (text, separator) => {
+  const parts = [];
+  let current = '';
+  let inString = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      current += char;
+      if (char === "'") {
+        if (text[index + 1] === "'") { current += text[index + 1]; index += 1; } else inString = false;
+      }
+      continue;
+    }
+    if (char === "'") { inString = true; current += char; continue; }
+    const match = separator.exec(text.slice(index));
+    if (match && match.index === 0) { parts.push(current); current = ''; index += match[0].length - 1; continue; }
+    current += char;
+  }
+  parts.push(current);
+  return parts;
+};
+const sqlPairs = (text, separator, what) => sqlSplit(text.trim(), separator).map((clause) => {
+  // A value may carry a cast — the guide payload is `'{...}'::jsonb`.
+  const match = /^([a-z_]+)\s*=\s*('(?:[^']|'')*')(?:::[a-z_]+)?$/i.exec(clause.trim());
+  if (!match) throw new Error(`unsupported correction ${what}: ${clause.trim().slice(0, 60)}`);
+  return [match[1], sqlString(match[2])];
+});
+
+/**
+ * The index of a SQL keyword that appears OUTSIDE single-quoted literals. The corrected English text contains
+ * the word "where" ("… for example about where they live …"), so a case-insensitive text search finds a WHERE
+ * that is prose — this walks the string state instead.
+ */
+function sqlIndexOfKeyword(text, keyword) {
+  let inString = false;
+  const pattern = new RegExp(`^\\s+${keyword}\\b`, 'i');
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (char === "'") { if (text[index + 1] === "'") index += 1; else inString = false; }
+      continue;
+    }
+    if (char === "'") { inString = true; continue; }
+    if (/\s/.test(char) && pattern.test(text.slice(index))) return index;
+  }
+  return -1;
+}
+
+/**
+ * APPLY THE CORRECTIONS LATER MIGRATIONS MAKE, so the OFFLINE source equals the schema a migrated database
+ * holds. REVIEW-LIBRARY-I18N-REPIN-2 is why this exists: `frozenSource()` parsed only the SEED migrations
+ * (`0012`/`0013`/`0014`) and so reported the PRE-`0043` rows as "the seeded" values, while the importer reads
+ * the corrected rows (`readFrozenSource` against the migrated schema). Two fixtures, two answers about one
+ * bundle — and the gate failed on four noun fields that were in fact correct. `0043` is the only correction
+ * migration today; scanning every later migration keeps that true by construction.
+ *
+ * Deliberately strict: a statement that targets a frozen table and cannot be understood THROWS, so a future
+ * correction can never be silently ignored here. Unknown tables and unrelated SQL are ignored.
+ */
+function applyCorrections(sql, table, rows) {
+  const applied = [];
+  for (const statement of sqlStatements(sql)) {
+    const match = new RegExp(`^\\s*UPDATE\\s+"__SCHEMA__"\\.${table}\\b([\\s\\S]*)$`, 'i').exec(statement);
+    if (!match) continue;
+    const whereIndex = sqlIndexOfKeyword(match[1], 'WHERE');
+    if (whereIndex < 0) throw new Error(`${table}: correction statement has no WHERE`);
+    const assignments = sqlPairs(match[1].slice(0, whereIndex).replace(/^\s*SET\s+/i, ''), /^\s*,\s*/, 'assignment');
+    const conditions = sqlPairs(match[1].slice(whereIndex).replace(/^\s+WHERE\s+/i, ''), /^\s+AND\s+/i, 'condition');
+    let matched = 0;
+    for (const row of rows) {
+      if (!conditions.every(([column, value]) => row[column] === value)) continue;
+      for (const [column, value] of assignments) {
+        if (!(column in row)) continue; // e.g. `plural`: not part of the frozen source shape
+        row[column] = column === 'payload' ? JSON.parse(value) : value;
+      }
+      matched += 1;
+    }
+    if (matched !== 1) throw new Error(`${table}: correction matched ${matched} frozen rows, expected 1`);
+    applied.push(`${table} ${conditions[0][1]}`);
+  }
+  return applied;
+}
+
 async function frozenSource() {
   const [nouns, guides13, guides14] = await Promise.all([
     readFile(new URL('../server/migrations/0012-noun-lexicon-catalogue.sql', import.meta.url), 'utf8'),
@@ -120,7 +244,21 @@ async function frozenSource() {
       });
     }
   }
-  return { entries, sections, versions };
+  // The seeds above are the state BEFORE the correction migrations; bring them to the state a migrated
+  // database holds, so this offline source and `readFrozenSource` cannot disagree again.
+  const migrationDir = new URL('../server/migrations/', import.meta.url);
+  const later = (await readdir(migrationDir))
+    .filter((file) => /^\d{4}-.*\.sql$/.test(file) && file > '0014-').sort();
+  const corrections = [];
+  for (const file of later) {
+    const sql = await readFile(new URL(file, migrationDir), 'utf8');
+    const applied = [
+      ...applyCorrections(sql, 'noun_entry', entries),
+      ...applyCorrections(sql, 'guide_section', sections),
+    ];
+    if (applied.length) corrections.push(`${file}: ${applied.join(', ')}`);
+  }
+  return { entries, sections, versions, corrections };
 }
 
 /* --------------------------------------------------------------------------------- offline */
@@ -128,8 +266,30 @@ async function frozenSource() {
 const verified = await loadVerifiedBundle();
 const { bundle, bytes, digest } = verified;
 const source = await frozenSource();
+console.log(`Frozen source (offline, seeds + corrections): ${source.entries.length} noun entries, ${source.sections.length} guide sections, ${source.versions.size} guides`);
+for (const correction of source.corrections) console.log(`  correction applied -> ${correction}`);
 const guidePlan = planGuideStrings(bundle, source.sections, source.versions);
 const nounPlan = planNounRows(bundle, source.entries);
+
+/*
+ * The offline source must be the state a MIGRATED database holds, not the state the seed files wrote — this
+ * is the leg that pins it, and the reason the four false `bundle_noun_mismatch` problems existed.
+ */
+await check('the offline frozen source carries the corrections the later migrations apply', async () => {
+  assert.deepEqual(source.corrections, ['0043-content-corrections.sql: noun_entry telc-deutsch-b1.noun.das-familiemitglied, noun_entry telc-deutsch-b1.noun.die-moebel, guide_section speaking-guide'],
+    'every correction migration must be applied to the offline source');
+  const byId = new Map(source.entries.map((entry) => [entry.entry_id, entry]));
+  assert.equal(byId.get('telc-deutsch-b1.noun.das-familiemitglied').de, 'das Familienmitglied');
+  assert.equal(byId.get('telc-deutsch-b1.noun.das-familiemitglied').example, 'Jedes Familienmitglied bringt etwas zum Buffet mit.');
+  assert.equal(byId.get('telc-deutsch-b1.noun.die-moebel').en, 'furniture');
+  assert.equal(byId.get('telc-deutsch-b1.noun.die-moebel').example, 'Dieses Möbelstück passt überhaupt nicht in unser Wohnzimmer.');
+  const sp1 = source.sections.find((section) => section.section_id === 'telc-deutsch-b1.speaking-guide.sp1');
+  assert.equal(sp1.title, 'Teil 1 – Sich kennenlernen');
+  assert.equal(sp1.title_en, 'Part 1 – Getting to know each other');
+  const plan = planNounRows(bundle, source.entries);
+  assert.equal(plan.rows.length, EXPECTED_NOUNS * TRANSLATION_LOCALES.length, 'all 240 nouns still bind, none dropped');
+  return '2 noun_entry rows and 1 guide_section row carry 0043; all 240 nouns bind';
+});
 
 let germanFragments = 0;
 for (const guide of Object.values(bundle.guides)) {
@@ -142,7 +302,7 @@ for (const guide of Object.values(bundle.guides)) {
 
 await check('bundle sha256 is the digest pinned in content/library-translations/README.md', async () => {
   assert.equal(digest, pinnedBundleDigest(verified.readme));
-  assert.equal(bytes.length, 546584);
+  assert.equal(bytes.length, 531902);
 });
 
 await check('a tampered bundle, a mutated pin or a second pin are refused', async () => {
@@ -171,7 +331,7 @@ await check('the frozen source parses out of 0012/0013/0014', () => {
   assert.equal(new Set(source.sections.map((row) => row.guide_id)).size, 7, 'guides carrying sections');
 });
 
-await check('every one of the 737 guide strings binds to the frozen source', () => {
+await check('every one of the 704 guide strings binds to the frozen source', () => {
   assert.equal(guidePlan.rows.length, EXPECTED_GUIDE_STRINGS * TRANSLATION_LOCALES.length);
   assert.equal(guidePlan.boundEnglish, EXPECTED_GUIDE_STRINGS, 'strings whose en equals the source English field');
   assert.equal(new Set(guidePlan.rows.map((row) => row.path)).size, EXPECTED_GUIDE_STRINGS);
@@ -290,6 +450,34 @@ if (process.argv.includes('--postgres')) {
               (SELECT count(*) FROM guide_translation WHERE review_status <> 'machine_unreviewed') AS guide_reviewed,
               (SELECT count(*) FROM noun_translation WHERE review_status <> 'machine_unreviewed') AS noun_reviewed`)).rows[0];
 
+    /*
+     * THE DRIFT GUARD, and the measurement the handover could not make. The offline source (parsed seeds +
+     * corrections) and the LIVE source (`readFrozenSource` against the migrated schema — exactly what the
+     * importer binds against) must agree; when they did not, the gate reported four noun fields as mismatched
+     * while the bundle was right. Prints BOTH sides so a future disagreement names itself.
+     */
+    await check('postgres: the offline source and the migrated database agree on the corrected rows', async () => {
+      const live = await withClient((client) => readFrozenSource(client));
+      const liveById = new Map(live.entries.map((row) => [row.entry_id, row]));
+      for (const entryId of ['telc-deutsch-b1.noun.das-familiemitglied', 'telc-deutsch-b1.noun.die-moebel']) {
+        const offline = source.entries.find((row) => row.entry_id === entryId);
+        const database = liveById.get(entryId);
+        for (const column of ['de', 'en', 'example', 'example_en']) {
+          assert.equal(offline[column], database[column],
+            `${entryId}.${column}: offline=${JSON.stringify(offline[column])} database=${JSON.stringify(database[column])}`);
+        }
+        console.log(`  ${entryId}: offline and database agree (de=${JSON.stringify(database.de)}, en=${JSON.stringify(database.en)})`);
+      }
+      const offlineSp1 = source.sections.find((section) => section.section_id === 'telc-deutsch-b1.speaking-guide.sp1');
+      const databaseSp1 = live.sections.find((section) => section.section_id === 'telc-deutsch-b1.speaking-guide.sp1');
+      assert.equal(offlineSp1.title, databaseSp1.title, 'SP1 title');
+      assert.equal(offlineSp1.summary, databaseSp1.summary, 'SP1 summary');
+      assert.deepEqual(offlineSp1.payload, databaseSp1.payload, 'SP1 payload');
+      assert.equal(source.entries.length, live.entries.length, 'same noun count');
+      assert.equal(source.sections.length, live.sections.length, 'same guide-section count');
+      return `${source.entries.length} noun entries and ${source.sections.length} sections agree, including the two corrected nouns and the SP1 section`;
+    });
+
     await check('postgres: an unimported locale and the source languages answer translations:null', async () => {
       const uk = await get('/api/v1/guides/cases-guide?locale=uk');
       assert.equal(uk.status, 200);
@@ -306,7 +494,15 @@ if (process.argv.includes('--postgres')) {
       assert.equal(summary.guideStrings.inserted, EXPECTED_GUIDE_STRINGS * TRANSLATION_LOCALES.length);
       assert.equal(summary.guideStrings.boundEnglish, EXPECTED_GUIDE_STRINGS);
       assert.equal(summary.nouns.inserted, EXPECTED_NOUNS * TRANSLATION_LOCALES.length);
-      assert.deepEqual(await counts(), { guide_rows: '2211', noun_rows: '720', guide_reviewed: '0', noun_reviewed: '0' });
+      /*
+   * DERIVED, not typed: this asserted the literal 2211 while `EXPECTED_GUIDE_STRINGS` had already been
+   * re-pinned to 704 (704 × 3 = 2112). A count that is written twice is a count that drifts once.
+   */
+  assert.deepEqual(await counts(), {
+    guide_rows: String(EXPECTED_GUIDE_STRINGS * TRANSLATION_LOCALES.length),
+    noun_rows: String(EXPECTED_NOUNS * TRANSLATION_LOCALES.length),
+    guide_reviewed: '0', noun_reviewed: '0',
+  });
       assert.equal(await sourceFingerprint(), before, 'guide, guide_section and noun_entry bytes must not move');
     });
 
