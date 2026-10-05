@@ -343,3 +343,15 @@ NOT changed, deliberately:
   in the note. If that attribution is wrong, it is two constants in the builder plus a regenerated migration.
 * **`POOL_FIGURES` in the runner check is a deliberate hard figure** — the check now fails loudly when the pool
   changes, which is the point, but it and `POOL-01-INVENTORY.md` must move together with any future batch.
+
+## 8. AMENDMENT — task-48 released the held three (5 October 2026)
+
+The first residual risk above is closed. Ron authorised AI synthesis of the three listening recordings and the
+release of all three into the served pool; `codex/pool-01-listening-release` built them with Google Cloud
+Text-to-Speech and released them through the new forward migration
+`server/migrations/0048-pool-01-listening-release.sql`, which also carries the `exam_media` rows their
+`recordings[]` bindings resolve against. The pool is now **31 sets** (LV1 six, each listening part four) and
+`POOL_FIGURES` moved with it. Everything stays `unreviewed`/`generated`, so **the second residual risk is
+unchanged and still owed**: no human has yet listened to the three recordings or read the scripts against the
+keys. The audio facts, the change set, the gate results and the mutation evidence are recorded in
+[POOL-01-LISTENING-RELEASE.md](POOL-01-LISTENING-RELEASE.md).

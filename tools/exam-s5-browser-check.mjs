@@ -123,7 +123,9 @@ try {
   if (!ready) throw new Error('Disposable S5 stack not ready');
   const password = 'synthetic-browser-pass-1', email = `browser-${Date.now()}@example.test`;
   await signup(email, password);
-  record('S5 imports exact private synthetic media', query("SELECT count(*) FROM hatoove.exam_media") === '27');
+  /* Scoped to THIS check's synthetic import (`s5.*`): the tracked migrations also insert POOL-01 batch 1's
+     three released recordings (0048), which are not this leg's subject. */
+  record('S5 imports exact private synthetic media', query("SELECT count(*) FROM hatoove.exam_media WHERE media_id LIKE 's5.%'") === '27');
   await verifyExamS5({ base, email, password, freePort, record, shot, viewport, theme, nav, setInputs, clickSel, overflow, query, axe });
 } catch (error) {
   record('S5 isolated browser execution completes', false, error.stack || error.message);

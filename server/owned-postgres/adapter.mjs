@@ -73,13 +73,15 @@ const first = (result) => result.rows[0];
  * `item_evidence e` without changing that query's grouping. The JS twin is `playableEvidence` in
  * `server/drill-sets.mjs` (the drill ranks in memory); both implement this same rule and each names the other.
  *
- * THE SERVING FILTERS ARE A DIFFERENT RULE and are deliberately NOT this predicate: `practiceSetForPart`,
- * `checkPracticeAttempt`, `drillCheckItem` and the drill's `CANDIDATE_SQL`/`readSet` use
- * `s.media_required = false` because a SET with no playable recording must not be SERVED or MARKED at all.
- * Mock evidence does not make a set playable — it records that one was playable somewhere else (the mock's
- * packaged form), which is exactly the distinction this predicate fixes. The deeper fix when recordings land is
- * for "playable" to mean "has a recording", which is why the two rules are kept visibly separate rather than
- * merged into one switch that would silently change serving too.
+ * THE SERVING FILTERS ARE A DIFFERENT RULE and are deliberately NOT this predicate: `checkPracticeAttempt`,
+ * `drillCheckItem` and the drill's `CANDIDATE_SQL`/`readSet` use `s.media_required = false` because a SET
+ * with no playable recording must not be MARKED at all — and `practiceSetForPart`, which must not SERVE one,
+ * uses the same boolean for a set it cannot play plus POOL-01's playability half (a `media_required` set whose
+ * `recordings[]` all resolve to an `exam_media` row IS served, because the practice player can play it; see
+ * the note on that method). Mock evidence does not make a set playable — it records that one was playable
+ * somewhere else (the mock's packaged form), which is exactly the distinction this predicate fixes. A set that
+ * is not served cannot gather new practice evidence, so this predicate stays conservative where serving has
+ * moved on.
  */
 const COUNTED_EVIDENCE = `(e.mock_run_id IS NOT NULL OR EXISTS (SELECT 1 FROM objective_set ps
                                      WHERE ps.set_id = e.set_id AND ps.version = e.version
@@ -841,6 +843,21 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
      * guesses into `item_evidence` — where the drill's ranking reads them. A learner could then be told their
      * weakness was listening and handed more unplayable items. A part whose sets all need media now answers
      * "nothing available", which is true, instead of serving an exercise the learner cannot do honestly.
+     *
+     * POOL-01 (task-49) NARROWED THAT FILTER, WITHOUT WEAKENING IT. The rule is no longer "the set is about
+     * audio" but "this deployment can actually PLAY this set": a `media_required` set is admitted only when
+     * every recording its payload binds resolves to an `exam_media` row for the same exam (the media route's
+     * own key). So the three released listening sets (`hv1.04`/`hv2.04`/`hv3.04`, migration 0048) are served,
+     * while FIX-F1's protection survives twice over: a set with NO binding, and a set whose binding names audio
+     * this deployment does not have, are both still refused — they are not servable at all, so no sitting is
+     * opened and no blind guess can be recorded. `checkPracticeAttempt`'s own `media_unavailable` refusal is
+     * deliberately UNCHANGED: it is the backstop for an attempt opened before this rule, and a checked sitting
+     * is not what makes audio honest.
+     *
+     * WHY THE SUBQUERY IS NOT SIMPLY "has a recordings binding": `practice-playback.mjs#recordingsOf` already
+     * fails loudly (`media_unavailable`) for an authored recording whose media row was never imported, so
+     * admitting one here would serve a set whose player cannot start — the exact defect F1 fixed, one layer
+     * down. The admission check and the playback port therefore agree on the same key, by construction.
      */
     async practiceSetForPart(owner, { preparationId, family, serveReview = 'approved+unreviewed' } = {}) {
       note('practiceSetForPart');
@@ -856,7 +873,24 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
              JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.exam_id = $1 AND s.family = $2
-              AND s.media_required = false
+              AND (
+                s.media_required = false
+                OR EXISTS (
+                  SELECT 1 FROM jsonb_array_elements(s.payload->'recordings') AS rec
+                   WHERE EXISTS (SELECT 1 FROM exam_media m
+                                  WHERE m.exam_id = s.exam_id
+                                    AND m.media_id = rec->>'mediaId'
+                                    AND m.version = rec->>'mediaVersion')
+                )
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM jsonb_array_elements(
+                  CASE WHEN jsonb_typeof(s.payload->'recordings') = 'array' THEN s.payload->'recordings' ELSE '[]'::jsonb END) AS rec
+                 WHERE NOT EXISTS (SELECT 1 FROM exam_media m
+                                    WHERE m.exam_id = s.exam_id
+                                      AND m.media_id = rec->>'mediaId'
+                                      AND m.version = rec->>'mediaVersion')
+              )
               AND ${importedSetGate()}
               AND c.review_status = ANY($3::text[])
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,

@@ -347,7 +347,7 @@ const postgresLegs = async () => {
     const sets = (await db.admin.query(
       `SELECT set_id, version, family, item_count, media_required FROM objective_set
         WHERE exam_id = $1 AND media_required = false ORDER BY family, set_id, version`, [EXAM])).rows;
-    console.log(`postgres: ${sets.length} released PLAYABLE set row(s) published by the fixture (listening sets are not served: FIX-F1)`);
+    console.log(`postgres: ${sets.length} released set row(s) that need no recording published by the fixture (POOL-01: a listening set is served only when its recording resolves to an exam_media row)`);
     if (sets.length < 3) throw new Error(`the fixture publishes ${sets.length} playable sets, so the rule cannot be exercised`);
 
     const family = sets[0].family;
@@ -550,20 +550,51 @@ const postgresLegs = async () => {
     }
 
     /*
-     * FIX-F1 (outside review §F1) — THE LISTENING FAMILIES ARE NOT SERVED AT ALL, and this REPLACES the old
-     * P8 rows for `HV1`–`HV3`. Those rows asserted the served DTO of a listening set, which was the defect:
-     * no released practice set has recordings, so the runner showed a disabled player beside live answer
-     * controls and `POST /practice/check` wrote the blind guesses into `item_evidence`. The judgement DTO
-     * shape is still proved where it belongs — the client replica and the drill's own judgement legs — but
-     * it is no longer proved by SERVING an exercise the learner cannot do.
+     * FIX-F1 (outside review §F1) — A LISTENING SET IS SERVED ONLY WHEN THIS DEPLOYMENT CAN PLAY IT, and this
+     * REPLACES the old P8 rows for `HV1`–`HV3`. Those rows asserted the served DTO of a listening set, which
+     * was the defect while NO released practice set had recordings: the runner showed a disabled player beside
+     * live answer controls and `POST /practice/check` wrote the blind guesses into `item_evidence`.
+     *
+     * POOL-01 (task-49) keeps that protection and narrows it to the truth. The seeded HV sets (`hv1.01`-
+     * `hv3.03`, migration `0010`) have NO recordings, so they are still refused; the three released sets
+     * (`hv1.04`/`hv2.04`/`hv3.04`, migration `0048`) bind a recording that resolves to an `exam_media` row, so
+     * they serve — and the sitting the serving call opens is exactly what the playback port needs. The rule is
+     * per SET, so the assertion is about which sets, not about how many.
      */
+    const RELEASED_LISTENING = { HV1: 'telc-deutsch-b1.hv1.04', HV2: 'telc-deutsch-b1.hv2.04', HV3: 'telc-deutsch-b1.hv3.04' };
     for (const name of ['HV1', 'HV2', 'HV3']) {
-      await pgLeg(`P8f ${name}: FIX-F1 — a listening part serves NOTHING (no player beside live controls)`, async () => {
+      await pgLeg(`P8f ${name}: a listening part serves the set whose recording this deployment HAS, and refuses the rest`, async () => {
         const before = await counts();
         const served = await servedNow(name);
-        assert.equal(served, null, `${name} must not serve an exercise while it has no playable recordings`);
+        assert.ok(served, `${name} must serve the released set that carries a playable recording`);
+        assert.equal(served.set.set_id, RELEASED_LISTENING[name], `${name} serves its released recording set`);
+        assert.ok(served.attempt && served.attempt.attempt_id, 'and the sitting it opened is the one playback needs');
+        assert.ok(Array.isArray(served.set.material.recordings) && served.set.material.recordings.length,
+          `${name}: the served set carries the recordings[] binding the player resolves`);
+        /*
+         * THE REFUSED HALF, EXACTLY. Every other released set of this part is one the deployment cannot play
+         * (it has no `recordings[]` binding at all), and the rule must refuse each of them BY NAME. If the
+         * playability half were dropped, one of these would be served and this assertion is what fails.
+         */
+        const others = (await db.admin.query(
+          `SELECT s.set_id, s.version FROM objective_set s
+            WHERE s.exam_id = $1 AND s.family = $2 AND s.set_id <> $3
+            ORDER BY s.set_id`, [EXAM, name, RELEASED_LISTENING[name]])).rows;
+        assert.ok(others.length >= 1, `${name}: the fixture carries the recordingless sets the rule must refuse`);
+        for (const row of others) {
+          const playable = (await db.admin.query(
+            `SELECT count(*)::int AS n
+               FROM objective_set s, LATERAL jsonb_array_elements(
+                 CASE WHEN jsonb_typeof(s.payload->'recordings') = 'array' THEN s.payload->'recordings' ELSE '[]'::jsonb END) AS rec
+              WHERE s.set_id = $1 AND s.version = $2
+                AND EXISTS (SELECT 1 FROM exam_media m WHERE m.exam_id = s.exam_id
+                              AND m.media_id = rec->>'mediaId' AND m.version = rec->>'mediaVersion')`,
+            [row.set_id, row.version])).rows[0].n;
+          assert.equal(playable, 0, `${row.set_id} must genuinely have no playable recording for this leg to mean anything`);
+        }
         const after = await counts();
-        assert.deepEqual(after, before, 'asking for it opens no sitting either');
+        assert.equal(after.evidence, before.evidence, 'serving a playable listening set records no answer by itself');
+        return `${name}: serves ${RELEASED_LISTENING[name]} and refuses ${others.length} recordingless set(s)`;
       });
     }
 
@@ -788,22 +819,42 @@ const postgresLegs = async () => {
         /* FIX-F1: BOTH F1 halves are removed in the COPY — the serving filter and the marking guard — so a
            listening sitting can exist and be marked at all. A guard that can no longer be exercised is a guard
            nobody is checking. */
+        /*
+         * POOL-01 (task-49): the PLAYABILITY half of the serving rule is removed in the COPY (the `media_required
+         * = false` exclusion with it, because the point is the F1 defect), so a recordingless listening set is
+         * served again. The mutation matches the shipped text, so a later edit to the rule fails HERE rather than
+         * silently mutating nothing.
+         */
         const adapterPath = path.join(sandbox, 'server', 'owned-postgres', 'adapter.mjs');
         const adapterSource = fs.readFileSync(adapterPath, 'utf8').replaceAll('\r\n', '\n');
-        let filterless = adapterSource.replace(
-          '            WHERE s.exam_id = $1 AND s.family = $2\n              AND s.media_required = false\n',
-          '            WHERE s.exam_id = $1 AND s.family = $2\n');
-        assert.notEqual(filterless, adapterSource, 'the F1 serving filter must be present to remove it');
+        const filterless = adapterSource.replace(
+          `            WHERE s.exam_id = $1 AND s.family = $2
+              AND (
+                s.media_required = false
+                OR EXISTS (
+                  SELECT 1 FROM jsonb_array_elements(s.payload->'recordings') AS rec
+                   WHERE EXISTS (SELECT 1 FROM exam_media m
+                                  WHERE m.exam_id = s.exam_id
+                                    AND m.media_id = rec->>'mediaId'
+                                    AND m.version = rec->>'mediaVersion')
+                )
+              )
+`,
+          `            WHERE s.exam_id = $1 AND s.family = $2
+              AND true
+`);
+        assert.notEqual(filterless, adapterSource, 'the POOL-01 serving rule must be present to remove it');
         const unguarded = filterless.replace("        if (set.media_required === true) fail(409, 'media_unavailable');\n", '');
         assert.notEqual(unguarded, filterless, 'the F1 marking guard must be present to remove it');
-        filterless = unguarded;
-        fs.writeFileSync(adapterPath, filterless);
+        fs.writeFileSync(adapterPath, unguarded);
         const legacy = await import(pathToFileURL(target).href);
         const legacyAdapter = await import(pathToFileURL(path.join(sandbox, 'server', 'owned-postgres', 'adapter.mjs')).href);
         const legacyPort = legacyAdapter.createPostgresDatastore({ pool: db.learner });
         const legacyApi = legacy.createOwnedApi({ datastore: legacyPort, sessions: world.sessions, settings: world.settings, accountDeletion: world.deletion });
         const serving = await legacyPort.practiceSetForPart(owner, { preparationId, family: 'HV3' });
-        assert.ok(serving, 'with the filter removed in the copy, HV3 serves again — that is the defect');
+        assert.ok(serving, 'with the serving rule removed in the copy, HV3 serves again — that is the defect');
+        assert.match(serving.set.set_id, /\.hv3\.0[123]$/,
+          'and what it serves is a RECORDINGLESS set: the playability half is what keeps those out');
         const keys = await keysFor(serving.set.set_id);
         const response = await legacyApi.handle({
           method: 'POST', path: '/api/v1/practice/check', originChecked: true,

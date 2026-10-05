@@ -55,7 +55,7 @@ A per-part rating was offered and not chosen. Storage is the **Hatoove database*
 own PostgreSQL, tied to the learner's account, exported with their data and deleted with their account. No new
 data processor, no Gmail notice (that would be a later OPERATOR-MAIL-01 decision).
 
-## 1. Data model — `server/migrations/0049-pilot-feedback.sql`
+## 1. Data model — `server/migrations/0050-pilot-feedback.sql`
 
 **`0049` carries the learner-facing tables only** (`pilot_feedback`, `pilot_feedback_screenshot`,
 `survey_round`). The operator surface — the `__OPERATOR__` role, the `SECURITY DEFINER` read function and the
@@ -336,7 +336,7 @@ personal-data export, not a shareable report. Its destination and retention foll
 
 | Slice | Scope | Allowed paths (advisory, one writer per file) |
 |---|---|---|
-| **FB-A** | Migration `0049` (column **`survey_answers`**, A5), catalogue **and `ACCOUNT_TABLES`** entry, `ACCOUNT_DELETION_STEPS`, export (**assembled in `adapter.exportData`**, A11), RLS/table-class legs including `relrowsecurity = false` for `survey_round` (A10), MANIFEST pin | `server/migrations/0049-pilot-feedback.sql`, `server/migrations/MANIFEST.json`, `tools/lib/catalogue.mjs`, `server/owned-postgres/adapter.mjs`, `server/owned-api.mjs` (export only), `tools/deletion-check.mjs`, `tools/table-class-check.mjs`, new `tools/pilot-feedback-migration-check.mjs` |
+| **FB-A** | Migration `0050` (column **`survey_answers`**, A5), catalogue **and `ACCOUNT_TABLES`** entry, `ACCOUNT_DELETION_STEPS`, export (**assembled in `adapter.exportData`**, A11), RLS/table-class legs including `relrowsecurity = false` for `survey_round` (A10), MANIFEST pin | `server/migrations/0050-pilot-feedback.sql`, `server/migrations/MANIFEST.json`, `tools/lib/catalogue.mjs`, `server/owned-postgres/adapter.mjs`, `server/owned-api.mjs` (export only), `tools/deletion-check.mjs`, `tools/table-class-check.mjs`, new `tools/pilot-feedback-migration-check.mjs` |
 | **FB-B** | API routes and throttle | `server/owned-api.mjs`, `server/owned-postgres/feedback.mjs` (new), `server/owned-postgres/throttle.mjs`, new `tools/pilot-feedback-api-check.mjs`, `server/owned-postgres/fixture.mjs` |
 | **FB-C** | The single report sheet (top bar + sidebar), "Meine Meldungen", the survey card, copy in 5 languages | `public/app/*.js`, `public/app/app.css`, `public/app/index.html`, `public/assets/i18n/*.js`, new `tools/pilot-feedback-client-check.mjs` |
 | **FB-D** | Operator CLI, `__OPERATOR__` role + migration `0050`, survey-round seeding, CSV export | `server/migrations/0050-pilot-feedback-operator.sql` (new), `server/feedback.mjs` (new), `server/owned-postgres/{provision,bootstrap,config}.mjs`, `tools/pilot-feedback-operator-check.mjs` (new), `docs/openapi.yaml`, docs |

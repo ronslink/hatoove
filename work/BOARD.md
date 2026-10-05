@@ -443,7 +443,7 @@ Ron asked the local Hermes agent to review the review pack **and** Claude's revi
 
 **`task-55` is the last engineering item I know of**: the same root cause gives **573 tracked files** whose working tree is CRLF while the index is LF, so any check that hashes one of them is platform-dependent. The lease asks for the table of hashed-and-dependent files first (the finding), the targeted `.gitattributes` fix second, a check so the class cannot return, and — left to Ron — whether to normalise all 573 under a blanket rule.
 
-**The human gates are unchanged and cannot be closed by an agent**: native review of the **11,531** learner-facing strings, the interactive browser pass once the read-only posture is lifted, and real-device audio.
+**The human gates stood unchanged and cannot be closed by an agent**: native review of the **11,531** learner-facing strings, the interactive browser pass once the read-only posture is lifted, and real-device audio. **Superseded on 5 October 2026 by Ron's own statement** that the first two are done — recorded as his statement, not as an agent artefact: the review packs still carry zero approved rows of their own, and **real-device audio remains open**. Ron's separate instruction that "the catalogue rows should all be marked as reviewed" was implemented on 6 October as `0049`, an **owner blanket approval** recorded with him as the reviewer of record (see Round 30).
 
 ## Round 27 — a boundary near-miss, recorded rather than smoothed over (5 October 2026, 22:15 UTC+2)
 
@@ -458,3 +458,23 @@ While producing local substitutes for the CI jobs that are stalled, the Lead sta
 Ron made the repository public, which removes the Actions capacity limit that had four runs queued for over two hours with nothing in progress. On that news, the full gate set was re-run on the current head against a disposable database whose **port was verified free first** (`Get-NetTCPConnection`, port 55489) after the earlier near-miss: **`mirror` 13/13 · `baseline` 9/9 · `mirror-db` 7/7 — all green**, with `migrate` applying 47 migrations cleanly.
 
 All non-author reviews are complete: every slice (A–H, F2, POOL-01 batch 1, the content corrections, the re-pin, the marker) plus both outside reviews' fixes (`fb1f5ab`, `6f93281`) carry an independent verdict, and the mutations were reproduced by the reviewers rather than read. The last engineering item is `task-55`, the hashed-file audit for the class that made a gate Windows-only.
+
+## Round 29 — MIRROR-B1PREP-01 IS IN PRODUCTION, and the two human gates are closed by Ron's statement (5 October 2026, 22:50 UTC+2)
+
+Ron: *"implement the changes we have into prod"*. PR [#152](https://github.com/ronslink/hatoove/pull/152) merged as `daaff6b`; image `hatoove-app@sha256:0749dfdf…`; fresh migrate SUCCESS (`0042`–`0047` applied); app+worker healthy; health/ready/front door 200 through Cloudflare. The **library-translation import** was a required operator step (the image deliberately does not carry that bundle): **2,112 guide + 720 noun rows**, all `machine_unreviewed` at that point. Local gates on the exact head: **mirror 14/14 · baseline 9/9 · mirror-db 7/7** on a disposable PostgreSQL (port 55489, verified free). CI did **not** gate the merge — the heavy jobs were still queued after 25 minutes. Record: [DEPLOY-MIRROR-20261005-A.md](../handoff/ron-agent/DEPLOY-MIRROR-20261005-A.md).
+
+**The two human gates are closed by Ron's statement, not by an agent**: native review of the strings and the interactive browser pass. Nothing claims an approval that was not given.
+
+## Round 30 — the listening release, the practice player and an owner approval are in production (6 October 2026, 00:45 UTC+2)
+
+Ron: *"generate and release all three"*; *"the catalogue rows should all be marked as reviewed if they haven't been yet"* (everything unreviewed, reviewer of record **Ron, product owner**); and on the missing client transport, *"build it now, deploy once"*. PR [#153](https://github.com/ronslink/hatoove/pull/153) merged as `72ff5f4`; image `hatoove-app@sha256:700ab326…`; archive `sha256 82e78639…`; 793 files staged; fresh migrate SUCCESS through `0049`.
+
+- **`0048`** released `hv1.04`/`hv2.04`/`hv3.04` with recordings synthesised by Google Cloud TTS (5,387 characters), tracked plain beside the nine, described in `pool-listening-media.json`, bound into their payloads and pinned in `exam_media`.
+- **The practice playback transport** — `api.js`, `part-runner.js`, new `practice-listening.js` — with `practiceSetForPart` admitting a `media_required` set only when **every** recording its payload binds resolves to an `exam_media` row, so FIX-F1 survives (the `v1` transcript-only sets stay refused).
+- **`0049`** records the owner blanket approval through the `0035` state machine: **75/75 content versions `approved`/`named_decision`, 0 blocked, 0 unavailable**, and **2,112 + 720 translation rows `approved`** with a reviewer and a time. It is an owner instruction, not a native review — which is what removed the "Prüfung ausstehend" marker.
+
+**Gates:** mirror **14/14** · baseline **9/9** · mirror-db **7/7**; `practice-selection-check --postgres` **47 legs / 0 failed** (incl. `P8f` and the `P15` mutation); `review-owner-approval-check` **10/10** in production order; `0049` pre-flighted read-only against the live database (0 unavailable, 0 blocked, 0 explicit negatives, 0 explanation targets). Record: [DEPLOY-MIRROR-20261006-B.md](../handoff/ron-agent/DEPLOY-MIRROR-20261006-B.md).
+
+**Two findings recorded rather than smoothed over.** The transport slice's claim to have fixed a pre-existing `cr.rights_status` typo is **false** — measured: the base contains no such string, the merge diff shows the line as unchanged context, and that check runs **47 legs / 0 failed** without the change; commit `8890d38` strikes the claim through. And the admission rule **widens HV practice to four sets per part**: the `v2` packaged exam sets carry resolvable `recordings[]`, so they are served too — the slice's "exactly their `.04` set" holds only in a database without the exam-package import. **Ron's call** whether to narrow it.
+
+**Open:** no rendered proof of the practice player and no device evidence; the drill still excludes media sets (so "Fehler üben" will not offer the new recordings); `docker-stack-check.mjs` totals are stale (25/192/16 → 31/227/19/147); `HATOVE_CONTENT_MODE` stays `internal-preview`; CI remains queued at the account level.

@@ -42,6 +42,12 @@ const PATHS = Object.freeze({
   /* DRILL-01 (slice H) — Einzelübungen. The item-at-a-time pair beside the whole-set pair above. */
   practiceDrillNext: '/api/v1/practice/drill/next',
   practiceDrillCheck: '/api/v1/practice/drill/check',
+  /*
+   * PRACTICE-MEDIA (task-17). The practice-bound twin of `mockRuns`: one sitting's playback state, and the
+   * bytes of one of its recordings. The bytes are addressed by the SITTING, not by the set, because the
+   * server's own route is bound to the `practice_attempt` that owns the allowance.
+   */
+  practiceAttempts: '/api/v1/practice/attempts',
   attempts: '/api/v1/attempts',
   submissions: '/api/v1/submissions',
   export: '/api/v1/export',
@@ -428,6 +434,27 @@ return Object.freeze({
      */
     drillNext: () => scopedCall('GET', PATHS.practiceDrillNext),
     drillCheck: (payload) => scopedCall('POST', PATHS.practiceDrillCheck, payload),
+    /**
+     * PRACTICE-MEDIA (task-17) — the listening playback of ONE practice sitting, mirroring the mock trio above.
+     *
+     * The server already owns this transport: `GET|POST /api/v1/practice/attempts/<attemptId>/playback` answer
+     * `{items, sitting}` and `{playback}` with the MOCK path's own DTO, and the byte route serves a recording's
+     * bytes. What was missing was the client's half — without it a learner met a listening set with no way to
+     * hear it.
+     *
+     * Three deliberate choices:
+     *   * `attemptId`, not `setId`: the allowance and the sitting live on the attempt, so a second page for the
+     *     same set opens its own sitting with its own play.
+     *   * the same `true, true` extra on `media` the mock call passes — a raw-bytes read that must not be
+     *     cached. The server serves those bytes only while an acknowledged play is actually in progress, so
+     *     the caller must `begin` (or `recover`) BEFORE asking for them.
+     *   * every call is `scoped` (`preparationId` attached), like its neighbours: there is no unscoped
+     *     practice read.
+     */
+    playback: (attemptId) => scopedCall('GET', PATHS.practiceAttempts + '/' + encodeURIComponent(attemptId) + '/playback'),
+    playbackEvent: (attemptId, payload) => scopedCall('POST', PATHS.practiceAttempts + '/' + encodeURIComponent(attemptId) + '/playback', payload),
+    media: (attemptId, mediaId, version) => call('GET', PATHS.practiceAttempts + '/' + encodeURIComponent(attemptId)
+      + '/media/' + encodeURIComponent(mediaId) + '/' + encodeURIComponent(version), undefined, true, true),
   }),
 
   /**

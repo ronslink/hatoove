@@ -3,7 +3,14 @@
   "exam_id": "telc-deutsch-b1",
   "authored_by": "agent drill (task-37), 5 October 2026",
   "provenance": "Original content authored for Hatoove in the task shape recorded in docs/exam/TELC-B1-SOURCES.md §3.1 and §3.3 (LV1: 5 matching items to headlines a-j, each headline used once; HV1: 5 richtig/falsch heard once; HV2: 10 richtig/falsch from one conversation heard twice; HV3: 5 richtig/falsch from short announcements heard twice each). No published telc material was copied or paraphrased; the shape, item counts, play rules and register follow the sources, the passages, scripts, items, keys and explanations are written for this pool. Review status is 'unreviewed' for every set: no agent marks content reviewed or makes an exam-validity claim.",
-  "release_marker": "Each set carries `release`: 'released' is imported by server/migrations/0047-pool-01-batch-1.sql; 'held' is authored, shape-validated and deliberately NOT imported until task-36's media bind-mount fix lands, because a listening set whose audio cannot play must not enter the pool (Ron's A11(b); lease rule 2). Flipping a held set to 'released' plus a new forward migration is the whole release step.",
+  "release_marker": "Each set carries `release`: 'released' is imported by a committed forward migration; 'held' is authored, shape-validated and deliberately NOT imported, because a listening set whose audio cannot play must not enter the pool (Ron's A11(b); lease rule 2). Flipping a held set to 'released' plus a new forward migration is the whole release step. The three LV1 sets are imported by server/migrations/0047-pool-01-batch-1.sql; the three listening sets were flipped to 'released' by task-48 once their recordings existed, and are imported by server/migrations/0048-pool-01-listening-release.sql.",
+  "listening_release": {
+    "task": "task-48 (codex/pool-01-listening-release), 5 October 2026",
+    "what": "The three authored listening sets (hv1.04, hv2.04, hv3.04) were HELD because they had no audio. Ron authorised AI synthesis AND the release of all three into the served pool; this batch flips them to 'released'.",
+    "audio": "Machine speech from machine-drafted scripts: Google Cloud Text-to-Speech (de-DE-Standard-G female / de-DE-Standard-H male), one PCM WAV per set, built by tools/listening-tts-build.mjs --batch. Per-file sha256, byteLength, durationMs and the source string are recorded in content/exams/telc-deutsch-b1/pool-listening-media.json and pinned again in the exam_media rows of server/migrations/0048-pool-01-listening-release.sql.",
+    "review": "Every set, and every audio descriptor, stays 'unreviewed' (rights basis 'generated'). No agent marks content or translations reviewed or approved, and no exam-validity claim is made anywhere: a human still has to listen to the three recordings and read the scripts against the keys.",
+    "binding": "Each set's payload carries a recordings[] binding ({id, mediaId, mediaVersion, label}) — the set-level member server/practice-sets.mjs serves as material and server/owned-postgres/practice-playback.mjs resolves against exam_media. The questions stay in `items`, so the authored item shape and its keys are unchanged by the release."
+  },
   "apply_hold": null,
   "apply_hold_history": "HELD from 5 October 2026 (Lead's ruling) until Ron had read the three LV1 sets; LIFTED 5 October 2026 (task-43) — Ron has read them and the batch may be applied. The field is kept so the machine check proves the source and the generated migration agree in EITHER state: a regeneration can neither drop the hold nor silently keep it.",
   "content_decisions": [
@@ -192,8 +199,16 @@
     {
       "set_id": "telc-deutsch-b1.hv1.04",
       "family": "HV1",
-      "release": "held",
+      "release": "released",
       "title": "Nachrichten von Kolleginnen und Kollegen",
+      "recordings": [
+        {
+          "id": "hv1.04-recording",
+          "mediaId": "telc-deutsch-b1.hv1.04.audio",
+          "mediaVersion": "v1",
+          "label": "Nachrichten von Kolleginnen und Kollegen"
+        }
+      ],
       "script": "[Sprecher 1]: Guten Morgen, hier ist Martin Kern aus der Buchhaltung. Die Besprechung am Montag muss leider verschoben werden, weil Herr Aydin den ganzen Tag bei einem Kunden ist. Wir treffen uns jetzt am Dienstag um neun Uhr im kleinen Konferenzraum. Bitte bringen Sie die Unterlagen für die Jahresabschlussprüfung mit.\n\n[Sprecherin 2]: Hallo Sara, hier ist Nadja. Ich stehe seit zwanzig Minuten am Bahnhof, aber der Zug nach Köln hat Verspätung. Ich schaffe es nicht mehr rechtzeitig zum Kundentermin, deshalb fahre ich direkt ins Büro. Kannst du den Termin allein übernehmen?\n\n[Sprecher 3]: Guten Tag, hier ist Herr Petrov von der Personalabteilung. Ihre Bewerbungsunterlagen sind vollständig bei uns eingegangen. Wir laden Sie für Donnerstag um vierzehn Uhr zu einem Gespräch ein. Bitte bestätigen Sie den Termin bis Mittwochabend per E-Mail.\n\n[Sprecherin 4]: Hallo zusammen, hier ist Frau Ludwig. Die Lieferung für das Lager kommt nicht wie geplant am Vormittag, sondern erst am späten Nachmittag. Wer bis dahin nichts zu tun hat, kann gern bei der Inventur helfen – ich brauche zwei Personen.\n\n[Sprecher 5]: Guten Abend, hier ist Tobias Reuter. Ich bin heute krank und bleibe zu Hause. Meine Kundentermine habe ich schon verschoben. Morgen rufe ich noch einmal an, dann besprechen wir den Stand bei der Werbekampagne.",
       "items": [
         {
@@ -231,8 +246,16 @@
     {
       "set_id": "telc-deutsch-b1.hv2.04",
       "family": "HV2",
-      "release": "held",
+      "release": "released",
       "title": "Interview mit der Fahrradbeauftragten der Stadt",
+      "recordings": [
+        {
+          "id": "hv2.04-recording",
+          "mediaId": "telc-deutsch-b1.hv2.04.audio",
+          "mediaVersion": "v1",
+          "label": "Interview mit der Fahrradbeauftragten der Stadt"
+        }
+      ],
       "script": "[Moderator]: Herzlich willkommen zu unserer Sendung „Stadt im Gespräch“. Bei uns ist heute Frau Nora Feldmann, die seit drei Jahren als Fahrradbeauftragte der Stadt arbeitet. Frau Feldmann, Sie planen seit Jahren neue Radwege. Was hat sich in dieser Zeit verändert?\n\n[Frau Feldmann]: Als ich angefangen habe, gab es in der Innenstadt nur zwei Straßen mit einem eigenen Radweg. Heute sind es elf, und in vier weiteren Straßen ist eine Spur fest eingeplant. Der größte Unterschied ist aber nicht die Zahl, sondern das Verhalten: Immer mehr Menschen fahren das ganze Jahr über Rad, auch im Winter.\n\n[Moderator]: Kritiker sagen, dass die neuen Radwege den Autoverkehr ausbremsen. Was antworten Sie ihnen?\n\n[Frau Feldmann]: Ich verstehe die Sorge, aber die Zahlen sprechen eine andere Sprache. Nach dem Umbau der Hauptstraße ist der Autoverkehr dort um acht Prozent zurückgegangen, und die Fahrzeiten haben sich nicht verlängert. Was wir wirklich verloren haben, sind Parkplätze: Aus zwei Spuren wurden eine Spur und ein Radweg, deshalb sind einundzwanzig Stellplätze weggefallen.\n\n[Moderator]: Wo sehen Sie die größten Probleme?\n\n[Frau Feldmann]: Nicht auf der Straße, sondern am Ziel. Wer mit dem Rad zur Arbeit fährt, braucht einen sicheren Platz für sein Rad. Wir haben im letzten Jahr dreihundert überdachte Fahrradparkplätze gebaut, aber an Bahnhöfen fehlen noch immer Plätze. Deshalb arbeiten wir mit einem System, bei dem man sein Rad in einem geschlossenen Raum einschließt; das nutzen vor allem Pendler, die den ganzen Tag außer Haus sind.\n\n[Moderator]: Und die Unfallzahlen?\n\n[Frau Feldmann]: Sie sind insgesamt leicht gesunken, aber nicht überall. An Kreuzungen ohne eigene Fahrradampel passieren noch zu viele Unfälle, besonders beim Rechtsabbiegen. Wir testen gerade an fünf Kreuzungen eine eigene Grünphase für Radfahrende und werten die Ergebnisse im Frühjahr aus.\n\n[Moderator]: Viele Menschen kaufen sich jetzt ein E-Bike. Ist das ein Problem für die Planung?\n\n[Frau Feldmann]: Nein, aber es verändert sie. Mit einem E-Bike fahren die Menschen weitere Strecken und schneller, deshalb brauchen wir breitere Wege und klare Regeln an Stellen, wo Fußgänger und Radfahrende sich begegnen. Wichtig ist mir: Ein E-Bike ersetzt bei vielen Familien das zweite Auto, und das entlastet die Stadt mehr als jede Umleitung.\n\n[Moderator]: Was wünschen Sie sich für die nächsten Jahre?\n\n[Frau Feldmann]: Dass wir das Radfahren nicht als Freizeitvergnügen behandeln, sondern als Verkehr. Dann wäre auch selbstverständlich, dass der Winterdienst morgens zuerst die Radwege räumt – wenigstens die Hauptstrecken. Genau das habe ich für den nächsten Winter vorgeschlagen.\n\n[Moderator]: Frau Feldmann, vielen Dank für das Gespräch.",
       "items": [
         {
@@ -300,8 +323,16 @@
     {
       "set_id": "telc-deutsch-b1.hv3.04",
       "family": "HV3",
-      "release": "held",
+      "release": "released",
       "title": "Durchsagen in Bibliothek, Schwimmbad und Kaufhaus",
+      "recordings": [
+        {
+          "id": "hv3.04-recording",
+          "mediaId": "telc-deutsch-b1.hv3.04.audio",
+          "mediaVersion": "v1",
+          "label": "Durchsagen in Bibliothek, Schwimmbad und Kaufhaus"
+        }
+      ],
       "script": "[Ansage 1]: Liebe Besucherinnen und Besucher der Stadtbibliothek, wir schließen heute wegen einer Fortbildung bereits um sechzehn Uhr. Bitte geben Sie Ihre Bücher bis fünfzehn Uhr dreißig an der Rückgabe ab. Die Lesesäle im ersten Stock bleiben heute den ganzen Tag geschlossen.\n\n[Ansage 2]: Sehr geehrte Gäste, das Schwimmbad schließt in wenigen Minuten. Vergessen Sie bitte nicht, Ihre Wertsachen aus den Schließfächern zu nehmen. Das Lehrschwimmbecken ist ab morgen früh wegen Reparaturarbeiten für zwei Wochen gesperrt, das große Becken bleibt geöffnet.\n\n[Ansage 3]: Kundinnen und Kunden der Möbelabteilung, wir möchten Sie darauf hinweisen, dass unsere Lieferung in dieser Woche nur bis Donnerstag möglich ist. Wer am Freitag oder Samstag Ware bestellt, bekommt sie erst am Montag der folgenden Woche. Unsere Ausstellung bleibt am Sonntag geschlossen.\n\n[Ansage 4]: Achtung, eine Durchsage für die Fahrgäste der Linie 4: Wegen Bauarbeiten an der Haltestelle Marktplatz fährt die Linie 4 bis Freitag nur bis zur Haltestelle Rathaus. Von dort fahren Busse weiter. Bitte planen Sie etwa zehn Minuten mehr Zeit ein.\n\n[Ansage 5]: Liebe Gäste, wir beginnen in zehn Minuten mit der letzten Führung durch die Ausstellung. Der Treffpunkt ist am Eingang gegenüber der Kasse. Für die Führung ist eine Anmeldung nicht nötig, die Teilnahme ist im Eintrittspreis enthalten.",
       "items": [
         {

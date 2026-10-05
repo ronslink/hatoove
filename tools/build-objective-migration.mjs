@@ -38,6 +38,8 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateMediaDescriptor } from '../server/media-contract.mjs';
+import { packageHash } from '../server/package-contract.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = path.join(ROOT, 'data', 'seed.json');
@@ -151,13 +153,17 @@ function splitSet(family, set) {
  *
  *   node tools/build-objective-migration.mjs --batch <file> --out <migration>            write it
  *   node tools/build-objective-migration.mjs --batch <file> --out <migration> --check    verify it
+ *   `--media <descriptors.json>` repoints the audio descriptors (default: the built
+ *   `content/exams/<exam>/pool-listening-media.json`; see the batch-audio section below).
  *
  * The batch source is `{ batch, exam_id, sets: [{ set_id, family, release, ...authored set }] }`. `release`
  * is `released` (imported by this migration) or `held` (authored, shape-validated, deliberately NOT
- * imported — POOL-01's listening sets wait for the media bind-mount fix, because a set whose audio cannot
- * play must not enter the pool). A held set proves its shape by being generated here and compared, and by
- * `tools/pool-01-check.mjs` normalising it; it contributes NO rows until it is flipped to `released` and a
- * new forward migration is cut.
+ * imported — because a set whose audio cannot play must not enter the pool). A held set proves its shape by
+ * being generated here and compared, and by `tools/pool-01-check.mjs` normalising it; it contributes NO rows
+ * until it is flipped to `released`, its audio exists and a new forward migration is cut.
+ *
+ * A RELEASED LISTENING SET ALSO BRINGS ITS AUDIO IN: see the batch-audio section, which emits the
+ * `content_version`/`content_rights`/`exam_media` rows that make its recordings playable.
  *
  * Default behaviour (no `--batch`) is unchanged, and `--check` without `--batch` still verifies `0010` byte
  * for byte against `data/seed.json`.
@@ -180,6 +186,47 @@ const BATCH_RIGHTS = Object.freeze({
   decidedBy: 'Ron (product owner); standing D1 basis applied by POOL-01 task-37',
   note: 'Original content authored for Hatoove (no third-party item bank, no published material reproduced); POOL-01 batch 1, task-37, 5 October 2026. Source:',
 });
+
+/* ============================================================================ batch audio (task-48)
+ *
+ * A RELEASED LISTENING SET NEEDS BYTES, NOT A PROMISE. The batch generator used to emit rows for the
+ * authored content only, which is why the three listening sets had to stay `held`: a Hörverstehen set in the
+ * pool whose audio cannot play is worse than an absent one (contract A11(b); POOL-01 lease rule 2). This leg
+ * closes that: when a released batch set carries a `recordings[]` binding, the tool ALSO emits the audio's own
+ * `content_version` row, its rights decision and its `exam_media` row — the exact three things
+ * `tools/practice-media-check.mjs` and `server/owned-postgres/practice-playback.mjs` need before a recording
+ * can be accounted and served.
+ *
+ * THE DESCRIPTORS ARE NOT RE-TYPED. They come from the file `tools/listening-tts-build.mjs` writes from the
+ * REAL bytes (`content/exams/<exam>/pool-listening-media.json` — see `--media`), and each one is validated with
+ * `validateMediaDescriptor`, the SAME rule the exam-package importer applies. That rule refuses a descriptor
+ * that claims `reviewed`/`approved`: a generator cannot mint a content approval, and a listening set whose
+ * audio a human has not heard stays `unreviewed` here however the descriptor is written.
+ *
+ * A RELEASED LISTENING SET WITH NO BINDING IS AN ERROR, not an omission. So is one whose descriptor is
+ * missing: the audio has not been built, so the set must stay `held` in the source.
+ */
+const DEFAULT_BATCH_MEDIA = 'content/exams/' + EXAM_ID + '/pool-listening-media.json';
+const MEDIA_RIGHTS = Object.freeze({
+  decidedBy: 'Ron (product owner); standing D1 basis applied by POOL-01 task-48',
+  note: 'Machine speech (Google Cloud Text-to-Speech) from a script authored for Hatoove; POOL-01 batch 1 listening release, task-48, 5 October 2026. Descriptor:',
+});
+
+/** The batch's authored audio descriptors, keyed `mediaId@version`. Read only when a set actually needs one. */
+function readBatchMedia(mediaPath) {
+  if (!existsSync(mediaPath)) {
+    throw new Error(`the batch's listening audio descriptors are missing: ${path.relative(ROOT, mediaPath)}`
+      + ' — build the audio first (tools/listening-tts-build.mjs --batch <source> --media-root <content/exams root>)');
+  }
+  const parsed = JSON.parse(readFileSync(mediaPath, 'utf8'));
+  const byId = new Map();
+  for (const row of parsed.media ?? []) {
+    validateMediaDescriptor(row, EXAM_ID);
+    byId.set(`${row.mediaId}@${row.version}`, row);
+  }
+  if (!byId.size) throw new Error(`no media descriptors in ${path.relative(ROOT, mediaPath)}`);
+  return byId;
+}
 
 /** One batch set's rows, through the SAME split the corpus uses. */
 function batchRows(batch, batchPath, indexInFamily) {
@@ -227,7 +274,7 @@ function batchRows(batch, batchPath, indexInFamily) {
   };
 }
 
-function buildBatch(batchPath, batchSource) {
+function buildBatch(batchPath, batchSource, { mediaPath = null } = {}) {
   if (!Array.isArray(batchSource.sets) || !batchSource.sets.length) throw new Error('the batch source carries no sets');
   const seen = new Set();
   const seenIds = new Set();
@@ -237,6 +284,13 @@ function buildBatch(batchPath, batchSource) {
   const sets = [];
   const keys = [];
   const held = [];
+  const mediaContent = [];
+  const mediaRights = [];
+  const examMedia = [];
+  const recordedMedia = new Set();
+  const mediaFile = mediaPath ?? path.join(ROOT, DEFAULT_BATCH_MEDIA);
+  const relativeMedia = path.relative(ROOT, mediaFile).replaceAll('\\', '/');
+  let descriptors = null;
   for (const entry of batchSource.sets) {
     const family = entry?.family;
     const indexInFamily = families.get(family) ?? 0;
@@ -250,6 +304,36 @@ function buildBatch(batchPath, batchSource) {
     rights.push(row.rights);
     sets.push(row.set);
     keys.push(row.key);
+    /* The audio a released listening set DOES carry, emitted as the rows the playback path resolves. */
+    const bindings = Array.isArray(entry.recordings) ? entry.recordings : [];
+    if (MEDIA_FAMILIES.has(family) && !bindings.length) {
+      throw new Error(`${entry.set_id}: a released listening set must carry its recordings[] binding — without it the set stays 'held' (task-48)`);
+    }
+    if (!MEDIA_FAMILIES.has(family) && bindings.length) {
+      throw new Error(`${entry.set_id}: a ${family} set carries recordings[] but is not a listening family`);
+    }
+    for (const recording of bindings) {
+      const mediaId = recording?.mediaId, version = recording?.mediaVersion;
+      if (typeof mediaId !== 'string' || typeof version !== 'string' || !mediaId || !version) {
+        throw new Error(`${entry.set_id}: a recordings[] binding needs a mediaId and a mediaVersion`);
+      }
+      if (recordedMedia.has(`${mediaId}@${version}`)) continue;
+      recordedMedia.add(`${mediaId}@${version}`);
+      descriptors = descriptors ?? readBatchMedia(mediaFile);
+      const descriptor = descriptors.get(`${mediaId}@${version}`);
+      if (!descriptor) throw new Error(`${entry.set_id}: no built audio descriptor for ${mediaId}@${version} in ${relativeMedia}`);
+      const identity = `${mediaId}@${version}`;
+      mediaContent.push(`    (${[
+        sqlText(identity), "'media'", "'listening'", sqlText(`${relativeMedia}#${identity}`),
+        "'unreviewed'", "'generated'", sqlText(packageHash(descriptor)), sqlText(EXAM_ID),
+      ].join(', ')})`);
+      mediaRights.push(`    (${sqlText(identity)}, 'generated', ${sqlText(MEDIA_RIGHTS.decidedBy)}, ${sqlText(`${MEDIA_RIGHTS.note} ${relativeMedia}#${identity}.`)})`);
+      examMedia.push(`    (${[
+        sqlText(descriptor.mediaId), sqlText(descriptor.version), sqlText(EXAM_ID), sqlText(descriptor.path),
+        sqlText(descriptor.sha256), String(descriptor.byteLength), String(descriptor.durationMs),
+        sqlText(descriptor.mimeType), sqlText(identity),
+      ].join(', ')})`);
+    }
   }
   if (!sets.length) throw new Error('the batch source releases no set at all');
   const batchDigest = createHash('sha256').update(readFileSync(batchPath)).digest('hex');
@@ -296,9 +380,9 @@ ${batchSource.content_decisions.map((decision) => {
     ${held.length ? `
     -- HELD, and deliberately NOT inserted: ${held.join(', ')}.
     -- Their scripts and items are authored and validated (tools/pool-01-check.mjs normalises every one of
-    -- them), but a listening set whose audio cannot play must not enter the pool, so they wait for the media
-    -- bind-mount fix (task-36). Releasing one is a one-word edit to its \`release\` marker in the source plus a
-    -- new forward migration from this same command.` : ''}
+    -- them), but a listening set whose audio cannot play must not enter the pool. Releasing one is a one-word
+    -- edit to its \`release\` marker in the source, a recordings[] binding, the built audio and a new forward
+    -- migration from this same command.` : ''}
     INSERT INTO "__SCHEMA__".content_version
       (content_version_id, kind, family, source_path, review_status, rights_status, content_sha256, exam_id)
     VALUES
@@ -324,8 +408,31 @@ ${sets.join(',\n')}
     VALUES
 ${keys.join(',\n')}
     ON CONFLICT (set_id, version) DO NOTHING;
-`;
-  return { sql, released: sets.length, held, families: [...seen].sort() };
+${examMedia.length ? `
+    -- THE AUDIO A RELEASED LISTENING SET PLAYS (task-48). Same three rows the exam-package importer creates for
+    -- a packaged recording — its own content_version ('media'/'listening'), its rights decision, and the
+    -- exam_media row the playback port resolves — because a set whose recordings[] names a media row that does
+    -- not exist answers 'media_unavailable' and debits nothing. The facts are the DESCRIPTOR's, read from
+    -- ${relativeMedia}, which was written from the real bytes by
+    -- tools/listening-tts-build.mjs; the generator re-reads it on every --check, so a re-cut file fails here.
+    INSERT INTO "__SCHEMA__".content_version
+      (content_version_id, kind, family, source_path, review_status, rights_status, content_sha256, exam_id)
+    VALUES
+${mediaContent.join(',\n')}
+    ON CONFLICT (content_version_id) DO NOTHING;
+
+    INSERT INTO "__SCHEMA__".content_rights (content_version_id, basis, decided_by, note)
+    VALUES
+${mediaRights.join(',\n')}
+    ON CONFLICT (content_version_id) DO NOTHING;
+
+    INSERT INTO "__SCHEMA__".exam_media
+      (media_id, version, exam_id, path, sha256, byte_length, duration_ms, mime_type, content_version_id)
+    VALUES
+${examMedia.join(',\n')}
+    ON CONFLICT (media_id, version) DO NOTHING;
+` : ''}`;
+  return { sql, released: sets.length, held, families: [...seen].sort(), media: examMedia.length };
 }
 
 /*
@@ -345,7 +452,9 @@ if (batchArg) {
   if (!outArg) { console.error('batch mode needs --out <migration file>'); process.exit(2); }
   const outPath = path.resolve(ROOT, outArg);
   const batchSource = JSON.parse(readFileSync(batchPath, 'utf8'));
-  const { sql: batchText, released, held, families } = buildBatch(batchPath, batchSource);
+  const mediaArg = argValue('--media');
+  const buildOptions = { mediaPath: mediaArg ? path.resolve(ROOT, mediaArg) : null };
+  const { sql: batchText, released, held, families, media } = buildBatch(batchPath, batchSource, buildOptions);
   if (process.argv.includes('--check')) {
     const current = existsSync(outPath) ? readFileSync(outPath, 'utf8') : '';
     // Every byte must match except the platform-dependent source record (see legitimateSourceDigests above).
@@ -356,12 +465,14 @@ if (batchArg) {
     }
     console.log(`objective-batch: OK ${path.relative(ROOT, outPath)} matches ${path.relative(ROOT, batchPath)}`);
     console.log(`  released sets: ${released} (${families.join(', ')}); held: ${held.length}${held.length ? ' — ' + held.join(', ') : ''}`);
+    console.log(`  recordings   : ${media} media row(s) pinned from the built descriptors`);
     process.exit(0);
   }
   writeFileSync(outPath, batchText);
   console.log(`objective-batch: wrote ${path.relative(ROOT, outPath)}`);
   console.log(`  released sets : ${released} (${families.join(', ')})`);
   console.log(`  held sets     : ${held.length}${held.length ? ' — ' + held.join(', ') : ''}`);
+  console.log(`  recordings    : ${media} media row(s) pinned from the built descriptors`);
   process.exit(0);
 }
 

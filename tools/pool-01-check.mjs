@@ -1,34 +1,42 @@
 #!/usr/bin/env node
 /**
- * POOL-01 batch 1 (MIRROR-B1PREP-01, task-37) — the authored batch and the migration it generates.
+ * POOL-01 batch 1 (MIRROR-B1PREP-01, tasks 37 + 48) — the authored batch and the migrations it generates.
  *
  *   node tools/pool-01-check.mjs                 the offline legs
  *   node tools/pool-01-check.mjs --postgres      adds the database legs (disposable database)
  *   node tools/pool-01-check.mjs --no-mutations  the legs without the mutation proof
  *
- * WHAT THIS GUARDS. Batch 1 authors six sets: three for LV1 (released by
- * `server/migrations/0047-pool-01-batch-1.sql`) and one each for HV1, HV2 and HV3, which are AUTHORED AND
- * HELD — not imported — until the listening media bind-mount is fixed, because a listening set whose audio
- * cannot play must not enter the pool (contract A11(b); POOL-01 lease rule 2). The legs therefore check four
- * different things:
+ * WHAT THIS GUARDS. Batch 1 authors six sets: three for LV1, released by the FROZEN
+ * `server/migrations/0047-pool-01-batch-1.sql`, and one each for HV1, HV2 and HV3, which were AUTHORED AND
+ * HELD because a listening set whose audio cannot play must not enter the pool (contract A11(b); POOL-01
+ * lease rule 2). Task-48 built the three recordings (Google Cloud TTS) and released all three, so the held
+ * half is now released too, by `server/migrations/0048-pool-01-listening-release.sql` — and THAT migration
+ * carries the audio's own rows (`content_version`, `content_rights`, `exam_media`), because a
+ * `recordings[]` binding that names a media row nobody created answers `media_unavailable` and plays nothing.
+ * The legs therefore check:
  *
  *   1. the authored source has the EXAM'S SHAPE per family (LV1: 10 headlines a–j for 5 matching items; HV1
- *      5, HV2 10, HV3 5 richtig/falsch items with the blueprint's item numbers) and the approved arithmetic
- *      (25 released sets before, 28 after, 31 once the held three are released);
- *   2. every set — released AND held — normalises through the REAL `normalisePracticeSet` to a served DTO
- *      whose item ids ARE the key ids and whose every key is offered with its own JSON type, with no secret
- *      field anywhere in the learner payload;
- *   3. the generated migration imports the released sets and NOTHING ELSE, marks every set `unreviewed` with
- *      its provenance, carries no answer/explanation/transcript material in the learner payload, and the
- *      committed file is byte-identical to what the builder regenerates;
- *   4. the additive builder change left the frozen `0010` byte-identical (its MANIFEST sha256) and the
- *      database applies `0047` last, serves the new sets through the shipped practice path, reaches them by
- *      the selection rule, and wraps at the new per-part set count.
+ *      5, HV2 10, HV3 5 richtig/falsch items with the blueprint's item numbers), every set is released, and
+ *      every released listening set carries a `recordings[]` binding that names a BUILT descriptor;
+ *   2. every set normalises through the REAL `normalisePracticeSet` to a served DTO whose item ids ARE the
+ *      key ids and whose every key is offered with its own JSON type, with no secret field anywhere in the
+ *      learner payload — and whose listening material reaches the runner;
+ *   3. the FROZEN 0047 still imports exactly the three LV1 sets, unreviewed, with their provenance, their
+ *      rights decisions and Ron's confirmed content decisions recorded (the half that must not move);
+ *   4. the new 0048 imports the three listening sets, unreviewed, with their provenance, their keys and one
+ *      `exam_media` row per recording whose facts are the BUILT file's, and whose bytes the SHIPPED reader
+ *      (`server/media-contract.mjs`) actually reads;
+ *   5. the committed 0048 is byte-identical to what the builder regenerates (`--check`), the additive builder
+ *      change left the frozen `0010` byte-identical, and the database applies `0048` last, serves the new
+ *      LV1 sets through the shipped practice path, reaches them by the selection rule, and wraps at the new
+ *      per-part set count.
  *
- * MUTATION PROOF. Seven mutations, each applied to a throwaway copy: a held listening set marked `released`, an
+ * MUTATION PROOF. Every named guard is attacked on a throwaway copy: a released listening set stripped of
+ * its `recordings[]` binding, a built recording whose recorded sha256 is changed, a descriptor deleted, an
  * LV1 answer that is not one of the set's headlines, a released set dropped from the batch, the builder's
- * secret-field rule emptied, and three checks on Ron's `lv1.06` decisions (a duplicated confirmed key, the
- * confirmed key changed afterwards, the rejected wording restored). The pristine control runs first; when it is
+ * secret-field rule emptied, the generator's source-record rule accepting any digest, and three checks on
+ * Ron's `lv1.06` decisions (a duplicated confirmed key, the confirmed key changed afterwards, the rejected
+ * wording restored). A leg that cannot fail is worse than no leg. The pristine control runs first; when it is
  * not clean the run reports that as a NAMED failure, skips the mutation proofs and still prints its tally —
  * it used to throw an uncaught AssertionError, which is how CI lost legs 8+ entirely (POOL-01-CI-01).
  */
@@ -45,11 +53,31 @@ import { canonicalSourceRecord, legitimateSourceDigests } from './build-objectiv
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = 'content/pool-01/batch-1.json';
-const MIGRATION = 'server/migrations/0047-pool-01-batch-1.sql';
+/** The FROZEN half: applied in production, its bytes pinned by MANIFEST.json, never regenerated. */
+const FROZEN_MIGRATION = 'server/migrations/0047-pool-01-batch-1.sql';
+/** This slice's migration. Generated from the SAME source with the same command. */
+const MIGRATION = 'server/migrations/0048-pool-01-listening-release.sql';
+/** The audio descriptors of the batch's listening sets, written from the real bytes by listening-tts-build. */
+const MEDIA = 'content/exams/telc-deutsch-b1/pool-listening-media.json';
 const CORPUS_MIGRATION = 'server/migrations/0010-objective-catalogue.sql';
 const MANIFEST = 'server/migrations/MANIFEST.json';
 const BUILDER = 'tools/build-objective-migration.mjs';
 const LOCALES = null; // not an interface-copy slice
+/** The three LV1 sets the frozen migration imports, and the three listening sets this slice releases. */
+const LV1_BATCH = Object.freeze(['telc-deutsch-b1.lv1.04', 'telc-deutsch-b1.lv1.05', 'telc-deutsch-b1.lv1.06']);
+const LISTENING_BATCH = Object.freeze(['telc-deutsch-b1.hv1.04', 'telc-deutsch-b1.hv2.04', 'telc-deutsch-b1.hv3.04']);
+/**
+ * The exact authored text of one released listening set's `recordings[]` binding, and the same source with that
+ * audio removed. ONE definition, used twice: the negative leg that requires the GENERATOR to refuse a released
+ * listening set with no audio, and the source mutation that proves the leg can fail. A mutation whose pattern
+ * is written twice drifts; this one cannot.
+ */
+const HV1_RECORDINGS_BLOCK = Object.freeze({
+  with: '"title": "Nachrichten von Kolleginnen und Kollegen",\n      "recordings": [\n        {\n          "id": "hv1.04-recording",\n          "mediaId": "telc-deutsch-b1.hv1.04.audio",\n          "mediaVersion": "v1",\n          "label": "Nachrichten von Kolleginnen und Kollegen"\n        }\n      ],',
+  without: '"title": "Nachrichten von Kolleginnen und Kollegen",',
+});
+/** Remove hv1.04's audio binding from a source text. Returns the text unchanged when the pattern is absent. */
+const stripListeningAudio = (text) => text.replace(HV1_RECORDINGS_BLOCK.with, HV1_RECORDINGS_BLOCK.without);
 
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -88,6 +116,8 @@ const SECTION_OF = (family) => family.replace(/[0-9]+$/, '');
 const RELEASED_BEFORE = Object.freeze({ LV1: 3, LV2: 3, LV3: 3, SB1: 4, SB2: 3, HV1: 3, HV2: 3, HV3: 3 });
 /** The approved distribution of the six authored sets (Lead, 5 Oct 2026). */
 const APPROVED_BATCH = Object.freeze({ LV1: 3, HV1: 1, HV2: 1, HV3: 1 });
+/** The pool once BOTH halves of batch 1 are applied: the LV1 three by 0047, the listening three by 0048. */
+const RELEASED_AFTER = Object.freeze({ LV1: 6, LV2: 3, LV3: 3, SB1: 4, SB2: 3, HV1: 4, HV2: 4, HV3: 4 });
 const SECRET_KEYS = Object.freeze(['answer', 'why', 'script', 'grammar', 'explanations', 'transcript']);
 
 const deepFindKeys = (value, wanted, found = []) => {
@@ -137,20 +167,37 @@ function expectedKey(entry) {
   return { answers, explanations };
 }
 
-function buildLegs({ source, sourceText, migration, migrationText, normalise, builderPath, corpusText }) {
+function buildLegs({ source, sourceText, migration, migrationText, releaseText, media, mediaText, normalise, builderPath, corpusText, mediaPath, readMediaBytes }) {
   const sets = source.sets ?? [];
   const released = sets.filter((entry) => entry.release === 'released');
+  /** No set may stay HELD once its audio exists — the release marker and the audio move together (task-48). */
   const held = sets.filter((entry) => entry.release === 'held');
+  /** The half the FROZEN 0047 owns, and the listening ids 0047 names but deliberately does not insert. */
+  const frozenReleased = sets.filter((entry) => LV1_BATCH.includes(entry.set_id));
+  const frozenHeld = LISTENING_BATCH;
+  /** The descriptors the audio build wrote, by media identity. */
+  const descriptors = new Map(((media && media.media) ?? []).map((row) => [`${row.mediaId}@${row.version}`, row]));
+  /** The exam_media rows of one migration, so a leg can compare them with the built file. */
+  const examMediaRows = (text) => {
+    const start = text.indexOf('INSERT INTO "__SCHEMA__".exam_media');
+    if (start < 0) return [];
+    const body = text.slice(start).split('ON CONFLICT')[0];
+    return [...body.matchAll(/\(\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([a-f0-9]{64})',\s*(\d+),\s*(\d+),\s*'([^']+)',\s*'([^']+)'\)/g)]
+      .map((match) => ({
+        mediaId: match[1], version: match[2], examId: match[3], path: match[4],
+        sha256: match[5], byteLength: Number(match[6]), durationMs: Number(match[7]),
+        mimeType: match[8], contentVersionId: match[9],
+      }));
+  };
   return [
-    ['1 the authored batch: six sets, the approved distribution, and the EXAM shape per family', () => {
+    ['1 the authored batch: six sets, all released, the approved distribution, and the EXAM shape per family', () => {
       assert.equal(sets.length, 6, 'six authored sets');
       const perFamily = {};
       for (const entry of sets) perFamily[entry.family] = (perFamily[entry.family] ?? 0) + 1;
       assert.deepEqual(perFamily, APPROVED_BATCH, 'LV1 +3 and one each to HV1/HV2/HV3 (Lead, 5 Oct 2026)');
-      assert.equal(released.length, 3, 'three sets are released by 0047');
-      assert.equal(held.length, 3, 'three listening sets are held until the media bind-down fix');
-      assert.deepEqual(released.map((entry) => entry.family), ['LV1', 'LV1', 'LV1'], 'only the non-media part is released today');
-      assert.deepEqual(held.map((entry) => entry.family).sort(), ['HV1', 'HV2', 'HV3'], 'one held set per listening part');
+      assert.equal(released.length, 6, 'all six sets are released: the LV1 three by 0047, the listening three by 0048');
+      assert.equal(held.length, 0, 'no set is held once its audio exists (task-48 released the three listening sets)');
+      assert.deepEqual(released.map((entry) => entry.family), ['LV1', 'LV1', 'LV1', 'HV1', 'HV2', 'HV3'], 'in source order');
       const ids = new Set();
       for (const entry of sets) {
         assert.ok(/^telc-deutsch-b1\.[a-z]{2}[0-9]\.[0-9]{2}$/.test(entry.set_id), `set_id shape: ${entry.set_id}`);
@@ -159,6 +206,7 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
         ids.add(entry.set_id);
         assert.ok(typeof entry.title === 'string' && entry.title.trim().length > 3, `${entry.set_id} has a title`);
         if (entry.family === 'LV1') {
+          assert.ok(!entry.recordings, `${entry.set_id}: a reading set carries no audio`);
           assert.equal(entry.headlines.length, 10, 'LV1 offers ten headlines (a–j) for five items');
           assert.deepEqual(entry.headlines.map((row) => row.id), ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']);
           assert.equal(entry.texts.length, 5, 'LV1 asks five matching items');
@@ -186,21 +234,31 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
           const trues = entry.items.filter((item) => item.answer === true).length;
           assert.ok(trues >= 1 && trues < entry.items.length, `${entry.set_id}: the key is not all one value`);
           assert.ok(typeof entry.script === 'string' && entry.script.trim().length >= 300, `${entry.set_id}: a full recording script is authored`);
-          assert.equal(entry.release, 'held', `${entry.set_id}: a listening set may not be released before its audio exists`);
+          /*
+           * THE RELEASE IS THE AUDIO. A listening set is 'released' only because a recording exists, and the
+           * binding that names it is the only thing the playback port can resolve: `recordings[]` at set level,
+           * `mediaId`/`mediaVersion` matching a descriptor the synthesis actually produced. A released
+           * listening set without one is the defect this whole slice exists to prevent, so it is asserted
+           * here as well as refused by the generator.
+           */
+          assert.equal(entry.release, 'released', `${entry.set_id}: released — its recording exists (task-48)`);
+          assert.ok(Array.isArray(entry.recordings) && entry.recordings.length === 1, `${entry.set_id}: one recordings[] binding`);
+          const [binding] = entry.recordings;
+          assert.equal(binding.mediaId, `${entry.set_id}.audio`, `${entry.set_id}: the binding names this set's audio`);
+          assert.equal(binding.mediaVersion, 'v1', `${entry.set_id}: pinned to the media version`);
+          assert.equal(binding.label, entry.title, `${entry.set_id}: and it is labelled with the set's own title`);
+          assert.ok(descriptors.has(`${binding.mediaId}@${binding.mediaVersion}`),
+            `${entry.set_id}: the binding resolves to a BUILT descriptor (${binding.mediaId}@${binding.mediaVersion})`);
         }
       }
       /* The arithmetic, before/after, per part. */
       const after = { ...RELEASED_BEFORE };
       for (const entry of released) after[entry.family] += 1;
-      assert.deepEqual(after, { LV1: 6, LV2: 3, LV3: 3, SB1: 4, SB2: 3, HV1: 3, HV2: 3, HV3: 3 }, 'released sets after batch 1');
-      const planned = { ...after };
-      for (const entry of held) planned[entry.family] += 1;
-      assert.deepEqual(planned, { LV1: 6, LV2: 3, LV3: 3, SB1: 4, SB2: 3, HV1: 4, HV2: 4, HV3: 4 }, 'and once the held three are released');
+      assert.deepEqual(after, RELEASED_AFTER, 'released sets after BOTH halves of batch 1');
       assert.equal(Object.values(RELEASED_BEFORE).reduce((a, b) => a + b, 0), 25, '25 released sets before');
-      assert.equal(Object.values(after).reduce((a, b) => a + b, 0), 28, '28 released after');
-      assert.equal(Object.values(planned).reduce((a, b) => a + b, 0), 31, '31 authored in total');
+      assert.equal(Object.values(after).reduce((a, b) => a + b, 0), 31, '31 released in total');
     }],
-    ['2 every authored set — released AND held — serves a well-formed DTO through the REAL normaliser', () => {
+    ['2 every authored set serves a well-formed DTO through the REAL normaliser, audio material included', () => {
       for (const entry of sets) {
         const payload = expectedPayload(entry);
         const { answers } = expectedKey(entry);
@@ -223,14 +281,22 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
           assert.equal(typeof keyed.value, typeof key, `${entry.set_id}/${item.item_id}: offered with the KEY's own JSON type`);
           assert.ok(item.options.length >= 2, `${entry.set_id}/${item.item_id}: at least two options`);
         }
+        if (['HV1', 'HV2', 'HV3'].includes(entry.family)) {
+          /* The runner needs the binding in `material`, not only in the stored payload (practice-sets.mjs). */
+          assert.ok(Array.isArray(served.material.recordings) && served.material.recordings.length === 1,
+            `${entry.set_id}: the served material carries the recording the runner binds its items to`);
+          assert.equal(served.material.recordings[0].mediaId, `${entry.set_id}.audio`, `${entry.set_id}: with the pinned media id`);
+        } else {
+          assert.ok(served.material.recordings === undefined, `${entry.set_id}: no audio material on a reading set`);
+        }
         /* No secret material anywhere in the learner payload — deep scan, not a field-by-field check. */
         const leaked = deepFindKeys(payload, SECRET_KEYS);
         assert.deepEqual(leaked, [], `${entry.set_id}: no answer/why/script/explanation rides in the learner payload`);
         assert.ok(!JSON.stringify(payload).includes('"answer"'), `${entry.set_id}: and not as a JSON key either`);
       }
     }],
-    ['3 the migration imports the RELEASED sets and nothing else, unreviewed, with its provenance', () => {
-      for (const entry of released) {
+    ['3 the FROZEN 0047 still imports the three LV1 sets and nothing else, unreviewed, with its provenance', () => {
+      for (const entry of frozenReleased) {
         assert.ok(migrationText.includes(`'${entry.set_id}'`), `${entry.set_id} is imported`);
         assert.ok(migrationText.includes(`@v1`), 'versioned');
       }
@@ -241,15 +307,15 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
         if (entry.release !== 'released') continue;
         assert.ok(migrationText.includes(`'${SOURCE}#LV1[${index}]'`), `the provenance path of ${entry.set_id} names the authored source`);
       }
-      for (const entry of held) {
-        assert.ok(!migrationText.includes(`'${entry.set_id}'`), `${entry.set_id} is HELD: it must not be imported before its audio exists`);
-        assert.ok(!new RegExp(`'${entry.set_id.replaceAll('.', '\\.')}@v1'`).test(migrationText), `${entry.set_id} has no content_version row either`);
+      for (const setId of frozenHeld) {
+        assert.ok(!migrationText.includes(`'${setId}'`), `${setId} was HELD when 0047 was cut: it must not be imported by it`);
+        assert.ok(!new RegExp(`'${setId.replaceAll('.', '\\.')}@v1'`).test(migrationText), `${setId} has no content_version row in 0047 either`);
       }
-      assert.ok(migrationText.includes('HELD, and deliberately NOT inserted'), 'the held sets are disclosed in the migration itself');
-      for (const entry of held) assert.ok(migrationText.includes(entry.set_id), `the disclosure names ${entry.set_id}`);
+      assert.ok(migrationText.includes('HELD, and deliberately NOT inserted'), 'the frozen artifact discloses the held sets in its own header');
+      for (const setId of frozenHeld) assert.ok(migrationText.includes(setId), `the disclosure names ${setId}`);
       /* The ROW shape, not the bare word: the header comment also says "unreviewed". */
       const unreviewed = migrationText.match(/'unreviewed', 'unknown'/g) ?? [];
-      assert.equal(unreviewed.length, released.length, 'every imported set is marked unreviewed — an agent does not mark content reviewed');
+      assert.equal(unreviewed.length, frozenReleased.length, 'every set FROZEN 0047 imported is marked unreviewed — an agent does not mark content reviewed');
       /*
        * THE APPLY HOLD IS DATA, IN EITHER STATE. The Lead held this batch from being applied until Ron had read
        * the three LV1 sets (an applied migration cannot be withdrawn) and LIFTED it once he had (task-43). The
@@ -368,9 +434,76 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
       /* A content row without a rights decision is INVISIBLE: the policy fails closed on 'unknown'. */
       assert.ok(migrationText.includes('INSERT INTO "__SCHEMA__".content_rights'), 'the rights decision travels WITH the content row');
       const rightsRows = migrationText.match(/@v1', 'generated',/g) ?? [];
-      assert.equal(rightsRows.length, released.length, 'one recorded basis per imported set');
+      assert.equal(rightsRows.length, frozenReleased.length, 'one recorded basis per imported set');
     }],
-    ['4 the additive builder change left the corpus untouched: 0010 still matches its source, and the batch is not spliced into it', async () => {
+    ['4 the new 0048 releases the three listening sets, unreviewed, with their PROVENANCE and their AUDIO', () => {
+      for (const setId of LISTENING_BATCH) {
+        assert.ok(releaseText.includes(`'${setId}@v1'`), `${setId} has a content_version row in the release migration`);
+      }
+      /* Provenance is per family: the index restarts at the first set of each family in the source. */
+      for (const entry of sets.filter((row) => LISTENING_BATCH.includes(row.set_id))) {
+        assert.ok(releaseText.includes(`'${SOURCE}#${entry.family}[0]'`), `${entry.set_id}: provenance names the authored batch source`);
+      }
+      const unreviewed = releaseText.match(/'unreviewed', 'unknown'/g) ?? [];
+      assert.equal(unreviewed.length, released.length, 'every released set the migration carries is marked unreviewed');
+      assert.ok(!/'approved'/.test(releaseText.slice(releaseText.indexOf('INSERT INTO'))), 'and none is claimed reviewed');
+      /*
+       * THE LV1 HALF IS REPLAYED, NOT REWRITTEN. The generator emits the batch's released sets as they now
+       * stand, so the three LV1 rows appear in 0048 as well — harmless only because `ON CONFLICT … DO NOTHING`
+       * makes them no-ops. That is exactly the shape that could smuggle a silent content edit past a reviewer,
+       * so the whole LV1 half of 0048 is compared, line for line, with the half the FROZEN 0047 already
+       * applied: content_version, rights, set and key. A changed word, key or digest fails here by name.
+       */
+      const linesFor = (text, setId) => text.split('\n')
+        .filter((line) => line.includes(`'${setId}`))
+        /* The last value tuple of a file has no trailing comma; the row itself is what is compared. */
+        .map((line) => line.replace(/,$/, ''));
+      for (const setId of LV1_BATCH) {
+        const frozen = linesFor(migrationText, setId);
+        assert.ok(frozen.length >= 4, `${setId}: the frozen 0047 carries all four rows`);
+        assert.deepEqual(linesFor(releaseText, setId), frozen, `${setId}: 0048 replays exactly the rows 0047 applied`);
+      }
+      const setRights = releaseText.match(/standing D1 basis applied by POOL-01 task-37/g) ?? [];
+      assert.equal(setRights.length, released.length, 'one recorded basis per released set');
+      const mediaRights = releaseText.match(/standing D1 basis applied by POOL-01 task-48/g) ?? [];
+      assert.equal(mediaRights.length, LISTENING_BATCH.length, 'and one per released recording');
+      /*
+       * THE AUDIO'S OWN ROWS. A recordings[] binding is a promise; `exam_media` is the row the trigger and the
+       * playback port resolve it against (`0045-practice-playback.sql`), and without it a released listening
+       * set answers `media_unavailable` and plays nothing. So the binding, the media row and the descriptor
+       * have to AGREE on all three sides: identity, file and content_version.
+       */
+      const rows = examMediaRows(releaseText);
+      assert.equal(rows.length, LISTENING_BATCH.length, 'one exam_media row per released recording');
+      for (const entry of sets.filter((row) => LISTENING_BATCH.includes(row.set_id))) {
+        const [binding] = entry.recordings;
+        const row = rows.find((candidate) => candidate.mediaId === binding.mediaId && candidate.version === binding.mediaVersion);
+        assert.ok(row, `${entry.set_id}: exam_media carries ${binding.mediaId}@${binding.mediaVersion}`);
+        const descriptor = descriptors.get(`${binding.mediaId}@${binding.mediaVersion}`);
+        assert.equal(row.examId, 'telc-deutsch-b1', `${entry.set_id}: exam scoped`);
+        assert.equal(row.path, descriptor.path, `${entry.set_id}: the row names the BUILT file`);
+        assert.equal(row.sha256, descriptor.sha256, `${entry.set_id}: and pins its sha256`);
+        assert.equal(row.byteLength, descriptor.byteLength, `${entry.set_id}: byte length`);
+        assert.equal(row.durationMs, descriptor.durationMs, `${entry.set_id}: duration`);
+        assert.equal(row.mimeType, 'audio/wav', `${entry.set_id}: the only mime type 0029 allows`);
+        assert.equal(row.contentVersionId, `${binding.mediaId}@${binding.mediaVersion}`, `${entry.set_id}: the row is tied to the media content_version`);
+        /* The media content_version is the importer's own shape: kind 'media', family 'listening', unreviewed. */
+        assert.ok(releaseText.includes(`'${binding.mediaId}@${binding.mediaVersion}', 'media', 'listening'`),
+          `${entry.set_id}: the media content_version uses the importer's kind/family`);
+        /* The stored payload carries the binding the playback port reads (and no transcript). */
+        const setRow = releaseText.split('\n').find((line) => line.includes(`('${entry.set_id}', 'v1', 'telc-deutsch-b1'`));
+        assert.ok(setRow, `${entry.set_id}: the objective_set row is in the migration`);
+        assert.ok(setRow.includes(`"mediaId":"${binding.mediaId}"`), `${entry.set_id}: the payload carries the media binding`);
+        assert.ok(/,\s*true,\s*'telc-deutsch-b1\.hv[123]\.04@v1'\)/.test(setRow), `${entry.set_id}: and is marked media_required`);
+        assert.ok(!setRow.includes('"script"') && !setRow.includes('"answer"'), `${entry.set_id}: no transcript or answer in the learner payload`);
+      }
+      assert.ok(!releaseText.includes('CREATE TABLE'), 'forward-only: it adds rows, it does not restate the schema');
+      assert.ok(releaseText.includes('ON CONFLICT (set_id, version) DO NOTHING'), 'idempotent on re-apply');
+      assert.ok(releaseText.includes('ON CONFLICT (media_id, version) DO NOTHING'), 'and idempotent for the media rows');
+      assert.ok(releaseText.includes('INSERT INTO "__SCHEMA__".objective_key'), 'the keys land in the key table');
+      assert.ok(releaseText.includes('INSERT INTO "__SCHEMA__".content_rights'), 'every content row travels WITH its rights decision');
+    }],
+    ['5 the additive builder change left the corpus untouched: 0010 still matches its source, and the batch is not spliced into it', async () => {
       const generated = await runNode([builderPath, '--check']);
       assert.equal(generated.code, 0, `the corpus migration must still match data/seed.json:\n${generated.out.slice(-300)}`);
       assert.match(generated.out, /24 sets, 24 keys/, 'the seeded corpus is still 24 sets');
@@ -399,20 +532,22 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
         'a hand-edited source record must NOT canonicalise to the same thing as a real one',
       );
       /* (2) A hand-edited record is refused END TO END. The generator's own `--check` honours `--out` on the
-         BATCH axis, so a copy of 0047 with one hex character of its source record changed must be refused,
-         and the pristine copy accepted first — otherwise the refusal could be about something else. */
-      const batchRecord = migrationText.match(/([ \t]*-- Source: content\/pool-01\/batch-1\.json \(sha256 )([0-9a-f]{64})(\))/);
-      assert.ok(batchRecord, '0047 carries a source record to hand-edit');
+         BATCH axis, so a copy of THIS slice's 0048 with one hex character of its source record changed must
+         be refused, and the pristine copy accepted first — otherwise the refusal could be about something
+         else. The axis is the release migration, not the frozen 0047: 0047 is no longer regenerable from the
+         moved-on source, and a check that regenerated it would be asserting a historical coincidence. */
+      const batchRecord = releaseText.match(/([ \t]*-- Source: content\/pool-01\/batch-1\.json \(sha256 )([0-9a-f]{64})(\))/);
+      assert.ok(batchRecord, '0048 carries a source record to hand-edit');
       const handEditedBatch = `${batchRecord[2].slice(0, 63)}${batchRecord[2].endsWith('0') ? '1' : '0'}`;
       assert.notEqual(handEditedBatch, batchRecord[2], 'the hand-edited digest differs');
       const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pool01-handedited-'));
-      const pristineCopy = path.join(scratchDir, '0047-pristine.sql');
-      const editedCopy = path.join(scratchDir, '0047-hand-edited.sql');
-      fs.writeFileSync(pristineCopy, migrationText);
-      fs.writeFileSync(editedCopy, migrationText.replace(batchRecord[0], `${batchRecord[1]}${handEditedBatch}${batchRecord[3]}`));
-      const acceptedControl = await runNode([builderPath, '--batch', SOURCE, '--out', pristineCopy, '--check']);
+      const pristineCopy = path.join(scratchDir, '0048-pristine.sql');
+      const editedCopy = path.join(scratchDir, '0048-hand-edited.sql');
+      fs.writeFileSync(pristineCopy, releaseText);
+      fs.writeFileSync(editedCopy, releaseText.replace(batchRecord[0], `${batchRecord[1]}${handEditedBatch}${batchRecord[3]}`));
+      const acceptedControl = await runNode([builderPath, '--batch', SOURCE, '--media', mediaPath, '--out', pristineCopy, '--check']);
       assert.equal(acceptedControl.code, 0, `the generator must still accept the pristine copy (the control):\n${acceptedControl.out.slice(-300)}`);
-      const refusedEdited = await runNode([builderPath, '--batch', SOURCE, '--out', editedCopy, '--check']);
+      const refusedEdited = await runNode([builderPath, '--batch', SOURCE, '--media', mediaPath, '--out', editedCopy, '--check']);
       assert.notEqual(refusedEdited.code, 0, 'a hand-edited source digest must be REFUSED by the generator, not accepted');
       assert.match(refusedEdited.out, /objective-batch: FAILED|differs from/, `and the refusal must name the migration:\n${refusedEdited.out.slice(-300)}`);
       fs.rmSync(scratchDir, { recursive: true, force: true });
@@ -421,37 +556,84 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
       for (const entry of sets) assert.ok(!seedText.includes(entry.set_id), `${entry.set_id} is not spliced into data/seed.json`);
       assert.ok(!seedText.includes(sets[0].title), 'nor its passages');
     }],
-    ['5 the committed migration is byte-identical to what the builder regenerates (--check)', async () => {
-      const result = await runNode([builderPath, '--batch', SOURCE, '--out', MIGRATION, '--check']);
+    ['6 the committed 0048 is byte-identical to what the builder regenerates (--check)', async () => {
+      const result = await runNode([builderPath, '--batch', SOURCE, '--media', mediaPath, '--out', MIGRATION, '--check']);
       assert.equal(result.code, 0, `the builder must accept the committed migration:\n${result.out.slice(-400)}`);
-      assert.match(result.out, /released sets: 3/, 'and report the released count');
-      assert.match(result.out, /held: 3/, 'and the held count');
-      // The same platform-independent reading of 0047's own source record as leg 4 applies to 0010's.
-      const record = migrationText.match(/Source: content\/pool-01\/batch-1\.json \(sha256 ([0-9a-f]{64})\)/);
-      assert.ok(record, '0047 records the digest of the batch source it was generated from');
+      assert.match(result.out, /released sets: 6/, 'and report that all six sets are released');
+      assert.match(result.out, /held: 0/, 'with none held');
+      assert.match(result.out, /recordings\s*: 3 media row/, 'and the three pinned recordings');
+      // The same platform-independent reading of 0048's own source record as leg 5 applies to 0010's.
+      const record = releaseText.match(/Source: content\/pool-01\/batch-1\.json \(sha256 ([0-9a-f]{64})\)/);
+      assert.ok(record, '0048 records the digest of the batch source it was generated from');
       const batchForms = legitimateSourceDigests(path.join(ROOT, SOURCE));
       assert.ok(batchForms.has(record[1]),
-        `0047's recorded digest must be ${SOURCE} in one of its byte forms; recorded ${record[1]}, this checkout has ${[...batchForms].join(' / ')}`);
+        `0048's recorded digest must be ${SOURCE} in one of its byte forms; recorded ${record[1]}, this checkout has ${[...batchForms].join(' / ')}`);
+      /*
+       * AND THE GENERATOR REFUSES THE DEFECT THIS SLICE REMOVES. A listening set that says `released` while
+       * nothing names its audio is exactly what 'held' used to be for, so the generator must not quietly
+       * release a set whose recording is missing: it exits non-zero and names the set. The mutated source is a
+       * throwaway copy, so the repository's own batch file is never written to.
+       */
+      const stripped = stripListeningAudio(sourceText.replaceAll('\r\n', '\n'));
+      assert.notEqual(stripped, sourceText.replaceAll('\r\n', '\n'), 'the no-audio mutation must change the source');
+      const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'pool01-noaudio-'));
+      const strippedSource = path.join(scratch, 'batch-1.json');
+      fs.writeFileSync(strippedSource, stripped);
+      const refused = await runNode([builderPath, '--batch', strippedSource, '--media', mediaPath, '--out', path.join(scratch, 'out.sql')]);
+      fs.rmSync(scratch, { recursive: true, force: true });
+      assert.notEqual(refused.code, 0, 'a released listening set with no recordings[] binding must be REFUSED by the generator');
+      assert.match(refused.out, /must carry its recordings\[\] binding/, `and the refusal must say why:\n${refused.out.slice(-300)}`);
     }],
-    ['6 the MANIFEST line is the sha256 of the migration bytes', () => {
-      const digest = sha256(read(MIGRATION));
-      const recorded = JSON.parse(read(MANIFEST)).migrations['0047-pool-01-batch-1'];
-      assert.equal(recorded, digest, 'MANIFEST 0047 equals the reviewed bytes');
-      assert.ok(!/\r\n/.test(migrationText), 'LF only: the manifest digest records the bytes');
+    ['7 the MANIFEST lines are the sha256 of the migration bytes — the frozen one included', () => {
+      const recorded = JSON.parse(read(MANIFEST)).migrations;
+      assert.equal(recorded['0048-pool-01-listening-release'], sha256(read(MIGRATION)), 'MANIFEST 0048 equals the generated bytes');
+      assert.equal(recorded['0047-pool-01-batch-1'], sha256(read(FROZEN_MIGRATION)), 'MANIFEST 0047 still equals the FROZEN bytes');
+      assert.ok(!/\r\n/.test(releaseText), 'LF only: the manifest digest records the bytes');
+      assert.ok(!/\r\n/.test(migrationText), 'LF only for the frozen migration too');
+      /* The frozen half must not move: 0047 keeps its own three sets and none of the released listening ids. */
+      for (const setId of LV1_BATCH) assert.ok(migrationText.includes(`'${setId}'`), `the frozen 0047 still carries ${setId}`);
+      for (const setId of LISTENING_BATCH) assert.ok(!migrationText.includes(`'${setId}'`), `${setId} is a 0048 row, not a 0047 one`);
     }],
-    ['7 the held sets are release-ready: their ids are free and their content is complete', () => {
+    ['8 the three recordings exist: the SHIPPED reader verifies them, and their ids are free in the corpus', async () => {
+      assert.equal(descriptors.size, 3, 'the batch built exactly three recordings');
       const corpus = corpusText;
-      for (const entry of held) {
+      for (const entry of sets.filter((row) => LISTENING_BATCH.includes(row.set_id))) {
+        const [binding] = entry.recordings;
+        const descriptor = descriptors.get(`${binding.mediaId}@${binding.mediaVersion}`);
         assert.ok(!corpus.includes(`'${entry.set_id}'`), `${entry.set_id} does not collide with the seeded corpus`);
-        /* The disclosure comment NAMES the held ids on purpose; the check is that no SQL LITERAL does. */
-        assert.ok(!migrationText.includes(`'${entry.set_id}'`), `${entry.set_id} is not inserted by the batch migration`);
+        assert.ok(!corpus.includes(`'${binding.mediaId}'`), `${binding.mediaId} does not collide with the seeded media`);
         const { answers } = expectedKey(entry);
         assert.equal(Object.keys(answers).length, ITEM_NUMBERS[entry.family].length, `${entry.set_id}: every blueprint item is keyed`);
         assert.ok(Object.values(answers).every((value) => typeof value === 'boolean'), `${entry.set_id}: boolean keys`);
+        /*
+         * HONESTY IS PART OF THE SHAPE. Machine speech from a machine-drafted script is exactly what this is,
+         * so the descriptor may not claim otherwise: the media contract's own rule refuses anything that is
+         * not unreviewed/generated, and the source string has to name the machine voice.
+         */
+        assert.equal(descriptor.reviewStatus, 'unreviewed', `${binding.mediaId}: machine speech is unreviewed until a human hears it`);
+        assert.equal(descriptor.rightsStatus, 'generated', `${binding.mediaId}: recorded basis 'generated'`);
+        assert.match(descriptor.source, /Text-to-Speech/, `${binding.mediaId}: the source names the machine voice`);
+        assert.match(descriptor.source, new RegExp(entry.set_id.replaceAll('.', '\\.')), `${binding.mediaId}: and the authored script it reads`);
+        /*
+         * THE BYTES, THROUGH THE READER THE SERVER USES. Not a stat() and not a hash of our own: readMediaBytes
+         * re-parses the RIFF header, re-derives the duration and compares the sha256 with the descriptor, so a
+         * re-cut, truncated or corrupt file fails here with the same code publication would raise.
+         */
+        const bytes = await readMediaBytes(descriptor, {});
+        assert.equal(bytes.length, descriptor.byteLength, `${binding.mediaId}: the file is the recorded length`);
+        const row = examMediaRows(releaseText).find((candidate) => candidate.mediaId === binding.mediaId);
+        assert.ok(row, `${binding.mediaId}: the migration pins the file`);
+        assert.deepEqual(
+          { path: row.path, sha256: row.sha256, byteLength: row.byteLength, durationMs: row.durationMs },
+          { path: descriptor.path, sha256: descriptor.sha256, byteLength: descriptor.byteLength, durationMs: descriptor.durationMs },
+          `${binding.mediaId}: the pinned media row is the built descriptor`,
+        );
       }
       const ids = new Set(sets.map((entry) => entry.set_id));
-      assert.equal(ids.size, sets.length, 'no duplicate ids across released and held');
+      assert.equal(ids.size, sets.length, 'no duplicate ids');
       assert.ok(!sets.some((entry) => ['LV2', 'LV3', 'SB1', 'SB2'].includes(entry.family)), 'the batch stays inside the four authorised parts');
+      const mediaIds = new Set([...descriptors.values()].map((row) => row.mediaId));
+      assert.equal(mediaIds.size, 3, 'three distinct media identities');
     }],
   ];
 }
@@ -478,6 +660,30 @@ async function runLegs(label, deps) {
     }
   }
   return results;
+}
+
+/**
+ * A throwaway tree in which a MUTATED builder can still resolve the repository.
+ *
+ * The builder derives its root from its own file location, so a copy dropped in a bare temp directory reads no
+ * source at all: every leg then fails on "the corpus migration must still match data/seed.json" — a missing
+ * file, not the mutation — and the "proof" becomes decorative. That is exactly what the first version of this
+ * harness did for every builder mutation. The tree below mirrors the layout with directory junctions to the
+ * real `data/`, `content/` and `server/`, and the mutated file is the only real file in it.
+ *
+ * `--check` RUNS ONLY. A write through a junction would reach the repository, so no leg may write to a path
+ * under this tree. (fs.rmSync does not follow junctions — verified on Windows — so teardown cannot delete the
+ * repository either.)
+ */
+function isolatedBuilderTree(mutatedText) {
+  const tree = fs.mkdtempSync(path.join(os.tmpdir(), 'pool-01-builder-'));
+  for (const name of ['data', 'content', 'server']) {
+    fs.symlinkSync(path.join(ROOT, name), path.join(tree, name), 'junction');
+  }
+  fs.mkdirSync(path.join(tree, 'tools'));
+  const builderCopy = path.join(tree, 'tools', 'build-objective-migration.mjs');
+  fs.writeFileSync(builderCopy, mutatedText);
+  return { tree, builderCopy };
 }
 
 /* ------------------------------------------------------------------ PostgreSQL legs */
@@ -523,41 +729,103 @@ async function postgresLegs() {
   let db = null;
   try {
     await resetLeg();
-    const migrated = await runNode(['server/migrate.mjs'], { OWNAPI_PG_SCHEMA: leg, OWNAPI_PG_ROLE_PREFIX: leg, OWNAPI_PG_ALLOW: '1' });
-    await pgLeg('P1 SQL: a clean database applies 0047 after the corpus it splices into, with the ledger checksum matching its bytes', async () => {
+    /*
+     * THE EXPECTED LEDGER HEAD IS DERIVED, NOT THE CONSTANT `0048`.
+     *
+     * This leg used to assert that `0048-pool-01-listening-release` was the last row in
+     * `hatoove_migrations`. That was true only while 0048 was the newest migration in the repository:
+     * the leg provisions a CLEAN database and applies the WHOLE directory, so the very next forward
+     * migration (0049-review-owner-approval) made the assertion fail on a correct, fully migrated
+     * database — a red gate that says nothing about POOL-01. What the leg exists to prove is that a
+     * clean database applies the frozen set in order, ends at the head the CODE expects, and that
+     * every ledger checksum is the digest of the file on disk. So the head is read from the migration
+     * directory that `server/migrate.mjs` uses by default, the same way it is enumerated there.
+     *
+     * `0048` keeps its own assertion below, and it is the one that matters for this slice: its ledger
+     * row must still carry the digest of ITS bytes, because an applied migration never moves.
+     */
+    const expectedHead = fs.readdirSync(path.join(ROOT, 'server', 'migrations'))
+      .filter((name) => /^\d{4}-.*\.sql$/.test(name)).sort().at(-1).replace(/\.sql$/, '');
+    const migrated = await runNode(['server/migrate.mjs'], {
+      OWNAPI_PG_SCHEMA: leg, OWNAPI_PG_ROLE_PREFIX: leg, OWNAPI_PG_ALLOW: '1',
+      // A checker run may itself be pointed at a scratch migration directory; this leg must observe
+      // the real one, so the inherited selection is cleared rather than trusted.
+      OWNAPI_MIGRATIONS_DIR: '',
+    });
+    await pgLeg(`P1 SQL: a clean database applies the frozen migrations in order, ending at ${expectedHead}, with the ledger checksums matching the file bytes`, async () => {
       assert.equal(migrated.code, 0, `migrate must exit 0:\n${migrated.out.slice(-300)}`);
       const rows = (await legAdmin.query(`SELECT id, checksum FROM "${leg}".hatoove_migrations ORDER BY id`)).rows;
+      assert.equal(rows.at(-1).id, expectedHead, 'the ledger ends at the newest migration the code ships');
+      assert.equal(rows.at(-1).checksum, sha256(read(`server/migrations/${expectedHead}.sql`)), 'and its ledger checksum is the sha256 of the file on disk');
+      const release = rows.find((row) => row.id === '0048-pool-01-listening-release');
+      assert.ok(release, 'the release migration is in the ledger');
+      assert.equal(release.checksum, sha256(read(MIGRATION)), 'with the checksum of its own bytes — an applied migration did not move');
+      const frozen = rows.find((row) => row.id === '0047-pool-01-batch-1');
+      assert.ok(frozen, 'the frozen 0047 is in the ledger');
+      assert.equal(frozen.checksum, sha256(read(FROZEN_MIGRATION)), 'with the checksum of ITS bytes — an applied migration did not move');
       /*
-       * THIS LEG USED TO ASSERT 0047 WAS APPLIED LAST, and PILOT-FEEDBACK-01's `0049` broke it — correctly.
-       * "Last" was a proxy for the property that matters, and it only held while 0047 happened to be the newest
-       * migration on disk. Every later slice would have failed a leg it does not own, and the tempting "fix"
-       * is to renumber the new migration or to delete the assertion. Neither: the batch must apply AFTER the
-       * corpus it splices into, which is the ordering the pool actually depends on.
+       * AND THE BATCH APPLIES AFTER THE CORPUS IT SPLICES INTO. This assertion is not in main's version of the
+       * leg and it was in PILOT-FEEDBACK-01's, so the merge had to keep it deliberately rather than take one side
+       * whole: `0047` splices its batch into `0010`/`0022`, and a renumbering or a reordering that put it first
+       * would still leave every checksum correct while the pool it builds was wrong. Filename order happens to
+       * guarantee it today — which is exactly why it is worth asserting rather than assuming.
        */
       const order = rows.map((row) => row.id);
       const batch = order.indexOf('0047-pool-01-batch-1');
-      assert.ok(batch >= 0, 'the frozen 0047 must be applied on a clean database');
       for (const corpus of ['0010-objective-catalogue', '0022-recovered-grammar-drills']) {
         assert.ok(order.indexOf(corpus) >= 0 && order.indexOf(corpus) < batch,
           `0047 must apply after ${corpus}: it splices the batch into that corpus`);
       }
-      assert.equal(rows[batch].checksum, sha256(read(MIGRATION)), 'and its ledger checksum is the sha256 of the frozen file');
       assert.ok(rows.every((row) => row.checksum), 'every migration carries a checksum');
     });
 
-    await pgLeg('P2 SQL: the released pool is 28 sets — LV1 six, every other part unchanged — and the held three are ABSENT', async () => {
+    await pgLeg('P2 SQL: the released pool is 31 sets — LV1 six, each listening part four — with the audio the three sets name', async () => {
       const counts = (await legAdmin.query(
         `SELECT family, count(*)::int AS sets FROM "${leg}".objective_set WHERE exam_id = $1 GROUP BY family ORDER BY family`, [EXAM])).rows;
       const perFamily = Object.fromEntries(counts.map((row) => [row.family, row.sets]));
-      assert.deepEqual(perFamily, { LV1: 6, LV2: 3, LV3: 3, SB1: 4, SB2: 3, HV1: 3, HV2: 3, HV3: 3 }, 'the pool after batch 1');
-      assert.equal(counts.reduce((total, row) => total + row.sets, 0), 28, '28 released sets');
-      const held = (await legAdmin.query(
-        `SELECT set_id FROM "${leg}".objective_set WHERE set_id = ANY($1::text[])`,
-        [['telc-deutsch-b1.hv1.04', 'telc-deutsch-b1.hv2.04', 'telc-deutsch-b1.hv3.04']])).rows;
-      assert.deepEqual(held, [], 'the held listening sets are NOT in the pool (their audio does not exist yet)');
+      assert.deepEqual(perFamily, RELEASED_AFTER, 'the pool after BOTH halves of batch 1');
+      assert.equal(counts.reduce((total, row) => total + row.sets, 0), 31, '31 released sets');
+      /* The listening three are RELEASED now, and each one's payload binds the recording it plays. */
+      for (const entry of JSON.parse(read(SOURCE)).sets.filter((row) => LISTENING_BATCH.includes(row.set_id))) {
+        const bound = (await legAdmin.query(
+          `SELECT s.media_required, s.payload->'recordings'->0->>'mediaId' AS media_id,
+                  s.payload->'recordings'->0->>'mediaVersion' AS media_version
+             FROM "${leg}".objective_set s WHERE s.set_id = $1`, [entry.set_id])).rows[0];
+        assert.ok(bound, `${entry.set_id} is in the released pool`);
+        assert.equal(bound.media_required, true, `${entry.set_id}: marked as audio material`);
+        assert.equal(bound.media_id, entry.recordings[0].mediaId, `${entry.set_id}: bound to the recording it plays`);
+        assert.equal(bound.media_version, entry.recordings[0].mediaVersion, `${entry.set_id}: at the pinned version`);
+      }
     });
 
-    await pgLeg('P3 SQL: every imported set is unreviewed, carries its provenance, and its key has all five answers', async () => {
+    await pgLeg('P2b SQL: each released recording has an exam_media row that is the BUILT file, unreviewed and generated', async () => {
+      const descriptors = JSON.parse(read(MEDIA)).media;
+      const rows = (await legAdmin.query(
+        `SELECT m.media_id, m.version, m.path, m.sha256, m.byte_length, m.duration_ms, m.mime_type, m.content_version_id,
+                c.kind, c.family, c.review_status, c.rights_status, coalesce(r.basis, c.rights_status) AS basis
+           FROM "${leg}".exam_media m
+           JOIN "${leg}".content_version c USING (content_version_id)
+           LEFT JOIN "${leg}".content_rights r USING (content_version_id)
+          WHERE m.media_id = ANY($1::text[]) ORDER BY m.media_id`,
+        [descriptors.map((row) => row.mediaId)])).rows;
+      assert.equal(rows.length, descriptors.length, 'one exam_media row per released recording');
+      for (const descriptor of descriptors) {
+        const row = rows.find((candidate) => candidate.media_id === descriptor.mediaId);
+        assert.ok(row, `${descriptor.mediaId}: the row the binding names exists`);
+        assert.equal(row.path, descriptor.path, `${descriptor.mediaId}: the file the build wrote`);
+        assert.equal(row.sha256, descriptor.sha256, `${descriptor.mediaId}: the sha256 of those bytes`);
+        assert.equal(row.byte_length, descriptor.byteLength, `${descriptor.mediaId}: byte length`);
+        assert.equal(row.duration_ms, descriptor.durationMs, `${descriptor.mediaId}: duration`);
+        assert.equal(row.mime_type, 'audio/wav', `${descriptor.mediaId}: the only type 0029 allows`);
+        assert.equal(row.content_version_id, `${descriptor.mediaId}@${descriptor.version}`, `${descriptor.mediaId}: tied to its own content_version`);
+        assert.equal(row.kind, 'media', `${descriptor.mediaId}: the importer's own kind`);
+        assert.equal(row.family, 'listening', `${descriptor.mediaId}: and family`);
+        assert.equal(row.review_status, 'unreviewed', `${descriptor.mediaId}: machine speech stays unreviewed`);
+        assert.equal(row.basis, 'generated', `${descriptor.mediaId}: with a recorded rights basis, so the row can be served`);
+      }
+    });
+
+    await pgLeg('P3 SQL: every imported set is unreviewed, carries its provenance, and its key has all the answers', async () => {
       const rows = (await legAdmin.query(
         `SELECT s.set_id, s.title, s.item_count, s.media_required, c.review_status, c.source_path, c.exam_id,
                 r.basis, r.decided_by, r.note,
@@ -583,6 +851,27 @@ async function postgresLegs() {
         assert.ok(row.decided_by && row.decided_by.length > 2, `${row.set_id}: the decision names who`);
         assert.ok(row.note && row.note.length > 20, `${row.set_id}: and the note is auditable`);
       });
+      /* The released listening sets: unreviewed, provenance per family, audio material, every blueprint item keyed. */
+      for (const entry of JSON.parse(read(SOURCE)).sets.filter((row) => LISTENING_BATCH.includes(row.set_id))) {
+        const row = (await legAdmin.query(
+          `SELECT s.title, s.media_required, s.item_count, c.review_status, c.source_path,
+                  r.basis, r.note,
+                  (SELECT count(*)::int FROM jsonb_object_keys((SELECT k.answers FROM "${leg}".objective_key k
+                     WHERE k.set_id = s.set_id AND k.version = s.version))) AS answers
+             FROM "${leg}".objective_set s
+             JOIN "${leg}".content_version c USING (content_version_id)
+             LEFT JOIN "${leg}".content_rights r USING (content_version_id)
+            WHERE s.set_id = $1`, [entry.set_id])).rows[0];
+        assert.ok(row, `${entry.set_id} is in the pool`);
+        assert.equal(row.review_status, 'unreviewed', `${entry.set_id}: machine speech from a machine-drafted script — unreviewed`);
+        assert.equal(row.source_path, `${SOURCE}#${entry.family}[0]`, `${entry.set_id}: provenance names the authored batch source`);
+        assert.equal(row.title, entry.title, `${entry.set_id}: the authored title`);
+        assert.equal(row.media_required, true, `${entry.set_id}: audio material`);
+        assert.equal(row.answers, entry.items.length, `${entry.set_id}: every authored item is keyed`);
+        assert.equal(row.item_count, entry.items.length, `${entry.set_id}: and counted`);
+        assert.equal(row.basis, 'generated', `${entry.set_id}: a recorded rights basis`);
+        assert.ok(row.note && row.note.length > 20, `${entry.set_id}: the note is auditable`);
+      }
       const unrecorded = (await legAdmin.query(
         `SELECT count(*)::int AS n FROM "${leg}".content_version c
           LEFT JOIN "${leg}".content_rights r USING (content_version_id)
@@ -707,25 +996,50 @@ async function postgresLegs() {
       assert.equal(wrapped.round.round, 6, 'a wrap begins no further round');
     });
 
-    await pgLeg('P7 SQL: the held listening sets are not in the pool, and the HV parts keep exactly their seeded three', async () => {
+    await pgLeg('P7 SQL: the released listening sets are in the pool with playable audio, and only a PLAYABLE one is served', async () => {
+      for (const entry of JSON.parse(read(SOURCE)).sets.filter((row) => LISTENING_BATCH.includes(row.set_id))) {
+        const rows = (await db.admin.query(
+          `SELECT s.set_id, s.version, s.media_required, s.item_count,
+                  (SELECT count(*)::int FROM exam_media m
+                     WHERE m.exam_id = s.exam_id
+                       AND m.media_id = s.payload->'recordings'->0->>'mediaId'
+                       AND m.version = s.payload->'recordings'->0->>'mediaVersion') AS media_rows
+             FROM objective_set s WHERE s.set_id = $1`, [entry.set_id])).rows;
+        assert.equal(rows.length, 1, `${entry.set_id} is in the served pool`);
+        assert.equal(rows[0].media_required, true, `${entry.set_id}: audio material`);
+        /* The binding RESOLVES: the media row the trigger and the playback port look up exists in the same exam. */
+        assert.equal(rows[0].media_rows, 1, `${entry.set_id}: its recording resolves to exactly one exam_media row`);
+        assert.equal(rows[0].item_count, entry.items.length, `${entry.set_id}: every authored item was imported`);
+      }
       for (const family of ['HV1', 'HV2', 'HV3']) {
         const rows = (await db.admin.query(
           `SELECT set_id, media_required FROM objective_set WHERE family = $1 ORDER BY set_id`, [family])).rows;
-        assert.equal(rows.length, 3, `${family} keeps its three seeded sets — the held batch set is not imported`);
-        assert.ok(rows.every((row) => row.media_required === true), `${family}: still media sets`);
-        assert.ok(!rows.some((row) => /\.04$/.test(row.set_id)), `${family}: no .04 batch set`);
+        assert.equal(rows.length, 4, `${family} carries its three seeded sets AND the released batch set`);
+        assert.deepEqual(rows.map((row) => row.set_id), [`telc-deutsch-b1.${family.toLowerCase()}.01`, `telc-deutsch-b1.${family.toLowerCase()}.02`, `telc-deutsch-b1.${family.toLowerCase()}.03`, `telc-deutsch-b1.${family.toLowerCase()}.04`].sort(),
+          `${family}: the seeded three plus .04`);
+        assert.ok(rows.every((row) => row.media_required === true), `${family}: every set is audio material`);
         /*
-         * FIX-F1 (A13): a listening part is not SERVED at all until a practice playback transport exists — the
-         * runner answers nothing rather than putting live answer controls beside a player that cannot play. This
-         * leg was written before that fix and asserted a served media set; on this branch it asserts the stronger
-         * behaviour, because both changes are now on the same tree.
+         * FIX-F1 SURVIVES THE RELEASE (A13), narrowed to the truth by POOL-01/task-49. A listening part serves
+         * ONLY a set this deployment can actually play: the released `.04` set binds a recording that resolves
+         * to an `exam_media` row, so it IS served now; the three SEEDED sets carry no `recordings[]` at all, so
+         * they are still refused and a learner never meets live answer controls beside a player that cannot
+         * play. This leg asserts both halves BY NAME: releasing a listening set still does not make an
+         * unplayable one servable, and it no longer withholds one that is.
+         *
+         * (The playback path itself — allowance, `begin`, `practice_check_required`, bytes — has its own legs
+         * in tools/practice-media-check.mjs; the admission rule itself is proved there (F4, with both halves
+         * mutation-proved) and in tools/practice-selection-check.mjs P8f.)
          */
-        assert.equal(await port.practiceSetForPart(owner, { preparationId, family }), null,
-          `${family} serves nothing while it has no playback path (FIX-F1)`);
+        const served = await port.practiceSetForPart(owner, { preparationId, family });
+        assert.ok(served, `${family} serves its released, playable set`);
+        assert.equal(served.set.set_id, `telc-deutsch-b1.${family.toLowerCase()}.04`,
+          `${family}: the only servable set is the one whose recording resolves`);
+        assert.ok(Array.isArray(served.set.material.recordings) && served.set.material.recordings.length,
+          `${family}: and the served DTO carries the binding the practice player resolves`);
       }
-      const held = (await db.admin.query(
+      const released = (await db.admin.query(
         `SELECT count(*)::int AS n FROM objective_set WHERE set_id LIKE 'telc-deutsch-b1.hv%.04'`)).rows[0].n;
-      assert.equal(held, 0, 'no held HV set is in the pool at all');
+      assert.equal(released, 3, 'all three released listening sets are in the pool');
     });
   } finally {
     if (db && typeof db.cleanup === 'function') {
@@ -741,7 +1055,13 @@ async function postgresLegs() {
 /* ----------------------------------------------------------------------- mutations */
 
 const SOURCE_MUTATIONS = [
-  ['M1 a HELD listening set is marked released', (text) => text.replace('"set_id": "telc-deutsch-b1.hv1.04",\n      "family": "HV1",\n      "release": "held",', '"set_id": "telc-deutsch-b1.hv1.04",\n      "family": "HV1",\n      "release": "released",')],
+  /* Task-48's replacement for the old M1 ("a held set is marked released"). The release is now the audio: the
+     defect that matters is a listening set that claims to be released while nothing names its recording, and
+     that is what the source mutation removes. */
+  ['M1 a released listening set loses its recordings[] binding', stripListeningAudio],
+  ['M1b a released listening set is marked held again with its audio already built', (text) => text.replace(
+    '"set_id": "telc-deutsch-b1.hv2.04",\n      "family": "HV2",\n      "release": "released",',
+    '"set_id": "telc-deutsch-b1.hv2.04",\n      "family": "HV2",\n      "release": "held",')],
   ['M2 an LV1 answer is not one of the set\'s headlines', (text) => text.replace('"text": "Unser Reparaturcafé öffnet wieder am Samstag von zehn bis vierzehn Uhr. Wir suchen noch Freiwillige, die sich mit Elektrik oder Nähmaschinen auskennen und ihr eigenes Werkzeug mitbringen können.",\n          "answer": "b"', '"text": "Unser Reparaturcafé öffnet wieder am Samstag von zehn bis vierzehn Uhr. Wir suchen noch Freiwillige, die sich mit Elektrik oder Nähmaschinen auskennen und ihr eigenes Werkzeug mitbringen können.",\n          "answer": "z"')],
   ['M3 a released set is dropped from the batch', (text) => text.replace('"set_id": "telc-deutsch-b1.lv1.06",', '"set_id": "telc-deutsch-b1.lv1.07",')],
   /* The shape trap the correction must not walk into: text 4's key is made to duplicate text 1's. A key that
@@ -762,17 +1082,46 @@ const BUILDER_MUTATIONS = [
     "const SECRET_FIELDS = new Set(['answer', 'why', 'grammar']);",
     'const SECRET_FIELDS = new Set([]);')],
   /* N5's mutation: the canonicalisation stops asking whether the digest is real, so a hand-edited source
-     record would be accepted. Leg 4 must be the leg that fails — that is what makes its assert load-bearing
+     record would be accepted. Leg 5 must be the leg that fails — that is what makes its assert load-bearing
      rather than decorative. */
   ['M8 the source-record canonicalisation accepts ANY digest', (text) => text.replace(
     'return text.replace(SOURCE_RECORD, (whole, head, hex, tail) => (allowed.has(hex) ? `${head}<source>${tail}` : whole));',
     'return text.replace(SOURCE_RECORD, (whole, head, hex, tail) => `${head}<source>${tail}`);')],
+  /* Task-48: the generator stops refusing a released listening set with no audio. The mutation is only
+     detectable through a SOURCE that lacks the binding, so it is paired with M1 in the same run — the pair
+     proves the refusal is what catches a released set whose audio is missing, not the JSON parse. */
+  ['M9 the generator stops requiring a released listening set to carry its audio', (text) => text.replace(
+    "    if (MEDIA_FAMILIES.has(family) && !bindings.length) {\n      throw new Error(`${entry.set_id}: a released listening set must carry its recordings[] binding — without it the set stays 'held' (task-48)`);\n    }",
+    '    /* M9: the released-listening-set audio requirement removed */')],
+];
+
+/*
+ * THE AUDIO'S OWN GUARD IS ATTACKED TOO. A descriptor is the only place the recorded sha256, length and
+ * duration live, and the migration copies them: if the descriptor can be edited without a leg noticing, the
+ * exam_media rows could pin bytes nobody built. Each mutation runs against a COPY passed with `--media`, so
+ * the repository's own descriptor is never written to.
+ */
+const MEDIA_MUTATIONS = [
+  ['M10 a built recording\'s sha256 is changed in the descriptors', (text) => {
+    const before = JSON.parse(text);
+    const row = before.media.find((entry) => entry.mediaId === 'telc-deutsch-b1.hv3.04.audio');
+    row.sha256 = `${row.sha256.slice(0, 63)}${row.sha256.endsWith('0') ? '1' : '0'}`;
+    return JSON.stringify(before, null, 2) + '\n';
+  }],
+  ['M11 one built recording disappears from the descriptors', (text) => {
+    const before = JSON.parse(text);
+    before.media = before.media.filter((entry) => entry.mediaId !== 'telc-deutsch-b1.hv1.04.audio');
+    return JSON.stringify(before, null, 2) + '\n';
+  }],
+  /* The honesty guard: a descriptor that claims a review decision the machine never took. The media contract
+     refuses it, and the generator uses that contract's own rule — so this mutation must break a leg. */
+  ['M12 a descriptor claims it was reviewed', (text) => text.replace('"reviewStatus": "unreviewed"', '"reviewStatus": "approved"')],
 ];
 
 /* --------------------------------------------------------------------------- main */
 
 const main = async () => {
-  const required = [SOURCE, MIGRATION, CORPUS_MIGRATION, MANIFEST, BUILDER];
+  const required = [SOURCE, MIGRATION, FROZEN_MIGRATION, MEDIA, CORPUS_MIGRATION, MANIFEST, BUILDER];
   const missing = required.filter((relative) => !fs.existsSync(path.join(ROOT, relative)));
   if (missing.length) {
     for (const relative of missing) console.log(`FAIL the batch artifact is missing: ${relative}`);
@@ -781,12 +1130,19 @@ const main = async () => {
   }
   const runMutations = !process.argv.includes('--no-mutations');
   const { normalisePracticeSet } = await import(pathToFileURL(path.join(ROOT, 'server/practice-sets.mjs')).href);
+  const { readMediaBytes } = await import(pathToFileURL(path.join(ROOT, 'server/media-contract.mjs')).href);
   const deps = {
     source: JSON.parse(read(SOURCE)),
     sourceText: read(SOURCE),
-    migrationText: read(MIGRATION),
+    /* `migrationText` is the FROZEN 0047 (the half that must not move); `releaseText` is this slice's 0048. */
+    migrationText: read(FROZEN_MIGRATION),
+    releaseText: read(MIGRATION),
+    media: JSON.parse(read(MEDIA)),
+    mediaText: read(MEDIA),
+    mediaPath: MEDIA,
     corpusText: read(CORPUS_MIGRATION),
     normalise: normalisePracticeSet,
+    readMediaBytes,
     builderPath: BUILDER,
   };
   const legNames = [];
@@ -851,13 +1207,30 @@ const main = async () => {
           const text = read(BUILDER).replaceAll('\r\n', '\n');
           const mutated = mutate(text);
           assert.notEqual(mutated, text, `${label}: the mutation must change the builder`);
-          const tree = fs.mkdtempSync(path.join(os.tmpdir(), 'pool-01-builder-'));
-          const builderCopy = path.join(tree, 'builder.mjs');
-          fs.writeFileSync(builderCopy, mutated);
+          const { tree, builderCopy } = isolatedBuilderTree(mutated);
           const broken = (await runLegs('', { ...deps, builderPath: builderCopy }))
             .filter(([result]) => result === 'FAIL').map(([, name]) => name);
           fs.rmSync(tree, { recursive: true, force: true });
           assert.ok(broken.length > 0, `${label}: no leg failed on the mutated builder`);
+          mutationNote.push(`${label} -> ${broken.length} leg(s) fail: ${broken[0]}`);
+        }
+        /*
+         * THE AUDIO DESCRIPTORS, ON THEIR OWN AXIS. They carry the sha256, the byte length and the duration
+         * that the migration copies into `exam_media`, so a descriptor that can be edited without a leg
+         * noticing would let the pinned media row stop describing the file it names. Each mutation is written
+         * to a throwaway copy and passed with `--media`; the repository's descriptor is never touched.
+         */
+        for (const [label, mutate] of MEDIA_MUTATIONS) {
+          const text = read(MEDIA).replaceAll('\r\n', '\n');
+          const mutated = mutate(text);
+          assert.notEqual(mutated, text, `${label}: the mutation must change the descriptors`);
+          const tree = fs.mkdtempSync(path.join(os.tmpdir(), 'pool-01-media-'));
+          const mediaCopy = path.join(tree, 'pool-listening-media.json');
+          fs.writeFileSync(mediaCopy, mutated);
+          const broken = (await runLegs('', { ...deps, media: JSON.parse(mutated), mediaText: mutated, mediaPath: mediaCopy }))
+            .filter(([result]) => result === 'FAIL').map(([, name]) => name);
+          fs.rmSync(tree, { recursive: true, force: true });
+          assert.ok(broken.length > 0, `${label}: no leg failed on the mutated descriptors`);
           mutationNote.push(`${label} -> ${broken.length} leg(s) fail: ${broken[0]}`);
         }
       } catch (error) {

@@ -56,7 +56,7 @@ import { fileURLToPath } from 'node:url';
 import { FEEDBACK_ROUTES } from '../server/owned-postgres/feedback.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATION = path.join(HERE, '..', 'server', 'migrations', '0049-pilot-feedback.sql');
+const MIGRATION = path.join(HERE, '..', 'server', 'migrations', '0050-pilot-feedback.sql');
 const MANIFEST = path.join(HERE, '..', 'server', 'migrations', 'MANIFEST.json');
 
 const results = [];
@@ -171,8 +171,8 @@ async function main() {
     /* ---------------------------------------------------------------- offline: the digest is pinned */
     await check('1. the migration is pinned in MANIFEST and the bytes match the pin', async () => {
       const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'));
-      const recorded = manifest.migrations['0049-pilot-feedback'];
-      assert.ok(recorded, 'MANIFEST records no digest for 0049-pilot-feedback');
+      const recorded = manifest.migrations['0050-pilot-feedback'];
+      assert.ok(recorded, 'MANIFEST records no digest for 0050-pilot-feedback');
       const actual = createHash('sha256').update(readFileSync(MIGRATION)).digest('hex');
       assert.equal(recorded, actual, `MANIFEST has ${recorded}, the file is ${actual}`);
     });
