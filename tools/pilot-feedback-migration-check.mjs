@@ -100,7 +100,20 @@ async function main() {
   const { persistentConfig, provisionPersistent, closePersistent } = await import('../server/owned-postgres/provision.mjs');
   const config = persistentConfig();
   const schema = config.schema;
-  const pools = await provisionPersistent({ config });
+  let pools;
+  try {
+    pools = await provisionPersistent({ config });
+  } catch (error) {
+    /*
+     * THE DIGEST GATE RUNS BEFORE ANY LEG, so a frozen migration whose bytes differ from the ledger is refused
+     * here — which is correct, and which the first attempt to mutation-prove leg 1b discovered by dying: the
+     * run printed a stack trace and no verdict at all. A check whose failure mode is "no output" cannot be read.
+     * Report it as a failure that names the gate, then stop.
+     */
+    console.log(`FAIL  provisioning: ${error.message}`);
+    console.log('\n---- pilot-feedback-migration-check: the schema could not be provisioned, so no leg ran ----');
+    process.exit(1);
+  }
   const admin = pools.admin;
   const q = (sql, params) => admin.query(sql, params);
   const T = (table) => `${ident(schema)}.${ident(table)}`;
@@ -117,6 +130,32 @@ async function main() {
       assert.ok(recorded, 'MANIFEST records no digest for 0049-pilot-feedback');
       const actual = createHash('sha256').update(readFileSync(MIGRATION)).digest('hex');
       assert.equal(recorded, actual, `MANIFEST has ${recorded}, the file is ${actual}`);
+    });
+
+    /* ---------------------------------------------------------------- A7: the list is the shell's list */
+    await check('1b. the route closed list equals the shell\'s view ids, plus `other` (A7)', async () => {
+      /*
+       * SAMPLING WOULD NOT BE ENOUGH. Leg 11 asserts that a few real ids are accepted and a few drafted ones
+       * refused, but the property A7 actually needs is that the two lists stay EQUAL: the day someone adds a
+       * view to the shell without touching this CHECK, every report filed from it is refused and LOST — and a
+       * sampled leg would still pass. So compare the sets.
+       */
+      const clause = readFileSync(MIGRATION, 'utf8').match(/route\s+text CHECK \(route IN \(([\s\S]*?)\)\)/);
+      assert.ok(clause, 'the migration carries no route CHECK to compare');
+      const inSql = new Set([...clause[1].matchAll(/'([a-z-]+)'/g)].map((match) => match[1]));
+
+      const shell = readFileSync(path.join(HERE, '..', 'public', 'app', 'app.js'), 'utf8');
+      const block = shell.match(/const VIEW_TITLES = \{([\s\S]*?)\n\};/);
+      assert.ok(block, 'public/app/app.js has no VIEW_TITLES block to compare against');
+      const inShell = new Set([...block[1].matchAll(/(\w+):\s*'m\d+'/g)].map((match) => match[1]));
+      // The contract's escape hatch: a view the shell does not name is filed as `other` rather than refused.
+      inShell.add('other');
+
+      const onlySql = [...inSql].filter((view) => !inShell.has(view)).sort();
+      const onlyShell = [...inShell].filter((view) => !inSql.has(view)).sort();
+      assert.deepEqual(onlySql, [], `the CHECK accepts route(s) no screen produces: ${onlySql.join(', ')}`);
+      assert.deepEqual(onlyShell, [],
+        `the shell has view id(s) the CHECK rejects, so a report filed from them is LOST: ${onlyShell.join(', ')}`);
     });
 
     /* ---------------------------------------------------------------- A10: the content table has NO rls */
