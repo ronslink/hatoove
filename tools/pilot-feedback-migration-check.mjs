@@ -88,6 +88,21 @@ async function refusal(client, sql, params = []) {
   }
 }
 
+/**
+ * The whole error, not just its code. A leg that only asks "was it refused?" cannot tell WHICH rule refused — and
+ * several legs here were passing on the wrong rule entirely (the unique index instead of the answer check, the
+ * digest instead of the size, a foreign key instead of the trigger). Asserting `error.constraint` is how a leg
+ * proves its own property rather than the existence of some property.
+ */
+async function refusalDetail(client, sql, params = []) {
+  try {
+    await client.query(sql, params);
+    return null;
+  } catch (error) {
+    return { code: error.code, constraint: error.constraint, message: error.message, routine: error.routine };
+  }
+}
+
 const ROUND_SUFFIX = Date.now().toString(36);
 const ROUND = `check-${ROUND_SUFFIX}`;
 const QUESTIONS = [
@@ -123,6 +138,13 @@ async function main() {
   const suffix = Date.now().toString(36);
   const A = `user-fba-a-${suffix}`;
   const B = `user-fba-b-${suffix}`;
+  /*
+   * A THIRD LEARNER EXISTS SO LEG 14 TESTS WHAT IT CLAIMS. It used to insert as A, who already held a survey row
+   * for the round from leg 12 — so every insert in leg 14 was refused by the UNIQUE index and the leg passed even
+   * with the answer validation switched off entirely. An independent review reproduced exactly that. C has no
+   * row, so the only thing that can refuse these inserts is the answer rule itself.
+   */
+  const C = `user-fba-c-${suffix}`;
 
   try {
     /* ---------------------------------------------------------------- offline: the digest is pinned */
@@ -205,7 +227,7 @@ async function main() {
     });
 
     /* ---------------------------------------------------------------- seed two synthetic accounts + a round */
-    for (const [id, email] of [[A, `${A}@example.invalid`], [B, `${B}@example.invalid`]]) {
+    for (const [id, email] of [[A, `${A}@example.invalid`], [B, `${B}@example.invalid`], [C, `${C}@example.invalid`]]) {
       await q(`INSERT INTO ${T('user')}(id, name, email, "emailVerified", "createdAt", "updatedAt")
                VALUES ($1, 'Synthetic', $2, true, now(), now())`, [id, email]);
     }
@@ -345,6 +367,11 @@ async function main() {
     });
 
     await check('14. survey answers outside the round range are refused', async () => {
+      /*
+       * AS LEARNER C, WHO HAS NO ROW FOR THIS ROUND — and every refusal must be the ANSWER rule (23514), not just
+       * "something refused". Inserting as A made this leg vacuous: A already held a row from leg 12, so the UNIQUE
+       * index refused all five cases and the leg passed with the answer validation removed.
+       */
       const cases = [
         ['ease above its maximum', { ease: 9, useful: 5, explanations: 4, recommend: 9 }],
         ['recommend below its minimum', { ease: 4, useful: 5, explanations: 4, recommend: -1 }],
@@ -353,12 +380,23 @@ async function main() {
         ['a rating that is not a number', { ease: '4', useful: 5, explanations: 4, recommend: 9 }],
       ];
       for (const [label, answers] of cases) {
-        const code = await asLearner(pools.learner, A, (client) => refusal(client,
+        const code = await asLearner(pools.learner, C, (client) => refusal(client,
           `INSERT INTO ${T('pilot_feedback')} (feedback_id, owner_id, kind, route, interface_language, app_version, survey_round, survey_answers)
            VALUES ($1,$2,'survey','heute','de','unknown',$3,$4::jsonb)`,
-          [crypto.randomUUID(), A, ROUND, JSON.stringify(answers)]));
+          [crypto.randomUUID(), C, ROUND, JSON.stringify(answers)]));
         assert.ok(code, `${label} was accepted`);
+        assert.match(String(code), /23514/,
+          `${label} was refused by ${code}, not by the answer rule — the leg would pass for the wrong reason`);
       }
+      /*
+       * THE POSITIVE CONTROL. Without it, "every case was refused" is also satisfied by a table that refuses
+       * everything — which is what the unique index was doing. C accepts a VALID set, so the refusals above can
+       * only have come from the answers.
+       */
+      await asLearner(pools.learner, C, (client) => insertSurvey(client, C, { ease: 4, useful: 5, explanations: 4, recommend: 9 }));
+      const stored = (await q(`SELECT count(*)::int AS n FROM ${T('pilot_feedback')}
+                                 WHERE owner_id = $1 AND survey_round = $2`, [C, ROUND])).rows[0].n;
+      assert.equal(stored, 1, 'a valid answer set was NOT accepted, so the refusals above prove nothing');
     });
 
     /* ---------------------------------------------------------------- the screenshot guard */
@@ -384,23 +422,52 @@ async function main() {
     await check('17. an oversized screenshot is refused (1.5 MB, and width > 1600 px)', async () => {
       const bytes = Buffer.from('RIFF0000WEBP', 'binary');
       const digest = createHash('sha256').update(bytes).digest('hex');
-      const tooBig = await asLearner(pools.learner, A, (client) => refusal(client,
+      /*
+       * THE OVERSIZED PAYLOAD NEEDS ITS OWN DIGEST, and the refusal must name the SIZE constraint. The first
+       * version reused the small payload's digest, so the row ALSO violated the sha256 check and the size rule was
+       * never what refused it — an independent review showed the leg passed with the size check removed entirely.
+       * `constraint` is asserted so the leg cannot pass on the wrong rule again.
+       */
+      const oversized = Buffer.concat([bytes, Buffer.alloc(1572864)]);
+      const tooBig = await asLearner(pools.learner, A, (client) => refusalDetail(client,
         `INSERT INTO ${T('pilot_feedback_screenshot')} (feedback_id, owner_id, mime_type, bytes, width, height, sha256)
-         VALUES ($1,$2,'image/webp',$3,1200,800,$4)`, [aReportId, A, Buffer.concat([bytes, Buffer.alloc(1572864)]), digest]));
+         VALUES ($1,$2,'image/webp',$3,1200,800,$4)`,
+        [aReportId, A, oversized, createHash('sha256').update(oversized).digest('hex')]));
       assert.ok(tooBig, 'a screenshot over 1.5 MB was accepted');
-      const tooWide = await asLearner(pools.learner, A, (client) => refusal(client,
+      assert.equal(tooBig.constraint, 'pilot_feedback_screenshot_bytes_check',
+        `the oversized row was refused by ${tooBig.constraint ?? tooBig.code}, not by the size rule`);
+
+      const tooWide = await asLearner(pools.learner, A, (client) => refusalDetail(client,
         `INSERT INTO ${T('pilot_feedback_screenshot')} (feedback_id, owner_id, mime_type, bytes, width, height, sha256)
          VALUES ($1,$2,'image/webp',$3,1601,800,$4)`, [aReportId, A, bytes, digest]));
       assert.ok(tooWide, 'a screenshot 1601 px wide was accepted');
+      assert.equal(tooWide.constraint, 'pilot_feedback_screenshot_width_check',
+        `the wide row was refused by ${tooWide.constraint ?? tooWide.code}, not by the width rule`);
     });
 
     /* ---------------------------------------------------------------- the round is frozen */
     await check('18. a round\'s question set cannot be changed once written, and a round cannot be deleted', async () => {
       const changed = (await q(`UPDATE ${T('survey_round')} SET questions = $2::jsonb WHERE round_id = $1`,
-        [ROUND, JSON.stringify([{ id: 'ease', type: 'scale', min: 1, max: 5 }])]).then(() => null, (e) => e.code));
+        [ROUND, JSON.stringify([{ id: 'ease', type: 'scale', min: 1, max: 5 }])]).then(() => null, (e) => e));
       assert.ok(changed, 'the question set was rewritten: every stored answer would silently change meaning');
-      const removed = (await q(`DELETE FROM ${T('survey_round')} WHERE round_id = $1`, [ROUND]).then(() => null, (e) => e.code));
-      assert.ok(removed, 'a round was deleted');
+      assert.match(String(changed.code), /23514/, `the rewrite was refused by ${changed.code}, not by the immutability rule`);
+      /*
+       * THE DELETION IS TESTED ON A ROUND WITH NO ANSWERS, because `pilot_feedback.survey_round` has a FOREIGN KEY
+       * to this table. Deleting the used round is refused by that key (23503) BEFORE the trigger is ever reached,
+       * so the leg passed with the DELETE trigger dropped — an independent review reproduced exactly that. An
+       * unused round can only be refused by the trigger, which is the rule this leg is named for.
+       */
+      const spare = `${ROUND}-spare`;
+      await q(`INSERT INTO ${T('survey_round')}(round_id, opens_at, closes_at, questions, min_account_age_days)
+               VALUES ($1, now() - interval '1 day', now() + interval '13 days', $2::jsonb, 0)`,
+        [spare, JSON.stringify([{ id: 'ease', type: 'scale', min: 1, max: 5 }])]);
+      const removed = await q(`DELETE FROM ${T('survey_round')} WHERE round_id = $1`, [spare]).then(() => null, (e) => e);
+      assert.ok(removed, 'an unused round was deleted: the immutability trigger is not doing its job');
+      assert.match(String(removed.code), /23514/,
+        `the deletion was refused by ${removed.code} — a foreign key, not the trigger this leg is about`);
+      // The used round is STILL refused, by the foreign key, and that is worth pinning as its own fact.
+      const used = await q(`DELETE FROM ${T('survey_round')} WHERE round_id = $1`, [ROUND]).then(() => null, (e) => e);
+      assert.ok(used, 'a round with stored answers was deleted');
     });
 
     /* ---------------------------------------------------------------- erasure must actually delete these rows */
@@ -414,7 +481,19 @@ async function main() {
        * It also needs a VALID screenshot to exist: legs 15-17 only ever observed REFUSALS, so without this
        * insert the screenshot half would erase nothing and the leg would pass for the wrong reason -- which is
        * the exact failure shape this file exists to avoid.
+       *
+       * AND THE SCREENSHOT HALF CANNOT BE SATISFIED BY THE CASCADE ALONE. `pilot_feedback_screenshot` has
+       * `ON DELETE CASCADE` from its report, so the row disappears whether or not the erasure POLICY is doing
+       * anything — an independent review dropped the policy and this leg still passed. The cascade is a real
+       * safety net and the outcome is what the learner cares about, but a policy that is never load-bearing must
+       * be checked directly, so the leg below asserts the DELETE policy EXISTS rather than inferring it.
        */
+      const erasurePolicies = (await q(
+        `SELECT policyname, cmd, roles::text AS roles FROM pg_policies
+          WHERE schemaname = $1 AND tablename = 'pilot_feedback_screenshot'`, [schema])).rows;
+      const policy = erasurePolicies.find((row) => row.cmd === 'DELETE' && row.roles.includes(config.roles.deletion));
+      assert.ok(policy, `no DELETE policy for the deletion role on pilot_feedback_screenshot: ${JSON.stringify(erasurePolicies)}`);
+
       const bytes = Buffer.from('RIFF0000WEBPVP8 ', 'binary');
       const digest = createHash('sha256').update(bytes).digest('hex');
       await asLearner(pools.learner, A, (client) => client.query(
