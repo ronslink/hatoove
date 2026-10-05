@@ -15,6 +15,11 @@
  *     - a blank decision column stays blank: untouched strings simply stay unreviewed;
  *     - `fix` without replacement text, `reject`/`not-applicable` without a reason, an id that is not
  *       in the pack, and an approval of a string that has no text yet are all errors, not warnings.
+ *     - **the text the reviewer judged must still be the text the pack shows.** A decision is about a
+ *       string the human READ. If the source moved after the pack was generated, applying the decision
+ *       would silently re-attribute that human's judgement to text they never saw, so the whole file is
+ *       refused and the reviewer is asked to re-generate and re-read. The CSV carries that text in its
+ *       `current` column; a decision file must carry it as `text_at_review`.
  *
  *   It does NOT edit `public/assets/i18n/**` or the translation bundle. Landing a decision is a
  *   separate, owned change (the German/interface catalogues are one lease's files; the bundle is
@@ -84,7 +89,12 @@ function readDecisions(options) {
     for (const row of rows) {
       const raw = String(row.decision ?? '').trim();
       if (!raw) continue;
-      decisions.push({ id: row.id, raw, correction: String(row.correction ?? '').trim(), note: String(row.note ?? '').trim() });
+      /* `current` is the text the pack PRINTED, so it is what the reviewer judged. It is carried through
+         and compared below: a decision about text that has since moved is not a decision about this text. */
+      decisions.push({
+        id: row.id, raw, correction: String(row.correction ?? '').trim(), note: String(row.note ?? '').trim(),
+        quoted: String(row.current ?? ''), quotedFrom: 'the pack row\'s current column',
+      });
     }
     return {
       file: options.csv, language: [...languages][0] ?? null, reviewer: options.reviewer ?? null,
@@ -97,6 +107,8 @@ function readDecisions(options) {
   const decisions = entries.map((entry) => ({
     id: entry?.id, raw: String(entry?.decision ?? '').trim(),
     correction: String(entry?.correction ?? '').trim(), note: String(entry?.note ?? '').trim(),
+    quoted: entry?.text_at_review === undefined || entry?.text_at_review === null ? null : String(entry.text_at_review),
+    quotedFrom: 'text_at_review',
   })).filter((entry) => entry.raw);
   return {
     file: options.json, language: options.language ?? parsed.language ?? null,
@@ -162,6 +174,23 @@ async function main() {
     if (decision === 'not-applicable' && !entry.note) { problems.push(`${id}: "na" needs a reason in the note column`); continue; }
     if (decision === 'approved' && !String(row.current ?? '').trim()) {
       problems.push(`${id}: there is no text to approve (this row is ${row.status}; a missing translation has to be written first)`);
+      continue;
+    }
+    /*
+     * THE SECOND RULE THAT MATTERS, and the one that keeps an approval honest over time.
+     *
+     * The reviewer judged the text the pack PRINTED. `row.current` here is the text the sources carry
+     * NOW. If they differ, the source moved after the pack was generated: writing the decision would
+     * record a human's judgement against text they never read, and the pack would then show `approved`
+     * for that new text. Refused for every decision kind, not only for approvals — a `fix` correction
+     * is equally about the sentence the reviewer saw.
+     */
+    if (entry.quoted === null || entry.quoted === undefined) {
+      problems.push(`${id}: this decision carries no ${entry.quotedFrom}, so there is no way to tell which text was judged; ${entry.quotedFrom === 'text_at_review' ? 'add text_at_review (the row\'s current column) to the entry' : 're-export the pack CSV'}`);
+      continue;
+    }
+    if (String(entry.quoted) !== String(row.current ?? '')) {
+      problems.push(`${id}: the text changed since this pack was generated (the reviewer judged a different sentence); re-generate the pack with \`node tools/build-review-pack.mjs\` and re-review — nothing written`);
       continue;
     }
     accepted.push({ id, decision, correction: entry.correction, note: entry.note, row });

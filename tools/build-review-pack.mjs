@@ -990,12 +990,17 @@ Leave the column empty for "not looked at yet". Empty is a real answer: it means
 still unreviewed, and the pack will keep saying so.
 
 In a decision **file** the same four values are written out: \`approved\`, \`fix\`, \`reject\`,
-\`not-applicable\`. \`ok\` and \`na\` are the spreadsheet spellings of the first and the last.
+\`not-applicable\`. \`ok\` and \`na\` are the spreadsheet spellings of the first and the last. Every
+entry must also carry \`text_at_review\` — the exact text you judged, copied from that row's \`current\`
+column. The applier compares it with the source: if the source has moved since this pack was generated,
+your decision is refused and you are asked to re-generate the pack and re-read, because a decision about
+one sentence must never be recorded against another.
 
 Return path — either of:
 
 1. **Spreadsheet (easiest).** Edit \`<language>-rows.csv\` and run
-   \`node tools/apply-review-decisions.mjs --csv <language>-rows.csv --reviewer "<your name>"\`.
+   \`node tools/apply-review-decisions.mjs --csv <language>-rows.csv --reviewer "<your name>"\`. Do not
+   edit the \`current\` column: it is the text your decisions are recorded against.
 2. **Decision file.** Copy \`<language>-decisions.template.json\`, fill \`reviewer\` and one entry per
    string you actually judged, and run \`node tools/apply-review-decisions.mjs --json <file>\`.
 
@@ -1208,7 +1213,8 @@ function readme(data, packs, outDir) {
   lines.push('   says how big the job is; then the strings are grouped exactly the way the app is grouped, so you');
   lines.push('   read a screen\'s copy together instead of hunting keys.');
   lines.push('2. Open `<language>-rows.csv` in a spreadsheet and fill `decision`, plus `correction` for `fix` and');
-  lines.push('   `note` for `reject`/`na`. Leave rows you have not reached empty.');
+  lines.push('   `note` for `reject`/`na`. Leave rows you have not reached empty, and do not edit the `current`');
+  lines.push('   column: it is the text your decision is recorded against.');
   lines.push('3. Send the CSV (or a filled decision JSON) back. Whoever receives it runs');
   lines.push('   `node tools/apply-review-decisions.mjs --csv <file> --reviewer "<name>"`.');
   lines.push('4. On the next build the pack shows `approved` plus the reviewer\'s name for every string that was');
@@ -1216,8 +1222,10 @@ function readme(data, packs, outDir) {
   lines.push('   "is this string reviewed?" — and it only ever comes from a human\'s written decision.');
   lines.push('');
   lines.push('A string may only be marked `approved` by that human act. No script in this repository approves');
-  lines.push('anything, and `tools/review-pack-check.mjs` fails a pack in which an approved row has no recorded');
-  lines.push('reviewer, or whose approval no longer matches the text.');
+  lines.push('anything: the applier refuses a decision file with no reviewer, and it refuses a decision whose');
+  lines.push('text no longer matches the source, so a judgement can never be recorded against a sentence the');
+  lines.push('human did not read. `tools/review-pack-check.mjs` fails a pack in which an approved row has no');
+  lines.push('recorded reviewer, no ledger entry, or an approval that no longer matches the text.');
   lines.push('');
   lines.push('## The census');
   lines.push('');
@@ -1232,10 +1240,10 @@ function decisionTemplate(language) {
     language,
     reviewer: '',
     reviewed_at: '',
-    how_to_fill: 'Set reviewer to the name of the human who made these decisions, reviewed_at to the date (YYYY-MM-DD), and add one entry per string you judged. Leave out strings you did not reach: they stay unreviewed. decision is one of approved, fix, reject, not-applicable. fix requires correction. reject and not-applicable require note.',
+    how_to_fill: 'Set reviewer to the name of the human who made these decisions, reviewed_at to the date (YYYY-MM-DD), and add one entry per string you judged. Leave out strings you did not reach: they stay unreviewed. decision is one of approved, fix, reject, not-applicable. fix requires correction. reject and not-applicable require note. Every entry MUST carry text_at_review: the exact text you judged, copied from that row\'s current column — a decision whose text no longer matches the source is refused so a human judgement is never recorded against a sentence they did not read.',
     decisions: [
-      { id: 'ui/shell.m047', decision: 'approved', note: '' },
-      { id: 'ui/practice.drillTitle', decision: 'fix', correction: 'Einzelübungen', note: 'example: replacement text the reviewer wants' },
+      { id: 'ui/shell.m047', decision: 'approved', text_at_review: '<paste this row\'s current column exactly>', note: '' },
+      { id: 'ui/practice.drillTitle', decision: 'fix', text_at_review: '<paste this row\'s current column exactly>', correction: 'Einzelübungen', note: 'example: replacement text the reviewer wants' },
     ],
     example_only: 'The two entries above are an example of the shape. Delete them before sending: an id that is not in your pack is refused, and the applier records only what you write.',
   }, null, 2)}\n`;
