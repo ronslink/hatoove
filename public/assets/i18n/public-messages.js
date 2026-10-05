@@ -26,8 +26,8 @@ const rows = {
   intro2: ['Jetzt üben Sie, es in Prüfungsaufgaben anzuwenden.','Now practise using it in exam tasks.','Тепер практикуйте її в екзаменаційних завданнях.','والآن تدرّب على استخدامها في مهام الامتحان.','Şimdi sınav görevlerinde kullanma alıştırması yapın.'],
   heroDescription: ['Lesen Sie genau, finden Sie das passende Wort und schreiben Sie eigene Texte. Mit Ihrem Konto können Sie Entwürfe speichern und später weiterarbeiten.','Read carefully, find the right word and write your own texts. With an account, save drafts and continue later.','Уважно читайте, добирайте потрібні слова та пишіть власні тексти. З обліковим записом зберігайте чернетки й продовжуйте пізніше.','اقرأ بعناية واختر الكلمة المناسبة واكتب نصوصك. يتيح لك حسابك حفظ المسودات ومتابعتها لاحقًا.','Dikkatle okuyun, uygun kelimeyi bulun ve kendi metinlerinizi yazın. Hesabınızla taslakları kaydedip daha sonra devam edin.'],
   try: ['Erst einmal ausprobieren','Try a sample first','Спочатку спробувати','جرّب أولًا','Önce deneyin'],
-  already: ['Schon dabei?','Already have an account?','Уже маєте обліковий запис?','لديك حساب بالفعل؟','Zaten hesabınız var mı?'],
-  app: ['Zur App','Open the app','До застосунку','افتح التطبيق','Uygulamaya git'],
+  /* `already` and `app` were removed with the landing hero note "Schon dabei? Zur App" (5 Oct 2026): it
+   * pointed signed-out visitors at `/app/**`, which answers 401 behind the session gate (server.js:458). */
   focus: ['Ihr Fokus: Deutsch B1','Your focus: German B1','Ваш напрям: німецька B1','تركيزك: الألمانية B1','Odağınız: Almanca B1'],
   independent: ['Unabhängige Vorbereitung auf telc Deutsch B1','Independent preparation for telc Deutsch B1','Незалежна підготовка до telc Deutsch B1','تحضير مستقل لامتحان telc Deutsch B1','telc Deutsch B1 için bağımsız hazırlık'],
   firstStep: ['IHR ERSTER KLEINER SCHRITT','YOUR FIRST SMALL STEP','ВАШ ПЕРШИЙ НЕВЕЛИКИЙ КРОК','خطوتك الصغيرة الأولى','İLK KÜÇÜK ADIMINIZ'],
