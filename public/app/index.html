@@ -435,6 +435,13 @@
             </div>
           </div>
 
+          <!-- PILOT-FEEDBACK-01 (FB-C). The learner's own reports, newest first. feedback.js fills this; the
+               report text is inserted as TEXT, never as markup, because the learner wrote it. -->
+          <div class="card">
+            <div class="card-head"><h3><span data-i18n="shell.feedbackMineTitle">Meine Meldungen</span></h3></div>
+            <div class="small muted" id="feedback-mine" role="status"></div>
+          </div>
+
           <!--
             SITZUNGEN (D5). A learner who cannot see where they are signed in cannot act on it, and "sign out"
             only helps if you still hold the session you want to end. This lists what the server knows, with

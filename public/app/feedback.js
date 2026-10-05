@@ -68,7 +68,7 @@ function buildSheet({ uiText, esc }) {
  * Returns `{ open, close, isOpen, unmount }` — deliberately small, because everything else the caller wants
  * (focus, the context line, the error text) is the sheet's business, not the shell's.
  */
-export function createFeedbackSheet({ api, uiText, esc, route }) {
+export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) {
   let sheet = null;
   let invoker = null;
   let contextKept = true;
@@ -155,6 +155,9 @@ export function createFeedbackSheet({ api, uiText, esc, route }) {
       interfaceLanguage: document.documentElement.lang || 'de',
     });
     if (answer && answer.ok) {
+      // The Konto list is behind the sheet, so refresh it rather than making the learner reload the page to see
+      // the report they just sent.
+      if (typeof onSent === 'function') onSent();
       message.hidden = false;
       message.className = 'feedback-message feedback-thanks';
       message.textContent = uiText('feedbackThanks');
@@ -203,12 +206,52 @@ export function createFeedbackSheet({ api, uiText, esc, route }) {
   return { open, close, isOpen, unmount };
 }
 
+/** The UI word for each stored status. A status the client does not know falls back to "new" rather than blank. */
+const STATUS_KEYS = Object.freeze({
+  new: 'feedbackStatusNew',
+  triaged: 'feedbackStatusInProgress',
+  fixed: 'feedbackStatusFixed',
+  wontfix: 'feedbackStatusWontfix',
+});
+
 /**
- * Wire the two openers. Called once, after boot; a missing element is not fatal, so a shell change can never
- * take the whole app down through this feature.
+ * "Meine Meldungen" — the learner's own reports with a status chip, in Konto.
+ *
+ * THE BODY IS RENDERED AS TEXT, through `esc`, and never as HTML. The learner wrote it, so it is the one string
+ * in this feature that must be treated as hostile: a report containing `<img onerror=...>` is data about a
+ * problem, not markup.
+ */
+export async function renderMyReports({ api, uiText, esc }) {
+  const host = document.getElementById('feedback-mine');
+  if (!host) return false;
+  const answer = await api.feedback.list();
+  if (!answer || !answer.ok) {
+    host.textContent = uiText('feedbackMineFailed');
+    return false;
+  }
+  const rows = (answer.data && answer.data.feedback) || [];
+  if (!rows.length) {
+    host.textContent = uiText('feedbackMineEmpty');
+    return true;
+  }
+  host.innerHTML = '<ul class="feedback-list">' + rows.map((row) =>
+    '<li class="feedback-item">'
+    + '<p class="feedback-item-head">'
+    + `<span class="feedback-chip" data-status="${esc(row.status)}">`
+    + `${esc(uiText(STATUS_KEYS[row.status] || 'feedbackStatusNew'))}</span>`
+    + `<span class="small muted">${esc(String(row.created_at || '').slice(0, 10))}</span></p>`
+    + `<p class="feedback-item-body">${esc(row.body)}</p>`
+    + '</li>').join('') + '</ul>';
+  return true;
+}
+
+/**
+ * Wire the two openers and the Konto list. Called once, after boot; a missing element is not fatal, so a shell
+ * change can never take the whole app down through this feature.
  */
 export function installFeedbackEntryPoints(ctx) {
-  const sheet = createFeedbackSheet(ctx);
+  const refresh = () => { void renderMyReports(ctx); };
+  const sheet = createFeedbackSheet({ ...ctx, onSent: refresh });
   const wire = (id) => {
     const node = document.getElementById(id);
     if (node) node.addEventListener('click', (event) => { event.preventDefault(); sheet.open(node); });
@@ -216,5 +259,6 @@ export function installFeedbackEntryPoints(ctx) {
   };
   const topBar = wire('feedback-open');
   const sidebar = wire('feedback-open-side');
-  return { sheet, topBar, sidebar };
+  refresh();
+  return { sheet, topBar, sidebar, refresh };
 }
