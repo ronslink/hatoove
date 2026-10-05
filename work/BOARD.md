@@ -452,3 +452,9 @@ While producing local substitutes for the CI jobs that are stalled, the Lead sta
 **This is the boundary AGENTS.md names explicitly — "never point generic tests at the learner's existing app" — and it was reached by assuming a port was mine because I had just asked for it.** The CI-shaped environment (port 5432, database `hatoove_ci`, schema `hatoove`) is only safe **on a runner**; locally the documented fixture is **port 62563, database `hatoove_spike`** (the shape `registration-language-pg-check` accepts as `local`). Any future local run of those checks uses that, or a port verified free first with `Get-NetTCPConnection` — not a port assumed free.
 
 **Consequence for the evidence:** the queued CI jobs cannot be substituted locally on the 5432 shape, so their verification waits on GitHub issuing runners. The program's own three gate groups remain green on this tree (**mirror 13/13, baseline 9/9, mirror-db 7/7**), produced on disposable ports.
+
+## Round 28 — the repository is public, CI capacity is back, and the final gates are green locally (5 October 2026, 22:20 UTC+2)
+
+Ron made the repository public, which removes the Actions capacity limit that had four runs queued for over two hours with nothing in progress. On that news, the full gate set was re-run on the current head against a disposable database whose **port was verified free first** (`Get-NetTCPConnection`, port 55489) after the earlier near-miss: **`mirror` 13/13 · `baseline` 9/9 · `mirror-db` 7/7 — all green**, with `migrate` applying 47 migrations cleanly.
+
+All non-author reviews are complete: every slice (A–H, F2, POOL-01 batch 1, the content corrections, the re-pin, the marker) plus both outside reviews' fixes (`fb1f5ab`, `6f93281`) carry an independent verdict, and the mutations were reproduced by the reviewers rather than read. The last engineering item is `task-55`, the hashed-file audit for the class that made a gate Windows-only.
