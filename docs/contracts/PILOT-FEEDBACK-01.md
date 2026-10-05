@@ -25,6 +25,7 @@ integrated result is authorised; nothing is published or deployed before the gat
 | **A1** | The migration is **`0049-pilot-feedback.sql`**, not `0048`. | `0048-pool-01-listening-release.sql` already exists on `codex/pool-01-listening-release` and is pinned by filename in `server/migrations/MANIFEST.json` (`pool-01-check.mjs:589`). Numbering is by filename order, so a gap is harmless; renumbering a built, gated branch is not. Whichever branch lands second keeps the higher number. |
 | **A2** | **Two deploy stages.** Stage 1 = FB-A + FB-B + FB-C: the learner-facing table, the API and the report form. Stage 2 = FB-D (operator CLI, the `__OPERATOR__` role, the survey seed) and FB-E (screenshots). | Ron's need is *collecting* feedback. Stage 2 holds the riskier surface: FB-D adds a **new login role**, and therefore a new secret in `production.env` and in the compose environment list — a production configuration change — while FB-E is the riskiest browser work. Stage 1 stays free of production config changes. **Consequence, stated honestly:** the survey card ships in Stage 1 but stays dormant until Stage 2's seed writes a round, so the card cannot appear on Heute before then. |
 | **A3** | Named anchors (the draft named them by description only): RLS pattern `server/migrations/0015-item-evidence.sql`; deletion steps `server/owned-postgres/adapter.mjs:1738` (`ACCOUNT_DELETION_STEPS`); data export route `server/owned-api.mjs:1407` (`/api/v1/export`); throttle helper `server/owned-postgres/throttle.mjs`; catalogue `tools/lib/catalogue.mjs`; i18n catalogues `public/assets/i18n/{shell,practice,auth,public}-messages.js` and `instructions.js`. |
+| **A4** | **No CSP change is needed.** `git grep` finds no `Content-Security-Policy` and no `img-src` anywhere in the tracked tree, and `deploy/Caddyfile:16` states "No CSP/HSTS policy is silently imposed on the client" — the headers set are `X-Content-Type-Options`, `Referrer-Policy` and `X-Frame-Options` only. | §3 assumed an existing `img-src` that might lack `data:` and `blob:`. It was checked while freezing the contract and does not exist, so the CSP note is a property to re-verify at review time, not a change to make. The vendored library's `data:`/`blob:` rendering is therefore unconstrained; the reason to vendor rather than use a CDN is unchanged (a CDN would add a third-party origin and a new processor). |
 
 ## What Ron chose
 
@@ -183,8 +184,11 @@ lesson from the 5 Oct incident: **no `listening.flush()` and no re-render of the
 - **How:** a DOM-to-image library (`html-to-image` or `modern-screenshot`, both MIT), **vendored** into
   `public/assets/vendor/` with its licence and a pinned SHA-256. **No CDN** (CSP). **No `getDisplayMedia`** — it
   prompts on every use and does not work on iOS Safari.
-- **CSP:** the library renders through an SVG `foreignObject` into an `<img>`; if `img-src` lacks `data:` and
-  `blob:`, add them for app pages only and record it in the security notes.
+- **CSP (amended — see A4):** the library renders through an SVG `foreignObject` into an `<img>`, which needs
+  `data:`/`blob:` to be permitted *if* an `img-src` policy exists. **It does not:** there is no
+  `Content-Security-Policy` in the tracked tree and `deploy/Caddyfile` deliberately imposes none. So there is
+  nothing to add; the reviewer's job is to re-verify that claim and to record it, and the vendored-library rule
+  (no CDN, licence + pinned SHA-256) still stands so no third-party origin is introduced.
 - **Masking:** elements marked `data-feedback-private` are drawn as grey blocks; mark the account e-mail and name
   in Konto, session lists, and any payment/order details; password fields are masked by type anyway. **Writing
   drafts are not masked** (they are often the subject of the report) — the learner sees them in the preview and
