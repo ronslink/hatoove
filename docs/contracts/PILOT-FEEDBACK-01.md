@@ -27,6 +27,22 @@ integrated result is authorised; nothing is published or deployed before the gat
 | **A3** | Named anchors (the draft named them by description only): RLS pattern `server/migrations/0015-item-evidence.sql`; deletion steps `server/owned-postgres/adapter.mjs:1738` (`ACCOUNT_DELETION_STEPS`); data export route `server/owned-api.mjs:1407` (`/api/v1/export`); throttle helper `server/owned-postgres/throttle.mjs`; catalogue `tools/lib/catalogue.mjs`; i18n catalogues `public/assets/i18n/{shell,practice,auth,public}-messages.js` and `instructions.js`. |
 | **A4** | **No CSP change is needed.** `git grep` finds no `Content-Security-Policy` and no `img-src` anywhere in the tracked tree, and `deploy/Caddyfile:16` states "No CSP/HSTS policy is silently imposed on the client" — the headers set are `X-Content-Type-Options`, `Referrer-Policy` and `X-Frame-Options` only. | §3 assumed an existing `img-src` that might lack `data:` and `blob:`. It was checked while freezing the contract and does not exist, so the CSP note is a property to re-verify at review time, not a change to make. The vendored library's `data:`/`blob:` rendering is therefore unconstrained; the reason to vendor rather than use a CDN is unchanged (a CDN would add a third-party origin and a new processor). |
 
+### A5–A11 — corrections from the first independent design review (5 Oct 2026, 23:40)
+
+A read-only design review returned **NOT SOUND** with six must-fixes. Each was re-verified by the coordinator
+against the code before being adopted; the verification is cited. **These are corrections to the contract text,
+not suggestions: where the body below disagrees, the body is wrong.**
+
+| # | Correction | Verified evidence |
+|---|---|---|
+| **A5** | **The column is `survey_answers`, never `answers`.** A column named `answers` makes its table "key-bearing", and a key-bearing table must grant `SELECT` to **no** runtime role — which contradicts §1's learner `SELECT` on `pilot_feedback` and fails the offline baseline by construction. | `tools/lib/catalogue.mjs:100-103` (`/^(answer_key\|correct_answer\|answers\|solution)$/i`); `tools/table-class-check.mjs:499-507` (FAIL on `SELECT` to any runtime role). `survey_answers` does not match the anchored regex. |
+| **A6** | **`app_version` is `'unknown'` in Stage 1.** `.reviewed-commit` is written by the deploy script *after* the image is built and is not inside the runtime, so no code path can read it; the only honest reachable value is `'unknown'`. Threading the SHA into the image is its own slice, not this one. **The §6 acceptance leg must therefore not claim the SHA is recorded** — assert instead that the field is server-set and not client-settable. | Nothing in the tracked tree reads `.reviewed-commit` (only prose in `IMPLEMENTATION_PLAN.md`/`work/BOARD.md`); it is written post-build by the droplet script. |
+| **A7** | **`route` uses the client's real view ids**, and the two lists are pinned equal by a leg: `heute`, `ueben`, `wortschatz`, `fehler`, `pruefungsteile`, `hoeren`, `schreiben`, `probepruefung`, `nachschlagen`, `einstellungen`, `verlauf`, `checkout`, `lesen`, `sprachbausteine`, `abschnitt`, `satzbau`, `mehr`, plus `other` for an unrecognised view. The drafted `today/practice/drill/mock-run/review/listening/writing/library/vocab/mistakes/settings` vocabulary matches no shipped route and **a mismatch loses the report** (422/23514). | `public/app/app.js:78-82`; `public/app/index.html:66-76`; `public/app/part-index.js:84`. |
+| **A8** | **`interface_language` is client-supplied and server-validated**, not server-set: it exists only in the browser. The server validates it against `INTERFACE_LOCALES` and defaults to `'de'` when absent. The server-set list is `owner_id`, `app_version`, `status`, `created_at`. | `public/assets/i18n/core.js:113`; `server/library-translations.mjs:34`; validation precedent `server/owned-api.mjs:1219`. |
+| **A9** | **Two throttle kinds are required**, because `THROTTLE_POLICY` allows exactly one window per kind: `feedback` (20 per account per 24 h) and `feedbackGlobal` (200 per hour). `createOwnedApi` must accept an injectable throttle policy, or the §6 429 leg cannot be proved without waiting out a real window. | `server/owned-postgres/throttle.mjs:33-48`; `createPostgresThrottle({policy})` is injectable (`:61`), `createOwnedApi` is not (`server/owned-api.mjs:425`). |
+| **A10** | **`survey_round` has NO row-level security** — it is content-class, like the vocab/guide/package catalogues. §1's blanket "ENABLE + FORCE" applies only to the two owned tables. The check must pin `relrowsecurity = false` for `survey_round`, because a future author "making §1 true" would silence the survey invisibly (204-by-design hides it completely). | `catalogue.readTables` reads `relrowsecurity` (`catalogue.mjs:112`); content migrations `0011`/`0013` carry no RLS; the reviewed partial SQL already enables RLS on the owned tables only. |
+| **A11** | Every owned table must also be registered in **`ACCOUNT_TABLES`**, not only the catalogue and `ACCOUNT_DELETION_STEPS`; the data export is assembled in **`adapter.exportData`**, not in the `/api/v1/export` route handler; the account e-mail to mask for screenshots is in the **sidebar footer and Konto**, not the top bar; and §2's `context: "dropped"` needs its own §6 leg, since a behaviour asserted in prose is not a behaviour. | `server/owned-postgres/adapter.mjs:1785` (`ACCOUNT_TABLES`), `:1738` (`ACCOUNT_DELETION_STEPS`); `tools/lib/catalogue.mjs:42-46`; `server/owned-api.mjs:1408-1412`; `public/app/index.html:81-84`, `:423`; `app.js:463-467`. |
+
 ## What Ron chose
 
 1. **Report a problem** — **one** entry point for the whole app, not a button per question. The same form also
@@ -45,7 +61,10 @@ limited `UPDATE` grant — is **`0050-pilot-feedback-operator.sql`**, authored i
 changes deployment configuration.
 
 Follow the house migration idiom: `__SCHEMA__`, `__LEARNER__`, `__DELETION__`, `__OPERATOR__` placeholders
-resolved by the runner; `ENABLE` **and** `FORCE` row-level security; grants by role, never to `PUBLIC`.
+resolved by the runner; grants by role, never to `PUBLIC`. `ENABLE` **and** `FORCE` row-level security applies
+to **the two owned tables only** — `survey_round` is content-class and must have **no** RLS at all (A10), and a
+leg must pin `relrowsecurity = false` for it. Register each owned table in **`ACCOUNT_TABLES`**, in the
+catalogue, and in `ACCOUNT_DELETION_STEPS` (A11).
 
 ### `pilot_feedback` — owned, RLS on the owner
 
@@ -56,13 +75,13 @@ resolved by the runner; `ENABLE` **and** `FORCE` row-level security; grants by r
 | `kind` | `text NOT NULL`, `report` or `survey` |
 | `category` | `report`: one of `content_error`, `audio`, `translation`, `bug`, `idea`, `other`. `survey`: NULL. |
 | `body` | `text`, 1–2000 characters after trim. Required when `kind='report'`. NULL when `kind='survey'`. |
-| `route` | closed list: `today`, `practice`, `drill`, `mock-run`, `review`, `listening`, `writing`, `library`, `vocab`, `mistakes`, `settings`, `other`. Client-supplied. |
+| `route` | closed list of the client's **real view ids** (A7): `heute`, `ueben`, `wortschatz`, `fehler`, `pruefungsteile`, `hoeren`, `schreiben`, `probepruefung`, `nachschlagen`, `einstellungen`, `verlauf`, `checkout`, `lesen`, `sprachbausteine`, `abschnitt`, `satzbau`, `mehr`, plus `other` for an unrecognised view. Client-supplied. A value outside the list loses the report, so a leg must pin this list equal to `app.js`'s view ids. |
 | `exam_id`, `set_id`, `version`, `item_id` | nullable. Captured automatically from what is on screen when the form opens (open part/run, question in view; for a listening group, the group's first question). Never asked of the learner. |
 | `guide_id`, `section_id` | nullable. Captured automatically on a reference-library page. |
 | `run_id` | nullable. The open mock run or practice attempt. |
-| `interface_language` | `de` / `en` / `uk` / `ar` / `tr` |
-| `app_version` | short SHA of the deployed `.reviewed-commit`. **Set by the server, never by the client.** |
-| `survey_round`, `answers` | `kind='survey'` only. `answers` jsonb, CHECKed against the round's question set: integers within range, plus at most one optional text ≤1000 characters. `answers IS NULL` means the learner skipped the round. |
+| `interface_language` | `de` / `en` / `uk` / `ar` / `tr`. **Client-supplied** (A8): the interface language exists only in the browser, so the client sends it and the server validates it against `INTERFACE_LOCALES`, defaulting to `de` when absent. |
+| `app_version` | **`unknown` in Stage 1** (A6): the drafted "short SHA of the deployed `.reviewed-commit`" is unreachable from the runtime, because that file is written *after* the image build and is not inside the image. Server-set, never client-settable. Threading the real SHA into the image is its own later slice. |
+| `survey_round`, `survey_answers` | `kind='survey'` only. **The column is `survey_answers`, never `answers`** (A5): a column named `answers` makes the table key-bearing, which forbids `SELECT` to every runtime role and would contradict the learner read this contract requires. jsonb, CHECKed against the round's question set: integers within range, plus at most one optional text ≤1000 characters. `survey_answers IS NULL` means the learner skipped the round. (The **API field** stays `answers`; only the column is renamed.) |
 | `status` | `new` / `triaged` / `fixed` / `wontfix`, default `new` |
 | `operator_note` | `text` ≤1000 characters, nullable |
 | `created_at`, `handled_at` | `timestamptz` |
@@ -137,19 +156,22 @@ All routes require a session and accept a **closed** field set, as elsewhere in 
 
 | Route | Behaviour |
 |---|---|
-| `POST /api/v1/feedback` | Body: `category`, `body`, `route`, plus optional captured context. **An unknown key gets 422; it is never silently dropped.** The server sets `owner_id`, `app_version`, `interface_language`, `status`, `created_at`. Returns `201 {feedback_id}`. |
+| `POST /api/v1/feedback` | Body: `category`, `body`, `route`, plus optional captured context. **An unknown key gets 422; it is never silently dropped.** The server sets `owner_id`, `app_version`, `status`, `created_at`, and **validates** the client-supplied `interface_language` against `INTERFACE_LOCALES` (A8). Returns `201 {feedback_id}`. |
 | `PUT /api/v1/feedback/{feedback_id}/screenshot` | Raw image body (`Content-Type: image/webp` or `image/png`), ≤1.5 MB. Only the learner's own report; only within 10 minutes of creating it; only once (`409` after that). The server checks magic bytes against the declared type, reads dimensions from the header and refuses width >1600 px or any non-image, and stores the bytes unchanged. The report is saved **first**, so a failed upload never loses a report. Returns `204`. |
 | `GET /api/v1/feedback` | The learner's own reports, newest first, with `status` and **without** `operator_note`. |
 | `GET /api/v1/survey/current` | The open round the learner has neither answered nor skipped, if their account is old enough. Otherwise `204`. |
 | `POST /api/v1/survey/{round_id}` | Either `{answers}` or `{skip: true}`. A second submission gets `409`. |
 
-**Throttle:** 20 reports per account per 24 h, and 200 in total per hour. Above that, `429` with the existing
-refusal copy.
+**Throttle:** 20 reports per account per 24 h, and 200 in total per hour, through
+`server/owned-postgres/throttle.mjs`. Because that module carries **one window per kind** (A9), this needs two
+kinds — `feedback` and `feedbackGlobal` — and `createOwnedApi` must accept an injectable policy so the 429 leg
+can be proved without waiting out a real window. Above either limit, `429` with the existing refusal copy.
 
 **Validating captured context:** context is optional. When present it must point to something the learner can
 actually see — a question they were served, an existing guide section, or their own run. **If the context is
 invalid it is dropped and the report is still saved**, and the response includes `context: "dropped"`. A stale
-page must never lose a report.
+page must never lose a report. **This needs its own §6 leg (A11)** — a behaviour asserted only in prose is not a
+behaviour, and this is exactly the kind of guard this program has shipped before without it proving anything.
 
 **Display:** `body` is **plain text only**; it is never rendered as HTML anywhere.
 
@@ -230,6 +252,11 @@ drift** — `bootstrap.mjs:152` records the time they did), and takes its passwo
 `OWNAPI_PG_OPERATOR_PASSWORD`. Migration `0050` then grants it `EXECUTE` on the read function and on a bounded
 `UPDATE` function only.
 
+**Caution (A11): a `SECURITY DEFINER` function owned by the migration role *is* the table owner, so `FORCE` RLS
+does not bound its `UPDATE`.** The "bounded update" must therefore be **proved by a leg** — a write to any column
+outside `status`/`operator_note`/`handled_at` is refused — not asserted in a comment. This is the same failure
+shape as the guards this program has shipped before that passed while proving nothing.
+
 | Command | Effect |
 |---|---|
 | `list [--status new] [--category] [--since 7d]` | Compact table in the terminal |
@@ -282,11 +309,13 @@ hard-code them).
 
 | Slice | Scope | Allowed paths (advisory, one writer per file) |
 |---|---|---|
-| **FB-A** | Migration `0049`, catalogue entry, `ACCOUNT_DELETION_STEPS`, export, RLS/table-class legs, MANIFEST pin | `server/migrations/0049-pilot-feedback.sql`, `server/migrations/MANIFEST.json`, `tools/lib/catalogue.mjs`, `server/owned-postgres/adapter.mjs`, `server/owned-api.mjs` (export only), `tools/deletion-check.mjs`, `tools/table-class-check.mjs`, new `tools/pilot-feedback-migration-check.mjs` |
+| **FB-A** | Migration `0049` (column **`survey_answers`**, A5), catalogue **and `ACCOUNT_TABLES`** entry, `ACCOUNT_DELETION_STEPS`, export (**assembled in `adapter.exportData`**, A11), RLS/table-class legs including `relrowsecurity = false` for `survey_round` (A10), MANIFEST pin | `server/migrations/0049-pilot-feedback.sql`, `server/migrations/MANIFEST.json`, `tools/lib/catalogue.mjs`, `server/owned-postgres/adapter.mjs`, `server/owned-api.mjs` (export only), `tools/deletion-check.mjs`, `tools/table-class-check.mjs`, new `tools/pilot-feedback-migration-check.mjs` |
 | **FB-B** | API routes and throttle | `server/owned-api.mjs`, `server/owned-postgres/feedback.mjs` (new), `server/owned-postgres/throttle.mjs`, new `tools/pilot-feedback-api-check.mjs`, `server/owned-postgres/fixture.mjs` |
 | **FB-C** | The single report sheet (top bar + sidebar), "Meine Meldungen", the survey card, copy in 5 languages | `public/app/*.js`, `public/app/app.css`, `public/app/index.html`, `public/assets/i18n/*.js`, new `tools/pilot-feedback-client-check.mjs` |
 | **FB-D** | Operator CLI, `__OPERATOR__` role + migration `0050`, survey-round seeding, CSV export | `server/migrations/0050-pilot-feedback-operator.sql` (new), `server/feedback.mjs` (new), `server/owned-postgres/{provision,bootstrap,config}.mjs`, `tools/pilot-feedback-operator-check.mjs` (new), `docs/openapi.yaml`, docs |
 | **FB-E** | Screenshot **upload route** + vendored capture library, masking, thumbnail, operator `--save-screenshot` / `--screenshots`. **No migration** — the table is already in `0049`. | `public/assets/vendor/**` (new), `public/app/*`, `server/owned-api.mjs`, `server/owned-postgres/feedback.mjs`, `server/feedback.mjs`, `public/app/index.html` (CSP), security notes |
 
 **Order.** FB-A, then FB-B. FB-C and FB-D then run in parallel against the frozen §2 API. FB-E follows FB-C.
-Stage 1 deploys A+B+C+D; Stage 2 deploys E (A2).
+**Stage 1 deploys A + B + C** (the learner-facing half); **Stage 2 deploys D and E** (A2). An earlier line here
+said "Stage 1 deploys A+B+C+D" — that was a leftover from before A2 was revised and it is wrong: D carries the
+operator role and the production secret that A2 exists to keep out of Stage 1.
