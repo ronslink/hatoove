@@ -108,10 +108,10 @@ supplied for the idle tile border.
 1. **The exam card with the large B1.** Not built: it needs the studio-look values to be a designed object
    rather than a guess, and `#preparation-exam` carries the exam name as localized text, so the B1 badge
    needs a data source decision first.
-2. **The orange "Weiter üben" button.** The key is now in place (`shell.m389`, all five dictionaries). The
-   button itself is not: it needs the studio-look values, and the host decision — `#preparation-start`
-   ("Abschnitt üben") is already `btn btn-primary`, the pinned orange, while `#preparation-continue`
-   ("Gespeicherte Texte fortsetzen") is the one that means "carry on".
+2. **The "Weiter üben" button.** Delivered (`c3c4f49`): the next-task card's primary action reads
+   `shell.m389` in the selected interface language, and `bindShellText` owns the label so the re-render after
+   a dashboard refresh keeps it. The no-preparation state still reads "Verlauf öffnen" (`m101`). It is the
+   pinned orange because the card already used `.btn-primary`.
 3. **The navy sidebar.** Currently `var(--ink)`. The navy arrives with the colour list; it is one token value.
 4. **Colour values.** All still pinned; the structure is ready for the swap.
 

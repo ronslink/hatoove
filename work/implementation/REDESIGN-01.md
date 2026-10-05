@@ -76,8 +76,11 @@ It found one weakness worth acting on and one coverage hole that is now fixed:
 - The sidebar is a dark surface in both themes, driven by new tokens in `app.css`; menu type is 16 px.
 - Three defects were found by rendering, not by reading: an unguarded dark-theme block that made the sidebar
   light on a light device, an idle label at 1.51:1, and an ink logo at 1.05:1 on the dark surface.
-- Still owed: the exam card with the large B1, the orange "Weiter üben" button (its key `shell.m389` exists
-  in all five dictionaries; the button does not), the navy itself, and the colour values.
+- Still owed: the exam card with the large B1, the navy itself, and the colour values.
+- **Delivered since the first slice-B commit** (`c3c4f49`): the orange "Weiter üben" primary action on the
+  next-task card (`shell.m389`, all five dictionaries; `bindShellText` owns the label so the dashboard
+  re-render keeps it, and the no-preparation state still reads "Verlauf öffnen"). Rendered as
+  "Keep practising" in the 5 October screenshot set.
 
 ## 4. Slice C/D — answer feedback
 
