@@ -468,3 +468,182 @@ code {
   .locale-control label { max-width:5.5rem; }
   .top-actions #signout { max-width:8rem; }
 }
+
+/* ---------------------------------------------------------------- REDESIGN-01 B
+ *
+ * Ron's studio-look slice B, first pass: STRUCTURE ONLY, every colour still the pinned value. The
+ * sidebar and the answer-tile border are the two places where a colour is needed at all, and both are
+ * declared here as `--token:` definitions — the one form `tools/design-check.mjs` D1 exempts — so the
+ * rules below never name a raw colour and the studio-look list can replace these VALUES later without
+ * touching a single rule.
+ *
+ * Why the sidebar is a NAMED NAVY and not the pinned `--ink`: `--ink` is the design system's neutral, so it
+ * is nearly identical to everything else dark in the product and reads as "the ink colour, used as a
+ * surface" rather than as a branded sidebar. Ron asked for a navy and did not send values, so this is DERIVED
+ * — `#1e2a3a`, a desaturated navy — and measured like every other pair here. It is ONE value to replace:
+ * change `--nav-bg`/`--nav-ink-muted` below and nothing else moves. Measured: idle label 7.52:1, group label
+ * 7.85:1, full label 13.78:1, white logo 14.51:1, hover surface 1.44:1 (non-text floor 1.2), active item
+ * 4.95:1; dark theme 8.44 / 16.12 / 1.41 / 6.98.
+ */
+:root {
+  --nav-bg: #1e2a3a;
+  --nav-ink: var(--canvas);
+  --nav-ink-muted: color-mix(in srgb, var(--canvas) 70%, var(--nav-bg));
+  --nav-active-bg: var(--peach);
+  --nav-active-ink: var(--orange-dark);
+  /*
+   * The one measured value Ron supplied: on paper, an unanswered answer tile needs a darker border to
+   * reach the 3:1 non-text minimum. #7d8ea6 measures 3.3:1 against --paper.
+   */
+  --tile-idle-border: #7d8ea6;
+}
+
+/* The sidebar becomes the dark surface; the page keeps the warm paper. */
+.side { background: var(--nav-bg); border-inline-end-color: var(--nav-bg); }
+.nav a { color: var(--nav-ink-muted); }
+.nav a:hover { background: color-mix(in srgb, var(--nav-ink) 12%, transparent); color: var(--nav-ink); }
+.nav a[aria-current=page] { background: var(--nav-active-bg); color: var(--nav-active-ink); }
+.nav .nav-label { color: color-mix(in srgb, var(--nav-ink) 72%, transparent); margin-top: 20px; }
+.side-foot { border-top-color: color-mix(in srgb, var(--nav-ink) 18%, transparent); color: var(--nav-ink); }
+.side-foot div span { color: color-mix(in srgb, var(--nav-ink) 72%, transparent); }
+/* The pinned logo variant is an INK logo on a coloured mark, built for a light surface; on the dark
+ * sidebar its wordmark disappeared (the first rendered screenshot showed it washed out on #faf9f6 when the
+ * surface was still light). Forcing it white is the wrong fix — `filter: invert` also inverts the orange
+ * dot. The dark surface is dark enough for the ink logo, so it is left exactly as the design system drew it. */
+
+/* Larger menu type — an override of the pinned 15px, not an edit to it. */
+.nav a { font-size: 16px; }
+.nav-label { font-size: 12px; }
+
+/*
+ * DARK THEME. Two things went wrong here in the first pass, both measured rather than reasoned:
+ *
+ * 1. Without any dark-theme block `--nav-bg: var(--ink)` INVERTED with the theme: in dark mode `--ink` is
+ *    #f2f0ec, so the "dark surface" became a light one and the 12 % hover overlay on it measured 1.29:1.
+ * 2. The block must sit inside the same `@media (prefers-color-scheme: dark)` guard the pinned system uses
+ *    (`:root:not([data-theme=light])` alone is not the pinned condition). Un-guarded, it also fired on a
+ *    LIGHT device — the cascade probe showed `--nav-bg:#faf9f6` on a browser reporting no dark preference,
+ *    which is exactly the light sidebar the first rendered screenshot showed.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) {
+    --nav-bg: #141d29;
+    --nav-ink: var(--canvas);
+    --nav-ink-muted: color-mix(in srgb, var(--canvas) 70%, var(--nav-bg));
+    --nav-active-bg: var(--peach);
+    --nav-active-ink: var(--orange-dark);
+  }
+}
+
+@media (max-width:860px) {
+  /* Below 860px the sidebar is hidden and the tabbar carries navigation; it keeps the paper surface. */
+  .tabbar a { font-size: 12px; }
+}
+
+/*
+ * REDESIGN-01 C: the line that names the correct answer, in the learner's own language. It sits with the
+ * verdict the server already returns, uses the design system's green for "this was the right one", and
+ * never replaces the learner's own answer — both are on the screen, which is the point of the slice.
+ */
+.revealed-answer {
+  margin: 8px 0 0;
+  font-weight: 650;
+  color: var(--green);
+}
+
+/*
+ * REDESIGN-01 C — THE ANSWER TILES.
+ *
+ * Colour is never the only cue: every state also carries a glyph (✓ / ✗) drawn by the stylesheet, and the
+ * option letter stays visible, so the screen still reads in greyscale, in the dark theme, and for a learner
+ * who cannot separate red from green. `data-state` is set only from the server's answer (app.js,
+ * `answerItem`), so an unanswered tile carries no state at all; `.answer-verdict` is empty until one of
+ * these rules fills it.
+ *
+ * `button.btn` IS PART OF THE SELECTOR ON PURPOSE. The un-variant `.btn` reset above (line 269) chains four
+ * `:not()` pseudo-classes, which is a specificity of (0,5,0) — it beat `.answer-option[data-state=…]`
+ * (0,2,0) outright, so the state fill and border never applied while the glyph did (a different rule). A
+ * static probe page showed the tile with a ✗ and a transparent background; `button.btn` puts these rules at
+ * (0,3,1), above the reset and below nothing.
+ */
+button.btn.answer-option { position: relative; display: flex; align-items: flex-start; gap: 10px; }
+.answer-letter { flex: 0 0 auto; font-weight: 750; }
+.answer-label { flex: 1 1 auto; min-width: 0; }
+.answer-verdict { flex: 0 0 auto; font-weight: 800; line-height: 1.2; }
+button.btn.answer-option[data-state=correct],
+button.btn.answer-option[data-state=was-correct] {
+  background: var(--green-bg);
+  border-color: var(--green);
+  color: var(--ink);
+}
+button.btn.answer-option[data-state=correct] .answer-verdict::before,
+button.btn.answer-option[data-state=was-correct] .answer-verdict::before { content: '\2713'; color: var(--green); }
+button.btn.answer-option[data-state=wrong] {
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--ink);
+}
+button.btn.answer-option[data-state=wrong] .answer-verdict::before { content: '\2717'; color: var(--red); }
+/* The options that took no part in the answer stay readable but stop competing with the verdict. */
+.row[data-answered] button.btn.answer-option:not([data-state]) { opacity: .72; }
+
+/*
+ * REDESIGN-01 D — the run navigator and the part result. Both are one line of text plus, for the result,
+ * the design system's own peach card, so no new token or colour is introduced here.
+ */
+#practice-progress { margin: 6px 0 0; }
+#practice-part-result { margin-top: 20px; }
+.part-result { display: grid; gap: 10px; justify-items: start; }
+.part-result .part-result-count { font-size: 20px; font-weight: 750; margin: 0; }
+
+/* REDESIGN-01 D: the mock result's per-part counts. A plain list, no new colour or token. */
+.part-results { margin: 4px 0 0; padding-inline-start: 1.2rem; }
+.part-results li { margin: 2px 0; }
+
+/*
+ * REDESIGN-01 B — the large level mark on the exam card. The value is authored (`exam_package.level`);
+ * the badge only presents it. Sized as a mark rather than as body text, and coloured from the pinned
+ * accent pair (1.02:1 against the card, deliberately: it is a mark, not a sentence).
+ */
+.exam-identity { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.exam-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--peach);
+  border: 1px solid var(--peach-line);
+  border-radius: var(--r-sm);
+  color: var(--orange-dark);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  line-height: 1;
+  padding: 4px 10px;
+}
+@media (max-width:860px) {
+  .exam-level { font-size: 22px; }
+}
+
+/*
+ * REDESIGN-01 E — THE FEHLERHEFT ROWS.
+ *
+ * The row has carried the learner's answer and, since slice A, the correct one; what it lacked was the
+ * separation between "what you answered" and "what was right", which is the whole point of the screen. The
+ * two chips are pushed apart, the correct one uses the design system's own green state pair, and the row's
+ * own title/sub-line hierarchy is left to the pinned `.list-item`. No new colour: `--green`/`--green-bg`
+ * are the system's success pair (measured 6.93:1 for the text on it).
+ *
+ * The chips are `.chip` in the pinned system; these rules only position them within the row.
+ */
+#mistake-list .list-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+#mistake-list .list-item > div { flex: 1 1 60%; min-width: 0; }
+#mistake-list .list-item .chip { flex: 0 0 auto; }
+#mistake-list .list-item .chip:not(.chip-orange) {
+  background: var(--green-bg);
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+  color: var(--green);
+  font-weight: 700;
+}
+
+
+

@@ -657,8 +657,10 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
      *
      * MARKING IS NOT DONE HERE, and deliberately: this connection is the LEARNER role, which is NOT
      * granted `objective_key`. The comparison happens inside `mark_objective_item`, a SECURITY DEFINER
-     * function that reads the key as its owner and returns ONE BOOLEAN. Granting this role SELECT on
-     * the key to make marking possible would have undone the isolation the objective seed exists for.
+     * function that reads the key as its owner and returns ONE BOOLEAN. Once the evidence row exists,
+     * `reveal_objective_answer` (0041) returns that one item's expected answer for the result screen.
+     * Granting this role SELECT on the key to make marking possible would have undone the isolation the
+     * objective seed exists for.
      *
      * Evidence is APPEND-ONLY. Answering again adds a row; it does not rewrite the last one, because
      * this table is the raw signal adaptive selection reads and a mutable score would be a claim
@@ -711,7 +713,12 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)`,
           [evidenceId, owner, set.exam_id, setId, version, itemId, set.family, set.section,
             JSON.stringify(answer), marked.correct, latencyMs, prep.id]);
-        return { evidence_id: evidenceId, item_id: itemId, correct: marked.correct, preparation_id: prep.id, exam_id: prep.exam_id };
+        // REDESIGN-01 A: the expected answer, now that this learner's own answer is recorded. Read through
+        // `reveal_objective_answer` (0041), which returns it only to an owner with evidence for the item.
+        const revealed = first(await client.query(
+          'SELECT reveal_objective_answer($1, $2, $3) AS correct_answer', [setId, version, itemId]));
+        return { evidence_id: evidenceId, item_id: itemId, correct: marked.correct,
+          correct_answer: revealed ? revealed.correct_answer : null, preparation_id: prep.id, exam_id: prep.exam_id };
       });
     },
     /**
@@ -874,9 +881,10 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
      * action and without a scheduler deciding when they have earned it. That is a plain fact about
      * their own record rather than a spaced-repetition claim.
      *
-     * IT DOES NOT RETURN THE CORRECT ANSWER, and it must not: `objective_key` is not readable by this
-     * role at all, and a mistakes list that revealed the key would hand over exactly what the practice
-     * loop withholds. What comes back is what the LEARNER answered, so they can try again.
+     * THE CORRECT ANSWER COMES BACK WITH THE LEARNER'S OWN (REDESIGN-01 A, Ron 4 October 2026). The
+     * key is still not readable by this role; `reveal_objective_answer` (0041) returns one item's answer
+     * only because this learner's answer to that item is already on record, so a mistakes list cannot
+     * reveal anything the practice loop has not already shown them.
      */
     async listMistakes(owner, { preparationId, limit = 50 } = {}) {
       note('listMistakes');
@@ -895,7 +903,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
               ORDER BY e.set_id, e.version, e.item_id, e.answered_at DESC, e.evidence_id DESC
            )
            SELECT l.set_id, l.version, l.item_id, l.family, l.section, l.answer, l.answered_at,
-                  s.title, s.item_count
+                  s.title, s.item_count, reveal_objective_answer(l.set_id, l.version, l.item_id) AS correct_answer
              FROM latest l
              JOIN objective_set s ON s.set_id = l.set_id AND s.version = l.version
              JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
@@ -915,8 +923,9 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             family: row.family,
             section: row.section,
             set_item_count: row.item_count,
-            // What the learner answered -- NOT what the key says.
             your_answer: row.answer,
+            // REDESIGN-01 A: revealed only because this learner's answer to the item is on record (0041).
+            correct_answer: row.correct_answer ?? null,
             answered_at: row.answered_at,
           })),
         };

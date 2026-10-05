@@ -217,8 +217,22 @@ function renderPreparation() {
   const prep = state.preparation;
   if (!prep) return;
   const label = prep.exam || state.exams.find(e => e.exam_id === prep.exam_id)?.exam || prep.exam_id;
+  /*
+   * REDESIGN-01 B — THE LARGE LEVEL MARK ON THE EXAM CARD.
+   *
+   * `level` is authored, not parsed: `exam_package.level` has carried it since migration 0009, and the
+   * server already returns it in the exams list. Reading the id for "b1" would have worked for exactly one
+   * exam package and broken the moment a second one arrives, which the multi-exam decision says it will.
+   * The badge is hidden rather than invented when the server supplies no level.
+   */
+  const level = state.exams.find(e => e.exam_id === prep.exam_id)?.level || null;
   bindShellText(el('sidebar-exam'), () => label);
   bindShellText(el('preparation-exam'), () => label);
+  const mark = el('preparation-level');
+  if (mark) {
+    mark.hidden = !level;
+    bindShellText(mark, () => level || '');
+  }
   bindShellText(el('preparation-scope'), () => prep.state === 'archived'
     ? uiText("m027")
     : uiText("m028"));
@@ -842,7 +856,7 @@ async function renderDashboard() {
   if (!currentContext(ticket)) return;
   if (!next || !progress) return; // a 401 already redirected
   const start = document.querySelector('.hero-next a');
-  if (start) { start.href = activePreparation() ? '#/ueben' : '#/fortschritt'; bindShellText(start, () => activePreparation() ? uiText("m008") : uiText("m101")); }
+  if (start) { start.href = activePreparation() ? '#/ueben' : '#/fortschritt'; bindShellText(start, () => activePreparation() ? uiText("m389") : uiText("m101")); }
 
   if (next.ok && next.data && next.data.set) {
     const d = next.data;
@@ -958,7 +972,16 @@ async function renderMistakes() {
   setShellHTML(box, '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>'
     + setLabelMarkup({ title: m.set_title, section: m.section, part: null })
     + '</strong><span class="sub">' + sectionMarkup(m.section) + ' &middot; ' + messageMarkup('version') + ' ' + esc(m.version) + ' &middot; ' + (/^g_/.test(m.item_id) ? messageMarkup("m124") : messageMarkup("m125") + " " + esc(m.item_id) + " " + messageMarkup("m094") + " " + m.set_item_count) + '</span></div>'
-    + "<span class=\"chip chip-orange\"><span data-i18n=\"shell.m126\">deine Antwort:</span> " + esc(JSON.stringify(m.your_answer)) + '</span></div>').join('') + '</div>');
+    + "<span class=\"chip chip-orange\"><span data-i18n=\"shell.m126\">deine Antwort:</span> " + esc(JSON.stringify(m.your_answer)) + '</span>'
+    /*
+     * REDESIGN-01 A/C: the server reveals the correct answer for an item this learner has already
+     * answered (migration 0041, `reveal_objective_answer`). The key table stays unreadable; this is the
+     * one item's answer, and only because this learner's own answer to it is on record. A row that
+     * predates the field, or a backend that does not supply it, renders exactly as before.
+     */
+    + (m.correct_answer === undefined || m.correct_answer === null ? ''
+      : "<span class=\"chip\"><span data-i18n=\"shell.m388\">richtige Antwort:</span> " + esc(JSON.stringify(m.correct_answer)) + '</span>')
+    + '</div>').join('') + '</div>');
 }
 
 
@@ -1087,9 +1110,14 @@ function renderObjectiveForm(set, host) {
          * button itself, with `.answer-option` (app.css) making it wrap inside the card instead of
          * widening the page. The letter (`o.id`) stays in the same text run, so scoring, `data-answer`
          * and the server key are untouched.
+         *
+         * REDESIGN-01 C: the tile carries its own state slots. `data-state` is set from the SERVER's
+         * `correct` for the one option the learner picked, and the letter badge plus the verdict glyph are a
+         * second, non-colour cue — colour alone is never the signal. The letter still opens the visible text
+         * of the option and `data-answer` still holds the bare id, so scoring is unchanged.
          */
-        + options.map((o) => '<button class="btn answer-option" ' + examTextAttributes() + ' type="button" data-answer="' + esc(o.id) + '">'
-          + esc(o.id) + ') ' + esc(o.label) + '</button>').join('')
+        + options.map((o) => '<button class="btn answer-option" ' + examTextAttributes() + ' type="button" data-answer="' + esc(o.id) + '"><span class="answer-letter" aria-hidden="true">' + esc(o.id) + ') </span>'
+          + '<span class="answer-label">' + esc(o.label) + '</span><span class="answer-verdict" aria-hidden="true"></span></button>').join('')
         + '</div><p class="small muted result"></p></section>';
     }).join(''));
 }
@@ -1106,7 +1134,6 @@ async function answerItem(set, card, itemId, answer) {
   const res = await api.practice.answer(set.set_id, { version: set.version, itemId, answer });
   if (!currentContext(ticket) || !card.isConnected || viewTicket !== explanationContext || answerRequests.get(card) !== request) return;
   if (!res) return;
-  const button = card.querySelector('[data-answer="' + answer + '"]');
   if (!res.ok) {
     bindShellText(out, () => res.status === 422 && res.error === 'unknown_item'
       ? uiText("m135")
@@ -1114,8 +1141,59 @@ async function answerItem(set, card, itemId, answer) {
     return;
   }
   const correct = res.data && res.data.correct === true;
-  if (button) button.setAttribute('aria-pressed', String(correct));
   bindShellText(out, () => correct ? uiText("m137") : uiText("m138"));
+  /*
+   * REDESIGN-01 C/D — the navigator counts only what the server accepted: this runs after `res.ok`, so a
+   * request that never answered increases nothing. The set id is checked so a response that arrives after
+   * the learner opened a DIFFERENT set cannot move the new set's counter. The summary appears on the last
+   * item and is guarded by `partSummaryRendered`, because answering the last item again must not stack a
+   * second summary under the first.
+   */
+  if (res.ok && setProgress.setId === set.set_id) {
+    setProgress.answered += 1;
+    if (correct) setProgress.correct += 1;
+    const box = card.closest('.skill-practice') || card.parentElement;
+    renderNavigator(box);
+    if (setProgress.answered >= setProgress.total) renderPartResult(box);
+  }
+  /*
+   * REDESIGN-01 C — THE TILE STATES, FROM THE SERVER'S ANSWER ONLY.
+   *
+   * Every state below comes from `res`: `data.correct` is the server's mark for the option the learner
+   * picked, and `data.correct_answer` is the option the key holds. The client guesses nothing and marks
+   * nothing on its own; before a response the tiles carry no `data-state` at all. The row gets
+   * `data-answered` so the stylesheet can dim the options that were not part of this answer without
+   * hiding any of them.
+   */
+  const revealed = res.data ? res.data.correct_answer : undefined;
+  const tiles = [...card.querySelectorAll('.answer-option')];
+  if (tiles.length) card.querySelector('.row')?.setAttribute('data-answered', 'true');
+  for (const tile of tiles) {
+    const id = tile.getAttribute('data-answer');
+    const isPicked = id === String(answer);
+    const isRight = revealed !== undefined && revealed !== null && id === String(revealed);
+    tile.setAttribute('aria-pressed', String(isPicked && correct));
+    if (isPicked && correct) tile.dataset.state = 'correct';
+    else if (isPicked) tile.dataset.state = 'wrong';
+    else if (isRight) tile.dataset.state = 'was-correct';
+  }
+  /*
+   * REDESIGN-01 A/C — THE VERDICT BOX SHOWS WHAT WAS RIGHT.
+   *
+   * "Noch nicht richtig" alone left the learner with the question and no answer, which is the one thing
+   * the practice loop could not tell them (the key is not readable by this role). The server now returns
+   * `correct_answer` for the item just answered, through `reveal_objective_answer` (migration 0041), so
+   * the verdict can say what the right option was. Absent field -> the old markup, exactly as before.
+   */
+  const revealedLine = revealed;
+  if (revealedLine !== undefined && revealedLine !== null) {
+    const line = document.createElement('p');
+    line.className = 'revealed-answer';
+    // One binding owns the whole line, so a locale change re-reads both the label and the value rather
+    // than leaving a stale label inside markup (bindShellText replaces the node's single text node).
+    bindShellText(line, () => uiText("m388") + ' ' + JSON.stringify(revealedLine));
+    out.after(line);
+  }
   if (res.data?.evidence_id) {
     const target = document.createElement('div'); target.dataset.objectiveExplanation = res.data.evidence_id; out.after(target);
     explanations.mount(target, { read: language => api.practice.explanation(res.data.evidence_id, language),
@@ -1131,6 +1209,32 @@ async function answerItem(set, card, itemId, answer) {
  */
 function practiceHost(box) {
   return box?.parentElement?.querySelector('.skill-practice') || null;
+}
+
+/*
+ * REDESIGN-01 C/D — THE RUN NAVIGATOR AND THE PART RESULT.
+ *
+ * One small state object per OPEN SET, cleared by `openSet`, so a set that is closed and reopened never
+ * inherits a count. It counts what the SERVER accepted: an answer whose response did not arrive is not
+ * counted, because the screen must not claim progress the record does not have. `partSummaryRendered`
+ * keeps the summary from being re-appended when a learner answers the last item twice.
+ */
+let setProgress = { setId: null, answered: 0, correct: 0, total: 0, partSummaryRendered: false };
+
+function renderNavigator(host) {
+  const line = host?.querySelector('#practice-progress');
+  if (!line) return;
+  bindShellText(line, () => uiText('m390', { answered: setProgress.answered, total: setProgress.total }));
+}
+
+function renderPartResult(host) {
+  const target = host?.querySelector('#practice-part-result');
+  if (!target || setProgress.partSummaryRendered) return;
+  setProgress.partSummaryRendered = true;
+  target.hidden = false;
+  setShellHTML(target, '<div class="card card-peach part-result"><p class="kicker">' + messageMarkup('m392') + '</p>'
+    + '<p class="part-result-count">' + messageMarkup('m391', { correct: setProgress.correct, total: setProgress.total }) + '</p>'
+    + '<a class="btn btn-primary" href="#/ueben">' + messageMarkup('m389') + '</a></div>');
 }
 
 /** Open one set of the skill currently on screen. */
@@ -1177,11 +1281,19 @@ async function openSet(setId, version) {
     showError(() => (uiText("m140")));
     return;
   }
+  /*
+   * REDESIGN-01 C/D — the run navigator lives in the set's own head, and the part result is a sibling of
+   * the items so it can be revealed without touching them.
+   */
+  setProgress = { setId: set.set_id, answered: 0, correct: 0, total: set.item_count, partSummaryRendered: false };
   setShellHTML(box, '<div class="card"><div class="card-head"><h3>' + setLabelMarkup(set)
     + '</h3><span class="chip">' + esc(set.family) + ' · ' + messageMarkup('version') + ' ' + esc(set.version) + '</span></div>'
+    + '<p class="small muted" id="practice-progress" role="status" aria-live="polite"></p>'
     + "<button class=\"btn\" type=\"button\" id=\"practice-close\"><span data-i18n=\"shell.m141\">Schließen</span></button></div>"
-    + '<div class="stack" id="practice-items"></div>');
+    + '<div class="stack" id="practice-items"></div>'
+    + '<div id="practice-part-result" hidden></div>');
   renderObjectiveForm(set, box.querySelector('#practice-items'));
+  renderNavigator(box);
   /*
    * ASSIGNMENT, not addEventListener. `box` is the same element for the whole life of the view, so an
    * added listener accumulated one per set opened: opening a second set made one answer POST twice,
@@ -1198,6 +1310,8 @@ async function openSet(setId, version) {
     box.hidden = true;
     setShellHTML(box, '');
     if (list) list.hidden = false;
+    // The run is over: a reopened set must start at zero rather than inherit this run's count.
+    setProgress = { setId: null, answered: 0, correct: 0, total: 0, partSummaryRendered: false };
   });
 }
 

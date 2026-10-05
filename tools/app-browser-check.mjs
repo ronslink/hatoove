@@ -423,6 +423,62 @@ async function main() {
     await shot(cdp, '02-landing-desktop-dark');
     await theme(cdp, 'light');
 
+    /*
+     * L1d/L1e — THE FRONT DOOR AT PHONE WIDTH, AND WHICH CROP IT SERVES.
+     *
+     * The approach artwork is one source in two crops: the wide one above the 900px breakpoint, the narrow
+     * one below. A `<picture>` that silently kept serving the wide crop on a phone would leave the smallest
+     * meaning-bearing text at about 11px, which is the failure Ron rejected as an illustration rather than a
+     * message — and NO desktop check can see it. So this leg asserts the SERVED asset (`currentSrc`) at each
+     * width, and that the narrow crop is the one whose file-level type is large enough to survive the slot.
+     */
+    const wideSrc = await cdp.evaluate("return document.querySelector('.approach-art img')?.currentSrc || '';");
+    await viewport(cdp, 1100, 900, false);
+    await nav(cdp, base);
+    const bandSrc = await cdp.evaluate("return document.querySelector('.approach-art img')?.currentSrc || '';");
+    await viewport(cdp, 390, 844, true);
+    await nav(cdp, base);
+    /*
+     * The artwork is `loading="lazy"` and sits below the fold on a phone, so measuring before it scrolls
+     * into view reads `currentSrc: ''` — a real browser behaviour, not a broken srcset. Scroll it in and
+     * wait for the load event before asserting which crop the phone was served.
+     */
+    await cdp.evaluate(`
+      return new Promise((resolve) => {
+        const img = document.querySelector('.approach-art img');
+        img.scrollIntoView({ block: 'center' });
+        if (img.complete && img.naturalWidth > 0) return resolve('already');
+        img.addEventListener('load', () => resolve('loaded'), { once: true });
+        img.addEventListener('error', () => resolve('error'), { once: true });
+        setTimeout(() => resolve('timeout'), 8000);
+      });
+    `);
+    const mobileArt = await cdp.evaluate(`
+      const img = document.querySelector('.approach-art img');
+      const shot = { src: img?.currentSrc || '', natural: img ? [img.naturalWidth, img.naturalHeight] : null,
+        loaded: img ? img.complete && img.naturalWidth > 0 : false };
+      const slot = img ? Math.round(img.getBoundingClientRect().width) : 0;
+      const page = { scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth };
+      return { ...shot, slot, page };
+    `);
+    await shot(cdp, '38-landing-mobile-light');
+    await theme(cdp, 'dark');
+    await shot(cdp, '39-landing-mobile-dark');
+    await theme(cdp, 'light');
+    await viewport(cdp, 1440, 900, false);
+    await nav(cdp, base);
+    record('L1d the phone gets the NARROW crop of the artwork, and the desktop the wide one',
+      wideSrc.includes('landing-item.svg') && !wideSrc.includes('narrow')
+        && mobileArt.src.includes('landing-item-narrow.svg') && mobileArt.loaded,
+      `desktop ${(wideSrc.split('/').pop() || 'none')}; 390px ${(mobileArt.src.split('/').pop() || 'none')}`
+        + ` natural ${JSON.stringify(mobileArt.natural)} loaded=${mobileArt.loaded}`);
+    record('L1d2 the 1100px band ALSO gets the narrow crop, where the wide one would be too small',
+      bandSrc.includes('landing-item-narrow.svg'),
+      `1100px ${(bandSrc.split('/').pop() || 'none')} — the wide crop needs ~1190px to reach its small-text floor`);
+    record('L1e the phone front door has no horizontal overflow',
+      mobileArt.page.scrollWidth <= mobileArt.page.innerWidth + 1,
+      `slot ${mobileArt.slot}px; scrollWidth ${mobileArt.page.scrollWidth} of ${mobileArt.page.innerWidth}`);
+
     // L3 — THE FRONT DOOR MUST HAVE A DOOR. Is there any way from the landing page into the product?
     const doorways = await cdp.evaluate(`
       const links = [...document.querySelectorAll('a[href], button')].map((el) => ({
@@ -766,9 +822,16 @@ async function main() {
     record('L18 Fehler shows exactly what the server recorded, and its badge agrees',
       fehler.badgeHidden === (apiCount === 0) && fehler.rows === apiCount,
       `screen badge=${fehler.badgeHidden ? 'hidden' : fehler.badge} rows=${fehler.rows}; API count=${apiCount}; "${fehler.note}"`);
-    record('L19 a missed item is listed with the LEARNER\'s answer and no correct answer',
-      apiCount === 0 || (fehler.first.length > 0 && !/richtig:/i.test(fehler.first)),
-      fehler.first || 'no mistakes recorded yet');
+    record('L19 a missed item is listed with the LEARNER\'s answer AND the correct one', (() => {
+      const expected = apiMistakes.body?.items?.[0]?.correct_answer;
+      // REDESIGN-01 A/C: the row must carry the learner's own answer, and the correct answer exactly when
+      // the server supplies one (migration 0041 reveals it only for an item this learner has answered).
+      const hasOwn = fehler.first.length > 0;
+      const shown = expected === undefined || expected === null
+        ? true
+        : fehler.first.includes(JSON.stringify(expected));
+      return apiCount === 0 || (hasOwn && shown);
+    })(), `${fehler.first || 'no mistakes recorded yet'} | API correct_answer=${JSON.stringify(apiMistakes.body?.items?.[0]?.correct_answer)}`);
     // The design puts the border and radius on `.list`; bare `.list-item` rows render as detached boxes.
     record('L19b the mistake rows sit inside the design\'s list wrapper',
       apiCount === 0 || fehler.listWrapper === true,

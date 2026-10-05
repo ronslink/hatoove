@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hatoove landing-page graphic — NARROW / mobile variant (REDESIGN-01 G2, revision 3).
+  Derived from landing-graphic.svg (960x640): same single question, same two options, same
+  explanation, drawn at a larger type-to-canvas ratio with the provenance chip and the long
+  explanation head dropped. Same 3:2 canvas ratio, so it can swap with the wide file inside one
+  <picture> without a layout shift.
+
+  Canvas 720x480 (3:2, same ratio as the wide 960x640). Type is 25 % larger relative to the canvas
+  width than the wide variant's, so at a slot width S the on-screen size is (S / 720) x file px:
+  the smallest meaning-bearing style is 36 px -> 18.0 px at a 360 px slot, 16.4 px at a 328 px slot
+  (a 360 px viewport renders the slot at 328 px), 19.4 px at a 388 px slot, 25 px at a 500 px slot.
+
+  FONTS: this artwork carries the same @font-face layer as the wide variant, but a browser will NOT
+  load external fonts for an SVG used as <img> (SVG secure static mode) - see the proposal, rev 3
+  section 15. Every string below is therefore sized to fit inside its container in BOTH the intended
+  faces and the system-UI fallback (system-ui/sans-serif is 5-11 % wider for these strings). That is
+  why the two option tiles are labelled FALSCH / RICHTIG: "DEINE ANTWORT" is 321 px in the fallback
+  and does not fit a 300 px tile.
+
+  Colour values are the real tokens from design/assets/hatoove.css (:root, light theme); the font
+  layer mirrors public/assets/design/fonts-coverage.css. No colour pair is introduced here that the
+  wide variant does not already use. When this file lands in public/assets/, rewrite the five
+  @font-face URLs to /assets/design/fonts/ (the design/ and public/ paths below are for this
+  candidate location only).
+
+  Deterministic hand-authored SVG. No photographic, stock or AI-generated imagery. Content is
+  Hatoove's own published sample item (public/site.js bank.grammar[0],
+  public/assets/i18n/public-messages.js grammar0Explanation[uk]). No scores, no readiness, no pass
+  prediction, no streaks. Labelled a Hatoove practice item in the alt text and in <desc>; the
+  compact canvas has no room for the wide variant's provenance chip.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 480" width="720" height="480"
+     role="img" aria-labelledby="narrow-title narrow-desc" preserveAspectRatio="xMidYMid meet">
+<title id="narrow-title">Übungsaufgabe Sprachbausteine (eigenes Hatoove-Übungsbeispiel, keine offizielle telc-Aufgabe): Im Satz „Das ist der Kollege, mit ___ ich das Projekt vorbereite“ ist die richtige Antwort B „dem“ grün markiert, die gewählte Antwort A „den“ rot und mit FALSCH gekennzeichnet. Darunter steht die Erklärung auf Ukrainisch: „Mit“ verlangt den Dativ.</title>
+<desc id="narrow-desc">Hatoove practice item, German exam-language task with the answer explanation in the learner's interface language (Ukrainian). Compact variant for narrow viewports.</desc>
+<style>
+  @font-face{font-family:"Source Sans";src:url("/assets/design/fonts/source-sans-3.woff2") format("woff2");font-weight:200 900;font-display:swap}
+  @font-face{font-family:"Bricolage Grotesque";src:url("/assets/design/fonts/bricolage-grotesque.woff2") format("woff2");font-weight:200 800;font-display:swap}
+  /* script-coverage faces: mirror of public/assets/design/fonts-coverage.css (Source Sans and
+     Bricolage are Latin-1 subsets with no Cyrillic and no Arabic, so uk/ar text needs the Noto faces) */
+  @font-face{font-family:"Noto Sans";src:url("/assets/design/fonts/noto-sans-latin-ext.woff2") format("woff2");font-weight:200 900;font-display:swap;unicode-range:U+20-7E,U+A0-24F,U+259,U+2BB-2BC,U+2C6,U+2DA-2DC,U+304,U+308,U+329,U+1E00-1EFF,U+2018-2019,U+201C-201D,U+2020-2026,U+2030,U+2039-203A,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD}
+  @font-face{font-family:"Noto Sans";src:url("/assets/design/fonts/noto-sans-cyrillic.woff2") format("woff2");font-weight:200 900;font-display:swap;unicode-range:U+301,U+400-52F,U+1C80-1C88,U+2018-2019,U+201C-201D,U+2020-2026,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}
+  @font-face{font-family:"Noto Sans Arabic";src:url("/assets/design/fonts/noto-sans-arabic.woff2") format("woff2");font-weight:200 900;font-display:swap;unicode-range:U+600-6FF,U+750-77F,U+870-891,U+898-8FF,U+200C-2011,U+204F,U+2E41,U+FB50-FBC2,U+FBD3-FD8F,U+FD92-FDC7,U+FDCF,U+FDF0-FDFF,U+FE70-FEFC}
+  /* tokens: design/assets/hatoove.css :root (light), stacks extended by fonts-coverage.css */
+  :root{
+    --orange:#ff6b2b; --orange-dark:#bd3c0a; --orange-ink:#23160f;
+    --peach:#fff0e7; --peach-line:#f3dccd;
+    --ink:#242320; --ink-2:#414039; --muted:#62615c; --faint:#8a8984;
+    --line:#e8e7e3; --paper:#fff; --canvas:#faf9f6; --card:#fff;
+    --green:#225b44; --green-bg:#e8f2ec; --red:#a3271b; --red-bg:#fdecea;
+    --display:"Bricolage Grotesque","Noto Sans",system-ui,sans-serif;
+    --font:"Source Sans","Noto Sans",system-ui,sans-serif;
+  }
+  text{font-family:var(--font);fill:var(--ink)}
+  [lang=uk]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
+  [lang=tr]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
+  [lang=ar]{font-family:"Noto Sans Arabic","Segoe UI","Geeza Pro",system-ui,sans-serif}
+  .label{font-weight:750;font-size:36px;letter-spacing:.12em;fill:var(--orange-dark)}   /* .kicker */
+  .task{font-size:42px;fill:var(--ink)}                                                 /* .text-block */
+  .opt{font-size:44px;font-weight:700;fill:var(--ink)}                                  /* .option */
+  .badge{font-family:var(--display);font-weight:700;font-size:36px;fill:var(--paper);text-anchor:middle}
+  .mark{font-size:36px;font-weight:750;letter-spacing:.06em}                            /* .chip-* label */
+  .ex-head{font-weight:750;font-size:36px;letter-spacing:.1em;fill:var(--orange-dark)}
+  .ex-body{font-size:36px;fill:var(--ink)}                                              /* .explain-body */
+</style>
+<defs>
+  <filter id="narrow-card-shadow" x="-6%" y="-8%" width="112%" height="124%">
+    <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#6c3310" flood-opacity="0.051"/>
+    <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#242320" flood-opacity="0.039"/>
+  </filter>
+</defs>
+
+<!-- stage backdrop: token peach, full bleed (container clips the corners) -->
+<rect x="0" y="0" width="720" height="480" fill="var(--peach)"/>
+
+<!-- practice card: tokens card, line, r-xl(20), shadow -->
+<rect id="narrow-card" x="24" y="14" width="672" height="452" rx="20" fill="var(--card)" stroke="var(--line)" filter="url(#narrow-card-shadow)"/>
+
+<!-- exam context (the wide variant's provenance chip is dropped here; the alt text and the page's
+     own .sample-note carry "keine offizielle telc-Aufgabe") -->
+<text id="n-kicker" class="label" x="52" y="62">TELC DEUTSCH B1</text>
+
+<!-- the task: one German sentence, the gap drawn as the .gap orange bottom rule before line 2 -->
+<text id="n-task1" class="task" lang="de" dir="ltr" x="52" y="122">Das ist der Kollege, mit</text>
+<rect id="n-gap" x="52" y="185" width="72" height="3" fill="var(--orange)"/>
+<text id="n-task2" class="task" lang="de" dir="ltr" x="138" y="178">ich das Projekt vorbereite.</text>
+
+<!-- option A: the learner's pick, .option.wrong (token red on red-bg) -->
+<rect id="n-tileA" x="52" y="206" width="300" height="102" rx="14" fill="var(--red-bg)" stroke="var(--red)" stroke-width="2"/>
+<rect x="68" y="222" width="44" height="44" rx="11" fill="var(--red)"/>
+<text id="n-badgeA" class="badge" x="90" y="257">A</text>
+<text id="n-optA" class="opt" lang="de" dir="ltr" x="128" y="257">den</text>
+<g id="n-cross" stroke="var(--red)" stroke-width="3" stroke-linecap="round" transform="translate(240,232)">
+  <line x1="0" y1="0" x2="15" y2="15"/><line x1="15" y1="0" x2="0" y2="15"/>
+</g>
+<text id="n-markA" class="mark" x="68" y="296" fill="var(--red)">FALSCH</text>
+
+<!-- option B: the right answer, .option.correct (token green on green-bg) -->
+<rect id="n-tileB" x="368" y="206" width="300" height="102" rx="14" fill="var(--green-bg)" stroke="var(--green)" stroke-width="2"/>
+<rect x="384" y="222" width="44" height="44" rx="11" fill="var(--green)"/>
+<text id="n-badgeB" class="badge" x="406" y="257">B</text>
+<text id="n-optB" class="opt" lang="de" dir="ltr" x="444" y="257">dem</text>
+<path id="n-check" d="M0 5 L4.5 9.5 L13.5 1" transform="translate(553,234)" fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<text id="n-markB" class="mark" x="384" y="296" fill="var(--green)">RICHTIG</text>
+
+<!-- explanation: learner-language island on token peach, chrome stays German -->
+<rect id="n-panel" x="52" y="324" width="616" height="128" rx="14" fill="var(--peach)" stroke="var(--peach-line)"/>
+<text id="n-exhead" class="ex-head" x="72" y="360">ERKLÄRUNG · UKRAINISCH</text>
+<line x1="72" y1="372" x2="648" y2="372" stroke="var(--peach-line)" stroke-width="1"/>
+<text id="n-exl1" class="ex-body" lang="uk" x="72" y="400">«Mit» вимагає</text>
+<text id="n-exl2" class="ex-body" lang="uk" x="72" y="438">давального відмінка.</text>
+</svg>

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hatoove landing-page graphic candidate (REDESIGN-01 G1, revision 2) — replaces public/assets/orange-path-*.
+  Deterministic hand-authored SVG. No photographic, stock or AI-generated imagery: every shape is a
+  primitive. Content is Hatoove's own published sample item (public/site.js bank.grammar[0],
+  public/assets/i18n/public-messages.js grammar0Explanation[uk]) and is labelled as a Hatoove practice
+  item, not an official telc task. No scores, no readiness, no pass prediction, no streaks.
+
+  ONE source of truth, two renders:
+    in-page  : viewBox="0 0 960 640"   (3:2, the .approach-art slot)
+    social   : viewBox="0 48 960 504"  (1.9048:1 -> exactly 1200x630)
+
+  Type scale is chosen for the rendered size: the .approach-art column is ~520-640 CSS px wide, so
+  960 file px map to ~550-630 CSS px. The smallest meaning-bearing style is 30 px in the file, which is
+  17.2 CSS px at a 550 px slot and 19.7 CSS px at 630 px. Nothing meaning-bearing is smaller.
+
+  Colour values are the real tokens from design/assets/hatoove.css (:root, light theme); the font layer
+  mirrors public/assets/design/fonts-coverage.css. When this file lands in public/assets/, rewrite the
+  five @font-face URLs to /assets/design/fonts/ (the design/ and public/ paths below are for this
+  candidate location only).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640"
+     role="img" aria-labelledby="graphic-title graphic-desc" preserveAspectRatio="xMidYMid meet">
+<title id="graphic-title">Übungsaufgabe Sprachbausteine: Im Satz „Das ist der Kollege, mit ___ ich das Projekt vorbereite“ ist die richtige Antwort B „dem“ grün markiert, die gewählte Antwort A „den“ rot. Daneben steht die Erklärung auf Ukrainisch: „Mit“ verlangt den Dativ.</title>
+<desc id="graphic-desc">Hatoove practice item, German exam-language task with the answer explanation in the learner's interface language (Ukrainian).</desc>
+<style>
+  @font-face{font-family:"Source Sans";src:url("/assets/design/fonts/source-sans-3.woff2") format("woff2");font-weight:200 900;font-display:swap}
+  @font-face{font-family:"Bricolage Grotesque";src:url("/assets/design/fonts/bricolage-grotesque.woff2") format("woff2");font-weight:200 800;font-display:swap}
+  /* script-coverage faces: mirror of public/assets/design/fonts-coverage.css (Source Sans and
+     Bricolage are Latin-1 subsets with no Cyrillic and no Arabic, so uk/ar text needs the Noto faces) */
+  @font-face{font-family:"Noto Sans";src:url("/assets/design/fonts/noto-sans-latin-ext.woff2") format("woff2");font-weight:200 900;font-display:swap;unicode-range:U+20-7E,U+A0-24F,U+259,U+2BB-2BC,U+2C6,U+2DA-2DC,U+304,U+308,U+329,U+1E00-1EFF,U+2018-2019,U+201C-201D,U+2020-2026,U+2030,U+2039-203A,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD}
+  @font-face{font-family:"Noto Sans";src:url("/assets/design/fonts/noto-sans-cyrillic.woff2") format("woff2");font-weight:200 900;font-display:swap;unicode-range:U+301,U+400-52F,U+1C80-1C88,U+2018-2019,U+201C-201D,U+2020-2026,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}
+  @font-face{font-family:"Noto Sans Arabic";src:url("/assets/design/fonts/noto-sans-arabic.woff2") format("woff2");font-weight:200 900;font-display:swap;unicode-range:U+600-6FF,U+750-77F,U+870-891,U+898-8FF,U+200C-2011,U+204F,U+2E41,U+FB50-FBC2,U+FBD3-FD8F,U+FD92-FDC7,U+FDCF,U+FDF0-FDFF,U+FE70-FEFC}
+  /* tokens: design/assets/hatoove.css :root (light), stacks extended by fonts-coverage.css */
+  :root{
+    --orange:#ff6b2b; --orange-dark:#bd3c0a; --orange-ink:#23160f;
+    --peach:#fff0e7; --peach-line:#f3dccd;
+    --ink:#242320; --ink-2:#414039; --muted:#62615c; --faint:#8a8984;
+    --line:#e8e7e3; --paper:#fff; --canvas:#faf9f6; --card:#fff;
+    --green:#225b44; --green-bg:#e8f2ec; --red:#a3271b; --red-bg:#fdecea;
+    --display:"Bricolage Grotesque","Noto Sans",system-ui,sans-serif;
+    --font:"Source Sans","Noto Sans",system-ui,sans-serif;
+  }
+  text{font-family:var(--font);fill:var(--ink)}
+  [lang=uk]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
+  [lang=tr]{font-family:"Source Sans","Noto Sans",system-ui,sans-serif}
+  [lang=ar]{font-family:"Noto Sans Arabic","Segoe UI","Geeza Pro",system-ui,sans-serif}
+  .label{font-weight:750;font-size:30px;letter-spacing:.12em;fill:var(--orange-dark)}   /* .kicker */
+  .chips{font-weight:750;font-size:30px;letter-spacing:.1em;fill:var(--muted);text-anchor:start}
+  .task{font-size:40px;fill:var(--ink)}                                                 /* .text-block */
+  .opt{font-size:38px;font-weight:700;fill:var(--ink)}                                  /* .option */
+  .badge{font-family:var(--display);font-weight:700;font-size:26px;fill:var(--paper);text-anchor:middle}
+  .mark{font-size:30px;font-weight:750;letter-spacing:.06em}                            /* .chip-* label */
+  .ex-head{font-weight:750;font-size:30px;letter-spacing:.1em;fill:var(--orange-dark)}
+  .ex-body{font-size:36px;fill:var(--ink)}                                              /* .explain-body */
+</style>
+<defs>
+  <filter id="card-shadow" x="-6%" y="-8%" width="112%" height="124%">
+    <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#6c3310" flood-opacity="0.051"/>
+    <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#242320" flood-opacity="0.039"/>
+  </filter>
+</defs>
+
+<!-- stage backdrop: token peach, full bleed (container clips the corners) -->
+<rect x="0" y="0" width="960" height="640" fill="var(--peach)"/>
+
+<!-- practice card: tokens card, line, r-xl(24), shadow -->
+<rect x="60" y="68" width="840" height="506" rx="24" fill="var(--card)" stroke="var(--line)" filter="url(#card-shadow)"/>
+
+<!-- exam context + provenance chip (both inside the social crop) -->
+<text class="label" x="96" y="112">TELC DEUTSCH B1</text>
+<rect x="436" y="84" width="428" height="40" rx="20" fill="var(--canvas)" stroke="var(--line)"/>
+<text class="chips" x="456" y="113">EIGENES BEISPIEL</text>
+
+<!-- the task: one German sentence with the gap marked as .gap (orange bottom rule, no fill) -->
+<text class="task" lang="de" dir="ltr" x="96" y="180">Das ist der Kollege, mit</text>
+<rect x="96" y="235" width="96" height="3" fill="var(--orange)"/>
+<text class="task" lang="de" dir="ltr" x="204" y="228">ich das Projekt vorbereite.</text>
+
+<!-- option A: the learner's pick, .option.wrong (token red on red-bg) -->
+<rect x="96" y="276" width="376" height="104" rx="16" fill="var(--red-bg)" stroke="var(--red)" stroke-width="2"/>
+<rect x="116" y="290" width="48" height="48" rx="12" fill="var(--red)"/>
+<text class="badge" x="140" y="321">A</text>
+<text class="opt" lang="de" dir="ltr" x="184" y="324">den</text>
+<g stroke="var(--red)" stroke-width="4" stroke-linecap="round" transform="translate(256,306)">
+  <line x1="0" y1="0" x2="20" y2="20"/><line x1="20" y1="0" x2="0" y2="20"/>
+</g>
+<text class="mark" x="116" y="358" fill="var(--red)">DEINE ANTWORT</text>
+
+<!-- option B: the right answer, .option.correct (token green on green-bg) -->
+<rect x="488" y="276" width="376" height="104" rx="16" fill="var(--green-bg)" stroke="var(--green)" stroke-width="2"/>
+<rect x="508" y="290" width="48" height="48" rx="12" fill="var(--green)"/>
+<text class="badge" x="532" y="321">B</text>
+<text class="opt" lang="de" dir="ltr" x="576" y="324">dem</text>
+<path d="M0 7 L6 13 L18 1" transform="translate(672,308)" fill="none" stroke="var(--green)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="mark" x="508" y="358" fill="var(--green)">RICHTIG</text>
+
+<!-- explanation: learner-language island on token peach, chrome stays German -->
+<rect x="96" y="404" width="768" height="134" rx="18" fill="var(--peach)" stroke="var(--peach-line)"/>
+<text class="ex-head" x="126" y="438">ERKLÄRUNG · AUF UKRAINISCH</text>
+<line x1="126" y1="454" x2="834" y2="454" stroke="var(--peach-line)" stroke-width="1"/>
+<text class="ex-body" lang="uk" x="126" y="500">«Mit» вимагає давального відмінка.</text>
+
+<!-- closing brand accent below the card (outside the social crop) -->
+<rect x="60" y="610" width="840" height="6" rx="3" fill="var(--orange)"/>
+</svg>
