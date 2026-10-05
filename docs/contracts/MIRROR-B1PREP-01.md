@@ -311,6 +311,17 @@ production and its checksum is frozen.
   element lives in the Schreiben view, and the preparation card names where it went.
   Two scope notes: `public/app/mock.js` entered slice A's scope at review time (three link targets), and the
   §4.2 module context table is unchanged by this amendment.
+- **A5 (5 Oct 2026, slice D review).** Two readings are recorded after REVIEW-MOCK-01:
+  (a) The Probeprüfung history lists **all** saved runs, finished and still open, not only finalised ones —
+  the interim renderer it replaces already listed them unfiltered, and the run list is the only surface
+  from which a resumable run is reachable.
+  (b) The D22 wording gate is a curated word list, and the reviewer proved a plain prediction
+  ("Sie werden die Prüfung sicher bestehen.") passes it. The rule paragraph is therefore treated as
+  authoring-reviewed copy, not as machine-guarded, and the follow-up is to extend the gate with phrase
+  forms (`werden … bestehen`, `schaffen Sie`, `Bestanden?`, `voraussichtlich`) and to route the paragraph
+  through the same native review as the other interface copy. No prediction ships today.
+  A3 is now honoured in code: the shell passes `examLanguage` to every module (REVIEW-MOCK-01 D1 found it
+  missing, which had rendered exam-language islands as `lang="und"`).
 - `PRACTICE-FLOW-FROM-B1PREP-20261005.md` was not found in this repository or in
   `D:\B1_Prep\Claude outputs`; §3 of that document is superseded by §5 here.
 - Push/PR policy for this program: slices are committed to their own local branches and integrated
@@ -320,4 +331,4 @@ production and its checksum is frozen.
   string is marked approved.
 - POOL-01 batch generation needs Ron's go-ahead.
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1, A2, A3 and A4 added 5 October 2026.*
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A5 added 5 October 2026.*
