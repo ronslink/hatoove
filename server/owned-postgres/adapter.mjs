@@ -371,7 +371,10 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
      * method is the only place the hearing parts' item counts and playback rule are served.
      *
      * NO POINTS: the packaged blueprint carries none (contract amendment A6 keeps per-part points as a cited
-     * client constant until a blueprint revision carries them), so this response has no `points` member.
+     * client constant until a blueprint revision carries them). The assembler therefore emits `points: null`
+     * and `part: null` rather than omitting the members, and the client keeps the cited value wherever the
+     * served one is null (REVIEW-PRACTICE-UI-01 F1). Null here means "the blueprint cannot answer this", not
+     * "zero" — do not read it as a number.
      */
     async listExamParts(owner, { examId } = {}) {
       note('listExamParts');
