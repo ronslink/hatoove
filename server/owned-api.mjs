@@ -53,6 +53,8 @@ import {
 } from './preparation-contract.mjs';
 import { MOCK_METHODS, validateWritingChoice, validateStartMockRun, validateSaveMockRun, validateFinaliseMockRun } from './mock-contract.mjs';
 import { mediaResponse, validatePlaybackEvent } from './media-route.mjs';
+// LIBRARY-I18N-01 (F2): the one list of interface languages a guide translation may be asked for.
+import { INTERFACE_LOCALES } from './library-translations.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
@@ -1055,12 +1057,31 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const guideMatch = GUIDE_RE.exec(pathname);
       if (guideMatch && method === 'GET') {
         if (!catalogueWired) fault(503, 'catalogue_unavailable');
+        /*
+         * LIBRARY-I18N-01 (F2) — `?locale=<l>` adds an OPTIONAL `translations` member.
+         *
+         * ADDITIVE ONLY, and that word is load-bearing: the member is attached only when a locale was
+         * asked for, so every consumer that does not send `locale` receives byte-for-byte the response
+         * it received before this slice. `de` and `en` are accepted and answer `null`, because they are
+         * interface languages with no bundle of their own and the client can then send its selected
+         * language unconditionally instead of special-casing the source languages.
+         *
+         * A datastore without the port (the in-memory fakes in the checks) answers `null` rather than
+         * 503: a translation is an enrichment of a guide that is still perfectly readable in German,
+         * which is the opposite of a catalogue that is not wired at all.
+         */
+        const locale = query.get('locale');
+        if (locale !== null && !INTERFACE_LOCALES.includes(locale)) fault(422, 'invalid_locale');
         const serveReview = deploymentReview();
         const guide = await datastore.readGuide(owner, { guideId: guideMatch[1], serveReview });
         // A guide that does not exist and a guide the deployment will not serve are BOTH 404, so the
         // endpoint is not an oracle for what exists but is withheld.
         if (!contentIsServable(guide)) fault(404, 'not_found');
-        return reply(200, guide);
+        if (locale === null) return reply(200, guide);
+        const translations = typeof datastore.readGuideTranslations === 'function'
+          ? await datastore.readGuideTranslations(owner, { guideId: guideMatch[1], locale })
+          : null;
+        return reply(200, { ...guide, translations });
       }
     }
     {
