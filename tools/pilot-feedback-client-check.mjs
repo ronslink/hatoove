@@ -141,8 +141,19 @@ check('9. the sheet is installed only after a successful boot, and cannot break 
    * take the app down. An earlier version guarded only the `import`, which is why this leg checks the body.
    */
   const body = appCode.slice(fnAt, appCode.indexOf('\n}', fnAt));
-  assert.ok(/try \{/.test(body) && /catch/.test(body), 'the install body must be wrapped, or a feature failure takes boot down with it');
-  assert.ok(/await import\('\.\/feedback\.js'\)/.test(body), 'the module must be imported lazily');
+  /*
+   * THE ASSERTION THAT WOULD HAVE CAUGHT THE LOST FIX. The previous version only required SOME `try {` and
+   * `catch` in the body — and the OLD shape, which guarded the `import` alone, satisfied that. Worse, when the
+   * fix was lost to a `git checkout` during a mutation proof, this leg still passed and the loss went unnoticed
+   * until an independent reviewer read the file.
+   *
+   * The flag reset exists ONLY in the fixed version: a body-wide guard can recover from a later attempt, and a
+   * guard around the import alone has nothing to reset. It is a property of the code, not of the prose beside it.
+   */
+  assert.ok(/catch \(err\) \{\s*feedbackInstalled = false;\s*\}/.test(body),
+    'the install body must be guarded as a WHOLE and reset the flag on failure — a guard around the import alone is the shape that shipped by mistake once');
+  assert.ok(/const module = await import\('\.\/feedback\.js'\);/.test(body),
+    'the module must be imported lazily');
 });
 
 check('10. the stylesheet stays RTL-safe', () => {
