@@ -32,6 +32,8 @@ import { preparationMethods, requireActivePreparation, resolvePreparation } from
 import { mockRunMethods, lockMockOwner, requireMockGroup } from './mock-runs.mjs';
 import { playbackMethods } from './playback.mjs';
 import { practicePlaybackMethods } from './practice-playback.mjs';
+/* DRILL-01 (slice H): the drill's own port, composed the way task-17 composed its playback twin. */
+import { drillMethods } from '../drill-pg.mjs';
 import { importedSetGate, objectiveInteractionSql, releasedObjectiveFamily, readWritingTask, writingAccess, readReleasedForm, readWritingOrigin } from './packages.mjs';
 import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
 import { extractWritingExplanationSource, unavailableExplanationView } from '../explanation-contract.mjs';
@@ -267,6 +269,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     ...playbackMethods({ settle, note, catalogue: examCatalogue, mediaRoot }),
     // PRACTICE-MEDIA (task-17): the same accounting model bound to a practice sitting instead of a mock run.
     ...practicePlaybackMethods({ settle, note, catalogue: examCatalogue, mediaRoot }),
+    // DRILL-01 (slice H): the Einzelübungen port — `drillNext` and `drillCheckItem`. Additive.
+    ...drillMethods({ settle, note, catalogue: examCatalogue }),
     /**
      * PILOT-04 — the servable task catalogue.
      *
@@ -879,12 +883,20 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         await lockMockOwner(client, owner);
         const prep = await requireActivePreparation(client, owner, preparationId);
         const attempt = first(await client.query(
-          `SELECT attempt_id, exam_id, preparation_id, set_id, version, family, section, item_count, state
+          `SELECT attempt_id, exam_id, preparation_id, set_id, version, family, section, item_count, state, mode
              FROM practice_attempt
             WHERE attempt_id = $1 AND owner_id = $2`, [attemptId, owner]));
         if (!attempt) fail(404, 'not_found');
         if (attempt.preparation_id !== prep.id) fail(422, 'preparation_mismatch');
         if (attempt.state === 'checked') fail(409, 'attempt_already_checked');
+        /*
+         * DRILL-01 (slice H): a DRILL sitting carries `mode='drill'` (migration 0046) and must never be
+         * filled by this whole-set path. The drill answers ONE item at a time into its own row; letting the
+         * runner mark all n items into it would append a second evidence row per item already answered and
+         * rewrite `answered_count`/`correct_count` from the wrong baseline. The reverse direction is refused
+         * by `drillCheckItem` (`not_a_drill_sitting`), so neither path can adopt the other's sitting.
+         */
+        if (attempt.mode === 'drill') fail(409, 'not_a_part_sitting');
         const set = first(await client.query(
           `SELECT s.exam_id, s.family, s.section, s.media_required
              FROM objective_set s
