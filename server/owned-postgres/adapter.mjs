@@ -1770,6 +1770,10 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
   ['entitlements', 'DELETE FROM entitlements WHERE owner_id = $1'],
   ['learner_settings', 'DELETE FROM learner_settings WHERE user_id = $1'],
   ['session', 'DELETE FROM session WHERE "userId" = $1'],
+  // PILOT-FEEDBACK-01 (0049, FB-A): the screenshot references its report, so it is deleted first; both
+  // reference "user", so both precede it — the same ordering reason item_evidence precedes preparations above.
+  ['pilot_feedback_screenshot', 'DELETE FROM pilot_feedback_screenshot WHERE owner_id = $1'],
+  ['pilot_feedback', 'DELETE FROM pilot_feedback WHERE owner_id = $1'],
   ['user', 'DELETE FROM "user" WHERE id = $1'],
 ].map((step) => Object.freeze(step)));
 
@@ -1800,6 +1804,9 @@ export const ACCOUNT_TABLES = Object.freeze([
   ['listening_playback', 'owner_id = $1', 'owner'], ['listening_playback_event', 'owner_id = $1', 'owner'],
   ['mock_run_time_group', 'owner_id = $1', 'owner'],
   ['learner_preparation', 'owner_id = $1', 'owner'],
+  // PILOT-FEEDBACK-01 (0049, FB-A): the learner's own reports, and at most one screenshot each.
+  ['pilot_feedback', 'owner_id = $1', 'owner'],
+  ['pilot_feedback_screenshot', 'owner_id = $1', 'owner'],
   ['"user"', 'id = $1', 'owner'],
 ].map((entry) => Object.freeze(entry)));
 
