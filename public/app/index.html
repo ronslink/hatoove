@@ -39,12 +39,13 @@
       <!--
         THE SIDEBAR IS A DARK SURFACE NOW (REDESIGN-01 B), SO THE LOGO IS THE WHITE VARIANT, ALWAYS.
 
-        The pinned ink logo is #241a14; on the sidebar's #242320 surface that is a contrast ratio of 1.05:1
-        — measured on the rendered screenshot, where the wordmark was simply not there. The white variant is
-        #ffffff, 15.6:1 on the same surface. `hatoove-logo-white.svg` is the curated dark-surface asset, so
-        no filter, no new file and no change to the pinned stylesheet is needed. The `prefers-color-scheme`
-        swap this used to carry is gone: it chose by the DEVICE's theme, and the page follows `data-theme`,
-        so a light page on a dark device showed the white logo on a white sidebar.
+        The sidebar surface is the derived navy `--nav-bg` (#1e2a3a light, #141d29 dark). The pinned ink logo
+        is #241a14, which on those surfaces is 1.13:1 and 1.01:1 — measured, and the rendered screenshot
+        showed the wordmark simply not there. The white variant is 14.51:1 and 15.95:1. `hatoove-logo-white.svg`
+        is the curated dark-surface asset, so no filter, no new file and no change to the pinned stylesheet is
+        needed. The `prefers-color-scheme` swap this used to carry is gone: it chose by the DEVICE's theme,
+        and the page follows `data-theme`, so a light page on a dark device showed the white logo on a white
+        sidebar.
       -->
       <img src="/assets/design/hatoove-logo-white.svg" alt="Hatoove">
     </a>
@@ -114,7 +115,7 @@
 
     <main class="content" id="main">
       <section class="card preparation-context" aria-label="Deine Prüfungsvorbereitung" data-i18n-aria-label="shell.m384">
-        <div class="spread preparation-heading"><div><p class="kicker"><span data-i18n="shell.m309">Deine Vorbereitung</span></p><strong id="preparation-exam"><span data-i18n="shell.m302">Prüfung wird geladen</span></strong><p class="small muted" id="preparation-scope"><span data-i18n="shell.m310">Einzelne Abschnitte üben</span></p></div><div class="row"><a class="btn btn-primary" id="preparation-start" href="#/ueben"><span data-i18n="shell.m311">Abschnitt üben</span></a><a class="btn" id="preparation-continue" href="#/fortschritt"><span data-i18n="shell.m312">Gespeicherte Texte fortsetzen</span></a></div></div>
+        <div class="spread preparation-heading"><div><p class="kicker"><span data-i18n="shell.m309">Deine Vorbereitung</span></p><div class="exam-identity"><strong id="preparation-exam"><span data-i18n="shell.m302">Prüfung wird geladen</span></strong><span class="exam-level" id="preparation-level" hidden></span></div><p class="small muted" id="preparation-scope"><span data-i18n="shell.m310">Einzelne Abschnitte üben</span></p></div><div class="row"><a class="btn btn-primary" id="preparation-start" href="#/ueben"><span data-i18n="shell.m311">Abschnitt üben</span></a><a class="btn" id="preparation-continue" href="#/fortschritt"><span data-i18n="shell.m312">Gespeicherte Texte fortsetzen</span></a></div></div>
         <div class="field" id="preparation-choice" hidden><label for="preparation-picker"><span data-i18n="shell.m313">Vorbereitung auswählen</span></label><select class="select" id="preparation-picker"></select></div>
         <p class="small muted" id="preparation-state" role="status" aria-live="polite"></p>
         <div class="row"><p class="small muted" id="preparation-credits" role="status"><span data-i18n="shell.m025">Guthaben wird geladen …</span></p><button class="btn btn-small" id="credits-retry" type="button" hidden><span data-i18n="shell.m314">Guthaben erneut laden</span></button></div>

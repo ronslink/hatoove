@@ -477,14 +477,18 @@ code {
  * rules below never name a raw colour and the studio-look list can replace these VALUES later without
  * touching a single rule.
  *
- * Why the sidebar is `--ink` rather than a new navy: `--ink` is the design system's own dark neutral
- * (#242320 light, #f2f0ec dark) and it already has a measured partner for text on it. A navy invented
- * here would be a new hue with no provenance, which is exactly what slice B should not smuggle in.
+ * Why the sidebar is a NAMED NAVY and not the pinned `--ink`: `--ink` is the design system's neutral, so it
+ * is nearly identical to everything else dark in the product and reads as "the ink colour, used as a
+ * surface" rather than as a branded sidebar. Ron asked for a navy and did not send values, so this is DERIVED
+ * — `#1e2a3a`, a desaturated navy — and measured like every other pair here. It is ONE value to replace:
+ * change `--nav-bg`/`--nav-ink-muted` below and nothing else moves. Measured: idle label 7.52:1, group label
+ * 7.85:1, full label 13.78:1, white logo 14.51:1, hover surface 1.44:1 (non-text floor 1.2), active item
+ * 4.95:1; dark theme 8.44 / 16.12 / 1.41 / 6.98.
  */
 :root {
-  --nav-bg: var(--ink);
+  --nav-bg: #1e2a3a;
   --nav-ink: var(--canvas);
-  --nav-ink-muted: color-mix(in srgb, var(--canvas) 70%, var(--ink));
+  --nav-ink-muted: color-mix(in srgb, var(--canvas) 70%, var(--nav-bg));
   --nav-active-bg: var(--peach);
   --nav-active-ink: var(--orange-dark);
   /*
@@ -523,9 +527,9 @@ code {
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme=light]) {
-    --nav-bg: var(--canvas);
-    --nav-ink: var(--ink);
-    --nav-ink-muted: color-mix(in srgb, var(--ink) 70%, var(--canvas));
+    --nav-bg: #141d29;
+    --nav-ink: var(--canvas);
+    --nav-ink-muted: color-mix(in srgb, var(--canvas) 70%, var(--nav-bg));
     --nav-active-bg: var(--peach);
     --nav-active-ink: var(--orange-dark);
   }
@@ -595,6 +599,30 @@ button.btn.answer-option[data-state=wrong] .answer-verdict::before { content: '\
 /* REDESIGN-01 D: the mock result's per-part counts. A plain list, no new colour or token. */
 .part-results { margin: 4px 0 0; padding-inline-start: 1.2rem; }
 .part-results li { margin: 2px 0; }
+
+/*
+ * REDESIGN-01 B — the large level mark on the exam card. The value is authored (`exam_package.level`);
+ * the badge only presents it. Sized as a mark rather than as body text, and coloured from the pinned
+ * accent pair (1.02:1 against the card, deliberately: it is a mark, not a sentence).
+ */
+.exam-identity { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.exam-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--peach);
+  border: 1px solid var(--peach-line);
+  border-radius: var(--r-sm);
+  color: var(--orange-dark);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  line-height: 1;
+  padding: 4px 10px;
+}
+@media (max-width:860px) {
+  .exam-level { font-size: 22px; }
+}
 
 
 

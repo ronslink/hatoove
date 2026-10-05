@@ -217,8 +217,22 @@ function renderPreparation() {
   const prep = state.preparation;
   if (!prep) return;
   const label = prep.exam || state.exams.find(e => e.exam_id === prep.exam_id)?.exam || prep.exam_id;
+  /*
+   * REDESIGN-01 B — THE LARGE LEVEL MARK ON THE EXAM CARD.
+   *
+   * `level` is authored, not parsed: `exam_package.level` has carried it since migration 0009, and the
+   * server already returns it in the exams list. Reading the id for "b1" would have worked for exactly one
+   * exam package and broken the moment a second one arrives, which the multi-exam decision says it will.
+   * The badge is hidden rather than invented when the server supplies no level.
+   */
+  const level = state.exams.find(e => e.exam_id === prep.exam_id)?.level || null;
   bindShellText(el('sidebar-exam'), () => label);
   bindShellText(el('preparation-exam'), () => label);
+  const mark = el('preparation-level');
+  if (mark) {
+    mark.hidden = !level;
+    bindShellText(mark, () => level || '');
+  }
   bindShellText(el('preparation-scope'), () => prep.state === 'archived'
     ? uiText("m027")
     : uiText("m028"));
