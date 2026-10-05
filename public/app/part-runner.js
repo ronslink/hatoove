@@ -10,9 +10,16 @@
  *   Noch ein Satz · Fehler üben · Zur Auswahl
  * "Noch ein Satz" asks the server for another released set of the same part; "Fehler üben" opens a fresh
  * sitting of the part and narrows the page to the tasks that were wrong; "Zur Auswahl" hands the same host
- * back to the index. When the part is exhausted (`round.wrapped`, the FOURTH tap of a three-set part,
- * amendment A1) the wrap is ANNOUNCED — "Alle Sätze dieses Teils geübt — von vorn" — instead of silently
- * starting set one again.
+ * back to the index. When the part is exhausted the wrap is ANNOUNCED — "Alle Sätze dieses Teils geübt —
+ * von vorn" — instead of silently starting set one again. **The tap is not fixed at four**: the count comes
+ * from the served `round` (`setCount`/`checkedSets`/`wrapped`), so for a three-set part it is the fourth tap
+ * and for SB1, whose fourth set is the migration-`0022` grammar drill (contract A9), it is the FIFTH.
+ *
+ * A FAILED "AUSWERTEN" IS AN ERROR, NOT A NOTICE. `checkFailureOf` classifies the refusal: a transport or
+ * 5xx failure is RETRYABLE and keeps the "Auswerten" control as the retry; a closed sitting
+ * (`attempt_already_checked` with no review on screen), an archived preparation, and every other refusal are
+ * NOT retryable, so the alert says something true, "Auswerten" is disabled, and two ways forward are
+ * offered. The copy promises a retry only where retrying can succeed.
  *
  * LISTENING, AND WHAT THIS MODULE REFUSES TO FAKE. The recordings EXIST as content
  * (`content/exams/telc-deutsch-b1/listening-package.json` carries the media ids, paths and sha256), but
@@ -205,6 +212,57 @@ export function materialBlocks(set) {
   ].filter(Boolean);
 }
 
+/**
+ * The disclosure a set carries when it is NOT a telc examination set.
+ *
+ * Amendment A9(c): the migration-`0022` grammar drill is "labelled, not filtered". The server must serve
+ * `practice_kind`/`instruction` (it does not yet — see the note), and this module renders them **when they
+ * arrive**: the instruction is authored content in the examination's language, so it stays an island and no
+ * interface string is invented for it. The client does not decide that a set is a drill; it echoes what it
+ * is told.
+ */
+export function readDisclosure(set) {
+  const served = set && typeof set === 'object' && !Array.isArray(set) ? set : {};
+  /* The server serves the disclosure INSIDE `material` (`MATERIAL_MEMBERS` gained `practice_kind` and
+     `instruction`, server/practice-sets.mjs @905cc89); the top-level fallback keeps a set that carries them
+     directly readable, and nothing is invented when neither is present. */
+  const material = served.material && typeof served.material === 'object' && !Array.isArray(served.material) ? served.material : {};
+  return {
+    practiceKind: nonEmpty(material.practice_kind) ?? nonEmpty(served.practice_kind),
+    instruction: nonEmpty(material.instruction) ?? nonEmpty(served.instruction),
+  };
+}
+
+/**
+ * How a refused "Auswerten" must be reported. Pure, so the check drives every branch without a server.
+ *
+ *  - `retryable`     a transport failure or a 5xx: the same request can succeed later, so the copy may
+ *                    promise a retry and the "Auswerten" control stays the retry.
+ *  - `recover-review` the sitting is already checked AND this view still holds the review: show it.
+ *  - `closed`        the sitting is already checked and NO review ever arrived: retrying can only repeat
+ *                    the 409, so the copy says so and "Auswerten" is disabled.
+ *  - `archived`      the preparation is archived, refused by the transport before the request is sent.
+ *  - `blocked`       anything else (400/401/404/422/428 and any other 409): a retry sends the same body.
+ */
+export function checkFailureOf(response, { hasReview = false } = {}) {
+  const status = Number.isInteger(response?.status) ? response.status : 0;
+  const code = nonEmpty(response?.error) ?? 'check_failed';
+  if (status === 409 && code === 'attempt_already_checked') {
+    return { code, status, kind: hasReview ? 'recover-review' : 'closed' };
+  }
+  if (status === 409 && code === 'preparation_archived') return { code, status, kind: 'archived' };
+  if (status === 0 || status >= 500) return { code, status, kind: 'retryable' };
+  return { code, status, kind: 'blocked' };
+}
+
+/** The catalogue key each failure kind prints; `recover-review` prints no alert at all. */
+export const CHECK_FAILURE_KEYS = Object.freeze({
+  retryable: 'partRunnerCheckFailed',
+  closed: 'partRunnerCheckClosed',
+  archived: 'partRunnerCheckArchived',
+  blocked: 'partRunnerCheckBlocked',
+});
+
 /* ------------------------------------------------------------------------------- state */
 
 function normaliseRound(round) {
@@ -340,6 +398,45 @@ function materialMarkup(state, { esc, examLanguage, locale }) {
     + '</div></section>').join('');
 }
 
+/** The drill disclosure, printed only when the served set actually carries it (amendment A9(c)). */
+function disclosureMarkup(state, { esc, examLanguage }) {
+  const disclosure = readDisclosure(state?.set);
+  if (!disclosure.instruction && !disclosure.practiceKind) return '';
+  return '<section class="part-runner-disclosure" data-runner-disclosure'
+    + (disclosure.practiceKind ? ' data-runner-practice-kind="' + esc(disclosure.practiceKind) + '"' : '') + '>'
+    + (disclosure.instruction
+      ? '<p class="part-runner-instruction" data-runner-instruction' + languageAttributes(examLanguage) + '>' + esc(disclosure.instruction) + '</p>'
+      : '')
+    + '</section>';
+}
+
+/**
+ * A refused "Auswerten", as an ERROR rather than a muted notice.
+ *
+ * The alert is `role="alert"` with its own attribute, and the control set follows the classification: a
+ * retryable failure leaves "Auswerten" as the retry, and every non-retryable one disables it and offers two
+ * ways forward (`data-runner-recover`) so the learner is never told to repeat a request that cannot succeed.
+ */
+function checkFailureMarkup(state, { esc, locale }) {
+  const failure = state?.checkFailure;
+  const key = failure ? CHECK_FAILURE_KEYS[failure.kind] : null;
+  if (!key) return '';
+  const retryable = failure.kind === 'retryable';
+  return '<p class="err part-runner-check-error" role="alert" data-runner-check-error="' + esc(failure.code) + '"'
+    + ' data-runner-check-status="' + esc(String(failure.status)) + '" data-retryable="' + (retryable ? 'true' : 'false') + '">'
+    + t(esc, key, {}, locale) + '</p>'
+    + (retryable ? '' : '<div class="part-runner-actions part-runner-recovery" data-runner-recovery>'
+      + '<button type="button" class="btn btn-primary" data-runner-recover="next">' + t(esc, 'partRunnerStillOneSet', {}, locale) + '</button>'
+      + '<button type="button" class="btn" data-runner-recover="index">' + t(esc, 'partRunnerBackToIndex', {}, locale) + '</button>'
+      + '</div>');
+}
+
+/** True when the answering form must NOT offer another attempt (a non-retryable refusal). */
+function evaluateBlocked(state) {
+  const kind = state?.checkFailure?.kind;
+  return Boolean(kind) && kind !== 'retryable' && kind !== 'recover-review';
+}
+
 /** One option's visible label, plus the documented no-match hint when the server served no text for it. */
 function optionTextMarkup(option, answerKind, { esc, locale }) {
   const label = optionLabel(option, answerKind);
@@ -413,17 +510,28 @@ function answeringItemsMarkup(state, { esc, examLanguage, locale }) {
     + (complete ? '' : ' · ' + t(esc, 'partRunnerAnswerAll', {}, locale)) + '</p>';
 }
 
-/** The explanation prose of one reviewed item, from the projected `explanation-view-v1` DTO. */
+/**
+ * The explanation prose of one reviewed item, from the projected `explanation-view-v1` DTO.
+ *
+ * A reviewed item whose explanation was NOT served is `null`, and since the server fix that is the HONEST
+ * value for a judgement item and for any item of a media-required set (the choice-family reader cannot read
+ * them, and a media-aware reader is a separate follow-up). `null` therefore renders "no explanation is
+ * available for this task" — never the "not loaded yet" copy, which would promise something that is not
+ * coming.
+ */
 export function explanationBlocks(view, locale = getLocale()) {
-  if (!validExplanationView(view) || !view.representation) return { status: explanationStatus(view, locale), blocks: [], language: null };
-  const blocks = Array.isArray(view.representation.payload?.blocks) ? view.representation.payload.blocks : [];
-  return { status: explanationStatus(view, locale), blocks, language: view.displayed_language ?? null };
+  if (!validExplanationView(view)) {
+    return { status: pt('partRunnerExplanationUnavailable', {}, locale), blocks: [], language: null, state: 'unavailable' };
+  }
+  const blocks = view.representation && Array.isArray(view.representation.payload?.blocks) ? view.representation.payload.blocks : [];
+  return { status: explanationStatus(view, locale), blocks, language: view.displayed_language ?? null, state: view.state ?? 'available' };
 }
 
-/** The language of the explanation, switchable in the review through the per-evidence read route. */
+/** The language of the explanation, switchable in the review through the per-evidence read route.
+ *  Offered only when at least one reviewed item actually HAS an explanation to re-read. */
 function explanationLanguageMarkup(state, { esc, locale }) {
-  const hasEvidence = (state.checked?.items ?? []).some(item => nonEmpty(item.evidence_id));
-  if (!hasEvidence) return '';
+  const selectable = (state.checked?.items ?? []).filter(item => validExplanationView(item.explanation)).length > 0;
+  if (!selectable) return '';
   const current = nonEmpty(state.explanationLanguage) ?? locale;
   const options = EXPLANATION_LANGUAGES.map(lang => '<option value="' + esc(lang) + '" lang="' + esc(lang) + '" dir="' + (lang === 'ar' ? 'rtl' : 'ltr') + '"'
     + (lang === current ? ' selected' : '') + '>' + esc(EXPLANATION_LANGUAGE_NAMES[lang]) + '</option>').join('');
@@ -460,7 +568,7 @@ function reviewItemsMarkup(state, { esc, examLanguage, locale }) {
       + '<ul class="part-runner-options part-runner-options-review">' + options + '</ul>'
       + '<p class="part-runner-verdict" data-review-verdict="' + verdict + '">' + t(esc, verdictKey, {}, locale) + '</p>'
       + '<div class="part-runner-explanation" data-explanation-card data-explanation-for="' + esc(evidenceId ?? '') + '">'
-      + (evidenceId ? '<p class="small muted part-runner-explanation-status" data-explanation-status="' + esc(result?.explanation?.state ?? 'missing') + '">' + esc(explanation.status) + '</p>' : '')
+      + (evidenceId ? '<p class="small muted part-runner-explanation-status" data-explanation-status="' + esc(explanation.state) + '">' + esc(explanation.status) + '</p>' : '')
       + (explanation.blocks.length
         ? '<div class="part-runner-explanation-body">' + explanation.blocks.map(block => '<div class="part-runner-explanation-block" data-explanation-slot="' + esc(block.slot) + '">'
           + '<p class="part-runner-explanation-label">' + t(esc, block.slot.startsWith('correction/') ? 'correctionHint' : 'explanation', {}, locale) + '</p>'
@@ -531,20 +639,25 @@ export function runnerMarkup(state, { esc = defaultEsc, uiText = key => key, exa
     const answered = state?.answers ?? {};
     const items = state?.set?.items ?? [];
     const complete = items.length > 0 && items.every(item => answered[item.item_id]);
+    const blocked = evaluateBlocked(state);
+    const ready = complete && !state?.busy && !blocked;
     body = (state?.phase === 'checking'
       ? '<p class="muted" data-runner-checking role="status">' + t(esc, 'partRunnerEvaluating', {}, locale) + '</p>'
       : '')
+      + checkFailureMarkup(state, { esc, locale })
       + answeringItemsMarkup(state, { esc, examLanguage, locale })
       + '<div class="part-runner-evaluate-row"><button type="button" class="btn btn-primary" data-runner-evaluate'
-      + ' data-runner-evaluate-ready="' + (complete && !state?.busy ? 'true' : 'false') + '"'
-      + (complete && !state?.busy ? '' : ' disabled aria-disabled="true"') + '>'
+      + ' data-runner-evaluate-ready="' + (ready ? 'true' : 'false') + '"'
+      + (ready ? '' : ' disabled aria-disabled="true"') + '>'
       + t(esc, state?.busy ? 'partRunnerEvaluating' : 'partRunnerEvaluate', {}, locale) + '</button></div>';
   }
 
   return '<section class="part-runner" data-part-runner data-runner-phase="' + esc(state?.phase ?? 'loading') + '" data-runner-family="' + esc(family) + '"'
     + ' lang="' + esc(locale) + '" dir="' + (rtl ? 'rtl' : 'ltr') + '" aria-labelledby="part-runner-title">'
     + header + wrapNotice + notice
-    + ((state?.phase === 'answering' || state?.phase === 'checking' || state?.phase === 'review') ? materialMarkup(state, { esc, examLanguage, locale }) : '')
+    + ((state?.phase === 'answering' || state?.phase === 'checking' || state?.phase === 'review')
+      ? disclosureMarkup(state, { esc, examLanguage }) + materialMarkup(state, { esc, examLanguage, locale })
+      : '')
     + audioMarkup(state, { esc, examLanguage, locale }) + body
     + '</section>';
 }
@@ -620,6 +733,7 @@ export function createPartRunnerView(ctx = {}) {
     wrapNotice: false, wrapNoticeKey: null, notice: null, error: null, busy: false,
     examRule: null, examLanguage: ctx.examLanguage || 'und', reason: null, evidence: null,
     attemptId: null, blocked: null, mode: 'set', mistakesOf: null, explanationLanguage: null,
+    checkFailure: null,
   };
 
   const renderOptions = () => ({ esc, uiText, examLanguage: ctx.examLanguage || 'und', locale: getLocale() });
@@ -644,7 +758,7 @@ export function createPartRunnerView(ctx = {}) {
 
   async function load({ mistakeRound = false } = {}) {
     const ticket = ++generation;
-    state = { ...state, phase: 'loading', busy: false, error: null, notice: null, blocked: null, answers: {} };
+    state = { ...state, phase: 'loading', busy: false, error: null, notice: null, blocked: null, answers: {}, checkFailure: null };
     render();
     const response = await Promise.resolve(ctx.api?.practice?.next?.(family) ?? { ok: false, status: 0, error: 'practice_unavailable' });
     if (ticket !== generation || !host) return false;
@@ -668,8 +782,10 @@ export function createPartRunnerView(ctx = {}) {
       return picked ? { item_id: item.item_id, answer: picked.value } : null;
     }).filter(Boolean);
     if (!attemptId || !answers.length || answers.length !== items.length) return false;
+    /* A non-retryable refusal has already been answered: never re-send the same body. */
+    if (evaluateBlocked(state)) return false;
     const ticket = ++generation;
-    state = { ...state, phase: 'checking', busy: true, error: null, notice: null };
+    state = { ...state, phase: 'checking', busy: true, error: null, notice: null, checkFailure: null };
     render();
     const language = typeof ctx.language === 'string' && ctx.language ? ctx.language : null;
     const response = await Promise.resolve(ctx.api?.practice?.check?.({ attemptId, answers, language })
@@ -681,18 +797,16 @@ export function createPartRunnerView(ctx = {}) {
       render();
       return true;
     }
-    /* 409 `attempt_already_checked` is not a fault the learner caused: the sitting was closed by an
-       earlier tap, so the review already on screen stays and says so instead of showing a failure. */
-    if (response?.status === 409 && response?.error === 'attempt_already_checked' && state.checked) {
-      state = { ...state, phase: 'review', notice: { key: 'partRunnerAlreadyChecked', parameters: {} } };
+    const failure = checkFailureOf(response, { hasReview: Boolean(state.checked) });
+    /* The sitting is checked and this view still holds the review: show it, and say why it came back. */
+    if (failure.kind === 'recover-review') {
+      state = { ...state, phase: 'review', checkFailure: null, notice: { key: 'partRunnerAlreadyChecked', parameters: {} } };
       render();
       return true;
     }
-    state = {
-      ...state, phase: 'answering',
-      error: { code: nonEmpty(response?.error) ?? 'check_failed', status: response?.status ?? 0 },
-      notice: { key: 'partRunnerCheckFailed', parameters: {} },
-    };
+    /* Everything else is an ERROR on the page, not a muted notice: `checkFailureMarkup` says whether a retry
+       can succeed and, when it cannot, disables "Auswerten" and offers two ways forward. */
+    state = { ...state, phase: 'answering', checkFailure: failure, notice: null, error: null };
     render();
     return false;
   }
@@ -733,9 +847,10 @@ export function createPartRunnerView(ctx = {}) {
     }
     const button = host$.querySelector?.('[data-runner-evaluate]');
     if (button) {
-      button.dataset.runnerEvaluateReady = complete ? 'true' : 'false';
-      button.disabled = !complete;
-      button.setAttribute('aria-disabled', complete ? 'false' : 'true');
+      const ready = complete && !evaluateBlocked(state);
+      button.dataset.runnerEvaluateReady = ready ? 'true' : 'false';
+      button.disabled = !ready;
+      button.setAttribute('aria-disabled', ready ? 'false' : 'true');
     }
   }
 
@@ -749,6 +864,14 @@ export function createPartRunnerView(ctx = {}) {
       host.onclick = (event) => {
         if (event.target.closest?.('[data-runner-evaluate]')) { void evaluate(); return; }
         if (event.target.closest?.('[data-runner-retry]')) { void load(); return; }
+        /* The two ways forward after a NON-retryable refusal; deliberately not `data-runner-action`, which
+           is reserved for the three actions that follow a review. */
+        const recover = event.target.closest?.('[data-runner-recover]');
+        if (recover) {
+          if (recover.dataset.runnerRecover === 'next') void load();
+          else if (recover.dataset.runnerRecover === 'index' && typeof ctx.onBack === 'function') ctx.onBack();
+          return;
+        }
         const action = event.target.closest?.('[data-runner-action]');
         if (!action) return;
         const name = action.dataset.runnerAction;

@@ -434,6 +434,14 @@ const rows = {
   partRunnerReasonOldest: ["Diesen Satz haben Sie am längsten nicht geübt.","You have not practised this set for the longest time.","Цей набір ви не опрацьовували найдовше.","لم تتدرب على هذه المجموعة منذ أطول فترة.","Bu seti en uzun süredir çalışmadınız."],
   partRunnerMaterial: ["Text","Text","Текст","النص","Metin"],
   partRunnerNoMatch: ["Keine Anzeige passt","No advertisement fits","Жодне оголошення не підходить","لا يلائم أي إعلان","Hiçbir ilan uymuyor"],
+  /* A refused "Auswerten" that cannot be retried says something TRUE. `partRunnerCheckFailed` keeps its
+     retry promise and is now rendered only where a retry can succeed (a transport failure or a 5xx); these
+     three cover the refusals where repeating the same request changes nothing. Additive: the existing key
+     is untouched. */
+  partRunnerCheckClosed: ["Dieser Satz wurde bereits ausgewertet. Die Auswertung dieses Versuchs ist nicht mehr verfügbar.","This set has already been evaluated. The evaluation of this attempt is no longer available.","Цей набір уже оцінено. Оцінювання цієї спроби більше недоступне.","تمّ تقييم هذه المجموعة بالفعل. لم يعد تقييم هذه المحاولة متاحًا.","Bu set zaten değerlendirildi. Bu denemenin değerlendirmesi artık yok."],
+  partRunnerCheckArchived: ["Ihre Vorbereitung ist archiviert. Deshalb ist eine Auswertung nicht möglich.","Your preparation is archived, so evaluating is not possible.","Вашу підготовку заархівовано, тому оцінювання неможливе.","تحضيرك مؤرشف، لذا لا يمكن التقييم.","Hazırlığınız arşivlenmiş; bu nedenle değerlendirme yapılamaz."],
+  partRunnerCheckBlocked: ["Die Auswertung ist nicht möglich. Ihre Antworten bleiben auf dieser Seite erhalten.","Evaluating is not possible. Your answers stay on this page.","Оцінювання неможливе. Ваші відповіді залишаються на цій сторінці.","التقييم غير ممكن. تبقى إجاباتك في هذه الصفحة.","Değerlendirme yapılamıyor. Yanıtlarınız bu sayfada kalır."],
+  partRunnerExplanationUnavailable: ["Für diese Aufgabe ist keine Erklärung verfügbar.","No explanation is available for this task.","Для цього завдання пояснення недоступне.","لا يتوفر شرح لهذه المهمة.","Bu görev için açıklama yok."],
 };
 export const PRACTICE_MESSAGES = Object.freeze(Object.fromEntries(['de','en','uk','ar','tr'].map((locale,index) => [locale,Object.freeze(Object.fromEntries(Object.entries(rows).map(([key,values]) => [key,values[index]])))])));
 registerMessages('practice', PRACTICE_MESSAGES);

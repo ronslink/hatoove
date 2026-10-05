@@ -35,15 +35,32 @@
  *     hands the host back to the index with fresh counts. No shell change, no new ctx member.
  *  9. i18n: every new key exists and is non-empty in all five locales, the German is formal, and the
  *     stylesheet uses design tokens only with no breakpoint of its own.
+ * 10. A REFUSED "Auswerten" IS AN ERROR: `role="alert"`, the copy promises a retry only where a retry can
+ *     succeed, "Auswerten" is disabled when it cannot, and a 409 recovers the held review or says what is
+ *     true instead of looping.
+ * 11. THE DRILL (contract A9): the migration-`0022` grammar drill is part of the 25-set corpus, renders its
+ *     12 tasks, and its disclosure is echoed when the served set carries one.
  *
- * MUTATION PROOF (>= 2 legs must fail; the copies live in %TEMP%, never in this worktree):
- *   M1 the review drops the key marker          -> leg 7 fails
+ * THE SERVER CROSS-CHECK RUNS BY DEFAULT (review F2). Leg 12d compares the served DTO against
+ * `server/practice-sets.mjs` — the repository's own normaliser, which after integration IS the rewritten
+ * one — and `--server=<path>` only repoints it. It FAILS if that file cannot serve the corpus, so the
+ * strongest leg cannot go dark behind a green summary; the summary line names the file it used.
+ *
+ * MUTATION PROOF: `--mutations` automates the four (a copy of `public/` per mutation in %TEMP%, each
+ * hash-verified as changed, then this check re-run as a child). Each must fail ONE leg:
+ *   M1 the review drops the key marker          -> leg 2 fails
  *   M2 the fourth tap gets the silent restart   -> leg 6 fails
- *   M3 replay is offered before "Auswerten"     -> leg 8 fails
+ *   M3 replay is offered before "Auswerten"     -> leg 7 fails
+ *   M4 the served option `value` is stringified -> leg 7 fails
+ * Run `node tools/practice-runner-check.mjs --mutations` for the proof; the child runs add a
+ * `--no-mutations` guard so the proof cannot recurse.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -62,8 +79,14 @@ const API_PATH = arg('api') ?? path.join(root, 'public', 'app', 'api.js');
 const MESSAGES_PATH = arg('messages') ?? path.join(root, 'public', 'assets', 'i18n', 'practice-messages.js');
 const SETS_PATH = arg('sets') ?? path.join(root, 'server', 'practice-sets.mjs');
 const MIGRATION_PATH = arg('migration') ?? path.join(root, 'server', 'migrations', '0010-objective-catalogue.sql');
-/** Optional: the SERVER lease's normaliser, for the `--server=` cross-check leg. */
-const SERVER_SETS_PATH = arg('server');
+/* The DRILL's migration (contract A9): the corpus is not all in 0010, and a comment saying it is would be
+   wrong. Both files are parsed; `--drill` repoints it so the corpus legs can be driven from a copy. */
+const DRILL_MIGRATION_PATH = arg('drill') ?? path.join(root, 'server', 'migrations', '0022-recovered-grammar-drills.sql');
+/** The normaliser the cross-check drives. DEFAULTED, not optional (review F2): after integration this is
+ *  the repository's own rewritten `normalisePracticeSet`, so the guard runs on every invocation. */
+const SERVER_SETS_PATH = arg('server') ?? SETS_PATH;
+const NO_MUTATIONS = process.argv.includes('--no-mutations');
+const RUN_MUTATIONS = process.argv.includes('--mutations');
 
 const runner = await import(pathToFileURL(MODULE_PATH).href);
 const indexModule = await import(pathToFileURL(INDEX_PATH).href);
@@ -177,13 +200,17 @@ function checkedFromPayload(payload, set, { explanationLanguage = 'de', allCorre
     const item = set.items.find(candidate => candidate.item_id === entry.item_id);
     const correct = allCorrect || position === 0;
     const alternative = item.options.find(option => String(option.id) !== String(entry.answer));
+    const answerKind = item.answer_kind ?? (item.options.some(option => typeof option.value === 'boolean') ? 'judgement' : 'choice');
     return {
       item_id: entry.item_id,
       correct,
       chosen: entry.answer,
       expected: correct ? entry.answer : (alternative ? alternative.id : entry.answer),
+      /* The fixed route discloses the review's own kind and serves `explanation: null` for a judgement
+         answer: the choice-family reader cannot read it, and null is the honest value. */
+      answer_kind: answerKind,
       evidence_id: '22222222-2222-4222-8222-22222222222' + position,
-      explanation: explanationView(explanationLanguage),
+      explanation: answerKind === 'judgement' ? null : explanationView(explanationLanguage),
     };
   });
   return {
@@ -498,6 +525,14 @@ leg('7 [dto] listening shows the EXAM play rule, posts BOOLEAN answers and disab
   assert.equal(state.phase, 'review');
   assert.ok(host.innerHTML.includes('data-runner-replay'), 'replay becomes available only in the review');
   assert.ok(!textOf(host.innerHTML).includes('Eine Wiederholung ist erst nach dem Auswerten möglich.'), 'the pre-review replay rule is gone once reviewed');
+  /* A judgement item's explanation is `null` on purpose (the choice-family reader cannot read it), and the
+     review must say something TRUE about that rather than rendering an empty card or "not loaded yet". */
+  assert.match(host.innerHTML, /data-explanation-status="unavailable"/, 'the missing explanation is named as such');
+  assert.ok(textOf(host.innerHTML).includes('Für diese Aufgabe ist keine Erklärung verfügbar.'), 'with the honest copy');
+  assert.ok(!textOf(host.innerHTML).includes('noch nicht geladen'), 'and never the "not loaded yet" promise');
+  assert.equal(countOf(host.innerHTML, /data-runner-explanation-language/g), 0, 'no language control when there is nothing to re-read');
+  assert.equal(countOf(host.innerHTML, /data-explanation-slot/g), 0, 'and no explanation prose is invented');
+  assert.equal(countOf(host.innerHTML, /data-runner-action="/g), 3, 'the review is still complete: three actions');
 });
 
 leg('7d [dto] the served material is rendered: LV2\'s text and SB1/SB2\'s letter', () => {
@@ -661,7 +696,8 @@ const RUNNER_KEYS = ['partRunnerKicker', 'partRunnerLead', 'partRunnerItem', 'pa
   'partRunnerEmpty', 'partRunnerFailed', 'partRunnerRetry', 'partRunnerCheckFailed', 'partRunnerAlreadyChecked',
   'partRunnerListening', 'partRunnerAudioRule', 'partRunnerAudioUnavailable', 'partRunnerNoReplay', 'partRunnerReplay',
   'partRunnerPlay', 'partRunnerNoOptions', 'partRunnerOpen', 'partRunnerReasonUnseen', 'partRunnerReasonMostWrong',
-  'partRunnerReasonOldest'];
+  'partRunnerReasonOldest', 'partRunnerMaterial', 'partRunnerNoMatch',
+  'partRunnerCheckClosed', 'partRunnerCheckArchived', 'partRunnerCheckBlocked', 'partRunnerExplanationUnavailable'];
 
 leg('11 i18n: every new key exists and is non-empty in all five locales, and the German is formal', () => {
   const INFORMAL = /(?<![\p{L}\p{N}])(du|dich|dir|dein|deine|deinem|deinen|deiner|deines|kannst|musst|willst|hast|bist|wirst|weißt|weisst|wähle|waehle|trage|prüfe|pruefe|speichere|verwende|versuche|melde|beginne|schließe|schliesse|höre|hoere|lade|lies|fordere|fülle|fuelle|lass|laß|aktiviere|gib|nutze|warte|nimm|lege|stelle|achte|öffne|oeffne|klicke|rufe|sende|schau|bleib|geh|komm|mach|brauch|zeig|sag|denk|merk|probier)(?![\p{L}\p{N}])/iu;
@@ -695,12 +731,14 @@ leg('11b the stylesheet: design tokens only, module-scoped, no breakpoint of its
   assert.ok(scoped.every(name => name.startsWith('part-runner')), 'every rule is module-scoped: ' + scoped.filter(n => !n.startsWith('part-runner')).join(', '));
 });
 
-/* ------------------------------------------- 12. the required DTO over the real corpus (0010) */
+/* --------------------------------- 12. the required DTO over the real corpus (0010 + 0022) */
 
+/** Every `objective_set` row of ONE migration. The corpus is NOT all in 0010 (contract A9). */
 function parseStoredSets(sql) {
   const start = sql.indexOf('INSERT INTO "__SCHEMA__".objective_set');
   assert.ok(start > 0, 'the objective_set insert is in the migration');
-  const body = sql.slice(start, sql.indexOf('ON CONFLICT', start));
+  const end = sql.indexOf('ON CONFLICT', start);
+  const body = sql.slice(start, end > 0 ? end : sql.length);
   const rows = [...body.matchAll(/\(\s*'([^']+)',\s*'v1',\s*'([^']+)',\s*'([A-Z]+[0-9])',\s*'([A-Z]+)',\s*(\d+),\s*'((?:[^']|'')*)',\s*'(\{.*?\})'::jsonb,\s*(\d+),\s*(true|false),\s*'([^']+)'\)/gs)];
   return rows.map(m => ({
     set_id: m[1], family: m[3], section: m[4], part: Number(m[5]), title: m[6].replace(/''/g, "'"),
@@ -715,7 +753,10 @@ function parseStoredKeys(sql) {
 }
 
 /** The DTO the server builds from one stored payload — mirrored from `server/practice-sets.mjs`
- *  (`optionEntry`, `authoredOptions`, `normalisePracticeSet`): typed `value`, `answer_kind`, `material`. */
+ *  (`optionEntry`, `authoredOptions`, `normalisePracticeSet`): typed `value`, `answer_kind`, `material`.
+ *  NOTE the honest limit kept from the review: this is a REPLICA, so leg 12d proves the client and the
+ *  server AGREE; that either is right against the corpus is carried by 12b, whose facts come from
+ *  `objective_key` and the migration itself. */
 function requiredDto(stored) {
   const payload = stored.payload;
   const member = ['items', 'texts', 'questions', 'situations', 'gaps'].find(name => Array.isArray(payload[name]) && payload[name].length);
@@ -736,6 +777,8 @@ function requiredDto(stored) {
     return [];
   };
   const items = payload[member].map((item, index) => {
+    /* The server's own field list (`PROMPT_FIELDS = ['question','statement','text']`). The drill's authored
+       items carry `prompt`, which that list does NOT read — a server-side gap leg 12e records. */
     const promptField = ['question', 'statement', 'text'].find(field => typeof item[field] === 'string');
     const options = requiredOptions(item).filter(option => option.id);
     return {
@@ -747,7 +790,7 @@ function requiredDto(stored) {
       options,
     };
   });
-  const material = Object.fromEntries(['text', 'letter', 'headlines', 'ads', 'bank']
+  const material = Object.fromEntries(['text', 'letter', 'headlines', 'ads', 'bank', 'practice_kind', 'instruction']
     .filter(name => payload[name] !== undefined).map(name => [name, payload[name]]));
   return {
     set_id: stored.set_id, version: 'v1', title: stored.title, family: stored.family, section: stored.section,
@@ -756,21 +799,34 @@ function requiredDto(stored) {
   };
 }
 
-const STORED_SETS = parseStoredSets(read('server/migrations/0010-objective-catalogue.sql'));
-const STORED_KEYS = parseStoredKeys(read('server/migrations/0010-objective-catalogue.sql'));
+const STORED_SETS = [...parseStoredSets(read('server/migrations/0010-objective-catalogue.sql')),
+  ...parseStoredSets(fs.readFileSync(DRILL_MIGRATION_PATH, 'utf8'))];
+const STORED_KEYS = new Map([...parseStoredKeys(read('server/migrations/0010-objective-catalogue.sql')),
+  ...parseStoredKeys(fs.readFileSync(DRILL_MIGRATION_PATH, 'utf8'))]);
 /** The key values the payload's own options cannot reach. The server resolves LV3's "no ad fits" with the
  *  `x` sentinel, so this is EMPTY; a non-empty map means a part whose key can never be given correctly. */
 const EXPECTED_UNREACHABLE = {};
+/** The drill, by id: contract A9's fourth SB1 set. */
+export const DRILL_ID = 'telc-deutsch-b1.sb1.grammar-wortstellung-v1';
+const DRILL = STORED_SETS.find(stored => stored.set_id === DRILL_ID) ?? null;
 
-leg('12 corpus: the 24 stored sets and their keys are present, three per part', () => {
-  assert.equal(STORED_SETS.length, 24, '24 released sets (POOL-01 inventory)');
-  assert.equal(STORED_KEYS.size, 24, 'one key row per set');
+leg('12 corpus: 25 stored sets across the eight families, SB1 has four, the drill is present (A9)', () => {
+  assert.equal(STORED_SETS.length, 25, '25 released sets (contract A9, measured from a running database)');
+  assert.equal(STORED_KEYS.size, 25, 'one key row per set');
   const perFamily = {};
   for (const stored of STORED_SETS) perFamily[stored.family] = (perFamily[stored.family] ?? 0) + 1;
-  assert.deepEqual(perFamily, { LV1: 3, LV2: 3, LV3: 3, SB1: 3, SB2: 3, HV1: 3, HV2: 3, HV3: 3 }, 'three sets per part');
+  assert.deepEqual(perFamily, { LV1: 3, LV2: 3, LV3: 3, SB1: 4, SB2: 3, HV1: 3, HV2: 3, HV3: 3 },
+    'three sets per part EXCEPT SB1, which has four');
+  assert.ok(DRILL, 'the migration-0022 drill is in the corpus: ' + DRILL_ID);
+  assert.equal(DRILL.family, 'SB1', 'the drill belongs to SB1');
+  assert.equal(DRILL.item_count, 12, 'the drill has twelve items');
+  assert.equal(DRILL.item_count, DRILL.payload.gaps.length, 'the declared count matches the authored rows');
+  assert.equal(DRILL.payload.practice_kind, 'grammar-drill', 'the drill is labelled as practice, not an exam set');
+  assert.match(DRILL.payload.instruction ?? '', /kein telc/, 'the drill carries its own disclosure');
+  console.log('      corpus: 25 sets; SB1: 4; drill=' + DRILL_ID + ' (practice_kind=grammar-drill)');
 });
 
-leg('12b [dto] the served DTO reaches every answer key, for all 24 sets: typed value, answer_kind, material', () => {
+leg('12b [dto] the served DTO reaches every answer key, every ITEM, for all 25 sets', () => {
   const unreachableBySet = {};
   const kinds = new Set();
   for (const stored of STORED_SETS) {
@@ -788,37 +844,102 @@ leg('12b [dto] the served DTO reaches every answer key, for all 24 sets: typed v
       /* The TYPE is the contract: a judgement answer must not be a string, or the key can never be matched. */
       if (item.answer_kind === 'judgement') assert.ok(item.options.every(option => typeof option.value === 'boolean'), stored.set_id + ': judgement values are booleans');
       else assert.ok(item.options.every(option => typeof option.value === 'string'), stored.set_id + ': choice values are strings');
+      /* EVERY item, not just the first: a later item with a smaller option set could hold an unreachable key
+         (review F3). The key must be offered by THIS item's own options. */
+      const offered = new Set(item.options.map(option => String(option.id)));
+      const key = answers[item.item_id];
+      if (key !== undefined && !offered.has(String(key))) {
+        (unreachableBySet[stored.set_id] ||= []).push(item.item_id + '=' + String(key));
+      }
     }
-    const offered = new Set(dto.items[0].options.map(option => String(option.id)));
-    const values = [...new Set(Object.values(answers).map(String))];
-    const missing = values.filter(value => !offered.has(value));
-    if (missing.length) unreachableBySet[stored.set_id] = missing;
     /* The material the three passage families need. */
     if (['LV2'].includes(stored.family)) assert.ok(typeof dto.material.text === 'string' && dto.material.text, stored.set_id + ': material.text');
     if (['SB1', 'SB2'].includes(stored.family)) assert.ok(typeof dto.material.letter === 'string' && dto.material.letter, stored.set_id + ': material.letter');
     if (stored.section === 'HV') assert.ok(!('script' in dto.material) && !('script' in dto), stored.set_id + ': the transcript is NOT served');
+    /* The drill's disclosure travels INSIDE material (server/practice-sets.mjs MATERIAL_MEMBERS). */
+    if (stored.set_id === DRILL_ID) {
+      assert.equal(dto.material.practice_kind, 'grammar-drill', stored.set_id + ': material.practice_kind');
+      assert.match(dto.material.instruction ?? '', /kein telc/, stored.set_id + ': material.instruction');
+    }
   }
   assert.deepEqual([...kinds].sort(), ['choice', 'judgement'], 'both answer kinds occur in the corpus');
-  assert.deepEqual(unreachableBySet, EXPECTED_UNREACHABLE, 'every answer key is reachable from an option');
+  assert.deepEqual(unreachableBySet, EXPECTED_UNREACHABLE, 'every answer key is reachable from ITS OWN item\'s options');
 });
 
-/** Optional cross-check against the SERVER's own normaliser: `--server=<path to server/practice-sets.mjs>`.
- *  Without it (this branch's copy predates the rewrite) the leg asserts the fixture builder is total. */
-leg('12d [dto] the served DTO equals the SERVER normaliser over all 24 stored sets (--server=…)', async () => {
-  if (!SERVER_SETS_PATH) {
-    assert.equal(STORED_SETS.every(stored => requiredDto(stored).items.length), true, 'the fixture builder is total (pass --server=<path> to compare against the real normaliser)');
-    console.log('      NOTE  --server not given; the server cross-check was NOT run.');
-    return;
+/**
+ * The cross-slice guard, ALWAYS ACTIVE (review F2).
+ *
+ * `SERVER_SETS_PATH` defaults to the repository's own `server/practice-sets.mjs`, so no flag is needed at
+ * integration; `--server=<path>` only repoints it. When the file cannot serve the corpus the leg FAILS with
+ * the reason, because a guard that silently stops running is worse than no guard.
+ */
+leg('12d [dto] the served DTO equals the SERVER normaliser over all 25 stored sets (' + path.basename(path.dirname(SERVER_SETS_PATH)) + '/' + path.basename(SERVER_SETS_PATH) + ')', async () => {
+  let server;
+  try {
+    server = await import(pathToFileURL(SERVER_SETS_PATH).href);
+  } catch (error) {
+    assert.fail('the normaliser ' + SERVER_SETS_PATH + ' could not be imported: ' + String(error && error.message));
   }
-  const server = await import(pathToFileURL(SERVER_SETS_PATH).href);
-  assert.equal(typeof server.normalisePracticeSet, 'function', 'the server exports its normaliser');
+  assert.equal(typeof server.normalisePracticeSet, 'function', SERVER_SETS_PATH + ' must export normalisePracticeSet');
+  /* The default really is the repository's own file: a future refactor cannot repoint the guard at a copy. */
+  if (!arg('server')) assert.equal(path.resolve(SERVER_SETS_PATH), path.resolve(SETS_PATH), 'with no --server the guard drives the repository normaliser');
   for (const stored of STORED_SETS) {
-    const served = server.normalisePracticeSet({ ...stored, version: 'v1' }, null);
+    let served;
+    try {
+      served = server.normalisePracticeSet({ ...stored, version: 'v1' }, null);
+    } catch (error) {
+      assert.fail(stored.set_id + ': the normaliser at ' + SERVER_SETS_PATH + ' refused the stored payload ('
+        + String(error && error.message) + '). If that file is the repository copy from BEFORE the'
+        + ' practice-01-pg fixes, this failure is the guard telling the truth: integrate the server branch.'
+        + ' Meanwhile, `--server=<path to the fixed normaliser>` points the guard at it without disarming it.');
+    }
     assert.deepEqual(served, requiredDto(stored), stored.set_id + ': the served DTO equals the client\'s expectation');
   }
 });
 
-leg('12c [dto] the client renders the required DTO for every one of the 24 sets', () => {
+leg('12e [dto] the migration-0022 drill renders, and the corpus\'s drift from the server field list is pinned', () => {
+  assert.ok(DRILL, 'the drill is in the corpus');
+  const dto = requiredDto(DRILL);
+  assert.equal(dto.items.length, 12, 'twelve tasks');
+  assert.equal(dto.items.reduce((sum, item) => sum + item.options.length, 0), 36, 'three options each');
+  assert.deepEqual(dto.items.map(item => item.item_id), Object.keys(STORED_KEYS.get(DRILL_ID)), 'the ids are the drill\'s answer keys');
+  assert.equal(typeof dto.material.letter, 'string', 'the drill carries its letter');
+  const state = runner.runnerStateFromServed({ family: 'SB1', response: nextResponse({ family: 'SB1', set: dto }), examRule: null });
+  const markup = renderState(state);
+  assert.equal(state.blocked, null, 'the drill renders');
+  assert.equal(countOf(markup, /data-item-id="/g), 12, 'every one of the twelve tasks');
+  assert.equal(countOf(markup, /data-answer-item="/g), 36, 'every option');
+  assert.equal(countOf(markup, /data-runner-evaluate[ >]/g), 1, 'one evaluate control');
+
+  /* SERVER-SIDE GAP, pinned so it cannot grow silently: the drill's authored items carry `prompt`, but the
+     normaliser's field list reads question/statement/text only, so the served prompt is empty. The client
+     reads `prompt` FIRST, so the sentence renders the moment the server serves it. */
+  const authoredPrompts = DRILL.payload.gaps.filter(gap => typeof gap.prompt === 'string' && gap.prompt.trim()).length;
+  assert.equal(authoredPrompts, 12, 'every authored drill item carries a prompt');
+  assert.equal(dto.items.filter(item => item.prompt).length, 0, 'the server field list drops all twelve (owed to the server half)');
+  const bridged = runner.readServedItems({ family: 'SB1', payload: DRILL.payload, items: undefined });
+  assert.equal(bridged.items.length, 12, 'the bridge reads the authored payload');
+  assert.ok(bridged.items.every(item => item.prompt), 'and the client renders the authored prompt when the payload carries it');
+  console.log('      drill: 12 items, 36 options, material.letter present; server-side prompt gap pinned (12 authored, 0 served)');
+});
+
+leg('12f [dto] the drill\'s disclosure is echoed when the served set carries one (A9(c): labelled, not filtered)', () => {
+  /* A set with NO disclosure invents nothing. */
+  const plain = renderState(runner.runnerStateFromServed({ family: 'LV2', response: nextResponse({ set: dtoSet() }), examRule: null }));
+  assert.ok(!plain.includes('data-runner-disclosure'), 'nothing is invented when the server serves no disclosure');
+  /* The drill's DTO always carries it now: the server serves the disclosure inside `material` (905cc89). */
+  const dto = requiredDto(DRILL);
+  assert.equal(dto.material.practice_kind, 'grammar-drill', 'the DTO carries the kind');
+  const markup = renderState(runner.runnerStateFromServed({ family: 'SB1', response: nextResponse({ family: 'SB1', set: dto }), examRule: null }));
+  assert.match(markup, /data-runner-disclosure data-runner-practice-kind="grammar-drill"/, 'the drill is labelled with the served kind');
+  assert.ok(textOf(markup).includes('kein telc'), 'the authored instruction reaches the learner');
+  assert.match(markup, /data-runner-instruction[^>]*lang="de"/, 'the instruction stays an exam-language island');
+  /* A top-level disclosure (the shape before the server move) still renders: the bridge, not the contract. */
+  const topLevel = renderState(runner.runnerStateFromServed({ family: 'SB1', response: nextResponse({ family: 'SB1', set: { ...dto, material: {}, practice_kind: 'grammar-drill', instruction: 'kein telc-Prüfungssatz' } }), examRule: null }));
+  assert.match(topLevel, /data-runner-practice-kind="grammar-drill"/, 'the top-level fallback still works');
+});
+
+leg('12c [dto] the client renders the required DTO for every one of the 25 sets', () => {
   for (const stored of STORED_SETS) {
     const dto = requiredDto(stored);
     const state = runner.runnerStateFromServed({
@@ -872,11 +993,187 @@ leg('13b [bridge] a served set that cannot be answered is refused, never half re
   assert.deepEqual(noOptions, { items: [], blocked: 'options' });
 });
 
+/* ------------------------------------------- 14. a refused "Auswerten" is an ERROR (review F1) */
+
+/** Mount, answer every task, and post a CHECK response the caller chooses. */
+async function runCheckFailure(checkResponse, { set = dtoSet(), existingReview = false } = {}) {
+  const stub = stubApi({ set });
+  let calls = 0;
+  const api = { ...stub.api, practice: { ...stub.api.practice, check: async (payload) => { calls++; return checkResponse(payload); } } };
+  const host = hostStub();
+  const view = runner.createPartRunnerView({ ...CTX, family: set.family, examParts: EXAM_PARTS_FIXTURE, api });
+  await view.mount(host);
+  for (const item of set.items) host.onchange(answerEvent(item.item_id, item.options[0].id));
+  if (existingReview) await view.evaluate();
+  await view.evaluate();
+  return { host, view, stub, state: view.snapshot(), calls };
+}
+const checkFails = (status, error) => () => ({ ok: false, status, error, data: null });
+const checkPasses = (set) => (payload) => ({ ok: true, status: 200, data: checkedFromPayload(payload, set) });
+const recoverEvent = (name) => ({ target: { closest: (wanted) => (wanted === '[data-runner-recover]' ? { dataset: { runnerRecover: name } } : null) } });
+const tick = () => new Promise(resolve => setImmediate(resolve));
+
+leg('14 a transport/5xx check failure is RETRYABLE: alert, retry promise, "Auswerten" still the retry', async () => {
+  const { host, state } = await runCheckFailure(checkFails(0, 'network'));
+  assert.equal(state.checkFailure.kind, 'retryable');
+  assert.equal(state.phase, 'answering');
+  assert.match(host.innerHTML, /role="alert"[^>]*data-runner-check-error="network"/, 'the failure is an ALERT, not a muted notice');
+  assert.match(host.innerHTML, /data-runner-check-error="network"/);
+  assert.match(host.innerHTML, /data-retryable="true"/);
+  assert.ok(textOf(host.innerHTML).includes('bitte versuchen Sie es erneut'), 'the retry promise is shown where a retry can succeed');
+  assert.equal(countOf(host.innerHTML, /data-runner-recovery/g), 0, 'no recovery row when retrying is right');
+  assert.match(host.innerHTML, /data-runner-evaluate-ready="true"/, 'the Auswerten control IS the retry');
+  assert.equal(countOf(host.innerHTML, /data-runner-action="/g), 0, 'still no post-review actions before a review');
+  assert.equal(countOf(host.innerHTML, /data-item-id="/g), 3, 'the answers stay on the page');
+});
+
+leg('14b a 5xx failure is retryable too, and a 404 is NOT: the copy stops promising a retry', async () => {
+  const retry = await runCheckFailure(checkFails(503, 'practice_unavailable'));
+  assert.equal(retry.state.checkFailure.kind, 'retryable');
+  const blocked = await runCheckFailure(checkFails(404, 'not_found'));
+  assert.equal(blocked.state.checkFailure.kind, 'blocked');
+  assert.match(blocked.host.innerHTML, /role="alert"[^>]*data-runner-check-error="not_found"/, 'still an alert');
+  assert.match(blocked.host.innerHTML, /data-retryable="false"/);
+  assert.ok(!textOf(blocked.host.innerHTML).includes('versuchen Sie es erneut'), 'the copy promises NO retry that cannot succeed');
+  assert.ok(textOf(blocked.host.innerHTML).includes('Ihre Antworten bleiben auf dieser Seite erhalten.'), 'and says what is true');
+  assert.match(blocked.host.innerHTML, /data-runner-evaluate-ready="false"[^>]*disabled/, '"Auswerten" is disabled, so the learner is not invited to loop');
+  assert.match(blocked.host.innerHTML, /data-runner-recovery/, 'two ways forward are offered');
+  assert.deepEqual([...blocked.host.innerHTML.matchAll(/data-runner-recover="([a-z]+)"/g)].map(m => m[1]), ['next', 'index'], 'and they are the two that can work');
+  assert.equal(countOf(blocked.host.innerHTML, /data-runner-action="/g), 0, 'the post-review actions stay reserved for a review');
+});
+
+leg('14c 409 with NO review: the sitting is closed, so say so — do not loop, do not promise a retry', async () => {
+  const { host, stub, state, calls } = await runCheckFailure(checkFails(409, 'attempt_already_checked'));
+  assert.equal(state.checkFailure.kind, 'closed');
+  assert.equal(calls, 1, 'the check was attempted exactly once, and no loop follows');
+  assert.match(host.innerHTML, /role="alert"[^>]*data-runner-check-error="attempt_already_checked"/);
+  assert.ok(textOf(host.innerHTML).includes('bereits ausgewertet'), 'the copy tells the truth about a closed sitting');
+  assert.ok(!textOf(host.innerHTML).includes('versuchen Sie es erneut'), 'and promises no retry');
+  assert.match(host.innerHTML, /data-runner-evaluate-ready="false"[^>]*disabled/, '"Auswerten" cannot be tapped again');
+  assert.match(host.innerHTML, /data-runner-recovery/, 'the learner can still move on');
+  /* The recovery controls are real: they ask for another set rather than repeating the refused request. */
+  const asks = stub.calls.next.length;
+  host.onclick(recoverEvent('next'));
+  await tick();
+  assert.ok(stub.calls.next.length > asks, '"Noch ein Satz" asks the server for another set');
+  assert.equal(calls, 1, 'and the refused check is never re-sent');
+});
+
+leg('14d 409 WITH a held review still recovers it, and says why it came back', async () => {
+  const set = dtoSet();
+  const stub = stubApi({ set });
+  let calls = 0;
+  const api = {
+    ...stub.api,
+    practice: {
+      ...stub.api.practice,
+      check: async (payload) => {
+        calls++;
+        return calls === 1 ? { ok: true, status: 200, data: checkedFromPayload(payload, set) } : { ok: false, status: 409, error: 'attempt_already_checked' };
+      },
+    },
+  };
+  const host = hostStub();
+  const view = runner.createPartRunnerView({ ...CTX, family: 'LV2', examParts: EXAM_PARTS_FIXTURE, api });
+  await view.mount(host);
+  for (const item of set.items) host.onchange(answerEvent(item.item_id, item.options[0].id));
+  await view.evaluate();
+  assert.equal(view.snapshot().phase, 'review', 'the review arrives once');
+  /* The SAME attempt is evaluated again (a stale tab, a double submit): the server says checked, and the
+     review this view already holds is shown again rather than replaced by an error. */
+  await view.evaluate();
+  assert.equal(view.snapshot().phase, 'review', 'the held review is recovered, not lost');
+  assert.match(host.innerHTML, /data-runner-notice="partRunnerAlreadyChecked"/, 'and the learner is told why');
+  assert.equal(countOf(host.innerHTML, /data-runner-action="/g), 3, 'the three actions are back');
+});
+
+leg('14e an archived preparation says so, and offers no retry', async () => {
+  const { host, state } = await runCheckFailure(checkFails(409, 'preparation_archived'));
+  assert.equal(state.checkFailure.kind, 'archived');
+  assert.ok(textOf(host.innerHTML).includes('archiviert'), 'the copy names the real reason');
+  assert.match(host.innerHTML, /data-retryable="false"/);
+  assert.match(host.innerHTML, /data-runner-recovery/);
+});
+
+leg('14f the classification is pure and total, so no refusal can fall through to a notice', () => {
+  assert.deepEqual(runner.checkFailureOf({ status: 0, error: 'network' }, {}), { code: 'network', status: 0, kind: 'retryable' });
+  assert.equal(runner.checkFailureOf({ status: 500 }, {}).kind, 'retryable');
+  assert.equal(runner.checkFailureOf({ status: 409, error: 'attempt_already_checked' }, {}).kind, 'closed');
+  assert.equal(runner.checkFailureOf({ status: 409, error: 'attempt_already_checked' }, { hasReview: true }).kind, 'recover-review');
+  assert.equal(runner.checkFailureOf({ status: 409, error: 'preparation_archived' }, {}).kind, 'archived');
+  for (const status of [400, 401, 403, 404, 409, 415, 422, 428]) {
+    assert.equal(runner.checkFailureOf({ status, error: 'x' }, {}).kind, 'blocked', 'status ' + status + ' is a blocked refusal');
+  }
+  for (const kind of ['retryable', 'closed', 'archived', 'blocked']) {
+    assert.ok(typeof PRACTICE_MESSAGES.de[runner.CHECK_FAILURE_KEYS[kind]] === 'string', 'a copy exists for ' + kind);
+  }
+  assert.ok(!/versuchen Sie es erneut/i.test(PRACTICE_MESSAGES.de[runner.CHECK_FAILURE_KEYS.blocked]), 'the blocked copy carries no retry promise');
+  assert.ok(!/versuchen Sie es erneut/i.test(PRACTICE_MESSAGES.de[runner.CHECK_FAILURE_KEYS.closed]), 'the closed copy carries no retry promise');
+});
+
+/* --------------------------------------------------- 15. the mutation proof (--mutations) */
+
+/** The four mutations, with the ONE leg each must break. Kept next to the check so a later reader can
+ *  re-run the proof instead of trusting a table in a note. */
+const MUTATIONS = Object.freeze([
+  Object.freeze({ id: 'M1', what: 'the review drops the key marker', from: 'data-option-marker="key"', to: 'data-option-marker="key-disabled"', leg: '2' }),
+  Object.freeze({ id: 'M2', what: 'the exhausted part gets the silent restart label', from: 'key: wrapped ? WRAP_KEY : ACTION_KEYS.next', to: 'key: ACTION_KEYS.next', leg: '6' }),
+  Object.freeze({ id: 'M3', what: 'replay is offered before "Auswerten"', from: "const reviewed = state.phase === 'review';", to: 'const reviewed = true;', leg: '7' }),
+  Object.freeze({ id: 'M4', what: 'the served option value is stringified (HV would mark wrong)', from: 'return (typeof value === \'boolean\' || typeof value === \'string\' || typeof value === \'number\') ? value : typed(id);', to: 'return String(value ?? typed(id));', leg: '7' }),
+]);
+
+async function runMutations() {
+  const base = path.join(os.tmpdir(), 'practice-runner-mutations-' + process.pid);
+  const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  let broken = 0;
+  try {
+    for (const mutation of MUTATIONS) {
+      const dir = path.join(base, mutation.id);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.cpSync(path.join(root, 'public'), path.join(dir, 'public'), { recursive: true });
+      const file = path.join(dir, 'public', 'app', 'part-runner.js');
+      const before = hash(file);
+      const source = fs.readFileSync(file, 'utf8');
+      const occurrences = source.split(mutation.from).length - 1;
+      if (occurrences !== 1) { console.log('FAIL  ' + mutation.id + ' the mutation does not apply exactly once (' + occurrences + ')'); broken++; continue; }
+      fs.writeFileSync(file, source.replace(mutation.from, mutation.to));
+      const after = hash(file);
+      const applied = before !== after;
+      const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url),
+        '--module=' + file,
+        '--index=' + path.join(dir, 'public', 'app', 'part-index.js'),
+        '--messages=' + path.join(dir, 'public', 'assets', 'i18n', 'practice-messages.js'),
+        '--css=' + path.join(dir, 'public', 'app', 'part-runner.css'),
+        '--server=' + SERVER_SETS_PATH,
+        '--no-mutations'], { encoding: 'utf8', cwd: root });
+      const output = String(child.stdout) + String(child.stderr);
+      /* The child prints each failure twice (the live line and the summary); dedupe so ONE leg means one. */
+      const failedLegs = [...new Set([...output.matchAll(/^FAIL\s+(\d+[a-z]?)\b/gm)].map(match => match[1]))];
+      const ok = applied && failedLegs.length === 1 && failedLegs[0] === mutation.leg;
+      console.log((ok ? 'PASS' : 'FAIL') + '  ' + mutation.id + ' ' + mutation.what + ' -> leg ' + (failedLegs.join(',') || 'none') + ' (expected ' + mutation.leg + '); changed=' + applied);
+      if (!ok) { broken++; console.log(output.split('\n').slice(-8).join('\n')); }
+    }
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+  console.log('\n' + (MUTATIONS.length - broken) + '/' + MUTATIONS.length + ' mutations failed exactly the intended leg' + (broken ? ' — the proof is BROKEN' : ''));
+  if (broken) process.exitCode = 1;
+}
+
 /* ------------------------------------------------------------------------------- summary */
 
 for (const task of queue) await task();
 
 console.log('\n' + passed + ' passed, ' + failures.length + ' failed');
+console.log('server cross-check (leg 12d): ' + SERVER_SETS_PATH);
+
+if (RUN_MUTATIONS && !NO_MUTATIONS) {
+  console.log('\nmutation proof (copies in ' + os.tmpdir() + ', this worktree untouched):');
+  await runMutations();
+} else if (!NO_MUTATIONS) {
+  console.log('mutation proof: not run — `node tools/practice-runner-check.mjs --mutations` runs the four (M1->2, M2->6, M3->7, M4->7)');
+}
+
 if (failures.length) {
   console.log('\n' + failures.map(entry => 'FAIL ' + entry.name + '\n     ' + String(entry.error && entry.error.message)).join('\n'));
   process.exitCode = 1;
