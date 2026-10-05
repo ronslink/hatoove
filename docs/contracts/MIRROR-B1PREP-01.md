@@ -390,7 +390,9 @@ production and its checksum is frozen.
   priortised top-up (option B of `work/implementation/POOL-01-PROPOSAL.md`)**: six new released sets on the
   parts a learner meets earliest as batch 1, the remaining parts in a second batch; the batch authors six sets,
   releases the playable ones immediately (LV1 +3, reaching the contract target of six) and holds the three
-  listening sets until (b) is done, then releases them by a follow-up migration with no new authoring; a set is
+  listening sets until (b) is done. Releasing those three is NOT a flag flip (A13/F3): each needs a
+  TTS recording with provenance, an `exam_media` row, a `recordings` binding in its set payload, and a client
+  practice-playback transport. A set is
   authored in the exam's own shape with its items, key and explanations, marked **`unreviewed`** in the
   content ledger, imported through a new forward migration, and never claimed reviewed or valid by an agent.
   (b) **The listening media bind-mount is fixed before any new audio**: the nine existing WAVs are not in git
@@ -439,8 +441,9 @@ production and its checksum is frozen.
   cannot be withdrawn once applied, so the three LV1 sets are held for Ron to read (15 items) and the batch
   gets a non-author review and gate registration; one LV1 key (offer vs request) is a human decision.
   **F6:** the PR must target `--base main` explicitly (the default branch is not it) and carry the evidence.
-  **F7:** native review is 144 catalogue keys (432 machine-translated interface strings) plus 704 guide
-  strings and 240 nouns × 3 locales — not "99 + 28" — and the pack must be generated, not hand-copied.
+  **F7:** native review is a population of **11,531 learner-facing strings**, not "99 + 28" and not 144 keys:
+  432 is the **delta** of keys this program added × 3 non-German locales, and 127 is one recorded **batch**.
+  The three figures are labelled so they cannot be compared as one job, and the pack enumerates all of them — and the pack must be generated, not hand-copied.
   **F8:** `0043` corrected content without bumping `content_version`, which is why the re-pin and the pending
   record are manual; generating the record from the import (task-34) is confirmed. **F9 (low):** the A5(b)
   D22 phrase forms are still missing from `mock-intro-check`, and `nav-ia-check` checks route shape by regex
