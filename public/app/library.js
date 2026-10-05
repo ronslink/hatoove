@@ -46,6 +46,67 @@ export const NOUN_PAGE_SIZE = 50;
  */
 export const WORTSCHATZ_GUIDE_IDS = Object.freeze(['core-grammar', 'core-phrases']);
 
+/**
+ * The recorded "translation pending" list — a MIRROR of the machine-readable block in
+ * `content/library-translations/README.md` ("The record, machine-readable"), which migration `0043`'s
+ * re-pin produced: 18 speaking-guide SP1 paths still render German without a translation and owe the
+ * learner a marker, and 15 more were deleted by the correction, so nothing can render for them even
+ * though the record still owns those strings.
+ *
+ * A browser cannot read a README, so the list is mirrored here rather than inferred from a missing
+ * string — an inference could not tell "not yet translated" from "deliberately German". The record is
+ * the source of truth: `tools/library-render-check.mjs` fails when the record, this mirror and the
+ * rendered markers disagree in either direction, and when a recorded path starts being served a
+ * translation again. A new drop therefore demands an entry in both places, and a re-translation the
+ * removal of the entry.
+ */
+export const PENDING_TRANSLATIONS = Object.freeze({
+  locales: Object.freeze(['uk', 'ar', 'tr']),
+  pending: Object.freeze([
+    Object.freeze({
+      guide_id: 'speaking-guide',
+      section_id: 'telc-deutsch-b1.speaking-guide.sp1',
+      rendered: Object.freeze([
+        'title',
+        'summary',
+        'payload.approach[0].step',
+        'payload.approach[0].detail',
+        'payload.approach[1].step',
+        'payload.approach[1].detail',
+        'payload.approach[2].step',
+        'payload.approach[2].detail',
+        'payload.phrases[0].group',
+        'payload.phrases[0].hint',
+        'payload.phrases[1].group',
+        'payload.phrases[1].hint',
+        'payload.phrases[2].group',
+        'payload.phrases[2].hint',
+        'payload.examples[0].topic',
+        'payload.watchOut[0]',
+        'payload.watchOut[1]',
+        'payload.watchOut[2]',
+      ]),
+      removed: Object.freeze([
+        'payload.approach[3].step',
+        'payload.approach[3].detail',
+        'payload.approach[4].step',
+        'payload.approach[4].detail',
+        'payload.approach[5].step',
+        'payload.approach[5].detail',
+        'payload.phrases[3].group',
+        'payload.phrases[3].hint',
+        'payload.phrases[4].group',
+        'payload.phrases[4].hint',
+        'payload.phrases[5].group',
+        'payload.phrases[5].hint',
+        'payload.examples[1].topic',
+        'payload.watchOut[3]',
+        'payload.watchOut[4]',
+      ]),
+    }),
+  ]),
+});
+
 /** The six areas, in the contract's order. `unit` names the catalogue key holding the count pattern. */
 export const LIBRARY_AREAS = Object.freeze([
   { id: 'speaking', guideId: 'speaking-guide', icon: '🗣', title: 'libraryAreaSpeaking', description: 'libraryDescSpeaking', unit: 'libraryCountParts' },
@@ -244,6 +305,42 @@ export function createLibraryView(ctx = {}) {
     return `<p class="small library-note">${esc(uiText('m091'))}</p>`;
   };
 
+  /* ------------------------------------------------------- translation pending (recorded, not inferred) */
+
+  /** The stored-key string for one member, or null — the record's paths are stored keys, nothing else. */
+  const storedString = (bundle, guideId, section, relative) => {
+    const path = storedTranslationPath(guideId, section?.section_id, relative);
+    if (!path || !bundle || !bundle.strings || typeof bundle.strings !== 'object') return null;
+    const raw = Object.hasOwn(bundle.strings, path) ? bundle.strings[path] : undefined;
+    const value = typeof raw === 'string' ? raw : (raw && typeof raw.text === 'string' ? raw.text : null);
+    return typeof value === 'string' && value.trim() ? value : null;
+  };
+  /**
+   * The recorded pending entry for one section, or null. The RECORD decides — never the absence of a
+   * string — so a section that simply has no translation member stays unmarked, and a drop the record
+   * has not heard about cannot silently produce a marker.
+   */
+  const pendingForSection = (guideId, section) => {
+    const language = locale();
+    if (language === 'de' || language === 'en') return null;
+    if (!PENDING_TRANSLATIONS.locales.includes(language)) return null;
+    return PENDING_TRANSLATIONS.pending.find(entry => entry.guide_id === guideId
+      && entry.section_id === text(section?.section_id)) || null;
+  };
+  /**
+   * The section's marker. It is owed while at least one recorded path really has no served string: if a
+   * translation comes back, the record is stale and the check fails, but the screen must not claim a
+   * gap that has closed.
+   */
+  const pendingMarkup = (guideId, section, bundle) => {
+    const entry = pendingForSection(guideId, section);
+    if (!entry) return '';
+    const owed = entry.rendered.filter(relative => !storedString(bundle, guideId, section, relative));
+    if (!owed.length) return '';
+    return `<p class="small library-note library-pending" data-library-pending="${esc(entry.section_id)}">`
+      + `${esc(message('libraryPendingSection'))}</p>`;
+  };
+
   /* ------------------------------------------------------------------------------------ the hub */
 
   const hubMarkup = () => {
@@ -351,6 +448,7 @@ export function createLibraryView(ctx = {}) {
       + content
       + (payload.note ? `<p class="small muted" lang="de" dir="ltr">${esc(text(payload.note))}</p>` : '')
       + learnerLine(resolve('note'))
+      + pendingMarkup(guideId, section, bundle)
       + '</article>';
   };
 
