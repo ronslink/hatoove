@@ -79,8 +79,15 @@ const sqlJson = (value) => `${sqlText(JSON.stringify(value))}::jsonb`;
  * the source file in THIS checkout, in either byte form. A stale record, a hand-edited digest, or a source
  * that genuinely moved matches neither form and still fails; the accepted set is computed from the file on
  * disk at comparison time, never from a table of blessed values.
+ *
+ * EXPORTED so the check uses THIS rule rather than a second copy of it (N5): a generator and its checker
+ * that each implement the rule can drift, and a drifted pair is how a gate stops meaning anything. The
+ * root cause is still open and is a `.gitattributes` question, not a code one: neither JSON source carries
+ * an `eol` attribute, so the digest a batch records depends on the platform that built it. Proposed, not
+ * applied: `data/seed.json text eol=lf` and `content/pool-01/*.json text eol=lf`. That changes how those
+ * files are CHECKED OUT (and therefore the digest this rule must accept), so the Lead decides it.
  */
-function legitimateSourceDigests(file) {
+export function legitimateSourceDigests(file) {
   const raw = readFileSync(file);
   const lf = Buffer.from(String(raw).replace(/\r\n/g, '\n'), 'utf8');
   const crlf = Buffer.from(String(lf).replace(/\n/g, '\r\n'), 'utf8');
@@ -92,8 +99,9 @@ function legitimateSourceDigests(file) {
  * therefore still fails a comparison.
  */
 const SOURCE_RECORD = /^([ \t]*-- Source: .*\(sha256 )([0-9a-f]{64})(\)[ \t]*)$/m;
-/** Replace the record's digest with a placeholder when it is a legitimate digest of `file`, else leave it. */
-function canonicalSourceRecord(text, file) {
+/** Replace the record's digest with a placeholder when it is a legitimate digest of `file`, else leave it.
+ *  Exported for `tools/pool-01-check.mjs` so the builder and its checker share ONE implementation (N5). */
+export function canonicalSourceRecord(text, file) {
   const allowed = legitimateSourceDigests(file);
   return text.replace(SOURCE_RECORD, (whole, head, hex, tail) => (allowed.has(hex) ? `${head}<source>${tail}` : whole));
 }
@@ -320,6 +328,16 @@ ${keys.join(',\n')}
   return { sql, released: sets.length, held, families: [...seen].sort() };
 }
 
+/*
+ * CLI BODY, GUARDED (N5). This module is both a generator and a library: `tools/pool-01-check.mjs` imports
+ * the source-record rule from it, and an unguarded import would RUN the generator — printing the census and,
+ * in the write path below, rewriting the committed `0010-objective-catalogue.sql` as a side effect of a
+ * CHECK. The bytes happen to be identical while the tree is consistent, which is exactly why the hazard is
+ * worth removing rather than noticing later.
+ */
+const isCli = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isCli) {
 const batchArg = argValue('--batch');
 if (batchArg) {
   const batchPath = path.resolve(ROOT, batchArg);
@@ -491,3 +509,4 @@ console.log(`  answers extracted: ${totalAnswers}`);
 console.log(`  key rows         : ${keyRows.length}`);
 console.log(`  media-gated      : ${totalTranscripts} set(s) carry a transcript, so HV is withheld until audio exists`);
 console.log(`  source sha256    : ${sourceDigest}`);
+} /* end of the guarded CLI body */

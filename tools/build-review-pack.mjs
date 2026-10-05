@@ -877,6 +877,12 @@ export function ledgerPath(ledgerDir, language) {
  * Apply a human decision ledger to freshly enumerated rows. This is the only way `approved` can
  * reach a row: the entry must name a reviewer, and it must have been decided against the same text
  * the pack carries now. A stale approval is dropped back to `machine_unreviewed` and reported.
+ *
+ * BOTH TEXTS, because a translation decision is a decision about a pair. `text_at_review` is the
+ * translation the reviewer judged; `source_de_at_review` is the German they judged it against. German
+ * is corrected in place — migration `0043` did exactly that under an UNCHANGED `content_version` — so a
+ * translation approved against German that no longer exists is stale even when the translation itself is
+ * untouched. Each axis reports its own code so a reader can tell which one moved.
  */
 export function applyLedger(rows, language, ledger, findings) {
   if (!ledger) return { applied: 0, stale: 0, unknown: 0 };
@@ -895,7 +901,18 @@ export function applyLedger(rows, language, ledger, findings) {
     }
     if (entry.text_at_review !== row.current) {
       stale += 1;
-      findings.push({ code: 'stale_approval', detail: `${language}: ${entry.id} was decided against different text; the decision no longer applies` });
+      findings.push({ code: 'stale_approval', detail: `${language}: ${entry.id} was decided against different translated text; the decision no longer applies` });
+      continue;
+    }
+    /* An entry with no recorded German cannot be trusted to describe a pair: a ledger written before this
+       field existed must be re-reviewed rather than silently keep approving. */
+    if (entry.source_de_at_review === undefined || entry.source_de_at_review === null) {
+      findings.push({ code: 'ledger_entry_without_source_text', detail: `${language}: ${entry.id} records no source_de_at_review, so the German it was decided against is unknown` });
+      continue;
+    }
+    if (entry.source_de_at_review !== row.source_de) {
+      stale += 1;
+      findings.push({ code: 'stale_approval_source', detail: `${language}: ${entry.id} was decided against different German; the translation approval no longer applies` });
       continue;
     }
     row.reviewer = entry.decided_by;
@@ -919,8 +936,11 @@ const csvCell = (value) => {
 };
 const CSV_COLUMNS = Object.freeze([
   'id', 'language', 'section', 'where', 'kind', 'needs_translation', 'source_kind', 'source_de',
-  'source_note', 'source_file', 'source_locator', 'current', 'status', 'decision', 'correction',
-  'note', 'reviewer',
+  /* The German the reviewer SAW, beside the German the sources carry now. A translation decision is a
+     decision about a PAIR (German -> translation), so an approval must be recorded against both texts;
+     `source_de_at_review` is derived and read-only, exactly like `current`. */
+  'source_de_at_review', 'source_note', 'source_file', 'source_locator', 'current', 'status', 'decision',
+  'correction', 'note', 'reviewer',
 ]);
 
 export function packCsv(rows) {
@@ -991,20 +1011,21 @@ still unreviewed, and the pack will keep saying so.
 
 In a decision **file** the same four values are written out: \`approved\`, \`fix\`, \`reject\`,
 \`not-applicable\`. \`ok\` and \`na\` are the spreadsheet spellings of the first and the last. Every
-entry must also carry \`text_at_review\` — the exact text you judged, copied from that row's \`current\`
-column. The applier compares it with the source: if the source has moved since this pack was generated,
-your decision is refused and you are asked to re-generate the pack and re-read, because a decision about
-one sentence must never be recorded against another.
+entry must also carry \`text_at_review\` **and** \`source_de_at_review\` — the translation and the German
+you judged, copied from that row's \`current\` and \`source_de\` columns. The applier compares both with
+the sources: if either has moved since this pack was generated, your decision is refused and you are asked
+to re-generate the pack and re-read. A translation decision is a decision about a pair, and German is
+corrected in place, so the German is checked as carefully as the translation.
 
 Return path — either of:
 
 1. **Spreadsheet (easiest).** Edit \`<language>-rows.csv\` and run
    \`node tools/apply-review-decisions.mjs --csv <language>-rows.csv --reviewer "<your name>"\`. Do not
-   edit the \`current\` column: it is the text your decisions are recorded against.
+   edit the \`source_de\` or \`current\` columns: they are the pair your decisions are recorded against.
 2. **Decision file.** Copy \`<language>-decisions.template.json\`, fill \`reviewer\` and one entry per
    string you actually judged, and run \`node tools/apply-review-decisions.mjs --json <file>\`.
 
-Either way the applier writes \`<language>-ledger.json\` (who decided what, against which text) and
+Either way the applier writes \`<language>-ledger.json\` (who decided what, against which pair of texts) and
 \`<language>-corrections.csv\` (the exact edits the program must make). It never edits the
 catalogues or the translation bundle — that is a separate, owned step — and it cannot approve
 anything you did not approve.`;
@@ -1240,10 +1261,10 @@ function decisionTemplate(language) {
     language,
     reviewer: '',
     reviewed_at: '',
-    how_to_fill: 'Set reviewer to the name of the human who made these decisions, reviewed_at to the date (YYYY-MM-DD), and add one entry per string you judged. Leave out strings you did not reach: they stay unreviewed. decision is one of approved, fix, reject, not-applicable. fix requires correction. reject and not-applicable require note. Every entry MUST carry text_at_review: the exact text you judged, copied from that row\'s current column — a decision whose text no longer matches the source is refused so a human judgement is never recorded against a sentence they did not read.',
+    how_to_fill: 'Set reviewer to the name of the human who made these decisions, reviewed_at to the date (YYYY-MM-DD), and add one entry per string you judged. Leave out strings you did not reach: they stay unreviewed. decision is one of approved, fix, reject, not-applicable. fix requires correction. reject and not-applicable require note. Every entry MUST carry BOTH text_at_review and source_de_at_review: the translation and the German you judged, copied from that row\'s current and source_de columns. The applier refuses a decision whose German OR translation no longer matches the source, so a human judgement is never recorded against a pair they did not read.',
     decisions: [
-      { id: 'ui/shell.m047', decision: 'approved', text_at_review: '<paste this row\'s current column exactly>', note: '' },
-      { id: 'ui/practice.drillTitle', decision: 'fix', text_at_review: '<paste this row\'s current column exactly>', correction: 'Einzelübungen', note: 'example: replacement text the reviewer wants' },
+      { id: 'ui/shell.m047', decision: 'approved', text_at_review: '<paste this row\'s current column exactly>', source_de_at_review: '<paste this row\'s source_de column exactly>', note: '' },
+      { id: 'ui/practice.drillTitle', decision: 'fix', text_at_review: '<paste this row\'s current column exactly>', source_de_at_review: '<paste this row\'s source_de column exactly>', correction: 'Einzelübungen', note: 'example: replacement text the reviewer wants' },
     ],
     example_only: 'The two entries above are an example of the shape. Delete them before sending: an id that is not in your pack is refused, and the applier records only what you write.',
   }, null, 2)}\n`;

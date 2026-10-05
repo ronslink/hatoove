@@ -153,6 +153,11 @@ async function inspectPackDir(dir, { languages = PACK_LANGUAGES } = {}) {
       for (const entry of ledger.entries ?? []) {
         if (!entry.decided_by || !String(entry.decided_by).trim()) issues('ledger_entry_without_reviewer', `ledger entry ${entry.id} has no decided_by`);
         if (!String(entry.text_at_review ?? '').length) issues('ledger_entry_without_text', `ledger entry ${entry.id} records no text_at_review`);
+        /* A translation decision is a decision about a PAIR. An entry that records only the translation
+           cannot be checked against the German the reviewer judged, so it is reported rather than trusted. */
+        if (entry.source_de_at_review === undefined || entry.source_de_at_review === null) {
+          issues('ledger_entry_without_source_text', `ledger entry ${entry.id} records no source_de_at_review`);
+        }
       }
     }
 
@@ -181,7 +186,11 @@ async function inspectPackDir(dir, { languages = PACK_LANGUAGES } = {}) {
         const entry = ledgerById.get(row.id);
         if (!entry) issues('approval_without_ledger_entry', `${row.id} is approved but the ledger has no entry for it`);
         else if (entry.decision !== 'approved') issues('approval_contradicts_ledger', `${row.id} is approved but the ledger says ${entry.decision}`);
-        else if (String(entry.text_at_review) !== String(row.current)) issues('stale_approval', `${row.id} was approved against text the pack no longer carries`);
+        else if (String(entry.text_at_review) !== String(row.current)) issues('stale_approval', `${row.id} was approved against a translation the pack no longer carries`);
+        /* The German axis. `0043` corrected German in place under an unchanged content_version, so an
+           approval that only checked the translation can outlive the German it was made against. */
+        else if (entry.source_de_at_review === undefined || entry.source_de_at_review === null) issues('approval_without_source_text', `${row.id} is approved without the German it was approved against`);
+        else if (String(entry.source_de_at_review) !== String(row.source_de)) issues('stale_approval_source', `${row.id} was approved against German the pack no longer carries`);
         else if (String(entry.decided_by ?? '').trim() !== String(row.reviewer ?? '').trim()) issues('approval_reviewer_mismatch', `${row.id} names a different reviewer from the ledger`);
       }
       if (String(row.decision ?? '').trim() && !String(row.reviewer ?? '').trim()) {
@@ -394,15 +403,42 @@ async function main() {
     console.log(`     ${hit}`);
   });
 
-  await check('M6 a stale approval fails as stale_approval', async () => {
+  await check('M6 a stale TRANSLATION approval fails as stale_approval', async () => {
     const mutant = mutate(target, 'm6', 'uk', (rows) => rows.map((row, index) => (index === 4 ? approve(row, { reviewer: 'A Named Human' }).record : row)));
     const { rows } = packCsvRows(read(path.join(mutant, 'uk-rows.csv')));
     const row = rows[4];
     writeLedger(mutant, 'uk', [{
       id: row.id, decision: 'approved', decided_by: 'A Named Human', decided_at: '2026-10-06',
-      text_at_review: 'text the pack does not carry any more', source_file: row.source_file, source_locator: row.source_locator,
+      text_at_review: 'translation the pack does not carry any more',
+      source_de_at_review: row.source_de,
+      source_file: row.source_file, source_locator: row.source_locator,
     }]);
     const hit = assertFailure((await inspectPackDir(mutant)).failures, /\[stale_approval\]/, 'M6');
+    console.log(`     ${hit}`);
+  });
+
+  await check('M9 a stale GERMAN approval fails as stale_approval_source (the axis N2 found open)', async () => {
+    /* The translation is untouched and still current; the GERMAN moved. Before this fix the approval
+       survived, because only the translation axis was compared. */
+    const mutant = mutate(target, 'm9', 'uk', (rows) => rows.map((row, index) => (index === 4 ? approve(row, { reviewer: 'A Named Human' }).record : row)));
+    const { rows } = packCsvRows(read(path.join(mutant, 'uk-rows.csv')));
+    const row = rows[4];
+    writeLedger(mutant, 'uk', [{
+      id: row.id, decision: 'approved', decided_by: 'A Named Human', decided_at: '2026-10-06',
+      text_at_review: row.current,
+      source_de_at_review: 'German the pack does not carry any more',
+      source_file: row.source_file, source_locator: row.source_locator,
+    }]);
+    const hit = assertFailure((await inspectPackDir(mutant)).failures, /\[stale_approval_source\]/, 'M9');
+    console.log(`     ${hit}`);
+  });
+
+  await check('M10 a ledger entry that records no German fails as approval_without_source_text', async () => {
+    const mutant = mutate(target, 'm10', 'uk', (rows) => rows.map((row, index) => (index === 4 ? approve(row, { reviewer: 'A Named Human' }).record : row)));
+    const { rows } = packCsvRows(read(path.join(mutant, 'uk-rows.csv')));
+    const row = rows[4];
+    writeLedger(mutant, 'uk', [{ id: row.id, decision: 'approved', decided_by: 'A Named Human', decided_at: '2026-10-06', text_at_review: row.current }]);
+    const hit = assertFailure((await inspectPackDir(mutant)).failures, /\[ledger_entry_without_source_text\]|\[approval_without_source_text\]/, 'M10');
     console.log(`     ${hit}`);
   });
 
@@ -475,9 +511,10 @@ async function main() {
     assert.equal(ledger.entries.length, 1);
     assert.equal(ledger.entries[0].decision, 'approved');
     assert.equal(ledger.entries[0].decided_by, 'A Named Human');
-    assert.equal(ledger.entries[0].text_at_review, firstDecidedRow('uk', 4).current, 'the text it was decided against is recorded');
+    assert.equal(ledger.entries[0].text_at_review, firstDecidedRow('uk', 4).current, 'the translation it was decided against is recorded');
+    assert.equal(ledger.entries[0].source_de_at_review, firstDecidedRow('uk', 4).source_de, 'AND the German it was decided against is recorded (the N2 axis)');
     assert.ok(existsSync(kase.corrections), 'the corrections file is written too');
-    console.log(`     accepted 1 decision, ledger has decided_by="${ledger.entries[0].decided_by}" and the exact text`);
+    console.log(`     accepted 1 decision, ledger has decided_by="${ledger.entries[0].decided_by}" and BOTH texts`);
   });
 
   await check('A2 "fix" with no replacement text is refused', async () => {
@@ -550,20 +587,61 @@ async function main() {
     assert.ok(!existsSync(path.join(jsonDir, 'uk-ledger.json')), 'and it must write nothing');
   });
 
-  await check('A7 a decision whose text no longer matches the source is REFUSED (the stale-text hole)', async () => {
+   await check('A7 a decision whose text no longer matches the source is REFUSED (both axes)', async () => {
     /* The reviewer judged text A; the source now carries text B. Writing the decision would record the
        human's approval against B. */
     const kase = applierCase('a7', 'uk', decide('uk', 4, { decision: 'ok', current: 'Text the reviewer read, which the source has since changed' }));
-    refuse('A7 stale text', runApplier(['--csv', kase.csv, '--reviewer', 'A Named Human']), kase, /text changed since this pack was generated/);
-    /* The same rule in the JSON shape, where the text must be quoted explicitly. */
+    refuse('A7 stale translation', runApplier(['--csv', kase.csv, '--reviewer', 'A Named Human']), kase, /translated text changed since this pack was generated/);
+    /* N2's axis: the TRANSLATION is untouched and still current, the GERMAN moved (0043 did exactly that,
+       under an unchanged content_version). Before the fix this file was accepted and the approval recorded
+       against German nobody had read. */
+    const german = applierCase('a7c', 'uk', decide('uk', 4, { decision: 'ok', source_de: 'German the reviewer read, which the source has since corrected' }));
+    refuse('A7 stale German', runApplier(['--csv', german.csv, '--reviewer', 'A Named Human']), german, /German source changed since this pack was generated/);
+    /* The same rule in the JSON shape, where both texts must be quoted explicitly. */
     const jsonDir = mkdtempSync(path.join(os.tmpdir(), 'rp-a7b-'));
     const row = firstDecidedRow('uk', 4);
     const jsonFile = path.join(jsonDir, 'uk.json');
     writeFileSync(jsonFile, JSON.stringify({
       format: 'hatoove-review-decisions/v1', language: 'uk', reviewer: 'A Named Human', reviewed_at: '2026-10-05',
-      decisions: [{ id: row.id, decision: 'approved', text_at_review: 'text the source no longer carries', note: '' }],
+      decisions: [{ id: row.id, decision: 'approved', text_at_review: 'translation the source no longer carries', source_de_at_review: row.source_de, note: '' }],
     }));
-    refuse('A7 stale text (json)', runApplier(['--json', jsonFile]), { wrote: () => existsSync(path.join(jsonDir, 'uk-ledger.json')), ledger: path.join(jsonDir, 'uk-ledger.json'), corrections: '' }, /text changed since this pack was generated/);
+    refuse('A7 stale translation (json)', runApplier(['--json', jsonFile]), { wrote: () => existsSync(path.join(jsonDir, 'uk-ledger.json')), ledger: path.join(jsonDir, 'uk-ledger.json'), corrections: '' }, /translated text changed since this pack was generated/);
+    const jsonGerman = path.join(jsonDir, 'uk-german.json');
+    writeFileSync(jsonGerman, JSON.stringify({
+      format: 'hatoove-review-decisions/v1', language: 'uk', reviewer: 'A Named Human', reviewed_at: '2026-10-05',
+      decisions: [{ id: row.id, decision: 'approved', text_at_review: row.current, source_de_at_review: 'German the source no longer carries', note: '' }],
+    }));
+    refuse('A7 stale German (json)', runApplier(['--json', jsonGerman]), { wrote: () => existsSync(path.join(jsonDir, 'uk-ledger.json')), ledger: path.join(jsonDir, 'uk-ledger.json'), corrections: '' }, /German source changed since this pack was generated/);
+  });
+
+  await check('A7d a spreadsheet that re-saves multi-line cells as CRLF is ACCEPTED (line endings are not text)', async () => {
+    /* The ergonomics point behind N2's smaller note, exercised on a row that really is multi-line: the text
+       the reviewer judged, with every LF inside the CELL turned into CRLF as a spreadsheet would save it.
+       The integrity rule is about the text, so this must still apply. */
+    const kase = applierCase('a7d', 'uk', (rows) => rows);
+    const parsed = packCsvRows(read(kase.csv));
+    const multi = parsed.rows.findIndex((candidate) => /\n/.test(String(candidate.current ?? '')) || /\n/.test(String(candidate.source_de ?? '')));
+    const index = multi >= 0 ? multi : 4;
+    const decision = { decision: 'ok' };
+    const rows = parsed.rows.map((candidate, position) => (position === index ? {
+      ...candidate, ...decision,
+      /* The reviewer's copy: CRLF inside the quoted cell, exactly what a spreadsheet writes back. */
+      current: String(candidate.current ?? '').replace(/\n/g, '\r\n'),
+      source_de: String(candidate.source_de ?? '').replace(/\n/g, '\r\n'),
+    } : candidate));
+    writeFileSync(kase.csv, packCsv(rows));
+    assert.ok(read(kase.csv).includes('\r\n'), 'the fixture really carries CRLF inside a cell');
+    const probe = runApplier(['--csv', kase.csv, '--reviewer', 'A Named Human']);
+    assert.equal(probe.status, 0, `a CRLF re-save must not reject the file: ${probe.stderr}`);
+    const ledger = JSON.parse(read(kase.ledger));
+    assert.equal(ledger.entries.length, 1, 'and the decision is recorded');
+    const fresh = packCsvRows(read(path.join(target, 'uk-rows.csv'))).rows[index];
+    assert.equal(ledger.entries[0].text_at_review, fresh.current, 'against the canonical text, not the spreadsheet\'s line-ending form');
+    console.log(`     row #${index} re-saved with CRLF inside a multi-line cell: accepted, ledger records the canonical text`);
+    /* A REAL character change in the same multi-line cell still fails. */
+    const tampered = applierCase('a7e', 'uk', (current) => current.map((candidate, position) => (position === index
+      ? { ...candidate, decision: 'ok', source_de: `${String(candidate.source_de ?? '').slice(0, -1)}X` } : candidate)));
+    refuse('A7e real change', runApplier(['--csv', tampered.csv, '--reviewer', 'A Named Human']), tampered, /German source changed/);
   });
 
   await check('A8 a decision file entry with no quoted text is refused (an approval must say what it approved)', async () => {
@@ -573,7 +651,13 @@ async function main() {
       format: 'hatoove-review-decisions/v1', language: 'uk', reviewer: 'A Named Human', reviewed_at: '2026-10-05',
       decisions: [{ id: row.id, decision: 'approved', note: '' }],
     }));
-    refuse('A8 unquoted', runApplier(['--json', path.join(jsonDir, 'uk.json')]), { wrote: () => existsSync(path.join(jsonDir, 'uk-ledger.json')), ledger: path.join(jsonDir, 'uk-ledger.json'), corrections: '' }, /carries no text_at_review/);
+    refuse('A8 unquoted translation', runApplier(['--json', path.join(jsonDir, 'uk.json')]), { wrote: () => existsSync(path.join(jsonDir, 'uk-ledger.json')), ledger: path.join(jsonDir, 'uk-ledger.json'), corrections: '' }, /carries no text_at_review/);
+    /* The German half of the same rule. */
+    writeFileSync(path.join(jsonDir, 'uk-source.json'), JSON.stringify({
+      format: 'hatoove-review-decisions/v1', language: 'uk', reviewer: 'A Named Human', reviewed_at: '2026-10-05',
+      decisions: [{ id: row.id, decision: 'approved', text_at_review: row.current, note: '' }],
+    }));
+    refuse('A8 unquoted German', runApplier(['--json', path.join(jsonDir, 'uk-source.json')]), { wrote: () => existsSync(path.join(jsonDir, 'uk-ledger.json')), ledger: path.join(jsonDir, 'uk-ledger.json'), corrections: '' }, /carries no source_de_at_review/);
   });
 
   await check('A9 the applier edits NO catalogue and NO bundle byte, on success or on refusal', async () => {
@@ -599,7 +683,8 @@ async function main() {
     const row = firstDecidedRow('uk', 4);
     writeLedger(ledgerDir, 'uk', [{
       id: row.id, decision: 'approved', decided_by: 'A Human Name Written By Hand', decided_at: '2026-10-05',
-      text_at_review: row.current, source_file: row.source_file, source_locator: row.source_locator,
+      text_at_review: row.current, source_de_at_review: row.source_de,
+      source_file: row.source_file, source_locator: row.source_locator,
     }]);
     /* The ledger travels WITH the pack: the applier writes it into the pack directory, and the next build
        reads it from there. A forged one placed there is indistinguishable to every check below. */
@@ -645,8 +730,8 @@ async function main() {
     console.log('     guard removed -> the same input exits 0 and writes an approval with no reviewer: the guard is what refuses');
   });
 
-  await check('A12 removing the text guard makes the stale-text refusal disappear', async () => {
-    const mutated = mutateApplier('text', '    if (String(entry.quoted) !== String(row.current ?? \'\')) {', '    if (false) {');
+  await check('A12 removing the translation guard makes the stale-text refusal disappear', async () => {
+    const mutated = mutateApplier('text', '    if (!sameText(entry.quoted, String(row.current ?? \'\'))) {', '    if (false) {');
     const kase = applierCase('a12', 'uk', decide('uk', 4, { decision: 'ok', current: 'text the reviewer read, the source has moved' }));
     assert.equal(runApplier(['--csv', kase.csv, '--reviewer', 'A Named Human']).status, 1, 'the shipped applier refuses');
     const mutatedRun = spawnSync(process.execPath, [mutated, '--csv', kase.csv, '--reviewer', 'A Named Human'], { encoding: 'utf8' });
@@ -654,6 +739,17 @@ async function main() {
     const ledger = JSON.parse(read(kase.ledger));
     assert.equal(ledger.entries[0].text_at_review, firstDecidedRow('uk', 4).current, 'and it re-attributes the decision to text nobody approved');
     console.log('     guard removed -> the stale decision is accepted and recorded against the NEW text: the guard is load-bearing');
+  });
+
+  await check('A13 removing the GERMAN guard makes the stale-source refusal disappear (N2)', async () => {
+    const mutated = mutateApplier('source', '    if (!sameText(entry.sourceQuoted, String(row.source_de ?? \'\'))) {', '    if (false) {');
+    const kase = applierCase('a13', 'uk', decide('uk', 4, { decision: 'ok', source_de: 'German the reviewer read, the source has corrected since' }));
+    assert.equal(runApplier(['--csv', kase.csv, '--reviewer', 'A Named Human']).status, 1, 'the shipped applier refuses');
+    const mutatedRun = spawnSync(process.execPath, [mutated, '--csv', kase.csv, '--reviewer', 'A Named Human'], { encoding: 'utf8' });
+    assert.equal(mutatedRun.status, 0, `with the German guard removed the stale approval is written: ${mutatedRun.stderr}`);
+    const ledger = JSON.parse(read(kase.ledger));
+    assert.equal(ledger.entries[0].source_de_at_review, firstDecidedRow('uk', 4).source_de, 'and it records the NEW German the human never read');
+    console.log('     guard removed -> a translation approval survives a change to its German source: that is exactly N2, and the guard is what closes it');
   });
 
   if (!options.keep) rmSync(scratch, { recursive: true, force: true });

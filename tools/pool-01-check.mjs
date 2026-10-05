@@ -40,6 +40,9 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+/* ONE implementation of the source-record rule, shared with the generator (N5). */
+import { canonicalSourceRecord, legitimateSourceDigests } from './build-objective-migration.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = 'content/pool-01/batch-1.json';
 const MIGRATION = 'server/migrations/0047-pool-01-batch-1.sql';
@@ -65,13 +68,11 @@ const firstLine = (error) => String(error && error.message).split('\n')[0];
  * A record is therefore accepted only when it is the digest of THIS checkout's file in one of those two forms
  * — the set is computed from the file on disk at check time, never from a table of blessed digests, so a stale
  * record or a source that moved still fails.
+ *
+ * THE RULE IS NOT REIMPLEMENTED HERE (N5). It lives in `tools/build-objective-migration.mjs`
+ * (`legitimateSourceDigests` / `canonicalSourceRecord`) and is imported, because a generator and its checker
+ * that each implement the rule can drift — and a drifted pair is how a gate silently stops meaning anything.
  */
-const sourceDigestForms = (absolute) => {
-  const raw = fs.readFileSync(absolute);
-  const lf = Buffer.from(String(raw).replace(/\r\n/g, '\n'), 'utf8');
-  const crlf = Buffer.from(String(lf).replace(/\n/g, '\r\n'), 'utf8');
-  return new Set([raw, lf, crlf].map(sha256));
-};
 
 /** The blueprint's item numbering per family (docs/exam/TELC-B1-SOURCES.md §3.1, §3.3). */
 const ITEM_NUMBERS = Object.freeze({
@@ -373,21 +374,48 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
       const generated = await runNode([builderPath, '--check']);
       assert.equal(generated.code, 0, `the corpus migration must still match data/seed.json:\n${generated.out.slice(-300)}`);
       assert.match(generated.out, /24 sets, 24 keys/, 'the seeded corpus is still 24 sets');
-      const header = corpusText.match(/Source: data\/seed\.json \(sha256 ([0-9a-f]{64})\)/);
+      const header = corpusText.match(/([ \t]*-- Source: data\/seed\.json \(sha256 )([0-9a-f]{64})(\))/);
       assert.ok(header, '0010 records the digest of the source it was generated from');
       /*
-       * EXACT, BUT PLATFORM-INDEPENDENT. The record is over the source bytes AS CHECKED OUT, and this file has
-       * two legitimate byte forms (CRLF on Windows, LF elsewhere), so the assertion is membership in the set of
-       * digests THIS checkout's data/seed.json actually has — not equality with one platform's value. The
-       * fabrication below is what keeps that from becoming a rubber stamp: a digest one character away from the
-       * record must be refused.
+       * EXACT, BUT PLATFORM-INDEPENDENT — and NOT a rubber stamp. Two things are asserted, and both can
+       * fail. (1) The record is this checkout's data/seed.json in one of its byte forms, through the
+       * GENERATOR'S OWN rule (imported, not reimplemented). (2) A hand-edited record is refused end to end:
+       * the digest is changed by one character in a throwaway copy of the migration and the generator is
+       * asked to accept it with `--check`, which must fail. The old assert here compared a fabricated
+       * digest against a set of three real ones and could never fail; this one cannot pass vacuously,
+       * because it also requires the PRISTINE copy to be accepted first.
        */
-      const seedForms = sourceDigestForms(path.join(ROOT, 'data/seed.json'));
-      assert.ok(seedForms.has(header[1]),
-        `0010's recorded digest must be data/seed.json in one of its byte forms; recorded ${header[1]}, this checkout has ${[...seedForms].join(' / ')}`);
-      const fabricated = `${header[1].slice(0, 63)}${header[1].endsWith('0') ? '1' : '0'}`;
-      assert.notEqual(fabricated, header[1], 'the fabricated digest is a different value');
-      assert.ok(!seedForms.has(fabricated), 'and a digest one character away from the record is NOT accepted');
+      const seedFile = path.join(ROOT, 'data/seed.json');
+      const seedForms = legitimateSourceDigests(seedFile);
+      assert.ok(seedForms.has(header[2]),
+        `0010's recorded digest must be data/seed.json in one of its byte forms; recorded ${header[2]}, this checkout has ${[...seedForms].join(' / ')}`);
+      const handEdited = `${header[2].slice(0, 63)}${header[2].endsWith('0') ? '1' : '0'}`;
+      assert.notEqual(handEdited, header[2], 'the fabricated digest is a different value');
+      /* The generator canonicalises a legitimate record and leaves a hand-edited one alone, so the two
+         cannot look the same to the comparison. */
+      assert.notEqual(
+        canonicalSourceRecord(`${header[1]}${header[2]}${header[3]}`, seedFile),
+        canonicalSourceRecord(`${header[1]}${handEdited}${header[3]}`, seedFile),
+        'a hand-edited source record must NOT canonicalise to the same thing as a real one',
+      );
+      /* (2) A hand-edited record is refused END TO END. The generator's own `--check` honours `--out` on the
+         BATCH axis, so a copy of 0047 with one hex character of its source record changed must be refused,
+         and the pristine copy accepted first — otherwise the refusal could be about something else. */
+      const batchRecord = migrationText.match(/([ \t]*-- Source: content\/pool-01\/batch-1\.json \(sha256 )([0-9a-f]{64})(\))/);
+      assert.ok(batchRecord, '0047 carries a source record to hand-edit');
+      const handEditedBatch = `${batchRecord[2].slice(0, 63)}${batchRecord[2].endsWith('0') ? '1' : '0'}`;
+      assert.notEqual(handEditedBatch, batchRecord[2], 'the hand-edited digest differs');
+      const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pool01-handedited-'));
+      const pristineCopy = path.join(scratchDir, '0047-pristine.sql');
+      const editedCopy = path.join(scratchDir, '0047-hand-edited.sql');
+      fs.writeFileSync(pristineCopy, migrationText);
+      fs.writeFileSync(editedCopy, migrationText.replace(batchRecord[0], `${batchRecord[1]}${handEditedBatch}${batchRecord[3]}`));
+      const acceptedControl = await runNode([builderPath, '--batch', SOURCE, '--out', pristineCopy, '--check']);
+      assert.equal(acceptedControl.code, 0, `the generator must still accept the pristine copy (the control):\n${acceptedControl.out.slice(-300)}`);
+      const refusedEdited = await runNode([builderPath, '--batch', SOURCE, '--out', editedCopy, '--check']);
+      assert.notEqual(refusedEdited.code, 0, 'a hand-edited source digest must be REFUSED by the generator, not accepted');
+      assert.match(refusedEdited.out, /objective-batch: FAILED|differs from/, `and the refusal must name the migration:\n${refusedEdited.out.slice(-300)}`);
+      fs.rmSync(scratchDir, { recursive: true, force: true });
       /* The batch lives in its OWN source: no batch set id may appear in the corpus source. */
       const seedText = read('data/seed.json');
       for (const entry of sets) assert.ok(!seedText.includes(entry.set_id), `${entry.set_id} is not spliced into data/seed.json`);
@@ -401,7 +429,7 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
       // The same platform-independent reading of 0047's own source record as leg 4 applies to 0010's.
       const record = migrationText.match(/Source: content\/pool-01\/batch-1\.json \(sha256 ([0-9a-f]{64})\)/);
       assert.ok(record, '0047 records the digest of the batch source it was generated from');
-      const batchForms = sourceDigestForms(path.join(ROOT, SOURCE));
+      const batchForms = legitimateSourceDigests(path.join(ROOT, SOURCE));
       assert.ok(batchForms.has(record[1]),
         `0047's recorded digest must be ${SOURCE} in one of its byte forms; recorded ${record[1]}, this checkout has ${[...batchForms].join(' / ')}`);
     }],
@@ -720,6 +748,12 @@ const BUILDER_MUTATIONS = [
   ['M4 the builder stops stripping the answer fields (SECRET_FIELDS emptied)', (text) => text.replace(
     "const SECRET_FIELDS = new Set(['answer', 'why', 'grammar']);",
     'const SECRET_FIELDS = new Set([]);')],
+  /* N5's mutation: the canonicalisation stops asking whether the digest is real, so a hand-edited source
+     record would be accepted. Leg 4 must be the leg that fails — that is what makes its assert load-bearing
+     rather than decorative. */
+  ['M8 the source-record canonicalisation accepts ANY digest', (text) => text.replace(
+    'return text.replace(SOURCE_RECORD, (whole, head, hex, tail) => (allowed.has(hex) ? `${head}<source>${tail}` : whole));',
+    'return text.replace(SOURCE_RECORD, (whole, head, hex, tail) => `${head}<source>${tail}`);')],
 ];
 
 /* --------------------------------------------------------------------------- main */
