@@ -355,6 +355,21 @@ production and its checksum is frozen.
   renders the German table first and a dimmed translated-header table beneath it, rather than
   substituting the translated header for the German one. The German source is never replaced by its
   translation (§4.3's "German text first" applies to tables too).
+- **A9 (5 Oct 2026, slice C server review).** A1's pool figure is corrected again, and this time from a
+  running database rather than from `data/seed.json` alone: the released objective corpus is **25 sets
+  across the eight families**, because **SB1 has four**. The fourth is
+  `telc-deutsch-b1.sb1.grammar-wortstellung-v1`, a 12-item grammar drill seeded by migration `0022` from
+  `content/drills/recovered-grammar.json#banks.wortstellung_nebensatz` — released practice content, not a
+  telc examination set, and it carries `practice_kind="grammar-drill"` plus an instruction saying exactly
+  that. Consequences: (a) the "three sets per part" statement holds for LV1–LV3, SB2 and HV1–HV3 but **not**
+  SB1; (b) the wrap rule is **per-part set count**, never a hard-coded three, and for SB1 it fires on the
+  fifth tap; (c) the practice DTO must carry the drill's disclosure so a learner is told it is not an exam
+  part — it must be **labelled, not filtered**; (d) a served set is not necessarily from `0010`, and any
+  comment or note saying otherwise is wrong. The reviewer also found that `POST /api/v1/practice/check`
+  answered 404 for every listening set **after committing the check** — the explanation reader for that
+  route is a choice-family reader (`0037`) and a boolean HV answer raised `not_found`. Fixed under the same
+  review cycle: a judgement set serves `explanation: null`, a failed explanation read can never discard a
+  committed check, and the HTTP leg now drives an HV set as well as LV1.
 - `PRACTICE-FLOW-FROM-B1PREP-20261005.md` was not found in this repository or in
   `D:\B1_Prep\Claude outputs`; §3 of that document is superseded by §5 here.
 - Push/PR policy for this program: slices are committed to their own local branches and integrated
@@ -364,4 +379,4 @@ production and its checksum is frozen.
   string is marked approved.
 - POOL-01 batch generation needs Ron's go-ahead.
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A8 added 5 October 2026.*
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A9 added 5 October 2026.*

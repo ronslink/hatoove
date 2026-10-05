@@ -19,6 +19,26 @@ generated `server/migrations/0010-objective-catalogue.sql`), not from a running 
 | HV3 | 3 | 5 items (audio) |
 | **Total** | **24 sets over 8 parts** | |
 
+## Correction (5 October 2026, slice-C server review): 25 sets, SB1 has four
+
+A running-database tap sequence corrected this table once more: **SB1 has four** released sets, not three.
+The fourth is `telc-deutsch-b1.sb1.grammar-wortstellung-v1`, a 12-item grammar drill seeded by migration
+`0022` from `content/drills/recovered-grammar.json#banks.wortstellung_nebensatz` — released practice
+content with `practice_kind="grammar-drill"` and an instruction stating it is not a telc examination set.
+It is **labelled, not filtered**, per contract amendment A9.
+
+| Part | Released sets | Items per set (authored shape) |
+|---|---|---|
+| LV1 / LV2 / LV3 | 3 each | 5 / 5 / 10 |
+| SB1 | **4** (3 exam sets + 1 disclosed grammar drill) | 10 / 10 / 10 / 12 |
+| SB2 | 3 | 10 |
+| HV1 / HV2 / HV3 | 3 each | 5 / 10 / 5 |
+| **Total** | **25 sets over 8 parts** | |
+
+The wrap rule is therefore per-part **set count**, never a hard-coded three: for SB1 it fires on the fifth
+tap, for every other part on the fourth. A POOL-01 batch that brings each part to six still means 24 new
+sets if SB1's drill counts toward the six; if the drill is to remain supplementary, SB1 needs five.
+
 ## What this means for the slices
 
 - **B (PRACTICE-UI-01)** — every one of the eight parts has released content, so all eight get a tile.
