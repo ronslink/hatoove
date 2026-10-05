@@ -5,7 +5,7 @@
 authored by one writer and reviewed by a non-author before integration.
 
 **Base:** `main` @ `daaff6b` (the revision live in production).
-**Applied migration head:** `0047`. **This contract's migration:** `0049-pilot-feedback.sql` (see A1).
+**Applied migration head:** `0047`. **This contract's migration:** `0050-pilot-feedback.sql` (A1 — renumbered twice; see A1 and A16).
 **Authorisation:** Ron, in-session, 5 October 2026: *"we need to deploy this to prod as soon as possible as
 without it we are not able to get user feedback"*, and *"use claude to help build this"*. Deployment of the
 integrated result is authorised; nothing is published or deployed before the gates in §6 pass on the exact head.
@@ -22,7 +22,7 @@ integrated result is authorised; nothing is published or deployed before the gat
 
 | # | Amendment | Reason |
 |---|---|---|
-| **A1** | The migration is **`0049-pilot-feedback.sql`**, not `0048`. | `0048-pool-01-listening-release.sql` already exists on `codex/pool-01-listening-release` and is pinned by filename in `server/migrations/MANIFEST.json` (`pool-01-check.mjs:589`). Numbering is by filename order, so a gap is harmless; renumbering a built, gated branch is not. Whichever branch lands second keeps the higher number. |
+| **A1** | The migration is **`0049-pilot-feedback.sql`**, not `0048`. | `0048-pool-01-listening-release.sql` already exists on `codex/pool-01-listening-release` and is pinned by filename in `server/migrations/MANIFEST.json` (`pool-01-check.mjs:589`). Numbering is by filename order, so a gap is harmless; renumbering a built, gated branch is not. Whichever branch lands second keeps the higher number. **Renumbered again, to `0050-pilot-feedback.sql`, on 6 October 2026:** `main` landed `0049-review-owner-approval` first, so by this amendment's own rule the second branch takes the higher number — and once Stage 1 was merged, FB-D's operator migration moved to `0051` to stay above it. |
 | **A2** | **Two deploy stages.** Stage 1 = FB-A + FB-B + FB-C: the learner-facing table, the API and the report form. Stage 2 = FB-D (operator CLI, the `__OPERATOR__` role, the survey seed) and FB-E (screenshots). | Ron's need is *collecting* feedback. Stage 2 holds the riskier surface: FB-D adds a **new login role**, and therefore a new secret in `production.env` and in the compose environment list — a production configuration change — while FB-E is the riskiest browser work. Stage 1 stays free of production config changes. **Consequence, stated honestly:** the survey card ships in Stage 1 but stays dormant until Stage 2's seed writes a round, so the card cannot appear on Heute before then. |
 | **A3** | Named anchors (the draft named them by description only): RLS pattern `server/migrations/0015-item-evidence.sql`; deletion steps `server/owned-postgres/adapter.mjs:1738` (`ACCOUNT_DELETION_STEPS`); data export route `server/owned-api.mjs:1407` (`/api/v1/export`); throttle helper `server/owned-postgres/throttle.mjs`; catalogue `tools/lib/catalogue.mjs`; i18n catalogues `public/assets/i18n/{shell,practice,auth,public}-messages.js` and `instructions.js`. |
 | **A4** | **No CSP change is needed.** `git grep` finds no `Content-Security-Policy` and no `img-src` anywhere in the tracked tree, and `deploy/Caddyfile:16` states "No CSP/HSTS policy is silently imposed on the client" — the headers set are `X-Content-Type-Options`, `Referrer-Policy` and `X-Frame-Options` only. | §3 assumed an existing `img-src` that might lack `data:` and `blob:`. It was checked while freezing the contract and does not exist, so the CSP note is a property to re-verify at review time, not a change to make. The vendored library's `data:`/`blob:` rendering is therefore unconstrained; the reason to vendor rather than use a CDN is unchanged (a CDN would add a third-party origin and a new processor). |
@@ -55,11 +55,11 @@ A per-part rating was offered and not chosen. Storage is the **Hatoove database*
 own PostgreSQL, tied to the learner's account, exported with their data and deleted with their account. No new
 data processor, no Gmail notice (that would be a later OPERATOR-MAIL-01 decision).
 
-## 1. Data model — `server/migrations/0049-pilot-feedback.sql`
+## 1. Data model — `server/migrations/0050-pilot-feedback.sql`
 
 **`0049` carries the learner-facing tables only** (`pilot_feedback`, `pilot_feedback_screenshot`,
 `survey_round`). The operator surface — the `__OPERATOR__` role, the `SECURITY DEFINER` read function and the
-limited `UPDATE` grant — is **`0050-pilot-feedback-operator.sql`**, authored in FB-D (Stage 2), because it
+limited `UPDATE` grant — is **`0051-pilot-feedback-operator.sql`**, authored in FB-D (Stage 2), because it
 changes deployment configuration.
 
 Follow the house migration idiom: `__SCHEMA__`, `__LEARNER__`, `__DELETION__`, `__OPERATOR__` placeholders
@@ -336,10 +336,10 @@ personal-data export, not a shareable report. Its destination and retention foll
 
 | Slice | Scope | Allowed paths (advisory, one writer per file) |
 |---|---|---|
-| **FB-A** | Migration `0049` (column **`survey_answers`**, A5), catalogue **and `ACCOUNT_TABLES`** entry, `ACCOUNT_DELETION_STEPS`, export (**assembled in `adapter.exportData`**, A11), RLS/table-class legs including `relrowsecurity = false` for `survey_round` (A10), MANIFEST pin | `server/migrations/0049-pilot-feedback.sql`, `server/migrations/MANIFEST.json`, `tools/lib/catalogue.mjs`, `server/owned-postgres/adapter.mjs`, `server/owned-api.mjs` (export only), `tools/deletion-check.mjs`, `tools/table-class-check.mjs`, new `tools/pilot-feedback-migration-check.mjs` |
+| **FB-A** | Migration `0050` (column **`survey_answers`**, A5), catalogue **and `ACCOUNT_TABLES`** entry, `ACCOUNT_DELETION_STEPS`, export (**assembled in `adapter.exportData`**, A11), RLS/table-class legs including `relrowsecurity = false` for `survey_round` (A10), MANIFEST pin | `server/migrations/0050-pilot-feedback.sql`, `server/migrations/MANIFEST.json`, `tools/lib/catalogue.mjs`, `server/owned-postgres/adapter.mjs`, `server/owned-api.mjs` (export only), `tools/deletion-check.mjs`, `tools/table-class-check.mjs`, new `tools/pilot-feedback-migration-check.mjs` |
 | **FB-B** | API routes and throttle | `server/owned-api.mjs`, `server/owned-postgres/feedback.mjs` (new), `server/owned-postgres/throttle.mjs`, new `tools/pilot-feedback-api-check.mjs`, `server/owned-postgres/fixture.mjs` |
 | **FB-C** | The single report sheet (top bar + sidebar), "Meine Meldungen", the survey card, copy in 5 languages | `public/app/*.js`, `public/app/app.css`, `public/app/index.html`, `public/assets/i18n/*.js`, new `tools/pilot-feedback-client-check.mjs` |
-| **FB-D** | Operator CLI, `__OPERATOR__` role + migration `0050`, survey-round seeding, CSV export | `server/migrations/0050-pilot-feedback-operator.sql` (new), `server/feedback.mjs` (new), `server/owned-postgres/{provision,bootstrap,config}.mjs`, `tools/pilot-feedback-operator-check.mjs` (new), `docs/openapi.yaml`, docs |
+| **FB-D** | Operator CLI, `__OPERATOR__` role + migration `0051`, survey-round seeding, CSV export | `server/migrations/0051-pilot-feedback-operator.sql` (new), `server/feedback.mjs` (new), `server/owned-postgres/{provision,bootstrap,config}.mjs`, `tools/pilot-feedback-operator-check.mjs` (new), `docs/openapi.yaml`, docs |
 | **FB-E** | Screenshot **upload route** + vendored capture library, masking, thumbnail, operator `--save-screenshot` / `--screenshots`. **No migration** — the table is already in `0049`. | `public/assets/vendor/**` (new), `public/app/*`, `server/owned-api.mjs`, `server/owned-postgres/feedback.mjs`, `server/feedback.mjs`, `public/app/index.html` (CSP), security notes |
 
 **Order.** FB-A, then FB-B. FB-C and FB-D then run in parallel against the frozen §2 API. FB-E follows FB-C.

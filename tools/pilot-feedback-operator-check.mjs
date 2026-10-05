@@ -183,6 +183,26 @@ async function main() {
         `the update moved ${moved.join(', ')}: it is not bounded to the three triage columns`);
     });
 
+    await check('20. a status change with no note PRESERVES the note already there', async () => {
+      /*
+       * `operator_note = p_note` ERASED the note. An independent reviewer ran `set-status <id> triaged` with no
+       * `--note` and the note written on the earlier triage was silently gone — a status change and a note change
+       * are different intents, and the caller who wants only the first should not have to re-send the second.
+       * Leg 5 above writes a note, so this leg inherits one to preserve.
+       */
+      const before = (await q(`SELECT operator_note FROM ${T('pilot_feedback')} WHERE feedback_id = $1`, [aReport]))[0];
+      assert.equal(before.operator_note, 'Reproduced on HV2.', 'leg 5 must leave a note for this leg to preserve');
+      await operator.query('SELECT operator_set_feedback_status($1,$2,$3)', [aReport, 'fixed', null]);
+      const kept = (await q(`SELECT status, operator_note FROM ${T('pilot_feedback')} WHERE feedback_id = $1`, [aReport]))[0];
+      assert.equal(kept.status, 'fixed', 'the status must still change');
+      assert.equal(kept.operator_note, 'Reproduced on HV2.',
+        'a status-only update erased the note: `p_note` must not overwrite it with NULL');
+      // An EMPTY STRING is not NULL, so clearing a note stays possible on purpose rather than by accident.
+      await operator.query('SELECT operator_set_feedback_status($1,$2,$3)', [aReport, 'triaged', '']);
+      const cleared = (await q(`SELECT operator_note FROM ${T('pilot_feedback')} WHERE feedback_id = $1`, [aReport]))[0];
+      assert.equal(cleared.operator_note, '', 'an explicit empty note must still clear it');
+    });
+
     await check('6. the identity trigger refuses a rewrite of the report text, EVEN by the owner', async () => {
       // The second line of defence: the function cannot reach `body`, and neither can a direct owner UPDATE.
       const code = await refusal(admin, `UPDATE ${T('pilot_feedback')} SET body = 'tampered' WHERE feedback_id = $1`, [aReport]);

@@ -104,9 +104,15 @@ BEGIN
     RAISE EXCEPTION 'invalid_note' USING ERRCODE = '23514';
   END IF;
   -- THREE COLUMNS. Not "the operator may only change these" — the statement cannot change anything else.
+  --
+  -- AND A MISSING NOTE PRESERVES THE EXISTING ONE. `operator_note = p_note` ERASED it: the reviewer ran
+  -- `set-status <id> triaged` with no `--note` and the note written on an earlier triage was silently gone. A
+  -- status change and a note change are different intents, and the caller that wants only the first should not
+  -- have to re-send the second. `COALESCE` keeps the old note when none is given; an EMPTY STRING is not NULL, so
+  -- `--note ""` still clears it deliberately.
   UPDATE "__SCHEMA__".pilot_feedback
      SET status        = p_status,
-         operator_note = p_note,
+         operator_note = COALESCE(p_note, operator_note),
          handled_at    = CASE WHEN p_status = 'new' THEN NULL ELSE now() END
    WHERE feedback_id = p_feedback_id;
   GET DIAGNOSTICS touched = ROW_COUNT;
