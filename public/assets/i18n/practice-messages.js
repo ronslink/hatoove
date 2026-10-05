@@ -89,7 +89,7 @@ const rows = {
    * REDESIGN-01 D — the per-part line of the mock RESULT. Counted from the learner's own recorded
    * answers, so it is a count rather than a score and carries no pass line.
    */
-  partResult: ["Teil {part}: {correct} von {total} richtig","Part {part}: {correct} of {total} correct","Частина {part}: {correct} з {total} правильно","الجزء {part}: {correct} من {total} صحيحة","Bölüm {part}: {total} sorudan {correct} doğru"],
+  partResult: ["Teil {part}: {correct} von {total} richtig","Part {part}: {correct} of {total} correct","Частина {part}: правильно {correct} з {total}","الجزء {part}: {correct} من {total} صحيحة","Bölüm {part}: {total} sorudan {correct} doğru"],
   answeredNav: ["Teil {part}, Aufgabe {id}, beantwortet","Part {part}, task {id}, answered","Частина {part}, завдання {id}, відповідь надано","الجزء {part}، المهمة {id}، تمت الإجابة","Bölüm {part}, görev {id}, yanıtlandı"],
   unansweredNav: ["Teil {part}, Aufgabe {id}, unbeantwortet","Part {part}, task {id}, unanswered","Частина {part}, завдання {id}, без відповіді","الجزء {part}، المهمة {id}، بلا إجابة","Bölüm {part}, görev {id}, yanıtsız"],
   unanswered: ["Unbeantwortet","Unanswered","Без відповіді","بلا إجابة","Yanıtsız"],
@@ -98,7 +98,7 @@ const rows = {
   incorrect: ["Nicht richtig","Incorrect","Неправильно","غير صحيح","Yanlış"],
   correctAnswer: ["Passende Antwort:","Correct answer:","Правильна відповідь:","الإجابة الصحيحة:","Doğru yanıt:"],
   formRelease: ["Formular {form} · Ausgabe {release}","Form {form} · Release {release}","Форма {form} · Випуск {release}","النموذج {form} · الإصدار {release}","Form {form} · Sürüm {release}"],
-  form: ["Formular {form}","Form {form}","Форма {form}","النموذج {form}","Formular {form}"],
+  form: ["Formular {form}","Form {form}","Форма {form}","النموذج {form}","Form {form}"],
   untimed: ["Ohne Zeitlimit","No time limit","Без обмеження часу","بلا حد زمني","Süre sınırı yok"],
   timed: ["Mit Zeitlimit","Timed","З обмеженням часу","بحد زمني","Süreli"],
   minutes: ["{minutes} Minuten","{minutes} minutes","{minutes} хвилин","{minutes} دقيقة","{minutes} dakika"],

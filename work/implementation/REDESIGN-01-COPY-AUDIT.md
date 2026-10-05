@@ -20,6 +20,12 @@ The audit was run as code, not by eye, and the result is:
 - **One untranslated string was found and fixed.** `form` read `Form {form}` in Turkish, which is the English
   word: it now reads `Formular {form}`, matching the German column. This was the only uk/ar/tr entry whose
   text was identical to English while containing Latin letters.
+
+  > **CORRECTION (5 October 2026).** That "fix" was wrong and has been reverted. `form` **is** the Turkish
+  > word; translating it to the German `Formular` broke correct copy. The rule that produced it — "identical
+  > to English while containing Latin letters means untranslated" — is not sound: for a word that exists in
+  > both languages, identity with English is evidence of nothing. The audit's structural checks remain
+  > useful; that inference did not. See `work/implementation/REDESIGN-01-COPY-REVIEW-DISPOSITION.md`.
 - `tools/shell-locale-check.mjs` (24 checks) and `tools/practice-locale-check.mjs` (18 checks) both pass, and
   they are what hold this state: the first fails if the five shell dictionaries drift apart, the second
   asserts the locale hooks and the practice catalogue.
