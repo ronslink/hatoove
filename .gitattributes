@@ -22,3 +22,8 @@ content/library-translations/*.json -text
 # package pins, and their PCM duration is verified at startup. Make the binary rule explicit rather than
 # relying on git's heuristic, so no checkout can ever transform them.
 *.wav binary
+# Files a check hashes for a recorded digest must have the same bytes on every platform.
+# Their recorded digests are the committed blob's (LF); without this rule a Windows working
+# tree is CRLF and the hash differs, which made one gate pass on Linux and fail on Windows.
+data/seed.json          text eol=lf
+content/pool-01/*.json  text eol=lf
