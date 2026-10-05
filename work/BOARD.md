@@ -8,10 +8,12 @@ Four slices leased in worktrees off `072d29e`, one writer per file, nothing push
 
 | Slice | Owner | Branch | Status |
 |---|---|---|---|
-| A · NAV-01 information architecture | Lead | `codex/nav-01-mirror-ia` | **delivered** `b0aab2b`; review task-5 open |
-| F2 · LIBRARY-I18N-01 translation storage + importer | `library-i18n` | `codex/library-i18n-01-import` | in progress |
-| E/F · LIBRARY-UI-01/02 Nachschlagen hub and guide pages | `library-ui` | `codex/library-ui-01-nachschlagen` | in progress |
-| D · MOCK-01 Probeprüfung intro | `mock-intro` | `codex/mock-01-probepruefung` | in progress |
+| A · NAV-01 information architecture | Lead | `codex/nav-01-mirror-ia` | **integrated** into local main as `0d0c8f5` after REVIEW-NAV-01 (CLEAR WITH NOTES; R1 fixed, A4 recorded) |
+| F2 · LIBRARY-I18N-01 translation storage + importer | `library-i18n` | `codex/library-i18n-01-import` | reviewed (CLEAR WITH NOTES, `task-6`); F1 fixed by the Lead as `df2ad88`, fix verification in flight |
+| E/F · LIBRARY-UI-01/02 Nachschlagen hub and guide pages | `library-ui` | `codex/library-ui-01-nachschlagen` | delivered `b5d2fc6`; review `task-7` (Hermes) |
+| D · MOCK-01 Probeprüfung intro | `mock-intro` | `codex/mock-01-probepruefung` | delivered `05dc139`; review `task-11` (library-i18n) |
+
+Round 2 is leased and queued: `task-8` B PRACTICE-UI-01, `task-9` C PRACTICE-01, `task-10` CONTENT-CORRECTIONS (the three German source defects + migration 0043). Amendment A1 corrected the pool: 24 released telc B1 sets, 8 parts × 3. POOL-01's batch still needs Ron's go-ahead and the owed native review still gates the "maschinell übersetzt" marker.
 
 Labels stay separate: **delivered ≠ independently reviewed ≠ merged ≠ product accepted.** Next: `task-5` REVIEW-NAV-01 for the first teammate that frees a slot, then integration of A, then round 2 — B PRACTICE-UI-01, C PRACTICE-01, the source-data corrections as migration `0043`, POOL-01. Open: native review of the new interface copy and of the guide translations; POOL-01 needs Ron's go-ahead before any batch is generated.
 
