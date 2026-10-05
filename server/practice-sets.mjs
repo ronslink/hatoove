@@ -136,7 +136,12 @@ export function normalisePracticeSet(row, playback = null) {
   const version = nonEmpty(row.version);
   if (!setId || !version) throw new TypeError('practice_set_invalid');
   const payload = isPlainObject(row.payload) ? row.payload : {};
-  const rawItems = Array.isArray(payload.items) ? payload.items : [];
+  /* The authored member name is not assumed: if none of the known shapes is present this THROWS rather than
+     serving an empty set, so a wrong assumption fails loudly instead of showing a blank page. */
+  const rawItems = Array.isArray(payload.items) ? payload.items
+    : (Array.isArray(payload.texts) ? payload.texts
+      : (Array.isArray(payload.questions) ? payload.questions : null));
+  if (!rawItems || !rawItems.length) throw new TypeError('practice_set_items_unknown');
   const items = rawItems.map((item, index) => {
     const itemId = nonEmpty(item?.item_id) ?? nonEmpty(item?.id);
     if (!itemId) throw new TypeError('practice_set_invalid');

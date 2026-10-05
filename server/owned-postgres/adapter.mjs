@@ -39,6 +39,8 @@ import { explanationLanguage, blockedExplanation, projectStoredExplanation, expl
 import { readGuideTranslations as readTranslations } from '../library-translations.mjs';
 /* PRACTICE-UI-01 (slice B): the pure blueprint → parts normaliser the exam-parts route serves. */
 import { blueprintParts } from '../exam-parts.mjs';
+/* PRACTICE-01 (slice C): the pure selection rule and the served-set normaliser. */
+import { selectPracticeSet, normalisePracticeSet, practiceRoundState } from '../practice-sets.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -777,6 +779,167 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         return { evidence_id: evidenceId, item_id: itemId, correct: marked.correct,
           correct_answer: revealed ? revealed.correct_answer : null, preparation_id: prep.id, exam_id: prep.exam_id };
       });
+    },
+    /**
+     * PRACTICE-01 (slice C) — the one released set this PART serves now, and the sitting it opens.
+     *
+     * The DECISION is `server/practice-sets.mjs` (unseen first, then most wrong, then oldest), which is pure
+     * and proved offline against crafted evidence rows. This method owns the read, the admission gate and the
+     * transaction, and it returns the rule's own numbers as the reason for its choice, so the client can say
+     * "4 von 5 falsch" rather than handing over a set with no explanation.
+     *
+     * The sitting is created here, not at "Auswerten": from the moment a set is served there is an `open`
+     * attempt, so an abandoned page is still a record. `checkPracticeAttempt` is what closes it.
+     */
+    async practiceSetForPart(owner, { preparationId, family, serveReview = 'approved+unreviewed' } = {}) {
+      note('practiceSetForPart');
+      if (typeof family !== 'string' || !/^[A-Za-z]{2}\d?$/.test(family)) fail(422, 'invalid_family');
+      requirePreparationContext(preparationId);
+      const statuses = servableReview(serveReview);
+      return settle(owner, async (client) => {
+        const { exam_id: examId } = await resolvePreparation(client, owner, preparationId);
+        if (!(await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible) return null;
+        const candidates = (await client.query(
+          `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count, s.media_required, s.payload
+             FROM objective_set s
+             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+            WHERE s.exam_id = $1 AND s.family = $2
+              AND ${importedSetGate()}
+              AND c.review_status = ANY($3::text[])
+              AND COALESCE(cr.basis, cr.rights_status) = ANY($4::text[])`,
+          [examId, family, statuses, contentPolicy().rights])).rows;
+        if (!candidates.length) return null;
+        const evidence = (await client.query(
+          `SELECT set_id, correct, answered_at
+             FROM item_evidence
+            WHERE owner_id = $1 AND preparation_id = $2 AND family = $3`,
+          [owner, preparationId, family])).rows;
+        const chosen = selectPracticeSet(candidates, evidence);
+        if (!chosen) return null;
+        const row = candidates.find((entry) => entry.set_id === chosen.set_id && entry.version === chosen.version) || null;
+        if (!row) return null;
+        const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
+        const served = normalisePracticeSet({ ...row, items: undefined }, payload.playback ?? null);
+        const attemptId = randomUUID();
+        await client.query(
+          `INSERT INTO practice_attempt
+             (attempt_id, owner_id, exam_id, preparation_id, set_id, version, family, section, item_count)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [attemptId, owner, examId, preparationId, row.set_id, row.version, row.family, row.section, served.item_count]);
+        /* How many distinct sets of this part the learner has already CHECKED: the runner's wrap rule (A1). */
+        const checked = first(await client.query(
+          `SELECT count(DISTINCT set_id)::int AS checked
+             FROM practice_attempt
+            WHERE owner_id = $1 AND preparation_id = $2 AND family = $3 AND state = 'checked'`,
+          [owner, preparationId, family]));
+        return Object.freeze({
+          preparation_id: preparationId,
+          exam_id: examId,
+          family,
+          section: served.section,
+          reason: chosen.tier,
+          evidence: { seen: chosen.seen, wrong: chosen.wrong, first_seen_at: chosen.first_seen_at },
+          attempt: Object.freeze({ attempt_id: attemptId, state: 'open' }),
+          round: practiceRoundState({ setCount: candidates.length, checkedSets: checked ? checked.checked : 0 }),
+          set: served,
+        });
+      }, true);
+    },
+    /**
+     * PRACTICE-01 (slice C) — "Auswerten": mark every answer, record it as evidence, close the sitting, and
+     * return the FULL review (verdict, the learner's pick, the key). The explanation is attached by the route
+     * through the existing context-authorized reader (`readObjectiveEvidenceExplanation`), because the
+     * explanation lives behind its own admission gate and this method must not bypass it.
+     *
+     * Marking is `mark_objective_item` (SECURITY DEFINER, 0015) and the key is `reveal_objective_answer`
+     * (0041), which returns it only once the learner's own evidence row exists — so this response cannot leak
+     * a key for an item the learner has not answered.
+     *
+     * The evidence rows carry `mock_run_id` NULL and reference the practice attempt's set/version: a practice
+     * answer is distinguishable from a mock answer at rest, which is the point of the separate table.
+     */
+    async checkPracticeAttempt(owner, { preparationId, attemptId, answers } = {}) {
+      note('checkPracticeAttempt');
+      requirePreparationContext(preparationId);
+      if (typeof attemptId !== 'string' || !UUID_RE.test(attemptId)) fail(422, 'invalid_attempt');
+      if (!Array.isArray(answers) || answers.length === 0 || answers.length > 100) fail(422, 'invalid_answers');
+      const statuses = servableReview();
+      return settle(owner, async (client) => {
+        await lockMockOwner(client, owner);
+        const prep = await requireActivePreparation(client, owner, preparationId);
+        const attempt = first(await client.query(
+          `SELECT attempt_id, exam_id, preparation_id, set_id, version, family, section, item_count, state
+             FROM practice_attempt
+            WHERE attempt_id = $1 AND owner_id = $2`, [attemptId, owner]));
+        if (!attempt) fail(404, 'not_found');
+        if (attempt.preparation_id !== prep.id) fail(422, 'preparation_mismatch');
+        if (attempt.state === 'checked') fail(409, 'attempt_already_checked');
+        const set = first(await client.query(
+          `SELECT s.exam_id, s.family, s.section
+             FROM objective_set s
+             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+            WHERE s.set_id = $1 AND s.version = $2
+              AND c.review_status = ANY($3::text[])
+              AND COALESCE(cr.basis, cr.rights_status) = ANY($4::text[])`,
+          [attempt.set_id, attempt.version, statuses, contentPolicy().rights]));
+        if (!set) fail(404, 'not_found');
+        const items = [];
+        let correctCount = 0;
+        for (const entry of answers) {
+          const itemId = entry && typeof entry.item_id === 'string' ? entry.item_id : null;
+          if (!itemId || !/^[A-Za-z0-9._-]{1,64}$/.test(itemId)) fail(422, 'invalid_item');
+          if (entry.answer === undefined) fail(422, 'invalid_answer');
+          let marked;
+          try {
+            marked = first(await client.query(
+              'SELECT mark_objective_item($1, $2, $3, $4::jsonb) AS correct',
+              [attempt.set_id, attempt.version, itemId, JSON.stringify(entry.answer)]));
+          } catch (error) {
+            if (/unknown_item/.test(error && error.message)) fail(422, 'unknown_item');
+            throw error;
+          }
+          const evidenceId = randomUUID();
+          await client.query(
+            `INSERT INTO item_evidence
+               (evidence_id, owner_id, exam_id, set_id, version, item_id, family, section, answer, correct,
+                latency_ms, preparation_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)`,
+            [evidenceId, owner, attempt.exam_id, attempt.set_id, attempt.version, itemId, attempt.family,
+              attempt.section, JSON.stringify(entry.answer), marked.correct,
+              Number.isSafeInteger(entry.latency_ms) ? entry.latency_ms : null, prep.id]);
+          const revealed = first(await client.query(
+            'SELECT reveal_objective_answer($1, $2, $3) AS expected', [attempt.set_id, attempt.version, itemId]));
+          if (marked.correct) correctCount += 1;
+          items.push({
+            item_id: itemId,
+            correct: marked.correct,
+            chosen: entry.answer,
+            expected: revealed ? revealed.expected : null,
+            evidence_id: evidenceId,
+            explanation: null,
+          });
+        }
+        const checked = first(await client.query(
+          `UPDATE practice_attempt
+              SET state = 'checked', answered_count = $3, correct_count = $4, checked_at = now()
+            WHERE attempt_id = $1 AND owner_id = $2
+        RETURNING checked_at`, [attemptId, owner, items.length, correctCount]));
+        return {
+          attempt_id: attemptId,
+          set_id: attempt.set_id,
+          version: attempt.version,
+          family: attempt.family,
+          section: attempt.section,
+          state: 'checked',
+          checked_at: checked ? checked.checked_at : null,
+          item_count: attempt.item_count,
+          answered_count: items.length,
+          correct_count: correctCount,
+          items,
+        };
+      }, false);
     },
     /**
      * PILOT-22b — what should this learner practise next, chosen by RULES over recorded evidence.

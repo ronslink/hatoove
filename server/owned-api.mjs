@@ -1156,6 +1156,29 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         }));
       }
     }
+    if (pathname === '/api/v1/practice/check' && method === 'POST') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      if (typeof datastore.checkPracticeAttempt !== 'function') fault(503, 'practice_unavailable');
+      /*
+       * PRACTICE-01 (slice C) -- "Auswerten". ONE request closes the sitting and returns the whole review:
+       * per item the verdict, the learner's own answer and the key (0041 reveals it only after the learner's
+       * own evidence row exists), and the explanation through the EXISTING context-authorized reader rather
+       * than a second path to the same content.
+       */
+      onlyFields(body, ['preparationId', 'attemptId', 'answers', 'language']);
+      const preparationId = requirePreparationId(body.preparationId);
+      const language = body.language === undefined ? null : body.language;
+      if (language !== null && !INTERFACE_LOCALES.includes(language)) fault(422, 'invalid_language');
+      const checked = await datastore.checkPracticeAttempt(owner, {
+        preparationId, attemptId: body.attemptId, answers: body.answers,
+      });
+      if (typeof datastore.readObjectiveEvidenceExplanation === 'function') {
+        for (const item of Array.isArray(checked.items) ? checked.items : []) {
+          item.explanation = await datastore.readObjectiveEvidenceExplanation(owner, item.evidence_id, { language });
+        }
+      }
+      return reply(200, checked);
+    }
     if (pathname === '/api/v1/practice/next' && method === 'GET') {
       if (!practiceWired) fault(503, 'practice_unavailable');
       /*
@@ -1168,6 +1191,21 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        */
       const prep = await preparationContext(query);
       const serveReview = deploymentReview();
+      const family = query.get('family');
+      if (family !== null) {
+        /*
+         * PRACTICE-01 (slice C) -- one released SET of this part, chosen by the rule, plus the open sitting.
+         * The same practice path with one extra parameter: the part index's tile opens a set, and the runner
+         * needs the set and the attempt id it will check.
+         */
+        if (!/^[A-Za-z]{2}\d?$/.test(family)) fault(422, 'invalid_family');
+        if (typeof datastore.practiceSetForPart !== 'function') fault(503, 'practice_unavailable');
+        const part = await datastore.practiceSetForPart(owner, { preparationId: prep.id, family, serveReview });
+        if (!part) {
+          return reply(200, { preparation_id: prep.id, exam_id: prep.exam_id, reason: 'nothing_available', family, section: null, evidence: null, attempt: null, set: null });
+        }
+        return reply(200, part);
+      }
       const next = await datastore.nextPractice(owner, { preparationId: prep.id, serveReview });
       // Nothing servable is NOT an error: it means the catalogue is empty for this deployment, and the
       // client shows its honest empty state rather than an error page.
