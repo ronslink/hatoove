@@ -288,6 +288,17 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
     ['item_evidence', 1], ['mock_run', 1], ['mock_writing', 1], ['mock_run_time_group', 1],
     ['listening_playback', 1], ['writing_explanation_representation', 1], ['writing_explanation_head', 1],
     ['payment_order', 1], ['payment_checkout_event', 1], ['payment_event', 1], ['payment_grant', 1],
+    /*
+     * PILOT-FEEDBACK-01 (FB-A). The learner's own reports and survey answers, projected WITHOUT the internal
+     * `operator_note`. Added here rather than by raising the total, because this map IS the point of the
+     * assertion: a new query entering the owned export has to be classified by the table it reads and shown to
+     * be owner-scoped, and the loop below proves the `WHERE owner_id = $1` half.
+     *
+     * CI caught this. The three gate groups PILOT-FEEDBACK-01 ran locally do not include
+     * `submission-preservation-check`, so the slice was green on every gate it had been measured against while
+     * this one was red on the pull request — which is the argument for the pull request running the full set.
+     */
+    ['pilot_feedback', 1],
   ]);
   assert.equal(statements.length, [...queryClasses.values()].reduce((sum, count) => sum + count, 0),
     'no unclassified direct query may enter the owned export');
@@ -326,6 +337,12 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
     ['payment_events', 'payment_event', 'owner_id'],
     ['payment_grants', 'payment_grant', 'owner_id'],
     ['payment_checkout_events', 'payment_checkout_event', 'owner_id'],
+    /*
+     * PILOT-FEEDBACK-01 (FB-A). The learner's own reports and survey answers, owner-scoped, projected WITHOUT the
+     * internal `operator_note`. It sits last because that is where `exportData` declares it — this assertion checks
+     * the ORDER of the declarations, not just the set, so a new query belongs at its real position.
+     */
+    ['feedback', 'pilot_feedback', 'owner_id'],
   ];
   const queries = [...exported.matchAll(/const\s+(\w+)\s*=\s*\(await client\.query\(\s*(['"`])([\s\S]*?)\2\s*,\s*(\[[^\]]*\])\s*\)\)\.rows/g)];
   assert.equal(statements.length, inventory.length, 'every direct export query is accounted for');
