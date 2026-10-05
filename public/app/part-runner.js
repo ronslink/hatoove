@@ -45,6 +45,7 @@
 import { getLocale, subscribeLocale } from '../assets/i18n/core.js';
 import { pt } from '../assets/i18n/practice-messages.js';
 import { validExplanationView, explanationStatus, EXPLANATION_LANGUAGES, EXPLANATION_LANGUAGE_NAMES } from './explanations.js';
+import { createPracticeListeningPlayer, servedRecording } from './practice-listening.js';
 
 const defaultEsc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nonEmpty = value => (typeof value === 'string' && value.trim() ? value.trim() : null);
@@ -460,23 +461,36 @@ function audioMarkup(state, { esc, examLanguage, locale }) {
   const mock = countOrNull(rule?.playback?.mock);
   const practice = countOrNull(rule?.playback?.practice);
   const reviewed = state.phase === 'review';
+  const recording = servedRecording(state?.set);
   const ruleLine = mock === null
     ? t(esc, 'partIndexPending', {}, locale)
     : t(esc, 'partRunnerAudioRule', { plays: mock }, locale);
-  return '<section class="part-runner-audio" data-runner-audio data-audio-state="unavailable"'
+  /*
+   * TWO STATES, AND THEY MUST NOT READ ALIKE.
+   *
+   *   * the set carries `material.recordings[]` AND this view opened a sitting: the PRACTICE player is real
+   *     (`practice-listening.js`), the play rule is the server's own, and the sentence printed here is the
+   *     one-play-before-"Auswerten" rule rather than the exam's allowance line — because that is the rule the
+   *     server will actually apply to this sitting.
+   *   * otherwise (or after the transport has refused) the block keeps the FIX-F1 sentence for a set that
+   *     cannot be played here. That path still exists and is still honest: the recordings exist, the practice
+   *     playback path answered `practice_playback_unavailable`, and nothing claims otherwise.
+   */
+  const player = Boolean(recording) && Boolean(nonEmpty(state.attemptId));
+  return '<section class="part-runner-audio" data-runner-audio'
+    + ' data-audio-state="' + (player ? 'player' : 'unavailable') + '"'
+    + (player ? ' data-runner-audio-source="practice"' : '')
     + (practice === null ? '' : ' data-playback-practice="' + esc(String(practice)) + '"')
     + (mock === null ? '' : ' data-playback-mock="' + esc(String(mock)) + '"')
     + ' aria-labelledby="part-runner-audio-title">'
     + '<h2 id="part-runner-audio-title" class="part-runner-audio-title">' + t(esc, 'partRunnerListening', {}, locale) + '</h2>'
     + '<div class="part-runner-player" data-runner-player role="group" aria-label="' + t(esc, 'partRunnerListening', {}, locale) + '">'
-    + '<button type="button" class="btn btn-small" data-runner-play disabled aria-disabled="true">' + t(esc, 'partRunnerPlay', {}, locale) + '</button>'
-    + (reviewed
-      ? '<button type="button" class="btn btn-small" data-runner-replay disabled aria-disabled="true">' + t(esc, 'partRunnerReplay', {}, locale) + '</button>'
-      : '')
+    + '<div class="part-runner-audio-mount" data-listening-mount></div>'
     + '<p class="small muted part-runner-play-rule" data-runner-play-rule>' + ruleLine + '</p>'
     + '</div>'
-    /* The honest sentence: the recordings EXIST; the practice playback path does not. */
-    + '<p class="hint" data-runner-playback-missing role="status">' + t(esc, 'partRunnerAudioUnavailable', {}, locale) + '</p>'
+    + (player
+      ? '<p class="hint" data-runner-playback-rule role="status">' + t(esc, 'partRunnerAudioReady', {}, locale) + '</p>'
+      : '<p class="hint" data-runner-playback-missing role="status">' + t(esc, 'partRunnerAudioUnavailable', {}, locale) + '</p>')
     + (reviewed ? '' : '<p class="small muted" data-runner-replay-rule>' + t(esc, 'partRunnerNoReplay', {}, locale) + '</p>')
     + '</section>';
 }
@@ -747,9 +761,37 @@ export function createPartRunnerView(ctx = {}) {
 
   const renderOptions = () => ({ esc, uiText, examLanguage: ctx.examLanguage || 'und', locale: getLocale() });
 
+  /*
+   * THE PRACTICE PLAYER, one per view, created lazily because `part-runner.js` and
+   * `practice-listening.js` must not import each other (the player imports the shared renderer in
+   * `listening.js`; the runner only needs its factory). It renders into the mount point the audio block
+   * carries and survives every re-render of the page around it: `syncPlayer()` re-points it at the new
+   * node and the sitting — not the node — decides whether it is a new attempt.
+   */
+  let player = null;
+  function playerFor() {
+    if (!player) {
+      player = createPracticeListeningPlayer({
+        api: ctx.api, esc, getExamLanguage: () => ctx.examLanguage || 'und',
+        canEdit: () => Boolean(host) && !state.busy,
+        onChange: () => { if (host) render(); },
+      });
+    }
+    return player;
+  }
+  function syncPlayer() {
+    if (!host) return;
+    const target = host.querySelector?.('[data-listening-mount]');
+    const recording = servedRecording(state?.set);
+    const attemptId = nonEmpty(state.attemptId);
+    if (!target || !recording || !attemptId) { player?.dispose?.(); player = null; return; }
+    playerFor().mount(target, { attemptId, recording });
+  }
+
   function render() {
     if (!host) return;
     host.innerHTML = runnerMarkup(state, renderOptions());
+    syncPlayer();
   }
 
   /** One served response → the answering state. False when the caller must show its own state. */
@@ -803,6 +845,12 @@ export function createPartRunnerView(ctx = {}) {
     if (!attemptId || !answers.length || answers.length !== items.length) return false;
     /* A non-retryable refusal has already been answered: never re-send the same body. */
     if (evaluateBlocked(state)) return false;
+    /*
+     * "AUSWERTEN" CLOSES THE LISTENING, so the player is flushed and frozen BEFORE the request goes out: the
+     * sitting is about to become `checked`, and a play left running would be acknowledged against a sitting
+     * that has already moved on. A refusal below un-freezes it, so a retry is still possible.
+     */
+    if (player) { await player.flush(); player.freeze(true); }
     const ticket = ++generation;
     state = { ...state, phase: 'checking', busy: true, error: null, notice: null, checkFailure: null };
     render();
@@ -813,6 +861,8 @@ export function createPartRunnerView(ctx = {}) {
     state = { ...state, busy: false };
     if (response?.ok) {
       state = applyChecked(state, response.data, { explanationLanguage: language });
+      /* The sitting is checked now: the player says so, and offers the replay the allowance still permits. */
+      player?.markChecked?.();
       render();
       return true;
     }
@@ -825,6 +875,7 @@ export function createPartRunnerView(ctx = {}) {
     }
     /* Everything else is an ERROR on the page, not a muted notice: `checkFailureMarkup` says whether a retry
        can succeed and, when it cannot, disables "Auswerten" and offers two ways forward. */
+    player?.freeze?.(failure.kind === 'retryable');
     state = { ...state, phase: 'answering', checkFailure: failure, notice: null, error: null };
     render();
     return false;
@@ -881,6 +932,20 @@ export function createPartRunnerView(ctx = {}) {
       host = target;
       generation++;
       host.onclick = (event) => {
+        /*
+         * THE PLAYER'S OWN CONTROLS GO FIRST. `practice-listening.js` renders `data-listening-action`
+         * buttons inside the mount point (the mock player's own attribute, so the two players stay
+         * indistinguishable to a stylesheet or a test); the runner only routes the click.
+         */
+        const listening = event.target.closest?.('[data-listening-action]');
+        if (listening && player) {
+          const action = listening.dataset.listeningAction;
+          if (['play', 'recover'].includes(action)) void player.play();
+          else if (action === 'pause') void player.pause();
+          else if (action === 'retry') void player.retry();
+          else if (action === 'reload') void player.reload();
+          return;
+        }
         if (event.target.closest?.('[data-runner-evaluate]')) { void evaluate(); return; }
         if (event.target.closest?.('[data-runner-retry]')) { void load(); return; }
         /* The two ways forward after a NON-retryable refusal; deliberately not `data-runner-action`, which
@@ -914,6 +979,8 @@ export function createPartRunnerView(ctx = {}) {
     unmount() {
       generation++;
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+      player?.dispose?.();
+      player = null;
       if (host) { host.onclick = null; host.onchange = null; host.innerHTML = ''; }
       host = null;
     },

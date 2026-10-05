@@ -25,6 +25,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
 import { createPostgresDatastore } from '../server/owned-postgres/adapter.mjs';
+/* The SAME gate the shipped admission query interpolates, so the extracted probe runs the real predicate. */
+import { importedSetGate } from '../server/owned-postgres/packages.mjs';
 import { importPackage } from '../server/owned-postgres/package-importer.mjs';
 import { createOwnedApi } from '../server/owned-api.mjs';
 import { practicePlaybackTransition } from '../server/owned-postgres/practice-playback.mjs';
@@ -125,11 +127,107 @@ function expectDrillPromptsServed(normalise = normalisePracticeSet) {
   return `${served.items.length} drill prompts served non-empty`;
 }
 
+/* ------------------------------------------------------------------ POOL-01: the admission rule */
+
+/**
+ * POOL-01 (task-49). The admission rule inside `practiceSetForPart`, EXTRACTED FROM THE SHIPPED FILE rather
+ * than copied: the probe reads the query out of `server/owned-postgres/adapter.mjs` by its own unique selection
+ * list, so an edit to the rule changes what this probe runs and a mutation can be applied to the module it
+ * actually ships in. A copy here would be a second query that could drift from the guard it claims to prove.
+ *
+ * The pattern is anchored at BOTH ends, and that matters: the file carries more than one `SELECT s.set_id`
+ * (the attempt-deletion probe reads the same columns), so a `lastIndexOf` on the selection list picks up the
+ * wrong literal and the probe would then run a completely different statement.
+ */
+const ADMISSION_RE = /`SELECT s\.set_id, s\.version, s\.title, s\.family, s\.section, s\.part, s\.item_count, s\.media_required, s\.payload[\s\S]*?COALESCE\(cr\.basis, c\.rights_status\) = ANY\(\$4::text\[\]\)`/;
+function admissionSql(source) {
+  const match = ADMISSION_RE.exec(source);
+  assert.ok(match, 'the admission query must still be present, whole, in server/owned-postgres/adapter.mjs');
+  /* The literal carries interpolations (`${importedSetGate()}`); the shipped adapter renders them at call time,
+     so this probe must render them too — with the SAME function, imported from the same module. */
+  const sql = match[0].slice(1, -1).replace('${importedSetGate()}', importedSetGate());
+  for (const member of ['media_required = false', "s.payload->'recordings'", 'exam_media m', 'NOT EXISTS', 'exam_form_member']) {
+    assert.ok(sql.includes(member), `the extracted admission query must carry ${member}`);
+  }
+  assert.ok(!sql.includes('${'), 'no unrendered interpolation may reach the database');
+  return sql;
+}
+/** Run the shipped admission query as the LEARNER role and report which sets it admits for one family. */
+async function admittedSets(pool, sql, { family, examId = EXAM, rights = ['generated'], review = ['approved', 'unreviewed'] } = {}) {
+  const rows = (await pool.query(sql, [examId, family, review, rights])).rows;
+  return rows.map((row) => row.set_id);
+}
+/** A synthetic media-bound set for the admission probe: `recordings[]` is the only thing that varies. */
+async function craftMediaSet(db, { setId, family = 'HV1', section = 'HV', part = 1, recordings, itemCount = 2 }) {
+  await db.admin.query(
+    `INSERT INTO content_version (content_version_id, kind, family, source_path, review_status, rights_status, content_sha256, exam_id)
+     VALUES ($1, 'task', 'hv', $2, 'unreviewed', 'unknown', $3, $4)`,
+    [setId + '@v1', `content/pool-01/${setId}.json`, 'f'.repeat(64), EXAM]);
+  await db.admin.query(
+    `INSERT INTO content_rights (content_version_id, basis, decided_by, note)
+     VALUES ($1, 'generated', 'tools/practice-media-check.mjs (synthetic fixture)', 'Synthetic probe content; not learner material')`,
+    [setId + '@v1']);
+  const items = Array.from({ length: itemCount }, (_, index) => ({ n: index + 1, statement: `Technische Aussage ${index + 1}`, answer: true }));
+  await db.admin.query(
+    `INSERT INTO objective_set (set_id, version, exam_id, family, section, part, title, payload, item_count, media_required, content_version_id)
+     VALUES ($1, 'v1', $2, $3, $4, $5, $6, $7::jsonb, $8, true, $9)`,
+    [setId, EXAM, family, section, part, 'Interne Technikprobe (Admission)', JSON.stringify({ title: 'Interne Technikprobe (Admission)', recordings, items }), itemCount, setId + '@v1']);
+  await db.admin.query(
+    `INSERT INTO objective_key (set_id, version, answers, explanations, transcript)
+     VALUES ($1, 'v1', $2::jsonb, $3::jsonb, NULL)`,
+    [setId, JSON.stringify(Object.fromEntries(items.map((item) => [String(item.n), true]))), '{}']);
+}
+
 /* ------------------------------------------------------------------ harness */
+
+/**
+ * WHY THIS IS A SECOND BLOCK, and why it is not redundant with the one above: the rule POOL-01 added lives in
+ * a SQL string, not in an exported function, so a mutation of it can only be judged by RUNNING the mutated
+ * query. Both halves are removed SEPARATELY — dropping the playability clause and dropping the
+ * complete-resolution clause are different defects, and a single mutation that removed both would hide a rule
+ * whose second half had stopped working.
+ *
+ * `admissionMutations` is called from INSIDE the F4 leg, while the fixture's pools are still open; the
+ * `s5.tech.hv1.*` rows it judges are the ones that leg created.
+ */
+const ADMISSION_MUTATIONS = [
+  {
+    label: 'P1 adapter: the playability half removed (a media set is admitted with NO recordings)',
+    mutate: (sql) => sql.replace(`              AND (
+                s.media_required = false
+                OR EXISTS (
+                  SELECT 1 FROM jsonb_array_elements(s.payload->'recordings') AS rec
+                   WHERE EXISTS (SELECT 1 FROM exam_media m
+                                  WHERE m.exam_id = s.exam_id
+                                    AND m.media_id = rec->>'mediaId'
+                                    AND m.version = rec->>'mediaVersion')
+                )
+              )\n`, '              AND true\n'),
+    refused: ['s5.tech.hv1.none', 's5.tech.hv1.half'],
+    admitted: ['s5.tech.hv1.full'],
+  },
+  {
+    label: 'P2 adapter: the complete-resolution half removed (a partially bound set is admitted)',
+    mutate: (sql) => sql.replace(`              AND NOT EXISTS (
+                SELECT 1 FROM jsonb_array_elements(
+                  CASE WHEN jsonb_typeof(s.payload->'recordings') = 'array' THEN s.payload->'recordings' ELSE '[]'::jsonb END) AS rec
+                 WHERE NOT EXISTS (SELECT 1 FROM exam_media m
+                                    WHERE m.exam_id = s.exam_id
+                                      AND m.media_id = rec->>'mediaId'
+                                      AND m.version = rec->>'mediaVersion')
+              )\n`, ''),
+    refused: ['s5.tech.hv1.half', 's5.tech.hv1.mixed'],
+    admitted: ['s5.tech.hv1.full'],
+  },
+];/** The shipped admission query, read once from the real file: the F4 leg and its two mutations share it. */
+const SHIPPED_ADMISSION = admissionSql(
+  (await readFile(path.join(ROOT, 'server', 'owned-postgres', 'adapter.mjs'), 'utf8')).replaceAll('\r\n', '\n'));
 
 const legNames = [];
 const failures = [];
 const notes = [];
+/** Set by the F4 leg once the rows the two admission mutations judge actually exist. */
+let mutationPrereqs = false;
 const leg = async (name, run) => {
   legNames.push(name);
   try { notes.push([name, await run()]); console.log(`PASS ${name}${notes.at(-1)[1] ? `  [${notes.at(-1)[1]}]` : ''}`); }
@@ -537,8 +635,70 @@ try {
     return `${served.items.length} seeded drill prompts served non-empty`;
   });
 
-  await leg('F3 DB: a set with recordings but NO blueprint playback rule answers practice_playback_unavailable', async () => {
+  /* ------------------------------------------------------------------ POOL-01: the admission rule */
+
+  const ADMISSION = SHIPPED_ADMISSION;
+  const s5Media = (await db.admin.query(
+    `SELECT media_id, version FROM exam_media WHERE exam_id = $1 ORDER BY media_id LIMIT 2`, [EXAM])).rows;
+  assert.equal(s5Media.length, 2, 'the fixture must import at least two media rows for the probe');
+
+  await leg('F4 DB: the shipped admission rule serves a listening set only when EVERY recording resolves', async () => {
     /*
+     * THE THREE SHAPES THE RULE MUST TELL APART, all built as synthetic `media_required` sets in the fixture:
+     *
+     *   s5.tech.hv1.none   no `recordings[]` at all                          -> REFUSED (FIX-F1's protection)
+     *   s5.tech.hv1.half   one binding with NO `exam_media` row at all       -> REFUSED (the playability half)
+     *   s5.tech.hv1.mixed  one binding that resolves AND one that does not   -> REFUSED (every recording must)
+     *   s5.tech.hv1.full   every binding resolves                            -> ADMITTED
+     *
+     * The binding that resolves is a real imported row; the binding that does not is the same id with a version
+     * that was never imported, so NOTHING has to be deleted to build the partial state (and `exam_media` is
+     * immutable on purpose — the trigger refuses a delete, which is its own proof that history is not rewritten).
+     * The rule is the SHIPPED query (`SHIPPED_ADMISSION`), run as the learner role, so this is the serving
+     * decision itself and not a paraphrase of it.
+     */
+    await craftMediaSet(db, { setId: 's5.tech.hv1.none', recordings: [] });
+    await craftMediaSet(db, { setId: 's5.tech.hv1.half', recordings: [
+      { id: 'probe-a', mediaId: s5Media[0].media_id, mediaVersion: 'v9999', label: 'Signal A (never imported)' },
+    ] });
+    await craftMediaSet(db, { setId: 's5.tech.hv1.mixed', recordings: [
+      { id: 'probe-a', mediaId: s5Media[0].media_id, mediaVersion: s5Media[0].version, label: 'Signal A' },
+      { id: 'probe-b', mediaId: s5Media[1].media_id, mediaVersion: 'v9999', label: 'Signal B (never imported)' },
+    ] });
+    await craftMediaSet(db, { setId: 's5.tech.hv1.full', recordings: [
+      { id: 'probe-a', mediaId: s5Media[0].media_id, mediaVersion: s5Media[0].version, label: 'Signal A' },
+      { id: 'probe-b', mediaId: s5Media[1].media_id, mediaVersion: s5Media[1].version, label: 'Signal B' },
+    ] });
+
+    const admitted = await admittedSets(db.learner, ADMISSION, { family: 'HV1' });
+    assert.ok(admitted.includes('s5.tech.hv1.full'), 'a set whose every recording resolves must be admitted');
+    assert.ok(admitted.includes('s5.telc-deutsch-b1.hv1'), 'and the fixture set whose whole binding resolves keeps being admitted');
+    assert.ok(!admitted.includes('s5.tech.hv1.none'), 'a media set with NO recordings[] binding must be refused');
+    assert.ok(!admitted.includes('s5.tech.hv1.half'), 'a media set whose only recording has no exam_media row must be refused');
+    assert.ok(!admitted.includes('s5.tech.hv1.mixed'), 'ONE unplayable recording in the binding refuses the whole set');
+    /* The two admission mutations are judged after the legs, while these rows and the pool are still alive. */
+    mutationPrereqs = true;
+    return `${admitted.length} admitted of 5 HV1 candidates; the recordingless, unbound and partially bound sets are refused`;
+  });
+
+  await leg('F4b the refused half still protects the MARKING path: a sitting on a recordingless set is refused', async () => {
+    /*
+     * FIX-F1's backstop, exercised for the shape POOL-01 creates. The set is media-bound with NO resolvable
+     * recording, so it is never SERVED — and if a sitting exists anyway (a stale client, an attempt opened
+     * before this rule), `POST /practice/check` must still refuse to mark a guess about audio nobody heard.
+     */
+    const attemptId = await craftAttempt(owner, 's5.tech.hv1.none');
+    const before = (await db.admin.query('SELECT count(*)::int AS n FROM item_evidence WHERE owner_id = $1', [owner.id])).rows[0].n;
+    const response = await call(owner, 'POST', '/api/v1/practice/check', {
+      preparationId: owner.preparationId, attemptId, answers: [{ item_id: '1', answer: true }],
+    });
+    assert.equal(response.status, 409, `expected the marking refusal, got ${response.status} ${response.body}`);
+    assert.equal(response.json.error, 'media_unavailable', 'and the refusal names audio that cannot be played');
+    const after = (await db.admin.query('SELECT count(*)::int AS n FROM item_evidence WHERE owner_id = $1', [owner.id])).rows[0].n;
+    assert.equal(after, before, 'not one guess was recorded');
+  });
+
+  await leg('F3 DB: a set with recordings but NO blueprint playback rule answers practice_playback_unavailable', async () => {    /*
      * The PARTIAL-IMPORT state the reviewer could not build. It cannot be expressed as a listening PACKAGE (the
      * validator refuses a `fixed_audio` part without `playback`), so it is constructed the way a partial import
      * leaves it: a served set that HAS `recordings` whose blueprint part carries no playback rule. The SQL then
@@ -622,6 +782,14 @@ try {
       await db.admin.query('UPDATE exam_release_head SET release_version=$2 WHERE exam_id=$1', [EXAM, head]);
     }
   });
+
+  /*
+   * POOL-01's two admission mutations, judged by RUNNING the mutated query. They run HERE because they need
+   * the open fixture: the rows they judge were created by the F4 leg above, and the teardown below closes the
+   * learner pool. `mutationPrereqs` is false when that leg never reached its last assertion, so a fixture
+   * failure produces one honest FAIL instead of a second, misleading one.
+   */
+  if (mutationPrereqs) await admissionMutations(db.learner);
 } finally {
   if (db && typeof db.cleanup === 'function') {
     try { await db.cleanup(); } catch (error) { console.log(`postgres: cleanup reported ${String(error.message).split('\n')[0]}`); }
@@ -700,6 +868,33 @@ for (const [label, relative, mutate, exportName, probe] of MUTATIONS) {
     }
   } finally {
     await rm(sandbox, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/* ------------------------------------ POOL-01: the admission rule, mutation-proved (each half separately) */
+
+/**
+ * Both halves of the rule, judged by RUNNING the mutated query against the OPEN fixture. It must run after
+ * the legs (the guard's own tables are created by F4) and before the harness closes the pools.
+ */
+async function admissionMutations(pool) {
+  for (const mutation of ADMISSION_MUTATIONS) {
+    const mutated = mutation.mutate(SHIPPED_ADMISSION);
+    if (mutated === SHIPPED_ADMISSION) {
+      failures.push(`${mutation.label}: the mutation no longer matches the shipped admission query`);
+      console.log(`MUTATION ${mutation.label} -> the pattern no longer matches the query`);
+      continue;
+    }
+    const admitted = await admittedSets(pool, mutated, { family: 'HV1' });
+    const wrong = [];
+    for (const setId of mutation.refused) if (admitted.includes(setId)) wrong.push(`${setId} must stay REFUSED`);
+    for (const setId of mutation.admitted) if (!admitted.includes(setId)) wrong.push(`${setId} must stay admitted`);
+    if (!wrong.length) {
+      failures.push(`${mutation.label}: no leg fails on the mutated query`);
+      console.log(`MUTATION ${mutation.label} -> NOTHING failed, which is the defect`);
+      continue;
+    }
+    console.log(`MUTATION ${mutation.label} -> the guarded leg fails (${wrong.join('; ')})`);
   }
 }
 

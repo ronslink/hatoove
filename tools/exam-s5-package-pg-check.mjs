@@ -50,12 +50,22 @@ try {
   await importHistoricalDefaultPackage(db);
   await check('forward migration preserves existing content/default release and exact reimport hashes',async()=>{
     const before=(await db.learner.query('SELECT * FROM exam_release ORDER BY exam_id,version')).rows;
-    const count=(await db.learner.query('SELECT count(*)::int AS n FROM content_version')).rows[0].n;
+    const contentBefore=(await db.learner.query('SELECT * FROM content_version ORDER BY content_version_id')).rows;
     await assertHistoricalProjectionAbsent(db);
     const applied=await db.applyRemaining();assert.equal(applied[0],'0029-fixed-media.sql');
     await assert.rejects(importHistoricalDefaultPackage(db),/pre0035 schema/);
     assert.deepEqual((await db.learner.query('SELECT * FROM exam_release ORDER BY exam_id,version')).rows,before);
-    assert.equal((await db.learner.query('SELECT count(*)::int AS n FROM content_version')).rows[0].n,count);
+    /*
+     * A FORWARD MIGRATION MAY ADD CONTENT ROWS; IT MAY NOT REWRITE ONE. This used to compare the COUNT of
+     * `content_version` before and after, which was true only while the remaining migrations published
+     * nothing: POOL-01 batch 1 (0047/0048) legitimately publishes six content rows and three recordings, so
+     * the count grows. The invariant that actually matters is containment — every row present before is still
+     * present, byte for byte — so an applied content row cannot be silently edited by a later migration.
+     */
+    const contentAfter=new Map((await db.learner.query('SELECT * FROM content_version')).rows.map(row=>[row.content_version_id,row]));
+    for(const row of contentBefore)
+      assert.deepEqual(contentAfter.get(row.content_version_id),row,`${row.content_version_id}: an applied content row must not move`);
+    assert.ok(contentAfter.size>contentBefore.length,'and the remaining migrations published something (the POOL-01 batch)');
     assert.equal((await importDefaultPackage(db.migration)).unchanged,true);
   });
   const dtz=await createListeningFixture({mediaRoot:root});
@@ -66,7 +76,13 @@ try {
     for(const p of [dtz,telc]) {await publish(p);const before=await counts();assert.equal((await publish(p)).unchanged,true);assert.deepEqual(await counts(),before);}
   });
   await check('private media rows are immutable and learner metadata is read-only',async()=>{
-    assert.equal((await db.learner.query('SELECT * FROM exam_media')).rows.length,27);
+    /*
+     * SCOPED TO THIS CHECK'S OWN SYNTHETIC MEDIA. The count used to be the whole `exam_media` table, which the
+     * remaining migrations now also write: POOL-01 batch 1's release (0048) inserts the three rows its
+     * released listening sets bind to. The subject here is the fixture's own import (`s5.*`), so that is what
+     * is counted; the pool's rows have their own legs in tools/pool-01-check.mjs.
+     */
+    assert.equal((await db.learner.query("SELECT * FROM exam_media WHERE media_id LIKE 's5.%'")).rows.length,27);
     for(const sql of ['UPDATE exam_media SET duration_ms=duration_ms','DELETE FROM exam_media']) {
       await assert.rejects(db.learner.query(sql),/permission denied/);await assert.rejects(db.migration.query(sql),/immutable/);
     }
@@ -137,7 +153,7 @@ try {
   await check('explicit historical release block hides all media while preserving immutable references',async()=>{
     const p=clone(telc);p.release.version='v9003';p.release.state='withdrawn';p.release.resumeBlockedReleases=['v9001','v9002'];p.forms=[];p.sets=[];p.media=[];await publish(p);
     const resumed=await readReleasedForm(db.learner,args(telc));assert.equal(resumed.blockedReason,'rights_blocked');assert.deepEqual(resumed.media,[]);assert.deepEqual(resumed.members,[]);
-    assert.equal((await db.learner.query('SELECT count(*)::int AS n FROM exam_media')).rows[0].n,27);
+    assert.equal((await db.learner.query("SELECT count(*)::int AS n FROM exam_media WHERE media_id LIKE 's5.%'")).rows[0].n,27);
   });
   await check('default source file remains unchanged after media imports',async()=>{
     const source=JSON.parse(await readFile(new URL('../content/exams/telc-deutsch-b1/manifest.json',import.meta.url),'utf8'));

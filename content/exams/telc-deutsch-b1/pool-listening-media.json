@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "examId": "telc-deutsch-b1",
+  "generatedBy": "tools/listening-tts-build.mjs",
+  "media": [
+    {
+      "mediaId": "telc-deutsch-b1.hv1.04.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv1.04-v1.wav",
+      "sha256": "b7298156a2de5b9b02fe88537433fbc662a078ecf41d631e640d3e9d220ec8f5",
+      "byteLength": 3631568,
+      "durationMs": 75657,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/pool-01/batch-1.json#telc-deutsch-b1.hv1.04"
+    },
+    {
+      "mediaId": "telc-deutsch-b1.hv2.04.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv2.04-v1.wav",
+      "sha256": "324e3e35b43994f5713ef9b46eafebbaa9f6d6c49705b03854885749b4519582",
+      "byteLength": 7871966,
+      "durationMs": 163998,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/pool-01/batch-1.json#telc-deutsch-b1.hv2.04"
+    },
+    {
+      "mediaId": "telc-deutsch-b1.hv3.04.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b1",
+      "path": "content/exams/telc-deutsch-b1/audio/hv3.04-v1.wav",
+      "sha256": "a884cc459f3d352154d916be58f1477f3e2218cc78b793e81ea4ed11828c96ad",
+      "byteLength": 3558248,
+      "durationMs": 74129,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/pool-01/batch-1.json#telc-deutsch-b1.hv3.04"
+    }
+  ]
+}

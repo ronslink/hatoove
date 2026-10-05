@@ -43,6 +43,10 @@
 }
 .part-runner-audio-title { margin: 0; font-size: 1.05rem; }
 .part-runner-player { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+/* POOL-01: the mount point the practice player renders into. It spans the row (the player is a card of its
+   own, not a chip beside the rule line) and carries no padding or colour of its own — the player brings the
+   shell's `card-flat` layer, so this module must not restate it. */
+.part-runner-audio-mount { flex: 1 1 100%; min-width: 0; }
 .part-runner-play-rule { margin: 0; font-weight: 650; }
 
 /* ---------- the tasks of the set, all of them, on this one page ---------- */
