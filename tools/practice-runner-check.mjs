@@ -508,8 +508,13 @@ leg('7 [dto] listening shows the EXAM play rule, posts BOOLEAN answers and disab
   assert.equal(countOf(markup, /data-runner-replay[ >]/g), 0, 'NO replay control before "Auswerten"');
   assert.ok(textOf(markup).includes('Eine Wiederholung ist erst nach dem Auswerten möglich.'));
   const honest = textOf(markup);
-  assert.ok(honest.includes('Die Aufnahmen sind vorhanden.'), 'it names that the recordings EXIST');
-  assert.ok(/Übungs-Wiedergabeweg/.test(honest), 'it names the missing practice playback path');
+  /*
+   * FIX-F1 — THE COPY IS LEARNER-FACING NOW. The old sentence named an internal path ("Übungs-Wiedergabeweg"),
+   * which is engineering text on a learner's screen. The block itself is also DEFENCE IN DEPTH: the server no
+   * longer serves a listening set at all, so this markup can only appear if one arrives anyway.
+   */
+  assert.ok(/noch nicht üben/.test(honest), 'it says what the learner cannot do here, in their language');
+  assert.ok(!/Wiedergabeweg|Abspielweg|playback path/.test(honest), 'it names no internal path');
   assert.ok(!/nicht vorhanden|existiert nicht|does not exist|no recording/i.test(honest), 'it must never claim the recording is missing');
   /* The served judgement options carry an EMPTY text and boolean values: the control is decided by
      `answer_kind`, the labels are the exam's own words, and the POSTed answer keeps its type. */
@@ -535,8 +540,23 @@ leg('7 [dto] listening shows the EXAM play rule, posts BOOLEAN answers and disab
   assert.equal(countOf(host.innerHTML, /data-runner-action="/g), 3, 'the review is still complete: three actions');
 });
 
-leg('7d [dto] the served material is rendered: LV2\'s text and SB1/SB2\'s letter', () => {
-  const lv2 = renderState(runner.runnerStateFromServed({ family: 'LV2', response: nextResponse({ set: dtoSet() }), examRule: null }));
+/*
+ * FIX-F1 — AN EMPTY ANSWER MUST SAY WHICH EMPTY IT IS. `practiceSetForPart` no longer serves a listening part
+ * (there is no playback path), so `HV*` arrives as `reason: 'nothing_available'`. "Für diesen Teil ist zurzeit
+ * kein Satz verfügbar" would be misleading for a part that HAS released sets; the listening sentence says what
+ * is actually going on, and the generic sentence stays for a part that genuinely has no released set.
+ */
+leg('7c [dto] FIX-F1: an empty LISTENING part says why, and a part with no released set says something else', () => {
+  const listening = textOf(renderState({ phase: 'empty', family: 'HV1', section: 'HV', emptyReason: 'listening' }));
+  assert.ok(/noch keine Übungen/.test(listening), 'the listening sentence is rendered');
+  assert.ok(!/kein Satz verfügbar/.test(listening), 'not the generic "no set" sentence');
+  assert.ok(!/Wiedergabeweg|Abspielweg|playback path/.test(listening), 'and it names no internal path');
+  const other = textOf(renderState({ phase: 'empty', family: 'LV1', section: 'LV', emptyReason: null }));
+  assert.ok(/kein Satz verfügbar/.test(other), 'a reading part with no released set keeps the generic sentence');
+  assert.ok(!/noch keine Übungen/.test(other), 'and does not claim to be about listening');
+});
+
+leg('7d [dto] the served material is rendered: LV2\'s text and SB1/SB2\'s letter', () => {  const lv2 = renderState(runner.runnerStateFromServed({ family: 'LV2', response: nextResponse({ set: dtoSet() }), examRule: null }));
   assert.match(lv2, /data-runner-material data-material-kind="text"/, 'the reading passage is rendered');
   assert.ok(lv2.includes('Die Stadt Freiburg will den Verkehr'), 'the served passage text is on screen');
   assert.equal(countOf(lv2, /data-runner-material /g), 1, 'once, not per task');

@@ -106,9 +106,11 @@ export function drillReasonLine(state, locale = getLocale()) {
  * A fresh drill state from one served response. Pure, so the check drives every phase without a server.
  *
  * `phase: 'empty'` is the server's honest `reason: 'nothing_available'` (nothing is servable for this
- * deployment) — not an error and not a spinner. `poolBlocked: 'listening'` is the H1 state: the learner's
- * recorded weakness is in a part whose audio cannot be played, so the server names the part instead of
- * serving an item (and instead of switching silently to another part).
+ * deployment) — not an error and not a spinner. `poolBlocked: 'listening'` is the FIX-F1 state: nothing the
+ * drill could serve is playable (the released parts it can see are listening parts and playback is missing),
+ * so the server names that instead of offering an item. A WEAK listening part does NOT produce this state —
+ * the server passes it over and serves the weakest playable part (FIX-F1 corrected the first H1 rule, which
+ * blocked there and closed Einzelübungen for anyone who had ever opened Hören).
  *
  * A served item whose set needs media is treated as the SAME blocked state even if a server ever sends one:
  * an item that cannot be attempted honestly is never rendered as an exercise. That is a second layer, not the
@@ -357,10 +359,11 @@ export function drillMarkup(state, { esc = defaultEsc, uiText = (key) => key, ex
   }
   if (state.phase === 'empty') {
     /*
-     * THE HONEST LISTENING BLOCK (REVIEW-DRILL-01 H1). The learner's recorded weakness is in a part whose
-     * audio this client cannot play, so the server refused to serve an item and NAMED the part. The learner
-     * is told which part, with its own numbers and the reason, and given the part practice as the way
-     * forward; there is no answer control here at all, so nothing can be guessed into their evidence.
+     * THE HONEST LISTENING NOTE (REVIEW-DRILL-01 H1, corrected by FIX-F1). The drill no longer stops when the
+     * learner's weakest part is a listening part: it PASSES THAT PART OVER and serves the weakest part it can
+     * actually play, so this card is only what remains when nothing playable is left at all (a deployment
+     * whose released parts are listening parts). It names the situation and the part with its numbers, and it
+     * offers no answer control, so nothing can be guessed into the learner's evidence.
      */
     if (state.poolBlocked === 'listening') {
       const evidence = state.evidence ?? {};

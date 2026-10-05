@@ -51,6 +51,25 @@ const OBJECTIVE_VERSION_RE = /^v[0-9]{1,4}$/;
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = (result) => result.rows[0];
+/**
+ * FIX-F1 (outside review §F1) — WHICH EVIDENCE MAY COUNT.
+ *
+ * A listening set cannot be attempted honestly: the recordings exist as authored content but there is no
+ * playback path in the app yet, so an answer to one is a guess about audio nobody heard. Those guesses were
+ * recorded (the runner served the set with a dead player beside live controls), and one wrong guess makes a
+ * part `weak` in the drill's ranking, which then sent the learner back to listening. Deleting the rows would
+ * rewrite a learner's own history, so they STAY and stop counting instead: this predicate is the single
+ * definition of "evidence about a set this deployment can actually play", and the aggregates that feed a
+ * learner-visible number use it.
+ *
+ * It is written as `EXISTS` on `objective_set` rather than a join so it can be dropped into any aggregate over
+ * `item_evidence e` without changing that query's grouping. When a practice playback transport lands, the
+ * predicate gains the recording check; `media_required` is today's whole truth, because no released practice
+ * set has recordings (`PRACTICE-MEDIA.md` §4 item 4).
+ */
+const PLAYABLE_EVIDENCE = `EXISTS (SELECT 1 FROM objective_set ps
+                                    WHERE ps.set_id = e.set_id AND ps.version = e.version
+                                      AND ps.media_required = false)`;
 /** No default version (EXAM-S0): v1 and v2 of a set may share item ids with different keys. */
 const requireObjectiveVersion = (version) => {
   if (typeof version !== 'string' || !OBJECTIVE_VERSION_RE.test(version)) fail(422, 'invalid_version');
@@ -797,6 +816,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
      *
      * The sitting is created here, not at "Auswerten": from the moment a set is served there is an `open`
      * attempt, so an abandoned page is still a record. `checkPracticeAttempt` is what closes it.
+     *
+     * WHY `media_required` SETS ARE EXCLUDED (FIX-F1, outside review §F1). This was the ONE catalogue query
+     * without that filter (:424, :463, :756, :1009, :1058 all carry it, for the reason recorded at :358). The
+     * gap reached learners: no released practice set has recordings, so the runner served a Hören set with a
+     * player that cannot play beside LIVE answer controls, and `POST /practice/check` wrote those blind
+     * guesses into `item_evidence` — where the drill's ranking reads them. A learner could then be told their
+     * weakness was listening and handed more unplayable items. A part whose sets all need media now answers
+     * "nothing available", which is true, instead of serving an exercise the learner cannot do honestly.
      */
     async practiceSetForPart(owner, { preparationId, family, serveReview = 'approved+unreviewed' } = {}) {
       note('practiceSetForPart');
@@ -812,6 +839,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
              JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.exam_id = $1 AND s.family = $2
+              AND s.media_required = false
               AND ${importedSetGate()}
               AND c.review_status = ANY($3::text[])
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
@@ -907,6 +935,13 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
           [attempt.set_id, attempt.version, statuses, contentPolicy().rights]));
         if (!set) fail(404, 'not_found');
+        /*
+         * FIX-F1 — a listening set cannot be attempted honestly: there are no recordings, so any answer would
+         * be a guess about audio the learner never heard. `practiceSetForPart` no longer SERVES one, so this is
+         * the backstop for an attempt opened before that fix (or by a stale client): refuse the marking rather
+         * than write the guess into `item_evidence`, where it would steer the drill's ranking.
+         */
+        if (set.media_required === true) fail(409, 'media_unavailable');
         const items = [];
         let correctCount = 0;
         for (const entry of answers) {
@@ -1112,6 +1147,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                   count(*) FILTER (WHERE e.correct)::int AS correct
              FROM item_evidence e
             WHERE e.owner_id = $1 AND e.preparation_id = $2
+              AND ${PLAYABLE_EVIDENCE}
             GROUP BY e.section
             ORDER BY e.section`,
           [owner, preparationId]);
@@ -1121,6 +1157,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                   count(*) FILTER (WHERE e.correct)::int AS correct
              FROM item_evidence e
             WHERE e.owner_id = $1 AND e.preparation_id = $2 AND e.family IS NOT NULL
+              AND ${PLAYABLE_EVIDENCE}
             GROUP BY e.family
             ORDER BY e.family`,
           [owner, preparationId]);

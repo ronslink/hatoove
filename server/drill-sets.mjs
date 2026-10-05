@@ -46,16 +46,19 @@
  * getting wrong. DRILL-01.md records the consequence honestly — a learner who keeps one part weak keeps
  * drilling it, and rotates only when that part's recorded accuracy stops being the lowest.
  *
- * ## THE POOL RULE (REVIEW-DRILL-01 H1)
+ * ## THE POOL RULE (REVIEW-DRILL-01 H1, corrected by FIX-F1)
  *
  * A part whose every released set needs MEDIA cannot be drilled while the client has no practice-playback
  * transport: the learner could only guess at inaudible audio, the guess would be written as `item_evidence`,
  * and this ranking consumes exactly those rows — so the drill would weight itself toward the part where the
- * learner has to guess. `rankDrillParts` therefore still ranks media parts (a recorded weakness in a
- * listening part is a fact worth naming) but `selectDrillTarget` is what decides: a media part that is
- * `weak` BLOCKS with its own name instead of being served or silently switched away from, a media part that
- * is unseen or strong is skipped, and only a non-media part can become the target. No item whose audio
- * cannot be played is ever served, and no evidence row can be written for one.
+ * learner has to guess.
+ *
+ * A media part is therefore PASSED OVER, whatever its tier, and the walk serves the weakest part that can
+ * actually be played. Only when nothing playable remains does the drill return `listening_only`, naming the
+ * listening part, and write nothing. No item whose audio cannot be played is ever served, and no evidence row
+ * can be written for one. `selectDrillTarget`'s own comment records why the first version of this rule —
+ * blocking on the first weak media part — was wrong: the part runner was feeding listening evidence in, so the
+ * block fired for almost every learner who had opened Hören and closed Einzelübungen on them.
  */
 
 /** The tier names, in the order the rule applies them. Exported so a check can name a tier. */
@@ -93,6 +96,48 @@ export function drillPartTier(stats) {
   const correct = Math.min(count(stats.correct), attempts);
   if (attempts === 0) return 'unseen';
   return correct < attempts ? 'weak' : 'strong';
+}
+
+/**
+ * FIX-F1 — THE EVIDENCE THAT MAY STEER A CHOICE: rows about a set this deployment can actually serve AND play.
+ *
+ * Why this exists rather than a SQL filter in one place. Listening sets cannot be attempted honestly today,
+ * so any evidence about one is a guess about audio nobody heard; those rows must not make a part look weak.
+ * They are NOT deleted — they are the learner's own record — they simply stop counting, here, in the pure
+ * layer, so the rule is testable without a database and cannot differ between the surfaces that read it.
+ *
+ * Two filters, both deliberate:
+ *   * the set must be one of `candidates` (what this deployment releases and serves), so evidence for a set
+ *     that is no longer served — or never was — is ignored rather than guessed at;
+ *   * the candidate must not be `media_required`, because there is no playback path for it.
+ *
+ * Returns a new array; the input rows are not touched.
+ */
+export function playableEvidence(evidence, candidates) {
+  const playable = new Set();
+  for (const row of Array.isArray(candidates) ? candidates : []) {
+    if (!isPlainObject(row) || row.media_required === true) continue;
+    const setId = nonEmpty(row.set_id);
+    const version = nonEmpty(row.version);
+    if (setId && version) playable.add(`${setId}@${version}`);
+  }
+  return (Array.isArray(evidence) ? evidence : []).filter((row) => isPlainObject(row)
+    && playable.has(`${nonEmpty(row.set_id) ?? ''}@${nonEmpty(row.version) ?? ''}`));
+}
+
+/** The per-family attempt numbers the ranking consumes, from the evidence that may count. */
+export function drillStatsFromEvidence(evidence) {
+  const byFamily = new Map();
+  for (const row of Array.isArray(evidence) ? evidence : []) {
+    if (!isPlainObject(row)) continue;
+    const family = familyOf(row.family);
+    if (!family) continue;
+    const entry = byFamily.get(family) ?? { family, attempts: 0, correct: 0 };
+    entry.attempts += 1;
+    if (row.correct === true) entry.correct += 1;
+    byFamily.set(family, entry);
+  }
+  return [...byFamily.values()];
 }
 
 /**
@@ -164,38 +209,52 @@ export function selectDrillPart(input) {
 }
 
 /**
- * WHICH ranked part the drill may actually use — the H1 rule, and the reason it is not simply "skip media".
+ * WHICH ranked part the drill may actually use — the corrected H1 rule (FIX-F1, outside review §F1).
  *
  * An item whose audio cannot be played is NOT a drill candidate: the learner could only guess, the guess
- * would be written as `item_evidence`, and `rankDrillParts` consumes exactly those rows — so serving one
- * would weight the drill toward the family whose items are unplayable, where the learner guesses again. The
- * drill CHOSE the part for the learner, so it must not choose one that cannot be attempted honestly.
+ * would be written as `item_evidence`, and the ranking consumes exactly those rows — so serving one would
+ * weight the drill toward the family whose items are unplayable, where the learner guesses again.
+ *
+ * THE RULE IS SKIP, NOT BLOCK, and the correction matters. The first version of this function returned
+ * `{kind: 'listening_blocked'}` at the FIRST weak media part, even when a weak PLAYABLE part ranked below it.
+ * That was wrong about what feeds the ranking: it assumed only the drill's own items produced listening
+ * evidence, but the PART RUNNER was writing it (it served HV sets with a player that could not play). Blind
+ * guessing on a richtig/falsch item is about 50 %, so HV was usually the weakest part, and one such weakness
+ * blocked Einzelübungen for any learner who had ever opened Hören — the same learner the block then sent back
+ * to Hören. Blocking on a part the drill cannot serve, when it CAN serve another part the learner is also
+ * weak in, is not honesty; it is a dead end.
  *
  * Walking the ranking from the top:
  *
  *   * a part that is NOT media → that is the target (`{kind: 'item'}`). The caller then picks the set and the
  *     item inside it. This is the only outcome that serves anything.
- *   * a part that IS media and is `weak` → the learner's recorded weakness is in a part the drill cannot
- *     serve, so the honest answer is `{kind: 'listening_blocked'}`: no item, no guess, and the part NAMED so
- *     the learner is told why instead of being switched silently to something else.
- *   * a part that IS media but `unseen` or `strong` → it cannot be a target and it is not a reason to block:
- *     a part with no evidence (or no recorded wrong answer) is not a weakness the drill must report. It is
- *     skipped and the walk continues. This is what keeps a brand-new learner from being blocked by `HV1`
- *     merely because `HV` sorts first.
+ *   * a part that IS media → it cannot be a target, so it is PASSED OVER and the walk continues, whatever its
+ *     tier. Skipping is silent in the served response: the learner asked for an exercise, not a report about
+ *     the parts that are unavailable.
+ *   * nothing playable in the whole ranking, but at least one media part → `{kind: 'listening_only'}`, naming
+ *     the highest-ranked listening part. This is the honest note: there is genuinely nothing the drill can
+ *     serve, and the reason is that the learner's remaining parts are listening parts without playback. The
+ *     caller returns no item and writes nothing.
  *
- * `{kind: 'none'}` means the deployment releases nothing the drill could serve at all.
+ * `{kind: 'none'}` means the deployment releases nothing the drill could serve at all (no parts, playable or
+ * not) — which is a deployment state, not a learner state.
  *
  * THE DEPENDENCY, recorded here because this is where it will change: listening becomes drillable when the
- * client has a practice-playback transport (`api.js` carries only mock playback today; the SERVER path and
- * its accounting exist). When that lands, `media` stops being a reason to block and this walk serves HV like
- * any other part.
+ * client has a practice-playback transport (`api.js` carries only mock playback today; the SERVER path and its
+ * accounting exist). When that lands, `media` stops being a reason to skip and this walk serves HV like any
+ * other part — and the `listening_only` outcome disappears.
  */
 export function selectDrillTarget(ranked) {
+  let mediaPart = null;
   for (const part of Array.isArray(ranked) ? ranked : []) {
     if (!isPlainObject(part) || !familyOf(part.family)) continue;
-    if (part.media === true && part.tier === 'weak') return { kind: 'listening_blocked', part };
-    if (part.media !== true) return { kind: 'item', part };
+    if (part.media === true) {
+      if (!mediaPart) mediaPart = part;
+      continue;
+    }
+    return { kind: 'item', part };
   }
+  if (mediaPart) return { kind: 'listening_only', part: mediaPart };
   return { kind: 'none', part: null };
 }
 

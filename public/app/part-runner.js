@@ -623,7 +623,16 @@ export function runnerMarkup(state, { esc = defaultEsc, uiText = key => key, exa
   if (state?.phase === 'loading') {
     body = '<p class="muted" data-runner-loading>' + t(esc, 'partRunnerLoading', {}, locale) + '</p>';
   } else if (state?.phase === 'empty') {
-    body = '<p class="card" data-runner-empty>' + t(esc, 'partRunnerEmpty', {}, locale) + '</p>';
+    /*
+     * FIX-F1 — an EMPTY answer has two different causes and they must not read alike. The server stops serving
+     * a part whose released sets all need audio (there is no playback path yet), so a listening part arrives
+     * here as "nothing available": that is not "no set for this part", it is "this part cannot be practised in
+     * the app yet", and the learner is told which one they are looking at rather than being left to guess why
+     * a part they were promised does nothing.
+     */
+    const listening = state?.emptyReason === 'listening';
+    body = '<p class="card" data-runner-empty' + (listening ? ' data-runner-empty-reason="listening"' : '') + '>'
+      + t(esc, listening ? 'partRunnerListeningUnavailable' : 'partRunnerEmpty', {}, locale) + '</p>';
   } else if (state?.phase === 'error') {
     body = '<p class="err" role="alert" data-runner-error="' + esc(state.error?.code ?? 'failed') + '">' + t(esc, 'partRunnerFailed', {}, locale) + '</p>'
       + '<div class="part-runner-evaluate-row"><button type="button" class="btn" data-runner-retry>' + t(esc, 'partRunnerRetry', {}, locale) + '</button></div>';
@@ -733,7 +742,7 @@ export function createPartRunnerView(ctx = {}) {
     wrapNotice: false, wrapNoticeKey: null, notice: null, error: null, busy: false,
     examRule: null, examLanguage: ctx.examLanguage || 'und', reason: null, evidence: null,
     attemptId: null, blocked: null, mode: 'set', mistakesOf: null, explanationLanguage: null,
-    checkFailure: null,
+    checkFailure: null, emptyReason: null,
   };
 
   const renderOptions = () => ({ esc, uiText, examLanguage: ctx.examLanguage || 'und', locale: getLocale() });
@@ -747,7 +756,17 @@ export function createPartRunnerView(ctx = {}) {
   function adopt(response, { mistakeRound = false } = {}) {
     const data = response?.data ?? {};
     if (!data.set) {
-      state = { ...state, phase: 'empty', busy: false, set: null, checked: null, error: null, answers: {}, blocked: null };
+      /*
+       * FIX-F1 — WHY there is no set decides the sentence. The server withholds a part whose released sets all
+       * need audio (a listening part, until a practice playback transport exists), and that is a different
+       * answer from "this part has no released set". The exam rule is the authority when it was read; the
+       * section is the fallback, because the rule read can fail independently of the serving call.
+       */
+      const rule = state.examRule;
+      const familyId = typeof family === 'string' ? family : '';
+      const listening = Boolean(rule && rule.playback) || familyId.slice(0, 2) === 'HV';
+      state = { ...state, phase: 'empty', busy: false, set: null, checked: null, error: null, answers: {},
+        blocked: null, emptyReason: listening ? 'listening' : null };
       return true;
     }
     state = mistakeRound

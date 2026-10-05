@@ -34,7 +34,7 @@ import { readCurrentReleaseEligibility } from './owned-postgres/release-eligibil
 import { requireActivePreparation, resolvePreparation } from './owned-postgres/preparations.mjs';
 import { lockMockOwner } from './owned-postgres/mock-runs.mjs';
 import { normalisePracticeSet, practiceRoundState, selectPracticeSet } from './practice-sets.mjs';
-import { drillProgress, nextDrillItem, pickDrillSitting, rankDrillParts, selectDrillTarget } from './drill-sets.mjs';
+import { drillProgress, drillStatsFromEvidence, nextDrillItem, pickDrillSitting, playableEvidence, rankDrillParts, selectDrillTarget } from './drill-sets.mjs';
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = (result) => result.rows[0];
@@ -138,17 +138,18 @@ export function drillMethods({ settle, note = () => {}, catalogue } = {}) {
         if (!(await readCurrentReleaseEligibility(client, examId, { catalogue })).eligible) return null;
         const candidates = (await client.query(CANDIDATE_SQL, [examId, statuses, contentPolicy().rights])).rows;
         if (!candidates.length) return null;
-        /* Evidence for THIS preparation only, in one read: `selectPracticeSet`'s `summariseEvidence` ignores
-           rows whose set is not one of the candidates it was handed, so no per-family split is needed. */
-        const evidence = (await client.query(
-          `SELECT set_id, correct, answered_at
+        /*
+         * FIX-F1 — the evidence that may steer this choice. `playableEvidence` drops rows about a set this
+         * deployment cannot serve or cannot play (a listening set has no playback path), so the guesses the
+         * runner used to record for HV neither make a part look weak nor pick a set. The rows themselves stay
+         * in `item_evidence`: they are the learner's own history and are not ours to delete.
+         */
+        const evidence = playableEvidence((await client.query(
+          `SELECT set_id, version, family, correct, answered_at
              FROM item_evidence
-            WHERE owner_id = $1 AND preparation_id = $2`, [owner, preparationId])).rows;
-        const partStats = (await client.query(
-          `SELECT family, count(*)::int AS attempts, count(*) FILTER (WHERE correct)::int AS correct
-             FROM item_evidence
-            WHERE owner_id = $1 AND preparation_id = $2 AND family IS NOT NULL
-            GROUP BY family`, [owner, preparationId])).rows;
+            WHERE owner_id = $1 AND preparation_id = $2`, [owner, preparationId])).rows, candidates);
+        /* The per-family numbers come from THAT evidence, in the pure layer, so the rule is one rule. */
+        const partStats = drillStatsFromEvidence(evidence);
         const byFamily = new Map();
         for (const row of candidates) {
           const rows = byFamily.get(row.family) ?? [];
@@ -164,12 +165,15 @@ export function drillMethods({ settle, note = () => {}, catalogue } = {}) {
           parts: partStats,
         });
         const target = selectDrillTarget(ranked);
-        if (target.kind === 'listening_blocked') {
+        if (target.kind === 'listening_only') {
           /*
-           * The learner's recorded weakness is in a LISTENING part and the client cannot play it, so the
-           * honest answer is this state — not an item to guess at, and not a silent switch to another part.
-           * Nothing is written: no sitting, no evidence, no key. `blocked: 'listening'` is what the route
-           * passes through and the client renders, with the part's own numbers as the reason.
+           * There is NOTHING PLAYABLE to drill: every part the ranking holds is a listening part, and the
+           * client cannot play one. This is the honest note — no item to guess at, and no silent switch to a
+           * part the learner is not weak in. Nothing is written: no sitting, no evidence, no key.
+           *
+           * This is deliberately the RARE outcome (FIX-F1): a weak listening part no longer stops the walk, so
+           * the learner normally gets the weakest part they CAN practise. The card appears only when that part
+           * does not exist.
            */
           return {
             preparation_id: preparationId,
@@ -290,6 +294,14 @@ export function drillMethods({ settle, note = () => {}, catalogue } = {}) {
         if (attempt.state === 'checked') fail(409, 'drill_sitting_complete');
         const set = await readSet(client, attempt.set_id, attempt.version, statuses);
         if (!set) fail(404, 'not_found');
+        /*
+         * FIX-F1 — a listening set cannot be attempted honestly, so it must not be MARKED either. The drill no
+         * longer opens a sitting for one (`selectDrillTarget` passes a media part over), so this is the
+         * backstop for a sitting opened before that change: refuse rather than write a guess about audio the
+         * learner never heard into `item_evidence`, where the ranking reads it. The same guard sits in
+         * `checkPracticeAttempt`; both paths answer the same code.
+         */
+        if (set.media_required === true) fail(409, 'media_unavailable');
         const served = normalisePracticeSet({ ...set, items: undefined }, playbackOf(set));
         const index = served.items.findIndex((entry) => entry.item_id === itemId);
         if (index < 0) fail(422, 'unknown_item');
