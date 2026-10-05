@@ -15,12 +15,12 @@
 <a class="auth-brand" href="/" data-i18n-aria-label="auth.home" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="186" height="34"></a>
 <div class="stack"><p class="kicker" data-i18n="auth.pilot">telc Deutsch B1 · Kostenloser Pilot</p>
 <h2><span data-i18n="auth.hero1">Die Prüfung kennen.</span><br><span data-i18n="auth.hero2">Schritt für Schritt</span><br><span class="hero-emphasis" data-i18n="auth.hero3">üben.</span></h2>
-<p class="muted" data-i18n="auth.description">Lesen, Sprachbausteine und Schreiben: Arbeite an eigenen Übungsaufgaben und kehre zu deinen gespeicherten Texten zurück.</p></div>
+<p class="muted" data-i18n="auth.description">Lesen, Sprachbausteine und Schreiben: Arbeiten Sie an eigenen Übungsaufgaben und kehren Sie zu Ihren gespeicherten Texten zurück.</p></div>
 <p class="small muted"><span data-i18n="auth.independent">Unabhängige Prüfungsvorbereitung.</span><br><span data-i18n="auth.noPrediction">Keine offizielle telc-Prüfung oder Bestehensprognose.</span></p>
 </section><section class="auth-form"><div class="auth-box">
 <a class="auth-brand" href="/" data-i18n-aria-label="auth.home" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="168" height="32"></a>
 <label class="interface-language" for="interface-language"><span data-i18n="auth.language">Sprache</span><select id="interface-language"><option value="de" lang="de" dir="ltr">Deutsch</option><option value="en" lang="en" dir="ltr">English</option><option value="uk" lang="uk" dir="ltr">Українська</option><option value="ar" lang="ar" dir="rtl">العربية</option><option value="tr" lang="tr" dir="ltr">Türkçe</option></select></label>
-<div class="stack"><h1 id="auth-title" data-i18n="auth.welcome">Willkommen zurück</h1><p class="muted" id="auth-intro" data-i18n="auth.signinIntro">Melde dich an und setze deine Übungen fort.</p></div>
+<div class="stack"><h1 id="auth-title" data-i18n="auth.welcome">Willkommen zurück</h1><p class="muted" id="auth-intro" data-i18n="auth.signinIntro">Melden Sie sich an und setzen Sie Ihre Übungen fort.</p></div>
 <div class="card stack">
 <div class="auth-tabs" role="group" data-i18n-aria-label="auth.access" aria-label="Konto-Zugang"><button type="button" class="btn btn-ghost" id="tab-signin" aria-pressed="true" aria-controls="form-signin" data-i18n="auth.signin">Anmelden</button><button type="button" class="btn btn-ghost" id="tab-signup" aria-pressed="false" aria-controls="form-signup" data-i18n="auth.signup">Registrieren</button></div>
 <form class="stack" id="form-signin">
@@ -32,13 +32,13 @@
 <form class="stack" id="form-signup" hidden>
 <div class="field"><label for="su-name" data-i18n="auth.name">Name</label><input class="input" id="su-name" dir="auto" name="name" type="text" autocomplete="name" maxlength="200" required></div>
 <div class="field"><label for="su-email" data-i18n="auth.email">E-Mail</label><input class="input" id="su-email" name="email" dir="ltr" type="email" autocomplete="email" maxlength="254" required></div>
-<div class="field"><label for="su-password" data-i18n="auth.password">Passwort</label><input class="input" id="su-password" name="password" type="password" autocomplete="new-password" maxlength="256" aria-describedby="password-hint" required><p class="hint" id="password-hint" data-i18n="auth.passwordHint">Verwende ein eigenes, langes Passwort für dieses Konto.</p></div>
+<div class="field"><label for="su-password" data-i18n="auth.password">Passwort</label><input class="input" id="su-password" name="password" type="password" autocomplete="new-password" maxlength="256" aria-describedby="password-hint" required><p class="hint" id="password-hint" data-i18n="auth.passwordHint">Verwenden Sie ein eigenes, langes Passwort für dieses Konto.</p></div>
 <p class="hint" data-i18n="auth.freeHint">Der Pilot ist kostenlos. Die verfügbare Schreib-Rückmeldung ist begrenzt und wird in der App angezeigt.</p>
 <button class="btn btn-primary btn-block" type="submit" id="su-submit" data-i18n="auth.create">Kostenloses Konto erstellen</button>
 </form></div>
-<p class="small muted"><span data-i18n="auth.verifyPrompt">Du hast bereits ein Konto und möchtest deine Adresse bestätigen?</span> <a class="link" href="/verify-email" data-i18n="auth.verifyRequest">Bestätigungslink anfordern</a></p><p class="auth-message err" id="error" role="alert" hidden></p>
+<p class="small muted"><span data-i18n="auth.verifyPrompt">Sie haben bereits ein Konto und möchten Ihre Adresse bestätigen?</span> <a class="link" href="/verify-email" data-i18n="auth.verifyRequest">Bestätigungslink anfordern</a></p><p class="auth-message err" id="error" role="alert" hidden></p>
 <p class="auth-message auth-status" id="status" role="status" hidden></p>
 <div id="success" class="auth-message auth-success stack" role="status" hidden><p id="success-message"></p><a class="btn btn-ghost" href="/signin" data-i18n="auth.toSignin">Zur Anmeldung</a></div>
 <nav class="auth-links auth-footer" data-i18n-aria-label="auth.morePages" aria-label="Weitere Seiten"><a class="link" href="/" data-i18n="auth.toHome">Zur Startseite</a><a class="link" href="/app/" data-i18n="auth.app">Zur App</a></nav>
-<noscript><p lang="de" dir="ltr" class="auth-message err">Bitte aktiviere JavaScript, um Hatoove zu verwenden.</p><p lang="en" dir="ltr" class="auth-message err">Please enable JavaScript to use Hatoove.</p><p lang="uk" dir="ltr" class="auth-message err">Увімкніть JavaScript, щоб користуватися Hatoove.</p><p lang="ar" dir="rtl" class="auth-message err">يرجى تفعيل JavaScript لاستخدام Hatoove.</p><p lang="tr" dir="ltr" class="auth-message err">Hatoove kullanmak için JavaScript özelliğini etkinleştirin.</p></noscript>
+<noscript><p lang="de" dir="ltr" class="auth-message err">Bitte aktivieren Sie JavaScript, um Hatoove zu verwenden.</p><p lang="en" dir="ltr" class="auth-message err">Please enable JavaScript to use Hatoove.</p><p lang="uk" dir="ltr" class="auth-message err">Увімкніть JavaScript, щоб користуватися Hatoove.</p><p lang="ar" dir="rtl" class="auth-message err">يرجى تفعيل JavaScript لاستخدام Hatoove.</p><p lang="tr" dir="ltr" class="auth-message err">Hatoove kullanmak için JavaScript özelliğini etkinleştirin.</p></noscript>
 </div></section></main></body></html>

@@ -26,7 +26,7 @@
 
 <section id="boot-state" class="card boot-card" role="status" aria-live="polite">
   <h1><span data-i18n="shell.m299">Hatoove wird geladen</span></h1>
-  <p id="boot-message"><span data-i18n="shell.m300">Dein Konto und deine Einstellungen werden geladen …</span></p>
+  <p id="boot-message"><span data-i18n="shell.m300">Ihr Konto und Ihre Einstellungen werden geladen …</span></p>
   <button id="boot-retry" type="button" class="btn btn-primary" hidden><span data-i18n="shell.m301">Erneut versuchen</span></button>
   <a id="boot-signin" class="btn" href="/signin" hidden><span data-i18n="shell.m020">Erneut anmelden</span></a>
   <div id="boot-choices" class="stack" hidden></div>
@@ -114,8 +114,8 @@
     </header>
 
     <main class="content" id="main">
-      <section class="card preparation-context" aria-label="Deine Prüfungsvorbereitung" data-i18n-aria-label="shell.m384">
-        <div class="spread preparation-heading"><div><p class="kicker"><span data-i18n="shell.m309">Deine Vorbereitung</span></p><div class="exam-identity"><strong id="preparation-exam"><span data-i18n="shell.m302">Prüfung wird geladen</span></strong><span class="exam-level" id="preparation-level" hidden></span></div><p class="small muted" id="preparation-scope"><span data-i18n="shell.m310">Einzelne Abschnitte üben</span></p></div><div class="row"><a class="btn btn-primary" id="preparation-start" href="#/ueben"><span data-i18n="shell.m311">Abschnitt üben</span></a><a class="btn" id="preparation-continue" href="#/fortschritt"><span data-i18n="shell.m312">Gespeicherte Texte fortsetzen</span></a></div></div>
+      <section class="card preparation-context" aria-label="Ihre Prüfungsvorbereitung" data-i18n-aria-label="shell.m384">
+        <div class="spread preparation-heading"><div><p class="kicker"><span data-i18n="shell.m309">Ihre Vorbereitung</span></p><div class="exam-identity"><strong id="preparation-exam"><span data-i18n="shell.m302">Prüfung wird geladen</span></strong><span class="exam-level" id="preparation-level" hidden></span></div><p class="small muted" id="preparation-scope"><span data-i18n="shell.m310">Einzelne Abschnitte üben</span></p></div><div class="row"><a class="btn btn-primary" id="preparation-start" href="#/ueben"><span data-i18n="shell.m311">Abschnitt üben</span></a><a class="btn" id="preparation-continue" href="#/fortschritt"><span data-i18n="shell.m312">Gespeicherte Texte fortsetzen</span></a></div></div>
         <div class="field" id="preparation-choice" hidden><label for="preparation-picker"><span data-i18n="shell.m313">Vorbereitung auswählen</span></label><select class="select" id="preparation-picker"></select></div>
         <p class="small muted" id="preparation-state" role="status" aria-live="polite"></p>
         <div class="row"><p class="small muted" id="preparation-credits" role="status"><span data-i18n="shell.m025">Guthaben wird geladen …</span></p><button class="btn btn-small" id="credits-retry" type="button" hidden><span data-i18n="shell.m314">Guthaben erneut laden</span></button></div>
@@ -127,8 +127,7 @@
           <div>
             <p class="kicker" id="dash-kicker"><span data-i18n="shell.m044">Willkommen</span></p>
             <h1 id="greeting"><span data-i18n="shell.m315">Noch keine Antworten &mdash; fang mit einer kurzen Aufgabe an.</span></h1>
-            <p id="countdown-note"><span data-i18n="shell.m316">Dein Überblick. Alle Angaben kommen aus deinem Konto und aus deinen
-              eigenen Antworten, nicht aus einer Schätzung.</span></p>
+            <p id="countdown-note"><span data-i18n="shell.m316">Ihr Überblick. Alle Angaben kommen aus Ihrem Konto und aus Ihren eigenen Antworten, nicht aus einer Schätzung.</span></p>
           </div>
         </div>
 
@@ -145,7 +144,7 @@
 
             <section class="card" aria-labelledby="stand-title">
               <div class="card-head">
-                <h2 id="stand-title"><span data-i18n="shell.m318">Dein Stand</span></h2>
+                <h2 id="stand-title"><span data-i18n="shell.m318">Ihr Stand</span></h2>
                 <a class="link small" href="#/fortschritt"><span data-i18n="shell.m319">Details</span></a>
               </div>
               <div class="gauge">
@@ -156,8 +155,7 @@
               <div class="parts" id="parts"></div>
               <p class="hint">
                 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                <span data-i18n="shell.m321">Das ist deine Übungsbilanz, kein Prüfungsergebnis. Eine Note oder eine
-                Bestehensprognose gibt es hier bewusst nicht.</span>
+                <span data-i18n="shell.m321">Das ist Ihre Übungsbilanz, kein Prüfungsergebnis. Eine Note oder eine Bestehensprognose gibt es hier bewusst nicht.</span>
               </p>
             </section>
           </div>
@@ -166,20 +164,18 @@
             <section class="card" aria-labelledby="exam-title">
               <div class="card-head"><h2 id="exam-title"><span data-i18n="shell.m322">Nächste Prüfung</span></h2></div>
               <p id="countdown"><span data-i18n="shell.m054">Kein Prüfungsdatum gesetzt</span></p>
-              <p class="small muted"><span data-i18n="shell.m055">Trage dein Prüfungsdatum in den Einstellungen ein, damit der
-                Countdown läuft.</span></p>
+              <p class="small muted"><span data-i18n="shell.m055">Tragen Sie Ihr Prüfungsdatum in den Einstellungen ein, damit der Countdown läuft.</span></p>
             </section>
 
             <section class="card" aria-labelledby="stats-title">
-              <div class="card-head"><h2 id="stats-title"><span data-i18n="shell.m323">Deine Antworten</span></h2></div>
+              <div class="card-head"><h2 id="stats-title"><span data-i18n="shell.m323">Ihre Antworten</span></h2></div>
               <!-- `.stat-row` is the design's three-across tile row (hatoove.css); `.parts` is a
                    one-column grid and stacked the tiles full width. -->
               <div class="stat-row">
                 <div class="stat"><span class="num" id="stat-answers">0</span><span data-i18n="shell.m320">Beantwortete Aufgaben</span></div>
                 <div class="stat"><span class="num" id="stat-correct">0</span><span><span data-i18n="shell.m104">richtig</span></span></div>
               </div>
-              <p class="small muted"><span data-i18n="shell.m324">Gezählt aus deinen eigenen Antworten. Jede zählt, auch eine
-                Korrektur.</span></p>
+              <p class="small muted"><span data-i18n="shell.m324">Gezählt aus Ihren eigenen Antworten. Jede zählt, auch eine Korrektur.</span></p>
             </section>
           </div>
         </div>
@@ -239,7 +235,7 @@
           <div>
             <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
             <h1><span data-i18n="shell.m004">Hörverstehen</span></h1>
-            <p><span data-i18n="shell.m330">Höre feste Aufnahmen in einem gespeicherten Lauf. Dein Hörstand und deine Antworten bleiben diesem Lauf zugeordnet.</span></p>
+            <p><span data-i18n="shell.m330">Hören Sie feste Aufnahmen in einem gespeicherten Lauf. Ihr Hörstand und Ihre Antworten bleiben diesem Lauf zugeordnet.</span></p>
           </div>
         </div>
         <div class="stack" id="skill-hoeren"><div class="card"><h3><span data-i18n="shell.m317">Wird geladen &hellip;</span></h3></div></div>
@@ -264,17 +260,15 @@
         <div class="page-head">
           <div>
             <p class="kicker"><span data-i18n="shell.m332">Wiederholen</span></p>
-            <h1 id="mistake-heading"><span data-i18n="shell.m118">Deine offenen Fehler</span></h1>
-            <p id="mistake-note"><span data-i18n="shell.m120">Aufgaben, die du zuletzt falsch beantwortet hast. Sobald du eine
-              richtig hast, verschwindet sie hier von selbst.</span></p>
+            <h1 id="mistake-heading"><span data-i18n="shell.m118">Ihre offenen Fehler</span></h1>
+            <p id="mistake-note"><span data-i18n="shell.m120">Aufgaben, die Sie zuletzt falsch beantwortet haben. Sobald Sie eine richtig haben, verschwindet sie hier von selbst.</span></p>
           </div>
         </div>
         <div class="stack">
           <section class="card-peach stack">
             <p class="kicker" style="color:var(--orange-dark)"><span data-i18n="shell.m333">Tipp</span></p>
             <h3><span data-i18n="shell.m334">Erst wiederholen, dann Neues</span></h3>
-            <p class="muted"><span data-i18n="shell.m335">Eine Aufgabe, die du schon kennst, bringt mehr als eine neue, wenn du sie
-              vorher falsch hattest.</span></p>
+            <p class="muted"><span data-i18n="shell.m335">Eine Aufgabe, die Sie schon kennen, bringt mehr als eine neue, wenn Sie sie vorher falsch hatten.</span></p>
           </section>
           <div class="stack" id="mistake-list"><div class="card"><h3><span data-i18n="shell.m317">Wird geladen &hellip;</span></h3></div></div>
         </div>
@@ -312,11 +306,11 @@
       </section>
 
 <section class="view" id="view-fortschritt" hidden>
-  <div class="page-head"><div><p class="kicker"><span data-i18n="shell.m341">Dein Lernen</span></p><h2><span data-i18n="shell.m342">Fortschritt und Verlauf</span></h2><p id="history-summary"><span data-i18n="shell.m165">Deine gespeicherten Texte und Rückmeldungen.</span></p></div></div>
+  <div class="page-head"><div><p class="kicker"><span data-i18n="shell.m341">Ihr Lernen</span></p><h2><span data-i18n="shell.m342">Fortschritt und Verlauf</span></h2><p id="history-summary"><span data-i18n="shell.m165">Ihre gespeicherten Texte und Rückmeldungen.</span></p></div></div>
   <div id="mock-history" class="stack"></div><div id="history-detail" class="stack" hidden></div><div id="history-list" class="stack"></div>
 </section>
 <section class="view" id="view-mehr" hidden>
-  <div class="page-head"><div><h2><span data-i18n="shell.m343">Mehr entdecken</span></h2><p><span data-i18n="shell.m344">Alles für deine nächste Übung.</span></p></div></div>
+  <div class="page-head"><div><h2><span data-i18n="shell.m343">Mehr entdecken</span></h2><p><span data-i18n="shell.m344">Alles für Ihre nächste Übung.</span></p></div></div>
   <div class="more-grid">
     <a class="card more-link" href="#/satzbau" data-view="satzbau"><strong><span data-i18n="shell.m015">Satzbau erkunden</span></strong><span><span data-i18n="shell.m345">Verbposition und Satzklammer im eigenen Satz untersuchen</span></span></a>
     <a class="card more-link" href="#/lesen" data-view="lesen"><strong><span data-i18n="shell.m002">Leseverstehen</span></strong><span><span data-i18n="shell.m346">Texte lesen und die passende Antwort finden</span></span></a>
@@ -325,7 +319,7 @@
     <a class="card more-link" href="#/woerterbuch" data-view="woerterbuch"><strong><span data-i18n="shell.m009">Wörterbuch</span></strong><span><span data-i18n="shell.m349">Wörter, Artikel und Beispiele</span></span></a>
     <a class="card more-link" href="#/nachschlagen" data-view="nachschlagen"><strong><span data-i18n="shell.m010">Nachschlagen</span></strong><span><span data-i18n="shell.m350">Regeln und Redemittel verständlich erklärt</span></span></a>
     <a class="card more-link" href="#/fehler" data-view="fehler"><strong><span data-i18n="shell.m011">Fehler</span> <span class="count" id="mistake-count-tab" hidden>0</span></strong><span><span data-i18n="shell.m351">Offene Fehler noch einmal üben</span></span></a>
-    <a class="card more-link" href="#/einstellungen" data-view="einstellungen"><strong><span data-i18n="shell.m352">Konto und Einstellungen</span></strong><span><span data-i18n="shell.m353">Prüfungsdatum, Sprache und deine Daten</span></span></a>
+    <a class="card more-link" href="#/einstellungen" data-view="einstellungen"><strong><span data-i18n="shell.m352">Konto und Einstellungen</span></strong><span><span data-i18n="shell.m353">Prüfungsdatum, Sprache und Ihre Daten</span></span></a>
     <!-- PAYMENTS-SLICE-01. The pass is a purchase, so it sits with the secondary destinations rather
          than in the tabbar: it is used once, not every day. -->
     <a class="card more-link" href="#/checkout" data-view="checkout"><strong><span data-i18n="shell.m016">Pass freischalten</span></strong><span><span data-i18n="shell.m354">Schreib-Rückmeldungen für diese Prüfung freischalten</span></span></a>
@@ -344,7 +338,7 @@
     <div>
       <p class="kicker"><span data-i18n="shell.m355">Pass</span></p>
       <h2><span data-i18n="shell.m016">Pass freischalten</span></h2>
-      <p><span data-i18n="shell.m356">Schreib-Rückmeldungen für deine Prüfung freischalten und den Stand deiner Bestellung ansehen.</span></p>
+      <p><span data-i18n="shell.m356">Schreib-Rückmeldungen für Ihre Prüfung freischalten und den Stand Ihrer Bestellung ansehen.</span></p>
     </div>
   </div>
   <div class="stack" id="checkout-host" role="status" aria-live="polite"></div>
@@ -352,7 +346,7 @@
 <section class="view" id="view-satzbau" hidden>
   <div class="page-head"><div><p class="kicker"><span data-i18n="shell.m003">Sprachbausteine</span></p><h2><span data-i18n="shell.m015">Satzbau erkunden</span></h2><p><span data-i18n="shell.m357">Untersuche die Struktur eines deutschen Satzes.</span></p></div></div>
   <form class="card stack" id="sentence-form">
-    <label class="field-label" for="sentence-text"><span data-i18n="shell.m358">Dein Satz oder kurzer Text</span></label>
+    <label class="field-label" for="sentence-text"><span data-i18n="shell.m358">Ihr Satz oder kurzer Text</span></label>
     <textarea class="writing-text" id="sentence-text" lang="de" dir="ltr" rows="5" maxlength="2000" required placeholder="Ich bleibe zu Hause, weil ich morgen arbeiten muss."  aria-describedby="sentence-limit"></textarea>
     <p class="small muted" id="sentence-limit"><span data-i18n="shell.m359">Bis zu 2.000 Zeichen. Dieser Text wird nicht als Entwurf gespeichert. Die Strukturhinweise sind eine begrenzte Lernhilfe auf Deutsch, keine vollständige Grammatikprüfung.</span></p>
     <button type="submit" class="btn btn-primary" id="sentence-submit"><span data-i18n="shell.m360">Strukturhinweise anzeigen</span></button>
@@ -375,7 +369,7 @@
               <div class="field">
                 <label for="examDate"><span data-i18n="shell.m363">Prüfungsdatum dieser Vorbereitung (optional)</span></label>
                 <input class="input" type="date" id="examDate" name="examDate">
-                <p class="small muted"><span data-i18n="shell.m364">Ohne Termin kannst du direkt üben. Eine archivierte Vorbereitung ist schreibgeschützt.</span></p>
+                <p class="small muted"><span data-i18n="shell.m364">Ohne Termin können Sie direkt üben. Eine archivierte Vorbereitung ist schreibgeschützt.</span></p>
               </div>
               <div class="field">
                 <label for="language"><span data-i18n="shell.m365">Menü- und Erklärungssprache</span></label>
@@ -386,7 +380,7 @@
                   <option value="ar">العربية</option>
                   <option value="tr">Türkçe</option>
                 </select>
-                <p class="small muted"><span data-i18n="shell.m366">Menüs und Hinweise folgen deiner Sprache. Prüfungsinhalte bleiben in ihrer Originalsprache. Fehlende Übersetzungen von Erklärungen werden gekennzeichnet.</span></p>
+                <p class="small muted"><span data-i18n="shell.m366">Menüs und Hinweise folgen Ihrer Sprache. Prüfungsinhalte bleiben in ihrer Originalsprache. Fehlende Übersetzungen von Erklärungen werden gekennzeichnet.</span></p>
               </div>
               <div class="spread">
                 <button type="submit" class="btn btn-primary" id="save-settings"><span data-i18n="shell.m367">Speichern</span></button>
@@ -398,13 +392,12 @@
           <div class="card">
             <div class="card-head"><h3><span data-i18n="shell.m306">Konto</span></h3></div>
             <div class="stack">
-              <div class="spread"><span class="muted" data-i18n="shell.email">E-Mail</span><strong id="account-email-2" dir="ltr">–</strong></div><div class="spread"><span><span data-i18n="shell.m368">Eine Kopie deiner Lerndaten</span></span><button type="button" class="btn" id="export-data"><span data-i18n="shell.m369">Daten exportieren</span></button></div><p class="small muted" id="export-state" role="status"></p>
+              <div class="spread"><span class="muted" data-i18n="shell.email">E-Mail</span><strong id="account-email-2" dir="ltr">–</strong></div><div class="spread"><span><span data-i18n="shell.m368">Eine Kopie Ihrer Lerndaten</span></span><button type="button" class="btn" id="export-data"><span data-i18n="shell.m369">Daten exportieren</span></button></div><p class="small muted" id="export-state" role="status"></p>
               <div class="spread">
                 <span class="muted"><span data-i18n="shell.m370">Konto endgültig löschen</span></span>
                 <button type="button" class="btn btn-danger" id="delete-account"><span data-i18n="shell.m371">Konto löschen</span></button>
               </div>
-              <p class="small muted"><span data-i18n="shell.m372">Löschen entfernt deine eigenen Datensätze wirklich. Das kann nicht
-                rückgängig gemacht werden.</span></p>
+              <p class="small muted"><span data-i18n="shell.m372">Löschen entfernt Ihre eigenen Datensätze wirklich. Das kann nicht rückgängig gemacht werden.</span></p>
             </div>
           </div>
 
@@ -416,8 +409,7 @@
           <div class="card">
             <div class="card-head"><h3><span data-i18n="shell.m373">Sitzungen</span></h3></div>
             <div class="stack">
-              <p class="small muted"><span data-i18n="shell.m374">Wo du angemeldet bist. Das Beenden einer Sitzung meldet nur dieses
-                Gerät ab.</span></p>
+              <p class="small muted"><span data-i18n="shell.m374">Wo Sie angemeldet sind. Das Beenden einer Sitzung meldet nur dieses Gerät ab.</span></p>
               <ul class="sessions" id="session-list"><li class="muted small"><span data-i18n="shell.m230">Wird geladen …</span></li></ul>
               <p class="small muted" id="session-state" role="status"></p>
             </div>

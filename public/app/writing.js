@@ -62,7 +62,7 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
     clearTimeout(active.timer); clearTimeout(active.poll);
     if (active.area) active.area.readOnly = true;
     for (const control of active.host.querySelectorAll('button')) control.disabled = true;
-    if (active.area && !active.submission) say(active, '<p class="err" data-practice-key="ui02">Dieses Fenster kann nicht mehr speichern. Dein Text bleibt zum Kopieren sichtbar. Melde dich danach erneut an.</p>');
+    if (active.area && !active.submission) say(active, '<p class="err" data-practice-key="ui02">Dieses Fenster kann nicht mehr speichern. Ihr Text bleibt zum Kopieren sichtbar. Melden Sie sich danach erneut an.</p>');
     sessionBlocked = true;
   });
   function dispose() {
@@ -80,7 +80,7 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
       const remote = await api.writing.readAttempt(s.attempt);
       if (!current(s)) return;
       if (!remote?.ok) { compareConflict(s, 'conflictLoad'); return; }
-      say(s, `<p class="err" data-practice-key="ui03">Speicherkonflikt – deine Eingabe bleibt im Textfeld.</p><details open><summary data-practice-key="ui04">Auf dem Server gespeicherte Fassung</summary><pre class="submitted-text" lang="${esc(s.task?.exam_language || getExamLanguage() || 'und')}" dir="${(s.task?.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr'}">${esc(remote.data.text || '')}</pre></details>` + button('writing-keep', pl('keep')) + button('writing-load', pl('load')));
+      say(s, `<p class="err" data-practice-key="ui03">Speicherkonflikt – Ihre Eingabe bleibt im Textfeld.</p><details open><summary data-practice-key="ui04">Auf dem Server gespeicherte Fassung</summary><pre class="submitted-text" lang="${esc(s.task?.exam_language || getExamLanguage() || 'und')}" dir="${(s.task?.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr'}">${esc(remote.data.text || '')}</pre></details>` + button('writing-keep', pl('keep')) + button('writing-load', pl('load')));
       s.host.querySelector('#writing-keep').onclick = async () => { s.revision = remote.data.revision; s.conflict = false; await save(s); };
       s.host.querySelector('#writing-load').onclick = () => { s.area.value = remote.data.text || ''; s.saved = s.area.value; s.revision = remote.data.revision; s.conflict = false; say(s, '<p class="muted" data-practice-key="ui05">Gespeicherte Fassung übernommen.</p>'); };
     };
@@ -108,11 +108,11 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
     if (sessionBlocked) return false;
     if (['mock_group_inactive', 'mock_expired', 'mock_finalised'].includes(res?.error)) {
       s.error = res.error; s.area.readOnly = true;
-      say(s, '<p class="err" data-practice-key="ui08">Die Schreibzeit ist beendet. Deine unbestätigte Eingabe bleibt zum Kopieren erhalten; sie wurde nicht als gespeichert bestätigt.</p>');
+      say(s, '<p class="err" data-practice-key="ui08">Die Schreibzeit ist beendet. Ihre unbestätigte Eingabe bleibt zum Kopieren erhalten; sie wurde nicht als gespeichert bestätigt.</p>');
       onChange(); return false;
     }
     if (contentRefused(res)) {
-      blockContent(s, '<p class="err" data-practice-key="ui09">Die Aufgabe ist zurzeit gesperrt. Deine Eingabe bleibt hier zum Kopieren sichtbar; sie wurde nicht gespeichert.</p>');
+      blockContent(s, '<p class="err" data-practice-key="ui09">Die Aufgabe ist zurzeit gesperrt. Ihre Eingabe bleibt hier zum Kopieren sichtbar; sie wurde nicht gespeichert.</p>');
       return false;
     }
     if (res?.status === 409 && res.error === 'draft_conflict') {
@@ -169,20 +169,20 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
     }
     s.result = data;
     const text = data.submission?.text || '';
-    const sent = `<details class="submitted"><summary data-practice-key="ui10">Dein abgegebener Text</summary><pre class="submitted-text" lang="${esc(s.task?.exam_language || getExamLanguage() || 'und')}" dir="${(s.task?.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr'}">${esc(text)}</pre></details>`;
+    const sent = `<details class="submitted"><summary data-practice-key="ui10">Ihr abgegebener Text</summary><pre class="submitted-text" lang="${esc(s.task?.exam_language || getExamLanguage() || 'und')}" dir="${(s.task?.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr'}">${esc(text)}</pre></details>`;
     if (s.area) { s.area.value = text; s.area.readOnly = true; s.area.disabled = false; }
     const submit = s.host.querySelector('#writing-submit'); if (submit) submit.disabled = true;
     const fresh = s.host.querySelector('#writing-new'); if (fresh) fresh.hidden = true;
     let html;
     if (state === 'assessed') {
       const f = assessment.feedback || {};
-      html = `<p class="muted"><strong data-writing-feedback-heading>${esc(writingLabels(s.rubric, f.kind).heading)}</strong></p><p class="small muted" data-practice-key="ui11">Lokaler Pilot: Die Rückmeldung stammt derzeit aus einer technischen Simulation. Sie bewertet deine Sprachleistung nicht verlässlich.</p>`;
+      html = `<p class="muted"><strong data-writing-feedback-heading>${esc(writingLabels(s.rubric, f.kind).heading)}</strong></p><p class="small muted" data-practice-key="ui11">Lokaler Pilot: Die Rückmeldung stammt derzeit aus einer technischen Simulation. Sie bewertet Ihre Sprachleistung nicht verlässlich.</p>`;
       const supported = f.kind === (s.rubric?.feedback_kind || 'telc-b1-bands');
       html += supported && Array.isArray(f.criteria)
         ? `<ul class="criteria">${f.criteria.map(c => { const view = writingCriterion(c, s.rubric); return `<li class="criterion"><div class="criterion-head"><strong lang="${esc(s.task?.exam_language || getExamLanguage() || 'und')}" dir="${(s.task?.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr'}">${esc(view.label || labels[c.key])}</strong><span class="band"><span class="sr-only" data-practice-key="ui12">Band </span>${esc(view.band)}</span></div>${c.evidence ? `<blockquote class="evidence" lang="${esc(s.task?.exam_language || getExamLanguage() || 'und')}" dir="${(s.task?.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr'}">${esc(c.evidence)}</blockquote>` : ''}</li>`; }).join('')}</ul>` : '';
       html += (data.review_withdrawn ? `<p class="hint" data-review-withdrawn>${esc(reviewHistoryNotice(data))}</p>` : '') + sent + (!s.readonly && !data.review_withdrawn ? button('writing-revise', pl('revise'), true) : '');
     } else if (state === 'blocked') {
-      html = '<p class="err" data-practice-key="ui13">Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Dein abgegebener Text bleibt erhalten.</p>' + sent;
+      html = '<p class="err" data-practice-key="ui13">Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Ihr abgegebener Text bleibt erhalten.</p>' + sent;
     } else if (state === 'unassessed') {
       const reason = job.failure_code === 'allowance_exhausted' ? pl('exhausted') : pl('noSubmission');
       html = `<p class="muted"><strong data-practice-key="ui14">Unbewertet.</strong> ${reason} ${pl('savedPreserved')}</p>` + sent + (!s.readonly ? button('writing-revise', pl('revise')) : '');
@@ -190,7 +190,7 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
       const reason = job.failure_code === 'grader_unavailable' ? pl('graderUnavailable') : job.failure_code === 'retry_exhausted' ? pl('retriesExhausted') : pl('feedbackFailed');
       html = `<p class="err"><strong data-practice-key="ui14">Unbewertet.</strong> ${reason} ${pl('textPreserved')}</p>` + sent + (!s.readonly ? button('writing-retry', pl('retryGrade')) + button('writing-revise', pl('revise')) : '');
     } else {
-      html = '<p class="muted" data-practice-key="ui15">Abgegeben. Die Rückmeldung wird vorbereitet. Du kannst diese Seite verlassen und den Stand im Verlauf wieder öffnen.</p>' + sent + button('writing-refresh', pl('refreshNow'));
+      html = '<p class="muted" data-practice-key="ui15">Abgegeben. Die Rückmeldung wird vorbereitet. Sie können diese Seite verlassen und den Stand im Verlauf wieder öffnen.</p>' + sent + button('writing-refresh', pl('refreshNow'));
     }
     say(s, html + '<div data-writing-explanation></div>');
     explanations?.mount(s.status.querySelector('[data-writing-explanation]'), {
@@ -216,7 +216,7 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
       e.currentTarget.disabled = true;
       const retry = await api.writing.retry(submissionId);
       if (!current(s)) return;
-      if (contentRefused(retry)) { blockContent(s, '<p class="err" data-practice-key="ui16">Die Aufgabe ist zurzeit gesperrt. Dein abgegebener Text bleibt erhalten.</p>' + sent); return; }
+      if (contentRefused(retry)) { blockContent(s, '<p class="err" data-practice-key="ui16">Die Aufgabe ist zurzeit gesperrt. Ihr abgegebener Text bleibt erhalten.</p>' + sent); return; }
       if (!retry?.ok) { say(s, `<p class="err">${message(retry)} ${pl('anotherUnavailable')}</p>` + sent + button('writing-refresh', pl('refreshNow'))); s.host.querySelector('#writing-refresh').onclick = () => showResult(s, submissionId); return; }
       await showResult(s, submissionId);
     });
@@ -269,7 +269,7 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
     if (result.data.task) s.task = { ...s.task, ...result.data.task };
     const linked = result.data.mock_run_id && !s.attached;
     if (linked) s.readonly = true;
-    host.innerHTML = `<div class="card"><div class="writing-prompt">${s.blocked ? '<h3 data-practice-key="ui19">Gespeicherter Text</h3>' : prompt(s.task)}</div>${linked ? `<p data-practice-key="ui20">Dieser Text gehört zu einem gespeicherten Prüfungslauf.</p><a class="btn" href="#/lauf/${esc(result.data.mock_run_id)}" data-practice-key="ui21">Lauf öffnen</a>` : ''}<label class="field-label" for="writing-text" data-practice-key="ui22">Dein Text</label><textarea id="writing-text" class="writing-text" lang="${esc(s.task?.exam_language || getExamLanguage() || 'und')}" dir="${(s.task?.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr'}" rows="12" maxlength="12000" aria-describedby="writing-state"></textarea><p class="small muted">${s.blocked ? pl('blockedCopy') : s.readonly ? pl('readOnly') : s.attached ? pl('attachedDraft') : pl('draftHelp')}</p><div class="row">${s.attached || s.readonly || s.blocked ? '' : button('writing-submit', pl('submit'), true) + button('writing-new', pl('restart'))}${close}</div><div id="writing-state" class="writing-state" role="status" aria-live="polite"><p class="muted">${s.saved ? pl('resumedDraft') : pl('notSubmitted')}</p></div>${s.blocked ? '' : '<details class="rubric-panel" id="writing-rubric"><summary data-practice-key="ui18">Wie wird bewertet?</summary><div id="writing-rubric-body" data-practice-key="ui17">Wird geladen …</div></details>'}</div>`;
+    host.innerHTML = `<div class="card"><div class="writing-prompt">${s.blocked ? '<h3 data-practice-key="ui19">Gespeicherter Text</h3>' : prompt(s.task)}</div>${linked ? `<p data-practice-key="ui20">Dieser Text gehört zu einem gespeicherten Prüfungslauf.</p><a class="btn" href="#/lauf/${esc(result.data.mock_run_id)}" data-practice-key="ui21">Lauf öffnen</a>` : ''}<label class="field-label" for="writing-text" data-practice-key="ui22">Ihr Text</label><textarea id="writing-text" class="writing-text" lang="${esc(s.task?.exam_language || getExamLanguage() || 'und')}" dir="${(s.task?.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr'}" rows="12" maxlength="12000" aria-describedby="writing-state"></textarea><p class="small muted">${s.blocked ? pl('blockedCopy') : s.readonly ? pl('readOnly') : s.attached ? pl('attachedDraft') : pl('draftHelp')}</p><div class="row">${s.attached || s.readonly || s.blocked ? '' : button('writing-submit', pl('submit'), true) + button('writing-new', pl('restart'))}${close}</div><div id="writing-state" class="writing-state" role="status" aria-live="polite"><p class="muted">${s.saved ? pl('resumedDraft') : pl('notSubmitted')}</p></div>${s.blocked ? '' : '<details class="rubric-panel" id="writing-rubric"><summary data-practice-key="ui18">Wie wird bewertet?</summary><div id="writing-rubric-body" data-practice-key="ui17">Wird geladen …</div></details>'}</div>`;
     s.area = host.querySelector('#writing-text'); s.area.value = s.saved;
     s.area.readOnly = s.readonly || s.blocked || !canEdit();
     s.status = host.querySelector('#writing-state'); updatePracticeLocale(host);
@@ -290,7 +290,7 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
       if (!current(s)) return;
       s.submitting = false;
       if (!submit?.ok) {
-        if (contentRefused(submit)) { blockContent(s, '<p class="err" data-practice-key="ui24">Die Aufgabe ist zurzeit gesperrt. Dein Text bleibt zum Kopieren sichtbar. Die Abgabe wurde nicht bestätigt.</p>'); return; }
+        if (contentRefused(submit)) { blockContent(s, '<p class="err" data-practice-key="ui24">Die Aufgabe ist zurzeit gesperrt. Ihr Text bleibt zum Kopieren sichtbar. Die Abgabe wurde nicht bestätigt.</p>'); return; }
         // An uncertain POST keeps its identity and frozen text. Retrying it cannot create a second job.
         trigger.disabled = false; bindPracticeText(trigger, 'checkSubmit');
         if (submit?.status > 0 && submit.status < 500) s.area.readOnly = false;
@@ -313,7 +313,7 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
           s.area.readOnly = true;
           host.querySelector('#writing-new').disabled = true;
           host.querySelector('#writing-submit').disabled = true;
-          say(s, '<p class="err" data-practice-key="ui25">Dieser Entwurf wurde bereits in einem anderen Fenster abgegeben. Er wurde nicht verworfen. Dein Text bleibt hier zum Kopieren sichtbar. Die Abgabe findest du im Verlauf.</p>');
+          say(s, '<p class="err" data-practice-key="ui25">Dieser Entwurf wurde bereits in einem anderen Fenster abgegeben. Er wurde nicht verworfen. Ihr Text bleibt hier zum Kopieren sichtbar. Die Abgabe finden Sie im Verlauf.</p>');
         } else say(s, `<p class="err">${message(removed)} ${pl('notDiscarded')}</p>`);
         return;
       }
