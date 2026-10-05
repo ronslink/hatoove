@@ -104,11 +104,19 @@ export function selectPracticeSet(candidates, evidence) {
 /**
  * The runner's round rule.
  *
- * `setCount` is how many released sets the part has (A1: three). `checkedSets` is how many DISTINCT sets of
- * this part the learner has already checked. The next tap is a wrap when every set is done — the fourth tap
- * of a three-set part — and the caller must then say the wrap message instead of starting set one again.
+ * `setCount` is how many released sets this part has. That is THREE for every part except SB1, which has FOUR
+ * (`telc-deutsch-b1.sb1.grammar-wortstellung-v1`, the recovered grammar drill from migration `0022`), so the
+ * rule must count what the part actually serves rather than assume A1's three: the caller passes
+ * `candidates.length`. `checkedSets` is how many DISTINCT sets of this part the learner has already checked.
+ * The next tap is a wrap when every set is done — the FOURTH tap of a three-set part, the FIFTH of SB1's four —
+ * and the caller must then say the wrap message instead of starting set one again.
  *
- * `round` is the 1-based round the next tap begins, so the copy can be pinned without recomputing it.
+ * `round` is the 1-based round a tap BEGINS, which is why a wrap does not advance it: on a wrap no further
+ * round begins, so `round` stays at the part's last round (`setCount`) and never exceeds it. A client can
+ * therefore render "Runde {round} von {setCount}" without a special case, and reads `wrapped`/`notice` to
+ * decide whether the tap happened at all. (REVIEW-PRACTICE-01-SERVER D4: the field was right and this comment
+ * was wrong; the previous wording said "the round the next tap begins" unconditionally, which reads as 4 on a
+ * three-set wrap. `round <= setCount` is now pinned by a leg.)
  */
 export function practiceRoundState({ setCount, checkedSets } = {}) {
   const total = positiveInt(setCount) ?? 0;
@@ -125,15 +133,22 @@ export function practiceRoundState({ setCount, checkedSets } = {}) {
 }
 
 /**
- * The authored item members in the shipped corpus (`server/migrations/0010-objective-catalogue.sql`), and the
- * set-level option banks a member draws its choices from. The DATABASE is the source of truth for the shape:
- * every one of the 25 released sets stores its items under exactly one of these members, and its answer keys —
- * `objective_key.answers` — are the stringified `id`/`n` of those same items. This table exists so a
- * well-formed authored set can never be mistaken for a malformed one again: the first version of this module
- * accepted `items`/`texts`/`questions`, read `item.item_id ?? item.id`, and built options only from an ARRAY
- * `item.options`, which was wrong for SEVEN of the eight parts (LV2/HV1-HV3 threw `practice_set_invalid`,
- * LV3/SB1/SB2 threw `practice_set_items_unknown`, LV1 served an empty prompt). It had never been run against
- * a database. Now it is, per family, and the legs below pin the identity of each served item to the key.
+ * The authored item members of the released practice corpus, and the set-level option banks a member draws its
+ * choices from. The DATABASE is the source of truth for the shape: every released set stores its items under
+ * exactly one of these members, and its answer keys — `objective_key.answers` — are the stringified `id`/`n`
+ * of those same items. This table exists so a well-formed authored set can never be mistaken for a malformed
+ * one again: the first version of this module accepted `items`/`texts`/`questions`, read
+ * `item.item_id ?? item.id`, and built options only from an ARRAY `item.options`, which was wrong for SEVEN of
+ * the eight parts (LV2/HV1-HV3 threw `practice_set_invalid`, LV3/SB1/SB2 threw `practice_set_items_unknown`,
+ * LV1 served an empty prompt). It had never been run against a database. Now it is, per family, and the legs
+ * below pin the identity of each served item to the key.
+ *
+ * NOT ALL 25 SETS COME FROM ONE MIGRATION, and REVIEW-PRACTICE-01-SERVER D2 is why this is spelled out:
+ * `0010-objective-catalogue.sql` seeds 24 of them; the 25th — `telc-deutsch-b1.sb1.grammar-wortstellung-v1`,
+ * a 12-item grammar drill — comes from `0022-recovered-grammar-drills.sql`, sourced from
+ * `content/drills/recovered-grammar.json`. So SB1 has FOUR released sets, and the A1 wrap for SB1 therefore
+ * fires on the FIFTH tap, not the fourth. The drill is released practice content and is NOT filtered out; it
+ * carries its own disclosure (`practice_kind`, `instruction`), which `MATERIAL_MEMBERS` now serves.
  */
 const ITEM_MEMBERS = Object.freeze(['items', 'texts', 'questions', 'situations', 'gaps']);
 /** The authored field that carries an item's text, most specific first. SB gaps have no text: the letter does. */
@@ -144,8 +159,16 @@ const OPTION_BANKS = Object.freeze([
   Object.freeze({ member: 'ads', text: 'text' }),
   Object.freeze({ member: 'bank', text: 'word' }),
 ]);
-/** The authored set-level material a runner must render around the items. All public: keys live elsewhere. */
-const MATERIAL_MEMBERS = Object.freeze(['text', 'letter', 'headlines', 'ads', 'bank']);
+/**
+ * The authored set-level material a runner must render around the items. All public: keys live elsewhere.
+ *
+ * `practice_kind` and `instruction` are the set's OWN disclosure and were being dropped (D2). The recovered
+ * grammar drill carries `practice_kind = 'grammar-drill'` and an instruction that says in as many words that
+ * it is not a telc exam set — "Ergänze die Sätze. Dies sind einzelne Grammatikübungen, kein
+ * telc-Prüfungssatz." A learner meeting 12 gap items with nothing saying so is the defect; the drill stays in
+ * the corpus, labelled, rather than being hidden from the part it belongs to.
+ */
+const MATERIAL_MEMBERS = Object.freeze(['text', 'letter', 'headlines', 'ads', 'bank', 'practice_kind', 'instruction']);
 /** LV3's "no ad fits" choice; `objectiveItems` (package-contract) adds the same sentinel and keys use it. */
 const NO_MATCH = Object.freeze({ id: 'x', text: '', value: 'x' });
 

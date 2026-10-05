@@ -13,6 +13,70 @@ end over HTTP against a disposable database.**
 
 ---
 
+## 0. Follow-up lease task-20 — the independent review's findings (BLOCKED → fixed)
+
+REVIEW-PRACTICE-01-SERVER (teammate `reviewer`, `handoff/ron-agent/practice-01-server-review-reviewer.md`)
+verified this slice independently and returned **BLOCKED** on 15c8ded. Its four findings are fixed on this
+branch; the counts above are the pre-review ones, and **§0.1–§0.5 supersede them**.
+
+### 0.1 D1 — MUST FIX: `POST /api/v1/practice/check` answered 404 for every LISTENING set, after committing
+
+The reviewer drove the shipped route: LV1/LV2/LV3/SB1/SB2 → 200, **HV1/HV2/HV3 → 404**, with the sitting
+already `checked` and every answer marked. The route enriched the review with
+`readObjectiveEvidenceExplanation` **after** `checkPracticeAttempt` returned, and that reader is a
+CHOICE-family reader by design (`0037` requires `jsonb_typeof(answer) = 'string'` AND `NOT media_required`).
+An HV answer is a JSON **boolean** on a `media_required` set, so the reader raised `not_found` twice over; the
+fault decided the HTTP status, and the learner's review was thrown away. A retry answered 409
+`attempt_already_checked`, so it was unrecoverable. **The suite missed it because its one HTTP leg (P13) drove
+LV1 only** — a family whose explanations exist.
+
+**Fix, at the level that cannot recur.** The review now carries the facts the route needs — `media_required`
+for the set and `answer_kind` per item (`judgement` when the revealed key is a JSON boolean, derived from the
+same fact `0037` refuses on) — and the route applies two guards: a judgement item, or any item of a
+`media_required` set, **serves `explanation: null`** instead of being asked for; and **any** failure from the
+reader is caught into `explanation: null`. An explanation is enrichment; it can never decide the response to a
+committed check. A datastore that does not disclose `answer_kind` keeps the previous behaviour (ask the
+reader), so no other backend changes.
+
+**Proved both ways** (`tools/practice-selection-check.mjs`): **P14** drives HV2 over HTTP → 200 with the whole
+review (`answer_kind: judgement`, boolean `expected`, `explanation: null`, `media_required: true`), the sitting
+`checked`, the retry 409 — and LV1 still receives its explanations, so the fix skips rather than disables.
+**P15** is the mutation: it copies the whole `server/` tree, puts the defect back in the route copy, and drives
+the same call — **404, with the sitting `checked` and every answer marked**, exactly the reviewer's
+reproduction. The guard is the only thing between the two.
+
+### 0.2 D2 — MUST FIX: SB1 has FOUR released sets, and the drill's own disclosure was dropped
+
+A1's "three sets per part" is true for every part except SB1. The fourth SB1 set is
+`telc-deutsch-b1.sb1.grammar-wortstellung-v1`, the 12-item grammar drill from migration `0022`
+(`content/drills/recovered-grammar.json#banks.wortstellung_nebensatz`), so **SB1's wrap fires on the fifth
+tap**. It is released practice content, so it is **disclosed, not filtered out**: `material` now carries the
+set's own `practice_kind` (`grammar-drill`) and `instruction` ("Ergänze die Sätze. Dies sind einzelne
+Grammatikübungen, kein telc-Prüfungssatz."), which the DTO had been dropping entirely. **P16** drives SB1 to
+the drill and asserts the disclosure, the four-set count and the fifth-tap wrap; **offline legs 19/20** pin the
+disclosure and the four-set wrap, and **mutation M6** removes the disclosure fields so leg 19 fails. A1 itself
+is the Lead's to amend; this note and the code comment no longer repeat the "0010 only" claim.
+
+### 0.3 D3 — the `repository-check` figure was the base commit's
+
+Corrected in §3 below: at this head it is **729 tracked files / 646 text blobs**, not the 728/645 the first
+draft quoted (that was `c839079`).
+
+### 0.4 D4 — `practiceRoundState().round` contradicted its own doc on a wrap
+
+The FIELD was right and the DOC was wrong: a wrap begins no further round, so `round` stays at the part's last
+round (`setCount`) and never exceeds it, which is what a client rendering "Runde {round} von {setCount}" needs.
+The comment said "the round the next tap begins" unconditionally, which reads as 4 on a three-set wrap. The
+doc now says exactly what the code does, and offline leg 8 additionally pins `round <= setCount`.
+
+### 0.5 D5 — "an imported listening set would 500" was unproven
+
+Replaced with a measurement (**P17**): a `content/exams/%` set with no package membership is **excluded** by
+`importedSetGate()`, and the route answers `reason: 'nothing_available'` rather than erroring; the normaliser's
+own refusal of that payload shape is asserted separately. See §5.1.
+
+---
+
 ## 1. What failed, why, and the exact fix
 
 ### D1 — the wrapper hid the failure (diagnostics, not a defect)
@@ -62,9 +126,13 @@ defect. This is the same in-process pin every other disposable-fixture check use
 
 ### D4 — THE REAL DEFECT: `normalisePracticeSet` was wrong for seven of the eight parts
 
-The authored corpus is `server/migrations/0010-objective-catalogue.sql`. Measured from a disposable
-database (25 sets, every set internally consistent: payload rows == `item_count` == `objective_key.answers`
-keys):
+The authored corpus is **24 sets from `server/migrations/0010-objective-catalogue.sql` plus one from
+`server/migrations/0022-recovered-grammar-drills.sql`** — **25** in total, and this note said "0010" for all of
+them until REVIEW-PRACTICE-01-SERVER D2 measured otherwise. The 25th is
+`telc-deutsch-b1.sb1.grammar-wortstellung-v1`, the recovered grammar drill sourced from
+`content/drills/recovered-grammar.json`, so **SB1 has four released sets, not three**, and its A1 wrap fires on
+the fifth tap. Measured from a disposable database (every set internally consistent: payload rows ==
+`item_count` == `objective_key.answers` keys):
 
 | family | member | item 0 | options | key type |
 |---|---|---|---|---|
@@ -162,7 +230,11 @@ nouns default rows (the already-fixed sibling): 240
 | the HV boolean trap: string `"true"` is marked **wrong** | P10 |
 | evidence recorded exactly **once** per item | P11 |
 | the key is **withheld** until the learner's own evidence exists | P12 |
-| the two routes **end to end** (`GET /api/v1/practice/next?family=`, `POST /api/v1/practice/check`) | P13 |
+| the two routes **end to end** (`GET /api/v1/practice/next?family=`, `POST /api/v1/practice/check`) | P13 (LV1) |
+| **a LISTENING check returns its review over HTTP** — 200, boolean key, `explanation: null`, sitting `checked`, retry 409 — and a choice family keeps its explanations | P14 (HV2 + LV1) |
+| **the mutation that makes P14 bite**: the defect put back in a copy of the route → 404 with the sitting committed | P15 |
+| **SB1's four released sets**, the recovered drill's own disclosure reaches the DTO, and the wrap fires on the **fifth** tap at round 4/4 | P16 |
+| **D5 proven**: an unimported `content/exams` set is `nothing_available`, not a 500 | P17 |
 
 ---
 
@@ -181,16 +253,18 @@ OWNAPI_PG_ALLOW=1 OWNAPI_PG_HOST=127.0.0.1 OWNAPI_PG_PORT=55491 \
 ```text
 node tools/practice-selection-check.mjs --postgres
 → postgres: 9 released HV set row(s) published by the fixture
-→ PASS P1 … PASS P13 (all 20 PostgreSQL legs)
-→ 38 legs, 0 failed (server/practice-sets.mjs)
+→ PASS P1 … PASS P17 (all 26 PostgreSQL legs, P14–P17 added by task-20)
+→ 44 legs, 0 failed (server/practice-sets.mjs)
 → MUTATION M1 unseen no longer wins -> 1 leg(s) fail: 1 tier 1
 → MUTATION M2 most wrong becomes most correct -> 2 leg(s) fail: 3, 5
 → MUTATION M3 oldest becomes newest -> 2 leg(s) fail: 4, 5
-→ MUTATION M4 the wrap never fires -> 1 leg(s) fail: 8
+→ MUTATION M4 the wrap never fires -> 2 leg(s) fail: 4, 8
 → MUTATION M5 the served item stops being rebuilt and the raw authored row rides along -> 1 leg(s) fail: 17
+→ MUTATION M6 the set stops disclosing what kind of practice it is (D2) -> 1 leg(s) fail: 19
+→ PASS P15 MUTATION: the same listening check answers 404 with the sitting committed, without the guard (D1)
 
 node tools/practice-selection-check.mjs
-→ 18 legs, 0 failed (server/practice-sets.mjs) + the same 5 mutation proofs
+→ 20 legs, 0 failed (server/practice-sets.mjs) + the same 6 mutation proofs
 ```
 
 ```text
@@ -200,7 +274,7 @@ node tools/owned-api-pg-check.mjs                        → 9 passed, 0 failed
 node tools/migrate-check.mjs                             → 6 passed, 0 failed
 node tools/table-class-check.mjs                         → OK: every table is classified and every class rule holds.
 node tools/migration-eol-check.mjs                       → 5 passed, 0 failed
-node tools/repository-check.mjs                          → 728 tracked files; 645 text blobs screened
+node tools/repository-check.mjs                          → 729 tracked files; 646 text blobs screened
 node tools/objective-key-access-check.mjs                → 9 passed, 0 failed   (documented fixture, port 62563)
 node tools/part-index-check.mjs                          → 11 passed, 0 failed
 node tools/design-check.mjs / retired-surface-check.mjs / seo-check.mjs (11/11)
@@ -230,16 +304,21 @@ identity and set cannot be rewritten from the runtime role), the `open → check
 ## 5. What remains unverified, and residual risk
 
 1. **The `recordings` (listening-package) shape is NOT handled.** `normalisePracticeSet` throws
-   `practice_set_items_unknown` for a `fixed_audio` payload whose items live under
-   `recordings[].questions`. No shipped set uses that shape — no migration inserts a `recordings`
-   objective_set payload, and `content/exams/telc-deutsch-b1/manifest.json` carries **0 sets** (the fixture
-   imports no sets; the corpus comes from migration `0010`). So the shipped corpus is **100% covered**, but
-   if the listening package is ever imported, telc/DTZ HV **practice** would 500 until the practice-playback
-   lease adds the media binding. It should be handled there, together with the play rule — not here, and
-   not by bending the DTO. It fails loudly (a named error), never as a blank page.
-2. **`material` is an interface addition** (`text`/`letter`/`headlines`/`ads`/`bank`). It is additive, and
-   it exists because a runner cannot render LV2 without the passage or SB1 without the letter. The client
-   lease must be told; its tolerance layer should pass it through.
+   `practice_set_items_unknown` for a `fixed_audio` payload whose items live under `recordings[].questions`.
+   **Corrected by REVIEW-PRACTICE-01-SERVER D5 — the original claim here ("an imported listening set would
+   500") was UNPROVEN and is now measured:** no shipped set uses that shape (no migration inserts a
+   `recordings` objective_set payload; the corpus is the 24 `0010` sets plus the `0022` drill, and
+   `content/exams/telc-deutsch-b1/manifest.json` imports **0 sets**), and a `content/exams/%` set with no
+   package membership is **excluded** by `importedSetGate()` before the normaliser is ever reached — the route
+   answers `nothing_available`, it does not 500. That is now a leg (P17): the exclusion is asserted over the
+   route, and the normaliser's own refusal of the empty/recordings shape is asserted separately. The
+   *unproven* part that remains is a set that is a genuine package member *and* carries `recordings` — only
+   then does this become reachable, and the practice-playback lease (task-17, branch
+   `codex/practice-media-17`) is where the recordings shape and its media binding are handled together.
+2. **`material` is an interface addition** (`text`/`letter`/`headlines`/`ads`/`bank`, and now
+   `practice_kind`/`instruction`). It is additive, and it exists because a runner cannot render LV2 without
+   the passage, SB1 without the letter, or the recovered drill without its "not an exam set" instruction. The
+   client lease must be told; its tolerance layer should pass it through.
 3. **Listening playback is still absent by design** (the handover's decision (b)). `media_required: true`
    sets are served with `playback: null`; the runner must degrade with the message that names the missing
    *practice playback path*.

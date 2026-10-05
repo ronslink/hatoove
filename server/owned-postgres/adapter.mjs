@@ -883,7 +883,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         if (attempt.preparation_id !== prep.id) fail(422, 'preparation_mismatch');
         if (attempt.state === 'checked') fail(409, 'attempt_already_checked');
         const set = first(await client.query(
-          `SELECT s.exam_id, s.family, s.section
+          `SELECT s.exam_id, s.family, s.section, s.media_required
              FROM objective_set s
              JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
@@ -919,11 +919,18 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           const revealed = first(await client.query(
             'SELECT reveal_objective_answer($1, $2, $3) AS expected', [attempt.set_id, attempt.version, itemId]));
           if (marked.correct) correctCount += 1;
+          /*
+           * `answer_kind` is the REVIEW's own disclosure of what kind of answer the key holds -- derived from
+           * the revealed key's JSON type, the same fact migration `0037` refuses on. The route needs it to know
+           * whether the CHOICE-family explanation reader can serve this item at all: a listening part's answer
+           * is a JSON boolean, and that reader requires a string. It is `judgement` for exactly those items.
+           */
           items.push({
             item_id: itemId,
             correct: marked.correct,
             chosen: entry.answer,
             expected: revealed ? revealed.expected : null,
+            answer_kind: revealed && typeof revealed.expected === 'boolean' ? 'judgement' : 'choice',
             evidence_id: evidenceId,
             explanation: null,
           });
@@ -944,6 +951,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           item_count: attempt.item_count,
           answered_count: items.length,
           correct_count: correctCount,
+          /* The choice-family explanation reader refuses any media_required set (0037), so the review says so. */
+          media_required: set.media_required === true,
           items,
         };
       }, false);

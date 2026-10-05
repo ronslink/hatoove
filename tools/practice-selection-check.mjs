@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MODULE = 'server/practice-sets.mjs';
@@ -100,6 +100,10 @@ const legs = (mod) => [
     assert.equal(wrap.wrapped, true, 'three of three checked must wrap');
     assert.equal(wrap.notice, 'practiceAllSets', 'the wrap must carry the notice key, not a restart');
     assert.equal(wrap.round, 3);
+    /* REVIEW-PRACTICE-01-SERVER D4: a wrap begins no further round, so `round` never exceeds `setCount`. A
+       client rendering "Runde {round} von {setCount}" therefore needs no special case, and the doc now says
+       exactly that instead of promising the round the next tap begins. */
+    assert.ok(wrap.round <= wrap.setCount, 'a wrap must not report a round beyond the part');
   }],
   ['9 wrap: before the part is exhausted the next round is a normal round', () => {
     assert.deepEqual(mod.practiceRoundState({ setCount: 3, checkedSets: 0 }), { setCount: 3, checkedSets: 0, wrapped: false, round: 1, notice: null });
@@ -225,6 +229,36 @@ const legs = (mod) => [
       /practice_set_invalid/, 'a gap with no options and no bank is unanswerable');
     assert.throws(() => mod.normalisePracticeSet({ version: 'v1' }), /practice_set_invalid/);
   }],
+  /*
+   * REVIEW-PRACTICE-01-SERVER D2 — SB1 has FOUR released sets, not three. `0010` seeds 24 sets; the 25th is
+   * `telc-deutsch-b1.sb1.grammar-wortstellung-v1`, the recovered grammar drill from migration `0022`. It is
+   * released practice content, so it is disclosed rather than filtered out: the drill's own `practice_kind`
+   * and `instruction` say in as many words that it is not a telc exam set, and both used to be dropped.
+   */
+  ['19 the recovered grammar drill DISCLOSES itself in the served material', () => {
+    const served = mod.normalisePracticeSet({
+      set_id: 'telc-deutsch-b1.sb1.grammar-wortstellung-v1', version: 'v1', family: 'SB1', section: 'SB', part: '1',
+      item_count: 2,
+      payload: {
+        practice_kind: 'grammar-drill',
+        instruction: 'Ergänze die Sätze. Dies sind einzelne Grammatikübungen, kein telc-Prüfungssatz.',
+        letter: 'Ich weiß nicht, {1} er kommt.',
+        gaps: [{ n: 1, options: { a: 'ob', b: 'dass', c: 'weil' } }, { n: 2, options: { a: 'ob', b: 'dass', c: 'weil' } }],
+      },
+    });
+    assert.equal(served.material.practice_kind, 'grammar-drill', 'the set must say what kind of practice it is');
+    assert.match(served.material.instruction, /kein telc-Prüfungssatz/,
+      'and must carry its own "not an exam set" instruction to the learner');
+    assert.equal(served.items.length, 2);
+    assert.equal(served.items[0].answer_kind, 'choice');
+  }],
+  ['20 the wrap counts what the part SERVES: SB1 wraps on the FIFTH tap, a three-set part on the fourth', () => {
+    const sb1 = mod.practiceRoundState({ setCount: 4, checkedSets: 3 });
+    assert.deepEqual([sb1.wrapped, sb1.notice, sb1.round], [false, null, 4], 'three of SB1 four is not yet a wrap');
+    const wrapped = mod.practiceRoundState({ setCount: 4, checkedSets: 4 });
+    assert.deepEqual([wrapped.wrapped, wrapped.notice, wrapped.round], [true, 'practiceAllSets', 4],
+      'the fifth tap of SB1 wraps, and no round beyond the part is reported');
+  }],
 ];
 
 const load = async (directory) => {
@@ -238,6 +272,9 @@ const MUTATIONS = [
   ['M3 oldest becomes newest', (source) => source.replace('if (at !== bt) return at - bt;', 'if (at !== bt) return bt - at;')],
   ['M4 the wrap never fires', (source) => source.replace("const wrapped = total > 0 && done >= total;", 'const wrapped = false;')],
   ['M5 the served item stops being rebuilt and the raw authored row rides along', (source) => source.replace('      item_id: String(rawId),', '      ...item,\n      item_id: String(rawId),')],
+  ['M6 the set stops disclosing what kind of practice it is (D2)', (source) => source.replace(
+    "const MATERIAL_MEMBERS = Object.freeze(['text', 'letter', 'headlines', 'ads', 'bank', 'practice_kind', 'instruction']);",
+    "const MATERIAL_MEMBERS = Object.freeze(['text', 'letter', 'headlines', 'ads', 'bank']);")],
 ];
 
 /**
@@ -568,6 +605,180 @@ const postgresLegs = async () => {
       assert.equal(review.state, 'checked');
       assert.equal(review.correct_count, body.set.items.length, 'the review marks the whole set through the route');
       assert.equal(review.attempt_id, body.attempt.attempt_id);
+    });
+
+    const callRoute = (method, route, payload) => world.api.handle({
+      method, path: route, originChecked: true,
+      headers: { cookie, accept: 'application/json', ...(payload === undefined ? {} : { 'content-type': 'application/json' }) },
+      ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
+    });
+
+    /*
+     * REVIEW-PRACTICE-01-SERVER D1. P13 drove LV1 — a family whose explanations exist — which is exactly why
+     * the suite missed that the route answered 404 for EVERY listening set AFTER committing the check. This
+     * leg drives the family that was broken, over HTTP, and asserts the review the learner is owed.
+     */
+    await pgLeg('P14 HTTP: the LISTENING check answers 200 with its review instead of 404 after committing', async () => {
+      const serving = await servedNow('HV2');
+      assert.ok(serving, 'HV2 must serve a set');
+      const keys = await keysFor(serving.set.set_id);
+      const answers = serving.set.items.map((item) => ({ item_id: item.item_id, answer: keys[item.item_id] }));
+      const response = await callRoute('POST', '/api/v1/practice/check', { preparationId, attemptId: serving.attempt.attempt_id, answers });
+      assert.equal(response.status, 200, `a listening check must return its review, got ${response.status} ${response.body}`);
+      const review = JSON.parse(response.body);
+      assert.equal(review.state, 'checked');
+      assert.equal(review.media_required, true, 'the review discloses that the set is media-bound');
+      assert.equal(review.items.length, serving.set.items.length);
+      assert.ok(review.items.every((item) => item.correct === true), 'every answer is marked');
+      assert.ok(review.items.every((item) => typeof item.expected === 'boolean'), 'the key is revealed as a boolean');
+      assert.ok(review.items.every((item) => item.answer_kind === 'judgement'), 'so the item says which reader can serve it');
+      assert.ok(review.items.every((item) => item.explanation === null),
+        'a choice-family reader cannot serve a judgement/media item: null, never an error');
+      const sitting = (await db.admin.query('SELECT state FROM practice_attempt WHERE attempt_id=$1', [serving.attempt.attempt_id])).rows[0];
+      assert.equal(sitting.state, 'checked');
+      const retry = await callRoute('POST', '/api/v1/practice/check', { preparationId, attemptId: serving.attempt.attempt_id, answers });
+      assert.equal(retry.status, 409, 'a retry is refused — which is why losing the review was unrecoverable');
+      assert.equal(JSON.parse(retry.body).error, 'attempt_already_checked');
+      /* ...and the CHOICE families keep their explanations: the fix skips, it does not disable. */
+      const choice = await servedNow('LV1');
+      const choiceKeys = await keysFor(choice.set.set_id);
+      const choiceResponse = await callRoute('POST', '/api/v1/practice/check', {
+        preparationId, attemptId: choice.attempt.attempt_id,
+        answers: choice.set.items.map((item) => ({ item_id: item.item_id, answer: choiceKeys[item.item_id] })),
+      });
+      assert.equal(choiceResponse.status, 200, choiceResponse.body);
+      const choiceReview = JSON.parse(choiceResponse.body);
+      assert.equal(choiceReview.media_required, false);
+      assert.equal(choiceReview.items.length, choice.set.items.length);
+      assert.ok(choiceReview.items.every((item) => item.answer_kind === 'choice'));
+      assert.ok(choiceReview.items.every((item) => item.explanation !== null),
+        'a choice-family item still receives its explanation');
+      return `HV2 ${review.items.length} items → 200 with explanation:null; LV1 keeps ${choiceReview.items.length} explanations`;
+    });
+
+    /*
+     * The mutation that makes P14 bite: put the DEFECT back in a COPY of the route (inside a throwaway copy of
+     * the whole `server/` tree, so the copied route and the copied adapter share one `Fault` class and the
+     * reproduction is exact) and drive the same call. Without the guard the route answers 404 while the sitting
+     * is already `checked` — the review computed and thrown away. Nothing in the repository is modified.
+     */
+    await pgLeg('P15 MUTATION: the same listening check answers 404 with the sitting committed, without the guard', async () => {
+      const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'practice-route-mutation-'));
+      try {
+        fs.cpSync(path.join(ROOT, 'server'), path.join(sandbox, 'server'), { recursive: true, dereference: true });
+        const target = path.join(sandbox, 'server', 'owned-api.mjs');
+        // The working copy has CRLF (core.autocrlf); normalise the throwaway COPY so a multi-line mutation matches.
+        const source = fs.readFileSync(target, 'utf8').replaceAll('\r\n', '\n');
+        let mutated = source;
+        for (const [from, to] of [
+          ['&& checked.media_required !== true', '&& true'],
+          ["if (!explainable || answerKind !== 'choice')", 'if (!explainable)'],
+          ['        } catch {\n          // A withheld, missing or unsupported explanation is null. It is never a failed review.\n          item.explanation = null;\n        }',
+            '        } catch (error) { throw error; }'],
+        ]) {
+          const next = mutated.replace(from, to);
+          assert.notEqual(next, mutated, `the D1 mutation must apply: ${from}`);
+          mutated = next;
+        }
+        fs.writeFileSync(target, mutated);
+        const legacy = await import(pathToFileURL(target).href);
+        const legacyAdapter = await import(pathToFileURL(path.join(sandbox, 'server', 'owned-postgres', 'adapter.mjs')).href);
+        const legacyPort = legacyAdapter.createPostgresDatastore({ pool: db.learner });
+        const legacyApi = legacy.createOwnedApi({ datastore: legacyPort, sessions: world.sessions, settings: world.settings, accountDeletion: world.deletion });
+        const serving = await legacyPort.practiceSetForPart(owner, { preparationId, family: 'HV3' });
+        const keys = await keysFor(serving.set.set_id);
+        const response = await legacyApi.handle({
+          method: 'POST', path: '/api/v1/practice/check', originChecked: true,
+          headers: { cookie, accept: 'application/json', 'content-type': 'application/json' },
+          body: JSON.stringify({ preparationId, attemptId: serving.attempt.attempt_id,
+            answers: serving.set.items.map((item) => ({ item_id: item.item_id, answer: keys[item.item_id] })) }),
+        });
+        assert.equal(response.status, 404, `the defect must reproduce exactly: expected 404, got ${response.status} ${response.body}`);
+        const row = (await db.admin.query('SELECT state, correct_count FROM practice_attempt WHERE attempt_id=$1', [serving.attempt.attempt_id])).rows[0];
+        assert.equal(row.state, 'checked', 'and it committed the check anyway: the review existed and was thrown away');
+        assert.equal(Number(row.correct_count), serving.set.items.length, 'the answers are marked even though the learner saw 404');
+        return 'the old route answers 404 with the sitting checked and every answer marked; the guard is what prevents it';
+      } finally { fs.rmSync(sandbox, { recursive: true, force: true }); }
+    });
+
+    /*
+     * REVIEW-PRACTICE-01-SERVER D2. SB1 has FOUR released sets: the three `0010` sets and the recovered grammar
+     * drill from `0022`. It is released practice content, so it is DISCLOSED rather than filtered out — and the
+     * wrap therefore fires on the FIFTH tap of SB1, not the fourth.
+     */
+    await pgLeg('P16 SB1: four released sets, the fourth is the recovered drill, and its disclosure is served', async () => {
+      const sets = (await db.admin.query(
+        `SELECT s.set_id, s.item_count, s.payload->>'practice_kind' AS practice_kind, c.source_path
+           FROM objective_set s JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
+          WHERE s.exam_id = $1 AND s.family = 'SB1' ORDER BY s.set_id`, [EXAM])).rows;
+      assert.equal(sets.length, 4, `SB1 has four released sets, found ${sets.length}`);
+      const drill = sets.find((row) => row.set_id.endsWith('grammar-wortstellung-v1'));
+      assert.ok(drill, 'the fourth set is the recovered grammar drill');
+      assert.equal(drill.practice_kind, 'grammar-drill');
+      assert.match(drill.source_path, /^content\/drills\//, 'and it does NOT come from migration 0010');
+      const served = [];
+      /*
+       * Earlier legs legitimately check an SB1 sitting (P12 proves the key is withheld on this family), so this
+       * leg drives taps until the part serves the drill rather than assuming it is the fourth TAP — what it
+       * asserts is the CORPUS (four sets, the fourth being the drill) and the WRAP (the tap after all four).
+       */
+      let fourth = null;
+      for (let tap = 0; tap < 4 && !fourth; tap += 1) {
+        const serving = await servedNow('SB1');
+        assert.ok(serving, `SB1 tap ${tap + 1} served nothing`);
+        served.push(serving.set.set_id);
+        assert.equal(serving.round.setCount, 4, 'SB1 must report the four sets it serves');
+        if (serving.set.set_id === drill.set_id) { fourth = serving; break; }
+        const keys = await keysFor(serving.set.set_id);
+        await port.checkPracticeAttempt(owner, {
+          preparationId, attemptId: serving.attempt.attempt_id,
+          answers: serving.set.items.map((item) => ({ item_id: item.item_id, answer: keys[item.item_id] })),
+        });
+      }
+      assert.ok(fourth, `the drill must be served within four taps; saw [${served.join(', ')}]`);
+      assert.equal(fourth.set.item_count, 12, 'and it is 12 gap items');
+      assert.equal(fourth.set.material.practice_kind, 'grammar-drill', 'the DTO must disclose what kind of practice it is');
+      assert.match(fourth.set.material.instruction, /kein telc-Prüfungssatz/, 'and its own instruction must reach the learner');
+      assert.deepEqual([fourth.round.checkedSets, fourth.round.wrapped], [3, false],
+        'three of four checked is not yet a wrap');
+      const keys = await keysFor(fourth.set.set_id);
+      await port.checkPracticeAttempt(owner, {
+        preparationId, attemptId: fourth.attempt.attempt_id,
+        answers: fourth.set.items.map((item) => ({ item_id: item.item_id, answer: keys[item.item_id] })),
+      });
+      const fifth = await servedNow('SB1');
+      assert.equal(fifth.round.wrapped, true, 'the FIFTH tap of SB1 wraps, not the fourth');
+      assert.equal(fifth.round.notice, 'practiceAllSets');
+      assert.equal(fifth.round.round, 4, 'and no round beyond the part is reported');
+      return `${served.join(', ')} → the drill (12 items, disclosed); the tap after all four wraps at round 4/4`;
+    });
+
+    /*
+     * REVIEW-PRACTICE-01-SERVER D5: the note claimed an imported listening set "would 500". It is proven here
+     * instead of asserted: a `content/exams/%` set with no package membership is EXCLUDED by `importedSetGate`
+     * and the route says `nothing_available`, while the normaliser's own refusal of that payload shape stands
+     * separately (which is what the reviewer measured).
+     */
+    await pgLeg('P17 D5 PROVEN: an unimported content/exams set is invisible (nothing_available), not a 500', async () => {
+      const contentVersion = 'synthetic.exams.unimported@v1';
+      await db.admin.query(
+        `INSERT INTO content_version (content_version_id, kind, family, source_path, review_status, rights_status, content_sha256, exam_id)
+         VALUES ($1, 'task', 'hv', 'content/exams/telc-deutsch-b1/synthetic/unimported.json', 'unreviewed', 'generated', $2, $3)
+         ON CONFLICT DO NOTHING`, [contentVersion, 'a'.repeat(64), EXAM]);
+      await db.admin.query(
+        `INSERT INTO objective_set (set_id, version, exam_id, family, section, part, title, payload, item_count, media_required, content_version_id)
+         VALUES ('synthetic.unimported.hv', 'v1', $1, 'HV4', 'HV', 4, 'Unimported', $2::jsonb, 1, false, $3)
+         ON CONFLICT DO NOTHING`,
+        [EXAM, JSON.stringify({ recordings: [{ id: 'r', mediaId: 'synthetic.m', mediaVersion: 'v1', label: 'x',
+          questions: [{ n: 1, question: 'q', options: { a: 'A', b: 'B' } }] }] }), contentVersion]);
+      assert.equal(await servedNow('HV4'), null, 'a content/exams set with no package membership is excluded');
+      const response = await callRoute('GET', `/api/v1/practice/next?preparationId=${preparationId}&family=HV4`);
+      assert.equal(response.status, 200, response.body);
+      assert.equal(JSON.parse(response.body).reason, 'nothing_available', 'the route says so honestly rather than erroring');
+      const { normalisePracticeSet } = await import('../server/practice-sets.mjs');
+      assert.throws(() => normalisePracticeSet({ set_id: 'synthetic.unimported.hv', version: 'v1', item_count: 1, payload: { recordings: [] } }),
+        /practice_set_items_unknown/, 'the normaliser does refuse a payload with no items — separately from the route');
+      return 'excluded by importedSetGate → nothing_available; the recordings-only shape is refused by the normaliser';
     });
     return outcome;
   } finally {

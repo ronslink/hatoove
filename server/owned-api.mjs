@@ -1180,9 +1180,33 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const checked = await datastore.checkPracticeAttempt(owner, {
         preparationId, attemptId: body.attemptId, answers: body.answers,
       });
-      if (typeof datastore.readObjectiveEvidenceExplanation === 'function') {
-        for (const item of Array.isArray(checked.items) ? checked.items : []) {
+      /*
+       * REVIEW-PRACTICE-01-SERVER D1 — THE EXPLANATION IS ENRICHMENT, AND IT MUST NEVER DECIDE THIS RESPONSE.
+       *
+       * The check above is already COMMITTED when this runs: the answers are marked, the evidence rows are
+       * written and the sitting is closed. So a failure here can only lose the learner's review — never the
+       * sitting — and a learner whose sitting is checked but whose review was discarded has no way back
+       * (the retry answers 409 `attempt_already_checked`). Two guards, because the reader is a CHOICE-family
+       * reader BY DESIGN (0037 `read_objective_evidence_explanation` refuses `jsonb_typeof(answer) <> 'string'`
+       * and refuses any `media_required` set):
+       *   1. a judgement item, or any item of a media_required set, is not asked for at all — it serves
+       *      `explanation: null`, which is the truth, instead of a refusal;
+       *   2. ANY failure from the reader becomes `explanation: null`, so no future reader fault can turn a
+       *      committed review into an error response.
+       * Before this, HV1/HV2/HV3 answered 404 not_found for every listening set, after committing the check.
+       */
+      const reviewItems = Array.isArray(checked.items) ? checked.items : [];
+      const explainable = typeof datastore.readObjectiveEvidenceExplanation === 'function'
+        && checked.media_required !== true;
+      for (const item of reviewItems) {
+        // A datastore that does not disclose `answer_kind` keeps the previous behaviour (ask the reader).
+        const answerKind = typeof item.answer_kind === 'string' ? item.answer_kind : 'choice';
+        if (!explainable || answerKind !== 'choice') { item.explanation = null; continue; }
+        try {
           item.explanation = await datastore.readObjectiveEvidenceExplanation(owner, item.evidence_id, { language });
+        } catch {
+          // A withheld, missing or unsupported explanation is null. It is never a failed review.
+          item.explanation = null;
         }
       }
       return reply(200, checked);

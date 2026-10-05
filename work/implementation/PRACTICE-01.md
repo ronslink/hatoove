@@ -57,6 +57,14 @@ most wrong, then oldest, total tie-break by set id), `practiceRoundState` (the A
 `practice_set_items_unknown`** rather than serving an empty set when it does not recognise the authored item
 member.
 
+> **CORRECTION (REVIEW-PRACTICE-01-SERVER D2, task-20).** "Three sets" is true for every part **except SB1**,
+> which has **four**: `telc-deutsch-b1.sb1.01`, `.02` and `.03`, plus
+> `telc-deutsch-b1.sb1.grammar-wortstellung-v1` — the 12-item recovered grammar drill from migration `0022`
+> (`content/drills/recovered-grammar.json`). So SB1's wrap fires on the **fifth** tap, and the corpus is
+> **24 sets from `0010` plus that one** — not "all from `0010`". The drill is released content and is served
+> with its own disclosure (`practice_kind = 'grammar-drill'`, `instruction = "… kein telc-Prüfungssatz."`),
+> which the served `material` now carries.
+
 **`GET /api/v1/practice/next?family=LV2`** — serves ONE released set of that part through the rule, opens the
 sitting, returns the rule's own numbers as the reason (`reason: 'unseen' | 'most-wrong' | 'oldest'`) and the
 wrap state. **`POST /api/v1/practice/check`** — "Auswerten": marks every answer with
