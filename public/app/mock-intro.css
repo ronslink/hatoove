@@ -1,0 +1,70 @@
+/*
+ * MOCK-01 (MIRROR-B1PREP-01 slice D) — the styles this module owns.
+ *
+ * Tokens only, from public/assets/design/hatoove.css: no literal colour, no second brand face, and no
+ * breakpoint of its own (the system's are 1100 px and 860 px). Directions are logical, so the Arabic RTL
+ * interface mirrors without a second rule set and the exam-language islands the module marks stay LTR.
+ *
+ * The table reuses the pinned `table.t` layer (`class="t"` in the markup) and only overrides it where the
+ * shell layer must: the system's `th`/`td` alignment is physical `left`, which is wrong for Arabic, so every
+ * override below carries the same `.mock-intro-table table.t` prefix and wins on specificity rather than on
+ * load order.
+ */
+
+.mock-intro { display: grid; gap: 20px; min-width: 0; }
+.mock-intro > * { min-width: 0; }
+.mock-intro h1, .mock-intro h2, .mock-intro h3, .mock-intro p { overflow-wrap: anywhere; }
+
+.mock-intro-lead { color: var(--ink-2); font-size: 1.05rem; max-width: 62ch; }
+
+/* ---------- the block table ---------- */
+
+.mock-intro-table { max-width: 100%; overflow-x: auto; }
+.mock-intro-table table.t th, .mock-intro-table table.t td { text-align: start; }
+.mock-intro-table table.t caption { text-align: start; }
+.mock-intro-table table.t thead th { white-space: nowrap; }
+/* `break-word`, not `anywhere`: a long word breaks only when it cannot fit, so narrow screens do not turn
+   "Leseverstehen" into "Leseversteh en". */
+.mock-intro-table table.t tbody th { overflow-wrap: break-word; font-weight: 650; }
+.mock-intro-table table.t tfoot th, .mock-intro-table table.t tfoot td { border-bottom: 0; font-weight: 750; }
+.mock-intro-table table.t [data-mock-intro-time] { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mock-intro-table table.t .mock-intro-points { text-align: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ---------- the official rule, stated as a fact ---------- */
+
+.mock-intro-rule p { max-width: 74ch; }
+.mock-intro-oral {
+  border-inline-start: 3px solid var(--orange);
+  padding-inline-start: 12px;
+  color: var(--ink-2);
+}
+
+/* ---------- the saved runs ---------- */
+
+.mock-intro-runs {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+.mock-intro-run { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.mock-intro-run .btn { justify-self: start; margin-top: 4px; }
+
+@media (max-width: 860px) {
+  .mock-intro { gap: 16px; }
+  .mock-intro-table table.t th, .mock-intro-table table.t td { padding: 10px 8px; font-size: 14px; }
+  .mock-intro-table table.t [data-mock-intro-time] { white-space: normal; }
+  .mock-intro-runs { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 420px) {
+  /* At 320 px all three facts must stay on screen. A fixed layout with declared column widths, a smaller
+     cell, and a hyphenated (never clipped) long part name beat a horizontal scroll that would hide the
+     points column; `overflow-wrap: break-word` still breaks the word if hyphenation is unavailable. */
+  .mock-intro-table table.t { table-layout: fixed; width: 100%; }
+  .mock-intro-table table.t th, .mock-intro-table table.t td { padding: 8px 5px; font-size: 12.5px; }
+  .mock-intro-table table.t thead th { white-space: normal; letter-spacing: .02em; }
+  .mock-intro-table table.t thead th:first-child { width: 52%; }
+  .mock-intro-table table.t thead th:nth-child(2) { width: 26%; }
+  .mock-intro-table table.t thead th:nth-child(3) { width: 22%; }
+  .mock-intro-table table.t tbody th { hyphens: auto; overflow-wrap: break-word; }
+}
