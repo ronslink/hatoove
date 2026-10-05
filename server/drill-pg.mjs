@@ -34,7 +34,7 @@ import { readCurrentReleaseEligibility } from './owned-postgres/release-eligibil
 import { requireActivePreparation, resolvePreparation } from './owned-postgres/preparations.mjs';
 import { lockMockOwner } from './owned-postgres/mock-runs.mjs';
 import { normalisePracticeSet, practiceRoundState, selectPracticeSet } from './practice-sets.mjs';
-import { drillProgress, nextDrillItem, pickDrillSitting, rankDrillParts } from './drill-sets.mjs';
+import { drillProgress, nextDrillItem, pickDrillSitting, rankDrillParts, selectDrillTarget } from './drill-sets.mjs';
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = (result) => result.rows[0];
@@ -156,11 +156,40 @@ export function drillMethods({ settle, note = () => {}, catalogue } = {}) {
           byFamily.set(row.family, rows);
         }
         const ranked = rankDrillParts({
-          families: [...byFamily.entries()].map(([family, rows]) => ({ family, sets: rows.length })),
+          /* `media` is true when EVERY released set of the part needs media: the drill cannot play audio, so
+             such a part is not a candidate (REVIEW-DRILL-01 H1 / `selectDrillTarget`). */
+          families: [...byFamily.entries()].map(([family, rows]) => ({
+            family, sets: rows.length, media: !rows.some((row) => row.media_required !== true),
+          })),
           parts: partStats,
         });
-        for (const part of ranked) {
-          const rows = byFamily.get(part.family) ?? [];
+        const target = selectDrillTarget(ranked);
+        if (target.kind === 'listening_blocked') {
+          /*
+           * The learner's recorded weakness is in a LISTENING part and the client cannot play it, so the
+           * honest answer is this state — not an item to guess at, and not a silent switch to another part.
+           * Nothing is written: no sitting, no evidence, no key. `blocked: 'listening'` is what the route
+           * passes through and the client renders, with the part's own numbers as the reason.
+           */
+          return {
+            preparation_id: preparationId,
+            exam_id: examId,
+            blocked: 'listening',
+            family: target.part.family,
+            /* The part's section, so the client can print the exam play rule for it. */
+            section: byFamily.get(target.part.family)?.[0]?.section ?? null,
+            reason: target.part.tier,
+            evidence: { attempts: target.part.attempts, correct: target.part.correct, accuracy: target.part.accuracy },
+            attempt: null,
+            round: null,
+            set: null,
+            item: null,
+            progress: null,
+          };
+        }
+        if (target.kind === 'none') return null;
+        for (const part of [target.part, ...ranked.filter((row) => row !== target.part)]) {
+          const rows = (byFamily.get(part.family) ?? []).filter((row) => row.media_required !== true);
           if (!rows.length) continue;
           /* Continue the drill's own sitting when it still has an unpractised item; otherwise open one. */
           let served = null;

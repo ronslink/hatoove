@@ -106,33 +106,52 @@ export function drillReasonLine(state, locale = getLocale()) {
  * A fresh drill state from one served response. Pure, so the check drives every phase without a server.
  *
  * `phase: 'empty'` is the server's honest `reason: 'nothing_available'` (nothing is servable for this
- * deployment) — not an error and not a spinner.
+ * deployment) — not an error and not a spinner. `poolBlocked: 'listening'` is the H1 state: the learner's
+ * recorded weakness is in a part whose audio cannot be played, so the server names the part instead of
+ * serving an item (and instead of switching silently to another part).
+ *
+ * A served item whose set needs media is treated as the SAME blocked state even if a server ever sends one:
+ * an item that cannot be attempted honestly is never rendered as an exercise. That is a second layer, not the
+ * fix — the pool filter in `drill-pg.mjs` is the fix — but it means no future path can put answer controls on
+ * an unplayable item and write a guess into the learner's evidence.
  */
 export function drillStateFromServed({ response = {}, examLanguage = 'und' } = {}) {
   const data = response?.data ?? {};
   const base = {
     phase: 'loading', family: null, section: null, part: null, reason: null, evidence: null,
-    attempt: null, round: normaliseRound(null), set: null, item: null, blocked: null,
+    attempt: null, round: normaliseRound(null), set: null, item: null, blocked: null, poolBlocked: null,
     progress: { answered: 0, total: 0 }, answer: null, checked: null, busy: false,
     error: null, failure: null, examLanguage, examRule: null, startedAt: null,
   };
-  if (!data || typeof data !== 'object' || !data.item) {
-    return { ...base, phase: 'empty', family: nonEmpty(data?.family), reason: nonEmpty(data?.reason) };
+  const blockedPool = nonEmpty(data?.blocked);
+  if (!data || typeof data !== 'object' || !data.item || blockedPool) {
+    return {
+      ...base,
+      phase: 'empty',
+      family: nonEmpty(data?.family),
+      section: nonEmpty(data?.section),
+      reason: nonEmpty(data?.reason),
+      evidence: data.evidence && typeof data.evidence === 'object' ? { ...data.evidence } : null,
+      poolBlocked: blockedPool,
+    };
   }
   const served = readDrillItem(data);
   const progress = data.progress && typeof data.progress === 'object' ? data.progress : {};
+  /* Defence in depth (H1): an item whose set needs media is not an exercise this client can run. */
+  const mediaBlocked = served.set?.media_required === true;
   return {
     ...base,
-    phase: served.blocked ? 'blocked' : 'answering',
+    phase: mediaBlocked ? 'empty' : (served.blocked ? 'blocked' : 'answering'),
+    poolBlocked: mediaBlocked ? 'listening' : null,
     family: nonEmpty(data.family),
     section: nonEmpty(data.section) ?? nonEmpty(data.set?.section),
     part: countOrNull(data.set?.part),
     reason: nonEmpty(data.reason),
     evidence: data.evidence && typeof data.evidence === 'object' ? { ...data.evidence } : null,
-    attempt: data.attempt && typeof data.attempt === 'object' ? { ...data.attempt } : null,
+    attempt: mediaBlocked ? null : (data.attempt && typeof data.attempt === 'object' ? { ...data.attempt } : null),
     round: normaliseRound(data.round),
     set: served.set,
-    item: served.item,
+    item: mediaBlocked ? null : served.item,
     blocked: served.blocked,
     progress: {
       answered: countOrNull(progress.answered) ?? 0,
@@ -337,6 +356,26 @@ export function drillMarkup(state, { esc = defaultEsc, uiText = (key) => key, ex
       + '<p class="muted" data-drill-loading role="status">' + t(esc, 'drillLoading', {}, locale) + '</p></div></section>';
   }
   if (state.phase === 'empty') {
+    /*
+     * THE HONEST LISTENING BLOCK (REVIEW-DRILL-01 H1). The learner's recorded weakness is in a part whose
+     * audio this client cannot play, so the server refused to serve an item and NAMED the part. The learner
+     * is told which part, with its own numbers and the reason, and given the part practice as the way
+     * forward; there is no answer control here at all, so nothing can be guessed into their evidence.
+     */
+    if (state.poolBlocked === 'listening') {
+      const evidence = state.evidence ?? {};
+      return '<section' + attrs + '>' + head + '</header>'
+        + audioMarkup(state, { esc, locale })
+        + '<div class="card" data-drill-listening-blocked>'
+        + '<h2 class="drill-empty-title">' + t(esc, 'drillListeningTitle', {}, locale) + '</h2>'
+        /* The body carries the part AND its numbers, so there is no second reason line repeating them. */
+        + '<p class="muted" data-drill-listening-body>' + t(esc, 'drillListeningBlocked', {
+          family: state.family ?? '', correct: countOrNull(evidence.correct) ?? 0, attempts: countOrNull(evidence.attempts) ?? 0,
+        }, locale) + '</p>'
+        + '<div class="drill-actions"><button type="button" class="btn" data-drill-part-index>'
+        + t(esc, 'drillListeningAction', {}, locale) + '</button></div>'
+        + '</div></section>';
+    }
     return '<section' + attrs + '>' + head + '</header>'
       + '<div class="card" data-drill-empty><h2 class="drill-empty-title">' + t(esc, 'drillEmptyTitle', {}, locale) + '</h2>'
       + '<p class="muted" data-drill-empty-body>' + t(esc, 'drillEmpty', {}, locale) + '</p></div></section>';
@@ -551,6 +590,10 @@ export function createDrillView(ctx = {}) {
       host.onclick = (event) => {
         if (event.target.closest?.('[data-drill-check]')) { void check(); return; }
         if (event.target.closest?.('[data-drill-next]')) { void next(); return; }
+        if (event.target.closest?.('[data-drill-part-index]')) {
+          if (typeof ctx.navigate === 'function') ctx.navigate('#/pruefungsteile');
+          return;
+        }
         if (event.target.closest?.('[data-drill-retry]')) { void load(); }
       };
       host.onchange = (event) => {
