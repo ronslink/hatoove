@@ -44,14 +44,22 @@ function sqlFault(error) {
 /**
  * The practice rule, applied on top of the SHARED transition so the two paths cannot drift.
  *
- * `used > 0` means this recording has already had its first play; from then on the sitting must be `checked`.
- * The shared transition still owns every other rule (revision match, exhaustion against the server-chosen
- * `max_plays`, the pause/recovery semantics).
+ * ORDER MATTERS, and REVIEW-PRACTICE-MEDIA F1 is why. The shared transition runs **first**, so its precise
+ * structural codes surface — a stale `expectedRevision` is `playback_conflict`, a spent allowance is
+ * `playback_exhausted`, a play still running is `playback_recovery_required`. Only a STRUCTURALLY VALID
+ * `begin` is then subject to the practice rule (`used > 0` means this recording already had its first play, so
+ * from then on the sitting must be `checked`). Running the rule first — which this function used to do —
+ * masked all three codes behind `practice_check_required` and told a client to re-check when it should have
+ * resynced its revision.
+ *
+ * This is the SAME precedence the SQL trigger enforces (`0045`: identity, revision and count checks first,
+ * `practice_check_required` last), so the two layers now agree instead of disagreeing.
  */
 export function practicePlaybackTransition(row, recording, body, now, { attempt } = {}) {
   const used = row ? Number(row.plays_used) : 0;
+  const next = playbackTransition(row, recording, body, now);
   if (body.action === 'begin' && used > 0 && attempt?.state !== 'checked') fail(409, 'practice_check_required');
-  return playbackTransition(row, recording, body, now);
+  return next;
 }
 
 export function practicePlaybackMethods({ settle, catalogue, note = () => {}, mediaRoot }) {
@@ -91,7 +99,18 @@ export function practicePlaybackMethods({ settle, catalogue, note = () => {}, me
          CROSS JOIN LATERAL jsonb_array_elements(section.value->'parts') part
         WHERE h.exam_id=$1 AND part.value->>'family'=$2 AND part.value->>'mediaRequired'='true'`,
       [attempt.exam_id, set.family]));
-    if (!allowance || !Number.isInteger(Number(allowance.max_plays))) fail(409, 'practice_playback_unavailable');
+    /*
+     * REVIEW-PRACTICE-MEDIA F3: this guard could not fire. `(part->'playback'->>'mock')::integer` is NULL for
+     * a part with NO playback rule, and `Number(null)` is 0 while `Number.isInteger(0)` is true — so the NULL
+     * passed straight through, `recordingsOf` reported `max_plays: 0`, and the trigger answered
+     * `invalid_playback_identity` instead of the intended code. Unreachable while no shipped set carries
+     * recordings, which is exactly the partial-import state the listening work creates, so NULL and absent are
+     * now detected explicitly and a non-positive allowance is refused the same way.
+     */
+    const maxPlays = allowance === undefined || allowance === null ? null : allowance.max_plays;
+    if (maxPlays === null || maxPlays === undefined || !Number.isInteger(Number(maxPlays)) || Number(maxPlays) < 1) {
+      fail(409, 'practice_playback_unavailable');
+    }
     const media = (await client.query(
       `SELECT media_id, version, duration_ms, mime_type, sha256, byte_length, path FROM exam_media
         WHERE exam_id=$1 AND media_id = ANY($2::text[]) AND version = ANY($3::text[])`,
@@ -103,7 +122,7 @@ export function practicePlaybackMethods({ settle, catalogue, note = () => {}, me
       return {
         media_id: found.media_id, media_version: found.version,
         label: typeof authoredRecording.label === 'string' ? authoredRecording.label : '',
-        duration_ms: Number(found.duration_ms), max_plays: Number(allowance.max_plays),
+        duration_ms: Number(found.duration_ms), max_plays: Number(maxPlays),
         mime_type: found.mime_type, sha256: found.sha256, byte_length: Number(found.byte_length), path: found.path,
       };
     });

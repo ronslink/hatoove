@@ -75,6 +75,56 @@ function expectRecordingsShapeServed(normalise = normalisePracticeSet) {
   assert.equal(served.material.recordings.length, 2, 'the audio each question belongs to is served as material');
 }
 
+/**
+ * REVIEW-PRACTICE-MEDIA F1. The practice rule must not mask the SHARED transition's structural codes: a stale
+ * revision is `playback_conflict` (resync the revision, do not re-check), a spent allowance is
+ * `playback_exhausted`, and a play still running is `playback_recovery_required`. Only a structurally VALID
+ * `begin` from the second play onward is the practice rule's own refusal. The SQL trigger already had this
+ * ordering; this probe pins the JS to it, and the mutation at the end puts the old ordering back.
+ */
+function expectStructuralCodesSurvive(transition = practicePlaybackTransition) {
+  const recording = { media_id: 'm', media_version: 'v1', duration_ms: 1000, max_plays: 2 };
+  const played = { plays_used: 1, revision: 2, state: 'completed', duration_ms: 1000, position_ms: 1000, playback_id: randomUUID() };
+  const open = { attempt: { state: 'open' } };
+  const body = (patch = {}) => ({ action: 'begin', expectedRevision: 2, mediaId: 'm', mediaVersion: 'v1', eventId: randomUUID(), ...patch });
+  const codeFor = (row, patch) => {
+    try { transition(row, recording, body(patch), new Date(), open); return null; } catch (error) { return error.code; }
+  };
+  assert.equal(codeFor(played, { expectedRevision: 1 }), 'playback_conflict',
+    'a stale revision must stay playback_conflict, so a client resyncs instead of re-checking');
+  assert.equal(codeFor({ ...played, plays_used: 2, revision: 3 }, { expectedRevision: 3 }), 'playback_exhausted',
+    'a spent allowance must stay playback_exhausted');
+  assert.equal(codeFor({ ...played, state: 'playing', position_ms: 0 }, {}), 'playback_recovery_required',
+    'a play still running must stay playback_recovery_required');
+  assert.equal(codeFor(played, {}), 'practice_check_required',
+    'and a structurally valid second listen before Auswerten is still refused by the practice rule');
+  return 'conflict / exhausted / recovery_required preserved; practice_check_required last';
+}
+
+/**
+ * REVIEW-PRACTICE-MEDIA F8. The `0022` grammar drill keeps its twelve sentences in `prompt`, a field the
+ * normaliser's PROMPT_FIELDS did not list — so every served drill item had `prompt: ''`. This probe uses the
+ * drill's real item shape, and the mutation at the end takes `prompt` back out of the list.
+ */
+function expectDrillPromptsServed(normalise = normalisePracticeSet) {
+  const sentences = Array.from({ length: 12 }, (_, index) => `Ich weiß nicht, ${index + 1} er kommt.`);
+  const served = normalise({
+    set_id: 'telc-deutsch-b1.sb1.grammar-wortstellung-v1', version: 'v1', family: 'SB1', section: 'SB', part: '1',
+    item_count: 12,
+    payload: {
+      practice_kind: 'grammar-drill',
+      instruction: 'Ergänze die Sätze. Dies sind einzelne Grammatikübungen, kein telc-Prüfungssatz.',
+      letter: '…',
+      gaps: sentences.map((prompt, index) => ({ n: 41 + index, prompt, options: { a: 'ob', b: 'dass', c: 'weil' } })),
+    },
+  });
+  assert.equal(served.items.length, 12, 'the drill serves twelve items');
+  assert.deepEqual(served.items.map((item) => item.prompt), sentences, 'every authored sentence reaches the DTO');
+  assert.ok(served.items.every((item) => item.prompt.trim().length > 0), 'no drill item may serve an empty prompt');
+  assert.deepEqual(served.items.map((item) => item.item_id), sentences.map((_, index) => String(41 + index)));
+  return `${served.items.length} drill prompts served non-empty`;
+}
+
 /* ------------------------------------------------------------------ harness */
 
 const legNames = [];
@@ -178,6 +228,8 @@ try {
   /* ---------------------------------------------------------------- pure guards (offline) */
   await leg('M1 pure: a used recording needs a CHECKED sitting, so a second listen before Auswerten is refused', expectPracticeRuleHolds);
   await leg('M2 pure: a packaged fixed_audio set keeps its questions inside recordings[]', expectRecordingsShapeServed);
+  await leg('F1 pure: the practice rule keeps the shared STRUCTURAL codes (conflict / exhausted / recovery_required)', expectStructuralCodesSurvive);
+  await leg('F8 pure: the grammar drill\'s twelve authored prompts reach the DTO', expectDrillPromptsServed);
 
   /* ---------------------------------------------------------------- the served sitting and its audio */
   const served = await port.practiceSetForPart(owner.id, { preparationId: owner.preparationId, family: 'HV1' });
@@ -432,6 +484,112 @@ try {
     assert.equal(state.sitting.checked, true, 'the wrap is about checked sets, and this sitting is checked');
     return 'wrap at three checked sets; per-recording allowance unchanged';
   });
+
+  /* ---------------------------------------------------------------- F8 and F3, from the SEEDED corpus */
+  await leg('F8 DB: the drill row the migrations seed serves twelve NON-EMPTY prompts', async () => {
+    const { normalisePracticeSet } = await import('../server/practice-sets.mjs');
+    const row = (await db.admin.query(
+      `SELECT s.set_id, s.version, s.family, s.section, s.part, s.title, s.payload, s.item_count, s.media_required
+         FROM objective_set s WHERE s.set_id = 'telc-deutsch-b1.sb1.grammar-wortstellung-v1' AND s.version = 'v1'`)).rows[0];
+    assert.ok(row, 'the seeded corpus must contain the recovered grammar drill');
+    const authored = row.payload.gaps ?? [];
+    assert.equal(authored.length, 12, 'the drill is twelve gaps');
+    assert.equal(authored.filter((gap) => typeof gap.prompt === 'string' && gap.prompt.trim()).length, 12,
+      'and all twelve sentences are authored in `prompt` — the field PROMPT_FIELDS used to omit');
+    const served = normalisePracticeSet(row);
+    assert.equal(served.items.length, 12);
+    assert.ok(served.items.every((item) => item.prompt.trim().length > 0),
+      'every served drill item must carry its sentence, not an empty prompt');
+    // NOTE: the drill's `practice_kind`/`instruction` disclosure is task-20's change to MATERIAL_MEMBERS; this
+    // branch predates it and the Lead resolves that one line at integration. F8 here is the `prompt` field.
+    return `${served.items.length} seeded drill prompts served non-empty`;
+  });
+
+  await leg('F3 DB: a set with recordings but NO blueprint playback rule answers practice_playback_unavailable', async () => {
+    /*
+     * The PARTIAL-IMPORT state the reviewer could not build. It cannot be expressed as a listening PACKAGE (the
+     * validator refuses a `fixed_audio` part without `playback`), so it is constructed the way a partial import
+     * leaves it: a served set that HAS `recordings` whose blueprint part carries no playback rule. The SQL then
+     * returns `max_plays = NULL` — the value `Number(null) === 0` used to swallow.
+     */
+    const head = (await db.admin.query(
+      'SELECT release_version FROM exam_release_head WHERE exam_id=$1', [EXAM])).rows[0].release_version;
+    const release = (await db.admin.query(
+      'SELECT * FROM exam_release WHERE exam_id=$1 AND version=$2', [EXAM, head])).rows[0];
+    const blueprint = (await db.admin.query(
+      'SELECT payload FROM exam_blueprint WHERE exam_id=$1 AND version=$2', [EXAM, release.blueprint_version])).rows[0];
+    const stripped = JSON.parse(JSON.stringify(blueprint.payload));
+    let removed = 0;
+    for (const section of stripped.sections ?? []) {
+      for (const part of section.parts ?? []) {
+        if (part.mediaRequired === true && part.family === 'HV2') { delete part.playback; removed += 1; }
+      }
+    }
+    assert.equal(removed, 1, 'the fixture blueprint must carry exactly one HV2 listening part to strip');
+    /*
+     * `exam_blueprint` is immutable (the trigger says "create a new version instead"), so the partial state is
+     * built the way one is built: a NEW blueprint version without the rule, a NEW release pointing at it, and
+     * the release head moved for the length of this leg. That is exactly what an import that lands sets before
+     * the blueprint rule leaves behind.
+     */
+    const PARTIAL = 'v9998';
+    await db.admin.query('INSERT INTO exam_blueprint (exam_id, version, payload, sha256) VALUES ($1,$2,$3::jsonb,$4)',
+      [EXAM, PARTIAL, JSON.stringify(stripped), 'b'.repeat(64)]);
+    await db.admin.query(
+      `INSERT INTO exam_release (exam_id, version, blueprint_version, state, manifest, sha256, publisher)
+       SELECT exam_id, $3, $4, state, manifest, sha256, publisher FROM exam_release WHERE exam_id=$1 AND version=$2`,
+      [EXAM, head, PARTIAL, PARTIAL]);
+    await db.admin.query(
+      `INSERT INTO exam_release_form (exam_id, release_version, form_id, form_version)
+       SELECT exam_id, $3, form_id, form_version FROM exam_release_form WHERE exam_id=$1 AND release_version=$2`,
+      [EXAM, head, PARTIAL]);
+    await db.admin.query('UPDATE exam_release_head SET release_version=$2 WHERE exam_id=$1', [EXAM, PARTIAL]);
+    const attemptId = await craftAttempt(owner, 's5.telc-deutsch-b1.hv2');
+    try {
+      await assert.rejects(port.readPracticePlayback(owner.id, attemptId),
+        (error) => error.status === 409 && error.code === 'practice_playback_unavailable',
+        'a missing playback rule must be practice_playback_unavailable, never a max_plays of 0');
+      // The two halves of the reviewer's reasoning, now MEASURED rather than reasoned.
+      const sandbox = await mkdtemp(path.join(tmpdir(), 'practice-media-guard-'));
+      try {
+        await cp(path.join(ROOT, 'server'), path.join(sandbox, 'server'), { recursive: true, filter: (source) => !source.includes('node_modules') });
+        const target = path.join(sandbox, 'server', 'owned-postgres', 'practice-playback.mjs');
+        const source = (await readFile(target, 'utf8')).replaceAll('\r\n', '\n');
+        const mutated = source.replace(
+          "    const maxPlays = allowance === undefined || allowance === null ? null : allowance.max_plays;\n"
+          + "    if (maxPlays === null || maxPlays === undefined || !Number.isInteger(Number(maxPlays)) || Number(maxPlays) < 1) {\n"
+          + "      fail(409, 'practice_playback_unavailable');\n    }",
+          // The OLD guard, with the binding kept so the mutation reproduces the DEFECT (max_plays 0 passing
+          // through) instead of a ReferenceError.
+          "    const maxPlays = allowance ? allowance.max_plays : null;\n"
+          + "    if (!allowance || !Number.isInteger(Number(allowance.max_plays))) fail(409, 'practice_playback_unavailable');");
+        assert.notEqual(mutated, source, 'the F3 mutation must apply');
+        await writeFile(target, mutated);
+        const legacyAdapter = await import(pathToFileURL(path.join(sandbox, 'server', 'owned-postgres', 'adapter.mjs')).href);
+        const legacyPort = legacyAdapter.createPostgresDatastore({ pool: db.learner, mediaRoot });
+        const legacyState = await legacyPort.readPracticePlayback(owner.id, attemptId);
+        assert.equal(legacyState.items.length, 1, 'the OLD guard serves an item whose max_plays is 0');
+        assert.equal(legacyState.items[0].max_plays, 0, 'Number(null) === 0 — that is the defect');
+        await assert.rejects(legacyPort.mutatePracticePlayback(owner.id, attemptId, begin(legacyState.items[0])),
+          (error) => error.code !== 'practice_playback_unavailable',
+          'and the learner is then told a code that has nothing to do with the real problem');
+        // ...and the trigger's half: a row with max_plays 0 is a structural violation, not an answer.
+        const media = await mediaRow(legacyState.items[0].media_id, legacyState.items[0].media_version);
+        await assert.rejects(asOwner(owner.id, (client) => client.query(
+          `INSERT INTO practice_playback
+             (owner_id,attempt_id,exam_id,media_id,media_version,state,plays_used,max_plays,position_ms,duration_ms,playback_id)
+           VALUES ($1,$2,$3,$4,$5,'playing',1,0,0,$6,$7)`,
+          [owner.id, attemptId, EXAM, media.media_id ?? legacyState.items[0].media_id, legacyState.items[0].media_version,
+            media.duration_ms, randomUUID()])),
+          /invalid_playback_identity/, 'the trigger refuses max_plays 0 as invalid_playback_identity');
+      } finally { await rm(sandbox, { recursive: true, force: true }).catch(() => {}); }
+      return 'new guard: practice_playback_unavailable; old guard: max_plays 0 and a code that misleads';
+    } finally {
+      // The head points back at the real release; the extra partial version/release rows are inert and the
+      // whole fixture schema is dropped by the harness teardown.
+      await db.admin.query('UPDATE exam_release_head SET release_version=$2 WHERE exam_id=$1', [EXAM, head]);
+    }
+  });
 } finally {
   if (db && typeof db.cleanup === 'function') {
     try { await db.cleanup(); } catch (error) { console.log(`postgres: cleanup reported ${String(error.message).split('\n')[0]}`); }
@@ -457,6 +615,21 @@ const MUTATIONS = [
   ['M2 practice-sets: the recordings[] shape removed', 'server/practice-sets.mjs',
     (source) => source.replace('      return recording.questions;', '      return [];'),
     'normalisePracticeSet', (normalise) => expectRecordingsShapeServed(normalise)],
+  /* F1: put the practice rule BACK in front of the shared transition — the ordering that masked three codes. */
+  ['M3 practice-playback: the practice rule moved back BEFORE the shared transition (F1)', 'server/owned-postgres/practice-playback.mjs',
+    (source) => source.replace(
+      "  const next = playbackTransition(row, recording, body, now);\n"
+      + "  if (body.action === 'begin' && used > 0 && attempt?.state !== 'checked') fail(409, 'practice_check_required');\n"
+      + '  return next;',
+      "  if (body.action === 'begin' && used > 0 && attempt?.state !== 'checked') fail(409, 'practice_check_required');\n"
+      + '  return playbackTransition(row, recording, body, now);'),
+    'practicePlaybackTransition', (transition) => expectStructuralCodesSurvive(transition)],
+  /* F8: take `prompt` back out of the field list — the drill's twelve sentences then serve empty. */
+  ['M4 practice-sets: `prompt` dropped from PROMPT_FIELDS (F8)', 'server/practice-sets.mjs',
+    (source) => source.replace(
+      "const PROMPT_FIELDS = Object.freeze(['prompt', 'question', 'statement', 'text']);",
+      "const PROMPT_FIELDS = Object.freeze(['question', 'statement', 'text']);"),
+    'normalisePracticeSet', (normalise) => expectDrillPromptsServed(normalise)],
 ];
 
 for (const [label, relative, mutate, exportName, probe] of MUTATIONS) {

@@ -136,8 +136,18 @@ export function practiceRoundState({ setCount, checkedSets } = {}) {
  * a database. Now it is, per family, and the legs below pin the identity of each served item to the key.
  */
 const ITEM_MEMBERS = Object.freeze(['items', 'texts', 'questions', 'situations', 'gaps']);
-/** The authored field that carries an item's text, most specific first. SB gaps have no text: the letter does. */
-const PROMPT_FIELDS = Object.freeze(['question', 'statement', 'text']);
+/**
+ * The authored field that carries an item's text, most explicit first.
+ *
+ * `prompt` is FIRST because it is the field the `0022` grammar drill actually uses — its twelve sentences live
+ * in `prompt`, and nothing else in the corpus uses that name (measured in the migration: 12 `prompt`, 0
+ * `question`/`statement`/`text`). Leaving it out — REVIEW-PRACTICE-MEDIA F8 — served all twelve drill items
+ * with `prompt: ''`: a learner met twelve gap items with no sentences at all. That is the same class of defect
+ * as the original normaliser bug, an assumption about the authored shape never checked against the corpus.
+ * SB gaps legitimately have no item text (the letter carries it), so an empty prompt is not by itself an
+ * error — it is an error when the authored item HAS the field.
+ */
+const PROMPT_FIELDS = Object.freeze(['prompt', 'question', 'statement', 'text']);
 /** Set-level option banks, in resolution order, and the authored field that carries the option's text. */
 const OPTION_BANKS = Object.freeze([
   Object.freeze({ member: 'headlines', text: 'text' }),
