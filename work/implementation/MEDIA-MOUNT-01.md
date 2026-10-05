@@ -140,3 +140,31 @@ deleted.
 - The checker reads all nine files (~44 MB) on every run: ~1-2 s, and it is what makes the gate real.
 - `compose.production*.yaml` was **not** modified: adding a mount there would fail
   `production-compose-check.mjs`, and production's contract is that the artifact carries its own bytes.
+
+## 6. Addendum — the Lead's three authorisations after acceptance
+
+- **`.gitignore`**: `media/` added, so a populated host root can never be staged by accident whatever Ron
+  decides. Protective under all three options, and trivial to drop if the recordings become tracked.
+- **`docs/PRODUCTION_DEPLOYMENT.md`**: a new section, *"Listening media: a BUILD-TIME input, because production
+  cannot mount it"*. Phrased option-agnostically, per the instruction: it states the constraint
+  (`production-compose-check.mjs` asserts zero runtime volumes and the exact command, app `read_only`, image
+  digest-pinned → the recordings must be inside the artifact), fixes the resolution point (the image
+  build/publish step: materialise the audio in the build context, verify with
+  `tools/media-mount-check.mjs --require-recordings`, record the source and checksums with the digest) and
+  leaves Ron's choice open. It also names the LFS trap.
+- **The real-bytes HTTP media GET: ATTEMPTED, NOT CLOSED, and here is exactly why.** I patched a throwaway copy
+  of `tools/practice-media-check.mjs` (deleted immediately afterwards; the shipped file is untouched) to import
+  the **real** `listening-package.json` with `mediaRoot` = the real-bytes root. The import and the reader path
+  worked, but **12 of its 19 legs are written against its synthetic exam's set ids**
+  (`s5.telc-deutsch-b1.hv1|hv2|hv3`), so the practice and mock legs fail with "the fixture has no set s5…" —
+  that check is a fixture-shaped harness, not a package-agnostic one. Closing this needs either a fixture change
+  **inside `tools/practice-media-check.mjs`** (the practice-media slice's file, outside this lease's write
+  scope) or a small dedicated HTTP check: build a practice sitting for a **real** `hv` set, then
+  `GET /api/v1/practice/attempts/<id>/media/<mediaId>/v1` and assert 200 + the sha-pinned etag + a 206 range.
+  What **is** proven for real bytes: the shipped reader and framing inside the deployed image
+  (200/206/HEAD/416, etag = the package's sha256) and the importer's own checksum verification of every
+  referenced recording. The route works and the mount works; only that one authenticated GET with real bytes is
+  unproven, and I am not claiming it.
+- **Noted, not built** (per instruction): if the media root holds a **git-lfs pointer file**, the checker should
+  say "this is a git-lfs pointer, run `git lfs pull`" rather than reporting `media_integrity`. The trap is
+  documented in the deployment doc so the option can be weighed with its hidden cost.

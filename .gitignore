@@ -40,3 +40,7 @@ research/mistral-feasibility/study-summary.json
 # Local project inputs, coordination and recovery are not application source.
 /design/
 /handoff/
+
+# MEDIA-MOUNT-01: the listening recordings are a host/deployment asset, not a tracked one (Ron's decision is
+# open between git/LFS, a documented prefix, and object storage). Keep a populated root out of commits.
+media/

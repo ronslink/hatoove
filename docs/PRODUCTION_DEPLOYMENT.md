@@ -42,6 +42,20 @@ Managed variant: provide the actual certificate-matching DNS endpoint and port; 
 
 The managed operator must confirm permission to create the seven scoped LOGIN roles, revoke PUBLIC CREATE/TEMP on the selected dedicated database, create the schema with the migration owner and run the existing migrations as that owner. A managed administrator is not assumed to be a PostgreSQL superuser. Never point bootstrap at a Paykey/Typeforge database or compensate for insufficient privileges using a privileged runtime connection. Direct managed endpoints are the initial contract; transaction-pooler compatibility is not assumed.
 
+### Listening media: a BUILD-TIME input, because production cannot mount it
+
+The nine telc B1 listening recordings (~46 MB) referenced by `content/exams/telc-deutsch-b1/listening-package.json` are content assets, and **they are not tracked in git today**: `git ls-files '*.wav'` is empty, and the local copies live only in gitignored `.qa/` recovery material. Locally, `compose.yaml` serves them from a host bind-mount (`HATOVE_AUDIO_ROOT`, default `./media`, mounted read-only at `/app/media`; `B1PREP_MEDIA_ROOT` names the root the server reads).
+
+**Production cannot use that mount.** The production services run `read_only` from a digest-pinned image with no runtime volumes and an exactly pinned command — `tools/production-compose-check.mjs` asserts both (`unexpected_runtime_mount`, `runtime_command_changed`). So in production the recordings must be **inside the image**, which means they must be present in the **build context** at the moment the image is built. There is no runtime fetch: the app is read-only and must not pull media while serving.
+
+**The resolution point is therefore the image build/publish step**, and it is the same step whichever source the recordings come from:
+
+1. materialise `content/exams/telc-deutsch-b1/audio/hv1.01-v1.wav` … `hv3.03-v1.wav` in the build context — from git or LFS, from a CI fetch, or from an object store pulled as a build input — before `docker build`;
+2. verify it with `node tools/media-mount-check.mjs --require-recordings`, which reads every recording the tracked packages reference through the shipped reader (byte length, sha256, PCM duration) and exits non-zero **naming every missing file**. The local stack runs it as the `media` service and the API does not start until it passes; in a build pipeline it is the pre-publish gate;
+3. record the source and its checksum evidence with the published digest, so the artifact that reaches production is the one that was verified.
+
+Which source is used is an open decision (git/LFS, a documented prerequisite, or object storage); this section fixes only the constraint and the verification point. One trap worth knowing before choosing LFS: a checkout without `git-lfs` produces **pointer files** in the context, and a pointer file fails as `media_integrity` (a 409 "invalid media") rather than `media_unavailable` — so run `git lfs pull` (or verify file sizes) before the build. Explicit pointer-file detection in the checker is a noted follow-up.
+
 ## Configuration-only preparation
 
 The checker does not build, pull, start or contact PostgreSQL:
