@@ -41,7 +41,8 @@ Verbatim constraints that also stay in force:
 - **No Lernplan** (decision 1).
 - **No Sprechen** in the pilot; the mock intro keeps B1_Prep's note that the oral exam is not part
   of it. Speaking guide material stays reference-only.
-- **No live AI generation** (D10). "Neu generieren" becomes "Noch ein Satz", drawn from the released
+- **AI generation is permitted where Ron has authorized it, with care** (D10, amended 5 Oct 2026 — see A12).
+  "Neu generieren" still becomes "Noch ein Satz", drawn from the released
   pool.
 - **Hatoove brand, colours and type stay** (REDESIGN-01). We mirror structure and behaviour, not
   Certa's blue look.
@@ -399,4 +400,25 @@ production and its checksum is frozen.
   stands (server `correct`/`expected` over the shipped route, the client verdict legs with their mutation,
   and the measured pre-answer DOM including "no key before the check").
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A11 added 5 October 2026.*
+- **A12 (5 Oct 2026, Ron’s six decisions on audio, AI, review, sharing and pacing).**
+  (1) **The listening recordings are tracked in this repository** (option a), with the git-LFS caveat guarded:
+  if a checkout ever carries pointer files instead of audio they must fail as a **named pointer/LFS error**,
+  never as `media_integrity` — corrupted-sounding audio for a missing fetch is the wrong message.
+  (2) **D10 is amended: AI is no longer forbidden.** *"we need to be careful; in this case it’s fine"* —
+  offline AI generation of **content assets** (the three new listening recordings by TTS) is authorised now,
+  with provenance recorded and human review still required before anything is marked reviewed. A live
+  learner-facing model call is no longer banned in principle but remains a per-feature decision taken with
+  care about cost, privacy and quality. Recorded in `DECISIONS-ANSWERED-20261002.md`, `MASTER-PLAN.md` and
+  `AGENTS.md`.
+  (3) The interactive browser evidence is to be captured: the session’s read-only browser posture must be
+  lifted by removing `browser-readonly-guard` from the profile’s `dsh.profile.bundles` and restarting.
+  Until that happens the leg-based proof stands.
+  (4) **Native review is by named native speakers per language**, and it needs a **wholesale review format**:
+  one easy-to-annotate document per language carrying every learner-facing string with its German source,
+  its translation, its context and its status, so a reviewer can work through the whole set in one pass
+  rather than hunting strings in catalogues.
+  (5) **Sharing: push a feature branch and open a pull request.** `origin/main` is not merged to and nothing is
+  deployed by this; the PR is the reviewable artifact for Ron.
+  (6) **POOL-01 batch 2 waits** until batch 1 has been reviewed by Ron.
+
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A12 added 5 October 2026.*
