@@ -88,6 +88,16 @@ jobs:
       # entitlement, access or payment decision reads the date in this slice.
       - name: Pilot free-until date is readable and cannot crash the runtime
         run: node tools/pilot-window-check.mjs
+      # MIRROR-B1PREP-01 — THE PROGRAM'S OFFLINE GATES (CI-GATES-01). Eleven gates (nav-ia, mock-intro,
+      # part-index, practice-runner, practice-selection, drill, library-render, vocab, library-i18n,
+      # media-mount, content-corrections) ran only on a developer's machine before this step: `npm run
+      # check` does not include them, so a pull request could show a green tick that said nothing about
+      # this program. `run-gates.mjs` is the tallying runner — it runs EVERY gate and prints each
+      # PASS/FAIL, so a first failure cannot hide the rest. Do not replace it with individual steps: that
+      # would skip every check behind the first failure, which is how a red gate stayed invisible here
+      # before. No database, no Docker, so this job keeps running on both matrix OSes.
+      - name: MIRROR-B1PREP-01 offline gates (tallying runner, per-gate PASS/FAIL)
+        run: node tools/run-gates.mjs mirror
       # "The provider is operator-only and invisible" USED to run here
       # (tools/provider-config-check.mjs). That check drove `/api/config` anonymously, which the auth
       # wrap now refuses with 401 before any handler — so it had been red since that wrap landed, and
@@ -292,6 +302,13 @@ jobs:
       # refuses inside a world and that, without the reset, the exhaustion would be inherited.
       - name: The sign-up throttle is enforced per world and not accumulated across worlds
         run: node tools/owned-api-throttle-isolation-check.mjs
+      # MIRROR-B1PREP-01 — THE GATES THAT NEED POSTGRESQL (CI-GATES-01). Five gates execute the shipped
+      # SQL (library-i18n, part-index, practice-selection, practice-media, drill) and cannot run in the
+      # offline jobs. Measured against exactly this job's shape — a bare `hatoove_ci` service database
+      # with OWNAPI_PG_* and NO prior `server/migrate.mjs` — they are 5/5, because each check creates and
+      # drops its own fixture schema. So this step needs no provisioning of its own and none was invented.
+      - name: MIRROR-B1PREP-01 gates that need PostgreSQL (tallying runner, per-gate PASS/FAIL)
+        run: node tools/run-gates.mjs mirror-db
       - name: Account deletion removes every row and is one transaction
         run: node tools/deletion-check.mjs
       - name: The worker runner claims, fences, retries and reclaims (stub grader; no provider call)
