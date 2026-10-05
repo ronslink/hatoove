@@ -74,13 +74,44 @@ const setLabelMarkup = set => {
   return sectionMarkup(set?.section) + (set?.part == null ? '' : ' · ' + messageMarkup('part', {part: set.part}));
 };
 const VIEW_TITLES = {
-  abschnitt: 'm006', heute: 'm007', ueben: 'm008', woerterbuch: 'm009', nachschlagen: 'm010',
-  // The design organises practice by SKILL. Each maps to a section the catalogue already carries.
-  lesen: 'm002', sprachbausteine: 'm003',
-  hoeren: 'm004', schreiben: 'm005',
-  fehler: 'm011', fortschritt: 'm012', einstellungen: 'm013', mehr: 'm014', satzbau: 'm015',
-  checkout: 'm016',
+  // The sidebar mirrors B1_Prep's navigation — ten entries in three groups, plus the views reached from them.
+  heute: 'm007', ueben: 'm394', wortschatz: 'm395', fehler: 'm396',
+  pruefungsteile: 'm398', hoeren: 'm399', schreiben: 'm005', probepruefung: 'm400',
+  nachschlagen: 'm010', einstellungen: 'm013',
+  // Reached from a group rather than listed in it, then the deep links that keep resolving.
+  verlauf: 'm379', satzbau: 'm015', mehr: 'm014', checkout: 'm016', lesen: 'm002', sprachbausteine: 'm003', abschnitt: 'm006',
 };
+
+/*
+ * NAV-01 — the redirect and alias layer.
+ *
+ * The sidebar lists ten entries; a URL that was saved, bookmarked or shared before the mirror must still
+ * land on a real screen. VIEW_ALIAS keeps the retired view names as first-class routes, DEEP_LINKS keeps
+ * the two-segment links that are no longer sidebar entries, and NAV_GROUP drives the breadcrumb group in
+ * the topbar. Every view owns #view-<view> itself; nothing here renders, route() reads it.
+ */
+const VIEW_ALIAS = { woerterbuch: 'wortschatz', fortschritt: 'verlauf' };
+/* A view's section is #view-<view> directly; the alias layer above only redirects retired routes. */
+const NAV_GROUP = {
+  heute: 'lernweg', ueben: 'lernweg', wortschatz: 'lernweg', fehler: 'lernweg',
+  pruefungsteile: 'pruefungstraining', hoeren: 'pruefungstraining', schreiben: 'pruefungstraining', probepruefung: 'pruefungstraining',
+  nachschlagen: 'werkzeuge', einstellungen: 'werkzeuge', satzbau: 'werkzeuge',
+  verlauf: 'lernweg', lesen: 'pruefungstraining', sprachbausteine: 'pruefungstraining', abschnitt: 'pruefungstraining',
+};
+const GROUP_LABEL = { lernweg: 'm393', pruefungstraining: 'm397', werkzeuge: 'm401' };
+/* Satzbau is a Werkzeug now: Nachschlagen links to it, so the two-segment deep link keeps resolving. */
+const DEEP_LINKS = { 'nachschlagen/satzbau': 'satzbau' };
+
+/** Resolve a parsed route to the view that renders it, following aliases and the deep links. */
+function resolveView(info) {
+  const direct = DEEP_LINKS[info.view];
+  if (direct) return { ...info, view: direct, runId: null };
+  if (info.view === 'nachschlagen' && info.runId === 'satzbau') return { ...info, view: 'satzbau', runId: null };
+  /* The bare saved-runs list is the mock history now; a run URL keeps its own view. */
+  if (info.view === 'abschnitt' && !info.runId) return { ...info, view: 'probepruefung' };
+  const alias = VIEW_ALIAS[info.view];
+  return alias ? { ...info, view: alias } : info;
+}
 
 /** Server state, held in memory only. */
 const state = { account: null, settings: null, revision: null, exams: [], preparations: [], preparation: null, credits: null };
@@ -236,7 +267,7 @@ function renderPreparation() {
   bindShellText(el('preparation-scope'), () => prep.state === 'archived'
     ? uiText("m027")
     : uiText("m028"));
-  el('preparation-continue').href = '#/prep/' + prep.id + '/fortschritt';
+  el('preparation-continue').href = '#/prep/' + prep.id + '/verlauf';
   el('preparation-start').hidden = !activePreparation();
   el('preparation-start').href = '#/prep/' + prep.id + '/ueben';
   const picker = el('preparation-picker');
@@ -315,7 +346,7 @@ async function switchPreparation(selection, view = currentView, runId = null) {
       clearPreparationViews();
       selectPreparation(response.data);
       renderSettings(); renderChrome();
-      const target = activePreparation() || destination.runId ? destination.view : 'fortschritt';
+      const target = activePreparation() || destination.runId ? destination.view : 'verlauf';
       history.replaceState(null, '', destination.checkoutPath || '#/prep/' + state.preparation.id + '/' + target + (destination.runId ? '/' + destination.runId : ''));
       bindShellText(el('preparation-state'), () => '');
       completed = true;
@@ -358,7 +389,7 @@ async function loadPreparations() {
   if (initial.kind === 'select' && initial.preparation.state === 'active') { selectPreparation(initial.preparation); return true; }
   if (initial.kind === 'select') {
     selectPreparation(initial.preparation);
-    if (routeInfo.view !== 'checkout') history.replaceState(null, '', '#/prep/' + state.preparation.id + '/fortschritt');
+    if (routeInfo.view !== 'checkout') history.replaceState(null, '', '#/prep/' + state.preparation.id + '/verlauf');
     return true;
   }
   if (initial.kind === 'create') {
@@ -397,7 +428,7 @@ async function unlockPreparation() {
   if (sessionProblem || !state.preparation) throw new Error(uiText("m043"));
   renderSettings(); renderChrome(); renderPreparation();
   const info = preparationRoute();
-  if (info.view !== 'checkout') history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + (activePreparation() || info.runId ? info.view : 'fortschritt') + (info.runId ? '/' + info.runId : ''));
+  if (info.view !== 'checkout') history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + (activePreparation() || info.runId ? info.view : 'verlauf') + (info.runId ? '/' + info.runId : ''));
   bootReady = true;
   el('app-shell').inert = false;
   el('app-shell').hidden = false;
@@ -730,6 +761,77 @@ async function renderDictionary() {
   for (const example of box.querySelectorAll('[data-read-example]')) readAloud.mount(example, { label: uiText("m074"), language: example.lang });
 }
 
+/*
+ * EINZELÜBUNGEN — slice H ships the one-item-at-a-time drill as public/app/drill.js. Until that module is
+ * present this falls back to today's view: the adaptive recommendation plus the task catalogue.
+ */
+async function renderUeben() {
+  if (await mountModule('ueben')) return;
+  await renderPracticeNext();
+  await renderTasks();
+}
+
+/*
+ * WORTSCHATZ — slice G ships the Prüfungskern blocks and the word deck as public/app/vocab.js. Until that
+ * module is present this falls back to today's dictionary, which still serves search and the noun lexicon.
+ */
+async function renderWortschatz() {
+  if (await mountModule('wortschatz')) return;
+  await renderDictionary();
+}
+
+/*
+ * HÖREN — slice B mounts the same part-index module here with an HV filter, keyed off the host it is given
+ * (#hoeren-host), so "Hören is Prüfungsteile filtered to HV" is one implementation with two entry points.
+ * Until the module is present this falls back to today's skill view, which shows the saved HV runs.
+ */
+async function renderHoerenIndex() {
+  if (await mountModule('hoeren')) return;
+  await renderSkill('hoeren');
+}
+
+/*
+ * PRÜFUNGSTEILE (interim) — slice B replaces this with one tile per released part, each carrying the
+ * official label, items, points, the listening play rule and the learner's own count. Until then the entry
+ * lists the four subtests and opens the skill view, so the group entry is never a dead link.
+ */
+async function renderPartIndex() {
+  const host = el('part-index-host');
+  if (!host) return;
+  /* Slice B's module replaces the interim list the moment it is present; absent, this stays. */
+  if (await mountModule('pruefungsteile')) return;
+  const parts = [
+    { view: 'lesen', label: 'm002', note: 'm346' },
+    { view: 'sprachbausteine', label: 'm003', note: 'm347' },
+    { view: 'hoeren', label: 'm004', note: 'm348' },
+    { view: 'schreiben', label: 'm005', note: null },
+  ];
+  setShellHTML(host, '<div class="more-grid">' + parts.map((part) => '<a class="card more-link" href="#/' + part.view + '" data-view="' + part.view + '"><strong>'
+    + esc(uiText(part.label)) + '</strong>' + (part.note ? '<span class="muted">' + esc(uiText(part.note)) + '</span>' : '')).join('') + '</div>');
+}
+
+/*
+ * PROBEPRÜFUNG — slice D ships the intro page, its block table and its start button as its own module
+ * (mock-intro.js). Until that module is present this renders today's saved-runs list, which is the history
+ * the intro carries below its start button anyway, so the entry is honest rather than empty.
+ */
+async function renderProbepruefung() {
+  const host = el('mock-intro-host');
+  if (!host) return;
+  if (await mountModule('probepruefung')) return;
+  await mock.list(host);
+}
+
+/*
+ * NACHSCHLAGEN — slices E/F ship the six-card hub and the guide pages as library.js. Until that module is
+ * present the existing index and document renderer stay, so the hub works today and the module swaps in
+ * without a route change.
+ */
+async function renderNachschlagen() {
+  if (await mountModule('nachschlagen')) return;
+  await renderGuides();
+}
+
 /** NACHSCHLAGEN -- the guide index, then one document's sections. */
 async function renderGuides() {
   const box = el('guide-index');
@@ -856,7 +958,7 @@ async function renderDashboard() {
   if (!currentContext(ticket)) return;
   if (!next || !progress) return; // a 401 already redirected
   const start = document.querySelector('.hero-next a');
-  if (start) { start.href = activePreparation() ? '#/ueben' : '#/fortschritt'; bindShellText(start, () => activePreparation() ? uiText("m389") : uiText("m101")); }
+  if (start) { start.href = activePreparation() ? '#/ueben' : '#/verlauf'; bindShellText(start, () => activePreparation() ? uiText("m389") : uiText("m101")); }
 
   if (next.ok && next.data && next.data.set) {
     const d = next.data;
@@ -1361,7 +1463,7 @@ const writingApi = { ...api, mock: { ...api.mock, read: (runId, language = state
 } } };
 const mock = createMockController({ api: writingApi, esc, setLabel, setLabelLanguage: set => hasAuthoredSetTitle(set) ? getExamLanguage() || 'und' : getLocale(), readAloud, explanations, getExamLanguage, explanationLanguage: () => state.settings?.language || 'de', canEdit: () => activePreparation() && !sessionProblem, isArchived: () => state.preparation?.state === 'archived', onOpen: run => { location.hash = '#/lauf/' + run.id; } });
 window.addEventListener('beforeunload', event => mock.preserveOnUnload(event));
-const writing = createWritingController({ api: writingApi, esc, readAloud, explanations, getExamLanguage, onChange: () => { guard(refreshCredits()); if (currentView === 'fortschritt') guard(renderHistory()); } });
+const writing = createWritingController({ api: writingApi, esc, readAloud, explanations, getExamLanguage, onChange: () => { guard(refreshCredits()); if (currentView === 'verlauf') guard(renderHistory()); } });
 // PAYMENTS-SLICE-01. `onChange` re-reads the credit line, because a granted pass is exactly the thing
 // that line shows; it never writes a learner state anywhere.
 const checkout = createCheckoutController({ api, esc, onChange: () => { if (state.preparation) guard(refreshCredits()); }, beforeRedirect: async () => {
@@ -1434,13 +1536,13 @@ async function openWriting(box, task, options = {}) {
   return writing.open(box.id.startsWith('skill-') ? practiceHost(box) : box, task, options);
 }
 function archivedPracticeNotice() {
-  return "<div class=\"card\"><h3><span data-i18n=\"shell.m146\">Diese Vorbereitung ist archiviert</span></h3><p><span data-i18n=\"shell.m147\">Neue Übungen sind hier nicht möglich. Ihre gespeicherten Texte und Rückmeldungen bleiben im Verlauf lesbar.</span></p><a class=\"btn\" href=\"#/fortschritt\"><span data-i18n=\"shell.m101\">Verlauf öffnen</span></a></div>";
+  return "<div class=\"card\"><h3><span data-i18n=\"shell.m146\">Diese Vorbereitung ist archiviert</span></h3><p><span data-i18n=\"shell.m147\">Neue Übungen sind hier nicht möglich. Ihre gespeicherten Texte und Rückmeldungen bleiben im Verlauf lesbar.</span></p><a class=\"btn\" href=\"#/verlauf\"><span data-i18n=\"shell.m101\">Verlauf öffnen</span></a></div>";
 }
 
 async function openArchivedWriting(entry) {
   const ticket = contextTicket(), host = el('history-detail');
   const request = ++archivedRequest, viewTicket = explanationContext;
-  const current = () => currentContext(ticket) && currentView === 'fortschritt' && archivedRequest === request && explanationContext === viewTicket;
+  const current = () => currentContext(ticket) && currentView === 'verlauf' && archivedRequest === request && explanationContext === viewTicket;
   explanations.dispose(host);
   host.hidden = false;
   setShellHTML(host, "<p class=\"muted\"><span data-i18n=\"shell.m148\">Gespeicherter Text wird geladen …</span></p>");
@@ -1508,7 +1610,7 @@ async function renderHistory() {
   const host = el('history-list');
   setShellHTML(host, "<p class=\"muted\"><span data-i18n=\"shell.m161\">Ihr Verlauf wird geladen …</span></p>");
   const [history, progress, runs] = await Promise.all([api.writing.listAttempts(), api.practice.progress(), api.mock.list()]);
-  if (currentView !== 'fortschritt' || !currentContext(ticket)) return;
+  if (currentView !== 'verlauf' || !currentContext(ticket)) return;
   setShellHTML(el('mock-history'), "<h2><span data-i18n=\"shell.m006\">Gespeicherte Prüfungsläufe</span></h2>" + (runs?.ok ? mock.historyMarkup(runs.data?.runs || []) : "<p class=\"err\"><span data-i18n=\"shell.m162\">Die gespeicherten Läufe konnten nicht geladen werden.</span></p>"));
   if (!history?.ok) { setShellHTML(host, "<p class=\"err\"><span data-i18n=\"shell.m163\">Der Verlauf konnte nicht geladen werden. Bitte öffnen Sie die Ansicht erneut.</span></p>"); return; }
   const totals = progress?.ok ? progress.data?.totals : null;
@@ -1531,12 +1633,98 @@ async function renderHistory() {
     host.querySelector('a[href="#/schreiben"]')?.remove();
   }
 }
+/*
+ * NAV-01 — module views.
+ *
+ * Slices E/F (Nachschlagen) and D (Probeprüfung) ship as their own modules so that one file never has two
+ * writers, following the frozen interface in docs/contracts/MIRROR-B1PREP-01.md §4.2. The shell owns the
+ * route, the section and the topbar; a module owns everything inside its own host and its own stylesheet.
+ * The import is guarded: while a module is absent, or fails to load, the interim renderer stays on screen,
+ * so no sidebar entry can point at a blank page.
+ */
+const MODULE_VIEWS = {
+  nachschlagen: { specifier: './library.js', factory: 'createLibraryView', css: 'library.css', host: 'library-host', covers: ['guide-index', 'guide-body'] },
+  probepruefung: { specifier: './mock-intro.js', factory: 'createMockIntroView', css: 'mock-intro.css', host: 'mock-intro-host', covers: [] },
+  /* Slice B (PRACTICE-UI-01). Until public/app/part-index.js lands the guarded import fails and the interim
+     four-part list stays on screen, so the route is never blank. Hören is the same module with a different
+     host: the module keys its filter off the host it was given, which keeps "Hören is Prüfungsteile filtered
+     to HV" one implementation. */
+  pruefungsteile: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'part-index-host', covers: [] },
+  hoeren: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'hoeren-host', covers: ['skill-hoeren'] },
+  /* Slice G (VOCAB-01). Until public/app/vocab.js lands the guarded import fails and the dictionary stays. */
+  wortschatz: { specifier: './vocab.js', factory: 'createVocabView', css: 'vocab.css', host: 'vocab-host', covers: ['dict-interim-head', 'dict-interim-search', 'dict-results'] },
+  /* Slice H (DRILL-01). One item at a time with instant feedback; the interim recommendation, catalogue and
+     cross-link stay visible until the module is present. */
+  ueben: { specifier: './drill.js', factory: 'createDrillView', css: 'drill.css', host: 'drill-host', covers: ['ueben-more-link', 'practice-next', 'task-list'] },
+};
+let mountedModule = null;
+let mountedView = null;
+
+function loadModuleStylesheet(href) {
+  if (document.querySelector('link[data-module-style="' + href + '"]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  link.dataset.moduleStyle = href;
+  document.head.append(link);
+}
+
+/** Un-mount a module view and restore whatever section it covered. Idempotent. */
+function unmountModule() {
+  if (mountedModule && typeof mountedModule.unmount === 'function') {
+    try { mountedModule.unmount(); } catch (err) { /* a failed teardown must not block the next screen */ }
+  }
+  mountedModule = null;
+  const spec = mountedView ? MODULE_VIEWS[mountedView] : null;
+  if (spec) {
+    const host = el(spec.host);
+    if (host) host.hidden = true;
+    for (const id of spec.covers) { const node = el(id); if (node) node.hidden = false; }
+  }
+  mountedView = null;
+}
+
+/** True when the view's module rendered; false leaves the caller's interim implementation in place. */
+async function mountModule(view) {
+  const spec = MODULE_VIEWS[view];
+  const host = spec ? el(spec.host) : null;
+  if (!spec || !host || sessionProblem) return false;
+  let module;
+  try { module = await import(spec.specifier); } catch (err) { return false; }
+  /* The learner may have navigated while the module was in flight; a late mount would paint over it. */
+  if (currentView !== view || sessionProblem) return true;
+  const create = module[spec.factory];
+  if (typeof create !== 'function') return false;
+  unmountModule();
+  loadModuleStylesheet(spec.css);
+  for (const id of spec.covers) { const node = el(id); if (node) node.hidden = true; }
+  host.hidden = false;
+  try {
+    mountedModule = create({
+      api, uiText, esc, state, guideContent,
+      language: state.settings?.language || 'de',
+      /* Amendment A3: every module gets the exam language, so an authored German fragment stays an
+         exam-language island for assistive tech. REVIEW-MOCK-01 D1 found this member missing. */
+      examLanguage: getExamLanguage() || 'und',
+      navigate: (hash) => { location.hash = hash; },
+    });
+    mountedModule.mount(host);
+  } catch (err) {
+    mountedModule = null;
+    host.hidden = true;
+    for (const id of spec.covers) { const node = el(id); if (node) node.hidden = false; }
+    return false;
+  }
+  mountedView = view;
+  return true;
+}
+
 let routing = 0;
 
 async function route() {
   if (!bootReady || sessionProblem) return;
   const request = ++routing;
-  let info = preparationRoute();
+  let info = resolveView(preparationRoute());
   if (preparationSwitching || settingsSaving) {
     pendingPreparationNavigation = { selection: info.id || state.preparation.id, view: VIEW_TITLES[info.view] ? info.view : 'heute', runId: info.runId, checkoutPath: info.path || null };
     return;
@@ -1584,7 +1772,22 @@ async function route() {
   currentView = view;
   if (view !== 'checkout') history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + view + (info.runId ? '/' + info.runId : ''));
   else if (!info.invalid) history.replaceState(null, '', info.orderId ? info.path.slice('/app/'.length) : '#/checkout');
-  for (const name of Object.keys(VIEW_TITLES)) el(`view-${name}`).hidden = name !== view;
+  for (const name of Object.keys(VIEW_TITLES)) {
+    const node = el(`view-${name}`);
+    if (node) node.hidden = name !== view;
+  }
+  /* "Ihre Vorbereitung" belongs to Heute. On every other view it repeated a third of the screen. */
+  const preparationCard = el('preparation-context');
+  if (preparationCard) preparationCard.hidden = view !== 'heute';
+  const groupNode = el('crumb-group');
+  if (groupNode) groupNode.hidden = !NAV_GROUP[view];
+  bindShellText(el('crumb-group-name'), () => (NAV_GROUP[view] ? uiText(GROUP_LABEL[NAV_GROUP[view]]) : ''));
+  const crumbRoot = el('crumb-root');
+  if (crumbRoot) {
+    crumbRoot.lang = getExamLanguage() || 'de';
+    crumbRoot.dir = getExamLanguage() === 'ar' ? 'rtl' : 'ltr';
+    bindShellText(crumbRoot, () => state.preparation?.exam || 'Deutsch B1');
+  }
   bindShellText(el('page-title'), () => uiText(VIEW_TITLES[view]));
   renderChrome();
   guard(refreshCredits());
@@ -1599,14 +1802,25 @@ async function route() {
       if (token === currentView) showError(() => (uiText("m178") + " " + (err && err.message ? err.message : err)));
     });
   };
-  if (view === 'abschnitt') run(() => info.runId ? mock.showRun(el('mock-host'), info.runId) : mock.list(el('mock-host')));
+  /* Leaving a module view tears it down before the next screen paints. */
+  if (mountedModule && mountedView !== view) unmountModule();
+  /*
+   * A bare saved-runs address resolves to Probeprüfung (resolveView), so 'abschnitt' is only ever reached
+   * with a run id: it is the run player. There is deliberately no list branch here.
+   */
+  if (view === 'abschnitt' && info.runId) run(() => mock.showRun(el('mock-host'), info.runId));
+  if (view === 'pruefungsteile') run(renderPartIndex);
+  if (view === 'hoeren') run(renderHoerenIndex);
+  if (view === 'probepruefung') run(renderProbepruefung);
   if (view === 'heute') run(renderDashboard);
-  if (view === 'ueben') { run(renderPracticeNext); run(renderTasks); }
-  if (SKILL_SECTIONS[view]) run(() => renderSkill(view));
+  if (view === 'ueben') run(renderUeben);
+  /* Hören owns its own dispatch above, so the skill branch must not also render it. */
+  if (view !== 'hoeren' && SKILL_SECTIONS[view]) run(() => renderSkill(view));
   if (view === 'fehler') run(renderMistakes);
-  if (view === 'fortschritt') run(renderHistory);
-  if (view === 'woerterbuch') run(renderDictionary);
-  if (view === 'nachschlagen') run(renderGuides);
+  /* Verlauf is the history sub-page of Heute: the old #/fortschritt route aliases onto it. */
+  if (view === 'verlauf') run(renderHistory);
+  if (view === 'wortschatz') run(renderWortschatz);
+  if (view === 'nachschlagen') run(renderNachschlagen);
   if (view === 'checkout') run(() => renderCheckout(info));
   /*
    * THE SESSION LIST IS RE-READ WHEN ITS VIEW OPENS, not only when the page loaded.

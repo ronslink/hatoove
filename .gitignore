@@ -40,3 +40,8 @@ research/mistral-feasibility/study-summary.json
 # Local project inputs, coordination and recovery are not application source.
 /design/
 /handoff/
+
+# MEDIA-MOUNT-01: the recordings themselves are TRACKED (A12(1)) at content/exams/telc-deutsch-b1/audio/.
+# This entry is for the OPT-IN host mount directory only (`HATOVE_AUDIO_ROOT`), so a locally staged audio root
+# can never be committed by accident.
+media/

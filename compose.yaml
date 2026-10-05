@@ -31,6 +31,38 @@ x-ownapi-env: &ownapi-env
   # defaults to public/approved-only; make this local preview choice explicit for app and worker.
   B1PREP_CONTENT_MODE: "${HATOVE_CONTENT_MODE:-internal-preview}"
 
+# MEDIA-MOUNT-01 (FIX-F2) — the listening recordings are TRACKED, and this mount is an OPT-IN override.
+#
+# A12(1), decided by Ron on 5 Oct 2026: the nine telc B1 recordings are tracked PLAIN in this repository under
+# `content/exams/telc-deutsch-b1/audio/` (43.89 MB total, sha256-matching the package's `media` rows), so
+# `COPY content/exams/` puts them in the image and a clean clone works with NO environment variable and NO host
+# folder. The default source below is therefore that same tracked tree, not an untracked host directory: a
+# first `docker compose up --build` cannot be stopped by a media directory that does not exist.
+#
+# The mount exists so an operator can supply audio WITHOUT rebuilding — POOL-01's new HV sets, a re-recording,
+# or object storage staged to disk:
+#   HATOVE_AUDIO_ROOT=/srv/hatoove/media docker compose up -d --build
+# The directory must mirror the inside of `content/exams/`, i.e. `<HATOVE_AUDIO_ROOT>/telc-deutsch-b1/audio/…`.
+# `server/media-contract.mjs` reads `B1PREP_MEDIA_ROOT` (defaulted to the mount target below); when an operator
+# sets `HATOVE_AUDIO_ROOT` to a directory that is incomplete, the `media` preflight FAILS LOUDLY naming every
+# missing file — that is the point of the override, and it never applies to the default path.
+#
+# `create_host_path: false` is belt-and-braces, NOT the guard. MEASURED on Windows + Docker Desktop: a typo'd
+# or empty HATOVE_AUDIO_ROOT was still CREATED by the daemon, so this option did not stop `up` — the failure
+# came from the `media` preflight, which named every missing file, and from `app`'s
+# `depends_on: media: service_completed_successfully`, which held the API at `Created` with health unreachable
+# instead of letting it serve nothing. (On Linux the daemon may resolve the source differently and refuse it
+# earlier; that is UNMEASURED here, so the guarantees relied on are the preflight and the dependency chain, and
+# the empty-override case is HARMLESS rather than impossible.) The default source is tracked, so it always
+# exists in a checkout.
+x-media-mount: &media-mount
+  type: bind
+  source: "${HATOVE_AUDIO_ROOT:-./content/exams}"
+  target: /app/media
+  read_only: true
+  bind:
+    create_host_path: false
+
 services:
   db:
     image: postgres:17-alpine
@@ -52,21 +84,38 @@ services:
 
   # Applies the frozen migrations, then exits. `OWNAPI_PG_ALLOW=1` is required by the command itself
   # so it can never be pointed at a database by accident; it name refusals `postgres`/`template*`.
+  # The media mount is here too: `tools/import-exam-package.mjs` reads and checksums every referenced
+  # recording while it imports a package, and an operator runs it through this service.
   migrate:
     build: .
     command: ["node", "server/migrate.mjs"]
+    volumes: [*media-mount]
     environment:
       <<: *ownapi-env
       OWNAPI_PG_ALLOW: "1"
+      B1PREP_MEDIA_ROOT: "${HATOVE_MEDIA_ROOT:-/app/media}"
       OWNAPI_PG_PAYMENTS_PASSWORD: "${OWNAPI_PG_PAYMENTS_PASSWORD:-}"
     depends_on:
       db:
         condition: service_healthy
     restart: "no"
 
+  # MEDIA-MOUNT-01 — THE STARTUP SIGNAL. A missing referenced recording must fail the stack that names it,
+  # not answer 404 when a learner presses play. This one-shot service runs the shipped reader over every
+  # recording the tracked packages reference and exits non-zero if ANY is missing; `app` waits for it, so
+  # `docker compose up` stops with the missing file named in the log before the API ever listens.
+  media:
+    build: .
+    command: ["node", "tools/media-mount-check.mjs", "--require-recordings"]
+    volumes: [*media-mount]
+    environment:
+      B1PREP_MEDIA_ROOT: "${HATOVE_MEDIA_ROOT:-/app/media}"
+    restart: "no"
+
   app:
     build: .
     command: ["node", "server.js"]
+    volumes: [*media-mount]
     environment:
       <<: *ownapi-env
       B1PREP_SAAS: "1"
@@ -80,12 +129,16 @@ services:
       # learner - measured, not assumed. It must match the address the browser actually uses.
       B1PREP_PUBLIC_ORIGIN: "${HATOVE_PUBLIC_ORIGIN:-http://localhost:4300}"
       # Optional test payments; no offers are seeded and the default refuses purchases.
+      B1PREP_MEDIA_ROOT: "${HATOVE_MEDIA_ROOT:-/app/media}"
       PAYMENTS_MODE: "${HATOVE_PAYMENTS_MODE:-off}"
       STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
       STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
       OWNAPI_PG_PAYMENTS_PASSWORD: "${OWNAPI_PG_PAYMENTS_PASSWORD:-}"
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      # No recording, no API: the preflight above must have named every file it could not read.
+      media:
         condition: service_completed_successfully
     ports:
       - "127.0.0.1:${HATOVE_APP_PORT:-4300}:4321"
@@ -100,6 +153,10 @@ services:
   # The worker is a separate container on purpose: the runtime must not carry the worker's
   # privileges, and it connects with the restricted `<prefix>_worker` role. No model provider is
   # called - the grader is the deterministic stub until PILOT-06 injects a real one.
+  # MEDIA-MOUNT-01 RESIDUAL: this service depends only on `migrate`, so it still STARTS when the `media`
+  # preflight fails. Harmless while the worker grades text and never reads a recording — but if it ever
+  # touches audio or serves media, give it the same `depends_on: media: service_completed_successfully`
+  # gate and the media mount, or the gap becomes visible only at a learner's play.
   worker:
     build: .
     command: ["node", "server/worker.mjs"]

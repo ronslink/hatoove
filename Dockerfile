@@ -25,10 +25,24 @@ RUN npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
 COPY package.json server.js ./
 COPY server/ ./server/
 COPY public/ ./public/
+# MEDIA-MOUNT-01 — the recordings ARE in this image, deliberately.
+#
+# The nine telc B1 recordings are tracked PLAIN in the repository (A12(1), 5 Oct 2026 — 43.89 MB,
+# sha256-matching the package's `media` rows), so `COPY content/exams/` below carries both the manifests and
+# the audio. That is what production needs: `compose.production*.yaml` runs a digest-pinned `read_only` image
+# with no runtime volumes and an exactly pinned command (`tools/production-compose-check.mjs` asserts both), so
+# the bytes must be inside the reviewed artifact.
+#
+# Locally, `compose.yaml` binds the same tracked tree (or an operator's HATOVE_AUDIO_ROOT) at `/app/media` and
+# points B1PREP_MEDIA_ROOT at it, so new audio can be exercised without an image rebuild. A clean clone needs
+# neither: the default mount source is the tracked tree. `tools/media-mount-check.mjs` runs as the `media`
+# service and makes a missing recording loud at startup instead of a 404 at play time.
 COPY content/exams/ ./content/exams/
 COPY tools/import-exam-package.mjs ./tools/import-exam-package.mjs
 COPY tools/review-content.mjs ./tools/review-content.mjs
 COPY tools/provider-usage-report.mjs ./tools/provider-usage-report.mjs
+# The media preflight the `media` compose service runs before `app` starts (filesystem only).
+COPY tools/media-mount-check.mjs ./tools/media-mount-check.mjs
 # NOTE: `data/` is deliberately NOT copied into the image. Every authored corpus is in the database
 # (migrations 0010-0014) and served by the API; the image used to carry 557 KB of JSON that NOTHING in
 # the container read. Removing it means a re-added static route could not serve the corpus even by

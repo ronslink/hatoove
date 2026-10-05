@@ -53,6 +53,8 @@ import {
 } from './preparation-contract.mjs';
 import { MOCK_METHODS, validateWritingChoice, validateStartMockRun, validateSaveMockRun, validateFinaliseMockRun } from './mock-contract.mjs';
 import { mediaResponse, validatePlaybackEvent } from './media-route.mjs';
+// LIBRARY-I18N-01 (F2): the one list of interface languages a guide translation may be asked for.
+import { INTERFACE_LOCALES } from './library-translations.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
@@ -91,6 +93,14 @@ const MOCK_WRITING_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/writing-choice$
 const MOCK_FINALISE_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/finalise$`, 'i');
 const MOCK_PLAYBACK_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/playback$`, 'i');
 const MOCK_MEDIA_RE = new RegExp(`^/api/v1/mock-runs/(${UUID})/media/([a-zA-Z0-9][a-zA-Z0-9._-]{0,159})/(v[0-9]{1,4})$`);
+/*
+ * PRACTICE-MEDIA (task-17): the practice-bound twin of the two routes above. The sitting's id is in the path
+ * for the same reason a run's is — the media route needs a stable key — and the DATASTORE is the only place
+ * that decides the allowance, the state and whether a play is permitted. Both routes gate on the METHOD being
+ * present rather than joining PRACTICE_METHODS, so the memory backend's contract is unchanged.
+ */
+const PRACTICE_PLAYBACK_RE = new RegExp(`^/api/v1/practice/attempts/(${UUID})/playback$`, 'i');
+const PRACTICE_MEDIA_RE = new RegExp(`^/api/v1/practice/attempts/(${UUID})/media/([a-zA-Z0-9][a-zA-Z0-9._-]{0,159})/(v[0-9]{1,4})$`);
 const TOKEN_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const ORDER_RE = new RegExp(`^/api/v1/orders/(${UUID})$`, 'i');
 const WEBHOOK_PATH = '/api/v1/payments/stripe/webhook';
@@ -638,6 +648,38 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       return mediaResponse(result.bytes, result.media, { range: headers.range, method });
     }
 
+    /*
+     * PRACTICE-MEDIA (task-17). The practice-bound playback path. The DTO shape, the event validation and the
+     * byte framing are the MOCK path's own (`playbackDto`, `validatePlaybackEvent`, `mediaResponse`); what
+     * differs is the binding — a practice sitting rather than a mock run — and the rule that every play after
+     * the first requires "Auswerten", enforced in the datastore and again in the SQL trigger.
+     *
+     * GET  returns `{items, sitting}`: one playback state per recording of the served set, plus the sitting's
+     *      own `plays_used`/`replay_used` so a client does not have to re-derive the replay rule.
+     * POST accepts exactly the mock path's playback event and answers `{playback}`.
+     */
+    const practicePlayback = PRACTICE_PLAYBACK_RE.exec(pathname);
+    if (practicePlayback) {
+      if (query.size) fault(422, 'invalid_query');
+      const id = practicePlayback[1].toLowerCase();
+      if (method === 'GET' && typeof datastore.readPracticePlayback === 'function')
+        return reply(200, await datastore.readPracticePlayback(owner, id));
+      if (method === 'POST' && typeof datastore.mutatePracticePlayback === 'function')
+        return reply(200, { playback: await datastore.mutatePracticePlayback(owner, id, validatePlaybackEvent(body)) });
+      fault(['GET', 'POST'].includes(method) ? 503 : 404, ['GET', 'POST'].includes(method) ? 'practice_playback_unavailable' : 'not_found');
+    }
+    const practiceMedia = PRACTICE_MEDIA_RE.exec(pathname);
+    if (practiceMedia && ['GET', 'HEAD'].includes(method)) {
+      if (query.size) fault(422, 'invalid_query');
+      if (typeof datastore.readPracticeMedia !== 'function') fault(503, 'practice_playback_unavailable');
+      const result = await datastore.readPracticeMedia(owner, practiceMedia[1].toLowerCase(), practiceMedia[2], practiceMedia[3]);
+      // Revoke/account switches while the private file was being checked cannot expose its bytes.
+      const current = await identify(headers);
+      if (!current) fault(401, 'unauthenticated');
+      if (current.userId !== owner) fault(409, 'account_changed');
+      return mediaResponse(result.bytes, result.media, { range: headers.range, method });
+    }
+
     if (pathname === '/api/v1/checkout/offer' && method === 'GET') {
       if (!payments?.offer) fault(503, 'payments_unavailable');
       if ([...query.keys()].some(key => !['exam','market'].includes(key)) || [...query.keys()].some(key => query.getAll(key).length !== 1)) fault(422,'invalid_query');
@@ -967,14 +1009,42 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         serveReview,
       })).filter((row) => contentIsServable(row) && row.exam_id === prep.exam_id));
     }
+    if (pathname === '/api/v1/exam-parts' && method === 'GET') {
+      if (!catalogueWired) fault(503, 'catalogue_unavailable');
+      /*
+       * PRACTICE-UI-01 (slice B) — the written examination's parts, for the tile index.
+       *
+       * WHY A ROUTE. A tile must show its part's item count and, for the hearing parts, the playback rule.
+       * Both live in the packaged blueprint the server already reads to validate a form, and neither was
+       * reachable: `/objective-sets` filters `media_required = false`, so HV1–HV3 never appear in it. This
+       * route serves the blueprint's parts and nothing else — no learner data, no answer material.
+       *
+       * ADDITIVE. It is a new path, so no existing response changes shape; the sibling addition on
+       * `/practice/progress` (`parts`) is a new member beside the untouched ones.
+       *
+       * NARROWING ONLY, like every neighbouring catalogue route: the exam is the ACTIVE preparation's, and an
+       * explicit `examId` may only confirm it. A different exam is `preparation_mismatch`, never a second
+       * catalogue, and a malformed id never reaches storage.
+       *
+       * EMPTY IS AN ANSWER. A withheld release yields `parts: []`, which the client renders as "Angabe folgt"
+       * per fact — never as a plausible number.
+       */
+      const asked = query.get('examId');
+      if (asked !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(asked)) fault(422, 'invalid_exam');
+      const prep = await preparationContext(query);
+      if (asked !== null && asked !== prep.exam_id) fault(422, 'preparation_mismatch');
+      const parts = await datastore.listExamParts(owner, { examId: prep.exam_id });
+      return reply(200, { exam_id: prep.exam_id, parts: Array.isArray(parts) ? parts : [] });
+    }
     if (pathname === '/api/v1/vocab' && method === 'GET') {
       if (!catalogueWired) fault(503, 'catalogue_unavailable');
       /*
        * LIBRARY-SEED-01 — the B1 core vocabulary, 300 entries.
        *
-       * `q` is bounded and `limit` is fixed by the server. A learner may narrow the lexicon; the
-       * server decides how much of it one response may carry, so a crafted request cannot ask for the
-       * whole table on every keystroke.
+       * `q` is bounded by the server. The response used to be capped by the DATASTORE's own default of 50,
+       * which the route never overrode, so the lexicon page could only ever show 50 of its 300 entries — and
+       * the response carries no total to say so. The corpus is bounded, so the route serves all of it by
+       * default and keeps `limit` as a bounded override: never an unbounded door on a reference table.
        */
       const pos = query.get('pos');
       if (pos !== null && !/^(noun|verb|adj|adv|phrase)$/.test(pos)) fault(422, 'invalid_pos');
@@ -982,9 +1052,16 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const limitRaw = query.get('limit');
+      let vocabLimit = 500;
+      if (limitRaw !== null) {
+        if (!/^[0-9]{1,3}$/.test(limitRaw)) fault(422, 'invalid_limit');
+        vocabLimit = Number(limitRaw);
+        if (vocabLimit < 1 || vocabLimit > 500) fault(422, 'invalid_limit');
+      }
       const serveReview = deploymentReview();
       return reply(200, (await datastore.listVocab(owner, {
-        examId: exam, pos, q: q === null ? null : q.trim(), serveReview,
+        examId: exam, pos, q: q === null ? null : q.trim(), serveReview, limit: vocabLimit,
       })).filter((row) => contentIsServable(row)));
     }
     if (pathname === '/api/v1/nouns' && method === 'GET') {
@@ -1004,10 +1081,23 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      /*
+       * REVIEW-LIBRARY-UI-01: the datastore defaults to 50 rows, so the lexicon page could only ever show
+       * 50 of its 240 nouns, and the response carries no total to say so. The corpus is bounded at 240, so
+       * the route serves the whole lexicon by default and keeps `limit` as a bounded override — never an
+       * unbounded door on a reference table.
+       */
+      const limitRaw = query.get('limit');
+      let nounLimit = 500;
+      if (limitRaw !== null) {
+        if (!/^[0-9]{1,3}$/.test(limitRaw)) fault(422, 'invalid_limit');
+        nounLimit = Number(limitRaw);
+        if (nounLimit < 1 || nounLimit > 500) fault(422, 'invalid_limit');
+      }
       const serveReview = deploymentReview();
       return reply(200, (await datastore.listNouns(owner, {
         examId: exam, theme: theme === null ? null : theme.trim(), gender,
-        q: q === null ? null : q.trim(), serveReview,
+        q: q === null ? null : q.trim(), serveReview, limit: nounLimit,
       })).filter((row) => contentIsServable(row)));
     }
     if (pathname === '/api/v1/guides' && method === 'GET') {
@@ -1055,12 +1145,31 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       const guideMatch = GUIDE_RE.exec(pathname);
       if (guideMatch && method === 'GET') {
         if (!catalogueWired) fault(503, 'catalogue_unavailable');
+        /*
+         * LIBRARY-I18N-01 (F2) — `?locale=<l>` adds an OPTIONAL `translations` member.
+         *
+         * ADDITIVE ONLY, and that word is load-bearing: the member is attached only when a locale was
+         * asked for, so every consumer that does not send `locale` receives byte-for-byte the response
+         * it received before this slice. `de` and `en` are accepted and answer `null`, because they are
+         * interface languages with no bundle of their own and the client can then send its selected
+         * language unconditionally instead of special-casing the source languages.
+         *
+         * A datastore without the port (the in-memory fakes in the checks) answers `null` rather than
+         * 503: a translation is an enrichment of a guide that is still perfectly readable in German,
+         * which is the opposite of a catalogue that is not wired at all.
+         */
+        const locale = query.get('locale');
+        if (locale !== null && !INTERFACE_LOCALES.includes(locale)) fault(422, 'invalid_locale');
         const serveReview = deploymentReview();
         const guide = await datastore.readGuide(owner, { guideId: guideMatch[1], serveReview });
         // A guide that does not exist and a guide the deployment will not serve are BOTH 404, so the
         // endpoint is not an oracle for what exists but is withheld.
         if (!contentIsServable(guide)) fault(404, 'not_found');
-        return reply(200, guide);
+        if (locale === null) return reply(200, guide);
+        const translations = typeof datastore.readGuideTranslations === 'function'
+          ? await datastore.readGuideTranslations(owner, { guideId: guideMatch[1], locale })
+          : null;
+        return reply(200, { ...guide, translations });
       }
     }
     {
@@ -1095,6 +1204,116 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
         }));
       }
     }
+    if (pathname === '/api/v1/practice/check' && method === 'POST') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      if (typeof datastore.checkPracticeAttempt !== 'function') fault(503, 'practice_unavailable');
+      /*
+       * PRACTICE-01 (slice C) -- "Auswerten". ONE request closes the sitting and returns the whole review:
+       * per item the verdict, the learner's own answer and the key (0041 reveals it only after the learner's
+       * own evidence row exists), and the explanation through the EXISTING context-authorized reader rather
+       * than a second path to the same content.
+       */
+      onlyFields(body, ['preparationId', 'attemptId', 'answers', 'language']);
+      const preparationId = requirePreparationId(body.preparationId);
+      const language = body.language === undefined ? null : body.language;
+      if (language !== null && !INTERFACE_LOCALES.includes(language)) fault(422, 'invalid_language');
+      const checked = await datastore.checkPracticeAttempt(owner, {
+        preparationId, attemptId: body.attemptId, answers: body.answers,
+      });
+      /*
+       * REVIEW-PRACTICE-01-SERVER D1 — THE EXPLANATION IS ENRICHMENT, AND IT MUST NEVER DECIDE THIS RESPONSE.
+       *
+       * The check above is already COMMITTED when this runs: the answers are marked, the evidence rows are
+       * written and the sitting is closed. So a failure here can only lose the learner's review — never the
+       * sitting — and a learner whose sitting is checked but whose review was discarded has no way back
+       * (the retry answers 409 `attempt_already_checked`). Two guards, because the reader is a CHOICE-family
+       * reader BY DESIGN (0037 `read_objective_evidence_explanation` refuses `jsonb_typeof(answer) <> 'string'`
+       * and refuses any `media_required` set):
+       *   1. a judgement item, or any item of a media_required set, is not asked for at all — it serves
+       *      `explanation: null`, which is the truth, instead of a refusal;
+       *   2. ANY failure from the reader becomes `explanation: null`, so no future reader fault can turn a
+       *      committed review into an error response.
+       * Before this, HV1/HV2/HV3 answered 404 not_found for every listening set, after committing the check.
+       */
+      const reviewItems = Array.isArray(checked.items) ? checked.items : [];
+      const explainable = typeof datastore.readObjectiveEvidenceExplanation === 'function'
+        && checked.media_required !== true;
+      for (const item of reviewItems) {
+        // A datastore that does not disclose `answer_kind` keeps the previous behaviour (ask the reader).
+        const answerKind = typeof item.answer_kind === 'string' ? item.answer_kind : 'choice';
+        if (!explainable || answerKind !== 'choice') { item.explanation = null; continue; }
+        try {
+          item.explanation = await datastore.readObjectiveEvidenceExplanation(owner, item.evidence_id, { language });
+        } catch {
+          // A withheld, missing or unsupported explanation is null. It is never a failed review.
+          item.explanation = null;
+        }
+      }
+      return reply(200, checked);
+    }
+    /*
+     * DRILL-01 (slice H, MIRROR-B1PREP-01 §5 H) — Einzelübungen: ONE item at a time with instant feedback.
+     *
+     * TWO ROUTES, and the reason they are not the practice set routes with a flag:
+     *
+     *   * `GET  /practice/drill/next`  answers "which item now", weighted to the learner's WEAK PART. The
+     *     choice is a pure rule over `item_evidence` (`server/drill-sets.mjs`) and the response carries the
+     *     numbers behind it, so the learner can be told why. It serves ONE item and NO key.
+     *   * `POST /practice/drill/check` answers "is this item right, and why" for that ONE item. It marks it
+     *     through `mark_objective_item`, writes the evidence row, then reveals the key through
+     *     `reveal_objective_answer` — which returns a key only because the learner's own evidence now
+     *     exists. The explanation is enriched here through the SAME context-authorized reader the whole-set
+     *     review uses, with the same two guards.
+     *
+     * `practice/check` is deliberately untouched: it marks a WHOLE sitting, and a drill is not one.
+     */
+    if (pathname === '/api/v1/practice/drill/next' && method === 'GET') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      if (typeof datastore.drillNext !== 'function') fault(503, 'practice_unavailable');
+      const prep = await preparationContext(query);
+      const serveReview = deploymentReview();
+      const drill = await datastore.drillNext(owner, { preparationId: prep.id, serveReview });
+      /* Nothing servable is NOT an error: it means this deployment releases no part for the drill, and the
+         client shows its honest empty state rather than an error page. */
+      if (!drill) {
+        return reply(200, { preparation_id: prep.id, exam_id: prep.exam_id, reason: 'nothing_available',
+          family: null, section: null, evidence: null, attempt: null, round: null, set: null, item: null,
+          progress: null });
+      }
+      return reply(200, drill);
+    }
+    if (pathname === '/api/v1/practice/drill/check' && method === 'POST') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      if (typeof datastore.drillCheckItem !== 'function') fault(503, 'practice_unavailable');
+      onlyFields(body, ['preparationId', 'attemptId', 'itemId', 'answer', 'latencyMs', 'language']);
+      const preparationId = requirePreparationId(body.preparationId);
+      const language = body.language === undefined ? null : body.language;
+      if (language !== null && !INTERFACE_LOCALES.includes(language)) fault(422, 'invalid_language');
+      const latencyMs = body.latencyMs === undefined ? null : body.latencyMs;
+      if (latencyMs !== null && (!Number.isSafeInteger(latencyMs) || latencyMs < 0 || latencyMs > 3600000)) {
+        fault(422, 'invalid_latency');
+      }
+      const checked = await datastore.drillCheckItem(owner, {
+        preparationId, attemptId: body.attemptId, itemId: body.itemId, answer: body.answer, latencyMs,
+      });
+      /*
+       * THE EXPLANATION IS ENRICHMENT, AND IT MUST NEVER DECIDE THIS RESPONSE — the same rule slice C's
+       * whole-set review follows after REVIEW-PRACTICE-01-SERVER D1. The item is already marked and its
+       * evidence row is committed, so a reader fault can only lose the "why", never the verdict. Two guards:
+       * a judgement item or any item of a media_required set is not asked for at all (the reader is a
+       * CHOICE-family reader by design, `0037`), and ANY failure becomes `explanation: null`.
+       */
+      const explainable = typeof datastore.readObjectiveEvidenceExplanation === 'function'
+        && checked.media_required !== true;
+      if (explainable && checked.answer_kind === 'choice') {
+        try {
+          checked.explanation = await datastore.readObjectiveEvidenceExplanation(owner, checked.evidence_id, { language });
+        } catch {
+          checked.explanation = null;
+        }
+      }
+      return reply(200, checked);
+    }
     if (pathname === '/api/v1/practice/next' && method === 'GET') {
       if (!practiceWired) fault(503, 'practice_unavailable');
       /*
@@ -1107,6 +1326,21 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        */
       const prep = await preparationContext(query);
       const serveReview = deploymentReview();
+      const family = query.get('family');
+      if (family !== null) {
+        /*
+         * PRACTICE-01 (slice C) -- one released SET of this part, chosen by the rule, plus the open sitting.
+         * The same practice path with one extra parameter: the part index's tile opens a set, and the runner
+         * needs the set and the attempt id it will check.
+         */
+        if (!/^[A-Za-z]{2}\d?$/.test(family)) fault(422, 'invalid_family');
+        if (typeof datastore.practiceSetForPart !== 'function') fault(503, 'practice_unavailable');
+        const part = await datastore.practiceSetForPart(owner, { preparationId: prep.id, family, serveReview });
+        if (!part) {
+          return reply(200, { preparation_id: prep.id, exam_id: prep.exam_id, reason: 'nothing_available', family, section: null, evidence: null, attempt: null, set: null });
+        }
+        return reply(200, part);
+      }
       const next = await datastore.nextPractice(owner, { preparationId: prep.id, serveReview });
       // Nothing servable is NOT an error: it means the catalogue is empty for this deployment, and the
       // client shows its honest empty state rather than an error page.

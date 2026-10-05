@@ -47,11 +47,16 @@ export const PRIVATE_TELEMETRY_TABLES = Object.freeze([
  * LEARNER side — answers live in `objective_key`), vocabulary, nouns and guides. Written only by
  * migrations, served to learners: SELECT for the learner role, no runtime DML, nothing for the
  * auth/deletion/provisioner roles, no owner column and no key-shaped column.
+ *
+ * `guide_translation` and `noun_translation` (`0042`, LIBRARY-I18N-01) are the same kind of thing in
+ * three more languages — the shared, owner-less reference library, written by the one importer that
+ * runs as the schema owner and read by the learner role. They are catalogue tables, not account data.
  */
 export const CATALOGUE_TABLES = Object.freeze([
   'exam_package', 'objective_set', 'vocab_entry', 'noun_entry', 'guide', 'guide_section',
   'exam_release_head',
   'payment_product', 'payment_price',
+  'guide_translation', 'noun_translation',
 ]);
 
 /**

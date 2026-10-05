@@ -748,7 +748,9 @@ function cataloguePort() {
     rows.push({ ...task, version: CONTENT_VERSION, rubricId: FORMATIVE_WRITING_RUBRIC.rubricId, rubricVersion: FORMATIVE_WRITING_RUBRIC.version, createdAt: '2026-10-01T00:00:00Z' });
     rows.push({ ...task, version: TELC_B1_TASK_VERSION, rubricId: TELC_B1_WRITING_RUBRIC.rubricId, rubricVersion: TELC_B1_WRITING_RUBRIC.version, createdAt: '2026-10-02T00:00:00Z' });
   }
+  const calls = [];
   return {
+    calls,
     async listTasks(owner, { examId = null, family = null } = {}) {
       return rows
         .filter((task) => (examId === null || examId === 'telc-deutsch-b1') && (family === null || family === 'writing'))
@@ -795,7 +797,7 @@ function cataloguePort() {
         provisional: known.reviewStatus !== 'approved',
       };
     },
-    async listVocab() { return []; },
+    async listVocab(owner, options = {}) { calls.push({ method: 'listVocab', options }); return []; },
     async listNouns() { return []; },
     async listGuides() { return []; },
     async readGuide() { return null; },
@@ -807,8 +809,9 @@ async function catalogueWorld() {
   if (BACKEND !== 'memory') return world(); // the real datastore implements the catalogue already
   const store = createMemoryDatastore({ allowance: 10 });
   const sessions = createMemorySessions({ provision: store.provision });
-  const api = createOwnedApi({ datastore: { ...store.port, ...cataloguePort() }, sessions, settings: store.settings });
-  return { store, sessions, api, browser: () => inProcessBrowser(api) };
+  const catalogue = cataloguePort();
+  const api = createOwnedApi({ datastore: { ...store.port, ...catalogue }, sessions, settings: store.settings });
+  return { store, sessions, api, catalogueCalls: catalogue.calls, browser: () => inProcessBrowser(api) };
 }
 
 async function world({ allowance } = {}) {
@@ -1474,6 +1477,42 @@ check('the-rubric-is-readable-and-carries-its-own-provisional-status', async () 
   assert.equal((await a.raw('GET', '/api/v1/rubrics/writing.nope?version=v1')).status, 404);
   assert.equal((await a.raw('GET', `/api/v1/rubrics/${TELC_B1_WRITING_RUBRIC.rubricId}?version=v99`)).status, 404);
   return `${rubric.criteria.length} criteria with A-D descriptors and provisional=${rubric.provisional}; the retired contract readable by version with ${retired.json.criteria.length} criteria`;
+});
+
+/*
+ * LIBRARY-SEED-01 follow-up. `/api/v1/vocab` passed no `limit`, so the datastore's own default of 50 cut the
+ * deck: measured on a disposable database, 50 of 300 rows (noun 50/233, verb 41/41, adj 19/19, adv 7/7) and
+ * the response carries no total to say so. The noun route was fixed the same way; this is the vocabulary one.
+ * The corpus is bounded, so the route serves all of it by default and keeps `limit` as a bounded override.
+ */
+check('the-vocabulary-route-serves-the-whole-bounded-corpus-and-refuses-an-unbounded-limit', async () => {
+  const w = await catalogueWorld();
+  const a = await learner(w);
+  const scope = `preparationId=${a.preparationId}`;
+
+  const all = await a.raw('GET', `/api/v1/vocab?${scope}`);
+  assert.equal(all.status, 200, `the vocabulary route must answer, got ${all.status} ${all.text.slice(0, 80)}`);
+  assert.ok(Array.isArray(all.json), 'the route answers a list, unchanged in shape');
+  if (BACKEND === 'memory') {
+    // The memory port serves no rows, so the ROUTE's own request is what is asserted here.
+    assert.equal(w.catalogueCalls.at(-1).options.limit, 500,
+      'the route must ask for the whole bounded corpus instead of accepting the datastore default of 50');
+  } else {
+    assert.ok(all.json.length > 50,
+      `the route must serve more than the old 50-row cut, got ${all.json.length} of the 300-entry corpus`);
+  }
+
+  const narrowed = await a.raw('GET', `/api/v1/vocab?limit=25&${scope}`);
+  assert.equal(narrowed.status, 200, 'a bounded limit is an override, not a refusal');
+  assert.ok(narrowed.json.length <= 25, `limit=25 must narrow the response, got ${narrowed.json.length}`);
+  if (BACKEND === 'memory') assert.equal(w.catalogueCalls.at(-1).options.limit, 25, 'the override reaches the datastore');
+
+  for (const bad of ['0', '501', '1000', 'abc', '-1', '1.5']) {
+    const refused = await a.raw('GET', `/api/v1/vocab?limit=${encodeURIComponent(bad)}&${scope}`);
+    assert.equal(refused.status, 422, `limit=${JSON.stringify(bad)} must be refused, got ${refused.status}`);
+    assert.equal(refused.json.error, 'invalid_limit', `limit=${JSON.stringify(bad)} must carry the invalid_limit token`);
+  }
+  return `vocab served ${all.json.length} row(s) by default (> the old 50-row cut), limit=25 narrowed to ${narrowed.json.length}, 6 unbounded/invalid limits refused`;
 });
 
 check('retry-only-eligible-failed-job-same-identity', async () => {

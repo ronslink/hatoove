@@ -36,8 +36,12 @@ const PATHS = Object.freeze({
   nouns: '/api/v1/nouns',
   guides: '/api/v1/guides',
   practiceNext: '/api/v1/practice/next',
+  practiceCheck: '/api/v1/practice/check',
   practiceProgress: '/api/v1/practice/progress',
   practiceMistakes: '/api/v1/practice/mistakes',
+  /* DRILL-01 (slice H) — Einzelübungen. The item-at-a-time pair beside the whole-set pair above. */
+  practiceDrillNext: '/api/v1/practice/drill/next',
+  practiceDrillCheck: '/api/v1/practice/drill/check',
   attempts: '/api/v1/attempts',
   submissions: '/api/v1/submissions',
   export: '/api/v1/export',
@@ -330,10 +334,17 @@ return Object.freeze({
   }),
 
   /**
-   * The reference guides: an index, then one document. 64 KB is not fetched to list a title. */
+   * The reference guides: an index, then one document. 64 KB is not fetched to list a title.
+   *
+   * `read(guideId, locale)` passes the interface language through as the additive `?locale=` member of
+   * contract §4.3. Without a locale (or with one the server cannot serve) the response is exactly what it
+   * was before slice F2 and the caller renders German only. REVIEW-LIBRARY-UI-01 found the second
+   * argument being ignored here, which silently disabled every translated guide line.
+   */
   guides: Object.freeze({
     list: () => call('GET', PATHS.guides),
-    read: (guideId) => call('GET', `${PATHS.guides}/${encodeURIComponent(guideId)}`),
+    read: (guideId, locale = null) => call('GET', `${PATHS.guides}/${encodeURIComponent(guideId)}`
+      + (typeof locale === 'string' && locale ? `?locale=${encodeURIComponent(locale)}` : '')),
   }),
 
   /**
@@ -343,7 +354,26 @@ return Object.freeze({
    */
   practice: Object.freeze({
     explanation: (evidenceId, language = null) => call('GET', '/api/v1/objective-evidence/' + encodeURIComponent(evidenceId) + '/explanation' + explanationQuery(language, 'language'), undefined, true),
-    next: () => scopedCall('GET', PATHS.practiceNext),
+    /**
+     * PRACTICE-01 (slice C) — the two calls the part runner makes, and why they live HERE rather than in
+     * the runner.
+     *
+     * `next(family)` is the same route as `next()` with the one documented query member: the server's
+     * selection rule serves ONE released set of that part together with the open sitting it created, so
+     * the runner can answer the set and then check it. Called with no argument the request is
+     * byte-identical to before this slice (the `?family=` member is appended only for a non-empty
+     * string), which is what makes this additive for every existing caller.
+     *
+     * `check(payload)` is "Auswerten": ONE request marks every answer server-side and returns the whole
+     * review. It is `scopedCall` like its neighbours, so the preparation context travels the same way
+     * as every other practice call; the runner never marks anything itself.
+     *
+     * The URLs stay in this module because this module is the only place in `public/app/` that knows
+     * one. Agreed with the Lead (task-16, 5 October 2026) rather than opened as a second transport.
+     */
+    next: (family = null) => scopedCall('GET', PATHS.practiceNext
+      + (typeof family === 'string' && family ? '?family=' + encodeURIComponent(family) : '')),
+    check: (payload) => scopedCall('POST', PATHS.practiceCheck, payload),
     /**
      * This learner's own totals and per-section tallies, aggregated by the server from item_evidence.
      *
@@ -363,6 +393,20 @@ return Object.freeze({
      * database role at all. What comes back is what the LEARNER answered, so they can try again.
      */
     mistakes: () => scopedCall('GET', PATHS.practiceMistakes),
+    /**
+     * DRILL-01 (slice H) — the Einzelübungen pair.
+     *
+     * `drillNext()` asks the server which ONE item to practise now, weighted to the learner's weak part, and
+     * returns it with the sitting it belongs to and the numbers behind the choice. `drillCheck({attemptId,
+     * itemId, answer, latencyMs, language})` marks exactly that item and returns the verdict, the key (which
+     * the server can reveal only after the answer is committed) and the explanation.
+     *
+     * Both are `scopedCall`, so the preparation context travels the way it does for every neighbour here,
+     * and the answer posted is the option's typed `value` — never its id, because a listening item's key is
+     * a JSON boolean and `mark_objective_item` compares jsonb.
+     */
+    drillNext: () => scopedCall('GET', PATHS.practiceDrillNext),
+    drillCheck: (payload) => scopedCall('POST', PATHS.practiceDrillCheck, payload),
   }),
 
   /**

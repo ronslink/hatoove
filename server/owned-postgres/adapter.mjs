@@ -31,11 +31,19 @@ import { createExamCatalogue, preparationDto } from '../preparation-contract.mjs
 import { preparationMethods, requireActivePreparation, resolvePreparation } from './preparations.mjs';
 import { mockRunMethods, lockMockOwner, requireMockGroup } from './mock-runs.mjs';
 import { playbackMethods } from './playback.mjs';
+import { practicePlaybackMethods } from './practice-playback.mjs';
+/* DRILL-01 (slice H): the drill's own port, composed the way task-17 composed its playback twin. */
+import { drillMethods } from '../drill-pg.mjs';
 import { importedSetGate, objectiveInteractionSql, releasedObjectiveFamily, readWritingTask, writingAccess, readReleasedForm, readWritingOrigin } from './packages.mjs';
 import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
 import { extractWritingExplanationSource, unavailableExplanationView } from '../explanation-contract.mjs';
 import { readExplanationRepresentations, readObjectiveEvidenceExplanation as readEvidenceExplanation, readFinalisedMockItemExplanation } from './explanations.mjs';
 import { explanationLanguage, blockedExplanation, projectStoredExplanation, explanationFault, protectedExplanationRead, selectedExplanationExports } from './explanation-views.mjs';
+import { readGuideTranslations as readTranslations } from '../library-translations.mjs';
+/* PRACTICE-UI-01 (slice B): the pure blueprint → parts normaliser the exam-parts route serves. */
+import { blueprintParts } from '../exam-parts.mjs';
+/* PRACTICE-01 (slice C): the pure selection rule and the served-set normaliser. */
+import { selectPracticeSet, normalisePracticeSet, practiceRoundState } from '../practice-sets.mjs';
 
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
@@ -43,6 +51,38 @@ const OBJECTIVE_VERSION_RE = /^v[0-9]{1,4}$/;
 
 const fail = (status, code) => { throw new Fault(status, code); };
 const first = (result) => result.rows[0];
+/**
+ * FIX-N1 (second-pass review §N1) — WHICH EVIDENCE MAY COUNT.
+ *
+ * FIX-F1 established the right principle and implemented it too broadly. The principle: a PRACTICE answer to a
+ * listening set the app cannot play is a guess about audio nobody heard, so it must not become a number a
+ * learner reads nor a signal that steers the drill. The implementation was `media_required = true`, which is
+ * about the SET — and the MOCK EXAM writes evidence for those very sets, with `mock_run_id` set
+ * (`0030-listening-playback.sql:286-290`), where the audio really does play. Filtering on the set therefore
+ * threw away real Probeprüfung listening results: after a full mock the Hören tiles said "nicht geübt".
+ *
+ * So the rule is about the ROW, not the set:
+ *
+ *   * `e.mock_run_id IS NOT NULL` — the answer came from a run in which the recording played. It counts, even
+ *     when its set is media-bound, because the learner really did hear it.
+ *   * otherwise the set must be one this deployment can play (`media_required = false`). A practice guess at a
+ *     set with no playback path is the only thing dropped.
+ *
+ * Written as a boolean expression rather than a join so it can be dropped into any aggregate over
+ * `item_evidence e` without changing that query's grouping. The JS twin is `playableEvidence` in
+ * `server/drill-sets.mjs` (the drill ranks in memory); both implement this same rule and each names the other.
+ *
+ * THE SERVING FILTERS ARE A DIFFERENT RULE and are deliberately NOT this predicate: `practiceSetForPart`,
+ * `checkPracticeAttempt`, `drillCheckItem` and the drill's `CANDIDATE_SQL`/`readSet` use
+ * `s.media_required = false` because a SET with no playable recording must not be SERVED or MARKED at all.
+ * Mock evidence does not make a set playable — it records that one was playable somewhere else (the mock's
+ * packaged form), which is exactly the distinction this predicate fixes. The deeper fix when recordings land is
+ * for "playable" to mean "has a recording", which is why the two rules are kept visibly separate rather than
+ * merged into one switch that would silently change serving too.
+ */
+const COUNTED_EVIDENCE = `(e.mock_run_id IS NOT NULL OR EXISTS (SELECT 1 FROM objective_set ps
+                                     WHERE ps.set_id = e.set_id AND ps.version = e.version
+                                       AND ps.media_required = false))`;
 /** No default version (EXAM-S0): v1 and v2 of a set may share item ids with different keys. */
 const requireObjectiveVersion = (version) => {
   if (typeof version !== 'string' || !OBJECTIVE_VERSION_RE.test(version)) fail(422, 'invalid_version');
@@ -259,6 +299,10 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     ...preparations,
     ...mockRunMethods({ settle, note, catalogue: examCatalogue, explanationLanguageRegistry }),
     ...playbackMethods({ settle, note, catalogue: examCatalogue, mediaRoot }),
+    // PRACTICE-MEDIA (task-17): the same accounting model bound to a practice sitting instead of a mock run.
+    ...practicePlaybackMethods({ settle, note, catalogue: examCatalogue, mediaRoot }),
+    // DRILL-01 (slice H): the Einzelübungen port — `drillNext` and `drillCheckItem`. Additive.
+    ...drillMethods({ settle, note, catalogue: examCatalogue }),
     /**
      * PILOT-04 — the servable task catalogue.
      *
@@ -353,6 +397,43 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       if (!examCatalogue.isEnabled(examId)) return false;
       return settle(owner, async client => (await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible
         && releasedObjectiveFamily(client, examId, family), true);
+    },
+    /**
+     * PRACTICE-UI-01 (slice B) — the written examination's parts, from the package blueprint this
+     * installation already publishes.
+     *
+     * READ ONLY: a snapshot transaction, like every other catalogue read. The admission gate is the same
+     * `readCurrentReleaseEligibility` the objective catalogue uses, so a withheld release answers an EMPTY
+     * list, never a partial one, and a blueprint that does not parse is a 503 rather than a short list —
+     * "the package is corrupt" and "this exam has fewer parts" must not look alike to the client.
+     *
+     * WHY THIS IS NOT `/objective-sets`: that query filters `s.media_required = false`, so HV1–HV3 are
+     * structurally absent from it (and that is exactly why slice B's hearing tiles had no source). This
+     * method is the only place the hearing parts' item counts and playback rule are served.
+     *
+     * NO POINTS: the packaged blueprint carries none (contract amendment A6 keeps per-part points as a cited
+     * client constant until a blueprint revision carries them). The assembler therefore emits `points: null`
+     * and `part: null` rather than omitting the members, and the client keeps the cited value wherever the
+     * served one is null (REVIEW-PRACTICE-UI-01 F1). Null here means "the blueprint cannot answer this", not
+     * "zero" — do not read it as a number.
+     */
+    async listExamParts(owner, { examId } = {}) {
+      note('listExamParts');
+      if (typeof examId !== 'string' || !examId) return [];
+      return settle(owner, async (client) => {
+        if (!(await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible) return [];
+        const row = (await client.query(
+          `SELECT b.payload
+             FROM exam_release_head h
+             JOIN exam_release r ON r.exam_id = h.exam_id AND r.version = h.release_version
+             JOIN exam_blueprint b ON b.exam_id = r.exam_id AND b.version = r.blueprint_version
+            WHERE h.exam_id = $1`, [examId])).rows[0];
+        if (!row || !row.payload) return [];
+        let parts;
+        try { parts = blueprintParts(row.payload); }
+        catch { fail(503, 'catalogue_unavailable'); }
+        return [...parts];
+      }, true);
     },
     async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null, serveReview = 'approved+unreviewed' } = {}) {
       note('listObjectiveSets');
@@ -653,6 +734,23 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
       });
     },
     /**
+     * LIBRARY-I18N-01 (F2) — the additive `translations` member of MIRROR-B1PREP-01 §4.3.
+     *
+     * A SHARED CONTENT READ, not an ownership read: the reference library carries no owner column, so
+     * this is a read-only snapshot through the same learner pool as `readGuide` above. It returns
+     * `null` rather than an empty object when the installation has nothing current in that locale, and
+     * it never returns a rejected row or a row generated from a superseded guide version — see
+     * `readGuideTranslations` in `server/library-translations.mjs` for that rule and for why stale and
+     * absent deliberately share one answer.
+     *
+     * The route asks for it ONLY when a `locale` was supplied, so a consumer that does not send one
+     * keeps the exact response shape it had before this slice.
+     */
+    async readGuideTranslations(owner, { guideId, locale } = {}) {
+      note('readGuideTranslations');
+      return settle(owner, (client) => readTranslations(client, { guideId, locale }), true);
+    },
+    /**
      * PILOT-22 — record one answered objective item, marked server-side.
      *
      * MARKING IS NOT DONE HERE, and deliberately: this connection is the LEARNER role, which is NOT
@@ -720,6 +818,207 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         return { evidence_id: evidenceId, item_id: itemId, correct: marked.correct,
           correct_answer: revealed ? revealed.correct_answer : null, preparation_id: prep.id, exam_id: prep.exam_id };
       });
+    },
+    /**
+     * PRACTICE-01 (slice C) — the one released set this PART serves now, and the sitting it opens.
+     *
+     * The DECISION is `server/practice-sets.mjs` (unseen first, then most wrong, then oldest), which is pure
+     * and proved offline against crafted evidence rows. This method owns the read, the admission gate and the
+     * transaction, and it returns the rule's own numbers as the reason for its choice, so the client can say
+     * "4 von 5 falsch" rather than handing over a set with no explanation.
+     *
+     * The sitting is created here, not at "Auswerten": from the moment a set is served there is an `open`
+     * attempt, so an abandoned page is still a record. `checkPracticeAttempt` is what closes it.
+     *
+     * WHY `media_required` SETS ARE EXCLUDED (FIX-F1, outside review §F1). This was the ONE catalogue query
+     * without that filter (:424, :463, :756, :1009, :1058 all carry it, for the reason recorded at :358). The
+     * gap reached learners: no released practice set has recordings, so the runner served a Hören set with a
+     * player that cannot play beside LIVE answer controls, and `POST /practice/check` wrote those blind
+     * guesses into `item_evidence` — where the drill's ranking reads them. A learner could then be told their
+     * weakness was listening and handed more unplayable items. A part whose sets all need media now answers
+     * "nothing available", which is true, instead of serving an exercise the learner cannot do honestly.
+     */
+    async practiceSetForPart(owner, { preparationId, family, serveReview = 'approved+unreviewed' } = {}) {
+      note('practiceSetForPart');
+      if (typeof family !== 'string' || !/^[A-Za-z]{2}\d?$/.test(family)) fail(422, 'invalid_family');
+      requirePreparationContext(preparationId);
+      const statuses = servableReview(serveReview);
+      return settle(owner, async (client) => {
+        const { exam_id: examId } = await resolvePreparation(client, owner, preparationId);
+        if (!(await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible) return null;
+        const candidates = (await client.query(
+          `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count, s.media_required, s.payload
+             FROM objective_set s
+             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+            WHERE s.exam_id = $1 AND s.family = $2
+              AND s.media_required = false
+              AND ${importedSetGate()}
+              AND c.review_status = ANY($3::text[])
+              AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
+          [examId, family, statuses, contentPolicy().rights])).rows;
+        if (!candidates.length) return null;
+        const evidence = (await client.query(
+          `SELECT set_id, correct, answered_at
+             FROM item_evidence
+            WHERE owner_id = $1 AND preparation_id = $2 AND family = $3`,
+          [owner, preparationId, family])).rows;
+        const chosen = selectPracticeSet(candidates, evidence);
+        if (!chosen) return null;
+        const row = candidates.find((entry) => entry.set_id === chosen.set_id && entry.version === chosen.version) || null;
+        if (!row) return null;
+        const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
+        const served = normalisePracticeSet({ ...row, items: undefined }, payload.playback ?? null);
+        const attemptId = randomUUID();
+        await client.query(
+          `INSERT INTO practice_attempt
+             (attempt_id, owner_id, exam_id, preparation_id, set_id, version, family, section, item_count)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [attemptId, owner, examId, preparationId, row.set_id, row.version, row.family, row.section, served.item_count]);
+        /* How many distinct sets of this part the learner has already CHECKED: the runner's wrap rule (A1). */
+        const checked = first(await client.query(
+          `SELECT count(DISTINCT set_id)::int AS checked
+             FROM practice_attempt
+            WHERE owner_id = $1 AND preparation_id = $2 AND family = $3 AND state = 'checked'`,
+          [owner, preparationId, family]));
+        return Object.freeze({
+          preparation_id: preparationId,
+          exam_id: examId,
+          family,
+          section: served.section,
+          reason: chosen.tier,
+          evidence: { seen: chosen.seen, wrong: chosen.wrong, first_seen_at: chosen.first_seen_at },
+          attempt: Object.freeze({ attempt_id: attemptId, state: 'open' }),
+          round: practiceRoundState({ setCount: candidates.length, checkedSets: checked ? checked.checked : 0 }),
+          set: served,
+        });
+        /*
+         * NOT a snapshot. This method SERVES AND OPENS: the `practice_attempt` INSERT above is the sitting, so
+         * `settle`'s read-only flag must be false. It was passed `true` (`BEGIN ISOLATION LEVEL REPEATABLE READ
+         * READ ONLY`) and the method had never been executed against a database, so the failure was invisible:
+         * the normaliser threw first and masked it. With the normaliser fixed it surfaced as SQLSTATE 25006,
+         * "cannot execute INSERT in a read-only transaction". Read-only means read-only.
+         */
+      }, false);
+    },
+    /**
+     * PRACTICE-01 (slice C) — "Auswerten": mark every answer, record it as evidence, close the sitting, and
+     * return the FULL review (verdict, the learner's pick, the key). The explanation is attached by the route
+     * through the existing context-authorized reader (`readObjectiveEvidenceExplanation`), because the
+     * explanation lives behind its own admission gate and this method must not bypass it.
+     *
+     * Marking is `mark_objective_item` (SECURITY DEFINER, 0015) and the key is `reveal_objective_answer`
+     * (0041), which returns it only once the learner's own evidence row exists — so this response cannot leak
+     * a key for an item the learner has not answered.
+     *
+     * The evidence rows carry `mock_run_id` NULL and reference the practice attempt's set/version: a practice
+     * answer is distinguishable from a mock answer at rest, which is the point of the separate table.
+     */
+    async checkPracticeAttempt(owner, { preparationId, attemptId, answers } = {}) {
+      note('checkPracticeAttempt');
+      requirePreparationContext(preparationId);
+      if (typeof attemptId !== 'string' || !UUID_RE.test(attemptId)) fail(422, 'invalid_attempt');
+      if (!Array.isArray(answers) || answers.length === 0 || answers.length > 100) fail(422, 'invalid_answers');
+      const statuses = servableReview();
+      return settle(owner, async (client) => {
+        await lockMockOwner(client, owner);
+        const prep = await requireActivePreparation(client, owner, preparationId);
+        const attempt = first(await client.query(
+          `SELECT attempt_id, exam_id, preparation_id, set_id, version, family, section, item_count, state, mode
+             FROM practice_attempt
+            WHERE attempt_id = $1 AND owner_id = $2`, [attemptId, owner]));
+        if (!attempt) fail(404, 'not_found');
+        if (attempt.preparation_id !== prep.id) fail(422, 'preparation_mismatch');
+        if (attempt.state === 'checked') fail(409, 'attempt_already_checked');
+        /*
+         * DRILL-01 (slice H): a DRILL sitting carries `mode='drill'` (migration 0046) and must never be
+         * filled by this whole-set path. The drill answers ONE item at a time into its own row; letting the
+         * runner mark all n items into it would append a second evidence row per item already answered and
+         * rewrite `answered_count`/`correct_count` from the wrong baseline. The reverse direction is refused
+         * by `drillCheckItem` (`not_a_drill_sitting`), so neither path can adopt the other's sitting.
+         */
+        if (attempt.mode === 'drill') fail(409, 'not_a_part_sitting');
+        const set = first(await client.query(
+          `SELECT s.exam_id, s.family, s.section, s.media_required
+             FROM objective_set s
+             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
+                  LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+            WHERE s.set_id = $1 AND s.version = $2
+              AND c.review_status = ANY($3::text[])
+              AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
+          [attempt.set_id, attempt.version, statuses, contentPolicy().rights]));
+        if (!set) fail(404, 'not_found');
+        /*
+         * FIX-F1 — a listening set cannot be attempted honestly: there are no recordings, so any answer would
+         * be a guess about audio the learner never heard. `practiceSetForPart` no longer SERVES one, so this is
+         * the backstop for an attempt opened before that fix (or by a stale client): refuse the marking rather
+         * than write the guess into `item_evidence`, where it would steer the drill's ranking.
+         */
+        if (set.media_required === true) fail(409, 'media_unavailable');
+        const items = [];
+        let correctCount = 0;
+        for (const entry of answers) {
+          const itemId = entry && typeof entry.item_id === 'string' ? entry.item_id : null;
+          if (!itemId || !/^[A-Za-z0-9._-]{1,64}$/.test(itemId)) fail(422, 'invalid_item');
+          if (entry.answer === undefined) fail(422, 'invalid_answer');
+          let marked;
+          try {
+            marked = first(await client.query(
+              'SELECT mark_objective_item($1, $2, $3, $4::jsonb) AS correct',
+              [attempt.set_id, attempt.version, itemId, JSON.stringify(entry.answer)]));
+          } catch (error) {
+            if (/unknown_item/.test(error && error.message)) fail(422, 'unknown_item');
+            throw error;
+          }
+          const evidenceId = randomUUID();
+          await client.query(
+            `INSERT INTO item_evidence
+               (evidence_id, owner_id, exam_id, set_id, version, item_id, family, section, answer, correct,
+                latency_ms, preparation_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)`,
+            [evidenceId, owner, attempt.exam_id, attempt.set_id, attempt.version, itemId, attempt.family,
+              attempt.section, JSON.stringify(entry.answer), marked.correct,
+              Number.isSafeInteger(entry.latency_ms) ? entry.latency_ms : null, prep.id]);
+          const revealed = first(await client.query(
+            'SELECT reveal_objective_answer($1, $2, $3) AS expected', [attempt.set_id, attempt.version, itemId]));
+          if (marked.correct) correctCount += 1;
+          /*
+           * `answer_kind` is the REVIEW's own disclosure of what kind of answer the key holds -- derived from
+           * the revealed key's JSON type, the same fact migration `0037` refuses on. The route needs it to know
+           * whether the CHOICE-family explanation reader can serve this item at all: a listening part's answer
+           * is a JSON boolean, and that reader requires a string. It is `judgement` for exactly those items.
+           */
+          items.push({
+            item_id: itemId,
+            correct: marked.correct,
+            chosen: entry.answer,
+            expected: revealed ? revealed.expected : null,
+            answer_kind: revealed && typeof revealed.expected === 'boolean' ? 'judgement' : 'choice',
+            evidence_id: evidenceId,
+            explanation: null,
+          });
+        }
+        const checked = first(await client.query(
+          `UPDATE practice_attempt
+              SET state = 'checked', answered_count = $3, correct_count = $4, checked_at = now()
+            WHERE attempt_id = $1 AND owner_id = $2
+        RETURNING checked_at`, [attemptId, owner, items.length, correctCount]));
+        return {
+          attempt_id: attemptId,
+          set_id: attempt.set_id,
+          version: attempt.version,
+          family: attempt.family,
+          section: attempt.section,
+          state: 'checked',
+          checked_at: checked ? checked.checked_at : null,
+          item_count: attempt.item_count,
+          answered_count: items.length,
+          correct_count: correctCount,
+          /* The choice-family explanation reader refuses any media_required set (0037), so the review says so. */
+          media_required: set.media_required === true,
+          items,
+        };
+      }, false);
     },
     /**
      * PILOT-22b — what should this learner practise next, chosen by RULES over recorded evidence.
@@ -843,9 +1142,26 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     async practiceProgress(owner, { preparationId } = {}) {
       note('practiceProgress');
       requirePreparationContext(preparationId);
-      const rows = await settle(owner, async (client) => {
+      const progress = await settle(owner, async (client) => {
         await resolvePreparation(client, owner, preparationId);
-        return (await client.query(
+        /*
+         * PRACTICE-UI-01 (slice B) — the SAME evidence, grouped twice.
+         *
+         * `sections` is the pre-slice answer and is unchanged, member for member. `parts` is the new one:
+         * `item_evidence.family` is the part id (`LV1`…`HV3`, migration 0015-item-evidence.sql), so one more
+         * GROUP BY attributes an attempt to the PART the learner actually practised. That is what a part
+         * tile needs, and it is exactly what a section count must never be used for: "LV: 7 of 10 correct"
+         * says nothing about LV1, LV2 or LV3 individually. Same owner, same preparation filter, so both
+         * groupings necessarily see the same rows.
+         *
+         * FIX-N1 RESTORED THAT PROMISE FOR `sections`. FIX-F1 had dropped the "unchanged, member for member"
+         * sentence by putting the playability filter on BOTH aggregates, which also made the section figure
+         * lose every Probeprüfung listening result. `sections` is back to counting every answered item — the
+         * pre-slice behaviour, verbatim — and only `parts` carries the evidence rule, because a part figure is
+         * what a learner acts on and what the drill's ranking reads. The asymmetry is deliberate: the section
+         * number is a historical count, the part number is a live signal.
+         */
+        const sections = await client.query(
           `SELECT e.section,
                   count(*)::int AS attempts,
                   count(*) FILTER (WHERE e.correct)::int AS correct
@@ -853,8 +1169,20 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             WHERE e.owner_id = $1 AND e.preparation_id = $2
             GROUP BY e.section
             ORDER BY e.section`,
-          [owner, preparationId])).rows;
+          [owner, preparationId]);
+        const parts = await client.query(
+          `SELECT e.family,
+                  count(*)::int AS attempts,
+                  count(*) FILTER (WHERE e.correct)::int AS correct
+             FROM item_evidence e
+            WHERE e.owner_id = $1 AND e.preparation_id = $2 AND e.family IS NOT NULL
+              AND ${COUNTED_EVIDENCE}
+            GROUP BY e.family
+            ORDER BY e.family`,
+          [owner, preparationId]);
+        return { rows: sections.rows, parts: parts.rows };
       });
+      const rows = progress.rows;
       const totals = rows.reduce(
         (acc, row) => ({ attempts: acc.attempts + row.attempts, correct: acc.correct + row.correct }),
         { attempts: 0, correct: 0 });
@@ -867,6 +1195,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         },
         sections: rows.map((row) => ({
           section: row.section,
+          attempts: row.attempts,
+          correct: row.correct,
+          accuracy: row.attempts ? row.correct / row.attempts : null,
+        })),
+        /* PRACTICE-UI-01 (slice B): the same evidence per part. Additive; consumers that ignore it see the
+           exact previous shape, and a part with no evidence is simply absent rather than zero. */
+        parts: progress.parts.map((row) => ({
+          family: row.family,
           attempts: row.attempts,
           correct: row.correct,
           accuracy: row.attempts ? row.correct / row.attempts : null,
@@ -1415,6 +1751,12 @@ export const ACCOUNT_DELETION_STEPS = Object.freeze([
   // EXAM-S1: evidence references a preparation, so it goes before the preparations it points at
   // (it would otherwise only cascade from "user", after the preparation delete had already failed).
   ['item_evidence', 'DELETE FROM item_evidence WHERE owner_id = $1'],
+  // PRACTICE-01 (slice C): a practice attempt points at the preparation as well, so it is removed for
+  // the same reason, before the preparations it references. PRACTICE-MEDIA (task-17) playback rows hang off
+  // the sitting, so they go first (their events cascade from them, but the explicit order matches 0030's).
+  ['practice_playback_event', 'DELETE FROM practice_playback_event WHERE owner_id = $1'],
+  ['practice_playback', 'DELETE FROM practice_playback WHERE owner_id = $1'],
+  ['practice_attempt', 'DELETE FROM practice_attempt WHERE owner_id = $1'],
   ['mock_run_event', 'DELETE FROM mock_run_event WHERE owner_id = $1'],
   ['listening_playback_event', 'DELETE FROM listening_playback_event WHERE owner_id = $1'],
   ['listening_playback', 'DELETE FROM listening_playback WHERE owner_id = $1'],
@@ -1452,6 +1794,8 @@ export const ACCOUNT_TABLES = Object.freeze([
   ['learner_settings', 'user_id = $1', 'owner'], ['session', '"userId" = $1', 'owner'],
   ['account', '"userId" = $1', 'owner'], ['drafts', 'attempt_id = ANY($1::uuid[])', 'attempts'],
   ['item_evidence', 'owner_id = $1', 'owner'],
+  ['practice_attempt', 'owner_id = $1', 'owner'],
+  ['practice_playback', 'owner_id = $1', 'owner'], ['practice_playback_event', 'owner_id = $1', 'owner'],
   ['mock_run', 'owner_id = $1', 'owner'], ['mock_run_event', 'owner_id = $1', 'owner'],
   ['listening_playback', 'owner_id = $1', 'owner'], ['listening_playback_event', 'owner_id = $1', 'owner'],
   ['mock_run_time_group', 'owner_id = $1', 'owner'],

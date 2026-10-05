@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createFixture, rolePool } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
@@ -13,6 +14,20 @@ const env = process.env;
 const local = env.OWNAPI_PG_PORT === '62563' && env.OWNAPI_PG_DATABASE === 'hatoove_spike';
 const ci = env.CI === 'true' && env.GITHUB_ACTIONS === 'true' && env.OWNAPI_PG_PORT === '5432' && env.OWNAPI_PG_DATABASE === 'hatoove_ci';
 if (env.OWNAPI_PG_ALLOW !== '1' || env.OWNAPI_PG_HOST !== '127.0.0.1' || (!local && !ci)) throw Error('registration_language_fixture_refused');
+/*
+ * The fixture stops before `0039-`, so the remainder it must apply is "every migration from 0039 on".
+ * That expectation is taken from `MANIFEST.json`, NOT from the same directory listing the fixture itself uses:
+ * reading the same source with the same filter on both sides makes the assertion a tautology that can never
+ * fail - which is exactly what the first version of this fix did. The manifest is an independent pinned record
+ * of which migrations exist and what their digests are, so comparing against it still proves the forward
+ * migrations applied in order, with none missing and none invented.
+ */
+const migrationsDir = new URL('../server/migrations/', import.meta.url);
+const migrationManifest = JSON.parse(readFileSync(new URL('MANIFEST.json', migrationsDir), 'utf8'));
+const expectedRemainder = Object.keys(migrationManifest.migrations)
+  .filter(name => name >= '0039-')
+  .sort()
+  .map(name => name + '.sql');
 
 let db, world, concurrentPool, observer, passed = 0;
 const check = async (name, work) => { await work(); passed++; console.log('PASS ' + name); };
@@ -80,7 +95,7 @@ try {
   await sql("UPDATE learner_settings SET exam_date = '2026-12-03' WHERE user_id = $1", [legacy.id]);
   const prior = (await sql('SELECT * FROM learner_settings ORDER BY user_id')).rows;
   await check('forward migration leaves existing preferences and absent rows byte-for-byte unchanged', async () => {
-    assert.deepEqual(await db.applyRemaining(), ['0039-registration-language.sql','0040-explanation-review.sql','0041-objective-answer-reveal.sql']);
+    assert.deepEqual(await db.applyRemaining(), expectedRemainder);
     assert.deepEqual((await sql('SELECT * FROM learner_settings ORDER BY user_id')).rows, prior);
     assert.equal((await sql('SELECT count(*)::int n FROM learner_settings WHERE user_id = $1', [missing.id])).rows[0].n, 0);
   });

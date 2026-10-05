@@ -57,6 +57,55 @@ const PART_OF = (family) => Number((family.match(/([0-9]+)$/) || [])[1] || 0);
 const sqlText = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const sqlJson = (value) => `${sqlText(JSON.stringify(value))}::jsonb`;
 
+/*
+ * THE SOURCE RECORD IS PLATFORM-DEPENDENT, AND `--check` MUST NOT BE.
+ *
+ * A generated migration records `-- Source: <file> (sha256 <digest>)`, and the digest is taken over the
+ * source bytes AS CHECKED OUT. Neither `data/seed.json` nor `content/pool-01/batch-1.json` carries an `eol`
+ * attribute, so git checks them out CRLF on Windows (`core.autocrlf=true`) and LF everywhere else: the SAME
+ * content has two legitimate digests, and a committed migration can only record the one its generating
+ * platform produced. Measured on 5 October 2026 (POOL-01-CI-01):
+ *
+ *   data/seed.json                   CRLF 93,292 B -> ef26279d…   LF 91,372 B -> 40a0a066…
+ *   content/pool-01/batch-1.json     CRLF 25,114 B -> 45e361a1…   LF 24,774 B -> f39498a1…
+ *
+ * `0010` records ef26279d… and `0047` records 45e361a1… — both the Windows forms. A literal compare
+ * therefore made `--check` a Windows-only gate: on the ubuntu checkout the regenerated text carried the LF
+ * digest, the comparison failed, and CI reported legs 4 and 5 red while the same tree was green on Windows.
+ * The migration BYTES are not the problem: `0010` and `0047` hash identically in both checkouts and the
+ * MANIFEST line matches `0047`'s bytes on both.
+ *
+ * So the comparison canonicalises that ONE recorded token — and only when the value it holds is the digest of
+ * the source file in THIS checkout, in either byte form. A stale record, a hand-edited digest, or a source
+ * that genuinely moved matches neither form and still fails; the accepted set is computed from the file on
+ * disk at comparison time, never from a table of blessed values.
+ *
+ * EXPORTED so the check uses THIS rule rather than a second copy of it (N5): a generator and its checker
+ * that each implement the rule can drift, and a drifted pair is how a gate stops meaning anything. The
+ * root cause is still open and is a `.gitattributes` question, not a code one: neither JSON source carries
+ * an `eol` attribute, so the digest a batch records depends on the platform that built it. Proposed, not
+ * applied: `data/seed.json text eol=lf` and `content/pool-01/*.json text eol=lf`. That changes how those
+ * files are CHECKED OUT (and therefore the digest this rule must accept), so the Lead decides it.
+ */
+export function legitimateSourceDigests(file) {
+  const raw = readFileSync(file);
+  const lf = Buffer.from(String(raw).replace(/\r\n/g, '\n'), 'utf8');
+  const crlf = Buffer.from(String(lf).replace(/\n/g, '\r\n'), 'utf8');
+  return new Set([raw, lf, crlf].map((buffer) => createHash('sha256').update(buffer).digest('hex')));
+}
+/*
+ * The record line is INDENTED inside the generated SQL header (`    -- Source: … (sha256 …)`), so the pattern
+ * allows leading and trailing blanks and nothing else: a line that is not exactly this shape is left alone and
+ * therefore still fails a comparison.
+ */
+const SOURCE_RECORD = /^([ \t]*-- Source: .*\(sha256 )([0-9a-f]{64})(\)[ \t]*)$/m;
+/** Replace the record's digest with a placeholder when it is a legitimate digest of `file`, else leave it.
+ *  Exported for `tools/pool-01-check.mjs` so the builder and its checker share ONE implementation (N5). */
+export function canonicalSourceRecord(text, file) {
+  const allowed = legitimateSourceDigests(file);
+  return text.replace(SOURCE_RECORD, (whole, head, hex, tail) => (allowed.has(hex) ? `${head}<source>${tail}` : whole));
+}
+
 /**
  * Split one authored set into the learner-facing payload and the secret key side.
  * Answers are collected by item id so the key is addressable per item (`texts[0].answer` -> `1`).
@@ -90,6 +139,230 @@ function splitSet(family, set) {
     });
   }
   return { payload, answers, explanations, transcript: transcripts.join('\n\n') || null };
+}
+
+/* ============================================================================ batch mode
+ *
+ * POOL-01 (task-37). A later batch of authored sets cannot be appended to `data/seed.json`: this builder
+ * regenerates the WHOLE of migration `0010` from that file, and `0010` is APPLIED with a frozen MANIFEST
+ * sha256 — appending there would either rewrite an applied migration or leave it silently stale. So a batch
+ * gets its OWN authored source and its OWN forward migration, generated HERE, through the SAME `splitSet`
+ * above: one implementation of the split rule, not two.
+ *
+ *   node tools/build-objective-migration.mjs --batch <file> --out <migration>            write it
+ *   node tools/build-objective-migration.mjs --batch <file> --out <migration> --check    verify it
+ *
+ * The batch source is `{ batch, exam_id, sets: [{ set_id, family, release, ...authored set }] }`. `release`
+ * is `released` (imported by this migration) or `held` (authored, shape-validated, deliberately NOT
+ * imported — POOL-01's listening sets wait for the media bind-mount fix, because a set whose audio cannot
+ * play must not enter the pool). A held set proves its shape by being generated here and compared, and by
+ * `tools/pool-01-check.mjs` normalising it; it contributes NO rows until it is flipped to `released` and a
+ * new forward migration is cut.
+ *
+ * Default behaviour (no `--batch`) is unchanged, and `--check` without `--batch` still verifies `0010` byte
+ * for byte against `data/seed.json`.
+ */
+const argValue = (name) => {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : null;
+};
+
+/**
+ * The rights decision recorded with every imported content row.
+ *
+ * WHO DECIDES. The basis for Hatoove's own content is the product owner's standing decision (D1, 2 October
+ * 2026, recorded by migration `0020` and carried into batch authoring by contract A11(a)): original content
+ * written for Hatoove, no third-party item bank, basis `generated`. This is a PROVENANCE record, not a review
+ * or an exam-validity claim — the sets stay `unreviewed`. The note names this batch, so the ledger says which
+ * content the decision covers and how it was applied.
+ */
+const BATCH_RIGHTS = Object.freeze({
+  decidedBy: 'Ron (product owner); standing D1 basis applied by POOL-01 task-37',
+  note: 'Original content authored for Hatoove (no third-party item bank, no published material reproduced); POOL-01 batch 1, task-37, 5 October 2026. Source:',
+});
+
+/** One batch set's rows, through the SAME split the corpus uses. */
+function batchRows(batch, batchPath, indexInFamily) {
+  const family = batch.family;
+  if (typeof family !== 'string' || !/^[A-Z]{2}[0-9]$/.test(family)) throw new Error(`invalid family: ${String(family)}`);
+  const setId = batch.set_id;
+  if (typeof setId !== 'string' || !setId.startsWith(`${EXAM_ID}.${family.toLowerCase()}.`)) {
+    throw new Error(`set_id must start with ${EXAM_ID}.${family.toLowerCase()}. — got ${String(setId)}`);
+  }
+  const release = batch.release;
+  if (release !== 'released' && release !== 'held') throw new Error(`${setId}: release must be 'released' or 'held'`);
+  const authored = { ...batch };
+  delete authored.set_id;
+  delete authored.family;
+  delete authored.release;
+  const { payload, answers, explanations, transcript } = splitSet(family, authored);
+  const itemCount = Object.keys(answers).length;
+  if (!itemCount) throw new Error(`${setId}: no answers extracted`);
+  if (MEDIA_FAMILIES.has(family) && !transcript) throw new Error(`${setId}: a listening set must carry a script`);
+  const version = 'v1';
+  const contentVersionId = `${setId}@${version}`;
+  const setDigest = createHash('sha256').update(JSON.stringify(authored)).digest('hex');
+  const relativeSource = `${path.relative(ROOT, batchPath).replaceAll('\\', '/')}#${family}[${indexInFamily}]`;
+  return {
+    release,
+    row: {
+      content: `    (${sqlText(contentVersionId)}, 'task', ${sqlText(SECTION_OF(family).toLowerCase())}, ${sqlText(relativeSource)}, 'unreviewed', 'unknown', ${sqlText(setDigest)}, ${sqlText(EXAM_ID)})`,
+      /* A CONTENT ROW WITHOUT A RIGHTS DECISION IS INVISIBLE, not merely ungated: the serving policy allows
+         only generated/licensed/commissioned, so a row that falls through to its seed-time value 'unknown'
+         fails closed and the set never reaches a learner (0020; tools/content-rights-check.mjs leg 1). The
+         batch therefore records the decision with the row, exactly as 0020 did for the seeded corpus. */
+      rights: `    (${sqlText(contentVersionId)}, 'generated', ${sqlText(BATCH_RIGHTS.decidedBy)}, ${sqlText(`${BATCH_RIGHTS.note} ${relativeSource}.`)})`,
+      set: `    (${[
+        sqlText(setId), sqlText(version), sqlText(EXAM_ID), sqlText(family),
+        sqlText(SECTION_OF(family)), String(PART_OF(family)),
+        sqlText(authored.title || setId),
+        sqlJson(payload), String(itemCount), MEDIA_FAMILIES.has(family) ? 'true' : 'false',
+        sqlText(contentVersionId),
+      ].join(', ')})`,
+      key: `    (${[
+        sqlText(setId), sqlText(version), sqlJson(answers), sqlJson(explanations),
+        transcript === null ? 'NULL' : sqlText(transcript),
+      ].join(', ')})`,
+    },
+  };
+}
+
+function buildBatch(batchPath, batchSource) {
+  if (!Array.isArray(batchSource.sets) || !batchSource.sets.length) throw new Error('the batch source carries no sets');
+  const seen = new Set();
+  const seenIds = new Set();
+  const families = new Map();
+  const content = [];
+  const rights = [];
+  const sets = [];
+  const keys = [];
+  const held = [];
+  for (const entry of batchSource.sets) {
+    const family = entry?.family;
+    const indexInFamily = families.get(family) ?? 0;
+    families.set(family, indexInFamily + 1);
+    if (seenIds.has(entry?.set_id)) throw new Error(`duplicate set_id in the batch source: ${String(entry?.set_id)}`);
+    seenIds.add(entry?.set_id);
+    const { release, row } = batchRows(entry, batchPath, indexInFamily);
+    if (release === 'held') { held.push(`${entry.set_id} (${family})`); continue; }
+    seen.add(family);
+    content.push(row.content);
+    rights.push(row.rights);
+    sets.push(row.set);
+    keys.push(row.key);
+  }
+  if (!sets.length) throw new Error('the batch source releases no set at all');
+  const batchDigest = createHash('sha256').update(readFileSync(batchPath)).digest('hex');
+  const sql = `
+    -- POOL-01 (MIRROR-B1PREP-01, task-37) — batch 1 of the prioritised top-up, GENERATED from
+    -- ${path.relative(ROOT, batchPath).replaceAll('\\', '/')}.
+    --
+    -- DO NOT EDIT THIS FILE BY HAND. Run:
+    --   node tools/build-objective-migration.mjs --batch ${path.relative(ROOT, batchPath).replaceAll('\\', '/')} --out <this file>
+    -- and \`--check\` fails if this file and the source disagree.
+    --
+    -- Source: ${path.relative(ROOT, batchPath).replaceAll('\\', '/')} (sha256 ${batchDigest})
+    -- Batch: ${String(batchSource.batch ?? 'unnamed')} — authored for Hatoove, every set 'unreviewed'.
+    ${batchSource.apply_hold ? `
+    -- ############################################################################
+    -- # HELD FROM APPLY: ${String(batchSource.apply_hold)}
+    -- # The SQL below is COMPLETE and idempotent; this marker is procedural. An applied migration cannot be
+    -- # withdrawn, so it is released only when the condition above is met. Remove it by clearing \`apply_hold\`
+    -- # in the batch source and regenerating — the marker is data, and \`--check\` fails if the two disagree.
+    -- ############################################################################` : ''}
+    ${batchSource.key_fix_pending ? `
+    -- ############################################################################
+    -- # CONTENT DECISION PENDING: ${String(batchSource.key_fix_pending.set_id ?? 'a set')} item
+    -- # ${String(batchSource.key_fix_pending.text_id ?? '?')} is DISPUTED — the product owner's words:
+    -- # "${String(batchSource.key_fix_pending.ron ?? '')}". The authored key is still in the rows below and
+    -- # must NOT be applied before he confirms the replacement. The proposal, the mechanical shape check and
+    -- # the second pass over the other keys are in the batch source (\`key_fix_pending\`) and in
+    -- # work/implementation/POOL-01-BATCH-1.md §2.
+    -- ############################################################################` : ''}
+    ${Array.isArray(batchSource.content_decisions) && batchSource.content_decisions.length ? `
+    -- CONTENT DECISIONS CONFIRMED (the product owner, relayed by the Lead):
+${batchSource.content_decisions.map((decision) => {
+  const parts = [`item ${String(decision.text_id ?? '?')} -> headline ${String(decision.confirmed_answer ?? '?')}`];
+  if (decision.headline_text && decision.previous_headline_text) {
+    parts.push(`headline ${String(decision.confirmed_answer)} is reworded to "${String(decision.headline_text)}" (was "${String(decision.previous_headline_text)}")`);
+  }
+  return `    --   ${String(decision.set_id ?? decision.label ?? '?')}: ${parts.join('; ')}`;
+}).join('\n')}` : ''}
+    --
+    -- WHY A SECOND MIGRATION AND NOT AN EDIT OF 0010. 0010 is applied in every installation and its bytes
+    -- are pinned in MANIFEST.json; a batch is a FORWARD change. This file inserts only its own rows and
+    -- nothing else, so applying it to a database that already carries 0010 (or to an empty one) is the
+    -- same operation.
+    ${held.length ? `
+    -- HELD, and deliberately NOT inserted: ${held.join(', ')}.
+    -- Their scripts and items are authored and validated (tools/pool-01-check.mjs normalises every one of
+    -- them), but a listening set whose audio cannot play must not enter the pool, so they wait for the media
+    -- bind-mount fix (task-36). Releasing one is a one-word edit to its \`release\` marker in the source plus a
+    -- new forward migration from this same command.` : ''}
+    INSERT INTO "__SCHEMA__".content_version
+      (content_version_id, kind, family, source_path, review_status, rights_status, content_sha256, exam_id)
+    VALUES
+${content.join(',\n')}
+    ON CONFLICT (content_version_id) DO NOTHING;
+
+    -- The rights decision that goes WITH the row. Without it the serving policy fails closed ('unknown' can
+    -- never be opted in) and the set would sit in the catalogue, invisible: 0020 records one decision per
+    -- content version, and tools/content-rights-check.mjs asserts the invariant.
+    INSERT INTO "__SCHEMA__".content_rights (content_version_id, basis, decided_by, note)
+    VALUES
+${rights.join(',\n')}
+    ON CONFLICT (content_version_id) DO NOTHING;
+
+    INSERT INTO "__SCHEMA__".objective_set
+      (set_id, version, exam_id, family, section, part, title, payload, item_count, media_required, content_version_id)
+    VALUES
+${sets.join(',\n')}
+    ON CONFLICT (set_id, version) DO NOTHING;
+
+    INSERT INTO "__SCHEMA__".objective_key
+      (set_id, version, answers, explanations, transcript)
+    VALUES
+${keys.join(',\n')}
+    ON CONFLICT (set_id, version) DO NOTHING;
+`;
+  return { sql, released: sets.length, held, families: [...seen].sort() };
+}
+
+/*
+ * CLI BODY, GUARDED (N5). This module is both a generator and a library: `tools/pool-01-check.mjs` imports
+ * the source-record rule from it, and an unguarded import would RUN the generator — printing the census and,
+ * in the write path below, rewriting the committed `0010-objective-catalogue.sql` as a side effect of a
+ * CHECK. The bytes happen to be identical while the tree is consistent, which is exactly why the hazard is
+ * worth removing rather than noticing later.
+ */
+const isCli = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isCli) {
+const batchArg = argValue('--batch');
+if (batchArg) {
+  const batchPath = path.resolve(ROOT, batchArg);
+  const outArg = argValue('--out');
+  if (!outArg) { console.error('batch mode needs --out <migration file>'); process.exit(2); }
+  const outPath = path.resolve(ROOT, outArg);
+  const batchSource = JSON.parse(readFileSync(batchPath, 'utf8'));
+  const { sql: batchText, released, held, families } = buildBatch(batchPath, batchSource);
+  if (process.argv.includes('--check')) {
+    const current = existsSync(outPath) ? readFileSync(outPath, 'utf8') : '';
+    // Every byte must match except the platform-dependent source record (see legitimateSourceDigests above).
+    if (canonicalSourceRecord(current, batchPath) !== canonicalSourceRecord(batchText, batchPath)) {
+      console.error(`objective-batch: FAILED ${path.relative(ROOT, outPath)} differs from ${path.relative(ROOT, batchPath)}`);
+      console.error(`  run: node tools/build-objective-migration.mjs --batch ${batchArg} --out ${outArg}`);
+      process.exit(1);
+    }
+    console.log(`objective-batch: OK ${path.relative(ROOT, outPath)} matches ${path.relative(ROOT, batchPath)}`);
+    console.log(`  released sets: ${released} (${families.join(', ')}); held: ${held.length}${held.length ? ' — ' + held.join(', ') : ''}`);
+    process.exit(0);
+  }
+  writeFileSync(outPath, batchText);
+  console.log(`objective-batch: wrote ${path.relative(ROOT, outPath)}`);
+  console.log(`  released sets : ${released} (${families.join(', ')})`);
+  console.log(`  held sets     : ${held.length}${held.length ? ' — ' + held.join(', ') : ''}`);
+  process.exit(0);
 }
 
 const source = JSON.parse(readFileSync(SOURCE, 'utf8'));
@@ -213,7 +486,8 @@ ${keyRows.join(',\n')}
 
 if (process.argv.includes('--check')) {
   const current = existsSync(TARGET) ? readFileSync(TARGET, 'utf8') : '';
-  if (current !== sql) {
+  // Every byte must match except the platform-dependent source record (see legitimateSourceDigests above).
+  if (canonicalSourceRecord(current, SOURCE) !== canonicalSourceRecord(sql, SOURCE)) {
     console.error('objective-seed: FAILED the generated migration differs from data/seed.json');
     console.error('  run: node tools/build-objective-migration.mjs');
     process.exit(1);
@@ -235,3 +509,4 @@ console.log(`  answers extracted: ${totalAnswers}`);
 console.log(`  key rows         : ${keyRows.length}`);
 console.log(`  media-gated      : ${totalTranscripts} set(s) carry a transcript, so HV is withheld until audio exists`);
 console.log(`  source sha256    : ${sourceDigest}`);
+} /* end of the guarded CLI body */

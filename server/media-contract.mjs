@@ -7,7 +7,27 @@ import { fileURLToPath } from 'node:url';
 
 export const MAX_MEDIA_BYTES = 32 * 1024 * 1024;
 export const MAX_MEDIA_DURATION_MS = 3600000;
-const DEFAULT_ROOT = fileURLToPath(new URL('../content/exams/', import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL('../content/exams/', import.meta.url));
+
+/**
+ * MEDIA-MOUNT-01 — WHERE THE RECORDINGS COME FROM IS CONFIGURABLE.
+ *
+ * The nine recordings are TRACKED in this repository (A12(1), 5 Oct 2026: plain, 43.89 MB, sha256-matching
+ * the package's `media` rows), so the DEFAULT root is the tracked `content/exams/` tree that the image also
+ * carries: a clean clone and a production image work with no environment variable and no host folder.
+ * `B1PREP_MEDIA_ROOT` is an OPT-IN OVERRIDE for an operator serving audio from a mounted host directory
+ * (`compose.yaml` mounts `${HATOVE_AUDIO_ROOT:-./content/exams}`), so new audio can be exercised without a
+ * rebuild. When the override is set and incomplete, `tools/media-mount-check.mjs` fails loudly naming every
+ * missing file; the default path never depends on the host.
+ *
+ * Resolved PER CALL, not at module load: `server.js` reads `.env` after its static imports are evaluated, so a
+ * value captured at import time would miss `.env` and silently fall back to the repo path.
+ */
+export function defaultMediaRoot() {
+  const configured = process.env.B1PREP_MEDIA_ROOT;
+  return configured && configured.trim() ? path.resolve(configured.trim()) : REPO_ROOT;
+}
+
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const VERSION = /^v[0-9]{1,4}$/;
 const fail = (code, message) => { const error = new Error(message); error.code = code; throw error; };
@@ -58,7 +78,8 @@ export function parsePcmWav(bytes) {
 }
 
 /** Reads exact immutable bytes. Errors intentionally omit physical paths and OS messages. */
-export async function readMediaBytes(media, {mediaRoot = DEFAULT_ROOT} = {}) {
+export async function readMediaBytes(media, { mediaRoot } = {}) {
+  mediaRoot = mediaRoot ?? defaultMediaRoot();
   if (!media || !safePath(media.path) || typeof mediaRoot !== 'string' || !path.isAbsolute(mediaRoot)) fail('media_unavailable','Private media unavailable');
   const byteLength = media.byte_length ?? media.byteLength, durationMs = media.duration_ms ?? media.durationMs, mimeType = media.mime_type ?? media.mimeType;
   if (!Number.isSafeInteger(byteLength) || byteLength < 44 || byteLength > MAX_MEDIA_BYTES || !Number.isSafeInteger(durationMs) ||

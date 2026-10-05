@@ -309,6 +309,209 @@ const rows = {
   ui71: ["Hinweise zur Struktur","Structure notes","Пояснення структури","ملاحظات البنية","Yapı notları"],
   ui72: ["Es wurden nur die ersten 24 Satzteile untersucht.","Only the first 24 clauses were examined.","Проаналізовано лише перші 24 частини речень.","تم فحص أول 24 جزءًا من الجمل فقط.","Yalnızca ilk 24 cümlecik incelendi."],
   ui73: ["Kein Hinweis aus den bekannten Mustern. Das bestätigt nicht, dass der Satz grammatisch richtig ist.","No note from the known patterns. This does not confirm that the sentence is grammatically correct.","Відомі шаблони не дали підказок. Це не підтверджує граматичної правильності речення.","لا توجد ملاحظة من الأنماط المعروفة. هذا لا يؤكد صحة الجملة نحويًا.","Bilinen kalıplardan bir not yok. Bu, cümlenin dil bilgisi bakımından doğru olduğunu doğrulamaz."],
+  /*
+   * MOCK-01 (MIRROR-B1PREP-01 slice D) — the Probeprüfung intro.
+   *
+   * The written mock exam is 90 + 30 + 30 minutes and 105 + 75 + 45 = 225 of the 300 points of the whole
+   * exam (docs/exam/TELC-B1-SOURCES.md §4, and the canonical `timeGroups` in content/exams/telc-deutsch-b1).
+   * The official threshold is 60 % in the written AND in the oral part separately — a fact about the exam,
+   * never a statement about this learner (D22). No key below names a forecast, a probability or readiness.
+   */
+  mockIntroTitle: ["Schriftliche Probeprüfung","Written mock exam","Письмовий пробний іспит","امتحان كتابي تجريبي","Yazılı deneme sınavı"],
+  mockIntroLead: ["Diese Probeprüfung bildet die schriftlichen Prüfungsteile unter Zeitbedingungen ab. Sie läuft in festen Abschnitten ohne Pause.","This mock exam reproduces the written parts under exam timing. It runs in fixed sections without a pause.","Цей пробний іспит відтворює письмові частини в умовах іспиту. Він триває фіксованими розділами без паузи.","يحاكي هذا الامتحان التجريبي الأجزاء الكتابية ضمن ظروف زمنية. ويسير في أقسام ثابتة دون توقف.","Bu deneme sınavı yazılı bölümleri sınav koşullarında uygular. Sabit bölümler hâlinde ara vermeden ilerler."],
+  mockIntroBlocks: ["Ablauf und Punkte","Schedule and points","Розклад і бали","الجدول الزمني والنقاط","Zaman çizelgesi ve puanlar"],
+  mockIntroColPart: ["Prüfungsteil","Exam part","Частина іспиту","جزء الامتحان","Sınav bölümü"],
+  mockIntroColTime: ["Dauer","Duration","Тривалість","المدة","Süre"],
+  mockIntroColPoints: ["Punkte","Points","Бали","النقاط","Puan"],
+  mockIntroBlockWritten: ["Leseverstehen + Sprachbausteine","Reading + Language elements","Читання + Мовні елементи","القراءة + العناصر اللغوية","Okuma + Dil öğeleri"],
+  mockIntroBlockListening: ["Hörverstehen","Listening","Аудіювання","الاستماع","Dinleme"],
+  mockIntroBlockWriting: ["Schreiben","Writing","Письмо","الكتابة","Yazma"],
+  mockIntroBlockTotal: ["Schriftliche Prüfung","Written exam","Письмовий іспит","الامتحان الكتابي","Yazılı sınav"],
+  mockIntroTotalNote: ["{written} von {total} Punkten der Gesamtprüfung entfallen auf die schriftliche Prüfung; die mündliche Prüfung trägt {oral} Punkte bei.","{written} of {total} points of the whole exam are in the written part; the oral part contributes {oral} points.","{written} з {total} балів усього іспиту припадає на письмову частину; усна частина додає {oral} балів.","{written} من {total} نقطة للامتحان كاملًا تقع في الجزء الكتابي؛ ويسهم الجزء الشفهي بـ {oral} نقطة.","Tüm sınavın {total} puanından {written} puanı yazılı bölüme aittir; sözlü bölüm {oral} puan katkı sağlar."],
+  mockIntroRuleTitle: ["Offizielle Regel","Official rule","Офіційне правило","القاعدة الرسمية","Resmî kural"],
+  mockIntroRule: ["Offiziell gilt: Um die Prüfung zu bestehen, müssen im schriftlichen und im mündlichen Prüfungsteil jeweils mindestens 60 % der möglichen Höchstpunktzahl erreicht werden. Das sind 135 von 225 Punkten im schriftlichen und 45 von 75 Punkten im mündlichen Prüfungsteil.","Officially, passing the exam requires at least 60 % of the maximum points in the written part and in the oral part separately. That is 135 of 225 points in the written part and 45 of 75 points in the oral part.","Офіційно для складання іспиту потрібно набрати щонайменше 60 % максимальної кількості балів окремо в письмовій і в усній частині. Це 135 з 225 балів у письмовій частині та 45 з 75 балів в усній частині.","رسميًا يتطلب النجاح في الامتحان تحقيق 60 % على الأقل من الدرجة العليا في الجزء الكتابي والجزء الشفهي كلٌّ على حدة. أي 135 من 225 نقطة في الجزء الكتابي و45 من 75 نقطة في الجزء الشفهي.","Resmî olarak sınavı geçmek için yazılı ve sözlü bölümlerin her birinde en az % 60 oranında azami puan alınması gerekir. Bu, yazılı bölümde 225 puanın 135'i, sözlü bölümde ise 75 puanın 45'idir."],
+  mockIntroOral: ["Sprechen ist nicht Teil dieser Probeprüfung. Deshalb zeigt sie nur das schriftliche Teilergebnis; daraus ergibt sich kein Urteil über die ganze Prüfung.","Speaking is not part of this mock exam. It therefore shows only the written partial result; no verdict on the whole exam follows from it.","Усна частина (Sprechen) не входить до цього пробного іспиту. Тому він показує лише письмовий частковий результат; жодного висновку про весь іспит із нього не випливає.","لا يشمل هذا الامتحان التجريبي جزء التحدث. لذلك يعرض النتيجة الجزئية الكتابية فقط؛ ولا ينتج عن ذلك حكم على الامتحان كاملًا.","Sprechen (sözlü bölüm) bu deneme sınavının parçası değildir. Bu nedenle yalnızca yazılı kısmi sonucu gösterir; bundan tüm sınav hakkında bir yargı çıkmaz."],
+  mockIntroStartFailed: ["Der Lauf konnte nicht angelegt werden. Bitte versuchen Sie es erneut.","The run could not be created. Please try again.","Не вдалося створити спробу. Спробуйте ще раз.","تعذر إنشاء المحاولة. حاول مجددًا.","Deneme oluşturulamadı. Lütfen yeniden deneyin."],
+  mockIntroStartSession: ["Die Sitzung ist nicht mehr gültig. Bitte melden Sie sich erneut an.","The session is no longer valid. Please sign in again.","Сеанс більше не дійсний. Увійдіть знову.","لم تعد الجلسة صالحة. يرجى تسجيل الدخول من جديد.","Oturum artık geçerli değil. Lütfen yeniden giriş yapın."],
+  /*
+   * PRACTICE-UI-01 (slice B) — the Prüfungsteile tile index. Learner-facing copy only: the exam facts
+   * (items, points, play rule, own counts) arrive as data and are never written into a catalogue string.
+   * `partIndexPending` is the placeholder for a fact the payload did not supply — deliberately not a zero,
+   * so an unknown number can never be read as "nothing to practise".
+   */
+  partIndexTitle: ["Prüfungsteile und Punkte","Exam parts and points","Частини іспиту та бали","أجزاء الامتحان والنقاط","Sınav bölümleri ve puanlar"],
+  partIndexListeningTitle: ["Hörverstehen","Listening","Аудіювання","الاستماع","Dinleme"],
+  partIndexLead: ["Die schriftlichen Prüfungsteile mit ihren Punkten und Zeiten. Bei jedem Teil stehen Ihre eigenen Übungszahlen.","The written exam parts with their points and times. Each part shows your own practice counts.","Письмові частини іспиту з балами та часом. Біля кожної частини — ваші власні показники практики.","الأجزاء الكتابية للامتحان مع نقاطها وأوقاتها. تظهر عند كل جزء أعداد تدريبك الخاصة.","Yazılı sınav bölümleri puanları ve süreleriyle. Her bölümde kendi alıştırma sayılarınız görünür."],
+  partIndexSubtests: ["Prüfungsteile","Exam parts","Частини іспиту","أجزاء الامتحان","Sınav bölümleri"],
+  partIndexParts: ["Teile mit verfügbaren Aufgaben","Parts with available tasks","Частини з доступними завданнями","الأجزاء التي تتوفر لها مهام","Görevleri bulunan bölümler"],
+  partIndexListeningParts: ["Hörteile mit verfügbaren Aufgaben","Listening parts with available tasks","Частини аудіювання з доступними завданнями","أجزاء الاستماع التي تتوفر لها مهام","Görevleri bulunan dinleme bölümleri"],
+  partIndexEmpty: ["Zurzeit sind keine Aufgaben verfügbar.","No tasks are available at the moment.","Наразі завдання недоступні.","لا تتوفر مهام حاليًا.","Şu anda görev yok."],
+  partIndexFailed: ["Die Prüfungsteile konnten nicht geladen werden. Bitte laden Sie die Ansicht erneut.","The exam parts could not be loaded. Please reload the view.","Не вдалося завантажити частини іспиту. Перезавантажте сторінку.","تعذر تحميل أجزاء الامتحان. يرجى إعادة تحميل العرض.","Sınav bölümleri yüklenemedi. Lütfen görünümü yeniden yükleyin."],
+  partIndexPending: ["Angabe folgt","Not yet available","Дані відсутні","البيان غير متاح","Bilgi yok"],
+  partIndexPoints: ["Punkte","Points","Бали","النقاط","Puan"],
+  partIndexOpen: ["Teil öffnen","Open part","Відкрити частину","افتح الجزء","Bölümü aç"],
+  partIndexSharedBlock: ["gemeinsamer Zeitblock","shared time block","спільний часовий блок","كتلة زمنية مشتركة","ortak süre bloğu"],
+  partPlays: ["{plays}-mal hören","listen {plays} time(s)","слухати {plays} раз(и)","الاستماع {plays} مرة","{plays} kez dinleme"],
+  partPractised: ["{practised} Aufgaben geübt · {correct} richtig","{practised} tasks practised · {correct} correct","{practised} завдань виконано · {correct} правильно","{practised} مهمة متدرَّبة · {correct} صحيحة","{practised} görev çalışıldı · {correct} doğru"],
+  partNotPractised: ["Noch keine Aufgaben geübt","No tasks practised yet","Ще немає виконаних завдань","لم يتم تدريب أي مهمة بعد","Henüz görev çalışılmadı"],
+  /*
+   * MIRROR-B1PREP-01 slice E/F — the Nachschlagen library. The guides themselves stay in German
+   * (authored exam material); these are INTERFACE labels only, so they carry all five locales and the
+   * formal address. `{count}` is always filled from the served payload, never hard-coded in markup.
+   *
+   * Reused shell keys rather than copies: m010 (Nachschlagen), m057 (loading), m061 (Teil),
+   * m069/m075/m076 (failure and empty states), m070/m071 (nothing found), m077 (open), m079-m090
+   * (section kinds and the unreviewed note), m091 (the single "translation not available" note),
+   * m267/m268/m278/m282/m283/m288 (rule, rules, meaning, article, plural, exceptions),
+   * m272 (watch out), m337 (search), m340 (hub subtitle).
+   */
+  libraryAreasCount: ["{count} Bereiche · alles zum Lesen, nichts wird abgefragt","{count} areas · everything to read, nothing is tested","{count} розділів · усе для читання, без перевірки знань","{count} أقسام · كل شيء للقراءة، دون اختبار","{count} alan · okumak için her şey, sınav yok"],
+  libraryPill: ["Nachschlagen, nicht abgefragt","Reference only, not tested","Довідка, без перевірки","للاطلاع فقط، دون اختبار","Yalnızca başvuru, sınav yok"],
+  libraryJump: ["Direkt zu einem Abschnitt","Jump to a section","Перейти до розділу","الانتقال إلى قسم","Bir bölüme git"],
+  libraryMachineTranslated: ["maschinell übersetzt · Prüfung ausstehend","machine translated · review pending","перекладено машинно · перевірка очікується","ترجمة آلية · المراجعة معلّقة","makine çevirisi · inceleme bekliyor"],
+  libraryCountParts: ["{count} Teile","{count} parts","{count} частин","{count} أجزاء","{count} bölüm"],
+  libraryCountTopics: ["{count} Themen","{count} topics","{count} тем","{count} موضوعات","{count} konu"],
+  libraryCountEntries: ["{count} Einträge","{count} entries","{count} записів","{count} مدخلات","{count} kayıt"],
+  libraryCountNouns: ["{count} Nomen","{count} nouns","{count} іменників","{count} اسمًا","{count} isim"],
+  libraryTool: ["Werkzeug","Tool","Інструмент","أداة","Araç"],
+  libraryAllGenders: ["Alle","All","Усі","الكل","Tümü"],
+  libraryShown: ["{count} angezeigt","{count} shown","Показано: {count}","المعروض: {count}","{count} gösteriliyor"],
+  libraryPartial: ["Nicht alle Einträge passen in eine Liste. Grenzen Sie mit Artikel und Suche ein.","Not every entry fits in one list. Narrow it down with article and search.","Не всі записи вміщуються в один список. Уточніть за допомогою артикля й пошуку.","لا تظهر جميع المدخلات في قائمة واحدة. حُدّد النتائج بأداة التعريف والبحث.","Tüm kayıtlar tek listeye sığmaz. Artikel ve aramayla daraltın."],
+  libraryCasesLegend: ["Hervorgehoben: weicht vom Nominativ ab","Highlighted: differs from the nominative","Виділено: відрізняється від називного","مظلّل: يختلف عن حالة الرفع","Vurgulanan: yalın hâlden farklı"],
+  libraryLexicon: ["Nomen-Lexikon","Noun lexicon","Лексикон іменників","معجم الأسماء","İsim sözlüğü"],
+  libraryAreaSpeaking: ["Redemittel Sprechen","Speaking phrases","Звороти для говоріння","عبارات المحادثة","Konuşma kalıpları"],
+  libraryAreaWriting: ["Briefe schreiben","Writing letters","Написання листів","كتابة الرسائل","Mektup yazma"],
+  libraryAreaCases: ["Fälle & Artikel","Cases & articles","Відмінки й артиклі","الحالات وأدوات التعريف","Hâller ve artikeller"],
+  libraryAreaGender: ["Nomen & Genus","Nouns & gender","Іменники й рід","الأسماء والجنس","İsimler ve cinsiyet"],
+  libraryAreaGrammar: ["Grammatik","Grammar","Граматика","القواعد","Dil bilgisi"],
+  libraryAreaSatzbau: ["Satzbau verstehen","Understanding sentence structure","Розуміння будови речення","فهم بنية الجملة","Cümle yapısını anlama"],
+  libraryDescSpeaking: ["Redemittel und Beispielsätze für die mündliche Prüfung.","Phrases and example sentences for the oral exam.","Звороти та приклади речень для усного іспиту.","عبارات وجمل أمثلة للامتحان الشفهي.","Sözlü sınav için kalıplar ve örnek cümleler."],
+  libraryDescWriting: ["Aufbau, Redemittel und Checklisten für formelle Briefe.","Structure, phrases and checklists for formal letters.","Структура, звороти й переліки для офіційних листів.","البنية والعبارات وقوائم التحقّق للرسائل الرسمية.","Resmî mektuplar için yapı, kalıplar ve kontrol listeleri."],
+  libraryDescCases: ["Die vier Fälle mit Artikeln, Tabellen und typischen Auslösern.","The four cases with articles, tables and typical triggers.","Чотири відмінки з артиклями, таблицями та типовими підказками.","الحالات الأربع مع أدوات التعريف والجداول والمحفّزات الشائعة.","Artikeller, tablolar ve tipik tetikleyicilerle dört hâl."],
+  libraryDescGender: ["Regeln, Ausnahmen und das Nomen-Lexikon mit Artikel, Plural und Bedeutung.","Rules, exceptions and the noun lexicon with article, plural and meaning.","Правила, винятки та лексикон іменників з артиклем, множиною та значенням.","القواعد والاستثناءات ومعجم الأسماء مع أداة التعريف والجمع والمعنى.","Kurallar, istisnalar ve artikeli, çoğulu ve anlamıyla isim sözlüğü."],
+  libraryDescGrammar: ["Regeln, Satzmuster und Tabellen zu den wichtigsten Themen.","Rules, sentence patterns and tables for the main topics.","Правила, моделі речень і таблиці з головних тем.","قواعد وأنماط جمل وجداول لأهم الموضوعات.","Önemli konular için kurallar, cümle kalıpları ve tablolar."],
+  libraryDescSatzbau: ["Hauptsatz, Nebensatz und Fragen im bestehenden Werkzeug.","Main clause, subordinate clause and questions in the existing tool.","Головне речення, підрядне речення та питання в наявному інструменті.","الجملة الرئيسية والجملة الفرعية والأسئلة في الأداة الحالية.","Mevcut araçta ana cümle, yan cümle ve sorular."],
+  /* Slice G moved Kerngrammatik and the core phrases out of Nachschlagen; a deep link hands over. */
+  libraryMovedToVocab: ["Diese Sammlung gehört jetzt zu Wortschatz. Dort finden Sie den Prüfungskern mit Grammatik und Redemitteln.","This collection now belongs to Wortschatz. The exam core with grammar and useful phrases is there.","Ця збірка тепер у розділі Wortschatz. Там ядро іспиту з граматикою та мовними зворотами.","هذه المجموعة أصبحت الآن ضمن Wortschatz. هناك جوهر الامتحان مع القواعد والعبارات المفيدة.","Bu koleksiyon artık Wortschatz bölümünde. Sınav çekirdeği dil bilgisi ve kalıp ifadelerle birlikte orada."],
+  /*
+   * LIBRARY-I18N-MARKER (task-30) — a section whose translation the `0043` re-pin dropped and which is
+   * waiting for a human re-translation. Section-scoped on purpose: `shell.m091` says the WHOLE reference
+   * work is untranslated, which would overstate a gap that is 33 paths of 704. This sentence claims
+   * nothing about the rest of the book.
+   */
+  libraryPendingSection: ["Für diesen Abschnitt liegt noch keine Übersetzung vor. Sie sehen die deutsche Fassung.","This section has no translation yet. You are seeing the German text.","Для цього розділу перекладу ще немає. Ви бачите німецький текст.","لا تتوفر ترجمة لهذا القسم بعد. أنت ترى النص الألماني.","Bu bölümün çevirisi henüz yok. Almanca metni görüyorsunuz."],
+  /*
+   * MIRROR-B1PREP-01 slice G (VOCAB-01) — the Wortschatz view. Interface labels only; the corpora stay
+   * German (exam language) and the deck's English gloss is authored content shown on the English page.
+   * Reused rather than copied: shell.m337 (Suche), m385 (the two-character placeholder), m068 (the
+   * minimum), m057 (loading), m070/m071 (nothing found), m087 (Beispiel), m091 (the one German-only
+   * note), m278 (Bedeutung), m283 (Plural), m339 (Nomen), m395 (Wortschatz), and this catalogue's
+   * libraryCountEntries / libraryPill.
+   */
+  vocabIntro: ["Der Prüfungskern zuerst, darunter die Wortliste. Zum Nachschlagen, nicht abgefragt.","The exam core first, then the word list. For reference, not tested.","Спочатку ядро іспиту, далі список слів. Для довідки, без перевірки.","أولاً جوهر الامتحان، ثم قائمة الكلمات. للاطلاع، دون اختبار.","Önce sınav çekirdeği, sonra sözcük listesi. Başvuru için, sınav yok."],
+  vocabCore: ["Prüfungskern","Exam core","Ядро іспиту","جوهر الامتحان","Sınav çekirdeği"],
+  vocabCoreDesc: ["Grammatik und Redemittel, nach Blöcken geordnet. Die Beispiele bleiben deutsch, die Übersetzung steht darunter.","Grammar and useful phrases, arranged in blocks. The examples stay German; the translation sits beneath.","Граматика та мовні звороти, упорядковані за блоками. Приклади залишаються німецькою, переклад — під ними.","القواعد والعبارات المفيدة مرتّبة في مجموعات. تبقى الأمثلة بالألمانية والترجمة تحتها.","Dil bilgisi ve kalıp ifadeler bloklara ayrılmıştır. Örnekler Almanca kalır, çevirisi altındadır."],
+  vocabDeck: ["Wortliste","Word list","Список слів","قائمة الكلمات","Sözcük listesi"],
+  vocabDeckDesc: ["Wörter der Prüfung, nach Wortart geordnet und durchsuchbar.","Exam words, arranged by part of speech and searchable.","Слова іспиту, упорядковані за частинами мови та з пошуком.","كلمات الامتحان مرتّبة حسب نوع الكلمة وقابلة للبحث.","Sınav sözcükleri, sözcük türüne göre düzenli ve aranabilir."],
+  vocabBlocks: ["Blöcke","Blocks","Блоки","المجموعات","Bloklar"],
+  vocabPos: ["Wortart","Part of speech","Частина мови","نوع الكلمة","Sözcük türü"],
+  vocabAll: ["Alle","All","Усі","الكل","Tümü"],
+  vocabPartial: ["Nicht alle Einträge passen in eine Liste. Grenzen Sie mit Wortart und Suche ein.","Not every entry fits in one list. Narrow it down with part of speech and search.","Не всі записи вміщуються в один список. Уточніть за допомогою частини мови й пошуку.","لا تظهر جميع المدخلات في قائمة واحدة. حُدّد النتائج بنوع الكلمة والبحث.","Tüm kayıtlar tek listeye sığmaz. Sözcük türü ve aramayla daraltın."],
+  vocabPosNoun: ["Nomen","Nouns","Іменники","الأسماء","İsimler"],
+  vocabPosVerb: ["Verben","Verbs","Дієслова","الأفعال","Fiiller"],
+  vocabPosAdj: ["Adjektive","Adjectives","Прикметники","الصفات","Sıfatlar"],
+  vocabPosAdv: ["Adverbien","Adverbs","Прислівники","الظروف","Zarflar"],
+  vocabPosPhrase: ["Phrasen","Phrases","Фрази","العبارات","İfadeler"],
+  /* PRACTICE-01 (slice C) — the part runner. Additive only: every key below is new, and none of the
+     existing ones changes. `practiceAllSets` is the A1 wrap copy; the server names exactly this key in
+     `round.notice` (server/practice-sets.mjs), so the client renders the rule's own key rather than a
+     second string that could drift from it. */
+  partRunnerKicker: ["Teilübung · ohne Zeitmessung","Part practice · untimed","Практика частини · без обмеження часу","تدريب الجزء · دون توقيت","Bölüm alıştırması · süresiz"],
+  partRunnerLead: ["Der ganze Teil auf einer Seite. Es gibt keine Zeitmessung; ausgewertet wird einmal am Ende.","The whole part on one page. There is no timer; you evaluate once at the end.","Уся частина на одній сторінці. Таймера немає; оцінювання — один раз наприкінці.","الجزء كامل في صفحة واحدة. لا يوجد مؤقّت، ويتمّ التقييم مرة واحدة في النهاية.","Bölümün tamamı tek sayfada. Süre yok; değerlendirme sonda bir kez yapılır."],
+  partRunnerItem: ["Aufgabe {id}","Task {id}","Завдання {id}","المهمة {id}","Görev {id}"],
+  partRunnerProgress: ["{answered} von {total} beantwortet","{answered} of {total} answered","{answered} з {total} відповідено","تمّت الإجابة عن {answered} من {total}","{total} görevden {answered} yanıtlandı"],
+  partRunnerAnswerAll: ["Bitte beantworten Sie alle Aufgaben.","Please answer every task.","Будь ласка, дайте відповідь на всі завдання.","يرجى الإجابة عن جميع المهام.","Lütfen tüm görevleri yanıtlayın."],
+  partRunnerEvaluate: ["Auswerten","Evaluate","Оцінити","تقييم","Değerlendir"],
+  partRunnerEvaluating: ["Wird ausgewertet …","Evaluating …","Оцінювання …","جارٍ التقييم …","Değerlendiriliyor …"],
+  partRunnerResult: ["{correct} von {total} richtig","{correct} of {total} correct","Правильно {correct} з {total}","{correct} من {total} صحيحة","{total} görevden {correct} doğru"],
+  partRunnerYourPick: ["Ihre Wahl","Your choice","Ваш вибір","اختيارك","Seçiminiz"],
+  partRunnerKey: ["Lösung","Key","Правильна відповідь","الإجابة الصحيحة","Doğru yanıt"],
+  partRunnerCorrect: ["Richtig","Correct","Правильно","صحيح","Doğru"],
+  partRunnerWrong: ["Falsch","Wrong","Неправильно","خطأ","Yanlış"],
+  partRunnerUnanswered: ["Nicht beantwortet","Not answered","Без відповіді","دون إجابة","Yanıtlanmadı"],
+  partRunnerStillOneSet: ["Noch ein Satz","Another set","Ще один набір","مجموعة أخرى","Bir set daha"],
+  partRunnerPractiseMistakes: ["Fehler üben","Practise mistakes","Опрацювати помилки","تدريب الأخطاء","Hataları çalış"],
+  partRunnerBackToIndex: ["Zur Auswahl","Back to the list","До вибору","إلى القائمة","Seçime dön"],
+  practiceAllSets: ["Alle Sätze dieses Teils geübt — von vorn","Every set of this part practised — start over","Усі набори цієї частини опрацьовано — спочатку","تمّ تدريب كل مجموعات هذا الجزء — من البداية","Bu bölümün tüm setleri çalışıldı — baştan"],
+  partRunnerMistakesRound: ["Fehlerrunde: nur die Aufgaben, die falsch waren ({count}).","Mistake round: only the tasks that were wrong ({count}).","Раунд помилок: лише завдання, які були неправильними ({count}).","جولة الأخطاء: فقط المهام التي كانت خاطئة ({count}).","Hata turu: yalnızca yanlış olan görevler ({count})."],
+  partRunnerMistakesNone: ["In diesem Satz war keine Aufgabe falsch.","No task in this set was wrong.","У цьому наборі не було неправильних відповідей.","لم تكن أي مهمة في هذه المجموعة خاطئة.","Bu sette hiçbir görev yanlış değildi."],
+  partRunnerMistakesElsewhere: ["Die Fehler lagen in einem anderen Satz; deshalb zeigt diese Runde den ganzen neuen Satz.","The mistakes were in another set, so this round shows the whole new set.","Помилки були в іншому наборі, тому цей раунд показує весь новий набір.","كانت الأخطاء في مجموعة أخرى، لذا تعرض هذه الجولة المجموعة الجديدة كاملة.","Hatalar başka bir setteydi; bu tur yeni setin tamamını gösterir."],
+  partRunnerLoading: ["Der Teil wird geladen …","Loading the part …","Частина завантажується …","جارٍ تحميل الجزء …","Bölüm yükleniyor …"],
+  partRunnerEmpty: ["Für diesen Teil ist zurzeit kein Satz verfügbar.","No set is available for this part at the moment.","Для цієї частини наразі немає набору.","لا تتوفر مجموعة لهذا الجزء حاليًا.","Bu bölüm için şu anda set yok."],
+  /* FIX-F1: a part whose released sets all need audio is NOT the same as a part with no released set, and the
+     learner is told which one they are looking at. Neither sentence names an internal path. */
+  partRunnerListeningUnavailable: ["Für Hören gibt es hier noch keine Übungen: In der App können noch keine Aufnahmen abgespielt werden. Sobald das möglich ist, finden Sie diesen Teil hier.","There are no listening exercises here yet: recordings cannot be played in the app so far. As soon as they can be, you will find this part here.","Тут ще немає вправ з аудіювання: у застосунку поки не можна відтворити записи. Щойно це стане можливим, ви знайдете цю частину тут.","لا توجد هنا بعد تمارين استماع: لا يمكن بعد تشغيل التسجيلات في التطبيق. بمجرد أن يصبح ذلك ممكنًا، ستجد هذا الجزء هنا.","Burada henüz dinleme alıştırması yok: Uygulamada kayıtlar henüz oynatılamıyor. Bu mümkün olduğunda bu bölümü burada bulacaksınız."],
+  partRunnerFailed: ["Dieser Teil konnte nicht geladen werden. Bitte versuchen Sie es erneut.","This part could not be loaded. Please try again.","Не вдалося завантажити цю частину. Спробуйте ще раз.","تعذّر تحميل هذا الجزء. يرجى المحاولة مرة أخرى.","Bu bölüm yüklenemedi. Lütfen yeniden deneyin."],
+  partRunnerRetry: ["Erneut laden","Reload","Завантажити знову","إعادة التحميل","Yeniden yükle"],
+  partRunnerCheckFailed: ["Die Auswertung ist fehlgeschlagen. Ihre Antworten bleiben auf dieser Seite erhalten; bitte versuchen Sie es erneut.","Evaluating failed. Your answers stay on this page; please try again.","Оцінювання не вдалося. Ваші відповіді залишаються на цій сторінці; спробуйте ще раз.","فشل التقييم. تبقى إجاباتك في هذه الصفحة؛ يرجى المحاولة مرة أخرى.","Değerlendirme başarısız oldu. Yanıtlarınız bu sayfada kalır; lütfen yeniden deneyin."],
+  partRunnerAlreadyChecked: ["Dieser Satz wurde bereits ausgewertet. Die Auswertung wird erneut angezeigt.","This set has already been evaluated. The evaluation is shown again.","Цей набір уже оцінено. Оцінювання показано знову.","تمّ تقييم هذه المجموعة بالفعل. يُعرض التقييم مرة أخرى.","Bu set zaten değerlendirildi. Değerlendirme yeniden gösterilir."],
+  partRunnerListening: ["Hören","Listening","Аудіювання","الاستماع","Dinleme"],
+  partRunnerAudioRule: ["Prüfungsregel: {plays}-mal hören","Exam rule: listen {plays} time(s)","Правило іспиту: слухати {plays} раз(и)","قاعدة الامتحان: الاستماع {plays} مرة","Sınav kuralı: {plays} kez dinleme"],
+  partRunnerAudioUnavailable: ["Hören können Sie hier noch nicht üben: In der App fehlt dafür noch die Wiedergabe. Die Prüfungsregel steht oben.","You cannot practise listening here yet: the app cannot play the recordings so far. The exam rule is shown above.","Тут ще не можна тренувати аудіювання: у застосунку поки немає відтворення. Правило іспиту наведено вище.","لا يمكنك بعد التدرب على الاستماع هنا: التطبيق لا يشغّل التسجيلات بعد. قاعدة الامتحان معروضة أعلاه.","Dinlemeyi burada henüz çalışamazsınız: Uygulamada kayıtlar henüz oynatılamıyor. Sınav kuralı yukarıda."],
+  partRunnerNoReplay: ["Eine Wiederholung ist erst nach dem Auswerten möglich.","Replay is possible only after evaluating.","Повторне відтворення можливе лише після оцінювання.","الإعادة متاحة فقط بعد التقييم.","Yeniden oynatma yalnızca değerlendirmeden sonra mümkündür."],
+  partRunnerReplay: ["Wiederholen","Replay","Повторити","إعادة","Yeniden oynat"],
+  partRunnerPlay: ["Abspielen","Play","Відтворити","تشغيل","Oynat"],
+  partRunnerNoOptions: ["Für diese Aufgaben liegen noch keine Antwortmöglichkeiten vor. Deshalb kann der Satz noch nicht geübt werden.","These tasks carry no answer options yet, so the set cannot be practised.","Ці завдання ще не мають варіантів відповіді, тому набір не можна опрацювати.","لا تتوفر خيارات إجابة لهذه المهام بعد، لذا لا يمكن تدريب المجموعة.","Bu görevlerde henüz yanıt seçeneği yok; set çalışılamaz."],
+  partRunnerOpen: ["Teil üben","Practise part","Тренувати частину","تدريب الجزء","Bölümü çalış"],
+  partRunnerReasonUnseen: ["Dieser Satz ist neu für Sie.","This set is new for you.","Цей набір для вас новий.","هذه المجموعة جديدة بالنسبة إليك.","Bu set sizin için yeni."],
+  partRunnerReasonMostWrong: ["In diesem Satz waren {wrong} von {seen} Aufgaben falsch.","In this set {wrong} of {seen} tasks were wrong.","У цьому наборі {wrong} з {seen} завдань були неправильними.","في هذه المجموعة كانت {wrong} من {seen} مهمة خاطئة.","Bu sette {seen} görevden {wrong} tanesi yanlıştı."],
+  partRunnerReasonOldest: ["Diesen Satz haben Sie am längsten nicht geübt.","You have not practised this set for the longest time.","Цей набір ви не опрацьовували найдовше.","لم تتدرب على هذه المجموعة منذ أطول فترة.","Bu seti en uzun süredir çalışmadınız."],
+  partRunnerMaterial: ["Text","Text","Текст","النص","Metin"],
+  partRunnerNoMatch: ["Keine Anzeige passt","No advertisement fits","Жодне оголошення не підходить","لا يلائم أي إعلان","Hiçbir ilan uymuyor"],
+  /* A refused "Auswerten" that cannot be retried says something TRUE. `partRunnerCheckFailed` keeps its
+     retry promise and is now rendered only where a retry can succeed (a transport failure or a 5xx); these
+     three cover the refusals where repeating the same request changes nothing. Additive: the existing key
+     is untouched. */
+  partRunnerCheckClosed: ["Dieser Satz wurde bereits ausgewertet. Die Auswertung dieses Versuchs ist nicht mehr verfügbar.","This set has already been evaluated. The evaluation of this attempt is no longer available.","Цей набір уже оцінено. Оцінювання цієї спроби більше недоступне.","تمّ تقييم هذه المجموعة بالفعل. لم يعد تقييم هذه المحاولة متاحًا.","Bu set zaten değerlendirildi. Bu denemenin değerlendirmesi artık yok."],
+  partRunnerCheckArchived: ["Ihre Vorbereitung ist archiviert. Deshalb ist eine Auswertung nicht möglich.","Your preparation is archived, so evaluating is not possible.","Вашу підготовку заархівовано, тому оцінювання неможливе.","تحضيرك مؤرشف، لذا لا يمكن التقييم.","Hazırlığınız arşivlenmiş; bu nedenle değerlendirme yapılamaz."],
+  partRunnerCheckBlocked: ["Die Auswertung ist nicht möglich. Ihre Antworten bleiben auf dieser Seite erhalten.","Evaluating is not possible. Your answers stay on this page.","Оцінювання неможливе. Ваші відповіді залишаються на цій сторінці.","التقييم غير ممكن. تبقى إجاباتك في هذه الصفحة.","Değerlendirme yapılamıyor. Yanıtlarınız bu sayfada kalır."],
+  partRunnerExplanationUnavailable: ["Für diese Aufgabe ist keine Erklärung verfügbar.","No explanation is available for this task.","Для цього завдання пояснення недоступне.","لا يتوفر شرح لهذه المهمة.","Bu görev için açıklama yok."],
+  /* DRILL-01 (slice H) — Einzelübungen. One item at a time, instant feedback. Every string is a COUNT or a
+     state: no readiness figure, no streak, no plan and no prediction (D22). The address is formal. */
+  drillKicker: ["Einzelübung · ohne Zeitmessung","Single exercise · untimed","Окрема вправа · без обмеження часу","تمرين فردي · بدون توقيت","Tek alıştırma · süresiz"],
+  drillTitle: ["Einzelübungen","Single exercises","Окремі вправи","تمارين فردية","Tek alıştırmalar"],
+  drillLoading: ["Aufgabe wird geladen …","Loading the task …","Завдання завантажується …","جارٍ تحميل المهمة …","Görev yükleniyor …"],
+  drillEmptyTitle: ["Zurzeit keine Aufgabe","No task right now","Наразі немає завдання","لا توجد مهمة حاليًا","Şu anda görev yok"],
+  drillEmpty: ["Für Einzelübungen ist zurzeit keine Aufgabe verfügbar.","No task is available for single exercises at the moment.","Наразі для окремих вправ немає доступного завдання.","لا تتوفر مهمة للتمارين الفردية حاليًا.","Tek alıştırmalar için şu anda görev yok."],
+  drillUnavailable: ["Einzelübungen sind in dieser Fassung noch nicht verfügbar.","Single exercises are not available in this version yet.","Окремі вправи ще недоступні в цій версії.","التمارين الفردية غير متاحة في هذه النسخة بعد.","Tek alıştırmalar bu sürümde henüz yok."],
+  drillNoOptions: ["Für diese Aufgabe liegen noch keine Antwortmöglichkeiten vor. Deshalb kann sie nicht geübt werden.","This task carries no answer options yet, so it cannot be practised.","Це завдання ще не має варіантів відповіді, тому його не можна опрацювати.","لا تتوفر خيارات إجابة لهذه المهمة بعد، لذا لا يمكن التدرب عليها.","Bu görevde henüz yanıt seçeneği yok; bu yüzden çalışılamaz."],
+  drillFailed: ["Die Aufgabe konnte nicht geladen werden. Bitte versuchen Sie es erneut.","The task could not be loaded. Please try again.","Не вдалося завантажити завдання. Спробуйте ще раз.","تعذّر تحميل المهمة. يرجى المحاولة مرة أخرى.","Görev yüklenemedi. Lütfen yeniden deneyin."],
+  drillRetry: ["Erneut laden","Reload","Завантажити знову","إعادة التحميل","Yeniden yükle"],
+  drillReasonWeak: ["Ihr schwächster Teil: {family} — {correct} von {attempts} richtig.","Your weakest part: {family} — {correct} of {attempts} correct.","Ваша найслабша частина: {family} — {correct} з {attempts} правильно.","أضعف جزء لديك: {family} — {correct} من {attempts} صحيحة.","En zayıf bölümünüz: {family} — {attempts} görevden {correct} doğru."],
+  drillReasonUnseen: ["Neuer Teil: {family} — hier haben Sie noch nichts geübt.","New part: {family} — you have not practised here yet.","Нова частина: {family} — ви тут ще не практикувалися.","جزء جديد: {family} — لم تتدرب هنا بعد.","Yeni bölüm: {family} — burada henüz çalışmadınız."],
+  drillReasonStrong: ["Nächster Teil: {family} — hier waren alle {attempts} Antworten richtig.","Next part: {family} — all {attempts} answers here have been correct.","Наступна частина: {family} — тут усі {attempts} відповідей були правильні.","الجزء التالي: {family} — كانت كل الإجابات الـ{attempts} هنا صحيحة.","Sıradaki bölüm: {family} — burada {attempts} yanıtın tümü doğruydu."],
+  drillItemPosition: ["Aufgabe {index} von {total}","Task {index} of {total}","Завдання {index} з {total}","المهمة {index} من {total}","Görev {index} / {total}"],
+  drillProgress: ["{answered} von {total} Aufgaben in diesem Satz beantwortet","{answered} of {total} tasks in this set answered","Відповідно на {answered} з {total} завдань у цьому наборі","تمت الإجابة عن {answered} من {total} مهمة في هذه المجموعة","Bu sette {total} görevden {answered} tanesi yanıtlandı"],
+  drillCheck: ["Prüfen","Check","Перевірити","تحقق","Kontrol et"],
+  drillChecking: ["Wird geprüft …","Checking …","Перевіряється …","جارٍ التحقق …","Kontrol ediliyor …"],
+  drillChoose: ["Wählen Sie eine Antwort.","Choose an answer.","Виберіть відповідь.","اختر إجابة.","Bir yanıt seçin."],
+  drillCheckFailed: ["Die Prüfung ist fehlgeschlagen. Ihre Antwort bleibt auf dieser Seite erhalten; bitte versuchen Sie es erneut.","Checking failed. Your answer stays on this page; please try again.","Перевірка не вдалася. Ваша відповідь залишається на цій сторінці; спробуйте ще раз.","فشل التحقق. تبقى إجابتك في هذه الصفحة؛ يرجى المحاولة مرة أخرى.","Kontrol başarısız oldu. Yanıtınız bu sayfada kalır; lütfen yeniden deneyin."],
+  drillCheckBlocked: ["Diese Aufgabe konnte nicht geprüft werden. Bitte laden Sie die nächste Aufgabe.","This task could not be checked. Please load the next task.","Не вдалося перевірити це завдання. Будь ласка, завантажте наступне завдання.","تعذّر التحقق من هذه المهمة. يرجى تحميل المهمة التالية.","Bu görev kontrol edilemedi. Lütfen sıradaki görevi yükleyin."],
+  drillCorrect: ["Richtig.","Correct.","Правильно.","صحيح.","Doğru."],
+  drillWrong: ["Leider falsch.","Not correct.","На жаль, неправильно.","للأسف، غير صحيح.","Maalesef yanlış."],
+  drillKey: ["Lösung: {answer}","Answer: {answer}","Правильна відповідь: {answer}","الإجابة: {answer}","Doğru yanıt: {answer}"],
+  drillYourPick: ["Ihre Wahl: {answer}","Your pick: {answer}","Ваш вибір: {answer}","اختيارك: {answer}","Seçiminiz: {answer}"],
+  drillNext: ["Nächste Aufgabe","Next task","Наступне завдання","المهمة التالية","Sıradaki görev"],
+  drillSetDone: ["Dieser Satz ist fertig. Es geht mit der nächsten Aufgabe weiter.","This set is finished. The next task continues.","Цей набір завершено. Далі буде наступне завдання.","انتهت هذه المجموعة. تابع بالمهمة التالية.","Bu set bitti. Sıradaki görevle devam eder."],
+  /* FIX-F1 (correcting REVIEW-DRILL-01 H1) — the drill PASSES OVER a listening part and serves the weakest
+     part it can actually play. This card is only for the case where nothing playable is left at all, so it
+     names the situation rather than a part the learner is being sent back to guess at. */
+  drillListeningTitle: ["Für Einzelübungen gibt es hier noch keine Aufgabe","No single exercise is available here yet","Для окремих вправ тут ще немає завдання","لا يوجد بعد تمرين فردي هنا","Burada henüz tek alıştırma yok"],
+  drillListeningBlocked: ["Hier gibt es zurzeit nur Hörteile: {family} ist der schwächste davon ({correct} von {attempts} richtig). Diese Teile lassen sich üben, sobald die Aufnahmen in der App abspielbar sind.","Only listening parts are available here at the moment: {family} is the weakest of them ({correct} of {attempts} correct). You can practise these parts once the app can play the recordings.","Наразі тут доступні лише частини аудіювання: найслабша з них — {family} ({correct} з {attempts} правильно). Їх можна буде тренувати, коли в застосунку з'являться записи.","الأجزاء المتاحة هنا حاليًا هي أجزاء الاستماع فقط: أضعفها {family} ({correct} من {attempts} إجابة صحيحة). يمكنك التدرب عليها عندما يتوفر تشغيل التسجيلات في التطبيق.","Burada şu anda yalnızca dinleme bölümleri var: bunların en zayıfı {family} ({attempts} sorudan {correct} doğru). Bu bölümleri uygulama kayıtları oynatabildiğinde çalışabilirsiniz."],
+  /* FIX-N1: when the part has NO counted result, "the weakest of them — 0 von 0 richtig" contradicted itself.
+     This sentence says the honest thing instead, and the client picks it on `attempts === 0`. */
+  drillListeningBlockedNoCount: ["Hier gibt es zurzeit nur Hörteile. Für {family} liegt noch kein gezähltes Ergebnis vor, und die Aufnahmen lassen sich in der App noch nicht abspielen.","Only listening parts are available here at the moment. There is no counted result for {family} yet, and the app cannot play the recordings so far.","Наразі тут доступні лише частини аудіювання. Для {family} ще немає зарахованого результату, і в застосунку записи поки не відтворюються.","الأجزاء المتاحة هنا حاليًا هي أجزاء الاستماع فقط. لا توجد بعد نتيجة محتسبة لـ {family}، والتطبيق لا يشغّل التسجيلات بعد.","Burada şu anda yalnızca dinleme bölümleri var. {family} için henüz sayılan bir sonuç yok ve uygulama kayıtları henüz oynatamıyor."],
+  drillListeningAction: ["Zu den Prüfungsteilen","To the exam parts","До частин іспиту","إلى أجزاء الامتحان","Sınav bölümlerine"],
 };
 export const PRACTICE_MESSAGES = Object.freeze(Object.fromEntries(['de','en','uk','ar','tr'].map((locale,index) => [locale,Object.freeze(Object.fromEntries(Object.entries(rows).map(([key,values]) => [key,values[index]])))])));
 registerMessages('practice', PRACTICE_MESSAGES);

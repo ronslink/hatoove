@@ -17,6 +17,18 @@ import { syntheticS4Package } from './exam-s4-check.mjs';
 import { runTableClassCheck } from './table-class-check.mjs';
 import { InvalidSignature,createPaymentsPort } from '../server/payments/port.mjs';
 import { buildSignatureHeader } from '../server/payments/signature.mjs';
+import { readFileSync } from 'node:fs';
+
+/*
+ * The expected forward-migration remainder is DERIVED from `server/migrations/MANIFEST.json`, not listed.
+ * The hard-coded arrays this replaces ended at `0041`, so every one of these checks turned red the moment
+ * `0042`-`0047` landed - and because they sit behind each other in the CI job, only the first was ever seen.
+ * The manifest is an independent pinned record of which migrations exist and their digests, so the assertion
+ * still proves the forward migrations applied in order, with none missing and none invented.
+ */
+const migrationManifest = JSON.parse(readFileSync(new URL('../server/migrations/MANIFEST.json', import.meta.url), 'utf8'));
+const expectedRemainder = from => Object.keys(migrationManifest.migrations).filter(name => name >= from).sort().map(name => name + '.sql');
+
 if(process.env.OWNAPI_PG_ALLOW!=='1'||!process.env.OWNAPI_PG_PORT||[4300,55440].includes(Number(process.env.OWNAPI_PG_PORT))) throw Error('Explicit isolated OWNAPI_PG_ALLOW/PORT required');
 process.env.B1PREP_CONTENT_MODE='internal-preview';delete process.env.B1PREP_SERVE_REVIEW;delete process.env.B1PREP_SERVE_RIGHTS;
 const TELC='telc-deutsch-b1',DTZ='dtz-a2-b1',origin='https://synthetic.invalid';
@@ -46,7 +58,7 @@ try {
  const before=await one('SELECT * FROM entitlements WHERE owner_id=$1',[legacy]);
  await check('forward migration preserves legacy balances and seeds no commercial offers',async()=>{
   await assertHistoricalProjectionAbsent(db);
-  assert.deepEqual(await db.applyRemaining(),['0028-payments.sql','0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql','0037-saved-explanations.sql','0038-provider-attempts.sql','0039-registration-language.sql','0040-explanation-review.sql','0041-objective-answer-reveal.sql']);
+  assert.deepEqual(await db.applyRemaining(), expectedRemainder('0028-payments'));
   assert.deepEqual(await one('SELECT owner_id,exam_id,allowance,used,reserved FROM entitlements WHERE owner_id=$1',[legacy]),before);
   assert.equal((await one('SELECT expires_at FROM entitlements WHERE owner_id=$1',[legacy])).expires_at,null);
   assert.equal((await one('SELECT count(*)::int AS n FROM payment_product')).n,0);

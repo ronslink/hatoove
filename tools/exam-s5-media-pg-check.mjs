@@ -13,6 +13,18 @@ import { importPackage } from '../server/owned-postgres/package-importer.mjs';
 import { createExamCatalogue } from '../server/preparation-contract.mjs';
 import { createOwnedApi } from '../server/owned-api.mjs';
 import { createListeningFixture } from './exam-s5-fixture.mjs';
+import { readFileSync } from 'node:fs';
+
+/*
+ * The expected forward-migration remainder is DERIVED from `server/migrations/MANIFEST.json`, not listed.
+ * The hard-coded arrays this replaces ended at `0041`, so every one of these checks turned red the moment
+ * `0042`-`0047` landed - and because they sit behind each other in the CI job, only the first was ever seen.
+ * The manifest is an independent pinned record of which migrations exist and their digests, so the assertion
+ * still proves the forward migrations applied in order, with none missing and none invented.
+ */
+const migrationManifest = JSON.parse(readFileSync(new URL('../server/migrations/MANIFEST.json', import.meta.url), 'utf8'));
+const expectedRemainder = from => Object.keys(migrationManifest.migrations).filter(name => name >= from).sort().map(name => name + '.sql');
+
 
 if (process.env.OWNAPI_PG_ALLOW !== '1' || !process.env.OWNAPI_PG_PORT || [4300,55440].includes(Number(process.env.OWNAPI_PG_PORT)))
   throw new Error('Explicit disposable OWNAPI_PG_ALLOW=1 and OWNAPI_PG_PORT required; learner ports forbidden.');
@@ -63,7 +75,7 @@ try {
       [randomUUID(),a.id,a.telc.id,form.release_version,randomUUID(),TELC,form.form_id,form.version])).rows[0]);
     const before = (await db.admin.query('SELECT * FROM mock_run WHERE id=$1', [old.id])).rows[0];
     await assertHistoricalProjectionAbsent(db);
-    assert.deepEqual(await db.applyRemaining(), ['0029-fixed-media.sql','0030-listening-playback.sql','0031-assigned-mock-writing.sql','0032-ordered-mock-time-groups.sql','0033-content-rights-fence.sql','0034-complete-dtz-admission.sql','0035-content-review.sql','0036-content-review-consumers.sql','0037-saved-explanations.sql','0038-provider-attempts.sql','0039-registration-language.sql','0040-explanation-review.sql','0041-objective-answer-reveal.sql']);
+    assert.deepEqual(await db.applyRemaining(), expectedRemainder('0029-fixed-media'));
     assert.deepEqual((await db.admin.query('SELECT * FROM mock_run WHERE id=$1', [old.id])).rows[0], before);
     assert.equal((await port.finaliseMockRun(a.id, old.id, { expectedRevision: old.revision, eventId: randomUUID() })).result.total, 20);
     const f = (await db.admin.query("SELECT proname,prosecdef,proconfig FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname IN ('protect_mock_run','finalise_mock_run','protect_listening_playback')")).rows;

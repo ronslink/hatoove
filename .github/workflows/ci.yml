@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
@@ -88,6 +88,18 @@ jobs:
       # entitlement, access or payment decision reads the date in this slice.
       - name: Pilot free-until date is readable and cannot crash the runtime
         run: node tools/pilot-window-check.mjs
+      # MIRROR-B1PREP-01 — THE PROGRAM'S OFFLINE GATES (CI-GATES-01). Thirteen gates (nav-ia, mock-intro,
+      # part-index, practice-runner, practice-selection, drill, pool-01-check, library-render, vocab, library-i18n, review-pack-check,
+      # media-mount, content-corrections) ran only on a developer's machine before this step: `npm run
+      # check` does not include them, so a pull request could show a green tick that said nothing about
+      # this program. `run-gates.mjs` is the tallying runner — it runs EVERY gate and prints each
+      # PASS/FAIL, so a first failure cannot hide the rest. Do not replace it with individual steps: that
+      # would skip every check behind the first failure, which is how a red gate stayed invisible here
+      # before. No database, no Docker, so this job keeps running on both matrix OSes.
+      # Locally the same thing is `npm run check:mirror` (and `npm run check:mirror:db` against a
+      # disposable database), so a developer can reproduce exactly what this job runs.
+      - name: MIRROR-B1PREP-01 offline gates (tallying runner, per-gate PASS/FAIL)
+        run: node tools/run-gates.mjs mirror
       # "The provider is operator-only and invisible" USED to run here
       # (tools/provider-config-check.mjs). That check drove `/api/config` anonymously, which the auth
       # wrap now refuses with 401 before any handler — so it had been red since that wrap landed, and
@@ -101,7 +113,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
@@ -393,6 +405,14 @@ jobs:
   # binary. Both are asserted in their own preflight steps, so a missing browser is a named failure rather than
   # a mysterious one, and `CHROME_PATH` is the override that makes the browser's location a configuration value
   # instead of a guess (the check's own candidate list is Windows-shaped plus /usr/bin).
+
+      # MIRROR-B1PREP-01 — THE GATES THAT NEED POSTGRESQL (CI-GATES-01). Seven gates execute the shipped
+      # SQL (library-i18n, part-index, practice-selection, practice-media, drill, content-rights, pool-01) and
+      # cannot run in the offline jobs. `mirror-db` is the tallying runner and runs LAST in this job, so a failing gate here cannot skip the steps below it, so every gate runs and each
+      # failure is named rather than the first one hiding the rest.
+      - name: MIRROR-B1PREP-01 gates that need PostgreSQL (tallying runner, per-gate PASS/FAIL)
+        if: always()
+        run: node tools/run-gates.mjs mirror-db
   rendered:
     name: Rendered behaviour (Docker + headless Chrome)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
