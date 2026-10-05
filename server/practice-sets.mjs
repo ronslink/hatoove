@@ -125,10 +125,67 @@ export function practiceRoundState({ setCount, checkedSets } = {}) {
 }
 
 /**
+ * The authored item members in the shipped corpus (`server/migrations/0010-objective-catalogue.sql`), and the
+ * set-level option banks a member draws its choices from. The DATABASE is the source of truth for the shape:
+ * every one of the 25 released sets stores its items under exactly one of these members, and its answer keys —
+ * `objective_key.answers` — are the stringified `id`/`n` of those same items. This table exists so a
+ * well-formed authored set can never be mistaken for a malformed one again: the first version of this module
+ * accepted `items`/`texts`/`questions`, read `item.item_id ?? item.id`, and built options only from an ARRAY
+ * `item.options`, which was wrong for SEVEN of the eight parts (LV2/HV1-HV3 threw `practice_set_invalid`,
+ * LV3/SB1/SB2 threw `practice_set_items_unknown`, LV1 served an empty prompt). It had never been run against
+ * a database. Now it is, per family, and the legs below pin the identity of each served item to the key.
+ */
+const ITEM_MEMBERS = Object.freeze(['items', 'texts', 'questions', 'situations', 'gaps']);
+/** The authored field that carries an item's text, most specific first. SB gaps have no text: the letter does. */
+const PROMPT_FIELDS = Object.freeze(['question', 'statement', 'text']);
+/** Set-level option banks, in resolution order, and the authored field that carries the option's text. */
+const OPTION_BANKS = Object.freeze([
+  Object.freeze({ member: 'headlines', text: 'text' }),
+  Object.freeze({ member: 'ads', text: 'text' }),
+  Object.freeze({ member: 'bank', text: 'word' }),
+]);
+/** The authored set-level material a runner must render around the items. All public: keys live elsewhere. */
+const MATERIAL_MEMBERS = Object.freeze(['text', 'letter', 'headlines', 'ads', 'bank']);
+/** LV3's "no ad fits" choice; `objectiveItems` (package-contract) adds the same sentinel and keys use it. */
+const NO_MATCH = Object.freeze({ id: 'x', text: '', value: 'x' });
+
+/**
+ * One offered answer. `id` is the stable identity the review and the key speak in; `value` is the JSON value
+ * to POST, which is the same string for a choice and a real BOOLEAN for a richtig/falsch item. The distinction
+ * is not cosmetic: `mark_objective_item` compares jsonb (`expected = p_answer`), so an HV answer posted as the
+ * string "true" is silently marked WRONG against the key's boolean `true`.
+ */
+const optionEntry = (id, text, value) => Object.freeze({
+  id: String(id),
+  text: typeof text === 'string' ? text : '',
+  value: value === undefined ? String(id) : value,
+});
+
+/** The choices an authored item offers: its own object options, else its set's bank, else HV's truth pair. */
+const authoredOptions = (item, payload) => {
+  if (isPlainObject(item.options)) {
+    return Object.entries(item.options).map(([id, text]) => optionEntry(id, text));
+  }
+  for (const bank of OPTION_BANKS) {
+    const rows = payload[bank.member];
+    if (!Array.isArray(rows) || !rows.length) continue;
+    const options = rows.map((row) => optionEntry(row?.id ?? '', row?.[bank.text]));
+    if (bank.member === 'ads' && !options.some((option) => option.id === NO_MATCH.id)) options.push(NO_MATCH);
+    return options;
+  }
+  if (typeof item.statement === 'string') return [optionEntry('true', '', true), optionEntry('false', '', false)];
+  return [];
+};
+
+/**
  * The served shape of ONE set: the items the learner answers, without a key, a transcript or an explanation.
  *
- * `objective_set.payload` carries the authored items; anything that could reveal an answer is dropped here
- * rather than trusted to the caller, because this module is the last place before the wire.
+ * Each item is REBUILT from named fields rather than spread from the payload, so a field that must never reach
+ * the wire (an answer, a transcript, an explanation) cannot ride along even if the authored row grows one.
+ * `item_id` is `String(item.id ?? item.n)`, which is exactly the key `objective_key.answers` uses.
+ *
+ * A set whose item member is absent, whose declared count disagrees with its authored rows, or whose items
+ * offer no answer at all THROWS rather than serving a page the learner cannot answer.
  */
 export function normalisePracticeSet(row, playback = null) {
   if (!isPlainObject(row)) throw new TypeError('practice_set_invalid');
@@ -136,26 +193,30 @@ export function normalisePracticeSet(row, playback = null) {
   const version = nonEmpty(row.version);
   if (!setId || !version) throw new TypeError('practice_set_invalid');
   const payload = isPlainObject(row.payload) ? row.payload : {};
-  /* The authored member name is not assumed: if none of the known shapes is present this THROWS rather than
-     serving an empty set, so a wrong assumption fails loudly instead of showing a blank page. */
-  const rawItems = Array.isArray(payload.items) ? payload.items
-    : (Array.isArray(payload.texts) ? payload.texts
-      : (Array.isArray(payload.questions) ? payload.questions : null));
-  if (!rawItems || !rawItems.length) throw new TypeError('practice_set_items_unknown');
+  const member = ITEM_MEMBERS.find((name) => Array.isArray(payload[name]) && payload[name].length);
+  if (!member) throw new TypeError('practice_set_items_unknown');
+  const rawItems = payload[member];
+  const declared = positiveInt(row.item_count);
+  if (declared !== null && declared !== rawItems.length) throw new TypeError('practice_set_invalid');
   const items = rawItems.map((item, index) => {
-    const itemId = nonEmpty(item?.item_id) ?? nonEmpty(item?.id);
-    if (!itemId) throw new TypeError('practice_set_invalid');
+    if (!isPlainObject(item)) throw new TypeError('practice_set_invalid');
+    const rawId = item.id ?? item.n;
+    if (typeof rawId !== 'string' && !Number.isSafeInteger(rawId)) throw new TypeError('practice_set_invalid');
+    const promptField = PROMPT_FIELDS.find((field) => typeof item[field] === 'string');
+    const options = authoredOptions(item, payload).filter((option) => option.id);
+    if (!options.length) throw new TypeError('practice_set_invalid');
     return Object.freeze({
-      item_id: itemId,
+      item_id: String(rawId),
       ordinal: Number.isInteger(item.ordinal) ? item.ordinal : index + 1,
-      prompt: typeof item.prompt === 'string' ? item.prompt : '',
+      prompt: promptField ? item[promptField] : '',
       prompt_en: typeof item.prompt_en === 'string' ? item.prompt_en : null,
-      options: Array.isArray(item.options) ? item.options.map((option) => ({
-        id: nonEmpty(option?.id) ?? String(option?.id ?? ''),
-        text: typeof option?.text === 'string' ? option.text : '',
-      })).filter((option) => option.id) : [],
+      answer_kind: options.some((option) => typeof option.value === 'boolean') ? 'judgement' : 'choice',
+      options: Object.freeze(options),
     });
   });
+  const material = Object.fromEntries(MATERIAL_MEMBERS
+    .filter((name) => payload[name] !== undefined)
+    .map((name) => [name, payload[name]]));
   return Object.freeze({
     set_id: setId,
     version,
@@ -163,9 +224,10 @@ export function normalisePracticeSet(row, playback = null) {
     family: nonEmpty(row.family),
     section: nonEmpty(row.section),
     part: nonEmpty(row.part),
-    item_count: positiveInt(row.item_count) ?? items.length,
+    item_count: declared ?? items.length,
     media_required: row.media_required === true,
     playback: playback && isPlainObject(playback) ? Object.freeze({ ...playback }) : null,
+    material: Object.freeze(material),
     items: Object.freeze(items),
   });
 }

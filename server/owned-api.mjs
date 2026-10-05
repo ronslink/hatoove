@@ -1001,9 +1001,10 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       /*
        * LIBRARY-SEED-01 — the B1 core vocabulary, 300 entries.
        *
-       * `q` is bounded and `limit` is fixed by the server. A learner may narrow the lexicon; the
-       * server decides how much of it one response may carry, so a crafted request cannot ask for the
-       * whole table on every keystroke.
+       * `q` is bounded by the server. The response used to be capped by the DATASTORE's own default of 50,
+       * which the route never overrode, so the lexicon page could only ever show 50 of its 300 entries — and
+       * the response carries no total to say so. The corpus is bounded, so the route serves all of it by
+       * default and keeps `limit` as a bounded override: never an unbounded door on a reference table.
        */
       const pos = query.get('pos');
       if (pos !== null && !/^(noun|verb|adj|adv|phrase)$/.test(pos)) fault(422, 'invalid_pos');
@@ -1011,9 +1012,16 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      const limitRaw = query.get('limit');
+      let vocabLimit = 500;
+      if (limitRaw !== null) {
+        if (!/^[0-9]{1,3}$/.test(limitRaw)) fault(422, 'invalid_limit');
+        vocabLimit = Number(limitRaw);
+        if (vocabLimit < 1 || vocabLimit > 500) fault(422, 'invalid_limit');
+      }
       const serveReview = deploymentReview();
       return reply(200, (await datastore.listVocab(owner, {
-        examId: exam, pos, q: q === null ? null : q.trim(), serveReview,
+        examId: exam, pos, q: q === null ? null : q.trim(), serveReview, limit: vocabLimit,
       })).filter((row) => contentIsServable(row)));
     }
     if (pathname === '/api/v1/nouns' && method === 'GET') {

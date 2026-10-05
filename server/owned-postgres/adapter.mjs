@@ -807,7 +807,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             WHERE s.exam_id = $1 AND s.family = $2
               AND ${importedSetGate()}
               AND c.review_status = ANY($3::text[])
-              AND COALESCE(cr.basis, cr.rights_status) = ANY($4::text[])`,
+              AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
           [examId, family, statuses, contentPolicy().rights])).rows;
         if (!candidates.length) return null;
         const evidence = (await client.query(
@@ -844,7 +844,14 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           round: practiceRoundState({ setCount: candidates.length, checkedSets: checked ? checked.checked : 0 }),
           set: served,
         });
-      }, true);
+        /*
+         * NOT a snapshot. This method SERVES AND OPENS: the `practice_attempt` INSERT above is the sitting, so
+         * `settle`'s read-only flag must be false. It was passed `true` (`BEGIN ISOLATION LEVEL REPEATABLE READ
+         * READ ONLY`) and the method had never been executed against a database, so the failure was invisible:
+         * the normaliser threw first and masked it. With the normaliser fixed it surfaced as SQLSTATE 25006,
+         * "cannot execute INSERT in a read-only transaction". Read-only means read-only.
+         */
+      }, false);
     },
     /**
      * PRACTICE-01 (slice C) — "Auswerten": mark every answer, record it as evidence, close the sitting, and
@@ -882,7 +889,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.set_id = $1 AND s.version = $2
               AND c.review_status = ANY($3::text[])
-              AND COALESCE(cr.basis, cr.rights_status) = ANY($4::text[])`,
+              AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
           [attempt.set_id, attempt.version, statuses, contentPolicy().rights]));
         if (!set) fail(404, 'not_found');
         const items = [];
