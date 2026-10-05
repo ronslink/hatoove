@@ -195,14 +195,14 @@
       "pos": "noun"
     },
     {
-      "de": "das Familiemitglied",
+      "de": "das Familienmitglied",
       "en": "family member",
-      "plural": "die Familiemitglieder",
+      "plural": "die Familienmitglieder",
       "gender": "das",
       "rule": "keine Regel, auswendig lernen",
       "ruleEn": "no rule — learn it by heart",
       "theme": "Personen",
-      "example": "Jedes Familiemitglied bringt etwas zum Buffet mit.",
+      "example": "Jedes Familienmitglied bringt etwas zum Buffet mit.",
       "exampleEn": "Every family member is bringing something for the buffet.",
       "pos": "noun"
     },
@@ -304,13 +304,13 @@
     },
     {
       "de": "die Möbel",
-      "en": "piece of furniture",
+      "en": "furniture",
       "plural": "die Möbel",
       "gender": "die",
       "rule": "keine Regel, auswendig lernen",
       "ruleEn": "no rule — learn it by heart",
       "theme": "Wohnen",
-      "example": "Dieses Möbel passt überhaupt nicht in unser Wohnzimmer.",
+      "example": "Dieses Möbelstück passt überhaupt nicht in unser Wohnzimmer.",
       "exampleEn": "This piece of furniture does not fit in our living room at all.",
       "pos": "noun"
     },

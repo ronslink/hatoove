@@ -4,310 +4,131 @@
   "parts": [
     {
       "id": "SP1",
-      "title": "Teil 1 – Präsentation",
-      "summary": "Der Kandidat präsentiert etwa drei Minuten lang ein Thema anhand von vier bis sechs Stichwörtern auf der Aufgabenkarte und beantwortet danach eine Anschlussfrage.",
-      "minutes": 3,
+      "title": "Teil 1 – Sich kennenlernen",
+      "titleEn": "Part 1 – Getting to know each other",
+      "summary": "In Teil 1 halten Sie keinen Vortrag: Die Kandidaten lernen sich kennen und beantworten einfache Fragen zur eigenen Person. Die Prüfer achten auf die direkte Interaktion zwischen den Kandidaten.",
+      "summaryEn": "In Part 1 you do not give a presentation: the candidates get to know each other and answer simple questions about themselves. The examiners focus on direct interaction between the candidates.",
+      "minutes": null,
       "approach": [
         {
-          "step": "Begrüßen und Thema nennen",
-          "detail": "Ein bis zwei Sätze. Nennen Sie das Thema klar und deutlich, damit die Prüfer sofort wissen, worüber Sie sprechen.",
-          "seconds": 20,
-          "stepEn": "Greet the examiners and name the topic",
-          "detailEn": "One or two sentences. Name the topic clearly so the examiners know straight away what you are talking about."
+          "step": "Auf die Fragen zur eigenen Person antworten",
+          "detail": "Antworten Sie in ein bis zwei Sätzen. Name, Wohnort, Beruf oder Ausbildung und ein Hobby genügen.",
+          "seconds": null,
+          "stepEn": "Answer the questions about yourself",
+          "detailEn": "Answer in one or two sentences. Your name, where you live, your job or training and one hobby are enough."
         },
         {
-          "step": "Überblick über die Stichwörter geben",
-          "detail": "Sagen Sie kurz, welche Punkte Sie nennen werden. So bekommen Ihre Ausführungen eine klare Struktur.",
-          "seconds": 20,
-          "stepEn": "Give an overview of the keywords",
-          "detailEn": "Say briefly which points you are going to mention. That gives your presentation a clear structure."
+          "step": "Selbst einfache Fragen stellen",
+          "detail": "Stellen Sie dem Partner ein oder zwei kurze Fragen, zum Beispiel nach dem Wohnort, der Arbeit, den Sprachen oder der Freizeit.",
+          "seconds": null,
+          "stepEn": "Ask simple questions yourself",
+          "detailEn": "Ask your partner one or two short questions, for example about where they live, their work, languages or free time."
         },
         {
-          "step": "Die Stichwörter der Reihe nach bearbeiten",
-          "detail": "Machen Sie aus jedem Stichwort zwei bis drei ganze Sätze. Verbinden Sie die Punkte mit Wörtern wie zuerst, danach und zum Schluss.",
-          "seconds": 70,
-          "stepEn": "Work through the keywords one by one",
-          "detailEn": "Turn each keyword into two or three full sentences. Link the points with words such as zuerst, danach and zum Schluss."
-        },
-        {
-          "step": "Eigene Meinung und Erfahrung einbringen",
-          "detail": "Berichten Sie kurz von sich selbst: Was haben Sie erlebt? Was finden Sie gut oder schlecht? Das wirkt natürlich und persönlich.",
-          "seconds": 35,
-          "stepEn": "Add your own opinion and experience",
-          "detailEn": "Say something about yourself: what have you experienced? What do you think is good or bad? That sounds natural and personal."
-        },
-        {
-          "step": "Zusammenfassen",
-          "detail": "Fassen Sie Ihren wichtigsten Gedanken in ein bis zwei Sätzen zusammen und bedanken Sie sich für das Zuhören.",
-          "seconds": 20,
-          "stepEn": "Summarise",
-          "detailEn": "Sum up your most important thought in one or two sentences and thank the listeners."
-        },
-        {
-          "step": "Zu Anschlussfragen einladen",
-          "detail": "Bieten Sie am Ende an, Fragen zu beantworten. So zeigen Sie, dass Sie das Gespräch führen können.",
-          "seconds": 15,
-          "stepEn": "Invite follow-up questions",
-          "detailEn": "Offer to answer questions at the end. That shows you can lead the conversation."
+          "step": "Auf die Antworten reagieren",
+          "detail": "Reagieren Sie kurz auf das, was der Partner sagt, und fragen Sie einmal nach. So entsteht ein Gespräch und kein Monolog.",
+          "seconds": null,
+          "stepEn": "React to the answers",
+          "detailEn": "React briefly to what your partner says and ask one follow-up question. That keeps it a conversation instead of a monologue."
         }
       ],
       "phrases": [
         {
-          "group": "Einleitung",
-          "hint": "Mit diesen Sätzen beginnen Sie die Präsentation und nennen das Thema.",
+          "group": "Über sich selbst sprechen",
+          "groupEn": "Talking about yourself",
+          "hint": "Mit diesen Sätzen beantworten Sie die Fragen zur eigenen Person kurz und klar.",
+          "hintEn": "With these sentences you answer the questions about yourself briefly and clearly.",
           "items": [
             {
-              "de": "Ich möchte Ihnen ... vorstellen.",
-              "en": "I would like to present ... to you.",
-              "example": "Ich möchte Ihnen meine Heimatstadt vorstellen."
+              "de": "Ich heiße … und komme aus …",
+              "en": "My name is … and I come from …",
+              "example": "Ich heiße Olena und komme aus Lwiw."
             },
             {
-              "de": "Mein Thema heute ist ...",
-              "en": "My topic today is ...",
-              "example": "Mein Thema heute ist mein Beruf als Krankenpfleger."
+              "de": "Ich wohne seit … in …",
+              "en": "I have been living in … since …",
+              "example": "Ich wohne seit zwei Jahren in Hamburg."
             },
             {
-              "de": "Ich möchte heute über ... sprechen.",
-              "en": "Today I would like to talk about ...",
-              "example": "Ich möchte heute über meinen Lieblingssport sprechen."
+              "de": "Ich arbeite als … / Ich lerne noch.",
+              "en": "I work as … / I am still studying.",
+              "example": "Ich arbeite als Krankenschwester."
             },
             {
-              "de": "Wie Sie vielleicht wissen, ...",
-              "en": "As you may know, ...",
-              "example": "Wie Sie vielleicht wissen, wohne ich erst seit zwei Jahren in Deutschland."
-            },
-            {
-              "de": "Ich habe mir das Thema ... ausgesucht, weil ...",
-              "en": "I chose the topic ... because ...",
-              "example": "Ich habe mir das Thema Feste in meinem Land ausgesucht, weil Feiern bei uns sehr wichtig sind."
-            },
-            {
-              "de": "Zuerst möchte ich kurz sagen, worum es geht.",
-              "en": "First I would like to say briefly what this is about.",
-              "example": "Zuerst möchte ich kurz sagen, worum es geht: um meine Arbeit in einem kleinen Büro."
+              "de": "In meiner Freizeit … ich gern.",
+              "en": "In my free time I like …",
+              "example": "In meiner Freizeit schwimme ich gern."
             }
-          ],
-          "groupEn": "Introduction",
-          "hintEn": "With these sentences you begin the presentation and name the topic."
+          ]
         },
         {
-          "group": "Struktur und Reihenfolge",
-          "hint": "Diese Redemittel ordnen Ihre Präsentation und führen die Prüfer von Punkt zu Punkt.",
+          "group": "Fragen an den Partner",
+          "groupEn": "Questions for your partner",
+          "hint": "Stellen Sie diese Fragen selbst, damit ein Gespräch entsteht.",
+          "hintEn": "Ask these questions yourself so that a conversation develops.",
           "items": [
             {
-              "de": "Ich möchte über drei Punkte sprechen: ...",
-              "en": "I would like to talk about three points: ...",
-              "example": "Ich möchte über drei Punkte sprechen: meine Stadt, die Menschen und das Leben dort."
+              "de": "Woher kommen Sie?",
+              "en": "Where are you from?",
+              "example": "Woher kommen Sie, Herr Yilmaz?"
             },
             {
-              "de": "Zuerst ... danach ... und zum Schluss ...",
-              "en": "First ... then ... and finally ...",
-              "example": "Zuerst erzähle ich von meiner Familie, danach von meiner Arbeit und zum Schluss von meinen Plänen."
+              "de": "Was machen Sie beruflich?",
+              "en": "What do you do for a living?",
+              "example": "Was machen Sie beruflich?"
             },
             {
-              "de": "Ein wichtiger Punkt ist auch ...",
-              "en": "Another important point is ...",
-              "example": "Ein wichtiger Punkt ist auch die Frage, wie viel ein Ausflug kosten darf."
+              "de": "Wie lange lernen Sie schon Deutsch?",
+              "en": "How long have you been learning German?",
+              "example": "Wie lange lernen Sie schon Deutsch?"
             },
             {
-              "de": "Ich beginne mit ... und komme danach zu ...",
-              "en": "I will start with ... and then move on to ...",
-              "example": "Ich beginne mit meiner Ausbildung und komme danach zu meinem jetzigen Job."
-            },
-            {
-              "de": "Der nächste Punkt ist ...",
-              "en": "The next point is ...",
-              "example": "Der nächste Punkt ist das Essen in meinem Heimatland."
-            },
-            {
-              "de": "Dazu möchte ich ein Beispiel geben.",
-              "en": "I would like to give an example of that.",
-              "example": "Dazu möchte ich ein Beispiel geben: Meine Schwester arbeitet auch im Supermarkt."
+              "de": "Was machen Sie gern in Ihrer Freizeit?",
+              "en": "What do you like doing in your free time?",
+              "example": "Was machen Sie gern in Ihrer Freizeit?"
             }
-          ],
-          "groupEn": "Structure and order",
-          "hintEn": "These phrases organise your presentation and guide the examiners from point to point."
+          ]
         },
         {
-          "group": "Vor- und Nachteile",
-          "hint": "Nutzen Sie diese Sätze, wenn Sie ein Stichwort von zwei Seiten beleuchten wollen.",
+          "group": "Reagieren und nachfragen",
+          "groupEn": "Reacting and asking again",
+          "hint": "Kurze Reaktionen zeigen, dass Sie zuhören und wirklich sprechen.",
+          "hintEn": "Short reactions show that you are listening and really speaking.",
           "items": [
             {
-              "de": "Ein Vorteil ist, dass ...",
-              "en": "One advantage is that ...",
-              "example": "Ein Vorteil ist, dass man in der Stadt schnell mit dem Bus fahren kann."
+              "de": "Interessant — und wie ist das bei Ihnen?",
+              "en": "Interesting — and what is it like for you?",
+              "example": "Interessant — und wie ist das bei Ihnen?"
             },
             {
-              "de": "Ein Nachteil ist, dass ...",
-              "en": "One disadvantage is that ...",
-              "example": "Ein Nachteil ist, dass die Mieten in der Stadt sehr hoch sind."
+              "de": "Das ist schön. Erzählen Sie bitte mehr.",
+              "en": "That is nice. Please tell me more.",
+              "example": "Das ist schön. Erzählen Sie bitte mehr."
             },
             {
-              "de": "Positiv finde ich, dass ...",
-              "en": "I think it is positive that ...",
-              "example": "Positiv finde ich, dass es in meinem Beruf viele freundliche Kollegen gibt."
-            },
-            {
-              "de": "Negativ finde ich, dass ...",
-              "en": "I think it is negative that ...",
-              "example": "Negativ finde ich, dass ich am Samstag fast immer arbeiten muss."
-            },
-            {
-              "de": "Auf der einen Seite ..., auf der anderen Seite ...",
-              "en": "On the one hand ... on the other hand ...",
-              "example": "Auf der einen Seite ist das Leben auf dem Land ruhig, auf der anderen Seite gibt es dort wenig Arbeit."
-            },
-            {
-              "de": "Man muss auch beachten, dass ...",
-              "en": "One also has to consider that ...",
-              "example": "Man muss auch beachten, dass ein Auto im Monat viel Geld kostet."
+              "de": "Und Sie? Was denken Sie?",
+              "en": "And you? What do you think?",
+              "example": "Und Sie? Was denken Sie?"
             }
-          ],
-          "groupEn": "Advantages and disadvantages",
-          "hintEn": "Use these sentences when you want to look at a keyword from two sides."
-        },
-        {
-          "group": "Eigene Erfahrung",
-          "hint": "Mit diesen Sätzen machen Sie die Präsentation persönlich und glaubwürdig.",
-          "items": [
-            {
-              "de": "Ich habe die Erfahrung gemacht, dass ...",
-              "en": "I have found that ...",
-              "example": "Ich habe die Erfahrung gemacht, dass man mit Geduld viel erreichen kann."
-            },
-            {
-              "de": "Bei mir war es so, dass ...",
-              "en": "In my case it was like this: ...",
-              "example": "Bei mir war es so, dass ich nach dem Umzug zuerst keine Arbeit gefunden habe."
-            },
-            {
-              "de": "Als ich ... war, habe ich ...",
-              "en": "When I was ..., I ...",
-              "example": "Als ich zwölf Jahre alt war, habe ich jeden Sommer bei meinem Onkel gearbeitet."
-            },
-            {
-              "de": "Ich erinnere mich, dass ...",
-              "en": "I remember that ...",
-              "example": "Ich erinnere mich, dass wir als Kinder jeden Abend auf der Straße gespielt haben."
-            },
-            {
-              "de": "In meinem Heimatland ist es üblich, dass ...",
-              "en": "In my home country it is common that ...",
-              "example": "In meinem Heimatland ist es üblich, dass die ganze Familie am Sonntag zusammen isst."
-            },
-            {
-              "de": "Damit habe ich schon Erfahrungen gemacht.",
-              "en": "I already have experience with that.",
-              "example": "Mit dem Fahrrad zur Arbeit zu fahren ist bei uns normal, damit habe ich schon Erfahrungen gemacht."
-            }
-          ],
-          "groupEn": "Your own experience",
-          "hintEn": "With these sentences you make the presentation personal and credible."
-        },
-        {
-          "group": "Zusammenfassung",
-          "hint": "Diese Sätze beenden Ihren Vortrag und heben den wichtigsten Gedanken hervor.",
-          "items": [
-            {
-              "de": "Zusammenfassend kann ich sagen, dass ...",
-              "en": "In summary, I can say that ...",
-              "example": "Zusammenfassend kann ich sagen, dass meine Heimatstadt für mich der schönste Ort ist."
-            },
-            {
-              "de": "Zum Schluss möchte ich betonen, dass ...",
-              "en": "Finally I would like to emphasise that ...",
-              "example": "Zum Schluss möchte ich betonen, dass Gesundheit wichtiger ist als Geld."
-            },
-            {
-              "de": "Alles in allem finde ich ...",
-              "en": "All in all, I find ...",
-              "example": "Alles in allem finde ich meinen Beruf sehr interessant."
-            },
-            {
-              "de": "Ich fasse kurz zusammen: ...",
-              "en": "Let me summarise briefly: ...",
-              "example": "Ich fasse kurz zusammen: Der Job macht Spaß, aber die Arbeitszeiten sind schwierig."
-            },
-            {
-              "de": "Deshalb ist ... für mich wichtig.",
-              "en": "That is why ... is important to me.",
-              "example": "Deshalb ist Zeit für meine Familie für mich wichtig."
-            },
-            {
-              "de": "Ich hoffe, ich konnte Ihnen einen guten Überblick geben.",
-              "en": "I hope I was able to give you a good overview.",
-              "example": "Ich hoffe, ich konnte Ihnen einen guten Überblick über meinen Alltag geben."
-            }
-          ],
-          "groupEn": "Summary",
-          "hintEn": "These sentences end your talk and highlight the most important thought."
-        },
-        {
-          "group": "Auf Anschlussfragen reagieren",
-          "hint": "Wenn die Prüfer nachfragen, bleiben Sie ruhig und antworten Sie in vollständigen Sätzen.",
-          "items": [
-            {
-              "de": "Das ist eine gute Frage. Ich denke, dass ...",
-              "en": "That is a good question. I think that ...",
-              "example": "Das ist eine gute Frage. Ich denke, dass sich in den nächsten Jahren viel ändern wird."
-            },
-            {
-              "de": "Vielen Dank für die Frage. Also, ...",
-              "en": "Thank you for the question. Well, ...",
-              "example": "Vielen Dank für die Frage. Also, ich würde am liebsten in meiner Heimatstadt bleiben."
-            },
-            {
-              "de": "Da bin ich mir nicht ganz sicher, aber ich glaube, dass ...",
-              "en": "I am not quite sure, but I believe that ...",
-              "example": "Da bin ich mir nicht ganz sicher, aber ich glaube, dass mehr Busse helfen würden."
-            },
-            {
-              "de": "Könnten Sie die Frage bitte wiederholen?",
-              "en": "Could you please repeat the question?",
-              "example": "Entschuldigung, könnten Sie die Frage bitte wiederholen?"
-            },
-            {
-              "de": "Ich habe noch nie darüber nachgedacht. Ich würde sagen, dass ...",
-              "en": "I have never thought about that. I would say that ...",
-              "example": "Ich habe noch nie darüber nachgedacht. Ich würde sagen, dass beide Wege möglich sind."
-            },
-            {
-              "de": "Wie ich schon gesagt habe, ...",
-              "en": "As I already said, ...",
-              "example": "Wie ich schon gesagt habe, ist mir die Familie am wichtigsten."
-            }
-          ],
-          "groupEn": "Reacting to follow-up questions",
-          "hintEn": "If the examiners ask questions, stay calm and answer in full sentences."
+          ]
         }
       ],
       "examples": [
         {
-          "topic": "Meine Heimatstadt",
-          "text": "Ich möchte Ihnen meine Heimatstadt vorstellen. Sie heißt Valjevo und liegt im Westen von Serbien. Dort habe ich meine ganze Kindheit verbracht, und meine Eltern wohnen noch heute dort. Ich möchte über drei Punkte sprechen: die Stadt, die Menschen und das Leben dort. Valjevo ist keine große Stadt, aber es gibt alles, was man braucht: Schulen, ein Krankenhaus, viele kleine Geschäfte und einen großen Markt. Am Wochenende treffen sich die Menschen in der Fußgängerzone, trinken Kaffee und unterhalten sich. Besonders schön ist die Natur. Rund um die Stadt gibt es grüne Hügel und einen Fluss, in dem ich als Kind oft geschwommen bin. Ein Vorteil ist, dass das Leben dort ruhig und nicht so teuer ist. Die Menschen kennen sich und helfen einander. Ein Nachteil ist, dass es wenig Arbeit gibt. Deshalb sind viele junge Leute ins Ausland gegangen, auch ich. Ich habe die Erfahrung gemacht, dass man seine Heimat nie ganz vergisst, obwohl man weit weg wohnt. Zusammenfassend kann ich sagen, dass Valjevo für mich der schönste Ort ist, weil dort meine Familie und meine besten Erinnerungen sind. Ich fahre jedes Jahr im Sommer hin. Vielen Dank, dass Sie zugehört haben. Haben Sie noch Fragen?",
-          "topicEn": "My home town"
-        },
-        {
-          "topic": "Mein Beruf / meine Arbeit",
-          "text": "Ich möchte Ihnen meinen Beruf vorstellen. Ich arbeite als Verkäuferin in einem Supermarkt und bin seit vier Jahren in dieser Firma. Zuerst erzähle ich von meinem Arbeitstag, danach von den Vor- und Nachteilen und zum Schluss von meinen Plänen. Meine Arbeit beginnt um sieben Uhr morgens. Ich räume die Regale auf und kontrolliere, ob alle Waren frisch sind. Danach arbeite ich an der Kasse. Dort habe ich viel Kontakt mit Kunden, und das gefällt mir besonders gut. Manchmal muss ich auch Bestellungen machen oder beim Einräumen helfen. Ein Vorteil ist, dass ich nette Kollegen habe und jeden Tag etwas Neues passiert. Ein Nachteil ist, dass ich oft am Samstag arbeiten muss und dann wenig Zeit für meine Familie bleibt. Außerdem ist das Gehalt nicht sehr hoch. Ich habe die Erfahrung gemacht, dass man in diesem Beruf geduldig und freundlich sein muss. Wenn ein Kunde sich ärgert, darf ich nicht unhöflich werden. Deshalb möchte ich in zwei Jahren eine Weiterbildung machen, damit ich mehr verdienen kann. Zum Schluss möchte ich sagen, dass ich meine Arbeit gern mache, obwohl sie manchmal anstrengend ist. Vielen Dank für Ihre Aufmerksamkeit.",
-          "topicEn": "My job / my work"
+          "topic": "Ein kurzes Kennenlernen",
+          "topicEn": "A short getting-to-know exchange",
+          "text": "A: Guten Tag, ich heiße Sara und komme aus Valencia. Und Sie? B: Guten Tag, ich bin Mehmet und wohne seit drei Jahren in Köln. A: Was machen Sie beruflich? B: Ich arbeite als Elektriker. Und was machen Sie gern in Ihrer Freizeit? A: Ich lese viel und spiele Volleyball."
         }
       ],
       "watchOut": [
-        "Die Stichwörter nicht einfach vorlesen, sondern daraus ganze Sätze machen.",
-        "Nach drei Minuten ist die Präsentation zu Ende – die Zeit vorher zu Hause üben.",
-        "Keine langen, komplizierten Nebensätze bilden; kurze Hauptsätze sind verständlicher.",
-        "Die eigene Meinung oder Erfahrung nicht vergessen, sonst wirkt der Vortrag unpersönlich.",
-        "Zu leise sprechen und die Prüfer nicht anschauen – Augenkontakt gehört dazu."
+        "In Teil 1 halten Sie keinen Vortrag und arbeiten nicht mit Stichwörtern auf einer Aufgabenkarte.",
+        "Ein bis zwei Sätze pro Frage genügen; lange Antworten lassen keine Zeit für den Partner.",
+        "Reagieren Sie auf den Partner: Die Prüfer achten auf die direkte Interaktion, nicht auf einen Monolog."
       ],
-      "titleEn": "Part 1 – Presentation",
-      "summaryEn": "The candidate presents a topic for about three minutes using the four to six keywords on the task card, and then answers one follow-up question.",
       "watchOutEn": [
-        "Do not simply read the keywords out — turn them into full sentences.",
-        "The presentation is over after three minutes — practise the timing at home beforehand.",
-        "Do not build long, complicated subordinate clauses; short main clauses are easier to understand.",
-        "Do not forget your own opinion or experience, otherwise the talk sounds impersonal.",
-        "Speaking too quietly and not looking at the examiners — eye contact is part of it."
+        "In Part 1 you do not give a presentation and you do not work from keywords on a task card.",
+        "One or two sentences per question are enough; long answers leave no time for your partner.",
+        "React to your partner: the examiners focus on direct interaction, not on a monologue."
       ]
     },
     {
