@@ -272,6 +272,29 @@ async function main() {
       const none = (await operator.query('SELECT * FROM operator_feedback_screenshot($1)', [bReport])).rows;
       assert.equal(none.length, 0, "the screenshot reader returned another report's image");
     });
+
+    await check('21. the owner policies grant SELECT and the bounded UPDATE — and NOT insert or delete', async () => {
+      /*
+       * A POLICY WITH NO `FOR` IS `FOR ALL`, and `ALL` includes INSERT and DELETE: the first version of `0051`
+       * let the schema owner insert a report attributed to ANY learner and delete any report, neither of which
+       * this feature does. An independent reviewer listed it as a should-fix. The UPDATE policy is REQUIRED —
+       * the bounded update is SECURITY DEFINER owned by this role and `0049` FORCEs RLS, so the fence applies to
+       * the owner too — while INSERT and DELETE are simply not needed. This leg is what keeps that distinction
+       * from being lost to a later `FOR ALL` convenience edit.
+       *
+       * IT MUST RUN INSIDE THE TRY. A first attempt placed it after the `finally` that closes the pools and it
+       * failed with "Cannot use a pool after calling end on the pool" — a leg that cannot query proves nothing,
+       * and this is the second time in this slice a leg has been put where it cannot observe what it claims to.
+       */
+      const rows = await q(`SELECT policyname, cmd FROM pg_policies
+                             WHERE schemaname = $1 AND policyname LIKE 'operator%' ORDER BY policyname`, [schema]);
+      const commands = rows.map((row) => row.cmd).sort();
+      assert.deepEqual(commands, ['SELECT', 'SELECT', 'UPDATE'],
+        `the owner policies grant ${commands.join('/')} — expected two SELECTs (report, screenshot) and one UPDATE (the bounded triage)`);
+      assert.ok(!commands.includes('ALL'), 'a FOR ALL policy silently grants INSERT and DELETE');
+      assert.ok(!commands.includes('INSERT'), 'the operator must never create a report attributed to a learner');
+      assert.ok(!commands.includes('DELETE'), 'the operator must never delete a learner\'s report');
+    });
   } finally {
     // Clean up the synthetic rows. The round is left: `0049` makes a round undeletable by design, and that is
     // itself one of the migration check's legs.
