@@ -524,11 +524,24 @@ async function postgresLegs() {
   try {
     await resetLeg();
     const migrated = await runNode(['server/migrate.mjs'], { OWNAPI_PG_SCHEMA: leg, OWNAPI_PG_ROLE_PREFIX: leg, OWNAPI_PG_ALLOW: '1' });
-    await pgLeg('P1 SQL: a clean database applies 0047 LAST, with the ledger checksum matching its bytes', async () => {
+    await pgLeg('P1 SQL: a clean database applies 0047 after the corpus it splices into, with the ledger checksum matching its bytes', async () => {
       assert.equal(migrated.code, 0, `migrate must exit 0:\n${migrated.out.slice(-300)}`);
       const rows = (await legAdmin.query(`SELECT id, checksum FROM "${leg}".hatoove_migrations ORDER BY id`)).rows;
-      assert.equal(rows.at(-1).id, '0047-pool-01-batch-1', 'the batch migration is applied last');
-      assert.equal(rows.at(-1).checksum, sha256(read(MIGRATION)), 'and its ledger checksum is the sha256 of the frozen file');
+      /*
+       * THIS LEG USED TO ASSERT 0047 WAS APPLIED LAST, and PILOT-FEEDBACK-01's `0049` broke it — correctly.
+       * "Last" was a proxy for the property that matters, and it only held while 0047 happened to be the newest
+       * migration on disk. Every later slice would have failed a leg it does not own, and the tempting "fix"
+       * is to renumber the new migration or to delete the assertion. Neither: the batch must apply AFTER the
+       * corpus it splices into, which is the ordering the pool actually depends on.
+       */
+      const order = rows.map((row) => row.id);
+      const batch = order.indexOf('0047-pool-01-batch-1');
+      assert.ok(batch >= 0, 'the frozen 0047 must be applied on a clean database');
+      for (const corpus of ['0010-objective-catalogue', '0022-recovered-grammar-drills']) {
+        assert.ok(order.indexOf(corpus) >= 0 && order.indexOf(corpus) < batch,
+          `0047 must apply after ${corpus}: it splices the batch into that corpus`);
+      }
+      assert.equal(rows[batch].checksum, sha256(read(MIGRATION)), 'and its ledger checksum is the sha256 of the frozen file');
       assert.ok(rows.every((row) => row.checksum), 'every migration carries a checksum');
     });
 
