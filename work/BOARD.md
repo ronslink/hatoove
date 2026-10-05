@@ -1,5 +1,20 @@
 # Hatoove work board
 
+## MIRROR-B1PREP-01 under way — contract frozen, slice A delivered — 5 October 2026, 15:20 UTC+2
+
+Ron: *"we need to mirror the structure of the previous app more … use Claude to help put this all in place we also have hermes agent to assist create a goal to get this done"*. His four open decisions (drop the Lernplan; **Probeprüfung**, translated per interface language; the proposal's practice selection rule; generate the uk/ar/tr guides) are frozen with the engineering contract in `docs/contracts/MIRROR-B1PREP-01.md`, committed to main as `072d29e`. The offline translation batch (737 guide strings, 240 nouns, `machine_unreviewed`) is ingested byte-pinned under `content/library-translations/` with its provenance, its review rules and the three German source-data defects; reviewer workbooks and the B1_Prep/Hatoove evidence screens stay untracked under `handoff/ron-agent/`.
+
+Four slices leased in worktrees off `072d29e`, one writer per file, nothing pushed or deployed:
+
+| Slice | Owner | Branch | Status |
+|---|---|---|---|
+| A · NAV-01 information architecture | Lead | `codex/nav-01-mirror-ia` | **delivered** `b0aab2b`; review task-5 open |
+| F2 · LIBRARY-I18N-01 translation storage + importer | `library-i18n` | `codex/library-i18n-01-import` | in progress |
+| E/F · LIBRARY-UI-01/02 Nachschlagen hub and guide pages | `library-ui` | `codex/library-ui-01-nachschlagen` | in progress |
+| D · MOCK-01 Probeprüfung intro | `mock-intro` | `codex/mock-01-probepruefung` | in progress |
+
+Labels stay separate: **delivered ≠ independently reviewed ≠ merged ≠ product accepted.** Next: `task-5` REVIEW-NAV-01 for the first teammate that frees a slot, then integration of A, then round 2 — B PRACTICE-UI-01, C PRACTICE-01, the source-data corrections as migration `0043`, POOL-01. Open: native review of the new interface copy and of the guide translations; POOL-01 needs Ron's go-ahead before any batch is generated.
+
 ## Incident closed: mangled front-door artwork and unusable listening — 5 October 2026, 13:30 UTC
 
 PR [#150](https://github.com/ronslink/hatoove/pull/150) merged as `f3b5011eee95de85b72f05535c28d09895f12068` and deployed (image `d70b5eb15c2f`, fresh migrate SUCCESS, app+worker healthy, live `/`, `/api/health`, `/api/ready` 200). Two production defects, both real:

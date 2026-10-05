@@ -1,5 +1,13 @@
 # Hatoove implementation plan
 
+## MIRROR-B1PREP-01 — from Ron's direction to executed slices — 5 October 2026, 15:20 UTC+2
+
+Direction: mirror B1_Prep's structure — navigation, practice, mock exams and the reference library — because it was *"much more user friendly and effective in presentation and usability"*. The frozen engineering contract is `docs/contracts/MIRROR-B1PREP-01.md` (`072d29e` on main): it records Ron's four decisions, the constraints that are not undone (no forecast, no Lernplan, no Sprechen, no live AI, Hatoove brand), the frozen interfaces (routes and groups, client view modules, the library translation read path, the translation tables, reserved migration numbers `0042`–`0045`) and the per-slice acceptance.
+
+Order: A, E/F and F2 in parallel; B and D after A; C next; G and H follow; POOL-01 only with Ron's go-ahead. Slice A (NAV-01) is **delivered** as `b0aab2b` on `codex/nav-01-mirror-ia` with its own gate `tools/nav-ia-check.mjs` (11 legs, mutation-proven) and rendered evidence; its independent review is `task-5`. F2, E/F and D are in progress in their own worktrees. Nothing is pushed, merged or deployed, and no string is marked approved.
+
+Round 2, already leased in the contract but not started: B PRACTICE-UI-01 (one tile per released part), C PRACTICE-01 (selection rule, practice attempts, the part runner), the three German source-data corrections with migration `0043`, and POOL-01's released-set inventory.
+
 ## Incident closed: mangled front-door artwork and unusable listening — 5 October 2026, 13:30 UTC
 
 PR [#150](https://github.com/ronslink/hatoove/pull/150) merged as `f3b5011eee95de85b72f05535c28d09895f12068` and deployed (image `d70b5eb15c2f`, fresh migrate SUCCESS, app+worker healthy, live `/`, `/api/health`, `/api/ready` 200). Two production defects, both real:
