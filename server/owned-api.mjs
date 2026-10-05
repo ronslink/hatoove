@@ -1006,10 +1006,23 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (q !== null && (q.trim().length < 2 || q.length > 64)) fault(422, 'invalid_query');
       const exam = query.get('exam');
       if (exam !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(exam)) fault(422, 'invalid_exam');
+      /*
+       * REVIEW-LIBRARY-UI-01: the datastore defaults to 50 rows, so the lexicon page could only ever show
+       * 50 of its 240 nouns, and the response carries no total to say so. The corpus is bounded at 240, so
+       * the route serves the whole lexicon by default and keeps `limit` as a bounded override — never an
+       * unbounded door on a reference table.
+       */
+      const limitRaw = query.get('limit');
+      let nounLimit = 500;
+      if (limitRaw !== null) {
+        if (!/^[0-9]{1,3}$/.test(limitRaw)) fault(422, 'invalid_limit');
+        nounLimit = Number(limitRaw);
+        if (nounLimit < 1 || nounLimit > 500) fault(422, 'invalid_limit');
+      }
       const serveReview = deploymentReview();
       return reply(200, (await datastore.listNouns(owner, {
         examId: exam, theme: theme === null ? null : theme.trim(), gender,
-        q: q === null ? null : q.trim(), serveReview,
+        q: q === null ? null : q.trim(), serveReview, limit: nounLimit,
       })).filter((row) => contentIsServable(row)));
     }
     if (pathname === '/api/v1/guides' && method === 'GET') {

@@ -330,10 +330,17 @@ return Object.freeze({
   }),
 
   /**
-   * The reference guides: an index, then one document. 64 KB is not fetched to list a title. */
+   * The reference guides: an index, then one document. 64 KB is not fetched to list a title.
+   *
+   * `read(guideId, locale)` passes the interface language through as the additive `?locale=` member of
+   * contract §4.3. Without a locale (or with one the server cannot serve) the response is exactly what it
+   * was before slice F2 and the caller renders German only. REVIEW-LIBRARY-UI-01 found the second
+   * argument being ignored here, which silently disabled every translated guide line.
+   */
   guides: Object.freeze({
     list: () => call('GET', PATHS.guides),
-    read: (guideId) => call('GET', `${PATHS.guides}/${encodeURIComponent(guideId)}`),
+    read: (guideId, locale = null) => call('GET', `${PATHS.guides}/${encodeURIComponent(guideId)}`
+      + (typeof locale === 'string' && locale ? `?locale=${encodeURIComponent(locale)}` : '')),
   }),
 
   /**
