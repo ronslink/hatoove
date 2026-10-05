@@ -66,7 +66,7 @@ export function rolePool(config, schema, user, max = 2) {
 export async function createFixture({ stopBefore = null, ...overrides } = {}) {
   const config = { ...pgConfig(), ...overrides };
   const schema = `ownapi_${randomBytes(8).toString('hex')}`;
-  const roles = Object.fromEntries(['migration', 'auth', 'learner', 'worker', 'deletion', 'payments'].map((k) => [k, `${schema}_${k}`]));
+  const roles = Object.fromEntries(['migration', 'auth', 'learner', 'worker', 'deletion', 'payments', 'operator'].map((k) => [k, `${schema}_${k}`]));
   const admin = new pg.Pool({
     ...connection(config, { user: config.user }), max: 4, application_name: schema,
     options: `-c search_path=${schema},pg_catalog`,
@@ -108,6 +108,9 @@ export async function createFixture({ stopBefore = null, ...overrides } = {}) {
     pools.worker = rolePool(config, schema, roles.worker, 2);
     pools.deletion = rolePool(config, schema, roles.deletion, 2);
     pools.payments = rolePool(config, schema, roles.payments, 2);
+    // PILOT-FEEDBACK-01 (FB-D): the operator pool exists for the CHECK, and for the CLI when it runs against a
+    // disposable installation. The running server never opens it.
+    pools.operator = rolePool(config, schema, roles.operator, 1);
 
     await pools.migration.query(await readFile(new URL('auth-schema.sql', SPIKE), 'utf8'));
     await pools.migration.query(await readFile(new URL('schema.sql', SPIKE), 'utf8'));
@@ -155,7 +158,7 @@ export async function createFixture({ stopBefore = null, ...overrides } = {}) {
        * `__AUTH__` in the SQL and failed ONLY in the disposable fixture, which is the one place a check runs.
        */
       let rendered = text;
-      for (const [key, value] of Object.entries({ SCHEMA: schema, AUTH: roles.auth, LEARNER: roles.learner, WORKER: roles.worker, DELETION: roles.deletion, PAYMENTS: roles.payments })) {
+      for (const [key, value] of Object.entries({ SCHEMA: schema, AUTH: roles.auth, LEARNER: roles.learner, WORKER: roles.worker, DELETION: roles.deletion, PAYMENTS: roles.payments, OPERATOR: roles.operator })) {
         rendered = rendered.replaceAll(`__${key}__`, value);
       }
       return rendered;

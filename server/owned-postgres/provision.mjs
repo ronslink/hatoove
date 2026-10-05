@@ -86,7 +86,14 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
 // `deletion` is the account-deletion port's role (HARD-DELETE-01 §6): least privilege for the
 // one ordered transaction that removes an account, never used by a learner route.
 // `provisioner` remains in the pool contract but has no entitlement authority (see the header).
-const ROLES = ['migration', 'auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner'];
+/*
+ * `operator` (PILOT-FEEDBACK-01, FB-D) is the role the feedback CLI connects as. It exists so the operator read
+ * path is NOT the migration role: this role holds EXECUTE on two functions in `0050` and no table privilege at
+ * all, so it cannot change the schema and cannot read a table the functions do not expose. It is deliberately
+ * absent from `openRuntimePools` below — the web process has no use for it, and a connection the server never
+ * makes is a connection that cannot be misused.
+ */
+const ROLES = ['migration', 'auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner', 'operator'];
 
 /**
  * The tracked SQL, in id order. The files are frozen under `server/migrations/`; an id is
