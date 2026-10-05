@@ -21,6 +21,11 @@ import { Fault } from '../owned-api.mjs';
 import { FEEDBACK_CATEGORIES, FEEDBACK_ROUTES } from '../feedback-vocabulary.mjs';
 
 const BODY_MAX = 2000;
+/**
+ * A UUID, because `mock_run.id` and `practice_attempt.attempt_id` are `uuid` columns: anything else makes
+ * PostgreSQL refuse the cast and turns the context-drop decision into a 500.
+ */
+const RUN_ID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 export { FEEDBACK_CATEGORIES, FEEDBACK_ROUTES };
 
@@ -43,9 +48,16 @@ export function feedbackMethods({ settle, note = () => {}, appVersion = 'unknown
    * — an item id without a valid set is dropped rather than trusted. Context is advisory; it is never an access
    * decision, so the residual risk is a mislabelled report, not a leak.
    */
-  async function resolveContext(client, owner, context) {
+  async function resolveContext(client, owner, context, claimed = false) {
     const asked = Object.values(context).some((value) => value !== null && value !== undefined);
-    if (!asked) return { context: null, dropped: false };
+    /*
+     * `claimed` IS WHAT THE CLIENT SENT, BEFORE THE API SANITISED IT — and the two differ in exactly the case an
+     * independent review found: the page sent a context, every field of it was unusable, so the API dropped them
+     * all. This function then saw an empty object and answered `dropped: false`, and the learner was never told
+     * their page context had been lost. "Nothing to record" and "we threw away what you gave us" must not read
+     * the same, which is why the distinction is passed in rather than inferred.
+     */
+    if (!asked) return { context: null, dropped: claimed === true };
 
     const { runId, guideId, sectionId, examId, setId, version, itemId } = context;
     if (runId) {
@@ -54,7 +66,12 @@ export function feedbackMethods({ settle, note = () => {}, appVersion = 'unknown
        * has `attempt_id` and no `id` at all. Writing `id` for both made this query fail, and because it runs
        * while deciding whether to DROP the context, the failure turned the "a stale page never loses the report"
        * path into a 500 — the opposite of the rule it implements. Caught by `pilot-feedback-api-check` leg 8.
+       *
+       * AND THE SHAPE IS CHECKED BEFORE THE QUERY, not after. A `runId` that is not a UUID makes PostgreSQL
+       * refuse the cast at `$1`, which was the second way this path could answer 500. The API now drops such a
+       * value, and this guard means neither layer can be the only one that remembers.
        */
+      if (!RUN_ID_RE.test(runId)) return { context: null, dropped: true };
       const own = (await client.query(
         `SELECT 1 FROM mock_run WHERE id = $1 AND owner_id = $2
          UNION ALL
@@ -71,7 +88,15 @@ export function feedbackMethods({ settle, note = () => {}, appVersion = 'unknown
         'SELECT 1 FROM objective_set WHERE exam_id = $1 AND set_id = $2 AND version = $3',
         [examId, setId, version])).rowCount > 0;
       // An item id is kept ONLY alongside a set that exists; it is never validated on its own (see above).
-      return found ? { context, dropped: false } : { context: null, dropped: true };
+      if (!found) return { context: null, dropped: true };
+      /*
+       * AND IT IS KEPT ONLY IF IT COULD ACTUALLY BE STORED. `item_id` is `char_length BETWEEN 1 AND 64`, so a
+       * 100-character id used to pass the API, reach the INSERT and be refused by the CHECK — which surfaced as
+       * 422 and LOST the report, exactly what this path exists to prevent. The set is worth having on its own, so
+       * an unusable item drops the ITEM and not the report.
+       */
+      const storableItem = typeof itemId === 'string' && itemId.length >= 1 && itemId.length <= 64;
+      return { context: storableItem ? context : { ...context, itemId: null }, dropped: false };
     }
     return { context: null, dropped: true };
   }
@@ -83,7 +108,7 @@ export function feedbackMethods({ settle, note = () => {}, appVersion = 'unknown
       const body = String(input.body).trim();
       if (!body || body.length > BODY_MAX) throw new Fault(422, 'invalid_body');
       return settle(owner, async (client) => {
-        const { context, dropped } = await resolveContext(client, owner, input.context ?? {});
+        const { context, dropped } = await resolveContext(client, owner, input.context ?? {}, input.contextClaimed === true);
         const feedbackId = randomUUID();
         try {
           await client.query(
