@@ -19,7 +19,9 @@
  *   3. a root that does NOT hold a referenced recording answers `media_unavailable` through the same reader —
  *      the missing-file half, and it names the file;
  *   4. `--require-recordings` exits 1 and names every missing file, which is the startup gate;
- *   5. it PRINTS the physical root it used, so "where do the bytes come from" is answered by running it.
+ *   5. a **git-LFS pointer file** is reported AS a pointer ("run `git lfs pull`"), never as `media_integrity`:
+ *      the file is intact, the bytes were simply never fetched, and the two need different operator actions;
+ *   6. it PRINTS the physical root it used, so "where do the bytes come from" is answered by running it.
  *
  * Usage:
  *   node tools/media-mount-check.mjs                      # verify the default/overridden root, print the root
@@ -30,7 +32,7 @@
  * inside the built image (the `media` compose service does exactly that) before any service is up.
  */
 import assert from 'node:assert/strict';
-import { readFile, readdir, realpath, stat } from 'node:fs/promises';
+import { readFile, readdir, realpath, stat, open } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -100,8 +102,36 @@ console.log(`  referenced recordings: ${recordings.length} distinct file(s) from
 
 const missing = [];
 const served = [];
+
+/**
+ * MEDIA-MOUNT-01 — THE GIT-LFS POINTER GUARD (Ron's decision, 5 Oct 2026: the recordings are tracked plain).
+ *
+ * If the recordings were ever moved to Git LFS, a checkout WITHOUT `git-lfs` produces ~130-byte pointer files
+ * instead of audio. Those fail the reader's byte-length check, i.e. they surface as `media_integrity` —
+ * "invalid media", a corrupted-audio story — when the truth is "the bytes were never fetched". The two need
+ * different operator actions, so this recognises the pointer BEFORE the reader and says exactly what to do.
+ */
+async function lfsPointerAt(mediaPath) {
+  const file = path.join(mediaRoot, ...mediaPath.slice('content/exams/'.length).split('/'));
+  let handle;
+  try {
+    handle = await open(file, 'r');
+    const head = Buffer.alloc(200);
+    const { bytesRead } = await handle.read(head, 0, head.length, 0);
+    const text = head.subarray(0, bytesRead).toString('utf8');
+    return /^version https:\/\/git-lfs\.github\.com\/spec\/v1\r?\n/.test(text) ? text.split(/\r?\n/)[0] : null;
+  } catch { return null; } finally { await handle?.close().catch(() => {}); }
+}
+
 await check('every referenced recording resolves through the shipped reader on this root', async () => {
   for (const { row, packagePath } of recordings) {
+    const pointer = await lfsPointerAt(row.path);
+    if (pointer) {
+      // Deliberately NOT `media_integrity`: the file is fine, the bytes were never fetched.
+      missing.push({ row, packagePath, code: 'git_lfs_pointer', pointer,
+        message: 'this is a git-LFS pointer file, not audio — run `git lfs pull` and re-run' });
+      continue;
+    }
     try {
       const bytes = await readMediaBytes(row, { mediaRoot });
       assert.equal(bytes.length, row.byteLength, `${row.mediaId} byte length`);
@@ -152,10 +182,16 @@ await check('a root that does not hold a referenced recording answers media_unav
 /* ---------------------------------------------------------------- 4. the startup gate */
 
 if (requireRecordings) {
-  for (const entry of missing) console.log(`  MISSING ${entry.row.path}  [${entry.code}] ${entry.message}`);
+  for (const entry of missing.filter((item) => item.code === 'git_lfs_pointer')) {
+    console.log(`  GIT-LFS POINTER ${entry.row.path}\n    this is not audio (${JSON.stringify(entry.pointer)}) — run \`git lfs pull\`, then re-run this check. It is NOT a media_integrity failure.`);
+  }
+  for (const entry of missing.filter((item) => item.code !== 'git_lfs_pointer')) {
+    console.log(`  MISSING ${entry.row.path}  [${entry.code}] ${entry.message}`);
+  }
   for (const entry of missing) console.log(`  expected physical file: ${path.join(mediaRoot, entry.row.path.slice('content/exams/'.length))}`);
   if (missing.length) {
-    console.log(`FAIL --require-recordings: ${missing.length} referenced recording(s) are not under ${mediaRoot} — the API must not start`);
+    const pointers = missing.filter((item) => item.code === 'git_lfs_pointer').length;
+    console.log(`FAIL --require-recordings: ${missing.length} referenced recording(s) are not usable under ${mediaRoot}${pointers ? ` (${pointers} of them are git-LFS pointer files, not audio — run \`git lfs pull\`)` : ''} — the API must not start`);
     process.exit(1);
   }
   console.log(`PASS --require-recordings: all ${recordings.length} referenced recording(s) are present under ${mediaRoot}`);

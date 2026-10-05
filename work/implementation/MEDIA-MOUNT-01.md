@@ -168,3 +168,61 @@ deleted.
 - **Noted, not built** (per instruction): if the media root holds a **git-lfs pointer file**, the checker should
   say "this is a git-lfs pointer, run `git lfs pull`" rather than reporting `media_integrity`. The trap is
   documented in the deployment doc so the option can be weighed with its hidden cost.
+
+## 7. Ron's decision — option (a): the recordings are tracked plain, and the pointer guard is built
+
+**Committed in this lease (authorised 5 Oct 2026).** The nine recordings are now tracked plain under
+`content/exams/telc-deutsch-b1/audio/` — **no LFS**, so the pointer hazard cannot arise from the tracked copy,
+and `COPY content/exams/` puts them in the image, which is what production needs since it cannot mount.
+
+| file | bytes | sha256 (first 10) |
+| --- | --- | --- |
+| hv1.01-v1.wav | 3 094 216 | 28ea344806 |
+| hv1.02-v1.wav | 3 135 154 | db02ccf343 |
+| hv1.03-v1.wav | 3 091 232 | 99385b384d |
+| hv2.01-v1.wav | 9 192 586 | 111f915c30 |
+| hv2.02-v1.wav | 8 116 492 | f52021ec2c |
+| hv2.03-v1.wav | 8 340 144 | 3f76b49bbd |
+| hv3.01-v1.wav | 3 523 860 | bd13363f74 |
+| hv3.02-v1.wav | 3 878 000 | cde56f3eba |
+| hv3.03-v1.wav | 3 652 856 | cea2c8801b |
+
+**43.89 MB across nine files; all nine sha256-match `listening-package.json` (measured, 0 mismatches).**
+Provenance, recorded in the tracked package itself: `"rightsStatus": "generated"`, `"source": "Google Cloud
+Text-to-Speech, de-DE-Standard-G/H; transcript authored in
+server/migrations/0010-objective-catalogue.sql#hv1.01"` — project-generated audio from our own authored
+transcripts, and D10 was amended the same day to permit offline AI-generated content assets with recorded
+provenance and human review still required. **They were not re-encoded**: the sha256s are pinned by the package
+and re-encoding is a content decision, not a packaging one.
+
+**The pointer guard is built and proved.** `tools/media-mount-check.mjs` now recognises a git-LFS pointer
+*before* the reader (`version https://git-lfs.github.com/spec/v1` in the first 200 bytes) and reports it as
+what it is, with the action, instead of letting it surface as `media_integrity`:
+
+```text
+$ node tools/media-mount-check.mjs --media-root <scratch tree of pointer files> --require-recordings
+GIT-LFS POINTER content/exams/telc-deutsch-b1/audio/hv1.01-v1.wav
+  this is not audio ("version https://git-lfs.github.com/spec/v1") — run `git lfs pull`, then re-run this check.
+  It is NOT a media_integrity failure.
+exit 1 · 9 pointer(s) named · no `[media_integrity]` code anywhere in the output
+```
+
+And the default root, now that the recordings are tracked, is green:
+
+```text
+$ node tools/media-mount-check.mjs --require-recordings
+PASS every referenced recording resolves through the shipped reader on this root  [9 recording(s), 44 MB read and checksum-verified]
+PASS the shipped framing serves those bytes (content-type, etag, range, HEAD, 416)
+PASS a root that does not hold a referenced recording answers media_unavailable
+PASS --require-recordings: all 9 referenced recording(s) are present
+exit 0 · 3 passed, 0 failed
+```
+
+`media/` stays in `.gitignore`: that is the **host mount** directory, which must not be stageable. The tracked
+asset path (`content/exams/telc-deutsch-b1/audio/`) is deliberately not ignored.
+
+**For the next lease (POOL-01's TTS sets, held):** the mount plus the tracked path now accept new recordings
+without any image or migration change. A TTS pass needs the authored batch-1 scripts, a reproducible generation
+step with model/voice/settings/date/operator recorded as provenance, the WAVs added to this same tracked path,
+the package's `media` entries and sha256s updated, and this check run — it verifies byte length, sha256 and PCM
+duration, so a mis-generated or truncated file fails at startup rather than at play time.
