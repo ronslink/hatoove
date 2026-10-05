@@ -84,6 +84,85 @@ export function listeningMessage(state, locale = getLocale()) {
   return state.playback?.state === 'playing' ? pt('audioPlaying',{},locale) : pt('audioReady',{},locale);
 }
 
+/**
+ * The player's own words for one state — shared by the mock controller and the practice player so the two
+ * cannot drift, and so a state that is merely "the sitting was already used" does not borrow a sentence that
+ * promises another play.
+ */
+export function listeningStatusText(state = {}, locale = getLocale()) {
+  const code = state.error?.error;
+  if (code === 'practice_check_required') return pt('partRunnerAudioCheckFirst', {}, locale);
+  if (code === 'playback_exhausted') return pt('partRunnerAudioUsed', {}, locale);
+  if (code === 'practice_playback_unavailable') return pt('partRunnerAudioUnavailable', {}, locale);
+  return listeningMessage(state, locale);
+}
+
+/**
+ * The player block, as markup — ONE renderer for the mock controller (below) and the practice player
+ * (`practice-listening.js`). Extracted verbatim from the mock's `render()` so the existing player keeps its
+ * exact DOM, attributes and copy; the practice path only supplies a different state.
+ *
+ * `options.attemptMode` is the only new member: the mock passes its run DTO (which carries `attempt_mode`),
+ * the practice player passes `'practice'`, and the chip follows.
+ */
+export function listeningPlayerMarkup(state = {}, recording = {}, options = {}) {
+  const {
+    run = null, examLanguage = 'und', esc, locale = getLocale(), instruction = null,
+    canEdit = () => true, frozen = false, loading = false, arming = false, playing = false,
+    terminal = () => false, message = listing => listeningStatusText(listing, locale),
+    labels = {}, attemptMode = null, actions = null, time = formatDuration, position = null,
+  } = options;
+  const p = state.playback;
+  const ended = terminal(state.error);
+  const stopped = !canEdit() || frozen || ended;
+  const busy = state.busy || loading || arming;
+  const currentPosition = () => position ? position() : Math.min(recording?.duration_ms || 0,
+    Math.max(state.playback?.position_ms || 0));
+  const btn = (action, label, disabled = false) => '<button type="button" class="btn'
+    + (['play', 'recover'].includes(action) ? ' btn-primary' : '')
+    + '" data-listening-action="' + action + '"' + (disabled ? ' disabled' : '') + '>' + label + '</button>';
+  let controls = '';
+  if (!stopped) {
+    if (typeof actions === 'function') controls = actions({ button: btn, busy, stopped, playback: p, playing, state, recording, labels });
+    else if (!p) controls = btn('reload', labels.reload ?? pl('audioReload'), busy);
+    else if (playing) controls = btn('pause', labels.pause ?? pl('audioPause'));
+    else if (state.pending) controls = btn('retry', labels.retry ?? pl('audioRetry'), busy) + btn('reload', labels.server ?? pl('audioServer'), busy);
+    else if (state.error && ['playback_conflict', 'playback_recovery_required'].includes(state.error.error)) controls = btn('reload', labels.server ?? pl('audioServer'), busy);
+    else if (!options.ready) controls = btn('load', labels.load ?? pl('audioLoad'), busy);
+    else if (p.state !== 'completed' || p.plays_used < p.max_plays) controls = btn(['playing', 'paused'].includes(p.state) ? 'recover' : 'play', p.state === 'ready' ? pl('audioPlay') : p.state === 'completed' ? pl('audioNext') : pl('audioResume'), busy);
+  }
+  const chip = run?.scope === 'complete_supported_written' ? pl('mockScope')
+    : (attemptMode ?? run?.attempt_mode) === 'mock' ? pl('audioMock') : pl('audioPractice');
+  return '<section class="card-flat listening-player stack" aria-label="Höraufnahme" data-practice-aria-label="recording"><div class="spread"><h3 lang="' + esc(run?.exam_language || examLanguage || 'und') + '" dir="' + ((run?.exam_language || examLanguage) === 'ar' ? 'rtl' : 'ltr') + '">' + esc(recording?.label ?? '') + '</h3><span class="chip">' + chip + '</span></div>'
+    + (run?.release_state === 'internal' ? '<p class="small muted" data-practice-key="ui68">Internes Testmaterial · fachliche und Audio-Prüfung ausstehend.</p>' : '')
+    + (instruction ?? instructionMarkup({ id: 'listening.playback', examLanguage: run?.exam_language || examLanguage || 'und', original: INSTRUCTIONS['listening.playback'].examLanguage === (run?.exam_language || examLanguage) ? INSTRUCTIONS['listening.playback'].original : '', parameters: { maxPlays: recording?.max_plays } }))
+    + '<div class="listening-progress"><progress data-listening-progress max="' + (recording?.duration_ms || 0) + '" value="' + currentPosition() + '" aria-label="Gespeicherter und aktueller Hörfortschritt" data-practice-aria-label="progress"></progress><span class="num">' + time(currentPosition()) + ' / ' + time(recording?.duration_ms || 0) + '</span></div>'
+    + '<p data-listening-status class="listening-status' + (state.error ? ' err' : ' muted') + '" role="status" aria-live="polite">' + esc(ended ? message(state) : stopped ? pt('audioBlocked', {}, locale) : loading ? pt('audioLoading', {}, locale) : message(state)) + '</p><div class="row listening-controls">' + controls + '</div></section>';
+}
+
+/** `m:ss`, for the progress readout. Exported so the practice player prints the same format. */
+function formatDuration(ms) {
+  return Math.floor(ms / 60000) + ':' + String(Math.floor(ms / 1000) % 60).padStart(2, '0');
+}
+
+/**
+ * Put the keyboard focus back on the SAME control after a re-render replaced the block's DOM. Shared for the
+ * same reason as the markup: a learner who taps "Pause" with a keyboard must not lose their place, in either
+ * path. `action` is the previous `data-listening-action`, or null.
+ */
+export function restoreListeningFocus(host, action) {
+  if (!action || !host?.querySelector) return false;
+  host.querySelector('[data-listening-action="' + action + '"]')?.focus({ preventScroll: true });
+  return true;
+}
+
+/** The action the learner was focused on before a re-render, or null. */
+export function focusedListeningAction(host) {
+  return host?.contains?.(globalThis.document?.activeElement)
+    ? globalThis.document.activeElement.dataset.listeningAction ?? null
+    : null;
+}
+
 /** Custom controls have no seek/rate affordance. Audio bytes never enter public routes or browser storage. */
 export function createListeningController({ getExamLanguage = () => null, api, esc, canEdit = () => true, createAudio = () => new Audio(),
   createObjectURL = blob => URL.createObjectURL(blob), revokeObjectURL = url => URL.revokeObjectURL(url),
@@ -107,24 +186,24 @@ export function createListeningController({ getExamLanguage = () => null, api, e
   const time = ms => Math.floor(ms / 60000) + ':' + String(Math.floor(ms / 1000) % 60).padStart(2, '0');
   function render() {
     if (!host || !recording) return;
-    const s = state(), p = s.playback, ended = terminal(s.error), stopped = !canEdit() || frozen || ended;
-    const busy = s.busy || loading || arming;
-    const focus = host.contains?.(globalThis.document?.activeElement) ? globalThis.document.activeElement.dataset.listeningAction : null;
-    const btn = (action, label, disabled = false) => '<button type="button" class="btn' + (['play', 'recover'].includes(action) ? ' btn-primary' : '') + '" data-listening-action="' + action + '"' + (disabled ? ' disabled' : '') + '>' + label + '</button>';
-    let controls = '';
-    if (!stopped) {
-      if (!p) controls = btn('reload', pl('audioReload'), busy);
-      else if (playing) controls = btn('pause', pl('audioPause'));
-      else if (s.pending) controls = btn('retry', pl('audioRetry'), busy) + btn('reload', pl('audioServer'), busy);
-      else if (s.error && ['playback_conflict', 'playback_recovery_required'].includes(s.error.error)) controls = btn('reload', pl('audioServer'), busy);
-      else if (!ready) controls = btn('load', pl('audioLoad'), busy);
-      else if (p.state !== 'completed' || p.plays_used < p.max_plays) controls = btn(['playing', 'paused'].includes(p.state) ? 'recover' : 'play', p.state === 'ready' ? pl('audioPlay') : p.state === 'completed' ? pl('audioNext') : pl('audioResume'), busy);
-    }
-    host.innerHTML = '<section class="card-flat listening-player stack" aria-label="Höraufnahme" data-practice-aria-label="recording"><div class="spread"><h3 lang="' + esc(run.exam_language || getExamLanguage() || 'und') + '" dir="' + ((run.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr') + '">' + esc(recording.label) + '</h3><span class="chip">' + (run?.scope === 'complete_supported_written' ? pl('mockScope') : run?.attempt_mode === 'mock' ? pl('audioMock') : pl('audioPractice')) + '</span></div>'
-      + (run?.release_state === 'internal' ? '<p class="small muted" data-practice-key="ui68">Internes Testmaterial · fachliche und Audio-Prüfung ausstehend.</p>' : '')
-      + instructionMarkup({id:'listening.playback',examLanguage:run.exam_language || getExamLanguage() || 'und',original:INSTRUCTIONS['listening.playback'].examLanguage===(run.exam_language || getExamLanguage()) ? INSTRUCTIONS['listening.playback'].original : '',parameters:{maxPlays:recording.max_plays}})
-      + '<div class="listening-progress"><progress data-listening-progress max="' + recording.duration_ms + '" value="' + position() + '" aria-label="Gespeicherter und aktueller Hörfortschritt" data-practice-aria-label="progress"></progress><span class="num">' + time(position()) + ' / ' + time(recording.duration_ms) + '</span></div>'
-      + '<p data-listening-status class="listening-status' + (s.error ? ' err' : ' muted') + '" role="status" aria-live="polite">' + esc(ended ? listeningMessage(s) : stopped ? pt('audioBlocked') : loading ? pt('audioLoading') : listeningMessage(s)) + '</p><div class="row listening-controls">' + controls + '</div></section>';
+    const s = state();
+    const examLanguage = run.exam_language || getExamLanguage() || 'und';
+    const focus = focusedListeningAction(host);
+    /*
+     * The block itself is built by the SHARED renderer (above), which the practice player uses too: the mock
+     * keeps only what is genuinely its own — its own `terminal` list, its own copy for a closed run, and the
+     * actions it offers. The DOM, the attributes and the wording are therefore identical in both paths by
+     * construction rather than by two copies that can drift.
+     */
+    host.innerHTML = listeningPlayerMarkup(s, recording, {
+      run, examLanguage, esc, locale: getLocale(),
+      instruction: instructionMarkup({ id: 'listening.playback', examLanguage,
+        original: INSTRUCTIONS['listening.playback'].examLanguage === examLanguage ? INSTRUCTIONS['listening.playback'].original : '',
+        parameters: { maxPlays: recording.max_plays } }),
+      canEdit, frozen, loading, playing, arming, terminal, position, ready,
+      message: listing => listeningStatusText(listing, getLocale()),
+    });
+    restoreListeningFocus(host, focus);
     updateLocale();
     host.onclick = event => {
       const button = event.target.closest('[data-listening-action]'); if (!button || button.disabled) return;
@@ -136,7 +215,6 @@ export function createListeningController({ getExamLanguage = () => null, api, e
       if (action === 'retry') void retry();
       if (action === 'reload') void reload();
     };
-    if (focus) host.querySelector('[data-listening-action="' + focus + '"]')?.focus({ preventScroll: true });
   }
   function listen(name, handler) { audio.addEventListener(name, handler); listeners.push([name, handler]); }
   async function loadMedia() {
