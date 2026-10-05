@@ -983,7 +983,7 @@ async function postgresLegs() {
       assert.equal(wrapped.round.round, 6, 'a wrap begins no further round');
     });
 
-    await pgLeg('P7 SQL: the released listening sets are in the pool with playable audio, and the HV parts serve nothing (FIX-F1)', async () => {
+    await pgLeg('P7 SQL: the released listening sets are in the pool with playable audio, and only a PLAYABLE one is served', async () => {
       for (const entry of JSON.parse(read(SOURCE)).sets.filter((row) => LISTENING_BATCH.includes(row.set_id))) {
         const rows = (await db.admin.query(
           `SELECT s.set_id, s.version, s.media_required, s.item_count,
@@ -1006,16 +1006,23 @@ async function postgresLegs() {
           `${family}: the seeded three plus .04`);
         assert.ok(rows.every((row) => row.media_required === true), `${family}: every set is audio material`);
         /*
-         * FIX-F1 (A13): a listening part is not SERVED at all until a practice playback transport exists — the
-         * runner answers nothing rather than putting live answer controls beside a player that cannot play. The
-         * serving path enforces that with `s.media_required = false` in the candidate query, so RELEASING a
-         * listening set does not bypass it: the three sets are in the pool, their audio is importable and
-         * readable, and the part still serves nothing. (The playback path itself — allowance, `begin`,
-         * `practice_check_required`, bytes — has its own legs in tools/practice-media-check.mjs, which drives
-         * the same rows with a synthetic recording.)
+         * FIX-F1 SURVIVES THE RELEASE (A13), narrowed to the truth by POOL-01/task-49. A listening part serves
+         * ONLY a set this deployment can actually play: the released `.04` set binds a recording that resolves
+         * to an `exam_media` row, so it IS served now; the three SEEDED sets carry no `recordings[]` at all, so
+         * they are still refused and a learner never meets live answer controls beside a player that cannot
+         * play. This leg asserts both halves BY NAME: releasing a listening set still does not make an
+         * unplayable one servable, and it no longer withholds one that is.
+         *
+         * (The playback path itself — allowance, `begin`, `practice_check_required`, bytes — has its own legs
+         * in tools/practice-media-check.mjs; the admission rule itself is proved there (F4, with both halves
+         * mutation-proved) and in tools/practice-selection-check.mjs P8f.)
          */
-        assert.equal(await port.practiceSetForPart(owner, { preparationId, family }), null,
-          `${family} still serves nothing: the release does not bypass FIX-F1`);
+        const served = await port.practiceSetForPart(owner, { preparationId, family });
+        assert.ok(served, `${family} serves its released, playable set`);
+        assert.equal(served.set.set_id, `telc-deutsch-b1.${family.toLowerCase()}.04`,
+          `${family}: the only servable set is the one whose recording resolves`);
+        assert.ok(Array.isArray(served.set.material.recordings) && served.set.material.recordings.length,
+          `${family}: and the served DTO carries the binding the practice player resolves`);
       }
       const released = (await db.admin.query(
         `SELECT count(*)::int AS n FROM objective_set WHERE set_id LIKE 'telc-deutsch-b1.hv%.04'`)).rows[0].n;
