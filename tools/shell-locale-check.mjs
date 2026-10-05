@@ -221,7 +221,16 @@ await check('actual shell objective rendering keeps exam language and immutable 
   setLocale('ar'); execute({payload:{}},{});
   assert.match(html,/lang="en" dir="ltr">Original English question\?/);
   assert.ok(html.includes('Original English passage &lt;untouched&gt;'));
-  assert.match(html,/data-answer="a">a\) Original English answer/);
+  /*
+   * REDESIGN-01 C changed the tile markup (letter badge, label, verdict slot), so this asserts the parts
+   * that must survive any restyle: the option id stays the bare `data-answer`, the visible text still opens
+   * with the letter and then the authored label, and the label is rendered in full.
+   */
+  const tile=html.match(/<button class="btn answer-option"[^>]*data-answer="([^"]+)"[^>]*>([\s\S]*?)<\/button>/);
+  assert.ok(tile,'the option renders as a tile button');
+  assert.equal(tile[1],'a','the tile carries the bare option id');
+  assert.match(tile[2],/^<span class="answer-letter"[^>]*>a\)\s*<\/span>/, 'the letter stays visible and unescaped');
+  assert.ok(tile[2].includes('Original English answer'),'the authored label is rendered in full');
   assert.ok(html.includes('lang="ar"')); assert.ok(!html.includes(INSTRUCTIONS.single_choice.original));
   examLanguage='de';execute({payload:{}},{});assert.ok(html.includes(INSTRUCTIONS.single_choice.original));
   examLanguage=null;execute({payload:{}},{});assert.match(html,/lang="und" dir="ltr">Original English question\?/);

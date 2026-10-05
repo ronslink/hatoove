@@ -1096,9 +1096,14 @@ function renderObjectiveForm(set, host) {
          * button itself, with `.answer-option` (app.css) making it wrap inside the card instead of
          * widening the page. The letter (`o.id`) stays in the same text run, so scoring, `data-answer`
          * and the server key are untouched.
+         *
+         * REDESIGN-01 C: the tile carries its own state slots. `data-state` is set from the SERVER's
+         * `correct` for the one option the learner picked, and the letter badge plus the verdict glyph are a
+         * second, non-colour cue — colour alone is never the signal. The letter still opens the visible text
+         * of the option and `data-answer` still holds the bare id, so scoring is unchanged.
          */
-        + options.map((o) => '<button class="btn answer-option" ' + examTextAttributes() + ' type="button" data-answer="' + esc(o.id) + '">'
-          + esc(o.id) + ') ' + esc(o.label) + '</button>').join('')
+        + options.map((o) => '<button class="btn answer-option" ' + examTextAttributes() + ' type="button" data-answer="' + esc(o.id) + '"><span class="answer-letter" aria-hidden="true">' + esc(o.id) + ') </span>'
+          + '<span class="answer-label">' + esc(o.label) + '</span><span class="answer-verdict" aria-hidden="true"></span></button>').join('')
         + '</div><p class="small muted result"></p></section>';
     }).join(''));
 }
@@ -1126,6 +1131,26 @@ async function answerItem(set, card, itemId, answer) {
   if (button) button.setAttribute('aria-pressed', String(correct));
   bindShellText(out, () => correct ? uiText("m137") : uiText("m138"));
   /*
+   * REDESIGN-01 C — THE TILE STATES, FROM THE SERVER'S ANSWER ONLY.
+   *
+   * Every state below comes from `res`: `data.correct` is the server's mark for the option the learner
+   * picked, and `data.correct_answer` is the option the key holds. The client guesses nothing and marks
+   * nothing on its own; before a response the tiles carry no `data-state` at all. The row gets
+   * `data-answered` so the stylesheet can dim the options that were not part of this answer without
+   * hiding any of them.
+   */
+  const revealed = res.data ? res.data.correct_answer : undefined;
+  const tiles = [...card.querySelectorAll('.answer-option')];
+  if (tiles.length) card.querySelector('.row')?.setAttribute('data-answered', 'true');
+  for (const tile of tiles) {
+    const id = tile.getAttribute('data-answer');
+    const isPicked = id === String(answer);
+    const isRight = revealed !== undefined && revealed !== null && id === String(revealed);
+    if (isPicked && correct) tile.dataset.state = 'correct';
+    else if (isPicked) tile.dataset.state = 'wrong';
+    else if (isRight) tile.dataset.state = 'was-correct';
+  }
+  /*
    * REDESIGN-01 A/C — THE VERDICT BOX SHOWS WHAT WAS RIGHT.
    *
    * "Noch nicht richtig" alone left the learner with the question and no answer, which is the one thing
@@ -1133,13 +1158,13 @@ async function answerItem(set, card, itemId, answer) {
    * `correct_answer` for the item just answered, through `reveal_objective_answer` (migration 0041), so
    * the verdict can say what the right option was. Absent field -> the old markup, exactly as before.
    */
-  const revealed = res.data ? res.data.correct_answer : undefined;
-  if (revealed !== undefined && revealed !== null) {
+  const revealedLine = revealed;
+  if (revealedLine !== undefined && revealedLine !== null) {
     const line = document.createElement('p');
     line.className = 'revealed-answer';
     // One binding owns the whole line, so a locale change re-reads both the label and the value rather
     // than leaving a stale label inside markup (bindShellText replaces the node's single text node).
-    bindShellText(line, () => uiText("m388") + ' ' + JSON.stringify(revealed));
+    bindShellText(line, () => uiText("m388") + ' ' + JSON.stringify(revealedLine));
     out.after(line);
   }
   if (res.data?.evidence_id) {
