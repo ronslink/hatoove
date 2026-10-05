@@ -319,9 +319,9 @@
             <p><span data-i18n="shell.m340">Grammatik, Fälle, Genus, Redemittel und Briefe.</span></p>
           </div>
         </div>
-        <!-- NAV-01: Satzbau is a Werkzeug now, reached from Nachschlagen, so this card keeps it reachable
-             once the top-level entry is gone. The six-card hub of slice E replaces this interim list. -->
-        <a class="card more-link" href="#/satzbau" data-view="satzbau"><strong><span data-i18n="shell.m015">Satzbau erkunden</span></strong><span><span data-i18n="shell.m357">Untersuche die Struktur eines deutschen Satzes.</span></span></a>
+        <!-- NAV-01 interim card removed at E/F integration: the six-card hub in public/app/library.js owns
+             the Satzbau entry now, so a second card here would duplicate it. Satzbau is still a Werkzeug
+             reached from Nachschlagen, and #/satzbau (and #/nachschlagen/satzbau) still resolve. -->
         <div class="stack" id="library-host" hidden></div>
         <div class="stack" id="guide-index"><div class="card"><h3><span data-i18n="shell.m057">Wird geladen ...</span></h3></div></div>
         <div class="stack" id="guide-body" hidden></div>
