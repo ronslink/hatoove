@@ -23,6 +23,27 @@
  * It never touches a database it was not pointed at, and `persistentConfig()` refuses to run without
  * `OWNAPI_PG_ALLOW=1`.
  *
+ * FOUR LEGS WERE VACUOUS UNTIL AN INDEPENDENT REVIEW MUTATED THEM. Each passed with its guard removed,
+ * because something else refused the row first — the unique index, the digest check, a foreign key, or the
+ * cascade. They now name the mechanism they are testing (leg 14 asserts 23514 AND stores a valid control; leg 17
+ * asserts the CONSTRAINT NAME; leg 18 deletes a round nothing references; leg 19 asserts the policy EXISTS).
+ * Re-running the reviewer's four mutations against the fixed legs:
+ *
+ *   M-a DROP TRIGGER pilot_feedback_guard            -> leg 14
+ *   M-b DROP CONSTRAINT ..._screenshot_bytes_check   -> leg 17
+ *   M-c DROP TRIGGER survey_round_immutable          -> leg 18
+ *   M-d DROP POLICY deletion_pilot_feedback_screenshot -> leg 19
+ *
+ * THREE WAYS THE MUTATION HARNESS ITSELF LIED, all hit while doing the above, all worth knowing before trusting
+ * any mutation table in this repository:
+ *   1. The MUTATION's exit code was never checked, only the restore's — so a drop that silently matched a
+ *      different object looked like a leg that would not bite.
+ *   2. A restore that INVENTED a trigger name (`guard_pilot_feedback`, named after its function) created a PHANTOM
+ *      TRIGGER, and the phantom then masked the next mutation. Verify the object you are restoring exists under
+ *      the name you think it does.
+ *   3. Restoring a dropped CHECK can FAIL (exit 3) because the mutation let rows in that the constraint now
+ *      rejects; those stray rows then break unrelated legs. Clean the mutation's own leavings up before restoring.
+ *
  * Usage: node tools/pilot-feedback-migration-check.mjs
  */
 
