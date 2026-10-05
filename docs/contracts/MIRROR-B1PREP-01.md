@@ -421,4 +421,29 @@ production and its checksum is frozen.
   deployed by this; the PR is the reviewable artifact for Ron.
   (6) **POOL-01 batch 2 waits** until batch 1 has been reviewed by Ron.
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A12 added 5 October 2026.*
+- **A13 (5 Oct 2026, the adopted review path).** Ron asked an outside reviewer (Claude Code, read-only,
+  brief in `handoff/ron-agent/CLAUDE-REVIEW-BRIEF.md`, findings in `CLAUDE-REVIEW-OUTPUT.md`) to review the
+  work and make recommendations, and adopted them as the path. The findings and their dispositions:
+  **F1 (defect, merged, fixed first):** the part runner still serves listening sets with no playable audio,
+  writes the blind guesses as `item_evidence`, and one wrong answer makes that part "weak", which then
+  **blocks Einzelübungen** even when a playable weak part ranks below it. Fix: no listening set is offered
+  until it has playable recordings, no evidence is written for one, and the drill **skips** a listening part
+  instead of blocking. The guesses already recorded are not deleted; ranking and tile counts ignore evidence
+  from sets that cannot play. **F2 (defect, in flight):** `media-mount-01` as written makes `docker compose up`
+  fail on a clean checkout because the default `./media` is empty while the recordings are tracked elsewhere;
+  it must serve from the tracked path by default with the mount as an opt-in override, correct the comments
+  that still contradict A12(1), add a `*.wav binary` rule, and prove a clean-clone start. **F3:** A11(a) is
+  wrong that the held HV sets need only a flag flip — they need TTS audio, `exam_media` rows, `recordings`
+  bindings and the client transport. **F4:** the 15 mirror gates, `pool-01-check`, `media-mount-check` and the
+  builder `--check` run in no CI job, so a green PR would say nothing about this program. **F5:** `0047`
+  cannot be withdrawn once applied, so the three LV1 sets are held for Ron to read (15 items) and the batch
+  gets a non-author review and gate registration; one LV1 key (offer vs request) is a human decision.
+  **F6:** the PR must target `--base main` explicitly (the default branch is not it) and carry the evidence.
+  **F7:** native review is 144 catalogue keys (432 machine-translated interface strings) plus 704 guide
+  strings and 240 nouns × 3 locales — not "99 + 28" — and the pack must be generated, not hand-copied.
+  **F8:** `0043` corrected content without bumping `content_version`, which is why the re-pin and the pending
+  record are manual; generating the record from the import (task-34) is confirmed. **F9 (low):** the A5(b)
+  D22 phrase forms are still missing from `mock-intro-check`, and `nav-ia-check` checks route shape by regex
+  rather than running the router. **Nothing merged needs reverting; every fix is forward.**
+
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A13 added 5 October 2026.*
