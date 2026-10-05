@@ -170,7 +170,7 @@ bundle marker stays conservative and flips to `approved` only when every served 
 |---|---|
 | `node tools/owned-api-check.mjs` | 34 passed, 0 failed (backend: memory) |
 | `node tools/owned-api-check.mjs --backend=postgres` | 34 passed, 0 failed (backend: postgres) |
-| `node tools/repository-check.mjs` | passed: 699 tracked files, 616 text blobs screened |
+| `node tools/repository-check.mjs` | passed: **704 tracked files, 621 text blobs screened** at this head (`de70517`; the 699/616 figure in the first draft was the base commit's, corrected after REVIEW-LIBRARY-I18N-01 F2) |
 | `node tools/migrate-check.mjs` | 6 passed, 0 failed |
 | `node tools/table-class-check.mjs` | 85 tables, **0 failures**; both new tables `catalogue … OK` |
 | `node tools/design-check.mjs` · `retired-surface-check` · `seo-check` · `server-origin-check` · `keymask-check` · `owned-client-check` · `i18n-register-check` · `migration-eol-check` | all exit 0 |
@@ -200,11 +200,12 @@ bundle marker stays conservative and flips to `approved` only when every served 
 ## 6. Residual risk
 
 1. **The `nouns` member is not scoped and dominates the response.** Measured from the bundle, a `uk`
-   locale-qualified guide read adds ~64 KB (cases-guide: 8 868 B of strings + 54 924 B of the 240-noun
-   lexicon). That is the contract's shape (§4.3 puts the lexicon in the same member), so it is implemented
-   as frozen, but it is the one place where this slice could make a guide page noticeably heavier. If that
-   matters, the fix is a contract amendment (`nouns` on `/api/v1/nouns?locale=` instead), not a slice-local
-   choice.
+   locale-qualified guide read adds ~64 KB. REVIEW-LIBRARY-I18N-01 F2 asked for the basis, and it is
+   **serialized** size, not raw text: 63 905 B total = 8 868 B of serialized strings (4 094 B of raw text)
+   + 54 924 B of the serialized 240-noun lexicon (37 268 B of raw text). That is the contract's shape (§4.3
+   puts the lexicon in the same member), so it is implemented as frozen, but it is the one place where this
+   slice could make a guide page noticeably heavier. If that matters, the fix is a contract amendment
+   (`nouns` on `/api/v1/nouns?locale=` instead), not a slice-local choice.
 2. **Stale is indistinguishable from absent** through the API (decision 2 above). An operator who needs the
    difference needs an operational signal, not a response member.
 3. **No delete or supersede path.** A string dropped from a later bundle keeps its row. Nothing in this
@@ -226,3 +227,20 @@ bundle marker stays conservative and flips to `approved` only when every served 
    need no database, so they belong in the `check` script; `package.json` is outside this slice's write
    scope, so the Lead should add the line at integration (`node tools/library-i18n-check.mjs` — the
    `--postgres` variant belongs with `check:db`).
+
+## 7. Review response — REVIEW-LIBRARY-I18N-01 (mock-intro), 5 October 2026
+
+The independent review returned **CLEAR WITH NOTES**, with one defect to fix before integration. It
+reproduced the migration, the grants, the import idempotence, the mutation refusals (against on-disk
+bytes rather than in memory), and the read path with its own 20-leg script, and it re-ran every suite.
+The fix below was made by the Lead on this branch, so the reviewer of record is not the author of the fix.
+
+| Finding | Disposition |
+|---|---|
+| **F1 (real defect).** The two `*_reviewer_check` constraints proved only "at least one of reviewer/reviewed_at", so `approved` with a null reviewer, or a null `reviewed_at`, was accepted while the comment claimed both were required. | **Fixed in place** (0042 is unapplied everywhere): both constraints now use `CASE WHEN review_status = 'machine_unreviewed' THEN (both NULL) ELSE (both NOT NULL) END`, which is exactly the comment's guarantee. Proof on a fresh disposable database with all 40 migrations applied: P1 approved + reviewer NULL **rejected**, P2 approved + reviewed_at NULL **rejected**, P3 rejected + reviewer NULL **rejected**, P4 machine + reviewer set **rejected**, P4b machine + reviewed_at set **rejected**, P5 approved + both set **accepted**, P6 machine + both NULL **accepted**, P7 the same probe on `noun_translation` **rejected**. Then `library-i18n-check` 7/7 offline and 18/18 `--postgres`, `owned-api-check --backend=postgres` 34/34, all on the fixed migration. The MANIFEST line moved with the file: `9b08522e6fa951a40f2989dee1f85173adf07fc45f55978e2aa08bcf7592dab0` (6 324 B, 102 LF, 0 CRLF). |
+| **F2.** This note quoted the base commit's `repository-check` numbers and an unexplained ~64 KB. | Both corrected above: 704/621 at this head, and the 64 KB now states its basis (serialized, and the split between strings and the noun lexicon). |
+| **F3 (cosmetic).** The CLI prints its error code twice. | Left as is: it is a `prefix: code: code` cosmetic in a developer-only tool, and changing a message that a check greps for is riskier than the duplication. Recorded here instead. |
+| **N1 (could not verify).** The production composition root that injects the datastore is not in this repository, so "the live server reads on the learner pool" is inferred from the adapter contract, the in-repo constructions and the grants — not observed on a running server. | Accepted and recorded. It is the same limit the review states; the grant and pool split are enforced by the migration, which is the part this slice owns. |
+| **N3.** The storage locale CHECK forbids `de`/`en` rows, so a future de/en bundle needs a migration, not just an import. | Recorded as residual risk. |
+| **N4.** A locale-qualified guide read is three queries, only one of which was described. | Recorded here; the note's residual 1 describes the payload, not the query count. |
+| **N6.** `stringStatus` and stale ≡ absent were already settled by amendment A2 in the canonical contract. | Confirmed; nothing changed. The reviewed head predates A1–A3, which is a documentation gap between the worktree and canonical `main`, not a code divergence. |

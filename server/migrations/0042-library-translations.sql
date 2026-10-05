@@ -51,8 +51,14 @@ CREATE TABLE "__SCHEMA__".guide_translation (
   CONSTRAINT guide_translation_status_check CHECK (review_status IN ('machine_unreviewed','approved','rejected')),
   -- A machine row carries no reviewer and no review time; an approved or rejected row carries both.
   -- One CHECK, so "reviewed but nobody reviewed it" cannot be stored in either direction.
+  -- REVIEW-LIBRARY-I18N-01 F1: the first form of this constraint proved only "at least one of the two",
+  -- so `approved` with a null reviewer (or a null reviewed_at) was accepted while the comment above
+  -- claimed the stricter guarantee. The CASE makes both halves exact; proved by rolled-back inserts.
   CONSTRAINT guide_translation_reviewer_check CHECK (
-    (review_status = 'machine_unreviewed') = (reviewer IS NULL AND reviewed_at IS NULL)),
+    CASE WHEN review_status = 'machine_unreviewed'
+         THEN reviewer IS NULL AND reviewed_at IS NULL
+         ELSE reviewer IS NOT NULL AND reviewed_at IS NOT NULL
+    END),
   CONSTRAINT guide_translation_text_check CHECK (text <> ''),
   FOREIGN KEY (guide_id, section_id) REFERENCES "__SCHEMA__".guide_section(guide_id, section_id)
 );
@@ -75,8 +81,12 @@ CREATE TABLE "__SCHEMA__".noun_translation (
   PRIMARY KEY (entry_id, locale),
   CONSTRAINT noun_translation_locale_check CHECK (locale IN ('uk','ar','tr')),
   CONSTRAINT noun_translation_status_check CHECK (review_status IN ('machine_unreviewed','approved','rejected')),
+  -- Same exact guarantee as guide_translation above (REVIEW-LIBRARY-I18N-01 F1).
   CONSTRAINT noun_translation_reviewer_check CHECK (
-    (review_status = 'machine_unreviewed') = (reviewer IS NULL AND reviewed_at IS NULL)),
+    CASE WHEN review_status = 'machine_unreviewed'
+         THEN reviewer IS NULL AND reviewed_at IS NULL
+         ELSE reviewer IS NOT NULL AND reviewed_at IS NOT NULL
+    END),
   CONSTRAINT noun_translation_text_check CHECK (meaning <> '' AND example <> '' AND rule <> '')
 );
 
