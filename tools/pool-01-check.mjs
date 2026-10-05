@@ -25,9 +25,12 @@
  *      database applies `0047` last, serves the new sets through the shipped practice path, reaches them by
  *      the selection rule, and wraps at the new per-part set count.
  *
- * MUTATION PROOF. Three mutations, each applied to a throwaway copy: a held set marked `released` (leg 3
- * must fail), an answer that is not one of the set's headlines (leg 1), and the builder's secret-field rule
- * emptied (leg 5, the regenerated-file comparison). The pristine copies must pass.
+ * MUTATION PROOF. Seven mutations, each applied to a throwaway copy: a held listening set marked `released`, an
+ * LV1 answer that is not one of the set's headlines, a released set dropped from the batch, the builder's
+ * secret-field rule emptied, and three checks on Ron's `lv1.06` decisions (a duplicated confirmed key, the
+ * confirmed key changed afterwards, the rejected wording restored). The pristine control runs first; when it is
+ * not clean the run reports that as a NAMED failure, skips the mutation proofs and still prints its tally —
+ * it used to throw an uncaught AssertionError, which is how CI lost legs 8+ entirely (POOL-01-CI-01).
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -48,6 +51,27 @@ const LOCALES = null; // not an interface-copy slice
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const firstLine = (error) => String(error && error.message).split('\n')[0];
+
+/**
+ * The digests a source file legitimately hashes to.
+ *
+ * `data/seed.json` and `content/pool-01/batch-1.json` carry no `eol` attribute, so git checks them out CRLF on
+ * Windows (`core.autocrlf=true`) and LF everywhere else: the SAME content has two byte forms, and a committed
+ * migration can only record the digest of the form its generating platform had. Measured on 5 October 2026
+ * (POOL-01-CI-01): seed.json is `ef26279d…` CRLF / `40a0a066…` LF, and batch-1.json is `45e361a1…` CRLF /
+ * `f39498a1…` LF. The committed `0010` and `0047` record the CRLF values, which is why a literal comparison
+ * passed on Windows and failed on the ubuntu checkout.
+ *
+ * A record is therefore accepted only when it is the digest of THIS checkout's file in one of those two forms
+ * — the set is computed from the file on disk at check time, never from a table of blessed digests, so a stale
+ * record or a source that moved still fails.
+ */
+const sourceDigestForms = (absolute) => {
+  const raw = fs.readFileSync(absolute);
+  const lf = Buffer.from(String(raw).replace(/\r\n/g, '\n'), 'utf8');
+  const crlf = Buffer.from(String(lf).replace(/\n/g, '\r\n'), 'utf8');
+  return new Set([raw, lf, crlf].map(sha256));
+};
 
 /** The blueprint's item numbering per family (docs/exam/TELC-B1-SOURCES.md §3.1, §3.3). */
 const ITEM_NUMBERS = Object.freeze({
@@ -351,7 +375,19 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
       assert.match(generated.out, /24 sets, 24 keys/, 'the seeded corpus is still 24 sets');
       const header = corpusText.match(/Source: data\/seed\.json \(sha256 ([0-9a-f]{64})\)/);
       assert.ok(header, '0010 records the digest of the source it was generated from');
-      assert.equal(header[1], sha256(fs.readFileSync(path.join(ROOT, 'data/seed.json'))), 'and that digest is still data/seed.json');
+      /*
+       * EXACT, BUT PLATFORM-INDEPENDENT. The record is over the source bytes AS CHECKED OUT, and this file has
+       * two legitimate byte forms (CRLF on Windows, LF elsewhere), so the assertion is membership in the set of
+       * digests THIS checkout's data/seed.json actually has — not equality with one platform's value. The
+       * fabrication below is what keeps that from becoming a rubber stamp: a digest one character away from the
+       * record must be refused.
+       */
+      const seedForms = sourceDigestForms(path.join(ROOT, 'data/seed.json'));
+      assert.ok(seedForms.has(header[1]),
+        `0010's recorded digest must be data/seed.json in one of its byte forms; recorded ${header[1]}, this checkout has ${[...seedForms].join(' / ')}`);
+      const fabricated = `${header[1].slice(0, 63)}${header[1].endsWith('0') ? '1' : '0'}`;
+      assert.notEqual(fabricated, header[1], 'the fabricated digest is a different value');
+      assert.ok(!seedForms.has(fabricated), 'and a digest one character away from the record is NOT accepted');
       /* The batch lives in its OWN source: no batch set id may appear in the corpus source. */
       const seedText = read('data/seed.json');
       for (const entry of sets) assert.ok(!seedText.includes(entry.set_id), `${entry.set_id} is not spliced into data/seed.json`);
@@ -362,6 +398,12 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
       assert.equal(result.code, 0, `the builder must accept the committed migration:\n${result.out.slice(-400)}`);
       assert.match(result.out, /released sets: 3/, 'and report the released count');
       assert.match(result.out, /held: 3/, 'and the held count');
+      // The same platform-independent reading of 0047's own source record as leg 4 applies to 0010's.
+      const record = migrationText.match(/Source: content\/pool-01\/batch-1\.json \(sha256 ([0-9a-f]{64})\)/);
+      assert.ok(record, '0047 records the digest of the batch source it was generated from');
+      const batchForms = sourceDigestForms(path.join(ROOT, SOURCE));
+      assert.ok(batchForms.has(record[1]),
+        `0047's recorded digest must be ${SOURCE} in one of its byte forms; recorded ${record[1]}, this checkout has ${[...batchForms].join(' / ')}`);
     }],
     ['6 the MANIFEST line is the sha256 of the migration bytes', () => {
       const digest = sha256(read(MIGRATION));
@@ -729,33 +771,52 @@ const main = async () => {
     fs.copyFileSync(path.join(ROOT, SOURCE), path.join(controlTree, SOURCE));
     const control = await runLegs('', { ...deps, source: JSON.parse(read(SOURCE)), sourceText: read(SOURCE) });
     const controlFailed = control.filter(([result]) => result === 'FAIL');
-    assert.deepEqual(controlFailed, [], `the pristine batch must pass: ${JSON.stringify(controlFailed.slice(0, 2))}`);
     fs.rmSync(controlTree, { recursive: true, force: true });
-
-    for (const [label, mutate] of SOURCE_MUTATIONS) {
-      const text = read(SOURCE).replaceAll('\r\n', '\n');
-      const mutated = mutate(text);
-      assert.notEqual(mutated, text, `${label}: the mutation must change the source`);
-      const tree = fs.mkdtempSync(path.join(os.tmpdir(), 'pool-01-mut-'));
-      fs.writeFileSync(path.join(tree, 'source.json'), mutated);
-      const broken = (await runLegs('', { ...deps, source: JSON.parse(mutated), sourceText: mutated }))
-        .filter(([result]) => result === 'FAIL').map(([, name]) => name);
-      fs.rmSync(tree, { recursive: true, force: true });
-      assert.ok(broken.length > 0, `${label}: no leg failed on the mutated source`);
-      mutationNote.push(`${label} -> ${broken.length} leg(s) fail: ${broken[0]}`);
-    }
-    for (const [label, mutate] of BUILDER_MUTATIONS) {
-      const text = read(BUILDER).replaceAll('\r\n', '\n');
-      const mutated = mutate(text);
-      assert.notEqual(mutated, text, `${label}: the mutation must change the builder`);
-      const tree = fs.mkdtempSync(path.join(os.tmpdir(), 'pool-01-builder-'));
-      const builderCopy = path.join(tree, 'builder.mjs');
-      fs.writeFileSync(builderCopy, mutated);
-      const broken = (await runLegs('', { ...deps, builderPath: builderCopy }))
-        .filter(([result]) => result === 'FAIL').map(([, name]) => name);
-      fs.rmSync(tree, { recursive: true, force: true });
-      assert.ok(broken.length > 0, `${label}: no leg failed on the mutated builder`);
-      mutationNote.push(`${label} -> ${broken.length} leg(s) fail: ${broken[0]}`);
+    /*
+     * THE CONTROL IS A NAMED LEG, NOT AN ASSERTION. This was `assert.deepEqual(controlFailed, [], …)`, so any
+     * failing leg above threw an uncaught AssertionError right here: CI printed legs 4 and 5 red and then
+     * `triggerUncaughtException`, the summary never appeared, and legs 8+ never ran at all. A control that is
+     * not pristine now reports a failure the tally can name, and the mutation proofs are SKIPPED rather than
+     * evaluated against a broken baseline — they would prove nothing about the mutations there.
+     */
+    if (controlFailed.length) {
+      report([['FAIL', `the pristine batch must pass before a mutation means anything: ${controlFailed[0][1]}`]]);
+      mutationNote.push(`mutation proofs SKIPPED: the pristine control already fails (${controlFailed.length} leg(s))`);
+    } else {
+      /*
+       * A mutation proof that cannot even be evaluated must not kill the run either: the same lesson as the
+       * control above, applied one level down.
+       */
+      try {
+        for (const [label, mutate] of SOURCE_MUTATIONS) {
+          const text = read(SOURCE).replaceAll('\r\n', '\n');
+          const mutated = mutate(text);
+          assert.notEqual(mutated, text, `${label}: the mutation must change the source`);
+          const tree = fs.mkdtempSync(path.join(os.tmpdir(), 'pool-01-mut-'));
+          fs.writeFileSync(path.join(tree, 'source.json'), mutated);
+          const broken = (await runLegs('', { ...deps, source: JSON.parse(mutated), sourceText: mutated }))
+            .filter(([result]) => result === 'FAIL').map(([, name]) => name);
+          fs.rmSync(tree, { recursive: true, force: true });
+          assert.ok(broken.length > 0, `${label}: no leg failed on the mutated source`);
+          mutationNote.push(`${label} -> ${broken.length} leg(s) fail: ${broken[0]}`);
+        }
+        for (const [label, mutate] of BUILDER_MUTATIONS) {
+          const text = read(BUILDER).replaceAll('\r\n', '\n');
+          const mutated = mutate(text);
+          assert.notEqual(mutated, text, `${label}: the mutation must change the builder`);
+          const tree = fs.mkdtempSync(path.join(os.tmpdir(), 'pool-01-builder-'));
+          const builderCopy = path.join(tree, 'builder.mjs');
+          fs.writeFileSync(builderCopy, mutated);
+          const broken = (await runLegs('', { ...deps, builderPath: builderCopy }))
+            .filter(([result]) => result === 'FAIL').map(([, name]) => name);
+          fs.rmSync(tree, { recursive: true, force: true });
+          assert.ok(broken.length > 0, `${label}: no leg failed on the mutated builder`);
+          mutationNote.push(`${label} -> ${broken.length} leg(s) fail: ${broken[0]}`);
+        }
+      } catch (error) {
+        report([['FAIL', `a mutation proof could not be evaluated: ${firstLine(error)}`]]);
+        mutationNote.push('remaining mutation proofs SKIPPED after that failure');
+      }
     }
   }
 
