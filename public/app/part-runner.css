@@ -1,0 +1,124 @@
+/*
+ * PRACTICE-01 (slice C) — the styles the part runner owns.
+ *
+ * Tokens only, from public/assets/design/hatoove.css: no literal colour, no second brand face, and only the
+ * design system's own 860 px step (the shell defines it; this module adds no breakpoint of its own). Every
+ * direction is logical, so the Arabic RTL interface mirrors without a second rule set, and the
+ * exam-language islands (task prompts, options, explanation prose) keep their own direction.
+ *
+ * The layer is deliberately thin: the shell's `card`, `chip`, `btn`, `hint`, `err`, `muted`, `small` and
+ * `page-head` already carry the visual language, and a module that restates them drifts from them.
+ */
+
+.part-runner { display: grid; gap: 20px; min-width: 0; }
+.part-runner > * { min-width: 0; }
+.part-runner h1, .part-runner h2, .part-runner h3, .part-runner p, .part-runner li { overflow-wrap: anywhere; }
+
+.part-runner-lead { color: var(--ink-2); font-size: 1.05rem; max-width: 68ch; }
+.part-runner-kicker-line { margin: 0 0 6px; }
+
+/* ---------- the passage the tasks are worked from (LV2 text, SB1/SB2 letter) ---------- */
+
+.part-runner-material {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.part-runner-material-label { margin: 0; font-weight: 650; letter-spacing: .02em; text-transform: uppercase; }
+.part-runner-material-body { display: grid; gap: 10px; }
+.part-runner-material-body p { margin: 0; max-width: 72ch; }
+
+/* ---------- the listening block: player, EXAM play rule, honest playback message ---------- */
+
+.part-runner-audio {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  background: var(--peach);
+  border: 1px solid var(--peach-line);
+  border-radius: var(--r-lg);
+}
+.part-runner-audio-title { margin: 0; font-size: 1.05rem; }
+.part-runner-player { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.part-runner-play-rule { margin: 0; font-weight: 650; }
+
+/* ---------- the tasks of the set, all of them, on this one page ---------- */
+
+.part-runner-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.part-runner-item {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.part-runner-item-label { margin: 0; font-weight: 650; letter-spacing: .02em; text-transform: uppercase; }
+.part-runner-prompt { margin: 0; font-weight: 650; }
+.part-runner-prompt-translation { margin: 0; }
+.part-runner-options { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+/* The group's accessible name is the task label, already visible above the prompt; `.sr-only` (the pinned
+   design system's own utility) keeps it for assistive tech without printing "Aufgabe 6" twice. */
+.part-runner-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--paper);
+  cursor: pointer;
+}
+.part-runner-option input { margin-top: 3px; }
+.part-runner-option-text { flex: 1 1 auto; }
+.part-runner-progress { margin: 0; }
+
+/* ---------- the single "Auswerten" ---------- */
+
+.part-runner-evaluate-row { display: flex; justify-content: flex-start; }
+
+/* ---------- the full review ---------- */
+
+.part-runner-result { margin: 0; font-size: 1.1rem; font-weight: 700; }
+.part-runner-notice { margin: 0; }
+.part-runner-wrap-notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  background: var(--amber-bg);
+  border: 1px solid var(--amber);
+  color: var(--ink);
+  font-weight: 650;
+}
+.part-runner-review { gap: 16px; }
+.part-runner-review-item { display: grid; gap: 8px; padding: 18px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.part-runner-options-review { list-style: none; }
+.part-runner-option-review { cursor: default; flex-wrap: wrap; }
+.part-runner-option-review[data-option-state="key"],
+.part-runner-option-review[data-option-state="key-chosen"] { border-color: var(--green); background: var(--green-bg); }
+.part-runner-option-review[data-option-state="chosen"] { border-color: var(--red); background: var(--red-bg); }
+.part-runner-key-chip { background: var(--green-bg); border-color: var(--green); color: var(--ink); }
+.part-runner-verdict { margin: 0; font-weight: 650; }
+.part-runner-review-item[data-verdict="correct"] .part-runner-verdict { color: var(--green); }
+.part-runner-review-item[data-verdict="wrong"] .part-runner-verdict { color: var(--red); }
+
+.part-runner-explanation { display: grid; gap: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+.part-runner-explanation-language { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.part-runner-explanation-status { margin: 0; }
+.part-runner-explanation-body { display: grid; gap: 10px; }
+.part-runner-explanation-block { display: grid; gap: 4px; }
+.part-runner-explanation-label { margin: 0; font-weight: 650; color: var(--ink-2); }
+.part-runner-explanation-prose { margin: 0; white-space: pre-line; }
+
+/* ---------- exactly three actions ---------- */
+
+.part-runner-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+@media (max-width: 860px) {
+  .part-runner { gap: 16px; }
+  .part-runner-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .part-runner-actions .btn { width: 100%; }
+}

@@ -25,6 +25,12 @@
  * Without it, the per-section counts are used for the SUBTEST CARDS only. A per-section number is never
  * attributed to a part: `buildIndexModel` leaves that tile's own-count UNKNOWN ("Angabe folgt"), which is a
  * different statement from "not practised yet" and is kept different on purpose.
+ *
+ * THE TILE OPENS THE PART (slice C). Each tile carries ONE control, `Teil üben`, which dynamic-imports
+ * `./part-runner.js` and mounts it into the SAME host — the index is not a route and the runner is not a
+ * second route, so the shell, its route table and its ctx are untouched. The runner's "Zur Auswahl" calls
+ * back into this view's `mount`, so the index returns with fresh counts. The tile stays a per-PART
+ * control: no set id, no version and no per-set card appears anywhere (the check pins that).
  */
 import { getLocale, subscribeLocale } from '../assets/i18n/core.js';
 import { pt } from '../assets/i18n/practice-messages.js';
@@ -212,6 +218,7 @@ export function indexMarkup({ esc = defaultEsc, uiText = key => key, examLanguag
       + '<h3' + languageAttributes(examLanguage) + '>' + sectionName(tile.section) + ' · ' + t('part', { part: tile.part }) + '</h3>'
       + '<p class="small muted part-index-facts">' + facts.join(' · ') + '</p>'
       + own
+      + '<p class="part-index-open-row"><button type="button" class="btn" data-part-open="' + esc(tile.family) + '">' + t('partRunnerOpen') + '</button></p>'
       + '</li>';
   }).join('');
 
@@ -242,8 +249,13 @@ export function createPartIndexView(ctx = {}) {
   let generation = 0;
   let model = { error: null, filter: null, tiles: [], sections: [], countsSource: 'unavailable', partsSource: 'unavailable' };
   let failed = false;
+  /* The served per-part facts are kept so the runner does not have to read `/api/v1/exam-parts` again. */
+  let parts = [];
+  /* The open part runner, when a tile has been opened; the index is composed out, not navigated away. */
+  let runner = null;
   function render() {
-    if (!host) return;
+    /* While a part is open, the runner owns these bytes — including on a locale change. */
+    if (!host || runner) return;
     host.innerHTML = indexMarkup({ esc, uiText, examLanguage: ctx.examLanguage || 'und', model: { ...model, error: failed ? 'failed' : null } });
   }
   async function load() {
@@ -252,26 +264,71 @@ export function createPartIndexView(ctx = {}) {
     const [partsResult, countsResult] = await Promise.all([readExamParts(ctx.api), readPracticeCounts(ctx.api)]);
     if (ticket !== generation) return false;
     failed = partsResult.source === 'unavailable';
-    model = buildIndexModel({ parts: partsResult.parts, partsSource: partsResult.source, counts: countsResult, filter, error: partsResult.error });
+    parts = Array.isArray(partsResult.parts) ? partsResult.parts : [];
+    model = buildIndexModel({ parts, partsSource: partsResult.source, counts: countsResult, filter, error: partsResult.error });
     render();
     return true;
   }
-  return {
+  /** Close the open runner, if any. Idempotent. */
+  function closeRunner() {
+    const open = runner;
+    runner = null;
+    if (open) { try { open.unmount(); } catch { /* a failed teardown must not block the index */ } }
+  }
+  /**
+   * Open one part in THIS host: dynamic import (the shell's own degradation pattern), then compose.
+   * Returns false when the module cannot be loaded or mounted, so the index stays on screen instead of
+   * blank — the same rule the shell applies to every §4.2 module.
+   */
+  async function openPart(family, target = host) {
+    if (!target || typeof family !== 'string' || !family) return false;
+    closeRunner();
+    let module;
+    try { module = await import('./part-runner.js'); } catch { return false; }
+    if (typeof module.createPartRunnerView !== 'function') return false;
+    const view = module.createPartRunnerView({
+      ...ctx,
+      family,
+      examParts: parts,
+      /* "Zur Auswahl": the runner clears the host, then the index re-mounts into it. */
+      onBack: () => { closeRunner(); return view$self.mount(target); },
+    });
+    runner = view;
+    try {
+      await view.mount(target);
+    } catch {
+      closeRunner();
+      render();
+      return false;
+    }
+    return true;
+  }
+  const view$self = {
     async mount(target) {
       if (!target) return false;
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
       host = target;
       generation++;
+      closeRunner();
       model = { ...model, filter: partFilterForHost(host), error: null };
       render();
+      host.onclick = (event) => {
+        const button = event.target.closest?.('[data-part-open]');
+        if (button) void openPart(button.dataset.partOpen);
+      };
       unsubscribe = typeof subscribeLocale === 'function' ? subscribeLocale(() => render()) : null;
       return load();
     },
     unmount() {
       generation++;
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-      if (host) host.innerHTML = '';
+      closeRunner();
+      if (host) { host.onclick = null; host.innerHTML = ''; }
       host = null;
     },
   };
+  /* §4.2 is frozen: the factory returns `{ mount, unmount }` and nothing else — `part-index-check` leg 8
+     pins exactly that. The tile's open action is therefore reachable through the rendered control
+     (`[data-part-open]`), which is the path the learner takes anyway. */
+  return view$self;
 }

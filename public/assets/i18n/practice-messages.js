@@ -415,6 +415,57 @@ const rows = {
   vocabPosAdj: ["Adjektive","Adjectives","Прикметники","الصفات","Sıfatlar"],
   vocabPosAdv: ["Adverbien","Adverbs","Прислівники","الظروف","Zarflar"],
   vocabPosPhrase: ["Phrasen","Phrases","Фрази","العبارات","İfadeler"],
+  /* PRACTICE-01 (slice C) — the part runner. Additive only: every key below is new, and none of the
+     existing ones changes. `practiceAllSets` is the A1 wrap copy; the server names exactly this key in
+     `round.notice` (server/practice-sets.mjs), so the client renders the rule's own key rather than a
+     second string that could drift from it. */
+  partRunnerKicker: ["Teilübung · ohne Zeitmessung","Part practice · untimed","Практика частини · без обмеження часу","تدريب الجزء · دون توقيت","Bölüm alıştırması · süresiz"],
+  partRunnerLead: ["Der ganze Teil auf einer Seite. Es gibt keine Zeitmessung; ausgewertet wird einmal am Ende.","The whole part on one page. There is no timer; you evaluate once at the end.","Уся частина на одній сторінці. Таймера немає; оцінювання — один раз наприкінці.","الجزء كامل في صفحة واحدة. لا يوجد مؤقّت، ويتمّ التقييم مرة واحدة في النهاية.","Bölümün tamamı tek sayfada. Süre yok; değerlendirme sonda bir kez yapılır."],
+  partRunnerItem: ["Aufgabe {id}","Task {id}","Завдання {id}","المهمة {id}","Görev {id}"],
+  partRunnerProgress: ["{answered} von {total} beantwortet","{answered} of {total} answered","{answered} з {total} відповідено","تمّت الإجابة عن {answered} من {total}","{total} görevden {answered} yanıtlandı"],
+  partRunnerAnswerAll: ["Bitte beantworten Sie alle Aufgaben.","Please answer every task.","Будь ласка, дайте відповідь на всі завдання.","يرجى الإجابة عن جميع المهام.","Lütfen tüm görevleri yanıtlayın."],
+  partRunnerEvaluate: ["Auswerten","Evaluate","Оцінити","تقييم","Değerlendir"],
+  partRunnerEvaluating: ["Wird ausgewertet …","Evaluating …","Оцінювання …","جارٍ التقييم …","Değerlendiriliyor …"],
+  partRunnerResult: ["{correct} von {total} richtig","{correct} of {total} correct","Правильно {correct} з {total}","{correct} من {total} صحيحة","{total} görevden {correct} doğru"],
+  partRunnerYourPick: ["Ihre Wahl","Your choice","Ваш вибір","اختيارك","Seçiminiz"],
+  partRunnerKey: ["Lösung","Key","Правильна відповідь","الإجابة الصحيحة","Doğru yanıt"],
+  partRunnerCorrect: ["Richtig","Correct","Правильно","صحيح","Doğru"],
+  partRunnerWrong: ["Falsch","Wrong","Неправильно","خطأ","Yanlış"],
+  partRunnerUnanswered: ["Nicht beantwortet","Not answered","Без відповіді","دون إجابة","Yanıtlanmadı"],
+  partRunnerStillOneSet: ["Noch ein Satz","Another set","Ще один набір","مجموعة أخرى","Bir set daha"],
+  partRunnerPractiseMistakes: ["Fehler üben","Practise mistakes","Опрацювати помилки","تدريب الأخطاء","Hataları çalış"],
+  partRunnerBackToIndex: ["Zur Auswahl","Back to the list","До вибору","إلى القائمة","Seçime dön"],
+  practiceAllSets: ["Alle Sätze dieses Teils geübt — von vorn","Every set of this part practised — start over","Усі набори цієї частини опрацьовано — спочатку","تمّ تدريب كل مجموعات هذا الجزء — من البداية","Bu bölümün tüm setleri çalışıldı — baştan"],
+  partRunnerMistakesRound: ["Fehlerrunde: nur die Aufgaben, die falsch waren ({count}).","Mistake round: only the tasks that were wrong ({count}).","Раунд помилок: лише завдання, які були неправильними ({count}).","جولة الأخطاء: فقط المهام التي كانت خاطئة ({count}).","Hata turu: yalnızca yanlış olan görevler ({count})."],
+  partRunnerMistakesNone: ["In diesem Satz war keine Aufgabe falsch.","No task in this set was wrong.","У цьому наборі не було неправильних відповідей.","لم تكن أي مهمة في هذه المجموعة خاطئة.","Bu sette hiçbir görev yanlış değildi."],
+  partRunnerMistakesElsewhere: ["Die Fehler lagen in einem anderen Satz; deshalb zeigt diese Runde den ganzen neuen Satz.","The mistakes were in another set, so this round shows the whole new set.","Помилки були в іншому наборі, тому цей раунд показує весь новий набір.","كانت الأخطاء في مجموعة أخرى، لذا تعرض هذه الجولة المجموعة الجديدة كاملة.","Hatalar başka bir setteydi; bu tur yeni setin tamamını gösterir."],
+  partRunnerLoading: ["Der Teil wird geladen …","Loading the part …","Частина завантажується …","جارٍ تحميل الجزء …","Bölüm yükleniyor …"],
+  partRunnerEmpty: ["Für diesen Teil ist zurzeit kein Satz verfügbar.","No set is available for this part at the moment.","Для цієї частини наразі немає набору.","لا تتوفر مجموعة لهذا الجزء حاليًا.","Bu bölüm için şu anda set yok."],
+  partRunnerFailed: ["Dieser Teil konnte nicht geladen werden. Bitte versuchen Sie es erneut.","This part could not be loaded. Please try again.","Не вдалося завантажити цю частину. Спробуйте ще раз.","تعذّر تحميل هذا الجزء. يرجى المحاولة مرة أخرى.","Bu bölüm yüklenemedi. Lütfen yeniden deneyin."],
+  partRunnerRetry: ["Erneut laden","Reload","Завантажити знову","إعادة التحميل","Yeniden yükle"],
+  partRunnerCheckFailed: ["Die Auswertung ist fehlgeschlagen. Ihre Antworten bleiben auf dieser Seite erhalten; bitte versuchen Sie es erneut.","Evaluating failed. Your answers stay on this page; please try again.","Оцінювання не вдалося. Ваші відповіді залишаються на цій сторінці; спробуйте ще раз.","فشل التقييم. تبقى إجاباتك في هذه الصفحة؛ يرجى المحاولة مرة أخرى.","Değerlendirme başarısız oldu. Yanıtlarınız bu sayfada kalır; lütfen yeniden deneyin."],
+  partRunnerAlreadyChecked: ["Dieser Satz wurde bereits ausgewertet. Die Auswertung wird erneut angezeigt.","This set has already been evaluated. The evaluation is shown again.","Цей набір уже оцінено. Оцінювання показано знову.","تمّ تقييم هذه المجموعة بالفعل. يُعرض التقييم مرة أخرى.","Bu set zaten değerlendirildi. Değerlendirme yeniden gösterilir."],
+  partRunnerListening: ["Hören","Listening","Аудіювання","الاستماع","Dinleme"],
+  partRunnerAudioRule: ["Prüfungsregel: {plays}-mal hören","Exam rule: listen {plays} time(s)","Правило іспиту: слухати {plays} раз(и)","قاعدة الامتحان: الاستماع {plays} مرة","Sınav kuralı: {plays} kez dinleme"],
+  partRunnerAudioUnavailable: ["Die Aufnahmen sind vorhanden. Für Teilübungen fehlt noch ein Übungs-Wiedergabeweg, deshalb ist das Abspielen hier deaktiviert. Die Prüfungsregel steht oben.","The recordings exist. Part practice still has no practice playback path, so playback is disabled here. The exam rule is shown above.","Записи існують. Для практики частин ще немає шляху відтворення, тому відтворення тут вимкнено. Правило іспиту наведено вище.","التسجيلات موجودة. لا يزال مسار تشغيل خاص بتدريب الأجزاء مفقودًا، لذا التشغيل هنا معطّل. قاعدة الامتحان معروضة أعلاه.","Kayıtlar mevcut. Bölüm alıştırması için henüz bir oynatma yolu yok; bu nedenle oynatma burada kapalı. Sınav kuralı yukarıda."],
+  partRunnerNoReplay: ["Eine Wiederholung ist erst nach dem Auswerten möglich.","Replay is possible only after evaluating.","Повторне відтворення можливе лише після оцінювання.","الإعادة متاحة فقط بعد التقييم.","Yeniden oynatma yalnızca değerlendirmeden sonra mümkündür."],
+  partRunnerReplay: ["Wiederholen","Replay","Повторити","إعادة","Yeniden oynat"],
+  partRunnerPlay: ["Abspielen","Play","Відтворити","تشغيل","Oynat"],
+  partRunnerNoOptions: ["Für diese Aufgaben liegen noch keine Antwortmöglichkeiten vor. Deshalb kann der Satz noch nicht geübt werden.","These tasks carry no answer options yet, so the set cannot be practised.","Ці завдання ще не мають варіантів відповіді, тому набір не можна опрацювати.","لا تتوفر خيارات إجابة لهذه المهام بعد، لذا لا يمكن تدريب المجموعة.","Bu görevlerde henüz yanıt seçeneği yok; set çalışılamaz."],
+  partRunnerOpen: ["Teil üben","Practise part","Тренувати частину","تدريب الجزء","Bölümü çalış"],
+  partRunnerReasonUnseen: ["Dieser Satz ist neu für Sie.","This set is new for you.","Цей набір для вас новий.","هذه المجموعة جديدة بالنسبة إليك.","Bu set sizin için yeni."],
+  partRunnerReasonMostWrong: ["In diesem Satz waren {wrong} von {seen} Aufgaben falsch.","In this set {wrong} of {seen} tasks were wrong.","У цьому наборі {wrong} з {seen} завдань були неправильними.","في هذه المجموعة كانت {wrong} من {seen} مهمة خاطئة.","Bu sette {seen} görevden {wrong} tanesi yanlıştı."],
+  partRunnerReasonOldest: ["Diesen Satz haben Sie am längsten nicht geübt.","You have not practised this set for the longest time.","Цей набір ви не опрацьовували найдовше.","لم تتدرب على هذه المجموعة منذ أطول فترة.","Bu seti en uzun süredir çalışmadınız."],
+  partRunnerMaterial: ["Text","Text","Текст","النص","Metin"],
+  partRunnerNoMatch: ["Keine Anzeige passt","No advertisement fits","Жодне оголошення не підходить","لا يلائم أي إعلان","Hiçbir ilan uymuyor"],
+  /* A refused "Auswerten" that cannot be retried says something TRUE. `partRunnerCheckFailed` keeps its
+     retry promise and is now rendered only where a retry can succeed (a transport failure or a 5xx); these
+     three cover the refusals where repeating the same request changes nothing. Additive: the existing key
+     is untouched. */
+  partRunnerCheckClosed: ["Dieser Satz wurde bereits ausgewertet. Die Auswertung dieses Versuchs ist nicht mehr verfügbar.","This set has already been evaluated. The evaluation of this attempt is no longer available.","Цей набір уже оцінено. Оцінювання цієї спроби більше недоступне.","تمّ تقييم هذه المجموعة بالفعل. لم يعد تقييم هذه المحاولة متاحًا.","Bu set zaten değerlendirildi. Bu denemenin değerlendirmesi artık yok."],
+  partRunnerCheckArchived: ["Ihre Vorbereitung ist archiviert. Deshalb ist eine Auswertung nicht möglich.","Your preparation is archived, so evaluating is not possible.","Вашу підготовку заархівовано, тому оцінювання неможливе.","تحضيرك مؤرشف، لذا لا يمكن التقييم.","Hazırlığınız arşivlenmiş; bu nedenle değerlendirme yapılamaz."],
+  partRunnerCheckBlocked: ["Die Auswertung ist nicht möglich. Ihre Antworten bleiben auf dieser Seite erhalten.","Evaluating is not possible. Your answers stay on this page.","Оцінювання неможливе. Ваші відповіді залишаються на цій сторінці.","التقييم غير ممكن. تبقى إجاباتك في هذه الصفحة.","Değerlendirme yapılamıyor. Yanıtlarınız bu sayfada kalır."],
+  partRunnerExplanationUnavailable: ["Für diese Aufgabe ist keine Erklärung verfügbar.","No explanation is available for this task.","Для цього завдання пояснення недоступне.","لا يتوفر شرح لهذه المهمة.","Bu görev için açıklama yok."],
 };
 export const PRACTICE_MESSAGES = Object.freeze(Object.fromEntries(['de','en','uk','ar','tr'].map((locale,index) => [locale,Object.freeze(Object.fromEntries(Object.entries(rows).map(([key,values]) => [key,values[index]])))])));
 registerMessages('practice', PRACTICE_MESSAGES);
