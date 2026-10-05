@@ -340,6 +340,21 @@ production and its checksum is frozen.
   The same amendment records the Hören entry point: `#/hoeren` mounts the same part-index module into
   `#hoeren-host` and the module keys its filter off the host it is given, so "Hören is Prüfungsteile
   filtered to HV" stays one implementation with two entry points and the ctx interface is unchanged.
+- **A7 (5 Oct 2026, slice G).** §5's G entry is a stub ("G · VOCAB-01 and H · DRILL-01 follow C"). The
+  sentence the slice was leased against — "Prüfungskern first, then the general 300-word deck; ship
+  browse-by-block first; spaced repetition comes later" — was the coordinator's elaboration, now
+  ratified here as G's scope: the **Prüfungskern** (`core-grammar` 4 blocks / 125 items and
+  `core-phrases` 3 blocks / 130 items) rendered first as reference blocks with a chip per block and its
+  own payload count, then the **300-word deck** browsable by part of speech and searchable, with the
+  authored English gloss on the English page only. **Spaced repetition is out of this slice** and no
+  per-item state exists in the payload for it. The same amendment records that the two core corpora
+  **move out of the library** into Wortschatz, which §5 E/F implies: the Nachschlagen hub keeps its six
+  cards for the other guides, `public/app/library.js` no longer renders or fetches the two core
+  corpora, and a deep link to either hands over to `#/wortschatz`.
+- **A8 (5 Oct 2026, table-header translation).** Where a translated table header exists, the guide page
+  renders the German table first and a dimmed translated-header table beneath it, rather than
+  substituting the translated header for the German one. The German source is never replaced by its
+  translation (§4.3's "German text first" applies to tables too).
 - `PRACTICE-FLOW-FROM-B1PREP-20261005.md` was not found in this repository or in
   `D:\B1_Prep\Claude outputs`; §3 of that document is superseded by §5 here.
 - Push/PR policy for this program: slices are committed to their own local branches and integrated
@@ -349,4 +364,4 @@ production and its checksum is frozen.
   string is marked approved.
 - POOL-01 batch generation needs Ron's go-ahead.
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A6 added 5 October 2026.*
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A8 added 5 October 2026.*
