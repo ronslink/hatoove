@@ -1697,10 +1697,25 @@ let feedbackInstalled = false;
 async function installFeedback() {
   if (feedbackInstalled) return;
   feedbackInstalled = true;
-  let module;
-  try { module = await import('./feedback.js'); } catch (err) { return; }
-  loadModuleStylesheet('feedback.css');
-  module.installFeedbackEntryPoints({ api, uiText, esc, route: () => currentView });
+  /*
+   * THE WHOLE BODY IS GUARDED, and that is not belt-and-braces: this call sits inside `boot()`'s `try`, so a
+   * synchronous throw here — a renamed export, a null element, a stylesheet helper that changes shape — would
+   * send the learner to the boot-error screen and take the entire app down. A feedback form must never be the
+   * reason somebody cannot reach their work, so a failure in this feature is swallowed on purpose.
+   *
+   * THIS FIX WAS LOST ONCE AND THE CHECK DID NOT NOTICE. An earlier attempt edited this function, then a
+   * mutation-proof step for the client check ran `git checkout -- public/app/app.js`, which silently reverted the
+   * uncommitted change. The check still passed, because it only asserted that SOME try/catch existed in the body
+   * and the guarded import alone satisfied that. The flag reset below is what the check now requires, so the same
+   * loss cannot pass again.
+   */
+  try {
+    const module = await import('./feedback.js');
+    loadModuleStylesheet('feedback.css');
+    module.installFeedbackEntryPoints({ api, uiText, esc, route: () => currentView });
+  } catch (err) {
+    feedbackInstalled = false;
+  }
 }
 
 /** True when the view's module rendered; false leaves the caller's interim implementation in place. */
