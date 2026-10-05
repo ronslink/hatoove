@@ -281,6 +281,12 @@ production and its checksum is frozen.
 
 ## 8. Amendments and open items
 
+- **A1 (5 Oct 2026, POOL-01 inventory).** The evidence table's "Objective sets (telc B1): 25" and the
+  note "SB1 has 4" are corrected: `data/seed.json` carries **24 sets, 8 parts × 3**, SB1 included
+  (`work/implementation/POOL-01-INVENTORY.md`, measured from the source of truth rather than from a
+  running database). The production `objective_set` row count of 34 spans exam packages and is not the
+  telc B1 per-part set count. Every part therefore has released content and gets a tile in slice B; C's
+  wrap rule stands at three sets per part.
 - `PRACTICE-FLOW-FROM-B1PREP-20261005.md` was not found in this repository or in
   `D:\B1_Prep\Claude outputs`; §3 of that document is superseded by §5 here.
 - Push/PR policy for this program: slices are committed to their own local branches and integrated
@@ -290,4 +296,4 @@ production and its checksum is frozen.
   string is marked approved.
 - POOL-01 batch generation needs Ron's go-ahead.
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator.*
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1 added 5 October 2026.*
