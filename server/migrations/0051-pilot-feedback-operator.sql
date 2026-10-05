@@ -35,10 +35,26 @@
  * feedback. Naming the owner role keeps the policy to sessions that are already the schema owner, which is the
  * only context the definer function runs in.
  */
+/*
+ * AND EACH POLICY NAMES ITS COMMAND. A policy with no `FOR` is `FOR ALL`, and `ALL` includes INSERT and DELETE:
+ * the first version therefore let the schema owner INSERT a report attributed to ANY learner, and delete any
+ * report, neither of which this feature ever does. An independent reviewer listed it as a should-fix, and it is
+ * more than tidiness — the whole point of the operator role is that it cannot reach rows except through the
+ * functions, and a policy that silently grants write is the same mistake one level down.
+ *
+ * THE UPDATE POLICY IS REQUIRED, not excess. `operator_set_feedback_status` is SECURITY DEFINER owned by this
+ * role, and `0049` FORCEs row-level security on the table, so the fence applies to the owner too: without an
+ * UPDATE policy the bounded update would be refused by RLS. That bound lives in the function — three named
+ * columns — and `pilot-feedback-operator-check` proves it by changing something else and observing the refusal.
+ * INSERT and DELETE are withheld because nothing needs them.
+ */
 DROP POLICY IF EXISTS operator_feedback_read ON "__SCHEMA__".pilot_feedback;
-CREATE POLICY operator_feedback_read ON "__SCHEMA__".pilot_feedback TO "__MIGRATION__" USING (true);
+DROP POLICY IF EXISTS operator_feedback_triage ON "__SCHEMA__".pilot_feedback;
+CREATE POLICY operator_feedback_read ON "__SCHEMA__".pilot_feedback FOR SELECT TO "__MIGRATION__" USING (true);
+CREATE POLICY operator_feedback_triage ON "__SCHEMA__".pilot_feedback FOR UPDATE TO "__MIGRATION__" USING (true) WITH CHECK (true);
+-- The screenshots are only ever READ by the operator: the learner writes them, and deletion is the learner's.
 DROP POLICY IF EXISTS operator_feedback_screenshot_read ON "__SCHEMA__".pilot_feedback_screenshot;
-CREATE POLICY operator_feedback_screenshot_read ON "__SCHEMA__".pilot_feedback_screenshot TO "__MIGRATION__" USING (true);
+CREATE POLICY operator_feedback_screenshot_read ON "__SCHEMA__".pilot_feedback_screenshot FOR SELECT TO "__MIGRATION__" USING (true);
 
 -- p_feedback_id, p_status, p_category and p_since are all optional; NULL means "do not filter".
 DROP FUNCTION IF EXISTS "__SCHEMA__".operator_feedback_list(uuid, text, text, timestamptz);
