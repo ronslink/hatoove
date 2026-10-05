@@ -87,7 +87,7 @@
 <g stroke="var(--red)" stroke-width="4" stroke-linecap="round" transform="translate(428,294)">
   <line x1="0" y1="0" x2="20" y2="20"/><line x1="20" y1="0" x2="0" y2="20"/>
 </g>
-<text class="mark" x="184" y="360" fill="var(--red)">DEINE ANTWORT</text>
+<text class="mark" x="184" y="360" fill="var(--red)">IHRE ANTWORT</text>
 
 <!-- option B: the right answer, .option.correct (token green on green-bg) -->
 <rect x="488" y="276" width="376" height="104" rx="16" fill="var(--green-bg)" stroke="var(--green)" stroke-width="2"/>

@@ -15,8 +15,8 @@
   load external fonts for an SVG used as <img> (SVG secure static mode) - see the proposal, rev 3
   section 15. Every string below is therefore sized to fit inside its container in BOTH the intended
   faces and the system-UI fallback (system-ui/sans-serif is 5-11 % wider for these strings). That is
-  why the two option tiles are labelled FALSCH / RICHTIG: "DEINE ANTWORT" is 321 px in the fallback
-  and does not fit a 300 px tile.
+  why the two option tiles are labelled FALSCH / RICHTIG: the answer label ("IHRE ANTWORT") does not fit
+  a 300 px tile in the fallback face.
 
   Colour values are the real tokens from design/assets/hatoove.css (:root, light theme); the font
   layer mirrors public/assets/design/fonts-coverage.css. No colour pair is introduced here that the
