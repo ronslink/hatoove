@@ -67,20 +67,22 @@ It found one weakness worth acting on and one coverage hole that is now fixed:
 
 ## 3. Slice B — palette, navigation and the exam card
 
-**Structure delivered** (commit `a0765cd`); colours are still the pinned values by Ron's decision of
-5 October 2026, so the studio-look list is a values-only change. Detail and measurements:
+**Structure delivered** (commits `a0765cd`, `c3c4f49`, `7b02825`). Detail and measurements:
 `work/implementation/REDESIGN-01-SLICE-B.md`.
 
 - The eleven sidebar icons are vendored Lucide paths (lucide-static 1.52.0, ISC) — no dependency, no CDN,
   works offline.
-- The sidebar is a dark surface in both themes, driven by new tokens in `app.css`; menu type is 16 px.
+- **The sidebar is a named navy**, `#1e2a3a` light and `#141d29` dark, derived by the Lead because the
+  studio-look list did not arrive after two requests. It is ONE token pair to replace: change `--nav-bg` and
+  `--nav-ink-muted` in `app.css` and nothing else moves. All twelve measured pairs pass in both themes (idle
+  label 7.52:1, group label 7.85:1, full label 13.78:1, white logo 14.51:1, hover surface 1.44:1, active item
+  4.95:1; dark 8.44 / 16.12 / 1.41 / 6.98).
+- **The exam card carries a large level mark**, read from `exam_package.level` — authored since migration
+  0009, already returned by `listExams`. Nothing is parsed out of an exam id; the badge hides when the server
+  supplies no level. Pinned by `.qa/redesign-01/exam-level-contract.mjs` (8/8).
+- Menu type is 16 px, and the orange "Weiter üben" action is on the next-task card (`shell.m389`).
 - Three defects were found by rendering, not by reading: an unguarded dark-theme block that made the sidebar
-  light on a light device, an idle label at 1.51:1, and an ink logo at 1.05:1 on the dark surface.
-- Still owed: the exam card with the large B1, the navy itself, and the colour values.
-- **Delivered since the first slice-B commit** (`c3c4f49`): the orange "Weiter üben" primary action on the
-  next-task card (`shell.m389`, all five dictionaries; `bindShellText` owns the label so the dashboard
-  re-render keeps it, and the no-preparation state still reads "Verlauf öffnen"). Rendered as
-  "Keep practising" in the 5 October screenshot set.
+  light on a light device, an idle label at 1.51:1, and an ink logo at 1.13:1 on the navy.
 
 ## 4. Slice C/D — answer feedback
 
@@ -130,10 +132,19 @@ landing page.
 
 ## 5. Slice E/F — Fehlerheft and copy cleanup
 
-**Open.** Fehlerheft cards over `correct_answer`, plus copy cleanup in all five interface languages
-(de/en/uk/ar/tr). New keys must exist in all five dictionaries; `shell-locale-check.mjs:28-36` enforces
-identical keys and placeholders. Ron's native reviewers must check the uk/ar/tr strings before they are
-called reviewed — machine output is not review.
+**Delivered** (`f2172b2`):
+
+- The Fehlerheft row separates the learner's own answer from the correct one, with the design system's own
+  success pair on the correct chip. The data was already there after slice A; the screen did not use it.
+- The five-language copy was **audited as code**, not by eye: 438 shell keys and 303 practice rows are
+  identical across de/en/uk/ar/tr, every row carries exactly five values, and every key's placeholder shape
+  agrees. The audit found and fixed one untranslated string (Turkish `form` read the English word "Form").
+- Full detail, including the six strings this slice added that need native review:
+  `work/implementation/REDESIGN-01-COPY-AUDIT.md`.
+
+**The uk/ar/tr wording is NOT reviewed.** The audit is structural: it cannot tell whether a translated string
+is right, only that it exists and carries the same placeholders. `AGENTS.md` stands — Ron's native reviewers
+decide the six new strings.
 
 ## 6. Slice G — landing page, sitemap, OG card
 
