@@ -18,26 +18,11 @@
 import { randomUUID } from 'node:crypto';
 
 import { Fault } from '../owned-api.mjs';
-
-/**
- * THE CLOSED ROUTE LIST — and the ONLY place it is written in JavaScript.
- *
- * The same identifiers appear in `0049`'s `route` CHECK and in the shell's `VIEW_TITLES`, and a mismatch is not
- * cosmetic: a route the CHECK rejects loses the learner's report entirely. `pilot-feedback-migration-check`
- * leg 1b compares this list against the shell AND against the migration file, so the three cannot drift.
- * `other` is the contract's escape hatch for a view neither list names.
- */
-export const FEEDBACK_ROUTES = Object.freeze([
-  'heute', 'ueben', 'wortschatz', 'fehler', 'pruefungsteile', 'hoeren', 'schreiben', 'probepruefung',
-  'nachschlagen', 'einstellungen', 'verlauf', 'checkout', 'lesen', 'sprachbausteine', 'abschnitt',
-  'satzbau', 'mehr', 'other',
-]);
-
-export const FEEDBACK_CATEGORIES = Object.freeze([
-  'content_error', 'audio', 'translation', 'bug', 'idea', 'other',
-]);
+import { FEEDBACK_CATEGORIES, FEEDBACK_ROUTES } from '../feedback-vocabulary.mjs';
 
 const BODY_MAX = 2000;
+
+export { FEEDBACK_CATEGORIES, FEEDBACK_ROUTES };
 
 /** Today's account age in whole days, or null when the session has no owner. Definitive; see A13. */
 const AGE_DAYS = 'feedback_account_age_days()';
