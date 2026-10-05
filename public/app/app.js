@@ -762,6 +762,15 @@ async function renderDictionary() {
 }
 
 /*
+ * WORTSCHATZ — slice G ships the Prüfungskern blocks and the word deck as public/app/vocab.js. Until that
+ * module is present this falls back to today's dictionary, which still serves search and the noun lexicon.
+ */
+async function renderWortschatz() {
+  if (await mountModule('wortschatz')) return;
+  await renderDictionary();
+}
+
+/*
  * HÖREN — slice B mounts the same part-index module here with an HV filter, keyed off the host it is given
  * (#hoeren-host), so "Hören is Prüfungsteile filtered to HV" is one implementation with two entry points.
  * Until the module is present this falls back to today's skill view, which shows the saved HV runs.
@@ -1632,6 +1641,8 @@ const MODULE_VIEWS = {
      to HV" one implementation. */
   pruefungsteile: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'part-index-host', covers: [] },
   hoeren: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'hoeren-host', covers: ['skill-hoeren'] },
+  /* Slice G (VOCAB-01). Until public/app/vocab.js lands the guarded import fails and the dictionary stays. */
+  wortschatz: { specifier: './vocab.js', factory: 'createVocabView', css: 'vocab.css', host: 'vocab-host', covers: ['dict-results'] },
 };
 let mountedModule = null;
 let mountedView = null;
@@ -1795,7 +1806,7 @@ async function route() {
   if (view === 'fehler') run(renderMistakes);
   /* Verlauf is the history sub-page of Heute: the old #/fortschritt route aliases onto it. */
   if (view === 'verlauf') run(renderHistory);
-  if (view === 'wortschatz') run(renderDictionary);
+  if (view === 'wortschatz') run(renderWortschatz);
   if (view === 'nachschlagen') run(renderNachschlagen);
   if (view === 'checkout') run(() => renderCheckout(info));
   /*
