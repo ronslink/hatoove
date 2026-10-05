@@ -79,6 +79,17 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
       document.body.append(sheet);
       sheet.querySelector('#feedback-close').addEventListener('click', () => close());
       sheet.querySelector('#feedback-form').addEventListener('submit', onSubmit);
+      /*
+       * ONE CLICK HANDLER, INSTALLED ONCE, that obeys the button's current MODE. The first version added a
+       * `{ once: true }` close listener after a successful send — and if the learner closed the sheet with Escape
+       * instead of clicking it, that listener SURVIVED INTO THE NEXT SESSION and closed the sheet on the first
+       * click after sending. Mode is data on the button, not a listener that may or may not have fired.
+       */
+      sheet.querySelector('#feedback-send').addEventListener('click', (event) => {
+        if (sheet.querySelector('#feedback-send').dataset.mode !== 'close') return;
+        event.preventDefault();
+        close();
+      });
       sheet.addEventListener('mousedown', (event) => { if (event.target === sheet) close(); });
       document.addEventListener('keydown', onKeydown);
     }
@@ -107,6 +118,14 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
     const send = sheet.querySelector('#feedback-send');
     send.disabled = false;
     send.textContent = uiText('feedbackSend');
+    /*
+     * THE BUTTON MUST GO BACK TO BEING A SUBMIT BUTTON. After a successful send it is switched to
+     * `type="button"` so a second click closes the sheet instead of filing the same report twice — and nothing
+     * put it back, so a learner who had sent one report could never send another without reloading the page. A
+     * `type="button"` does not submit its form, so `reset()` alone looked like it had restored the sheet.
+     */
+    send.type = 'submit';
+    delete send.dataset.mode;
     contextKept = true;
     renderContext();
   }
@@ -150,7 +169,13 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
     send.disabled = true;
     message.hidden = true;
     const answer = await api.feedback.create({
-      category, body, route: route() || 'other',
+      /*
+       * THE × MUST ACTUALLY REMOVE SOMETHING. `contextKept` was a display flag only: the × hid the context line
+       * and the submit still sent `route()`, so a learner who removed the context still filed a report naming the
+       * view they were on. Removing it now sends `other`, which is the honest answer — the report is filed, and
+       * the server is not told which page it came from.
+       */
+      category, body, route: (contextKept && route()) || 'other',
       /* The INTERFACE language, which only the browser knows (A8); the server validates and defaults it. */
       interfaceLanguage: document.documentElement.lang || 'de',
     });
@@ -164,7 +189,7 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
       send.textContent = uiText('feedbackClose');
       send.disabled = false;
       send.type = 'button';
-      send.addEventListener('click', () => close(), { once: true });
+      send.dataset.mode = 'close';
       return;
     }
     send.disabled = false;

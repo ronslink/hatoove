@@ -165,6 +165,27 @@ check('10. the stylesheet stays RTL-safe', () => {
   assert.ok(/padding-inline|inline-size|margin-inline/.test(css), 'feedback.css declares no logical property, so it was not reviewed for RTL at all');
 });
 
+check('11. a learner can send a SECOND report without reloading', () => {
+  /*
+   * After a successful send the button is switched to `type="button"` so a click closes the sheet instead of
+   * filing the same report twice. Nothing ever switched it back, and a `type="button"` does not submit its form —
+   * so `form.reset()` looked like it had restored the sheet while the form could never be submitted again. Both
+   * of these are source properties, which is why this is an offline leg.
+   */
+  assert.ok(/send\.type = 'submit';/.test(sheetCode),
+    'reset() must restore the button to type="submit", or the form is unsubmittable after one report');
+  assert.ok(/send\.dataset\.mode = 'close';/.test(sheetCode),
+    'the close-after-send behaviour must be a MODE on the button, so it can be cleared');
+  assert.ok(!/\{ once: true \}/.test(sheetCode),
+    'a { once: true } close listener survives an Escape-close and then fires in the NEXT session');
+});
+
+check('12. removing the context actually removes it', () => {
+  // The × used to be a display flag only: it hid the line and the submit still sent the view.
+  assert.ok(/route: \(contextKept && route\(\)\) \|\| 'other'/.test(sheetCode),
+    'the × must change what is SENT, or it only hides the context line');
+});
+
 const failed = results.filter(([, ok]) => !ok);
 console.log(`\n---- pilot-feedback-client-check: ${results.length - failed.length}/${results.length} passed ----`);
 if (failed.length) {
