@@ -20,7 +20,7 @@ export function bindSentenceCheck({ api, esc }) {
     trigger.disabled = false;
     if (request !== serial) return;
     if (!result?.ok) {
-      output.innerHTML = '<p class="err" data-practice-key="ui70">Die Strukturhinweise konnten nicht geladen werden. Dein Text bleibt hier erhalten. Bitte versuche es erneut.</p>';
+      output.innerHTML = '<p class="err" data-practice-key="ui70">Die Strukturhinweise konnten nicht geladen werden. Ihr Text bleibt hier erhalten. Bitte versuchen Sie es erneut.</p>';
       updateLocale(); return;
     }
     const data = result.data;

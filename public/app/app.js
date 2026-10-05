@@ -791,11 +791,11 @@ async function renderPracticeNext() {
   const why = () => data.reason === 'section_not_started'
     ? uiText("m093")
     : (e.attempts ? e.correct + " " + uiText("m094") + " " + e.attempts + " " + uiText("m095") + Math.round((e.accuracy || 0) * 100) + '%).' : '');
-  setShellHTML(box, "<div class=\"card\"><div class=\"card-head\"><h3><span data-i18n=\"shell.m096\">Deine nächste Aufgabe</span></h3><span class=\"chip\">"
+  setShellHTML(box, "<div class=\"card\"><div class=\"card-head\"><h3><span data-i18n=\"shell.m096\">Ihre nächste Aufgabe</span></h3><span class=\"chip\">"
     + sectionMarkup(data.section) + '</span></div>'
     + '<p><strong>' + setLabelMarkup(data.set) + '</strong> &middot; ' + messageMarkup('tasks', {count: data.set.item_count}) + '</p>'
     + (why() ? '<p class="muted" data-practice-reason></p>' : '')
-    + "<p class=\"small muted\"><span data-i18n=\"shell.m097\">Vom Server gewählt aus deinen bisherigen Antworten &mdash; nicht geraten.</span></p></div>");
+    + "<p class=\"small muted\"><span data-i18n=\"shell.m097\">Vom Server gewählt aus Ihren bisherigen Antworten — nicht geraten.</span></p></div>");
   bindShellText(box.querySelector('[data-practice-reason]'), why);
 }
 
@@ -901,7 +901,7 @@ async function renderDashboard() {
     ? sections.map((s) => '<div class="part"><span>' + sectionMarkup(s.section) + '</span>'
       + '<div class="mini"><i style="width:' + pct(s.accuracy) + '"></i></div>'
       + '<b>' + s.correct + ' / ' + s.attempts + '</b></div>').join('')
-    : "<p class=\"small muted\"><span data-i18n=\"shell.m115\">Sobald du Aufgaben beantwortest, erscheint hier deine Bilanz je Bereich.</span></p>");
+    : "<p class=\"small muted\"><span data-i18n=\"shell.m115\">Sobald Sie Aufgaben beantworten, erscheint hier Ihre Bilanz je Bereich.</span></p>");
 
   const examDate = state.preparation?.exam_date;
   if (examDate) {
@@ -960,7 +960,7 @@ async function renderMistakes() {
   if (!box) return;
   if (!items.length) {
     setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m121\">Nichts offen</span></h3><p class=\"muted\"><span data-i18n=\"shell.m122\">Das ist eine Aussage des</span> "
-      + "<span data-i18n=\"shell.m123\">Servers über deine eigenen Antworten, keine leere Seite.</span></p></div>");
+      + "<span data-i18n=\"shell.m123\">Servers über Ihre eigenen Antworten, keine leere Seite.</span></p></div>");
     return;
   }
   // The design's `.list` carries the border and the radius, and only `.list-item:first-child` drops its
@@ -972,7 +972,7 @@ async function renderMistakes() {
   setShellHTML(box, '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>'
     + setLabelMarkup({ title: m.set_title, section: m.section, part: null })
     + '</strong><span class="sub">' + sectionMarkup(m.section) + ' &middot; ' + messageMarkup('version') + ' ' + esc(m.version) + ' &middot; ' + (/^g_/.test(m.item_id) ? messageMarkup("m124") : messageMarkup("m125") + " " + esc(m.item_id) + " " + messageMarkup("m094") + " " + m.set_item_count) + '</span></div>'
-    + "<span class=\"chip chip-orange\"><span data-i18n=\"shell.m126\">deine Antwort:</span> " + esc(JSON.stringify(m.your_answer)) + '</span>'
+    + "<span class=\"chip chip-orange\"><span data-i18n=\"shell.m126\">Ihre Antwort:</span> " + esc(JSON.stringify(m.your_answer)) + '</span>'
     /*
      * REDESIGN-01 A/C: the server reveals the correct answer for an item this learner has already
      * answered (migration 0041, `reveal_objective_answer`). The key table stays unreadable; this is the
@@ -1434,7 +1434,7 @@ async function openWriting(box, task, options = {}) {
   return writing.open(box.id.startsWith('skill-') ? practiceHost(box) : box, task, options);
 }
 function archivedPracticeNotice() {
-  return "<div class=\"card\"><h3><span data-i18n=\"shell.m146\">Diese Vorbereitung ist archiviert</span></h3><p><span data-i18n=\"shell.m147\">Neue Übungen sind hier nicht möglich. Deine gespeicherten Texte und Rückmeldungen bleiben im Verlauf lesbar.</span></p><a class=\"btn\" href=\"#/fortschritt\"><span data-i18n=\"shell.m101\">Verlauf öffnen</span></a></div>";
+  return "<div class=\"card\"><h3><span data-i18n=\"shell.m146\">Diese Vorbereitung ist archiviert</span></h3><p><span data-i18n=\"shell.m147\">Neue Übungen sind hier nicht möglich. Ihre gespeicherten Texte und Rückmeldungen bleiben im Verlauf lesbar.</span></p><a class=\"btn\" href=\"#/fortschritt\"><span data-i18n=\"shell.m101\">Verlauf öffnen</span></a></div>";
 }
 
 async function openArchivedWriting(entry) {
@@ -1457,9 +1457,9 @@ async function openArchivedWriting(entry) {
       result += Array.isArray(feedback.criteria) ? '<ul class="criteria">' + feedback.criteria.map(c => { const view = writingCriterion(c, data.rubric); return '<li><strong>'
         + '<span ' + examTextAttributes() + '>' + esc(view.label) + '</span>' + ": <span class=\"band\"><span class=\"sr-only\"><span data-i18n=\"shell.m152\">Band</span> </span>" + esc(view.band) + '</span></strong>'
         + (c.evidence ? '<blockquote class="evidence" ' + examTextAttributes() + '>' + esc(c.evidence) + '</blockquote>' : '') + '</li>'; }).join('') + '</ul>' : '';
-    } else if (feedbackState === 'blocked') result = "<p><span data-i18n=\"shell.m153\">Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Dein Text bleibt erhalten.</span></p>";
-    else if (['failed', 'unassessed'].includes(feedbackState)) result = "<p><span data-i18n=\"shell.m154\">Unbewertet. Dein abgegebener Text bleibt erhalten.</span></p>";
-    else if (entry.submission_id) result = "<p><span data-i18n=\"shell.m155\">Die Rückmeldung wird vorbereitet. Du kannst den Stand erneut laden.</span></p>";
+    } else if (feedbackState === 'blocked') result = "<p><span data-i18n=\"shell.m153\">Die Aufgabe und Rückmeldung sind zurzeit gesperrt. Ihr Text bleibt erhalten.</span></p>";
+    else if (['failed', 'unassessed'].includes(feedbackState)) result = "<p><span data-i18n=\"shell.m154\">Unbewertet. Ihr abgegebener Text bleibt erhalten.</span></p>";
+    else if (entry.submission_id) result = "<p><span data-i18n=\"shell.m155\">Die Rückmeldung wird vorbereitet. Sie können den Stand erneut laden.</span></p>";
     if (feedbackState === 'assessed' && data.review_withdrawn) result += '<p class="hint" data-review-withdrawn>' + reviewMarkup(data, true) + '</p>';
     setShellHTML(host, '<article class="card"><h3>' + (entry.topic ? '<span ' + examTextAttributes() + '>' + esc(entry.topic) + '</span>' : messageMarkup("m156")) + "</h3><p class=\"small muted\"><span data-i18n=\"shell.m157\">Archiv · schreibgeschützt</span></p><div class=\"archived-writing\" "+ examTextAttributes() + ">"
       + esc(entry.submission_id ? data.submission?.text || '' : data.text || '') + '</div>' + result + (entry.submission_id ? '<div data-archived-explanation></div>' : '')
@@ -1492,7 +1492,7 @@ async function renderCheckout(info = preparationRoute()) {
   if (!host) return;
   const prep = state.preparation;
   if (!prep?.exam_id && !info.orderId && !info.invalid) {
-    setShellHTML(host, "<div class=\"card\"><h3><span data-i18n=\"shell.m159\">Keine Prüfung ausgewählt</span></h3><p class=\"small muted\"><span data-i18n=\"shell.m160\">Wähle zuerst eine Prüfungsvorbereitung.</span></p></div>");
+    setShellHTML(host, "<div class=\"card\"><h3><span data-i18n=\"shell.m159\">Keine Prüfung ausgewählt</span></h3><p class=\"small muted\"><span data-i18n=\"shell.m160\">Wählen Sie zuerst eine Prüfungsvorbereitung.</span></p></div>");
     return;
   }
   await checkout.open(host, {
@@ -1506,7 +1506,7 @@ async function renderCheckout(info = preparationRoute()) {
 async function renderHistory() {
   const ticket = contextTicket();
   const host = el('history-list');
-  setShellHTML(host, "<p class=\"muted\"><span data-i18n=\"shell.m161\">Dein Verlauf wird geladen …</span></p>");
+  setShellHTML(host, "<p class=\"muted\"><span data-i18n=\"shell.m161\">Ihr Verlauf wird geladen …</span></p>");
   const [history, progress, runs] = await Promise.all([api.writing.listAttempts(), api.practice.progress(), api.mock.list()]);
   if (currentView !== 'fortschritt' || !currentContext(ticket)) return;
   setShellHTML(el('mock-history'), "<h2><span data-i18n=\"shell.m006\">Gespeicherte Prüfungsläufe</span></h2>" + (runs?.ok ? mock.historyMarkup(runs.data?.runs || []) : "<p class=\"err\"><span data-i18n=\"shell.m162\">Die gespeicherten Läufe konnten nicht geladen werden.</span></p>"));
@@ -1515,7 +1515,7 @@ async function renderHistory() {
   bindShellText(el('history-summary'), () => totals ? uiText('answers', {count:totals.attempts}) + ' · ' + totals.correct + ' ' + uiText('m164') : uiText("m165"));
   const rows = history.data.attempts || [];
   const statuses = { draft: uiText("m166"), pending: uiText("m167"), unassessed: uiText("m168"), assessed: uiText("m169") };
-  setShellHTML(host, rows.length ? rows.map(a => '<article class="card"><div class="card-head"><h3>' + (a.topic ? '<span ' + examTextAttributes() + '>' + esc(a.topic) + '</span>' : messageMarkup("m170")) + '</h3><span class="chip">' + messageMarkup(statuses[a.status] || a.status) + '</span></div><p class="small muted">' + esc(new Date(a.created_at).toLocaleString(getLocale(), { dateStyle: 'medium', timeStyle: 'short' })) + (a.parent_submission_id ? " " + messageMarkup("m171") : '') + '</p><button type="button" class="btn" data-attempt="' + esc(a.id) + '">' + (a.submission_id ? messageMarkup("m172") : messageMarkup("m173")) + '</button></article>').join('') : "<div class=\"card\"><h3><span data-i18n=\"shell.m174\">Noch keine Schreibübungen</span></h3><p><span data-i18n=\"shell.m175\">Beginne mit einer Aufgabe. Dein Entwurf und jede Abgabe bleiben hier erreichbar.</span></p><a class=\"btn btn-primary\" href=\"#/schreiben\"><span data-i18n=\"shell.m176\">Schreiben üben</span></a></div>");
+  setShellHTML(host, rows.length ? rows.map(a => '<article class="card"><div class="card-head"><h3>' + (a.topic ? '<span ' + examTextAttributes() + '>' + esc(a.topic) + '</span>' : messageMarkup("m170")) + '</h3><span class="chip">' + messageMarkup(statuses[a.status] || a.status) + '</span></div><p class="small muted">' + esc(new Date(a.created_at).toLocaleString(getLocale(), { dateStyle: 'medium', timeStyle: 'short' })) + (a.parent_submission_id ? " " + messageMarkup("m171") : '') + '</p><button type="button" class="btn" data-attempt="' + esc(a.id) + '">' + (a.submission_id ? messageMarkup("m172") : messageMarkup("m173")) + '</button></article>').join('') : "<div class=\"card\"><h3><span data-i18n=\"shell.m174\">Noch keine Schreibübungen</span></h3><p><span data-i18n=\"shell.m175\">Beginnen Sie mit einer Aufgabe. Ihr Entwurf und jede Abgabe bleiben hier erreichbar.</span></p><a class=\"btn btn-primary\" href=\"#/schreiben\"><span data-i18n=\"shell.m176\">Schreiben üben</span></a></div>");
   host.onclick = async (event) => {
     if (!currentContext(ticket)) return;
     const target = event.target.closest('[data-attempt]'); if (!target) return;

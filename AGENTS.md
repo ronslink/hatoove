@@ -72,7 +72,17 @@ node tools/server-origin-check.mjs
 node tools/keymask-check.mjs
 node tools/owned-api-check.mjs
 node tools/owned-client-check.mjs
+node tools/i18n-register-check.mjs
 ```
+
+`i18n-register-check.mjs` was added on 5 October 2026 with REDESIGN-01-COPYFIX. It fails when any shipped
+German interface string uses the informal address, when a pre-JavaScript inline default disagrees with the
+catalogue value that replaces it, or when the scan stops covering a shipped file that declares one. It
+exists because the `du` → `Sie` pass converted the i18n catalogues but not the inline defaults, which put
+"Du hast Deutsch gelernt. Jetzt üben Sie, es in Prüfungsaufgaben anzuwenden." on the public front door and
+left 14 strings welding an informal imperative to a formal pronoun. The one allowlisted exception is
+`public.checklist2`, which quotes the word „du"; `public/site.js` carries an authored reading passage whose
+"du" is exam language, not interface copy, and the check asserts that passage is unchanged.
 
 `docker-stack-check.mjs` and `app-browser-check.mjs` need Docker and a browser and are NOT CI gates;
 `owned-api-check --backend=postgres` and the other PostgreSQL checks need a disposable database. These
