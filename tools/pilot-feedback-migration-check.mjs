@@ -420,6 +420,34 @@ async function main() {
       assert.equal(after.reports, 0, `the report survived account erasure (${after.reports} left)`);
       assert.equal(after.shots, 0, `the screenshot survived account erasure (${after.shots} left)`);
     });
+
+    /* ---------------------------------------------------------------- the survey age gate (A13) */
+    await check('20. the account-age reader answers for the caller ONLY and takes no argument (A13)', async () => {
+      /*
+       * WHY THIS FUNCTION EXISTS AT ALL: `"user"` is granted to __AUTH__ and not to __LEARNER__, and
+       * table-class-check enforces that, so the learner-pool datastore has NO readable path to
+       * `"user"."createdAt"` — which the survey's `min_account_age_days` gate needs. The definer reader is the
+       * answer, and the property that makes it safe is that it takes NO ARGUMENT: an owner parameter would have
+       * let any learner ask when another account registered, and no ordinary review would have noticed.
+       */
+      const fn = (await q(`SELECT p.pronargs, p.prosecdef, p.proacl
+                             FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                            WHERE n.nspname = $1 AND p.proname = 'feedback_account_age_days'`,
+        [schema])).rows[0];
+      assert.ok(fn, 'feedback_account_age_days does not exist, so the survey gate cannot read the account age');
+      assert.equal(Number(fn.pronargs), 0, 'the reader must take NO argument, or it can be asked about another owner');
+      assert.equal(fn.prosecdef, true, 'the reader must be SECURITY DEFINER: the learner cannot read "user" itself');
+      const acl = String(fn.proacl ?? '');
+      assert.ok(!acl.split(',').some((entry) => entry.startsWith('=')), `PUBLIC may execute the reader: ${acl}`);
+
+      const asB = (await asLearner(pools.learner, B, (client) =>
+        client.query(`SELECT ${T('feedback_account_age_days')}() AS age`))).rows[0].age;
+      assert.ok(Number.isInteger(asB) && asB >= 0, `the reader returned ${asB} for a learner with a real account`);
+
+      // With no owner in the session it must answer nothing rather than pick a row.
+      const anonymous = (await pools.learner.query(`SELECT ${T('feedback_account_age_days')}() AS age`)).rows[0].age;
+      assert.equal(anonymous, null, 'with no owner set the reader must return NULL, not somebody else\'s age');
+    });
   } finally {
     await closePersistent(pools);
   }
