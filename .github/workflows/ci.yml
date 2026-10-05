@@ -411,7 +411,7 @@ jobs:
       # cannot run in the offline jobs. `mirror-db` is the tallying runner and runs LAST in this job, so a failing gate here cannot skip the steps below it, so every gate runs and each
       # failure is named rather than the first one hiding the rest.
       - name: MIRROR-B1PREP-01 gates that need PostgreSQL (tallying runner, per-gate PASS/FAIL)
-      if: always()   # run even when an earlier step failed: a skipped gate reads like a passing one
+        if: always()
         run: node tools/run-gates.mjs mirror-db
   rendered:
     name: Rendered behaviour (Docker + headless Chrome)
