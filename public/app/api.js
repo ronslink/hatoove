@@ -39,6 +39,9 @@ const PATHS = Object.freeze({
   practiceCheck: '/api/v1/practice/check',
   practiceProgress: '/api/v1/practice/progress',
   practiceMistakes: '/api/v1/practice/mistakes',
+  /* DRILL-01 (slice H) — Einzelübungen. The item-at-a-time pair beside the whole-set pair above. */
+  practiceDrillNext: '/api/v1/practice/drill/next',
+  practiceDrillCheck: '/api/v1/practice/drill/check',
   attempts: '/api/v1/attempts',
   submissions: '/api/v1/submissions',
   export: '/api/v1/export',
@@ -390,6 +393,20 @@ return Object.freeze({
      * database role at all. What comes back is what the LEARNER answered, so they can try again.
      */
     mistakes: () => scopedCall('GET', PATHS.practiceMistakes),
+    /**
+     * DRILL-01 (slice H) — the Einzelübungen pair.
+     *
+     * `drillNext()` asks the server which ONE item to practise now, weighted to the learner's weak part, and
+     * returns it with the sitting it belongs to and the numbers behind the choice. `drillCheck({attemptId,
+     * itemId, answer, latencyMs, language})` marks exactly that item and returns the verdict, the key (which
+     * the server can reveal only after the answer is committed) and the explanation.
+     *
+     * Both are `scopedCall`, so the preparation context travels the way it does for every neighbour here,
+     * and the answer posted is the option's typed `value` — never its id, because a listening item's key is
+     * a JSON boolean and `mark_objective_item` compares jsonb.
+     */
+    drillNext: () => scopedCall('GET', PATHS.practiceDrillNext),
+    drillCheck: (payload) => scopedCall('POST', PATHS.practiceDrillCheck, payload),
   }),
 
   /**

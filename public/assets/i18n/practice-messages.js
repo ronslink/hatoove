@@ -466,6 +466,33 @@ const rows = {
   partRunnerCheckArchived: ["Ihre Vorbereitung ist archiviert. Deshalb ist eine Auswertung nicht möglich.","Your preparation is archived, so evaluating is not possible.","Вашу підготовку заархівовано, тому оцінювання неможливе.","تحضيرك مؤرشف، لذا لا يمكن التقييم.","Hazırlığınız arşivlenmiş; bu nedenle değerlendirme yapılamaz."],
   partRunnerCheckBlocked: ["Die Auswertung ist nicht möglich. Ihre Antworten bleiben auf dieser Seite erhalten.","Evaluating is not possible. Your answers stay on this page.","Оцінювання неможливе. Ваші відповіді залишаються на цій сторінці.","التقييم غير ممكن. تبقى إجاباتك في هذه الصفحة.","Değerlendirme yapılamıyor. Yanıtlarınız bu sayfada kalır."],
   partRunnerExplanationUnavailable: ["Für diese Aufgabe ist keine Erklärung verfügbar.","No explanation is available for this task.","Для цього завдання пояснення недоступне.","لا يتوفر شرح لهذه المهمة.","Bu görev için açıklama yok."],
+  /* DRILL-01 (slice H) — Einzelübungen. One item at a time, instant feedback. Every string is a COUNT or a
+     state: no readiness figure, no streak, no plan and no prediction (D22). The address is formal. */
+  drillKicker: ["Einzelübung · ohne Zeitmessung","Single exercise · untimed","Окрема вправа · без обмеження часу","تمرين فردي · بدون توقيت","Tek alıştırma · süresiz"],
+  drillTitle: ["Einzelübungen","Single exercises","Окремі вправи","تمارين فردية","Tek alıştırmalar"],
+  drillLoading: ["Aufgabe wird geladen …","Loading the task …","Завдання завантажується …","جارٍ تحميل المهمة …","Görev yükleniyor …"],
+  drillEmptyTitle: ["Zurzeit keine Aufgabe","No task right now","Наразі немає завдання","لا توجد مهمة حاليًا","Şu anda görev yok"],
+  drillEmpty: ["Für Einzelübungen ist zurzeit keine Aufgabe verfügbar.","No task is available for single exercises at the moment.","Наразі для окремих вправ немає доступного завдання.","لا تتوفر مهمة للتمارين الفردية حاليًا.","Tek alıştırmalar için şu anda görev yok."],
+  drillUnavailable: ["Einzelübungen sind in dieser Fassung noch nicht verfügbar.","Single exercises are not available in this version yet.","Окремі вправи ще недоступні в цій версії.","التمارين الفردية غير متاحة في هذه النسخة بعد.","Tek alıştırmalar bu sürümde henüz yok."],
+  drillNoOptions: ["Für diese Aufgabe liegen noch keine Antwortmöglichkeiten vor. Deshalb kann sie nicht geübt werden.","This task carries no answer options yet, so it cannot be practised.","Це завдання ще не має варіантів відповіді, тому його не можна опрацювати.","لا تتوفر خيارات إجابة لهذه المهمة بعد، لذا لا يمكن التدرب عليها.","Bu görevde henüz yanıt seçeneği yok; bu yüzden çalışılamaz."],
+  drillFailed: ["Die Aufgabe konnte nicht geladen werden. Bitte versuchen Sie es erneut.","The task could not be loaded. Please try again.","Не вдалося завантажити завдання. Спробуйте ще раз.","تعذّر تحميل المهمة. يرجى المحاولة مرة أخرى.","Görev yüklenemedi. Lütfen yeniden deneyin."],
+  drillRetry: ["Erneut laden","Reload","Завантажити знову","إعادة التحميل","Yeniden yükle"],
+  drillReasonWeak: ["Ihr schwächster Teil: {family} — {correct} von {attempts} richtig.","Your weakest part: {family} — {correct} of {attempts} correct.","Ваша найслабша частина: {family} — {correct} з {attempts} правильно.","أضعف جزء لديك: {family} — {correct} من {attempts} صحيحة.","En zayıf bölümünüz: {family} — {attempts} görevden {correct} doğru."],
+  drillReasonUnseen: ["Neuer Teil: {family} — hier haben Sie noch nichts geübt.","New part: {family} — you have not practised here yet.","Нова частина: {family} — ви тут ще не практикувалися.","جزء جديد: {family} — لم تتدرب هنا بعد.","Yeni bölüm: {family} — burada henüz çalışmadınız."],
+  drillReasonStrong: ["Nächster Teil: {family} — hier war bisher alles richtig.","Next part: {family} — everything here has been correct so far.","Наступна частина: {family} — тут поки що все правильно.","الجزء التالي: {family} — كان كل شيء صحيحًا هنا حتى الآن.","Sıradaki bölüm: {family} — burada şimdiye kadar her şey doğruydu."],
+  drillItemPosition: ["Aufgabe {index} von {total}","Task {index} of {total}","Завдання {index} з {total}","المهمة {index} من {total}","Görev {index} / {total}"],
+  drillProgress: ["{answered} von {total} Aufgaben in diesem Satz beantwortet","{answered} of {total} tasks in this set answered","Відповідно на {answered} з {total} завдань у цьому наборі","تمت الإجابة عن {answered} من {total} مهمة في هذه المجموعة","Bu sette {total} görevden {answered} tanesi yanıtlandı"],
+  drillCheck: ["Prüfen","Check","Перевірити","تحقق","Kontrol et"],
+  drillChecking: ["Wird geprüft …","Checking …","Перевіряється …","جارٍ التحقق …","Kontrol ediliyor …"],
+  drillChoose: ["Wählen Sie eine Antwort.","Choose an answer.","Виберіть відповідь.","اختر إجابة.","Bir yanıt seçin."],
+  drillCheckFailed: ["Die Prüfung ist fehlgeschlagen. Ihre Antwort bleibt auf dieser Seite erhalten; bitte versuchen Sie es erneut.","Checking failed. Your answer stays on this page; please try again.","Перевірка не вдалася. Ваша відповідь залишається на цій сторінці; спробуйте ще раз.","فشل التحقق. تبقى إجابتك في هذه الصفحة؛ يرجى المحاولة مرة أخرى.","Kontrol başarısız oldu. Yanıtınız bu sayfada kalır; lütfen yeniden deneyin."],
+  drillCheckBlocked: ["Diese Aufgabe konnte nicht geprüft werden. Bitte laden Sie die nächste Aufgabe.","This task could not be checked. Please load the next task.","Не вдалося перевірити це завдання. Будь ласка, завантажте наступне завдання.","تعذّر التحقق من هذه المهمة. يرجى تحميل المهمة التالية.","Bu görev kontrol edilemedi. Lütfen sıradaki görevi yükleyin."],
+  drillCorrect: ["Richtig.","Correct.","Правильно.","صحيح.","Doğru."],
+  drillWrong: ["Leider falsch.","Not correct.","На жаль, неправильно.","للأسف، غير صحيح.","Maalesef yanlış."],
+  drillKey: ["Lösung: {answer}","Answer: {answer}","Правильна відповідь: {answer}","الإجابة: {answer}","Doğru yanıt: {answer}"],
+  drillYourPick: ["Ihre Wahl: {answer}","Your pick: {answer}","Ваш вибір: {answer}","اختيارك: {answer}","Seçiminiz: {answer}"],
+  drillNext: ["Nächste Aufgabe","Next task","Наступне завдання","المهمة التالية","Sıradaki görev"],
+  drillSetDone: ["Dieser Satz ist fertig. Es geht mit der nächsten Aufgabe weiter.","This set is finished. The next task continues.","Цей набір завершено. Далі буде наступне завдання.","انتهت هذه المجموعة. تابع بالمهمة التالية.","Bu set bitti. Sıradaki görevle devam eder."],
 };
 export const PRACTICE_MESSAGES = Object.freeze(Object.fromEntries(['de','en','uk','ar','tr'].map((locale,index) => [locale,Object.freeze(Object.fromEntries(Object.entries(rows).map(([key,values]) => [key,values[index]])))])));
 registerMessages('practice', PRACTICE_MESSAGES);

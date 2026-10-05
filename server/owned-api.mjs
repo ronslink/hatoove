@@ -1251,6 +1251,69 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       }
       return reply(200, checked);
     }
+    /*
+     * DRILL-01 (slice H, MIRROR-B1PREP-01 §5 H) — Einzelübungen: ONE item at a time with instant feedback.
+     *
+     * TWO ROUTES, and the reason they are not the practice set routes with a flag:
+     *
+     *   * `GET  /practice/drill/next`  answers "which item now", weighted to the learner's WEAK PART. The
+     *     choice is a pure rule over `item_evidence` (`server/drill-sets.mjs`) and the response carries the
+     *     numbers behind it, so the learner can be told why. It serves ONE item and NO key.
+     *   * `POST /practice/drill/check` answers "is this item right, and why" for that ONE item. It marks it
+     *     through `mark_objective_item`, writes the evidence row, then reveals the key through
+     *     `reveal_objective_answer` — which returns a key only because the learner's own evidence now
+     *     exists. The explanation is enriched here through the SAME context-authorized reader the whole-set
+     *     review uses, with the same two guards.
+     *
+     * `practice/check` is deliberately untouched: it marks a WHOLE sitting, and a drill is not one.
+     */
+    if (pathname === '/api/v1/practice/drill/next' && method === 'GET') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      if (typeof datastore.drillNext !== 'function') fault(503, 'practice_unavailable');
+      const prep = await preparationContext(query);
+      const serveReview = deploymentReview();
+      const drill = await datastore.drillNext(owner, { preparationId: prep.id, serveReview });
+      /* Nothing servable is NOT an error: it means this deployment releases no part for the drill, and the
+         client shows its honest empty state rather than an error page. */
+      if (!drill) {
+        return reply(200, { preparation_id: prep.id, exam_id: prep.exam_id, reason: 'nothing_available',
+          family: null, section: null, evidence: null, attempt: null, round: null, set: null, item: null,
+          progress: null });
+      }
+      return reply(200, drill);
+    }
+    if (pathname === '/api/v1/practice/drill/check' && method === 'POST') {
+      if (!practiceWired) fault(503, 'practice_unavailable');
+      if (typeof datastore.drillCheckItem !== 'function') fault(503, 'practice_unavailable');
+      onlyFields(body, ['preparationId', 'attemptId', 'itemId', 'answer', 'latencyMs', 'language']);
+      const preparationId = requirePreparationId(body.preparationId);
+      const language = body.language === undefined ? null : body.language;
+      if (language !== null && !INTERFACE_LOCALES.includes(language)) fault(422, 'invalid_language');
+      const latencyMs = body.latencyMs === undefined ? null : body.latencyMs;
+      if (latencyMs !== null && (!Number.isSafeInteger(latencyMs) || latencyMs < 0 || latencyMs > 3600000)) {
+        fault(422, 'invalid_latency');
+      }
+      const checked = await datastore.drillCheckItem(owner, {
+        preparationId, attemptId: body.attemptId, itemId: body.itemId, answer: body.answer, latencyMs,
+      });
+      /*
+       * THE EXPLANATION IS ENRICHMENT, AND IT MUST NEVER DECIDE THIS RESPONSE — the same rule slice C's
+       * whole-set review follows after REVIEW-PRACTICE-01-SERVER D1. The item is already marked and its
+       * evidence row is committed, so a reader fault can only lose the "why", never the verdict. Two guards:
+       * a judgement item or any item of a media_required set is not asked for at all (the reader is a
+       * CHOICE-family reader by design, `0037`), and ANY failure becomes `explanation: null`.
+       */
+      const explainable = typeof datastore.readObjectiveEvidenceExplanation === 'function'
+        && checked.media_required !== true;
+      if (explainable && checked.answer_kind === 'choice') {
+        try {
+          checked.explanation = await datastore.readObjectiveEvidenceExplanation(owner, checked.evidence_id, { language });
+        } catch {
+          checked.explanation = null;
+        }
+      }
+      return reply(200, checked);
+    }
     if (pathname === '/api/v1/practice/next' && method === 'GET') {
       if (!practiceWired) fault(503, 'practice_unavailable');
       /*
