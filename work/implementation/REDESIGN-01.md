@@ -126,9 +126,8 @@ exactly why the contract harness exists.
 not a score: no percentage, no pass line, and nothing claimed about parts the learner never saw. The key
 `partResult` carries one placeholder shape in all five languages.
 
-**Still owed:** everything that needs the studio-look values (the exam card with the large B1, the navy, the
-question navigator's visual design), the Fehlerheft card styling, the five-language copy audit, and the
-landing page.
+**Still owed:** nothing on this slice. The exam card with the large B1 and the navy were delivered in slice B;
+the Fehlerheft styling and the copy audit in slice E/F; the landing page in slice G.
 
 ## 5. Slice E/F — Fehlerheft and copy cleanup
 
@@ -148,20 +147,30 @@ decide the six new strings.
 
 ## 6. Slice G — landing page, sitemap, OG card
 
-**Open, and waiting on Ron.** `public/sitemap.xml` and `public/assets/og-card.png` already satisfy
-`tools/seo-check.mjs` (11/11), so there is nothing to fix there today. The work that remains is the graphic
-replacement, and it is not a technical question any more:
+**The artwork is landed** (`c31d08d`, `adabb59`, `fc98e3e`); what remains in this slice is one approval and
+one honest limitation.
 
-- The candidate exists and is legible at the real 550 px slot: one Sprachbausteine question, the learner's
-  wrong pick red, the key green, the explanation in their own language, plus a rasterised 1200×630 social
-  card. Proposal and measurements: `work/implementation/REDESIGN-01-LANDING-GRAPHIC.md`, marked **not landed,
-  not approved**.
-- Three decisions are Ron's, recorded in that proposal's §12: the mobile slot width (at a 360 px phone the
-  smallest meaning-bearing type lands near 10 px), the dark theme (`.approach-art` hardcodes a white
-  background, `site.css:87`), and one FAQ sentence that may want a clarifying half-sentence.
-- **The Lead has deliberately not landed it.** Swapping the page's largest image and the social card without
-  approval is not a judgement call this branch should make, and the asset it replaces is the thing Ron
-  explicitly rejected, so the candidate stays ready to apply.
+- The front door now shows one telc B1 Sprachbausteine question — the learner's wrong pick red, the keyed
+  answer green, the explanation in Ukrainian beside it — instead of the orange paper strip. The strip was
+  also redundant: the page already renders a working interactive preview (`#practice`) two sections above.
+- One source, two crops: 960×640 above a 1199 px breakpoint, 720×480 below it. Both are SVG, so the four
+  replaced rasters (1.63 MB) are gone and nothing is fetched from a third-party origin.
+- **The breakpoint is 1199 px, not the page's 900 px layout breakpoint**, because the wide crop's smallest
+  style needs a ~512 px slot. Serving it in the 901–1199 band left text at 12.6–16.0 px, which is exactly the
+  failure Ron rejected. Three browser legs now assert which crop each width is *served*.
+- An independent verification of the landed page caught four defects, three of them the Lead's: an alt text
+  that described the wrong section and inverted the answers, the wrong breakpoint, a "fix" that shrank the
+  exam kicker to 11.5–13.2 px at real slots, and a comment claiming font behaviour that does not happen (an
+  SVG loaded via `<img>` may not load its own `@font-face`). All four are corrected.
+
+**Still owed:** the OG card swap needs Ron's approval — `seo-check` S4 pins its dimensions and its alt text,
+so it is a public-facing asset rather than an implementation detail.
+
+**Known limitation, measured and not hidden:** below a viewport of about 354 px the slot is too narrow for
+the artwork's smallest style to reach 16 px (at 320 px it measures 14.4 px). The artwork cannot exceed the
+viewport, and a third crop would have to drop the two answer tiles or the question itself — so below that
+width the graphic is a glanceable illustration and the meaning is carried by the alt text and the copy
+beside it. That is a deliberate trade, recorded rather than papered over.
 
 Impressum and Datenschutz stay **blocked** until the operator entity exists.
 

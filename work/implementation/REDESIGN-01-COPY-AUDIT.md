@@ -57,3 +57,24 @@ as such; Ron's native reviewers decide them.
   inconsistency between "personalisierte mehrsprachige Erklärungen sind noch nicht freigeschaltet" and a
   sample that shows a fixed curated explanation. That is a product-copy decision for Ron, recorded in
   `work/implementation/REDESIGN-01-LANDING-GRAPHIC.md` §12.2, not something to quietly reword here.
+
+## The factual claims, checked across all five languages
+
+The landing page makes claims about time, money and what stays free. Those were checked mechanically, because
+a claim that survives in one language and drifts in another is the kind of defect no structural audit sees.
+
+| Key | Carries | Agrees in all five? |
+| --- | --- | --- |
+| `description`, `ogDescription` | free until 14 January 2027, credit packs after | yes |
+| `pilot`, `createDescription` | free until 14 January 2027 | yes |
+| `listeningDescription`, `faqListeningAnswer` | listening belongs to the credit packs | yes |
+| `faqFreeAnswer` | free until 14 January 2027 · no payment details needed · credit packs after · the free test that remains · writing-feedback limit · conditions on page and in app | yes |
+
+One flag was raised by the check and then **withdrawn after reading the string**: the Arabic
+`faqFreeAnswer` did not match a naive "payment details" pattern, but it does carry the claim as
+`بيانات دفع` — different word order, same meaning. That is recorded because the check's limits matter as much
+as its findings: a regex over five languages produces false positives, and the answer to one is to read the
+text, not to reword it.
+
+What this does **not** establish: that the claims are the right business decision, or that the wording reads
+well. It establishes only that the five languages say the same thing.
