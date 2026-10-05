@@ -62,20 +62,20 @@
         icon fetch would be a new third-party origin. Provenance and the licence are recorded in
         work/implementation/REDESIGN-01.md; do not hand-edit a path here, re-vendor it instead.
       -->
-      <a href="#/satzbau" data-view="satzbau"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/></svg><span><span data-i18n="shell.m303">Satzbau</span></span></a>
+      <!-- NAV-01: three labelled groups, ten entries, and only these ten; unlisted routes still resolve through the redirect map in app.js. tools/nav-ia-check.mjs asserts this block. --><div class="nav-group" data-nav-group="lernweg"><p class="kicker nav-label"><span data-i18n="shell.m393">Mein Lernweg</span></p>
       <a href="#/heute" data-view="heute"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span><span data-i18n="shell.m007">Heute</span></span></a>
-      <a href="#/fortschritt" data-view="fortschritt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg><span><span data-i18n="shell.m012">Fortschritt</span></span></a>
-      <a href="#/fehler" data-view="fehler"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg><span><span data-i18n="shell.m011">Fehler</span></span><span class="count" id="mistake-count" hidden>0</span></a>
-      <a href="#/abschnitt" data-view="abschnitt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span><span data-i18n="shell.m304">Prüfungsläufe</span></span></a>
-      <p class="kicker nav-label"><span data-i18n="shell.m305">Lernen</span></p>
-      <a href="#/lesen" data-view="lesen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v16"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/></svg><span><span data-i18n="shell.m002">Leseverstehen</span></span></a>
-      <a href="#/sprachbausteine" data-view="sprachbausteine"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/></svg><span><span data-i18n="shell.m003">Sprachbausteine</span></span></a>
-      <a href="#/hoeren" data-view="hoeren"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span><span data-i18n="shell.m004">Hörverstehen</span></span></a>
-      <a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg><span><span data-i18n="shell.m005">Schreiben</span></span></a>
-      <a href="#/woerterbuch" data-view="woerterbuch"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13h4"/><path d="M12 6v7"/><path d="M16 8V6H8v2"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg><span><span data-i18n="shell.m009">Wörterbuch</span></span></a>
+        <a href="#/ueben" data-view="ueben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M3 4h5"/><path d="M16 4h5"/></svg><span><span data-i18n="shell.m394">Einzelübungen</span></span></a>
+        <a href="#/wortschatz" data-view="wortschatz"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13h4"/><path d="M12 6v7"/><path d="M16 8V6H8v2"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg><span><span data-i18n="shell.m395">Wortschatz</span></span></a>
+        <a href="#/fehler" data-view="fehler"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg><span><span data-i18n="shell.m396">Fehlerheft</span></span><span class="count" id="mistake-count" hidden>0</span></a>
+      </div><div class="nav-group" data-nav-group="pruefungstraining"><p class="kicker nav-label"><span data-i18n="shell.m397">Prüfungstraining</span></p>
+        <a href="#/pruefungsteile" data-view="pruefungsteile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span><span data-i18n="shell.m398">Prüfungsteile</span></span></a>
+        <a href="#/hoeren" data-view="hoeren"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span><span data-i18n="shell.m399">Hören</span></span></a>
+        <a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg><span><span data-i18n="shell.m005">Schreiben</span></span></a>
+        <a href="#/probepruefung" data-view="probepruefung"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg><span><span data-i18n="shell.m400">Probeprüfung</span></span></a>
+      </div><div class="nav-group" data-nav-group="werkzeuge"><p class="kicker nav-label"><span data-i18n="shell.m401">Werkzeuge</span></p>
       <a href="#/nachschlagen" data-view="nachschlagen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/></svg><span><span data-i18n="shell.m010">Nachschlagen</span></span></a>
-      <p class="kicker nav-label"><span data-i18n="shell.m306">Konto</span></p>
-      <a href="#/einstellungen" data-view="einstellungen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span><span data-i18n="shell.m013">Einstellungen</span></span></a>
+        <a href="#/einstellungen" data-view="einstellungen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span><span data-i18n="shell.m013">Einstellungen</span></span></a>
+      </div>
     </nav>
 
     <div class="side-foot">
@@ -98,7 +98,7 @@
       </div>
       <!-- The design puts the CURRENT VIEW and the date in crumbs, not a bare page title. The <b> keeps
            the id app.js already writes to, so route() does not have to change to stay conformant. -->
-      <p class="crumbs"><b id="page-title"><span data-i18n="shell.m007">Heute</span></b> · <span id="crumb-date">–</span></p>
+      <p class="crumbs"><span id="crumb-root" lang="de" dir="ltr">Deutsch B1</span><span id="crumb-group" hidden> / <span id="crumb-group-name"></span></span> · <b id="page-title"><span data-i18n="shell.m007">Heute</span></b> · <span id="crumb-date">–</span></p>
       <div class="top-actions">
         <!-- This preference is confirmed by the account API before the interface changes. -->
         <div class="locale-control">
@@ -114,11 +114,11 @@
     </header>
 
     <main class="content" id="main">
-      <section class="card preparation-context" aria-label="Ihre Prüfungsvorbereitung" data-i18n-aria-label="shell.m384">
-        <div class="spread preparation-heading"><div><p class="kicker"><span data-i18n="shell.m309">Ihre Vorbereitung</span></p><div class="exam-identity"><strong id="preparation-exam"><span data-i18n="shell.m302">Prüfung wird geladen</span></strong><span class="exam-level" id="preparation-level" hidden></span></div><p class="small muted" id="preparation-scope"><span data-i18n="shell.m310">Einzelne Abschnitte üben</span></p></div><div class="row"><a class="btn btn-primary" id="preparation-start" href="#/ueben"><span data-i18n="shell.m311">Abschnitt üben</span></a><a class="btn" id="preparation-continue" href="#/fortschritt"><span data-i18n="shell.m312">Gespeicherte Texte fortsetzen</span></a></div></div>
+      <section class="card preparation-context" id="preparation-context" aria-label="Ihre Prüfungsvorbereitung" data-i18n-aria-label="shell.m384">
+        <div class="spread preparation-heading"><div><p class="kicker"><span data-i18n="shell.m309">Ihre Vorbereitung</span></p><div class="exam-identity"><strong id="preparation-exam"><span data-i18n="shell.m302">Prüfung wird geladen</span></strong><span class="exam-level" id="preparation-level" hidden></span></div><p class="small muted" id="preparation-scope"><span data-i18n="shell.m310">Einzelne Abschnitte üben</span></p></div><div class="row"><a class="btn btn-primary" id="preparation-start" href="#/ueben"><span data-i18n="shell.m311">Abschnitt üben</span></a><a class="btn" id="preparation-continue" href="#/verlauf"><span data-i18n="shell.m312">Gespeicherte Texte fortsetzen</span></a></div></div>
         <div class="field" id="preparation-choice" hidden><label for="preparation-picker"><span data-i18n="shell.m313">Vorbereitung auswählen</span></label><select class="select" id="preparation-picker"></select></div>
         <p class="small muted" id="preparation-state" role="status" aria-live="polite"></p>
-        <div class="row"><p class="small muted" id="preparation-credits" role="status"><span data-i18n="shell.m025">Guthaben wird geladen …</span></p><button class="btn btn-small" id="credits-retry" type="button" hidden><span data-i18n="shell.m314">Guthaben erneut laden</span></button></div>
+        <!-- The writing-feedback allowance moved to the Schreiben view (§4.1). -->
       </section>
 
       <!-- Heute -->
@@ -145,7 +145,7 @@
             <section class="card" aria-labelledby="stand-title">
               <div class="card-head">
                 <h2 id="stand-title"><span data-i18n="shell.m318">Ihr Stand</span></h2>
-                <a class="link small" href="#/fortschritt"><span data-i18n="shell.m319">Details</span></a>
+                <a class="link small" href="#/verlauf"><span data-i18n="shell.m319">Details</span></a>
               </div>
               <div class="gauge">
                 <div class="gauge-top"><span><span data-i18n="shell.m320">Beantwortete Aufgaben</span></span><span><b id="gauge-count">0</b></span></div>
@@ -186,22 +186,33 @@
       <section class="view" id="view-ueben" hidden>
         <div class="page-head">
           <div>
-            <h2><span data-i18n="shell.m008">Üben</span></h2>
+            <h2><span data-i18n="shell.m394">Einzelübungen</span></h2>
             <p><span data-i18n="shell.m325">Eine Aufgabe auswählen und Schritt für Schritt üben.</span></p>
           </div>
         </div>
-        <a class="card-peach more-link" href="#/abschnitt"><strong><span data-i18n="shell.m326">Einen Leseabschnitt zusammenhängend üben</span></strong><span><span data-i18n="shell.m327">Gespeicherte Antworten · Fortsetzen möglich · Rückmeldung am Ende</span></span></a>
+        <a class="card-peach more-link" href="#/probepruefung"><strong><span data-i18n="shell.m326">Einen Leseabschnitt zusammenhängend üben</span></strong><span><span data-i18n="shell.m327">Gespeicherte Antworten · Fortsetzen möglich · Rückmeldung am Ende</span></span></a>
         <div class="stack" id="practice-next"></div>
         <div class="stack" id="task-list"><div class="card"><h3><span data-i18n="shell.m057">Wird geladen ...</span></h3></div></div>
       </section>
 
       <section class="view" id="view-abschnitt" hidden><div id="mock-host" class="stack"></div></section>
+      <!-- NAV-01 interim views. Slice B replaces the part index with one tile per released part; slice D
+           mounts public/app/mock-intro.js into mock-intro-host, after which the interim run list below it
+           is hidden. Both render real content today, so neither group entry is a dead link. -->
+      <section class="view" id="view-pruefungsteile" hidden>
+        <div class="page-head"><div><p class="kicker"><span data-i18n="shell.m397">Prüfungstraining</span></p><h2><span data-i18n="shell.m398">Prüfungsteile</span></h2></div></div>
+        <div class="stack" id="part-index-host"></div>
+      </section>
+      <section class="view" id="view-probepruefung" hidden>
+        <div class="page-head"><div><p class="kicker"><span data-i18n="shell.m397">Prüfungstraining</span></p><h2><span data-i18n="shell.m400">Probeprüfung</span></h2></div></div>
+        <div class="stack" id="mock-intro-host"></div>
+      </section>
 
       <!-- Leseverstehen -->
       <section class="view" id="view-lesen" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <p class="kicker"><span data-i18n="shell.m397">Prüfungstraining</span></p>
             <h1><span data-i18n="shell.m002">Leseverstehen</span></h1>
             <p><span data-i18n="shell.m328">Anzeigen, Briefe und Texte lesen und das Passende zuordnen.</span></p>
           </div>
@@ -220,7 +231,7 @@
       <section class="view" id="view-sprachbausteine" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <p class="kicker"><span data-i18n="shell.m397">Prüfungstraining</span></p>
             <h1><span data-i18n="shell.m003">Sprachbausteine</span></h1>
             <p><span data-i18n="shell.m329">Lücken in einem Brief füllen: Konnektoren, Präpositionen, Verbformen.</span></p>
           </div>
@@ -233,7 +244,7 @@
       <section class="view" id="view-hoeren" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <p class="kicker"><span data-i18n="shell.m397">Prüfungstraining</span></p>
             <h1><span data-i18n="shell.m004">Hörverstehen</span></h1>
             <p><span data-i18n="shell.m330">Hören Sie feste Aufnahmen in einem gespeicherten Lauf. Ihr Hörstand und Ihre Antworten bleiben diesem Lauf zugeordnet.</span></p>
           </div>
@@ -246,13 +257,17 @@
       <section class="view" id="view-schreiben" hidden>
         <div class="page-head">
           <div>
-            <p class="kicker"><span data-i18n="shell.m008">Üben</span></p>
+            <p class="kicker"><span data-i18n="shell.m397">Prüfungstraining</span></p>
             <h1><span data-i18n="shell.m005">Schreiben</span></h1>
             <p><span data-i18n="shell.m331">Briefe schreiben mit serverseitiger Rückmeldung.</span></p>
           </div>
         </div>
         <div class="stack" id="skill-schreiben"><div class="card"><h3><span data-i18n="shell.m317">Wird geladen &hellip;</span></h3></div></div>
         <div class="stack skill-practice" hidden></div>
+        <!-- MIRROR-B1PREP-01 §4.1: the writing-feedback allowance lives with the writing surface, not in a
+             card that repeated on every page. It used to sit inside the "Ihre Vorbereitung" block, which is
+             Heute-only now, so the allowance would have become less reachable than before nav-01. -->
+        <div class="row" id="writing-allowance"><p class="small muted" id="preparation-credits" role="status"><span data-i18n="shell.m025">Guthaben wird geladen …</span></p><button class="btn btn-small" id="credits-retry" type="button" hidden><span data-i18n="shell.m314">Guthaben erneut laden</span></button></div>
       </section>
 
       <!-- Fehler (Mistakes) -->
@@ -275,7 +290,7 @@
       </section>
 
       <!-- Wörterbuch -->
-      <section class="view" id="view-woerterbuch" hidden>
+      <section class="view" id="view-wortschatz" hidden>
         <div class="page-head">
           <div>
             <h2><span data-i18n="shell.m009">Wörterbuch</span></h2>
@@ -301,11 +316,15 @@
             <p><span data-i18n="shell.m340">Grammatik, Fälle, Genus, Redemittel und Briefe.</span></p>
           </div>
         </div>
+        <!-- NAV-01: Satzbau is a Werkzeug now, reached from Nachschlagen, so this card keeps it reachable
+             once the top-level entry is gone. The six-card hub of slice E replaces this interim list. -->
+        <a class="card more-link" href="#/satzbau" data-view="satzbau"><strong><span data-i18n="shell.m015">Satzbau erkunden</span></strong><span><span data-i18n="shell.m357">Untersuche die Struktur eines deutschen Satzes.</span></span></a>
+        <div class="stack" id="library-host" hidden></div>
         <div class="stack" id="guide-index"><div class="card"><h3><span data-i18n="shell.m057">Wird geladen ...</span></h3></div></div>
         <div class="stack" id="guide-body" hidden></div>
       </section>
 
-<section class="view" id="view-fortschritt" hidden>
+<section class="view" id="view-verlauf" hidden>
   <div class="page-head"><div><p class="kicker"><span data-i18n="shell.m341">Ihr Lernen</span></p><h2><span data-i18n="shell.m342">Fortschritt und Verlauf</span></h2><p id="history-summary"><span data-i18n="shell.m165">Ihre gespeicherten Texte und Rückmeldungen.</span></p></div></div>
   <div id="mock-history" class="stack"></div><div id="history-detail" class="stack" hidden></div><div id="history-list" class="stack"></div>
 </section>
@@ -316,7 +335,7 @@
     <a class="card more-link" href="#/lesen" data-view="lesen"><strong><span data-i18n="shell.m002">Leseverstehen</span></strong><span><span data-i18n="shell.m346">Texte lesen und die passende Antwort finden</span></span></a>
     <a class="card more-link" href="#/sprachbausteine" data-view="sprachbausteine"><strong><span data-i18n="shell.m003">Sprachbausteine</span></strong><span><span data-i18n="shell.m347">Grammatik und Wortschatz im Kontext</span></span></a>
     <a class="card more-link" href="#/hoeren" data-view="hoeren"><strong><span data-i18n="shell.m004">Hörverstehen</span></strong><span><span data-i18n="shell.m348">Verfügbare Hörabschnitte und gespeicherte Läufe</span></span></a>
-    <a class="card more-link" href="#/woerterbuch" data-view="woerterbuch"><strong><span data-i18n="shell.m009">Wörterbuch</span></strong><span><span data-i18n="shell.m349">Wörter, Artikel und Beispiele</span></span></a>
+    <a class="card more-link" href="#/wortschatz" data-view="wortschatz"><strong><span data-i18n="shell.m009">Wörterbuch</span></strong><span><span data-i18n="shell.m349">Wörter, Artikel und Beispiele</span></span></a>
     <a class="card more-link" href="#/nachschlagen" data-view="nachschlagen"><strong><span data-i18n="shell.m010">Nachschlagen</span></strong><span><span data-i18n="shell.m350">Regeln und Redemittel verständlich erklärt</span></span></a>
     <a class="card more-link" href="#/fehler" data-view="fehler"><strong><span data-i18n="shell.m011">Fehler</span> <span class="count" id="mistake-count-tab" hidden>0</span></strong><span><span data-i18n="shell.m351">Offene Fehler noch einmal üben</span></span></a>
     <a class="card more-link" href="#/einstellungen" data-view="einstellungen"><strong><span data-i18n="shell.m352">Konto und Einstellungen</span></strong><span><span data-i18n="shell.m353">Prüfungsdatum, Sprache und Ihre Daten</span></span></a>
@@ -447,7 +466,7 @@
   </div>
 </div>
 
-<nav class="tabbar" aria-label="Navigation" data-i18n-aria-label="shell.m387"><a href="#/heute" data-view="heute"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5"/></svg><span><span data-i18n="shell.m007">Heute</span></span></a><a href="#/ueben" data-view="ueben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14M3 4h5a4 4 0 0 1 4 3 4 4 0 0 1 4-3h5v14h-5a4 4 0 0 0-4 3 4 4 0 0 0-4-3H3z"/></svg><span><span data-i18n="shell.m008">Üben</span></span></a><a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"/></svg><span><span data-i18n="shell.m005">Schreiben</span></span></a><a href="#/fortschritt" data-view="fortschritt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18M7 15l4-4 3 3 5-6"/></svg><span><span data-i18n="shell.m379">Verlauf</span></span></a><a href="#/mehr" data-view="mehr"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span><span data-i18n="shell.m014">Mehr</span></span></a></nav>
+<nav class="tabbar" aria-label="Navigation" data-i18n-aria-label="shell.m387"><a href="#/heute" data-view="heute"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5"/></svg><span><span data-i18n="shell.m007">Heute</span></span></a><a href="#/pruefungsteile" data-view="pruefungsteile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span><span data-i18n="shell.m398">Prüfungsteile</span></span></a><a href="#/schreiben" data-view="schreiben"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"/></svg><span><span data-i18n="shell.m005">Schreiben</span></span></a><a href="#/probepruefung" data-view="probepruefung"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg><span><span data-i18n="shell.m400">Probeprüfung</span></span></a><a href="#/mehr" data-view="mehr"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span><span data-i18n="shell.m014">Mehr</span></span></a></nav>
 
 <script type="module" src="/app/app.js"></script>
 </body>
