@@ -814,7 +814,7 @@ function requiredDto(stored) {
       options,
     };
   });
-  const material = Object.fromEntries(['text', 'letter', 'headlines', 'ads', 'bank', 'practice_kind', 'instruction']
+  const material = Object.fromEntries(['text', 'letter', 'headlines', 'ads', 'bank', 'practice_kind', 'instruction', 'recordings']
     .filter(name => payload[name] !== undefined).map(name => [name, payload[name]]));
   return {
     set_id: stored.set_id, version: 'v1', title: stored.title, family: stored.family, section: stored.section,
@@ -845,16 +845,34 @@ const OBJECTIVE_MIGRATIONS = fs.readdirSync(path.join(root, 'server', 'migration
  *  Declaring one here is a decision with a reason, because the corpus legs cannot see inside it. */
 const RELEASE_ONLY_MIGRATIONS = Object.freeze([]);
 const migrationText = (name) => fs.readFileSync(path.join(root, 'server', 'migrations', name), 'utf8');
-const STORED_SETS = OBJECTIVE_MIGRATIONS.flatMap((name) => parseStoredSets(migrationText(name)));
+/**
+ * ONE ROW PER SET, EVEN WHEN A LATER MIGRATION REPLAYS AN EARLIER ONE'S ROWS.
+ *
+ * `0048-pool-01-listening-release.sql` is generated from the same batch source as 0047, so it carries the
+ * three LV1 sets again — a no-op in the database (`ON CONFLICT … DO NOTHING`), and `tools/pool-01-check.mjs`
+ * asserts the replayed rows are byte-identical to the ones 0047 applied, so the replay cannot be a silent
+ * edit. The CORPUS view here is one row per set, because a replayed row is not a second set: without this
+ * the pool would read 34 sets with LV1 at nine. The FIRST migration that published a set wins, which is the
+ * one that actually applied it on a fresh database.
+ */
+const STORED_SETS = (() => {
+  const byId = new Map();
+  for (const name of OBJECTIVE_MIGRATIONS) {
+    for (const stored of parseStoredSets(migrationText(name))) if (!byId.has(stored.set_id)) byId.set(stored.set_id, stored);
+  }
+  return [...byId.values()];
+})();
 const STORED_KEYS = new Map(OBJECTIVE_MIGRATIONS.flatMap((name) => [...parseStoredKeys(migrationText(name))]));
 /**
  * The RELEASED pool per part, as `work/implementation/POOL-01-INVENTORY.md` records it.
  *
- * POOL-01 batch 1 (task-37) releases three LV1 sets; its three listening sets are AUTHORED AND HELD until the
- * media bind-mount is fixed, so they are deliberately absent here (and absent from the database — the
- * `pool-01-check` legs assert that).
+ * POOL-01 batch 1 (tasks 37 + 48) releases SIX sets. The three LV1 sets were imported by
+ * `0047-pool-01-batch-1.sql`; the three listening sets were authored and HELD until their recordings existed,
+ * and task-48 built them and released all three through `0048-pool-01-listening-release.sql` — which also
+ * carries the `exam_media` rows their `recordings[]` bindings resolve against. So each HV part now has its
+ * seeded three PLUS one released batch set, and the pool is 31 sets.
  */
-const POOL_FIGURES = Object.freeze({ LV1: 6, LV2: 3, LV3: 3, SB1: 4, SB2: 3, HV1: 3, HV2: 3, HV3: 3 });
+const POOL_FIGURES = Object.freeze({ LV1: 6, LV2: 3, LV3: 3, SB1: 4, SB2: 3, HV1: 4, HV2: 4, HV3: 4 });
 /** The key values the payload's own options cannot reach. The server resolves LV3's "no ad fits" with the
  *  `x` sentinel, so this is EMPTY; a non-empty map means a part whose key can never be given correctly. */
 const EXPECTED_UNREACHABLE = {};
@@ -864,7 +882,7 @@ const DRILL = STORED_SETS.find(stored => stored.set_id === DRILL_ID) ?? null;
 const POOL_TOTAL = Object.values(POOL_FIGURES).reduce((total, sets) => total + sets, 0);
 
 leg('12 corpus: every migration that publishes content is parsed, and the pool matches the inventory', () => {
-  assert.deepEqual(OBJECTIVE_MIGRATIONS, ['0010-objective-catalogue.sql', '0022-recovered-grammar-drills.sql', '0047-pool-01-batch-1.sql'],
+  assert.deepEqual(OBJECTIVE_MIGRATIONS, ['0010-objective-catalogue.sql', '0022-recovered-grammar-drills.sql', '0047-pool-01-batch-1.sql', '0048-pool-01-listening-release.sql'],
     'the content-publishing migrations, discovered from the directory (INSERT or UPDATE on objective_set)');
   /* A migration that touches objective_set but yields no parsed set must be a DECLARED release-only change:
      this is what makes a release done by UPDATE visible instead of silently uncovered. */
@@ -882,12 +900,27 @@ leg('12 corpus: every migration that publishes content is parsed, and the pool m
   assert.equal(DRILL.item_count, DRILL.payload.gaps.length, 'the declared count matches the authored rows');
   assert.equal(DRILL.payload.practice_kind, 'grammar-drill', 'the drill is labelled as practice, not an exam set');
   assert.match(DRILL.payload.instruction ?? '', /kein telc/, 'the drill carries its own disclosure');
-  /* POOL-01 batch 1: the three new LV1 sets are released; the held listening sets are NOT in the pool. */
+  /* POOL-01 batch 1: all six authored sets are released — three LV1 (0047) and the three listening sets (0048). */
   for (const setId of ['telc-deutsch-b1.lv1.04', 'telc-deutsch-b1.lv1.05', 'telc-deutsch-b1.lv1.06']) {
     assert.ok(STORED_SETS.some((stored) => stored.set_id === setId), `${setId} is in the released pool`);
   }
   for (const setId of ['telc-deutsch-b1.hv1.04', 'telc-deutsch-b1.hv2.04', 'telc-deutsch-b1.hv3.04']) {
-    assert.ok(!STORED_SETS.some((stored) => stored.set_id === setId), `${setId} is authored and HELD, so it must not be released`);
+    const stored = STORED_SETS.find((entry) => entry.set_id === setId);
+    assert.ok(stored, `${setId} is RELEASED (task-48): the authored listening set is in the pool, not held`);
+    assert.equal(stored.media_required, true, `${setId}: released as audio material`);
+    /*
+     * A RELEASED LISTENING SET MUST CARRY ITS AUDIO BINDING. The runner's playback path resolves
+     * `material.recordings[].mediaId` against `exam_media`; a released set with items and no recording is a
+     * Hörverstehen task that cannot be heard, which is exactly what 'held' existed to prevent.
+     */
+    assert.ok(Array.isArray(stored.payload.recordings) && stored.payload.recordings.length === 1,
+      `${setId}: the released set carries its recordings[] binding`);
+    assert.equal(stored.payload.recordings[0].mediaId, `${setId}.audio`, `${setId}: bound to its own recording`);
+  }
+  /* The listening half is imported by 0048, and the LV1 half by the frozen 0047 — not by the same file. */
+  for (const setId of ['telc-deutsch-b1.hv1.04', 'telc-deutsch-b1.hv2.04', 'telc-deutsch-b1.hv3.04']) {
+    assert.ok(migrationText('0048-pool-01-listening-release.sql').includes(`'${setId}'`), `${setId} comes from 0048`);
+    assert.ok(!migrationText('0047-pool-01-batch-1.sql').includes(`'${setId}'`), `${setId} must NOT be in the frozen 0047`);
   }
   console.log(`      corpus: ${POOL_TOTAL} sets from ${OBJECTIVE_MIGRATIONS.length} migration(s); SB1: 4; drill=${DRILL_ID} (practice_kind=grammar-drill)`);
 });
