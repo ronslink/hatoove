@@ -9,9 +9,11 @@ Contract `docs/contracts/MIRROR-B1PREP-01.md`, frozen at `072d29e`, amended six 
 | A · NAV-01 information architecture | Lead | `codex/nav-01-mirror-ia` | **integrated** `0d0c8f5` after REVIEW-NAV-01 (CLEAR WITH NOTES; R1 fixed, A4 recorded) |
 | F2 · LIBRARY-I18N-01 translation storage + read path | `library-i18n` | `codex/library-i18n-01-import` | **integrated** `415e278` after REVIEW-LIBRARY-I18N-01 (CLEAR WITH NOTES; F1 fixed by the Lead as `df2ad88` and re-verified by the reviewer) |
 | D · MOCK-01 Probeprüfung intro and history | `mock-intro` | `codex/mock-01-probepruefung` | **integrated** `64b975a` after REVIEW-MOCK-01 (CLEAR WITH NOTES; D1 fixed in the shell as `6fa1fac`, A5 recorded) |
-| E/F · LIBRARY-UI-01/02 hub and guide pages | `library-ui` | `codex/library-ui-01-nachschlagen` | delivered `b5d2fc6`; review `task-7` (**moved from Hermes to `mock-intro`** — Hermes never acknowledged its dispatch) |
-| B · PRACTICE-UI-01 part tiles | `mock-intro` | `codex/practice-ui-01-tiles` | delivered `deca051`; review `task-13` (`library-i18n`) |
-| Content · the three German source defects + `0043` | `library-i18n` | `codex/content-corrections-sources` | delivered `e4bc29a`; review `task-12` (`library-ui`) |
+| E/F · LIBRARY-UI-01/02 hub and guide pages | `library-ui` | `codex/library-ui-01-nachschlagen` | delivered `b5d2fc6`; **blocked on a cross-slice defect** — its path convention did not match what the merged F2 server sends, so no translated guide line rendered (found in the content-corrections review). `library-ui` is fixing the client half; `library-i18n` reviews E/F (`task-7`, moved twice: Hermes never acknowledged its dispatch, `mock-intro` failed twice) |
+| B · PRACTICE-UI-01 part tiles | `mock-intro` | `codex/practice-ui-01-tiles` | **integrated** `ae1ad21` after REVIEW-PRACTICE-UI-01 (CLEAR WITH NOTES; F1/F2 fixed by the Lead as `e73eecc` — the author's session had failed) |
+| Content · the three German source defects + `0043` | `library-i18n` | `codex/content-corrections-sources` | **integrated** `d40ae1c` after REVIEW-CONTENT-CORRECTIONS (CLEAR WITH NOTES; N1 guarded by the Lead as `671cbcd`) |
+
+Registering all five new gates in `package.json` (`check:mirror`, `check:mirror:db`, `071b089`) means one command runs them from now on.
 
 Lead integration fixes already on `main`, each from a slice's own evidence: `api.js` passes the guide locale; the noun route serves the whole 240-noun lexicon with a bounded `limit`; the generator no longer advises regenerating an applied migration (`07f14c2`); the shell mounts slice B's part index for `#/pruefungsteile` and `#/hoeren` and passes `ctx.examLanguage` to every module.
 
