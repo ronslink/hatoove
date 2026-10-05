@@ -68,8 +68,6 @@ export function createVocabView(ctx = {}) {
   let deckRequest = 0;
   let searchTimer = null;
   let focusSearch = false;
-  /** Elements the shell keeps in this section for its own interim dictionary; restored on unmount. */
-  let coveredLegacy = [];
 
   const core = { documents: new Map(), loading: true, error: null, blocks: { 'core-grammar': null, 'core-phrases': null } };
   const deck = { entries: [], positions: [], pos: null, q: '', shown: 0, truncated: false, loading: true, error: null };
@@ -127,7 +125,12 @@ export function createVocabView(ctx = {}) {
     const sections = Array.isArray(doc.sections) ? doc.sections : [];
     const active = core.blocks[guideId];
     const visible = active === null ? sections : sections.filter((section, index) => `block-${index}` === active);
-    const chips = [{ id: null, label: message('vocabAll'), count: sections.length }].concat(sections.map((section, index) => ({
+    /*
+     * REVIEW-VOCAB-01 G1: a block chip carries its own item count, so the "Alle" selector must not carry a
+     * count in the same slot — a block count beside item counts reads as a smaller corpus. It is a
+     * selector, not a block, and it now carries no number.
+     */
+    const chips = [{ id: null, label: message('vocabAll'), count: null }].concat(sections.map((section, index) => ({
       id: `block-${index}`,
       label: text(section.title),
       count: Array.isArray(section.payload?.items) ? section.payload.items.length : 0,
@@ -159,7 +162,7 @@ export function createVocabView(ctx = {}) {
       + `<p class="vocab-blocks-label small muted">${esc(message('vocabBlocks'))}</p>`
       + `<p class="vocab-chips">${chips.map(chip => `<button class="chip vocab-chip${(active === chip.id) ? ' vocab-chip-active' : ''}" type="button"`
         + ` data-vocab-block="${esc(guideId)}:${esc(chip.id ?? '')}" aria-pressed="${active === chip.id}">`
-        + `${esc(chip.label)} <span class="vocab-chip-count">${esc(String(chip.count))}</span></button>`).join('')}</p>`
+        + `${esc(chip.label)}${chip.count === null ? '' : ` <span class="vocab-chip-count">${esc(String(chip.count))}</span>`}</button>`).join('')}</p>`
       + `<div class="vocab-block-list">${blocks}</div></article>`;
   };
 
@@ -328,16 +331,11 @@ export function createVocabView(ctx = {}) {
     document_ = host.ownerDocument || (typeof globalThis.document !== 'undefined' ? globalThis.document : null);
     readAloud = createReadAloud({ doc: document_ });
     /**
-     * The shell hides the nodes it knows about (`covers: ['dict-results']`). The interim dictionary also
-     * puts an unlabelled heading and a search card in this section, and no id exists for them, so the
-     * module hides the direct `.page-head` / `.card` siblings it supersedes and restores them on unmount
-     * (a module that cannot be imported must leave the interim view intact). Reported to the Lead as a
-     * shell-side cleanup: give those two nodes ids and extend `covers`.
+     * The shell owns every interim node this module supersedes: `MODULE_VIEWS.wortschatz` carries
+     * `covers: ['dict-interim-head', 'dict-interim-search', 'dict-results']` and the two legacy nodes now
+     * have ids (main 756e27a, REVIEW-VOCAB-01 G2). The module therefore hides nothing itself — doing so
+     * duplicated the shell's ownership and its restore un-hid siblings the shell still owned.
      */
-    const section = typeof host.closest === 'function' ? host.closest('section.view') : null;
-    coveredLegacy = section ? [...section.children].filter(node => node !== host
-      && (node.classList?.contains('page-head') || node.classList?.contains('card'))) : [];
-    for (const node of coveredLegacy) node.hidden = true;
     unsubscribeLocale = subscribeLocale(() => {
       core.documents.clear();
       render();
@@ -355,8 +353,6 @@ export function createVocabView(ctx = {}) {
     unsubscribeLocale = null;
     readAloud?.destroy?.();
     readAloud = null;
-    for (const node of coveredLegacy) node.hidden = false;
-    coveredLegacy = [];
     if (host) host.innerHTML = '';
     host = null;
     document_ = null;

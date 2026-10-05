@@ -219,3 +219,28 @@ translations and markers; `?limit=1000` shows the complete-deck state.
 6. **The module hides two shell nodes at runtime.** That is the one place it reaches outside its own host,
    and it is reversible and documented above; if the shell would rather own it, removing the three lines
    in `mount`/`unmount` is enough.
+
+## Review response — REVIEW-VOCAB-01 (`reviewer`), 5 October 2026, applied at integration
+
+Verdict CLEAR WITH NOTES, no blocking defect. The reviewer reproduced every browser number in its own
+harness, re-derived the two route measurements on a disposable PostgreSQL, verified the A7 ownership move
+with its own recording fake (a deep link fetches nothing but `guides.list` and hands over to
+`#/wortschatz`), proved the fixture is the served shape by resolving **125/125** and **130/130** client
+paths against a real `readGuideTranslations` member, and confirmed the 15 catalogue keys as additive in
+all five locales. What the Lead did with each finding at integration:
+
+| Finding | Disposition |
+|---|---|
+| **G2** `main:756e27a` already gave the interim dictionary nodes ids and put them in the shell's `covers`, so this module duplicated the shell's ownership and its `unmount` un-hid every `.page-head`/`.card` sibling, including ones the shell still owned. | **Fixed**: the module no longer hides or restores anything; the shell's `covers` owns it. Item 6 above is superseded. |
+| **G1** the "Alle" chip carried a **block** count (4 / 3) beside chips carrying **item** counts (45/17/37/26), and it was the one chip count the check never asserted. | **Fixed**: "Alle" is a selector and carries no number. |
+| **G5** this note quoted `repository-check` 724/641, the **base** commit's figures. | Corrected: at `945f0e0` the artefact reports **728/645**, and on the integrated tree the number grows again with the merge — treat every figure here as of-its-head, as the reviewer asked. |
+| **G4** this note annotated `readiness-check` as a D22 gate. | Corrected: `readiness-check` is the HTTP `/api/ready` probe and contains no D22 term. **D22 is enforced by `vocab-check`'s banned-term legs**; `readiness-check` is run for what it actually proves. |
+| **G6/G7** `vocab-uk-1366-dark-deck-translated.png` shows the **deck**, the half that by design carries no translation and no marker, so it cannot evidence "255 translated lines with markers"; and the `-1366-` PNG widths show two device pixel ratios. | Corrected: the 255-line/255-marker figure is evidenced by the **Kern** render the reviewer independently reproduced (255 lines, 255 markers, 1 note, 0 authored-English lines), not by that filename. The screenshots are emulated-harness captures; their pixel widths are not a viewport claim. The measured viewport facts (no overflow at 320/390/1366, correct LTR islands) stand as measurements, not as screenshot evidence. |
+| **G3 omission** the F2 import currently fails at this head (`bundle_source_mismatch`, 33 speaking-guide bindings; the core corpora are clean at 255/255), so the Kern's translations cannot be served from a real database until F2's bundle is re-pinned. | Recorded. It is the tracked consequence of migration `0043` (`CONTENT-CORRECTIONS.md` §5.1), not a slice-G defect; the re-pin belongs to the translation review pass. |
+
+The reviewer's honest limits are accepted unchanged: no live app server was started, so the HTTP body for
+`/api/v1/vocab` was narrowed rather than closed (the Lead's route fix is measured at the datastore
+boundary); no `/index.html` run; no real device, screen reader or native translation review. The Lead
+adds one: the reviewer's `owned-api-check --backend=postgres` 34/34 is the strongest HTTP-layer evidence
+this slice has.
+
