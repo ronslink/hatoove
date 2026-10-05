@@ -38,7 +38,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { createLibraryView, caseHighlights, LIBRARY_AREAS, SECTION_LABELS, NOUN_PAGE_SIZE, storedTranslationPath, WORTSCHATZ_GUIDE_IDS } from '../public/app/library.js';
+import { createLibraryView, caseHighlights, LIBRARY_AREAS, SECTION_LABELS, NOUN_PAGE_SIZE, storedTranslationPath, WORTSCHATZ_GUIDE_IDS, PENDING_TRANSLATIONS } from '../public/app/library.js';
 import { guideContent } from '../public/app/guide-content.js';
 import { setLocale, getLocale } from '../public/assets/i18n/core.js';
 import { s } from '../public/app/locale-preference.js';
@@ -604,6 +604,135 @@ async function assertRealBundleTranslation(guides, nouns) {
   return true;
 }
 
+/* ------------------------------------------- the recorded pending list (LIBRARY-I18N-MARKER, task-30) */
+
+const PENDING_RECORD_PATH = 'content/library-translations/README.md';
+const PENDING_START = '<!-- library-translation-pending:start -->';
+const PENDING_END = '<!-- library-translation-pending:end -->';
+
+/** The README's machine-readable record, between its two markers. */
+function readPendingRecord() {
+  const markdown = fs.readFileSync(path.join(ROOT, PENDING_RECORD_PATH), 'utf8');
+  const afterStart = markdown.split(PENDING_START)[1];
+  assert.ok(afterStart, `the record carries the start marker ${PENDING_START}`);
+  const fenced = /```json\s*([\s\S]*?)```/.exec(afterStart.split(PENDING_END)[0]);
+  assert.ok(fenced, 'the record block carries a json fence');
+  return JSON.parse(fenced[1]);
+}
+
+/** Both directions, and the message names which side holds what the other lacks. */
+function assertSameList(recorded, mirrored, label) {
+  const onlyRecord = recorded.filter(value => !mirrored.includes(value));
+  const onlyMirror = mirrored.filter(value => !recorded.includes(value));
+  assert.equal(onlyRecord.length + onlyMirror.length, 0,
+    `${label}: the README record and the client mirror disagree — record-only ${JSON.stringify(onlyRecord)}, client-only ${JSON.stringify(onlyMirror)}`);
+}
+
+/** `payload.approach[0].step` against a document object. */
+function atPath(root, relative) {
+  return relative.split('.').reduce((node, token) => {
+    const match = /^([A-Za-z_]+)((?:\[\d+\])*)$/.exec(token);
+    if (!match || node === undefined || node === null) return undefined;
+    let current = node[match[1]];
+    for (const index of match[2].match(/\d+/g) || []) current = current === undefined || current === null ? undefined : current[Number(index)];
+    return current;
+  }, root);
+}
+
+async function assertPendingRecord(guides) {
+  const record = readPendingRecord();
+  // 1. The record's own arithmetic, as the README states it: 18 rendered + 15 removed = 33 paths.
+  assert.equal(record.pending.length, 1, 'the record lists exactly one pending section today');
+  const entry = record.pending[0];
+  assert.equal(entry.guide_id, 'speaking-guide', 'the pending section is in the speaking guide');
+  assert.equal(entry.section_id, 'telc-deutsch-b1.speaking-guide.sp1', 'the pending section is SP1');
+  assert.equal(entry.rendered.length, 18, 'the record lists 18 rendered-but-untranslated paths');
+  assert.equal(entry.removed.length, 15, 'the record lists 15 paths the correction deleted');
+  assert.equal(entry.rendered.length + entry.removed.length, 33, 'the re-pin dropped 33 SP1 paths');
+  assert.deepEqual(record.locales, ['uk', 'ar', 'tr'], 'the pending languages are the bundle languages');
+  assert.equal((entry.rendered.length + entry.removed.length) * record.locales.length, 99,
+    '33 paths × 3 locales = the 99-string native-review batch');
+  // 2. The client mirror equals the record, entry by entry, naming the side that drifted.
+  assert.deepEqual([...PENDING_TRANSLATIONS.locales], record.locales, 'record vs client mirror: the locale list differs');
+  assert.equal(PENDING_TRANSLATIONS.pending.length, record.pending.length, 'record vs client mirror: the entry count differs');
+  for (const [index, recorded] of record.pending.entries()) {
+    const mirrored = PENDING_TRANSLATIONS.pending[index];
+    assert.ok(mirrored, `record vs client mirror: the mirror has no entry ${index}`);
+    assert.equal(mirrored.guide_id, recorded.guide_id, `record vs client mirror: guide_id differs at entry ${index}`);
+    assert.equal(mirrored.section_id, recorded.section_id, `record vs client mirror: section_id differs at entry ${index}`);
+    assertSameList(recorded.rendered, [...mirrored.rendered], `record vs client mirror, rendered paths of ${recorded.section_id}`);
+    assertSameList(recorded.removed, [...mirrored.removed], `record vs client mirror, removed paths of ${recorded.section_id}`);
+  }
+  // 3. The two lists mean what they say against the served document: `rendered` German is there,
+  //    `removed` German is gone.
+  const guide = guides.find(candidate => candidate.guide_id === entry.guide_id);
+  assert.ok(guide, 'the fixture serves the recorded guide');
+  const section = guide.sections.find(candidate => candidate.section_id === entry.section_id);
+  assert.ok(section, 'the fixture serves the recorded section');
+  for (const relative of entry.rendered) {
+    const value = atPath(section, relative);
+    assert.ok(typeof value === 'string' && value.trim(),
+      `the record says ${relative} still renders German, but the served section carries no value there`);
+  }
+  for (const relative of entry.removed) {
+    assert.equal(atPath(section, relative), undefined,
+      `the record says ${relative} was deleted by the correction, but the served section still carries a value`);
+  }
+  // 4. The record is not stale: a recorded path may not be served a translation — a re-translation has
+  //    to come back THROUGH the record, by removing the entry.
+  const bundle = JSON.parse(fs.readFileSync(path.join(ROOT, F2_BUNDLE_PATH), 'utf8'));
+  for (const relative of entry.rendered) {
+    const stored = storedTranslationPath(entry.guide_id, entry.section_id, relative);
+    assert.ok(stored, `a stored key exists for ${relative}`);
+    assert.ok(!Object.hasOwn(bundle.guides[entry.guide_id] || {}, stored),
+      `the record lists ${stored} as pending, but the bundle serves a translation again — remove the record entry`);
+  }
+  return record;
+}
+
+async function assertPendingMarkers(guides, nouns, record) {
+  const entry = record.pending[0];
+  const fixture = guides.find(candidate => candidate.guide_id === entry.guide_id);
+  const section = fixture.sections.find(candidate => candidate.section_id === entry.section_id);
+  const emptyMember = () => ({ locale: 'uk', status: 'machine_unreviewed', strings: {}, stringStatus: {} });
+  for (const language of ['uk', 'ar', 'tr']) {
+    const { page } = await mounted({
+      documents: guides, nouns, language, route: `#/nachschlagen/${entry.guide_id}`,
+      translations: () => emptyMember(),
+    });
+    const html = page();
+    // A record entry owes exactly one marker, and it names the recorded section…
+    assert.equal(count(html, 'data-library-pending="'), 1, `${language}: exactly one pending marker for the recorded section`);
+    assert.ok(html.includes(`data-library-pending="${entry.section_id}"`), `${language}: the marker names the recorded section`);
+    // …whose own sentence is the section-scoped one, not the whole-book note.
+    assert.ok(html.includes(l('libraryPendingSection')), `${language}: the marker uses the section-scoped sentence`);
+    assert.equal(count(html, s('m091')), 0, `${language}: a section marker must not claim the whole reference work is untranslated`);
+    // …and it sits inside the recorded section's card, not at the top of the page.
+    const markerAt = html.indexOf(`data-library-pending="${entry.section_id}"`);
+    const article = html.slice(html.lastIndexOf('<article', markerAt), html.indexOf('</article>', markerAt));
+    assert.ok(article.includes(esc(section.title)), `${language}: the marker sits in the recorded section's card`);
+    // A marker with no record entry is as wrong as the reverse: every marker must be recorded.
+    for (const [, id] of html.matchAll(/data-library-pending="([^"]*)"/g)) {
+      assert.ok(record.pending.some(candidate => candidate.section_id === id), `${language}: the page marks ${id}, which the record does not list`);
+    }
+    // The member above carries NOTHING, so other sections are untranslated too — and stay unmarked,
+    // because the record does not list them.
+    assert.ok(count(html, 'data-library-section="') > 1, `${language}: the page really renders more than one section`);
+  }
+  for (const language of ['de', 'en']) {
+    const { page } = await mounted({
+      documents: guides, nouns, language, route: `#/nachschlagen/${entry.guide_id}`,
+      translations: () => emptyMember(),
+    });
+    assert.equal(count(page(), 'data-library-pending="'), 0, `${language}: German and English learners see no pending marker`);
+  }
+  // A genuinely untranslated member keeps its own page-level note; the two states coexist and differ.
+  const { page: noMember } = await mounted({ documents: guides, nouns, language: 'uk', route: `#/nachschlagen/${entry.guide_id}`, translations: () => null });
+  assert.equal(count(noMember(), s('m091')), 1, 'a page with no translation member keeps its one whole-book note');
+  assert.equal(count(noMember(), 'data-library-pending="'), 1, 'and the recorded section still carries its own marker');
+  return true;
+}
+
 async function assertLexicon(guides, nouns) {
   // The route serves at most NOUN_PAGE_SIZE rows and publishes no total, so the page must not imply it
   // has shown the whole lexicon.
@@ -659,6 +788,8 @@ async function assertLexicon(guides, nouns) {
 const COPY_FILES = [
   'public/app/library.js', 'public/app/guide-content.js', 'public/app/read-aloud.js', 'public/app/locale-preference.js',
   'public/assets/i18n/core.js', 'public/assets/i18n/practice-messages.js', 'public/assets/i18n/shell-messages.js',
+  // The mirror-drift mutation needs the record itself in the copy: the two are checked against each other.
+  'content/library-translations/README.md',
 ];
 
 /** Copy the shipped modules into a temporary tree with one deliberate defect, and no more. */
@@ -733,8 +864,67 @@ const note = s('m091');
 assert.equal(host.innerHTML.split(note).length - 1, 0, 'a page WITH a translation bundle must not show the German-only note');
 `;
 
-function runIn(directory, script) {
-  const file = path.join(directory, 'runner.mjs');
+/** The two marker directions and the mirror drift, each as a runner the mutation must break. */
+const RUNNER_PENDING_OWED = `
+import assert from 'node:assert/strict';
+import { createLibraryView, PENDING_TRANSLATIONS } from './public/app/library.js';
+import { setLocale } from './public/assets/i18n/core.js';
+import { fakeHost, contextFor, settle } from './support.mjs';
+setLocale('uk');
+const entry = PENDING_TRANSLATIONS.pending[0];
+const document_ = { guide_id: entry.guide_id, family: 'speaking', title: 'Sprechen', intro: '', watch_out: [], sections: [
+  { section_id: entry.section_id, ordinal: 0, kind: 'approach', title: 'Teil 1', summary: '', payload: { approach: [{ step: 'a', detail: 'b' }] } },
+  { section_id: entry.section_id + '-2', ordinal: 1, kind: 'approach', title: 'Teil 2', summary: '', payload: { approach: [{ step: 'c', detail: 'd' }] } },
+] };
+const api = {
+  guides: { list: async () => ({ ok: true, status: 200, data: [document_] }),
+    read: async () => ({ ok: true, status: 200, data: { ...document_, translations: { locale: 'uk', status: 'machine_unreviewed', strings: {}, stringStatus: {} } } }) },
+  nouns: { list: async () => ({ ok: true, status: 200, data: [] }) },
+};
+const host = fakeHost();
+createLibraryView(contextFor(api, 'uk')).mount(host, { route: '#/nachschlagen/speaking-guide' });
+await settle();
+assert.equal(host.innerHTML.split('data-library-pending').length - 1, 1, 'a record entry owes exactly one rendered marker');
+`;
+
+const RUNNER_PENDING_RECORDED = `
+import assert from 'node:assert/strict';
+import { createLibraryView, PENDING_TRANSLATIONS } from './public/app/library.js';
+import { setLocale } from './public/assets/i18n/core.js';
+import { fakeHost, contextFor, settle } from './support.mjs';
+setLocale('uk');
+const entry = PENDING_TRANSLATIONS.pending[0];
+const document_ = { guide_id: entry.guide_id, family: 'speaking', title: 'Sprechen', intro: '', watch_out: [], sections: [
+  { section_id: entry.section_id, ordinal: 0, kind: 'approach', title: 'Teil 1', summary: '', payload: { approach: [{ step: 'a', detail: 'b' }] } },
+  { section_id: entry.section_id + '-2', ordinal: 1, kind: 'approach', title: 'Teil 2', summary: '', payload: { approach: [{ step: 'c', detail: 'd' }] } },
+] };
+const api = {
+  guides: { list: async () => ({ ok: true, status: 200, data: [document_] }),
+    read: async () => ({ ok: true, status: 200, data: { ...document_, translations: { locale: 'uk', status: 'machine_unreviewed', strings: {}, stringStatus: {} } } }) },
+  nouns: { list: async () => ({ ok: true, status: 200, data: [] }) },
+};
+const host = fakeHost();
+createLibraryView(contextFor(api, 'uk')).mount(host, { route: '#/nachschlagen/speaking-guide' });
+await settle();
+for (const [, id] of host.innerHTML.matchAll(/data-library-pending="([^"]*)"/g)) {
+  assert.ok(PENDING_TRANSLATIONS.pending.some(candidate => candidate.section_id === id), 'the page marks ' + id + ', which the record does not list');
+}
+`;
+
+const RUNNER_PENDING_MIRROR = `
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { PENDING_TRANSLATIONS } from './public/app/library.js';
+const markdown = fs.readFileSync('./content/library-translations/README.md', 'utf8');
+const fenced = /\\\`\\\`\\\`json\\s*([\\s\\S]*?)\\\`\\\`\\\`/.exec(markdown.split('<!-- library-translation-pending:start -->')[1].split('<!-- library-translation-pending:end -->')[0]);
+const record = JSON.parse(fenced[1]);
+const recorded = record.pending[0], mirrored = PENDING_TRANSLATIONS.pending[0];
+const onlyRecord = recorded.rendered.filter(value => !mirrored.rendered.includes(value));
+const onlyMirror = mirrored.rendered.filter(value => !recorded.rendered.includes(value));
+assert.equal(onlyRecord.length + onlyMirror.length, 0, 'record and client mirror disagree: record-only ' + JSON.stringify(onlyRecord) + ', client-only ' + JSON.stringify(onlyMirror));
+`;
+
+function runIn(directory, script) {  const file = path.join(directory, 'runner.mjs');
   fs.writeFileSync(file, script);
   return spawnSync(process.execPath, [file], { encoding: 'utf8', cwd: directory, timeout: 30000 });
 }
@@ -756,6 +946,37 @@ function assertMutationProof() {
   assert.notEqual(noteResult.status, 0, 'breaking the single-note rule must fail the note runner');
   assert.match(String(noteResult.stderr), /must not show the German-only note/, 'the note runner must fail on its own assertion');
   fs.rmSync(note, { recursive: true, force: true });
+
+  // Direction 1: the record lists the section, the page owes the marker — silence must fail.
+  const owed = writeTempTree(source => source.replace(
+    'const owed = entry.rendered.filter',
+    "return '';\n    const owed = entry.rendered.filter"));
+  const owedResult = runIn(owed, RUNNER_PENDING_OWED);
+  assert.notEqual(owedResult.status, 0, 'a record entry with no rendered marker must fail the pending runner');
+  assert.match(String(owedResult.stderr), /a record entry owes exactly one rendered marker/,
+    'the pending runner must fail on its own assertion, not on a broken copy');
+  fs.rmSync(owed, { recursive: true, force: true });
+
+  // Direction 2: a marker the record does not list must fail, even though the marker itself renders.
+  const unrecorded = writeTempTree(source => source.replace(
+    'const entry = pendingForSection(guideId, section);',
+    "const entry = pendingForSection(guideId, section) ? pendingForSection(guideId, section) : { section_id: text(section?.section_id), rendered: ['title'] };"));
+  const unrecordedResult = runIn(unrecorded, RUNNER_PENDING_RECORDED);
+  assert.notEqual(unrecordedResult.status, 0, 'a rendered marker with no record entry must fail the pending runner');
+  assert.match(String(unrecordedResult.stderr), /which the record does not list/,
+    'the pending runner must fail on its own assertion, not on a broken copy');
+  fs.rmSync(unrecorded, { recursive: true, force: true });
+
+  // Direction 3: the README record and the client mirror must stay identical, and the failure must say
+  // which side holds the path the other lacks.
+  const drifted = writeTempTree(source => source.replace(/^ {8}'payload\.watchOut\[2\]',\r?\n/m, ''));
+  const driftedResult = runIn(drifted, RUNNER_PENDING_MIRROR);
+  assert.notEqual(driftedResult.status, 0, 'a mirror that dropped a recorded path must fail the mirror runner');
+  assert.match(String(driftedResult.stderr), /record-only \["payload\.watchOut\[2\]"\]/,
+    'the mirror runner must name the side that holds the unmirrored path');
+  fs.rmSync(drifted, { recursive: true, force: true });
+  console.log('     mutations reproduced: highlight comparison, single-note rule, a record entry with no marker,');
+  console.log('     a marker with no record entry, and a client mirror that drifted from the README record');
   return true;
 }
 
@@ -950,6 +1171,8 @@ await assertCaseTables(guides, nouns);
 await assertRtl(guides, nouns);
 await assertTranslatedPath(guides, nouns);
 await assertRealBundleTranslation(guides, nouns);
+const pendingRecord = await assertPendingRecord(guides);
+await assertPendingMarkers(guides, nouns, pendingRecord);
 await assertLexicon(guides, nouns);
 assertMutationProof();
 
@@ -967,7 +1190,8 @@ if (port) await serve(Number(port));
 
 console.log('PASS library render: 6 hub areas and their payload counts, 5 library guide pages with a jump chip per section,');
 console.log('     8 case tables marked exactly off the Nominativ reference, Arabic RTL with LTR German islands,');
-console.log('     one German-only note per page, the machine-translated marker, and the lexicon filter/search path.');
+console.log('     one German-only note per page, the machine-translated marker, the lexicon filter/search path,');
+console.log('     and the README\'s recorded pending list driving one section marker in every pending language.');
 console.log(`     ${guideCount()} guide sections and ${nouns.length} nouns through the module; the ${WORTSCHATZ_GUIDE_IDS.length} Wortschatz corpora hand over; ${getLocale()} locale left set by the last case.`);
 
 function guideCount() {

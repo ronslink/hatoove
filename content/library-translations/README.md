@@ -39,7 +39,7 @@ with `en` equal to its source sibling):
 
 - **15 paths** whose field the correction removed: `payload.approach[3..5].step` and `.detail` (6),
   `payload.phrases[3..5].group` and `.hint` (6), `payload.examples[1].topic` (1),
-  `payload.watchOut[3..5]` (3).
+  `payload.watchOut[3..4]` (2).
 - **18 paths** that survive with changed German: `title`, `summary`, `payload.approach[0..2].step` and
   `.detail` (6), `payload.phrases[0..2].group` and `.hint` (6), `payload.examples[0].topic` (1),
   `payload.watchOut[0..2]` (3).
@@ -50,6 +50,68 @@ correction, so uk/ar/tr still describe the same thing) and `…die-moebel` (`en`
 `furniture`, `example_de` regenerated with `Möbelstück`; no locale quotes the replaced example or the
 misspelling, so the translations stand). The re-translation batch is therefore 33 SP1 paths × 3 locales
 = 99 strings, and it stays a native-review decision.
+
+### The record, machine-readable
+
+The block below is the same list in the form the UI and its check read. `rendered` = the German field
+still renders, so the guide view owes the learner a "translation pending" marker; `removed` = `0043`
+deleted the field, so nothing can render and no marker is possible — the record still owns those
+strings. `public/app/library.js` carries a mirror of this block (`PENDING_TRANSLATIONS`) because a
+browser cannot read a README at runtime; `tools/library-render-check.mjs` fails if the record, the
+mirror and the rendered markers disagree in **either** direction, and it fails if a recorded path
+starts being served a translation again. **A new drop demands an entry here, and a re-translation
+demands the entry's removal here.**
+
+<!-- library-translation-pending:start -->
+```json
+{
+  "locales": ["uk", "ar", "tr"],
+  "pending": [
+    {
+      "guide_id": "speaking-guide",
+      "section_id": "telc-deutsch-b1.speaking-guide.sp1",
+      "rendered": [
+        "title",
+        "summary",
+        "payload.approach[0].step",
+        "payload.approach[0].detail",
+        "payload.approach[1].step",
+        "payload.approach[1].detail",
+        "payload.approach[2].step",
+        "payload.approach[2].detail",
+        "payload.phrases[0].group",
+        "payload.phrases[0].hint",
+        "payload.phrases[1].group",
+        "payload.phrases[1].hint",
+        "payload.phrases[2].group",
+        "payload.phrases[2].hint",
+        "payload.examples[0].topic",
+        "payload.watchOut[0]",
+        "payload.watchOut[1]",
+        "payload.watchOut[2]"
+      ],
+      "removed": [
+        "payload.approach[3].step",
+        "payload.approach[3].detail",
+        "payload.approach[4].step",
+        "payload.approach[4].detail",
+        "payload.approach[5].step",
+        "payload.approach[5].detail",
+        "payload.phrases[3].group",
+        "payload.phrases[3].hint",
+        "payload.phrases[4].group",
+        "payload.phrases[4].hint",
+        "payload.phrases[5].group",
+        "payload.phrases[5].hint",
+        "payload.examples[1].topic",
+        "payload.watchOut[3]",
+        "payload.watchOut[4]"
+      ]
+    }
+  ]
+}
+```
+<!-- library-translation-pending:end -->
 
 ## Rules that bind the importer
 

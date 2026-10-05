@@ -394,6 +394,13 @@ const rows = {
   /* Slice G moved Kerngrammatik and the core phrases out of Nachschlagen; a deep link hands over. */
   libraryMovedToVocab: ["Diese Sammlung gehört jetzt zu Wortschatz. Dort finden Sie den Prüfungskern mit Grammatik und Redemitteln.","This collection now belongs to Wortschatz. The exam core with grammar and useful phrases is there.","Ця збірка тепер у розділі Wortschatz. Там ядро іспиту з граматикою та мовними зворотами.","هذه المجموعة أصبحت الآن ضمن Wortschatz. هناك جوهر الامتحان مع القواعد والعبارات المفيدة.","Bu koleksiyon artık Wortschatz bölümünde. Sınav çekirdeği dil bilgisi ve kalıp ifadelerle birlikte orada."],
   /*
+   * LIBRARY-I18N-MARKER (task-30) — a section whose translation the `0043` re-pin dropped and which is
+   * waiting for a human re-translation. Section-scoped on purpose: `shell.m091` says the WHOLE reference
+   * work is untranslated, which would overstate a gap that is 33 paths of 704. This sentence claims
+   * nothing about the rest of the book.
+   */
+  libraryPendingSection: ["Für diesen Abschnitt liegt noch keine Übersetzung vor. Sie sehen die deutsche Fassung.","This section has no translation yet. You are seeing the German text.","Для цього розділу перекладу ще немає. Ви бачите німецький текст.","لا تتوفر ترجمة لهذا القسم بعد. أنت ترى النص الألماني.","Bu bölümün çevirisi henüz yok. Almanca metni görüyorsunuz."],
+  /*
    * MIRROR-B1PREP-01 slice G (VOCAB-01) — the Wortschatz view. Interface labels only; the corpora stay
    * German (exam language) and the deck's English gloss is authored content shown on the English page.
    * Reused rather than copied: shell.m337 (Suche), m385 (the two-character placeholder), m068 (the
