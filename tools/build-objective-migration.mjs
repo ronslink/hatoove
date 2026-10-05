@@ -230,6 +230,15 @@ function buildBatch(batchPath, batchSource) {
     -- # the second pass over the other keys are in the batch source (\`key_fix_pending\`) and in
     -- # work/implementation/POOL-01-BATCH-1.md §2.
     -- ############################################################################` : ''}
+    ${Array.isArray(batchSource.content_decisions) && batchSource.content_decisions.length ? `
+    -- CONTENT DECISIONS CONFIRMED (the product owner, relayed by the Lead):
+${batchSource.content_decisions.map((decision) => {
+  const parts = [`item ${String(decision.text_id ?? '?')} -> headline ${String(decision.confirmed_answer ?? '?')}`];
+  if (decision.headline_text && decision.previous_headline_text) {
+    parts.push(`headline ${String(decision.confirmed_answer)} is reworded to "${String(decision.headline_text)}" (was "${String(decision.previous_headline_text)}")`);
+  }
+  return `    --   ${String(decision.set_id ?? decision.label ?? '?')}: ${parts.join('; ')}`;
+}).join('\n')}` : ''}
     --
     -- WHY A SECOND MIGRATION AND NOT AN EDIT OF 0010. 0010 is applied in every installation and its bytes
     -- are pinned in MANIFEST.json; a batch is a FORWARD change. This file inserts only its own rows and

@@ -61,12 +61,14 @@ sets if SB1's drill counts toward the six; if the drill is to remain supplementa
   must not be used as the tile count. A production recount with database access is owed before any batch
   is proposed.
 
-## POOL-01 batch 1 (task-37; apply hold lifted by task-43, 5 October 2026) — THE CURRENT FIGURES
+## POOL-01 batch 1 (task-37; hold lifted by task-43; both keys confirmed by task-47, 5 October 2026) — THE CURRENT FIGURES
 
-**Status: releasable.** Ron has read the three LV1 sets and lifted the apply hold (task-43); the batch may be
-applied once he has confirmed ONE disputed key — `lv1.06` text 4, whose headline **e** he has ruled out. The
-proposal and the mechanical shape check are in `POOL-01-BATCH-1.md` §2, and the migration itself carries a
-`CONTENT DECISION PENDING` marker until that confirmation.
+**Status: ready to apply, with nothing waiting on Ron.** He has read the three LV1 sets and lifted the apply
+hold (task-43), and he has answered both content questions (task-47): `lv1.06` text 4 stays keyed to headline
+**e**, which was **reworded** from „Umzugshilfe mit Transporter zu vermieten" to „Umzugshilfe: zwei Helfer mit
+Transporter", and `lv1.06` text 5 stays keyed to **g** with the near-tie against `b` closed. The applied
+decisions, the reasoning and the mechanical checks are in `POOL-01-BATCH-1.md`; `0047` records the
+confirmations, carries **no** pending marker, and `tools/pool-01-check.mjs` asserts the confirmed values.
 
 Ron's decision (contract A11(a), option B of `POOL-01-PROPOSAL.md`): six authored sets across the parts a
 learner meets earliest. Measured from a **migrated database** after

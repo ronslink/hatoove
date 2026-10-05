@@ -6,18 +6,32 @@
   "release_marker": "Each set carries `release`: 'released' is imported by server/migrations/0047-pool-01-batch-1.sql; 'held' is authored, shape-validated and deliberately NOT imported until task-36's media bind-mount fix lands, because a listening set whose audio cannot play must not enter the pool (Ron's A11(b); lease rule 2). Flipping a held set to 'released' plus a new forward migration is the whole release step.",
   "apply_hold": null,
   "apply_hold_history": "HELD from 5 October 2026 (Lead's ruling) until Ron had read the three LV1 sets; LIFTED 5 October 2026 (task-43) — Ron has read them and the batch may be applied. The field is kept so the machine check proves the source and the generated migration agree in EITHER state: a regeneration can neither drop the hold nor silently keep it.",
-  "key_fix_pending": {
-    "set_id": "telc-deutsch-b1.lv1.06",
-    "text_id": "4",
-    "current_answer": "e",
-    "ron": "no I think that should not be a match",
-    "proposed_answer": "j",
-    "proposal": "Of the ten headlines, only j (Möbelmontage und kleine Reparaturen) can hold, and it answers only the HELP half of the text: the text also asks for a Transporter, which j does not supply. Recommended fix: j PLUS a one-line tightening of text 4; alternative: keep text 4 and reword headline e into an offer of moving help. Reasoning per rejected candidate and the second pass over the other four keys are in work/implementation/POOL-01-BATCH-1.md §2. Nothing changes here until Ron confirms.",
-    "shape_check": "e is the key of text 4 only and j is used by no text, so a swap to j creates no duplicate headline; the check asserts this mechanically rather than by eye.",
-    "second_pass": "Keys 1→a, 2→c and 3→d are solid. Key 5→g is DOUBTFUL: headline b (Tagesmutter hat ab September wieder Plätze frei) is a genuine near-tie for text 5, because both describe care for small children. g wins on specificity (zwei Kleinkinder, Erfahrung) and b loses on 'ab September', which the text does not mention — close enough to put to Ron as a second question rather than to leave unrecorded.",
-    "status": "awaiting Ron's confirmation; the authored key stays until he confirms, and tools/pool-01-check.mjs asserts that it does."
-  },
-  "open_question_for_ron": "lv1.06 text 4 asks for a van and help on moving day while its key is headline e, which offers a van for hire; Ron has ruled it must not be the match (task-43). The proposal and the mechanical shape check live in `key_fix_pending` above; do NOT change the key until Ron confirms.",
+  "content_decisions": [
+    {
+      "label": "lv1.06 text 4 — the disputed key (task-43)",
+      "set_id": "telc-deutsch-b1.lv1.06",
+      "text_id": "4",
+      "confirmed_answer": "e",
+      "confirmed_by": "Ron (product owner), 5 October 2026, relayed by the Lead in task-47",
+      "resolution": "Option 2 of the task-43 proposal (§2.3): keep text 4 EXACTLY as authored and reword headline e into an offer of moving help instead of 'zu vermieten'. The key therefore stays e, and the words that made it wrong are gone.",
+      "previous_headline_text": "Umzugshilfe mit Transporter zu vermieten",
+      "headline_text": "Umzugshilfe: zwei Helfer mit Transporter",
+      "why_this_wording": "It answers BOTH halves of text 4 on the surface the learner reads: 'Umzugshilfe' with 'zwei Helfer' answers 'kann uns am Umzugstag für ein paar Stunden helfen?', and 'mit Transporter' answers 'Wer hat einen Transporter …?'. It no longer offers a van for hire, so Ron's reason for rejecting the old wording is gone without moving the key or touching the text.",
+      "topic_isolation": "Checked against EVERY other text in the set: it names no tutoring, elderly-care, dog-care, child-care or language-course topic, so it cannot become a better match for texts 1, 2, 3 or 5. The mechanical assertion is in tools/pool-01-check.mjs.",
+      "ron_words": "no I think that should not be a match"
+    },
+    {
+      "label": "lv1.06 text 5 — the second pass's near-tie (task-43 §2.5)",
+      "set_id": "telc-deutsch-b1.lv1.06",
+      "text_id": "5",
+      "confirmed_answer": "g",
+      "confirmed_by": "Ron (product owner), 5 October 2026, relayed by the Lead in task-47",
+      "resolution": "The task-43 second pass flagged THIS set's text 5 as a near-tie between g (Erfahrene Babysitterin für zwei Kleinkinder) and b (Tagesmutter hat ab September wieder Plätze frei). Ron accepted the reasoning and keeps g: g names TWO small children (the text has two, aged 2 and 4) and EXPERIENCE (the text demands it), while b loses on 'ab September', a date the text never carries.",
+      "status": "CLOSED — text 5 and headline b are untouched, and tools/pool-01-check.mjs pins both so the decision cannot be reopened silently.",
+      "headline_b": "Tagesmutter hat ab September wieder Plätze frei",
+      "label_note": "The lease that carried this decision called the set 'lv1.05'; the near-tie is in lv1.06 (lv1.05's text 5 is keyed to d and was never in question). The check asserts the confirmed value against the set it actually belongs to, which is how the mislabel surfaced."
+    }
+  ],
   "sets": [
     {
       "set_id": "telc-deutsch-b1.lv1.04",
@@ -133,7 +147,7 @@
         { "id": "b", "text": "Tagesmutter hat ab September wieder Plätze frei" },
         { "id": "c", "text": "Seniorenbegleitung für Spaziergänge und Gespräche" },
         { "id": "d", "text": "Hundebetreuung am Wochenende" },
-        { "id": "e", "text": "Umzugshilfe mit Transporter zu vermieten" },
+        { "id": "e", "text": "Umzugshilfe: zwei Helfer mit Transporter" },
         { "id": "f", "text": "Putzhilfe für Büros am Abend gesucht" },
         { "id": "g", "text": "Erfahrene Babysitterin für zwei Kleinkinder" },
         { "id": "h", "text": "Gitarrenunterricht für Anfänger" },

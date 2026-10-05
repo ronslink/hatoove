@@ -241,45 +241,97 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
           'and the lift is recorded rather than forgotten');
       }
       /*
-       * A DISPUTED KEY IS CARRIED, NOT DECIDED BY AN AGENT, AND THE CHECK KNOWS BOTH STATES. Ron has ruled that
-       * `lv1.06` item 4's key (headline e) must not be the match; he has not named the replacement, so the
-       * authored key stays UNCHANGED and the migration carries the pending marker. Once he confirms, the source
-       * gains `confirmed_answer` and this leg flips to asserting THAT value and the marker's absence — the pin
-       * becomes a confirmation, not a permanent excuse.
+       * A CONTENT DECISION IS EITHER PENDING OR CONFIRMED, AND THE CHECK KNOWS BOTH. While a key is disputed the
+       * authored value stays and the migration carries a PENDING banner (task-43). Once the product owner
+       * confirms, the source carries `content_decisions` and this leg flips to the stronger pin: the authored key
+       * IS the confirmed value and the pending banner is gone — so a future agent cannot silently change a
+       * confirmed key, and a pending marker cannot linger after a decision.
        */
-      const pending = source.key_fix_pending;
-      assert.ok(pending && typeof pending === 'object', 'the source carries the disputed key');
-      assert.ok(read('work/implementation/POOL-01-BATCH-1.md').includes('lv1.06'), 'the note hands the question to the Lead');
-      const disputed = sets.find((entry) => entry.set_id === pending.set_id);
-      assert.ok(disputed, `${pending.set_id} is in the batch`);
-      const disputedText = disputed.texts.find((row) => row.id === String(pending.text_id));
-      assert.ok(disputedText, `the disputed item ${pending.text_id} exists in ${pending.set_id}`);
-      const headlineIds = disputed.headlines.map((row) => row.id);
-      if (pending.confirmed_answer) {
-        assert.equal(disputedText.answer, pending.confirmed_answer, 'the key IS the value Ron confirmed');
-        assert.ok(!migrationText.includes('CONTENT DECISION PENDING'), 'and the pending marker is gone');
-        assert.equal(pending.proposed_answer, pending.confirmed_answer, 'the confirmation is the proposal, recorded once');
+      assert.ok(typeof source.key_fix_pending === 'undefined' || typeof source.key_fix_pending === 'object');
+      const decisions = Array.isArray(source.content_decisions) ? source.content_decisions : [];
+      assert.ok(decisions.length > 0, 'the source records the confirmed content decisions');
+      assert.ok(read('work/implementation/POOL-01-BATCH-1.md').includes('lv1.06'), 'the note records them');
+      if (source.key_fix_pending) {
+        assert.ok(migrationText.includes('CONTENT DECISION PENDING'), 'a pending decision is marked in the artifact');
+        assert.ok(!migrationText.includes('CONTENT DECISIONS CONFIRMED'), 'and a pending one is not called confirmed');
       } else {
-        assert.equal(disputedText.answer, pending.current_answer, 'the authored key is UNCHANGED until Ron confirms');
-        assert.ok(migrationText.includes('CONTENT DECISION PENDING'), 'and the migration says a decision is pending');
-        assert.ok(migrationText.includes(String(pending.set_id)), 'naming the set');
+        assert.ok(!migrationText.includes('CONTENT DECISION PENDING'), 'no decision is pending, and no stale banner lingers');
+        assert.ok(migrationText.includes('CONTENT DECISIONS CONFIRMED'), 'the artifact records that the decisions were confirmed');
+      }
+      for (const decision of decisions) {
+        const label = decision.label ?? decision.set_id;
+        const set = sets.find((entry) => entry.set_id === decision.set_id);
+        assert.ok(set, `${label}: ${decision.set_id} is in the batch`);
+        const text = set.texts.find((row) => row.id === String(decision.text_id));
+        assert.ok(text, `${label}: item ${decision.text_id} exists`);
+        assert.ok(decision.confirmed_by && /Ron/.test(decision.confirmed_by), `${label}: the decision names who confirmed it`);
+        assert.equal(text.answer, decision.confirmed_answer,
+          `${label}: the authored key IS the confirmed value (${decision.confirmed_answer}) — not something an agent may change`);
+        assert.equal(set.texts.filter((row) => row.answer === decision.confirmed_answer).length, 1,
+          `${label}: the confirmed headline answers exactly ONE text`);
+        assert.equal(new Set(set.texts.map((row) => row.answer)).size, set.texts.length,
+          `${label}: and one headline per text still holds — no duplicate`);
+        if (decision.headline_text) {
+          const headline = set.headlines.find((row) => row.id === decision.confirmed_answer);
+          assert.ok(headline, `${label}: the confirmed headline exists`);
+          assert.equal(headline.text, decision.headline_text, `${label}: the headline carries the confirmed wording`);
+          assert.notEqual(decision.headline_text, decision.previous_headline_text,
+            `${label}: the wording actually changed from the rejected form`);
+        }
       }
       /*
-       * THE SHAPE TRAP, MECHANICALLY. LV1 is text → headline matching with distractors, so a replacement must be
-       * a headline of THIS set, must not already answer another text, and must not be the key it replaces. A swap
-       * that duplicates another text's answer is worse than the defect it fixes, so it is simulated here.
+       * THE REWORDED HEADLINE, CHECKED THREE WAYS (task-47). Ron chose "keep the text, reword the headline", and a
+       * reworded ad can break a set in ways a key swap cannot, so the edit is asserted rather than eyeballed:
+       *   (a) it answers BOTH halves of the text (a van AND helpers), so a learner reasoning from
+       *       „Wer hat einen Transporter …?" is not trapped;
+       *   (b) it stays a headline in the register and length of the other nine;
+       *   (c) it cannot become a better match for any OTHER text of the set.
        */
-      assert.ok(headlineIds.includes(pending.proposed_answer), `the proposal ${pending.proposed_answer} is a headline of ${pending.set_id}`);
-      assert.notEqual(pending.proposed_answer, pending.current_answer, 'the proposal is a CHANGE, not a restatement');
-      const others = disputed.texts.filter((row) => row.id !== String(pending.text_id));
-      assert.ok(!others.some((row) => row.answer === pending.proposed_answer),
-        `headline ${pending.proposed_answer} does not already answer another text of the set`);
-      const swapped = new Set(disputed.texts.map((row) => (row.id === String(pending.text_id) ? pending.proposed_answer : row.answer)));
-      assert.equal(swapped.size, disputed.texts.length, 'and the swap leaves EXACTLY ONE headline per text — no duplicate');
-      assert.equal(disputed.texts.filter((row) => row.answer === pending.proposed_answer).length, 0,
-        'the proposed headline is currently unused in that set, so nothing is displaced by the swap');
-      assert.equal(swapped.has(pending.current_answer), false,
-        `headline ${pending.current_answer} becomes a distractor, which is what Ron's ruling asks for`);
+      const moving = decisions.find((decision) => decision.headline_text);
+      if (moving?.headline_text) {
+        const set = sets.find((entry) => entry.set_id === moving.set_id);
+        const headline = set.headlines.find((row) => row.id === moving.confirmed_answer);
+        const text = set.texts.find((row) => row.id === String(moving.text_id));
+        assert.match(headline.text, /(Transporter|Umzug)/i, '(a) the reworded headline names the transport half');
+        assert.match(headline.text, /(Helfer|Hilfe|helfen)/i, '(a) and the help half — nobody is trapped on the van');
+        assert.ok(!/zu vermieten|zu verleihen/i.test(headline.text), '(a) and it no longer offers a van FOR HIRE');
+        assert.ok(text.text.includes('Transporter') && text.text.includes('helfen'),
+          '(a) the text it answers still asks for both, unchanged');
+        const lengths = set.headlines.map((row) => row.text.length);
+        assert.ok(headline.text.length >= Math.min(...lengths) - 10 && headline.text.length <= Math.max(...lengths) + 10,
+          `(b) headline length ${headline.text.length} sits with the other nine (${Math.min(...lengths)}–${Math.max(...lengths)})`);
+        assert.ok(headline.text.split(/\s+/).length <= 10, '(b) headline length in words');
+        assert.ok(!/[.!]$/.test(headline.text), '(b) a headline, not a sentence');
+        /* (c) No topic of another text may appear: this is the mechanical half of "check it against every text". */
+        const TOPIC_TERMS = {
+          1: ['Nachhilfe', 'Mathematik', 'Klasse'],
+          2: ['Senior', 'Spazierg', 'Gespräch'],
+          3: ['Hund'],
+          5: ['Kind', 'Babysitter', 'Betreu', 'Tagesmutter'],
+        };
+        for (const [textId, terms] of Object.entries(TOPIC_TERMS)) {
+          if (textId === String(moving.text_id)) continue;
+          for (const term of terms) {
+            assert.ok(!new RegExp(term, 'i').test(headline.text),
+              `(c) the reworded headline must not claim text ${textId}'s topic (${term})`);
+          }
+        }
+        /* The served payload carries the reworded headline and NOT the rejected wording. */
+        const payloadRow = migrationText.split('\n').find((line) => line.includes(`'${moving.set_id}'`) && line.includes('::jsonb'));
+        assert.ok(payloadRow, 'the migration carries the learner payload for the reworded set');
+        assert.ok(payloadRow.includes(moving.headline_text), 'and the payload carries the reworded headline');
+        assert.ok(!/zu vermieten/i.test(payloadRow), 'and NOT the wording the product owner rejected');
+      }
+      /* The second question is CLOSED: text 5 keeps `g`, and text 5 and headline b are untouched. */
+      const care = decisions.find((decision) => decision.headline_b);
+      if (care) {
+        const set = sets.find((entry) => entry.set_id === care.set_id);
+        assert.equal(set.texts.find((row) => row.id === String(care.text_id)).answer, care.confirmed_answer,
+          'text 5 keeps the confirmed key g');
+        assert.equal(set.headlines.find((row) => row.id === 'b').text, care.headline_b,
+          'and headline b is untouched, as the closed decision records');
+        assert.match(care.status, /CLOSED/, 'the near-tie is recorded as closed rather than left open');
+      }
       const valued = migrationText.slice(migrationText.indexOf('INSERT INTO'));
       assert.ok(!/'approved'/.test(valued), 'and none is claimed reviewed');
       assert.ok(!valued.includes('"answer"'), 'no answers in the generated SQL payload');
@@ -290,8 +342,8 @@ function buildLegs({ source, sourceText, migration, migrationText, normalise, bu
       assert.ok(migrationText.includes('INSERT INTO "__SCHEMA__".objective_key'), 'the key lands in the key table');
       /* A content row without a rights decision is INVISIBLE: the policy fails closed on 'unknown'. */
       assert.ok(migrationText.includes('INSERT INTO "__SCHEMA__".content_rights'), 'the rights decision travels WITH the content row');
-      const decisions = migrationText.match(/@v1', 'generated',/g) ?? [];
-      assert.equal(decisions.length, released.length, 'one recorded basis per imported set');
+      const rightsRows = migrationText.match(/@v1', 'generated',/g) ?? [];
+      assert.equal(rightsRows.length, released.length, 'one recorded basis per imported set');
     }],
     ['4 the additive builder change left the corpus untouched: 0010 still matches its source, and the batch is not spliced into it', async () => {
       const generated = await runNode([builderPath, '--check']);
@@ -609,13 +661,17 @@ const SOURCE_MUTATIONS = [
   ['M1 a HELD listening set is marked released', (text) => text.replace('"set_id": "telc-deutsch-b1.hv1.04",\n      "family": "HV1",\n      "release": "held",', '"set_id": "telc-deutsch-b1.hv1.04",\n      "family": "HV1",\n      "release": "released",')],
   ['M2 an LV1 answer is not one of the set\'s headlines', (text) => text.replace('"text": "Unser Reparaturcafé öffnet wieder am Samstag von zehn bis vierzehn Uhr. Wir suchen noch Freiwillige, die sich mit Elektrik oder Nähmaschinen auskennen und ihr eigenes Werkzeug mitbringen können.",\n          "answer": "b"', '"text": "Unser Reparaturcafé öffnet wieder am Samstag von zehn bis vierzehn Uhr. Wir suchen noch Freiwillige, die sich mit Elektrik oder Nähmaschinen auskennen und ihr eigenes Werkzeug mitbringen können.",\n          "answer": "z"')],
   ['M3 a released set is dropped from the batch', (text) => text.replace('"set_id": "telc-deutsch-b1.lv1.06",', '"set_id": "telc-deutsch-b1.lv1.07",')],
-  /* The shape trap Ron's correction must not walk into: the proposal is made to point at a headline another
-     text already answers. A swap that creates a duplicate is worse than the defect it fixes. */
-  ['M5 the proposed replacement duplicates another text\'s answer', (text) => text.replace('"proposed_answer": "j"', '"proposed_answer": "a"')],
-  /* The pin itself: an agent silently "fixes" the disputed key without a human confirmation. */
-  ['M6 the disputed key is changed while the decision is still pending', (text) => text.replace(
+  /* The shape trap the correction must not walk into: text 4's key is made to duplicate text 1's. A key that
+     duplicates another text's answer is worse than the wording defect it fixes. */
+  ['M5 the confirmed key duplicates another text\'s answer', (text) => text.replace(
     '"text": "Wir ziehen Ende des Monats in eine andere Wohnung. Wer hat einen Transporter und kann uns am Umzugstag für ein paar Stunden helfen? Die Bezahlung sprechen wir vorher ab.",\n          "answer": "e"',
-    '"text": "Wir ziehen Ende des Monats in eine andere Wohnung. Wer hat einen Transporter und kann uns am Umzugstag für ein paar Stunden helfen? Die Bezahlung sprechen wir vorher ab.",\n          "answer": "j"')],
+    '"text": "Wir ziehen Ende des Monats in eine andere Wohnung. Wer hat einen Transporter und kann uns am Umzugstag für ein paar Stunden helfen? Die Bezahlung sprechen wir vorher ab.",\n          "answer": "a"')],
+  /* The pin: a CONFIRMED key is silently changed by an agent, long after the product owner decided it. */
+  ['M6 the confirmed key is changed after the decision', (text) => text.replace('"confirmed_answer": "e"', '"confirmed_answer": "j"')],
+  /* The pin on the wording: headline e is quietly put back to the form the product owner rejected. */
+  ['M7 the reworded headline is reverted to the rejected wording', (text) => text.replace(
+    '{ "id": "e", "text": "Umzugshilfe: zwei Helfer mit Transporter" }',
+    '{ "id": "e", "text": "Umzugshilfe mit Transporter zu vermieten" }')],
 ];
 
 const BUILDER_MUTATIONS = [

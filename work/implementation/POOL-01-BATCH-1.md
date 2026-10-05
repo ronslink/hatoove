@@ -4,40 +4,46 @@
 released by **task-43** (POOL-01-RELEASE). **Branch:** `codex/pool-01-release`, from local main `0ba79f4`
 (which carries the media mount fix and FIX-F1). Nothing pushed, nothing merged, no other worktree touched.
 
-> ## ✅ THE APPLY HOLD IS LIFTED (task-43), AND ONE KEY AWAITS RON
+> ## ✅ RELEASED — the hold is lifted AND both content questions are CLOSED (task-43 + task-47)
 >
-> Ron has read the three LV1 sets and the batch **may be applied**: `apply_hold` in
-> `content/pool-01/batch-1.json` is `null`, the migration carries **no** hold marker, and the field stays in
-> the source so `pool-01-check` proves source and artifact agree in **either** state — a regeneration can
-> neither drop the hold silently nor keep it silently. `apply_hold_history` records the lift.
+> **The hold:** Ron has read the three LV1 sets and the batch **may be applied**. `apply_hold` is `null`, the
+> migration carries **no** hold marker, and the field stays in the source so `pool-01-check` proves source and
+> artifact agree in **either** state — a regeneration can neither drop the hold silently nor keep it silently.
+> `apply_hold_history` records the lift.
 >
-> **One content decision is still pending, and it is Ron's:** headline **e** must not answer `lv1.06` text 4.
-> The authored key is therefore **unchanged**, the migration carries a `CONTENT DECISION PENDING` marker, and
-> the check asserts both — so an agent cannot "fix" it silently, and the fix cannot be dropped silently. The
-> proposal (with the text and the ten headlines side by side, every rejected candidate reasoned, and a second
-> pass over the other four keys) is **§2** and was sent to the Lead. **Do not apply this migration before Ron
-> confirms** — the marker in the artifact says so in the file itself.
+> **The keys:** Ron answered both questions, and the answers are **in the artifact**:
+> * **`lv1.06` text 4 → `e`**, with headline **e reworded** from the rejected „Umzugshilfe mit Transporter zu
+>   **vermieten**" to „**Umzugshilfe: zwei Helfer mit Transporter**" (his Option 2: keep the text, fix the ad).
+>   Text 4 is unchanged.
+> * **`lv1.06` text 5 → `g`** — the second pass's near-tie with `b` is **closed**; text 5 and headline `b` are
+>   untouched.
+>
+> The `CONTENT DECISION PENDING` marker is **gone**, `0047` records the confirmations in its own header, and the
+> check flipped from "the authored key stays until a human decides" to "**the key IS the confirmed value**" — so
+> a future agent cannot silently change a confirmed key and a pending banner cannot linger after a decision.
+> **⚠ One label correction:** the lease called the second question "`lv1.05`"; it is **`lv1.06`** (in `lv1.05`,
+> text 5 is keyed to `d` and was never in doubt). The check asserts each confirmed value against the set it
+> actually belongs to, which is how the mislabel surfaced — see the label correction below.
 
 ---
 
-## 2. THE `lv1.06` KEY CORRECTION — PROPOSAL FOR RON (task-43)
+## THE `lv1.06` KEYS — THE DISPUTE, MY PROPOSAL, AND RON'S DECISIONS
 
-**Ron's words:** *"no I think that should not be a match."* He named no replacement, so this is a proposal, not
-a swap. **Nothing has been changed.**
-
-### 2.1 The disputed pair, side by side
+### The disputed pair, side by side
 
 | | German |
 |---|---|
-| **Text 4 (key disputed)** | „Wir ziehen Ende des Monats in eine andere Wohnung. Wer hat einen **Transporter** und kann uns am **Umzugstag für ein paar Stunden helfen**? Die Bezahlung sprechen wir vorher ab." |
-| **Current key — headline e** | „**Umzugshilfe mit Transporter zu vermieten**" |
+| **Text 4 (unchanged)** | „Wir ziehen Ende des Monats in eine andere Wohnung. Wer hat einen **Transporter** und kann uns am **Umzugstag für ein paar Stunden helfen**? Die Bezahlung sprechen wir vorher ab." |
+| **Old headline e (Ron: *"no I think that should not be a match."*)** | „**Umzugshilfe mit Transporter zu vermieten**" |
+| **New headline e (applied)** | „**Umzugshilfe: zwei Helfer mit Transporter**" |
 
-The text asks for **two things**: a van, and a few hours of help on the day. Headline e names the right
-subject (moving help + van) but offers the van **for hire** („zu vermieten") — a rental, where the text is a
+**Ron chose Option 2** — keep the text, reword the ad. The key stays **e**, so nothing moves and no other text
+is disturbed; the wording that made it wrong ("zu vermieten" — a van for hire, where the text is a household
+asking for help) is gone.
 household asking someone to help them move and offering to agree on payment. Ron has ruled that this is not
 the match.
 
-### 2.2 The ten headlines, and why nine of them cannot answer text 4
+### The ten headlines, and why nine of them could not answer text 4
 
 | # | Headline | Verdict for text 4 |
 |---|---|---|
@@ -45,64 +51,60 @@ the match.
 | b | Tagesmutter hat ab September wieder Plätze frei | ✗ Childminding places. No children in the text. |
 | c | Seniorenbegleitung für Spaziergänge und Gespräche | ✗ Companionship for an elderly person. Nobody elderly, and no walks. |
 | d | Hundebetreuung am Wochenende | ✗ Dog care. No animal, and the move is „Ende des Monats", not a weekend. |
-| **e** | Umzugshilfe mit Transporter **zu vermieten** | ✗ **Ron's ruling.** Right subject, but it offers a van for hire; it does not answer a request for help. |
+| **e** | **WAS** „Umzugshilfe mit Transporter **zu vermieten**" → **NOW** „Umzugshilfe: zwei Helfer mit Transporter" | ✓ **Ron's Option 2.** The subject was always right; the offer of a van *for hire* was not. It now offers the help the text asks for. |
 | f | Putzhilfe für Büros am Abend gesucht | ✗ Evening office cleaning. Wrong place (Büros) and wrong time (Abend). |
 | g | Erfahrene Babysitterin für zwei Kleinkinder | ✗ Babysitting. No children. |
 | h | Gitarrenunterricht für Anfänger | ✗ Guitar lessons. Unrelated. |
 | i | Sprachkurs Deutsch für den Beruf | ✗ Language course. Unrelated. |
-| **j** | **Möbelmontage und kleine Reparaturen** | **~ The only candidate left.** Furniture assembly and small repairs is what a household actually needs on and after a moving day, and „kleine Reparaturen" covers the odd jobs a move creates. It does **not** supply the van. |
+| j | Möbelmontage und kleine Reparaturen | ~ The only candidate that could have replaced e — but it answers only the HELP half and supplies no van. **Not used:** Option 2 keeps the letter and fixes the wording, which is smaller and moves nothing. |
 
-### 2.3 Recommendation
+### What was decided, and what was applied
 
-**Nothing should be swapped on its own, because every candidate is imperfect.** The honest options, best
-first:
+**Ron chose Option 2 of the three I offered:** keep text 4 exactly as authored and reword headline **e** into an
+offer of moving help. **Applied:** `lv1.06` headline `e` is now „Umzugshilfe: zwei Helfer mit Transporter"; the
+key for text 4 stays `e`; **text 4 is untouched**; nothing else in the batch changed.
 
-1. **Key = j, and tighten text 4 by one line** so the need and the offer match exactly — e.g. „Wir ziehen Ende
-   des Monats um. Wer kann uns am Umzugstag helfen, die Schränke aufzubauen und ein paar Möbel zu reparieren?
-   Die Bezahlung sprechen wir vorher ab." Then j is exact, the van disappears from the text, and e becomes a
-   distractor (a rental van for someone who has not asked for one).
-2. **Keep text 4 and reword headline e into an offer of moving help** — e.g. „Umzugshilfe: zwei Helfer mit
-   Transporter für einen Tag". Then text 4 ↔ e is a clean match, no letter moves, and the van the text asks
-   for is exactly what the ad provides. This is the smallest change (one line, no key move).
-3. **Key = j with text 4 unchanged** (the literal answer to "which of the ten fits"). It matches the *help*
-   half and answers the "what can I do here" question, but the text explicitly asks „Wer hat einen
-   Transporter?" and j does not mention one, so a learner reasoning from the van would be trapped. Acceptable
-   only if Ron prefers it to options 1–2.
+**Three checks on the edit, all mechanical (a reworded ad can break a set in ways a key swap cannot):**
 
-**What I did NOT do:** change anything. The authored key stays **e** until Ron confirms, and the check asserts
-that it does (§4).
+* **(a) it answers BOTH halves of text 4** — the headline must match a transport term (`Transporter|Umzug`) and
+  a help term (`Helfer|Hilfe|helfen`), and must NOT offer the van for hire any more (`zu vermieten|zu
+  verleihen`), while the text it answers still asks for both. A learner reasoning from „Wer hat einen
+  Transporter …?" now reaches `e` on both halves.
+* **(b) register and length** — it stays within ten words, carries no sentence-ending punctuation, and its
+  length sits with the other nine (± the spread of that set).
+* **(c) it cannot become a better match for any OTHER text** — checked against **every** text in the set, not
+  just text 4: no tutoring, elderly-care, dog-care, child-care or language-course topic may appear in it (a
+  curated term list per other text, asserted). Plus the standing shape rules: `e` is the key of text 4 **only**,
+  exactly one headline per text, no duplicate.
 
-### 2.4 The shape trap, checked mechanically rather than by eye
+**Mutation-proved:** **M6** (the confirmed key changed after the decision) and **M7** (headline `e` quietly put
+back to the rejected wording) both fail the leg, and **M5** (the confirmed key duplicated onto another text's
+answer) fails the one-headline-per-text rule.
 
-LV1 is text → headline matching with distractors: **exactly one headline per text**, five of the ten used,
-**no headline may answer two texts**. A swap that duplicates another text's answer would be worse than the
-defect it fixes, so `tools/pool-01-check.mjs` simulates it:
+### The closed second question — and a label correction
 
-* headline **e** is the key of **text 4 only**; headline **j** is used by **no** text (it is a distractor
-  today) — so a swap to j displaces nothing and creates no duplicate;
-* after the simulated swap the set still has **five distinct** answers for five texts;
-* the proposal must be a headline **of this set**, must **differ** from the current key, and must **not**
-  already answer another text — each asserted, and mutation **M5** (proposal pointed at a headline another
-  text already answers) makes the leg fail.
+The second pass recorded in task-43 flagged a near-tie for the set's **text 5**, between `g` (Erfahrene
+Babysitterin für zwei Kleinkinder) and `b` (Tagesmutter hat ab September wieder Plätze frei). **Ron accepted the
+reasoning and keeps `g`**, so the near-tie is now **closed rather than left open**: text 5 and headline `b` are
+untouched, and the check pins both (the answer is `g`, headline `b`'s wording is exactly the recorded one).
 
-### 2.5 Second pass over the other four keys (asked for, and it found something)
+**The lease that carried this decision called the set "`lv1.05`". It is `lv1.06`.** In `lv1.05` ("Vereine, Feste
+und Engagement") text 5 is keyed to `d`, and neither text 5 nor headline `b` was ever in question — the near-tie
+only exists in `lv1.06`, the set the disputed text 4 belongs to. The check asserts each confirmed value against
+**the set it belongs to**, which is how the mislabel surfaced rather than being carried into the record. The
+decision itself is applied to the right set.
+
+### The second pass, kept as evidence
+
+The near-tie was found by re-checking **every** key in the set, not just the disputed one — which is why it is
+recorded here even though Ron closed it:
 
 | Text | Key | Verdict |
 |---|---|---|
 | 1 — son in year 9, big trouble with maths, twice a week, class tests | a — Nachhilfe in Mathematik für die Klassen 7 bis 10 | **Solid.** Grade 9 ∈ 7–10, maths, tutoring, recurring. |
 | 2 — mother, 82, walks, no longer dares go out alone, twice a week | c — Seniorenbegleitung für Spaziergänge und Gespräche | **Solid.** Age, walks and company all named. |
 | 3 — weekend wedding, Labrador, walks and feeding | d — Hundebetreuung am Wochenende | **Solid.** Weekend, dog, care. |
-| 5 — two children aged 2 and 4, someone with experience of small children, Mon & Thu 7–16 | g — Erfahrene Babysitterin für zwei Kleinkinder | **DOUBTFUL — a genuine near-tie with b.** |
-
-**Text 5 needs a second decision.** Headline **b** („Tagesmutter hat ab September wieder **Plätze frei**") is
-a real competitor: a Tagesmutter cares for small children in the daytime, which fits „montags und donnerstags
-von sieben bis sechzehn Uhr", and a family looking for care is exactly who answers such an ad. **g** wins on
-specificity — it names **two** small children (the text has two, aged 2 and 4) and **experience** (the text
-demands „schon Erfahrung mit Kleinkindern") — while **b** loses on „ab September", a date the text never
-mentions. That is a narrow margin, and narrow margins are how a wrong key ships. Recommended tightening, one
-line only: either make **b** exclude the text's case („Tagesmutter sucht neue Kinder **ab drei Jahren**", which
-the 2-year-old fails) or make the text's setting explicit (care in the family's home, which a Tagesmutter does
-not provide). **I have changed neither**; this is recorded so the decision is Ron's, not mine.
+| 5 — two children aged 2 and 4, someone with experience of small children, Mon & Thu 7–16 | g — Erfahrene Babysitterin für zwei Kleinkinder | **Was doubtful, now CLOSED as `g`.** `b` was a real competitor (a Tagesmutter cares for small children in the daytime, which fits the hours), but `g` names **two** small children and the **experience** the text demands, while `b` loses on „ab September", a date the text never carries. Ron accepted this. Neither text 5 nor headline `b` was changed, and both are pinned by the check so the decision cannot reopen silently. |
 
 ---
 
@@ -260,16 +262,21 @@ data touched.
   (pending: the authored key unchanged and the artifact marked; confirmed: the key IS Ron's value and the
   marker is gone).
 
-### 4.2 Mutation proof (6 mutations, all biting)
+### 4.2 Mutation proof (7 mutations, all biting)
 
 | Mutation | Legs that fail |
 |---|---|
 | **M1** a held listening set is marked `released` | 2 (the arithmetic and the held-absence legs) |
 | **M2** an LV1 answer is not one of the set's headlines (`z`) | 2 (the shape leg) |
 | **M3** a released set is renamed so the source and the migration disagree | 1 (the import leg) |
-| **M5** the proposed replacement is pointed at a headline ANOTHER text already answers | 1 (the shape trap) |
-| **M6** the disputed key is changed while the decision is still pending | 1 (the pending pin) |
+| **M5** the confirmed key duplicates ANOTHER text's answer | 2 (the one-headline-per-text rule) |
+| **M6** the confirmed key is changed after the decision | 1 (the confirmed-value pin) |
+| **M7** the reworded headline is reverted to the rejected wording | 1 (the wording pin and the payload) |
 | **M4** the builder stops stripping the answer fields (`SECRET_FIELDS` emptied) | 2 (the corpus/builder leg) |
+
+**M5–M7 are the three ways this correction could go wrong:** a key that duplicates another text's answer, an
+agent changing a key the product owner confirmed, and a reworded headline quietly reverted to the form he
+rejected.
 
 **M5 and M6 exist for the two ways this correction could go wrong:** a swap that duplicates another text's
 answer (worse than the defect it fixes), and an agent quietly "fixing" a key the product owner has not yet
@@ -313,13 +320,12 @@ NOT changed, deliberately:
 5. `tools/pool-01-check.mjs` is **not registered** in `tools/run-gates.mjs`; the two lines owed are
    `gate('pool-01-check')` in `mirror` and `gate('pool-01-check', '--postgres')` in `mirror-db`.
    (`practice-server` has task-44 for the CI wiring, which is where this belongs now.)
-6. **Ron's confirmation of the `lv1.06` key** (§2). The moment he confirms: set `confirmed_answer` in
-   `key_fix_pending`, apply the confirmed key to the source's `texts[4].answer`, regenerate 0047, update the
-   MANIFEST sha256 — and `pool-01-check` flips from "unchanged pending a human" to "the key IS the confirmed
-   value", with the pending marker gone. **Until then the migration must not be applied**, and it says so in
-   its own header.
-7. **Ron's second decision on `lv1.06` text 5 (§2.5)** — the near-tie between `g` and `b`. Neither the text nor
-   `b` has been touched; the tightening suggested there is one line either way.
+6. **✅ CLOSED — both content decisions are applied** (task-47): `lv1.06` text 4 → `e` with headline `e`
+   reworded, and `lv1.06` text 5 → `g` with the near-tie closed. The `CONTENT DECISION PENDING` marker is out
+   of `0047`, the confirmations are in its header, and `pool-01-check` now asserts the **confirmed values** —
+   so a confirmed key cannot be changed silently and a pending banner cannot linger.
+7. **Nothing is waiting on Ron.** The remaining human step is the same one every set carries: **qualified
+   review of the content** (item 2).
 8. **A release done by `UPDATE` is now visible to the corpus legs**: `practice-runner-check` discovers any
    migration that inserts **or updates** `objective_set`, and leg 12 fails unless a file that yields no parsed
    set is declared in `RELEASE_ONLY_MIGRATIONS` with its reason (it is empty today). So the follow-up release of
