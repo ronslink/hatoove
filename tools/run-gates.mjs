@@ -22,6 +22,7 @@ const GROUPS = {
     gate('pool-01-check'),
     gate('library-render-check'), gate('vocab-check'), gate('library-i18n-check'),
     gate('media-mount-check'),
+    gate('review-pack-check'),
     gate('content-corrections-check'),
   ],
   /* The database gates. Each needs OWNAPI_PG_* pointed at a disposable database. */
