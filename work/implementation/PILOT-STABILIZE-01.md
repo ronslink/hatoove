@@ -113,8 +113,68 @@ pre0049 populated-multi-exam upgrade/restore paths; the already0050 pilot Stage2
 
 ## Remaining acceptance
 
-Delivery, independent review, green requiredCI and source integration are complete. Production release
-and product acceptance remain separate; no Stage2 production deployment is claimed.
+Delivery, independent source review, green required CI, source integration and the separately authorized
+Stage 2 production rollout below are complete. Product acceptance remains separate.
 Emulated desktop/phone evidence cannot close physical iPhone/Android keyboard/audio checks.
-Production needs a separately supplied operator secret, a measured connection allocation of at least 13,
-and confirmation of the v2 listening release head. Human content review is not manufactured by these tests.
+Native review of new uk/ar/tr survey copy remains open. Human content review is not manufactured by these tests.
+
+## Authorized production rollout — 8 October 2026, verified 17:26 UTC
+
+Ron explicitly approved deployment of source 40779ce and new restricted operator access, then requested
+“lets deploy.” Coordinator execution `PILOT-STAGE2-DEPLOY-20261008-P1` used independently reviewed
+preflight, staging, backup/restore, serial migration and bounded smoke procedures (P1-R1–R4).
+No older worker lease resumed. Runtime source is `40779cef9f920531ea1c7b160358c4e7b926cc72`;
+the host-built immutable image is `sha256:a2626f839cf330f0896d99a4195e8a0239e3d84de376bc141bc2c6b6472a2f10`.
+It is a retained host image identity, not a published registry artifact; the earlier local image 5b3e06a
+remains a separate preparation artifact. All 12 recordings match the prior live image by name and SHA256,
+and the built image passes shipped media resolution/framing/missing-media checks.
+
+Live preflight measured a 16,037,555-byte database (about 15.3 MiB), 3134 MiB available memory and
+67129 MiB free disk. PostgreSQL max_connections 30 minus 3 reserved covers the allocated 13 connections. The reviewed v2
+listening head already contained practice playback rules and needed no import. Existing password files
+remain unchanged. The new operator password is outside source, mode 0400 with the measured node UID/GID 1000;
+it is mounted only for migration and the one-off operator profile, never app/worker. Nonsecret configuration
+remains root mode 0600 with its original inode; its prior copy and the old host image are retained.
+Source 3dee6f4 remains recoverable from Git; staging overlays the live source directory.
+
+The app/worker stopped before backup; no other client backend, migrator or claimed grading job remained.
+The protected pre-migration custom dump and role globals are retained, with SHA256 respectively
+`0d1f3eafab9090c33c3947bbbe311fe297f444f3f192ad79f881dca2568a0624` and
+`57ddf24323037003fdcdd2c2ca1098520fbea8c180f27d7f3d3b9a94ebbcfc0d`.
+Restore ran in a labelled, network-disabled 768 MiB container with 512 MiB tmpfs, never the production volume.
+All 622 normalized metadata lines matched: migration ledger/checksums, schema/table owners, roles and
+membership options, table/column/function/default privileges, policies/FORCE RLS and every owned-schema
+table count. The temporary container was removed using its exact label; backup and private logs remain
+root-controlled. No backup contents, password hashes or learner rows are committed.
+
+Two refusals are retained honestly. The initial backup parent did not exist and was created root mode 0700.
+The first actual restore succeeded but raw ACL comparison failed because PostgreSQL restored explicit
+owner-default full grants as equivalent null/default ACLs on seven tables. Independent P1-R3 approved
+object-type `acldefault` normalization, preserving all explicit grants/revocations and other metadata.
+A fresh synthetic restore with 21 matching metadata lines and a second actual restore of the same retained dump then passed;
+fresh unchanged source metadata and exact dump/globals hashes were required before migration resumed.
+This is a demonstrated protected local logical restore, not an encrypted off-host backup or an RPO/RTO claim.
+No automatic database downgrade or restoration over the retained live volume was performed.
+
+Fresh migration 0051 applied only after verified restore. Ledger head is `0051-pilot-feedback-operator`,
+with 49 entries and checksum `1c92023e131f57deb85ad0a98ee572e0f4f14f79f35f44b5005b58e48b398316`.
+App and worker restarted only after that exact ledger gate; failures during maintenance/startup would
+request both stopped. Both run image a2626f83 with 0 restarts, app health passes, worker has its restricted
+database connection and public HTTPS `/api/ready` returns 200. Database and both certificate/configuration
+volumes retain their prior identities; ingress and unrelated services were not changed.
+
+Restricted operator authentication/function listing succeeds, while direct feedback/account SELECT is
+denied. The operator has no feedback table privileges, SUPERUSER, CREATEROLE, INHERIT or BYPASSRLS.
+The real CLI list output stays private outside source. Five bounded synthetic HTTPS smoke groups pass:
+secure signup/session; feedback and genuine opaque PNG upload with anonymous denial, immutable retry
+and exact owner export; attempt-bound listening begin/private 206 audio with anonymous denial; survey
+eligibility read; and verified hard account deletion/session revocation. The deletion receipt confirms
+one feedback and screenshot removed and verifies all account-table absence; direct DB metadata confirms
+both synthetic report/image rows 0. The synthetic PNG proves transport/export, not production DOM capture
+or physical-device audio. Existing desktop/Arabic-phone rendered evidence remains the UI evidence.
+
+No production survey round was seeded, no answers/skip were written, no operator purge ran and no live
+payment/model call was enabled. Answers/skip remain proven on isolated fixtures; a live survey round
+needs its separately selected window/minimum age. Physical iPhone/Android, new uk/ar/tr copy review,
+off-host backup operations and issues 157/158 remain separate follow-ups. This receipt does not mark
+content approved, predict exam readiness or close product acceptance.
