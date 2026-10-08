@@ -83,12 +83,35 @@ S6 core explicitly covers the historical0034–0048 upgrade (16 groups); fresh f
 admission and payments gates passed separately. Applying0049 to a pre-populated second exam uncovered
 its authority DISTINCT missing exam identity, tracked in [issue158](https://github.com/ronslink/hatoove/issues/158).
 No historical migration or approved content was changed. This follow-up is unassigned and must be resolved
-before offering that multi-exam upgrade path. Hosted final-head CI and R3 supplement are still pending.
+before offering that multi-exam upgrade path.
+
+## Final integration receipt — 8 October 2026,10:03UTC
+
+R3 independently approved3b6d5ec; R4 approved the final one-line grammar receipt getter correction at
+61e8eaa5d47f0ca7dba1e61e969156096b060e88. The explicit grammar PostgreSQL rerun passes14/14 and supersedes
+an earlier accidentally memory-only local rerun. The safe effective_content_review function exposes
+decision_ids; its consumer view does not. No product or migration change was needed for that assertion.
+Editorial mutation suite passes23/23 tests with113/113 actual mutations, including the operator.
+
+All five required hosted checks passed on final61e8eaa: baseline, server/API, exam/feedback fixtures,
+durable PostgreSQL/runtime contracts ([run37760079285](https://github.com/ronslink/hatoove/actions/runs/37760079285)),
+and the separate postgres workflow ([run37760079172](https://github.com/ronslink/hatoove/actions/runs/37760079172)).
+The rendered scheduled job is normally skipped on PRs; the focused local rendered evidence passes.
+Staged repository guard and exact file-list inspection passed before each publication.
+[PR156](https://github.com/ronslink/hatoove/pull/156) merged at40779cef9f920531ea1c7b160358c4e7b926cc72;
+canonical local main was fast-forwarded cleanly. All labelled local synthetic databases were removed;
+learner data and previous branches/worktrees were preserved.
+
+The source40779ce local linux/amd64 release image was built successfully and remains unpublished;
+its image ID is5b3e06afe6b4e902bfe08f868782ff81ff431c698f5014702d27347bb17e2fdd.
+Image media3/3 and packaged Stage2 artifacts/migration hash checks pass. This is a local image ID,
+not a published registry digest or production rollout receipt. R3 confirms issue158 blocks older
+pre0049 populated-multi-exam upgrade/restore paths; the already0050 pilot Stage2 upgrade is unaffected.
 
 ## Remaining acceptance
 
-Final candidate review, staged repository guard/file-list inspection, PR and hosted CI, merge and production
-release are separate transitions. No Stage 2 production deployment is claimed.
+Delivery, independent review, green requiredCI and source integration are complete. Production release
+and product acceptance remain separate; no Stage2 production deployment is claimed.
 Emulated desktop/phone evidence cannot close physical iPhone/Android keyboard/audio checks.
 Production needs a separately supplied operator secret, a measured connection allocation of at least 13,
 and confirmation of the v2 listening release head. Human content review is not manufactured by these tests.
