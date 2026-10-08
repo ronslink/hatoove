@@ -18,6 +18,23 @@
   background: rgb(0 0 0 / 0.45);
 }
 .feedback-scrim[hidden] { display: none; }
+.nav .feedback-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-block-size: 44px;
+  inline-size: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: 0.625rem;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+.nav .feedback-nav:hover { background: var(--canvas); }
 .feedback-sheet {
   inline-size: min(34rem, 100%);
   max-block-size: 88vh;
@@ -47,6 +64,13 @@
 .feedback-message { margin: 0; }
 .feedback-message[hidden] { display: none; }
 .feedback-thanks { font-weight: 600; }
+.feedback-screenshot { display: grid; gap: 0.5rem; }
+.feedback-screenshot[hidden] { display: none; }
+.feedback-screenshot img { max-inline-size: 100%; max-block-size: 10rem; object-fit: contain; border: 1px solid var(--line); border-radius: 0.5rem; }
+.feedback-screenshot p { margin: 0; }
+.feedback-survey fieldset { border: 0; padding: 0; margin: 0; }
+.feedback-survey legend { padding-block-end: 0.35rem; font-weight: 600; }
+.feedback-survey .row { flex-wrap: wrap; gap: 0.5rem; }
 /* The sheet is modal: nothing behind it should scroll while it is open. */
 html.feedback-open { overflow: hidden; }
 

@@ -43,12 +43,12 @@ async function fakePools(run, query = async () => ({ rows: [] })) {
   try { await run(created); } finally { pg.Pool = Original; }
 }
 
-check('retained defaults and exact 29-connection aggregate', () => {
+check('retained defaults plus one operator connection: exact 30-connection aggregate', () => {
   const config = persistentConfig({});
   assert.equal(config.admin.host, '127.0.0.1'); assert.equal(config.admin.port, 5432);
   assert.equal(config.admin.database, 'hatoove'); assert.equal(config.admin.user, 'postgres');
-  assert.equal(config.connection.total, 29);
-  assert.deepEqual(config.connection.roleTotals, { auth: 4, learner: 5, worker: 6, deletion: 4, payments: 4, provisioner: 2, admin: 2, migration: 2 });
+  assert.equal(config.connection.total, 30);
+  assert.deepEqual(config.connection.roleTotals, { auth: 4, learner: 5, worker: 6, deletion: 4, payments: 4, provisioner: 2, admin: 2, migration: 2, operator: 1 });
   for (const [role, max] of Object.entries(config.connection.maxima)) {
     const actual = pool(config, role).options;
     assert.equal(actual.max, max); assert.equal(actual.ssl, false);
@@ -74,9 +74,10 @@ check('role, readiness and aggregate budgets cannot be understated', () => {
   fixed(() => persistentConfig({ OWNAPI_PG_WORKER_REPLICAS: '4' }), 'postgres_role_budget_exceeded');
   fixed(() => persistentConfig({ OWNAPI_PG_APP_REPLICAS: '3' }), 'postgres_role_budget_exceeded');
   fixed(() => persistentConfig({ OWNAPI_PG_CONNECTION_BUDGET: '28' }), 'postgres_connection_budget_exceeded');
-  assert.equal(persistentConfig({ OWNAPI_PG_CONNECTION_BUDGET: '29' }).connection.total, 29);
-  const replicas = persistentConfig({ OWNAPI_PG_APP_REPLICAS: '2', OWNAPI_PG_CONNECTION_BUDGET: '52' });
-  assert.equal(replicas.connection.total, 52); assert.equal(replicas.connection.roleTotals.learner, 10); assert.equal(replicas.connection.roleTotals.worker, 10);
+  fixed(() => persistentConfig({ OWNAPI_PG_CONNECTION_BUDGET: '29' }), 'postgres_connection_budget_exceeded');
+  assert.equal(persistentConfig({ OWNAPI_PG_CONNECTION_BUDGET: '30' }).connection.total, 30);
+  const replicas = persistentConfig({ OWNAPI_PG_APP_REPLICAS: '2', OWNAPI_PG_CONNECTION_BUDGET: '53' });
+  assert.equal(replicas.connection.total, 53); assert.equal(replicas.connection.roleTotals.learner, 10); assert.equal(replicas.connection.roleTotals.worker, 10);
 });
 
 check('named allocation is authoritative; caps only lower', () => {
@@ -265,11 +266,11 @@ check('new role retains exact restricted attributes and safe password quoting', 
   assert.equal(queries.filter(text => text.includes('CREATE ROLE')).length, 1);
 });
 
-check('retained local trust provisioning still creates all seven roles with NULL passwords', async () => {
+check('local trust provisioning creates eight restricted roles with NULL passwords', async () => {
   const queries = [];
   await ensureRolesAndSchema({ async query(text) { queries.push(text); return { rows: [] }; } }, persistentConfig({}));
   const creation = queries.filter(text => text.includes('CREATE ROLE'));
-  assert.equal(creation.length, 7); assert.ok(creation.every(text => text.includes('CONNECTION LIMIT 10 PASSWORD NULL')));
+  assert.equal(creation.length, 8); assert.ok(creation.every(text => text.includes('CONNECTION LIMIT 10 PASSWORD NULL')));
   assert.equal(queries[1].startsWith('REVOKE CREATE, TEMPORARY'), true);
   assert.equal(queries.at(-1), 'CREATE SCHEMA IF NOT EXISTS "hatoove" AUTHORIZATION "hatoove_migration"');
 });

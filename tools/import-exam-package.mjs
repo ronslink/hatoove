@@ -15,7 +15,7 @@ export async function main(args=process.argv.slice(2)) {
    */
   const mediaIndex=args.indexOf('--media-root');
   const mediaRoot=mediaIndex<0?undefined:args[mediaIndex+1];
-  const file=args.find((argument,index)=>!argument.startsWith('--')&&index!==mediaIndex+1);
+  const file=args.find((argument,index)=>!argument.startsWith('--')&&(mediaIndex<0||index!==mediaIndex+1));
   const unknownFlag=args.some((argument,index)=>argument.startsWith('--')&&!['--dry-run','--media-root'].includes(argument)&&index!==mediaIndex+1);
   if(!file || unknownFlag || (mediaIndex>=0 && (!mediaRoot || mediaRoot.startsWith('--'))))
     throw new Error('usage: node tools/import-exam-package.mjs package.json [--dry-run] [--media-root <absolute private directory>]');

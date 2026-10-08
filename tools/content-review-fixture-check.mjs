@@ -10,6 +10,7 @@ try{
  assert.equal(db.migration.options.max,2,'the regression must occupy the complete real migration pool');
  const row=(await db.migration.query('SELECT c.content_version_id,c.exam_id,c.content_sha256 FROM content_version c JOIN rubric_version r USING(content_version_id) LIMIT 1')).rows[0];
  assert.ok(row);
+ const baseline=(await db.migration.query('SELECT to_jsonb(d) AS value FROM content_review_decision d ORDER BY decision_id')).rows;
  reviewer=await db.migration.connect();peer=await db.migration.connect();
  assert.notEqual(reviewer.processID,peer.processID);
  assert.equal(db.migration.idleCount,0);
@@ -20,7 +21,7 @@ try{
  assert.equal(receipt.decision,'withdraw');
  assert.equal(db.migration.waitingCount,0);
  await reviewer.query('ROLLBACK');
- assert.equal((await reviewer.query('SELECT count(*)::integer AS n FROM content_review_decision')).rows[0].n,0);
+ assert.deepEqual((await reviewer.query('SELECT to_jsonb(d) AS value FROM content_review_decision d ORDER BY decision_id')).rows,baseline);
 }finally{
  clearTimeout(timer);
  // Release the occupied peer before awaiting pending work, so even the old bug cleans up.

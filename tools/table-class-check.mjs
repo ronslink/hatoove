@@ -232,11 +232,11 @@ export function anchorToUser(catalogue, candidates) {
  * @returns {{rows: Array, findings: Array, failures: Array, ok: boolean}}
  */
 export function classifyCatalogue(catalogue, { roles, accountTables = ACCOUNT_TABLES } = {}) {
-  const { auth, learner, worker, migration, deletion, provisioner, payments } = roles;
+  const { auth, learner, worker, migration, deletion, provisioner, payments, operator } = roles;
   const restrictedTo = [learner, worker]; // the roles that must never reach an auth table
   // Every role a running process connects as. `migration` OWNS the schema (implicit owner
   // privileges) and has no runtime route; the fixture has no provisioner, hence filter(Boolean).
-  const runtimeRoles = [auth, learner, worker, deletion, provisioner, payments].filter(Boolean);
+  const runtimeRoles = [auth, learner, worker, deletion, provisioner, payments, operator].filter(Boolean);
   const accountSet = accountTableNames(accountTables);
   const classified = new Set([...AUTH_TABLES, ...AUTH_SUPPORT_TABLES, ...CONTENT_TABLES, ...PRIVATE_REVIEW_TABLES, ...CATALOGUE_TABLES,
     ...KEY_TABLES, ...PROTECTED_EXPLANATION_TABLES, ...INFRASTRUCTURE_TABLES]);

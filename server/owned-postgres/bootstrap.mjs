@@ -60,13 +60,30 @@ export function rolePool(config, schema, user, max = 2) {
 }
 
 /**
+ * The `__PLACEHOLDER__` set a fixture renders into tracked SQL, DERIVED from the roles it just created.
+ *
+ * WHY THIS IS A FUNCTION AND NOT AN OBJECT LITERAL IN EACH LOOP. Both loops used to enumerate the roles by hand,
+ * with slightly different lists, and `bootstrap.mjs:152` already records the time those two drifted and a
+ * migration granting `__AUTH__` failed. Enumerating is the bug: the day a migration uses a placeholder outside
+ * the list, the placeholder survives into SQL. `0050`'s `TO "__MIGRATION__"` did exactly that and made seven
+ * database gates fail with `role "__MIGRATION__" does not exist`. Deriving cannot drift, and substituting a role
+ * a file does not mention is a no-op.
+ */
+function rolePlaceholders(schema, roles) {
+  return {
+    SCHEMA: schema,
+    ...Object.fromEntries(Object.entries(roles).map(([name, value]) => [name.toUpperCase(), value])),
+  };
+}
+
+/**
  * Provision one isolated schema + roles and apply the tracked SQL.
  * @returns {Promise<object>} pools, role names and an idempotent `cleanup()`.
  */
 export async function createFixture({ stopBefore = null, ...overrides } = {}) {
   const config = { ...pgConfig(), ...overrides };
   const schema = `ownapi_${randomBytes(8).toString('hex')}`;
-  const roles = Object.fromEntries(['migration', 'auth', 'learner', 'worker', 'deletion', 'payments'].map((k) => [k, `${schema}_${k}`]));
+  const roles = Object.fromEntries(['migration', 'auth', 'learner', 'worker', 'deletion', 'payments', 'operator'].map((k) => [k, `${schema}_${k}`]));
   const admin = new pg.Pool({
     ...connection(config, { user: config.user }), max: 4, application_name: schema,
     options: `-c search_path=${schema},pg_catalog`,
@@ -108,11 +125,18 @@ export async function createFixture({ stopBefore = null, ...overrides } = {}) {
     pools.worker = rolePool(config, schema, roles.worker, 2);
     pools.deletion = rolePool(config, schema, roles.deletion, 2);
     pools.payments = rolePool(config, schema, roles.payments, 2);
+    // PILOT-FEEDBACK-01 (FB-D): the operator pool exists for the CHECK, and for the CLI when it runs against a
+    // disposable installation. The running server never opens it.
+    pools.operator = rolePool(config, schema, roles.operator, 1);
 
     await pools.migration.query(await readFile(new URL('auth-schema.sql', SPIKE), 'utf8'));
     await pools.migration.query(await readFile(new URL('schema.sql', SPIKE), 'utf8'));
     let isolation = await readFile(new URL('isolation.sql', SPIKE), 'utf8');
-    for (const [key, value] of Object.entries({ SCHEMA: schema, AUTH: roles.auth, LEARNER: roles.learner, WORKER: roles.worker })) {
+    // DERIVED FROM `roles`, like `renderSql` in provision.mjs. Both loops used to name a fixed set, and the day a
+    // migration used a placeholder outside it the placeholder reached PostgreSQL unsubstituted — which is exactly
+    // how `__MIGRATION__` in `0050` made SEVEN database gates fail with `role "__MIGRATION__" does not exist`.
+    // Substituting a role a file does not mention is a no-op, so deriving is strictly safer than enumerating.
+    for (const [key, value] of Object.entries(rolePlaceholders(schema, roles))) {
       isolation = isolation.replaceAll(`__${key}__`, value);
     }
     await pools.migration.query(isolation);
@@ -155,7 +179,7 @@ export async function createFixture({ stopBefore = null, ...overrides } = {}) {
        * `__AUTH__` in the SQL and failed ONLY in the disposable fixture, which is the one place a check runs.
        */
       let rendered = text;
-      for (const [key, value] of Object.entries({ SCHEMA: schema, AUTH: roles.auth, LEARNER: roles.learner, WORKER: roles.worker, DELETION: roles.deletion, PAYMENTS: roles.payments })) {
+      for (const [key, value] of Object.entries(rolePlaceholders(schema, roles))) {
         rendered = rendered.replaceAll(`__${key}__`, value);
       }
       return rendered;
@@ -165,10 +189,10 @@ export async function createFixture({ stopBefore = null, ...overrides } = {}) {
       await pools.migration.query(render(await readFile(new URL(file, migrationDir), 'utf8')));
     }
     if (!pending.length) await importDefaultPackage(pools.migration);
-    /** Apply the migrations `stopBefore` held back, each in its own transaction as the migration role. */
-    const applyRemaining = async () => {
+    /** Observe a historical upgrade before later approvals; default applies every held-back migration. */
+    const applyRemaining = async ({stopBefore: nextBoundary} = {}) => {
       const applied = [];
-      while (pending.length) {
+      while (pending.length && (!nextBoundary || pending[0] < nextBoundary)) {
         const file = pending.shift();
         const client = await pools.migration.connect();
         try {
@@ -183,7 +207,7 @@ export async function createFixture({ stopBefore = null, ...overrides } = {}) {
           client.release();
         }
       }
-      await importDefaultPackage(pools.migration);
+      if (!pending.length) await importDefaultPackage(pools.migration);
       return applied;
     };
 

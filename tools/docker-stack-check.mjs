@@ -176,7 +176,7 @@ try{
   const rejected=['/app/.git','/app/work','/app/research','/app/content/fixtures','/app/handoff','/app/.env',...sentinels.map(p=>'/app/'+p)];
   const audit="const fs=require('node:fs');const bad="+JSON.stringify(rejected)+".filter(p=>fs.existsSync(p));if(bad.length)throw Error('private/unneeded image paths: '+bad.join(','));";
   compose(['exec','-T','app','node','-e',audit]);
-  assert.deepEqual(JSON.parse(compose(['exec','-T','app','node','-e',"console.log(JSON.stringify(require('node:fs').readdirSync('/app/tools').sort()))"])),['import-exam-package.mjs','provider-usage-report.mjs','review-content.mjs'],'the image contains exactly its three operator CLIs');
+  assert.deepEqual(JSON.parse(compose(['exec','-T','app','node','-e',"console.log(JSON.stringify(require('node:fs').readdirSync('/app/tools').sort()))"])),['import-exam-package.mjs','media-mount-check.mjs','provider-usage-report.mjs','review-content.mjs'],'the image contains exactly its three operator CLIs and the media startup preflight');
   const workerId=compose(['ps','-q','worker']);
   assert.ok(workerId);
   assert.equal(JSON.parse(docker(['inspect',workerId]))[0].Config.Healthcheck,undefined);
@@ -556,13 +556,13 @@ try{
    */
   const scored=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     'SELECT sum(item_count) FROM hatoove.objective_set']).trim();
-  assert.equal(scored,'192','180 original corpus items plus 12 recovered grammar-practice items expected, got '+scored);
+  assert.equal(scored,'227','180 corpus + 12 grammar + 35 POOL-01 items expected, got '+scored);
   const sets=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     'SELECT count(*) FROM hatoove.objective_set']).trim();
-  assert.equal(sets,'25','24 original corpus sets plus one recovered grammar-practice set expected, got '+sets);
+  assert.equal(sets,'31','24 corpus + 1 grammar + 6 POOL-01 sets expected, got '+sets);
   const originalCorpus=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     "SELECT count(*) || ':' || sum(item_count) FROM hatoove.objective_set WHERE COALESCE(payload->>'practice_kind','') <> 'grammar-drill'"]).trim();
-  assert.equal(originalCorpus,'24:180','the original authored corpus must remain intact, got '+originalCorpus);
+  assert.equal(originalCorpus,'30:215','the authored corpus plus POOL-01 must remain intact, got '+originalCorpus);
   const grammarPractice=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     "SELECT count(*) || ':' || sum(item_count) FROM hatoove.objective_set WHERE payload->>'practice_kind' = 'grammar-drill'"]).trim();
   assert.equal(grammarPractice,'1:12','one separate twelve-item grammar-practice set expected, got '+grammarPractice);
@@ -575,20 +575,20 @@ try{
   const learnerKey=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     "SELECT has_table_privilege('hatoove_learner','hatoove.objective_key','SELECT')"]).trim();
   assert.equal(learnerKey,'f','the learner role MUST NOT be able to read objective_key, got '+learnerKey);
-  passed('24 original sets / 180 items plus one grammar-practice set / 12 items are seeded; payloads and learner grants keep keys private');
+  passed('31 sets / 227 items include POOL-01 and grammar practice; payloads and learner grants keep keys private');
 
   // The route that SERVES the corpus, and must never serve the key side of it.
   assert.equal((await request('GET','/api/v1/objective-sets')).status,401,'/api/v1/objective-sets must require a session');
   const objective=await request('GET','/api/v1/objective-sets',undefined,cookie);
   assert.equal(objective.status,200,'the objective route must answer a signed-in learner, got '+objective.status);
   assert.ok(Array.isArray(objective.json),'the objective list must be a JSON array');
-  // 25 sets exist, 9 are media-gated -> 15 original sets plus one grammar drill; 120 + 12 items.
-  assert.equal(objective.json.length,16,'16 servable objective sets expected (25 minus 9 media-gated), got '+objective.json.length);
-  assert.equal(objective.json.reduce((n,s)=>n+s.item_count,0),132,'132 servable items expected, got '+objective.json.reduce((n,s)=>n+s.item_count,0));
+  // The legacy objective listing remains non-media. Actual audio is served by the practice-attempt port.
+  assert.equal(objective.json.length,19,'19 non-media objective sets (including three POOL-01 reading sets) expected');
+  assert.equal(objective.json.reduce((n,s)=>n+s.item_count,0),147,'147 non-media items remain available');
   const grammarRows=objective.json.filter((row)=>row.set_id==='telc-deutsch-b1.sb1.grammar-wortstellung-v1');
   assert.equal(grammarRows.length,1,'the recovered practice set must be served once');
   assert.equal(grammarRows[0].item_count,12);
-  assert.equal(grammarRows[0].review_status,'unreviewed','recovery must not claim content approval');
+  assert.equal(grammarRows[0].review_status,'approved','0049 records Ron\'s named owner approval; do not reset it to unreviewed');
   {
     const serialised=JSON.stringify(objective.json);
     for(const leak of ['"answer"','"why"','"grammar"','"script"','objective_key']){
@@ -600,14 +600,16 @@ try{
   assert.equal(listening.status,200);
   assert.equal(listening.json.length,0,'HV must serve NOTHING while audio does not exist, got '+listening.json.length);
   assert.equal((await request('GET','/api/v1/objective-sets?family=lv1',undefined,cookie)).status,422,'a lowercase family must be refused, not silently accepted');
-  passed('the objective route serves 15 original sets plus one grammar-practice set / 132 items with NO key, and withholds listening until audio exists');
+  passed('the non-media objective route serves 19 sets / 147 items without keys; listening uses its separate playback contract');
 
   // LIBRARY-SEED-01 — the vocabulary lexicon. 300 entries are authored; the SERVER decides how many
   // one response may carry, so a crafted request cannot ask for the whole table on every keystroke.
   assert.equal((await request('GET','/api/v1/vocab')).status,401,'/api/v1/vocab must require a session');
   const vocab=await request('GET','/api/v1/vocab',undefined,cookie);
   assert.equal(vocab.status,200,vocab.text);
-  assert.ok(Array.isArray(vocab.json)&&vocab.json.length===50,'the lexicon must be bounded to 50 per response, got '+(vocab.json&&vocab.json.length));
+  assert.ok(Array.isArray(vocab.json)&&vocab.json.length===300,'the complete 300-word lexicon must be available');
+  assert.equal((await request('GET','/api/v1/vocab?limit=50',undefined,cookie)).json.length,50);
+  assert.equal((await request('GET','/api/v1/vocab?limit=501',undefined,cookie)).status,422);
   assert.ok(vocab.json.every((e)=>typeof e.de==='string'&&typeof e.en==='string'&&typeof e.review_status==='string'),'every entry must carry its German headword, gloss and review_status');
   const search=await request('GET','/api/v1/vocab?q=erziehung',undefined,cookie);
   assert.equal(search.status,200);
@@ -624,7 +626,9 @@ try{
   assert.equal((await request('GET','/api/v1/nouns')).status,401,'/api/v1/nouns must require a session');
   const nounsLex=await request('GET','/api/v1/nouns',undefined,cookie);
   assert.equal(nounsLex.status,200,nounsLex.text);
-  assert.equal(nounsLex.json.length,50,'the noun lexicon must be bounded to 50 per response, got '+nounsLex.json.length);
+  assert.equal(nounsLex.json.length,240,'all 240 nouns must be available to the Alle view');
+  assert.equal((await request('GET','/api/v1/nouns?limit=50',undefined,cookie)).json.length,50);
+  assert.equal((await request('GET','/api/v1/nouns?limit=501',undefined,cookie)).status,422);
   assert.ok(nounsLex.json.every((e)=>typeof e.gender==='string'&&typeof e.plural==='string'&&typeof e.rule==='string'),
     'every noun must carry its gender, plural and the gender rule -- that is the content Ron named as Nomen und Genus');
   const dieOnly=await request('GET','/api/v1/nouns?gender=die',undefined,cookie);
@@ -680,7 +684,8 @@ try{
   const speaking=await request('GET','/api/v1/guides/speaking-guide',undefined,cookie);
   assert.equal(speaking.status,200);
   assert.equal(speaking.json.sections.length,3,'speaking-guide holds 3 parts, got '+speaking.json.sections.length);
-  assert.ok(speaking.json.sections[0].payload.minutes>0,'a speaking part must carry its timing');
+  assert.equal(speaking.json.sections[0].payload.minutes,null,'SP1 timing is deliberately unspecified in the corrected reference');
+  assert.ok(speaking.json.sections.slice(1).every(s=>s.payload.minutes>0),'SP2/SP3 reference timing must remain present');
   passed('writing and speaking guides are served (19 + 3 sections) with both languages on the checklist');
 
   /*
@@ -884,8 +889,33 @@ try{
     assert.equal(closed.status,200);
     const strict=await closed.json();
     assert.ok(Array.isArray(strict),'the task list must be a JSON array');
-    assert.equal(strict.length,0,'under an explicit approved-only policy and only unreviewed rows the list must be EMPTY, got '+strict.length);
-    passed('an explicit approved-only policy serves NOTHING: the policy is consulted, not hardcoded');
+    assert.equal(strict.length,6,'0049 owner-approved tasks remain available under approved-only policy');
+    assert.ok(strict.every(row=>row.review_status==='approved'),'approved-only output must never include unreviewed content');
+    // Append a synthetic unreviewed version; never rewrite an immutable approved content record.
+    sql(`INSERT INTO hatoove.content_version
+      SELECT (jsonb_populate_record(NULL::hatoove.content_version,to_jsonb(c) ||
+        jsonb_build_object('content_version_id',c.content_version_id||'-synthetic-negative',
+          'review_status','unreviewed','review_basis','none','review_blocked',false,
+          'review_explicit_negative',false,'source_path','synthetic-docker-negative'))).*
+      FROM hatoove.content_version c JOIN hatoove.task_version t USING(content_version_id)
+      ORDER BY t.task_id,t.version LIMIT 1;
+      INSERT INTO hatoove.content_rights
+      SELECT (jsonb_populate_record(NULL::hatoove.content_rights,to_jsonb(cr) ||
+        jsonb_build_object('content_version_id',cr.content_version_id||'-synthetic-negative'))).*
+      FROM hatoove.content_rights cr JOIN hatoove.task_version t USING(content_version_id)
+      ORDER BY t.task_id,t.version LIMIT 1;
+      INSERT INTO hatoove.task_version
+      SELECT (jsonb_populate_record(NULL::hatoove.task_version,to_jsonb(t) ||
+        jsonb_build_object('task_id',t.task_id||'-synthetic-negative',
+          'content_version_id',t.content_version_id||'-synthetic-negative'))).*
+      FROM hatoove.task_version t ORDER BY t.task_id,t.version LIMIT 1;`);
+    const preview=await request('GET','/api/v1/tasks?family=writing',undefined,cookie);
+    assert.equal(preview.json.length,7,'internal preview must expose the synthetic unreviewed fixture');
+    const filtered=await fetch(probeBase+'/api/v1/tasks?family=writing&preparationId='+preparationId,{headers:{cookie:probeCookie},signal:AbortSignal.timeout(10000)});
+    const rows=await filtered.json();
+    assert.equal(rows.length,6,'the unreviewed fixture must be withheld from the approved-only list');
+    assert.ok(rows.every(row=>row.review_status==='approved'));
+    passed('approved-only policy serves owner-approved content and withholds an appended unreviewed fixture version');
   } finally {
     removeProbe();
   }

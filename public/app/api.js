@@ -85,7 +85,7 @@ function invalidate(reason) {
   onSessionInvalid(reason);
   return refusal(reason === 'account_changed' ? 409 : 401, reason);
 }
-async function call(method, path, body, scoped = false, binary = false) {
+async function call(method, path, body, scoped = false, binary = false, bodyType = null) {
   const protectedRequest = path.startsWith('/api/v1/') || path === PATHS.signOut || path === PATHS.session;
   if (protectedRequest && stopped) {
     onSessionInvalid(stopped);
@@ -94,7 +94,7 @@ async function call(method, path, body, scoped = false, binary = false) {
   if (protectedRequest && path !== PATHS.session && !accountId) return refusal(428, 'account_context_required');
   const ticket = generation;
   const preparationTicket = preparationGeneration;
-  const headers = body === undefined ? {} : { 'content-type': 'application/json' };
+  const headers = body === undefined ? {} : { 'content-type': bodyType || 'application/json' };
   if (protectedRequest && accountId) headers['X-Hatoove-Account'] = accountId;
   let res;
   try {
@@ -103,7 +103,7 @@ async function call(method, path, body, scoped = false, binary = false) {
       credentials: 'same-origin',
       ...(binary ? { cache: 'no-store' } : {}),
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : bodyType ? body : JSON.stringify(body),
     });
   } catch {
     /*
@@ -451,8 +451,10 @@ return Object.freeze({
      *   * every call is `scoped` (`preparationId` attached), like its neighbours: there is no unscoped
      *     practice read.
      */
-    playback: (attemptId) => scopedCall('GET', PATHS.practiceAttempts + '/' + encodeURIComponent(attemptId) + '/playback'),
-    playbackEvent: (attemptId, payload) => scopedCall('POST', PATHS.practiceAttempts + '/' + encodeURIComponent(attemptId) + '/playback', payload),
+    // The attempt id carries the server-owned preparation binding. Preserve client generation fencing
+    // without adding a preparationId query/body field to the playback route's closed protocol.
+    playback: (attemptId) => call('GET', PATHS.practiceAttempts + '/' + encodeURIComponent(attemptId) + '/playback', undefined, true),
+    playbackEvent: (attemptId, payload) => call('POST', PATHS.practiceAttempts + '/' + encodeURIComponent(attemptId) + '/playback', payload, true),
     media: (attemptId, mediaId, version) => call('GET', PATHS.practiceAttempts + '/' + encodeURIComponent(attemptId)
       + '/media/' + encodeURIComponent(mediaId) + '/' + encodeURIComponent(version), undefined, true, true),
   }),
@@ -513,6 +515,11 @@ return Object.freeze({
   feedback: Object.freeze({
     create: (payload) => call('POST', PATHS.feedback, payload),
     list: () => call('GET', PATHS.feedback),
+    uploadScreenshot: (feedbackId, blob) => {
+      if (!UUID.test(feedbackId || '') || !(blob instanceof Blob) || !['image/webp', 'image/png'].includes(blob.type)
+        || !blob.size || blob.size > 1572864) return Promise.resolve(refusal(422, 'invalid_screenshot'));
+      return call('PUT', `${PATHS.feedback}/${encodeURIComponent(feedbackId)}/screenshot`, blob, false, false, blob.type);
+    },
     /** 204 when there is nothing to ask; `call` surfaces the status rather than inventing an empty round. */
     currentSurvey: () => call('GET', PATHS.surveyCurrent),
     submitSurvey: (roundId, payload) => call('POST', `${PATHS.surveyRound}/${encodeURIComponent(roundId)}`, payload),

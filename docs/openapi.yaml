@@ -609,6 +609,102 @@ paths:
         '401': { description: 'No verified session.' }
         '404': { description: 'Absent, or another account''s.' }
 
+  /api/v1/feedback:
+    get:
+      summary: List this learner's reports and survey responses
+      responses:
+        '200': { description: 'Owner-scoped feedback rows; operator notes and image bytes are excluded.' }
+        '401': { description: Session required }
+    post:
+      summary: Save a problem report before uploading an optional screenshot
+      description: Same-origin mutation with session-derived ownership. Stale context is dropped; unknown fields are refused.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [category, body, route]
+              properties:
+                category: { type: string, enum: [content_error, audio, translation, bug, idea, other] }
+                body: { type: string, minLength: 1, maxLength: 2000 }
+                route: { type: string, description: Closed learner-view identifier; other when context is removed }
+                interfaceLanguage: { type: string, enum: [de, en, uk, ar, tr] }
+                context:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    examId: { type: string, maxLength: 128 }
+                    setId: { type: string, maxLength: 128 }
+                    version: { type: string, maxLength: 32 }
+                    itemId: { type: string, maxLength: 64 }
+                    runId: { type: string, format: uuid }
+                    guideId: { type: string, maxLength: 128 }
+                    sectionId: { type: string, maxLength: 160 }
+      responses:
+        '201': { description: 'Saved report with feedback_id, status and created_at.' }
+        '401': { description: Session required }
+        '403': { description: Origin refused }
+        '413': { description: Ordinary JSON body exceeds 64 KiB }
+        '422': { description: Invalid report }
+        '429': { description: Report budget exhausted }
+  /api/v1/feedback/{feedbackId}/screenshot:
+    parameters:
+      - { name: feedbackId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      summary: Attach one immutable image to the learner's saved report
+      description: |
+        PNG or still WebP binary bytes, at most 1572864 bytes, width at most 1600 pixels.
+        Same-origin session and account fencing apply. Ownership comes from the report and session.
+        Image files are included in the owner's JSON export as explicitly encoded base64.
+        PNG raster/CRC and WebP container/frame structure are checked; WebP entropy is not decoded.
+      requestBody:
+        required: true
+        content:
+          image/png: { schema: { type: string, format: binary } }
+          image/webp: { schema: { type: string, format: binary } }
+      responses:
+        '204': { description: Attachment saved }
+        '401': { description: Session required }
+        '403': { description: Origin refused }
+        '404': { description: Report does not exist or belongs to another learner }
+        '409': { description: Attachment already exists or account changed }
+        '413': { description: Binary body exceeds 1.5 MiB }
+        '415': { description: Missing image, MIME mismatch or malformed container }
+        '422': { description: Image exceeds width limit }
+  /api/v1/survey/current:
+    get:
+      summary: Discover the open round offered to this eligible learner
+      responses:
+        '200': { description: 'round_id, questions, opens_at and closes_at; minimum account age and prior response/skip are checked.' }
+        '204': { description: No eligible unanswered round }
+        '401': { description: Session required }
+  /api/v1/survey/{roundId}:
+    parameters:
+      - { name: roundId, in: path, required: true, schema: { type: string } }
+    post:
+      summary: Answer or persistently skip one survey round
+      description: Closed answer keys and scale/text bounds follow the seeded question set. Exactly one of answers or skip is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                answers: { type: object, description: Frozen question ids mapped to bounded integers or text }
+                skip: { type: boolean, enum: [true] }
+                route: { type: string }
+                interfaceLanguage: { type: string, enum: [de, en, uk, ar, tr] }
+      responses:
+        '200': { description: Answer or skip stored for this owner }
+        '401': { description: Session required }
+        '403': { description: Origin refused }
+        '409': { description: Round closed or this owner already responded }
+        '422': { description: Invalid answers or unknown round }
+        '429': { description: Feedback budget exhausted }
   /api/v1/settings:
     get:
       tags: [settings]

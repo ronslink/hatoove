@@ -3,7 +3,13 @@ import { openSync, readSync, closeSync, fstatSync, readFileSync, constants } fro
 import { X509Certificate } from 'node:crypto';
 import { isIP } from 'node:net';
 
-const DEFAULT_MAX = Object.freeze({ auth: 4, learner: 4, worker: 4, deletion: 4, payments: 4, provisioner: 2, admin: 2, migration: 2 });
+/*
+ * `operator` (PILOT-FEEDBACK-01, FB-D) is one connection: the feedback CLI is a human's tool, run one-off, and
+ * the running server never opens this pool. It still needs an entry here because `poolConnectionOptions` refuses
+ * a role with no ceiling — which is how the third hard-coded role list in this slice announced itself, as
+ * `postgres_configuration_invalid` from a CLI that otherwise looked correct.
+ */
+const DEFAULT_MAX = Object.freeze({ auth: 4, learner: 4, worker: 4, deletion: 4, payments: 4, provisioner: 2, admin: 2, migration: 2, operator: 1 });
 const RUNTIME_ROLES = ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner'];
 const own = (value, key) => Object.hasOwn(value, key);
 const fail = (code = 'postgres_configuration_invalid') => { throw Object.assign(new Error(code), { code }); };
@@ -44,7 +50,7 @@ export function connectionSettings(env = {}) {
   const workers = setting(env, 'OWNAPI_PG_WORKER_REPLICAS', 1, 1, 10);
   const roleTotals = Object.freeze({ ...Object.fromEntries(RUNTIME_ROLES.map(role => [role, maxima[role] * apps])),
     learner: (maxima.learner + 1) * apps, worker: maxima.worker * apps + runnerMax * workers,
-    admin: maxima.admin, migration: maxima.migration });
+    admin: maxima.admin, migration: maxima.migration, operator: maxima.operator });
   if (Object.values(roleTotals).some(value => value > 10)) fail('postgres_role_budget_exceeded');
   const total = Object.values(roleTotals).reduce((sum, value) => sum + value, 0);
   const budget = setting(env, 'OWNAPI_PG_CONNECTION_BUDGET', null, 1, 1000);

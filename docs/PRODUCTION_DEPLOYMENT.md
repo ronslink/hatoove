@@ -20,19 +20,20 @@ The local database pins only what differs from PostgreSQL's defaults, through th
 
 Copy `deploy/production.env.example` to an operator-controlled location **outside** the checkout. It contains nonsecret settings and absolute secret-file paths only, never passwords. Populate every required value for the selected variant; leave the unused variant entries absent. Use an explicit `--env-file` and a clean command environment, rather than ambient shell overrides or automatic repository `.env` loading. Do not paste `docker compose config` output or secret files into tickets. The structural checker uses its own synthetic files and reports only fixed check labels.
 
-Generate eight independent passwords: bootstrap admin, migration, auth, learner, worker, deletion, payments and provisioner. Reusing the privileged password in several filenames destroys the intended separation. Password files are one nonempty UTF-8 value of 1–4096 bytes, optionally followed by one LF or CRLF. Never put passwords in shell arguments, tracked files, Compose environment values or screenshots. Existing roles are not automatically rotated: these inputs set passwords only for absent roles. Incorrect credentials for an existing role must fail; resolve an authorized rotation separately.
+Generate nine independent passwords: bootstrap admin, migration, auth, learner, worker, deletion, payments, provisioner and feedback operator. Reusing the privileged password in several filenames destroys the intended separation. Password files are one nonempty UTF-8 value of 1–4096 bytes, optionally followed by one LF or CRLF. Never put passwords in shell arguments, tracked files, Compose environment values or screenshots. Existing roles are not automatically rotated: these inputs set passwords only for absent roles. Incorrect credentials for an existing role must fail; resolve an authorized rotation separately.
 
 | Service | Mounted password files | Other protected material |
 | --- | --- | --- |
 | app | auth, learner, worker, deletion, payments, provisioner | Optional public managed CA directory |
 | worker | worker only | Optional public managed CA directory |
-| migrate | admin, migration and all six restricted runtime roles | Optional public managed CA directory |
+| migrate | admin, migration and all seven restricted roles | Optional public managed CA directory |
+| feedback-operator (one-off `operator` profile) | feedback operator only | Optional public managed CA directory |
 | local db | admin only | Retained database volume |
 | ingress | none | Retained certificate state, including private keys |
 
 The app currently constructs a restricted worker pool as well as the standalone worker; its one-connection allocation is included. The provisioner has its existing restricted privileges. This slice widens no role privileges.
 
-Fixed allocations are auth2, learner2, app-worker1, deletion1, payments1, provisioner1, runner1, admin1 and migration1. Add the dedicated readiness connection: **9 app + 1 runner + 2 concurrent deployment = 12** configured connections. Learner totals3 and worker totals2, below each existing role's limit10. Set `OWNAPI_PG_CONNECTION_BUDGET` to an explicitly allocated value of at least12, after reserving capacity for other applications and maintenance. A larger budget does not increase these fixed pools. Changing allocations or replicas requires a reviewed configuration change and repeated load evidence. Query capacity, queue wait and latency are not established by this arithmetic.
+Fixed allocations are auth2, learner2, app-worker1, deletion1, payments1, provisioner1, runner1, admin1, migration1 and operator1. Add the dedicated readiness connection: **9 app + 1 runner + 2 concurrent deployment + 1 one-off operator = 13** configured connections. Learner totals3 and worker totals2, below each existing role's limit10. Set `OWNAPI_PG_CONNECTION_BUDGET` to an explicitly allocated value of at least13, after reserving capacity for other applications and maintenance. A larger budget does not increase these fixed pools. Changing allocations or replicas requires a reviewed configuration change and repeated load evidence. Query capacity, queue wait and latency are not established by this arithmetic.
 
 Compose file-backed secrets retain host file ownership; `uid`, `gid` or `mode` declarations would not establish remapping. The repository image runs as the unprivileged `node` user. Before any start, inspect the selected image's numeric UID/GID and the Docker daemon's rootless/user-namespace mapping. On ordinary Linux without remapping this is commonly UID/GID1000, but **verify it; do not assume it**. Provision readable files using the correct mapped owner/group or narrowly scoped ACL and restrictive host directory permissions. App, worker and migrator all need their assigned files readable; the PostgreSQL entrypoint must also read its admin file. Do not solve permission failures by running the app as root or making passwords world-readable. Verify access with a synthetic secret first under a separately authorized execution. Keep certificate-volume ownership and off-host copies equally restricted.
 
@@ -40,7 +41,40 @@ Local variant: explicitly select an external named database volume. Initializati
 
 Managed variant: provide the actual certificate-matching DNS endpoint and port; `verify-full` is mandatory. Mount an operator-chosen directory containing **only public CA material** at `/run/hatoove/pg-trust`. It may be empty when Node's default trust roots suffice. Omit `OWNAPI_PG_TLS_CA_FILE` entirely in that case. If the provider needs a custom CA, set that variable in the explicit nonsecret environment file to `/run/hatoove/pg-trust/provider-ca.pem`. Do not use an IP, override hostname verification, enable insecure TLS or copy account credentials into this trust directory. The configured file is validated before connecting.
 
-The managed operator must confirm permission to create the seven scoped LOGIN roles, revoke PUBLIC CREATE/TEMP on the selected dedicated database, create the schema with the migration owner and run the existing migrations as that owner. A managed administrator is not assumed to be a PostgreSQL superuser. Never point bootstrap at a Paykey/Typeforge database or compensate for insufficient privileges using a privileged runtime connection. Direct managed endpoints are the initial contract; transaction-pooler compatibility is not assumed.
+The managed operator must confirm permission to create the eight scoped LOGIN roles, revoke PUBLIC CREATE/TEMP on the selected dedicated database, create the schema with the migration owner and run the existing migrations as that owner. A managed administrator is not assumed to be a PostgreSQL superuser. Never point bootstrap at a Paykey/Typeforge database or compensate for insufficient privileges using a privileged runtime connection. Direct managed endpoints are the initial contract; transaction-pooler compatibility is not assumed.
+
+### Pilot feedback Stage 2 release
+
+Stage 2 adds migration `0051-pilot-feedback-operator.sql`, screenshot upload and the voluntary survey UI.
+Before an authorized release, record the reviewed source commit, passing CI, immutable image digest and
+migration manifest. Supply `HATOVE_PG_OPERATOR_PASSWORD_SOURCE` outside the checkout and verify its file
+permissions; app and worker must never mount it. Confirm the connection allocation above and retain the
+existing production database volume. Starting Stage 2 or provisioning its new production role requires
+explicit production authorization.
+
+After the normal migration step succeeds, the same production Compose selection supports one-off commands:
+
+```sh
+docker compose --env-file /absolute/path/production.env -f compose.production.yaml -f compose.production.local-db.yaml --profile operator run --rm --no-deps feedback-operator node server/feedback.mjs list
+```
+
+For a managed database substitute its override; keep exactly one database variant. Seed a survey only with
+an approved round id/window and minimum account age using `node server/feedback.mjs seed --round <id>
+--opens <ISO timestamp> --closes <ISO timestamp> --min-age-days <days>`; no automatic seed
+or purge occurs at startup. `node server/feedback.mjs purge --older-than <days>` refuses retention below 30 days. CSV and screenshot
+outputs contain learner data and belong in restricted operator storage outside the checkout. Confirm a
+synthetic report/upload, owner export, survey answers/skip and account deletion on an isolated release fixture;
+then perform the separately approved signed-in production smoke check. Real-device acceptance remains open.
+
+Check the listening release head before the signed-in audio smoke test. The tracked v2 package contains
+playback rules absent from the original v1 fixture. If the current head is still v1, the reviewed import is:
+
+```sh
+docker compose --env-file /absolute/path/production.env -f compose.production.yaml -f compose.production.local-db.yaml run --rm --no-deps migrate node tools/import-exam-package.mjs content/exams/telc-deutsch-b1/listening-package.json
+```
+
+The command reads the recordings in the pinned image and imports the versioned package; it does not erase
+saved attempts. Do not infer the production head from a migration filename or from an unauthenticated probe.
 
 ### Listening media: a BUILD-TIME input, because production cannot mount it
 

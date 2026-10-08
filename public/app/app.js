@@ -953,6 +953,7 @@ function bindDashboardTitle(read, readLanguage = () => getLocale()) {
 }
 async function renderDashboard() {
   const ticket = contextTicket();
+  void refreshFeedbackSurvey();
   const pct = (value) => Math.round((value || 0) * 100) + '%';
   const [next, progress, savedRuns] = await Promise.all([api.practice.next(), api.practice.progress(), api.mock.list()]);
   if (!currentContext(ticket)) return;
@@ -1694,6 +1695,18 @@ function unmountModule() {
  * learner cannot reach their work.
  */
 let feedbackInstalled = false;
+let feedbackModule = null;
+subscribeLocale(() => { if (bootReady && currentView === 'heute') void refreshFeedbackSurvey(); });
+async function refreshFeedbackSurvey() {
+  if (!feedbackModule || !state.account || sessionProblem) return;
+  const owner = state.account.id;
+  const ticket = accountGeneration;
+  try {
+    await feedbackModule.renderSurvey({ api, uiText, esc, accountId: state.account.id,
+      isCurrent: () => !sessionProblem && currentView === 'heute'
+        && state.account?.id === owner && ticket === accountGeneration });
+  } catch { /* Feedback remains optional and cannot prevent practice. */ }
+}
 async function installFeedback() {
   if (feedbackInstalled) return;
   feedbackInstalled = true;
@@ -1711,8 +1724,11 @@ async function installFeedback() {
    */
   try {
     const module = await import('./feedback.js');
+    feedbackModule = module;
     loadModuleStylesheet('feedback.css');
-    module.installFeedbackEntryPoints({ api, uiText, esc, route: () => currentView });
+    module.installFeedbackEntryPoints({ api, uiText, esc, route: () => currentView,
+      routeLabel: () => uiText(VIEW_TITLES[currentView] || 'feedbackOpen') });
+    void refreshFeedbackSurvey();
   } catch (err) {
     feedbackInstalled = false;
   }

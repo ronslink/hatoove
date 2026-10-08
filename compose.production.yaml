@@ -33,12 +33,13 @@ x-database: &database
   OWNAPI_PG_POOL_PROVISIONER_MAX: "1"
   OWNAPI_PG_POOL_ADMIN_MAX: "1"
   OWNAPI_PG_POOL_MIGRATION_MAX: "1"
+  OWNAPI_PG_POOL_OPERATOR_MAX: "1"
   OWNAPI_PG_WORKER_RUNNER_POOL_MAX: "1"
   OWNAPI_PG_APP_REPLICAS: "1"
   OWNAPI_PG_WORKER_REPLICAS: "1"
-  # 9 app (including readiness) + 1 runner + 2 concurrent deployment = 12.
+  # 9 app (including readiness) + 1 runner + 2 deployment + 1 operator = 13.
   # Required allocation is an operator decision, not evidence of spare shared capacity.
-  OWNAPI_PG_CONNECTION_BUDGET: "${OWNAPI_PG_CONNECTION_BUDGET:?Allocate and verify a database connection budget of at least 12}"
+  OWNAPI_PG_CONNECTION_BUDGET: "${OWNAPI_PG_CONNECTION_BUDGET:?Allocate and verify a database connection budget of at least 13}"
   # CONTENT MODE IS AN OPERATOR SETTING, and it decides whether anything is served at all.
   # `public` requires APPROVED content ("public requires approved content even if legacy flags request
   # unreviewed", EXAM-S0-20261002-A:21). With it, every release in this installation is `internal` and
@@ -77,7 +78,24 @@ services:
       OWNAPI_PG_DELETION_PASSWORD_FILE: /run/secrets/pg_deletion
       OWNAPI_PG_PAYMENTS_PASSWORD_FILE: /run/secrets/pg_payments
       OWNAPI_PG_PROVISIONER_PASSWORD_FILE: /run/secrets/pg_provisioner
-    secrets: [pg_admin, pg_migration, pg_auth, pg_learner, pg_worker, pg_deletion, pg_payments, pg_provisioner]
+      OWNAPI_PG_OPERATOR_PASSWORD_FILE: /run/secrets/pg_operator
+    secrets: [pg_admin, pg_migration, pg_auth, pg_learner, pg_worker, pg_deletion, pg_payments, pg_provisioner, pg_operator]
+
+  feedback-operator:
+    <<: *runtime
+    profiles: [operator]
+    command: [node, server/feedback.mjs]
+    restart: "no"
+    mem_limit: 256m
+    memswap_limit: 256m
+    pids_limit: 64
+    environment:
+      <<: *database
+      OWNAPI_PG_OPERATOR_PASSWORD_FILE: /run/secrets/pg_operator
+    secrets: [pg_operator]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   app:
     <<: *runtime
@@ -178,6 +196,8 @@ volumes:
     name: "${HATOVE_CADDY_CONFIG_VOLUME:?Select the retained Caddy configuration volume}"
 
 secrets:
+  pg_operator:
+    file: "${HATOVE_PG_OPERATOR_PASSWORD_SOURCE:?Select the external feedback operator password file}"
   pg_admin:
     file: "${HATOVE_PG_ADMIN_PASSWORD_SOURCE:?Select the external admin password file}"
   pg_migration:

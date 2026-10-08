@@ -50,11 +50,12 @@ try {
   db=await createFixture({stopBefore:'0033-'});
   const originalRights=(await db.admin.query('SELECT * FROM content_rights ORDER BY content_version_id')).rows;
   const originalGrants=(await db.admin.query("SELECT relacl FROM pg_class WHERE oid='content_rights'::regclass")).rows;
-  await db.applyRemaining();
+  await db.applyRemaining({stopBefore:'0034-'});
   await check('forward rights fence preserves every existing decision and table grant',async()=>{
     assert.deepEqual((await db.admin.query('SELECT * FROM content_rights ORDER BY content_version_id')).rows,originalRights);
     assert.deepEqual((await db.admin.query("SELECT relacl FROM pg_class WHERE oid='content_rights'::regclass")).rows,originalGrants);
   });
+  await db.applyRemaining();
   const world=await createPostgresWorld({fixture:db}),port=world.store.port;
   await importDefaultPackage(db.migration);
   const original=await createCompleteFixture({mediaRoot,version:'v9300',releaseVersion:'v9300',blueprintVersion:'v9300'});

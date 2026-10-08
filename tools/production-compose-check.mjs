@@ -11,13 +11,14 @@ import { spawnSync } from 'node:child_process';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const files = ['compose.production.yaml', 'compose.production.local-db.yaml', 'compose.production.managed-db.yaml',
   'deploy/Caddyfile', 'deploy/production.env.example', 'docs/PRODUCTION_DEPLOYMENT.md'];
-const roles = ['admin', 'migration', 'auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner'];
+const roles = ['admin', 'migration', 'auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner', 'operator'];
 const runtimeRoles = ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner'];
 const fixed = {
   OWNAPI_PG_REQUIRE_PASSWORDS: '1', OWNAPI_PG_CONNECT_TIMEOUT_MS: '5000',
   OWNAPI_PG_POOL_AUTH_MAX: '2', OWNAPI_PG_POOL_LEARNER_MAX: '2', OWNAPI_PG_POOL_WORKER_MAX: '1',
   OWNAPI_PG_POOL_DELETION_MAX: '1', OWNAPI_PG_POOL_PAYMENTS_MAX: '1', OWNAPI_PG_POOL_PROVISIONER_MAX: '1',
   OWNAPI_PG_POOL_ADMIN_MAX: '1', OWNAPI_PG_POOL_MIGRATION_MAX: '1', OWNAPI_PG_WORKER_RUNNER_POOL_MAX: '1',
+  OWNAPI_PG_POOL_OPERATOR_MAX: '1',
   /*
    * PILOT CONTENT POLICY — changed deliberately on 4 October 2026, with Ron's explicit authority, NOT
    * relaxed to make a check pass. This entry pinned `public`, and "public requires approved content even if
@@ -66,7 +67,7 @@ export function assertCaddy(text) {
 export function assertProductionModel(model, variant) {
   requireThat(['local', 'managed'].includes(variant), 'invalid_variant');
   const services = model.services ?? {};
-  requireThat(equalSet(keys(services), ['migrate', 'app', 'worker', 'ingress', ...(variant === 'local' ? ['db'] : [])]), 'unexpected_service');
+  requireThat(equalSet(keys(services), ['migrate', 'app', 'worker', 'feedback-operator', 'ingress', ...(variant === 'local' ? ['db'] : [])]), 'unexpected_service');
   requireThat(equalSet(keys(model.secrets), roles.map(role => `pg_${role}`)), 'secret_inventory_changed');
   for (const role of roles) {
     const secret = model.secrets[`pg_${role}`];
@@ -84,19 +85,20 @@ export function assertProductionModel(model, variant) {
   }
   requireThat(services.app.image === services.worker.image && services.app.image === services.migrate.image, 'runtime_image_drift');
   const identityKeys = ['OWNAPI_PG_HOST','OWNAPI_PG_PORT','OWNAPI_PG_DATABASE','OWNAPI_PG_USER','OWNAPI_PG_SCHEMA','OWNAPI_PG_ROLE_PREFIX','OWNAPI_PG_CONNECTION_BUDGET'];
-  for (const name of ['migrate', 'app', 'worker']) {
+  for (const name of ['migrate', 'app', 'worker', 'feedback-operator']) {
     const service = services[name], env = service.environment;
     for (const key of identityKeys) requireThat(env[key] === services.migrate.environment[key], 'database_identity_drift');
     for (const [key, value] of Object.entries(fixed)) requireThat(env[key] === value, 'allocation_or_policy_changed');
-    requireThat(/^\d+$/.test(env.OWNAPI_PG_CONNECTION_BUDGET ?? '') && Number(env.OWNAPI_PG_CONNECTION_BUDGET) >= 12 && Number(env.OWNAPI_PG_CONNECTION_BUDGET) <= 1000, 'invalid_connection_budget');
+    requireThat(/^\d+$/.test(env.OWNAPI_PG_CONNECTION_BUDGET ?? '') && Number(env.OWNAPI_PG_CONNECTION_BUDGET) >= 13 && Number(env.OWNAPI_PG_CONNECTION_BUDGET) <= 1000, 'invalid_connection_budget');
     requireThat(env.OWNAPI_PG_DATABASE && env.OWNAPI_PG_USER && env.OWNAPI_PG_SCHEMA && env.OWNAPI_PG_ROLE_PREFIX, 'missing_database_identity');
     requireThat(service.read_only === true && service.init === true && equalSet(service.cap_drop ?? [], ['ALL']) && (service.security_opt ?? []).includes('no-new-privileges:true'), 'runtime_isolation_changed');
-    const expectedRoles = name === 'migrate' ? roles : name === 'app' ? runtimeRoles : ['worker'];
+    const expectedRoles = name === 'migrate' ? roles : name === 'app' ? runtimeRoles : name === 'feedback-operator' ? ['operator'] : ['worker'];
     requireThat(equalSet(sources(service), expectedRoles.map(role => `pg_${role}`)), 'credential_mount_scope_changed');
     requireThat(equalSet(keys(env).filter(key => /PASSWORD_FILE$/.test(key)), expectedRoles.map(passwordKey)), 'credential_environment_scope_changed');
     for (const role of expectedRoles) requireThat(env[passwordKey(role)] === `/run/secrets/pg_${role}`, 'credential_target_changed');
     for (const secret of service.secrets ?? []) requireThat(!secret.target || secret.target === secret.source || secret.target === `/run/secrets/${secret.source}`, 'secret_mount_target_changed');
-    requireThat(JSON.stringify(service.command) === JSON.stringify(['node', name === 'app' ? 'server.js' : name === 'worker' ? 'server/worker.mjs' : 'server/migrate.mjs']), 'runtime_command_changed');
+    requireThat(JSON.stringify(service.command) === JSON.stringify(['node', name === 'app' ? 'server.js' : name === 'worker' ? 'server/worker.mjs' : name === 'feedback-operator' ? 'server/feedback.mjs' : 'server/migrate.mjs']), 'runtime_command_changed');
+    if (name === 'feedback-operator') requireThat(equalSet(service.profiles ?? [], ['operator']) && service.restart === 'no', 'operator_lifecycle_changed');
     requireThat(equalSet(networkKeys(service), name === 'app' ? ['application', 'backend'] : ['backend']), 'runtime_network_changed');
     if (name !== 'migrate') requireThat(service.depends_on?.migrate?.condition === 'service_completed_successfully', 'migration_gate_missing');
     if (variant === 'local') {
@@ -205,7 +207,7 @@ function runComposeChecks() {
     const values = {
       HATOVE_APP_IMAGE:`synthetic.invalid/hatoove@sha256:${'a'.repeat(64)}`, HATOVE_CADDY_IMAGE:`caddy@sha256:${'b'.repeat(64)}`,
       HATOVE_POSTGRES_IMAGE:`postgres@sha256:${'c'.repeat(64)}`, OWNAPI_PG_DATABASE:'hatoove_synthetic_config', HATOVE_PG_ADMIN_USER:'synthetic_admin',
-      OWNAPI_PG_SCHEMA:'hatoove_fixture', OWNAPI_PG_ROLE_PREFIX:'hatoove_fixture', OWNAPI_PG_CONNECTION_BUDGET:'12',
+      OWNAPI_PG_SCHEMA:'hatoove_fixture', OWNAPI_PG_ROLE_PREFIX:'hatoove_fixture', OWNAPI_PG_CONNECTION_BUDGET:'13',
       HATOVE_CADDY_DATA_VOLUME:'hatoove-config-only-caddy-data', HATOVE_CADDY_CONFIG_VOLUME:'hatoove-config-only-caddy-config', HATOVE_PG_DATA_VOLUME:'hatoove-config-only-pg-data',
       HATOVE_MANAGED_PG_HOST:'synthetic-db.invalid', HATOVE_MANAGED_PG_PORT:'25060', HATOVE_PG_TRUST_DIR:path.join(scratch,'trust'),
     };
@@ -221,7 +223,7 @@ function runComposeChecks() {
       fs.writeFileSync(envFile,Object.entries(selected).map(([key,value])=>`${key}=${String(value).replaceAll('\\','/')}`).join('\n'));
       const args = ['compose','--project-name','hatoove-production-config-only','--project-directory',scratch,'--env-file',envFile,'-f',path.join(scratch,'compose.production.yaml')];
       for (const variant of variants) args.push('-f',path.join(scratch,`compose.production.${variant}-db.yaml`));
-      args.push('config','--format','json'); const result = execute(args);
+      args.push('--profile','operator','config','--format','json'); const result = execute(args);
       requireThat(!sentinels.some(value => result.stdout?.includes(value) || result.stderr?.includes(value)), 'secret_bytes_rendered');
       if (expectFailure) { requireThat(result.status !== 0, 'missing_required_input_accepted'); return null; }
       requireThat(!result.error && result.status === 0, 'compose_render_failed');

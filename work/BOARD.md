@@ -1,5 +1,7 @@
 # Hatoove work board
 
+**Current board reconciliation — 8 October 2026.** Issue [#155](https://github.com/ronslink/hatoove/issues/155), execution `PILOT-STABILIZE-20261008-A`, coordinator-owned, base `3dee6f4`, branch `codex/pilot-stabilize-20261008`, [PR #156](https://github.com/ronslink/hatoove/pull/156): **feature delivered and independently reviewed READY at `1940098`; CI fixture corrections working**. Baseline14/14, database11/11, Docker40/40 and focused real listening/feedback browser lifecycle pass. Required exact-head hosted CI and integration remain separate; production is still Stage 1. [Issue157](https://github.com/ronslink/hatoove/issues/157) queues the red legacy full-browser harness, unchanged by this PR, without an owner/execution lease. [Result and remaining gates](implementation/PILOT-STABILIZE-01.md). Existing human closures stand; physical devices and native review of new survey copy remain open.
+
 ## MIRROR-B1PREP-01 — round 1 integrated, round 2 delivered and in review — 5 October 2026, 16:05 UTC+2
 
 Contract `docs/contracts/MIRROR-B1PREP-01.md`, frozen at `072d29e`, amended six times as the work met reality (A1 pool figures; A2 `stringStatus` + stale≡absent; A3 optional `ctx.examLanguage`; A4 the slice-A review readings; A5 the run-history and D22 word-list readings; A6 slice-B data sourcing and the Hören entry point). All of it on local `main`; **nothing is pushed, no PR is open, nothing is deployed.**

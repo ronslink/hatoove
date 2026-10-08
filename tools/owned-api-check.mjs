@@ -855,7 +855,7 @@ async function world({ allowance } = {}) {
  *   the fixture's injectable policy (small numbers so a check need not wait out a real window);
  *   `isolateSignupBudget: false` exists only for the discrimination leg.
  */
-export async function persistentWorld({ allowance, limits = null, isolateSignupBudget = true } = {}) {
+export async function persistentWorld({ allowance, limits = null, isolateSignupBudget = true, accountDeletion = false } = {}) {
   const { provisionPersistent, closePersistent } = await import('../server/owned-postgres/provision.mjs');
   const { createPostgresWorld } = await import('../server/owned-postgres/fixture.mjs');
   const pools = await provisionPersistent();
@@ -866,6 +866,7 @@ export async function persistentWorld({ allowance, limits = null, isolateSignupB
     auth: pools.auth,
     worker: pools.worker,
     admin: pools.admin,
+    ...(accountDeletion ? { deletion: pools.deletion } : {}),
     close: async () => { await closePersistent(pools); },
   };
   const pg = await createPostgresWorld({ allowance, fixture, ...(limits ? { limits } : {}) });
@@ -1430,7 +1431,7 @@ check('the-catalogue-serves-the-telc-rubric-once-per-task', async () => {
 });
 
 /*
- * THE RUBRIC IS READABLE, AND ITS WORDING IS PROVISIONAL.
+ * THE RUBRIC IS READABLE, AND ITS REVIEW STATUS TRAVELS WITH ITS WORDING.
  *
  * A band on its own is not feedback a learner can act on: "B" means nothing without knowing what B is.
  * The descriptors that explain each band live in the RUBRIC — one source of truth, written independently
@@ -1439,7 +1440,7 @@ check('the-catalogue-serves-the-telc-rubric-once-per-task', async () => {
  *
  * Two properties beyond "the route answers":
  *   * the provisional status travels WITH the text, so the screen cannot present unreviewed wording as
- *     settled — E-01 (a qualified reviewer against telc's current model exam) is still open;
+ *     settled. Migration 0049 records Ron's owner approval; the memory catalogue retains its unreviewed fixture;
  *   * the RETIRED rubric is readable BY ITS EXACT VERSION and returns its own four criteria. That is the
  *     "never renormalise" rule again: an old attempt's feedback can still explain itself against the
  *     contract it was graded under.
@@ -1463,8 +1464,13 @@ check('the-rubric-is-readable-and-carries-its-own-provisional-status', async () 
     }
   }
   // THE STATUS TRAVELS WITH THE TEXT. A screen cannot label what it was not told.
-  assert.equal(rubric.review_status, 'unreviewed', 'the seeded status is unreviewed until E-01');
-  assert.equal(rubric.provisional, true, 'and the wording is marked provisional');
+  const expectedReview = BACKEND === 'memory' ? 'unreviewed' : 'approved';
+  assert.equal(rubric.review_status, expectedReview,
+    'the memory fixture is unreviewed; the migrated catalogue carries the explicit owner approval in 0049');
+  assert.equal(rubric.provisional, expectedReview !== 'approved',
+    'the provisional flag must agree with the exact version\'s review status');
+  if (BACKEND !== 'memory') assert.equal(rubric.review_basis, 'named_decision',
+    'the migrated approval must retain the owner decision rather than inventing native-review evidence');
 
   // The RETIRED contract, by its own version, unchanged and separate.
   const retired = await a.raw('GET', `/api/v1/rubrics/${FORMATIVE_WRITING_RUBRIC.rubricId}?version=${FORMATIVE_WRITING_RUBRIC.version}`);

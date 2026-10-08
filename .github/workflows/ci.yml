@@ -191,6 +191,13 @@ jobs:
         run: npm ci --prefix server/owned-postgres --ignore-scripts --no-audit --no-fund
       - name: PostgreSQL transport secrets and connection budgets without a service
         run: node tools/postgres-config-check.mjs
+      - name: Feedback capture vendor, image, CSV and transport contracts
+        run: |
+          node tools/vendor-integrity-check.mjs
+          node tools/pilot-feedback-csv-check.mjs
+          node tools/pilot-feedback-image-check.mjs
+          node tools/pilot-feedback-transport-check.mjs
+          node tools/pilot-feedback-client-check.mjs
       - name: Trusted public origin and secure session cookie lifecycle without a service
         run: node tools/session-cookie-check.mjs
       - name: Private invocation receipts and exact synthetic cost contracts
@@ -445,6 +452,20 @@ jobs:
       - name: Real stack - migrations, API, worker and account lifecycle
         timeout-minutes: 12
         run: node tools/docker-stack-check.mjs
+      - name: Feedback capture, listening, survey and retry lifecycle
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/pilot-feedback-browser-check.mjs --shots .qa/browser/pilot-feedback
+      - name: Retain synthetic feedback evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pilot-feedback-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .qa/browser/pilot-feedback/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
       - name: Rendered client and accessibility states at desktop and mobile
         timeout-minutes: 12
         env:

@@ -17,12 +17,13 @@
  *    the current page. Installing it on `boot()`'s success path is also what makes "on every signed-in view and
  *    on no public page" true — the public pages are separate documents that never load `app.js`.
  *
- * HONEST LIMIT, so a reviewer is not left to find it. The report carries `route` (the view the learner was on)
- * because the shell knows that for free. The richer context the contract describes — the open part or run, and
- * the question in view — is NOT captured yet: it needs the shell to expose the current item, which no view does
- * today. The server accepts an absent context and the report is unaffected, and its drop rule means a stale
- * value can never cost the learner their report. The context line still names the view, and × removes it.
+ * CONTEXT IS READ WITHOUT RE-RENDERING. A part exposes immutable exam/set ids; the visible item adds its id.
+ * Views without this metadata still report their route. The server drops stale context without losing a report.
+ * The context line names the view, and × removes both the route and captured ids from the request.
  */
+
+import { capturePreview } from './screenshot.js';
+export { renderSurvey } from './survey.js';
 
 const CATEGORY_KEYS = Object.freeze([
   ['content_error', 'feedbackCatContent'],
@@ -35,6 +36,24 @@ const CATEGORY_KEYS = Object.freeze([
 
 const BODY_MAX = 2000;
 const FOCUSABLE = 'button:not([disabled]), select, textarea, input, a[href]';
+/** Read immutable ids from the visible view without asking it to render or changing its state. */
+export function visibleFeedbackContext(doc = document) {
+  const node = [...doc.querySelectorAll('#main [data-feedback-context]')]
+    .find(n => n.getBoundingClientRect().height > 0);
+  if (!node) return {};
+  let context;
+  try { context = JSON.parse(node.dataset.feedbackContext); } catch { return {}; }
+  if (!context || typeof context !== 'object' || Array.isArray(context)) return {};
+  const result = {};
+  for (const key of ['examId','setId','version','runId','guideId','sectionId']) {
+    if (typeof context[key] === 'string') result[key] = context[key];
+  }
+  const item = [...node.querySelectorAll('[data-item-id]')].find(n => {
+    const box = n.getBoundingClientRect(); return box.height > 0 && box.bottom > 0 && box.top < doc.defaultView.innerHeight;
+  });
+  if (item) result.itemId = item.dataset.itemId;
+  return result;
+}
 
 /** The sheet's own element, built once. */
 function buildSheet({ uiText, esc }) {
@@ -55,6 +74,11 @@ function buildSheet({ uiText, esc }) {
     + `<textarea class="input" id="feedback-body" rows="5" maxlength="${BODY_MAX}" `
     + `placeholder="${esc(uiText('feedbackDescriptionHint'))}"></textarea></div>`
     + `<p class="feedback-context small muted" id="feedback-context"></p>`
+    + `<div id="feedback-screenshot" class="feedback-screenshot" hidden>`
+    + `<img id="feedback-preview" alt="${esc(uiText('feedbackScreenshotPreview'))}">`
+    + `<label><input id="feedback-attach" type="checkbox" checked> ${esc(uiText('feedbackAttachScreenshot'))}</label>`
+    + `<p class="small muted">${esc(uiText('feedbackScreenshotPrivacy'))}</p>`
+    + `<button type="button" class="btn btn-small" id="feedback-remove-screenshot">${esc(uiText('feedbackRemoveScreenshot'))}</button></div>`
     + `<p class="feedback-message" id="feedback-message" role="alert" hidden></p>`
     + `<div class="row feedback-actions"><button type="submit" class="btn btn-primary" id="feedback-send">`
     + `${esc(uiText('feedbackSend'))}</button>`
@@ -68,14 +92,27 @@ function buildSheet({ uiText, esc }) {
  * Returns `{ open, close, isOpen, unmount }` — deliberately small, because everything else the caller wants
  * (focus, the context line, the error text) is the sheet's business, not the shell's.
  */
-export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) {
+export function createFeedbackSheet({ api, uiText, esc, route, routeLabel = route, onSent = null, capture = capturePreview }) {
   let sheet = null;
   let invoker = null;
   let contextKept = true;
+  let attachment = null;
+  let savedReportId = null;
+  let sourceRoute = null;
+  let sourceLabel = null;
+  let sourceContext = {};
+  let opening = false;
+  let openGeneration = 0;
 
   function ensure() {
+    if (sheet && sheet.dataset.locale !== document.documentElement.lang) {
+      document.removeEventListener('keydown', onKeydown);
+      sheet.remove();
+      sheet = null;
+    }
     if (!sheet) {
       sheet = buildSheet({ uiText, esc });
+      sheet.dataset.locale = document.documentElement.lang;
       document.body.append(sheet);
       sheet.querySelector('#feedback-close').addEventListener('click', () => close());
       sheet.querySelector('#feedback-form').addEventListener('submit', onSubmit);
@@ -86,9 +123,17 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
        * click after sending. Mode is data on the button, not a listener that may or may not have fired.
        */
       sheet.querySelector('#feedback-send').addEventListener('click', (event) => {
-        if (sheet.querySelector('#feedback-send').dataset.mode !== 'close') return;
+        const mode = sheet.querySelector('#feedback-send').dataset.mode;
+        if (!mode) return;
         event.preventDefault();
-        close();
+        if (mode === 'retry-upload') void finishSavedReport();
+        else close();
+      });
+      sheet.querySelector('#feedback-remove-screenshot').addEventListener('click', () => {
+        attachment = null;
+        sheet.querySelector('#feedback-preview').removeAttribute('src');
+        sheet.querySelector('#feedback-screenshot').hidden = true;
+        if (savedReportId) void finishSavedReport();
       });
       sheet.addEventListener('mousedown', (event) => { if (event.target === sheet) close(); });
       document.addEventListener('keydown', onKeydown);
@@ -127,6 +172,14 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
     send.type = 'submit';
     delete send.dataset.mode;
     contextKept = true;
+    attachment = null;
+    savedReportId = null;
+    sheet.querySelector('#feedback-screenshot').hidden = true;
+    sheet.querySelector('#feedback-preview').removeAttribute('src');
+    form.querySelector('fieldset').disabled = false;
+    sheet.querySelector('#feedback-remove-screenshot').disabled = false;
+    sheet.querySelector('#feedback-attach').disabled = false;
+    sheet.querySelector('#feedback-body').disabled = false;
     renderContext();
   }
 
@@ -136,7 +189,7 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
    */
   function renderContext() {
     const node = sheet.querySelector('#feedback-context');
-    const view = route();
+    const view = sourceLabel || sourceRoute;
     if (!contextKept || !view) { node.hidden = true; node.textContent = ''; return; }
     node.hidden = false;
     node.innerHTML = `${esc(uiText('feedbackContext'))} <span class="feedback-context-value">${esc(view)}</span> `
@@ -156,6 +209,8 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
 
   async function onSubmit(event) {
     event.preventDefault();
+    const ticket = openGeneration;
+    if (savedReportId) return finishSavedReport();
     const message = sheet.querySelector('#feedback-message');
     const body = String(sheet.querySelector('#feedback-body').value || '').trim();
     const category = chosenCategory();
@@ -168,29 +223,28 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
     const send = sheet.querySelector('#feedback-send');
     send.disabled = true;
     message.hidden = true;
-    const answer = await api.feedback.create({
+    let answer;
+    try { answer = await api.feedback.create({
       /*
        * THE × MUST ACTUALLY REMOVE SOMETHING. `contextKept` was a display flag only: the × hid the context line
        * and the submit still sent `route()`, so a learner who removed the context still filed a report naming the
        * view they were on. Removing it now sends `other`, which is the honest answer — the report is filed, and
        * the server is not told which page it came from.
        */
-      category, body, route: (contextKept && route()) || 'other',
+      category, body, route: (contextKept && sourceRoute) || 'other',
+      context: contextKept ? sourceContext : {},
       /* The INTERFACE language, which only the browser knows (A8); the server validates and defaults it. */
       interfaceLanguage: document.documentElement.lang || 'de',
-    });
+    }); } catch { answer = { ok: false }; }
+    if (ticket !== openGeneration || !isOpen()) return;
     if (answer && answer.ok) {
+      savedReportId = answer.data?.feedback_id;
+      sheet.querySelector('fieldset').disabled = true;
+      sheet.querySelector('#feedback-body').disabled = true;
       // The Konto list is behind the sheet, so refresh it rather than making the learner reload the page to see
       // the report they just sent.
       if (typeof onSent === 'function') onSent();
-      message.hidden = false;
-      message.className = 'feedback-message feedback-thanks';
-      message.textContent = uiText('feedbackThanks');
-      send.textContent = uiText('feedbackClose');
-      send.disabled = false;
-      send.type = 'button';
-      send.dataset.mode = 'close';
-      return;
+      return finishSavedReport();
     }
     send.disabled = false;
     message.hidden = false;
@@ -198,12 +252,69 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
     message.focus?.();
   }
 
+  async function finishSavedReport() {
+    const ticket = openGeneration;
+    const send = sheet.querySelector('#feedback-send');
+    const message = sheet.querySelector('#feedback-message');
+    send.disabled = true;
+    let upload = null;
+    const remove = sheet.querySelector('#feedback-remove-screenshot');
+    const attach = sheet.querySelector('#feedback-attach');
+    remove.disabled = true;
+    attach.disabled = true;
+    if (attachment && sheet.querySelector('#feedback-attach').checked) {
+      try { upload = await api.feedback.uploadScreenshot(savedReportId, attachment.blob); }
+      catch { upload = { ok: false }; }
+    }
+    if (ticket !== openGeneration || !isOpen()) return;
+    message.hidden = false;
+    send.disabled = false;
+    send.type = 'button';
+    if (upload && !upload.ok && upload.error !== 'screenshot_exists') {
+      remove.disabled = false;
+      attach.disabled = false;
+      message.className = 'feedback-message';
+      message.textContent = uiText('feedbackScreenshotFailed');
+      send.textContent = uiText('feedbackRetryScreenshot');
+      send.dataset.mode = 'retry-upload';
+    } else {
+      attachment = null;
+      message.className = 'feedback-message feedback-thanks';
+      message.textContent = uiText('feedbackThanks');
+      send.textContent = uiText('feedbackClose');
+      send.dataset.mode = 'close';
+    }
+  }
+
   function isOpen() { return Boolean(sheet && !sheet.hidden); }
 
-  function open(opener) {
+  async function open(opener) {
+    if (opening || isOpen()) return;
+    opening = true;
+    const ticket = ++openGeneration;
     ensure();
     invoker = opener || document.activeElement;
+    sourceRoute = route();
+    sourceLabel = routeLabel();
+    sourceContext = visibleFeedbackContext();
+    const captureLocale = document.documentElement.lang;
     reset();
+    try { attachment = await capture(); } catch { attachment = null; }
+    if (ticket !== openGeneration) return;
+    if (captureLocale !== document.documentElement.lang || sourceRoute !== route()
+      || JSON.stringify(sourceContext) !== JSON.stringify(visibleFeedbackContext())) {
+      close();
+      return;
+    }
+    opening = false;
+    if (attachment) {
+      sheet.querySelector('#feedback-preview').src = attachment.previewUrl;
+      sheet.querySelector('#feedback-screenshot').hidden = false;
+    } else {
+      const message = sheet.querySelector('#feedback-message');
+      message.hidden = false;
+      message.textContent = uiText('feedbackCaptureFailed');
+    }
     sheet.hidden = false;
     document.documentElement.classList.add('feedback-open');
     const first = sheet.querySelector('input[name="feedback-category"]');
@@ -211,6 +322,8 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
   }
 
   function close() {
+    openGeneration++;
+    opening = false;
     if (!sheet) return;
     sheet.hidden = true;
     document.documentElement.classList.remove('feedback-open');
@@ -218,9 +331,13 @@ export function createFeedbackSheet({ api, uiText, esc, route, onSent = null }) 
        keyboard learner's place, and the contract asks for this explicitly. */
     if (invoker && typeof invoker.focus === 'function' && document.contains(invoker)) invoker.focus();
     invoker = null;
+    attachment = null;
+    sheet.querySelector('#feedback-preview').removeAttribute('src');
   }
 
   function unmount() {
+    openGeneration++;
+    opening = false;
     if (!sheet) return;
     document.removeEventListener('keydown', onKeydown);
     sheet.remove();
@@ -280,7 +397,7 @@ export function installFeedbackEntryPoints(ctx) {
   const sheet = createFeedbackSheet({ ...ctx, onSent: refresh });
   const wire = (id) => {
     const node = document.getElementById(id);
-    if (node) node.addEventListener('click', (event) => { event.preventDefault(); sheet.open(node); });
+    if (node) node.addEventListener('click', (event) => { event.preventDefault(); void sheet.open(node); });
     return Boolean(node);
   };
   const topBar = wire('feedback-open');

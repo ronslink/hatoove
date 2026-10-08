@@ -217,7 +217,7 @@ async function prepare(variant,nodeImage,pgImage,caddyImage) {
   const project='hatoove-hosting-'+stamp+'-'+variant,schema='ownapi_hosting_'+stamp.replaceAll('-','_')+'_'+variant;
   const scratch=fs.mkdtempSync(path.join(os.tmpdir(),project+'-')),source=path.join(scratch,'source');
   current={project,variant,scratch,source,schema,overlay:path.join(scratch,'fixture.yaml'),envFile:path.join(scratch,'inputs.env'),canCleanup:false,cleaning:false,
-    receipt:{project,variant,schema,roles:['migration','auth','learner','worker','deletion','payments','provisioner'].map(role=>schema+'_'+role),checks:[],resources:[],cleanupErrors:[],cleaned:false}};
+    receipt:{project,variant,schema,roles:['migration','auth','learner','worker','deletion','payments','provisioner','operator'].map(role=>schema+'_'+role),checks:[],resources:[],cleanupErrors:[],cleaned:false}};
   receipt.variants.push(current.receipt);
   stage='preflight_fixture_labels';
   for(const kind of ['container','network','volume','image'])assert.equal(listed(kind).length,0,'generated ownership label already exists');
@@ -236,7 +236,7 @@ async function prepare(variant,nodeImage,pgImage,caddyImage) {
   fs.writeFileSync(path.join(source,'Dockerfile'),dockerfile.replace('FROM node:22-bookworm','FROM '+nodeImage.digest)+'\n'+tools.map(name=>'COPY tools/'+name+'.mjs ./tools/'+name+'.mjs').join('\n')+'\n');
   stage='synthetic_secret_inputs';
   for(const name of ['secrets','certificates','trust','ingress-tls','postgres-tls'])fs.mkdirSync(path.join(scratch,name));
-  const roles=['admin','migration','auth','learner','worker','deletion','payments','provisioner'];
+  const roles=['admin','migration','auth','learner','worker','deletion','payments','provisioner','operator'];
   for(const role of roles)fs.writeFileSync(path.join(scratch,'secrets',role),randomBytes(32).toString('hex'),{mode:0o600});
   const webhookSecret='whsec_synthetic_'+randomBytes(24).toString('hex');
   fs.writeFileSync(path.join(scratch,'webhook-secret'),webhookSecret,{mode:0o600});
@@ -279,7 +279,7 @@ async function prepare(variant,nodeImage,pgImage,caddyImage) {
   }
   stage='compose_input_definition';
   const values={HATOVE_APP_IMAGE:'hatoove-fixture@'+current.appImage,HATOVE_CADDY_IMAGE:caddyImage.digest,HATOVE_POSTGRES_IMAGE:pgImage.digest,
-    OWNAPI_PG_DATABASE:'hatoove_hosting_synthetic',HATOVE_PG_ADMIN_USER:'postgres',OWNAPI_PG_SCHEMA:schema,OWNAPI_PG_ROLE_PREFIX:schema,OWNAPI_PG_CONNECTION_BUDGET:'12',
+    OWNAPI_PG_DATABASE:'hatoove_hosting_synthetic',HATOVE_PG_ADMIN_USER:'postgres',OWNAPI_PG_SCHEMA:schema,OWNAPI_PG_ROLE_PREFIX:schema,OWNAPI_PG_CONNECTION_BUDGET:'13',
     HATOVE_CADDY_DATA_VOLUME:volumes['caddy-data'],HATOVE_CADDY_CONFIG_VOLUME:volumes['caddy-config'],HATOVE_PG_DATA_VOLUME:volumes['pg-data']??'unused',
     HATOVE_MANAGED_PG_HOST:'tls-db.fixture.invalid',HATOVE_MANAGED_PG_PORT:'5432',HATOVE_PG_TRUST_DIR:path.join(scratch,'trust'),OWNAPI_PG_TLS_CA_FILE:variant==='managed'?'/run/hatoove/pg-trust/provider-ca.pem':undefined};
   for(const role of roles)values['HATOVE_PG_'+role.toUpperCase()+'_PASSWORD_SOURCE']=path.join(scratch,'secrets',role);

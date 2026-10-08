@@ -58,9 +58,34 @@ import { INTERFACE_LOCALES } from './library-translations.mjs';
 // PILOT-FEEDBACK-01 (FB-B): the closed vocabularies live in their own module so the API and the repository can
 // share them without a circular import, and so leg 1b can pin them against the migration and the shell.
 import { FEEDBACK_CATEGORIES, FEEDBACK_ROUTES } from './feedback-vocabulary.mjs';
+import { readImageHeader } from './image-header.mjs';
+import { SCREENSHOT_UPLOAD_PATH, isBinaryUploadPath } from './upload-path.mjs';
 
 export const CONTRACT_VERSION = '0.1.0';
 export const BODY_LIMIT_BYTES = 64 * 1024;
+/*
+ * PILOT-FEEDBACK-01 (FB-E, amendment A15) — the screenshot upload is the one route whose body is BINARY and the
+ * one route allowed more than 64 KB. Both facts are scoped to it deliberately:
+ *
+ *   * the limit is applied by PATH (`bodyLimitFor`), so no other route's request-size surface grows;
+ *   * the bytes are handed to the route raw, because `decodeBody` would decode them as UTF-8 and fault
+ *     `invalid_utf8` on perfectly good image data.
+ */
+export const SCREENSHOT_LIMIT_BYTES = 1536 * 1024;
+/** §2's ceiling: a wider capture is a client bug, and storing it would make every operator view slow. */
+export const SCREENSHOT_MAX_WIDTH = 1600;
+const SCREENSHOT_TYPES = Object.freeze(['image/png', 'image/webp']);
+
+/**
+ * The body limit for one request. A path-scoped exception, not a raised ceiling for everything.
+ *
+ * The path itself lives in `server/upload-path.mjs`, because `server.js` has to agree with this file about it:
+ * the server refuses a non-JSON body with a 415 before the owned API is reached, so the two definitions
+ * drifting would mean a route ready to accept an image the server never delivers.
+ */
+export function bodyLimitFor(method, rawPath) {
+  return isBinaryUploadPath(method, rawPath) ? SCREENSHOT_LIMIT_BYTES : BODY_LIMIT_BYTES;
+}
 export const TEXT_LIMIT = 12000;
 
 /** A contract failure: HTTP status plus a stable lowercase token. */
@@ -1521,6 +1546,24 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (typeof datastore.listFeedback !== 'function') fault(503, 'feedback_unavailable');
       return reply(200, { feedback: await datastore.listFeedback(owner) });
     }
+    /*
+     * PILOT-FEEDBACK-01 (FB-E). The upload arrives as raw bytes (A15) and every check happens HERE rather than
+     * being trusted from the request: the declared type must be one of the two §2 accepts, the magic bytes must
+     * AGREE with that declaration, and the image's own dimensions must be inside the ceiling. A client-supplied
+     * width is not a check — it is the value the client would like to be true.
+     */
+    if (method === 'PUT' && SCREENSHOT_UPLOAD_PATH.test(pathname)) {
+      if (typeof datastore.putFeedbackScreenshot !== 'function') fault(503, 'screenshots_unavailable');
+      const { bytes, declared } = body;
+      if (!SCREENSHOT_TYPES.includes(declared)) fault(415, 'image_required');
+      const header = readImageHeader(bytes, declared);
+      if (!header) fault(415, 'invalid_image');
+      if (header.width > SCREENSHOT_MAX_WIDTH) fault(422, 'image_too_wide');
+      await datastore.putFeedbackScreenshot(owner, pathname.split('/')[4], {
+        mimeType: header.mimeType, bytes, width: header.width, height: header.height,
+      });
+      return noContent();
+    }
     if (pathname === '/api/v1/survey/current' && method === 'GET') {
       if (query.size) fault(422, 'invalid_query');
       if (typeof datastore.currentSurveyRound !== 'function') fault(503, 'feedback_unavailable');
@@ -1674,6 +1717,20 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (mutation && request.originChecked !== true) fault(403, 'origin_rejected');
       if (!configured) fault(503, 'not_configured');
       const headers = lowerHeaders(request.headers);
+      /*
+       * ONE ROUTE'S BODY IS AN IMAGE (A15). It is reached only AFTER the origin and `configured` checks above, so
+       * the upload is origin-checked and fail-closed like every other mutation — unlike the webhook, which cannot
+       * carry an Origin and is therefore handled earlier. `decodeBody` is deliberately skipped here: it decodes
+       * UTF-8 and would fault `invalid_utf8` on image bytes that are perfectly valid.
+       */
+      if (method === 'PUT' && SCREENSHOT_UPLOAD_PATH.test(pathname)) {
+        const raw = request.body instanceof Uint8Array ? Buffer.from(request.body)
+          : Buffer.from(request.body ?? '', 'utf8');
+        if (!raw.length) fault(415, 'image_required');
+        if (raw.length > SCREENSHOT_LIMIT_BYTES) fault(413, 'body_too_large');
+        const declared = String(headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+        return await route(method, pathname, headers, { bytes: raw, declared }, query);
+      }
       let body = {};
       if (mutation) {
         if (!hasJsonContentType(headers)) fault(415, 'json_required');
@@ -1711,11 +1768,12 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
     let tooLarge = false;
     const method = String(req.method || 'GET').toUpperCase();
     if (method !== 'GET' && method !== 'HEAD') {
+      const limit = bodyLimitFor(method, req.url);
       const chunks = [];
       let bytes = 0;
       for await (const chunk of req) {
         bytes += chunk.length;
-        if (bytes > BODY_LIMIT_BYTES) { tooLarge = true; break; }
+        if (bytes > limit) { tooLarge = true; break; }
         chunks.push(chunk);
       }
       if (tooLarge) req.resume();

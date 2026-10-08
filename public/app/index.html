@@ -85,7 +85,7 @@
     <div class="side-foot">
       <span class="avatar" id="avatar" aria-hidden="true">–</span>
       <div>
-        <strong id="account-email" dir="ltr">–</strong>
+        <strong id="account-email" dir="ltr" data-feedback-private>–</strong>
         <span id="account-exam"><span data-i18n="shell.m053">Kein Prüfungsdatum</span></span>
       </div>
     </div>
@@ -132,11 +132,12 @@
         <div class="page-head">
           <div>
             <p class="kicker" id="dash-kicker"><span data-i18n="shell.m044">Willkommen</span></p>
-            <h1 id="greeting"><span data-i18n="shell.m315">Noch keine Antworten &mdash; fang mit einer kurzen Aufgabe an.</span></h1>
+            <h1 id="greeting" data-feedback-private><span data-i18n="shell.m315">Noch keine Antworten &mdash; fang mit einer kurzen Aufgabe an.</span></h1>
             <p id="countdown-note"><span data-i18n="shell.m316">Ihr Überblick. Alle Angaben kommen aus Ihrem Konto und aus Ihren eigenen Antworten, nicht aus einer Schätzung.</span></p>
           </div>
         </div>
 
+        <section id="feedback-survey" class="card stack" hidden></section>
         <div class="grid-dash">
           <div class="stack">
             <section class="card-peach hero-next" aria-labelledby="next-title">
@@ -426,7 +427,7 @@
           <div class="card">
             <div class="card-head"><h3><span data-i18n="shell.m306">Konto</span></h3></div>
             <div class="stack">
-              <div class="spread"><span class="muted" data-i18n="shell.email">E-Mail</span><strong id="account-email-2" dir="ltr">–</strong></div><div class="spread"><span><span data-i18n="shell.m368">Eine Kopie Ihrer Lerndaten</span></span><button type="button" class="btn" id="export-data"><span data-i18n="shell.m369">Daten exportieren</span></button></div><p class="small muted" id="export-state" role="status"></p>
+              <div class="spread"><span class="muted" data-i18n="shell.email">E-Mail</span><strong id="account-email-2" data-feedback-private dir="ltr">–</strong></div><div class="spread"><span><span data-i18n="shell.m368">Eine Kopie Ihrer Lerndaten</span></span><button type="button" class="btn" id="export-data"><span data-i18n="shell.m369">Daten exportieren</span></button></div><p class="small muted" id="export-state" role="status"></p>
               <div class="spread">
                 <span class="muted"><span data-i18n="shell.m370">Konto endgültig löschen</span></span>
                 <button type="button" class="btn btn-danger" id="delete-account"><span data-i18n="shell.m371">Konto löschen</span></button>
@@ -451,7 +452,7 @@
             <div class="card-head"><h3><span data-i18n="shell.m373">Sitzungen</span></h3></div>
             <div class="stack">
               <p class="small muted"><span data-i18n="shell.m374">Wo Sie angemeldet sind. Das Beenden einer Sitzung meldet nur dieses Gerät ab.</span></p>
-              <ul class="sessions" id="session-list"><li class="muted small"><span data-i18n="shell.m230">Wird geladen …</span></li></ul>
+              <ul class="sessions" id="session-list" data-feedback-private><li class="muted small"><span data-i18n="shell.m230">Wird geladen …</span></li></ul>
               <p class="small muted" id="session-state" role="status"></p>
             </div>
           </div>

@@ -1,4 +1,4 @@
-/** S6 restricted SQL, unique disposable schema and synthetic approval simulation only. */
+/** Historical S6 upgrade and restricted SQL, unique disposable schema and synthetic approval only. */
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {mkdtemp,rm} from 'node:fs/promises';
@@ -33,7 +33,11 @@ try {
  parent=await asOwner(async c=>{const attempt=(await insertAttempt(c)).rows[0];const id=randomUUID();await c.query(`INSERT INTO submissions(id,attempt_id,owner_id,event_id,draft_revision,text,task_version,rubric_version,explanation_language)
   VALUES($1,$2,$3,$4,1,'Synthetic saved parent text',$5,$6,'de')`,[id,attempt.id,owner,randomUUID(),pkg.internal.writingTasks[0].version,pkg.internal.writingTasks[0].rubricVersion]);return {attemptId:attempt.id,submissionId:id};});
  const before=(await db.admin.query('SELECT * FROM attempts ORDER BY id')).rows;
- await db.applyRemaining();
+ // Keep this pre-existing DTZ upgrade fixture before the owner approval of the single-exam pilot.
+ // Current-schema DTZ admission and parity use fresh fully migrated fixtures in their separate gates.
+ // 0049 cannot migrate a pre-populated second exam: its authority DISTINCT omits exam_id (tracked separately).
+ await db.applyRemaining({stopBefore:'0049-'});
+ assert.deepEqual(await db.applyRemaining({stopBefore:'0049-'}),[],'historical migration boundary is repeatable');
  await check('forward migration preserves existing attempts and preparation rows',async()=>{assert.deepEqual((await db.admin.query('SELECT * FROM attempts ORDER BY id')).rows,before);assert.equal((await world.store.port.readPreparation(owner,prep.id)).id,prep.id);});
  await check('complete approved synthetic DTZ passes the single SQL predicate with minimal metadata',async()=>{const e=await eligibility();assert.equal(e.eligible,true,JSON.stringify(e));assert.equal(e.complete_form_id,pkg.formId);assert.equal(e.complete_form_version,pkg.formVersion);assert.deepEqual(Object.keys(e),['eligible','exam_id','release_version','state','reason','complete_form_id','complete_form_version']);process.env.B1PREP_CONTENT_MODE='public';assert.equal((await readCurrentReleaseEligibility(db.learner,DTZ,{catalogue})).eligible,true);});
  await check('payment executes only minimal eligibility and has no new content reads or marking authority',async()=>{assert.equal((await eligibility(db.payments)).eligible,true);for(const table of ['objective_key','content_version','exam_form','exam_media','task_version'])await assert.rejects(db.payments.query('SELECT * FROM '+table),e=>e.code==='42501');await assert.rejects(db.payments.query("SELECT complete_dtz_form_eligible('x','v1','v1',ARRAY['generated'])"),e=>e.code==='42501');await assert.rejects(db.worker.query("SELECT * FROM current_release_eligibility('dtz-a2-b1',ARRAY['generated'])"),e=>e.code==='42501');});
@@ -124,7 +128,7 @@ try {
    await Promise.allSettled([admission?.query('ROLLBACK'),rights?.query('ROLLBACK')]);if(pending)await Promise.allSettled([pending]);admission?.release();rights?.release();
   }
  });
- console.log('S6 core PostgreSQL: '+passed+' passed (synthetic fixture only)');
+ console.log('S6 core PostgreSQL: '+passed+' passed (historical 0034–0048 upgrade; synthetic fixture only)');
 } finally {
  try{await db?.cleanup();}finally{try{if(mediaRoot&&path.dirname(mediaRoot)===tmpdir()&&path.basename(mediaRoot).startsWith('hatoove-s6-core-'))await rm(mediaRoot,{recursive:true,force:true});}finally{for(const[key,value]of Object.entries(saved))if(value===undefined)delete process.env[key];else process.env[key]=value;}}
 }
