@@ -65,6 +65,25 @@ pass all 19 actual TLS connection/refusal legs. Draft PR [#156](https://github.c
 is open; hosted offline/server/fixture and separate PostgreSQL checks passed on the initial candidate.
 R2 also found capture could finish after a language/navigation change. The opening now cancels if locale,
 route or visible immutable context changes during capture; delayed-capture browser legs verify the fence.
+R2 independently marked frozen `1940098` READY for integration with no remaining actionable feature findings.
+The next hosted failure was EXAM-S0's assumption that all shipped seeds remain unreviewed after 0049.
+Its exact-version test now primes other eligible sections through a synthetic learner's real answers;
+public-policy negatives use appended unreviewed set/task fixtures with approved positive controls. No
+approved source rows or review records are rewritten. All six EXAM-S0 PostgreSQL groups pass locally.
+The dependent production-runtime fixture now allocates13 and includes its distinct operator secret/receipt;
+its offline cleanup/refusal/probe self-check passes, without claiming a fresh complete production runtime run.
+
+The downstream durable sweep found eight more assumptions invalidated by the current approval/content
+state. All eight corrected gates pass on the isolated local fixture. Historical rights, review-consumer
+and explanation-ledger upgrades now observe their exact migration boundaries before later approvals;
+the occupied-pool rollback compares full existing ledger bytes. Sentence grammar content requires its
+recorded named approval while answer-key denial remains tested. Table classification includes the new
+operator in actual protected-table grant mutations (175 explanation mutations detected).
+S6 core explicitly covers the historical0034–0048 upgrade (16 groups); fresh fully migrated S6 parity,
+admission and payments gates passed separately. Applying0049 to a pre-populated second exam uncovered
+its authority DISTINCT missing exam identity, tracked in [issue158](https://github.com/ronslink/hatoove/issues/158).
+No historical migration or approved content was changed. This follow-up is unassigned and must be resolved
+before offering that multi-exam upgrade path. Hosted final-head CI and R3 supplement are still pending.
 
 ## Remaining acceptance
 

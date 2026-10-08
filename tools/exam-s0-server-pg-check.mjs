@@ -42,13 +42,16 @@ const PREVIEW = { B1PREP_CONTENT_MODE: 'internal-preview' };
 const PUBLIC = {};
 
 const SET = 'exam-s0.lv1.synthetic';
+const SET_UNREVIEWED = 'exam-s0.lv1.unreviewed';
 const KEYS = { v1: { 1: 'a', 2: 'b' }, v2: { 1: 'c', 2: 'b' } };
 const TASK_GATED = 'exam-s0.writing.unreviewed-rubric';
 const TASK_OPEN = 'exam-s0.writing.approved-rubric';
+const TASK_UNREVIEWED = 'exam-s0.writing.unreviewed-task';
 const RUBRIC_UNREVIEWED = 'exam-s0.rubric.unreviewed';
 const RUBRIC_APPROVED = 'exam-s0.rubric.approved';
 const BIND_GATED = { taskId: TASK_GATED, taskVersion: 'v1', rubricId: RUBRIC_UNREVIEWED, rubricVersion: 'v1' };
 const BIND_OPEN = { taskId: TASK_OPEN, taskVersion: 'v1', rubricId: RUBRIC_APPROVED, rubricVersion: 'v1' };
+const BIND_UNREVIEWED = { ...BIND_OPEN, taskId: TASK_UNREVIEWED };
 
 let db, world, observer;
 const sql = (text, params) => db.admin.query(text, params);
@@ -65,14 +68,14 @@ async function contentRow(id, kind, family, review, payload) {
 }
 
 async function seedSynthetic() {
-  for (const version of ['v1', 'v2']) {
-    const id = `${SET}@${version}`;
-    await contentRow(id, 'task', 'lv', 'approved', { version, title: `synthetic ${version}`, items: [], answers: KEYS[version] });
+  for (const [setId, version, review] of [[SET, 'v1', 'approved'], [SET, 'v2', 'approved'], [SET_UNREVIEWED, 'v1', 'unreviewed']]) {
+    const id = `${setId}@${version}`;
+    await contentRow(id, 'task', 'lv', review, { version, title: `synthetic ${version}`, items: [], answers: KEYS[version] });
     await sql(`INSERT INTO objective_set(set_id, version, exam_id, family, section, part, title, payload, item_count, media_required, content_version_id)
                VALUES($1, $2, 'telc-deutsch-b1', 'LV1', 'LV', 1, $3, $4::jsonb, 2, false, $5)`,
-    [SET, version, `EXAM-S0 synthetic ${version}`, JSON.stringify({ title: `synthetic ${version}`, items: [] }), id]);
+    [setId, version, `EXAM-S0 synthetic ${version}`, JSON.stringify({ title: `synthetic ${version}`, items: [] }), id]);
     await sql(`INSERT INTO objective_key(set_id, version, answers, explanations) VALUES($1, $2, $3::jsonb, '{}'::jsonb)`,
-      [SET, version, JSON.stringify(KEYS[version])]);
+      [setId, version, JSON.stringify(KEYS[version])]);
   }
   for (const [rubricId, review] of [[RUBRIC_UNREVIEWED, 'unreviewed'], [RUBRIC_APPROVED, 'approved']]) {
     await contentRow(`${rubricId}@v1`, 'rubric', 'writing', review, { criteria: TELC_B1_WRITING_RUBRIC.criteria, maxTotal: 45 });
@@ -80,8 +83,8 @@ async function seedSynthetic() {
                VALUES($1, 'v1', 'writing', $2::jsonb, 45, $3, 'telc-deutsch-b1')`,
     [rubricId, JSON.stringify(TELC_B1_WRITING_RUBRIC.criteria), `${rubricId}@v1`]);
   }
-  for (const [taskId, rubricId] of [[TASK_GATED, RUBRIC_UNREVIEWED], [TASK_OPEN, RUBRIC_APPROVED]]) {
-    await contentRow(`${taskId}@v1`, 'task', 'writing', 'approved', {
+  for (const [taskId, rubricId, review] of [[TASK_GATED, RUBRIC_UNREVIEWED, 'approved'], [TASK_OPEN, RUBRIC_APPROVED, 'approved'], [TASK_UNREVIEWED, RUBRIC_APPROVED, 'unreviewed']]) {
+    await contentRow(`${taskId}@v1`, 'task', 'writing', review, {
       register: 'du', topic: 'EXAM-S0 synthetisch', situation: 'Synthetische Situation.', adressat: 'Synthetisch (du)',
       leitpunkte: ['Punkt eins.', 'Punkt zwei.'], rubricId, rubricVersion: 'v1',
     });
@@ -178,6 +181,19 @@ check('1. exact objective versions: own payloads, omission 422, unknown pair 404
 check('2. recommendation "seen" is per (set, version); the section aggregate stays factual', async () => {
   mode(PUBLIC); // only the synthetic APPROVED sets are servable, so the choice is deterministic
   const a = await learner('seen');
+  // 0049 approves other sections too. Prime those with this synthetic learner's factual answers so
+  // recommendation stays in LV; no approved content or serving policy is changed to isolate the test.
+  const others = (await sql(`SELECT DISTINCT ON (s.section) s.set_id, s.version, k.answers
+    FROM objective_set s JOIN objective_key k USING(set_id, version)
+    JOIN reviewed_content_version c ON c.content_version_id=s.content_version_id
+    WHERE s.exam_id='telc-deutsch-b1' AND s.section<>'LV' AND s.media_required=false
+      AND c.review_status='approved' ORDER BY s.section,s.part,s.set_id,s.version`)).rows;
+  for (const row of others) {
+    const [itemId, value] = Object.entries(row.answers)[0];
+    const primed = await call('POST', `/api/v1/objective-sets/${row.set_id}/answers`,
+      {cookie:a.cookie,body:{preparationId:a.prep,version:row.version,itemId,answer:value}});
+    assert.equal(primed.status,201,JSON.stringify(primed.json));
+  }
   const first = await call('GET', scoped(a, '/api/v1/practice/next'), { cookie: a.cookie });
   assert.equal(first.status, 200, JSON.stringify(first.json));
   assert.equal(first.json.set.set_id, SET, `public mode offers only approved content, got ${JSON.stringify(first.json.set)}`);
@@ -268,15 +284,16 @@ check('4. public cannot be widened by the legacy flag; an unknown mode serves no
       `${path}: public serves approved content only`);
   }
   const sets = (await call('GET', scoped(d, '/api/v1/objective-sets'), { cookie: d.cookie })).json.map((s) => `${s.set_id}@${s.version}`);
-  assert.deepEqual(sets, [`${SET}@v1`, `${SET}@v2`], 'the approved synthetic sets remain the positive control');
+  assert.deepEqual(sets.filter(id => id.startsWith(`${SET}@`)), [`${SET}@v1`, `${SET}@v2`], 'the approved synthetic sets remain the positive control');
+  assert.ok(!sets.includes(`${SET_UNREVIEWED}@v1`), 'an appended unreviewed version is withheld');
   const tasks = (await call('GET', scoped(d, '/api/v1/tasks'), { cookie: d.cookie })).json.map((t) => t.task_id);
-  assert.deepEqual(tasks, [TASK_OPEN], 'a task whose rubric is unreviewed is not offered');
-  const seeded = 'telc-deutsch-b1.lv1.01';
+  assert.deepEqual(tasks.filter(id => id.startsWith('exam-s0.')), [TASK_OPEN], 'a task whose rubric is unreviewed is not offered');
+  const seeded = SET_UNREVIEWED;
   assert.equal((await call('GET', scoped(d, `/api/v1/objective-sets/${seeded}?version=v1`), { cookie: d.cookie })).status, 404);
   assert.equal((await call('POST', `/api/v1/objective-sets/${seeded}/answers`,
     { cookie: d.cookie, body: { preparationId: d.prep, version: 'v1', itemId: '1', answer: 'a' } })).status, 404);
-  const created = await call('POST', '/api/v1/attempts', { cookie: d.cookie, body: { preparationId: d.prep } });
-  assert.deepEqual([created.status, created.json.error], [422, 'task_not_servable'], 'the unreviewed default task is not usable');
+  const created = await call('POST', '/api/v1/attempts', { cookie: d.cookie, body: { preparationId: d.prep, ...BIND_UNREVIEWED } });
+  assert.deepEqual([created.status, created.json.error], [422, 'task_not_servable'], 'the appended unreviewed task is refused despite its approved rubric');
 
   mode({ B1PREP_CONTENT_MODE: 'publik' });
   assert.deepEqual((await call('GET', scoped(d, '/api/v1/objective-sets'), { cookie: d.cookie })).json, [], 'unknown mode: no sets');
@@ -287,7 +304,7 @@ check('4. public cannot be widened by the legacy flag; an unknown mode serves no
   mode(PREVIEW);
   assert.equal((await call('GET', scoped(d, `/api/v1/objective-sets/${seeded}?version=v1`), { cookie: d.cookie })).status, 200,
     'preview control: the unreviewed seed is servable when explicitly opted into');
-  return 'public+legacy flag: approved rows only, seeded set/answer 404, default task 422; unknown mode empty; preview control 200';
+  return 'public+legacy flag: approved rows only, appended unreviewed set/answer 404 and task 422; unknown mode empty; preview control 200';
 });
 
 check('5. approved task with an unreviewed rubric: public mutations refused, history text retained and active content withheld', async () => {

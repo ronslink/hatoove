@@ -189,10 +189,10 @@ export async function createFixture({ stopBefore = null, ...overrides } = {}) {
       await pools.migration.query(render(await readFile(new URL(file, migrationDir), 'utf8')));
     }
     if (!pending.length) await importDefaultPackage(pools.migration);
-    /** Apply the migrations `stopBefore` held back, each in its own transaction as the migration role. */
-    const applyRemaining = async () => {
+    /** Observe a historical upgrade before later approvals; default applies every held-back migration. */
+    const applyRemaining = async ({stopBefore: nextBoundary} = {}) => {
       const applied = [];
-      while (pending.length) {
+      while (pending.length && (!nextBoundary || pending[0] < nextBoundary)) {
         const file = pending.shift();
         const client = await pools.migration.connect();
         try {
@@ -207,7 +207,7 @@ export async function createFixture({ stopBefore = null, ...overrides } = {}) {
           client.release();
         }
       }
-      await importDefaultPackage(pools.migration);
+      if (!pending.length) await importDefaultPackage(pools.migration);
       return applied;
     };
 

@@ -157,7 +157,9 @@ if (pg) {
     const all = expect(await call('GET', scoped('/api/v1/objective-sets?family=SB1')));
     const entry = all.find((row) => row.set_id === setId);
     assert.ok(entry); assert.equal(entry.item_count, 12);
-    assert.equal(entry.review_status, 'unreviewed'); assert.equal(entry.rights_status, 'generated');
+    assert.equal(entry.review_status, 'approved'); assert.equal(entry.rights_status, 'generated');
+    const review = (await world.fixture.admin.query('SELECT review_basis,decision_ids FROM reviewed_content_version WHERE content_version_id=$1', [setId + '@v1'])).rows[0];
+    assert.equal(review.review_basis, 'named_decision'); assert.ok(review.decision_ids.length > 0);
     const detail = expect(await call('GET', scoped(`/api/v1/objective-sets/${setId}?version=v1`)));
     assert.equal(detail.payload.practice_kind, 'grammar-drill');
     assert.match(detail.payload.instruction, /kein telc-Prüfungssatz/u);
