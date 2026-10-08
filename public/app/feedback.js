@@ -297,9 +297,15 @@ export function createFeedbackSheet({ api, uiText, esc, route, routeLabel = rout
     sourceRoute = route();
     sourceLabel = routeLabel();
     sourceContext = visibleFeedbackContext();
+    const captureLocale = document.documentElement.lang;
     reset();
     try { attachment = await capture(); } catch { attachment = null; }
     if (ticket !== openGeneration) return;
+    if (captureLocale !== document.documentElement.lang || sourceRoute !== route()
+      || JSON.stringify(sourceContext) !== JSON.stringify(visibleFeedbackContext())) {
+      close();
+      return;
+    }
     opening = false;
     if (attachment) {
       sheet.querySelector('#feedback-preview').src = attachment.previewUrl;

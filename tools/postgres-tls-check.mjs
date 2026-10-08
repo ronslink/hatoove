@@ -57,7 +57,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const id = `hatoove-pg-tls-${Date.now()}-${randomUUID().slice(0, 8)}`;
 const label = `org.hatoove.tls-fixture=${id}`;
 const database = 'hatoove_tls_fixture';
-const roles = ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner', 'migration'];
+const roles = ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner', 'migration', 'operator'];
 const dbName = `${id}-db`;
 const certName = `${id}-cert`;
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), `${id}-`));

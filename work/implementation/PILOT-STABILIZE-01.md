@@ -47,9 +47,24 @@ checks and full Docker acceptance 40/40 pass. The focused rendered fixture prove
 audio advances through capture/save/upload, unchanged live private values/audio element, returned focus,
 attachment export, Later/skip/all five survey answers, upload retry without a duplicate report and timeout cleanup.
 Evidence is local-only under `.qa/pilot-stabilize-20261008/`; it contains synthetic accounts, not learner records.
-Real-HTTP binary/ordinary-method boundary and visible-Konto masking checks also pass. The older scheduled app suite
-had stale retired-route/German-only assertions; their maintained-contract rerun is pending.
+Real-HTTP binary/ordinary-method boundary and visible-Konto masking checks also pass. The older full
+`app-browser-check.mjs` remains red: its baseline assumes retired navigation ids, German-only interface,
+the former Üben catalogue and hidden legacy library hosts. The initial run fails before these changes;
+the exploratory update reached additional stale S0/S1/RUX helper assertions. That broad rewrite is outside
+this bounded feedback candidate, so the old harness files are preserved unchanged and no green result is claimed.
+AGENTS explicitly treats this harness as a separate Docker/browser acceptance check, not a PR CI gate.
+The focused new browser check covers the changed Stage 2 journeys and real HTTP runtime boundaries.
 The original RC was independently rejected under R1; a final frozen review is still required.
+
+R2 on frozen `27d1369` found optional survey text incorrectly required. The correction omits blank `next`;
+an actual browser ratings-only round now persists successfully. R2 also requested contract alignment for
+the conservative draft-masking decision; the contract now explicitly excludes drafts/quoted writing.
+Session lists and checkout identity/balance details are masked as well. The first hosted durable CI job
+exposed an omitted synthetic operator password in the TLS fixture; its eight scoped-role identities now
+pass all 19 actual TLS connection/refusal legs. Draft PR [#156](https://github.com/ronslink/hatoove/pull/156)
+is open; hosted offline/server/fixture and separate PostgreSQL checks passed on the initial candidate.
+R2 also found capture could finish after a language/navigation change. The opening now cancels if locale,
+route or visible immutable context changes during capture; delayed-capture browser legs verify the fence.
 
 ## Remaining acceptance
 

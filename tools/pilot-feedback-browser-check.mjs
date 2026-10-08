@@ -170,6 +170,17 @@ try {
   await cdp.waitFor("!document.querySelector('#feedback-survey form')");
   assert.equal(query("SELECT count(*) FROM hatoove.pilot_feedback WHERE kind='survey' AND survey_answers->>'next'='Synthetic survey answer'"),'1');
   pass('all five answers persist through the actual survey form');
+  query(`UPDATE hatoove.survey_round SET closes_at=now()-interval '1 second' WHERE round_id='${round}-answers';
+    SELECT hatoove.operator_seed_survey_round('${round}-scales',now()-interval '1 hour',now()+interval '1 day',
+      (SELECT questions FROM hatoove.survey_round WHERE round_id='${round}-answers'),7);`);
+  await cdp.send('Page.navigate',{url:base+'/app/?feedbackFixture=scales-only#/heute'});
+  await cdp.waitFor("document.querySelector('#feedback-survey form')");
+  await cdp.evaluate(`const form=document.querySelector('#feedback-survey form');
+    for(const name of ['ease','useful','explanations','recommend'])form.querySelector('[name="'+name+'"]').checked=true;
+    form.querySelector('button[type="submit"]').click();`);
+  await cdp.waitFor("!document.querySelector('#feedback-survey form')");
+  assert.equal(query("SELECT count(*) FROM hatoove.pilot_feedback WHERE survey_round='"+round+"-scales' AND NOT (survey_answers ? 'next')"),'1');
+  pass('rating-only survey submission preserves optional free text');
   const boundaries=await cdp.evaluate(`return (async()=>{
     const {api}=await import('/app/api.js');const session=await api.session();
     const owner=session.data.user.id, headers={'X-Hatoove-Account':owner,'Content-Type':'image/png'};
@@ -192,6 +203,15 @@ try {
   })()`);
   assert.deepEqual(accountMask,{leak:false,unchanged:true,marked:true});
   pass('visible Konto email is masked in the snapshot while its live markup stays intact');
+  const privateDetails=await cdp.evaluate(`return (async()=>{
+    const main=document.getElementById('main'),rows=document.createElement('div');
+    rows.innerHTML='<p class="checkout-order-reference">SYNTHETIC-ORDER-PRIVATE</p><dl class="checkout-balance"><dd>SYNTHETIC-BALANCE-PRIVATE</dd></dl>';
+    main.prepend(rows);const {snapshotForCapture}=await import('/app/screenshot.js');const s=snapshotForCapture(main);
+    const leak=/SYNTHETIC-(ORDER|BALANCE)-PRIVATE/.test(s.node.textContent);s.remove();rows.remove();
+    return {leak,sessionsMarked:document.getElementById('session-list').hasAttribute('data-feedback-private')};
+  })()`);
+  assert.deepEqual(privateDetails,{leak:false,sessionsMarked:true});
+  pass('session lists and checkout identity/balance details are excluded from capture');
   // A new synthetic DOM isolates component failure cases after the actual listening journey.
   const tree=await cdp.send('Page.getFrameTree');
   await cdp.send('Page.setDocumentContent',{frameId:tree.frameTree.frame.id,html:'<!doctype html><html lang="de"><head><link rel="stylesheet" href="/app/feedback.css"></head><body><header class="topbar"></header><main id="main"><button id="invoker">Report</button><input id="secret" type="password" value="SYNTHETIC-PRIVATE"></main></body></html>'});
@@ -216,11 +236,18 @@ try {
       capture:async()=>{throw Error('synthetic capture failure');},api:{feedback:{create:async()=>({ok:true,data:{feedback_id:'11111111-2222-4333-8444-555555555555'}})}}});
     await fallback.open();const usable=!document.querySelector('.feedback-scrim').hidden && document.querySelector('#feedback-screenshot').hidden;fallback.unmount();
     const timeout=await capturePage({timeoutMs:25,library:{toCanvas:()=>new Promise(()=>{})}});
-    return {creates,uploads,retry,done,reset,usable,timeout:timeout===null,secret:document.getElementById('secret').value,
+    let finishCapture,view='heute';
+    const stale=createFeedbackSheet({route:()=>view,uiText:k=>shellMessages.de[k],esc:s=>String(s),api:{},
+      capture:()=>new Promise(resolve=>{finishCapture=resolve;})});
+    const openingLocale=stale.open();document.documentElement.lang='ar';finishCapture(null);await openingLocale;
+    const staleLocale=!stale.isOpen();document.documentElement.lang='de';
+    const openingRoute=stale.open();view='lesen';finishCapture(null);await openingRoute;
+    const staleRoute=!stale.isOpen();stale.unmount();
+    return {creates,uploads,retry,done,reset,usable,staleLocale,staleRoute,timeout:timeout===null,secret:document.getElementById('secret').value,
       leftovers:document.querySelectorAll('[data-feedback-capture]').length};
   })()`);
-  assert.deepEqual(lifecycle,{creates:1,uploads:2,retry:'retry-upload',done:'close',reset:'submit',usable:true,timeout:true,secret:'SYNTHETIC-PRIVATE',leftovers:0});
-  pass('upload retry saves one report, reopen resets controls, capture failure/timeout preserve a usable form and live input');
+  assert.deepEqual(lifecycle,{creates:1,uploads:2,retry:'retry-upload',done:'close',reset:'submit',usable:true,staleLocale:true,staleRoute:true,timeout:true,secret:'SYNTHETIC-PRIVATE',leftovers:0});
+  pass('upload retry saves one report, reopen resets controls, stale capture locale/route cancels, failure/timeout preserve live input');
   console.log('Screenshots: '+shots);
 } finally {
   if(cdp) cdp.ws.close();

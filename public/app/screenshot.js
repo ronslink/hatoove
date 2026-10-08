@@ -4,7 +4,7 @@ const MAX_WIDTH = 1280;
 const MAX_BYTES = 1572864;
 const TIMEOUT_MS = 3000;
 const MASK_COLOUR = '#9ca3af';
-const PRIVATE = '[data-feedback-private], textarea, input:not([type=radio]):not([type=checkbox]):not([type=range]):not([type=button]):not([type=submit]), .archived-writing, .feedback-item-body, blockquote.evidence';
+const PRIVATE = '[data-feedback-private], textarea, input:not([type=radio]):not([type=checkbox]):not([type=range]):not([type=button]):not([type=submit]), .archived-writing, .feedback-item-body, blockquote.evidence, .checkout-order-reference, .checkout-balance';
 let libraryPromise = null;
 
 function loadCaptureLibrary(doc) {

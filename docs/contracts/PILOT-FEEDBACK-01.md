@@ -216,10 +216,12 @@ lesson from the 5 Oct incident: **no `listening.flush()` and no re-render of the
   `Content-Security-Policy` in the tracked tree and `deploy/Caddyfile` deliberately imposes none. So there is
   nothing to add; the reviewer's job is to re-verify that claim and to record it, and the vendored-library rule
   (no CDN, licence + pinned SHA-256) still stands so no third-party origin is introduced.
-- **Masking:** elements marked `data-feedback-private` are drawn as grey blocks; mark the account e-mail and name
-  in Konto, session lists, and any payment/order details; password fields are masked by type anyway. **Writing
-  drafts are not masked** (they are often the subject of the report) — the learner sees them in the preview and
-  may untick. Account e-mail in the top bar must be masked before Stage 2 ships.
+- **Masking (coordinator privacy decision, 8 October):** elements marked `data-feedback-private` are drawn as
+  grey blocks, including account identity, session lists and payment/order details. All private text inputs,
+  writing drafts, submitted writing and quoted learner evidence are masked in the sanitized clone before
+  rendering. This supersedes the earlier draft-inclusion exception: a report may describe a writing problem
+  without automatically attaching its text. The learner still sees the preview and may untick/remove it.
+  Capture must not change the live page or audio. Account e-mail in Konto and the header must not leak.
 - **Failure:** if capture fails or exceeds 3 s, the sheet opens with no thumbnail and the note
   "Kein Bildschirmfoto möglich"; the report still works.
 - **Performance:** capture runs once per click, asynchronously, must not block input beyond a frame budget, and

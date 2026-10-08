@@ -588,11 +588,6 @@ async function main() {
 
     // L7 — the app boots: Heute is the first view, and it is filled from the server.
     mark = cdp.events.length;
-    await cdp.evaluate(`return (async()=>{
-      const {api}=await import('/app/api.js');await api.session();const saved=await api.settings.read();
-      const result=await api.settings.write(saved.data.revision,{language:'de'});
-      if(!result.ok)throw Error('Could not pin the synthetic account locale');return true;
-    })()`);
     await nav(cdp, `${base}/app/`);
     await softWait(cdp, "document.querySelector('#view-heute') && !document.querySelector('#view-heute').hidden", 15000, 'Heute view');
     await cdp.waitFor("!document.querySelector('#next-title').innerText.includes('Wird geladen')", 12000, 'the next-task card').catch(() => {});
@@ -797,7 +792,7 @@ async function main() {
         const cs = getComputedStyle(el);
         return { decoration: cs.textDecorationLine, tag: el.tagName.toLowerCase(), height: Math.round(el.getBoundingClientRect().height) };
       };
-      return { lang: read('#header-language'), gear: read('.icon-btn') };
+      return { lang: read('#lang-btn'), gear: read('.icon-btn') };
     `);
     record('L17d the topbar controls are not underlined like links',
       Boolean(controls.lang) && controls.lang.decoration === 'none' && Boolean(controls.gear) && controls.gear.decoration === 'none',
@@ -952,16 +947,15 @@ async function main() {
     /* --------------------------------------------------------- other views  */
 
     const viewChecks = [
-      ['wortschatz', '#/wortschatz', '#vocab-host', '10-wortschatz'],
-      ['nachschlagen', '#/nachschlagen', '#library-host', '11-nachschlagen'],
-      ['verlauf', '#/verlauf', '#view-verlauf', '12-verlauf'],
+      ['woerterbuch', '#/woerterbuch', '#dict-results', '10-woerterbuch'],
+      ['nachschlagen', '#/nachschlagen', '#guide-index', '11-nachschlagen'],
+      ['fortschritt', '#/fortschritt', '#view-fortschritt', '12-fortschritt'],
       ['einstellungen', '#/einstellungen', '#settings-form', '13-einstellungen'],
     ];
     for (const [view, hash, selector, name] of viewChecks) {
-      await nav(cdp, `${base}/app/${hash}`);
+      await clickSel(cdp, `[data-view="${view}"]`);
       await softWait(cdp, `location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '${hash.slice(1)}'`, 8000, hash);
       await softWait(cdp, `!document.querySelector('${selector}').innerText.includes('Wird geladen')`, 10000, selector);
-      await cdp.waitFor(`(() => {const box=document.querySelector('${selector}');return box && box.getBoundingClientRect().height>40 && box.innerText.trim().length>20;})()`, 12000);
       const state = await cdp.evaluate(`
         const view = document.getElementById('view-${view}');
         const box = document.querySelector('${selector}');
@@ -982,18 +976,21 @@ async function main() {
      */
     await clickSel(cdp, '[data-view="nachschlagen"]');
     await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/nachschlagen'", 8000, 'Nachschlagen');
-    await cdp.waitFor("document.querySelector('#library-host [data-library-open]')", 12000);
+    await softWait(cdp, "document.querySelector('#guide-index button[data-guide]')", 12000, 'the guide index');
     const guidesBefore = await cdp.evaluate(`
-      const host = document.getElementById('library-host');
-      return {bodyHidden: !host.querySelector('[data-library-section]'), bodyHeight: 0,
-        indexHidden:false,indexHeight:host.getBoundingClientRect().height};
+      const body = document.getElementById('guide-body');
+      const index = document.getElementById('guide-index');
+      const h = (el) => Math.round(el.getBoundingClientRect().height);
+      return { bodyHidden: body.hidden, bodyHeight: h(body), indexHidden: index.hidden, indexHeight: h(index) };
     `);
-    await clickSel(cdp, '#library-host [data-library-open]');
-    await cdp.waitFor("document.querySelector('#library-host [data-library-section]')", 12000);
+    await clickSel(cdp, '#guide-index button[data-guide]');
+    await softWait(cdp, "document.querySelector('#guide-body .card h3') && !document.querySelector('#guide-body').innerText.includes('Wird geladen')", 12000, 'the guide document');
     const guidesAfter = await cdp.evaluate(`
-      const host=document.getElementById('library-host'), hub=host.querySelector('[data-library-open]');
-      return {bodyHeight:host.getBoundingClientRect().height,indexHidden:!hub,indexHeight:hub?hub.getBoundingClientRect().height:0,
-        sections:host.querySelectorAll('[data-library-section]').length,back:!!host.querySelector('[data-library-hub]')};
+      const body = document.getElementById('guide-body');
+      const index = document.getElementById('guide-index');
+      const h = (el) => Math.round(el.getBoundingClientRect().height);
+      return { bodyHidden: body.hidden, bodyHeight: h(body), indexHidden: index.hidden, indexHeight: h(index),
+        sections: body.querySelectorAll('.card').length, back: Boolean(document.getElementById('guide-back')) };
     `);
     await shot(cdp, '11b-guide-open-desktop-light');
     record('L20b one guide opens at a time: the body is hidden until it has something to show',
@@ -1003,11 +1000,11 @@ async function main() {
     record('L20c opening a guide hides the index (the design\'s one-document view)',
       guidesAfter.indexHidden === true && guidesAfter.indexHeight === 0,
       `index hidden=${guidesAfter.indexHidden} height=${guidesAfter.indexHeight}`);
-    await clickSel(cdp, '#library-host [data-library-hub]');
+    await clickSel(cdp, '#guide-back');
     await sleep(300);
     const guidesBack = await cdp.evaluate(`
-      const host=document.getElementById('library-host');
-      return {body:host.querySelectorAll('[data-library-section]').length,index:host.querySelector('[data-library-open]')?.getBoundingClientRect().height||0};
+      const h = (id) => Math.round(document.getElementById(id).getBoundingClientRect().height);
+      return { body: h('guide-body'), index: h('guide-index') };
     `);
     record('L20d Zurück brings the index back and removes the document',
       guidesBack.index > 0 && guidesBack.body === 0, JSON.stringify(guidesBack));
@@ -1018,21 +1015,21 @@ async function main() {
      * catalogue was the place where one still reached the screen after the skill views were fixed.
      */
     await nav(cdp, `${base}/app/#/ueben`);
-    await cdp.waitFor("document.querySelector('#drill-host [data-drill-item]')", 12000);
+    await softWait(cdp, "document.querySelector('#task-list') && !document.querySelector('#task-list').innerText.includes('Wird geladen')", 12000, 'the Üben catalogue');
     await sleep(300);
     const ueben = await cdp.evaluate(`
-      const box = document.getElementById('drill-host');
+      const box = document.getElementById('task-list');
       return {
         shown: !document.getElementById('view-ueben').hidden,
-        cards: box.querySelectorAll('[data-drill-item]').length,
+        cards: box.querySelectorAll('.card').length,
         headings: [...box.querySelectorAll('h3')].map((h) => h.innerText.trim()).slice(0, 10),
         full: box.innerText.trim(),
         recommendation: (document.getElementById('practice-next')?.innerText || '').replace(/\\\\s+/g, ' ').trim().slice(0, 140),
       };
     `);
     await shot(cdp, '13b-ueben-desktop-light');
-    record('L20h Üben renders its current one-item practice disclosure, from the server',
-      ueben.shown && ueben.cards === 1 && ueben.full.length > 40,
+    record('L20h Üben renders the whole catalogue, from the server',
+      ueben.shown && ueben.cards >= 2 && ueben.full.length > 40,
       `${ueben.cards} cards; recommendation "${ueben.recommendation}"; headings ${JSON.stringify(ueben.headings.slice(0, 4))}`);
     record('L20i no catalogue entry is titled with a seed placeholder',
       !ueben.headings.some((t) => /^(LV|SB|HV)\d+\s+\d+$/.test(t)) && !/^(LV|SB|HV)\d+\s+\d+$/.test(ueben.full),
@@ -1459,7 +1456,7 @@ async function main() {
         bands: body ? [...body.querySelectorAll('.rubric-bands > li')].length : 0,
         // Read the status from the FULL text and log an excerpt: truncating first made the status line fall
         // outside the captured slice, so the leg failed on its own logging rather than on the screen.
-        status: body?.querySelector('[data-writing-rubric-review]')?.textContent.trim() || null,
+        status: (full.match(/Prüfstatus:\\s*(\\S+)/) || [])[1] || null,
         provisional: /vorläufig/i.test(full) && /nicht die offizielle Formulierung/i.test(full),
         text: full.replace(/\\s+/g, ' ').trim().slice(0, 200),
       };
@@ -1476,7 +1473,7 @@ async function main() {
       rubricPanel.present && rubricPanel.rows === 3 && rubricPanel.bands === 12,
       `${rubricPanel.rows} criterion row(s), ${rubricPanel.bands} band explanation(s); panel "${rubricPanel.text.slice(0, 90)}"`);
     record('W12b the wording is labelled provisional and not the provider\'s own',
-      rubricPanel.provisional && rubricPanel.status === 'Fachlich freigegeben',
+      rubricPanel.provisional && rubricPanel.status === 'unreviewed',
       `provisional note present=${rubricPanel.provisional}; review status "${rubricPanel.status}"`);
 
     /*
@@ -1591,8 +1588,10 @@ async function main() {
      *
      * (1) `provider-config-browser-check` asserted "the Settings view offers no provider field". The
      *     property survives the SPA; the vehicle is the shell's own settings screen.
-     * (2) The former German-only-menu assertion is superseded by PILOT-I18N-INTERFACE.
-     *     Navigation must translate after a real language change and Arabic must set RTL.
+     * (2) `account-ui-browser-check` asserted "the explanation-language setting does not translate the
+     *     German menu". Same property, new screen — and it is asserted where it can actually break: the
+     *     nav labels are read before and after a real change through the real form, and the shell must
+     *     stay LTR even when Arabic is chosen.
      */
     await clickSel(cdp, '[data-view="einstellungen"]');
     await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/einstellungen'", 8000, 'Einstellungen');
@@ -1626,7 +1625,7 @@ async function main() {
       return true;
     `);
     await clickSel(cdp, '#save-settings');
-    await softWait(cdp, "document.getElementById('settings-state').textContent.trim() && !document.getElementById('save-settings').disabled", 10000, 'the settings save');
+    await softWait(cdp, "document.getElementById('settings-state').innerText.includes('Gespeichert')", 10000, 'the settings save');
     await sleep(400);
     const afterLanguage = await cdp.evaluate(`
       const sel = document.getElementById('language');
@@ -1642,16 +1641,16 @@ async function main() {
       };
     `);
     await shot(cdp, '20-einstellungen-arabic-desktop-light');
-    record('L32 choosing Arabic translates the interface and sets RTL',
-      afterLanguage.saved === 'ar' && JSON.stringify(afterLanguage.nav) !== JSON.stringify(navBefore)
-        && afterLanguage.bodyDir === 'rtl' && afterLanguage.htmlDir === 'rtl'
+    record('L32 choosing Arabic changes the EXPLANATION language and leaves the German menu alone',
+      afterLanguage.saved === 'ar' && JSON.stringify(afterLanguage.nav) === JSON.stringify(navBefore)
+        && afterLanguage.bodyDir === 'ltr' && afterLanguage.htmlDir === null
         && afterLanguage.optionLang === 'ar' && afterLanguage.optionDir === 'rtl'
         // ...and the topbar says so, without waiting for a navigation: the label is the learner's only
         // confirmation that the change took effect. It did NOT update, which this leg caught.
-        && afterLanguage.langLabel.length > 0,
+        && afterLanguage.langLabel.includes('العربية'),
       `saved=${afterLanguage.saved}; nav identical=${JSON.stringify(afterLanguage.nav) === JSON.stringify(navBefore)}; `
         + `body direction=${afterLanguage.bodyDir}; html dir=${afterLanguage.htmlDir}; ar option lang/dir=${afterLanguage.optionLang}/${afterLanguage.optionDir}; lang-label="${afterLanguage.langLabel}"`);
-    // Restore German for the remaining dark-mode and mobile evidence.
+    // Put it back, so the dark-mode and mobile legs below see the default German explanation language.
     await cdp.evaluate(`
       const sel = document.getElementById('language');
       sel.value = 'de';
@@ -2127,13 +2126,13 @@ async function main() {
       `body ${themeState.bodyBg} (luminance ${themeState.bodyLuminance.toFixed(3)}), --ink ${themeState.ink}`);
     const darkViews = [
       ['lesen', '#/lesen', '#view-lesen', '19-lesen-desktop-dark'],
-      ['wortschatz', '#/wortschatz', '#vocab-host', '20-wortschatz-desktop-dark'],
-      ['nachschlagen', '#/nachschlagen', '#library-host', '21-nachschlagen-desktop-dark'],
+      ['woerterbuch', '#/woerterbuch', '#dict-results', '20-woerterbuch-desktop-dark'],
+      ['nachschlagen', '#/nachschlagen', '#guide-index', '21-nachschlagen-desktop-dark'],
       ['fehler', '#/fehler', '#view-fehler', '22-fehler-desktop-dark'],
-      ['verlauf', '#/verlauf', '#view-verlauf', '23-verlauf-desktop-dark'],
+      ['fortschritt', '#/fortschritt', '#view-fortschritt', '23-fortschritt-desktop-dark'],
     ];
     for (const [view, hash, selector, name] of darkViews) {
-      await nav(cdp, `${base}/app/${hash}`);
+      await clickSel(cdp, `[data-view="${view}"]`);
       await softWait(cdp, `location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '${hash.slice(1)}'`, 8000, hash);
       await softWait(cdp, `document.querySelector('${selector}')`, 10000, selector);
       await sleep(500);

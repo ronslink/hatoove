@@ -34,7 +34,7 @@ export async function renderSurvey({ api, uiText, esc, accountId, isCurrent = ()
     + '<form class="stack">' + QUESTIONS.map(([id, label, min, max]) =>
       min === undefined
         ? '<label>' + esc(uiText(label)) + '<textarea class="input" name="' + id
-          + '" maxlength="1000" rows="3" required data-feedback-private></textarea></label>'
+          + '" maxlength="1000" rows="3" data-feedback-private></textarea></label>'
         : '<fieldset><legend>' + esc(uiText(label)) + '</legend><div class="row">'
           + Array.from({ length: max - min + 1 }, (_, i) => '<label><input type="radio" name="'
             + id + '" value="' + (min + i) + '" required> ' + (min + i) + '</label>').join('')
@@ -54,10 +54,10 @@ export async function renderSurvey({ api, uiText, esc, accountId, isCurrent = ()
     const answers = {};
     if (!skip) for (const [id, , min] of QUESTIONS) {
       const value = new FormData(form).get(id);
-      answers[id] = min === undefined ? String(value || '').trim() : Number(value);
-    }
-    if (!skip && !answers.next) {
-      message.hidden = false; message.textContent = uiText('feedbackSurveyIncomplete'); return;
+      if (min === undefined) {
+        const text = String(value || '').trim();
+        if (text) answers[id] = text;
+      } else answers[id] = Number(value);
     }
     busy = true;
     form.querySelectorAll('button').forEach(b => { b.disabled = true; });
