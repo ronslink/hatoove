@@ -1,5 +1,7 @@
 # Hatoove work board
 
+**Current board reconciliation — 8 October 2026.** Issue [#155](https://github.com/ronslink/hatoove/issues/155), execution `PILOT-STABILIZE-20261008-A`, coordinator-owned, base `3dee6f4`, branch `codex/pilot-stabilize-20261008`: **working**. Checkout reconciliation complete; feedback Stage 1 deployment at `3dee6f4` is recorded, Stage 2 remains unmerged/undeployed. Focused offline/PostgreSQL gates pass; full rendered evidence and final non-author review are in progress. Review R1 rejected the preserved RC. [Result and remaining gates](implementation/PILOT-STABILIZE-01.md). Existing human review closures are retained; physical-device acceptance is still open.
+
 ## MIRROR-B1PREP-01 — round 1 integrated, round 2 delivered and in review — 5 October 2026, 16:05 UTC+2
 
 Contract `docs/contracts/MIRROR-B1PREP-01.md`, frozen at `072d29e`, amended six times as the work met reality (A1 pool figures; A2 `stringStatus` + stale≡absent; A3 optional `ctx.examLanguage`; A4 the slice-A review readings; A5 the run-history and D22 word-list readings; A6 slice-B data sourcing and the Hören entry point). All of it on local `main`; **nothing is pushed, no PR is open, nothing is deployed.**

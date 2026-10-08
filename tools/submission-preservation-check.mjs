@@ -299,6 +299,7 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
      * this one was red on the pull request — which is the argument for the pull request running the full set.
      */
     ['pilot_feedback', 1],
+    ['pilot_feedback_screenshot', 1],
   ]);
   assert.equal(statements.length, [...queryClasses.values()].reduce((sum, count) => sum + count, 0),
     'no unclassified direct query may enter the owned export');
@@ -343,6 +344,7 @@ check('postgres-adapter-keeps-the-submit-lock-order-and-exports-tombstones', asy
      * the ORDER of the declarations, not just the set, so a new query belongs at its real position.
      */
     ['feedback', 'pilot_feedback', 'owner_id'],
+    ['feedback_screenshots', 'pilot_feedback_screenshot', 'owner_id'],
   ];
   const queries = [...exported.matchAll(/const\s+(\w+)\s*=\s*\(await client\.query\(\s*(['"`])([\s\S]*?)\2\s*,\s*(\[[^\]]*\])\s*\)\)\.rows/g)];
   assert.equal(statements.length, inventory.length, 'every direct export query is accounted for');

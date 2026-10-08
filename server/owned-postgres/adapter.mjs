@@ -1538,8 +1538,13 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
                   guide_id, section_id, run_id, interface_language, app_version, survey_round,
                   survey_answers, status, created_at, handled_at
              FROM pilot_feedback WHERE owner_id = $1 ORDER BY created_at, feedback_id`, [owner])).rows;
+        // The JSON export carries the learner's own image files with an explicit binary encoding.
+        const feedback_screenshots = (await client.query(
+          `SELECT feedback_id, mime_type, bytes, width, height, sha256, created_at
+             FROM pilot_feedback_screenshot WHERE owner_id = $1 ORDER BY created_at, feedback_id`, [owner])).rows
+          .map(({ bytes, ...row }) => ({ ...row, encoding: 'base64', bytes: bytes.toString('base64') }));
         return { provider_attempts, preparations, balances, attempts, submissions, results, objective_evidence, mock_runs, mock_writing, mock_run_time_groups, listening_playback, payment_orders, payment_events, payment_grants, payment_checkout_events,
-          feedback,
+          feedback, feedback_screenshots,
           writing_explanation_representations,writing_explanation_heads,shared_explanation_representations };
       }, true);
     },

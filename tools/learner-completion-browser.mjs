@@ -28,7 +28,7 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     const assessed = history.find(a => a.status === 'assessed');
     if (!assessed) throw new Error('precondition: no assessed writing from the main journey');
     const original = (await request('/api/v1/submissions/' + assessed.submission_id)).data;
-    await clickSel(cdp, '.side [data-view="fortschritt"]');
+    await nav(cdp, `${base}/app/#/prep/${preparationId}/verlauf`);
     await cdp.waitFor("document.querySelectorAll('#history-list [data-attempt]').length > 0", 12000);
     const count = await cdp.evaluate("return document.querySelectorAll('#history-list [data-attempt]').length");
     record('C1 a fresh browser rediscovers all saved writing through history', count === history.length && count > 0, `${count} UI rows, ${history.length} server rows`);
@@ -64,7 +64,7 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     const unchanged = (await request('/api/v1/submissions/' + assessed.submission_id)).data;
     record('C4 immediate navigation saves the revision without changing the original', draft.text === revisedText && unchanged.submission.text === inherited && revision.task_version === assessed.task_version);
 
-    await clickSel(cdp, '.side [data-view="fortschritt"]');
+    await nav(cdp, `${base}/app/#/prep/${preparationId}/verlauf`);
     await cdp.waitFor(`document.querySelector('[data-attempt="${revision.id}"]')`, 12000);
     await clickSel(cdp, `[data-attempt="${revision.id}"]`);
     await cdp.waitFor("document.querySelector('#writing-text')", 12000);

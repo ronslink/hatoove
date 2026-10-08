@@ -18,6 +18,12 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readPublicOriginConfig } from './server/public-origin.mjs';
+/*
+ * PILOT-FEEDBACK-01 (FB-E): the ONE request whose body is an image rather than JSON. The rule is shared with
+ * `server/owned-api.mjs` rather than duplicated, because a drift between the two would mean either a route that
+ * accepts an image the server never delivers, or a 415 for a body the route is ready to read.
+ */
+import { isBinaryUploadPath } from './server/upload-path.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -653,7 +659,14 @@ export function createServer({ ownedApi = null, readinessCheck = null } = {}) {
             sendJSON(res, 403, { ok: false, code: 'origin_rejected', error: 'Cross-origin API request rejected.' });
             return;
           }
-          if (BODY_METHODS.has(method) && !hasJsonContentType(req)) {
+          /*
+           * ONE ROUTE'S BODY IS AN IMAGE (FB-E). Without this exception the screenshot upload could never be
+           * reached through the real server: an independent reviewer found that every PUT with a non-JSON type was
+           * refused HERE with a 415, before the owned API — whose route is ready to read raw bytes — was
+           * consulted. The origin check above still applies, because this upload comes from the learner's own
+           * page; the Stripe webhook is the one that has to skip it, since it cannot carry an Origin at all.
+           */
+          if (BODY_METHODS.has(method) && !hasJsonContentType(req) && !isBinaryUploadPath(method, pathname)) {
             sendJSON(res, 415, { ok: false, code: 'json_required', error: 'Content-Type must be application/json.' });
             return;
           }

@@ -43,12 +43,16 @@ const GROUPS = {
        the DATABASE enforces; every rule this slice added lives above it - the closed request field set, the
        422/409/429 mapping, the context-drop rule, the 204 - and none of that is observable from SQL. */
     gate('pilot-feedback-api-check'),
+    gate('pilot-feedback-operator-check'),
+    gate('pilot-feedback-upload-check'),
   ],
   /* The AGENTS.md offline baseline. */
   baseline: [
     gate('repository-check'), gate('design-check'), gate('retired-surface-check'), gate('seo-check'),
     gate('server-origin-check'), gate('keymask-check'), gate('owned-api-check'), gate('owned-client-check'),
     gate('i18n-register-check'),
+    gate('vendor-integrity-check'), gate('pilot-feedback-csv-check'), gate('pilot-feedback-image-check'),
+    gate('pilot-feedback-transport-check'),
     /* PILOT-FEEDBACK-01 (FB-C): offline and structural. It proves the entry point cannot appear before sign-in,
        that the sheet has no way to navigate or reach the listening controller, that the learner's own text is
        escaped, and that the stylesheet stays RTL-safe. It deliberately does NOT claim the rendered behaviour -

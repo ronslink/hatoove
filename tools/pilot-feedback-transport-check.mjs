@@ -1,0 +1,35 @@
+/** Learner shell requests: exact binary body and attempt-bound playback with stale-response fencing. */
+import assert from 'node:assert/strict';
+import { createApi } from '../public/app/api.js';
+const attempt='11111111-2222-4333-8444-555555555555', other='22222222-3333-4444-8555-666666666666';
+const calls=[];
+let pending=null;
+const response=(value,status=200)=>({ok:status>=200&&status<300,status,json:async()=>value,headers:{get:()=>null}});
+const api=createApi({fetchImpl:async(path,init)=>{
+  calls.push({path,init});
+  if(path==='/api/auth/get-session')return response({user:{id:'synthetic-transport-owner'}});
+  if(pending)return pending;
+  return response(null,204);
+}});
+await api.session();api.preparations.select({id:attempt,state:'active'});
+await api.practice.playback(attempt);
+assert.equal(calls.at(-1).path,'/api/v1/practice/attempts/'+attempt+'/playback');
+const event={action:'begin',expectedRevision:0,eventId:other,mediaId:'synthetic-audio',mediaVersion:'v1'};
+await api.practice.playbackEvent(attempt,event);
+assert.deepEqual(JSON.parse(calls.at(-1).init.body),event,'no unsupported preparationId field enters the event protocol');
+let resolve;
+pending=new Promise(r=>{resolve=r;});
+const flight=api.practice.playback(attempt);
+api.preparations.select({id:other,state:'active'});
+resolve(response({items:[]}));
+assert.equal((await flight).error,'stale_preparation');
+pending=null;
+const blob=new Blob([new Uint8Array([1,2,3])],{type:'image/png'});
+await api.feedback.uploadScreenshot(attempt,blob);
+assert.equal(calls.at(-1).path,'/api/v1/feedback/'+attempt+'/screenshot');
+assert.equal(calls.at(-1).init.body,blob);
+assert.equal(calls.at(-1).init.headers['content-type'],'image/png');
+assert.equal(calls.at(-1).init.headers['X-Hatoove-Account'],'synthetic-transport-owner');
+assert.equal(calls.at(-1).init.credentials,'same-origin');
+console.log('PASS attempt-bound playback requests and stale preparation fencing');
+console.log('PASS screenshot transport sends exact Blob bytes with the account fence');

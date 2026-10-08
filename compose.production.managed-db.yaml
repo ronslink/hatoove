@@ -21,3 +21,6 @@ services:
   worker:
     environment: *managed-connection
     volumes: *trust-mount
+  feedback-operator:
+    environment: *managed-connection
+    volumes: *trust-mount

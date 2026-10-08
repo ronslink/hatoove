@@ -675,7 +675,8 @@ export function runnerMarkup(state, { esc = defaultEsc, uiText = key => key, exa
       + t(esc, state?.busy ? 'partRunnerEvaluating' : 'partRunnerEvaluate', {}, locale) + '</button></div>';
   }
 
-  return '<section class="part-runner" data-part-runner data-runner-phase="' + esc(state?.phase ?? 'loading') + '" data-runner-family="' + esc(family) + '"'
+  const feedbackContext = { examId: state?.set?.exam_id, setId: state?.set?.set_id, version: state?.set?.version };
+  return '<section class="part-runner" data-part-runner data-feedback-context="' + esc(JSON.stringify(feedbackContext)) + '" data-runner-phase="' + esc(state?.phase ?? 'loading') + '" data-runner-family="' + esc(family) + '"'
     + ' lang="' + esc(locale) + '" dir="' + (rtl ? 'rtl' : 'ltr') + '" aria-labelledby="part-runner-title">'
     + header + wrapNotice + notice
     + ((state?.phase === 'answering' || state?.phase === 'checking' || state?.phase === 'review')

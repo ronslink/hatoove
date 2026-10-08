@@ -182,7 +182,7 @@ check('11. a learner can send a SECOND report without reloading', () => {
 
 check('12. removing the context actually removes it', () => {
   // The × used to be a display flag only: it hid the line and the submit still sent the view.
-  assert.ok(/route: \(contextKept && route\(\)\) \|\| 'other'/.test(sheetCode),
+  assert.ok(/route: \(contextKept && sourceRoute\) \|\| 'other'/.test(sheetCode),
     'the × must change what is SENT, or it only hides the context line');
 });
 

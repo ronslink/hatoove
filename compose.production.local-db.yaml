@@ -59,6 +59,8 @@ services:
     environment: *local-connection
   worker:
     environment: *local-connection
+  feedback-operator:
+    environment: *local-connection
 
 volumes:
   pg-data:

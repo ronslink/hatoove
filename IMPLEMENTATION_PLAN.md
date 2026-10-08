@@ -1,5 +1,7 @@
 # Hatoove implementation plan
 
+**8 October 2026 — PILOT-STABILIZE-01 / execution PILOT-STABILIZE-20261008-A.** Main is `3dee6f4`, PR #154 merged, feedback Stage 1 recorded live on 6 October. The active integration branch is `codex/pilot-stabilize-20261008`, base `3dee6f4`. It corrects stale CI expectations, preserves the current listening release when adopting the Stage 2 RC, and repairs capture privacy, survey lifecycle, operator credentials/retention and owner image export. R1 rejected the old RC; final non-author review and actual hosted CI are required before integration. See [the current result record](work/implementation/PILOT-STABILIZE-01.md). Previous snapshot headers below do not renew leases or describe current deployment.
+
 ## MIRROR-B1PREP-01 — from Ron's direction to executed slices — 5 October 2026, 15:20 UTC+2
 
 Direction: mirror B1_Prep's structure — navigation, practice, mock exams and the reference library — because it was *"much more user friendly and effective in presentation and usability"*. The frozen engineering contract is `docs/contracts/MIRROR-B1PREP-01.md` (`072d29e` on main): it records Ron's four decisions, the constraints that are not undone (no forecast, no Lernplan, no Sprechen, no live AI, Hatoove brand), the frozen interfaces (routes and groups, client view modules, the library translation read path, the translation tables, reserved migration numbers `0042`–`0045`) and the per-slice acceptance.

@@ -1,5 +1,7 @@
 # Hatoove master plan — a working multi-exam preparation SaaS, local first
 
+**Current reconciliation — 8 October 2026.** Canonical local main and the latest recorded production artifact are `3dee6f4` (PR #154); feedback Stage 1 is deployed. Earlier “local only” and “not deployed” entries below are historical. [PILOT-STABILIZE-01](work/implementation/PILOT-STABILIZE-01.md), issue #155, owns the current bounded continuation: restore CI, verify real listening with feedback and complete Stage 2. Implementation is in a separate worktree; review, hosted CI, merge and product acceptance remain distinct. Existing human content/browser gate closures stand; physical iPhone/Android evidence remains open.
+
 ## Hosting engineering verified; live launch gates remain — 4 October 2026, 01:31 UTC
 
 [Issue135](https://github.com/ronslink/hatoove/issues/135) has reviewed production database TLS/credentials/pool limits, trusted-origin Secure cookies and separate Compose/Caddy configurations under [PILOT-HOSTING-01](docs/contracts/PILOT-HOSTING-01.md). Source `9b968ac0dd6a3b9aa1632b0e1d3a78313ff66474` passed both complete disposable hosting variants (26 outer groups, containing20 HTTPS checks), all seven local baseline commands and focused TLS/cookie/configuration checks. Independent cleanup verified all59 recorded/recovery identities absent. Final hosted CI, pull-request review and merge remain pending; the paired implementation plan and board contain detailed evidence.
