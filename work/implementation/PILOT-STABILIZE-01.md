@@ -5,7 +5,8 @@ Coordinator owns `codex/pilot-stabilize-20261008`, base `3dee6f4`, in a separate
 
 ## Reconciled state
 
-Canonical main was behind 37 commits. It is now clean at `3dee6f4`, PR #154 merged.
+At the initial reconciliation, canonical main was behind 37 commits and was synchronized cleanly to
+`3dee6f4`, after PR #154. The final integration receipt below records its subsequent update to `40779ce`.
 The earlier untracked contract was preserved byte-for-byte locally; no recovery or handoff file is committed.
 Feedback Stage 1 was deployed on 6 October at that commit. Public read-only probes on 8 October returned
 200 for the front door, health and readiness, and 401 for unauthenticated feedback.
@@ -54,7 +55,8 @@ the exploratory update reached additional stale S0/S1/RUX helper assertions. Tha
 this bounded feedback candidate, so the old harness files are preserved unchanged and no green result is claimed.
 AGENTS explicitly treats this harness as a separate Docker/browser acceptance check, not a PR CI gate.
 The focused new browser check covers the changed Stage 2 journeys and real HTTP runtime boundaries.
-The original RC was independently rejected under R1; a final frozen review is still required.
+The original RC was independently rejected under R1. R2–R4 subsequently approved the repaired frozen
+candidate, as recorded in the final integration receipt below.
 
 R2 on frozen `27d1369` found optional survey text incorrectly required. The correction omits blank `next`;
 an actual browser ratings-only round now persists successfully. R2 also requested contract alignment for
@@ -62,7 +64,8 @@ the conservative draft-masking decision; the contract now explicitly excludes dr
 Session lists and checkout identity/balance details are masked as well. The first hosted durable CI job
 exposed an omitted synthetic operator password in the TLS fixture; its eight scoped-role identities now
 pass all 19 actual TLS connection/refusal legs. Draft PR [#156](https://github.com/ronslink/hatoove/pull/156)
-is open; hosted offline/server/fixture and separate PostgreSQL checks passed on the initial candidate.
+was opened at that checkpoint; hosted offline/server/fixture and separate PostgreSQL checks passed on
+the initial candidate. Its final green CI and merge are recorded below.
 R2 also found capture could finish after a language/navigation change. The opening now cancels if locale,
 route or visible immutable context changes during capture; delayed-capture browser legs verify the fence.
 R2 independently marked frozen `1940098` READY for integration with no remaining actionable feature findings.
@@ -85,7 +88,7 @@ its authority DISTINCT missing exam identity, tracked in [issue158](https://gith
 No historical migration or approved content was changed. This follow-up is unassigned and must be resolved
 before offering that multi-exam upgrade path.
 
-## Final integration receipt — 8 October 2026,10:03UTC
+## Final integration receipt — 8 October 2026, 10:03 UTC
 
 R3 independently approved3b6d5ec; R4 approved the final one-line grammar receipt getter correction at
 61e8eaa5d47f0ca7dba1e61e969156096b060e88. The explicit grammar PostgreSQL rerun passes14/14 and supersedes
