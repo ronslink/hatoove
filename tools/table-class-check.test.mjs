@@ -372,6 +372,6 @@ test('private editorial: explanation target requires exact enabled row validatio
 });
 
 test('private editorial mutation proof: every privilege and immutability control ran', () => {
-  assert.equal(privateDetected.length, 105, '56 SELECT grants, 8 TRUNCATE grants, 32 immutability faults, 2 baseline seal faults and 7 target validation faults');
-  console.log(`\nprivate editorial mutation proof: ${privateDetected.length}/105 mutations detected\n`);
+  assert.equal(privateDetected.length, 113, '64 SELECT grants including the operator, 8 TRUNCATE grants, 32 immutability faults, 2 baseline seal faults and 7 target validation faults');
+  console.log(`\nprivate editorial mutation proof: ${privateDetected.length}/113 mutations detected\n`);
 });
