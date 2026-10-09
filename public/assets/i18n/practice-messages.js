@@ -2,6 +2,12 @@ import { getLocale, registerMessages, t, formatDate } from './core.js';
 
 // Flat, authored interface messages. The German column also documents the source copy.
 const rows = {
+  resultCorrect: ["Richtig","Correct","Правильно","صحيح","Doğru"],
+  resultTotal: ["Aufgaben","Tasks","Завдання","المهام","Görevler"],
+  resultMistakes: ["Fehler","Mistakes","Помилки","الأخطاء","Hatalar"],
+  itemNavigator: ["Aufgabenübersicht","Task navigation","Навігація завданнями","التنقل بين المهام","Görev gezinmesi"],
+  navigatorPicked: ["ausgewählt","selected","вибрано","تم الاختيار","seçildi"],
+  navigatorOpen: ["offen","unanswered","без відповіді","دون إجابة","yanıtlanmadı"],
   mistakeQuestionUnavailable: ["Diese Aufgabe ist nicht mehr verfügbar.","This task is no longer available.","Це завдання більше недоступне.","لم تعد هذه المهمة متاحة.","Bu görev artık mevcut değil."],
   layoutNoMatch: ["Keine Anzeige passt","No matching advertisement","Жодне оголошення не підходить","لا يوجد إعلان مناسب","Uygun ilan yok"],
   layoutPick: ["Aufgabe {id}: Antwort wählen","Task {id}: choose an answer","Завдання {id}: виберіть відповідь","المهمة {id}: اختر إجابة","Görev {id}: yanıt seçin"],

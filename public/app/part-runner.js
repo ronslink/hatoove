@@ -604,6 +604,20 @@ function actionsMarkup(state, { esc, locale }) {
  * The runner's markup for one state. Pure and exported, so the check reads exactly the text the learner
  * reads — the same reason `part-index.js` exports `indexMarkup`.
  */
+/** Native buttons provide keyboard navigation without changing the route or the held picks. */
+function itemNavigatorMarkup(state, {esc, locale}) {
+  const items = state.set?.items ?? [];
+  if (!items.length) return '';
+  return '<nav class="part-runner-item-nav" data-item-navigator aria-label="' + t(esc, 'itemNavigator', {}, locale) + '">'
+    + items.map((item,index) => {
+      const result = state.checked?.items?.find(row => row.item_id === item.item_id);
+      const status = result ? (result.correct ? 'correct' : 'wrong') : state.answers?.[item.item_id] ? 'picked' : 'open';
+      const key = ({correct:'resultCorrect',wrong:'resultMistakes',picked:'navigatorPicked',open:'navigatorOpen'})[status];
+      return '<button type="button" class="btn btn-ghost" data-runner-jump="' + esc(item.item_id) + '" data-item-state="' + status + '" aria-label="'
+        + t(esc, 'partRunnerItem', {id:index+1},locale) + ' · ' + t(esc,key,{},locale) + '">' + (index+1) + (status==='correct'?' ✓':status==='wrong'?' ✗':status==='picked'?' ●':'') + '</button>';
+    }).join('') + '</nav>';
+}
+
 export function runnerMarkup(state, { esc = defaultEsc, uiText = key => key, examLanguage = 'und', locale = getLocale() } = {}) {
   const family = state?.family ?? '';
   const section = state?.section ?? (typeof family === 'string' ? family.slice(0, 2) : '');
@@ -651,6 +665,10 @@ export function runnerMarkup(state, { esc = defaultEsc, uiText = key => key, exa
   } else if (state?.phase === 'review' && state.checked) {
     body = '<p class="part-runner-result" data-runner-result data-correct="' + esc(String(state.checked.correct_count)) + '" data-total="' + esc(String(state.checked.answered_count)) + '">'
       + t(esc, 'partRunnerResult', { correct: state.checked.correct_count, total: state.checked.answered_count }, locale) + '</p>'
+      + '<div class="stat-row part-runner-statistics">' + [
+        ['resultCorrect', state.checked.correct_count], ['resultTotal', state.checked.answered_count],
+        ['resultMistakes', Math.max(0, state.checked.answered_count - state.checked.correct_count)],
+      ].map(([key, value]) => '<div class="stat"><span>' + t(esc, key, {}, locale) + '</span><b class="num">' + esc(value) + '</b></div>').join('') + '</div>'
       + explanationLanguageMarkup(state, { esc, locale })
       + reviewItemsMarkup(state, { esc, examLanguage, locale })
       + actionsMarkup(state, { esc, locale });
@@ -678,7 +696,7 @@ export function runnerMarkup(state, { esc = defaultEsc, uiText = key => key, exa
     + ((state?.phase === 'answering' || state?.phase === 'checking' || state?.phase === 'review')
       ? disclosureMarkup(state, { esc, examLanguage }) + (family === 'LV2' || ['SB1', 'SB2'].includes(family) && taskLayout(state, { esc, examLanguage, locale }) ? '' : material)
       : '')
-    + audioMarkup(state, { esc, examLanguage, locale }) + '<div class="layout-workspace' + (family === 'LV2' ? ' layout-reading' : '') + '">' + (family === 'LV2' ? material : '') + '<div class="layout-task-body">' + body + '</div></div>'
+    + itemNavigatorMarkup(state, {esc,locale}) + audioMarkup(state, { esc, examLanguage, locale }) + '<div class="layout-workspace' + (family === 'LV2' ? ' layout-reading' : '') + '">' + (family === 'LV2' ? material : '') + '<div class="layout-task-body">' + body + '</div></div>'
     + '</section>';
 }
 
@@ -931,6 +949,13 @@ export function createPartRunnerView(ctx = {}) {
     if (option) answers[itemId] = { key: option.id, value: option.value };
     else delete answers[itemId];
     state = { ...state, answers };
+    const jump = host?.querySelector?.('[data-runner-jump="' + itemId + '"]');
+    if (jump) {
+      jump.dataset.itemState = option ? 'picked' : 'open';
+      const ordinal = (state.set?.items ?? []).findIndex(item => item.item_id === itemId) + 1;
+      jump.textContent = String(ordinal) + (option ? ' ●' : '');
+      jump.setAttribute?.('aria-label', pt('partRunnerItem', {id:ordinal}, getLocale()) + ' · ' + pt(option ? 'navigatorPicked' : 'navigatorOpen', {}, getLocale()));
+    }
     const items = state.set?.items ?? [];
     const host$ = host;
     if (!host$) return;
@@ -974,6 +999,14 @@ export function createPartRunnerView(ctx = {}) {
       globalThis.addEventListener?.('beforeunload', beforeUnload);
       generation++;
       host.onclick = (event) => {
+        const jump = event.target.closest?.('[data-runner-jump]');
+        if (jump) {
+          const id = jump.dataset.runnerJump;
+          const item = host.querySelector?.('[data-item-id="' + id + '"]') || host.querySelector?.('[data-review-item="' + id + '"]');
+          item?.scrollIntoView?.({block:'center'});
+          const focus = item?.querySelector?.(state.phase === 'review' ? '[data-review-verdict]' : '[data-gap-open], select[data-answer-item]:not(:disabled), input[data-answer-item]:not(:disabled)');
+          focus?.focus?.(); return;
+        }
         const gap = event.target.closest?.('[data-gap-open]');
         if (gap) {
           const panel = host.querySelector('[id="' + gap.getAttribute('aria-controls') + '"]');
