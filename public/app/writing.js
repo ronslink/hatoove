@@ -80,7 +80,7 @@ export function createWritingController({ getExamLanguage = () => null, api, esc
       const remote = await api.writing.readAttempt(s.attempt);
       if (!current(s)) return;
       if (!remote?.ok) { compareConflict(s, 'conflictLoad'); return; }
-      say(s, `<p class="err" data-practice-key="ui03">Speicherkonflikt – Ihre Eingabe bleibt im Textfeld.</p><details open><summary data-practice-key="ui04">Auf dem Server gespeicherte Fassung</summary><pre class="submitted-text" lang="${esc(s.task?.exam_language || getExamLanguage() || 'und')}" dir="${(s.task?.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr'}">${esc(remote.data.text || '')}</pre></details>` + button('writing-keep', pl('keep')) + button('writing-load', pl('load')));
+      say(s, `<p class="err" data-practice-key="ui03">Speicherkonflikt – Ihre Eingabe bleibt im Textfeld.</p><details open><summary data-practice-key="ui04">Gespeicherter Text</summary><pre class="submitted-text" lang="${esc(s.task?.exam_language || getExamLanguage() || 'und')}" dir="${(s.task?.exam_language || getExamLanguage()) === 'ar' ? 'rtl' : 'ltr'}">${esc(remote.data.text || '')}</pre></details>` + button('writing-keep', pl('keep')) + button('writing-load', pl('load')));
       s.host.querySelector('#writing-keep').onclick = async () => { s.revision = remote.data.revision; s.conflict = false; await save(s); };
       s.host.querySelector('#writing-load').onclick = () => { s.area.value = remote.data.text || ''; s.saved = s.area.value; s.revision = remote.data.revision; s.conflict = false; say(s, '<p class="muted" data-practice-key="ui05">Gespeicherte Fassung übernommen.</p>'); };
     };
