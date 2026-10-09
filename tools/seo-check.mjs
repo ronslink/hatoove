@@ -55,6 +55,7 @@
 import { spawn } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { jpegDimensions } from './redesign-image-dimensions.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -171,15 +172,16 @@ console.log(`\n=== SEO surface check ===\n`);
   else if (ogImage !== twitterImage) fail('S4', 'Open Graph and Twitter cards are complete', `og:image (${ogImage}) and twitter:image (${twitterImage}) differ`);
   else if (!(await exists(localImage(ogImage) || ''))) fail('S4', 'Open Graph and Twitter cards are complete', `og:image file does not exist in public/: ${ogImage}`);
   else {
-    // The declared dimensions are checked against the actual PNG header: a wrong size here is what
+    // The declared dimensions are checked against the actual image header: a wrong size here is what
     // makes a social card render cropped or letterboxed, and it is invisible in the markup alone.
     const w = Number(meta('property', 'og:image:width'));
     const h = Number(meta('property', 'og:image:height'));
     const bytes = await readFile(path.join(PUBLIC, localImage(ogImage)));
     const png = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-    const actualW = png ? bytes.readUInt32BE(16) : null;
-    const actualH = png ? bytes.readUInt32BE(20) : null;
-    if (!png || actualW !== w || actualH !== h) fail('S4', 'Open Graph and Twitter cards are complete', `${ogImage} is ${actualW}x${actualH} but the markup declares ${w}x${h}`);
+    const jpeg = png ? null : jpegDimensions(bytes);
+    const actualW = png ? bytes.readUInt32BE(16) : jpeg?.width;
+    const actualH = png ? bytes.readUInt32BE(20) : jpeg?.height;
+    if ((!png && !jpeg) || actualW !== w || actualH !== h) fail('S4', 'Open Graph and Twitter cards are complete', `${ogImage} is ${actualW}x${actualH} but the markup declares ${w}x${h}`);
     else pass('S4', 'Open Graph and Twitter cards are complete', `${ogImage} ${actualW}x${actualH}, card=${meta('name', 'twitter:card')}`);
   }
 }
@@ -432,7 +434,7 @@ try {
   // The copy offers listening when the German description names the fixed recordings and the tile's
   // chip names where they live. Both, because either alone is ambiguous wording rather than an offer.
   const offersListening = typeof description === 'string' && /Aufnahmen/.test(description)
-    && typeof pack === 'string' && /Guthaben-Paket/i.test(pack);
+    && typeof pack === 'string' && /Prüfungspass/i.test(pack);
 
   if (!problems.length) {
     if (shipsFixedAudio) {
@@ -457,7 +459,7 @@ try {
   }
 
   if (problems.length) fail('S11', 'the landing page agrees with the exam package about listening', problems.join(' | '));
-  else if (shipsFixedAudio) pass('S11', 'the landing page agrees with the exam package about listening', `manifest.json ships ${fixedAudioParts.length} HV fixed_audio part(s); the copy offers listening in the credit packs and states no denial`);
+  else if (shipsFixedAudio) pass('S11', 'the landing page agrees with the exam package about listening', `manifest.json ships ${fixedAudioParts.length} HV fixed_audio part(s); the copy offers listening in the exam pass and states no denial`);
   else pass('S11', 'the landing page agrees with the exam package about listening', 'the exam package ships no HV fixed_audio part and the copy does not offer listening');
 }
 

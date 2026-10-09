@@ -1,0 +1,1442 @@
+[
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.01",
+    "set_version": "v1",
+    "item_id": "1",
+    "original_value_sha256": "30de4f9288945310f6018b3e6eacfca03c9e3b4f2fddce0f7bbb0f9ca08dfb2b",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.01",
+    "set_version": "v1",
+    "item_id": "2",
+    "original_value_sha256": "06230b2325882296b3d962aebbece69ce6165debaf4fc38c6bd965b6af4c5693",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.01",
+    "set_version": "v1",
+    "item_id": "3",
+    "original_value_sha256": "ce49179e11bc4c7dbf422348c2dffeb02a1f8c210c9647c0996bd9d6c46eb4cb",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.01",
+    "set_version": "v1",
+    "item_id": "4",
+    "original_value_sha256": "7fbea35ddeb7c172cb07065ff66c15aaa8a8fb1df6a274b57b4a8f7074d372ad",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.01",
+    "set_version": "v1",
+    "item_id": "5",
+    "original_value_sha256": "59a88ef6e14de36a0b3bfc7ed303fba3eb9d03be7d9365729774ad4c62651563",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.02",
+    "set_version": "v1",
+    "item_id": "1",
+    "original_value_sha256": "a168a5169cff006aab321179378593d4b9d128520f971742d30e661ef211d1c4",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.02",
+    "set_version": "v1",
+    "item_id": "2",
+    "original_value_sha256": "ab92dee0ea9eb4dea63730d15ac87ce8844e87a3fa84a1610f3662a841166374",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.02",
+    "set_version": "v1",
+    "item_id": "3",
+    "original_value_sha256": "b2caed7ed345323a4d160fcaa4749bdf5a3cd4152d8c7b1e2a1d9c7cae9f2599",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.02",
+    "set_version": "v1",
+    "item_id": "4",
+    "original_value_sha256": "a99626b40a43feafbcefdc72a81b234be557e693c513c5a1f67fcbf271049ade",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.02",
+    "set_version": "v1",
+    "item_id": "5",
+    "original_value_sha256": "ee210ff3207958da36e34a3638960948e9b94605702965f122ffc690ebceee2d",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.03",
+    "set_version": "v1",
+    "item_id": "1",
+    "original_value_sha256": "e933a2884a27e917310f198c9d258533df4cd5ad36d225ad7b5476859c1c02d3",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.03",
+    "set_version": "v1",
+    "item_id": "2",
+    "original_value_sha256": "8dabe065213e05e2f048fe669cc77292c9367b7abc93675212f068dfea5b348d",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.03",
+    "set_version": "v1",
+    "item_id": "3",
+    "original_value_sha256": "1350e99ccdf072dcb078d63ff2ce3c1e8746d8daa1c2927336eb97625bdfb419",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.03",
+    "set_version": "v1",
+    "item_id": "4",
+    "original_value_sha256": "e3fb4114d994db717033688b605f3434631de893121f1fb4bc90d7d963efc146",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv1.03",
+    "set_version": "v1",
+    "item_id": "5",
+    "original_value_sha256": "a545e5da9e81edd0b132440ced2ffbcffaef41df55a38a63d4e37e72d97128f6",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.01",
+    "set_version": "v1",
+    "item_id": "6",
+    "original_value_sha256": "1b9a252f5029702b985f24c567d8a4c04512b77b2f3fa23730d1153f87d6b4e4",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.01",
+    "set_version": "v1",
+    "item_id": "7",
+    "original_value_sha256": "4c227a5d7a7f3178458139e2f57ba36a58a83071058809f80f83775b1368309b",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.01",
+    "set_version": "v1",
+    "item_id": "8",
+    "original_value_sha256": "be7849dc4c21a8b469609b72a482263154fda99679fe7a78fa562004c9891b03",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.01",
+    "set_version": "v1",
+    "item_id": "9",
+    "original_value_sha256": "203c3799339f68a45cb537715cbdcc3c478d3b40b11f17af5bf55ea85ca16bc7",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.01",
+    "set_version": "v1",
+    "item_id": "10",
+    "original_value_sha256": "e684a3e906c2384672800fd66a0fc67491828eb4e49dee3acb0694eca4cc3173",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.02",
+    "set_version": "v1",
+    "item_id": "6",
+    "original_value_sha256": "481032ba4be0f73bedca6ad265ee53be647b2d940f1b642f1d24246253486360",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.02",
+    "set_version": "v1",
+    "item_id": "7",
+    "original_value_sha256": "f428e4881f1b40422ce6aca9cb575ea22c89ec4e6773991b74d052925cf08ed7",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.02",
+    "set_version": "v1",
+    "item_id": "8",
+    "original_value_sha256": "d58372b62516e9c784d4fc6eea28d7c1e3ad83d7708173c8c488c5ebd3029b9b",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.02",
+    "set_version": "v1",
+    "item_id": "9",
+    "original_value_sha256": "b395e77702ef709025cdaed8ff62727cfdf36d5a26f568ab1192bda3cd5758eb",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.02",
+    "set_version": "v1",
+    "item_id": "10",
+    "original_value_sha256": "1716369c3835b4e4a0c7a814dd937abbc93d145ce3d88289acc14b1b17d55f4d",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.03",
+    "set_version": "v1",
+    "item_id": "6",
+    "original_value_sha256": "300939faf2c13d91e2ab2253bee0a37f0bf4ff20d3deebaee3a6666e5eaff15c",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.03",
+    "set_version": "v1",
+    "item_id": "7",
+    "original_value_sha256": "938341ce0a415051adbc911ba3f764891388a3886e4ab8e8d66a2843325085ef",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.03",
+    "set_version": "v1",
+    "item_id": "8",
+    "original_value_sha256": "6f383e6f1872d272df0e4939709ef46cf0ab72513e243325242f265f978a201d",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.03",
+    "set_version": "v1",
+    "item_id": "9",
+    "original_value_sha256": "0a32e2860d1b6cc7f7e3a676821a0a37bb7655b1c5124f5f36032c8285606af2",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv2.03",
+    "set_version": "v1",
+    "item_id": "10",
+    "original_value_sha256": "6c08ebece4320f3afc82f2b2fd3d1b38a28ed7478b0d03de56f0d27f18b0c6d5",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.01",
+    "set_version": "v1",
+    "item_id": "11",
+    "original_value_sha256": "d3abe6c0791ef9e9f3b987e676dca3b8da8cccb5db2273f48bb65f12e60395cc",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.01",
+    "set_version": "v1",
+    "item_id": "12",
+    "original_value_sha256": "5d7fe947c18b0a093df3e8347da6a835c7a3c3ae61739ae50aa165c9be89235b",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.01",
+    "set_version": "v1",
+    "item_id": "13",
+    "original_value_sha256": "65a63d5c68c98bcf6737981bab3b7067d2671bbdd26dc91227a70540b354eafc",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.01",
+    "set_version": "v1",
+    "item_id": "14",
+    "original_value_sha256": "501218838ecd8ebc5eca560b1e128dc408d23da1a0dfcb7eebf50c3aeff876b5",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.01",
+    "set_version": "v1",
+    "item_id": "15",
+    "original_value_sha256": "5259f2e21967075c679ae64ea0f40506ac6d150e5bd3dd09b202b9dbe80a8911",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.01",
+    "set_version": "v1",
+    "item_id": "16",
+    "original_value_sha256": "c4acb9c88099d4e7e7ca9ccf5a0cce5eddd0b9a297adfb192459b9e039346f2c",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.01",
+    "set_version": "v1",
+    "item_id": "17",
+    "original_value_sha256": "22d11614a879e9edf8060ec00b126669c320ea7791638cfa174ea82af5bf0247",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.01",
+    "set_version": "v1",
+    "item_id": "18",
+    "original_value_sha256": "4faefe4c50395865b5f08bbd4bcd92fa8c1f99632a251c5cc9eab960ef435004",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.01",
+    "set_version": "v1",
+    "item_id": "19",
+    "original_value_sha256": "aaffb570b730f0d45c32c2241d17bde1c199e1b77c08a43282b0480f56ece5bc",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.01",
+    "set_version": "v1",
+    "item_id": "20",
+    "original_value_sha256": "75aa2bb10e1f6dc63e1b6c3d2ccac19d151baa4cf27121c0b5a4dc6343ecd3a1",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.02",
+    "set_version": "v1",
+    "item_id": "11",
+    "original_value_sha256": "03d5565acbfba97914768a7d82320b66cf94613cc0f0abb176092dbc5b6a7292",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.02",
+    "set_version": "v1",
+    "item_id": "12",
+    "original_value_sha256": "224e6b9db089b13edca3db4fc0128130a31000b1bf9299e3095bf17782d8ab9d",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.02",
+    "set_version": "v1",
+    "item_id": "13",
+    "original_value_sha256": "56a64b1729c90d9dc9c7e0938a5bb7ff8bc7029d45ce3ce75537a400c98f9e45",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.02",
+    "set_version": "v1",
+    "item_id": "14",
+    "original_value_sha256": "be6b3b217449f24dee269285c5e607c75bc798ff22cfafe12cb554db78552f9b",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.02",
+    "set_version": "v1",
+    "item_id": "15",
+    "original_value_sha256": "1c07751b470550d5d482c436e1ddcfe100fb1d44c2789a7f8589beb7e872e378",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.02",
+    "set_version": "v1",
+    "item_id": "16",
+    "original_value_sha256": "b4e439309ab941b8b6e36b5039616a58fd0da5c561bd52366ce5ee76ace64c9b",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.02",
+    "set_version": "v1",
+    "item_id": "17",
+    "original_value_sha256": "4cb1a9b9f8b24533638735eeab368f6c76d5a625398a0c46e6ef96c3a3469b28",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.02",
+    "set_version": "v1",
+    "item_id": "18",
+    "original_value_sha256": "68ef6836cde0f03a91c6d9ff6d3515737a50857dce6ca21107cd5610f4b9be81",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.02",
+    "set_version": "v1",
+    "item_id": "19",
+    "original_value_sha256": "ac07f8041f028e90695d608896c030e791e4951e09a4f9795228942ba67d3eae",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.02",
+    "set_version": "v1",
+    "item_id": "20",
+    "original_value_sha256": "3147f309877b212b2dcf09ae85f688cccfd52fb5537388d814a0184cb7f175c4",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.03",
+    "set_version": "v1",
+    "item_id": "11",
+    "original_value_sha256": "683a71414334170db9f77c04cf28f8dd58e59cc75d99659fa436c47055814e23",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.03",
+    "set_version": "v1",
+    "item_id": "12",
+    "original_value_sha256": "50f984a7da80231ea2e8eea1ef075cd0bed6cb8043ff9b0044686387e1875500",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.03",
+    "set_version": "v1",
+    "item_id": "13",
+    "original_value_sha256": "43890b0f03ff3c440243be9409fd2b64e1a469f2da155f51c84e121ff3a26874",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.03",
+    "set_version": "v1",
+    "item_id": "14",
+    "original_value_sha256": "d359c2062525a33d3d0dcaab8125c3eba3aea73e43759c5fb2c78068b9689e8d",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.03",
+    "set_version": "v1",
+    "item_id": "15",
+    "original_value_sha256": "f6fb72033ea0dfbbd438bc9125b50e8ce95d0538b3b31b619b6e3e6419e2409a",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.03",
+    "set_version": "v1",
+    "item_id": "16",
+    "original_value_sha256": "6c064c6705c0465d0d2b998c8a3937915626aa176852f2c09c2133036ddc0569",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.03",
+    "set_version": "v1",
+    "item_id": "17",
+    "original_value_sha256": "75244b0dc0e62813cbb0cb0bd8cc42780c4afb86a3e4f8e0d963b937895ea363",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.03",
+    "set_version": "v1",
+    "item_id": "18",
+    "original_value_sha256": "2ca491e9a1a7e2d6404f4b40f7146a51de02b15bad707ff968119be7bb89674f",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.03",
+    "set_version": "v1",
+    "item_id": "19",
+    "original_value_sha256": "867525e50ef7682d7804e01774c49cb68fa5ed567c79284b53bee9e751c53565",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.lv3.03",
+    "set_version": "v1",
+    "item_id": "20",
+    "original_value_sha256": "b6f016b49428b4e3001725f99d49acd55718ca6643387b61741c0c1670a44f76",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.01",
+    "set_version": "v1",
+    "item_id": "21",
+    "original_value_sha256": "ab1fc386b969bbe33a10a05afffb8029f5bb713ab36986207b5b3ea637e69121",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.01",
+    "set_version": "v1",
+    "item_id": "22",
+    "original_value_sha256": "36f865e352a69e86f6325fa04501506ce3b03ccc53dcb838917531a4ee14e699",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.01",
+    "set_version": "v1",
+    "item_id": "23",
+    "original_value_sha256": "b2cd7ee2ce7b50cc60c8740ef70be71847ea2d8f9ef3672c94b367b528f49eea",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.01",
+    "set_version": "v1",
+    "item_id": "24",
+    "original_value_sha256": "60f7f170db30566f396900ce28157d7711a36eba31ead12427cf51e2ab3eb9d1",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.01",
+    "set_version": "v1",
+    "item_id": "25",
+    "original_value_sha256": "b3bf1bc2b9ab08b89e1c6291bd43d94abe83b7146c11135b415e83660d327959",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.01",
+    "set_version": "v1",
+    "item_id": "26",
+    "original_value_sha256": "a009f6c7b6641291d1b91f616812f32ede17de63cf674f4ad85eb5737f789cfd",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.01",
+    "set_version": "v1",
+    "item_id": "27",
+    "original_value_sha256": "d5105fae6acf5895cf024882438df8043abf83d069bbe2fcc123e24c77996440",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.01",
+    "set_version": "v1",
+    "item_id": "28",
+    "original_value_sha256": "3493734bd42de49d8d7c9f96f4254ab27a3b4bad8f499d2fdcfb92fd6ce4a56d",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.01",
+    "set_version": "v1",
+    "item_id": "29",
+    "original_value_sha256": "930ce81557ace4983d04297f32d915982f12a5916e8d761c1ee1a93f438036a8",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.01",
+    "set_version": "v1",
+    "item_id": "30",
+    "original_value_sha256": "a77d3fbc7d4f502b0665b8c5108e8257a0563e4be0130fbead991014c05946b9",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.02",
+    "set_version": "v1",
+    "item_id": "21",
+    "original_value_sha256": "1a1ed363b2558442eab8a1f431da557e71bda80bc0588a721ae73ccb66568299",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.02",
+    "set_version": "v1",
+    "item_id": "22",
+    "original_value_sha256": "a4ca9b8758ca3fd83dd4bab68ddb235fd255db293247ce51ad8e88bc1eaee673",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.02",
+    "set_version": "v1",
+    "item_id": "23",
+    "original_value_sha256": "b9f0477a120a7edfe6f7b7154cd4e439d87571c497cb3b347face7f9d32a715a",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.02",
+    "set_version": "v1",
+    "item_id": "24",
+    "original_value_sha256": "dee500bb2d7232ed7ebd4681505310c207cdef1bc9c2bb0654ceb9cd71d96241",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.02",
+    "set_version": "v1",
+    "item_id": "25",
+    "original_value_sha256": "60261bc6de1cc5a3d77ecaabb7ba9a918d6530a14cca72ad8f6615c76d9e13e8",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.02",
+    "set_version": "v1",
+    "item_id": "26",
+    "original_value_sha256": "b173938a60c740197be3a5973f5f96efd7c4ec383494798ef4bbb1a088e4eaa1",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.02",
+    "set_version": "v1",
+    "item_id": "27",
+    "original_value_sha256": "c2af22c58c5cc76dd726d93643841297b2ca59eae3911ff040f2375ae91d71f0",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.02",
+    "set_version": "v1",
+    "item_id": "28",
+    "original_value_sha256": "cf3496829516a059fb88835f2c9bf45371ee530fc3a7d04ea8e644693a251831",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.02",
+    "set_version": "v1",
+    "item_id": "29",
+    "original_value_sha256": "6ba35d76a9f39acb96b5ff02218c3c56176ccff9e52d08f9464ccaf2a9487e20",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.02",
+    "set_version": "v1",
+    "item_id": "30",
+    "original_value_sha256": "06a9bc983770772af1a661c3aa8aea4b3264d993b50495680756951da3851cbf",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.03",
+    "set_version": "v1",
+    "item_id": "21",
+    "original_value_sha256": "dcbbcc4c20847824c4a6c1657ac208c6801b9f97dc345458edbbb73e74c9356f",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.03",
+    "set_version": "v1",
+    "item_id": "22",
+    "original_value_sha256": "f937872f4bc42093f1f35225874593b955af79cf83b8897e4b9b9fec32d29bea",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.03",
+    "set_version": "v1",
+    "item_id": "23",
+    "original_value_sha256": "92ec458d8fb4e1fc788c9cab6fd304535c22600586d169953567367cd2fcc645",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.03",
+    "set_version": "v1",
+    "item_id": "24",
+    "original_value_sha256": "4b2f411cc9ea55335d5220f58090c1075c19b34b51fabb9432887037c11f3989",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.03",
+    "set_version": "v1",
+    "item_id": "25",
+    "original_value_sha256": "19ce7ec228ff3b67172d5870fe4db6dac640a289d71947d301ae0284603375d1",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.03",
+    "set_version": "v1",
+    "item_id": "26",
+    "original_value_sha256": "26433f546915e7e8c0517f90e9cf701035ca3248571ba536000e5f2325319d9e",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.03",
+    "set_version": "v1",
+    "item_id": "27",
+    "original_value_sha256": "d979e028eef54db5f35ed3d9b30ee04d9b9727386aac1fedb1e1be78895d4905",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.03",
+    "set_version": "v1",
+    "item_id": "28",
+    "original_value_sha256": "4af037907a02d1a767294a9d6773e5f34be254bc240d636ceb92e8753cf44acc",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.03",
+    "set_version": "v1",
+    "item_id": "29",
+    "original_value_sha256": "92f8051cbfc7cec34d3c91b041c52c5872c725dcaea5f771ee6edc241d76dd62",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb1.03",
+    "set_version": "v1",
+    "item_id": "30",
+    "original_value_sha256": "2f3c3d2179f499f40e07b56d06e1d0aa0d1cc717692dcf93c3e963e01f8573d9",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.01",
+    "set_version": "v1",
+    "item_id": "31",
+    "original_value_sha256": "90ecfdb15da90237cbc9a1e5b7e87eb4c1efda32a5e84f7bd91dc67a46f3cd26",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.01",
+    "set_version": "v1",
+    "item_id": "32",
+    "original_value_sha256": "7db26ff6d01cf8b787b83ad564821d56dcd5c76ed2bc6354c7858d2e90c21f97",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.01",
+    "set_version": "v1",
+    "item_id": "33",
+    "original_value_sha256": "82bb147a4e12b0567654cb9a644b8dad2a6e8e2136c6653f1a2096de0b567259",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.01",
+    "set_version": "v1",
+    "item_id": "34",
+    "original_value_sha256": "bbc44e409b85421d7d2a1edb05d1ac977efd1ca4b8a885d92369ad063be9ab50",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.01",
+    "set_version": "v1",
+    "item_id": "35",
+    "original_value_sha256": "9a00bfd136ea181adaf5e308c6e38e5717bc938f32fcfd6134fc584e6225a231",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.01",
+    "set_version": "v1",
+    "item_id": "36",
+    "original_value_sha256": "d088ad98caeade8acf10d948d9e396cbaaa302871fc62d1b4526c48cf1591e66",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.01",
+    "set_version": "v1",
+    "item_id": "37",
+    "original_value_sha256": "e190a1b8e125e5913556a8a1646303c5c417ccf06e760c3bdb65485195fad472",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.01",
+    "set_version": "v1",
+    "item_id": "38",
+    "original_value_sha256": "006c756944b22994d80dd4317b6bbf03ecafb10fa33400e605232ce32030e9f2",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.01",
+    "set_version": "v1",
+    "item_id": "39",
+    "original_value_sha256": "3ea8d60642af9d5b4c6a4f894dff1b61ccdf771a915743bea05c4fec17585567",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.01",
+    "set_version": "v1",
+    "item_id": "40",
+    "original_value_sha256": "10e094022739bddfbff2bf15429b95ac28bccfea65c2fd0d2c53e6460058494d",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.02",
+    "set_version": "v1",
+    "item_id": "31",
+    "original_value_sha256": "16aea13390951972687fbe51a02d8ff3884aa03dad0e4f7b06c3e7c707e6315f",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.02",
+    "set_version": "v1",
+    "item_id": "32",
+    "original_value_sha256": "b0d411d0b0f7c787c0fe5301ac25d37626c94d59255b087abfd28997fd10e2f4",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.02",
+    "set_version": "v1",
+    "item_id": "33",
+    "original_value_sha256": "287c7f10eeb4250cd918605554ef599d72bc72a0774c64e998f7752741148fd3",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.02",
+    "set_version": "v1",
+    "item_id": "34",
+    "original_value_sha256": "8598081d64a23e34c0f35ac8721eaeaca58d61311cd49fc6afdfb5fed1c51d87",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.02",
+    "set_version": "v1",
+    "item_id": "35",
+    "original_value_sha256": "1901f7f8a915ad5d2aa2a5dfeb1fa4199dac47f604976af520154b012774da15",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.02",
+    "set_version": "v1",
+    "item_id": "36",
+    "original_value_sha256": "47d80abf76d57fd9de8d6a2ccdb506245b79966072d833652f208ab63a8e693e",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.02",
+    "set_version": "v1",
+    "item_id": "37",
+    "original_value_sha256": "c67f8295d56aea8ae9b706ac47313663b2ecb70c41c60d00711a6216682a9e0a",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.02",
+    "set_version": "v1",
+    "item_id": "38",
+    "original_value_sha256": "8b1a440a2921d1a2a2c1b212284eb38dfd0686cf9e6f2dda02dee635c2ee8dd3",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.02",
+    "set_version": "v1",
+    "item_id": "39",
+    "original_value_sha256": "3989cd294f7e4633a375aebf4c6daf723fb5f3dff6121060cff7997a06728e19",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.02",
+    "set_version": "v1",
+    "item_id": "40",
+    "original_value_sha256": "206566ec30293133cbd272f7a1793dcfd716cfd016da774597db9dc7a5fd2f76",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.03",
+    "set_version": "v1",
+    "item_id": "31",
+    "original_value_sha256": "d7b0d782d3f75590bd6f91ceaf4e16bd1e5e668fe48540e5e3271055452e43cd",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.03",
+    "set_version": "v1",
+    "item_id": "32",
+    "original_value_sha256": "c7dcf0996a78599329445e50b08ead7de8f513e04f723e9a51444fb3d8139307",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.03",
+    "set_version": "v1",
+    "item_id": "33",
+    "original_value_sha256": "a756c5ea27f048faa59eab0755aef1cfc54027ebce44ad668bb5556d0b92e2a1",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.03",
+    "set_version": "v1",
+    "item_id": "34",
+    "original_value_sha256": "5880246456b21b0b35f5069238172af98c8eb05c353ebf2c5a036f4c90125fa0",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.03",
+    "set_version": "v1",
+    "item_id": "35",
+    "original_value_sha256": "1cc8413fc5fdfeba75b630efa08ebf01baf80f39b52c980bb2eb0e6181f716d9",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.03",
+    "set_version": "v1",
+    "item_id": "36",
+    "original_value_sha256": "1c3a64e8fbf71b7ddaaacddf97e363b65a34bbd5c025259dff8515513351b750",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.03",
+    "set_version": "v1",
+    "item_id": "37",
+    "original_value_sha256": "9ef2896537125fc46ff3a347a73b66626aabe7e60d1edb596be12f9e9f165e94",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.03",
+    "set_version": "v1",
+    "item_id": "38",
+    "original_value_sha256": "33344290dc452c1a7f33fef8944d5ef4a0d0690a75bae7e23d9950de6b14b1df",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.03",
+    "set_version": "v1",
+    "item_id": "39",
+    "original_value_sha256": "13ebf6567a07a5a7da42e6fc7ca50fbb85a17dabcdb21e4d628001e3b8997dbc",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.sb2.03",
+    "set_version": "v1",
+    "item_id": "40",
+    "original_value_sha256": "7bc534670a6624b64b04e4ce138474952112690f90b8047f9a206211dc5feb82",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.01",
+    "set_version": "v1",
+    "item_id": "41",
+    "original_value_sha256": "c65393b6de0f079c6d42bccac4167cdf7974b2e440681d2f6a37f3c647fff0f0",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.01",
+    "set_version": "v1",
+    "item_id": "42",
+    "original_value_sha256": "b6e396a0fb6e0bc46c7cb02ce6353354a1e4094528257e8ac5195a51beaa3e00",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.01",
+    "set_version": "v1",
+    "item_id": "43",
+    "original_value_sha256": "c6b1a20462afb361179a3e8d1459b77611b26bf303e834ba82d455eea5b23ec5",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.01",
+    "set_version": "v1",
+    "item_id": "44",
+    "original_value_sha256": "725b9fd39ec9a81ea857c36d300ff09d56a32e87daaccb0e8ae4b101ea608a10",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.01",
+    "set_version": "v1",
+    "item_id": "45",
+    "original_value_sha256": "b9c4dee63c6dfd2e7f2b52740ad487bce0ed45eca8ab406df7e7417456e855b9",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.02",
+    "set_version": "v1",
+    "item_id": "41",
+    "original_value_sha256": "02b7d3b0e243320437eb73be66590606045bb99e705344232c4466726478d1ea",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.02",
+    "set_version": "v1",
+    "item_id": "42",
+    "original_value_sha256": "5d89288fa50345e59e2bbaddf5dc2e26d9bd53e6aaca9fdb03681f52381f68bd",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.02",
+    "set_version": "v1",
+    "item_id": "43",
+    "original_value_sha256": "d60af912d873af465647283e5f5846e2886cf7335fe6981d7505771eb6291bc6",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.02",
+    "set_version": "v1",
+    "item_id": "44",
+    "original_value_sha256": "66620b128a06c9b6ecf1abf563fbabfef11763810b8b15e3cfba4c458e6c0fdb",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.02",
+    "set_version": "v1",
+    "item_id": "45",
+    "original_value_sha256": "0afce0db53a852243adbc02d49cdc3ef0f5d4d98bf511bd6fff523d7d0b021c5",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.03",
+    "set_version": "v1",
+    "item_id": "41",
+    "original_value_sha256": "1aa31843cdd794e18eb5d4168feac2ad1b204583ad2f1825834e4c878c3580d5",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.03",
+    "set_version": "v1",
+    "item_id": "42",
+    "original_value_sha256": "edc664f0f23e92344a9af60faf03492eb9336f620f94b565bc864972c9617ed9",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.03",
+    "set_version": "v1",
+    "item_id": "43",
+    "original_value_sha256": "b2ff925bec0cc429a4784573df009eb538421502b2e1c9185706cc51583403c6",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.03",
+    "set_version": "v1",
+    "item_id": "44",
+    "original_value_sha256": "cd52d09a2d7ca70529ad75ac13108ea315fe0e4864f2b0cc48e70e02788c5785",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv1.03",
+    "set_version": "v1",
+    "item_id": "45",
+    "original_value_sha256": "fbe1ce1bb8b78ea164189fd1df9edbf5ce308d10b51317e7f626fc9be3367cd0",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.01",
+    "set_version": "v1",
+    "item_id": "46",
+    "original_value_sha256": "890e1e5232eb01441f04a005a3a9f16cdb3bc87ed57f840584b0f83e3a1268c5",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.01",
+    "set_version": "v1",
+    "item_id": "47",
+    "original_value_sha256": "0f7c63b7b2ac5c0dafcd9403215abf32c2dc81cafd90c9bb670452ad422d9d8f",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.01",
+    "set_version": "v1",
+    "item_id": "48",
+    "original_value_sha256": "d5732cb199a99eb7f61a1cb1d675cdd4fb7704d251a0239401589fc1fb323495",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.01",
+    "set_version": "v1",
+    "item_id": "49",
+    "original_value_sha256": "300074ff9d3646232e3efb417a3d7e406cbfb2643713ad2f27df8b0c8d9fb637",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.01",
+    "set_version": "v1",
+    "item_id": "50",
+    "original_value_sha256": "bd4900c17b0a4fdb5b33038436e0e0ac52b43df7bb6af9ae3368f25615c80d77",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.01",
+    "set_version": "v1",
+    "item_id": "51",
+    "original_value_sha256": "a0d2ea1c6c45ed202f68f14c89b78f294b9848b9ad5b7f801cbce721474bc92c",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.01",
+    "set_version": "v1",
+    "item_id": "52",
+    "original_value_sha256": "71daab0fe3fcb5095655314d15e88597a3e154e48977358c9f90222d662642ef",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.01",
+    "set_version": "v1",
+    "item_id": "53",
+    "original_value_sha256": "b83783d3bbeaee8c2cedccd4852cccc9e8079d481b97892354739eb711d927fa",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.01",
+    "set_version": "v1",
+    "item_id": "54",
+    "original_value_sha256": "b6743d622ebe04d2449484730d541733a0a5eef93d5a6beca4fe508e1886ce86",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.01",
+    "set_version": "v1",
+    "item_id": "55",
+    "original_value_sha256": "a2d2ea5d9cb2af9143f449d52c1bd65db734e968cced4abb1fb4aa400d9317d3",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.02",
+    "set_version": "v1",
+    "item_id": "46",
+    "original_value_sha256": "96053eb8eb29f88ad20d2bc6e711b8e123fac0168449933f95c4f58220e5568b",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.02",
+    "set_version": "v1",
+    "item_id": "47",
+    "original_value_sha256": "13ac514a4668a66fc13563b9398d119f1bb5cf6c5bf0bec31502ac342cbae583",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.02",
+    "set_version": "v1",
+    "item_id": "48",
+    "original_value_sha256": "5475e61f5b7ed5c13b9f0e8caf08270c7f4a321e67d088bb6c684b36bf966455",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.02",
+    "set_version": "v1",
+    "item_id": "49",
+    "original_value_sha256": "fae3e54b952c3dba05e85f684ab9b82ac66030b636103c88b47c2ff7399f7e52",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.02",
+    "set_version": "v1",
+    "item_id": "50",
+    "original_value_sha256": "5bd10c1a461b617ea8e74fd155688b11e75562a388e3737d49f8e8f627f8bb55",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.02",
+    "set_version": "v1",
+    "item_id": "51",
+    "original_value_sha256": "50be0f9fe2ffe8b383908eb8a669badfb84845a229c81bb8bc30b827f3bd63ae",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.02",
+    "set_version": "v1",
+    "item_id": "52",
+    "original_value_sha256": "89bbee7f565025f510fd6470bf6f57a2fddf733cafedf53bf4182dc22dd35779",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.02",
+    "set_version": "v1",
+    "item_id": "53",
+    "original_value_sha256": "be2fd9ae1895f6a0557c54b66850182598b973509fba714e85cbce579228de4b",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.02",
+    "set_version": "v1",
+    "item_id": "54",
+    "original_value_sha256": "b001f98bb593095b1c592b54d931b035bd9fd17c29324efe5e473b3b6d988135",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.02",
+    "set_version": "v1",
+    "item_id": "55",
+    "original_value_sha256": "f8a7c5012560270909e4b49dd3566bf5c10683fd70a125faffbcb893bb951567",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.03",
+    "set_version": "v1",
+    "item_id": "46",
+    "original_value_sha256": "0a6690ca10fb8e7bd9f67d7a5d81775fdbfe90a82c6e1ce3d960447c0512bc29",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.03",
+    "set_version": "v1",
+    "item_id": "47",
+    "original_value_sha256": "562b7ebde97ebbb30e55249b352e46bbae24c5c1c35de41b89e30face51e0ad6",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.03",
+    "set_version": "v1",
+    "item_id": "48",
+    "original_value_sha256": "ba825dfb270e046c6cd1c87050b1061329be3bfbf3e9acb70d8fdb096471fa84",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.03",
+    "set_version": "v1",
+    "item_id": "49",
+    "original_value_sha256": "f991dbaf38cf30e307ff6167a35f4be1f2213e5ee7146a54132fe5814e29cf99",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.03",
+    "set_version": "v1",
+    "item_id": "50",
+    "original_value_sha256": "41fa8b736d46efb2c7e319e4cca95a3509ad71e9750903547553a684d76ca8c7",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.03",
+    "set_version": "v1",
+    "item_id": "51",
+    "original_value_sha256": "772b589b19a9395a9167cca5b7ae939680e523335f1ecb98942bbaffca564519",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.03",
+    "set_version": "v1",
+    "item_id": "52",
+    "original_value_sha256": "5850c38fce0d0456bbac8724faeb37e384b8ca4ce0ef4e1fb4d4a57ea9b5cca4",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.03",
+    "set_version": "v1",
+    "item_id": "53",
+    "original_value_sha256": "67744d1f205c5cf6463b8923b0bdb4d0eae7d237f187c6855fcff474bbadcc49",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.03",
+    "set_version": "v1",
+    "item_id": "54",
+    "original_value_sha256": "437ebac83f442129c34246b685b150da53d579df1ed5d412bc45b644414b5124",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv2.03",
+    "set_version": "v1",
+    "item_id": "55",
+    "original_value_sha256": "cdd66660c735d639efb5bb7678f97178bce9e8d0706559d3f725711452acf197",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.01",
+    "set_version": "v1",
+    "item_id": "56",
+    "original_value_sha256": "c448acfb3bb353f8cc897e24dffe3f5431b46714c3f8adde80d421b86b1bb5b5",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.01",
+    "set_version": "v1",
+    "item_id": "57",
+    "original_value_sha256": "7c51538cc94cc3cb9471bb8f73a7f6d12a4a1602cddb44a286025a7f3d3b3080",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.01",
+    "set_version": "v1",
+    "item_id": "58",
+    "original_value_sha256": "e55f7c001e92dea9746ab214c15306448e79a756d5c471f0b96babbdf98ef2fa",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.01",
+    "set_version": "v1",
+    "item_id": "59",
+    "original_value_sha256": "fce54a776f478467755af277ec95536bd9acae5ca9786ab752f0344e4448da46",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.01",
+    "set_version": "v1",
+    "item_id": "60",
+    "original_value_sha256": "5f255a5c538a0eeee315235d822d015407813cea9f903dcf02b6087328c9000a",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.02",
+    "set_version": "v1",
+    "item_id": "56",
+    "original_value_sha256": "6cd6b8afd56dd6a928472b47e83cd7dfc9b784638699f6ed9f822c9ffed0df89",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.02",
+    "set_version": "v1",
+    "item_id": "57",
+    "original_value_sha256": "9640b66f04f7bb30d102d74729820f07bc2fd8ee09c3ed06d1864fd41a98f2fb",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.02",
+    "set_version": "v1",
+    "item_id": "58",
+    "original_value_sha256": "fbd127716dbfffc649bcd61bdc007f1fb06c9cbbd8383ad2411dd94081641c4d",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.02",
+    "set_version": "v1",
+    "item_id": "59",
+    "original_value_sha256": "cf3361a10aeae39cb288365f5799f99a803045730f7c68ab9265fb1eadf9ca2e",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.02",
+    "set_version": "v1",
+    "item_id": "60",
+    "original_value_sha256": "7073dd13b447db51bfc4c5d2979ca2d8a0042993c888ff44fb3eb95262870b8d",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.03",
+    "set_version": "v1",
+    "item_id": "56",
+    "original_value_sha256": "06acf4b9c8e2893c994fd05910c7299808202b8f5cddb8633eb1088b38fd2e2b",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.03",
+    "set_version": "v1",
+    "item_id": "57",
+    "original_value_sha256": "df6b7968b4deb833252323a559d75f34f7e82a5e37c0ec4c48c2a83fb6da6433",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.03",
+    "set_version": "v1",
+    "item_id": "58",
+    "original_value_sha256": "bae3248a375ae05f2d0c2d0a25c69626a6949d56796643a9b22dae46bdddfb40",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.03",
+    "set_version": "v1",
+    "item_id": "59",
+    "original_value_sha256": "80388455570debd5f206578670fa9d8d944f129355fd7f8c2464822fdaa8f5c6",
+    "language": "de"
+  },
+  {
+    "exam_id": "telc-deutsch-b1",
+    "set_id": "telc-deutsch-b1.hv3.03",
+    "set_version": "v1",
+    "item_id": "60",
+    "original_value_sha256": "d48f0ec61380dd513a0d2914a588d6e025c72f9a83bb40bda10b3d9f1b82975d",
+    "language": "de"
+  }
+]

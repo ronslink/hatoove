@@ -1,5 +1,29 @@
 # Curated design assets — provenance
 
+## Approved product captures — 9 October 2026
+
+Ron approved replacing the public illustration with the actual redesigned app capture in chat.
+Chromium captured a disposable source-only Compose instance using a synthetic account and answer.
+No learner data, live AI or production access was used. The German task is retained exam content;
+the Ukrainian explanation is an offline Codex-authored translation from the exact stored original,
+explicitly unreviewed in tools/fixtures/redesign-product-explanation.json. The normal explanation
+importer registers it without any approval decision. This is image approval, not educational or
+native-language approval and not deployment authorization.
+
+| Public capture | Dimensions | Bytes | SHA-256 |
+| --- | --- | --- | --- |
+| product-wide.jpg | 1400×900 | 142133 | 9613f05ff5c921b01538bd69c8fddf674d50aa71f3075c2f874a5b1522787a11 |
+| product-narrow.jpg | 900×1200 | 130011 | 13c2de9ae412abe15bcbdf1e772b913988362dc3000de85d392712621085da84 |
+| product-wide.webp | 1400×900 | 90712 | d4e4ea8e6f3d0515e5f82218c3ff810d738731a5a96120aac82d568f78993bc1 |
+| product-narrow.webp | 900×1200 | 89088 | 0507d179bde7a2026a3d24bbb49d651d1fff62bce603027b053ec5d382862aff |
+| og-card.jpg | 1200×630 | 101132 | 7332a47c025d849f36960442792acb03c437c486af48a7bd2498b01870189e27 |
+
+All are below 200 KB. JPEG evidence is retained under the ignored generated QA projects
+1791558805429-10264 and 1791559445001-52768; WebP counterparts are from 1791559790627-72540.
+The replaced SVG illustrations and prior PNG social card are removed from shipped assets.
+The separate digest-only German language registry projection preserves 180 existing exact-source
+declarations inside the server image; changed metadata or original prose remains unknown.
+
 ## Authorized studio revision — 9 October 2026
 
 Ron explicitly authorized revising and re-pinning `hatoove.css` in the pasted REDESIGN-01 contract.
