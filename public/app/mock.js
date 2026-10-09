@@ -415,7 +415,7 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
     const listeningFocus = host.contains(document.activeElement) ? document.activeElement?.getAttribute('data-listening-action') : null;
     const members = run.members || [], total = members.reduce((n, m) => n + m.item_count, 0);
     const selected = snapshot.responses.filter(row => row.answer !== null).length;
-    const status = snapshot.loading ? pl('serverLoading') : snapshot.busy ? pl('ui06') : snapshot.error ? pl('unconfirmed') : snapshot.dirty ? pl('unsaved') : pl('savedRevision',{revision:run.revision});
+    const status = snapshot.loading ? pl('serverLoading') : snapshot.busy ? pl('ui06') : snapshot.error ? pl('unconfirmed') : snapshot.dirty ? pl('unsaved') : pl('savedRevision');
     const position = displayPosition || snapshot.position;
     const member = members[position.member], form = member && mockMember(member), item = form?.items[position.item];
     const readonly = !snapshot.writable || finishing || boundaryChanging || !mockSectionWritable(run, member?.section, snapshot.serverNow);
