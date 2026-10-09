@@ -1316,7 +1316,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             let taskSet = null;
             try { taskSet = normalisePracticeSet(row); }
             catch (error) {
-              if (!(error instanceof TypeError && error.message === 'practice_set_invalid')) throw error;
+              if (!(error instanceof TypeError && ['practice_set_invalid', 'practice_set_items_unknown'].includes(error.message))) throw error;
             }
             return ({
             evidence_id: row.evidence_id,
