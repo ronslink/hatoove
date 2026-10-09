@@ -176,7 +176,6 @@ function formIdentity(t, form, examLanguage) {
   if (form?.mode === 'untimed') parts.push(t('untimed'));
   else if (Number.isFinite(form?.time_limit_seconds)) parts.push(t('minutes', { minutes: Math.round(form.time_limit_seconds / 60) }));
   else parts.push(t('timed'));
-  if (typeof form?.version === 'string' && typeof form?.release_version === 'string') parts.push(t('formRelease', { form: form.version, release: form.release_version }));
   return '<p class="small muted">' + parts.join(' · ') + '</p>';
 }
 
@@ -204,15 +203,14 @@ function runMarkup(run, { esc, locale, t, examLanguage, readOnly }) {
   const isFinished = run?.state === 'finalised';
   const stamp = typeof run?.updated_at === 'string' && run.updated_at ? run.updated_at
     : typeof run?.created_at === 'string' ? run.created_at : '';
-  const form = typeof run?.form_version === 'string' ? t('form', { form: run.form_version }) : '';
   // A saved run without an id cannot be opened, so it gets no link rather than a route that resolves nowhere.
   const open = id
     ? '<a class="btn" href="' + esc('#/lauf/' + encodeURIComponent(id)) + '">' + esc(pt(isFinished || readOnly ? 'view' : 'resume', {}, locale)) + '</a>'
     : '';
   return '<article class="card mock-intro-run" data-mock-intro-run="' + esc(isFinished ? 'finalised' : 'open') + '">'
-    + '<p class="kicker">' + esc(String(run?.exam_id ?? '')) + ' · ' + esc(mockScopeLabel(run)) + '</p>'
+    + '<p class="kicker">' + esc(mockScopeLabel(run)) + '</p>'
     + '<h3' + examAttributes(examLanguage) + '>' + esc(String(run?.title ?? '')) + '</h3>'
-    + '<p class="small muted">' + form + (stamp ? (form ? ' · ' : '') + '<span data-practice-date="' + esc(stamp) + '">' + esc(formatDate(stamp, { dateStyle: 'medium', timeStyle: 'short' }, locale)) + '</span>' : '') + '</p>'
+    + (stamp ? '<p class="small muted"><span data-practice-date="' + esc(stamp) + '">' + esc(formatDate(stamp, { dateStyle: 'medium', timeStyle: 'short' }, locale)) + '</span></p>' : '')
     + '<p class="small muted">' + esc(mockReviewLabel(run, locale)) + '</p>'
     + '<p>' + esc(pt(isFinished ? 'finished' : 'openRun', {}, locale)) + '</p>'
     + (run?.writing ? '<p class="small muted">' + esc(mockWritingStatus(run.writing)) + '</p>' : '')

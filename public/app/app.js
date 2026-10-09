@@ -639,8 +639,8 @@ async function renderTasks() {
   }
   if (!groups.length) {
     setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m063\">Zurzeit keine Aufgaben freigegeben</span></h3>"
-      + "<p class=\"muted\"><span data-i18n=\"shell.m064\">Der Server hat für dieses Angebot gerade nichts Servierbares. Das ist eine</span> "
-      + "<span data-i18n=\"shell.m065\">Aussage des Servers, keine leere Seite.</span></p></div>");
+      + "<p class=\"muted\"><span data-i18n=\"shell.m064\">Für dieses Angebot sind zurzeit keine Aufgaben verfügbar.</span> "
+      + "<span data-i18n=\"shell.m065\">Bitte versuchen Sie es später erneut.</span></p></div>");
     return;
   }
   setShellHTML(box, groups.join(''));
@@ -748,7 +748,7 @@ async function renderDictionary() {
   if (!res.ok) { setShellHTML(box, ''); showError(() => (uiText("m069") + " " + failure(res) + '.')); return; }
   const rows = Array.isArray(res.data) ? res.data : [];
   if (!rows.length) {
-    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m070\">Nichts gefunden</span></h3><p class=\"muted\"><span data-i18n=\"shell.m071\">Der Server hat zu dieser Suche keinen Eintrag.</span></p></div>");
+    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m070\">Nichts gefunden</span></h3><p class=\"muted\"><span data-i18n=\"shell.m071\">Zu dieser Suche wurde kein Eintrag gefunden.</span></p></div>");
     return;
   }
   readAloud.clear(box);
@@ -848,7 +848,7 @@ async function renderGuides() {
   if (!res.ok) { setShellHTML(box, ''); showError(() => (uiText("m069") + " " + failure(res) + '.')); return; }
   const guides = Array.isArray(res.data) ? res.data : [];
   if (!guides.length) {
-    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m075\">Zurzeit keine Nachschlagewerke</span></h3><p class=\"muted\"><span data-i18n=\"shell.m076\">Der Server hat gerade nichts Servierbares.</span></p></div>");
+    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m075\">Zurzeit keine Nachschlagewerke</span></h3><p class=\"muted\"><span data-i18n=\"shell.m076\">Zurzeit sind keine Aufgaben verfügbar.</span></p></div>");
     return;
   }
   setShellHTML(box, materialNotice() + guides.map((g) => '<div class="card"><div class="card-head"><h3 lang="de" dir="ltr">' + esc(g.title)
@@ -901,7 +901,7 @@ async function renderPracticeNext() {
     + sectionMarkup(data.section) + '</span></div>'
     + '<p><strong>' + setLabelMarkup(data.set) + '</strong> &middot; ' + messageMarkup('tasks', {count: data.set.item_count}) + '</p>'
     + (why() ? '<p class="muted" data-practice-reason></p>' : '')
-    + "<p class=\"small muted\"><span data-i18n=\"shell.m097\">Vom Server gewählt aus Ihren bisherigen Antworten — nicht geraten.</span></p></div>");
+    + "<p class=\"small muted\"><span data-i18n=\"shell.m097\">Aus Ihren bisherigen Antworten ausgewählt.</span></p></div>");
   bindShellText(box.querySelector('[data-practice-reason]'), why);
 }
 
@@ -1054,8 +1054,8 @@ async function renderMistakes() {
     if (mountedView === 'fehler' || await mountModule('fehler')) return;
   }
   if (!items.length) {
-    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m121\">Nichts offen</span></h3><p class=\"muted\"><span data-i18n=\"shell.m122\">Das ist eine Aussage des</span> "
-      + "<span data-i18n=\"shell.m123\">Servers über Ihre eigenen Antworten, keine leere Seite.</span></p></div>");
+    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m121\">Nichts offen</span></h3><p class=\"muted\"><span data-i18n=\"shell.m122\">Sie haben zurzeit</span> "
+      + "<span data-i18n=\"shell.m123\">keine offenen Fehler. Neue Aufgaben finden Sie im Training.</span></p></div>");
     return;
   }
   // A failed module load must not expose technical IDs or serialized answers.
@@ -1110,7 +1110,7 @@ async function renderSkill(view) {
         + '<button class="btn btn-primary" type="button" data-write="' + esc(t.task_id) + '"'
         + ' data-version="' + esc(t.version) + '" data-rubric="' + esc(t.rubric_id) + '"'
         + ' data-rubric-version="' + esc(t.rubric_version) + '">' + messageMarkup('m005') + '</button></div>').join('')
-      : "<div class=\"card\"><h3><span data-i18n=\"shell.m127\">Zurzeit keine Schreibaufgaben</span></h3><p class=\"muted\"><span data-i18n=\"shell.m076\">Der Server hat gerade nichts Servierbares.</span></p></div>");
+      : "<div class=\"card\"><h3><span data-i18n=\"shell.m127\">Zurzeit keine Schreibaufgaben</span></h3><p class=\"muted\"><span data-i18n=\"shell.m076\">Zurzeit sind keine Aufgaben verfügbar.</span></p></div>");
     box.onclick = (event) => {
       const button = event.target?.closest?.('[data-write]');
       if (!button) return;
@@ -1125,8 +1125,8 @@ async function renderSkill(view) {
   if (!res.ok) { setShellHTML(box, ''); showError(() => (uiText("m058") + " " + failure(res) + '.')); return; }
   const sets = (Array.isArray(res.data) ? res.data : []).filter((s) => s.section === section);
   if (!sets.length) {
-    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m128\">Zurzeit keine Aufgaben</span></h3><p class=\"muted\"><span data-i18n=\"shell.m129\">Der Server hat für diesen</span> "
-        + "<span data-i18n=\"shell.m130\">Bereich gerade nichts Servierbares.</span></p></div>");
+    setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m128\">Zurzeit keine Aufgaben</span></h3><p class=\"muted\"><span data-i18n=\"shell.m129\">Für diesen</span> "
+        + "<span data-i18n=\"shell.m130\">Bereich sind zurzeit keine Aufgaben verfügbar.</span></p></div>");
     return;
   }
   setShellHTML(box, sets.map((s) => '<div class="card"><div class="card-head"><h3>' + setLabelMarkup(s)
@@ -1167,7 +1167,7 @@ function renderObjectiveForm(set, host) {
   const form = objectiveForm(set);
   if (!form) {
     setShellHTML(host, "<div class=\"card\"><h3><span data-i18n=\"shell.m132\">Diese Aufgabenart wird noch nicht angezeigt</span></h3>"
-      + "<p class=\"muted\"><span data-i18n=\"shell.m133\">Der Inhalt ist vorhanden; die Ansicht für diese Familie fehlt noch.</span></p></div>");
+      + "<p class=\"muted\"><span data-i18n=\"shell.m133\">Diese Aufgabe kann gerade nicht geöffnet werden. Bitte wählen Sie eine andere Aufgabe.</span></p></div>");
     return;
   }
   const instruction = INSTRUCTIONS[form.interaction];
