@@ -784,6 +784,7 @@ export function createPartRunnerView(ctx = {}) {
    * node and the sitting — not the node — decides whether it is a new attempt.
    */
   let player = null;
+  let retryEvidenceId = ctx.retryEvidenceId || null;
   function playerFor() {
     if (!player) {
       player = createPracticeListeningPlayer({
@@ -848,7 +849,7 @@ export function createPartRunnerView(ctx = {}) {
     const ticket = ++generation;
     state = { ...state, phase: 'loading', busy: false, error: null, notice: null, blocked: null, answers: {}, checkFailure: null };
     render();
-    const response = await Promise.resolve(ctx.api?.practice?.next?.(family) ?? { ok: false, status: 0, error: 'practice_unavailable' });
+    const response = await Promise.resolve(ctx.api?.practice?.next?.(family, retryEvidenceId) ?? { ok: false, status: 0, error: 'practice_unavailable' });
     if (ticket !== generation || !host) return false;
     if (!response?.ok) {
       state = { ...state, phase: 'error', error: { code: nonEmpty(response?.error) ?? 'practice_failed', status: response?.status ?? 0 } };
@@ -858,6 +859,7 @@ export function createPartRunnerView(ctx = {}) {
     state.examRule = await readExamRule(ctx.api, family, providedParts);
     if (ticket !== generation || !host) return false;
     adopt(response, { mistakeRound });
+    retryEvidenceId = null;
     render();
     return true;
   }

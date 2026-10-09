@@ -8,7 +8,8 @@
 <link rel="stylesheet" href="/assets/design/hatoove.css">
 <link rel="stylesheet" href="/assets/design/fonts-coverage.css">
 <link rel="stylesheet" href="/assets/i18n/common.css">
-<link rel="stylesheet" href="/app/app.css">  <link rel="stylesheet" href="/app/answer-tiles.css">
+<link rel="stylesheet" href="/app/app.css">
+<link rel="stylesheet" href="/app/answer-tiles.css">
 <!--
   The Hatoove app shell (PILOT-08).
 
@@ -246,6 +247,7 @@
 
       <!-- Fehler (Mistakes) -->
       <section class="view" id="view-fehler" hidden>
+        <div id="mistakes-host" class="stack" hidden></div><div id="mistakes-fallback">
         <div class="page-head">
           <div>
             <p class="kicker"><span data-i18n="shell.m332">Wiederholen</span></p>
@@ -260,6 +262,7 @@
             <p class="muted"><span data-i18n="shell.m335">Eine Aufgabe, die Sie schon kennen, bringt mehr als eine neue, wenn Sie sie vorher falsch hatten.</span></p>
           </section>
           <div class="stack" id="mistake-list"><div class="card"><h3><span data-i18n="shell.m317">Wird geladen &hellip;</span></h3></div></div>
+        </div>
         </div>
       </section>
 

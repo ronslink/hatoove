@@ -883,13 +883,13 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
      * admitting one here would serve a set whose player cannot start — the exact defect F1 fixed, one layer
      * down. The admission check and the playback port therefore agree on the same key, by construction.
      */
-    async practiceSetForPart(owner, { preparationId, family, serveReview = 'approved+unreviewed' } = {}) {
+    async practiceSetForPart(owner, { preparationId, family, evidenceId = null, serveReview = 'approved+unreviewed' } = {}) {
       note('practiceSetForPart');
       if (typeof family !== 'string' || !/^[A-Za-z]{2}\d?$/.test(family)) fail(422, 'invalid_family');
       requirePreparationContext(preparationId);
       const statuses = servableReview(serveReview);
       return settle(owner, async (client) => {
-        const { exam_id: examId } = await resolvePreparation(client, owner, preparationId);
+        const { exam_id: examId } = await requireActivePreparation(client, owner, preparationId);
         if (!(await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible) return null;
         const candidates = (await client.query(
           `SELECT s.set_id, s.version, s.title, s.family, s.section, s.part, s.item_count, s.media_required, s.payload
@@ -905,23 +905,32 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
              FROM item_evidence
             WHERE owner_id = $1 AND preparation_id = $2 AND family = $3`,
           [owner, preparationId, family])).rows;
-        const chosen = selectPracticeSet(candidates, evidence);
+        let retry = null;
+        if (evidenceId) {
+          retry = first(await client.query(`SELECT set_id, version, item_id FROM item_evidence
+            WHERE owner_id=$1 AND preparation_id=$2 AND evidence_id=$3 AND correct=false`, [owner, preparationId, evidenceId]));
+          if (!retry) fail(404, 'not_found');
+        }
+        const chosen = retry ? { ...retry, tier: 'most-wrong', seen: 1, wrong: 1, first_seen_at: null } : selectPracticeSet(candidates, evidence);
         if (!chosen) return null;
         const row = candidates.find((entry) => entry.set_id === chosen.set_id && entry.version === chosen.version) || null;
         if (!row) return null;
         const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
-        const served = normalisePracticeSet({ ...row, items: undefined }, payload.playback ?? null);
+        const complete = normalisePracticeSet({ ...row, items: undefined }, payload.playback ?? null);
+        const retryItem = retry ? complete.items.find(item => item.item_id === retry.item_id) : null;
+        if (retry && !retryItem) fail(404, 'not_found');
+        const served = retryItem ? Object.freeze({ ...complete, items: Object.freeze([retryItem]), item_count: 1 }) : complete;
         const attemptId = randomUUID();
         await client.query(
           `INSERT INTO practice_attempt
-             (attempt_id, owner_id, exam_id, preparation_id, set_id, version, family, section, item_count)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [attemptId, owner, examId, preparationId, row.set_id, row.version, row.family, row.section, served.item_count]);
+             (attempt_id, owner_id, exam_id, preparation_id, set_id, version, family, section, item_count, retry_item_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [attemptId, owner, examId, preparationId, row.set_id, row.version, row.family, row.section, served.item_count, retryItem?.item_id ?? null]);
         /* How many distinct sets of this part the learner has already CHECKED: the runner's wrap rule (A1). */
         const checked = first(await client.query(
           `SELECT count(DISTINCT set_id)::int AS checked
              FROM practice_attempt
-            WHERE owner_id = $1 AND preparation_id = $2 AND family = $3 AND state = 'checked'`,
+            WHERE owner_id = $1 AND preparation_id = $2 AND family = $3 AND state = 'checked' AND retry_item_id IS NULL`,
           [owner, preparationId, family]));
         return Object.freeze({
           preparation_id: preparationId,
@@ -931,7 +940,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           reason: chosen.tier,
           evidence: { seen: chosen.seen, wrong: chosen.wrong, first_seen_at: chosen.first_seen_at },
           attempt: Object.freeze({ attempt_id: attemptId, state: 'open' }),
-          round: practiceRoundState({ setCount: candidates.length, checkedSets: checked ? checked.checked : 0 }),
+          round: retry ? null : practiceRoundState({ setCount: candidates.length, checkedSets: checked ? checked.checked : 0 }),
           set: served,
         });
         /*
@@ -966,7 +975,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         await lockMockOwner(client, owner);
         const prep = await requireActivePreparation(client, owner, preparationId);
         const attempt = first(await client.query(
-          `SELECT attempt_id, exam_id, preparation_id, set_id, version, family, section, item_count, state, mode
+          `SELECT attempt_id, exam_id, preparation_id, set_id, version, family, section, item_count, state, mode, retry_item_id
              FROM practice_attempt
             WHERE attempt_id = $1 AND owner_id = $2`, [attemptId, owner]));
         if (!attempt) fail(404, 'not_found');
@@ -1003,6 +1012,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             if (!imported) fail(409, 'media_unavailable');
           }
         }
+        if (attempt.retry_item_id && (answers.length !== 1 || answers[0]?.item_id !== attempt.retry_item_id))
+          fail(422, 'retry_item_mismatch');
         const items = [];
         let correctCount = 0;
         for (const entry of answers) {
@@ -1281,15 +1292,15 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           // timestamp are broken by the evidence id, and the final order is total, so the list is stable.
           `WITH latest AS (
              SELECT DISTINCT ON (e.set_id, e.version, e.item_id)
-                    e.set_id, e.version, e.item_id, e.family, e.section, e.answer, e.correct, e.answered_at
+                    e.evidence_id, e.exam_id, e.set_id, e.version, e.item_id, e.family, e.section, e.answer, e.correct, e.answered_at
                FROM item_evidence e
               WHERE e.owner_id = $1 AND e.preparation_id = $2
               ORDER BY e.set_id, e.version, e.item_id, e.answered_at DESC, e.evidence_id DESC
            )
-           SELECT l.set_id, l.version, l.item_id, l.family, l.section, l.answer, l.answered_at,
-                  s.title, s.item_count, reveal_objective_answer(l.set_id, l.version, l.item_id) AS correct_answer
+           SELECT l.evidence_id, l.set_id, l.version, l.item_id, l.family, l.section, l.answer, l.answered_at,
+                  s.title, s.part, s.payload, s.item_count, reveal_objective_answer(l.set_id, l.version, l.item_id) AS correct_answer
              FROM latest l
-             JOIN objective_set s ON s.set_id = l.set_id AND s.version = l.version
+             JOIN objective_set s ON s.exam_id = l.exam_id AND s.set_id = l.set_id AND s.version = l.version
              JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
             WHERE l.correct = false
               AND ${importedSetGate()}
@@ -1300,9 +1311,13 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
           preparation_id: preparationId,
           count: rows.length,
           items: rows.map((row) => ({
+            evidence_id: row.evidence_id,
+            task: normalisePracticeSet(row).items.find(item => item.item_id === row.item_id) ?? null,
+            material: normalisePracticeSet(row).material,
             set_id: row.set_id,
             version: row.version,
             set_title: row.title,
+            part: row.part,
             item_id: row.item_id,
             family: row.family,
             section: row.section,

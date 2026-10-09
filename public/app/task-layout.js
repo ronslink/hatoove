@@ -8,6 +8,7 @@ export function answerLabel(item, key, locale) {
   const option = item.options.find(entry => String(entry.id) === String(key));
   if (!option) return '';
   const text = option.text || (item.answer_kind === 'judgement' ? (option.value ? 'richtig' : 'falsch') : '');
+  if (item.answer_kind === 'judgement') return text;
   return option.id === 'x' && !text ? 'x · ' + pt('layoutNoMatch', {}, locale) : option.id + (text ? ' · ' + text : '');
 }
 

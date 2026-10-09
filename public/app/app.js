@@ -1050,30 +1050,16 @@ async function renderMistakes() {
       : uiText("m120"));
   }
   if (!box) return;
+  if (currentView === 'fehler') {
+    if (mountedView === 'fehler' || await mountModule('fehler')) return;
+  }
   if (!items.length) {
     setShellHTML(box, "<div class=\"card\"><h3><span data-i18n=\"shell.m121\">Nichts offen</span></h3><p class=\"muted\"><span data-i18n=\"shell.m122\">Das ist eine Aussage des</span> "
       + "<span data-i18n=\"shell.m123\">Servers über Ihre eigenen Antworten, keine leere Seite.</span></p></div>");
     return;
   }
-  // The design's `.list` carries the border and the radius, and only `.list-item:first-child` drops its
-  // top border; bare `.list-item` rows therefore rendered as detached, separately bordered boxes.
-  //
-  // TWO LINES, TWO JOBS: the title is the SET, the sub-line says which SECTION and which item. They both
-  // printed the title for a moment (setLabel returns an authored title unchanged), which duplicated it
-  // and dropped the section.
-  setShellHTML(box, '<div class="list">' + items.map((m) => '<div class="list-item"><div><strong>'
-    + setLabelMarkup({ title: m.set_title, section: m.section, part: null })
-    + '</strong><span class="sub">' + sectionMarkup(m.section) + ' &middot; ' + messageMarkup('version') + ' ' + esc(m.version) + ' &middot; ' + (/^g_/.test(m.item_id) ? messageMarkup("m124") : messageMarkup("m125") + " " + esc(m.item_id) + " " + messageMarkup("m094") + " " + m.set_item_count) + '</span></div>'
-    + "<span class=\"chip chip-orange\"><span data-i18n=\"shell.m126\">Ihre Antwort:</span> " + esc(JSON.stringify(m.your_answer)) + '</span>'
-    /*
-     * REDESIGN-01 A/C: the server reveals the correct answer for an item this learner has already
-     * answered (migration 0041, `reveal_objective_answer`). The key table stays unreadable; this is the
-     * one item's answer, and only because this learner's own answer to it is on record. A row that
-     * predates the field, or a backend that does not supply it, renders exactly as before.
-     */
-    + (m.correct_answer === undefined || m.correct_answer === null ? ''
-      : "<span class=\"chip\"><span data-i18n=\"shell.m388\">richtige Antwort:</span> " + esc(JSON.stringify(m.correct_answer)) + '</span>')
-    + '</div>').join('') + '</div>');
+  // A failed module load must not expose technical IDs or serialized answers.
+  setShellHTML(box, '<p class="err" role="alert">' + messageMarkup('m117') + '</p>');
 }
 
 
@@ -1634,6 +1620,7 @@ async function renderHistory() {
  * so no sidebar entry can point at a blank page.
  */
 const MODULE_VIEWS = {
+  fehler: { specifier: './mistakes.js', factory: 'createMistakesView', css: 'mistakes.css', host: 'mistakes-host', covers: ['mistakes-fallback'] },
   lesen: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'lesen-host', covers: ['skill-lesen', 'lesen-head'] },
   sprachbausteine: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'sprachbausteine-host', covers: ['skill-sprachbausteine', 'sprachbausteine-head'] },
   nachschlagen: { specifier: './library.js', factory: 'createLibraryView', css: 'library.css', host: 'library-host', covers: ['guide-index', 'guide-body'] },
@@ -1743,7 +1730,7 @@ async function mountModule(view) {
   host.hidden = false;
   try {
     mountedModule = create({
-      api, uiText, esc, state, guideContent,
+      api, uiText, esc, state, guideContent, explanations,
       onPartIdentity: (section, part) => {
         const skill = { LV: 'm002', SB: 'm003', HV: 'm004' }[section];
         const page = () => skill && part ? uiText(skill) + ' · ' + pt('part', { part }) : uiText(VIEW_TITLES[currentView]);

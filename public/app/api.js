@@ -398,8 +398,9 @@ return Object.freeze({
      * The URLs stay in this module because this module is the only place in `public/app/` that knows
      * one. Agreed with the Lead (task-16, 5 October 2026) rather than opened as a second transport.
      */
-    next: (family = null) => scopedCall('GET', PATHS.practiceNext
-      + (typeof family === 'string' && family ? '?family=' + encodeURIComponent(family) : '')),
+    next: (family = null, evidenceId = null) => scopedCall('GET', PATHS.practiceNext
+      + (typeof family === 'string' && family ? '?family=' + encodeURIComponent(family)
+        + (evidenceId ? '&evidenceId=' + encodeURIComponent(evidenceId) : '') : '')),
     check: (payload) => scopedCall('POST', PATHS.practiceCheck, payload),
     /**
      * This learner's own totals and per-section tallies, aggregated by the server from item_evidence.
@@ -416,8 +417,8 @@ return Object.freeze({
      * The items whose MOST RECENT answer was wrong. A mistake clears itself when the learner gets the
      * item right -- there is no "mark as learned" and no scheduler.
      *
-     * NO CORRECT ANSWER IS RETURNED. It cannot be: the answer key is not readable by the learner's
-     * database role at all. What comes back is what the LEARNER answered, so they can try again.
+     * The correct answer is revealed only for an item this owner has already answered. Normalised
+     * question/context and the owned evidence identity allow a bound retry without exposing other keys.
      */
     mistakes: () => scopedCall('GET', PATHS.practiceMistakes),
     /**
