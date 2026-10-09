@@ -266,7 +266,7 @@ code {
  * "Öffnen"/"Zurück"/"Schließen", "Neu anfangen", "Erneut bewerten" and the objective answer tiles — because
  * they were all relying on the browser default, which was never a design decision.
  */
-.btn:not(.btn-primary):not(.btn-dark):not(.btn-ghost):not(.btn-danger) {
+.btn:not(.btn-primary):not(.btn-go):not(.btn-dark):not(.btn-ghost):not(.btn-danger) {
   background: transparent;
   border-color: var(--line);
   color: var(--ink);

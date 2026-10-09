@@ -74,6 +74,17 @@ try {
       assert.deepEqual(result.violations.map(row=>row.id+':'+row.nodes.map(node=>node.target.join(',')).join(';')),[]);
     });
   };
+  const checkGoAction = async (name, required = false) => {
+    await check(name + ' continuation uses the orange face and readable ink', async () => {
+      const actions = await cdp.evaluate("return [...document.querySelectorAll('.btn-go')].filter(node=>node.getBoundingClientRect().width>0 && node.getBoundingClientRect().height>0).map(node=>{const style=getComputedStyle(node);return {background:style.backgroundColor,color:style.color};});");
+      assert.ok(actions.length <= 1, 'at most one visible continuation action');
+      if (required) assert.equal(actions.length, 1, 'the main continuation action is present');
+      for (const action of actions) {
+        assert.equal(action.background, 'rgb(255, 107, 43)');
+        assert.equal(action.color, 'rgb(35, 22, 15)');
+      }
+    });
+  };
   const openPart = async family => {
     await cdp.evaluate("location.hash='#/pruefungsteile'");
     await cdp.waitFor("document.querySelector('[data-part-open=\"" + family + "\"]')?.getBoundingClientRect().height>0");
@@ -102,6 +113,7 @@ try {
     await cdp.send('Page.navigate', { url: base + '/app/?redesignFixture=' + label + '#/prep/' + preparation.active + '/heute' });
     await cdp.waitFor("document.querySelector('#account-email')?.textContent.includes('@')");
     await cdp.evaluate(`return (async()=>{ const core=await import('/assets/i18n/core.js'); core.setLocale('${locale}'); document.documentElement.dataset.theme='${theme}'; return true; })()`);
+    await checkGoAction(label + ' dashboard', true);
     await shot(label + '-dashboard');
     await check(label+' report icon has a visible stroke and contrasting surface',async()=>{
       const flag=await cdp.evaluate("const icon=document.querySelector('#feedback-open svg'),style=getComputedStyle(icon),button=getComputedStyle(icon.parentElement);return {stroke:style.stroke,color:style.color,background:button.backgroundColor,width:icon.getBoundingClientRect().width};");
@@ -175,6 +187,7 @@ try {
       if(['LV2','HV1'].includes(family))await check(label+' '+family+' review navigator focuses the requested saved verdict',async()=>{
         assert.ok(await cdp.evaluate("const button=document.querySelector('[data-item-navigator] button:nth-child(2)');button.focus();button.click();return document.activeElement.matches('[data-review-verdict]') && document.activeElement.closest('[data-review-item]').dataset.reviewItem===button.dataset.runnerJump"));
       });
+      await checkGoAction(label + ' ' + family + ' saved result');
       await shot(label + '-' + family.toLowerCase() + '-review');
       if(label==='desktop'&&family==='LV2') await check('real wrong-answer product capture candidates',async()=>{
         await cdp.evaluate("return (async()=>{const core=await import('/assets/i18n/core.js');core.setLocale('uk');})()");
@@ -286,6 +299,7 @@ try {
   for(const width of [1280,390]){
     await cdp.send('Emulation.setDeviceMetricsOverride',{width,height:width===390?844:1000,deviceScaleFactor:1,mobile:width===390});
     await cdp.send('Page.navigate',{url:base+'/'}); await cdp.waitFor("document.querySelector('#hero-start')"); await sleep(300);
+    await checkGoAction(width + ' public start', true);
     await shot(width+'-landing'); await scan(width+'-landing');
     await cdp.send('Page.navigate',{url:base+'/signin'}); await cdp.waitFor("document.querySelector('#form-signin')"); await sleep(300);
     await shot(width+'-auth'); await scan(width+'-auth');
