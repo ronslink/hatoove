@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import {readFile} from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ownRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -12,6 +13,11 @@ const responseFor = family => ({ ok: true, data: { family, attempt: { attempt_id
 const stateFor = family => runnerStateFromServed({ family, response: responseFor(family), examLanguage: 'de' });
 let failures = 0, passes = 0;
 async function check(name, run) { try { await run(); console.log('PASS ' + name); passes++; } catch (error) { console.log('FAIL ' + name + ': ' + error.message.split('\n')[0]); failures++; } }
+
+await check('shared answer stylesheet is an actual shell link outside comments', async () => {
+  const html = (await readFile(path.join(root,'public/app/index.html'),'utf8')).replace(/<!--[\s\S]*?-->/g,'');
+  assert.match(html, /<link\b[^>]*rel="stylesheet"[^>]*href="\/app\/answer-tiles\.css"/);
+});
 
 for (const family of ['LV1', 'LV3']) await check(family + ' shares one bank and one picker per text, all options still selectable', () => {
   const markup = runnerMarkup(stateFor(family), { locale: 'de', examLanguage: 'de' });

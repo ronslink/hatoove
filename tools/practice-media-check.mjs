@@ -24,9 +24,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
-import { createPostgresDatastore } from '../server/owned-postgres/adapter.mjs';
-/* The SAME gate the shipped admission query interpolates, so the extracted probe runs the real predicate. */
-import { importedSetGate } from '../server/owned-postgres/packages.mjs';
+import { createPostgresDatastore, servablePartSetSql } from '../server/owned-postgres/adapter.mjs';
 import { importPackage } from '../server/owned-postgres/package-importer.mjs';
 import { createOwnedApi } from '../server/owned-api.mjs';
 import { practicePlaybackTransition } from '../server/owned-postgres/practice-playback.mjs';
@@ -139,13 +137,14 @@ function expectDrillPromptsServed(normalise = normalisePracticeSet) {
  * (the attempt-deletion probe reads the same columns), so a `lastIndexOf` on the selection list picks up the
  * wrong literal and the probe would then run a completely different statement.
  */
-const ADMISSION_RE = /`SELECT s\.set_id, s\.version, s\.title, s\.family, s\.section, s\.part, s\.item_count, s\.media_required, s\.payload[\s\S]*?COALESCE\(cr\.basis, c\.rights_status\) = ANY\(\$4::text\[\]\)`/;
+const ADMISSION_RE = /`SELECT s\.set_id, s\.version, s\.title, s\.family, s\.section, s\.part, s\.item_count, s\.media_required, s\.payload[^`]*?\$\{servablePartSetSql\('\$3', '\$4'\)\}`/;
 function admissionSql(source) {
   const match = ADMISSION_RE.exec(source);
   assert.ok(match, 'the admission query must still be present, whole, in server/owned-postgres/adapter.mjs');
+  assert.equal([...source.matchAll(new RegExp(ADMISSION_RE.source,'g'))].length,1,'extract exactly one serving query');
   /* The literal carries interpolations (`${importedSetGate()}`); the shipped adapter renders them at call time,
      so this probe must render them too — with the SAME function, imported from the same module. */
-  const sql = match[0].slice(1, -1).replace('${importedSetGate()}', importedSetGate());
+  const sql = match[0].slice(1, -1).replace("${servablePartSetSql('$3', '$4')}", servablePartSetSql('$3', '$4'));
   for (const member of ['media_required = false', "s.payload->'recordings'", 'exam_media m', 'NOT EXISTS', 'exam_form_member']) {
     assert.ok(sql.includes(member), `the extracted admission query must carry ${member}`);
   }
@@ -190,32 +189,20 @@ async function craftMediaSet(db, { setId, family = 'HV1', section = 'HV', part =
  * `admissionMutations` is called from INSIDE the F4 leg, while the fixture's pools are still open; the
  * `s5.tech.hv1.*` rows it judges are the ones that leg created.
  */
+function replaceAdmissionOnce(sql, pattern, replacement) {
+  assert.equal([...sql.matchAll(pattern)].length,1,'exactly one admission clause must be mutated');
+  return sql.replace(pattern,replacement);
+}
 const ADMISSION_MUTATIONS = [
   {
     label: 'P1 adapter: the playability half removed (a media set is admitted with NO recordings)',
-    mutate: (sql) => sql.replace(`              AND (
-                s.media_required = false
-                OR EXISTS (
-                  SELECT 1 FROM jsonb_array_elements(s.payload->'recordings') AS rec
-                   WHERE EXISTS (SELECT 1 FROM exam_media m
-                                  WHERE m.exam_id = s.exam_id
-                                    AND m.media_id = rec->>'mediaId'
-                                    AND m.version = rec->>'mediaVersion')
-                )
-              )\n`, '              AND true\n'),
+    mutate: sql => replaceAdmissionOnce(sql, /\(\s*s\.media_required = false OR EXISTS \([\s\S]*?\n  \) AND NOT EXISTS/g, 'true AND NOT EXISTS'),
     refused: ['s5.tech.hv1.none', 's5.tech.hv1.half'],
     admitted: ['s5.tech.hv1.full'],
   },
   {
     label: 'P2 adapter: the complete-resolution half removed (a partially bound set is admitted)',
-    mutate: (sql) => sql.replace(`              AND NOT EXISTS (
-                SELECT 1 FROM jsonb_array_elements(
-                  CASE WHEN jsonb_typeof(s.payload->'recordings') = 'array' THEN s.payload->'recordings' ELSE '[]'::jsonb END) AS rec
-                 WHERE NOT EXISTS (SELECT 1 FROM exam_media m
-                                    WHERE m.exam_id = s.exam_id
-                                      AND m.media_id = rec->>'mediaId'
-                                      AND m.version = rec->>'mediaVersion')
-              )\n`, ''),
+    mutate: sql => replaceAdmissionOnce(sql, / AND NOT EXISTS \(\n    SELECT 1 FROM jsonb_array_elements\([\s\S]*?\n  \) AND /g, ' AND '),
     refused: ['s5.tech.hv1.half', 's5.tech.hv1.mixed'],
     admitted: ['s5.tech.hv1.full'],
   },

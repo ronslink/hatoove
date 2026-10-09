@@ -384,7 +384,7 @@ leg('2 [dto] the review is the FULL review: prompt, ALL options, key marked, pic
     assert.ok(block[0].includes('data-option-id="' + item.chosen + '"'), 'the chosen option is present');
     assert.match(block[0], new RegExp('data-review-verdict="' + (item.correct ? 'correct' : 'wrong') + '"'), 'the server verdict, not a client guess');
   }
-  assert.ok(textOf(markup).includes('Richtig') && textOf(markup).includes('Ihre Antwort'), 'both markers are labelled');
+  assert.ok(textOf(markup).includes(t('partRunnerKey')) && textOf(markup).includes(t('partRunnerYourPick')), 'both markers are labelled with the shipped catalogue copy');
   assert.match(markup, /data-runner-result data-correct="1" data-total="3"/, 'the result is a count of the server verdicts');
   assert.ok(!/%|Prozent|percent/i.test(textOf(markup)), 'no percentage');
 });
