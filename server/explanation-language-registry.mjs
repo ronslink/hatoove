@@ -28,6 +28,18 @@ export function legacySeedLanguageRegistry(bytes){
 // Exact retained source declares German originals. No inference from family or requested language.
 try{entries.push(...legacySeedLanguageRegistry(readFileSync(new URL('../data/seed.json',import.meta.url))));}
 catch{/* Missing or changed legacy bytes remain unknown. */}
+// The server image omits data/seed.json. This projection preserves the same exact declarations;
+// it contains only identities/digests, and a changed original still resolves to unknown.
+export function projectedLegacyLanguageRegistry(bytes) {
+ try {
+  if(!Buffer.isBuffer(bytes))return Object.freeze([]);
+  const projected=JSON.parse(bytes.toString('utf8'));
+  return packageHash(projected)==='a81b5b0b0c0fa4f691038514c8da3460ecddc595ddb286b621ef5bf4397d6d70'
+   ? Object.freeze(projected.map(row=>Object.freeze(row))) : Object.freeze([]);
+ } catch { return Object.freeze([]); }
+}
+try { entries.push(...projectedLegacyLanguageRegistry(readFileSync(new URL('./legacy-explanation-language.json',import.meta.url)))); }
+catch {/* Missing projected metadata remains unknown. */}
 for(const [exam,digest] of pinned){
  try {
   const p=JSON.parse(readFileSync(new URL(`../content/exams/${exam}/manifest.json`,import.meta.url),'utf8'));

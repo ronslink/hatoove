@@ -468,12 +468,12 @@ async function main() {
     await viewport(cdp, 1440, 900, false);
     await nav(cdp, base);
     record('L1d the phone gets the NARROW crop of the artwork, and the desktop the wide one',
-      wideSrc.includes('landing-item.svg') && !wideSrc.includes('narrow')
-        && mobileArt.src.includes('landing-item-narrow.svg') && mobileArt.loaded,
+      wideSrc.includes('product-wide.') && !wideSrc.includes('narrow')
+        && mobileArt.src.includes('product-narrow.') && mobileArt.loaded,
       `desktop ${(wideSrc.split('/').pop() || 'none')}; 390px ${(mobileArt.src.split('/').pop() || 'none')}`
         + ` natural ${JSON.stringify(mobileArt.natural)} loaded=${mobileArt.loaded}`);
     record('L1d2 the 1100px band ALSO gets the narrow crop, where the wide one would be too small',
-      bandSrc.includes('landing-item-narrow.svg'),
+      bandSrc.includes('product-narrow.'),
       `1100px ${(bandSrc.split('/').pop() || 'none')} — the wide crop needs ~1190px to reach its small-text floor`);
     record('L1e the phone front door has no horizontal overflow',
       mobileArt.page.scrollWidth <= mobileArt.page.innerWidth + 1,
