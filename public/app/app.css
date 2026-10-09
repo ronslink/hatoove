@@ -74,7 +74,7 @@
   font-size: 11px;
   font-weight: 700;
   background: var(--accent);
-  color: var(--orange-ink);
+  color: var(--on-accent);
   border-radius: 999px;
   padding: 1px 7px;
 }
@@ -524,6 +524,7 @@ dialog::backdrop { background: color-mix(in srgb, var(--nav-bg) 60%, transparent
   .tabbar a span { overflow-wrap: normal; word-break: normal; hyphens: auto; }
   .topbar { background: var(--nav-bg); }
   .topbar .feedback-flag { color: var(--nav-ink); background: var(--nav-active-bg); border-color: var(--nav-ink-muted); }
+  .topbar .feedback-flag svg.i { color: var(--nav-ink); stroke: var(--nav-ink); }
   .tabbar svg.i { width: 26px; height: 26px; stroke-width: 1.75; }
   .tabbar a[aria-current=page] { color: var(--accent); }
   .mobile-exam-mark { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 4px; font-weight: 800; background: var(--accent-soft); color: var(--ink); border: 1px solid var(--tile-idle-border); border-radius: var(--r-sm); }
