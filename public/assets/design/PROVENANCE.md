@@ -1,5 +1,15 @@
 # Curated design assets — provenance
 
+## Authorized studio revision — 9 October 2026
+
+Ron explicitly authorized revising and re-pinning `hatoove.css` in the pasted REDESIGN-01 contract.
+The shipped stylesheet now uses the requested cool canvas, navy rail, blue primary controls and
+orange continue control. The reference original remains unchanged under `D:/Hatoove/design/assets/hatoove.css`,
+SHA-256 `36af5c8f190b37008d35fc954515c3503658a052ca2c29ae9963d701ccca2fdc`, 21210 bytes.
+The manifest records the revised shipped digest. Font files, licences and logos retain their original bytes.
+The historical preservation rules below describe the earlier font-coverage correction; this explicit
+design revision supersedes their prohibition for this stylesheet only. Other pinned assets remain immutable.
+
 These bytes are the **shipped** Hatoove design system. They are copies of the supplied design
 originals, not re-exports, and `tools/design-assets-check.mjs` proves it: every file here must match
 the SHA-256 pinned in [`DESIGN-REFERENCE-MANIFEST.json`](../../../work/implementation/DESIGN-REFERENCE-MANIFEST.json).

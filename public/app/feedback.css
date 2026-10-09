@@ -34,7 +34,8 @@
   text-align: start;
   cursor: pointer;
 }
-.nav .feedback-nav:hover { background: var(--canvas); }
+.nav .feedback-nav { color: var(--nav-ink-muted); font-size: 17px; font-weight: 600; min-height: 52px; padding: 12px 14px; gap: 14px; }
+.nav .feedback-nav:hover { background: var(--nav-active-bg); color: var(--nav-ink); }
 .feedback-sheet {
   inline-size: min(34rem, 100%);
   max-block-size: 88vh;
