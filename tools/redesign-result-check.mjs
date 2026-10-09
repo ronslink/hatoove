@@ -32,7 +32,7 @@ await check('review jump focuses the requested verdict instead of a preceding di
  let focused=null;
  const verdict={focus(){focused='review-2';}};
  const disabled={disabled:true,focus(){}};
- const item={scrollIntoView(){},querySelector(selector){return selector==='[data-review-verdict]'?verdict:disabled;}};
+ const item={dataset:{},scrollIntoView(){},querySelector(selector){return selector==='[data-gap-open]'?null:selector==='[data-review-verdict]'?verdict:disabled;}};
  const host={innerHTML:'',querySelectorAll:()=>[],querySelector(selector){return selector.startsWith('[data-item-id=')||selector.startsWith('[data-review-item=')?item:selector==='[data-review-verdict]'?verdict:null;}};
  const view=createPartRunnerView({family:'LV2',examLanguage:'de',api:{practice:{next:async()=>({ok:true,data:{family:'LV2',attempt:{attempt_id:'11111111-2222-4333-8444-555555555555'},set:state.set}}),check:async()=>({ok:true,data:reviewed.checked})}}});
  try {
