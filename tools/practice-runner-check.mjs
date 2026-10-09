@@ -384,7 +384,7 @@ leg('2 [dto] the review is the FULL review: prompt, ALL options, key marked, pic
     assert.ok(block[0].includes('data-option-id="' + item.chosen + '"'), 'the chosen option is present');
     assert.match(block[0], new RegExp('data-review-verdict="' + (item.correct ? 'correct' : 'wrong') + '"'), 'the server verdict, not a client guess');
   }
-  assert.ok(textOf(markup).includes('Lösung') && textOf(markup).includes('Ihre Wahl'), 'both markers are labelled');
+  assert.ok(textOf(markup).includes(t('partRunnerKey')) && textOf(markup).includes(t('partRunnerYourPick')), 'both markers are labelled with the shipped catalogue copy');
   assert.match(markup, /data-runner-result data-correct="1" data-total="3"/, 'the result is a count of the server verdicts');
   assert.ok(!/%|Prozent|percent/i.test(textOf(markup)), 'no percentage');
 });
@@ -1315,7 +1315,11 @@ leg('12c [dto] the client renders the required DTO for every one of the ' + STOR
     assert.equal(state.blocked, null, stored.set_id + ': the DTO is renderable');
     assert.equal(countOf(markup, /data-item-id="/g), dto.items.length, stored.set_id + ': every task');
     assert.equal(countOf(markup, /data-runner-evaluate[ >]/g), 1, stored.set_id + ': one evaluate control');
-    assert.equal(countOf(markup, /data-answer-item="/g), dto.items.reduce((sum, item) => sum + item.options.length, 0), stored.set_id + ': every option');
+    const pickers = ['LV1', 'LV3', 'SB2'].includes(stored.family);
+    assert.equal(countOf(markup, /data-answer-item="/g), pickers ? dto.items.length : dto.items.reduce((sum, item) => sum + item.options.length, 0), stored.set_id + ': every task is answerable');
+    for (const item of dto.items) for (const option of item.options) {
+      assert.ok(markup.includes('value="' + option.id + '"'), stored.set_id + '/' + item.item_id + ': option is selectable');
+    }
     if (stored.section === 'HV') assert.ok(markup.includes('data-runner-audio'), stored.set_id + ': listening block');
   }
 });
@@ -1417,7 +1421,12 @@ leg('14c 409 with NO review: the sitting is closed, so say so — do not loop, d
   assert.match(host.innerHTML, /data-runner-recovery/, 'the learner can still move on');
   /* The recovery controls are real: they ask for another set rather than repeating the refused request. */
   const asks = stub.calls.next.length;
+  const savedConfirm = globalThis.confirm;
+  globalThis.confirm = () => false;
   host.onclick(recoverEvent('next'));
+  assert.equal(stub.calls.next.length, asks, 'cancelling preserves unchecked picks');
+  globalThis.confirm = () => true;
+  try { host.onclick(recoverEvent('next')); } finally { globalThis.confirm = savedConfirm; }
   await tick();
   assert.ok(stub.calls.next.length > asks, '"Noch ein Satz" asks the server for another set');
   assert.equal(calls, 1, 'and the refused check is never re-sent');
@@ -1480,7 +1489,7 @@ leg('14f the classification is pure and total, so no refusal can fall through to
 /** The four mutations, with the ONE leg each must break. Kept next to the check so a later reader can
  *  re-run the proof instead of trusting a table in a note. */
 const MUTATIONS = Object.freeze([
-  Object.freeze({ id: 'M1', what: 'the review drops the key marker', from: 'data-option-marker="key"', to: 'data-option-marker="key-disabled"', leg: '2' }),
+  Object.freeze({ id: 'M1', what: 'the review drops the key marker', file: 'task-layout.js', from: '<span class="chip" data-option-marker="key"', to: '<span class="chip" data-option-marker="key-disabled"', leg: '2' }),
   Object.freeze({ id: 'M2', what: 'the exhausted part gets the silent restart label', from: 'key: wrapped ? WRAP_KEY : ACTION_KEYS.next', to: 'key: ACTION_KEYS.next', leg: '6' }),
   Object.freeze({ id: 'M3', what: 'replay is offered before "Auswerten"', from: "const reviewed = state.phase === 'review';", to: 'const reviewed = true;', leg: '7' }),
   Object.freeze({ id: 'M4', what: 'the served option value is stringified (HV would mark wrong)', from: 'return (typeof value === \'boolean\' || typeof value === \'string\' || typeof value === \'number\') ? value : typed(id);', to: 'return String(value ?? typed(id));', leg: '7' }),
@@ -1509,7 +1518,7 @@ async function runMutations() {
       /* Most mutations break the runner; M5/M6 break the practice player it composes, so the file is a member. */
       const file = path.join(dir, 'public', 'app', mutation.file ?? 'part-runner.js');
       const before = hash(file);
-      const source = fs.readFileSync(file, 'utf8');
+      const source = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
       const occurrences = source.split(mutation.from).length - 1;
       if (occurrences !== 1) { console.log('FAIL  ' + mutation.id + ' the mutation does not apply exactly once (' + occurrences + ')'); broken++; continue; }
       fs.writeFileSync(file, source.replace(mutation.from, mutation.to));

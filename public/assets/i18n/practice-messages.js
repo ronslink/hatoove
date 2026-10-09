@@ -2,6 +2,14 @@ import { getLocale, registerMessages, t, formatDate } from './core.js';
 
 // Flat, authored interface messages. The German column also documents the source copy.
 const rows = {
+  mistakeQuestionUnavailable: ["Diese Aufgabe ist nicht mehr verfügbar.","This task is no longer available.","Це завдання більше недоступне.","لم تعد هذه المهمة متاحة.","Bu görev artık mevcut değil."],
+  layoutNoMatch: ["Keine Anzeige passt","No matching advertisement","Жодне оголошення не підходить","لا يوجد إعلان مناسب","Uygun ilan yok"],
+  layoutPick: ["Aufgabe {id}: Antwort wählen","Task {id}: choose an answer","Завдання {id}: виберіть відповідь","المهمة {id}: اختر إجابة","Görev {id}: yanıt seçin"],
+  layoutGapPick: ["Lücke {id}: Antwort wählen","Gap {id}: choose an answer","Пропуск {id}: виберіть відповідь","الفراغ {id}: اختر إجابة","Boşluk {id}: yanıt seçin"],
+  layoutEmpty: ["leer","empty","порожньо","فارغ","boş"],
+  layoutOptions: ["Antwortmöglichkeiten","Answer options","Варіанти відповідей","خيارات الإجابة","Yanıt seçenekleri"],
+  layoutUsed: ["bereits gewählt","already selected","вже вибрано","تم اختياره","zaten seçildi"],
+  layoutLeave: ["Ihre noch nicht ausgewerteten Antworten werden beim Verlassen verworfen. Möchten Sie diesen Teil verlassen?","Leaving discards your unchecked answers. Leave this part?","Якщо вийти, неперевірені відповіді буде втрачено. Вийти з цієї частини?","ستُفقد إجاباتك التي لم تُقيّم عند المغادرة. هل تريد مغادرة هذا الجزء؟","Çıkarsanız henüz değerlendirilmemiş yanıtlarınız kaybolur. Bu bölümden çıkılsın mı?"],
   expNotLoaded: ["Die gespeicherte Erklärung wurde noch nicht geladen.","The saved explanation has not loaded yet.","Збережене пояснення ще не завантажено.","لم يُحمّل الشرح المحفوظ بعد.","Kayıtlı açıklama henüz yüklenmedi."],
   expBlocked: ["Diese Erklärung ist zurzeit gesperrt.","This explanation is currently blocked.","Це пояснення зараз заблоковане.","هذا الشرح محظور حاليًا.","Bu açıklama şu anda kapalı."],
   expFailed: ["Unbewertet. Es liegt keine Erklärung zu einer Bewertung vor.","Unassessed. No assessment explanation is available.","Не оцінено. Пояснення до оцінки відсутнє.","غير مقيّم. لا يوجد شرح لتقييم.","Değerlendirilmedi. Bir değerlendirme açıklaması yok."],

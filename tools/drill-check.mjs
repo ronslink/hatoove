@@ -282,7 +282,7 @@ function buildLegs({ pure, client, pt, catalogues }) {
       const markup = view.markup();
       assert.match(markup, /data-drill-feedback data-verdict="correct"/);
       assert.equal(countOf(markup, /data-option-id="/g), CHOICE_ITEM.options.length, 'ALL options, not only the right one');
-      assert.match(markup, /data-option-id="b"[^>]*data-option-marker="key"/, 'the key option is marked');
+      assert.match(markup.match(/<label[^>]*data-option-id="b"[^>]*>[\s\S]*?<\/label>/)?.[0] ?? '', /data-option-marker="key"/, 'the key option is marked');
       assert.equal(countOf(markup, /data-option-marker="key"/g), 1);
       assert.ok(textOf(markup).includes('Lösung: b'), 'the key is printed');
       assert.ok(textOf(markup).includes('Ihre Wahl: b'), 'the learner\'s pick is printed');
@@ -299,8 +299,8 @@ function buildLegs({ pure, client, pt, catalogues }) {
       await view.check();
       const markup = view.markup();
       assert.match(markup, /data-drill-feedback data-verdict="wrong"/);
-      assert.match(markup, /data-option-id="b"[^>]*data-option-marker="key"/, 'the key is still marked');
-      assert.match(markup, /data-option-id="a"[^>]*data-option-marker="chosen"/, 'the wrong pick is marked as the pick');
+      assert.match(markup.match(/<label[^>]*data-option-id="b"[^>]*>[\s\S]*?<\/label>/)?.[0] ?? '', /data-option-marker="key"/, 'the key is still marked');
+      assert.match(markup.match(/<label[^>]*data-option-id="a"[^>]*>[\s\S]*?<\/label>/)?.[0] ?? '', /data-option-marker="chosen"/, 'the wrong pick is marked as the pick');
       assert.equal(view.snapshot().checked.correct, false);
       assert.notEqual(view.snapshot().checked.expected, view.snapshot().checked.chosen, 'the wrong pick and the key are different options');
     }],

@@ -29,6 +29,7 @@
  * gets a state that says so — never a spinner that never resolves and never an empty page.
  */
 import { getLocale, subscribeLocale } from '../assets/i18n/core.js';
+import { answerTiles } from './task-layout.js';
 import { pt } from '../assets/i18n/practice-messages.js';
 import {
   checkFailureOf, explanationBlocks, materialBlocks, optionLabel, readDisclosure, readExamRule, readServedItems,
@@ -279,24 +280,14 @@ function audioMarkup(state, { esc, locale }) {
 
 function answeringItemMarkup(state, { esc, examLanguage, locale }) {
   const item = state.item;
-  const picked = state.answer?.key ?? null;
-  const options = item.options.map((option) => {
-    const selected = picked !== null && picked === option.id;
-    return '<label class="drill-option">'
-      + '<input type="radio" name="drill-answer" value="' + esc(option.id) + '" data-drill-option="' + esc(option.id) + '"'
-      + (selected ? ' checked' : '') + '>'
-      + '<span class="drill-option-text"' + languageAttributes(examLanguage) + '>' + optionTextMarkup(option, item.answer_kind, { esc, locale }) + '</span>'
-      + '</label>';
-  }).join('');
+  const options = answerTiles(item, { answer: state.answer, esc, locale, examLanguage, namespace: 'drill' });
   const index = countOrNull(item.ordinal) ?? 1;
   return '<form class="drill-item" data-drill-item data-item-id="' + esc(item.item_id) + '"'
     + ' data-answer-kind="' + esc(item.answer_kind ?? 'choice') + '" data-item-options="' + esc(String(item.options.length)) + '">'
     + '<p class="drill-item-label small muted">' + t(esc, 'drillItemPosition', { index, total: state.progress.total || item.ordinal || 1 }, locale) + '</p>'
     + '<p class="drill-prompt"' + languageAttributes(examLanguage) + '>' + esc(item.prompt) + '</p>'
     + (item.prompt_en ? '<p class="small muted drill-prompt-translation" lang="en" dir="ltr">' + esc(item.prompt_en) + '</p>' : '')
-    + '<fieldset class="drill-options"><legend class="drill-legend sr-only">'
-    + t(esc, 'drillItemPosition', { index, total: state.progress.total || item.ordinal || 1 }, locale) + '</legend>' + options + '</fieldset>'
-    + '</form>';
+    + options + '</form>';
 }
 
 function feedbackMarkup(state, { esc, examLanguage, locale }) {
@@ -306,13 +297,13 @@ function feedbackMarkup(state, { esc, examLanguage, locale }) {
   const keyLabel = keyOf(checked.expected);
   const chosenLabel = keyOf(checked.chosen);
   const explanation = explanationBlocks(checked.explanation, locale);
-  const options = item.options.map((option) => optionReviewMarkup(option, item, checked, { esc, examLanguage, locale })).join('');
+  const options = answerTiles(item, { result: checked, esc, locale, examLanguage, namespace: 'drill' });
   return '<section class="drill-feedback" data-drill-feedback data-verdict="' + (checked.correct ? 'correct' : 'wrong') + '"'
     + ' data-drill-complete="' + (checked.complete ? 'true' : 'false') + '" role="status" aria-live="polite">'
     + '<p class="drill-verdict" data-drill-verdict="' + (checked.correct ? 'correct' : 'wrong') + '">'
     + t(esc, checked.correct ? 'drillCorrect' : 'drillWrong', {}, locale) + '</p>'
     + '<p class="drill-prompt"' + languageAttributes(examLanguage) + '>' + esc(item.prompt) + '</p>'
-    + '<ul class="drill-options drill-options-review"' + languageAttributes(examLanguage) + '>' + options + '</ul>'
+    + options
     + '<p class="small drill-key" data-drill-key-line>' + t(esc, 'drillKey', { answer: keyLabel }, locale) + '</p>'
     + '<p class="small muted drill-pick" data-drill-pick-line>' + t(esc, 'drillYourPick', { answer: chosenLabel }, locale) + '</p>'
     + '<div class="drill-explanation" data-drill-explanation data-explanation-for="' + esc(checked.evidence_id ?? '') + '"'
