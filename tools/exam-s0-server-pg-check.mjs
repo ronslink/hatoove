@@ -253,6 +253,8 @@ check('3. mistakes are latest per (set, version, item), ordered deterministicall
    */
   assert.ok(list.items.every((item) => !('answers' in item)), 'the whole key is never returned');
   for (const item of list.items.filter((row) => row.set_id === SET)) {
+    assert.equal(item.task, null, 'missing authored context does not fabricate a retry task');
+    assert.equal(item.material, null, 'missing authored context leaves evidence readable');
     const expected = KEYS[item.version]?.[item.item_id];
     assert.ok(expected !== undefined, `the fixture key has ${item.version}:${item.item_id}`);
     assert.deepEqual(item.correct_answer, expected,

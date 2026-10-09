@@ -1310,10 +1310,18 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         return {
           preparation_id: preparationId,
           count: rows.length,
-          items: rows.map((row) => ({
+          items: rows.map((row) => {
+            // Historical evidence can outlive renderable authored context. Keep the owned
+            // answer history without inventing a task or concealing database errors.
+            let taskSet = null;
+            try { taskSet = normalisePracticeSet(row); }
+            catch (error) {
+              if (!(error instanceof TypeError && ['practice_set_invalid', 'practice_set_items_unknown'].includes(error.message))) throw error;
+            }
+            return ({
             evidence_id: row.evidence_id,
-            task: normalisePracticeSet(row).items.find(item => item.item_id === row.item_id) ?? null,
-            material: normalisePracticeSet(row).material,
+            task: taskSet?.items.find(item => item.item_id === row.item_id) ?? null,
+            material: taskSet?.material ?? null,
             set_id: row.set_id,
             version: row.version,
             set_title: row.title,
@@ -1326,7 +1334,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
             // REDESIGN-01 A: revealed only because this learner's answer to the item is on record (0041).
             correct_answer: row.correct_answer ?? null,
             answered_at: row.answered_at,
-          })),
+            });
+          }),
         };
       });
     },
