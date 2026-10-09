@@ -2,9 +2,10 @@
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import path from 'node:path';
+import {readFile} from 'node:fs/promises';
 import {pathToFileURL,fileURLToPath} from 'node:url';
 const root=path.resolve(process.argv.find(arg=>arg.startsWith('--source-root='))?.slice(14)||fileURLToPath(new URL('../',import.meta.url)));
-const {readExamParts,buildIndexModel}=await import(pathToFileURL(path.join(root,'public/app/part-index.js')));
+const {readExamParts,buildIndexModel,createPartIndexView}=await import(pathToFileURL(path.join(root,'public/app/part-index.js')));
 const empty=await readExamParts({examParts:{list:async()=>({ok:true,data:{parts:[]}})}});
 assert.equal(empty.source,'payload');assert.equal(empty.error,null);assert.deepEqual(empty.parts,[]);
 assert.equal(buildIndexModel(empty).tiles.length,0);
@@ -12,6 +13,30 @@ console.log('PASS successful empty part list stays empty without a cited fallbac
 const failed=await readExamParts({examParts:{list:async()=>({ok:false,error:'Synthetic unavailable'})}});
 assert.equal(failed.source,'unavailable');assert.equal(failed.error,'Synthetic unavailable');
 console.log('PASS a failed part read remains distinct from a successful empty list');
+let resolveOpened, rendered = '';
+const opened = new Promise(resolve=>{resolveOpened=resolve;});
+const host = {id:'part-index-host',hidden:false,get innerHTML(){return rendered;},set innerHTML(value){rendered=value;if(value.includes('data-part-runner'))resolveOpened();}};
+const view = createPartIndexView({});
+await view.mount(host);
+host.onclick({target:{closest:selector=>selector==='[data-part-open]'?{dataset:{partOpen:'LV2'}}:null}});
+let openingTimeout;
+try {
+  await Promise.race([opened,new Promise((_,reject)=>{openingTimeout=setTimeout(()=>reject(Error('Runner did not mount')),2000);})]);
+  assert.doesNotThrow(()=>view.canLeave());assert.equal(view.canLeave(),true);
+} finally {clearTimeout(openingTimeout);view.unmount();}
+console.log('PASS opening a real runner preserves the public leave contract');
+const html = await readFile(path.join(root,'public/app/index.html'),'utf8');
+const block = html.slice(html.indexOf('<!-- Fehler (Mistakes) -->'),html.indexOf('<!-- Wörterbuch -->'));
+const stack=[];let listOwned=false;
+for(const match of block.matchAll(/<(\/?)([a-z][a-z0-9-]*)\b([^>]*)>/gi)) {
+  const [,closing,tag,attributes]=match;
+  if(closing){assert.equal(stack.pop()?.tag,tag,'Mistakes view has mismatched closing tags');continue;}
+  if(/^(input|img|br|hr|meta|link|source|wbr)$/i.test(tag))continue;
+  if(attributes.includes('id="mistake-list"'))listOwned=stack.some(node=>node.id==='view-fehler');
+  stack.push({tag,id:attributes.match(/\bid="([^"]+)"/)?.[1]});
+}
+assert.deepEqual(stack,[]);assert.equal(listOwned,true);
+console.log('PASS mistakes list stays inside its balanced learner view');
 if(process.argv.includes('--postgres')) {
   assert.match(process.env.REDESIGN_TEST_PROJECT||'',/^hatoove-browser-\d+-\d+$/);
   assert.equal(process.env.OWNAPI_PG_ALLOW,'1');assert.equal(process.env.OWNAPI_PG_HOST,'127.0.0.1');
