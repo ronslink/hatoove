@@ -1220,7 +1220,8 @@ async function migrationLegs() {
     .then(() => null).catch((error) => String(error.message));
   try {
     for (const name of fs.readdirSync(path.join(ROOT, 'server', 'migrations')).filter((entry) => /^\d{4}-.*\.sql$/.test(entry)).sort()) {
-      if (name.startsWith('0046')) continue;
+      // This fixture is the historical 0045 schema, upgraded explicitly to 0046 below.
+      if (Number(name.slice(0, 4)) > 45) continue;
       fs.copyFileSync(path.join(ROOT, 'server', 'migrations', name), path.join(directory, name));
     }
     await reset();
