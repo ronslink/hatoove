@@ -47,7 +47,7 @@ import { blueprintParts } from '../exam-parts.mjs';
 import { selectPracticeSet, normalisePracticeSet, practiceRoundState } from '../practice-sets.mjs';
 
 /** The same released-set/review/rights/audio admission for the index and part serving. */
-function servablePartSetSql(reviewParameter, rightsParameter) {
+export function servablePartSetSql(reviewParameter, rightsParameter) {
   const recordings = "CASE WHEN jsonb_typeof(s.payload->'recordings') = 'array' THEN s.payload->'recordings' ELSE '[]'::jsonb END";
   return `(
     s.media_required = false OR EXISTS (
