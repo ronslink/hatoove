@@ -187,7 +187,7 @@ try {
       if(['LV2','HV1'].includes(family))await check(label+' '+family+' review navigator focuses the requested saved verdict',async()=>{
         assert.ok(await cdp.evaluate("const button=document.querySelector('[data-item-navigator] button:nth-child(2)');button.focus();button.click();return document.activeElement.matches('[data-review-verdict]') && document.activeElement.closest('[data-review-item]').dataset.reviewItem===button.dataset.runnerJump"));
       });
-      await checkGoAction(label + ' ' + family + ' saved result');
+      await checkGoAction(label + ' ' + family + ' saved result', true);
       await shot(label + '-' + family.toLowerCase() + '-review');
       if(label==='desktop'&&family==='LV2') await check('real wrong-answer product capture candidates',async()=>{
         await cdp.evaluate("return (async()=>{const core=await import('/assets/i18n/core.js');core.setLocale('uk');})()");
