@@ -122,6 +122,11 @@
 /* ---------- exactly three actions ---------- */
 
 .part-runner-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.part-runner-item-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.part-runner-item-nav .btn { min-width: 44px; min-height: 44px; }
+.part-runner-item-nav [data-item-state="picked"] { border-color: var(--accent); background: var(--accent-soft); }
+.part-runner-item-nav [data-item-state="correct"] { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+.part-runner-item-nav [data-item-state="wrong"] { border-color: var(--red); color: var(--red); background: var(--red-bg); }
 
 /* REDESIGN-01 C: the task's authored shape determines its controls. */
 .part-runner .layout-task-body { display: grid; gap: 18px; min-width: 0; }
