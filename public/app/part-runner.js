@@ -1006,7 +1006,7 @@ export function createPartRunnerView(ctx = {}) {
           const id = jump.dataset.runnerJump;
           const item = host.querySelector?.('[data-item-id="' + id + '"]') || host.querySelector?.('[data-review-item="' + id + '"]');
           item?.scrollIntoView?.({block:'center'});
-          const focus = item?.querySelector?.('[data-gap-open], select[data-answer-item], input[data-answer-item], [data-review-verdict]');
+          const focus = item?.querySelector?.(state.phase === 'review' ? '[data-review-verdict]' : '[data-gap-open], select[data-answer-item]:not(:disabled), input[data-answer-item]:not(:disabled)');
           focus?.focus?.(); return;
         }
         const gap = event.target.closest?.('[data-gap-open]');
