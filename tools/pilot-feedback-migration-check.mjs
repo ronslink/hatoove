@@ -192,7 +192,7 @@ async function main() {
       const shell = readFileSync(path.join(HERE, '..', 'public', 'app', 'app.js'), 'utf8');
       const block = shell.match(/const VIEW_TITLES = \{([\s\S]*?)\n\};/);
       assert.ok(block, 'public/app/app.js has no VIEW_TITLES block to compare against');
-      const inShell = new Set([...block[1].matchAll(/(\w+):\s*'m\d+'/g)].map((match) => match[1]));
+      const inShell = new Set([...block[1].matchAll(/(\w+):\s*'[A-Za-z][A-Za-z0-9]*'/g)].map((match) => match[1]));
       // The contract's escape hatch: a view the shell does not name is filed as `other` rather than refused.
       inShell.add('other');
 

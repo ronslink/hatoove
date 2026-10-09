@@ -21,8 +21,8 @@ const LOCALES = ['de', 'en', 'uk', 'ar', 'tr'];
 
 /* The sidebar the contract fixes, in the contract's order. */
 const CONTRACT_GROUPS = [
-  { key: 'lernweg', label: 'm393', entries: ['heute', 'ueben', 'wortschatz', 'fehler'] },
-  { key: 'pruefungstraining', label: 'm397', entries: ['pruefungsteile', 'hoeren', 'schreiben', 'probepruefung'] },
+  { key: 'lernweg', label: 'm393', entries: ['heute', 'fehler', 'wortschatz'] },
+  { key: 'pruefungstraining', label: 'm397', entries: ['lesen', 'sprachbausteine', 'hoeren', 'schreiben', 'probepruefung'] },
   { key: 'werkzeuge', label: 'm401', entries: ['nachschlagen', 'einstellungen'] },
 ];
 const CONTRACT_ENTRY_COUNT = CONTRACT_GROUPS.reduce((sum, group) => sum + group.entries.length, 0);
@@ -101,7 +101,7 @@ leg('every view owns a #view-* section of its own', () => {
 
 leg('the retired routes stay resolvable, and none of them is a sidebar entry', () => {
   const aliasOf = (view) => (viewAliases.find(([key]) => key === view) || [])[1];
-  assert.equal(aliasOf('fortschritt'), 'verlauf', 'Fortschritt must fold into Heute as the Verlauf sub-page');
+  assert.equal(aliasOf('fortschritt'), 'heute', 'Fortschritt must redirect to Heute');
   assert.equal(aliasOf('woerterbuch'), 'wortschatz', 'Wörterbuch must become Wortschatz');
   assert.equal(aliasOf('verlauf'), undefined, 'verlauf is canonical and must not alias itself away');
   for (const [from, to] of viewAliases) {
@@ -115,7 +115,7 @@ leg('the retired routes stay resolvable, and none of them is a sidebar entry', (
     assert.ok(views.has(kept), `the deep link ${kept} stopped resolving`);
   }
   const listed = new Set([...sidebar.matchAll(/data-view="([a-z-]+)"><svg/g)].map((m) => m[1]));
-  for (const retired of ['fortschritt', 'woerterbuch', 'satzbau', 'abschnitt', 'lesen', 'sprachbausteine']) {
+  for (const retired of ['fortschritt', 'woerterbuch', 'satzbau', 'abschnitt', 'ueben', 'pruefungsteile']) {
     assert.ok(!listed.has(retired), `${retired} is still a sidebar entry`);
   }
 });
@@ -155,10 +155,11 @@ leg('the new navigation labels are translated, not copied from German', () => {
   }
 });
 
-leg('the "Ihre Vorbereitung" card is restricted to Heute', () => {
-  assert.ok(/id="preparation-context"/.test(html), 'the preparation card has no id to target');
-  assert.ok(/preparationCard\.hidden = view !== 'heute'/.test(app),
-    'app.js no longer hides the preparation card outside Heute');
+leg('exam selection belongs to the sidebar card and the mobile dialog', () => {
+  const side = html.slice(html.indexOf('<aside'), html.indexOf('</aside>'));
+  assert.ok(/id="preparation-context"/.test(side) && /id="preparation-picker"/.test(side));
+  assert.ok(/id="mobile-preparation-picker"/.test(html) && /id="preparation-dialog"/.test(html));
+  assert.ok(!/preparationCard\.hidden/.test(app), 'the exam card must remain available on every page');
 });
 
 /*
