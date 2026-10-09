@@ -306,7 +306,7 @@ export function createPartIndexView(ctx = {}) {
     return ticket === opening && runner === view;
   }
   const view$self = {
-    canLeave() { return !runner || runner.canLeave(); },
+    canLeave() { return runner?.canLeave?.() ?? true; },
     async mount(target) {
       if (!target) return false;
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
