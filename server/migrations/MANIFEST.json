@@ -35,6 +35,7 @@
     "0048-pool-01-listening-release": "28e3a92e80b826ba02bd2785e0770f0c959979338ac85cf1ffbb44b409043506",
     "0049-review-owner-approval": "88d890e0ff010c2e7a2df7cfe776d9a81e9aed079625524cc26ea7c9568369a9",
     "0050-pilot-feedback": "89cc010f659ab04eb79f7cf8b546ce8988d8af5f929dc383dc01baae054e5624",
-  "0051-pilot-feedback-operator": "1c92023e131f57deb85ad0a98ee572e0f4f14f79f35f44b5005b58e48b398316"
+  "0051-pilot-feedback-operator": "1c92023e131f57deb85ad0a98ee572e0f4f14f79f35f44b5005b58e48b398316",
+    "0052-practice-item-retry": "5db3e9a7fb3845778ef0f83074aa6746c8b4d2f6b2ade1458344b76f5f90edff"
   }
 }

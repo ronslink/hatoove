@@ -97,7 +97,7 @@ export function drillMethods({ settle, note = () => {}, catalogue } = {}) {
     const row = first(await client.query(
       `SELECT count(DISTINCT set_id)::int AS checked
          FROM practice_attempt
-        WHERE owner_id = $1 AND preparation_id = $2 AND family = $3 AND state = 'checked'`,
+        WHERE owner_id = $1 AND preparation_id = $2 AND family = $3 AND state = 'checked' AND retry_item_id IS NULL`,
       [owner, preparationId, family]));
     return practiceRoundState({ setCount, checkedSets: row ? row.checked : 0 });
   };

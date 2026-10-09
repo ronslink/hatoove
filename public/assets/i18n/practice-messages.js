@@ -2,6 +2,8 @@ import { getLocale, registerMessages, t, formatDate } from './core.js';
 
 // Flat, authored interface messages. The German column also documents the source copy.
 const rows = {
+  mistakeRetry: ["Nochmal","Try again","Спробувати ще раз","حاول مرة أخرى","Yeniden dene"],
+  mistakeAnswerUnavailable: ["Antwort nicht verfügbar","Answer unavailable","Відповідь недоступна","الإجابة غير متاحة","Yanıt mevcut değil"],
   resultCorrect: ["Richtig","Correct","Правильно","صحيح","Doğru"],
   resultTotal: ["Aufgaben","Tasks","Завдання","المهام","Görevler"],
   resultMistakes: ["Fehler","Mistakes","Помилки","الأخطاء","Hatalar"],

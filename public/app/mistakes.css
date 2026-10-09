@@ -1,0 +1,5 @@
+.mistake-card { gap: 16px; }
+.mistake-card .mistake-your, .mistake-card .mistake-key { padding: 16px; border-inline-start: 4px solid var(--red); background: var(--red-bg); border-radius: var(--r-sm); }
+.mistake-card .mistake-key { border-inline-start-color: var(--green); background: var(--green-bg); }
+.mistake-card .btn { justify-self: start; min-height: 52px; }
+.mistake-card details p { white-space: pre-wrap; }

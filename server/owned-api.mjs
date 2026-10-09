@@ -1438,7 +1438,9 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
          */
         if (!/^[A-Za-z]{2}\d?$/.test(family)) fault(422, 'invalid_family');
         if (typeof datastore.practiceSetForPart !== 'function') fault(503, 'practice_unavailable');
-        const part = await datastore.practiceSetForPart(owner, { preparationId: prep.id, family, serveReview });
+        const evidenceId = query.get('evidenceId');
+        if (evidenceId !== null && !UUID_RE.test(evidenceId)) fault(422, 'invalid_evidence');
+        const part = await datastore.practiceSetForPart(owner, { preparationId: prep.id, family, evidenceId, serveReview });
         if (!part) {
           return reply(200, { preparation_id: prep.id, exam_id: prep.exam_id, reason: 'nothing_available', family, section: null, evidence: null, attempt: null, set: null });
         }
