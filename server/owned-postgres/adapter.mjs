@@ -46,6 +46,24 @@ import { blueprintParts } from '../exam-parts.mjs';
 /* PRACTICE-01 (slice C): the pure selection rule and the served-set normaliser. */
 import { selectPracticeSet, normalisePracticeSet, practiceRoundState } from '../practice-sets.mjs';
 
+/** The same released-set/review/rights/audio admission for the index and part serving. */
+function servablePartSetSql(reviewParameter, rightsParameter) {
+  const recordings = "CASE WHEN jsonb_typeof(s.payload->'recordings') = 'array' THEN s.payload->'recordings' ELSE '[]'::jsonb END";
+  return `(
+    s.media_required = false OR EXISTS (
+      SELECT 1 FROM jsonb_array_elements(${recordings}) AS rec
+      WHERE EXISTS (SELECT 1 FROM exam_media m WHERE m.exam_id = s.exam_id
+        AND m.media_id = rec->>'mediaId' AND m.version = rec->>'mediaVersion')
+    )
+  ) AND NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(${recordings}) AS rec
+    WHERE NOT EXISTS (SELECT 1 FROM exam_media m WHERE m.exam_id = s.exam_id
+      AND m.media_id = rec->>'mediaId' AND m.version = rec->>'mediaVersion')
+  ) AND ${importedSetGate()}
+    AND c.review_status = ANY(${reviewParameter}::text[])
+    AND COALESCE(cr.basis, c.rights_status) = ANY(${rightsParameter}::text[])`;
+}
+
 const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const TEXT_LIMIT = 12000;
 const OBJECTIVE_VERSION_RE = /^v[0-9]{1,4}$/;
@@ -438,7 +456,13 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         let parts;
         try { parts = blueprintParts(row.payload); }
         catch { fail(503, 'catalogue_unavailable'); }
-        return [...parts];
+        const available = new Set((await client.query(
+          `SELECT DISTINCT s.family FROM objective_set s
+             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
+             LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+            WHERE s.exam_id = $1 AND ${servablePartSetSql('$2', '$3')}`,
+          [examId, servableReview(), contentPolicy().rights])).rows.map(value => value.family));
+        return parts.filter(part => available.has(part.family));
       }, true);
     },
     async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null, serveReview = 'approved+unreviewed' } = {}) {
@@ -873,27 +897,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
              JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
             WHERE s.exam_id = $1 AND s.family = $2
-              AND (
-                s.media_required = false
-                OR EXISTS (
-                  SELECT 1 FROM jsonb_array_elements(s.payload->'recordings') AS rec
-                   WHERE EXISTS (SELECT 1 FROM exam_media m
-                                  WHERE m.exam_id = s.exam_id
-                                    AND m.media_id = rec->>'mediaId'
-                                    AND m.version = rec->>'mediaVersion')
-                )
-              )
-              AND NOT EXISTS (
-                SELECT 1 FROM jsonb_array_elements(
-                  CASE WHEN jsonb_typeof(s.payload->'recordings') = 'array' THEN s.payload->'recordings' ELSE '[]'::jsonb END) AS rec
-                 WHERE NOT EXISTS (SELECT 1 FROM exam_media m
-                                    WHERE m.exam_id = s.exam_id
-                                      AND m.media_id = rec->>'mediaId'
-                                      AND m.version = rec->>'mediaVersion')
-              )
-              AND ${importedSetGate()}
-              AND c.review_status = ANY($3::text[])
-              AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
+              AND ${servablePartSetSql('$3', '$4')}`,
           [examId, family, statuses, contentPolicy().rights])).rows;
         if (!candidates.length) return null;
         const evidence = (await client.query(

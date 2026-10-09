@@ -105,7 +105,7 @@ const playbackOf = part => {
 /** Which parts this host shows: `hoeren-host` filters to HV; any other host shows every released part. */
 export function partFilterForHost(host) {
   const id = typeof host?.id === 'string' ? host.id : '';
-  return id === 'hoeren-host' ? 'HV' : null;
+  return ({ 'hoeren-host': 'HV', 'lesen-host': 'LV', 'sprachbausteine-host': 'SB' })[id] ?? null;
 }
 
 /** The per-part facts: the server payload when it exists, the cited table otherwise. */
@@ -114,7 +114,7 @@ export async function readExamParts(api) {
     let response;
     try { response = await api.examParts.list(); } catch { response = { ok: false, status: 0 }; }
     const parts = Array.isArray(response?.data?.parts) ? response.data.parts.filter(part => typeof part?.family === 'string') : [];
-    if (response?.ok && parts.length) {
+    if (response?.ok && Array.isArray(response?.data?.parts)) {
       /*
        * REVIEW-PRACTICE-UI-01 F1. The published blueprint carries family, itemCount, interaction and
        * mediaRequired — it has no `part` number and no `points`, so those arrive as null. Replacing the
@@ -214,8 +214,7 @@ export function indexMarkup({ esc = defaultEsc, uiText = key => key, examLanguag
     return '<li class="part-index-tile" data-part="' + esc(tile.family) + '" data-section="' + esc(tile.section) + '" data-part-number="' + esc(String(tile.part)) + '"'
       + (tile.playback ? ' data-plays="' + esc(String(tile.playback.exam)) + '"' : '')
       + ' data-items="' + esc(tile.items === null ? '' : String(tile.items)) + '" data-points="' + esc(tile.points === null ? '' : String(tile.points)) + '">'
-      + '<p class="kicker">' + esc(tile.family) + '</p>'
-      + '<h3' + languageAttributes(examLanguage) + '>' + sectionName(tile.section) + ' · ' + t('part', { part: tile.part }) + '</h3>'
+      + '<h3>' + t('part', { part: tile.part }) + ' · ' + t('partSkill' + tile.family) + '</h3>'
       + '<p class="small muted part-index-facts">' + facts.join(' · ') + '</p>'
       + own
       + '<p class="part-index-open-row"><button type="button" class="btn" data-part-open="' + esc(tile.family) + '">' + t('partRunnerOpen') + '</button></p>'
@@ -224,12 +223,12 @@ export function indexMarkup({ esc = defaultEsc, uiText = key => key, examLanguag
 
   return '<section class="part-index" data-part-index data-parts-source="' + esc(source) + '" data-counts-source="' + esc(model.countsSource ?? 'unavailable') + '"'
     + ' lang="' + defaultEsc(locale) + '" dir="' + (rtl ? 'rtl' : 'ltr') + '" aria-labelledby="part-index-title">'
-    + '<header class="page-head"><div><h1 id="part-index-title">' + (model.filter === 'HV' ? t('partIndexListeningTitle') : t('partIndexTitle')) + '</h1>'
+    + '<header class="page-head"><div><h1 id="part-index-title">' + (model.filter ? sectionName(model.filter) : t('partIndexTitle')) + '</h1>'
     + '<p class="part-index-lead">' + t('partIndexLead') + '</p></div></header>'
-    + '<section class="part-index-subtests" aria-label="' + t('partIndexSubtests') + '">' + cards + '</section>'
+    + (model.filter ? '' : '<section class="part-index-subtests" aria-label="' + t('partIndexSubtests') + '">' + cards + '</section>')
     + (model.error ? '<p class="err" role="alert" data-load-error>' + t('partIndexFailed') + '</p>' : '')
     + '<section class="stack part-index-parts" aria-labelledby="part-index-parts-title">'
-    + '<h2 id="part-index-parts-title">' + (model.filter === 'HV' ? t('partIndexListeningParts') : t('partIndexParts')) + '</h2>'
+    + '<h2 id="part-index-parts-title">' + t('partIndexParts') + '</h2>'
     + (tiles ? '<ul class="part-index-grid">' + tiles + '</ul>' : '<p class="card" data-parts-empty>' + t('partIndexEmpty') + '</p>')
     + '</section></section>';
 }
@@ -253,9 +252,11 @@ export function createPartIndexView(ctx = {}) {
   let parts = [];
   /* The open part runner, when a tile has been opened; the index is composed out, not navigated away. */
   let runner = null;
+  let opening = 0;
   function render() {
     /* While a part is open, the runner owns these bytes — including on a locale change. */
     if (!host || runner) return;
+    ctx.onPartIdentity?.(null, null);
     host.innerHTML = indexMarkup({ esc, uiText, examLanguage: ctx.examLanguage || 'und', model: { ...model, error: failed ? 'failed' : null } });
   }
   async function load() {
@@ -282,9 +283,11 @@ export function createPartIndexView(ctx = {}) {
    */
   async function openPart(family, target = host) {
     if (!target || typeof family !== 'string' || !family) return false;
+    const ticket = ++opening;
     closeRunner();
     let module;
     try { module = await import('./part-runner.js'); } catch { return false; }
+    if (ticket !== opening || target !== host) return false;
     if (typeof module.createPartRunnerView !== 'function') return false;
     const view = module.createPartRunnerView({
       ...ctx,
@@ -297,17 +300,18 @@ export function createPartIndexView(ctx = {}) {
     try {
       await view.mount(target);
     } catch {
-      closeRunner();
-      render();
+      if (runner === view) { closeRunner(); render(); }
       return false;
     }
-    return true;
+    return ticket === opening && runner === view;
   }
   const view$self = {
+    canLeave() { return !runner || runner.canLeave(); },
     async mount(target) {
       if (!target) return false;
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
       host = target;
+      opening++;
       generation++;
       closeRunner();
       model = { ...model, filter: partFilterForHost(host), error: null };
@@ -320,6 +324,7 @@ export function createPartIndexView(ctx = {}) {
       return load();
     },
     unmount() {
+      opening++;
       generation++;
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
       closeRunner();
@@ -327,8 +332,7 @@ export function createPartIndexView(ctx = {}) {
       host = null;
     },
   };
-  /* §4.2 is frozen: the factory returns `{ mount, unmount }` and nothing else — `part-index-check` leg 8
-     pins exactly that. The tile's open action is therefore reachable through the rendered control
-     (`[data-part-open]`), which is the path the learner takes anyway. */
+  /* The additive canLeave contract delegates dirty-pick protection to the currently mounted runner.
+     Part opening remains reachable through the learner's rendered control. */
   return view$self;
 }

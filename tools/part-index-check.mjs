@@ -191,8 +191,10 @@ leg('4 tile set: eight tiles in exam order; the Hören host shows HV only', () =
   const hv = viewModule.indexMarkup({ esc, uiText, examLanguage: 'de', model: payloadModel({ filter: 'HV' }) });
   assert.deepEqual(tilesOf(hv), ['HV1', 'HV2', 'HV3']);
   const cards = [...hv.matchAll(/data-subtest="([A-Za-z]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(cards, ['HV'], 'the Hören view shows one subtest card');
+  assert.deepEqual(cards, [], 'a skill page does not repeat its own section card');
   assert.equal(viewModule.partFilterForHost({ id: 'hoeren-host' }), 'HV');
+  assert.equal(viewModule.partFilterForHost({ id: 'lesen-host' }), 'LV');
+  assert.equal(viewModule.partFilterForHost({ id: 'sprachbausteine-host' }), 'SB');
   assert.equal(viewModule.partFilterForHost({ id: 'part-index-host' }), null);
 });
 
@@ -253,14 +255,14 @@ leg('7b D22: all five locales render, untranslated, with the tiles and the count
     titles.add(textOf(/<h1 id="part-index-title">([\s\S]*?)<\/h1>/.exec(markup)[1]));
   }
   setLocale(previous);
-  assert.equal(titles.size, LOCALES.length, 'five distinct titles');
+  assert.equal(titles.size, 4, 'Training is the same German/English word; Ukrainian, Arabic and Turkish are translated');
 });
 
 await aLeg('8 degradation: absent, failed and count-less APIs never invent a number', async () => {
   const host = { id: 'part-index-host', innerHTML: '', hidden: false };
   const view = viewModule.createPartIndexView({ esc, uiText, examLanguage: 'de' });
   await view.mount(host);
-  assert.deepEqual(Object.keys(view).sort(), ['mount', 'unmount']);
+  assert.deepEqual(Object.keys(view).sort(), ['canLeave', 'mount', 'unmount']);
   assert.equal(tilesOf(host.innerHTML).length, 8, 'the documented constant still yields eight tiles');
   assert.match(host.innerHTML, /data-parts-source="documented"/);
   assert.match(host.innerHTML, /data-counts-source="unavailable"/);

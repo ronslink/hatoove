@@ -17,7 +17,7 @@ const gate = (script, ...args) => ({ script, args });
 const GROUPS = {
   /* The offline MIRROR-B1PREP-01 gates: fast, no database, no Docker. */
   mirror: [
-    gate('nav-ia-check'), gate('mock-intro-check'), gate('part-index-check'),
+    gate('nav-ia-check'), gate('mock-intro-check'), gate('part-index-check'), gate('redesign-parts-check'),
     gate('practice-runner-check'), gate('practice-selection-check'), gate('drill-check'),
     gate('pool-01-check'),
     gate('library-render-check'), gate('vocab-check'), gate('library-i18n-check'),

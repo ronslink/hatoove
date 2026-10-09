@@ -617,7 +617,8 @@ export function runnerMarkup(state, { esc = defaultEsc, uiText = key => key, exa
   const shell = key => esc(uiText(key));
   const heading = section ? shell(SECTION_KEYS[section] ?? '') : '';
   const partLabel = state?.part === null || state?.part === undefined ? '' : t(esc, 'part', { part: state.part }, locale);
-  const title = state?.set?.title || '';
+  const authoredTitle = state?.set?.title || '';
+  const title = /^(LV|SB|HV)\d+\s+\d+$/.test(authoredTitle) ? '' : authoredTitle;
   const wrapNotice = state?.wrapNotice && state?.wrapNoticeKey
     ? '<p class="part-runner-wrap-notice" data-runner-wrap-notice role="status">' + t(esc, state.wrapNoticeKey, {}, locale) + '</p>'
     : '';
@@ -626,8 +627,8 @@ export function runnerMarkup(state, { esc = defaultEsc, uiText = key => key, exa
     : '';
   const reason = reasonLine(state, locale);
   const header = '<header class="page-head part-runner-head"><div>'
-    + '<p class="kicker">' + esc(family) + (heading ? ' · <span' + languageAttributes(examLanguage) + '>' + heading + (partLabel ? ' · ' + partLabel : '') + '</span>' : '') + '</p>'
-    + '<h1 id="part-runner-title"' + languageAttributes(examLanguage) + '>' + esc(title) + '</h1>'
+    + '<h1 id="part-runner-title">' + heading + (partLabel ? ' · ' + partLabel : '') + '</h1>'
+    + (title ? '<p class="part-runner-set-title"' + languageAttributes(examLanguage) + '>' + esc(title) + '</p>' : '')
     + '<p class="small muted part-runner-kicker-line">' + t(esc, 'partRunnerKicker', {}, locale) + '</p>'
     + (reason ? '<p class="small muted" data-runner-reason="' + esc(state.reason ?? '') + '">' + esc(reason) + '</p>' : '')
     + '<p class="part-runner-lead">' + t(esc, 'partRunnerLead', {}, locale) + '</p>'
@@ -791,6 +792,7 @@ export function createPartRunnerView(ctx = {}) {
 
   function render() {
     if (!host) return;
+    ctx.onPartIdentity?.(state.section, state.part);
     host.innerHTML = runnerMarkup(state, renderOptions());
     syncPlayer();
   }

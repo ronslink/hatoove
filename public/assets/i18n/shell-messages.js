@@ -359,7 +359,7 @@ export const shellMessages = {
     "m312": "Gespeicherte Texte fortsetzen",
     "m313": "Vorbereitung auswählen",
     "m314": "Guthaben erneut laden",
-    "m315": "Noch keine Antworten — fang mit einer kurzen Aufgabe an.",
+    "m315": "Noch keine Antworten — beginnen Sie mit einer kurzen Aufgabe.",
     "m316": "Ihr Überblick. Alle Angaben kommen aus Ihrem Konto und aus Ihren eigenen Antworten, nicht aus einer Schätzung.",
     "m317": "Wird geladen …",
     "m318": "Ihr Stand",
@@ -491,7 +491,9 @@ export const shellMessages = {
     "retryLater": "Bitte versuchen Sie es erneut.",
     "since": "seit {date}",
     "passFor": "Pass für {exam}",
-    "theme": "Thema"
+    "theme": "Thema",
+    "training": "Training",
+    "close": "Schließen"
   },
   "en": {
     "feedbackScreenshotPreview": "Screenshot preview",
@@ -983,7 +985,9 @@ export const shellMessages = {
     "retryLater": "Please try again.",
     "since": "since {date}",
     "passFor": "Pass for {exam}",
-    "theme": "Topic"
+    "theme": "Topic",
+    "training": "Training",
+    "close": "Close"
   },
   "uk": {
     "feedbackScreenshotPreview": "Попередній перегляд знімка екрана",
@@ -1475,7 +1479,9 @@ export const shellMessages = {
     "retryLater": "Спробуйте ще раз.",
     "since": "з {date}",
     "passFor": "Доступ для {exam}",
-    "theme": "Тема"
+    "theme": "Тема",
+    "training": "Тренування",
+    "close": "Закрити"
   },
   "ar": {
     "feedbackScreenshotPreview": "معاينة لقطة الشاشة",
@@ -1967,7 +1973,9 @@ export const shellMessages = {
     "retryLater": "حاول مجددًا.",
     "since": "منذ {date}",
     "passFor": "باقة لـ {exam}",
-    "theme": "الموضوع"
+    "theme": "الموضوع",
+    "training": "التدريب",
+    "close": "إغلاق"
   },
   "tr": {
     "feedbackScreenshotPreview": "Ekran görüntüsü önizlemesi",
@@ -2459,7 +2467,9 @@ export const shellMessages = {
     "retryLater": "Lütfen yeniden deneyin.",
     "since": "başlangıç: {date}",
     "passFor": "{exam} paketi",
-    "theme": "Konu"
+    "theme": "Konu",
+    "training": "Alıştırma",
+    "close": "Kapat"
   }
 };
 registerMessages('shell', shellMessages);

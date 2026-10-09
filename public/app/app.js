@@ -1,6 +1,6 @@
 import { getLocale, initialLocale, setLocale, subscribeLocale, validLocale } from '../assets/i18n/core.js';
 import { INSTRUCTIONS, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
-import { updatePracticeLocale } from '../assets/i18n/practice-messages.js';
+import { updatePracticeLocale, pt } from '../assets/i18n/practice-messages.js';
 import { s as uiText, messageMarkup, bindShellText, setShellHTML, updateShellMessages, createLocalePreference } from './locale-preference.js';
 import { initialPreparation, preparationChoices } from './preparation.js';
 import { createMockController, mockMember } from './mock.js';
@@ -76,7 +76,7 @@ const setLabelMarkup = set => {
 const VIEW_TITLES = {
   // The sidebar mirrors B1_Prep's navigation — ten entries in three groups, plus the views reached from them.
   heute: 'm007', ueben: 'm394', wortschatz: 'm395', fehler: 'm396',
-  pruefungsteile: 'm398', hoeren: 'm399', schreiben: 'm005', probepruefung: 'm400',
+  pruefungsteile: 'training', hoeren: 'm399', schreiben: 'm005', probepruefung: 'm400',
   nachschlagen: 'm010', einstellungen: 'm013',
   // Reached from a group rather than listed in it, then the deep links that keep resolving.
   verlauf: 'm379', satzbau: 'm015', mehr: 'm014', checkout: 'm016', lesen: 'm002', sprachbausteine: 'm003', abschnitt: 'm006',
@@ -90,7 +90,7 @@ const VIEW_TITLES = {
  * the two-segment links that are no longer sidebar entries, and NAV_GROUP drives the breadcrumb group in
  * the topbar. Every view owns #view-<view> itself; nothing here renders, route() reads it.
  */
-const VIEW_ALIAS = { woerterbuch: 'wortschatz', fortschritt: 'verlauf' };
+const VIEW_ALIAS = { woerterbuch: 'wortschatz', fortschritt: 'heute' };
 /* A view's section is #view-<view> directly; the alias layer above only redirects retired routes. */
 const NAV_GROUP = {
   heute: 'lernweg', ueben: 'lernweg', wortschatz: 'lernweg', fehler: 'lernweg',
@@ -247,7 +247,7 @@ async function refreshSectionNavigation() {
 function renderPreparation() {
   const prep = state.preparation;
   if (!prep) return;
-  const label = prep.exam || state.exams.find(e => e.exam_id === prep.exam_id)?.exam || prep.exam_id;
+  const label = prep.exam || state.exams.find(e => e.exam_id === prep.exam_id)?.exam || uiText('m302');
   /*
    * REDESIGN-01 B — THE LARGE LEVEL MARK ON THE EXAM CARD.
    *
@@ -258,24 +258,20 @@ function renderPreparation() {
    */
   const level = state.exams.find(e => e.exam_id === prep.exam_id)?.level || null;
   bindShellText(el('sidebar-exam'), () => label);
-  bindShellText(el('preparation-exam'), () => label);
-  const mark = el('preparation-level');
-  if (mark) {
-    mark.hidden = !level;
-    bindShellText(mark, () => level || '');
+  for (const id of ['preparation-level', 'mobile-exam-level', 'hero-exam-level']) {
+    const mark = el(id);
+    if (mark) { mark.hidden = !level; bindShellText(mark, () => level || ''); }
   }
-  bindShellText(el('preparation-scope'), () => prep.state === 'archived'
-    ? uiText("m027")
-    : uiText("m028"));
-  el('preparation-continue').href = '#/prep/' + prep.id + '/verlauf';
-  el('preparation-start').hidden = !activePreparation();
-  el('preparation-start').href = '#/prep/' + prep.id + '/ueben';
+  bindShellText(el('mobile-exam-name'), () => label);
   const picker = el('preparation-picker');
   const choices = preparationChoices(state.exams, state.preparations);
   setShellHTML(picker, choices.map(choice => '<option value="' + esc(choice.id) + '">' + esc(choice.label) + '</option>').join(''));
   picker.value = prep.id;
   picker.disabled = preparationSwitching || settingsSaving;
   el('preparation-choice').hidden = choices.length < 2;
+  const mobilePicker = el('mobile-preparation-picker');
+  if (mobilePicker) { setShellHTML(mobilePicker, picker.innerHTML); mobilePicker.value = prep.id; mobilePicker.disabled = picker.disabled; }
+  el('mobile-preparation-choice').hidden = choices.length < 2;
   el('examDate').disabled = !activePreparation();
 }
 
@@ -439,6 +435,9 @@ async function unlockPreparation() {
 }
 
 el('preparation-picker').addEventListener('change', event => guard(switchPreparation(event.target.value)));
+el('mobile-preparation-picker').addEventListener('change', event => guard(switchPreparation(event.target.value)));
+el('mobile-exam-level').addEventListener('click', () => el('preparation-dialog').showModal());
+el('close-preparation-dialog').addEventListener('click', () => el('preparation-dialog').close());
 el('credits-retry').addEventListener('click', () => guard(refreshCredits()));
 
 // ---------------------------------------------------------------- rendering
@@ -988,12 +987,6 @@ async function renderDashboard() {
   }
 
   const totals = (progress.ok && progress.data && progress.data.totals) || { attempts: 0, correct: 0, accuracy: null };
-  bindShellText(el('gauge-count'), () => String(totals.attempts));
-  el('gauge-bar').style.width = pct(totals.accuracy);
-  bindShellText(el('gauge-foot'), () => totals.attempts
-    ? uiText('answers', { count: totals.attempts })
-    : uiText("m114"));
-  bindShellText(el('gauge-acc'), () => totals.accuracy === null ? '–' : totals.correct + " " + uiText("m094") + " " + totals.attempts + " " + uiText("m104"));
   bindShellText(el('stat-answers'), () => String(totals.attempts));
   bindShellText(el('stat-correct'), () => String(totals.correct));
 
@@ -1006,16 +999,7 @@ async function renderDashboard() {
       + '<b>' + s.correct + ' / ' + s.attempts + '</b></div>').join('')
     : "<p class=\"small muted\"><span data-i18n=\"shell.m115\">Sobald Sie Aufgaben beantworten, erscheint hier Ihre Bilanz je Bereich.</span></p>");
 
-  const examDate = state.preparation?.exam_date;
-  if (examDate) {
-    const exam = new Date(examDate + 'T00:00:00');
-    const days = Math.round((exam - new Date(new Date().toDateString())) / 86400000);
-    bindShellText(el('countdown'), () => days >= 0
-      ? exam.toLocaleDateString(getLocale(), { day: 'numeric', month: 'long', year: 'numeric' }) + ' · ' + uiText('daysShort', { count: days })
-      : exam.toLocaleDateString(getLocale(), { day: 'numeric', month: 'long', year: 'numeric' }) + " " + uiText("m116"));
-  } else {
-    bindShellText(el('countdown'), () => uiText("m054"));
-  }
+
 }
 
 
@@ -1036,7 +1020,7 @@ async function renderMistakes() {
   // distinct. The first version repeated `id="mistake-count"`, so `getElementById` only ever found the
   // sidebar one: at <=860px the sidebar is `display:none`, and the badge a phone learner needs was the
   // one that never updated.
-  const badges = [el('mistake-count'), el('mistake-count-tab')].filter(Boolean);
+  const badges = [el('mistake-count'), el('mistake-count-tab'), el('mistake-count-more')].filter(Boolean);
   const box = el('mistake-list');
   const res = await api.practice.mistakes();
   if (!currentContext(ticket)) return;
@@ -1098,6 +1082,7 @@ const SKILL_SECTIONS = { lesen: 'LV', sprachbausteine: 'SB', hoeren: 'HV', schre
  * The stateless objective catalogue remains reading/language practice only.
  */
 async function renderSkill(view) {
+  if (['lesen', 'sprachbausteine'].includes(view) && await mountModule(view)) return;
   const ticket = contextTicket();
   const section = SKILL_SECTIONS[view];
   const box = el('skill-' + view);
@@ -1644,14 +1629,16 @@ async function renderHistory() {
  * so no sidebar entry can point at a blank page.
  */
 const MODULE_VIEWS = {
+  lesen: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'lesen-host', covers: ['skill-lesen', 'lesen-head'] },
+  sprachbausteine: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'sprachbausteine-host', covers: ['skill-sprachbausteine', 'sprachbausteine-head'] },
   nachschlagen: { specifier: './library.js', factory: 'createLibraryView', css: 'library.css', host: 'library-host', covers: ['guide-index', 'guide-body'] },
   probepruefung: { specifier: './mock-intro.js', factory: 'createMockIntroView', css: 'mock-intro.css', host: 'mock-intro-host', covers: [] },
   /* Slice B (PRACTICE-UI-01). Until public/app/part-index.js lands the guarded import fails and the interim
      four-part list stays on screen, so the route is never blank. Hören is the same module with a different
      host: the module keys its filter off the host it was given, which keeps "Hören is Prüfungsteile filtered
      to HV" one implementation. */
-  pruefungsteile: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'part-index-host', covers: [] },
-  hoeren: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'hoeren-host', covers: ['skill-hoeren'] },
+  pruefungsteile: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'part-index-host', covers: ['training-head'] },
+  hoeren: { specifier: './part-index.js', factory: 'createPartIndexView', css: 'part-index.css', host: 'hoeren-host', covers: ['skill-hoeren', 'hoeren-head'] },
   /* Slice G (VOCAB-01). Until public/app/vocab.js lands the guarded import fails and the dictionary stays. */
   wortschatz: { specifier: './vocab.js', factory: 'createVocabView', css: 'vocab.css', host: 'vocab-host', covers: ['dict-interim-head', 'dict-interim-search', 'dict-results'] },
   /* Slice H (DRILL-01). One item at a time with instant feedback; the interim recommendation, catalogue and
@@ -1752,6 +1739,15 @@ async function mountModule(view) {
   try {
     mountedModule = create({
       api, uiText, esc, state, guideContent,
+      onPartIdentity: (section, part) => {
+        const skill = { LV: 'm002', SB: 'm003', HV: 'm004' }[section];
+        const page = () => skill && part ? uiText(skill) + ' · ' + pt('part', { part }) : uiText(VIEW_TITLES[currentView]);
+        bindShellText(el('page-title'), page);
+        bindShellText(document.querySelector('title'), () => page() + ' · ' + (state.preparation?.exam || uiText('m302')) + ' · Hatoove');
+      },
+      onMistakeCount: count => { for (const id of ['mistake-count', 'mistake-count-tab', 'mistake-count-more']) {
+        const badge = el(id); if (badge) { bindShellText(badge, () => String(count)); badge.hidden = count === 0; }
+      } },
       language: state.settings?.language || 'de',
       /* Amendment A3: every module gets the exam language, so an authored German fragment stays an
          exam-language island for assistive tech. REVIEW-MOCK-01 D1 found this member missing. */
@@ -1827,8 +1823,6 @@ async function route() {
     if (node) node.hidden = name !== view;
   }
   /* "Ihre Vorbereitung" belongs to Heute. On every other view it repeated a third of the screen. */
-  const preparationCard = el('preparation-context');
-  if (preparationCard) preparationCard.hidden = view !== 'heute';
   const groupNode = el('crumb-group');
   if (groupNode) groupNode.hidden = !NAV_GROUP[view];
   bindShellText(el('crumb-group-name'), () => (NAV_GROUP[view] ? uiText(GROUP_LABEL[NAV_GROUP[view]]) : ''));
@@ -1836,9 +1830,10 @@ async function route() {
   if (crumbRoot) {
     crumbRoot.lang = getExamLanguage() || 'de';
     crumbRoot.dir = getExamLanguage() === 'ar' ? 'rtl' : 'ltr';
-    bindShellText(crumbRoot, () => state.preparation?.exam || 'Deutsch B1');
+    bindShellText(crumbRoot, () => state.preparation?.exam || uiText('m302'));
   }
   bindShellText(el('page-title'), () => uiText(VIEW_TITLES[view]));
+  bindShellText(document.querySelector('title'), () => uiText(VIEW_TITLES[view]) + ' · ' + (state.preparation?.exam || uiText('m302')) + ' · Hatoove');
   renderChrome();
   guard(refreshCredits());
   showError('');

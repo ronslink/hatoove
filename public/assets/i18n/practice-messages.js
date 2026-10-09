@@ -339,7 +339,15 @@ const rows = {
    * `partIndexPending` is the placeholder for a fact the payload did not supply — deliberately not a zero,
    * so an unknown number can never be read as "nothing to practise".
    */
-  partIndexTitle: ["Prüfungsteile und Punkte","Exam parts and points","Частини іспиту та бали","أجزاء الامتحان والنقاط","Sınav bölümleri ve puanlar"],
+  partIndexTitle: ["Training","Training","Тренування","التدريب","Alıştırma"],
+  partSkillLV1: ["Globalverstehen","Understanding the main idea","Розуміння загального змісту","فهم الفكرة العامة","Ana fikri anlama"],
+  partSkillLV2: ["Detailverstehen","Understanding details","Розуміння деталей","فهم التفاصيل","Ayrıntıları anlama"],
+  partSkillLV3: ["Selektives Verstehen","Finding specific information","Пошук потрібної інформації","البحث عن معلومات محددة","Belirli bilgileri bulma"],
+  partSkillSB1: ["Grammatik","Grammar","Граматика","القواعد","Dil bilgisi"],
+  partSkillSB2: ["Wortschatz im Kontext","Vocabulary in context","Лексика в контексті","المفردات في السياق","Bağlamda kelimeler"],
+  partSkillHV1: ["Globalverstehen","Understanding the main idea","Розуміння загального змісту","فهم الفكرة العامة","Ana fikri anlama"],
+  partSkillHV2: ["Detailverstehen","Understanding details","Розуміння деталей","فهم التفاصيل","Ayrıntıları anlama"],
+  partSkillHV3: ["Selektives Verstehen","Finding specific information","Пошук потрібної інформації","البحث عن معلومات محددة","Belirli bilgileri bulma"],
   partIndexListeningTitle: ["Hörverstehen","Listening","Аудіювання","الاستماع","Dinleme"],
   partIndexLead: ["Die schriftlichen Prüfungsteile mit ihren Punkten und Zeiten. Bei jedem Teil stehen Ihre eigenen Übungszahlen.","The written exam parts with their points and times. Each part shows your own practice counts.","Письмові частини іспиту з балами та часом. Біля кожної частини — ваші власні показники практики.","الأجزاء الكتابية للامتحان مع نقاطها وأوقاتها. تظهر عند كل جزء أعداد تدريبك الخاصة.","Yazılı sınav bölümleri puanları ve süreleriyle. Her bölümde kendi alıştırma sayılarınız görünür."],
   partIndexSubtests: ["Prüfungsteile","Exam parts","Частини іспиту","أجزاء الامتحان","Sınav bölümleri"],
