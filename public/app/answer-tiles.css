@@ -1,0 +1,12 @@
+/* Shared answer component for practice, single-question drills and finalised mock review. */
+.answer-tile { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; min-height: 52px; padding: 12px 16px; border: 2px solid var(--muted); border-radius: var(--r); background: var(--card); font-size: 1.05rem; color: var(--ink); }
+.answer-tile .answer-letter { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-content: center; border-radius: var(--r-sm); background: var(--ink); color: var(--card); font-weight: 700; }
+.answer-tile .answer-label, .answer-tile [class$="option-text"] { flex: 1 1 120px; min-width: 0; overflow-wrap: anywhere; }
+.answer-tile[data-tile-state="selected"] { background: var(--accent-soft, var(--canvas)); border-color: var(--accent, var(--ink)); }
+.answer-tile[data-tile-state="correct"] { background: var(--green-bg); border-color: var(--green); }
+.answer-tile[data-tile-state="wrong"] { background: var(--red-bg); border-color: var(--red); }
+.answer-tile[data-tile-state="correct"] .answer-letter { background: var(--green); color: var(--card); }
+.answer-tile[data-tile-state="wrong"] .answer-letter { background: var(--red); color: var(--card); }
+.answer-tile:focus-within { outline: 3px solid var(--accent, var(--ink)); outline-offset: 3px; }
+.answer-tile input:disabled { opacity: 1; }
+@media (forced-colors: active) { .answer-tile { border: 2px solid ButtonText; } .answer-tile:focus-within { outline-color: Highlight; } }

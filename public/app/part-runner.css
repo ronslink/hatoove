@@ -48,6 +48,8 @@
    shell's `card-flat` layer, so this module must not restate it. */
 .part-runner-audio-mount { flex: 1 1 100%; min-width: 0; }
 .part-runner-play-rule { margin: 0; font-weight: 650; }
+.part-runner-audio .muted { color: var(--ink-2); }
+.part-runner [data-runner-playback-rule] { color: var(--ink-2); }
 
 /* ---------- the tasks of the set, all of them, on this one page ---------- */
 
@@ -121,7 +123,48 @@
 
 .part-runner-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
+/* REDESIGN-01 C: the task's authored shape determines its controls. */
+.part-runner .layout-task-body { display: grid; gap: 18px; min-width: 0; }
+.part-runner .layout-workspace { min-width: 0; }
+.part-runner .layout-reading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.part-runner .layout-reading > .part-runner-material { position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow: auto; }
+.part-runner .layout-matching { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.part-runner .layout-bank { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 20px; min-width: 0; }
+.part-runner .layout-bank summary { font-weight: 700; cursor: pointer; min-height: 44px; }
+.part-runner .layout-bank ul { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.part-runner .layout-bank li { display: flex; align-items: start; gap: 12px; padding-block: 10px; border-bottom: 1px solid var(--line); }
+.part-runner .layout-bank li > span:nth-child(2) { flex: 1; }
+.part-runner .layout-bank [data-used="true"] > span:nth-child(2) { text-decoration: line-through; }
+.part-runner .layout-used { display: none; color: var(--muted); font-size: .85rem; }
+.part-runner .layout-bank [data-used="true"] .layout-used { display: inline; }
+.part-runner .layout-picker { display: inline-block; max-width: 100%; }
+.part-runner .layout-picker .select { min-height: 52px; max-width: 100%; border-color: var(--muted); font-size: 1.05rem; }
+.part-runner .layout-letter-body { white-space: pre-wrap; line-height: 2.4; padding: 24px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); font-size: 1.1rem; }
+.part-runner .layout-gap-slot { display: inline-block; vertical-align: middle; max-width: 100%; margin: 4px; }
+.part-runner .layout-gap { display: inline-block; position: relative; max-width: 100%; }
+.part-runner .layout-gap-toggle { min-height: 52px; border-color: var(--muted); }
+.part-runner .layout-gap-options { display: block; padding: 12px; background: var(--card); border: 2px solid var(--muted); border-radius: var(--r); min-width: 230px; max-width: 100%; white-space: normal; line-height: 1.4; }
+.part-runner .layout-gap-options[hidden] { display: none; }
+.part-runner .layout-pick-review { display: inline-flex; flex-wrap: wrap; gap: 8px; line-height: 1.5; }
+.part-runner .layout-review-detail { display: grid; gap: 8px; white-space: normal; line-height: 1.5; margin-block: 12px; }
+.part-runner[data-runner-phase="review"] .layout-gap-slot { display: block; }
+.part-runner .layout-your-pick, .part-runner .layout-correct-pick { padding: 8px 12px; border: 2px solid var(--green); background: var(--green-bg); border-radius: var(--r); }
+.part-runner .layout-pick-review[data-verdict="wrong"] .layout-your-pick { border-color: var(--red); background: var(--red-bg); }
+.part-runner .answer-tile { min-height: 52px; align-items: center; font-size: 1.05rem; border: 2px solid var(--muted); padding: 12px 16px; }
+.part-runner .answer-tile[data-tile-state="selected"] { border-color: var(--accent, var(--ink)); background: var(--accent-soft, var(--canvas)); }
+.part-runner .answer-tile[data-tile-state="correct"] { border-color: var(--green); background: var(--green-bg); }
+.part-runner .answer-tile[data-tile-state="wrong"] { border-color: var(--red); background: var(--red-bg); }
+.part-runner .answer-tile:focus-within { outline: 3px solid var(--accent, var(--ink)); outline-offset: 3px; }
+.part-runner-verdict { padding: 14px; border-inline-start: 4px solid var(--green); background: var(--green-bg); }
+.part-runner [data-verdict="wrong"] .part-runner-verdict { border-inline-start-color: var(--red); background: var(--red-bg); }
+.part-runner-option-review { min-height: 52px; border-width: 2px; }
+@media (forced-colors: active) { .answer-tile { border: 2px solid ButtonText; } .answer-tile:focus-within { outline-color: Highlight; } }
+
 @media (max-width: 860px) {
+  .part-runner .layout-matching, .part-runner .layout-reading { grid-template-columns: minmax(0, 1fr); }
+  .part-runner .layout-reading > .part-runner-material { position: static; max-height: none; }
+  .part-runner .layout-letter-body { padding: 16px; }
+  .part-runner .layout-gap-slot { margin-inline: 0; }
   .part-runner { gap: 16px; }
   .part-runner-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
   .part-runner-actions .btn { width: 100%; }

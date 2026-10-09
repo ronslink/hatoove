@@ -875,8 +875,8 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
      * while FIX-F1's protection survives twice over: a set with NO binding, and a set whose binding names audio
      * this deployment does not have, are both still refused — they are not servable at all, so no sitting is
      * opened and no blind guess can be recorded. `checkPracticeAttempt`'s own `media_unavailable` refusal is
-     * deliberately UNCHANGED: it is the backstop for an attempt opened before this rule, and a checked sitting
-     * is not what makes audio honest.
+     * revalidates current release and exact imported recordings when marking, including an attempt opened
+     * before this rule. The existing playback protocol permits answers before the first listen.
      *
      * WHY THE SUBQUERY IS NOT SIMPLY "has a recordings binding": `practice-playback.mjs#recordingsOf` already
      * fails loudly (`media_unavailable`) for an authored recording whose media row was never imported, so
@@ -981,7 +981,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
          */
         if (attempt.mode === 'drill') fail(409, 'not_a_part_sitting');
         const set = first(await client.query(
-          `SELECT s.exam_id, s.family, s.section, s.media_required
+          `SELECT s.exam_id, s.family, s.section, s.media_required, s.payload
              FROM objective_set s
              JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
                   LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
@@ -990,13 +990,19 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
               AND COALESCE(cr.basis, c.rights_status) = ANY($4::text[])`,
           [attempt.set_id, attempt.version, statuses, contentPolicy().rights]));
         if (!set) fail(404, 'not_found');
-        /*
-         * FIX-F1 — a listening set cannot be attempted honestly: there are no recordings, so any answer would
-         * be a guess about audio the learner never heard. `practiceSetForPart` no longer SERVES one, so this is
-         * the backstop for an attempt opened before that fix (or by a stale client): refuse the marking rather
-         * than write the guess into `item_evidence`, where it would steer the drill's ranking.
-         */
-        if (set.media_required === true) fail(409, 'media_unavailable');
+        // Preserve the unavailable-audio backstop while admitting the recordings already served by playback.
+        if (set.exam_id !== prep.exam_id) fail(422, 'preparation_mismatch');
+        if (set.media_required === true) {
+          if (!(await readCurrentReleaseEligibility(client, prep.exam_id, { catalogue: examCatalogue, lock: true })).eligible)
+            fail(404, 'not_found');
+          const recordings = Array.isArray(set.payload?.recordings) ? set.payload.recordings : [];
+          if (!recordings.length) fail(409, 'media_unavailable');
+          for (const recording of recordings) {
+            const imported = first(await client.query('SELECT media_id FROM exam_media WHERE exam_id=$1 AND media_id=$2 AND version=$3',
+              [prep.exam_id, recording.mediaId, recording.mediaVersion]));
+            if (!imported) fail(409, 'media_unavailable');
+          }
+        }
         const items = [];
         let correctCount = 0;
         for (const entry of answers) {

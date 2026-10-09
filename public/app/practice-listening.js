@@ -169,8 +169,8 @@ export function createPracticeListeningPlayer({
     try { return await flight; } finally { if (ticket === epoch) { flight = null; emit(); } }
   }
 
-  async function act(action, positionMs) {
-    if (!playback || loading || pending || flight || !canEdit() || frozen) return false;
+  async function act(action, positionMs, flushing = false) {
+    if (!playback || loading || pending || flight || (!flushing && !canEdit()) || frozen) return false;
     if (action === 'begin' && (!['ready', 'completed'].includes(playback.state) || playback.plays_used >= playback.max_plays)) return false;
     if (action !== 'begin' && !playback.playback_id) return false;
     const body = {
@@ -236,10 +236,10 @@ export function createPracticeListeningPlayer({
     if (progress) progress.value = position();
   }
 
-  async function pauseSaved() {
+  async function pauseSaved(flushing = false) {
     const current = playback;
     if (!current || current.state !== 'playing') return true;
-    return act('pause', position());
+    return act('pause', position(), flushing);
   }
 
   async function checkpoint() {
@@ -341,7 +341,7 @@ export function createPracticeListeningPlayer({
     halt();
     playing = false;
     if (pending || flight) { const ok = await send(); if (!ok && !terminal(error)) { emit(); return false; } }
-    if (playback?.state === 'playing') { const ok = await pauseSaved(); emit(); return ok || terminal(error); }
+    if (playback?.state === 'playing') { const ok = await pauseSaved(true); emit(); return ok || terminal(error); }
     emit();
     return true;
   }

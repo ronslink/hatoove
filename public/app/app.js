@@ -310,6 +310,11 @@ function clearPreparationViews() {
 
 async function switchPreparation(selection, view = currentView, runId = null) {
   if (!bootReady || sessionProblem || preparationSwitching || settingsSaving) return false;
+  if (mountedModule?.canLeave && !mountedModule.canLeave()) {
+    el('preparation-picker').value = state.preparation.id;
+    el('mobile-preparation-picker').value = state.preparation.id;
+    return false;
+  }
   preparationSwitching = true;
   routing++; // Invalidate a same-preparation route that may still be waiting for an autosave.
   let completed = false;
@@ -1771,6 +1776,14 @@ async function route() {
   if (!bootReady || sessionProblem) return;
   const request = ++routing;
   let info = resolveView(preparationRoute());
+  if (mountedModule && info.view === currentView && !info.runId && (!info.id || info.id === state.preparation?.id)) {
+    history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView);
+    return;
+  }
+  if ((info.view !== currentView || info.id && info.id !== state.preparation?.id) && mountedModule?.canLeave && !mountedModule.canLeave()) {
+    history.replaceState(null, '', '#/prep/' + state.preparation.id + '/' + currentView);
+    return;
+  }
   if (preparationSwitching || settingsSaving) {
     pendingPreparationNavigation = { selection: info.id || state.preparation.id, view: VIEW_TITLES[info.view] ? info.view : 'heute', runId: info.runId, checkoutPath: info.path || null };
     return;
@@ -2031,6 +2044,7 @@ el('settings-form').addEventListener('submit', async (event) => {
 });
 
 el('signout').addEventListener('click', async () => {
+  if (mountedModule?.canLeave && !mountedModule.canLeave()) return;
   readAloud.stop();
   if (!(await writing.flush()) || !(await mock.flush())) return;
   writing.dispose();

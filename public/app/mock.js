@@ -1,4 +1,14 @@
 import { INSTRUCTIONS, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
+import { answerTiles } from './task-layout.js';
+
+/** Render the accepted mock verdict with typed booleans preserved through the shared tiles. */
+export function mockReviewAnswerTiles(item, row, {options = item.options || [], esc, locale = 'de', examLanguage = 'de'} = {}) {
+  const key = row.correct_answer ?? null;
+  const judgement = typeof row.answer === 'boolean' || typeof key === 'boolean';
+  const question = {item_id:String(row.item_id), answer_kind:judgement ? 'judgement' : 'choice',
+    options:options.map(option => ({id:String(option.id), text:option.label || '', value:judgement ? String(option.id) === 'true' : option.id}))};
+  return answerTiles(question, {result:{chosen:row.unanswered ? null : row.answer, expected:key}, esc, locale, examLanguage, namespace:'mock'});
+}
 import { getLocale, formatDate } from '../assets/i18n/core.js';
 import { pt, pl, pa, bindPracticeText, updatePracticeLocale } from '../assets/i18n/practice-messages.js';
 import { createWritingController, writingPrompt } from './writing.js';
@@ -349,17 +359,11 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
      */
     const member = members.find(value => value.set_id === row.set_id && value.version === row.version);
     const form = member && mockMember(member), item = form?.items.find(value => value.id === String(row.item_id));
-    if (!item) return '';
+    if (!item) return '<p>' + pl('mistakeQuestionUnavailable') + '</p><p>' + pl(row.unanswered ? 'unanswered' : row.correct ? 'correct' : 'incorrect') + '</p>';
     const passage = item.passage ?? form.passage;
-    const picked = row.unanswered ? null : row.answer, key = row.correct_answer ?? null;
-    const state = id => id === picked && id === key ? 'correct' : id === picked ? 'wrong' : id === key ? 'was-correct' : '';
     return '<div class="mock-review-context" data-review-item="' + esc(row.item_id) + '">'
-      + '<p class="mock-review-prompt" ' + examAttrs() + '>' + esc(item.text) + '</p><ul class="mock-review-options" ' + examAttrs() + '>'
-      + (item.options || form.options || []).map(option => {
-        const s = state(option.id);
-        return '<li' + (s ? ' data-state="' + s + '"' : '') + '><span class="answer-letter">' + esc(option.id) + '</span><span class="answer-label">' + esc(option.label) + '</span><span class="answer-verdict" aria-hidden="true"></span>'
-          + (s === 'wrong' ? '<span class="sr-only">' + pl('yourAnswer') + ' ' + pl('incorrect') + '</span>' : s === 'correct' ? '<span class="sr-only">' + pl('yourAnswer') + ' ' + pl('correct') + '</span>' : s === 'was-correct' ? '<span class="sr-only">' + pl('correctAnswer') + '</span>' : '') + '</li>';
-      }).join('') + '</ul>'
+      + '<p class="mock-review-prompt" ' + examAttrs() + '>' + esc(item.text) + '</p>'
+      + mockReviewAnswerTiles(item, row, {options:item.options || form.options || [], esc, locale:getLocale(), examLanguage:session.state().run?.exam_language || getExamLanguage() || 'und'})
       + (passage ? '<details class="mock-review-passage"><summary data-practice-key="ui29">Aufgabe und Text ansehen</summary><div class="stimulus mock-passage" ' + examAttrs() + '>' + esc(passage) + '</div></details>' : '')
       + '</div>';
   }
@@ -431,7 +435,7 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
         const correct = (result.items || []).filter(row => row.set_id === m.set_id && row.version === m.version && row.correct === true).length;
         return '<li>' + pl('partResult', { part: mi + 1, correct, total }) + '</li>';
       }).join('') : '';
-      body = '<section class="card stack" id="mock-result"><h3>' + pl(run.scope === 'complete_supported_written' ? 'completeFinished' : 'sectionFinished') + '</h3><p class="small muted mock-review-status">' + review(run) + '</p>' + (result ? '<p><strong>' + pl('resultCount',{correct:result.correct,total:result.total,unanswered:result.unanswered}) + '</strong></p>' + (partLines ? '<ul class="part-results">' + partLines + '</ul>' : '') + '<p class="muted">' + pl(run.scope === 'complete_supported_written' ? 'resultComplete' : 'resultSection') + '</p><ol class="mock-results">' + result.items.map((row, index) => '<li><strong>' + pl('partTask',{part:(members.findIndex(member => member.set_id === row.set_id && member.version === row.version)+1)||'–',id:row.item_id}) + '</strong>' + reviewContext(row, members) + '<span>' + (row.unanswered ? pl('unanswered') : pl('yourAnswer') + ' <span ' + examAttrs() + '>' + esc(row.answer) + '</span> · ' + pl(row.correct ? 'correct' : 'incorrect')) + '</span>' + (row.correct_answer !== null && row.correct_answer !== undefined ? '<span>' + pl('correctAnswer') + ' <span ' + examAttrs() + '>' + esc(row.correct_answer) + '</span></span>' : '') + '<div data-mock-explanation="' + index + '"></div>' + '</li>').join('') + '</ol>' : ((run.writing_task || run.writing_choices?.length) && !members.length ? '<p data-practice-key="ui39">Ihr Schreibteil ist gespeichert. Den Stand der Rückmeldung sehen Sie unten.</p>' : '<p data-practice-key="ui40">Die Rückmeldung ist derzeit nicht verfügbar.</p>')) + (canEdit() ? '<a class="btn" href="#/probepruefung" data-practice-key="ui41">Neue Wiederholung auswählen</a>' : '') + '</section>';
+      body = '<section class="card stack" id="mock-result"><h3>' + pl(run.scope === 'complete_supported_written' ? 'completeFinished' : 'sectionFinished') + '</h3><p class="small muted mock-review-status">' + review(run) + '</p>' + (result ? '<p><strong>' + pl('resultCount',{correct:result.correct,total:result.total,unanswered:result.unanswered}) + '</strong></p>' + (partLines ? '<ul class="part-results">' + partLines + '</ul>' : '') + '<p class="muted">' + pl(run.scope === 'complete_supported_written' ? 'resultComplete' : 'resultSection') + '</p><ol class="mock-results">' + result.items.map((row, index) => '<li><strong>' + pl('partTask',{part:(members.findIndex(member => member.set_id === row.set_id && member.version === row.version)+1)||'–',id:row.item_id}) + '</strong>' + reviewContext(row, members) + (row.unanswered ? '<span>' + pl('unanswered') + '</span>' : '') + '<div data-mock-explanation="' + index + '"></div>' + '</li>').join('') + '</ol>' : ((run.writing_task || run.writing_choices?.length) && !members.length ? '<p data-practice-key="ui39">Ihr Schreibteil ist gespeichert. Den Stand der Rückmeldung sehen Sie unten.</p>' : '<p data-practice-key="ui40">Die Rückmeldung ist derzeit nicht verfügbar.</p>')) + (canEdit() ? '<a class="btn" href="#/probepruefung" data-practice-key="ui41">Neue Wiederholung auswählen</a>' : '') + '</section>';
     } else if (item && workspace !== 'writing') {
       const answerFor = q => snapshot.responses.find(row => row.setId === member.set_id && row.version === member.version && row.itemId === q.id)?.answer;
       /*

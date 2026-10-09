@@ -46,6 +46,7 @@ import { getLocale, subscribeLocale } from '../assets/i18n/core.js';
 import { pt } from '../assets/i18n/practice-messages.js';
 import { validExplanationView, explanationStatus, EXPLANATION_LANGUAGES, EXPLANATION_LANGUAGE_NAMES } from './explanations.js';
 import { createPracticeListeningPlayer, servedRecording } from './practice-listening.js';
+import { taskLayout, answerTiles } from './task-layout.js';
 
 const defaultEsc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nonEmpty = value => (typeof value === 'string' && value.trim() ? value.trim() : null);
@@ -499,26 +500,19 @@ function answeringItemsMarkup(state, { esc, examLanguage, locale }) {
   const answered = state.answers ?? {};
   const items = state.set?.items ?? [];
   const rows = items.map(item => {
-    const options = item.options.map(option => {
-      const selected = answered[item.item_id]?.key === option.id;
-      return '<label class="part-runner-option">'
-        + '<input type="radio" name="answer-' + esc(item.item_id) + '" value="' + esc(option.id) + '" data-answer-item="' + esc(item.item_id) + '" data-answer-key="' + esc(option.id) + '"'
-        + (selected ? ' checked' : '') + '>'
-        + '<span class="part-runner-option-text"' + languageAttributes(examLanguage) + '>' + optionTextMarkup(option, item.answer_kind, { esc, locale }) + '</span>'
-        + '</label>';
-    }).join('');
+    const options = answerTiles(item, { answer: answered[item.item_id], esc, examLanguage, locale });
     return '<li class="part-runner-item" data-item-id="' + esc(item.item_id) + '" data-answered="' + (answered[item.item_id] ? 'true' : 'false') + '"'
       + ' data-item-options="' + esc(String(item.options.length)) + '" data-answer-kind="' + esc(item.answer_kind ?? 'choice') + '">'
       + '<p class="part-runner-item-label small muted">' + t(esc, 'partRunnerItem', { id: item.item_id }, locale) + '</p>'
       + '<p class="part-runner-prompt"' + languageAttributes(examLanguage) + '>' + esc(item.prompt) + '</p>'
       + (item.prompt_en ? '<p class="small muted part-runner-prompt-translation" lang="en" dir="ltr">' + esc(item.prompt_en) + '</p>' : '')
-      + '<fieldset class="part-runner-options"><legend class="part-runner-legend sr-only">' + t(esc, 'partRunnerItem', { id: item.item_id }, locale) + '</legend>' + options + '</fieldset>'
+      + options
       + '</li>';
   }).join('');
   const total = items.length;
   const done = items.filter(item => answered[item.item_id]).length;
   const complete = total > 0 && done === total;
-  return '<ol class="part-runner-items" data-runner-items data-item-count="' + esc(String(total)) + '">' + rows + '</ol>'
+  return (taskLayout(state, { esc, examLanguage, locale }) ?? '<ol class="part-runner-items" data-runner-items data-item-count="' + esc(String(total)) + '">' + rows + '</ol>')
     + '<p class="small muted part-runner-progress" data-runner-progress data-answered="' + esc(String(done)) + '" data-total="' + esc(String(total)) + '" data-complete="' + (complete ? 'true' : 'false') + '">'
     + t(esc, 'partRunnerProgress', { answered: done, total }, locale)
     + (complete ? '' : ' · ' + t(esc, 'partRunnerAnswerAll', {}, locale)) + '</p>';
@@ -555,6 +549,15 @@ function explanationLanguageMarkup(state, { esc, locale }) {
 }
 
 function reviewItemsMarkup(state, { esc, examLanguage, locale }) {
+  const reviewDetails = (item, result) => {
+    const explanation = explanationBlocks(result?.explanation, locale);
+    const verdict = result ? result.correct ? 'correct' : 'wrong' : 'unanswered';
+    return '<span class="layout-review-detail"' + languageAttributes(locale) + '><span class="part-runner-verdict" tabindex="-1" role="status" data-review-verdict="' + verdict + '">' + t(esc, { correct: 'partRunnerCorrect', wrong: 'partRunnerWrong', unanswered: 'partRunnerUnanswered' }[verdict], {}, locale) + '</span>'
+      + '<span class="part-runner-explanation" data-explanation-card data-explanation-for="' + esc(result?.evidence_id ?? '') + '"><span class="small muted" data-explanation-status="' + esc(explanation.state) + '">' + esc(explanation.status) + '</span>'
+      + explanation.blocks.map(block => '<span class="part-runner-explanation-block" data-explanation-slot="' + esc(block.slot) + '"><span class="part-runner-explanation-label">' + t(esc, block.slot.startsWith('correction/') ? 'correctionHint' : 'explanation', {}, locale) + '</span><span class="part-runner-explanation-prose"' + languageAttributes(explanation.language) + '>' + esc(block.text) + '</span></span>').join('') + '</span></span>';
+  };
+  const shaped = taskLayout(state, { esc, examLanguage, locale, reviewDetails });
+  if (shaped) return shaped;
   const checked = state.checked ?? {};
   const byId = new Map((checked.items ?? []).map(item => [String(item.item_id), item]));
   const keyOf = value => (value === undefined || value === null ? null : String(value));
@@ -562,16 +565,7 @@ function reviewItemsMarkup(state, { esc, examLanguage, locale }) {
     const result = byId.get(item.item_id) ?? null;
     const key = keyOf(result?.expected);
     const chosen = keyOf(result?.chosen);
-    const options = item.options.map((option) => {
-      const isKey = key !== null && String(option.id) === key;
-      const isChosen = chosen !== null && String(option.id) === chosen;
-      const optionState = isKey && isChosen ? 'key-chosen' : (isKey ? 'key' : (isChosen ? 'chosen' : 'plain'));
-      return '<li class="part-runner-option part-runner-option-review" data-option-id="' + esc(option.id) + '" data-option-state="' + optionState + '">'
-        + '<span class="part-runner-option-text"' + languageAttributes(examLanguage) + '>' + optionTextMarkup(option, item.answer_kind, { esc, locale }) + '</span>'
-        + (isChosen ? '<span class="chip" data-option-marker="chosen">' + t(esc, 'partRunnerYourPick', {}, locale) + '</span>' : '')
-        + (isKey ? '<span class="chip part-runner-key-chip" data-option-marker="key">' + t(esc, 'partRunnerKey', {}, locale) + '</span>' : '')
-        + '</li>';
-    }).join('');
+    const options = answerTiles(item, { result, esc, examLanguage, locale });
     const verdict = result ? (result.correct === true ? 'correct' : 'wrong') : 'unanswered';
     const verdictKey = { correct: 'partRunnerCorrect', wrong: 'partRunnerWrong', unanswered: 'partRunnerUnanswered' }[verdict];
     const explanation = explanationBlocks(result?.explanation ?? null, locale);
@@ -579,8 +573,8 @@ function reviewItemsMarkup(state, { esc, examLanguage, locale }) {
     return '<li class="part-runner-review-item" data-review-item="' + esc(item.item_id) + '" data-verdict="' + verdict + '">'
       + '<p class="part-runner-item-label small muted">' + t(esc, 'partRunnerItem', { id: item.item_id }, locale) + '</p>'
       + '<p class="part-runner-prompt"' + languageAttributes(examLanguage) + '>' + esc(item.prompt) + '</p>'
-      + '<ul class="part-runner-options part-runner-options-review">' + options + '</ul>'
-      + '<p class="part-runner-verdict" data-review-verdict="' + verdict + '">' + t(esc, verdictKey, {}, locale) + '</p>'
+      + options
+      + '<p class="part-runner-verdict" tabindex="-1" role="status" data-review-verdict="' + verdict + '">' + t(esc, verdictKey, {}, locale) + '</p>'
       + '<div class="part-runner-explanation" data-explanation-card data-explanation-for="' + esc(evidenceId ?? '') + '">'
       + (evidenceId ? '<p class="small muted part-runner-explanation-status" data-explanation-status="' + esc(explanation.state) + '">' + esc(explanation.status) + '</p>' : '')
       + (explanation.blocks.length
@@ -597,7 +591,7 @@ function reviewItemsMarkup(state, { esc, examLanguage, locale }) {
 function actionsMarkup(state, { esc, locale }) {
   const actions = runnerActions(state, locale);
   return '<div class="part-runner-actions" data-runner-actions>'
-    + actions.map(action => '<button type="button" class="btn' + (action.action === 'index' ? '' : ' btn-primary') + '"'
+    + actions.map(action => '<button type="button" class="btn' + (action.action === 'next' ? ' btn-go' : action.action === 'index' ? '' : ' btn-primary') + '"'
       + ' data-runner-action="' + esc(action.action) + '"'
       + (action.wrapped ? ' data-runner-wrap="true"' : '')
       + (action.disabled ? ' disabled aria-disabled="true"' : '')
@@ -626,6 +620,7 @@ export function runnerMarkup(state, { esc = defaultEsc, uiText = key => key, exa
     ? '<p class="part-runner-notice small muted" data-runner-notice="' + esc(state.notice.key) + '">' + t(esc, state.notice.key, state.notice.parameters ?? {}, locale) + '</p>'
     : '';
   const reason = reasonLine(state, locale);
+  const material = materialMarkup(state, { esc, examLanguage, locale });
   const header = '<header class="page-head part-runner-head"><div>'
     + '<h1 id="part-runner-title">' + heading + (partLabel ? ' · ' + partLabel : '') + '</h1>'
     + (title ? '<p class="part-runner-set-title"' + languageAttributes(examLanguage) + '>' + esc(title) + '</p>' : '')
@@ -681,9 +676,9 @@ export function runnerMarkup(state, { esc = defaultEsc, uiText = key => key, exa
     + ' lang="' + esc(locale) + '" dir="' + (rtl ? 'rtl' : 'ltr') + '" aria-labelledby="part-runner-title">'
     + header + wrapNotice + notice
     + ((state?.phase === 'answering' || state?.phase === 'checking' || state?.phase === 'review')
-      ? disclosureMarkup(state, { esc, examLanguage }) + materialMarkup(state, { esc, examLanguage, locale })
+      ? disclosureMarkup(state, { esc, examLanguage }) + (family === 'LV2' || ['SB1', 'SB2'].includes(family) && taskLayout(state, { esc, examLanguage, locale }) ? '' : material)
       : '')
-    + audioMarkup(state, { esc, examLanguage, locale }) + body
+    + audioMarkup(state, { esc, examLanguage, locale }) + '<div class="layout-workspace' + (family === 'LV2' ? ' layout-reading' : '') + '">' + (family === 'LV2' ? material : '') + '<div class="layout-task-body">' + body + '</div></div>'
     + '</section>';
 }
 
@@ -794,11 +789,22 @@ export function createPartRunnerView(ctx = {}) {
     if (!host) return;
     ctx.onPartIdentity?.(state.section, state.part);
     host.innerHTML = runnerMarkup(state, renderOptions());
+    if (state.busy) for (const control of host.querySelectorAll?.('[data-answer-item], [data-gap-open]') ?? []) control.disabled = true;
     syncPlayer();
+  }
+
+  function unchecked() { return state.phase !== 'review' && Object.keys(state.answers ?? {}).length > 0; }
+  function beforeUnload(event) { if (unchecked()) { event.preventDefault(); event.returnValue = ''; } }
+  let leaveApproved = false;
+  function canLeave() {
+    if (!unchecked() || leaveApproved) return true;
+    leaveApproved = globalThis.confirm?.(pt('layoutLeave', {}, getLocale())) === true;
+    return leaveApproved;
   }
 
   /** One served response → the answering state. False when the caller must show its own state. */
   function adopt(response, { mistakeRound = false } = {}) {
+    leaveApproved = false;
     const data = response?.data ?? {};
     if (!data.set) {
       /*
@@ -839,6 +845,7 @@ export function createPartRunnerView(ctx = {}) {
   }
 
   async function evaluate() {
+    if (state.busy) return false;
     const attemptId = nonEmpty(state.attemptId);
     const items = state.set?.items ?? [];
     const answers = items.map((item) => {
@@ -853,13 +860,28 @@ export function createPartRunnerView(ctx = {}) {
      * sitting is about to become `checked`, and a play left running would be acknowledged against a sitting
      * that has already moved on. A refusal below un-freezes it, so a retry is still possible.
      */
-    if (player) { await player.flush(); player.freeze(true); }
     const ticket = ++generation;
     state = { ...state, phase: 'checking', busy: true, error: null, notice: null, checkFailure: null };
     render();
+    const checkingPlayer = player;
+    if (checkingPlayer) {
+      try { if (!(await checkingPlayer.flush())) throw new Error('playback_flush_failed'); } catch {
+        if (ticket !== generation || !host) return false;
+        state = { ...state, phase: 'answering', busy: false, checkFailure: checkFailureOf({ ok: false, status: 0 }) };
+        render();
+        return false;
+      }
+      if (ticket !== generation || !host || player !== checkingPlayer) return false;
+      checkingPlayer.freeze(true);
+    }
     const language = typeof ctx.language === 'string' && ctx.language ? ctx.language : null;
-    const response = await Promise.resolve(ctx.api?.practice?.check?.({ attemptId, answers, language })
-      ?? { ok: false, status: 0, error: 'practice_unavailable' });
+    let response;
+    try {
+      response = await Promise.resolve(ctx.api?.practice?.check?.({ attemptId, answers, language })
+        ?? { ok: false, status: 0, error: 'practice_unavailable' });
+    } catch {
+      response = { ok: false, status: 0, error: 'practice_unavailable' };
+    }
     if (ticket !== generation || !host) return false;
     state = { ...state, busy: false };
     if (response?.ok) {
@@ -867,6 +889,7 @@ export function createPartRunnerView(ctx = {}) {
       /* The sitting is checked now: the player says so, and offers the replay the allowance still permits. */
       player?.markChecked?.();
       render();
+      host.querySelector?.('[data-review-verdict]')?.focus?.();
       return true;
     }
     const failure = checkFailureOf(response, { hasReview: Boolean(state.checked) });
@@ -902,12 +925,27 @@ export function createPartRunnerView(ctx = {}) {
 
   /** Answer one item in place: the focus and the radio stay, only the facts around them change. */
   function answer(itemId, option) {
-    state = { ...state, answers: { ...state.answers, [itemId]: { key: option.id, value: option.value } } };
+    if (state.busy || state.phase === 'review') return;
+    leaveApproved = false;
+    const answers = { ...state.answers };
+    if (option) answers[itemId] = { key: option.id, value: option.value };
+    else delete answers[itemId];
+    state = { ...state, answers };
     const items = state.set?.items ?? [];
     const host$ = host;
     if (!host$) return;
     const row = host$.querySelector?.('[data-item-id="' + itemId + '"]');
-    if (row) row.dataset.answered = 'true';
+    if (row) row.dataset.answered = String(Boolean(option));
+    for (const tile of row?.querySelectorAll?.('[data-tile-state]') ?? []) {
+      tile.dataset.tileState = tile.querySelector('input')?.checked ? 'selected' : 'idle';
+    }
+    const toggle = row?.querySelector?.('[data-gap-open]');
+    if (toggle && option) {
+      toggle.textContent = itemId + ' · ' + option.id + (option.text ? ' · ' + option.text : '');
+      toggle.setAttribute('aria-label', pt('layoutGapPick', { id: itemId }, getLocale()) + ': ' + option.id + (option.text ? ' · ' + option.text : ''));
+    }
+    const used = new Set(Object.values(state.answers).map(answer => answer.key));
+    for (const entry of host$.querySelectorAll?.('[data-bank-key]') ?? []) entry.dataset.used = String(used.has(entry.dataset.bankKey));
     const done = items.filter(item => state.answers[item.item_id]).length;
     const total = items.length;
     const complete = total > 0 && done === total;
@@ -933,8 +971,17 @@ export function createPartRunnerView(ctx = {}) {
       ensureStylesheet();
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
       host = target;
+      globalThis.addEventListener?.('beforeunload', beforeUnload);
       generation++;
       host.onclick = (event) => {
+        const gap = event.target.closest?.('[data-gap-open]');
+        if (gap) {
+          const panel = host.querySelector('[id="' + gap.getAttribute('aria-controls') + '"]');
+          const expanded = gap.getAttribute('aria-expanded') !== 'true';
+          gap.setAttribute('aria-expanded', String(expanded));
+          if (panel) { panel.hidden = !expanded; if (expanded) (panel.querySelector('input:checked') ?? panel.querySelector('input'))?.focus(); }
+          return;
+        }
         /*
          * THE PLAYER'S OWN CONTROLS GO FIRST. `practice-listening.js` renders `data-listening-action`
          * buttons inside the mount point (the mock player's own attribute, so the two players stay
@@ -942,6 +989,7 @@ export function createPartRunnerView(ctx = {}) {
          */
         const listening = event.target.closest?.('[data-listening-action]');
         if (listening && player) {
+          if (state.busy) return;
           const action = listening.dataset.listeningAction;
           if (['play', 'recover'].includes(action)) void player.play();
           else if (action === 'pause') void player.pause();
@@ -955,6 +1003,7 @@ export function createPartRunnerView(ctx = {}) {
            is reserved for the three actions that follow a review. */
         const recover = event.target.closest?.('[data-runner-recover]');
         if (recover) {
+          if (!canLeave()) return;
           if (recover.dataset.runnerRecover === 'next') void load();
           else if (recover.dataset.runnerRecover === 'index' && typeof ctx.onBack === 'function') ctx.onBack();
           return;
@@ -973,22 +1022,37 @@ export function createPartRunnerView(ctx = {}) {
         if (!radio) return;
         const itemId = radio.dataset.answerItem;
         const option = (state.set?.items ?? []).find(item => item.item_id === itemId)?.options
-          ?.find(candidate => candidate.id === radio.dataset.answerKey);
-        if (option) answer(itemId, option);
+          ?.find(candidate => candidate.id === (radio.dataset.answerKey ?? radio.value));
+        if (option || radio.tagName === 'SELECT' && radio.value === '') answer(itemId, option ?? null);
+      };
+      host.onkeydown = event => {
+        if (!['Escape', 'Enter'].includes(event.key)) return;
+        const panel = event.target.closest?.('.layout-gap-options');
+        if (!panel) return;
+        if (event.key === 'Enter' && event.target.matches?.('input[data-answer-item]')) {
+          const input = event.target;
+          const option = state.set?.items.find(item => item.item_id === input.dataset.answerItem)?.options.find(option => option.id === input.dataset.answerKey);
+          if (option) { input.checked = true; answer(input.dataset.answerItem, option); }
+        }
+        panel.hidden = true;
+        const toggle = panel.parentElement.querySelector('[data-gap-open]');
+        toggle?.setAttribute('aria-expanded', 'false'); toggle?.focus(); event.preventDefault();
       };
       unsubscribe = typeof subscribeLocale === 'function' ? subscribeLocale(() => { render(); }) : null;
       return load();
     },
     unmount() {
+      globalThis.removeEventListener?.('beforeunload', beforeUnload);
       generation++;
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
       player?.dispose?.();
       player = null;
-      if (host) { host.onclick = null; host.onchange = null; host.innerHTML = ''; }
+      if (host) { host.onclick = null; host.onchange = null; host.onkeydown = null; host.innerHTML = ''; }
       host = null;
     },
     /* Test seams, so the check can drive the view without a DOM. */
     snapshot() { return state; },
+    canLeave,
     markup() { return runnerMarkup(state, renderOptions()); },
     reload: load,
     evaluate,
