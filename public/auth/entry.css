@@ -1,19 +1,20 @@
 [hidden] { display: none !important; }
 .auth-art > a { align-self: flex-start; }
 .auth-art .stack { max-width: 30rem; }
+.auth-art .muted, .auth-art .kicker { color: var(--ink-2); }
 .auth-brand { display: inline-flex; min-height: 44px; align-items: center; }
 .auth-brand img { display: block; max-width: 100%; }
 .auth-box { max-width: 440px; }
 .auth-box h1 { font-size: clamp(1.7rem, 5vw, 2rem); }
 .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.auth-tabs [aria-pressed=true] { background: var(--peach); border-color: var(--peach-line); color: var(--orange-dark); }
+.auth-tabs [aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .auth-links { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .auth-links a { display: inline-flex; align-items: center; min-height: 44px; }
 .auth-message { border-radius: var(--r-sm); padding: 12px 14px; overflow-wrap: anywhere; }
 .err { color: var(--red); background: var(--red-bg); border: 1px solid var(--red); }
 .auth-status { color: var(--ink-2); background: var(--canvas); border: 1px solid var(--line); }
 .auth-success { color: var(--green); background: var(--green-bg); border: 1px solid var(--green); }
-.auth-notice { padding-inline-start: 14px; border-inline-start: 3px solid var(--orange); }
+.auth-notice { padding-inline-start: 14px; border-inline-start: 3px solid var(--accent); }
 .auth-box .input { min-width: 0; font-size: 16px; }
 .auth-box .card { min-width: 0; }
 .auth-box button:disabled { opacity: .65; cursor: wait; }
@@ -28,7 +29,7 @@
 }
 .interface-language { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-block: 18px; }
 .interface-language select { flex: 1; min-width: 0; min-height: 44px; max-width: 100%; font: inherit; font-size: 16px; padding: 8px 12px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
-.interface-language select:focus-visible { outline: 3px solid var(--orange-dark); outline-offset: 3px; }
+.interface-language select:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .auth-art h2 > span:not(.hero-emphasis) { color: inherit; }
 .auth-box .btn, .auth-box h1, .auth-art h2 { overflow-wrap: anywhere; white-space: normal; }
 .auth-tabs > button { min-width: 0; }

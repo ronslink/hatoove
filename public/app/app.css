@@ -73,8 +73,8 @@
 .tabbar a .count, .more-link .count {
   font-size: 11px;
   font-weight: 700;
-  background: var(--orange);
-  color: var(--orange-ink);
+  background: var(--accent);
+  color: var(--on-accent);
   border-radius: 999px;
   padding: 1px 7px;
 }
@@ -100,7 +100,7 @@
 
 /* The router marks where you are. The design system already styles [aria-current=page] in the
  * sidebar; the tabbar needs the same emphasis so the mobile shell reads as one place. */
-.tabbar a[aria-current="page"] { color: var(--orange-dark); font-weight: 700; }
+.tabbar a[aria-current="page"] { color: var(--accent); font-weight: 700; }
 
 /* The countdown is the one figure on the first screen, so it carries the display face. */
 #countdown { font-family: var(--display); letter-spacing: -.03em; }
@@ -177,7 +177,7 @@ code {
   border-radius: var(--r-sm);
   resize: vertical;
 }
-.writing-text:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.writing-text:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* The task's Leitpunkte: numbered guidance, indented enough to read as a list rather than as prose. */
 .leitpunkte { margin: 0.6rem 0 0; padding-left: 1.2rem; }
@@ -223,7 +223,7 @@ code {
 .band { font-family: var(--display, inherit); font-size: 1.15rem; font-weight: 700; min-width: 1.6em; text-align: center; }
 .criterion p { margin: 0.35rem 0 0; }
 /* The quote from the learner's own text: indented, plain, and never mistaken for interface copy. */
-.evidence { margin: 0.4rem 0 0; padding: 0.35rem 0 0.35rem 0.75rem; border-left: 3px solid var(--orange); font-style: italic; overflow-wrap: anywhere; }
+.evidence { margin: 0.4rem 0 0; padding: 0.35rem 0 0.35rem 0.75rem; border-left: 3px solid var(--accent); font-style: italic; overflow-wrap: anywhere; }
 .corrections { margin: 0.3rem 0 0; padding-left: 1.2rem; }
 
 /*
@@ -279,7 +279,7 @@ code {
 .guide-content p { margin: .35rem 0 .65rem; }
 .guide-list { padding-inline-start: 1.4rem; }
 .guide-list li { margin-block: .5rem; }
-.guide-example { border-inline-start: 3px solid var(--orange); padding-inline-start: .8rem; margin: .7rem 0; }
+.guide-example { border-inline-start: 3px solid var(--accent); padding-inline-start: .8rem; margin: .7rem 0; }
 .guide-good, .guide-bad { border-inline-start: 3px solid var(--green); padding: .75rem; margin-block: .75rem; background: var(--green-bg); }
 .guide-bad { border-color: var(--red); background: var(--red-bg); }
 .guide-table { overflow-x: auto; max-width: 100%; margin-block: .8rem; }
@@ -335,12 +335,12 @@ code {
 .mock-options:disabled { opacity: .8; }
 .mock-recording-question { padding-block-start: 1rem; border-block-start: 1px solid var(--line); }
 .mock-recording-question:first-of-type { border-block-start: 0; padding-block-start: 0; }
-.mock-question-number { display: inline-block; min-width: 2ch; font-weight: 700; color: var(--orange-dark); }
-.mock-options .option:focus-within { outline: 2px solid var(--orange-dark); outline-offset: 4px; }
+.mock-question-number { display: inline-block; min-width: 2ch; font-weight: 700; color: var(--accent); }
+.mock-options .option:focus-within { outline: 2px solid var(--accent); outline-offset: 4px; }
 .mock-passage { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mock-overview .qnav { display: flex; flex-wrap: wrap; gap: .45rem; }
 .mock-overview .btn { min-width: 44px; min-height: 44px; }
-.mock-overview [aria-current="step"] { outline: 2px solid var(--orange); outline-offset: 2px; }
+.mock-overview [aria-current="step"] { outline: 2px solid var(--accent); outline-offset: 2px; }
 .mock-overview .mock-answered { background: var(--peach); color: var(--ink); }
 .mock-copy summary { cursor: pointer; min-height: 44px; padding-block: .6rem; }
 .mock-copy textarea { min-height: 7rem; }
@@ -419,10 +419,10 @@ code {
 .listening-player h3, .listening-player p, .listening-player .btn { overflow-wrap: anywhere; }
 .listening-controls { flex-wrap: wrap; }
 .listening-controls .btn { min-height: 44px; white-space: normal; text-align: start; }
-.listening-controls .btn:focus-visible { outline: 2px solid var(--orange-dark); outline-offset: 4px; }
+.listening-controls .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .listening-status { min-height: 2.5em; }
 .listening-progress { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
-.listening-progress progress { accent-color: var(--orange); flex: 1 1 8rem; width: 100%; min-width: 0; height: 1rem; }
+.listening-progress progress { accent-color: var(--accent); flex: 1 1 8rem; width: 100%; min-width: 0; height: 1rem; }
 .listening-progress .num { flex: 0 0 auto; }
 
 /* The immutable mock schedule shares the warm-orange system and wraps at phone widths. */
@@ -430,7 +430,7 @@ code {
 .mock-time-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; padding: 0; list-style: none; }
 .mock-time-groups li { display: flex; flex-direction: column; align-items: stretch; gap: .35rem; min-width: 0; }
 .mock-time-groups .btn { white-space: normal; overflow-wrap: anywhere; text-align: start; min-height: 44px; }
-.mock-time-groups [aria-current="step"] { border-color: var(--orange-dark); box-shadow: inset 0 0 0 1px var(--orange-dark); font-weight: 700; }
+.mock-time-groups [aria-current="step"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font-weight: 700; }
 .mock-time-groups span, [data-mock-timing-status] { overflow-wrap: anywhere; }
 .mock-time-groups span { font-size: .875rem; }
 .mock-copy textarea { max-width: 100%; }
@@ -460,7 +460,7 @@ code {
 .guide-content [lang], .stimulus[lang], .answer-option[lang], .archived-writing { unicode-bidi:isolate; text-align:start; }
 .guide-table { max-width:100%; }
 .guide-list, .leitpunkte, .corrections, .rubric-criteria { padding-left:0; padding-inline-start:1.2rem; }
-.evidence { border-left:0; border-inline-start:3px solid var(--orange); padding-inline:.75rem 0; }
+.evidence { border-left:0; border-inline-start:3px solid var(--accent); padding-inline:.75rem 0; }
 [dir="ltr"] { unicode-bidi:isolate; }
 @media (max-width:860px) {
   .topbar { gap:.65rem; }
@@ -490,68 +490,49 @@ code {
  * 7.85:1, full label 13.78:1, white logo 14.51:1, hover surface 1.44:1 (non-text floor 1.2), active item
  * 4.95:1; dark theme 8.44 / 16.12 / 1.41 / 6.98.
  */
-:root {
-  --nav-bg: #1e2a3a;
-  --nav-ink: var(--canvas);
-  --nav-ink-muted: color-mix(in srgb, var(--canvas) 70%, var(--nav-bg));
-  --nav-active-bg: var(--peach);
-  --nav-active-ink: var(--orange-dark);
-  /*
-   * The one measured value Ron supplied: on paper, an unanswered answer tile needs a darker border to
-   * reach the 3:1 non-text minimum. #7d8ea6 measures 3.3:1 against --paper.
-   */
-  --tile-idle-border: #7d8ea6;
-}
-
-/* The sidebar becomes the dark surface; the page keeps the warm paper. */
-.side { background: var(--nav-bg); border-inline-end-color: var(--nav-bg); }
-.nav a { color: var(--nav-ink-muted); }
-.nav a:hover { background: color-mix(in srgb, var(--nav-ink) 12%, transparent); color: var(--nav-ink); }
-.nav a[aria-current=page] { background: var(--nav-active-bg); color: var(--nav-active-ink); }
-.nav .nav-label { color: color-mix(in srgb, var(--nav-ink) 72%, transparent); margin-top: 20px; }
-/*
- * NAV-01: the sidebar is three labelled groups (Mein Lernweg · Prüfungstraining · Werkzeuge). The label
- * rule above already matched the markup; these two lines only keep a group's entries together and drop the
- * first group's leading gap, so the rail starts level with the logo instead of 20px below it.
- */
+/* REDESIGN-01 studio shell; colours live in the curated token system. */
+.side { background: var(--nav-bg); border-inline-end-color: var(--nav-bg); overflow-y: auto; padding: 20px 14px; }
 .nav-group { display: block; }
 .nav-group:first-child .nav-label { margin-top: 0; }
-.side-foot { border-top-color: color-mix(in srgb, var(--nav-ink) 18%, transparent); color: var(--nav-ink); }
-.side-foot div span { color: color-mix(in srgb, var(--nav-ink) 72%, transparent); }
-/* The pinned logo variant is an INK logo on a coloured mark, built for a light surface; on the dark
- * sidebar its wordmark disappeared (the first rendered screenshot showed it washed out on #faf9f6 when the
- * surface was still light). Forcing it white is the wrong fix — `filter: invert` also inverts the orange
- * dot. The dark surface is dark enough for the ink logo, so it is left exactly as the design system drew it. */
-
-/* Larger menu type — an override of the pinned 15px, not an edit to it. */
-.nav a { font-size: 16px; }
-.nav-label { font-size: 12px; }
-
-/*
- * DARK THEME. Two things went wrong here in the first pass, both measured rather than reasoned:
- *
- * 1. Without any dark-theme block `--nav-bg: var(--ink)` INVERTED with the theme: in dark mode `--ink` is
- *    #f2f0ec, so the "dark surface" became a light one and the 12 % hover overlay on it measured 1.29:1.
- * 2. The block must sit inside the same `@media (prefers-color-scheme: dark)` guard the pinned system uses
- *    (`:root:not([data-theme=light])` alone is not the pinned condition). Un-guarded, it also fired on a
- *    LIGHT device — the cascade probe showed `--nav-bg:#faf9f6` on a browser reporting no dark preference,
- *    which is exactly the light sidebar the first rendered screenshot showed.
- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme=light]) {
-    --nav-bg: #141d29;
-    --nav-ink: var(--canvas);
-    --nav-ink-muted: color-mix(in srgb, var(--canvas) 70%, var(--nav-bg));
-    --nav-active-bg: var(--peach);
-    --nav-active-ink: var(--orange-dark);
-  }
-}
-
+.nav a, .nav .nav-link { display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 12px 14px; font-size: 17px; font-weight: 600; color: var(--nav-ink-muted); border-inline-start: 4px solid transparent; }
+.nav a:hover, .nav .nav-link:hover { background: var(--nav-active-bg); color: var(--nav-ink); }
+.nav a[aria-current=page] { background: var(--nav-active-bg); color: var(--nav-active-ink); border-inline-start-color: var(--nav-bar); }
+.nav svg.i { width: 24px; height: 24px; stroke-width: 1.75; }
+.nav .nav-label { color: var(--nav-group-ink); font-size: 12px; margin: 18px 14px 6px; }
+.side-foot { border-top-color: var(--nav-active-bg); color: var(--nav-ink); }
+.side-foot div span { color: var(--nav-ink-muted); }
+.exam-pill { background: var(--nav-active-bg); border-color: var(--nav-active-bg); color: var(--nav-ink); display: grid; gap: 10px; }
+.exam-pill strong { font-size: 16px; }
+.exam-pill span { color: var(--nav-ink-muted); font-size: 13px; }
+.exam-pill .exam-level { width: 52px; height: 52px; padding: 0; background: var(--nav-ink); color: var(--nav-bg); font-size: 24px; }
+.exam-pill .select { color: var(--ink); }
+.stat { display: flex; flex-direction: column; gap: 6px; }
+.stat .num { font-size: 30px; color: var(--ink); }
+.grid-dash { grid-template-columns: minmax(0, 1fr); }
+dialog { max-width: min(36rem, calc(100vw - 2rem)); color: var(--ink); }
+dialog::backdrop { background: color-mix(in srgb, var(--nav-bg) 60%, transparent); }
+#preparation-dialog:not([open]) { display: none; }
+.stat > span:not(.num) { order: -1; }
+.hero-exam-mark { display: grid; place-items: center; width: 110px; min-height: 130px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); font-family: var(--display); font-size: 56px; font-weight: 800; }
+.hero-next { grid-template-columns: auto minmax(0, 1fr) auto; }
+.hero-next h2 { font-size: 22px; }
+.mobile-exam-mark { display: none; }
+.topbar .mobile-bar { display: none; }
 @media (max-width:860px) {
-  /* Below 860px the sidebar is hidden and the tabbar carries navigation; it keeps the paper surface. */
-  .tabbar a { font-size: 12px; }
+  .topbar .mobile-bar { display: flex; }
+  .tabbar a { font-size: 13px; min-height: 68px; white-space: normal; line-height: 1.15; padding: 8px 2px; text-align: center; }
+  .tabbar a span { overflow-wrap: normal; word-break: normal; hyphens: auto; }
+  .topbar { background: var(--nav-bg); }
+  .topbar .feedback-flag { color: var(--nav-ink); background: var(--nav-active-bg); border-color: var(--nav-ink-muted); }
+  .topbar .feedback-flag svg.i { color: var(--nav-ink); stroke: var(--nav-ink); }
+  .tabbar svg.i { width: 26px; height: 26px; stroke-width: 1.75; }
+  .tabbar a[aria-current=page] { color: var(--accent); }
+  .mobile-exam-mark { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 4px; font-weight: 800; background: var(--accent-soft); color: var(--ink); border: 1px solid var(--tile-idle-border); border-radius: var(--r-sm); }
+  .hero-next { grid-template-columns: auto minmax(0, 1fr); }
+  .hero-next .btn { grid-column: 1 / -1; }
+  .hero-exam-mark { width: 72px; min-height: 90px; font-size: 40px; }
+  .topbar { gap: 8px; }
 }
-
 /*
  * REDESIGN-01 C: the line that names the correct answer, in the learner's own language. It sits with the
  * verdict the server already returns, uses the design system's green for "this was the right one", and
@@ -625,7 +606,7 @@ button.btn.answer-option[data-state=wrong] .answer-verdict::before { content: '\
   background: var(--peach);
   border: 1px solid var(--peach-line);
   border-radius: var(--r-sm);
-  color: var(--orange-dark);
+  color: var(--accent);
   font-size: 26px;
   font-weight: 800;
   letter-spacing: .02em;
@@ -634,6 +615,7 @@ button.btn.answer-option[data-state=wrong] .answer-verdict::before { content: '\
 }
 @media (max-width:860px) {
   .exam-level { font-size: 22px; }
+  .topbar .locale-control label, .topbar #signout { color: var(--nav-ink); }
 }
 
 /*
