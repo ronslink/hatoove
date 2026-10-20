@@ -38,7 +38,7 @@ const API = 'public/app/api.js';
 const APP = 'public/app/app.js';
 const CSS = 'public/app/feedback.css';
 /** Documents a signed-out visitor can reach. None of them may carry the entry point. */
-const PUBLIC_PAGES = ['public/index.html', 'public/signin.html', 'public/reset-password.html', 'public/verify-email.html'];
+const PUBLIC_PAGES = ['public/index.html', 'public/telc-deutsch-b1.html', 'public/signin.html', 'public/reset-password.html', 'public/verify-email.html'];
 
 const results = [];
 function check(name, run) {

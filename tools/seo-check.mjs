@@ -133,7 +133,7 @@ console.log(`\n=== SEO surface check ===\n`);
     fail('S2', 'sitemap.xml lists exactly the canonical URLs', 'public/sitemap.xml is missing');
   } else {
     const locs = [...sitemap.matchAll(/<loc>([^<]*)<\/loc>/g)].map((match) => match[1].trim());
-    const expected = [`${APEX}/`];
+    const expected = [`${APEX}/`, `${APEX}/telc-deutsch-b1`];
     const malformed = locs.filter((loc) => !loc.startsWith(`${APEX}/`) || loc !== loc.trim());
     if (!locs.length) fail('S2', 'sitemap.xml lists exactly the canonical URLs', 'no <loc> entries found');
     else if (malformed.length) fail('S2', 'sitemap.xml lists exactly the canonical URLs', `not absolute https apex URLs: ${malformed.join(', ')}`);
@@ -504,6 +504,7 @@ try {
     const robotsProbe = await probe('/robots.txt');
     const sitemapProbe = await probe('/sitemap.xml');
     const rootProbe = await probe('/', { accept: NAVIGATION });
+    const overviewProbe = await probe('/telc-deutsch-b1', { accept: NAVIGATION });
     const appProbe = await probe('/app/', { accept: NAVIGATION });
     const problems = [];
     if (robotsProbe.status !== 200) problems.push(`/robots.txt answered ${robotsProbe.status}`);
@@ -512,6 +513,15 @@ try {
     if (!/xml/.test(String(sitemapProbe.type || ''))) problems.push(`/sitemap.xml content-type ${sitemapProbe.type}`);
     if (rootProbe.status !== 200) problems.push(`/ answered ${rootProbe.status}`);
     if (rootProbe.robots) problems.push(`/ carries X-Robots-Tag: ${rootProbe.robots}`);
+    if (overviewProbe.status !== 200) problems.push(`/telc-deutsch-b1 answered ${overviewProbe.status}`);
+    if (overviewProbe.robots) problems.push(`/telc-deutsch-b1 carries X-Robots-Tag: ${overviewProbe.robots}`);
+    if (!overviewProbe.body.includes(`<link rel="canonical" href="${APEX}/telc-deutsch-b1">`)) problems.push('/telc-deutsch-b1 is missing its canonical link');
+    const offerSignupLinks = [...html.matchAll(/<div class="exam-grid">([\s\S]*?)<\/div>/g)][0]?.[1] || '';
+    const offerHrefs = [...offerSignupLinks.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+    if (!offerHrefs.length || offerHrefs.some((href) => href !== '/signin?mode=signup')) {
+      problems.push(`offer-grid links must point to /signin?mode=signup, found: ${offerHrefs.join(', ') || '(none)'}`);
+    }
+    if (!html.includes('href="/telc-deutsch-b1"')) problems.push('index.html does not link to /telc-deutsch-b1');
     if (problems.length) fail('S8', 'crawler files are public without a session', problems.join(' | '));
     else pass('S8', 'crawler files are public without a session', `/robots.txt ${robotsProbe.type}, /sitemap.xml ${sitemapProbe.type}, / 200 with no noindex`);
 
