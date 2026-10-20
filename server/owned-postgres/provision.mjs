@@ -381,7 +381,7 @@ export async function provisionPersistent({ config = persistentConfig() } = {}) 
     migrationPool = persistentRolePool(config, 'migration');
     const result = await applyMigrations(migrationPool, config);
     await grantProvisionerRights(migrationPool, config);
-    await importDefaultPackage(migrationPool);
+    await importDefaultPackage(migrationPool,{initializeListening:true});
     for (const role of ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner']) opened[role] = persistentRolePool(config, role);
     const pools = {
       config,
@@ -416,7 +416,7 @@ export async function migrate({ config = persistentConfig() } = {}) {
     migrationPool = persistentRolePool(config, 'migration');
     const result = await applyMigrations(migrationPool, config);
     await grantProvisionerRights(migrationPool, config);
-    await importDefaultPackage(migrationPool);
+    await importDefaultPackage(migrationPool,{initializeListening:true});
     return { ...result, schema: config.schema };
   } finally {
     if (migrationPool) await migrationPool.end().catch(() => {});

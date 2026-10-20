@@ -1,0 +1,91 @@
+# Android listening fixes — 20 October 2026
+
+Execution: `ANDROID-LISTENING-FIX-20261020-A`; independent read-only reviewer:
+`ANDROID-LISTENING-FIX-20261020-R1`. Base: `981f8aea134a61d34325d0e4de30c56ac3adcd15`.
+Branch: `codex/android-listening-fixes-20261020`.
+
+Status: implemented and independently source-reviewed CLEAR; local checks and
+desktop/physical Android verification passed. PR, hosted checks and integration
+are pending. No production deployment was requested or performed.
+
+## Changes
+
+- Fresh persistent PostgreSQL initialization now imports the bundled v2 listening
+  package with its playback rules. Initialization uses the existing per-exam lock
+  and activates only a missing release head. An existing v1, v2 or newer/withdrawn
+  head is preserved, including when the media root is unavailable. Failed media
+  verification leaves no new head or partial listening content; retry can succeed.
+  Explicit publication retains its prior activation semantics. Historical
+  disposable fixtures keep their deliberate v1 baseline.
+- The shared listening renderer waits for a valid playback limit before rendering
+  the parameterized rule. Loading and failure states no longer expose `{maxPlays}`
+  or an unresolved translation fallback.
+- The practice player uses the existing translated Pause, Resume and Reload labels
+  for the corresponding actions in all five interface languages.
+- Answer badges expand for authored word identifiers such as `richtig` and
+  `falsch`, with wrapping available for longer identifiers.
+- The phone retest uncovered an additional pause/resume defect: native audio
+  resumed while the server remained paused. Resume now acknowledges the existing
+  recovery transition, rotates playback identity without consuming another play,
+  and retains buffered media. Pause samples the actual audio position even after
+  local playback stops, halts immediately during an in-flight checkpoint, and
+  does not claim success when the preceding save fails.
+
+No migration, authored question, audio asset, allowance policy or production learner record
+was changed. Existing persistent release heads are intentionally preserved;
+this is not an automatic upgrade of an existing installation.
+
+## Verification
+
+| Check | Result |
+| --- | --- |
+| Offline baseline (`run-gates.mjs baseline`) | 14/14 on the final source snapshot |
+| Staged repository guard and whitespace | Passed; 844 tracked files and 745 text blobs screened; not a complete secret audit |
+| Practice runner | 45/45, including real server transitions for resume, identity/allowance preservation, exact pause positions and pause during a held checkpoint |
+| Practice locale | 18/18 |
+| Shared listening client (`exam-s5-client-check.mjs`) | 27/27 |
+| Formal register | 10/10 |
+| Package PostgreSQL (`exam-s2-package-pg-check.mjs`) | 16/16, including fresh/concurrent/repeated initialization, missing media and preservation of existing heads/data |
+| Listening package PostgreSQL | 15 reported passes; optional real-package leg skipped because its media-root option was absent |
+| Full fresh Docker stack | 41/41; HV1/HV2/HV3 playback limits 1/2/2, begin and protected WAV requests pass without manual import; repeated migration preserves an exact saved multiline draft |
+| Docker OpenAPI check | 56 routes, zero errors |
+| Independent review | R1 CLEAR for source, focused regressions and all desktop/phone captures, including the final resume state; committed-head review pending |
+
+Real-package behavior is covered by the package-initialization and fresh Docker
+checks, independently of the optional skipped leg. The full Docker check verified
+cleanup of its own containers and volumes.
+
+Desktop evidence uses an isolated browser and source-only Docker fixture. Physical
+evidence uses a Samsung Galaxy S24 Ultra (SM-S928B), Android 16, Chrome 155, at a
+384 CSS-pixel portrait viewport. ADB was connected wirelessly; USB debugging was
+not established. All accounts, answers and playback rows in this fixture are
+synthetic. No live AI or payment call was made.
+
+The phone shows an interpolated one-play instruction, Pause while playing and
+Resume while paused. Both word badges fit without overflow. On a fresh attempt,
+the first pause saved 3278ms. Resume rotated the playback identity, accepted a
+checkpoint at 13346ms and kept `plays_used=1`. The next pause saved 25192ms,
+exactly matching the handset's measured progress value, still with one play used.
+
+Local evidence is retained outside Git under `.qa/android-listening-fix-20261020/`:
+
+- `android-listening-playing.png`, `android-listening-paused.png`
+- `android-answer-badges.png`, `desktop-answer-badges.png`
+- `desktop-listening-ready.png`
+- `android-resume-conflict.png` (before the additional correction)
+- `android-resume-fixed.png` (successful fresh-attempt retest)
+
+The preceding physical session's report is
+`.qa/android-physical-20261020/RESULT.md`. Ron confirmed audible German audio,
+continued background playback, successful typing and reachable Submit in that
+session. This correction round does not claim a new human audibility test.
+Native Return was not independently observed and remains unverified; no Return
+defect is inferred. Accepted practice-page reload creates a new attempt under the
+existing contract; this work does not claim same-attempt reload recovery.
+
+## Remaining boundaries
+
+Source delivery, independent review, hosted CI, integration, production deployment
+and product acceptance are separate statuses. iPhone keyboard/audio, qualified
+content/audio review, native-language review and broader learner/product
+acceptance remain open. Existing legal requirements are unchanged.

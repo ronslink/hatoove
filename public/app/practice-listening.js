@@ -113,7 +113,7 @@ export function createPracticeListeningPlayer({
   const emit = () => { render(); onChange(); };
   const emitChange = () => onChange();
   const position = () => {
-    const fromAudio = audio && !audio.paused ? Math.floor((audio.currentTime || 0) * 1000) : 0;
+    const fromAudio = audio ? Math.floor((audio.currentTime || 0) * 1000) : 0;
     return Math.min(recording?.duration_ms || 0, Math.max(fromAudio, playback?.position_ms || 0));
   };
   const halt = () => { playing = false; try { audio?.pause(); } catch { /* a detached element cannot pause */ } };
@@ -269,11 +269,10 @@ export function createPracticeListeningPlayer({
     const ticket = epoch;
     localError = null;
     /*
-     * ALREADY OURS, ALREADY LOADED: a play the server acknowledges and this document is still holding (paused
-     * or still buffered) continues WITHOUT another event. Every other state goes through the server first,
-     * because the allowance — not the client — decides whether a play may start.
+     * Buffered audio can continue without an event only while the server still considers it playing.
+     * A saved pause must first be recovered, even when this document retains the audio bytes.
      */
-    if (mediaReady && ['playing', 'paused'].includes(playback.state)) {
+    if (mediaReady && playback.state === 'playing' && !playback.uncertain) {
       busy = true; emit();
       audio.currentTime = (playback.position_ms || 0) / 1000;
       lastCheckpoint = now();
@@ -317,8 +316,8 @@ export function createPracticeListeningPlayer({
   }
 
   async function pause() {
-    if (pending || flight) { await send(); }
     pauseLocally();
+    if ((pending || flight) && !(await send())) { emit(); return false; }
     const saved = await pauseSaved();
     emit();
     return saved;
@@ -372,13 +371,14 @@ export function createPracticeListeningPlayer({
     const snapshot = state();
     const action = control();
     const examLanguage = getExamLanguage() || 'und';
-    const labels = { play: action === 'play' ? pl(playback?.state === 'ready' && playback?.plays_used === 0 ? 'partRunnerPlayFirst' : 'partRunnerResume') : pl('partRunnerPlay') };
+    const label = action === 'pause' ? pl('audioPause') : action === 'reload' ? pl('audioReload')
+      : pl(playback?.state === 'ready' && playback?.plays_used === 0 ? 'partRunnerPlayFirst' : 'partRunnerResume');
     host.innerHTML = listeningPlayerMarkup(snapshot, recording, {
       run: { exam_language: examLanguage, release_state: 'internal' },
       examLanguage, esc, locale: getLocale(), attemptMode: 'practice',
       instruction: null, canEdit, frozen, playing, loading, ready: mediaReady,
       terminal, position, message: listing => practicePlaybackMessage(listing, getLocale()),
-      actions: ({ button, busy: isBusy }) => (action ? button(action, labels.play, Boolean(isBusy)) : ''),
+      actions: ({ button, busy: isBusy }) => (action ? button(action, label, Boolean(isBusy)) : ''),
     });
     restoreListeningFocus(host, focus);
     updatePracticeLocale(host, getLocale());

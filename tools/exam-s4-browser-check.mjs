@@ -58,6 +58,9 @@ function sourceFixture() {
   // These two changes exist ONLY in the disposable source copy. Browser input cannot select this catalogue.
   replaceOnce(path.join(source, 'server/accounts.mjs'), 'const world = await createPostgresWorld({ fixture });',
     "const { createExamCatalogue } = await import('./preparation-contract.mjs');\n  const world = await createPostgresWorld({ fixture, examCatalogue: createExamCatalogue({ enabled: ['telc-deutsch-b1', 'dtz-a2-b1'] }) });");
+  // This historical browser fixture selects v1 plus its authored packages; fresh Compose is checked separately.
+  replaceOnce(path.join(source, 'server/owned-postgres/package-importer.mjs'), 'export async function importDefaultPackage(pool,{initializeListening=false}={}) {',
+    'export async function importDefaultPackage(pool) { const initializeListening = false;');
   replaceOnce(path.join(source, 'server/owned-postgres/package-importer.mjs'), "return importPackage(pool,input,{publisher:'bundled-telc-source'});",
     "const receipt = await importPackage(pool,input,{publisher:'bundled-telc-source'});\n  await importPackage(pool,JSON.parse(await readFile(new URL('../../content/exams/dtz-a2-b1/manifest.json',import.meta.url),'utf8')),{publisher:'synthetic-s4-browser'});\n  await importPackage(pool,JSON.parse(await readFile(new URL('../../content/exams/dtz-a2-b1/writing-manifest.json',import.meta.url),'utf8')),{publisher:'synthetic-s4-writing-browser'});\n  return receipt;");
 }

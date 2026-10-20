@@ -5,11 +5,13 @@ import { readMediaBytes } from '../media-contract.mjs';
 import { BODY_LIMIT_BYTES } from '../owned-api.mjs';
 
 const fail=message=>{const e=new Error(message);e.code='package_conflict';throw e;};
-export async function importPackage(pool,input,{dryRun=false,publisher='content-cli',mediaRoot}={}) {
+export async function importPackage(pool,input,{dryRun=false,publisher='content-cli',mediaRoot,activation='new-release'}={}) {
   const p=validatePackage(input);
   if(typeof publisher!=='string'||!publisher.trim()||publisher.length>200) throw new Error('publisher required');
-  // Never open a publishing transaction until every authored byte stream is verified.
-  for(const media of p.media||[]) await readMediaBytes(media,{mediaRoot});
+  if(!['new-release','none','if-missing'].includes(activation)) throw new Error('invalid release activation');
+  // Explicit publication verifies bytes before BEGIN. Initialization first locks/checks the head:
+  // an existing installation must not need unused bundled media or change its selected release.
+  if(activation!=='if-missing') for(const media of p.media||[]) await readMediaBytes(media,{mediaRoot});
   const client=await pool.connect();
   const changes=[];
   const commands=[];
@@ -18,6 +20,15 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
   try {
     const role=(await client.query(`SELECT current_user=(SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname=current_schema()) AS publisher`)).rows[0];
     if(!role.publisher) throw new Error('content publishing requires the schema-owner migration role');
+    if(activation==='if-missing') {
+      await client.query('BEGIN');begun=true;
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,7351))",[p.exam.id]);
+      if((await client.query('SELECT 1 FROM exam_release_head WHERE exam_id=$1',[p.exam.id])).rowCount) {
+        await client.query('ROLLBACK');
+        return {examId:p.exam.id,releaseVersion:p.release.version,sha256:packageHash(p),publisher,dryRun,changes:[],unchanged:true,reviewProof:[]};
+      }
+      for(const media of p.media||[]) await readMediaBytes(media,{mediaRoot});
+    }
     // The current publisher requires the review consumer migration, including internal imports.
     await client.query('SELECT content_version_id FROM reviewed_content_version LIMIT 0');
     // Reference-only releases also verify their immutable source bytes before BEGIN. Mutable
@@ -36,8 +47,10 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
         await readMediaBytes(asset,{mediaRoot});verifiedMedia.add(identity);
       }
     }
-    await client.query('BEGIN');begun=true;
-    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,7351))",[p.exam.id]);
+    if(!begun) {
+      await client.query('BEGIN');begun=true;
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,7351))",[p.exam.id]);
+    }
     const exam=(await client.query('SELECT * FROM exam_package WHERE exam_id=$1',[p.exam.id])).rows[0];
     if(exam && exam.exam_language!==p.exam.language) fail('exam language is immutable');
     if(!exam) plan('add exam '+p.exam.id,'INSERT INTO exam_package(exam_id,exam,level,exam_language,blueprint_version) VALUES($1,$2,$3,$4,$5)',
@@ -213,8 +226,10 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
       plan('add release '+p.release.version,'INSERT INTO exam_release(exam_id,version,blueprint_version,state,manifest,sha256,publisher) VALUES($1,$2,$3,$4,$5::jsonb,$6,$7)',
         [p.exam.id,p.release.version,p.blueprint.version,p.release.state,canonicalJson(publicManifest),digest,publisher]);
       for(const f of p.forms) commands.push(['INSERT INTO exam_release_form(exam_id,release_version,form_id,form_version) VALUES($1,$2,$3,$4)',[p.exam.id,p.release.version,f.id,f.version]]);
-      plan('activate release '+p.release.version,'INSERT INTO exam_release_head(exam_id,release_version) VALUES($1,$2) ON CONFLICT(exam_id) DO UPDATE SET release_version=excluded.release_version',[p.exam.id,p.release.version]);
     }
+    if(activation==='if-missing' || (!release && activation==='new-release'))
+      plan('activate release '+p.release.version,'INSERT INTO exam_release_head(exam_id,release_version) VALUES($1,$2) ON CONFLICT(exam_id) '
+        +(activation==='if-missing'?'DO NOTHING':'DO UPDATE SET release_version=excluded.release_version'),[p.exam.id,p.release.version]);
     const reviewProof=[];
     if(p.release.state==='available') {
       // Public publication follows an internal import and exact named/baseline review. New
@@ -249,8 +264,14 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
   } catch(e) {if(begun) await client.query('ROLLBACK').catch(()=>{});throw e;} finally {client.release();}
 }
 
-/** Initial source package is imported through the same publisher contract, not a content SQL seed. */
-export async function importDefaultPackage(pool) {
+/** Disposable/historical fixtures retain v1. Persistent runtime initialization opts into listening. */
+export async function importDefaultPackage(pool,{initializeListening=false}={}) {
   const input=JSON.parse(await readFile(new URL('../../content/exams/telc-deutsch-b1/manifest.json',import.meta.url),'utf8'));
+  if(initializeListening) {
+    // A failed listening import leaves no head, so the next initialization can retry.
+    await importPackage(pool,input,{publisher:'bundled-telc-source',activation:'none'});
+    const listening=JSON.parse(await readFile(new URL('../../content/exams/telc-deutsch-b1/listening-package.json',import.meta.url),'utf8'));
+    return importPackage(pool,listening,{publisher:'bundled-telc-source',activation:'if-missing'});
+  }
   return importPackage(pool,input,{publisher:'bundled-telc-source'});
 }
