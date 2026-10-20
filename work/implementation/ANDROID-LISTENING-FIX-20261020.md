@@ -4,10 +4,12 @@ Execution: `ANDROID-LISTENING-FIX-20261020-A`; independent read-only reviewer:
 `ANDROID-LISTENING-FIX-20261020-R1`. Base: `981f8aea134a61d34325d0e4de30c56ac3adcd15`.
 Branch: `codex/android-listening-fixes-20261020`.
 
-Status: implemented and independently source-reviewed CLEAR; local checks and
-desktop/physical Android verification passed. [PR174](https://github.com/ronslink/hatoove/pull/174)
-is open; final hosted checks and integration are pending. Runtime source is pinned
-by `ae168bdf2f7077992ab0a5a83ff8c7f33880358d`. No production deployment was requested or performed.
+Status: implemented, independently reviewed CLEAR, all five required hosted checks
+green, and [PR174](https://github.com/ronslink/hatoove/pull/174) merged at
+15:38:17 UTC. Final reviewed head `e177d9f36f36207cb57c048e000fe479bf3cbe80`
+merged as `2774aab53d73e779aa561b907961ae2c34c1a939`. Runtime source is pinned
+by `ae168bdf2f7077992ab0a5a83ff8c7f33880358d`; the subsequent commit changes only
+tests and records. No production deployment was requested or performed.
 
 ## Changes
 
@@ -52,7 +54,8 @@ this is not an automatic upgrade of an existing installation.
 | Docker OpenAPI check | 56 routes, zero errors |
 | PostgreSQL mirror gate group | 11/11 after correcting the old inventory assertion; pool check 16/16 plus its mutation proofs |
 | Complete-exam browser (`exam-s5b-browser-check.mjs`) | Final 8/8 after waiting for enabled audio Load and effectively writable answer/Save controls |
-| Independent review | R1 CLEAR for runtime commit `ae168bdf`, focused regressions and all desktop/phone captures; all five changed runtime files independently match the physical fixture byte-for-byte; final test-only corrections independently reviewed |
+| Independent review | R1 CLEAR for final committed head `e177d9f`, runtime, focused regressions, test-only corrections and all desktop/phone captures; all five changed runtime files independently match the physical fixture byte-for-byte |
+| Required hosted CI | All five jobs passed on `e177d9f`; durable/runtime completed in 7m59s; the scheduled rendered job was skipped as configured |
 
 Real-package behavior is covered by the package-initialization and fresh Docker
 checks, independently of the optional skipped leg. The full Docker check verified
@@ -107,6 +110,19 @@ defect is inferred. Accepted practice-page reload creates a new attempt under th
 existing contract; this work does not claim same-attempt reload recovery.
 
 ## Remaining boundaries
+
+Canonical main was cleanly fast-forwarded to the integration commit. Its first
+parent is `76ddd4f92da4bc7db384d4bfe8c41a33fd61e9dd`, which includes independently
+merged PR172/173; their changes are preserved and are not attributed to this task.
+The implementation base remains `981f8aea`.
+
+The physical/desktop fixture's five containers exited successfully, with its
+synthetic volume and local evidence preserved. Both temporary PostgreSQL
+regression instances were removed after ownership checks. All eleven
+supplemental/baseline/retry browser projects were independently verified to have
+zero remaining containers and volumes. Owned ADB mappings and the isolated
+headless browser were removed; the comparison worktree is archived. No original
+learner volume or production service was changed.
 
 Source delivery, independent review, hosted CI, integration, production deployment
 and product acceptance are separate statuses. iPhone keyboard/audio, qualified
