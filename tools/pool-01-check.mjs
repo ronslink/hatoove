@@ -50,6 +50,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /* ONE implementation of the source-record rule, shared with the generator (N5). */
 import { canonicalSourceRecord, legitimateSourceDigests } from './build-objective-migration.mjs';
+import { validatePackage, packageHash } from '../server/package-contract.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = 'content/pool-01/batch-1.json';
@@ -712,6 +713,7 @@ async function postgresLegs() {
   delete process.env.B1PREP_SERVE_REVIEW;
   delete process.env.B1PREP_SERVE_RIGHTS;
   const EXAM = 'telc-deutsch-b1';
+  const listeningPackage = validatePackage(JSON.parse(read('content/exams/telc-deutsch-b1/listening-package.json')));
 
   /* ---------------------------------------------------- a real migration into a scratch schema */
   const leg = 'pool01_l1';
@@ -779,12 +781,16 @@ async function postgresLegs() {
       assert.ok(rows.every((row) => row.checksum), 'every migration carries a checksum');
     });
 
-    await pgLeg('P2 SQL: the released pool is 31 sets — LV1 six, each listening part four — with the audio the three sets name', async () => {
+    await pgLeg('P2 SQL: the v1 corpus retains 31 sets beside the exact v2 listening package, with the audio the three batch sets name', async () => {
       const counts = (await legAdmin.query(
-        `SELECT family, count(*)::int AS sets FROM "${leg}".objective_set WHERE exam_id = $1 GROUP BY family ORDER BY family`, [EXAM])).rows;
+        `SELECT family, count(*)::int AS sets FROM "${leg}".objective_set WHERE exam_id = $1 AND version = 'v1' GROUP BY family ORDER BY family`, [EXAM])).rows;
       const perFamily = Object.fromEntries(counts.map((row) => [row.family, row.sets]));
       assert.deepEqual(perFamily, RELEASED_AFTER, 'the pool after BOTH halves of batch 1');
       assert.equal(counts.reduce((total, row) => total + row.sets, 0), 31, '31 released sets');
+      const added = (await legAdmin.query(
+        `SELECT set_id, version, item_count FROM "${leg}".objective_set WHERE exam_id = $1 AND version <> 'v1' ORDER BY set_id, version`, [EXAM])).rows;
+      assert.deepEqual(added, listeningPackage.sets.map(set => ({set_id:set.setId,version:set.version,item_count:set.itemCount}))
+        .sort((a,b) => a.set_id.localeCompare(b.set_id)), 'only the exact bundled listening sets accompany the immutable v1 corpus');
       /* The listening three are RELEASED now, and each one's payload binds the recording it plays. */
       for (const entry of JSON.parse(read(SOURCE)).sets.filter((row) => LISTENING_BATCH.includes(row.set_id))) {
         const bound = (await legAdmin.query(
@@ -872,11 +878,31 @@ async function postgresLegs() {
         assert.equal(row.basis, 'generated', `${entry.set_id}: a recorded rights basis`);
         assert.ok(row.note && row.note.length > 20, `${entry.set_id}: the note is auditable`);
       }
+      // Imported packages retain immutable source declarations. Their optional, single
+      // content_rights row is a later veto; fabricating one here would prevent withdrawal.
+      // Every migrated row still needs its decision, and no other exception is allowed.
       const unrecorded = (await legAdmin.query(
-        `SELECT count(*)::int AS n FROM "${leg}".content_version c
+        `SELECT c.content_version_id, c.kind, c.family, c.exam_id, c.review_status,
+                c.rights_status, c.content_sha256, c.source_path FROM "${leg}".content_version c
           LEFT JOIN "${leg}".content_rights r USING (content_version_id)
-         WHERE r.content_version_id IS NULL`)).rows[0].n;
-      assert.equal(unrecorded, 0, 'EVERY content row in the batch schema carries a basis (content-rights-check leg 1)');
+         WHERE r.content_version_id IS NULL ORDER BY c.content_version_id`)).rows;
+      const declared = [
+        ...listeningPackage.sets.map(item => ({item,id:item.setId+'@'+item.version,kind:'task',family:item.family})),
+        ...listeningPackage.media.map(item => ({item,id:item.mediaId+'@'+item.version,kind:'media',family:'listening'})),
+      ].map(({item,id,kind,family}) => ({
+        content_version_id:id,kind,family,exam_id:EXAM,review_status:'unreviewed',rights_status:'generated',
+        content_sha256:packageHash(item),source_path:'content/exams/'+EXAM+'/manifest.json#'+id,
+      })).sort((a,b) => a.content_version_id.localeCompare(b.content_version_id));
+      assert.deepEqual(unrecorded, declared, 'only exact imported declarations may lack a later rights override; every migrated row keeps its decision');
+      const release = (await legAdmin.query(
+        `SELECT sha256, publisher, manifest FROM "${leg}".exam_release WHERE exam_id=$1 AND version=$2`,
+        [EXAM,listeningPackage.release.version])).rows[0];
+      assert.equal(release.sha256,packageHash(listeningPackage),'the release pins the exact normalized declarations');
+      assert.equal(release.publisher,'bundled-telc-source');
+      assert.deepEqual(release.manifest.sets,listeningPackage.sets.map(({answers,explanations,...publicSet})=>publicSet),
+        'each objective source declaration is retained without private answers');
+      assert.deepEqual(release.manifest.media,listeningPackage.media.map(({path,...publicMedia})=>publicMedia),
+        'each media source declaration is retained without its private filesystem path');
     });
 
     /* ---------------------------------------------------- the served DTO and the selection rule */

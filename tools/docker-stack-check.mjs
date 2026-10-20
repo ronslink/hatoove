@@ -199,7 +199,7 @@ try{
   passed('re-running migrations leaves the ledger at '+migrationCount+' entries');
   const packageReceipt=JSON.parse(compose(['run','--rm','--no-deps','migrate','node','tools/import-exam-package.mjs','content/exams/telc-deutsch-b1/manifest.json','--dry-run']));
   assert.equal(packageReceipt.unchanged,true);
-  assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',"SELECT count(*) FROM hatoove.exam_release_head WHERE exam_id='telc-deutsch-b1' AND release_version='v1'"]).trim(),'1');
+  assert.equal(compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',"SELECT count(*) FROM hatoove.exam_release_head WHERE exam_id='telc-deutsch-b1' AND release_version='v2'"]).trim(),'1');
   passed('image includes the exact package source and importer; dry-run is an unchanged publication');
   // `/` IS THE PUBLIC FRONT DOOR (Ron, 2 October 2026: "index.html should be the landing page",
   // and "we need landing/index or just index" → just index).
@@ -249,6 +249,37 @@ try{
   const savedDate=await request('PUT','/api/v1/preparations/'+preparationId,{expectedRevision:preparation.json.revision,examDate:'2026-12-01'},cookie);
   assert.equal(savedDate.status,200,savedDate.text);
   passed('synthetic signup, protected shell and owned settings work at configured origin');
+
+  for(const [family,limit] of [['HV1',1],['HV2',2],['HV3',2]]){
+    const next=await request('GET','/api/v1/practice/next?family='+family,undefined,cookie);
+    assert.equal(next.status,200,next.text);
+    const attemptId=next.json.attempt.attempt_id;
+    const playback=await request('GET','/api/v1/practice/attempts/'+attemptId+'/playback',undefined,cookie);
+    assert.equal(playback.status,200,playback.text);
+    const recording=playback.json.items[0];
+    assert.equal(recording.max_plays,limit,family+' uses the initialized blueprint rule');
+    const begun=await request('POST','/api/v1/practice/attempts/'+attemptId+'/playback',{
+      eventId:randomUUID(),mediaId:recording.media_id,mediaVersion:recording.media_version,
+      expectedRevision:recording.revision,action:'begin',
+    },cookie);
+    assert.equal(begun.status,200,begun.text);
+    const bytes=await request('GET','/api/v1/practice/attempts/'+attemptId+'/media/'+recording.media_id+'/'+recording.media_version,undefined,cookie);
+    assert.equal(bytes.status,200);
+    assert.equal(bytes.headers.get('content-type'),'audio/wav');
+    assert.equal(bytes.text.slice(0,4),'RIFF');
+  }
+  const preserved=await request('POST','/api/v1/attempts',{preparationId},cookie);
+  assert.equal(preserved.status,201,preserved.text);
+  const draftBefore=await request('PUT','/api/v1/attempts/'+preserved.json.id,{expectedRevision:1,text:'Synthetischer Entwurf: Grüße!\nNeue Zeile.'},cookie);
+  assert.equal(draftBefore.status,200,draftBefore.text);
+  const snapshotBefore=await request('GET','/api/v1/attempts/'+preserved.json.id,undefined,cookie);
+  assert.equal(snapshotBefore.status,200);
+  compose(['run','--rm','migrate']);
+  const draftAfter=await request('GET','/api/v1/attempts/'+preserved.json.id,undefined,cookie);
+  assert.equal(draftAfter.status,200);
+  assert.deepEqual(draftAfter.json,snapshotBefore.json,'repeated initialization preserves the owned draft');
+  assert.equal(sql("SELECT release_version FROM hatoove.exam_release_head WHERE exam_id='telc-deutsch-b1'"),'v2');
+  passed('fresh default Compose plays all listening parts and repeated initialization preserves the release and draft');
 
   // O01: create real owned jobs through HTTP, then use only the local stub in the image.
   // Stop this project's daemon so the explicitly injected synthetic call owns its queued job.
@@ -555,17 +586,21 @@ try{
    * grant is real: has_table_privilege asks PostgreSQL, not the code.
    */
   const scored=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
-    'SELECT sum(item_count) FROM hatoove.objective_set']).trim();
+    "SELECT sum(item_count) FROM hatoove.objective_set WHERE version='v1'"]).trim();
   assert.equal(scored,'227','180 corpus + 12 grammar + 35 POOL-01 items expected, got '+scored);
   const sets=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
-    'SELECT count(*) FROM hatoove.objective_set']).trim();
+    "SELECT count(*) FROM hatoove.objective_set WHERE version='v1'"]).trim();
   assert.equal(sets,'31','24 corpus + 1 grammar + 6 POOL-01 sets expected, got '+sets);
   const originalCorpus=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
-    "SELECT count(*) || ':' || sum(item_count) FROM hatoove.objective_set WHERE COALESCE(payload->>'practice_kind','') <> 'grammar-drill'"]).trim();
+    "SELECT count(*) || ':' || sum(item_count) FROM hatoove.objective_set WHERE version='v1' AND COALESCE(payload->>'practice_kind','') <> 'grammar-drill'"]).trim();
   assert.equal(originalCorpus,'30:215','the authored corpus plus POOL-01 must remain intact, got '+originalCorpus);
   const grammarPractice=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     "SELECT count(*) || ':' || sum(item_count) FROM hatoove.objective_set WHERE payload->>'practice_kind' = 'grammar-drill'"]).trim();
   assert.equal(grammarPractice,'1:12','one separate twelve-item grammar-practice set expected, got '+grammarPractice);
+  const listeningPackage=JSON.parse(fs.readFileSync(path.join(root,'content/exams/telc-deutsch-b1/listening-package.json'),'utf8'));
+  assert.ok(listeningPackage.sets.every(set=>set.version==='v2'));
+  assert.equal(sql("SELECT count(*) || ':' || sum(item_count) FROM hatoove.objective_set WHERE exam_id='telc-deutsch-b1' AND version='v2'"),
+    listeningPackage.sets.length+':'+listeningPackage.sets.reduce((sum,set)=>sum+set.itemCount,0),'fresh runtime adds the exact listening package alongside the immutable v1 corpus');
   // `jsonb_path_exists` with a recursive wildcard, not a `LIKE` on the JSON text: it DESCENDS into
   // the nested arrays where the answers actually live, so a secret one level deeper than the check
   // still fails it. It also needs no quote-escaping, which is its own small mercy.
@@ -575,7 +610,7 @@ try{
   const learnerKey=compose(['exec','-T','db','psql','-U','postgres','-d','hatoove','-tAc',
     "SELECT has_table_privilege('hatoove_learner','hatoove.objective_key','SELECT')"]).trim();
   assert.equal(learnerKey,'f','the learner role MUST NOT be able to read objective_key, got '+learnerKey);
-  passed('31 sets / 227 items include POOL-01 and grammar practice; payloads and learner grants keep keys private');
+  passed('v1 retains 31 sets / 227 items alongside the v2 listening package; payloads and learner grants keep keys private');
 
   // The route that SERVES the corpus, and must never serve the key side of it.
   assert.equal((await request('GET','/api/v1/objective-sets')).status,401,'/api/v1/objective-sets must require a session');

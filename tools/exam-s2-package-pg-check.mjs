@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
-import { importPackage } from '../server/owned-postgres/package-importer.mjs';
+import { importPackage, importDefaultPackage } from '../server/owned-postgres/package-importer.mjs';
 import { listReleasedForms,readReleasedForm,importedSetGate } from '../server/owned-postgres/packages.mjs';
 
 if(['4300','55440'].includes(process.env.OWNAPI_PG_PORT||'')) throw new Error('disposable PostgreSQL port required');
@@ -22,6 +22,48 @@ const count=async()=> (await db.migration.query(`SELECT
  (SELECT count(*) FROM objective_set)::int AS sets,(SELECT count(*) FROM content_version)::int AS content,
  (SELECT jsonb_agg(h ORDER BY exam_id) FROM exam_release_head h) AS heads`)).rows[0];
 try {
+  await check('runtime initialization preserves existing heads and atomically initializes listening after a failed first attempt',async()=>{
+    const fixture=await createFixture();
+    const previousRoot=process.env.B1PREP_MEDIA_ROOT;
+    const head=async()=> (await fixture.migration.query("SELECT release_version FROM exam_release_head WHERE exam_id='telc-deutsch-b1'")).rows[0]?.release_version;
+    const snapshot=async()=> (await fixture.migration.query(`SELECT
+      (SELECT count(*) FROM exam_release)::int AS releases,
+      (SELECT count(*) FROM objective_set)::int AS sets,
+      (SELECT count(*) FROM attempts)::int AS attempts`)).rows[0];
+    const restoreRoot=()=>{if(previousRoot===undefined) delete process.env.B1PREP_MEDIA_ROOT;else process.env.B1PREP_MEDIA_ROOT=previousRoot;};
+    try {
+      process.env.B1PREP_MEDIA_ROOT='__missing_android_bootstrap_media__';
+      const before=await snapshot();
+      assert.equal(await head(),'v1');
+      assert.equal((await importDefaultPackage(fixture.migration,{initializeListening:true})).unchanged,true);
+      assert.equal(await head(),'v1','existing release must survive without unused listening media');
+      assert.deepEqual(await snapshot(),before);
+
+      await fixture.migration.query("DELETE FROM exam_release_head WHERE exam_id='telc-deutsch-b1'");
+      await assert.rejects(importDefaultPackage(fixture.migration,{initializeListening:true}));
+      assert.equal(await head(),undefined,'failed fresh initialization must leave no active baseline fallback');
+      assert.deepEqual(await snapshot(),before,'failed media verification must not partially import content');
+      restoreRoot();
+      const results=await Promise.all(Array.from({length:3},()=>importDefaultPackage(fixture.migration,{initializeListening:true})));
+      assert.equal(results.filter(result=>result.changes.includes('activate release v2')).length,1,'concurrent initialization activates once');
+      assert.equal(await head(),'v2');
+      const blueprint=(await fixture.migration.query("SELECT payload FROM exam_blueprint WHERE exam_id='telc-deutsch-b1' AND version='v2'")).rows[0].payload;
+      assert.deepEqual(blueprint.sections.flatMap(section=>section.parts).filter(part=>/^HV/.test(part.family)).map(part=>part.playback.mock),[1,2,2]);
+      const initialized=await snapshot();
+      assert.equal((await importDefaultPackage(fixture.migration,{initializeListening:true})).unchanged,true);
+      assert.deepEqual(await snapshot(),initialized);
+      assert.equal(await head(),'v2');
+
+      const withdrawn=clone(telc);
+      withdrawn.release.version='v9998';withdrawn.release.state='withdrawn';withdrawn.forms=[];withdrawn.sets=[];
+      await importPackage(fixture.migration,withdrawn);
+      const withdrawnSnapshot=await snapshot();
+      process.env.B1PREP_MEDIA_ROOT='__missing_android_bootstrap_media__';
+      await importDefaultPackage(fixture.migration,{initializeListening:true});
+      assert.equal(await head(),'v9998','a newer withdrawn head must never be reactivated by initialization');
+      assert.deepEqual(await snapshot(),withdrawnSnapshot);
+    } finally {restoreRoot();await fixture.cleanup();}
+  });
   await check('same exact package import is idempotent and private keys are absent from shared manifest',async()=>{
     const before=await count();const r=await importPackage(db.migration,telc);assert.equal(r.unchanged,true);assert.deepEqual(await count(),before);
     const visible=(await db.learner.query('SELECT manifest FROM exam_release')).rows;

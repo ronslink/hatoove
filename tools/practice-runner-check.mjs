@@ -734,6 +734,90 @@ leg('7g the refused second listen is shown as the server\u2019s own decision, ne
   player.dispose();
 });
 
+leg('7g2 playback controls name their actions in every interface language', async () => {
+  const stub = practicePlaybackStub({ maxPlays: 1 });
+  const clip = { media_id: 'telc-deutsch-b1.hv1.04.audio', media_version: 'v1', label: 'Aufnahme' };
+  const player = await drivePlayer({ attemptId: UUID, recording: clip }, stub);
+  const host = hostStub('player-host');
+  host.isConnected = true;
+  try {
+    player.mount(host, { attemptId: UUID, recording: clip });
+    assert.doesNotMatch(host.innerHTML, /\{maxPlays\}/, 'pending metadata must not expose a template token');
+    await tick();
+    await player.play();
+    for (const locale of LOCALES) {
+      setLocale(locale); player.updateLocale();
+      assert.match(host.innerHTML, /data-listening-action="pause"/);
+      assert.ok(textOf(host.innerHTML).includes(pt('audioPause', {}, locale)), locale + ' names Pause');
+    }
+    await player.pause();
+    for (const locale of LOCALES) {
+      setLocale(locale); player.updateLocale();
+      assert.match(host.innerHTML, /data-listening-action="play"/);
+      assert.ok(textOf(host.innerHTML).includes(pt('partRunnerResume', {}, locale)), locale + ' names Resume');
+    }
+  } finally { player.dispose(); setLocale('de'); }
+});
+
+leg('7g3 buffered resume obeys the real server transition and pause preserves the native position', async () => {
+  const { playbackTransition } = await import('../server/owned-postgres/playback.mjs');
+  const recording = { media_id: 'telc-deutsch-b1.hv1.04.audio', media_version: 'v1', label: 'Aufnahme', duration_ms: 60000, max_plays: 1 };
+  let row = null, clock = 0, mediaReads = 0, holdCheckpoint = false, releaseCheckpoint;
+  const events = [];
+  const dto = () => ({ ...recording, state: 'ready', plays_used: 0, position_ms: 0, revision: 0, playback_id: null, ...row, uncertain: false });
+  const api = { practice: {
+    playback: async () => ({ ok: true, data: { items: [dto()], sitting: { checked: false } } }),
+    media: async () => { mediaReads++; return { ok: true, data: new Blob(['synthetic']) }; },
+    playbackEvent: async (attemptId, body) => {
+      events.push(body.action);
+      if (holdCheckpoint && body.action === 'checkpoint') await new Promise(resolve => { releaseCheckpoint = resolve; });
+      try {
+        row = { ...recording, ...playbackTransition(row, recording, body, new Date('2026-10-20T12:00:00Z')),
+          revision: body.expectedRevision + 1, updated_at: '2026-10-20T12:00:00Z' };
+        return { ok: true, data: { playback: dto() } };
+      } catch (error) { return { ok: false, status: error.status, error: error.code }; }
+    },
+  } };
+  const audio = fakeAudio();
+  audio.play = async () => { audio.paused = false; };
+  const player = await drivePlayer({ attemptId: UUID, recording }, { api }, { createAudio: () => audio, now: () => clock });
+  try {
+    player.mount(hostStub('strict-player'), { attemptId: UUID, recording });
+    await tick();
+    assert.equal(await player.play(), true, 'strict first play: ' + JSON.stringify(player.state()));
+    audio.fire('canplay');
+    audio.currentTime = 4.25;
+    assert.equal(await player.pause(), true, 'strict first pause: ' + JSON.stringify(player.state()));
+    assert.equal(row.position_ms, 4250, 'pause saves the exact native position, not the preceding checkpoint');
+    assert.equal(row.state, 'paused');
+    const pausedId = row.playback_id;
+    assert.equal(await player.play(), true, 'strict resume: ' + JSON.stringify(player.state()));
+    assert.equal(row.state, 'playing', 'buffered resume must be acknowledged by the server');
+    assert.notEqual(row.playback_id, pausedId);
+    assert.equal(row.plays_used, 1);
+    assert.equal(mediaReads, 1, 'resume reuses already verified audio bytes');
+    assert.equal(audio.currentTime, 4.25);
+    audio.currentTime = 5.5; clock = 2500;
+    await new Promise(resolve => setTimeout(resolve, 600));
+    assert.equal(row.position_ms, 5500, 'server accepts the resumed checkpoint');
+    audio.currentTime = 6.25;
+    assert.equal(await player.pause(), true, 'strict second pause: ' + JSON.stringify(player.state()));
+    assert.equal(row.position_ms, 6250);
+    assert.deepEqual(events, ['begin', 'pause', 'recover', 'checkpoint', 'pause']);
+    assert.equal(await player.play(), true, 'strict second resume: ' + JSON.stringify(player.state()));
+    holdCheckpoint = true; audio.currentTime = 7; clock = 5000;
+    await new Promise(resolve => setTimeout(resolve, 600));
+    assert.equal(typeof releaseCheckpoint, 'function');
+    audio.currentTime = 7.75;
+    const paused = player.pause();
+    assert.equal(audio.paused, true, 'native audio stops immediately while a checkpoint is in flight');
+    releaseCheckpoint();
+    assert.equal(await paused, true);
+    assert.equal(row.position_ms, 7750);
+    assert.equal(row.plays_used, 1);
+  } finally { releaseCheckpoint?.(); player.dispose(); }
+});
+
 leg('7h an exhausted allowance is its own sentence, and the transport refusal keeps the FIX-F1 path', async () => {  const clip = { media_id: 'telc-deutsch-b1.hv1.04.audio', media_version: 'v1', label: 'Aufnahme' };
   const spent = practicePlaybackStub({ state: 'completed', playsUsed: 2, maxPlays: 2, checked: true, fail: 'exhausted' });
   const player = await drivePlayer({ attemptId: UUID, recording: clip }, spent);
@@ -753,6 +837,9 @@ leg('7h an exhausted allowance is its own sentence, and the transport refusal ke
   const goneHost = hostStub('player-host');
   gone.mount(goneHost, { attemptId: UUID, recording: clip });
   await tick();
+  assert.doesNotMatch(goneHost.innerHTML, /\{maxPlays\}|data-instruction-id="listening.playback"/,
+    'unavailable playback must not fabricate an allowance or request its translation');
+  assert.ok(textOf(goneHost.innerHTML).includes(pt('audioReload', {}, 'de')), 'retryable read names Reload');
   assert.ok(textOf(goneHost.innerHTML).includes('noch nicht üben'), 'the honest unavailable sentence is printed');
   assert.equal(countOf(goneHost.innerHTML, /data-listening-action="play"/g), 0, 'and no play is offered');
   gone.dispose();

@@ -133,9 +133,12 @@ export function listeningPlayerMarkup(state = {}, recording = {}, options = {}) 
   }
   const chip = run?.scope === 'complete_supported_written' ? pl('mockScope')
     : (attemptMode ?? run?.attempt_mode) === 'mock' ? pl('audioMock') : pl('audioPractice');
+  const playbackInstruction = Number.isInteger(recording?.max_plays) && recording.max_plays > 0
+    ? instructionMarkup({ id: 'listening.playback', examLanguage: run?.exam_language || examLanguage || 'und', original: INSTRUCTIONS['listening.playback'].examLanguage === (run?.exam_language || examLanguage) ? INSTRUCTIONS['listening.playback'].original : '', parameters: { maxPlays: recording.max_plays } })
+    : '';
   return '<section class="card-flat listening-player stack" aria-label="Höraufnahme" data-practice-aria-label="recording"><div class="spread"><h3 lang="' + esc(run?.exam_language || examLanguage || 'und') + '" dir="' + ((run?.exam_language || examLanguage) === 'ar' ? 'rtl' : 'ltr') + '">' + esc(recording?.label ?? '') + '</h3><span class="chip">' + chip + '</span></div>'
     + (run?.release_state === 'internal' ? '<p class="small muted" data-practice-key="ui68">Internes Testmaterial · fachliche und Audio-Prüfung ausstehend.</p>' : '')
-    + (instruction ?? instructionMarkup({ id: 'listening.playback', examLanguage: run?.exam_language || examLanguage || 'und', original: INSTRUCTIONS['listening.playback'].examLanguage === (run?.exam_language || examLanguage) ? INSTRUCTIONS['listening.playback'].original : '', parameters: { maxPlays: recording?.max_plays } }))
+    + (instruction ?? playbackInstruction)
     + '<div class="listening-progress"><progress data-listening-progress max="' + (recording?.duration_ms || 0) + '" value="' + currentPosition() + '" aria-label="Gespeicherter und aktueller Hörfortschritt" data-practice-aria-label="progress"></progress><span class="num">' + time(currentPosition()) + ' / ' + time(recording?.duration_ms || 0) + '</span></div>'
     + '<p data-listening-status class="listening-status' + (state.error ? ' err' : ' muted') + '" role="status" aria-live="polite">' + esc(ended ? message(state) : stopped ? pt('audioBlocked', {}, locale) : loading ? pt('audioLoading', {}, locale) : message(state)) + '</p><div class="row listening-controls">' + controls + '</div></section>';
 }

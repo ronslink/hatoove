@@ -64,6 +64,9 @@ async function sourceFixture() {
     const packageInput = await createCompleteFixture({ examId, mediaRoot: path.join(source,'content/exams'), durationMs: 7000 });
     fs.writeFileSync(path.join(source,'content/exams',examId,'s5b-fixture.json'),JSON.stringify(packageInput));
   }
+  // This historical browser fixture selects v1 plus its authored packages; fresh Compose is checked separately.
+  replaceOnce(path.join(source, 'server/owned-postgres/package-importer.mjs'), 'export async function importDefaultPackage(pool,{initializeListening=false}={}) {',
+    'export async function importDefaultPackage(pool) { const initializeListening = false;');
   replaceOnce(path.join(source, 'server/owned-postgres/package-importer.mjs'), "return importPackage(pool,input,{publisher:'bundled-telc-source'});",
     "const receipt = await importPackage(pool,input,{publisher:'bundled-telc-source'});\n  for(const examId of ['telc-deutsch-b1','dtz-a2-b1']) await importPackage(pool,JSON.parse(await readFile(new URL('../../content/exams/'+examId+'/s5b-fixture.json',import.meta.url),'utf8')),{publisher:'synthetic-s5-browser'});\n  return receipt;");
 }
