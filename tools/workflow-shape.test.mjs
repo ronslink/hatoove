@@ -29,6 +29,7 @@ import { workflowShapeProblems } from './workflow-shape.mjs';
 const REAL = [
   '.github/workflows/ci.yml',
   '.github/workflows/pilot-contracts.yml',
+  '.github/workflows/deploy.yml',
 ];
 
 test('the workflows this repository actually ships have a sound shape', () => {

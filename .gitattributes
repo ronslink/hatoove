@@ -48,3 +48,4 @@ public/assets/vendor/** -text
 data/seed.json          text eol=lf
 data/*.json             text eol=lf
 content/pool-01/*.json  text eol=lf
+*.sh                    text eol=lf

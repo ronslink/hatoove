@@ -1,0 +1,119 @@
+name: Deploy to Production
+on:
+  workflow_run:
+    workflows:
+      - Offline checks
+      - Pilot contracts
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git commit or branch on main to deploy
+        required: false
+        default: main
+permissions:
+  contents: read
+  actions: read
+  checks: read
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    name: Deploy verified main release to droplet
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Determine target revision
+        id: target
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_REF: ${{ inputs.ref }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "ref=${INPUT_REF:-main}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${RUN_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.target.outputs.ref }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify both CI workflows succeeded for target commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          rev="$(git rev-parse HEAD)"
+          echo "Target commit is $rev"
+          # Ensure commit is on origin/main
+          git merge-base --is-ancestor "$rev" origin/main
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            for wf in "ci.yml" "pilot-contracts.yml"; do
+              conclusion="$(gh api "repos/$REPO/actions/workflows/$wf/runs?head_sha=$rev&per_page=5" --jq '.workflow_runs[0].conclusion // "none"')"
+              status="$(gh api "repos/$REPO/actions/workflows/$wf/runs?head_sha=$rev&per_page=5" --jq '.workflow_runs[0].status // "none"')"
+              echo "Workflow $wf -> status=$status conclusion=$conclusion"
+              if [ "$status" != "completed" ] || [ "$conclusion" != "success" ]; then
+                echo "Waiting for $wf to complete with success before deploying $rev."
+                echo "ready=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+        id: gate
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version: '24'
+      - name: Preflight repository and production compose checks
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          node tools/repository-check.mjs
+          node tools/production-compose-check.mjs
+      - name: Package verified git archive and deploy to droplet
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          rev="$(git rev-parse HEAD)"
+          short="${rev:0:7}"
+          ops="/opt/hatoove/ops/ci-${short}-$(date -u +%Y%m%dT%H%M%SZ)"
+          archive="/tmp/hatoove-${short}.tar"
+          git archive --format=tar --output="$archive" "$rev"
+          sha="$(sha256sum "$archive" | awk '{print $1}')"
+          echo "Prepared archive for $rev (sha256=$sha)"
+
+          install -d -m 0700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy_key"
+          chmod 0600 "$HOME/.ssh/deploy_key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 0644 "$HOME/.ssh/known_hosts"
+
+          ssh_opts=(-i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o ConnectTimeout=15)
+          target="${DEPLOY_USER}@${DEPLOY_HOST}"
+
+          ssh "${ssh_opts[@]}" "$target" "mkdir -p -m 0700 '$ops'"
+          scp "${ssh_opts[@]}" "$archive" "deploy/deploy-release.sh" "$target:$ops/"
+          ssh "${ssh_opts[@]}" "$target" "chmod 0700 '$ops/deploy-release.sh' && '$ops/deploy-release.sh' '$rev' '$ops/hatoove-${short}.tar' '$sha'"
+      - name: Verify public production routes after deployment
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          for url in "https://hatoove.com/api/ready" "https://hatoove.com/" "https://hatoove.com/telc-deutsch-b1" "https://hatoove.com/signin?mode=signup" "https://hatoove.com/sitemap.xml"; do
+            code="$(curl --silent --show-error --max-time 15 -o /dev/null -w '%{http_code}' "$url")"
+            echo "$url -> $code"
+            test "$code" = "200"
+          done
