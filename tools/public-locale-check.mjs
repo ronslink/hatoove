@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createConfiguredNotifier, createResendNotifier, readResendApiKey } from '../server/notify.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const locales = ['de','en','uk','ar','tr'];
@@ -133,5 +134,34 @@ await check('frozen pre-change source discriminates missing demo locale handling
   const historical=path=>execFileSync('git',['-c','safe.directory='+root.replace(/[\\/]$/,''),'show','83e03310f32c02f80dcac01dbbfcef5d01f4ef72:'+path],{cwd:root,encoding:'utf8'});
   const oldDemo=boot('public','de','',null,historical('public/site.js'));oldDemo.run("setLocale('en')");assert.equal(oldDemo.node('check-answer').textContent,'Antwort prüfen');assert.notEqual(oldDemo.node('check-answer').textContent,oldDemo.text('public.check'));
   const oldAuth=boot('signin','uk','?mode=signup',null,historical('public/auth/entry.js'));await oldAuth.node('form-signup').fire('submit');assert.equal(Object.hasOwn(JSON.parse(oldAuth.calls[0].body),'language'),false);
+});
+await check('Resend notifier sends verification and reset emails without logging secrets or throwing on provider failure',async()=>{
+  const calls=[],errors=[];
+  const notifier=createResendNotifier({
+    apiKey:'re_synthetic_key_1234567890',
+    from:'Hatoove <noreply@hatoove.com>',
+    publicOrigin:'https://hatoove.com',
+    logError:line=>errors.push(line),
+    fetchImpl:async(url,options)=>{calls.push({url,options,body:JSON.parse(options.body)});return {status:200};},
+  });
+  assert.equal(notifier.channel,'resend');
+  assert.equal(notifier.sendOnSignUp,true);
+  const verify=await notifier.send({to:'learner@example.test',kind:'email-verification',token:'tok_verify_123'});
+  assert.deepEqual(verify,{delivered:true,channel:'resend'});
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].options.headers.Authorization,'Bearer re_synthetic_key_1234567890');
+  assert.equal(calls[0].body.from,'Hatoove <noreply@hatoove.com>');
+  assert.deepEqual(calls[0].body.to,['learner@example.test']);
+  assert(calls[0].body.text.includes('https://hatoove.com/verify-email?token=tok_verify_123'));
+  assert.equal(errors.length,0);
+  const failing=createConfiguredNotifier({
+    env:{RESEND_API_KEY:'re_synthetic_key_1234567890',B1PREP_PUBLIC_ORIGIN:'https://hatoove.com'},
+    logError:line=>errors.push(line),
+    fetchImpl:async()=>({status:503}),
+  });
+  const failedReset=await failing.send({to:'learner@example.test',kind:'password-reset',token:'tok_secret_reset_456'});
+  assert.deepEqual(failedReset,{delivered:false,channel:'resend'});
+  assert(errors.every(line=>!line.includes('tok_secret_reset_456')&&!line.includes('re_synthetic_key')&&!line.includes('learner@example.test')));
+  assert.throws(()=>readResendApiKey({RESEND_API_KEY:'re_valid_12345678',RESEND_API_KEY_FILE:'/tmp/conflict'}),/resend_secret_conflict/);
 });
 console.log('Public/auth locale checks: '+count+' passed. Actual layout/device checks remain separate.');

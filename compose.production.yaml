@@ -121,13 +121,16 @@ services:
       # `tools/seo-check.mjs` leg S10 fails if the page's FAQ states any other date. This slice does
       # NOT enforce it: no entitlement, access or payment decision reads it yet.
       PILOT_FREE_UNTIL: "2027-01-14"
+      NOTIFY_MODE: "${HATOVE_NOTIFY_MODE:-resend}"
+      RESEND_FROM: "${HATOVE_RESEND_FROM:-Hatoove <noreply@hatoove.com>}"
+      RESEND_API_KEY_FILE: /run/secrets/resend_api_key
       OWNAPI_PG_AUTH_PASSWORD_FILE: /run/secrets/pg_auth
       OWNAPI_PG_LEARNER_PASSWORD_FILE: /run/secrets/pg_learner
       OWNAPI_PG_WORKER_PASSWORD_FILE: /run/secrets/pg_worker
       OWNAPI_PG_DELETION_PASSWORD_FILE: /run/secrets/pg_deletion
       OWNAPI_PG_PAYMENTS_PASSWORD_FILE: /run/secrets/pg_payments
       OWNAPI_PG_PROVISIONER_PASSWORD_FILE: /run/secrets/pg_provisioner
-    secrets: [pg_auth, pg_learner, pg_worker, pg_deletion, pg_payments, pg_provisioner]
+    secrets: [pg_auth, pg_learner, pg_worker, pg_deletion, pg_payments, pg_provisioner, resend_api_key]
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -214,3 +217,5 @@ secrets:
     file: "${HATOVE_PG_PAYMENTS_PASSWORD_SOURCE:?Select the external payments password file}"
   pg_provisioner:
     file: "${HATOVE_PG_PROVISIONER_PASSWORD_SOURCE:?Select the external provisioner password file}"
+  resend_api_key:
+    file: "${HATOVE_RESEND_API_KEY_SOURCE:?Select the external Resend API key file}"

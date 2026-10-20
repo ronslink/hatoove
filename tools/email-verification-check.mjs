@@ -30,7 +30,7 @@ import assert from 'node:assert/strict';
 
 import { createFixture } from '../server/owned-postgres/bootstrap.mjs';
 import { createPostgresWorld } from '../server/owned-postgres/fixture.mjs';
-import { createNotifier } from '../server/notify.mjs';
+import { createNotifier, createResendNotifier } from '../server/notify.mjs';
 
 /* =============================================================== the world */
 
@@ -250,6 +250,45 @@ check('9. an unusable verification token is refused, malformed distinguished fro
     assert.equal(res.json.error, 'invalid_token', 'the same code as every other failure');
   }
   return `${malformed.length} malformed refused with 422, 2 unresolvable with 400`;
+});
+
+/*
+ * 10. RESEND SIGN-UP AUTO-DELIVERS A VERIFICATION EMAIL WITHOUT BLOCKING REGISTRATION.
+ */
+check('10. Resend notifier auto-sends verification email on sign-up and never blocks registration on failure', async () => {
+  const resendCalls = [];
+  const resendNotifier = createResendNotifier({
+    apiKey: 're_synthetic_test_key_1234567890',
+    from: 'Hatoove <noreply@hatoove.com>',
+    publicOrigin: 'https://hatoove.com',
+    logError: () => {},
+    fetchImpl: async (url, options) => {
+      resendCalls.push({ url, options, body: JSON.parse(options.body) });
+      return { status: 200 };
+    },
+  });
+  const resendWorld = await createPostgresWorld({ fixture: db, notifier: resendNotifier });
+  try {
+    const resendCall = caller(resendWorld.api);
+    await db.admin.query('DELETE FROM auth_throttle WHERE bucket = $1', ['signup:global']);
+    const email = nextEmail();
+    const signup = await resendCall('POST', '/api/auth/sign-up/email', {
+      body: { name: 'Resend Learner', email, password: 'pw-resend-synthetic-1', language: 'de' },
+    });
+    assert.equal(signup.status, 200);
+    assert.ok(signup.setCookie, 'sign-up still issues the session cookie immediately');
+    assert.equal(resendCalls.length, 1, 'sign-up with Resend dispatches one verification email');
+    assert.deepEqual(resendCalls[0].body.to, [email]);
+    assert.equal(resendCalls[0].body.from, 'Hatoove <noreply@hatoove.com>');
+    const tokenMatch = /https:\/\/hatoove\.com\/verify-email\?token=([A-Za-z0-9_-]+)/.exec(resendCalls[0].body.text);
+    assert.ok(tokenMatch, 'email text contains the verification link');
+    const redeemed = await resendCall('POST', '/api/auth/verify-email', { body: { token: tokenMatch[1] } });
+    assert.equal(redeemed.status, 200);
+    assert.equal((await one('SELECT "emailVerified" FROM "user" WHERE email = $1', [email])).emailVerified, true);
+    return 'auto-sent on sign-up, session issued, token verified account';
+  } finally {
+    await resendWorld.teardown().catch(() => {});
+  }
 });
 
 /* ==================================================================== run */
