@@ -5,8 +5,9 @@ Execution: `ANDROID-LISTENING-FIX-20261020-A`; independent read-only reviewer:
 Branch: `codex/android-listening-fixes-20261020`.
 
 Status: implemented and independently source-reviewed CLEAR; local checks and
-desktop/physical Android verification passed. PR, hosted checks and integration
-are pending. No production deployment was requested or performed.
+desktop/physical Android verification passed. [PR174](https://github.com/ronslink/hatoove/pull/174)
+is open; final hosted checks and integration are pending. Runtime source is pinned
+by `ae168bdf2f7077992ab0a5a83ff8c7f33880358d`. No production deployment was requested or performed.
 
 ## Changes
 
@@ -49,11 +50,33 @@ this is not an automatic upgrade of an existing installation.
 | Listening package PostgreSQL | 15 reported passes; optional real-package leg skipped because its media-root option was absent |
 | Full fresh Docker stack | 41/41; HV1/HV2/HV3 playback limits 1/2/2, begin and protected WAV requests pass without manual import; repeated migration preserves an exact saved multiline draft |
 | Docker OpenAPI check | 56 routes, zero errors |
-| Independent review | R1 CLEAR for source, focused regressions and all desktop/phone captures, including the final resume state; committed-head review pending |
+| PostgreSQL mirror gate group | 11/11 after correcting the old inventory assertion; pool check 16/16 plus its mutation proofs |
+| Complete-exam browser (`exam-s5b-browser-check.mjs`) | Final 8/8 after waiting for enabled audio Load and effectively writable answer/Save controls |
+| Independent review | R1 CLEAR for runtime commit `ae168bdf`, focused regressions and all desktop/phone captures; all five changed runtime files independently match the physical fixture byte-for-byte; final test-only corrections independently reviewed |
 
 Real-package behavior is covered by the package-initialization and fresh Docker
 checks, independently of the optional skipped leg. The full Docker check verified
 cleanup of its own containers and volumes.
+
+The initial hosted durable job failed the pool check's old global v1 inventory and
+rights-row assumptions. Its correction keeps the exact 31-set v1 corpus and all
+original per-batch rights assertions, checks the exact nine added v2 sets, and
+requires the only 18 rows without a later rights override to match the imported
+package's identities, source locators, declared rights and content hashes exactly.
+The release hash, publisher and complete public sets/media projections are also
+checked. No rights decision is fabricated: the existing immutable override remains
+available for a later veto.
+
+Supplemental historical browser suites are **not green**. S3 reports 2 passed /
+4 failed, S4 reports 2/2, and S5 reports 10/2. Every named outcome matches a fresh
+run on unchanged base `981f8aea`. Failures include old status/route selectors and
+an S5 practice-allowance assertion that contradicts its own fixture. Their
+initialization/import checks pass; full historical UI coverage is not claimed.
+S5b initially produced inconsistent boundary/readiness failures on both base and
+candidate. Its harness now waits for effectively enabled controls before actual
+pointer input; all exact answer-count, finalization and native-audio assertions
+remain intact, and the final candidate run passes 8/8. The retained diagnostics
+do not establish that every earlier failure had the same cause.
 
 Desktop evidence uses an isolated browser and source-only Docker fixture. Physical
 evidence uses a Samsung Galaxy S24 Ultra (SM-S928B), Android 16, Chrome 155, at a
