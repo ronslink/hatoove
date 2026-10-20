@@ -150,7 +150,7 @@ function renderFeedback(item,key) {
   feedback.innerHTML = label(state.answers[key] === item.answer ? 'correct' : 'incorrect','h3')
     + '<p><strong>' + label('answer') + ' <bdi lang="de" dir="ltr">' + 'ABC'[item.answer] + '.</bdi></strong> ' + label(itemKey + 'Explanation') + '</p>'
     + label(itemKey + 'Tip','p') + '<div class="feedback-actions">' + label('next','button',' class="button button-dark" id="next-sample" type="button"')
-    + label('retry','button',' class="question-nav" id="retry-sample" type="button"') + '</div>';
+    + label('retry','button',' class="question-nav" id="retry-sample" type="button"') + label('start','a',' class="btn btn-primary" id="sample-signup" href="/signin?mode=signup"') + '</div>';
   feedback.hidden = false;
   $('#next-sample').addEventListener('click', () => {state.indices[state.skill] = (state.indices[state.skill] + 1) % bank[state.skill].length; delete state.answers[currentKey()]; delete state.checked[currentKey()]; render(); panel.focus({preventScroll:true});});
   $('#retry-sample').addEventListener('click', () => {delete state.answers[key]; delete state.checked[key]; render(); panel.querySelector('input').focus({preventScroll:true});});
@@ -169,7 +169,7 @@ function renderReview() {
   const feedback = $('#feedback');
   feedback.innerHTML = label('reviewTitle','h3') + label('reviewIntro','p') + '<div class="review-list">'
     + state.checks.map((checked,index) => '<label><input type="checkbox" data-review="' + index + '"' + (checked ? ' checked' : '') + '>' + label('checklist' + index) + '</label>').join('')
-    + '</div><details class="model-response"' + (state.modelOpen ? ' open' : '') + '>' + label('model','summary') + label('modelNote','p') + '<p lang="de" dir="ltr">' + escape(model) + '</p></details>';
+    + '</div><details class="model-response"' + (state.modelOpen ? ' open' : '') + '>' + label('model','summary') + label('modelNote','p') + '<p lang="de" dir="ltr">' + escape(model) + '</p></details><div class="feedback-actions">' + label('start','a',' class="btn btn-primary" id="sample-signup" href="/signin?mode=signup"') + '</div>';
   feedback.hidden = false;
   feedback.querySelectorAll('[data-review]').forEach(input => input.addEventListener('change', () => {state.checks[Number(input.dataset.review)] = input.checked;}));
   feedback.querySelector('details').addEventListener('toggle', event => {state.modelOpen = event.target.open;});
