@@ -68,12 +68,13 @@ export function assertProductionModel(model, variant) {
   requireThat(['local', 'managed'].includes(variant), 'invalid_variant');
   const services = model.services ?? {};
   requireThat(equalSet(keys(services), ['migrate', 'app', 'worker', 'feedback-operator', 'ingress', ...(variant === 'local' ? ['db'] : [])]), 'unexpected_service');
-  requireThat(equalSet(keys(model.secrets), roles.map(role => `pg_${role}`)), 'secret_inventory_changed');
-  for (const role of roles) {
-    const secret = model.secrets[`pg_${role}`];
+  const allSecrets = [...roles.map(role => `pg_${role}`), 'resend_api_key'];
+  requireThat(equalSet(keys(model.secrets), allSecrets), 'secret_inventory_changed');
+  for (const secretName of allSecrets) {
+    const secret = model.secrets[secretName];
     requireThat(typeof secret.file === 'string' && path.isAbsolute(secret.file) && !secret.environment && !secret.external, 'invalid_secret_source');
   }
-  requireThat(new Set(Object.values(model.secrets).map(secret => secret.file)).size === roles.length, 'shared_password_file');
+  requireThat(new Set(Object.values(model.secrets).map(secret => secret.file)).size === allSecrets.length, 'shared_password_file');
   for (const [name, service] of Object.entries(services)) {
     requireThat(typeof service.image === 'string' && /@sha256:[a-f0-9]{64}$/.test(service.image), 'image_not_pinned');
     requireThat(service.pull_policy === 'never', 'implicit_image_pull');
@@ -93,9 +94,15 @@ export function assertProductionModel(model, variant) {
     requireThat(env.OWNAPI_PG_DATABASE && env.OWNAPI_PG_USER && env.OWNAPI_PG_SCHEMA && env.OWNAPI_PG_ROLE_PREFIX, 'missing_database_identity');
     requireThat(service.read_only === true && service.init === true && equalSet(service.cap_drop ?? [], ['ALL']) && (service.security_opt ?? []).includes('no-new-privileges:true'), 'runtime_isolation_changed');
     const expectedRoles = name === 'migrate' ? roles : name === 'app' ? runtimeRoles : name === 'feedback-operator' ? ['operator'] : ['worker'];
-    requireThat(equalSet(sources(service), expectedRoles.map(role => `pg_${role}`)), 'credential_mount_scope_changed');
+    const expectedSecrets = [...expectedRoles.map(role => `pg_${role}`), ...(name === 'app' ? ['resend_api_key'] : [])];
+    requireThat(equalSet(sources(service), expectedSecrets), 'credential_mount_scope_changed');
     requireThat(equalSet(keys(env).filter(key => /PASSWORD_FILE$/.test(key)), expectedRoles.map(passwordKey)), 'credential_environment_scope_changed');
     for (const role of expectedRoles) requireThat(env[passwordKey(role)] === `/run/secrets/pg_${role}`, 'credential_target_changed');
+    if (name === 'app') {
+      requireThat(env.RESEND_API_KEY_FILE === '/run/secrets/resend_api_key' && env.NOTIFY_MODE === 'resend' && env.RESEND_FROM === 'Hatoove <noreply@hatoove.com>', 'resend_delivery_boundary_changed');
+    } else {
+      requireThat(env.RESEND_API_KEY_FILE == null && env.NOTIFY_MODE == null && env.RESEND_FROM == null, 'resend_secret_leaked_to_non_app_service');
+    }
     for (const secret of service.secrets ?? []) requireThat(!secret.target || secret.target === secret.source || secret.target === `/run/secrets/${secret.source}`, 'secret_mount_target_changed');
     requireThat(JSON.stringify(service.command) === JSON.stringify(['node', name === 'app' ? 'server.js' : name === 'worker' ? 'server/worker.mjs' : name === 'feedback-operator' ? 'server/feedback.mjs' : 'server/migrate.mjs']), 'runtime_command_changed');
     if (name === 'feedback-operator') requireThat(equalSet(service.profiles ?? [], ['operator']) && service.restart === 'no', 'operator_lifecycle_changed');
@@ -216,6 +223,8 @@ function runComposeChecks() {
       const file = path.join(scratch,`synthetic-${role}.txt`), value = `SYNTHETIC_PRIVATE_${role}_DO_NOT_RENDER`;
       fs.writeFileSync(file,value); sentinels.push(value); values[`HATOVE_PG_${role.toUpperCase()}_PASSWORD_SOURCE`] = file;
     }
+    const resendFile = path.join(scratch,'synthetic-resend.txt'), resendValue = 'SYNTHETIC_PRIVATE_resend_DO_NOT_RENDER';
+    fs.writeFileSync(resendFile,resendValue); sentinels.push(resendValue); values.HATOVE_RESEND_API_KEY_SOURCE = resendFile;
     fs.writeFileSync(path.join(scratch,'.env'),'OWNAPI_PG_DATABASE=UNEXPECTED_AMBIENT_DATABASE\nSTRIPE_SECRET_KEY=UNEXPECTED_AMBIENT_PROVIDER\n');
     const render = (variants, additions = {}, removals = [], expectFailure = false) => {
       const selected = {...values,...additions}; for (const key of removals) delete selected[key];

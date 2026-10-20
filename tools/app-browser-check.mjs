@@ -541,7 +541,7 @@ async function main() {
       await nav(cdp, base + '/reset-password');
       await axe.scan(cdp, 'reset-request', "document.querySelector('#form-request')?.getBoundingClientRect().height>0");
       await setInputs(cdp, { 'request-email': 'q01-unknown@example.test' }); await clickSel(cdp, '#request-submit');
-      await axe.scan(cdp, 'reset-acknowledgement', "document.querySelector('#status')?.textContent.includes('keine automatische E-Mail')");
+      await axe.scan(cdp, 'reset-acknowledgement', "document.querySelector('#status')?.textContent.includes('E-Mail mit dem Link')");
       await nav(cdp, base + '/reset-password?token=q01-synthetic-invalid-token');
       await axe.scan(cdp, 'reset-new-password', "document.querySelector('#form-reset')?.getBoundingClientRect().height>0");
       await setInputs(cdp, { 'new-password': 'synthetic-password-2', 'confirm-password': 'synthetic-password-2' }); await clickSel(cdp, '#reset-submit');

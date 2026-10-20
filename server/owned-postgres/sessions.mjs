@@ -173,8 +173,9 @@ export function createPostgresSessions({
       const id = `user-${randomUUID()}`;
       const existing = (await pool.query('SELECT 1 FROM "user" WHERE email = $1', [email])).rows[0];
       if (existing) throw new Fault(422, 'user_exists');
+      let created;
       try {
-        return await inTransaction(async (client) => {
+        created = await inTransaction(async (client) => {
           // The INSERT-only database trigger owns initial telc provisioning. The configured allowance
           // is transaction-local; a later UPDATE cannot invoke it or mint another exam's balance.
           await client.query("SELECT set_config('hatoove.registration_allowance', $1, true)",
@@ -200,6 +201,16 @@ export function createPostgresSessions({
         if (error && error.code === '23505') throw new Fault(422, 'user_exists');
         throw error;
       }
+      // When an email provider (Resend) is active, dispatch the initial address-verification link
+      // immediately after registration commits without blocking or failing the learner's `/app/` entry.
+      if (notify && notify.sendOnSignUp === true && typeof notify.send === 'function') {
+        try {
+          await this.requestEmailVerification({ email });
+        } catch {
+          // Non-fatal: the learner is already registered and signed in, and can re-request on /verify-email.
+        }
+      }
+      return created;
     },
 
     /**

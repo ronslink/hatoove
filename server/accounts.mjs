@@ -63,7 +63,7 @@ export async function loadOwnedApi({ env = process.env } = {}) {
   const { openRuntimePools, closeRuntimePools, persistentConfig, persistentRolePool } = await import('./owned-postgres/provision.mjs');
   const { createPostgresWorld } = await import('./owned-postgres/fixture.mjs');
   const { createPostgresSettings } = await import('./owned-postgres/settings.mjs');
-  const { createConsoleNotifier } = await import('./notify.mjs');
+  const { createConfiguredNotifier } = await import('./notify.mjs');
   const { createDatabaseReadiness } = await import('./readiness.mjs');
   const { createPaymentsPort } = await import('./payments/port.mjs');
 
@@ -114,19 +114,17 @@ export async function loadOwnedApi({ env = process.env } = {}) {
     settings: createPostgresSettings({ pool: runtime.learner }),
   };
   /*
-   * ACCOUNT RECOVERY'S DELIVERY CHANNEL (D6), wired here so the RUNNING server has it and not only the checks.
-   *
-   * The pilot is operator-assisted: `createConsoleNotifier` writes the reset link to the operator console and
-   * NO message leaves the building, because the email provider is a data processor whose terms a human has to
-   * accept and that decision (D6) is unanswered. Adopting one later replaces `server/notify.mjs` and nothing
-   * else.
+   * ACCOUNT RECOVERY & VERIFICATION DELIVERY CHANNEL (D6), wired here so the RUNNING server selects Resend
+   * when `RESEND_API_KEY` or `RESEND_API_KEY_FILE` is configured, and falls back to `createConsoleNotifier`
+   * in local/disposable stacks.
    *
    * The origin comes from configuration rather than from a request header: a link built from `Host:` would let
    * whoever sent the request choose where the learner's reset link points, which is a redirection primitive.
    */
-  fixture.notifier = createConsoleNotifier({
+  fixture.notifier = createConfiguredNotifier({
+    env,
     log: (line) => console.log(line),
-    publicOrigin: env.B1PREP_PUBLIC_ORIGIN || env.HATOVE_PUBLIC_ORIGIN || null,
+    publicOrigin: originConfig.publicOrigin || env.B1PREP_PUBLIC_ORIGIN || env.HATOVE_PUBLIC_ORIGIN || null,
   });
   const world = await createPostgresWorld({ fixture });
   // `world.api` is built by the same code the checks use, so the running server and the tests

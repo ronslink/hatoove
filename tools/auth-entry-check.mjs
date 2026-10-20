@@ -121,7 +121,7 @@ async function main() {
     await fill({ 'request-email': email }); await submit('form-request');
     await cdp.waitFor('document.querySelector("#status").textContent.includes("passenden Konto")', 10000, 'reset request');
     const knownMessage = await cdp.evaluate('return document.querySelector("#status").textContent;');
-    record('reset request explains operator delivery', knownMessage.includes('Eine Person') && knownMessage.includes('keine automatische E-Mail'));
+    record('reset request explains email delivery', knownMessage.includes('passenden Konto') && knownMessage.includes('E-Mail mit dem Link'));
     const resetLink = deliveredLink('reset-password');
     await fill({ 'request-email': 'absent-' + Date.now() + '@example.test' }); await submit('form-request');
     await cdp.waitFor('document.querySelector("#status").textContent.includes("passenden Konto")', 10000, 'generic absent-account response');
