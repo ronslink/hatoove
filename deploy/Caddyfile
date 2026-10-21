@@ -22,7 +22,11 @@ hatoove.com {
 		X-Frame-Options DENY
 	}
 
-	# All files, authenticated routes and media remain subject to the Node router.
+	# Only the public IndexNow ownership response is served at ingress. Keep the
+	# exact path/body in sync with public/16a91221eb78411198dbd6254bf9e653.txt.
+	respond /16a91221eb78411198dbd6254bf9e653.txt 16a91221eb78411198dbd6254bf9e653 200
+
+	# All other files, authenticated routes and media remain subject to the Node router.
 	# No cache, compression, body rewriting, error interception or mutation retry.
 	reverse_proxy app:4321 {
 		lb_retries 0

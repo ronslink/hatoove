@@ -503,10 +503,15 @@ try {
   } else {
     const robotsProbe = await probe('/robots.txt');
     const sitemapProbe = await probe('/sitemap.xml');
+    const indexNowKey = '16a91221eb78411198dbd6254bf9e653';
+    const indexNowProbe = await probe(`/${indexNowKey}.txt`);
+    const indexNowSuffixProbe = await probe(`/${indexNowKey}.txt/private`);
     const rootProbe = await probe('/', { accept: NAVIGATION });
     const overviewProbe = await probe('/telc-deutsch-b1', { accept: NAVIGATION });
     const appProbe = await probe('/app/', { accept: NAVIGATION });
     const problems = [];
+    if (indexNowProbe.status !== 200 || indexNowProbe.body.trim() !== indexNowKey || !String(indexNowProbe.type || '').startsWith('text/plain')) problems.push('IndexNow key is not an exact public text response');
+    if (indexNowSuffixProbe.status === 200 && indexNowSuffixProbe.body.trim() === indexNowKey) problems.push('IndexNow key exemption matches a suffixed path');
     if (robotsProbe.status !== 200) problems.push(`/robots.txt answered ${robotsProbe.status}`);
     if (!String(robotsProbe.type || '').startsWith('text/plain')) problems.push(`/robots.txt content-type ${robotsProbe.type}`);
     if (sitemapProbe.status !== 200) problems.push(`/sitemap.xml answered ${sitemapProbe.status}`);
