@@ -463,6 +463,39 @@ try {
   else pass('S11', 'the landing page agrees with the exam package about listening', 'the exam package ships no HV fixed_audio part and the copy does not offer listening');
 }
 
+/* S12 — crawler defaults and locale changes keep useful descriptions within 25–160 characters. */
+{
+  const problems = [];
+  const descriptions = [];
+  try {
+    for (const [filename, source] of [
+      ['index.html', html],
+      ['telc-deutsch-b1.html', await readFile(path.join(PUBLIC, 'telc-deutsch-b1.html'), 'utf8')],
+    ]) {
+      const tags = [...source.matchAll(/<meta\b[^>]*>/gi)]
+        .map((match) => match[0]).filter((tag) => /\bname\s*=\s*["']description["']/i.test(tag));
+      if (tags.length !== 1) problems.push(`${filename} has ${tags.length} meta descriptions; expected one`);
+      const content = tags[0]?.match(/\bcontent\s*=\s*(["'])([\s\S]*?)\1/i)?.[2] || '';
+      descriptions.push([filename, plain(content)]);
+    }
+    const { publicMessages } = await import(pathToFileURL(path.join(PUBLIC, 'assets', 'i18n', 'public-messages.js')).href);
+    for (const locale of ['de', 'en', 'uk', 'ar', 'tr']) {
+      descriptions.push([`public.description.${locale}`, publicMessages[locale]?.description || '']);
+    }
+    if (descriptions[0][1] !== publicMessages.de?.description) {
+      problems.push('index.html description differs from the German catalogue value');
+    }
+    for (const [label, description] of descriptions) {
+      const length = [...description].length;
+      if (length < 25 || length > 160) problems.push(`${label} has ${length} characters; expected 25–160`);
+    }
+  } catch (error) {
+    problems.push(`cannot inspect descriptions: ${error.message}`);
+  }
+  if (problems.length) fail('S12', 'public meta descriptions stay within 25–160 characters', problems.join(' | '));
+  else pass('S12', 'public meta descriptions stay within 25–160 characters', descriptions.map(([label, description]) => `${label}: ${[...description].length}`).join(', '));
+}
+
 // ---------------------------------------------------------------- served surface
 
 /** A GET that never follows redirects, so the gate's own answer is observable. */
