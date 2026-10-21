@@ -50,6 +50,7 @@ export function assertCaddy(text) {
   const source = withoutComments(text);
   requireThat(/^\s*admin off\s*$/m.test(source), 'caddy_admin_exposed');
   requireThat(/^hatoove\.com\s*\{/m.test(source), 'caddy_canonical_host_missing');
+  requireThat((source.match(/\brespond\b/g) ?? []).length === 2 && /^\s*respond \/16a91221eb78411198dbd6254bf9e653\.txt 16a91221eb78411198dbd6254bf9e653 200\s*$/m.test(source), 'caddy_indexnow_response_changed');
   requireThat(/^http:\/\/, https:\/\/\s*\{\s*respond 421\s*\}/m.test(source), 'caddy_unknown_host_refusal_missing');
   requireThat(/^http:\/\/hatoove\.com\s*\{\s*redir https:\/\/hatoove\.com\{uri\} 308\s*\}/m.test(source), 'caddy_canonical_redirect_missing');
   requireThat(/header\s*\{\s*defer\s+X-Content-Type-Options nosniff/.test(source), 'caddy_header_deferral_missing');

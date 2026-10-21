@@ -472,6 +472,7 @@ const PUBLIC_FILES = Object.freeze([
   // disallowed API prefix, the sitemap lists the public front door only.
   path.join(PUBLIC_DIR, 'robots.txt'),
   path.join(PUBLIC_DIR, 'sitemap.xml'),
+  path.join(PUBLIC_DIR, '16a91221eb78411198dbd6254bf9e653.txt'),
 ]);
 /*
  * The whole `assets/` tree is public, and it holds no learner data: `assets/design/**` is the pinned
