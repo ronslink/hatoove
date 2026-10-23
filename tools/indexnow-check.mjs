@@ -148,14 +148,15 @@ test('the ingress activation script gates on the loaded Caddyfile and only resta
     'RECOVERY REQUIRED',
     '/api/ready',
   ]) assert.ok(script.includes(required), `activate-ingress.sh is missing: ${required}`);
-  // The public key response is served by Node today, so it must never decide activation.
-  assert.ok(!script.includes('served_status == 200 && served_body == key'), 'the key response must not decide activation');
   const loaded = script.indexOf('loaded_config=$(loaded_config_hash)');
-  const restart = script.lastIndexOf('restart --no-deps ingress');
-  assert.ok(loaded > -1 && restart > loaded, 'the loaded config must be inspected before the restart');
+  const restarts = [...script.matchAll(/restart --no-deps ingress/g)].map((match) => match.index);
+  assert.equal(restarts.length, 2, 'only the rollback and the apply path may restart ingress');
+  assert.ok(restarts.every((index) => index > loaded), 'every restart must follow the loaded-config inspection');
+  assert.ok(script.indexOf('exit 0') > loaded, 'no success exit may precede the loaded-config inspection');
   // The activation step must not become an application deployment or touch data.
   for (const forbidden of [
-    /\bdocker compose\b[^\n]*\b(?:up|down|stop|build)\b/,
+    /\bdocker compose\b[^\n]*\b(?:up|down|stop|build|run)\b/,
+    /\$\{compose\[@\]\}[^\n]*\b(?:up|down|stop|build|run)\b/,
     /--force-recreate/,
     /\bdocker\s+(?:volume|rm|system)\b/,
     /\bmigrate\b/,

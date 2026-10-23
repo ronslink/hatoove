@@ -84,6 +84,8 @@ docker inspect "$ingress" >/dev/null 2>&1 || fail "Ingress container $ingress no
 [[ "$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$ingress")" == hatoove-production ]] || fail 'Unexpected ingress compose project.'
 image=$(docker inspect --format '{{.Image}}' "$ingress")
 pinned_image=$(grep -E '^HATOVE_CADDY_IMAGE=' "$env_file" 2>/dev/null | cut -d= -f2- || true)
+pinned_image=${pinned_image%\"}; pinned_image=${pinned_image#\"}
+pinned_image=${pinned_image%\'}; pinned_image=${pinned_image#\'}
 if [[ -n "$pinned_image" ]]; then
   pinned_id=$(docker image inspect "$pinned_image" --format '{{.Id}}' 2>/dev/null || true)
   [[ "$pinned_id" == "$image" ]] || fail "Ingress is not running the pinned Caddy image: $pinned_image"
@@ -195,20 +197,23 @@ for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
   sleep 1
 done
 if ! verify_public_contract "$release"; then rollback 1; fi
-loaded_after=$(loaded_config_hash)
-if [[ "$loaded_after" != "$expected_config" ]]; then
-  printf 'Ingress loaded config sha256 %s, expected %s.\n' "$loaded_after" "$expected_config" >&2
+loaded_after=$(loaded_config_hash || true)
+if [[ -z "$loaded_after" || "$loaded_after" != "$expected_config" ]]; then
+  printf 'Ingress loaded config sha256 %s, expected %s.\n' "${loaded_after:-<unreadable>}" "$expected_config" >&2
   rollback 1
 fi
-if [[ "$(protected)" != "$(cat "$release/protected.before")" ]]; then
+after_protected=$(protected || true)
+if [[ "$after_protected" != "$(cat "$release/protected.before")" ]]; then
   printf 'Protected container identity changed.\n' >&2
   rollback 1
 fi
-if [[ "$(docker inspect --format '{{.Image}}' "$ingress")" != "$image" ]]; then
+after_image=$(docker inspect --format '{{.Image}}' "$ingress" || true)
+if [[ "$after_image" != "$image" ]]; then
   printf 'Ingress image changed.\n' >&2
   rollback 1
 fi
-if [[ "$(tr -d '\r\n' < "$src/.reviewed-commit")" != "$source_revision" ]]; then
+after_marker=$(tr -d '\r\n' < "$src/.reviewed-commit" || true)
+if [[ "$after_marker" != "$source_revision" ]]; then
   printf 'Reviewed source marker changed.\n' >&2
   rollback 1
 fi
