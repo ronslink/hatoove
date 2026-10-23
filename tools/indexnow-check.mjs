@@ -112,3 +112,40 @@ test('submissions respect the 10,000 URL limit', async () => {
   await runIndexNow(Array.from({ length: 10_001 }, (_, i) => `/learn/page-${i}`), h.options);
   assert.deepEqual(h.calls.filter((call) => call.url === ENDPOINT).map((call) => JSON.parse(call.options.body).urlList.length), [10_000, 1]);
 });
+
+test('the deployment gate verifies the live key body, not only its status', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8');
+  // A deployment that loses the ownership file currently looks green if only status
+  // codes are checked; both the exact body and a text/plain response must be asserted.
+  for (const required of [
+    'INDEXNOW_KEY: 16a91221eb78411198dbd6254bf9e653',
+    'https://hatoove.com/${INDEXNOW_KEY}.txt',
+    'test "$key_status" = "200"',
+    'test "${key_type%%;*}" = "text/plain"',
+    'tr -d \'\\r\\n\' < /tmp/indexnow-key.txt',
+    '= "$INDEXNOW_KEY"',
+  ]) assert.ok(workflow.includes(required), `deploy.yml is missing: ${required}`);
+});
+
+test('the ingress activation script is read-only by default and ingress-only', () => {
+  const script = readFileSync(new URL('../deploy/activate-ingress.sh', import.meta.url), 'utf8');
+  for (const required of [
+    '--check',
+    '--apply',
+    'hostname -s',
+    '.reviewed-commit',
+    'flock -n 9',
+    'sha256sum "$config"',
+    'restart --no-deps ingress',
+    'RECOVERY REQUIRED',
+    '/api/ready',
+  ]) assert.ok(script.includes(required), `activate-ingress.sh is missing: ${required}`);
+  // The activation step must not become an application deployment or touch data.
+  for (const forbidden of [
+    ' up -d', ' up --', ' down', ' stop ', ' build ', '--force-recreate',
+    'docker volume', 'docker rm', 'docker system prune', 'migrate',
+  ]) assert.ok(!script.includes(forbidden), `activate-ingress.sh must not contain: ${forbidden}`);
+  for (const service of ['app', 'worker', 'db']) {
+    assert.ok(!script.includes(`restart --no-deps ${service}`), `activation must not restart ${service}`);
+  }
+});
