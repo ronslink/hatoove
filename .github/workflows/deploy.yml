@@ -110,6 +110,8 @@ jobs:
           ssh "${ssh_opts[@]}" "$target" "chmod 0700 '$ops/deploy-release.sh' && '$ops/deploy-release.sh' '$rev' '$ops/hatoove-${short}.tar' '$sha'"
       - name: Verify public production routes after deployment
         if: steps.gate.outputs.ready == 'true'
+        env:
+          INDEXNOW_KEY: 16a91221eb78411198dbd6254bf9e653
         run: |
           set -euo pipefail
           for url in "https://hatoove.com/api/ready" "https://hatoove.com/" "https://hatoove.com/telc-deutsch-b1" "https://hatoove.com/signin?mode=signup" "https://hatoove.com/sitemap.xml"; do
@@ -117,3 +119,12 @@ jobs:
             echo "$url -> $code"
             test "$code" = "200"
           done
+          # The ownership file proves the public IndexNow key is still deployed and
+          # anonymously readable. A status code alone is not enough: the body must be
+          # exactly the key, otherwise every later submission fails key validation.
+          key_status="$(curl --silent --show-error --max-time 15 -o /tmp/indexnow-key.txt -w '%{http_code}' "https://hatoove.com/${INDEXNOW_KEY}.txt")"
+          key_type="$(curl --silent --show-error --max-time 15 -o /dev/null -w '%{content_type}' "https://hatoove.com/${INDEXNOW_KEY}.txt")"
+          echo "IndexNow key -> HTTP $key_status, $key_type"
+          test "$key_status" = "200"
+          test "${key_type%%;*}" = "text/plain"
+          test "$(tr -d '\r\n' < /tmp/indexnow-key.txt)" = "$INDEXNOW_KEY"

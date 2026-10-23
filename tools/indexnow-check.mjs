@@ -112,3 +112,54 @@ test('submissions respect the 10,000 URL limit', async () => {
   await runIndexNow(Array.from({ length: 10_001 }, (_, i) => `/learn/page-${i}`), h.options);
   assert.deepEqual(h.calls.filter((call) => call.url === ENDPOINT).map((call) => JSON.parse(call.options.body).urlList.length), [10_000, 1]);
 });
+
+const withoutComments = (source) => source.replace(/^[ \t]*#.*$/gm, '');
+
+test('the deployment gate verifies the live key body after the deploy step', () => {
+  const workflow = withoutComments(readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8'));
+  // A deployment that loses the ownership file currently looks green if only status
+  // codes are checked; both the exact body and a text/plain response must be asserted.
+  for (const required of [
+    'INDEXNOW_KEY: 16a91221eb78411198dbd6254bf9e653',
+    'https://hatoove.com/${INDEXNOW_KEY}.txt',
+    'test "$key_status" = "200"',
+    'test "${key_type%%;*}" = "text/plain"',
+    'tr -d \'\\r\\n\' < /tmp/indexnow-key.txt',
+    '= "$INDEXNOW_KEY"',
+  ]) assert.ok(workflow.includes(required), `deploy.yml is missing: ${required}`);
+  const deploy = workflow.indexOf('- name: Package verified git archive and deploy to droplet');
+  const verify = workflow.indexOf('- name: Verify public production routes after deployment');
+  assert.ok(deploy > -1 && verify > deploy, 'the key verification must run after the deploy step');
+});
+
+test('the ingress activation script gates on the loaded Caddyfile and only restarts ingress', () => {
+  const script = withoutComments(readFileSync(new URL('../deploy/activate-ingress.sh', import.meta.url), 'utf8'));
+  for (const required of [
+    '--check',
+    '--apply',
+    'hostname -s',
+    '.reviewed-commit',
+    'flock -n 9',
+    'sha256sum "$config"',
+    'grep -Fq "respond /$key.txt $key 200"',
+    'loaded_config=$(loaded_config_hash)',
+    '[[ "$loaded_config" == "$expected_config" ]]',
+    'restart --no-deps ingress',
+    'RECOVERY REQUIRED',
+    '/api/ready',
+  ]) assert.ok(script.includes(required), `activate-ingress.sh is missing: ${required}`);
+  const loaded = script.indexOf('loaded_config=$(loaded_config_hash)');
+  const restarts = [...script.matchAll(/restart --no-deps ingress/g)].map((match) => match.index);
+  assert.equal(restarts.length, 2, 'only the rollback and the apply path may restart ingress');
+  assert.ok(restarts.every((index) => index > loaded), 'every restart must follow the loaded-config inspection');
+  assert.ok(script.indexOf('exit 0') > loaded, 'no success exit may precede the loaded-config inspection');
+  // The activation step must not become an application deployment or touch data.
+  for (const forbidden of [
+    /\bdocker compose\b[^\n]*\b(?:up|down|stop|build|run)\b/,
+    /\$\{compose\[@\]\}[^\n]*\b(?:up|down|stop|build|run)\b/,
+    /--force-recreate/,
+    /\bdocker\s+(?:volume|rm|system)\b/,
+    /\bmigrate\b/,
+    /restart --no-deps (?:app|worker|db)\b/,
+  ]) assert.ok(!forbidden.test(script), `activate-ingress.sh must not match ${forbidden}`);
+});
