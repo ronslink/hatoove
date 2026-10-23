@@ -3,17 +3,27 @@
 #
 # This is NOT an application deployment. It restarts ONLY the ingress container
 # so it re-reads the already staged reviewed `deploy/Caddyfile`, then proves the
-# public contract and that app, worker, database and volumes were untouched.
+# loaded configuration and the public contract. App, worker, database and
+# volumes are not touched.
 #
 # Usage:
 #   deploy/activate-ingress.sh --check <reviewed-commit-40hex> <caddyfile-sha256-64hex>
 #   deploy/activate-ingress.sh --apply <reviewed-commit-40hex> <caddyfile-sha256-64hex>
 #
-# --check runs every read-only preflight and prints the plan; it never restarts,
-# writes, or changes anything. --apply performs the restart and verification.
+# --check runs every read-only preflight, shows whether the ingress has already
+# loaded the reviewed Caddyfile and prints the plan. It does not modify the
+# Caddyfile or restart ingress; it does take the deployment lock. --apply loads
+# the reviewed Caddyfile by restarting only ingress, then verifies it.
 # Both refuse when the staged source or Caddyfile no longer matches the reviewed
 # values, when another deployment holds the lock, or when not on the production
 # host.
+#
+# The discriminator is the configuration the ingress has actually loaded, not
+# the public key response: the Node route serves the key today, so a 200 key
+# response does not prove the Caddy fallback is active. A normal deployment
+# replaces the bind-mount file with a new inode and does not restart ingress, so
+# the container's mounted bytes still describe the loaded configuration. Only a
+# loaded hash equal to the reviewed Caddyfile hash means the fallback is active.
 #
 # Obtain the reviewed Caddyfile SHA256 locally before running:
 #   git show <reviewed-commit>:deploy/Caddyfile | sha256sum
@@ -51,6 +61,10 @@ fail() {
   exit 1
 }
 
+loaded_config_hash() {
+  docker exec "$ingress" cat /etc/caddy/Caddyfile | sha256sum | cut -d' ' -f1
+}
+
 [[ "$(hostname -s)" == "$production_host" ]] || fail "Run this on $production_host."
 [[ "$source_revision" =~ ^[0-9a-f]{40}$ ]] || fail 'Invalid reviewed commit.'
 [[ "$expected_config" =~ ^[0-9a-f]{64}$ ]] || fail 'Invalid Caddyfile SHA256.'
@@ -63,10 +77,17 @@ flock -n 9 || fail 'Another deployment holds the deployment lock.'
 [[ "$(tr -d '\r\n' < "$src/.reviewed-commit")" == "$source_revision" ]] || fail 'Staged source is not the reviewed commit.'
 actual_config=$(sha256sum "$config" | cut -d' ' -f1)
 [[ "$actual_config" == "$expected_config" ]] || fail "Staged Caddyfile SHA256 mismatch (found $actual_config)."
+# Defence in depth: the reviewed hash must still describe the reviewed response.
+grep -Fq "respond /$key.txt $key 200" "$config" || fail 'Staged Caddyfile lacks the reviewed ownership response.'
 
 docker inspect "$ingress" >/dev/null 2>&1 || fail "Ingress container $ingress not found."
 [[ "$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$ingress")" == hatoove-production ]] || fail 'Unexpected ingress compose project.'
 image=$(docker inspect --format '{{.Image}}' "$ingress")
+pinned_image=$(grep -E '^HATOVE_CADDY_IMAGE=' "$env_file" 2>/dev/null | cut -d= -f2- || true)
+if [[ -n "$pinned_image" ]]; then
+  pinned_id=$(docker image inspect "$pinned_image" --format '{{.Id}}' 2>/dev/null || true)
+  [[ "$pinned_id" == "$image" ]] || fail "Ingress is not running the pinned Caddy image: $pinned_image"
+fi
 
 protected() {
   docker inspect --format '{{.Name}} {{.Id}} {{.Image}} {{.State.StartedAt}}' \
@@ -78,6 +99,9 @@ local_curl() {
     --resolve 'hatoove.com:443:127.0.0.1' --resolve 'hatoove.com:80:127.0.0.1' "$@"
 }
 
+# The public contract is defence in depth. It is necessary but NOT sufficient:
+# the Node route already answers the key, so only the in-container Caddyfile
+# hash proves that the ingress response is the one being served.
 verify_public_contract() {
   local dir=$1 status body content_type suffix foreign redirect ready
   status=$(local_curl --output "$dir/key.txt" --write-out '%{http_code}' "https://hatoove.com/$key.txt" || true)
@@ -101,29 +125,30 @@ printf 'Reviewed Caddyfile: sha256 %s\n' "$expected_config"
 printf 'Ingress image:      %s\n' "$image"
 
 # Validate the staged candidate with the exact running ingress image before any restart.
-docker run --rm --pull never --network none --read-only --entrypoint caddy \
+docker run --rm --pull never --network none --entrypoint caddy \
   --mount "type=bind,source=$config,target=/etc/caddy/Caddyfile,readonly" \
   "$image" validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
+loaded_config=$(loaded_config_hash)
+printf 'Loaded ingress cfg: sha256 %s\n' "$loaded_config"
+
 probe=$(mktemp -d)
 trap 'rm -rf "$probe"' EXIT
-served_status=$(local_curl --output "$probe/served.txt" --write-out '%{http_code}' "https://hatoove.com/$key.txt" || true)
-served_body=$(tr -d '\r\n' < "$probe/served.txt" 2>/dev/null || true)
-printf 'Key served now:     HTTP %s\n' "$served_status"
 
-if [[ "$served_status" == 200 && "$served_body" == "$key" ]]; then
+if [[ "$loaded_config" == "$expected_config" ]]; then
   if verify_public_contract "$probe"; then
-    printf 'Already active: the ingress serves the exact key; no restart performed.\n'
+    printf 'Already active: ingress has loaded the reviewed Caddyfile; no restart performed.\n'
     exit 0
   fi
-  fail 'Ingress serves the key but the public contract failed; review before changing anything.'
+  fail 'Ingress has loaded the reviewed Caddyfile but the public contract failed; investigate without restarting.'
 fi
 
 if [[ "$mode" == --check ]]; then
-  printf '\nPlan: restart only %s with --no-deps so it re-reads the reviewed Caddyfile.\n' "$ingress"
-  printf 'Then require: key 200/exact body/text-plain, suffixed path non-200, foreign Host 421,\n'
-  printf 'HTTP 308, /api/ready 200, unchanged app/worker/db identities and unchanged ingress image.\n'
-  printf 'No restart or write has been performed. Re-run with --apply to execute.\n'
+  printf '\nLoaded configuration differs from the reviewed Caddyfile.\n'
+  printf 'Plan: restart only %s with --no-deps so it re-reads the reviewed Caddyfile.\n' "$ingress"
+  printf 'Then require: loaded hash == reviewed hash, key 200/exact body/text/plain, suffixed path non-200,\n'
+  printf 'foreign Host 421, HTTP 308, /api/ready 200, unchanged app/worker/db identities and unchanged ingress image.\n'
+  printf 'No Caddyfile write or restart has been performed. Re-run with --apply to execute.\n'
   exit 0
 fi
 
@@ -136,6 +161,7 @@ docker exec "$ingress" cat /etc/caddy/Caddyfile > "$release/Caddyfile.served-bef
 protected > "$release/protected.before"
 printf '%s\n' "$image" > "$release/ingress-image.txt"
 printf '%s\n' "$source_revision" > "$release/reviewed-commit.txt"
+printf '%s\n' "$loaded_config" > "$release/loaded-config-before.txt"
 
 rollback() {
   local status=$1
@@ -154,10 +180,12 @@ rollback() {
     printf 'RECOVERY REQUIRED: ingress restarted with the prior config but readiness failed. Inspect %s\n' "$release" >&2
     exit "$status"
   fi
-  printf 'Rolled back: prior configuration restored, verified and ingress restarted. Evidence: %s\n' "$release" >&2
+  printf 'Rolled back: prior configuration restored, verified and ingress restarted. A later deployment replaces the staged source with the reviewed revision. Evidence: %s\n' "$release" >&2
   exit "$status"
 }
-trap 'rollback $?' ERR INT TERM
+trap 'rollback $?' ERR
+trap 'rollback 130' INT
+trap 'rollback 143' TERM
 
 printf 'Restarting ingress only...\n'
 "${compose[@]}" restart --no-deps ingress
@@ -167,8 +195,9 @@ for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
   sleep 1
 done
 if ! verify_public_contract "$release"; then rollback 1; fi
-if [[ "$(docker exec "$ingress" sha256sum /etc/caddy/Caddyfile | cut -d' ' -f1)" != "$expected_config" ]]; then
-  printf 'Ingress did not load the reviewed Caddyfile.\n' >&2
+loaded_after=$(loaded_config_hash)
+if [[ "$loaded_after" != "$expected_config" ]]; then
+  printf 'Ingress loaded config sha256 %s, expected %s.\n' "$loaded_after" "$expected_config" >&2
   rollback 1
 fi
 if [[ "$(protected)" != "$(cat "$release/protected.before")" ]]; then
