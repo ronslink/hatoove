@@ -8,6 +8,8 @@ import { launchBrowser, connectToPage, waitForHttp } from './cdp.js';
 
 // The injected child is a real isolated process. No installed Chrome, provider, app or DB is used.
 const originalChrome = process.env.CHROME_PATH;
+// Linux observed a 14,999 ms milestone: allow narrow timer/wall-clock rounding, not a different budget.
+const TIMING_TOLERANCE_MS = 100;
 process.env.CHROME_PATH = process.execPath;
 after(() => { if (originalChrome === undefined) delete process.env.CHROME_PATH; else process.env.CHROME_PATH = originalChrome; });
 const freePort = async () => {
@@ -18,6 +20,41 @@ const freePort = async () => {
   return port;
 };
 const child = script => ({ spawnProcess: (_binary, _args, options) => spawn(process.execPath, ['--input-type=module', '-e', script], options) });
+const peer = (port, { delayMs = 0, silent = false } = {}) => String.raw`
+  import http from 'node:http';import {createHash} from 'node:crypto';
+  const own='ws://127.0.0.1:${port}/devtools/browser/owned', domains=[];
+  const server=http.createServer((request,response)=>{
+    response.setHeader('content-type','application/json');
+    response.end(JSON.stringify(request.url==='/json/version'?{webSocketDebuggerUrl:own}:[{type:'page',webSocketDebuggerUrl:'ws://127.0.0.1:${port}/devtools/page/owned'}]));
+  });
+  server.on('upgrade',(request,socket)=>{
+    const accept=createHash('sha1').update(request.headers['sec-websocket-key']+'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
+    socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: '+accept+'\r\n\r\n');
+    let pending=Buffer.alloc(0);
+    socket.on('data',chunk=>{
+      if(${silent})return;
+      pending=Buffer.concat([pending,chunk]);
+      while(pending.length>=2){
+        const opcode=pending[0]&15, masked=Boolean(pending[1]&128);
+        let length=pending[1]&127, offset=2;
+        if(length===126){if(pending.length<4)return;length=pending.readUInt16BE(2);offset=4;}
+        if(length===127){socket.destroy();return;}
+        if(pending.length<offset+(masked?4:0)+length)return;
+        const mask=masked?pending.subarray(offset,offset+4):null;offset+=masked?4:0;
+        const payload=Buffer.from(pending.subarray(offset,offset+length));pending=pending.subarray(offset+length);
+        if(mask)for(let n=0;n<payload.length;n++)payload[n]^=mask[n%4];
+        if(opcode===8){socket.end(Buffer.from([136,0]));return;}
+        const message=JSON.parse(payload.toString('utf8'));
+        if(message.method.endsWith('.enable'))domains.push(message.method);
+        const data=Buffer.from(JSON.stringify({id:message.id,result:message.method==='Probe.marker'?{pid:process.pid,domains}: {}}));
+        const header=data.length<126?Buffer.from([129,data.length]):Buffer.from([129,126,data.length>>8,data.length&255]);
+        socket.write(Buffer.concat([header,data]));
+      }
+    });
+    socket.on('error',()=>{});
+  });
+  setTimeout(()=>server.listen(${port},'127.0.0.1',()=>process.stderr.write('DevTools listening on '+own+'\n')),${delayMs});
+`;
 const closed = handle => {
   assert.ok(handle.proc.exitCode !== null || handle.proc.signalCode !== null, 'owned child still alive');
   assert.equal(fs.existsSync(handle.profile), false, 'throwaway profile retained');
@@ -104,24 +141,43 @@ test('connection requires a harness-owned launch, never an arbitrary existing br
   await assert.rejects(connectToPage(await freePort()), /No harness-owned Chrome launch/);
 });
 
-test('a silent CDP socket cannot extend the existing 15-second connection budget', async () => {
-  const port = await freePort(), own = `ws://127.0.0.1:${port}/devtools/browser/owned`;
-  const handle = await launchBrowser(port, {}, child(String.raw`
-    import http from 'node:http';import {createHash} from 'node:crypto';
-    const server=http.createServer((request,response)=>{
-      response.setHeader('content-type','application/json');
-      response.end(JSON.stringify(request.url==='/json/version'?{webSocketDebuggerUrl:${JSON.stringify(own)}}:[{type:'page',webSocketDebuggerUrl:'ws://127.0.0.1:${port}/devtools/page/owned'}]));
-    });
-    server.on('upgrade',(request,socket)=>{
-      const accept=createHash('sha1').update(request.headers['sec-websocket-key']+'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
-      socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: '+accept+'\r\n\r\n');
-      socket.on('data',()=>{});socket.on('error',()=>{});
-    });
-    server.listen(${port},'127.0.0.1',()=>process.stderr.write('DevTools listening on '+${JSON.stringify(own)}+'\n'));
-  `));
+test('one delayed child connects after 16 seconds with its 15-second milestone retained', async () => {
+  const port = await freePort(), injected = child(peer(port, { delayMs: 16000 }));
+  let spawns = 0;
+  const handle = await launchBrowser(port, {}, { spawnProcess: (...args) => { spawns++; return injected.spawnProcess(...args); } });
+  let cdp;
+  try {
+    cdp = await connectToPage(port);
+    const marker = await cdp.send('Probe.marker');
+    assert.equal(spawns, 1, 'startup relaunched the child');
+    assert.equal(marker.pid, handle.proc.pid, 'connected to a different process');
+    assert.deepEqual(marker.domains, ['Runtime.enable', 'Page.enable', 'Log.enable']);
+    const diagnostic = handle.diagnostics();
+    console.log('Delayed child timing: ' + JSON.stringify(diagnostic));
+    assert.ok(diagnostic.phaseTimings.connected >= 16000 && diagnostic.phaseTimings.connected < 30000);
+    assert.equal(diagnostic.startupMilestone.pid, handle.proc.pid);
+    assert.equal(diagnostic.startupMilestone.startupPhase, 'version');
+    assert.ok(diagnostic.startupMilestone.elapsedMs >= 15000 - TIMING_TOLERANCE_MS && diagnostic.startupMilestone.elapsedMs < diagnostic.phaseTimings.connected);
+    assert.equal(diagnostic.startupMilestone.announcedDebugger, false);
+    assert.ok(Buffer.byteLength(diagnostic.startupMilestone.stderrTail) <= 2050);
+  } finally { cdp?.ws.close(); await handle.cleanup(); }
+  closed(handle);
+});
+
+test('a silent CDP socket cannot extend the single 30-second startup budget', async () => {
+  const port = await freePort();
+  const handle = await launchBrowser(port, {}, child(peer(port, { delayMs: 16000, silent: true })));
   const started = Date.now();
-  await assert.rejects(connectToPage(port), /CDP timeout: Runtime.enable/);
-  assert.ok(Date.now() - started < 18000, 'CDP initialization exceeded the connection budget plus cleanup');
+  await assert.rejects(connectToPage(port), error => {
+    console.log('Silent child timing: ' + JSON.stringify(error.browserDiagnostics));
+    assert.equal(error.browserDiagnostics.startupPhase, 'Runtime.enable');
+    assert.equal(error.browserDiagnostics.startupMilestone.startupPhase, 'version');
+    assert.ok(error.browserDiagnostics.elapsedMs >= 30000 - TIMING_TOLERANCE_MS && error.browserDiagnostics.elapsedMs < 33000);
+    assert.equal(error.browserDiagnostics.cleanup.processClosed, true);
+    assert.equal(error.browserDiagnostics.cleanup.profileRemoved, true);
+    return /CDP timeout: Runtime.enable/.test(error.message);
+  });
+  assert.ok(Date.now() - started < 33000, 'CDP initialization exceeded the startup budget plus cleanup');
   closed(handle);
 });
 

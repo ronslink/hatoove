@@ -86,7 +86,9 @@ export async function waitForHttp(url, timeoutMs = 15000, { check = () => {}, ac
 }
 
 const launches = new Map();
-const STARTUP_TIMEOUT_MS = 15000;
+// One bounded launch-to-CDP budget; retain the earlier cutoff as an observation, never a relaunch.
+const STARTUP_TIMEOUT_MS = 30000;
+const STARTUP_MILESTONE_MS = 15000;
 const STDERR_LIMIT = 16384;
 
 async function assertAvailablePort(port) {
@@ -133,6 +135,9 @@ export async function launchBrowser(port, opts = {}, { spawnProcess = spawn } = 
   try { proc = spawnProcess(browser, args, { stdio: ['ignore', 'ignore', 'pipe'], detached: grouped, windowsHide: true }); }
   catch (error) { fs.rmSync(profile, { recursive: true, force: true }); throw error; }
   let startupBytes = Buffer.alloc(0), announcedDebugger = null, spawnError = null, startupComplete = false, cleanupPromise, processClosed = false;
+  let startupPhase = 'spawned', startupMilestone = null, milestoneTimer;
+  const phaseTimings = { spawned: Date.now() - startedAt };
+  const markStartupPhase = phase => { startupPhase = phase; phaseTimings[phase] = Date.now() - startedAt; };
   proc.once('close', () => { processClosed = true; });
   proc.on('error', error => { spawnError = error.code || error.message; });
   proc.stderr?.on('data', chunk => {
@@ -143,7 +148,15 @@ export async function launchBrowser(port, opts = {}, { spawnProcess = spawn } = 
   });
   const diagnostics = () => ({ executable: browser, pid: proc.pid ?? null, port,
     elapsedMs: Date.now() - startedAt, exitCode: proc.exitCode, signalCode: proc.signalCode,
-    spawnError, announcedDebugger, startupComplete, stderrTail: startupBytes.toString('utf8') });
+    spawnError, announcedDebugger, startupComplete, startupPhase, phaseTimings: { ...phaseTimings },
+    startupMilestone, stderrTail: startupBytes.toString('utf8') });
+  milestoneTimer = setTimeout(() => {
+    startupMilestone = { pid: proc.pid ?? null, elapsedMs: Date.now() - startedAt, startupPhase,
+      exitCode: proc.exitCode, signalCode: proc.signalCode, spawnError,
+      announcedDebugger: Boolean(announcedDebugger), stderrBytes: startupBytes.length,
+      stderrTail: startupBytes.subarray(-2048).toString('utf8') };
+    console.error('Chrome startup still pending: ' + JSON.stringify(startupMilestone));
+  }, Math.max(1, STARTUP_MILESTONE_MS - (Date.now() - startedAt)));
   const check = () => {
     if (spawnError) throw new Error(`Chrome spawn failed: ${spawnError}`);
     if (proc.exitCode !== null || proc.signalCode !== null) throw new Error(`Chrome exited before connection: code=${proc.exitCode}, signal=${proc.signalCode}`);
@@ -170,6 +183,7 @@ export async function launchBrowser(port, opts = {}, { spawnProcess = spawn } = 
   const cleanup = async () => {
     if (cleanupPromise) return cleanupPromise;
     cleanupPromise = (async () => {
+      clearTimeout(milestoneTimer);
       startupComplete = true;
       const receipt = { processClosed: false, profileRemoved: false, errors: [] };
       if (proc.pid) {
@@ -199,7 +213,9 @@ export async function launchBrowser(port, opts = {}, { spawnProcess = spawn } = 
     })();
     return cleanupPromise;
   };
-  const handle = { proc, profile, cleanup, diagnostics, check,
+  const handle = { proc, profile, cleanup, diagnostics, check, markStartupPhase,
+    startupDeadline: startedAt + STARTUP_TIMEOUT_MS,
+    connected: () => { markStartupPhase('connected'); clearTimeout(milestoneTimer); },
     acceptVersion: value => {
       if (!announcedDebugger) return false;
       if (value.webSocketDebuggerUrl !== announcedDebugger) throw new Error('Debugging endpoint does not belong to the spawned Chrome');
@@ -308,11 +324,19 @@ export class CDP {
 export async function connectToPage(port) {
   const launch = launches.get(port);
   if (!launch) throw new Error(`No harness-owned Chrome launch for debugging port ${port}`);
-  const deadline = Date.now() + STARTUP_TIMEOUT_MS;
+  const deadline = launch.startupDeadline;
+  const remaining = () => {
+    launch.check();
+    const milliseconds = deadline - Date.now();
+    if (milliseconds <= 0) throw new Error('Chrome startup exceeded its single 30-second deadline');
+    return milliseconds;
+  };
   let ws;
   try {
-    await waitForHttp(`http://127.0.0.1:${port}/json/version`, Math.max(1, deadline - Date.now()), { check: launch.check, accept: launch.acceptVersion });
-    const targets = await waitForHttp(`http://127.0.0.1:${port}/json/list`, Math.max(1, deadline - Date.now()), {
+    launch.markStartupPhase('version');
+    await waitForHttp(`http://127.0.0.1:${port}/json/version`, remaining(), { check: launch.check, accept: launch.acceptVersion });
+    launch.markStartupPhase('page-target');
+    const targets = await waitForHttp(`http://127.0.0.1:${port}/json/list`, remaining(), {
       check: launch.check, accept: value => Array.isArray(value) && value.some(target => target.type === 'page'),
     });
     const page = targets.find((t) => t.type === 'page');
@@ -320,17 +344,23 @@ export async function connectToPage(port) {
     if (endpoint.protocol !== 'ws:' || !['127.0.0.1', 'localhost', '[::1]'].includes(endpoint.hostname)
       || Number(endpoint.port) !== port) throw new Error('Unexpected page debugging endpoint');
 
+    launch.markStartupPhase('websocket');
     ws = new WebSocket(page.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('WebSocket connection timed out')), Math.max(1, deadline - Date.now()));
+      const timer = setTimeout(() => reject(new Error('WebSocket connection timed out')), remaining());
       ws.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
       ws.addEventListener('error', () => { clearTimeout(timer); reject(new Error('WebSocket connection failed')); }, { once: true });
     });
 
     const cdp = new CDP(ws);
-    await cdp.send('Runtime.enable', {}, Math.max(1, deadline - Date.now()));
-    await cdp.send('Page.enable', {}, Math.max(1, deadline - Date.now()));
-    await cdp.send('Log.enable', {}, Math.max(1, deadline - Date.now()));
+    launch.markStartupPhase('Runtime.enable');
+    await cdp.send('Runtime.enable', {}, remaining());
+    launch.markStartupPhase('Page.enable');
+    await cdp.send('Page.enable', {}, remaining());
+    launch.markStartupPhase('Log.enable');
+    await cdp.send('Log.enable', {}, remaining());
+    remaining();
+    launch.connected();
     return cdp;
   } catch (error) {
     try { ws?.close(); } catch { /* not connected */ }
