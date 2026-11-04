@@ -9,3 +9,20 @@ Review-UX now checks reading-part controls against the served catalogue, the exa
 Retired assumptions: the old per-set `#task-list` catalogue, one-answer buttons, `#/fortschritt`, objective close button and tooltip-era option-button markup were replaced by the redesigned client. Their semantic coverage is carried by the current controls above. No assertion is removed to conceal an actual runtime failure.
 
 Validation: both files pass `node --check`. Full disposable browser integration and independent review are pending; this is a candidate delivery, not a passing-browser claim. The coordinator/primary CI author will run the complete app suite with all slices integrated. No physical-device or content acceptance is inferred.
+
+## Follow-up: correlate the reading action with its own response
+
+Execution `CI-HELPERS-20261104-C2`, base `51827141a801a7e93673393b09c4de2491dbcf61`, branch `codex/ci-helpers-20261104-c2`. The coordinator assigned only the Review-UX helper and this receipt through 16:25 UTC on 4 November 2026. The earlier candidate branch remains preserved.
+
+The unmodified response-arrival filter failed naturally in a focused disposable run: 15 passed, 2 failed. With click event mark 627, dashboard request `46240.101` began at event 585 and responded at event 630; LV3 request `46240.109` began at event 648 and responded at event 656. Both returned 200 from the same fixture origin and `/api/v1/practice/next` path. Only the latter URL had `family=LV3`; both used the same synthetic preparation. Counting responses after the click therefore incorrectly included the earlier dashboard request and caused the dependent option check to have no target. This was observed directly without an artificial delay or fabricated response.
+
+The helper now requires exactly one `Network.requestWillBeSent` after the click mark matching GET, the exact fixture origin/path, LV3 family and the selected preparation. It then requires exactly one response with that request ID. Real navigation, the exact released set/version check, visible rendered identity, full authored text, keyboard selection, desktop/mobile layout, return to index and writing duplicate-draft checks are unchanged.
+
+Local evidence is deliberately untracked under the isolated worktree `D:/Hatoove/.worktrees/ci-helpers-20261104`:
+
+- `.qa/ci-maint/review-ux-focus.mjs`: coordinator-approved focused runner derived from `tools/app-browser-check.mjs` at the base above. Only relative imports/root resolution and the main journey body changed: the body registers through the real form and invokes `verifyReviewUx`. Source-only copying, environment filtering, isolated Compose project/ports, synthetic account, project verification and verified teardown remain the shared harness implementations. No `--keep`, live app, provider call or learner data is used.
+- `.qa/ci-maint/rux-c2-before.log`: naturally reproduced failure and temporary metadata-only CDP trace with the actual request IDs/URLs/event order. The temporary trace is absent from the delivered helper.
+- `.qa/ci-maint/rux-c2-after.log`: final helper, 17 passed, 0 failed, including all 11 Review-UX legs. Both runs verified removal of their disposable projects.
+- `.qa/browser/rux-c2-after/`: desktop, 390px dark and 320px light screenshots from the unchanged Review-UX captures.
+
+The final helper passes `node --check` and `git diff --check`. This focused proof does not claim the full combined browser suite, axe coverage, physical-device acceptance or production deployment. Final combined integration and independent review remain the coordinator's next steps.

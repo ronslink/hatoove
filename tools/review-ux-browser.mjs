@@ -132,8 +132,18 @@ export async function verifyReviewUx({ base, email, password, freePort, record, 
       const mark = cdp.events.length;
       await clickSel(cdp, '#lesen-host [data-part-open=LV3]');
       await cdp.waitFor("document.querySelector('#lesen-host [data-runner-phase=answering] select[data-answer-item]')", 15000);
-      const responses = cdp.events.slice(mark).filter(event => event.method === 'Network.responseReceived'
-        && new URL(event.params.response.url).pathname === '/api/v1/practice/next');
+      // Heute can still be completing a recommendation begun before the part click. Identify the
+      // action's outgoing request first; response arrival time alone does not identify its owner.
+      const events = cdp.events.slice(mark);
+      const requests = events.filter(event => {
+        if (event.method !== 'Network.requestWillBeSent' || event.params.request.method !== 'GET') return false;
+        const url = new URL(event.params.request.url);
+        return url.origin === base && url.pathname === '/api/v1/practice/next'
+          && url.searchParams.get('family') === 'LV3' && url.searchParams.get('preparationId') === preparationId;
+      });
+      if (requests.length !== 1) throw new Error('Expected one current part request, got ' + requests.length);
+      const responses = events.filter(event => event.method === 'Network.responseReceived'
+        && event.params.requestId === requests[0].params.requestId);
       if (responses.length !== 1) throw new Error('Expected one current part response, got ' + responses.length);
       const body = await cdp.send('Network.getResponseBody', { requestId: responses[0].params.requestId });
       served = JSON.parse(body.base64Encoded ? Buffer.from(body.body, 'base64').toString() : body.body);
