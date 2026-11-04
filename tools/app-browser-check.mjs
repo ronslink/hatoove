@@ -285,6 +285,22 @@ async function softWait(cdp, expression, timeoutMs, label) {
   }
 }
 
+// An empty module host has no loading text yet. Require both independently loaded vocabulary
+// branches, or the library's real index controls, before inspecting content or dark-mode controls.
+const vocabularyReady = `(() => {
+  const view=document.querySelector('#view-wortschatz'), host=document.querySelector('#vocab-host');
+  const visible=node=>Boolean(node && node.getBoundingClientRect().height>0);
+  return Boolean(view && !view.hidden && visible(host?.querySelector('.vocab'))
+    && visible(host.querySelector('[data-vocab-results] .vocab-word'))
+    && ['core-grammar','core-phrases'].every(id=>visible(host.querySelector('[data-vocab-corpus="'+id+'"] .vocab-item')))
+    && !host.querySelector('.err'));
+})()`;
+const libraryReady = `(() => {
+  const view=document.querySelector('#view-nachschlagen'), host=document.querySelector('#library-host');
+  return Boolean(view && !view.hidden && host?.querySelector('[data-library-open]')?.getBoundingClientRect().height>0
+    && !host.querySelector('.err'));
+})()`;
+
 /** The session cookie the BROWSER holds, so Node can ask the API the same question. */
 async function browserCookie(cdp) {
   const { cookies } = await cdp.send('Network.getCookies', { urls: [base] });
@@ -965,10 +981,37 @@ async function main() {
       ['einstellungen', '#/einstellungen', '#settings-form', '13-einstellungen'],
     ];
     for (const [view, hash, selector, name] of viewChecks) {
-      if (view === 'verlauf') await nav(cdp, base + '/app/' + hash);
-      else await clickSel(cdp, `[data-view="${view}"]`);
-      await softWait(cdp, `location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '${hash.slice(1)}'`, 8000, hash);
-      await softWait(cdp, `!document.querySelector('${selector}').innerText.includes('Wird geladen')`, 10000, selector);
+      const delayedVocabulary = view === 'wortschatz';
+      let emptyVocabulary;
+      if (delayedVocabulary) emptyVocabulary = await cdp.evaluate(`
+        const probe={native:fetch,pending:[],responses:[],active:true};window.__vocabReadinessProbe=probe;
+        window.fetch=async(...args)=>{
+          const response=await probe.native.apply(window,args);
+          const input=args[0], url=new URL(typeof input==='string'?input:input.url,location.href);
+          if(probe.active && ['/api/v1/vocab','/api/v1/guides/core-grammar','/api/v1/guides/core-phrases'].includes(url.pathname)) {
+            probe.responses.push({path:url.pathname,status:response.status});
+            await new Promise(resolve=>probe.pending.push(resolve));
+          }
+          return response;
+        };return {ready:${vocabularyReady},children:document.querySelector('#vocab-host').childElementCount};`);
+      try {
+        if (view === 'verlauf') await nav(cdp, base + '/app/' + hash);
+        else await clickSel(cdp, `[data-view="${view}"]`);
+        await softWait(cdp, `location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '${hash.slice(1)}'`, 8000, hash);
+        if (delayedVocabulary) {
+          await cdp.waitFor("window.__vocabReadinessProbe.pending.length===3", 10000, 'the three actual vocabulary responses held before rendering');
+          const held=await cdp.evaluate(`return {ready:${vocabularyReady}, mounted:Boolean(document.querySelector('#vocab-host .vocab')?.getBoundingClientRect().height),responses:window.__vocabReadinessProbe.responses};`);
+          record('L20.wortschatz.loading empty and delayed hosts cannot satisfy loaded-content readiness', !emptyVocabulary.ready && emptyVocabulary.children===0 && !held.ready && held.mounted
+            && held.responses.every(response=>response.status===200) && new Set(held.responses.map(response=>response.path)).size===3,
+            JSON.stringify({empty:emptyVocabulary,...held}));
+        }
+      } finally {
+        if (delayedVocabulary) await cdp.evaluate(`const probe=window.__vocabReadinessProbe;
+          probe.active=false;window.fetch=probe.native;for(const release of probe.pending.splice(0))release();
+          delete window.__vocabReadinessProbe;return true;`);
+      }
+      const positiveReady = view === 'wortschatz' ? vocabularyReady : view === 'nachschlagen' ? libraryReady : null;
+      const loaded = await softWait(cdp, positiveReady || `!document.querySelector('${selector}').innerText.includes('Wird geladen')`, 10000, selector);
       const state = await cdp.evaluate(`
         const view = document.getElementById('view-${view}');
         const box = document.querySelector('${selector}');
@@ -976,7 +1019,7 @@ async function main() {
         return { shown: !view.hidden, text: box.innerText.trim().slice(0, 160), headings: h, height: Math.round(box.getBoundingClientRect().height) };
       `);
       await shot(cdp, `${name}-desktop-light`);
-      record(`L20.${view} the ${view} view renders with content`, state.shown && state.height > 40 && state.text.length > 20,
+      record(`L20.${view} the ${view} view renders with content`, (!positiveReady || loaded) && state.shown && state.height > 40 && state.text.length > 20,
         `${state.headings.join(' | ')}`);
     }
 
@@ -2156,12 +2199,13 @@ async function main() {
       if (view === 'verlauf') await nav(cdp, base + '/app/' + hash);
       else await clickSel(cdp, `[data-view="${view}"]`);
       await softWait(cdp, `location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '${hash.slice(1)}'`, 8000, hash);
-      await softWait(cdp, `document.querySelector('${selector}')`, 10000, selector);
-      await sleep(500);
+      const positiveReady = view === 'wortschatz' ? vocabularyReady : view === 'nachschlagen' ? libraryReady : null;
+      const loaded = await softWait(cdp, positiveReady || `document.querySelector('${selector}')`, 10000, selector);
+      if (!positiveReady) await sleep(500);
       const audit = await cdp.evaluate(contrastAudit);
       await shot(cdp, name);
       record(`L30.${view} every control on the ${view} view is legible in dark mode`,
-        audit.offenders.length === 0,
+        (!positiveReady || loaded) && audit.offenders.length === 0,
         `${audit.count} control(s); offenders=${JSON.stringify(audit.offenders)}`);
     }
 
