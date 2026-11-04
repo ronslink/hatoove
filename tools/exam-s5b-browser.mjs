@@ -73,7 +73,12 @@ export async function verifyExamS5B({base,email,password,freePort,record,shot,vi
       assert(dr.members.filter(m=>m.section==='HV').every(m=>m.recordings.every(r=>r.max_plays===1)),'DTZ allowance changed');await nearEnd(a,dr.id,0);await waitGroup(a,'dtz-lv-45');await answer(a,dr.id,2);await shot(a,'s5b-dtz-reading-desktop');
     });
     await check('S5B07 DTZ writing chooses one prompt after the boundary and preserves empty/unassessed work',async()=>{
-      assert(dr,'DTZ start prerequisite');await nearEnd(a,dr.id,1);await waitGroup(a,'dtz-sa-30');await pointer(a,'[data-mock-choice-option="B"]');await a.waitFor("document.querySelector('#writing-text') && !document.querySelector('#writing-text').readOnly",10000);
+      assert(dr,'DTZ start prerequisite');await nearEnd(a,dr.id,1);await waitGroup(a,'dtz-sa-30');
+      const choiceReady=await a.evaluate("const button=document.querySelector('[data-mock-choice-option=\"B\"]');return {route:location.hash,present:Boolean(button),disabled:button?.disabled,effectivelyDisabled:button?.matches(':disabled'),timingStatus:document.querySelector('[data-mock-timing-status]')?.textContent};");
+      console.log('S5b writing choice readiness '+JSON.stringify(choiceReady));
+      // The schedule becomes active before boundary reconciliation enables its choice controls.
+      await a.waitFor("(()=>{const button=document.querySelector('[data-mock-choice-option=\"B\"]');const box=button?.getBoundingClientRect();return button&&!button.matches(':disabled')&&box.width>0&&box.height>0;})()",10000);
+      await pointer(a,'[data-mock-choice-option="B"]');await a.waitFor("document.querySelector('#writing-text') && !document.querySelector('#writing-text').readOnly",10000);
       const chosen=await read(a,dr.id);assert(chosen.writing.selected_option_id==='B','DTZ choice absent');const done=await finalise(a,dr.id);
       assert(done.result.total===45&&done.result.answered===2&&done.writing.assessment_state==='unassessed'&&done.writing.failure_code==='empty_submission','DTZ empty preservation failed');await shot(a,'s5b-dtz-empty-result-desktop');
     });

@@ -16,8 +16,8 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
   const signin=async cdp=>{await nav(cdp,base+'/signin');await cdp.evaluate("const picker=document.querySelector('#interface-language');picker.value='de';picker.dispatchEvent(new Event('change',{bubbles:true}));return true;");await cdp.waitFor("document.documentElement.lang==='de'");await setInputs(cdp,{'si-email':email,'si-password':password});await clickSel(cdp,'#si-submit');await cdp.waitFor("document.querySelector('#boot-choices') && !document.querySelector('#boot-choices').hidden || document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden",20000);};
   const fresh=async(cdp,runId)=>{const token=randomUUID();await cdp.evaluate(`window.__s5Document=${JSON.stringify(token)};return true;`);const result=await cdp.send('Page.navigate',{url:base+'/app/?s5Probe='+token+'#/lauf/'+runId});assert(result.loaderId,'fresh document required');await cdp.waitFor(`window.__s5Document!==${JSON.stringify(token)} && document.readyState==='complete'`,20000);await ready(cdp);await cdp.waitFor("document.querySelector('[data-listening-status]')",15000);};
   const pointer=async(cdp,selector)=>{const box=await cdp.evaluate(`const el=document.querySelector(${JSON.stringify(selector)});if(!el||el.disabled)return null;el.scrollIntoView({block:'center'});const r=el.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};`);assert(box,'control unavailable '+selector);await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...box});await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...box});};
-  const action=(cdp,name)=>pointer(cdp,`[data-listening-action="${name}"]`);
-  const waitControl=(cdp,name)=>cdp.waitFor(`document.querySelector('[data-listening-action="${name}"]') && !document.querySelector('[data-listening-action="${name}"]').disabled`,15000);
+  const action=async(cdp,name)=>{await waitControl(cdp,name);await pointer(cdp,`[data-listening-action="${name}"]`);};
+  const waitControl=(cdp,name)=>cdp.waitFor(`(()=>{const el=document.querySelector('[data-listening-action="${name}"]');const r=el?.getBoundingClientRect();return el&&!el.matches(':disabled')&&r.width>0&&r.height>0;})()`,15000);
   const playback=async(cdp,id)=>(await request(cdp,'/api/v1/mock-runs/'+id+'/playback')).data.items;
   const current=async(cdp,id)=>(await request(cdp,'/api/v1/mock-runs/'+id)).data;
   const waitPlayback=(cdp,id,mediaId,predicate)=>cdp.waitFor(`(async()=>{const r=await fetch('/api/v1/mock-runs/${id}/playback');const p=(await r.json()).items?.find(x=>x.media_id===${JSON.stringify(mediaId)});return p && (${predicate});})()`,20000);
@@ -103,7 +103,26 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
     await run('S5B8 separate mock attempt receives its own once-only DTZ allowance',async()=>{
       const mock=await start(a,dtz,'mock');assert(mock.id!==practice.id&&mock.attempt_mode==='mock'&&mock.deadline_at,'separate timed mock missing');
       assert((await playback(a,mock.id)).every(p=>p.plays_used===0&&p.max_plays===1),'mock did not receive its own bounded allowance');
-      await fresh(a,mock.id);await action(a,'load');await waitControl(a,'play');
+      // Mounting the status node precedes the authoritative playback read. Hold that real response
+      // to distinguish a mounted player from an enabled load control without inventing an allowance.
+      const playbackUrl=base+'/api/v1/mock-runs/'+mock.id+'/playback';let held,resolveHeld,rejectHeld;
+      const responseHeld=new Promise((resolve,reject)=>{resolveHeld=resolve;rejectHeld=reject;});responseHeld.catch(()=>{});
+      const listener=event=>{const message=JSON.parse(event.data);if(message.method==='Fetch.requestPaused'&&message.params.request.url===playbackUrl){held=message.params;resolveHeld(held);}};
+      a.ws.addEventListener('message',listener);const timer=setTimeout(()=>rejectHeld(Error('Authoritative playback response was not held')),20000);
+      try{
+        await a.send('Fetch.enable',{patterns:[{urlPattern:playbackUrl,requestStage:'Response'}]});
+        await fresh(a,mock.id);await responseHeld;assert(held.responseStatusCode===200,'Held playback response was refused');
+        const body=await a.send('Fetch.getResponseBody',{requestId:held.requestId});const returned=JSON.parse(body.base64Encoded?Buffer.from(body.body,'base64').toString('utf8'):body.body);
+        assert(returned.items.every(p=>p.plays_used===0&&p.max_plays===1),'Real held response changed the separate once-only allowance');
+        const pending=await a.evaluate("return {route:location.hash,status:document.querySelector('[data-listening-status]')?.textContent,buttons:[...document.querySelectorAll('[data-listening-action]')].map(el=>({action:el.dataset.listeningAction,disabled:el.matches(':disabled')}))};");
+        assert(pending.route.endsWith('/'+mock.id)&&pending.status&&pending.buttons.some(b=>b.action==='reload'&&b.disabled)&&!pending.buttons.some(b=>b.action==='load'),'Expected mounted player awaiting its real receipt');
+        console.log('S5 pending authoritative playback '+JSON.stringify(pending));await shot(a,'s5-mock-playback-receipt-pending','.listening-player');
+        let immediate;try{await pointer(a,'[data-listening-action="load"]');}catch(error){immediate=error.message;}
+        assert(immediate==='control unavailable [data-listening-action="load"]','Mounted-only discriminator did not reject the unavailable control');
+      }finally{
+        clearTimeout(timer);a.ws.removeEventListener('message',listener);try{if(held)await a.send('Fetch.continueRequest',{requestId:held.requestId});}finally{await a.send('Fetch.disable');}
+      }
+      await action(a,'load');await waitControl(a,'play');
       const deadline=(await current(a,mock.id)).deadline_at;await fresh(a,mock.id);assert((await current(a,mock.id)).deadline_at===deadline,'refresh reset clock');
       practice=mock;first=mock.members[0].recordings[0];
     });
