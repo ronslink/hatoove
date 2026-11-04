@@ -18,6 +18,8 @@
 .preparation-heading > div { min-width: 0; }
 .preparation-context strong, .preparation-context p { overflow-wrap: anywhere; }
 #next-title { min-width: 0; overflow-wrap: anywhere; }
+#view-heute .page-head > div { min-width: 0; }
+#greeting { overflow-wrap: anywhere; }
 .preparation-context .select { width: 100%; max-width: 100%; }
 .preparation-context .row { flex-wrap: wrap; }
 #preparation-state:empty { display: none; }
