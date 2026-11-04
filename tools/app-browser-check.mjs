@@ -125,8 +125,13 @@ async function waitForReady(url, timeoutMs) {
 
 /** Navigate and wait for the document to finish loading. */
 async function nav(cdp, url) {
-  await cdp.send('Page.navigate', { url });
-  await cdp.waitFor("document.readyState === 'complete'", 25000, url);
+  const marker = crypto.randomUUID();
+  await cdp.evaluate(`window.__browserDocument = ${JSON.stringify(marker)}; return true;`);
+  const navigation = await cdp.send('Page.navigate', { url });
+  if (navigation.errorText) throw new Error('Navigation failed: ' + navigation.errorText);
+  const documentChanged = navigation.loaderId
+    ? `window.__browserDocument !== ${JSON.stringify(marker)} && ` : '';
+  await cdp.waitFor(documentChanged + `document.readyState === 'complete' && location.origin === ${JSON.stringify(new URL(url).origin)}`, 25000, url);
 }
 
 /** Choose the fixture's language through the shipped UI, independent of the runner's locale. */
@@ -1722,7 +1727,7 @@ async function main() {
       return true;
     `);
     await clickSel(cdp, '#save-settings');
-    await sleep(600);
+    await cdp.waitFor("document.documentElement.lang === 'de' && document.querySelector('#header-language')?.value === 'de' && !document.querySelector('#header-language').disabled && !document.querySelector('#save-settings').disabled", 15000, 'confirmed German settings');
 
     await clickSel(cdp, '[data-view="heute"]');
     await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/heute'", 8000, 'Heute');
@@ -1752,8 +1757,51 @@ async function main() {
 
     await viewport(cdp, 390, 844, true);
     mark = cdp.events.length;
-    await nav(cdp, `${base}/app/`);
-    await softWait(cdp, "document.querySelector('#view-heute') && !document.querySelector('#view-heute').hidden", 15000, 'Heute on mobile');
+    const mobileReady = `(() => {
+      const shell = document.querySelector('#app-shell'), view = document.querySelector('#view-heute');
+      return Boolean(shell && !shell.hidden && !shell.inert && shell.getAttribute('aria-busy') === 'false'
+        && view && !view.hidden && view.getBoundingClientRect().height > 0);
+    })()`;
+    // The initially unhidden view is not evidence that its ancestor has finished account bootstrap.
+    // Hold the real settings receipt to prove that the old predicate accepts the loading screen.
+    let heldSettings, mobileNavigation, settingsTimer;
+    let resolveSettings, rejectSettings;
+    const settingsReceipt = new Promise((resolve, reject) => { resolveSettings = resolve; rejectSettings = reject; });
+    const settingsListener = event => {
+      const message = JSON.parse(event.data);
+      if (message.method !== 'Fetch.requestPaused') return;
+      const paused = message.params;
+      if (!heldSettings && paused.request.method === 'GET' && new URL(paused.request.url).pathname === '/api/v1/settings') {
+        heldSettings = paused;
+        resolveSettings(paused);
+      }
+    };
+    cdp.ws.addEventListener('message', settingsListener);
+    try {
+      await cdp.send('Fetch.enable', { patterns: [{ urlPattern: base + '/api/v1/settings', requestStage: 'Response' }] });
+      settingsTimer = setTimeout(() => rejectSettings(new Error('Mobile bootstrap settings receipt was not observed')), 15000);
+      mobileNavigation = nav(cdp, `${base}/app/`).then(() => null, error => error);
+      await settingsReceipt;
+      const body = await cdp.send('Fetch.getResponseBody', { requestId: heldSettings.requestId });
+      const settings = JSON.parse(body.base64Encoded ? Buffer.from(body.body, 'base64').toString('utf8') : body.body);
+      const pending = await cdp.evaluate(`return {
+        oldPredicate: Boolean(document.querySelector('#view-heute') && !document.querySelector('#view-heute').hidden),
+        interactive: ${mobileReady}, hidden: document.querySelector('#app-shell')?.hidden,
+        inert: document.querySelector('#app-shell')?.inert, readyState: document.readyState
+      };`);
+      record('L21a mobile layout waits for the real account bootstrap receipt',
+        heldSettings.responseStatusCode === 200 && settings.settings?.language === 'de'
+          && pending.oldPredicate && !pending.interactive && pending.hidden && pending.inert,
+        JSON.stringify(pending));
+    } finally {
+      clearTimeout(settingsTimer);
+      cdp.ws.removeEventListener('message', settingsListener);
+      try { if (heldSettings) await cdp.send('Fetch.continueRequest', { requestId: heldSettings.requestId }); }
+      finally { await cdp.send('Fetch.disable'); }
+    }
+    const navigationError = await mobileNavigation;
+    if (navigationError) throw navigationError;
+    await cdp.waitFor(mobileReady, 15000, 'interactive Heute on mobile');
     await sleep(600);
     const mobile = await cdp.evaluate(`
       const side = document.querySelector('.side');
