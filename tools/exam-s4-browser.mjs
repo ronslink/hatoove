@@ -29,7 +29,30 @@ export async function verifyExamS4({base,email,password,freePort,record,shot,vie
   const request=(cdp,route,method='GET',body)=>cdp.evaluate(`return (async()=>{const session=await (await fetch('/api/auth/get-session',{credentials:'same-origin'})).json();const response=await fetch(${JSON.stringify(route)},{method:${JSON.stringify(method)},credentials:'same-origin',headers:{'content-type':'application/json','X-Hatoove-Account':session.user.id}${body===undefined?'':',body:'+JSON.stringify(JSON.stringify(body))}});return {status:response.status,data:await response.json()};})()`);
   const ready=cdp=>cdp.waitFor("document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden && document.querySelector('#preparation-picker').value",20000);
   const signin=async cdp=>{await nav(cdp,base+'/signin');await cdp.evaluate("const picker=document.querySelector('#interface-language');picker.value='de';picker.dispatchEvent(new Event('change',{bubbles:true}));return true;");await cdp.waitFor("document.documentElement.lang==='de'");await setInputs(cdp,{'si-email':email,'si-password':password});await clickSel(cdp,'#si-submit');await cdp.waitFor("document.querySelector('#boot-choices') && !document.querySelector('#boot-choices').hidden || document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden",20000);};
-  const fresh=async(cdp,hash)=>{const token=randomUUID();await cdp.evaluate(`window.__s4Document=${JSON.stringify(token)};return true;`);const result=await cdp.send('Page.navigate',{url:base+'/app/?s4Probe='+token+hash});assert(result.loaderId,'fresh document required');await cdp.waitFor(`window.__s4Document!==${JSON.stringify(token)} && document.readyState==='complete'`,20000);await ready(cdp);};
+  const fresh=async(cdp,hash)=>{
+    const token=randomUUID(),eventStart=cdp.events.length;await cdp.evaluate(`window.__s4Document=${JSON.stringify(token)};return true;`);
+    let navigation;
+    try{
+      navigation=await cdp.send('Page.navigate',{url:base+'/app/?s4Probe='+token+hash});assert(!navigation.errorText,'fresh navigation failed: '+navigation.errorText);assert(navigation.loaderId,'fresh document required');
+      // A different complete document can also be a redirect or Chrome error page. Require this
+      // exact navigation's document token before waiting for the unchanged application readiness gate.
+      await cdp.waitFor(`window.__s4Document!==${JSON.stringify(token)} && document.readyState==='complete' && location.origin===${JSON.stringify(base)} && location.pathname==='/app/' && new URL(location.href).searchParams.get('s4Probe')===${JSON.stringify(token)}`,20000);
+      await ready(cdp);
+    }
+    catch(error){
+      const state=await cdp.evaluate("return {route:location.origin+location.pathname+location.hash,readyState:document.readyState,shellHidden:document.querySelector('#app-shell')?.hidden,shellInert:document.querySelector('#app-shell')?.inert,shellBusy:document.querySelector('#app-shell')?.getAttribute('aria-busy'),preparation:document.querySelector('#preparation-picker')?.value,bootMessage:document.querySelector('#boot-message')?.textContent,choicesVisible:document.querySelector('#boot-choices')?.hidden===false,choices:[...document.querySelectorAll('#boot-choices [data-preparation]')].map(el=>({id:el.dataset.preparation,disabled:el.disabled})),error:document.querySelector('#error')?.textContent};").catch(()=>({unavailable:true}));
+      // Only URL paths/statuses and bounded exception text: never headers, cookies or response bodies.
+      const events=cdp.events.slice(eventStart),requests=new Map(),completed=new Set(),network=[],exceptions=[];
+      for(const event of events){const p=event.params;
+        if(event.method==='Network.requestWillBeSent')requests.set(p.requestId,new URL(p.request.url).pathname);
+        if(event.method==='Network.responseReceived'){completed.add(p.requestId);const path=new URL(p.response.url).pathname;if(path.startsWith('/api/')||p.response.status>=400)network.push({path,status:p.response.status});}
+        if(event.method==='Network.loadingFailed'){completed.add(p.requestId);network.push({path:requests.get(p.requestId),error:p.errorText,canceled:p.canceled});}
+        if(event.method==='Runtime.exceptionThrown')exceptions.push(String(p.exceptionDetails.exception?.description||p.exceptionDetails.text).slice(0,1000));
+      }
+      const pending=[...requests].filter(([id])=>!completed.has(id)).map(([,path])=>path);
+      await shot(cdp,'s4-bootstrap-failure').catch(()=>{});throw Error(error.message+'; bootstrap diagnostics '+JSON.stringify({requested:hash,navigation,state,network:network.slice(-30),pending:pending.slice(-20),exceptions:exceptions.slice(-5)}));
+    }
+  };
   const go=async(cdp,view)=>{await cdp.evaluate(`location.hash=${JSON.stringify('#/'+view)};return true;`);await cdp.waitFor(`location.hash.endsWith('/${view}') && !document.querySelector('#view-${view}').hidden`);};
   const select=async(cdp,id)=>{await cdp.evaluate(`const picker=document.querySelector('#preparation-picker');picker.value=${JSON.stringify(id)};picker.dispatchEvent(new Event('change',{bubbles:true}));return true;`);await cdp.waitFor(`document.querySelector('#preparation-picker').value===${JSON.stringify(id)} && !document.querySelector('#preparation-picker').disabled && location.hash.includes(${JSON.stringify(id)})`);};
   const current=async(cdp,id)=>{const r=await request(cdp,'/api/v1/mock-runs/'+id);assert(r.status===200,'run read failed '+JSON.stringify(r));return r.data;};
@@ -37,7 +60,7 @@ export async function verifyExamS4({base,email,password,freePort,record,shot,vie
   const finaliseUI=async cdp=>{await clickSel(cdp,'[data-mock-action="confirm"]');await cdp.waitFor("document.querySelector('[data-mock-action=finalise]')");await clickSel(cdp,'[data-mock-action="finalise"]');await cdp.waitFor("document.querySelector('.mock-results') || document.querySelector('#writing-state')?.textContent.includes('Abgegeben') || document.querySelector('#writing-state')?.textContent.includes('Unbewertet')",15000);};
   // Partial forms no longer have a start card after the redesign. Create a synthetic historical run
   // through the owned API, then exercise the supported saved-run editor, recovery and result views.
-  const historicalRun=async(cdp,formId)=>{const form=forms.find(f=>f.form_id===formId);assert(form,'historical form missing');const made=await request(cdp,'/api/v1/mock-runs','POST',{preparationId:dtz.id,formId:form.form_id,formVersion:form.version,releaseVersion:form.release_version,eventId:randomUUID()});assert(made.status===201,'historical run setup refused '+JSON.stringify(made));await fresh(cdp,'#/lauf/'+made.data.id);return made.data.id;};
+  const historicalRun=async(cdp,formId)=>{const form=forms.find(f=>f.form_id===formId);assert(form,'historical form missing');const made=await request(cdp,'/api/v1/mock-runs','POST',{preparationId:dtz.id,formId:form.form_id,formVersion:form.version,releaseVersion:form.release_version,eventId:randomUUID()});assert(made.status===201,'historical run setup refused '+JSON.stringify(made));assert(/^[0-9a-f-]{36}$/i.test(made.data?.id)&&made.data.preparation_id===dtz.id,'historical run setup returned an invalid owned identity');await fresh(cdp,'#/lauf/'+made.data.id);return made.data.id;};
   let a,b,dtz,telc,forms,writingRun,combinedRun,originalText,originalSubmission,selectedTask,telcCredits;
   try {
     a=await launch();await signin(a);

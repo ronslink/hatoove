@@ -1,5 +1,7 @@
 # Scheduled browser coverage repair
 
+**Hosted follow-up:** the original nine-suite results below are local results. Hosted run [41853452292](https://github.com/ronslink/hatoove/actions/runs/41853452292) passed the main app suite (234/234) and S3 (14/14), then S4 stopped at fresh-document bootstrap (3 passed, 1 failed). The full hosted gate is not green; the B13 investigation below does not claim the cause is fixed.
+
 Task [181](https://github.com/ronslink/hatoove/issues/181), execution `CI-BROWSER-20261104-B`. Base `6f4f84ca749e335cc77534bcfd6e3094bafcf233`; separate branch `codex/ci-browser-20261104-checks`. Coordinator runtime fix `6e114c3` is applied for final validation (local equivalent `92891b6`). This slice owns test harnesses and this record only; runtime fixes are authored and reviewed separately.
 
 ## Why the later checks failed
@@ -46,3 +48,11 @@ The 320-pixel final S4 feedback and S6 player screenshots were visually inspecte
 [Issue 182](https://github.com/ronslink/hatoove/issues/182) records a pre-existing opt-in DTZ presentation defect: `public/app/part-index.js` still builds from telc-only part order/fallback facts, dropping DTZ LV4/LV5 and displaying telc-specific numbers. `public/app/mock-intro.js` also has static telc block metadata. This test repair does not certify those DTZ displays or alter exam facts. The retained S3 snapshot `.qa/exam-s3/hatoove-s3-browser-1793801984653-23428/s3-current-dtz-reading-tiles-known-gap.png` visibly shows the three telc-style reading tiles under the DTZ heading. Full-current S6 tests cover access, bindings and saved-run behavior, not the validity of those metadata labels.
 
 Headless desktop and 390/320-pixel viewport evidence is not physical iPhone/Android keyboard or audio acceptance. Official exam validity, qualified content/language review and production publication remain separate.
+
+## B13 hosted bootstrap investigation
+
+Execution `CI-BROWSER-20261104-B13`, base `3ea1b78e7bc8f3ba682fcfcf0409417e8b509181`, branch `codex/ci-browser-20261104-b13-bootstrap`. Hosted job `126655608659` reported successful historical-run creation, then timed out waiting for the visible app shell and preparation picker after a fresh document. It did not capture the boot message, route or network state, so neither a timing race nor a preparation chooser cause is established. Source inspection confirms the existing bare `#/lauf/<id>` route reads the saved run and resolves its owning preparation before unlocking the shell; that supported route remains unchanged.
+
+The diagnostic correction rejects a failed `Page.navigate`, requires the exact destination origin, app path and unique navigation token, and validates the fixture's returned run/preparation identity. It retains the existing 20-second readiness timeout and all S4 journey assertions. A failure now records the requested and observed route, navigation result, shell state, boot message/choices, API response statuses, failed/pending request paths and bounded JavaScript exceptions, plus `s4-bootstrap-failure.png`. Headers, cookies and response bodies are excluded. It rethrows the original failure without choosing a preparation or retrying automatically.
+
+The hosted failure did not reproduce in two new isolated local fixtures. The S4 baseline with diagnostic capture passed 14/14 in `.qa/exam-s4/hatoove-s4-browser-1793805183375-37364`, and the final document-identity diagnostic version passed 14/14 in `.qa/exam-s4/hatoove-s4-browser-1793805320949-39552`. Each exercised independent browser documents, fresh saved-run navigation and the complete writing/recovery lifecycle. Both projects were removed by their fixture cleanup. A new hosted run is required to collect the missing evidence or establish repeatability; these local passes do not establish a hosted fix.
