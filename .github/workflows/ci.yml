@@ -18,9 +18,9 @@ on:
     branches: [main]
   # The rendered gate is the only browser job and runs on a schedule rather than on every push.
   # The required PostgreSQL job also uses Docker for its isolated certificate-verification fixture.
-  # Keeping the longer rendered suite scheduled avoids charging its full run time to every change.
+  # Run the full suite weekly (Sunday, 03:17 UTC); change-triggered code/database gates stay intact.
   schedule:
-    - cron: '17 3 * * *'
+    - cron: '17 3 * * 0'
   workflow_dispatch:
 permissions:
   contents: read
@@ -406,7 +406,7 @@ jobs:
   # drives headless Chrome, so it needs a browser in the image, a Docker daemon, and ~20 minutes. The recorded
   # plan is to make it required only after a stretch of green runs -- a rendered gate that is required from day
   # one and flakes teaches people to ignore red, which is worse than a gate that is honest about being new.
-  # It therefore runs on the nightly schedule and on demand, never on every push.
+  # It therefore runs on the weekly schedule and on demand, never on every push.
   #
   # WHY IT CAN FAIL FOR ENVIRONMENTAL REASONS, SAID OUT LOUD: the two checks need `docker compose` and a Chrome
   # binary. Both are asserted in their own preflight steps, so a missing browser is a named failure rather than

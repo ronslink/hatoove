@@ -39,6 +39,55 @@ test('the workflows this repository actually ships have a sound shape', () => {
   }
 });
 
+// These shared journeys used to run twice for every change. Consolidation must leave exactly
+// one runnable copy, while the auth spike and restricted-role discrimination stay in Pilot contracts.
+const SHARED_DATABASE_COMMANDS = [
+  'node tools/postgres-provision-check.mjs',
+  'node tools/owned-api-check.mjs --backend=postgres-persistent',
+  'node tools/owned-api-throttle-isolation-check.mjs',
+  'node tools/accounts-http-check.mjs',
+];
+const PILOT_DATABASE_COMMANDS = [
+  'node --test spikes/auth-runtime/test.mjs',
+  'node --test spikes/auth-runtime/isolation.test.mjs',
+  'node tools/owned-api-check.mjs --backend=postgres',
+  'node --test tools/owned-api-pg-check.test.mjs',
+];
+const runCommands = text => text.split(/\r?\n/).map(line => /^\s+(?:- )?run: (.+)$/.exec(line)?.[1]).filter(Boolean);
+function assertDatabaseJourneyCoverage(ci, pilot) {
+  const ciCommands = runCommands(ci), pilotCommands = runCommands(pilot);
+  for (const command of SHARED_DATABASE_COMMANDS) {
+    assert.equal(ciCommands.filter(value => value === command).length, 1, `Shared journey missing or duplicated in ci.yml: ${command}`);
+    assert.equal(pilotCommands.filter(value => value === command).length, 0, `Shared journey duplicated in Pilot contracts: ${command}`);
+  }
+  for (const command of PILOT_DATABASE_COMMANDS) {
+    assert.equal(pilotCommands.filter(value => value === command).length, 1, `Unique Pilot proof missing or duplicated: ${command}`);
+  }
+}
+test('shared database journeys run once and unique Pilot proofs remain', () => {
+  assertDatabaseJourneyCoverage(fs.readFileSync(REAL[0], 'utf8'), fs.readFileSync(REAL[1], 'utf8'));
+});
+test('database consolidation rejects each missing shared journey, duplicate and missing unique proof', () => {
+  const ci = fs.readFileSync(REAL[0], 'utf8'), pilot = fs.readFileSync(REAL[1], 'utf8');
+  for (const command of SHARED_DATABASE_COMMANDS) {
+    assert.throws(() => assertDatabaseJourneyCoverage(ci.replace('run: ' + command, 'run: echo removed'), pilot), /Shared journey missing/);
+    assert.throws(() => assertDatabaseJourneyCoverage(ci, pilot + '\n      - run: ' + command), /Shared journey duplicated/);
+  }
+  for (const command of PILOT_DATABASE_COMMANDS) {
+    assert.throws(() => assertDatabaseJourneyCoverage(ci, pilot.replace('run: ' + command, 'run: echo removed')), /Unique Pilot proof missing/);
+  }
+});
+test('weekly rendering keeps on-demand execution and change-triggered workflows', () => {
+  const ci = fs.readFileSync(REAL[0], 'utf8'), pilot = fs.readFileSync(REAL[1], 'utf8');
+  assert.deepEqual([...ci.matchAll(/^\s+- cron: '([^']+)'$/gm)].map(match => match[1]), ['17 3 * * 0']);
+  assert.match(ci, /^  workflow_dispatch:/m);
+  assert.match(ci, /if: github\.event_name == 'schedule' \|\| github\.event_name == 'workflow_dispatch'/);
+  for (const workflow of [ci, pilot]) {
+    assert.match(workflow, /^  pull_request:/m);
+    assert.match(workflow, /^  push:\r?\n    branches: \[main\]/m);
+  }
+});
+
 const BASE = [
   'name: Example',
   'on:',

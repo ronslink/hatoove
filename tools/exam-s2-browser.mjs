@@ -46,6 +46,24 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
     await cdp.waitFor("document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden && document.querySelector('#preparation-picker').value",15000);
     const request = (route, method='GET', body) => cdp.evaluate(`return (async()=>{const r=await fetch(${JSON.stringify(route)},{method:${JSON.stringify(method)},credentials:'same-origin',headers:{'content-type':'application/json'}${body===undefined?'':',body:'+JSON.stringify(JSON.stringify(body))}});return {status:r.status,data:await r.json()};})()`);
     const preparationId=await cdp.evaluate("return document.querySelector('#preparation-picker').value");
+    // Partial section creation is an internal fixture: the current intro starts a complete mock.
+    // Use the real owned API, then exercise the current visible saved-run link and the whole player.
+    const openSection = async () => {
+      const forms = await request('/api/v1/mock-forms?preparationId='+preparationId);
+      const form = forms.data.forms?.find(value => value.scope === 'section'
+        && value.sections?.length === 1 && value.sections[0] === 'LV' && value.item_count === 20);
+      assert(forms.status === 200 && form, 'exact twenty-item reading form unavailable');
+      const started = await request('/api/v1/mock-runs?preparationId='+preparationId, 'POST', {
+        preparationId, formId:form.form_id,formVersion:form.version,releaseVersion:form.release_version,eventId:randomUUID(),
+      });
+      assert(started.status === 201 && started.data.id, 'section fixture creation failed');
+      await go('heute'); await go('probepruefung');
+      const selector = '#mock-intro-host a[href="#/lauf/'+started.data.id+'"]';
+      await cdp.waitFor(`document.querySelector(${JSON.stringify(selector)})`);
+      await clickSel(cdp,selector);
+      await cdp.waitFor("document.querySelector('input[name=mock-answer]') && location.hash.includes('/abschnitt/')");
+      return started.data.id;
+    };
     let runId, firstChoice, secondChoice;
     const reply = (event, data, status = 200) => cdp.send('Fetch.fulfillRequest', {requestId:event.requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify(data)).toString('base64')});
     await run('S2B0 loading, empty and unavailable states (synthetic responses)',async()=>{
@@ -56,18 +74,16 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
         if(event.request.url.includes('/mock-runs?')){await reply(event,{runs:[]});return true;}return false;
       },'*/api/v1/mock-*');
       try {
-        await go('abschnitt');await Promise.race([requested,new Promise((_,reject)=>setTimeout(()=>reject(Error('loading fixture request missing')),10000))]);
-        assert(await cdp.evaluate("return document.querySelector('#mock-host').textContent.includes('werden geladen')"),'loading state missing');await shot(cdp,'s2-loading-desktop-light');release();
-        await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('Zurzeit ist kein Lauf') && document.querySelector('#mock-host').textContent.includes('Noch keine gespeicherten')");await shot(cdp,'s2-empty-desktop-light');
+        await go('probepruefung');await Promise.race([requested,new Promise((_,reject)=>setTimeout(()=>reject(Error('loading fixture request missing')),10000))]);
+        assert(await cdp.evaluate("return document.querySelector('#mock-intro-host [data-mock-intro-runs]').textContent.includes('wird geladen')"),'loading state missing');await shot(cdp,'s2-loading-desktop-light');release();
+        await cdp.waitFor("document.querySelector('#mock-intro-host').textContent.includes('Zurzeit ist kein Lauf') && document.querySelector('#mock-intro-host').textContent.includes('Noch keine gespeicherten')");await shot(cdp,'s2-empty-desktop-light');
       } finally {release();await stopIntercept();}
       await intercept('Request',async event=>{if(event.request.method==='GET'){await reply(event,{error:'unavailable'},503);return true;}return false;},'*/api/v1/mock-*');
-      try {await clickSel(cdp,'[data-mock-refresh]');await cdp.waitFor("document.querySelector('#mock-host').textContent.includes('konnten nicht geladen')");await shot(cdp,'s2-unavailable-desktop-light');}finally{await stopIntercept();}
-      await clickSel(cdp,'[data-mock-refresh]');
+      try {await clickSel(cdp,'[data-mock-intro-reload]');await cdp.waitFor("document.querySelector('#mock-intro-host').textContent.includes('konnten nicht geladen')");await shot(cdp,'s2-unavailable-desktop-light');}finally{await stopIntercept();}
+      await clickSel(cdp,'[data-mock-intro-reload]');
     });
-    await run('S2B1 section entry creates exact pinned twenty-item reading run',async()=>{
-      await go('abschnitt');await cdp.waitFor("document.querySelector('[data-mock-start]')");await shot(cdp,'s2-section-index-desktop-light');
-      await clickSel(cdp,'[data-mock-start]');await cdp.waitFor("document.querySelector('input[name=mock-answer]') && location.hash.includes('/abschnitt/')");
-      runId=await cdp.evaluate("return location.hash.split('/').at(-1)");const result=await request('/api/v1/mock-runs/'+runId);
+    await run('S2B1 current saved-run link opens exact pinned twenty-item reading fixture',async()=>{
+      runId=await openSection();await shot(cdp,'s2-section-open-desktop-light');const result=await request('/api/v1/mock-runs/'+runId);
       assert(result.status===200 && result.data.preparation_id===preparationId && result.data.members.reduce((n,m)=>n+m.item_count,0)===20,'owned pinned reading form required');
       assert(result.data.release_version&&result.data.form_version&&result.data.result===null,'versions and deferred result required');
       [firstChoice,secondChoice]=await cdp.evaluate("return [...document.querySelectorAll('input[name=mock-answer]')].slice(0,2).map(n=>n.value)");
@@ -148,8 +164,8 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
       await fresh('#/lauf/'+runId);await cdp.waitFor("document.querySelector('#mock-result')");
     });
     await run('S2B9 history retains the original form and retake has a new identity',async()=>{
-      await go('fortschritt');await cdp.waitFor(`document.querySelector('#mock-history [data-mock-run="${runId}"]')`);
-      await go('abschnitt');await cdp.waitFor("document.querySelector('[data-mock-start]')");await clickSel(cdp,'[data-mock-start]');await cdp.waitFor("document.querySelector('input[name=mock-answer]')");
+      await go('verlauf');await cdp.waitFor(`document.querySelector('#mock-history [data-mock-run="${runId}"]')`);
+      await openSection();
       assert(await cdp.evaluate(`return location.hash.split('/').at(-1)!==${JSON.stringify(runId)}`),'retake reused original identity');
     });
     await run('S2B10 real archived preparation keeps run readable and blocks controls',async()=>{

@@ -191,7 +191,7 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
       await freshApp('heute');
       await until(() => held, 'settings request paused');
       const loaderId = (await cdp.send('Page.getFrameTree')).frameTree.frame.loaderId;
-      await cdp.evaluate(`location.hash='#/woerterbuch';
+      await cdp.evaluate(`location.hash='#/wortschatz';
         document.querySelector('#language').value='tr';
         document.querySelector('#settings-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); return true;`);
       await sleep(150);
@@ -203,12 +203,12 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
         && !early.some(r => r.method !== 'GET' || /\/vocab|\/nouns|\/practice\//.test(new URL(r.url).pathname)),
         JSON.stringify({ ...blocked, requests: early.map(r => `${r.method} ${new URL(r.url).pathname}`) }));
       await intercept.proceed(held);
-      await cdp.waitFor("document.querySelector('#dict-results [lang=\"en\"]') && document.querySelector('#language').value==='en'", 12000);
-      const first = await cdp.evaluate("return { hash:location.hash, title:document.querySelector('#page-title').textContent, language:document.querySelector('#lang-label').textContent, date:document.querySelector('#examDate').value, countdown:document.querySelector('#exam-countdown').textContent, english:document.querySelector('#dict-results [lang=\"en\"]')?.textContent, shell:!document.querySelector('#app-shell')?.hidden }");
+      await cdp.waitFor("document.querySelector('#vocab-host [lang=\"en\"]') && document.querySelector('#language').value==='en'", 12000);
+      const first = await cdp.evaluate("return { hash:location.hash, title:document.querySelector('#page-title').textContent, language:document.querySelector('#header-language').value, date:document.querySelector('#examDate').value, countdown:document.querySelector('#exam-countdown').textContent, english:document.querySelector('#vocab-host [lang=\"en\"]')?.textContent, shell:!document.querySelector('#app-shell')?.hidden }");
       const after = await request('/api/v1/settings');
-      record('S0B2 first view uses saved language/date and the latest requested hash', first.hash === '#/prep/'+preparationId+'/woerterbuch'
-        && first.title === 'Wörterbuch' && first.language.includes('English') && first.date === targetDate
-        && first.countdown.includes('Prüfung am') && first.countdown.includes('15') && Boolean(first.english) && first.shell
+      record('S0B2 first view uses saved language/date and the latest requested hash', first.hash === '#/prep/'+preparationId+'/wortschatz'
+        && first.title === 'Vocabulary' && first.language === 'en' && first.date === targetDate
+        && first.countdown.includes('Exam on') && first.countdown.includes('15') && Boolean(first.english) && first.shell
         && after.data.revision === saved.data.revision && after.data.settings.language === 'en');
       intercept.assert();
       await shot(cdp, 's0-preferences-first-render-desktop');
@@ -221,22 +221,30 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
         else await h.proceed(p);
       });
       await viewport(cdp, 390, 844, true);
-      await freshApp('woerterbuch');
+      await freshApp('wortschatz');
       await cdp.waitFor("document.querySelector('#boot-retry') && !document.querySelector('#boot-retry').hidden", 8000);
-      record('S0B3 settings failure is recoverable without exposing default preferences', await cdp.evaluate("const shell=document.querySelector('#app-shell'); return shell.hidden && shell.inert && shell.getClientRects().length===0 && document.querySelector('#boot-message').textContent.includes('erneut')"));
+      record('S0B3 settings failure is recoverable without exposing default preferences', await cdp.evaluate("const shell=document.querySelector('#app-shell'); return shell.hidden && shell.inert && shell.getClientRects().length===0 && document.querySelector('#boot-message').textContent.includes('could not be fully loaded')"));
       await shot(cdp, 's0-settings-recovery-mobile');
       await clickSel(cdp, '#boot-retry');
-      await cdp.waitFor("document.querySelector('#dict-results [lang=\"en\"]') && !document.querySelector('#app-shell').hidden", 12000);
+      await cdp.waitFor("document.querySelector('#vocab-host [lang=\"en\"]') && !document.querySelector('#app-shell').hidden", 12000);
       record('S0B4 retry renders the retained destination and saved preferences on mobile',
-        await cdp.evaluate("return location.hash==='#/prep/'+document.querySelector('#preparation-picker').value+'/woerterbuch' && document.querySelector('#language').value==='en' && document.querySelector('#boot-state').hidden")
+        await cdp.evaluate("return location.hash==='#/prep/'+document.querySelector('#preparation-picker').value+'/wortschatz' && document.querySelector('#language').value==='en' && document.querySelector('#boot-state').hidden")
         && (await overflow(cdp)).offenderCount === 0);
       intercept.assert();
       await shot(cdp, 's0-preferences-recovered-mobile');
     });
 
-    await checks('S0V version-specific objective practice', async () => {
-      // Use the existing owned telc preparation: default catalogue access is intentional.
-      // Unique set IDs and catalogue narrowing isolate these two synthetic versions.
+    // The primary part runner is covered by app-browser-check. Per-set discovery remains an explicit
+    // module-unavailable fallback, so exercise version binding there without claiming it is the menu UI.
+    const versionSettings = await request('/api/v1/settings');
+    const versionSaved = await request('/api/v1/settings', 'PUT', {
+      expectedRevision: versionSettings.data.revision,
+      settings: { ...Object.fromEntries(Object.entries(versionSettings.data.settings).filter(([key]) => key !== 'examDate')), language: 'de' },
+    });
+    if (versionSaved.status !== 200) throw new Error('S0 fallback locale setup failed');
+    await cdp.send('Network.setBlockedURLs', { urls: [base + '/app/part-index.js'] });
+    await checks('S0V module-unavailable fallback preserves version-specific objective practice', async () => {
+      // Unique set IDs and catalogue narrowing isolate these two synthetic versions in this browser.
       await viewport(cdp, 1440, 900, false);
       await freshApp('prep/'+preparationId+'/heute');
       await cdp.waitFor("document.querySelector('#account-email')?.textContent.includes('@')", 15000);
@@ -275,11 +283,11 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
       const mistakes = await request(`/api/v1/practice/mistakes?exam=${exam}`);
       const own = (mistakes.data.items || []).filter(m => m.set_id === setId);
       await go('fehler');
-      await cdp.waitFor(`document.querySelector('#mistake-list')?.textContent.includes(${JSON.stringify(title)})`, 8000);
-      const visible = await cdp.evaluate(`return [...document.querySelectorAll('#mistake-list .list-item')].filter(e=>e.textContent.includes(${JSON.stringify(title)})).map(e=>e.textContent)`);
-      record('S0V6 v2 success leaves the independent v1 mistake with its version label', mistakes.status === 200
+      await cdp.waitFor(`document.querySelector('#mistakes-host')?.textContent.includes(${JSON.stringify(payloads.v1.questions[0].question)})`, 8000);
+      const visible = await cdp.evaluate(`return [...document.querySelectorAll('#mistakes-host [data-mistake-card]')].filter(e=>e.textContent.includes(${JSON.stringify(payloads.v1.questions[0].question)})).map(e=>e.textContent)`);
+      record('S0V6 v2 success leaves only the independent v1 mistake and its answer context', mistakes.status === 200
         && own.length === 1 && own[0].version === 'v1' && own[0].your_answer === 'b'
-        && visible.length === 1 && visible[0].includes('Fassung v1'));
+        && visible.length === 1 && visible[0].includes('Im Park') && visible[0].includes('Am Bahnhof'));
       await shot(cdp, 's0-versioned-mistake-mobile');
     });
 
@@ -308,6 +316,7 @@ export async function verifyExamS0({ base, email, password, freePort, record, sh
     });
   } finally {
     if (intercept) { try { await intercept.stop(); } catch {} }
+    if (cdp) { try { await cdp.send('Network.setBlockedURLs', { urls: [] }); } catch {} }
     try {
       if (request && originalSettings) {
         const current = await request('/api/v1/settings');
