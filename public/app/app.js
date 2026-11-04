@@ -296,6 +296,9 @@ async function refreshCredits() {
 }
 
 function clearPreparationViews() {
+  // A mounted view owns the old preparation's listeners and pending reads, even when the route name
+  // is unchanged. Dispose it before selecting the next preparation so route() rechecks availability.
+  unmountModule();
   explanationContext++; archivedRequest++; explanations.dispose();
   objectiveRequest++;
   dictionaryRequest++;

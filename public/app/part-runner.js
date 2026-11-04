@@ -864,6 +864,16 @@ export function createPartRunnerView(ctx = {}) {
     return true;
   }
 
+  async function refreshMistakeCount(ticket) {
+    if (typeof ctx.onMistakeCount !== 'function' || typeof ctx.api?.practice?.mistakes !== 'function') return;
+    let response;
+    try { response = await ctx.api.practice.mistakes(); } catch { return; }
+    if (ticket !== generation || !host || !response?.ok) return;
+    const count = Number.isSafeInteger(response.data?.count) && response.data.count >= 0
+      ? response.data.count : Array.isArray(response.data?.items) ? response.data.items.length : null;
+    if (count !== null) ctx.onMistakeCount(count);
+  }
+
   async function evaluate() {
     if (state.busy) return false;
     const attemptId = nonEmpty(state.attemptId);
@@ -910,6 +920,7 @@ export function createPartRunnerView(ctx = {}) {
       player?.markChecked?.();
       render();
       host.querySelector?.('[data-review-verdict]')?.focus?.();
+      await refreshMistakeCount(ticket);
       return true;
     }
     const failure = checkFailureOf(response, { hasReview: Boolean(state.checked) });
