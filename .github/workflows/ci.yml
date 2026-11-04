@@ -450,11 +450,14 @@ jobs:
         run: |
           "${CHROME_PATH}" --version
       - name: Install the pinned accessibility test engine
+        id: rendered_prerequisites
         run: npm ci --prefix tools/a11y --ignore-scripts --no-audit --no-fund
       - name: Real stack - migrations, API, worker and account lifecycle
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         run: node tools/docker-stack-check.mjs
       - name: Feedback capture, listening, survey and retry lifecycle
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
@@ -469,51 +472,61 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - name: Rendered client and accessibility states at desktop and mobile
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/app-browser-check.mjs --axe --design-evidence=served-only --shots .qa/browser/q01-app
       - name: Isolated two-exam reading and save-before-switch browser acceptance
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s3-browser-check.mjs
       - name: Isolated DTZ writing choice and mock recovery browser acceptance
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s4-browser-check.mjs
       - name: Isolated fixed listening and playback recovery browser acceptance
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s5-browser-check.mjs --axe --shots .qa/browser/q01-audio
       - name: Isolated stub checkout and accessibility states
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/payment-browser-check.mjs --axe --shots .qa/browser/q01-payments
       - name: Complete written mock boundaries and assigned or choice writing
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s5b-browser-check.mjs
       - name: Public complete DTZ admission and pinned recovery browser acceptance
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s6-browser-check.mjs
       - name: Review withdrawal preserves draft copies and completed history
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s6-browser-check.mjs --review --shots .qa/browser/c03-review
       - name: Saved explanation language speech and stale response behavior
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/explanation-browser-check.mjs --shots .qa/browser/pilot07-explanations
       - name: Interface languages preserve live work across account and navigation boundaries
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
