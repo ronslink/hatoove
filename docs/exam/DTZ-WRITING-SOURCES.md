@@ -1,5 +1,13 @@
 # DTZ writing: source verification for internal S4
 
+## Legal update checked 4 November 2026
+
+The [13 October 2026 amendment, BGBl. 2026 I No. 306](https://www.recht.bund.de/bgbl/1/2026/306/regelungstext.pdf?__blob=publicationFile&v=1) took effect on 1 November 2026. [IntTestV section 10(1)](https://www.gesetze-im-internet.de/inttestv/__10.html) now requires B1 in speaking, B1 in either combined listening/reading or writing, and at least A2 in the remaining area for an overall DTZ B1 result. Writing can no longer be below A2 when the other two areas are B1.
+
+This changes overall DTZ result aggregation, not the individual writing descriptors below. It does not change telc Deutsch B1 rules. Hatoove's criterion feedback is formative; the app does not assess speaking or calculate an overall DTZ result. Do not derive an official A2/B1 writing result from the internal criterion positions or add an overall pass predictor. See the [scoped impact assessment](../../work/implementation/DTZ-LAW-20261104.md) for the audit and implementation decision.
+
+## Original writing-format verification
+
 The coordinator retrieved the [official g.a.s.t. practice set 2](https://www.gast.de/fileadmin/gast.de/GAST/5_DTZ/PDF/gast_DTZ_UEbungssatz_2.pdf), edition June 2024, on 3 October 2026. Rendered printed pages 42, 43 and 47 were inspected, including the table headings and the footnote. Source PDF and rendered evidence remain in ignored local QA material.
 
 The writing contract has four distinct dimensions: task fulfilment, communicative organisation, accuracy and vocabulary. Each has six positions mapping to 5, 4, 3, 2, 1 and 0. Task fulfilment uses content-point coverage and adequacy; the three language dimensions have their own descriptors. The upper four positions distinguish stronger and sufficient performance within B1 and A2; A1 and zero follow. The page 42 footnote requires zero across the criteria when the response has essentially no connection to the writing occasion. S4 records this rule without claiming a heuristic or synthetic grader can establish it.

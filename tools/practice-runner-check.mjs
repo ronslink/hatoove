@@ -503,6 +503,46 @@ leg('6 [dto] after the fourth tap the restart action carries the wrap copy, neve
   assert.match(renderState(third), />Noch ein Satz</, 'the third round still offers the next set');
 });
 
+leg('6a grading refreshes the authoritative mistake count without opening mistakes', async () => {
+  const set = dtoSet(), stub = stubApi({ set }), counts = [];
+  stub.api.practice.mistakes = async () => ({ ok: true, data: { count: 7, items: [{}] } });
+  const host = hostStub(), view = runner.createPartRunnerView({ ...CTX, family: set.family, api: stub.api, onMistakeCount: count => counts.push(count) });
+  await view.mount(host);
+  for (const item of set.items) host.onchange(answerEvent(item.item_id, item.options[0].id));
+  assert.equal(await view.evaluate(), true);
+  assert.deepEqual(counts, [7], 'use the owned total, not this attempt or a truncated item list');
+  assert.equal(view.snapshot().phase, 'review');
+  view.unmount();
+});
+
+leg('6a failed mistake refresh preserves the completed review and previous badge', async () => {
+  const set = dtoSet(), stub = stubApi({ set }), counts = [];
+  stub.api.practice.mistakes = async () => { throw new Error('offline'); };
+  const host = hostStub(), view = runner.createPartRunnerView({ ...CTX, family: set.family, api: stub.api, onMistakeCount: count => counts.push(count) });
+  await view.mount(host);
+  for (const item of set.items) host.onchange(answerEvent(item.item_id, item.options[0].id));
+  assert.equal(await view.evaluate(), true);
+  assert.equal(view.snapshot().phase, 'review');
+  assert.deepEqual(counts, [], 'a failed count read must not fabricate zero');
+  view.unmount();
+});
+
+leg('6a a delayed mistake count cannot repaint a departed preparation', async () => {
+  const set = dtoSet(), stub = stubApi({ set }), counts = [];
+  let resolveCount, reads = 0;
+  stub.api.practice.mistakes = () => { reads++; return new Promise(resolve => { resolveCount = resolve; }); };
+  const host = hostStub(), view = runner.createPartRunnerView({ ...CTX, family: set.family, api: stub.api, onMistakeCount: count => counts.push(count) });
+  await view.mount(host);
+  for (const item of set.items) host.onchange(answerEvent(item.item_id, item.options[0].id));
+  const checking = view.evaluate();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(reads, 1, 'successful grading must request the count');
+  view.unmount();
+  resolveCount({ ok: true, data: { count: 7, items: [{}] } });
+  await checking;
+  assert.deepEqual(counts, [], 'unmount invalidates the old preparation response');
+});
+
 /* ------------------------------------------------------------------- 6b. states and honesty */
 
 leg('6b empty, refused and unanswerable sets degrade honestly', async () => {

@@ -125,8 +125,25 @@ async function waitForReady(url, timeoutMs) {
 
 /** Navigate and wait for the document to finish loading. */
 async function nav(cdp, url) {
-  await cdp.send('Page.navigate', { url });
-  await cdp.waitFor("document.readyState === 'complete'", 25000, url);
+  const marker = crypto.randomUUID();
+  await cdp.evaluate(`window.__browserDocument = ${JSON.stringify(marker)}; return true;`);
+  const navigation = await cdp.send('Page.navigate', { url });
+  if (navigation.errorText) throw new Error('Navigation failed: ' + navigation.errorText);
+  const documentChanged = navigation.loaderId
+    ? `window.__browserDocument !== ${JSON.stringify(marker)} && ` : '';
+  await cdp.waitFor(documentChanged + `document.readyState === 'complete' && location.origin === ${JSON.stringify(new URL(url).origin)}`, 25000, url);
+}
+
+/** Choose the fixture's language through the shipped UI, independent of the runner's locale. */
+async function interfaceLanguage(cdp, language) {
+  await cdp.waitFor("document.querySelector('#interface-language')?.options.length === 5", 10000, 'interface language control');
+  await cdp.evaluate(`
+    const select = document.querySelector('#interface-language');
+    select.value = ${JSON.stringify(language)};
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  `);
+  await cdp.waitFor(`document.documentElement.lang === ${JSON.stringify(language)}`, 10000, 'selected interface language');
 }
 
 async function viewport(cdp, width, height, mobile) {
@@ -272,6 +289,22 @@ async function softWait(cdp, expression, timeoutMs, label) {
     return false;
   }
 }
+
+// An empty module host has no loading text yet. Require both independently loaded vocabulary
+// branches, or the library's real index controls, before inspecting content or dark-mode controls.
+const vocabularyReady = `(() => {
+  const view=document.querySelector('#view-wortschatz'), host=document.querySelector('#vocab-host');
+  const visible=node=>Boolean(node && node.getBoundingClientRect().height>0);
+  return Boolean(view && !view.hidden && visible(host?.querySelector('.vocab'))
+    && visible(host.querySelector('[data-vocab-results] .vocab-word'))
+    && ['core-grammar','core-phrases'].every(id=>visible(host.querySelector('[data-vocab-corpus="'+id+'"] .vocab-item')))
+    && !host.querySelector('.err'));
+})()`;
+const libraryReady = `(() => {
+  const view=document.querySelector('#view-nachschlagen'), host=document.querySelector('#library-host');
+  return Boolean(view && !view.hidden && host?.querySelector('[data-library-open]')?.getBoundingClientRect().height>0
+    && !host.querySelector('.err'));
+})()`;
 
 /** The session cookie the BROWSER holds, so Node can ask the API the same question. */
 async function browserCookie(cdp) {
@@ -497,6 +530,8 @@ async function main() {
     mark = cdp.events.length;
     await nav(cdp, `${base}/app/`);
     await softWait(cdp, "location.pathname === '/signin'", 15000, 'redirect to /signin');
+    // The journey below checks German labels; a fresh English CI browser must choose German too.
+    await interfaceLanguage(cdp, 'de');
     const signinView = await cdp.evaluate(`
       const form = document.getElementById('form-signin');
       const email = document.getElementById('si-email');
@@ -539,14 +574,17 @@ async function main() {
       await clickSel(cdp, '#si-submit');
       await axe.scan(cdp, 'auth-error', "document.querySelector('#error')?.getBoundingClientRect().height>0 && !document.querySelector('#si-submit').disabled");
       await nav(cdp, base + '/reset-password');
+      // Exercise recovery in English: state readiness must not depend on a German text fragment.
+      await interfaceLanguage(cdp, 'en');
       await axe.scan(cdp, 'reset-request', "document.querySelector('#form-request')?.getBoundingClientRect().height>0");
       await setInputs(cdp, { 'request-email': 'q01-unknown@example.test' }); await clickSel(cdp, '#request-submit');
-      await axe.scan(cdp, 'reset-acknowledgement', "document.querySelector('#status')?.textContent.includes('E-Mail mit dem Link')");
+      await axe.scan(cdp, 'reset-acknowledgement', "document.querySelector('#status[data-i18n=\"auth.delivery\"]:not([hidden])')?.getBoundingClientRect().height>0 && document.querySelector('#status').textContent.trim().length>0 && document.querySelector('#form-request').getAttribute('aria-busy')==='false' && !document.querySelector('#request-submit').disabled");
       await nav(cdp, base + '/reset-password?token=q01-synthetic-invalid-token');
       await axe.scan(cdp, 'reset-new-password', "document.querySelector('#form-reset')?.getBoundingClientRect().height>0");
       await setInputs(cdp, { 'new-password': 'synthetic-password-2', 'confirm-password': 'synthetic-password-2' }); await clickSel(cdp, '#reset-submit');
-      await axe.scan(cdp, 'reset-invalid-token', "document.querySelector('#error')?.textContent.includes('ungültig') && document.querySelector('#form-reset').hidden");
+      await axe.scan(cdp, 'reset-invalid-token', "document.querySelector('#error[data-i18n=\"auth.invalidToken\"]:not([hidden])')?.getBoundingClientRect().height>0 && document.querySelector('#error').textContent.trim().length>0 && document.querySelector('#form-reset').hidden && !document.querySelector('#request-another').hidden");
       await nav(cdp, base + '/signin');
+      await interfaceLanguage(cdp, 'de');
     }
     // The tabs must actually switch which form is shown.
     await clickSel(cdp, '#tab-signup');
@@ -596,7 +634,7 @@ async function main() {
       return {
         path: location.href,
         greeting: t('greeting'), nextTitle: t('next-title'), nextDetail: t('next-detail'),
-        nextKicker: t('next-kicker'), crumb: t('crumb-date'), pageTitle: t('page-title'),
+        nextKicker: t('next-kicker'), crumb: t('crumb-root'), pageTitle: t('page-title'),
         examPill: t('exam-countdown'), gauge: t('gauge-count'), gaugeFoot: t('gauge-foot'),
         countdown: t('countdown'), statAnswers: t('stat-answers'),
         heroBox: (() => { const r = document.querySelector('.hero-next')?.getBoundingClientRect(); return r ? { w: Math.round(r.width), h: Math.round(r.height) } : null; })(),
@@ -607,7 +645,7 @@ async function main() {
       Boolean(heute.nextTitle) && !heute.nextTitle.includes('Wird geladen') && heute.heroBox !== null && heute.heroBox.h > 60,
       `"${heute.nextTitle}" / "${heute.nextDetail}" ${path.basename(heuteFile)}`);
     record('L8 Heute is the open view and the chrome knows where we are',
-      heute.pageTitle === 'Heute' && heute.crumb.length > 4 && heute.examPill.length > 4,
+      heute.pageTitle === 'Heute' && heute.crumb === 'telc Deutsch B1' && heute.examPill.length > 4,
       `title="${heute.pageTitle}" crumb="${heute.crumb}" exam="${heute.examPill}"`);
     const bootErrors = errorsSince(cdp, mark);
     record('L9 the app boots with no console exception and no unhandled rejection',
@@ -628,23 +666,24 @@ async function main() {
 
     await clickSel(cdp, '[data-view="lesen"]');
     await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/lesen'", 8000, 'the Leseverstehen route');
-    await softWait(cdp, "document.querySelector('#skill-lesen .card h3') && !document.querySelector('#skill-lesen').innerText.includes('Wird geladen')", 12000, 'the set list');
+    await cdp.waitFor("document.querySelector('#lesen-host [data-part-open=LV1]')?.getBoundingClientRect().height>0", 12000, 'the reading part index');
     const lesen = await cdp.evaluate(`
-      const box = document.getElementById('skill-lesen');
-      const cards = [...box.querySelectorAll('.card')];
+      const box = document.getElementById('lesen-host');
+      const cards = [...box.querySelectorAll('[data-part]')];
       return {
         shown: !document.getElementById('view-lesen').hidden,
         pageTitle: (document.getElementById('page-title')?.innerText || '').trim(),
         count: cards.length,
         titles: cards.slice(0, 4).map((c) => (c.querySelector('h3')?.innerText || '').trim()),
-        buttons: box.querySelectorAll('button[data-open]').length,
+        families: cards.map(card => card.dataset.part).sort(),
+        buttons: box.querySelectorAll('button[data-part-open]').length,
         current: document.querySelectorAll('[data-view="lesen"][aria-current="page"]').length,
       };
     `);
     await shot(cdp, '06-lesen-desktop-light');
-    record('L12 Leseverstehen lists real sets from the catalogue, from the server',
+    record('L12 Leseverstehen offers all three reading parts',
       lesen.shown && lesen.pageTitle === 'Leseverstehen' && lesen.buttons >= 3,
-      `${lesen.count} cards, ${lesen.buttons} Üben buttons: ${JSON.stringify(lesen.titles)}`);
+      `${lesen.count} part tiles, ${lesen.buttons} practice buttons: ${JSON.stringify(lesen.titles)}`);
     record('L13 the navigation marks the current view', lesen.current >= 1, `${lesen.current} element(s) with aria-current=page`);
     // Nine seeded sets carry a generated placeholder title (`LV3 1`, `SB1 2`) because the corpus has no
     // authored one. A learner must not be shown a database convenience as the name of their task.
@@ -656,25 +695,26 @@ async function main() {
     const cookie = await browserCookie(cdp);
     const apiSets = await apiGet(cookie, '/api/v1/objective-sets');
     const apiLv = (Array.isArray(apiSets.body) ? apiSets.body : []).filter((s) => s.section === 'LV');
-    record('L14 the rendered list is the API\'s own list (endpoint vs screen)',
-      apiLv.length > 0 && lesen.titles.includes(apiLv[0].title),
-      `API LV[0]="${apiLv[0]?.title}" screen=${JSON.stringify(lesen.titles.slice(0, 2))}`);
+    const apiReadingFamilies = [...new Set(apiLv.map(set => set.family))].sort();
+    record('L14 the offered reading parts match the server catalogue',
+      apiLv.length > 0 && JSON.stringify(lesen.families) === JSON.stringify(apiReadingFamilies),
+      `API=${JSON.stringify(apiReadingFamilies)} screen=${JSON.stringify(lesen.families)}`);
 
     /* --------------------------------------------------- open a set and answer */
 
     mark = cdp.events.length;
-    const clickedOpen = await clickSel(cdp, '#skill-lesen button[data-open]');
-    const openedForm = await softWait(cdp, "document.querySelector('#practice-items [data-item]')", 15000, 'the practice form');
+    const clickedOpen = await clickSel(cdp, '#lesen-host [data-part-open=LV1]');
+    const openedForm = await softWait(cdp, "document.querySelector('#lesen-host [data-runner-phase=answering] [data-answer-item]')", 15000, 'the current practice form');
     const form = await cdp.evaluate(`
-      const box = document.querySelector('.view:not([hidden]) .skill-practice');
+      const box = document.querySelector('#lesen-host [data-part-runner]');
       if (!box) return { missing: true, pageError: (document.getElementById('error')?.innerText || '').trim() };
-      const items = [...box.querySelectorAll('[data-item]')];
+      const items = [...box.querySelectorAll('[data-item-id]')];
       return {
         hidden: box.hidden,
         items: items.length,
-        choices: items.length ? items[0].querySelectorAll('button[data-answer]').length : 0,
+        choices: items.length ? items[0].querySelectorAll('select[data-answer-item] option,input[data-answer-item]').length : 0,
         firstPrompt: (items[0]?.querySelector('p:not(.kicker)')?.innerText || '').trim().slice(0, 90),
-        passage: (box.querySelector('section.card p')?.innerText || '').trim().slice(0, 60),
+        passage: (box.querySelector('[data-runner-material]')?.innerText || '').trim().slice(0, 60),
         pageError: (document.getElementById('error')?.innerText || '').trim(),
       };
     `);
@@ -693,13 +733,13 @@ async function main() {
      * the way.
      */
     const placement = await cdp.evaluate(`
-      const host = document.querySelector('.view:not([hidden]) .skill-practice');
-      const list = document.querySelector('.view:not([hidden]) .stack[id^="skill-"]');
+      const host = document.querySelector('#lesen-host [data-part-runner]');
+      const list = document.querySelector('#lesen-host [data-part-index]');
       const r = host.getBoundingClientRect();
       return {
         top: Math.round(r.top), height: Math.round(r.height),
         inViewport: r.top >= -4 && r.top < window.innerHeight * 0.75,
-        listHidden: Boolean(list && list.hidden),
+        listHidden: !list || list.getBoundingClientRect().height === 0,
         listHeight: list ? Math.round(list.getBoundingClientRect().height) : null,
         scrollY: Math.round(window.scrollY),
       };
@@ -708,54 +748,54 @@ async function main() {
       placement.inViewport === true && placement.listHidden === true,
       `form top ${placement.top}px of ${844}px viewport; list hidden=${placement.listHidden} (height ${placement.listHeight})`);
 
-    await axe.scan(cdp, 'objective-pre-answer', "document.querySelector('#practice-items [data-item] button')?.getBoundingClientRect().height>0");
-    // Answer the first item's choices in turn until the SERVER says "Richtig." — which also exercises
-    // the mistakes path, because every wrong answer must be recorded. The loop runs out here in Node
-    // because `cdp.evaluate` does not admit `await` inside the page (it is not an async function).
-    const choices = await cdp.evaluate(`
-      return [...document.querySelectorAll('#practice-items [data-item] button[data-answer]')].map((b) => b.dataset.answer);
+    await axe.scan(cdp, 'objective-pre-answer', "document.querySelector('#lesen-host [data-answer-item]')?.getBoundingClientRect().height>0");
+    // The shipped runner marks a complete set in one server request. Fill its real controls;
+    // choosing the first option for every item leaves actual mistakes for the history assertions.
+    await cdp.evaluate(`
+      const items = new Map();
+      for (const input of document.querySelectorAll('#lesen-host [data-answer-item]')) {
+        if (!items.has(input.dataset.answerItem)) items.set(input.dataset.answerItem, input);
+      }
+      for (const input of items.values()) {
+        if (input.tagName === 'SELECT') input.value = input.options[1].value;
+        else input.checked = true;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      return items.size;
     `);
-    const seen = [];
-    let verdict = '';
-    for (const choice of choices) {
-      await cdp.evaluate(`
-        const b = document.querySelector('#practice-items [data-item] button[data-answer=${JSON.stringify(choice)}]');
-        if (!b) return false;
-        b.click();
-        return true;
-      `);
-      await cdp.waitFor("document.querySelector('#practice-items [data-item] .result').innerText.indexOf('Wird gepr') === -1", 10000, 'the server verdict').catch(() => {});
-      verdict = await cdp.evaluate("return document.querySelector('#practice-items [data-item] .result').innerText.trim()");
-      seen.push(`${choice}:${verdict}`);
-      if (verdict === 'Richtig.') break;
-    }
+    await cdp.waitFor("document.querySelector('#lesen-host [data-runner-evaluate]')?.disabled===false", 10000, 'all reading answers selected');
+    const checkMark = cdp.events.length;
+    await clickSel(cdp, '#lesen-host [data-runner-evaluate]');
+    await cdp.waitFor("document.querySelector('#lesen-host [data-runner-phase=review]')", 15000, 'the saved server verdict');
+    const checkedResponse = cdp.events.slice(checkMark).find(event => event.method === 'Network.responseReceived'
+      && new URL(event.params.response.url).pathname.endsWith('/practice/check') && event.params.response.status === 200);
+    if (!checkedResponse) throw new Error('Reading review has no successful server response');
+    const checkedBody = await cdp.send('Network.getResponseBody', { requestId: checkedResponse.params.requestId });
+    const checked = JSON.parse(checkedBody.body);
     const answerRun = await cdp.evaluate(`
-      const item = document.querySelector('#practice-items [data-item]');
-      return { pressed: item.querySelectorAll('[aria-pressed="true"]').length };
+      const result = document.querySelector('#lesen-host [data-runner-result]');
+      return { correct: Number(result.dataset.correct), total: Number(result.dataset.total),
+        text: result.innerText.trim(), visible: result.getBoundingClientRect().height > 0,
+        items: [...document.querySelectorAll('#lesen-host [data-review-item]')].map(item => {
+          const verdict = item.querySelector('[data-review-verdict]');
+          return { id:item.dataset.reviewItem, correct:item.dataset.verdict==='correct', text:verdict?.innerText.trim(), visible:verdict?.getBoundingClientRect().height>0 };
+        }),
+        choices: document.querySelectorAll('#lesen-host [data-option-marker=chosen]').length };
     `);
     await shot(cdp, '08-answered-desktop-light');
     record('L16 an answer is marked by the server and the verdict is shown on screen',
-      /^(Richtig\.|Noch nicht richtig)/.test(verdict) && answerRun.pressed >= 1 && seen.length >= 1,
-      `${JSON.stringify(seen)}`);
-    await axe.scan(cdp, 'objective-post-answer', "/^(Richtig\\.|Noch nicht richtig)/.test(document.querySelector('#practice-items [data-item] .result')?.innerText)");
+      answerRun.correct === checked.correct_count && answerRun.total === checked.answered_count && answerRun.total > 0
+        && answerRun.visible && answerRun.text === `${checked.correct_count} von ${checked.answered_count} richtig`
+        && answerRun.choices === answerRun.total && answerRun.items.length === checked.items.length
+        && answerRun.items.every(item => item.visible && checked.items.some(row => String(row.item_id) === item.id
+          && row.correct === item.correct && item.text === (row.correct ? 'Richtig' : 'Falsch'))),
+      `screen=${answerRun.correct}/${answerRun.total}; server=${checked.correct_count}/${checked.answered_count}`);
+    await axe.scan(cdp, 'objective-post-answer', "document.querySelector('#lesen-host [data-review-verdict]')?.getBoundingClientRect().height>0");
     const answerErrors = errorsSince(cdp, mark);
     record('L17 answering produces no console exception', answerErrors.length === 0, answerErrors[0] || 'clean');
 
-    /*
-     * Leave ONE mistake deliberately open, so the badge legs have something true to show. The badge is
-     * a promise that the number is real, and the promise is only testable when the number is not zero.
-     */
-    const correctChoice = (seen.find((s) => s.endsWith(':Richtig.')) || '').split(':')[0];
-    const wrongChoice = choices.find((c) => c !== correctChoice);
-    if (wrongChoice) {
-      await cdp.evaluate(`
-        const b = document.querySelector('#practice-items [data-item] button[data-answer=${JSON.stringify(wrongChoice)}]');
-        if (b) b.click();
-        return true;
-      `);
-      await softWait(cdp, "document.querySelector('#practice-items [data-item] .result').innerText.indexOf('Wird gepr') === -1", 10000, 'the second verdict');
-      await sleep(400);
-    }
+    record('L16b the fixture leaves real incorrect answers for the mistakes journey', checked.correct_count < checked.answered_count,
+      `${checked.answered_count - checked.correct_count} incorrect answers`);
     /*
      * The badge exists twice and both copies must carry the same number. This runs at DESKTOP width, so
      * it can only assert the sidebar copy is visible: the tabbar's is `display:none` here and reporting
@@ -780,11 +820,7 @@ async function main() {
         && Boolean(badges.tab) && badges.tab.background !== 'rgba(0, 0, 0, 0)',
       `sidebar ${badges.side && badges.side.background} / tabbar ${badges.tab && badges.tab.background}`);
 
-    /*
-     * A CONTROL STYLED AS A BUTTON MUST NOT BE PAINTED AS A LINK. `.lang-btn` is an `<a>` now (it
-     * navigates to Einstellungen), and the pinned stylesheet only removes the underline for `.btn` — so
-     * it rendered underlined until the shell's own layer said otherwise. Computed style, not markup.
-     */
+    // Keep the current language selector and settings control free from accidental link underlines.
     const controls = await cdp.evaluate(`
       const read = (sel) => {
         const el = document.querySelector(sel);
@@ -792,7 +828,7 @@ async function main() {
         const cs = getComputedStyle(el);
         return { decoration: cs.textDecorationLine, tag: el.tagName.toLowerCase(), height: Math.round(el.getBoundingClientRect().height) };
       };
-      return { lang: read('#lang-btn'), gear: read('.icon-btn') };
+      return { lang: read('#header-language'), gear: read('.icon-btn') };
     `);
     record('L17d the topbar controls are not underlined like links',
       Boolean(controls.lang) && controls.lang.decoration === 'none' && Boolean(controls.gear) && controls.gear.decoration === 'none',
@@ -802,18 +838,18 @@ async function main() {
 
     await clickSel(cdp, '[data-view="fehler"]');
     await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/fehler'", 8000, 'the Fehler route');
-    await softWait(cdp, "!document.getElementById('mistake-list').innerText.includes('Wird geladen')", 12000, 'the mistakes list');
+    await cdp.waitFor("document.querySelector('#mistakes-host [data-mistake-card]')?.getBoundingClientRect().height>0", 12000, 'the current mistakes list');
     const fehler = await cdp.evaluate(`
       const badge = document.getElementById('mistake-count');
-      const rows = [...document.querySelectorAll('#mistake-list .list-item')];
-      const list = document.querySelector('#mistake-list .list');
+      const rows = [...document.querySelectorAll('#mistakes-host [data-mistake-card]')];
+      const list = document.querySelector('#mistakes-host [data-mistakes-view]');
       return {
         badgeHidden: badge.hidden, badge: badge.innerText.trim(),
         rows: rows.length,
         listWrapper: Boolean(list),
         first: (rows[0]?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 120),
-        empty: document.getElementById('mistake-list').innerText.includes('Nichts offen'),
-        note: (document.getElementById('mistake-note')?.innerText || '').trim().slice(0, 80),
+        answers: rows.map(row => ({ own: row.querySelector('.mistake-your span')?.innerText || '', key: row.querySelector('.mistake-key span')?.innerText || '' })),
+        note: (list?.querySelector('header p')?.innerText || '').trim().slice(0, 80),
       };
     `);
     await shot(cdp, '09-fehler-desktop-light');
@@ -822,19 +858,16 @@ async function main() {
     record('L18 Fehler shows exactly what the server recorded, and its badge agrees',
       fehler.badgeHidden === (apiCount === 0) && fehler.rows === apiCount,
       `screen badge=${fehler.badgeHidden ? 'hidden' : fehler.badge} rows=${fehler.rows}; API count=${apiCount}; "${fehler.note}"`);
-    record('L19 a missed item is listed with the LEARNER\'s answer AND the correct one', (() => {
-      const expected = apiMistakes.body?.items?.[0]?.correct_answer;
-      // REDESIGN-01 A/C: the row must carry the learner's own answer, and the correct answer exactly when
-      // the server supplies one (migration 0041 reveals it only for an item this learner has answered).
-      const hasOwn = fehler.first.length > 0;
-      const shown = expected === undefined || expected === null
-        ? true
-        : fehler.first.includes(JSON.stringify(expected));
-      return apiCount === 0 || (hasOwn && shown);
-    })(), `${fehler.first || 'no mistakes recorded yet'} | API correct_answer=${JSON.stringify(apiMistakes.body?.items?.[0]?.correct_answer)}`);
-    // The design puts the border and radius on `.list`; bare `.list-item` rows render as detached boxes.
-    record('L19b the mistake rows sit inside the design\'s list wrapper',
-      apiCount === 0 || fehler.listWrapper === true,
+    const answerText = (row, value) => {
+      const option = row.task?.options?.find(option => option.value === value || option.id === value);
+      return String(option?.text || option?.id || value);
+    };
+    record('L19 every missed item shows the learner answer and server-supplied correct answer',
+      apiCount > 0 && apiMistakes.body.items.every((row, index) => fehler.answers[index]?.own.includes(answerText(row, row.your_answer))
+        && fehler.answers[index]?.key.includes(answerText(row, row.correct_answer))),
+      `${fehler.rows} visible answer/key pairs compared with the API`);
+    record('L19b the mistake cards sit inside the visible mistakes view',
+      fehler.listWrapper === true,
       `rows=${fehler.rows} wrapper=${fehler.listWrapper}`);
 
     /*
@@ -947,15 +980,43 @@ async function main() {
     /* --------------------------------------------------------- other views  */
 
     const viewChecks = [
-      ['woerterbuch', '#/woerterbuch', '#dict-results', '10-woerterbuch'],
-      ['nachschlagen', '#/nachschlagen', '#guide-index', '11-nachschlagen'],
-      ['fortschritt', '#/fortschritt', '#view-fortschritt', '12-fortschritt'],
+      ['wortschatz', '#/wortschatz', '#vocab-host', '10-wortschatz'],
+      ['nachschlagen', '#/nachschlagen', '#library-host', '11-nachschlagen'],
+      ['verlauf', '#/verlauf', '#view-verlauf', '12-verlauf'],
       ['einstellungen', '#/einstellungen', '#settings-form', '13-einstellungen'],
     ];
     for (const [view, hash, selector, name] of viewChecks) {
-      await clickSel(cdp, `[data-view="${view}"]`);
-      await softWait(cdp, `location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '${hash.slice(1)}'`, 8000, hash);
-      await softWait(cdp, `!document.querySelector('${selector}').innerText.includes('Wird geladen')`, 10000, selector);
+      const delayedVocabulary = view === 'wortschatz';
+      let emptyVocabulary;
+      if (delayedVocabulary) emptyVocabulary = await cdp.evaluate(`
+        const probe={native:fetch,pending:[],responses:[],active:true};window.__vocabReadinessProbe=probe;
+        window.fetch=async(...args)=>{
+          const response=await probe.native.apply(window,args);
+          const input=args[0], url=new URL(typeof input==='string'?input:input.url,location.href);
+          if(probe.active && ['/api/v1/vocab','/api/v1/guides/core-grammar','/api/v1/guides/core-phrases'].includes(url.pathname)) {
+            probe.responses.push({path:url.pathname,status:response.status});
+            await new Promise(resolve=>probe.pending.push(resolve));
+          }
+          return response;
+        };return {ready:${vocabularyReady},children:document.querySelector('#vocab-host').childElementCount};`);
+      try {
+        if (view === 'verlauf') await nav(cdp, base + '/app/' + hash);
+        else await clickSel(cdp, `[data-view="${view}"]`);
+        await softWait(cdp, `location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '${hash.slice(1)}'`, 8000, hash);
+        if (delayedVocabulary) {
+          await cdp.waitFor("window.__vocabReadinessProbe.pending.length===3", 10000, 'the three actual vocabulary responses held before rendering');
+          const held=await cdp.evaluate(`return {ready:${vocabularyReady}, mounted:Boolean(document.querySelector('#vocab-host .vocab')?.getBoundingClientRect().height),responses:window.__vocabReadinessProbe.responses};`);
+          record('L20.wortschatz.loading empty and delayed hosts cannot satisfy loaded-content readiness', !emptyVocabulary.ready && emptyVocabulary.children===0 && !held.ready && held.mounted
+            && held.responses.every(response=>response.status===200) && new Set(held.responses.map(response=>response.path)).size===3,
+            JSON.stringify({empty:emptyVocabulary,...held}));
+        }
+      } finally {
+        if (delayedVocabulary) await cdp.evaluate(`const probe=window.__vocabReadinessProbe;
+          probe.active=false;window.fetch=probe.native;for(const release of probe.pending.splice(0))release();
+          delete window.__vocabReadinessProbe;return true;`);
+      }
+      const positiveReady = view === 'wortschatz' ? vocabularyReady : view === 'nachschlagen' ? libraryReady : null;
+      const loaded = await softWait(cdp, positiveReady || `!document.querySelector('${selector}').innerText.includes('Wird geladen')`, 10000, selector);
       const state = await cdp.evaluate(`
         const view = document.getElementById('view-${view}');
         const box = document.querySelector('${selector}');
@@ -963,7 +1024,7 @@ async function main() {
         return { shown: !view.hidden, text: box.innerText.trim().slice(0, 160), headings: h, height: Math.round(box.getBoundingClientRect().height) };
       `);
       await shot(cdp, `${name}-desktop-light`);
-      record(`L20.${view} the ${view} view renders with content`, state.shown && state.height > 40 && state.text.length > 20,
+      record(`L20.${view} the ${view} view renders with content`, (!positiveReady || loaded) && state.shown && state.height > 40 && state.text.length > 20,
         `${state.headings.join(' | ')}`);
     }
 
@@ -976,35 +1037,31 @@ async function main() {
      */
     await clickSel(cdp, '[data-view="nachschlagen"]');
     await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/nachschlagen'", 8000, 'Nachschlagen');
-    await softWait(cdp, "document.querySelector('#guide-index button[data-guide]')", 12000, 'the guide index');
+    await cdp.waitFor("document.querySelector('#library-host [data-library-open]')?.getBoundingClientRect().height>0", 12000, 'the library index');
     const guidesBefore = await cdp.evaluate(`
-      const body = document.getElementById('guide-body');
-      const index = document.getElementById('guide-index');
-      const h = (el) => Math.round(el.getBoundingClientRect().height);
-      return { bodyHidden: body.hidden, bodyHeight: h(body), indexHidden: index.hidden, indexHeight: h(index) };
+      return { index: document.querySelectorAll('#library-host [data-library-open]').length,
+        sections: document.querySelectorAll('#library-host [data-library-section]').length };
     `);
-    await clickSel(cdp, '#guide-index button[data-guide]');
-    await softWait(cdp, "document.querySelector('#guide-body .card h3') && !document.querySelector('#guide-body').innerText.includes('Wird geladen')", 12000, 'the guide document');
+    await clickSel(cdp, '#library-host [data-library-open]');
+    await cdp.waitFor("document.querySelector('#library-host [data-library-section]')?.getBoundingClientRect().height>0", 12000, 'the guide document');
     const guidesAfter = await cdp.evaluate(`
-      const body = document.getElementById('guide-body');
-      const index = document.getElementById('guide-index');
-      const h = (el) => Math.round(el.getBoundingClientRect().height);
-      return { bodyHidden: body.hidden, bodyHeight: h(body), indexHidden: index.hidden, indexHeight: h(index),
-        sections: body.querySelectorAll('.card').length, back: Boolean(document.getElementById('guide-back')) };
+      const body = document.getElementById('library-host');
+      return { bodyHeight: body.getBoundingClientRect().height, index: body.querySelectorAll('[data-library-open]').length,
+        sections: body.querySelectorAll('[data-library-section]').length, back: Boolean(body.querySelector('[data-library-hub]')) };
     `);
     await shot(cdp, '11b-guide-open-desktop-light');
     record('L20b one guide opens at a time: the body is hidden until it has something to show',
-      guidesBefore.bodyHidden === true && guidesBefore.bodyHeight === 0 && guidesBefore.indexHeight > 0
+      guidesBefore.sections === 0 && guidesBefore.index > 0
         && guidesAfter.bodyHeight > 0 && guidesAfter.sections > 0 && guidesAfter.back,
       `before ${JSON.stringify(guidesBefore)} -> after ${JSON.stringify(guidesAfter)}`);
     record('L20c opening a guide hides the index (the design\'s one-document view)',
-      guidesAfter.indexHidden === true && guidesAfter.indexHeight === 0,
-      `index hidden=${guidesAfter.indexHidden} height=${guidesAfter.indexHeight}`);
-    await clickSel(cdp, '#guide-back');
+      guidesAfter.index === 0,
+      `index controls remaining=${guidesAfter.index}`);
+    await clickSel(cdp, '#library-host [data-library-hub]');
     await sleep(300);
     const guidesBack = await cdp.evaluate(`
-      const h = (id) => Math.round(document.getElementById(id).getBoundingClientRect().height);
-      return { body: h('guide-body'), index: h('guide-index') };
+      return { body: document.querySelectorAll('#library-host [data-library-section]').length,
+        index: document.querySelectorAll('#library-host [data-library-open]').length };
     `);
     record('L20d Zurück brings the index back and removes the document',
       guidesBack.index > 0 && guidesBack.body === 0, JSON.stringify(guidesBack));
@@ -1015,21 +1072,21 @@ async function main() {
      * catalogue was the place where one still reached the screen after the skill views were fixed.
      */
     await nav(cdp, `${base}/app/#/ueben`);
-    await softWait(cdp, "document.querySelector('#task-list') && !document.querySelector('#task-list').innerText.includes('Wird geladen')", 12000, 'the Üben catalogue');
+    await cdp.waitFor("document.querySelector('#drill-host [data-drill-phase=answering]')", 12000, 'the current single-item practice');
     await sleep(300);
     const ueben = await cdp.evaluate(`
-      const box = document.getElementById('task-list');
+      const box = document.getElementById('drill-host');
       return {
         shown: !document.getElementById('view-ueben').hidden,
-        cards: box.querySelectorAll('.card').length,
+        cards: box.querySelectorAll('[data-drill-item]').length,
         headings: [...box.querySelectorAll('h3')].map((h) => h.innerText.trim()).slice(0, 10),
         full: box.innerText.trim(),
-        recommendation: (document.getElementById('practice-next')?.innerText || '').replace(/\\\\s+/g, ' ').trim().slice(0, 140),
+        recommendation: (box.querySelector('[data-drill]')?.dataset.drillFamily || ''),
       };
     `);
     await shot(cdp, '13b-ueben-desktop-light');
-    record('L20h Üben renders the whole catalogue, from the server',
-      ueben.shown && ueben.cards >= 2 && ueben.full.length > 40,
+    record('L20h Üben renders the current single-item practice from the server',
+      ueben.shown && ueben.cards === 1 && ueben.full.length > 40 && Boolean(ueben.recommendation),
       `${ueben.cards} cards; recommendation "${ueben.recommendation}"; headings ${JSON.stringify(ueben.headings.slice(0, 4))}`);
     record('L20i no catalogue entry is titled with a seed placeholder',
       !ueben.headings.some((t) => /^(LV|SB|HV)\d+\s+\d+$/.test(t)) && !/^(LV|SB|HV)\d+\s+\d+$/.test(ueben.full),
@@ -1440,10 +1497,8 @@ async function main() {
      * not from a copy in this client, which would be a second text free to drift from the one the grader was
      * validated against.
      *
-     * The second assertion is the one that matters for honesty: the wording is provisional and UNREVIEWED
-     * (E-01 has not happened), and the note that says so — including that these are not the examination
-     * provider's official words — must travel WITH the text, because a screen cannot label what it was not
-     * told.
+     * The authored wording stays provisional and separate from the provider's official words. The review
+     * label must match the server-bound rubric; a later recorded review must not leave a stale status here.
      */
     const rubricPanel = await cdp.evaluate(`
       const details = document.getElementById('writing-rubric');
@@ -1456,11 +1511,22 @@ async function main() {
         bands: body ? [...body.querySelectorAll('.rubric-bands > li')].length : 0,
         // Read the status from the FULL text and log an excerpt: truncating first made the status line fall
         // outside the captured slice, so the leg failed on its own logging rather than on the screen.
-        status: (full.match(/Prüfstatus:\\s*(\\S+)/) || [])[1] || null,
+        status: body?.querySelector('[data-writing-rubric-review]')?.innerText.trim() || null,
         provisional: /vorläufig/i.test(full) && /nicht die offizielle Formulierung/i.test(full),
         text: full.replace(/\\s+/g, ' ').trim().slice(0, 200),
       };
     `);
+    const rubricReview = await cdp.evaluate(`return (async () => {
+      const id = document.querySelector('#writing-state')?.dataset.submissionId;
+      if (!id) throw Error('graded rubric has no submission binding');
+      const response = await fetch('/api/v1/submissions/' + encodeURIComponent(id));
+      if (!response.ok) throw Error('graded rubric unavailable');
+      const { rubric } = await response.json();
+      return { status: rubric?.review_status, basis: rubric?.review_basis, withdrawn: rubric?.review_withdrawn };
+    })()`);
+    const rubricLabel = rubricReview.withdrawn || rubricReview.status === 'withdrawn' ? 'Fachliche Freigabe zurückgezogen'
+      : rubricReview.status === 'approved' && rubricReview.basis === 'named_decision' ? 'Fachlich freigegeben'
+      : ['unreviewed', 'generated', 'draft'].includes(rubricReview.status) ? 'Fachliche Prüfung ausstehend' : null;
     await cdp.evaluate(`
       const details = document.getElementById('writing-rubric');
       if (details) details.scrollIntoView({ block: 'center' });
@@ -1473,8 +1539,8 @@ async function main() {
       rubricPanel.present && rubricPanel.rows === 3 && rubricPanel.bands === 12,
       `${rubricPanel.rows} criterion row(s), ${rubricPanel.bands} band explanation(s); panel "${rubricPanel.text.slice(0, 90)}"`);
     record('W12b the wording is labelled provisional and not the provider\'s own',
-      rubricPanel.provisional && rubricPanel.status === 'unreviewed',
-      `provisional note present=${rubricPanel.provisional}; review status "${rubricPanel.status}"`);
+      rubricPanel.provisional && rubricLabel !== null && rubricPanel.status === rubricLabel,
+      `provisional note present=${rubricPanel.provisional}; review status "${rubricPanel.status}"; server ${JSON.stringify(rubricReview)}`);
 
     /*
      * W10 — THE FAILED ASSESSMENT, RENDERED. The property the deleted `mock-outcome-browser-check` held, on
@@ -1576,8 +1642,8 @@ async function main() {
       return { local: dump(localStorage), session: dump(sessionStorage), localCount: localStorage.length, sessionCount: sessionStorage.length };
     `);
     await shot(cdp, '19-heute-desktop-light-after-journey');
-    record('L30 the client kept NOTHING in web storage across the whole journey',
-      storage.localCount === 0 && storage.sessionCount === 0,
+    record('L30 web storage contains only the chosen interface language, never learner work or sessions',
+      storage.localCount === 1 && storage.local['hatoove.interface-language.v1'] === 'de' && storage.sessionCount === 0,
       JSON.stringify(storage));
 
     /* --------------------------------------------------- the design components */
@@ -1588,10 +1654,8 @@ async function main() {
      *
      * (1) `provider-config-browser-check` asserted "the Settings view offers no provider field". The
      *     property survives the SPA; the vehicle is the shell's own settings screen.
-     * (2) `account-ui-browser-check` asserted "the explanation-language setting does not translate the
-     *     German menu". Same property, new screen — and it is asserted where it can actually break: the
-     *     nav labels are read before and after a real change through the real form, and the shell must
-     *     stay LTR even when Arabic is chosen.
+     * (2) The current interface contract supersedes the German-only menu: choosing Arabic translates
+     *     navigation and makes the interface RTL, while the German exam identity remains LTR.
      */
     await clickSel(cdp, '[data-view="einstellungen"]');
     await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/einstellungen'", 8000, 'Einstellungen');
@@ -1625,7 +1689,7 @@ async function main() {
       return true;
     `);
     await clickSel(cdp, '#save-settings');
-    await softWait(cdp, "document.getElementById('settings-state').innerText.includes('Gespeichert')", 10000, 'the settings save');
+    await cdp.waitFor("document.documentElement.lang==='ar' && !document.querySelector('#save-settings').disabled", 10000, 'the Arabic settings save');
     await sleep(400);
     const afterLanguage = await cdp.evaluate(`
       const sel = document.getElementById('language');
@@ -1635,22 +1699,27 @@ async function main() {
         htmlDir: document.documentElement.getAttribute('dir'),
         bodyDir: getComputedStyle(document.body).direction,
         nav: [...document.querySelectorAll('.side .nav a, .tabbar a')].map((a) => a.innerText.trim()),
-        langLabel: (document.getElementById('lang-label')?.innerText || '').trim(),
+        today: document.querySelector('.side .nav [data-view="heute"]')?.innerText.trim(),
+        headerLanguage: document.getElementById('header-language')?.value,
+        examText: document.getElementById('crumb-root')?.innerText,
+        examLang: document.getElementById('crumb-root')?.lang,
+        examDir: document.getElementById('crumb-root')?.dir,
         optionLang: arOption ? arOption.getAttribute('lang') : null,
         optionDir: arOption ? arOption.getAttribute('dir') : null,
       };
     `);
     await shot(cdp, '20-einstellungen-arabic-desktop-light');
-    record('L32 choosing Arabic changes the EXPLANATION language and leaves the German menu alone',
-      afterLanguage.saved === 'ar' && JSON.stringify(afterLanguage.nav) === JSON.stringify(navBefore)
-        && afterLanguage.bodyDir === 'ltr' && afterLanguage.htmlDir === null
+    record('L32 Arabic translates navigation and uses RTL while the German exam identity stays LTR',
+      afterLanguage.saved === 'ar' && JSON.stringify(afterLanguage.nav) !== JSON.stringify(navBefore)
+        && afterLanguage.nav.length === navBefore.length && afterLanguage.nav.every(label => label.length>0)
+        && afterLanguage.today === 'اليوم'
+        && afterLanguage.bodyDir === 'rtl' && afterLanguage.htmlDir === 'rtl'
         && afterLanguage.optionLang === 'ar' && afterLanguage.optionDir === 'rtl'
-        // ...and the topbar says so, without waiting for a navigation: the label is the learner's only
-        // confirmation that the change took effect. It did NOT update, which this leg caught.
-        && afterLanguage.langLabel.includes('العربية'),
+        && afterLanguage.headerLanguage === 'ar' && afterLanguage.examLang === 'de' && afterLanguage.examDir === 'ltr'
+        && afterLanguage.examText === 'telc Deutsch B1',
       `saved=${afterLanguage.saved}; nav identical=${JSON.stringify(afterLanguage.nav) === JSON.stringify(navBefore)}; `
-        + `body direction=${afterLanguage.bodyDir}; html dir=${afterLanguage.htmlDir}; ar option lang/dir=${afterLanguage.optionLang}/${afterLanguage.optionDir}; lang-label="${afterLanguage.langLabel}"`);
-    // Put it back, so the dark-mode and mobile legs below see the default German explanation language.
+        + `body direction=${afterLanguage.bodyDir}; html dir=${afterLanguage.htmlDir}; exam lang/dir=${afterLanguage.examLang}/${afterLanguage.examDir}`);
+    // Restore German for the remaining journey's declared interface language.
     await cdp.evaluate(`
       const sel = document.getElementById('language');
       sel.value = 'de';
@@ -1658,7 +1727,7 @@ async function main() {
       return true;
     `);
     await clickSel(cdp, '#save-settings');
-    await sleep(600);
+    await cdp.waitFor("document.documentElement.lang === 'de' && document.querySelector('#header-language')?.value === 'de' && !document.querySelector('#header-language').disabled && !document.querySelector('#save-settings').disabled", 15000, 'confirmed German settings');
 
     await clickSel(cdp, '[data-view="heute"]');
     await softWait(cdp, "location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '/heute'", 8000, 'Heute');
@@ -1688,8 +1757,51 @@ async function main() {
 
     await viewport(cdp, 390, 844, true);
     mark = cdp.events.length;
-    await nav(cdp, `${base}/app/`);
-    await softWait(cdp, "document.querySelector('#view-heute') && !document.querySelector('#view-heute').hidden", 15000, 'Heute on mobile');
+    const mobileReady = `(() => {
+      const shell = document.querySelector('#app-shell'), view = document.querySelector('#view-heute');
+      return Boolean(shell && !shell.hidden && !shell.inert && shell.getAttribute('aria-busy') === 'false'
+        && view && !view.hidden && view.getBoundingClientRect().height > 0);
+    })()`;
+    // The initially unhidden view is not evidence that its ancestor has finished account bootstrap.
+    // Hold the real settings receipt to prove that the old predicate accepts the loading screen.
+    let heldSettings, mobileNavigation, settingsTimer;
+    let resolveSettings, rejectSettings;
+    const settingsReceipt = new Promise((resolve, reject) => { resolveSettings = resolve; rejectSettings = reject; });
+    const settingsListener = event => {
+      const message = JSON.parse(event.data);
+      if (message.method !== 'Fetch.requestPaused') return;
+      const paused = message.params;
+      if (!heldSettings && paused.request.method === 'GET' && new URL(paused.request.url).pathname === '/api/v1/settings') {
+        heldSettings = paused;
+        resolveSettings(paused);
+      }
+    };
+    cdp.ws.addEventListener('message', settingsListener);
+    try {
+      await cdp.send('Fetch.enable', { patterns: [{ urlPattern: base + '/api/v1/settings', requestStage: 'Response' }] });
+      settingsTimer = setTimeout(() => rejectSettings(new Error('Mobile bootstrap settings receipt was not observed')), 15000);
+      mobileNavigation = nav(cdp, `${base}/app/`).then(() => null, error => error);
+      await settingsReceipt;
+      const body = await cdp.send('Fetch.getResponseBody', { requestId: heldSettings.requestId });
+      const settings = JSON.parse(body.base64Encoded ? Buffer.from(body.body, 'base64').toString('utf8') : body.body);
+      const pending = await cdp.evaluate(`return {
+        oldPredicate: Boolean(document.querySelector('#view-heute') && !document.querySelector('#view-heute').hidden),
+        interactive: ${mobileReady}, hidden: document.querySelector('#app-shell')?.hidden,
+        inert: document.querySelector('#app-shell')?.inert, readyState: document.readyState
+      };`);
+      record('L21a mobile layout waits for the real account bootstrap receipt',
+        heldSettings.responseStatusCode === 200 && settings.settings?.language === 'de'
+          && pending.oldPredicate && !pending.interactive && pending.hidden && pending.inert,
+        JSON.stringify(pending));
+    } finally {
+      clearTimeout(settingsTimer);
+      cdp.ws.removeEventListener('message', settingsListener);
+      try { if (heldSettings) await cdp.send('Fetch.continueRequest', { requestId: heldSettings.requestId }); }
+      finally { await cdp.send('Fetch.disable'); }
+    }
+    const navigationError = await mobileNavigation;
+    if (navigationError) throw navigationError;
+    await cdp.waitFor(mobileReady, 15000, 'interactive Heute on mobile');
     await sleep(600);
     const mobile = await cdp.evaluate(`
       const side = document.querySelector('.side');
@@ -2126,20 +2238,22 @@ async function main() {
       `body ${themeState.bodyBg} (luminance ${themeState.bodyLuminance.toFixed(3)}), --ink ${themeState.ink}`);
     const darkViews = [
       ['lesen', '#/lesen', '#view-lesen', '19-lesen-desktop-dark'],
-      ['woerterbuch', '#/woerterbuch', '#dict-results', '20-woerterbuch-desktop-dark'],
-      ['nachschlagen', '#/nachschlagen', '#guide-index', '21-nachschlagen-desktop-dark'],
+      ['wortschatz', '#/wortschatz', '#vocab-host', '20-wortschatz-desktop-dark'],
+      ['nachschlagen', '#/nachschlagen', '#library-host', '21-nachschlagen-desktop-dark'],
       ['fehler', '#/fehler', '#view-fehler', '22-fehler-desktop-dark'],
-      ['fortschritt', '#/fortschritt', '#view-fortschritt', '23-fortschritt-desktop-dark'],
+      ['verlauf', '#/verlauf', '#view-verlauf', '23-verlauf-desktop-dark'],
     ];
     for (const [view, hash, selector, name] of darkViews) {
-      await clickSel(cdp, `[data-view="${view}"]`);
+      if (view === 'verlauf') await nav(cdp, base + '/app/' + hash);
+      else await clickSel(cdp, `[data-view="${view}"]`);
       await softWait(cdp, `location.hash === '#/prep/' + document.querySelector('#preparation-picker').value + '${hash.slice(1)}'`, 8000, hash);
-      await softWait(cdp, `document.querySelector('${selector}')`, 10000, selector);
-      await sleep(500);
+      const positiveReady = view === 'wortschatz' ? vocabularyReady : view === 'nachschlagen' ? libraryReady : null;
+      const loaded = await softWait(cdp, positiveReady || `document.querySelector('${selector}')`, 10000, selector);
+      if (!positiveReady) await sleep(500);
       const audit = await cdp.evaluate(contrastAudit);
       await shot(cdp, name);
       record(`L30.${view} every control on the ${view} view is legible in dark mode`,
-        audit.offenders.length === 0,
+        (!positiveReady || loaded) && audit.offenders.length === 0,
         `${audit.count} control(s); offenders=${JSON.stringify(audit.offenders)}`);
     }
 
@@ -2148,12 +2262,12 @@ async function main() {
      * the shape that was invisible before this pass — and it is the surface a learner uses to answer.
      */
     await clickSel(cdp, '[data-view="lesen"]');
-    await softWait(cdp, "document.querySelector('#view-lesen [data-open]')", 12000, 'the reading catalogue');
-    await clickSel(cdp, '#view-lesen [data-open]');
-    await softWait(cdp, "document.querySelector('#view-lesen [data-answer]')", 12000, 'the answer tiles');
+    await cdp.waitFor("document.querySelector('#lesen-host [data-part-open=LV1]')?.getBoundingClientRect().height>0", 12000, 'the reading part index');
+    await clickSel(cdp, '#lesen-host [data-part-open=LV1]');
+    await cdp.waitFor("document.querySelector('#lesen-host [data-answer-item]')", 12000, 'the answer controls');
     await sleep(400);
     const openSetAudit = await cdp.evaluate(contrastAudit);
-    const tiles = await cdp.evaluate(`return document.querySelectorAll('#view-lesen [data-answer]').length;`);
+    const tiles = await cdp.evaluate(`return document.querySelectorAll('#lesen-host [data-answer-item]').length;`);
     await shot(cdp, '24-set-open-desktop-dark');
     record('L31 the answer tiles are legible in dark mode, where the same un-variant button shape was invisible',
       openSetAudit.offenders.length === 0 && tiles > 0,

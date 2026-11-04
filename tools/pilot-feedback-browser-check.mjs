@@ -20,8 +20,8 @@ const port = () => new Promise((resolve,reject) => {
   const server = net.createServer(); server.once('error',reject);
   server.listen(0,'127.0.0.1',() => { const value = server.address().port; server.close(() => resolve(value)); });
 });
-const appPort = await port(), dbPort = await port(), debugPort = await port();
-assert.equal(new Set([appPort,dbPort,debugPort]).size,3);
+const appPort = await port(), dbPort = await port();
+assert.notEqual(appPort,dbPort);
 assert.ok(![appPort,dbPort].some(p => [4300,55440].includes(p)));
 const base = 'http://127.0.0.1:' + appPort;
 const env = {...browserEnvironment(),HATOVE_APP_PORT:String(appPort),HATOVE_DB_PORT:String(dbPort),
@@ -45,7 +45,12 @@ try {
   // Match the released listening package; the original v1 blueprint deliberately has no playback contract.
   console.log('Listening package: '+compose(['run','--rm','--no-deps','-T','migrate','node','tools/import-exam-package.mjs',
     'content/exams/telc-deutsch-b1/listening-package.json','--media-root','/app/media']));
+  // Allocate immediately before Chrome binds; do not leave a released ephemeral port across a build.
+  const debugPort = await port();
+  assert.ok(![appPort,dbPort].includes(debugPort));
   browser = await launchBrowser(debugPort,{autoPlay:true}); cdp = await connectToPage(debugPort);
+  const startup = browser.diagnostics();
+  console.log('Chrome startup: '+JSON.stringify({pid:startup.pid,port:startup.port,elapsedMs:startup.elapsedMs,ownedEndpoint:true}));
   await cdp.send('Network.enable');
   await cdp.send('Page.navigate',{url:base+'/signin?mode=signup'});
   await cdp.waitFor("document.querySelector('#su-submit')");
@@ -249,6 +254,10 @@ try {
   assert.deepEqual(lifecycle,{creates:1,uploads:2,retry:'retry-upload',done:'close',reset:'submit',usable:true,staleLocale:true,staleRoute:true,timeout:true,secret:'SYNTHETIC-PRIVATE',leftovers:0});
   pass('upload retry saves one report, reopen resets controls, stale capture locale/route cancels, failure/timeout preserve live input');
   console.log('Screenshots: '+shots);
+} catch (error) {
+  const diagnostics = error.browserDiagnostics || browser?.diagnostics();
+  if (diagnostics) fs.writeFileSync(path.join(shots,'chrome-startup.json'),JSON.stringify(diagnostics,null,2));
+  throw error;
 } finally {
   if(cdp) cdp.ws.close();
   if(browser) await browser.cleanup();

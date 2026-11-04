@@ -10,14 +10,14 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
   const browsers=[], connections=[];
   const assert=(value,message)=>{if(!value)throw Error(message);};
   const run=async(name,work)=>{try{await work();record(name,true);}catch(error){record(name,false,error.stack||error.message);if(error.code==='Q01_A11Y')throw error;}};
-  const request=(cdp,route,method='GET',body)=>cdp.evaluate(`return (async()=>{const response=await fetch(${JSON.stringify(route)},{method:${JSON.stringify(method)},credentials:'same-origin',headers:{'content-type':'application/json'}${body===undefined?'':',body:'+JSON.stringify(JSON.stringify(body))}});return {status:response.status,data:await response.json()};})()`);
+  const request=(cdp,route,method='GET',body)=>cdp.evaluate(`return (async()=>{const session=await (await fetch('/api/auth/get-session',{credentials:'same-origin'})).json();const response=await fetch(${JSON.stringify(route)},{method:${JSON.stringify(method)},credentials:'same-origin',headers:{'content-type':'application/json','X-Hatoove-Account':session.user.id}${body===undefined?'':',body:'+JSON.stringify(JSON.stringify(body))}});return {status:response.status,data:await response.json()};})()`);
   const ready=cdp=>cdp.waitFor("document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden && document.querySelector('#preparation-picker').value",20000);
   const launch=async()=>{const port=await freePort(),browser=await launchBrowser(port);browsers.push(browser);const cdp=await connectToPage(port);connections.push(cdp);await cdp.send('Network.enable');await viewport(cdp,1440,900,false);await theme(cdp,'light');return cdp;};
-  const signin=async cdp=>{await nav(cdp,base+'/signin');await setInputs(cdp,{'si-email':email,'si-password':password});await clickSel(cdp,'#si-submit');await cdp.waitFor("document.querySelector('#boot-choices') && !document.querySelector('#boot-choices').hidden || document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden",20000);};
+  const signin=async cdp=>{await nav(cdp,base+'/signin');await cdp.evaluate("const picker=document.querySelector('#interface-language');picker.value='de';picker.dispatchEvent(new Event('change',{bubbles:true}));return true;");await cdp.waitFor("document.documentElement.lang==='de'");await setInputs(cdp,{'si-email':email,'si-password':password});await clickSel(cdp,'#si-submit');await cdp.waitFor("document.querySelector('#boot-choices') && !document.querySelector('#boot-choices').hidden || document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden",20000);};
   const fresh=async(cdp,runId)=>{const token=randomUUID();await cdp.evaluate(`window.__s5Document=${JSON.stringify(token)};return true;`);const result=await cdp.send('Page.navigate',{url:base+'/app/?s5Probe='+token+'#/lauf/'+runId});assert(result.loaderId,'fresh document required');await cdp.waitFor(`window.__s5Document!==${JSON.stringify(token)} && document.readyState==='complete'`,20000);await ready(cdp);await cdp.waitFor("document.querySelector('[data-listening-status]')",15000);};
   const pointer=async(cdp,selector)=>{const box=await cdp.evaluate(`const el=document.querySelector(${JSON.stringify(selector)});if(!el||el.disabled)return null;el.scrollIntoView({block:'center'});const r=el.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};`);assert(box,'control unavailable '+selector);await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...box});await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...box});};
-  const action=(cdp,name)=>pointer(cdp,`[data-listening-action="${name}"]`);
-  const waitControl=(cdp,name)=>cdp.waitFor(`document.querySelector('[data-listening-action="${name}"]') && !document.querySelector('[data-listening-action="${name}"]').disabled`,15000);
+  const action=async(cdp,name)=>{await waitControl(cdp,name);await pointer(cdp,`[data-listening-action="${name}"]`);};
+  const waitControl=(cdp,name)=>cdp.waitFor(`(()=>{const el=document.querySelector('[data-listening-action="${name}"]');const r=el?.getBoundingClientRect();return el&&!el.matches(':disabled')&&r.width>0&&r.height>0;})()`,15000);
   const playback=async(cdp,id)=>(await request(cdp,'/api/v1/mock-runs/'+id+'/playback')).data.items;
   const current=async(cdp,id)=>(await request(cdp,'/api/v1/mock-runs/'+id)).data;
   const waitPlayback=(cdp,id,mediaId,predicate)=>cdp.waitFor(`(async()=>{const r=await fetch('/api/v1/mock-runs/${id}/playback');const p=(await r.json()).items?.find(x=>x.media_id===${JSON.stringify(mediaId)});return p && (${predicate});})()`,20000);
@@ -103,7 +103,26 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
     await run('S5B8 separate mock attempt receives its own once-only DTZ allowance',async()=>{
       const mock=await start(a,dtz,'mock');assert(mock.id!==practice.id&&mock.attempt_mode==='mock'&&mock.deadline_at,'separate timed mock missing');
       assert((await playback(a,mock.id)).every(p=>p.plays_used===0&&p.max_plays===1),'mock did not receive its own bounded allowance');
-      await fresh(a,mock.id);await action(a,'load');await waitControl(a,'play');
+      // Mounting the status node precedes the authoritative playback read. Hold that real response
+      // to distinguish a mounted player from an enabled load control without inventing an allowance.
+      const playbackUrl=base+'/api/v1/mock-runs/'+mock.id+'/playback';let held,resolveHeld,rejectHeld;
+      const responseHeld=new Promise((resolve,reject)=>{resolveHeld=resolve;rejectHeld=reject;});responseHeld.catch(()=>{});
+      const listener=event=>{const message=JSON.parse(event.data);if(message.method==='Fetch.requestPaused'&&message.params.request.url===playbackUrl){held=message.params;resolveHeld(held);}};
+      a.ws.addEventListener('message',listener);const timer=setTimeout(()=>rejectHeld(Error('Authoritative playback response was not held')),20000);
+      try{
+        await a.send('Fetch.enable',{patterns:[{urlPattern:playbackUrl,requestStage:'Response'}]});
+        await fresh(a,mock.id);await responseHeld;assert(held.responseStatusCode===200,'Held playback response was refused');
+        const body=await a.send('Fetch.getResponseBody',{requestId:held.requestId});const returned=JSON.parse(body.base64Encoded?Buffer.from(body.body,'base64').toString('utf8'):body.body);
+        assert(returned.items.every(p=>p.plays_used===0&&p.max_plays===1),'Real held response changed the separate once-only allowance');
+        const pending=await a.evaluate("return {route:location.hash,status:document.querySelector('[data-listening-status]')?.textContent,buttons:[...document.querySelectorAll('[data-listening-action]')].map(el=>({action:el.dataset.listeningAction,disabled:el.matches(':disabled')}))};");
+        assert(pending.route.endsWith('/'+mock.id)&&pending.status&&pending.buttons.some(b=>b.action==='reload'&&b.disabled)&&!pending.buttons.some(b=>b.action==='load'),'Expected mounted player awaiting its real receipt');
+        console.log('S5 pending authoritative playback '+JSON.stringify(pending));await shot(a,'s5-mock-playback-receipt-pending','.listening-player');
+        let immediate;try{await pointer(a,'[data-listening-action="load"]');}catch(error){immediate=error.message;}
+        assert(immediate==='control unavailable [data-listening-action="load"]','Mounted-only discriminator did not reject the unavailable control');
+      }finally{
+        clearTimeout(timer);a.ws.removeEventListener('message',listener);try{if(held)await a.send('Fetch.continueRequest',{requestId:held.requestId});}finally{await a.send('Fetch.disable');}
+      }
+      await action(a,'load');await waitControl(a,'play');
       const deadline=(await current(a,mock.id)).deadline_at;await fresh(a,mock.id);assert((await current(a,mock.id)).deadline_at===deadline,'refresh reset clock');
       practice=mock;first=mock.members[0].recordings[0];
     });
@@ -130,13 +149,15 @@ export async function verifyExamS5({base,email,password,freePort,record,shot,vie
       await a.waitFor("document.querySelector('[data-listening-audio]')?.currentTime>0.2",5000);
       await a.waitFor("document.querySelector('#mock-deadline')?.textContent==='Zeit abgelaufen' && document.querySelector('[data-listening-audio]')?.paused",10000);
       await shot(a,'s5-expired-desktop');
-      await clickSel(a,'a[href="#/abschnitt"]');await a.waitFor("!document.querySelector('#mock-deadline') && document.querySelector('[data-mock-refresh]')",10000);
+      await pointer(a,'a[data-view="probepruefung"]');await a.waitFor("location.hash.endsWith('/probepruefung') && !document.querySelector('#view-probepruefung').hidden && document.querySelector('#view-abschnitt').hidden && document.querySelector('[data-mock-intro]')?.getBoundingClientRect().height>0",10000);
+      assert(await a.evaluate("return !document.querySelector('#mock-deadline')?.getBoundingClientRect().height && document.querySelector('[data-listening-audio]')?.paused!==false"),'expired player remains visible or playing after leaving');
       await fresh(a,expiring.id);await clickSel(a,'[data-mock-action="confirm"]');await clickSel(a,'[data-mock-action="finalise"]');
       await a.waitFor("document.querySelector('.mock-results')",10000);
       const closed=await current(a,expiring.id);assert(closed.state==='finalised'&&closed.result.answered===1,'expired finalisation lost confirmed answer');
     });
     await run('S5B11 telc blueprint retains one/two/two and cross-exam media is refused',async()=>{
-      const tc=await start(a,telc,'practice');assert(tc.members.map(m=>m.recordings[0].max_plays).join(',')==='1,2,2','telc policy replaced with DTZ');
+      const practiceTc=await start(a,telc,'practice');assert(practiceTc.members.map(m=>m.recordings[0].max_plays).join(',')==='1,1,1','historical practice form did not use its bound practice allowance');
+      const tc=await start(a,telc,'mock');assert(tc.members.map(m=>m.recordings[0].max_plays).join(',')==='1,2,2','telc mock policy replaced with DTZ');
       const alien='/api/v1/mock-runs/'+tc.id+'/media/'+first.media_id+'/'+first.media_version;
       assert((await a.evaluate(`return fetch(${JSON.stringify(alien)}).then(r=>r.status);`))===404,'cross-exam recording readable');
       assert(!tc.members.some(m=>m.recordings.some(r=>r.media_id===first.media_id)),'cross-exam binding leaked');

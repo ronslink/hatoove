@@ -39,10 +39,10 @@ export async function verifyExamS6({base,email,newcomerEmail,password,fixture,av
       assert((await api(a,'/api/v1/tasks?preparationId='+prep.id)).data.length===2,'Approved A/B prompts absent');
       assert((await api(a,'/api/v1/objective-sets?preparationId='+prep.id)).data.length===5,'Approved reading absent');
       const offer=await api(a,'/api/v1/checkout/offer?exam='+DTZ+'&market=DE');assert(offer.status===200&&offer.data.offer.purchasable,'Available purchase offer absent');
-      await nav(a,base+'/app/#/prep/'+prep.id+'/abschnitt');await ready(a);await a.waitFor("document.querySelector('[data-mock-start]')",10000);await shot(a,'s6-public-full-catalogue-desktop','#mock-host');
+      await nav(a,base+'/app/#/prep/'+prep.id+'/probepruefung');await ready(a);await a.waitFor("document.querySelector('[data-mock-intro-start]')",10000);await shot(a,'s6-public-full-catalogue-desktop','#mock-intro-host');
     });
     await check('S6B3 learner starts the public45-item mock, saves an HV response and loads protected fixed audio',async()=>{
-      await pointer(a,'[data-mock-start]');await a.waitFor("/[a-f0-9-]{36}$/.test(location.hash) && document.querySelector('.mock-options input') && document.querySelector('[data-mock-action=save]')",15000);
+      await pointer(a,'[data-mock-intro-start]');await a.waitFor("/[a-f0-9-]{36}$/.test(location.hash) && document.querySelector('.mock-options input') && document.querySelector('[data-mock-action=save]')",15000);
       const id=await a.evaluate("return location.hash.split('/').at(-1)");run=(await api(a,'/api/v1/mock-runs/'+id)).data;
       assert(run.members.reduce((sum,member)=>sum+member.item_count,0)===45&&run.release_version===availableVersion&&!run.blocked_reason,'Wrong public pinned run');
       assert(run.timing.active_group_id==='dtz-hv-25'&&run.members[0].recordings.every(recording=>recording.max_plays===1),'Wrong DTZ timing/allowance');
@@ -77,8 +77,9 @@ export async function verifyExamS6({base,email,newcomerEmail,password,fixture,av
       await pointer(a,'[data-mock-member="0"][data-mock-item="1"]');await a.waitFor("document.querySelector('[data-mock-member=\"0\"][data-mock-item=\"1\"][aria-current=step]') && !document.querySelector('[data-mock-action=save]').disabled",10000);
       await answer(2);const continued=await read();assert(JSON.stringify(continued.responses[0])===JSON.stringify(savedResponses[0]),'Original response changed');savedResponses=continued.responses;
       await layouts('s6-pinned-after-closure','.mock-options');
-      await nav(a,base+'/app/#/prep/'+prep.id+'/abschnitt');await ready(a);await a.waitFor("document.querySelector('#mock-host').textContent.includes('Zurzeit ist kein Lauf')",10000);
-      assert(await a.evaluate(`return Boolean(document.querySelector('[data-mock-run="${run.id}"]'))`),'Saved run history lost');await shot(a,'s6-closed-new-start-preserved-history','#mock-host');
+      await nav(a,base+'/app/#/prep/'+prep.id+'/probepruefung');await ready(a);await a.waitFor("document.querySelector('#mock-intro-host .mock-intro-start')?.textContent.includes('Zurzeit ist kein Lauf') && !document.querySelector('#mock-intro-host [data-mock-intro-start]')",10000);
+      const resume=`#mock-intro-host a[href="#/lauf/${run.id}"]`;await a.waitFor(`document.querySelector(${JSON.stringify(resume)})?.textContent.trim().length>0`,10000);await shot(a,'s6-closed-new-start-preserved-history','#mock-intro-host');
+      await clickSel(a,resume);await a.waitFor("document.querySelector('.mock-options input:checked')",10000);assert((await read()).release_version===availableVersion,'History link lost the pinned release');
     });
     await check('S6B6 exact media rights withdrawal blocks the protected bundle while retaining answers and history',async()=>{
       withdrawPinned();const blocked=await read();assert(blocked.blocked_reason==='rights_blocked'&&blocked.members.length===0,'Withdrawn content exposed');assert(JSON.stringify(blocked.responses)===JSON.stringify(savedResponses),'Withdrawal lost answers');

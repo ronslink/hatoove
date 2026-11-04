@@ -18,9 +18,9 @@ on:
     branches: [main]
   # The rendered gate is the only browser job and runs on a schedule rather than on every push.
   # The required PostgreSQL job also uses Docker for its isolated certificate-verification fixture.
-  # Keeping the longer rendered suite scheduled avoids charging its full run time to every change.
+  # Run the full suite weekly (Sunday, 03:17 UTC); change-triggered code/database gates stay intact.
   schedule:
-    - cron: '17 3 * * *'
+    - cron: '17 3 * * 0'
   workflow_dispatch:
 permissions:
   contents: read
@@ -49,6 +49,8 @@ jobs:
       # called `fs` in a file that imports no `fs`, with a `catch` that swallowed the ReferenceError.
       - name: The workflow-shape check detects every mutation it claims to
         run: node --test tools/workflow-shape.test.mjs
+      - name: Browser launcher owns endpoints and bounds startup failures
+        run: node --test tools/cdp-launch.test.mjs
       # DESIGN-LANGUAGE.md: no raw colour or font family in a rule, the required tokens present,
       # the dark override present, the mobile breakpoints and reduced motion honoured, every view
       # registered through the shell. The selected-language interface has focused checks below. This gate
@@ -406,7 +408,7 @@ jobs:
   # drives headless Chrome, so it needs a browser in the image, a Docker daemon, and ~20 minutes. The recorded
   # plan is to make it required only after a stretch of green runs -- a rendered gate that is required from day
   # one and flakes teaches people to ignore red, which is worse than a gate that is honest about being new.
-  # It therefore runs on the nightly schedule and on demand, never on every push.
+  # It therefore runs on the weekly schedule and on demand, never on every push.
   #
   # WHY IT CAN FAIL FOR ENVIRONMENTAL REASONS, SAID OUT LOUD: the two checks need `docker compose` and a Chrome
   # binary. Both are asserted in their own preflight steps, so a missing browser is a named failure rather than
@@ -448,11 +450,14 @@ jobs:
         run: |
           "${CHROME_PATH}" --version
       - name: Install the pinned accessibility test engine
+        id: rendered_prerequisites
         run: npm ci --prefix tools/a11y --ignore-scripts --no-audit --no-fund
       - name: Real stack - migrations, API, worker and account lifecycle
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         run: node tools/docker-stack-check.mjs
       - name: Feedback capture, listening, survey and retry lifecycle
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
@@ -467,51 +472,61 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - name: Rendered client and accessibility states at desktop and mobile
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/app-browser-check.mjs --axe --design-evidence=served-only --shots .qa/browser/q01-app
       - name: Isolated two-exam reading and save-before-switch browser acceptance
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s3-browser-check.mjs
       - name: Isolated DTZ writing choice and mock recovery browser acceptance
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s4-browser-check.mjs
       - name: Isolated fixed listening and playback recovery browser acceptance
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s5-browser-check.mjs --axe --shots .qa/browser/q01-audio
       - name: Isolated stub checkout and accessibility states
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/payment-browser-check.mjs --axe --shots .qa/browser/q01-payments
       - name: Complete written mock boundaries and assigned or choice writing
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s5b-browser-check.mjs
       - name: Public complete DTZ admission and pinned recovery browser acceptance
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s6-browser-check.mjs
       - name: Review withdrawal preserves draft copies and completed history
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/exam-s6-browser-check.mjs --review --shots .qa/browser/c03-review
       - name: Saved explanation language speech and stale response behavior
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
         run: node tools/explanation-browser-check.mjs --shots .qa/browser/pilot07-explanations
       - name: Interface languages preserve live work across account and navigation boundaries
+        if: ${{ !cancelled() && steps.rendered_prerequisites.outcome == 'success' }}
         timeout-minutes: 12
         env:
           CHROME_PATH: /usr/bin/google-chrome
@@ -552,14 +567,15 @@ jobs:
             .qa/browser/q01-app/
             .qa/browser/q01-audio/
             .qa/browser/q01-payments/
+            .qa/exam-s4/
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
       - name: Where the rendered evidence went
         if: failure()
         run: |
-          echo "Screenshots (if any) were written under .qa/browser/:"
-          find .qa/browser -type f -name '*.png' | sort | tail -40 || true
+          echo "Screenshots (if any) were written under .qa/browser/ or .qa/exam-s4/:"
+          find .qa/browser .qa/exam-s4 -type f -name '*.png' | sort | tail -40 || true
   fixtures:
     name: Exam and feedback fixtures
     runs-on: ubuntu-latest

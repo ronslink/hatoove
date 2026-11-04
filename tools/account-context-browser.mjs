@@ -4,9 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { launchBrowser, connectToPage, CDP } from './cdp.js';
 
 export async function verifyAccountContext({ base, freePort, record, shot, viewport, theme, nav, setInputs, clickSel }) {
-  const port = await freePort();
-  const browser = await launchBrowser(port);
-  let a, other;
+  let browser, a, other;
   const password = 'synthetic-context-browser-password';
   const accounts = [];
   async function raw(cookie, path, method = 'GET', body, expected) {
@@ -23,13 +21,15 @@ export async function verifyAccountContext({ base, freePort, record, shot, viewp
       const preparations=await raw(created.cookie,'/api/v1/preparations');
       accounts.push({ email, cookie: created.cookie, id: identity.data.id, preparationId:fixturePreparation(preparations.data) });
     }
+    const port = await freePort();
+    browser = await launchBrowser(port);
     a = await connectToPage(port);
     await a.send('Network.enable');
     await viewport(a, 1440, 900, false);
     await nav(a, base + '/signin');
     await setInputs(a, { 'si-email': accounts[0].email, 'si-password': password });
     await clickSel(a, '#si-submit');
-    await a.waitFor("document.querySelector('#account-email')?.textContent.includes('@')", 15000);
+    await a.waitFor("document.querySelector('#account-email')?.textContent.includes('@') && document.querySelector('#app-shell')?.inert===false && document.querySelector('#app-shell')?.getAttribute('aria-busy')==='false'", 15000);
     await clickSel(a, '.side [data-view="einstellungen"]');
     await a.waitFor("!document.querySelector('#view-einstellungen').hidden");
     const settingsA = (await raw(accounts[0].cookie, '/api/v1/settings')).data;
@@ -104,6 +104,6 @@ export async function verifyAccountContext({ base, freePort, record, shot, viewp
     await shot(a, '38-account-changed-draft-mobile-dark');
     record('A8 account recovery and retained text fit a phone', await a.evaluate('return document.documentElement.scrollWidth <= innerWidth'));
   } finally {
-    a?.ws.close(); other?.ws.close(); await browser.cleanup();
+    a?.ws.close(); other?.ws.close(); await browser?.cleanup();
   }
 }

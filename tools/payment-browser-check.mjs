@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
+import { request as httpRequest } from 'node:http';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { verifyPayments } from './payment-browser.mjs';
@@ -117,9 +118,41 @@ try {
       // non-blocking: synchronous Docker probes here stall concurrent HTTP confirmations.
       const rawBody = JSON.stringify(event);
       const signature = buildSignatureHeader({ rawBody, secret: webhookSecret, timestamp: Math.floor(Date.now() / 1000) });
-      const response = await fetch(base + '/api/v1/payments/stripe/webhook', { method: 'POST',
-        headers: { 'content-type': 'application/json', 'stripe-signature': valid ? signature : 'invalid' }, body: rawBody });
-      return { status: response.status, body: await response.json() };
+      const url = base + '/api/v1/payments/stripe/webhook';
+      try {
+        // Each synthetic delivery owns a fresh connection. Synchronous Docker fixture work can
+        // otherwise leave closed keep-alive sockets awaiting events in the global fetch pool.
+        return await new Promise((resolve, reject) => {
+          let settled = false, timeout, bytes = 0;
+          const chunks = [];
+          const finish = (error, value) => {
+            if (settled) return;
+            settled = true; clearTimeout(timeout); request.destroy();
+            if (error) reject(error); else resolve(value);
+          };
+          const request = httpRequest(url, { method: 'POST', agent: false,
+            headers: { 'content-type': 'application/json', 'stripe-signature': valid ? signature : 'invalid' } }, response => {
+            response.on('data', chunk => {
+              bytes += chunk.length;
+              if (bytes > 65536) finish(new Error('Synthetic webhook response exceeded 64 KiB'));
+              else chunks.push(chunk);
+            });
+            response.on('aborted', () => finish(new Error('Synthetic webhook response aborted')));
+            response.on('error', error => finish(error));
+            response.on('end', () => {
+              try { finish(null, { status: response.statusCode, body: JSON.parse(Buffer.concat(chunks).toString('utf8')) }); }
+              catch (error) { finish(error); }
+            });
+          });
+          request.on('error', error => finish(error));
+          timeout = setTimeout(() => finish(new Error('Synthetic webhook exceeded 10 seconds')), 10000);
+          request.end(rawBody);
+        });
+      } catch (error) {
+        const cause = error.cause;
+        const detail = [error.message, error.code, cause?.code, cause?.message].filter(Boolean).join(': ').slice(0, 1000);
+        throw new Error(`Synthetic webhook POST ${url} failed: ${detail}`, { cause: error });
+      }
     },
     changeMode: async mode => {
       if (!['off', 'stub'].includes(mode)) throw Error('Only isolated off/stub modes allowed');

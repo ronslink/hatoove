@@ -89,10 +89,10 @@ export async function verifyPayments({ base, email, password, freePort, record, 
             if (!paused) await new Promise(resolve => setTimeout(resolve, 50));
           }
           assert(paused, 'Offer request was not actually delayed');
-          if (moveOutside) assert(await cdp.evaluate("document.querySelector('#lang-btn').focus();return document.activeElement.id==='lang-btn'"), 'Outside control was not focusable');
+          if (moveOutside) assert(await cdp.evaluate("document.querySelector('#header-language').focus();return document.activeElement.id==='header-language'"), 'Outside control was not focusable');
           await cdp.send('Fetch.continueRequest', { requestId: paused.params.requestId });
           await state(cdp, 'ready');
-          const expected = moveOutside ? 'lang-btn' : 'checkout-market';
+          const expected = moveOutside ? 'header-language' : 'checkout-market';
           assert(await cdp.evaluate(`return document.activeElement.id===${JSON.stringify(expected)}`), 'Delayed offer changed keyboard focus incorrectly');
         } finally { await cdp.send('Fetch.disable'); }
       }
@@ -147,7 +147,14 @@ export async function verifyPayments({ base, email, password, freePort, record, 
     });
     await run('PAY-B8 signed delayed success activates once across concurrent redelivery', async () => {
       paidEvent = eventFor(orderId, 'checkout.session.async_payment_succeeded');
-      const responses = await Promise.all([webhook(paidEvent), webhook(paidEvent), webhook(eventFor(orderId))]);
+      // eventFor performs synchronous fixture queries. Finish every payload before starting HTTP
+      // delivery so Docker verification cannot block the event loop with confirmations in flight.
+      const completedEvent = eventFor(orderId);
+      const deliveries = await Promise.allSettled([webhook(paidEvent), webhook(paidEvent), webhook(completedEvent)]);
+      // Settle the entire concurrent batch before another check can issue synchronous fixture queries.
+      assert(deliveries.every(result => result.status === 'fulfilled'), JSON.stringify(deliveries.map(result =>
+        result.status === 'fulfilled' ? { status: result.value.status } : { error: result.reason?.message || String(result.reason) })));
+      const responses = deliveries.map(result => result.value);
       assert(responses.every(r => r.status === 200), JSON.stringify(responses));
       await clickSel(cdp, '#checkout-refresh'); await state(cdp, 'paid');
       const after = balance();

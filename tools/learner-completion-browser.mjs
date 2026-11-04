@@ -28,7 +28,7 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     const assessed = history.find(a => a.status === 'assessed');
     if (!assessed) throw new Error('precondition: no assessed writing from the main journey');
     const original = (await request('/api/v1/submissions/' + assessed.submission_id)).data;
-    await clickSel(cdp, '.side [data-view="fortschritt"]');
+    await clickSel(cdp, 'a[href="#/verlauf"]');
     await cdp.waitFor("document.querySelectorAll('#history-list [data-attempt]').length > 0", 12000);
     const count = await cdp.evaluate("return document.querySelectorAll('#history-list [data-attempt]').length");
     record('C1 a fresh browser rediscovers all saved writing through history', count === history.length && count > 0, `${count} UI rows, ${history.length} server rows`);
@@ -64,7 +64,7 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     const unchanged = (await request('/api/v1/submissions/' + assessed.submission_id)).data;
     record('C4 immediate navigation saves the revision without changing the original', draft.text === revisedText && unchanged.submission.text === inherited && revision.task_version === assessed.task_version);
 
-    await clickSel(cdp, '.side [data-view="fortschritt"]');
+    await clickSel(cdp, 'a[href="#/verlauf"]');
     await cdp.waitFor(`document.querySelector('[data-attempt="${revision.id}"]')`, 12000);
     await clickSel(cdp, `[data-attempt="${revision.id}"]`);
     await cdp.waitFor("document.querySelector('#writing-text')", 12000);
@@ -83,7 +83,7 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     await cdp.waitFor("[...document.images].every(i => i.complete && i.naturalWidth > 0)", 12000);
     await cdp.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await clickSel(cdp, '#writing-compare');
-    await cdp.waitFor("document.querySelector('#writing-state').innerText.includes('Versuche den Vergleich erneut')", 12000);
+    await cdp.waitFor("document.querySelector('#writing-state').innerText.includes('Vergleich erneut')", 12000);
     record('C5b a failed conflict comparison still offers retry', await cdp.evaluate("return Boolean(document.querySelector('#writing-compare'))"));
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     const conflictText = await cdp.evaluate("return document.querySelector('#writing-text').value");
@@ -172,17 +172,19 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     await clickSel(cdp, '.tabbar [data-view="mehr"]');
     await cdp.waitFor("!document.querySelector('#view-mehr').hidden", 12000);
     await clickSel(cdp, '#view-mehr [data-view="nachschlagen"]');
-    await cdp.waitFor("document.querySelector('[data-guide=\"writing-guide\"]')", 12000);
-    await clickSel(cdp, '[data-guide="writing-guide"]');
+    await cdp.waitFor("document.querySelector('#library-host [data-library-open=writing]')", 12000);
+    await clickSel(cdp, '#library-host [data-library-open=writing]');
     await cdp.waitFor("document.querySelectorAll('.guide-bad').length > 0", 12000);
-    record('C13 reference guides clearly distinguish authored wrong examples', await cdp.evaluate("return document.querySelectorAll('.guide-bad').length === 15 && document.querySelectorAll('.guide-good').length === 17 && !document.querySelector('#guide-body pre')"));
+    record('C13 reference guides clearly distinguish authored wrong examples', await cdp.evaluate("return document.querySelectorAll('#library-host .guide-bad').length === 15 && document.querySelectorAll('#library-host .guide-good').length === 17 && !document.querySelector('#library-host pre')"));
     await cdp.evaluate("document.querySelector('.guide-bad').scrollIntoView({block:'center'}); return true");
     await shot(cdp, '30-guide-examples-mobile-dark');
     record('C13b the readable guide fits a phone', (await overflow(cdp)).offenderCount === 0);
     await viewport(cdp, 1440, 900, false);
     await theme(cdp, 'light');
     await shot(cdp, '31-guide-examples-desktop');
-    await clickSel(cdp, '.side [data-view="satzbau"]');
+    await clickSel(cdp, '#library-host [data-library-hub]');
+    await cdp.waitFor("document.querySelector('#library-host [data-library-area=satzbau]')", 12000);
+    await clickSel(cdp, '#library-host [data-library-area=satzbau]');
     await cdp.waitFor("!document.querySelector('#view-satzbau').hidden", 12000);
     await setInputs(cdp, { 'sentence-text': 'Ich bleibe zu Hause, weil ich morgen arbeiten muss.' });
     await clickSel(cdp, '#sentence-submit');
@@ -197,12 +199,19 @@ export async function verifyLearnerCompletion({ base, email, password, freePort,
     await clickSel(cdp, '.tabbar [data-view="mehr"]');
     await cdp.waitFor("!document.querySelector('#view-mehr').hidden", 12000);
     await clickSel(cdp, '#view-mehr [data-view="sprachbausteine"]');
-    const drill = 'telc-deutsch-b1.sb1.grammar-wortstellung-v1';
-    await cdp.waitFor(`document.querySelector('[data-open="${drill}"]')`, 12000);
-    await clickSel(cdp, `[data-open="${drill}"]`);
-    await cdp.waitFor("document.querySelectorAll('#view-sprachbausteine [data-item]').length === 12", 12000);
-    const firstPrompt = await cdp.evaluate("return document.querySelector('#view-sprachbausteine [data-item]').innerText");
-    record('C15 recovered drills show readable prompts and twelve real questions', firstPrompt.includes('Ich weiß, dass') && !firstPrompt.includes('g_wortstellung') && (await overflow(cdp)).offenderCount === 0);
+    await cdp.waitFor("document.querySelector('#sprachbausteine-host [data-part-open=SB1]')", 12000);
+    const launchMark = cdp.events.length;
+    await clickSel(cdp, '#sprachbausteine-host [data-part-open=SB1]');
+    await cdp.waitFor("document.querySelector('#sprachbausteine-host [data-runner-phase=answering] [data-answer-item]')", 12000);
+    const servedEvent = cdp.events.slice(launchMark).find(event => event.method === 'Network.responseReceived'
+      && new URL(event.params.response.url).pathname.endsWith('/practice/next') && event.params.response.status === 200);
+    if (!servedEvent) throw Error('Language-elements runner has no successful source response');
+    const served = JSON.parse((await cdp.send('Network.getResponseBody', { requestId: servedEvent.params.requestId })).body);
+    const visible = await cdp.evaluate("const host=document.querySelector('#sprachbausteine-host [data-part-runner]'); return {text:host.innerText,items:[...new Set([...host.querySelectorAll('[data-answer-item]')].map(node=>node.dataset.answerItem))]};");
+    record('C15 language-elements practice renders the server-selected questions with readable content',
+      visible.items.length === served.set.items.length && visible.items.every(id => served.set.items.some(item => String(item.item_id) === id))
+        && visible.text.length > 100 && !visible.text.includes('g_wortstellung') && (await overflow(cdp)).offenderCount === 0,
+      `${visible.items.length} visible questions, ${served.set.items.length} served questions`);
     await shot(cdp, '34-grammar-drill-mobile-dark');
     await viewport(cdp, 1440, 900, false);
     await theme(cdp, 'light');

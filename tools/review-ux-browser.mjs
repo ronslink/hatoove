@@ -13,11 +13,10 @@ import { fixturePreparation, scopedFixtureRoute } from './browser-preparation-fi
  *      rendered line for a long label), nothing is clipped, the tile stays inside its card and the page
  *      gains no horizontal overflow.
  *
- *   2. THE CATALOGUE OPENS ITS OWN ENTRIES, BY EXACT IDENTITY, AND TAKES YOU BACK. The Üben catalogue
- *      listed sets and tasks that nothing could open. The legs click a catalogue control, assert that
- *      exactly ONE read was made for THAT set id and THAT version (the request URL is inspected, not
- *      the intent), assert the catalogue steps aside while the task is open, and assert closing restores
- *      it — with the same control still present.
+ *   2. CURRENT PART AND WRITING CONTROLS OPEN THEIR SERVED IDENTITIES. The redesign retired per-set
+ *      catalogue buttons. Reading now opens one released part; the actual /practice/next response pins
+ *      the set/version and the rendered feedback context must match it. The return-to-index control
+ *      follows the checked set. Writing retains exact task/version/rubric bindings on its own catalogue.
  *
  *   3. A DOUBLE CLICK DOES NOT CREATE TWO DRAFTS. The writing leg dispatches two clicks in the same
  *      task and then asks the SERVER how many open attempts exist for that task: at most one more than
@@ -114,248 +113,175 @@ export async function verifyReviewUx({ base, email, password, freePort, record, 
       throw new Error('REVIEW-UX precondition: the synthetic stack serves no writing task');
     }
 
-    // The longest authored option the stack already serves. Zero SQL: the payload comes from the API.
-    let target = null;
-    for (const set of catalogue.data) {
-      if (!['LV1', 'LV2', 'LV3', 'SB1', 'SB2'].includes(set.family) || !set.set_id || !set.version) continue;
-      const read = await request(`/api/v1/objective-sets/${encodeURIComponent(set.set_id)}?version=${encodeURIComponent(set.version)}`);
-      if (read.status !== 200) continue;
-      for (const option of optionLabels(set.family, read.data?.payload)) {
-        if (!target || option.label.length > target.label.length) {
-          target = { ...option, setId: set.set_id, version: set.version, family: set.family, label: option.label };
-        }
-      }
-    }
-    if (!target) throw new Error('REVIEW-UX precondition: no authored option label could be read from the API');
-    const expectedText = `${target.id}) ${target.label}`;
-    const longEnough = target.label.length >= LONG_OPTION_FLOOR;
+    const identity = (id, version) => JSON.stringify([id, String(version)]);
+    const apiVersions = new Set(catalogue.data.map(set => identity(set.set_id, set.version)));
+    const apiBinding = new Map(tasks.data.map(task => [task.task_id, task]));
+    let target, served;
 
-    /* -------------------------------------------------------------- the visible catalogue */
-
-    const exactIdentity = (id, version) => JSON.stringify([id, String(version)]);
-    const apiVersions = new Set(catalogue.data.map((s) => exactIdentity(s.set_id, s.version)));
-    const apiBinding = new Map(tasks.data.map((t) => [t.task_id, t]));
-
-    const openUeben = async () => {
-      /*
-       * A DIFFERENT HASH FIRST. `#/ueben` → `#/ueben` is not a route change, so the router would not
-       * re-render and a task opened by an earlier leg would stay on screen — the same trap
-       * learner-completion-browser.mjs records for the Schreiben view.
-       */
+    const openReading = async () => {
       await nav(cdp, base + '/app/#/heute');
-      await sleep(120);
-      await nav(cdp, base + '/app/#/ueben');
-      await cdp.waitFor("document.querySelector('#task-list [data-open]') || document.querySelector('#task-list [data-write]')", 15000);
-      await sleep(200);
+      await nav(cdp, base + '/app/#/lesen');
+      await cdp.waitFor("document.querySelector('#lesen-host [data-part-open=LV3]')", 15000);
+    };
+    const openWriting = async () => {
+      await nav(cdp, base + '/app/#/heute');
+      await nav(cdp, base + '/app/#/schreiben');
+      await cdp.waitFor("document.querySelector('#skill-schreiben [data-write]')", 15000);
+    };
+    const openPart = async () => {
+      const mark = cdp.events.length;
+      await clickSel(cdp, '#lesen-host [data-part-open=LV3]');
+      await cdp.waitFor("document.querySelector('#lesen-host [data-runner-phase=answering] select[data-answer-item]')", 15000);
+      // Heute can still be completing a recommendation begun before the part click. Identify the
+      // action's outgoing request first; response arrival time alone does not identify its owner.
+      const events = cdp.events.slice(mark);
+      const requests = events.filter(event => {
+        if (event.method !== 'Network.requestWillBeSent' || event.params.request.method !== 'GET') return false;
+        const url = new URL(event.params.request.url);
+        return url.origin === base && url.pathname === '/api/v1/practice/next'
+          && url.searchParams.get('family') === 'LV3' && url.searchParams.get('preparationId') === preparationId;
+      });
+      if (requests.length !== 1) throw new Error('Expected one current part request, got ' + requests.length);
+      const responses = events.filter(event => event.method === 'Network.responseReceived'
+        && event.params.requestId === requests[0].params.requestId);
+      if (responses.length !== 1) throw new Error('Expected one current part response, got ' + responses.length);
+      const body = await cdp.send('Network.getResponseBody', { requestId: responses[0].params.requestId });
+      served = JSON.parse(body.base64Encoded ? Buffer.from(body.body, 'base64').toString() : body.body);
+      if (served.family !== 'LV3' || !apiVersions.has(identity(served.set?.set_id, served.set?.version))) {
+        throw new Error('The part response is not an exact released LV3 catalogue identity');
+      }
+      const exact = await request('/api/v1/objective-sets/' + encodeURIComponent(served.set.set_id)
+        + '?version=' + encodeURIComponent(served.set.version));
+      if (exact.status !== 200) throw new Error('The exact served objective version cannot be read');
+      target = optionLabels('LV3', exact.data.payload).sort((a, b) => b.label.length - a.label.length)[0];
+      if (!target || target.label.length < LONG_OPTION_FLOOR) {
+        throw new Error('The served LV3 fixture has no option reaching the ' + LONG_OPTION_FLOOR + '-character wrap floor');
+      }
+      return cdp.evaluate("const host=document.querySelector('#lesen-host [data-part-runner]');"
+        + "const context=JSON.parse(host.dataset.feedbackContext);const rect=host.getBoundingClientRect();"
+        + "return {context,visible:rect.height>0,onScreen:rect.top>=-4&&rect.top<innerHeight*.9,"
+        + "indexGone:!document.querySelector('#lesen-host [data-part-index]'),"
+        + "items:host.querySelectorAll('select[data-answer-item]').length};");
+    };
+    const returnToIndex = async () => {
+      // The current runner returns to its index after completing the set, through its visible action.
+      await cdp.evaluate("for(const control of document.querySelectorAll('#lesen-host select[data-answer-item]')) {"
+        + "control.value=[...control.options].find(option=>option.value).value;control.dispatchEvent(new Event('change',{bubbles:true}));}return true;");
+      await clickSel(cdp, '#lesen-host [data-runner-evaluate]');
+      await cdp.waitFor("document.querySelector('#lesen-host [data-runner-phase=review] [data-runner-action=index]')", 15000);
+      await clickSel(cdp, '#lesen-host [data-runner-action=index]');
+      await cdp.waitFor("document.querySelector('#lesen-host [data-part-open=LV3]')", 15000);
+      return cdp.evaluate("const button=document.querySelector('#lesen-host [data-part-open=LV3]');"
+        + "return {control:button.getBoundingClientRect().height>=44,formGone:!document.querySelector('#lesen-host [data-part-runner]')};");
     };
 
-    await checks('RUX1 the Üben catalogue offers a control for every entry, carrying its exact identity', async () => {
-      await openUeben();
-      const seen = await cdp.evaluate(`
-        const box = document.getElementById('task-list');
-        const opens = [...box.querySelectorAll('[data-open]')].map((b) => ({ id: b.dataset.open, version: b.dataset.version, text: b.textContent.trim() }));
-        const writes = [...box.querySelectorAll('[data-write]')].map((b) => ({ id: b.dataset.write, version: b.dataset.version, rubric: b.dataset.rubric, rubricVersion: b.dataset.rubricVersion, text: b.textContent.trim() }));
-        return { opens, writes, cards: box.querySelectorAll('.card').length };
-      `);
-      const mismatched = seen.opens.filter((b) => !apiVersions.has(exactIdentity(b.id, b.version)));
-      const writingWrong = seen.writes.filter((b) => !apiBinding.has(b.id)
-        || String(apiBinding.get(b.id).version) !== b.version
-        || String(apiBinding.get(b.id).rubric_id) !== b.rubric
-        || String(apiBinding.get(b.id).rubric_version) !== b.rubricVersion);
-      const labelled = [...seen.opens, ...seen.writes].every((b) => b.text.length > 0);
-      record('RUX1 the Üben catalogue offers a control for every entry, carrying its exact identity',
-        seen.opens.length > 0 && seen.writes.length > 0 && mismatched.length === 0
-          && writingWrong.length === 0 && labelled,
-        `${seen.opens.length} Üben + ${seen.writes.length} Schreiben control(s) for ${seen.cards} card(s);`
-          + ` version mismatches ${JSON.stringify(mismatched)}; writing binding mismatches ${JSON.stringify(writingWrong.map((b) => b.id))}`);
+    await checks('RUX1 current reading parts and writing controls match released catalogue identities', async () => {
+      await openReading();
+      const parts = await cdp.evaluate("return [...document.querySelectorAll('#lesen-host [data-part-open]')]"
+        + ".map(button=>({family:button.dataset.partOpen,label:button.textContent.trim(),visible:button.getBoundingClientRect().height>0}));");
+      const expected = [...new Set(catalogue.data.filter(set => set.section === 'LV').map(set => set.family))].sort();
+      await openWriting();
+      const writes = await cdp.evaluate("return [...document.querySelectorAll('#skill-schreiben [data-write]')]"
+        + ".map(button=>({id:button.dataset.write,version:button.dataset.version,rubric:button.dataset.rubric,"
+        + "rubricVersion:button.dataset.rubricVersion,label:button.textContent.trim(),visible:button.getBoundingClientRect().height>0}));");
+      const bindings = writes.every(button => {
+        const task = apiBinding.get(button.id);
+        return task && String(task.version) === button.version && String(task.rubric_id) === button.rubric
+          && String(task.rubric_version) === button.rubricVersion && button.label && button.visible;
+      });
+      record('RUX1 current reading parts and writing controls match released catalogue identities',
+        parts.length > 0 && JSON.stringify(parts.map(part => part.family).sort()) === JSON.stringify(expected)
+          && parts.every(part => part.label && part.visible) && writes.length === tasks.data.length && bindings,
+        JSON.stringify({ parts: parts.map(part => part.family), expected, writingControls: writes.length, bindings }));
     });
 
-    /* --------------------------------------------------- objective set: exact version, open + return */
-
-    let catalogueHiddenWhileOpen = null;
-    await checks('RUX2 an objective set opens by its exact version and the catalogue steps aside', async () => {
-      if (!longEnough) {
-        record('RUX2 a long authored option is available to wrap', false,
-          `longest authored option in this stack is ${target.label.length} char(s), below the ${LONG_OPTION_FLOOR}-char floor; a coordinator fixture is required`);
-      }
-      const selector = `#task-list [data-open="${target.setId}"][data-version="${target.version}"]`;
-      await cdp.waitFor(`document.querySelector(${JSON.stringify(selector)})`, 12000);
-      const mark = cdp.events.length;
-      await clickSel(cdp, selector);
-      await cdp.waitFor("document.querySelector('.view:not([hidden]) .skill-practice [data-item]')", 15000);
-      await sleep(200);
-      const reads = cdp.events.slice(mark)
-        .filter((e) => e.method === 'Network.requestWillBeSent')
-        .map((e) => e.params.request)
-        .filter((r) => r.method === 'GET' && new URL(r.url).pathname === `/api/v1/objective-sets/${target.setId}`);
-      const versioned = reads.length === 1 && new URL(reads[0].url).searchParams.get('version') === target.version;
-      const state = await cdp.evaluate(`
-        const host = document.querySelector('.view:not([hidden]) .skill-practice');
-        const list = document.querySelector('.view:not([hidden]) .stack[id^="skill-"]');
-        const box = host ? host.getBoundingClientRect() : null;
-        return {
-          hostShown: Boolean(host) && !host.hidden,
-          catalogueHidden: Boolean(list) && list.hidden,
-          catalogueHeight: list ? Math.round(list.getBoundingClientRect().height) : null,
-          chip: (host?.querySelector('.card-head .chip')?.textContent || '').trim(),
-          items: host ? host.querySelectorAll('[data-item]').length : 0,
-          onScreen: Boolean(box) && box.top >= -4 && box.top < window.innerHeight * 0.9,
-        };
-      `);
-      catalogueHiddenWhileOpen = state.catalogueHidden;
-      record('RUX2 an objective set opens by its exact version and the catalogue steps aside',
-        versioned && state.hostShown && state.catalogueHidden && state.items >= 1 && state.onScreen
-          && state.chip.includes(`Fassung ${target.version}`),
-        `${reads.length} read(s) for ${target.setId}; version param ${reads.length ? new URL(reads[0].url).searchParams.get('version') : 'none'}`
-          + ` (expected ${target.version}); chip "${state.chip}"; catalogue hidden=${state.catalogueHidden} (height ${state.catalogueHeight});`
-          + ` ${state.items} item(s); on screen=${state.onScreen}`);
+    await checks('RUX2 a current part opens the exact served version and replaces its index', async () => {
+      await openReading();
+      const state = await openPart();
+      record('RUX2 a current part opens the exact served version and replaces its index',
+        state.visible && state.onScreen && state.indexGone && state.items > 0
+          && state.context.setId === served.set.set_id && String(state.context.version) === String(served.set.version),
+        JSON.stringify({ ...state, setId: served.set.set_id, version: served.set.version }));
       await shot(cdp, 'review-ux-objective-open-desktop');
     });
 
-    /* ------------------------------------------------------------- the full option text, measured */
+    // Long authored options live in the visible option bank; the corresponding labelled native selects
+    // provide keyboard access. This replaces the retired truncated answer-button implementation.
+    const measureOption = async () => cdp.evaluate(
+      "const item=document.querySelector('#lesen-host [data-bank-key='+CSS.escape(" + JSON.stringify(target.id) + ")+']');"
+      + "const label=item?.querySelector('span:nth-child(2)');if(!label)return {missing:true};"
+      + "const bank=item.closest('[data-layout-bank]');const rect=label.getBoundingClientRect(),bankRect=bank.getBoundingClientRect();"
+      + "const range=document.createRange();range.selectNodeContents(label);"
+      + "const controls=[...document.querySelectorAll('#lesen-host select[data-answer-item]')];"
+      + "return {text:label.textContent,title:label.getAttribute('title'),visible:rect.height>0,"
+      + "lines:new Set([...range.getClientRects()].filter(r=>r.width>0&&r.height>0).map(r=>Math.round(r.top))).size,"
+      + "clipped:label.scrollWidth>label.clientWidth+1,right:rect.right,bankRight:bankRect.right,viewport:innerWidth,"
+      + "keyboardChoice:controls.some(control=>control.tabIndex>=0&&!control.disabled&&[...control.options].some(option=>option.value==="
+      + JSON.stringify(target.id) + "&&option.textContent.includes(" + JSON.stringify(target.label) + ")))};");
+    const matches = (probe, page, wrapped = false) => !probe.missing && probe.text === target.label
+      && probe.visible && probe.keyboardChoice && probe.title === null && !probe.clipped
+      && probe.right <= probe.viewport + 1 && probe.right <= probe.bankRight + 1
+      && page.offenderCount === 0 && (!wrapped || probe.lines >= 2);
 
-    const measureOption = async () => cdp.evaluate(`
-      const id = ${JSON.stringify(target.id)};
-      const host = document.querySelector('.view:not([hidden]) .skill-practice');
-      const el = host ? host.querySelector('[data-answer="' + id + '"]') : null;
-      if (!el) return { missing: true };
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
-      const box = el.getBoundingClientRect();
-      const card = el.closest('.card');
-      const cardBox = card ? card.getBoundingClientRect() : null;
-      const cs = getComputedStyle(el);
-      return {
-        text: el.textContent,
-        tag: el.tagName,
-        type: el.getAttribute('type'),
-        focusable: el.tabIndex >= 0 && !el.disabled,
-        title: el.getAttribute('title'),
-        lines: new Set(rects.map((r) => Math.round(r.top))).size,
-        whiteSpace: cs.whiteSpace,
-        wrap: cs.overflowWrap || cs.wordWrap,
-        clipped: el.scrollWidth > el.clientWidth + 1,
-        right: Math.round(box.right),
-        cardRight: cardBox ? Math.round(cardBox.right) : null,
-        viewport: window.innerWidth,
-      };
-    `);
-
-    await checks('RUX3 the complete option text is visible, wrapped and unclipped at desktop width', async () => {
-      const probe = await measureOption();
-      const page = await overflow(cdp);
-      record('RUX3 the complete option text is visible, wrapped and unclipped at desktop width',
-        !probe.missing && probe.text === expectedText && probe.tag === 'BUTTON' && probe.type === 'button'
-          && probe.focusable && !probe.title && probe.clipped === false
-          && probe.right <= probe.viewport + 1 && probe.cardRight !== null && probe.right <= probe.cardRight + 1
-          && page.offenderCount === 0,
-        `rendered ${probe.text ? probe.text.length : 0} char(s) of the authored ${target.label.length};`
-          + ` rendered text matches the API label exactly=${probe.text === expectedText}; tag=${probe.tag}/${probe.type};`
-          + ` keyboard-focusable=${probe.focusable}; title attribute=${probe.title === null ? 'absent' : JSON.stringify(probe.title)};`
-          + ` lines=${probe.lines}; white-space=${probe.whiteSpace}; overflow-wrap=${probe.wrap}; clipped=${probe.clipped};`
-          + ` tile right=${probe.right} of card ${probe.cardRight} and viewport ${probe.viewport};`
-          + ` page overflow offenders=${page.offenderCount}`);
+    await checks('RUX3 full authored option text is visible and keyboard-selectable without clipping', async () => {
+      const probe = await measureOption(), page = await overflow(cdp);
+      record('RUX3 full authored option text is visible and keyboard-selectable without clipping',
+        matches(probe, page), JSON.stringify({ ...probe, expectedLength: target.label.length, overflow: page.offenderCount }));
     });
 
-    await checks('RUX4 closing the task returns to the catalogue', async () => {
-      await clickSel(cdp, '#practice-close');
-      await cdp.waitFor("document.querySelector('#ueben-practice')?.hidden && !document.querySelector('#skill-ueben-catalogue')?.hidden", 12000);
-      const state = await cdp.evaluate(`
-        const host = document.getElementById('ueben-practice');
-        const list = document.getElementById('skill-ueben-catalogue');
-        return {
-          hostHidden: host.hidden, hostEmpty: host.children.length === 0 && host.textContent.trim() === '',
-          catalogueShown: Boolean(list) && !list.hidden,
-          controls: list ? list.querySelectorAll('[data-open], [data-write]').length : 0,
-          formGone: !document.querySelector('[data-item]'),
-        };
-      `);
-      record('RUX4 closing the task returns to the catalogue',
-        catalogueHiddenWhileOpen === true && state.hostHidden && state.catalogueShown && state.controls > 0 && state.formGone,
-        JSON.stringify({ ...state, catalogueHiddenWhileOpen }));
+    await checks('RUX4 the checked set returns to a visible part index', async () => {
+      const state = await returnToIndex();
+      record('RUX4 the checked set returns to a visible part index', state.control && state.formGone, JSON.stringify(state));
       await shot(cdp, 'review-ux-catalogue-return-desktop');
     });
 
-    /* ------------------------------------------- writing: exact binding, one draft per double click */
-
-    await checks('RUX5 a writing card opens its exact task binding and a double click cannot create two drafts', async () => {
-      await openUeben();
-      const button = await cdp.evaluate(`
-        const b = document.querySelector('#task-list [data-write]');
-        return b ? { id: b.dataset.write, version: b.dataset.version, rubric: b.dataset.rubric, rubricVersion: b.dataset.rubricVersion } : null;
-      `);
-      if (!button) throw new Error('no writing control in the catalogue');
+    await checks('RUX5 writing opens its exact binding and a double click cannot create two drafts', async () => {
+      await openWriting();
+      const button = await cdp.evaluate("const button=document.querySelector('#skill-schreiben [data-write]');"
+        + "return {id:button.dataset.write,version:button.dataset.version,rubric:button.dataset.rubric,rubricVersion:button.dataset.rubricVersion};");
       const openFor = async () => {
-        const res = await request('/api/v1/attempts?open=1');
-        const list = Array.isArray(res.data?.attempts) ? res.data.attempts : [];
-        return list.filter((a) => a.task_id === button.id);
+        const response = await request('/api/v1/attempts?open=1');
+        return (response.data?.attempts ?? []).filter(attempt => attempt.task_id === button.id);
       };
       const before = await openFor();
-      // Two clicks in ONE task, before the first can resolve: the case a per-click guard would miss.
-      await cdp.evaluate(`
-        const b = document.querySelector(${JSON.stringify(`#task-list [data-write="${button.id}"]`)});
-        if (!b) return false;
-        b.click(); b.click();
-        return true;
-      `);
+      await cdp.evaluate("const button=document.querySelector('#skill-schreiben [data-write]');button.click();button.click();return true;");
       await cdp.waitFor("document.querySelector('#writing-text')", 15000);
-      // Let a racing second create land before counting, so the server is asked after the dust settles.
       await sleep(500);
       const after = await openFor();
       const opened = after.length === 1 ? (await request('/api/v1/attempts/' + after[0].id)).data : null;
-      const binding = opened ? String(opened.task_version) === button.version
-        && String(opened.rubric_id) === button.rubric && String(opened.rubric_version) === button.rubricVersion
-        && opened.task_id === button.id : false;
-      const editors = await cdp.evaluate("return document.querySelectorAll('#writing-text').length");
-      record('RUX5 a writing card opens its exact task binding and a double click cannot create two drafts',
-        after.length - before.length <= 1 && after.length <= 1 && binding && editors === 1,
-        `${before.length} open draft(s) before, ${after.length} after two clicks;`
-          + ` binding task/version/rubric=${opened ? `${opened.task_id}@${opened.task_version}/${opened.rubric_id}@${opened.rubric_version}` : 'none'}`
-          + ` vs button ${button.id}@${button.version}/${button.rubric}@${button.rubricVersion}; editors=${editors}`);
+      const binding = opened && String(opened.task_version) === button.version && String(opened.rubric_id) === button.rubric
+        && String(opened.rubric_version) === button.rubricVersion && opened.task_id === button.id;
+      const editor = await cdp.evaluate("const editors=[...document.querySelectorAll('#writing-text')];return {count:editors.length,visible:editors[0]?.getBoundingClientRect().height>0};");
+      record('RUX5 writing opens its exact binding and a double click cannot create two drafts',
+        after.length - before.length <= 1 && after.length === 1 && binding && editor.count === 1 && editor.visible,
+        JSON.stringify({ before: before.length, after: after.length, binding, editor }));
       await shot(cdp, 'review-ux-writing-binding-desktop');
       await clickSel(cdp, '#writing-close');
-      await cdp.waitFor("document.querySelector('#ueben-practice')?.hidden && !document.querySelector('#skill-ueben-catalogue')?.hidden", 12000);
-      const returned = await cdp.evaluate("return Boolean(document.querySelector('#task-list [data-write]'))");
-      record('RUX5b closing the letter returns to the catalogue', returned, `catalogue writing control present=${returned}`);
-      // Leave the stack as it was found, so a later leg or check does not inherit this draft.
+      await cdp.waitFor("document.querySelector('#skill-schreiben [data-write]') && !document.querySelector('#writing-text')", 12000);
+      record('RUX5b closing writing restores its visible catalogue', await cdp.evaluate(
+        "return document.querySelector('#skill-schreiben [data-write]').getBoundingClientRect().height>0;"));
       if (before.length === 0 && after.length === 1) {
         const removed = await request('/api/v1/attempts/' + after[0].id, 'DELETE', {});
         record('RUX5c the draft created by this check is cleaned up', removed.status === 200 || removed.status === 204,
-          `DELETE attempts/${String(after[0].id).slice(0, 8)}… -> ${removed.status}`);
+          'DELETE synthetic draft -> ' + removed.status);
       }
     });
 
-    /* ------------------------------------------------------------------ mobile and narrow */
-
     for (const [width, height, tag] of [[390, 844, 'mobile'], [320, 568, 'narrow']]) {
-      await checks(`RUX6 ${tag} (${width}px): full option text wraps with no overflow and the catalogue returns`, async () => {
+      await checks('RUX6 ' + tag + ': full options wrap without overflow and the index returns', async () => {
         await viewport(cdp, width, height, true);
         await theme(cdp, tag === 'mobile' ? 'dark' : 'light');
-        await openUeben();
-        const catalogue = await overflow(cdp);
-        await cdp.waitFor(`document.querySelector('#task-list [data-open="${target.setId}"]')`, 12000);
-        await clickSel(cdp, `#task-list [data-open="${target.setId}"]`);
-        await cdp.waitFor("document.querySelector('.view:not([hidden]) .skill-practice [data-item]')", 15000);
-        await sleep(200);
-        const probe = await measureOption();
-        const page = await overflow(cdp);
-        await shot(cdp, `review-ux-long-options-${tag}`);
-        record(`RUX6 ${tag} (${width}px): full option text wraps with no overflow and the catalogue returns`,
-          !probe.missing && probe.text === expectedText && probe.clipped === false && probe.lines >= 2
-            && probe.right <= probe.viewport + 1 && probe.cardRight !== null && probe.right <= probe.cardRight + 1
-            && page.offenderCount === 0 && catalogue.offenderCount === 0,
-          `lines=${probe.lines} for ${target.label.length} authored char(s); clipped=${probe.clipped};`
-            + ` tile right=${probe.right} of card ${probe.cardRight} and viewport ${probe.viewport};`
-            + ` page offenders=${page.offenderCount}; catalogue offenders=${catalogue.offenderCount}`);
-        await clickSel(cdp, '#practice-close');
-        await cdp.waitFor("document.querySelector('#ueben-practice')?.hidden && !document.querySelector('#skill-ueben-catalogue')?.hidden", 12000);
-        const back = await cdp.evaluate(`
-          const b = document.querySelector('#task-list [data-open="${target.setId}"]');
-          return { control: Boolean(b) && b.getBoundingClientRect().height >= 44, formGone: !document.querySelector('[data-item]') };
-        `);
-        record(`RUX6b ${tag} closing returns to a tappable catalogue control`, back.control && back.formGone, JSON.stringify(back));
-        await shot(cdp, `review-ux-catalogue-return-${tag}`);
+        await openReading();
+        const index = await overflow(cdp);
+        await openPart();
+        const probe = await measureOption(), page = await overflow(cdp);
+        record('RUX6 ' + tag + ': full options wrap without overflow and remain selectable',
+          matches(probe, page, true) && index.offenderCount === 0,
+          JSON.stringify({ ...probe, expectedLength: target.label.length, overflow: page.offenderCount, indexOverflow: index.offenderCount }));
+        await shot(cdp, 'review-ux-long-options-' + tag);
+        const back = await returnToIndex();
+        record('RUX6b ' + tag + ' returns to a tappable part control', back.control && back.formGone, JSON.stringify(back));
+        await shot(cdp, 'review-ux-catalogue-return-' + tag);
       });
     }
 
