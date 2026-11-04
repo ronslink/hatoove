@@ -49,6 +49,8 @@ jobs:
       # called `fs` in a file that imports no `fs`, with a `catch` that swallowed the ReferenceError.
       - name: The workflow-shape check detects every mutation it claims to
         run: node --test tools/workflow-shape.test.mjs
+      - name: Browser launcher owns endpoints and bounds startup failures
+        run: node --test tools/cdp-launch.test.mjs
       # DESIGN-LANGUAGE.md: no raw colour or font family in a rule, the required tokens present,
       # the dark override present, the mobile breakpoints and reduced motion honoured, every view
       # registered through the shell. The selected-language interface has focused checks below. This gate
