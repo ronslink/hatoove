@@ -440,6 +440,10 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
         record('S1 switching displays the other exam balance without transfer or refill', otherCredits.status === 200
           && otherCredits.data.examId === selected.data.exam_id && JSON.stringify(before.data) === JSON.stringify(after.data));
         if (selected.data.state === 'archived') {
+          await go('ueben');
+          await cdp.waitFor(shellText('#task-list', 'm146'));
+          record('S1B13 archive exposes history without new objective controls', await cdp.evaluate("return !document.querySelector('#view-ueben').hidden && !document.querySelector('#view-ueben [data-drill-option],#view-ueben [data-drill-check],#view-ueben [data-open]') && document.querySelector('#task-list a[href=\"#/verlauf\"]')?.getBoundingClientRect().height>0")
+            && await cdp.evaluate('return ' + shellText('#task-list', 'm147')));
           await go('schreiben');
           record('S1B13 archive exposes history without new writing controls', await cdp.evaluate("return !document.querySelector('#skill-schreiben [data-write]') && !document.querySelector('#view-schreiben').hidden")
             && await cdp.evaluate('return ' + shellText('#skill-schreiben', 'm146')));

@@ -773,7 +773,8 @@ async function renderDictionary() {
  * present this falls back to today's view: the adaptive recommendation plus the task catalogue.
  */
 async function renderUeben() {
-  if (await mountModule('ueben')) return;
+  // Archived preparations use the existing read-only notice and history link, not an editable drill.
+  if (activePreparation() && await mountModule('ueben')) return;
   await renderPracticeNext();
   await renderTasks();
 }
