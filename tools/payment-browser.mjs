@@ -147,7 +147,14 @@ export async function verifyPayments({ base, email, password, freePort, record, 
     });
     await run('PAY-B8 signed delayed success activates once across concurrent redelivery', async () => {
       paidEvent = eventFor(orderId, 'checkout.session.async_payment_succeeded');
-      const responses = await Promise.all([webhook(paidEvent), webhook(paidEvent), webhook(eventFor(orderId))]);
+      // eventFor performs synchronous fixture queries. Finish every payload before starting HTTP
+      // delivery so Docker verification cannot block the event loop with confirmations in flight.
+      const completedEvent = eventFor(orderId);
+      const deliveries = await Promise.allSettled([webhook(paidEvent), webhook(paidEvent), webhook(completedEvent)]);
+      // Settle the entire concurrent batch before another check can issue synchronous fixture queries.
+      assert(deliveries.every(result => result.status === 'fulfilled'), JSON.stringify(deliveries.map(result =>
+        result.status === 'fulfilled' ? { status: result.value.status } : { error: result.reason?.message || String(result.reason) })));
+      const responses = deliveries.map(result => result.value);
       assert(responses.every(r => r.status === 200), JSON.stringify(responses));
       await clickSel(cdp, '#checkout-refresh'); await state(cdp, 'paid');
       const after = balance();
