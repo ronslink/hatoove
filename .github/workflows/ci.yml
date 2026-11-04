@@ -552,14 +552,15 @@ jobs:
             .qa/browser/q01-app/
             .qa/browser/q01-audio/
             .qa/browser/q01-payments/
+            .qa/exam-s4/
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
       - name: Where the rendered evidence went
         if: failure()
         run: |
-          echo "Screenshots (if any) were written under .qa/browser/:"
-          find .qa/browser -type f -name '*.png' | sort | tail -40 || true
+          echo "Screenshots (if any) were written under .qa/browser/ or .qa/exam-s4/:"
+          find .qa/browser .qa/exam-s4 -type f -name '*.png' | sort | tail -40 || true
   fixtures:
     name: Exam and feedback fixtures
     runs-on: ubuntu-latest
