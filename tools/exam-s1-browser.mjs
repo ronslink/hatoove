@@ -1,6 +1,14 @@
 /** S1 learner evidence. Invoked only by the disposable Compose/browser harness; no CLI or live URL mode. */
 import { randomUUID } from 'node:crypto';
 import { launchBrowser, connectToPage } from './cdp.js';
+import { shellMessages } from '../public/assets/i18n/shell-messages.js';
+
+// Compare visible messages in the confirmed interface language, including deliberate tr/uk switches.
+const shellText = (selector, key, parameters = {}) => {
+  const values = Object.fromEntries(Object.entries(shellMessages).map(([locale, messages]) => [locale,
+    String(messages[key] ?? '').replace(/\{(\w+)\}/g, (match, name) => Object.hasOwn(parameters, name) ? String(parameters[name]) : match)]));
+  return `(()=>{const node=document.querySelector(${JSON.stringify(selector)});const expected=${JSON.stringify(values)}[document.documentElement.lang];return Boolean(expected&&node&&node.getBoundingClientRect().height>0&&node.textContent.includes(expected));})()`;
+};
 
 export async function verifyExamS1({ base, email, password, freePort, record, shot, viewport, theme,
   nav, setInputs, clickSel, overflow, query, preparationFixtures = null }) {
@@ -118,7 +126,7 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
       const requests = requestsSince(mark);
       const scopeReads = requests.filter(r => /\/api\/v1\/(tasks|objective-sets|practice\/|attempts)/.test(new URL(r.url).pathname));
       record('S1B1 sole exam resumes without chooser and every practice read is preparation-scoped',
-        await cdp.evaluate("return document.querySelector('#preparation-choice').hidden && document.querySelector('#boot-state').hidden && !!document.querySelector('#preparation-exam').textContent")
+        await cdp.evaluate("return document.querySelector('#preparation-choice').hidden && document.querySelector('#boot-state').hidden && !!document.querySelector('#sidebar-exam').textContent")
         && scopeReads.length > 0 && scopeReads.every(r => new URL(r.url).searchParams.get('preparationId') === preparationId));
       await shot(cdp, 's1-preparation-desktop');
     });
@@ -139,8 +147,8 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
       record('S1B2 failed preparation keeps practice locked', !scoped && await cdp.evaluate("return document.querySelector('#app-shell').hidden && document.querySelector('#app-shell').inert"));
       await shot(cdp, 's1-preparation-recovery');
       await clickSel(cdp, '#boot-retry'); await ready();
-      await cdp.waitFor("document.querySelector('#task-list [data-open]')");
-      record('S1B3 retry opens the retained catalogue destination', await cdp.evaluate("return !document.querySelector('#view-ueben').hidden && !document.querySelector('#skill-ueben-catalogue').hidden"));
+      await cdp.waitFor("document.querySelector('#drill-host [data-drill-phase=answering] [data-drill-option]')");
+      record('S1B3 retry opens the retained practice destination', await cdp.evaluate("return !document.querySelector('#view-ueben').hidden && document.querySelector('#drill-host [data-drill-item]').getBoundingClientRect().height>0"));
     });
 
     await run('S1B4 preparation date and global language', async () => {
@@ -148,7 +156,7 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
       await setInputs(cdp, { examDate: '2030-06-15', language: 'tr' });
       const mark = cdp.events.length;
       await clickSel(cdp, '#save-settings');
-      await cdp.waitFor("document.querySelector('#settings-state').textContent==='Gespeichert.'", 12000);
+      await cdp.waitFor(shellText('#settings-state', 'm196'), 12000);
       const savedPrep = await request(prepPath), savedSettings = await request('/api/v1/settings');
       const settingsWrites = requestsSince(mark).filter(r => r.method === 'PUT' && new URL(r.url).pathname === '/api/v1/settings');
       record('S1B4 date belongs to preparation and language remains global', savedPrep.data.exam_date === '2030-06-15'
@@ -158,31 +166,36 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
       record('S1B5 reload retains preparation date and language', await cdp.evaluate("return document.querySelector('#examDate').value==='2030-06-15' && document.querySelector('#language').value==='tr' && document.querySelector('#exam-countdown').textContent.includes('15')"));
     });
 
-    await run('S1B6 catalogue launch close and re-entry', async () => {
-      await go('ueben'); await cdp.waitFor("document.querySelector('#task-list [data-open]')");
+    await run('S1B6 scoped drill answer and route re-entry', async () => {
       const mark = cdp.events.length;
-      await clickSel(cdp, '#task-list [data-open]');
-      await cdp.waitFor("document.querySelector('#ueben-practice [data-answer]')");
-      await clickSel(cdp, '#ueben-practice [data-answer]');
-      await cdp.waitFor("/Richtig|Noch nicht richtig/.test(document.querySelector('#ueben-practice .result').textContent)");
-      const answers = requestsSince(mark).filter(r => r.method === 'POST' && new URL(r.url).pathname.endsWith('/answers'));
-      record('S1B6 catalogue answer is bound to preparation and exact version', answers.length === 1
-        && JSON.parse(answers[0].postData).preparationId === preparationId && Boolean(JSON.parse(answers[0].postData).version));
-      await clickSel(cdp, '#practice-close');
-      record('S1B7 close restores the visible catalogue', await cdp.evaluate("return !document.querySelector('#skill-ueben-catalogue').hidden && document.querySelector('#task-list').getClientRects().length>0"));
-      await clickSel(cdp, '#task-list [data-open]'); await cdp.waitFor("document.querySelector('#ueben-practice [data-answer]')");
-      await go('fortschritt'); await go('ueben'); await cdp.waitFor("document.querySelector('#task-list [data-write]')");
-      record('S1B8 re-entry restores the catalogue wrapper', await cdp.evaluate("return !document.querySelector('#skill-ueben-catalogue').hidden && document.querySelector('#ueben-practice').hidden && document.querySelector('#task-list').getClientRects().length>0"));
-      await shot(cdp, 's1-direct-catalogue');
+      await go('ueben'); await cdp.waitFor("document.querySelector('#drill-host [data-drill-option]')");
+      const next = cdp.events.slice(mark).find(event => event.method === 'Network.responseReceived'
+        && new URL(event.params.response.url).pathname === '/api/v1/practice/drill/next');
+      if (!next) throw new Error('Scoped drill response was not observed');
+      const body = await cdp.send('Network.getResponseBody', { requestId: next.params.requestId });
+      const served = JSON.parse(body.base64Encoded ? Buffer.from(body.body, 'base64').toString() : body.body);
+      await clickSel(cdp, '#drill-host [data-drill-option]');
+      await clickSel(cdp, '#drill-host [data-drill-check]');
+      await cdp.waitFor("document.querySelector('#drill-host [data-drill-feedback]')");
+      const answers = requestsSince(mark).filter(r => r.method === 'POST' && new URL(r.url).pathname === '/api/v1/practice/drill/check');
+      const sent = answers.length === 1 ? JSON.parse(answers[0].postData) : null;
+      record('S1B6 drill answer is bound to the selected preparation and exact served sitting', Boolean(sent)
+        && sent.preparationId === preparationId && sent.attemptId === served.attempt?.attempt_id
+        && sent.itemId === served.item?.item_id && Boolean(served.set?.version));
+      await go('verlauf');
+      record('S1B7 leaving practice removes the previous answering surface', await cdp.evaluate("return document.querySelector('#view-ueben').hidden && !document.querySelector('#drill-host [data-drill-option]')"));
+      await go('ueben'); await cdp.waitFor("document.querySelector('#drill-host [data-drill-option]')");
+      record('S1B8 re-entry presents a visible current drill', await cdp.evaluate("return !document.querySelector('#view-ueben').hidden && document.querySelector('#drill-host [data-drill-item]').getBoundingClientRect().height>0"));
+      await shot(cdp, 's1-current-drill');
     });
 
     await run('S1B9 durable writing resume and scoped history', async () => {
-      await go('ueben'); await cdp.waitFor("document.querySelector('#task-list [data-write]')");
-      const binding = await cdp.evaluate("const button=document.querySelector('#task-list [data-write]'); return {task:button.dataset.write,version:button.dataset.version};");
-      await clickSel(cdp, '#task-list [data-write]'); await cdp.waitFor("document.querySelector('#writing-text')");
+      await go('schreiben'); await cdp.waitFor("document.querySelector('#skill-schreiben [data-write]')");
+      const binding = await cdp.evaluate("const button=document.querySelector('#skill-schreiben [data-write]'); return {task:button.dataset.write,version:button.dataset.version};");
+      await clickSel(cdp, '#skill-schreiben [data-write]'); await cdp.waitFor("document.querySelector('#writing-text')");
       const text = 'Liebe Anna, dieser synthetische S1-Text bleibt beim Wechsel erhalten. Viele Grüße ' + randomUUID();
       await setInputs(cdp, { 'writing-text': text });
-      await go('fortschritt');
+      await go('verlauf');
       await cdp.waitFor("document.querySelector('#history-list [data-attempt]')");
       const attempts = await request('/api/v1/attempts?open=1&preparationId=' + preparationId);
       const candidate = attempts.data.attempts?.find(a => a.task_id === binding.task && a.task_version === binding.version);
@@ -190,7 +203,7 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
       const saved = await request('/api/v1/attempts/' + candidate.id);
       record('S1B9 leaving writing saves the selected preparation draft', saved.data.text === text);
       const mark = cdp.events.length;
-      await fresh('#/prep/' + preparationId + '/fortschritt'); await ready();
+      await fresh('#/prep/' + preparationId + '/verlauf'); await ready();
       await cdp.waitFor(`document.querySelector('[data-attempt="${candidate.id}"]')`);
       await clickSel(cdp, `[data-attempt="${candidate.id}"]`); await cdp.waitFor("document.querySelector('#writing-text')");
       const history = requestsSince(mark).filter(r => new URL(r.url).pathname === '/api/v1/attempts' && r.method === 'GET');
@@ -198,8 +211,9 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
         && history.every(r => new URL(r.url).searchParams.get('preparationId') === preparationId)
         && await cdp.evaluate(`return document.querySelector('#writing-text').value===${JSON.stringify(text)}`));
       const credits = await request(prepPath + '/credits');
+      await go('schreiben'); await cdp.waitFor("document.querySelector('#preparation-credits')?.getBoundingClientRect().height>0");
       record('S1B11 displayed credits match the selected exam', credits.status === 200 && credits.data.examId === originalPreparation.exam_id
-        && await cdp.evaluate(`return document.querySelector('#preparation-credits').textContent.includes(${JSON.stringify(credits.data.available + ' verfügbar')})`));
+        && await cdp.evaluate('return ' + shellText('#preparation-credits', 'credits', { exam: originalPreparation.exam, available: credits.data.available, reserved: credits.data.reserved, used: credits.data.used })));
     });
 
     await run('S1 date conflict preserves inputs', async () => {
@@ -212,24 +226,27 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
       await setInputs(cdp, { examDate: '2031-07-16', language: 'uk' });
       await clickSel(cdp, '#save-settings');
       await cdp.waitFor("document.querySelector('#settings-reload')");
-      record('S1 conflicting date never silently replaces unsaved form choices', await cdp.evaluate("return document.querySelector('#examDate').value==='2031-07-16' && document.querySelector('#language').value==='uk' && document.querySelector('#settings-state').textContent.includes('woanders')"));
+      record('S1 conflicting date never silently replaces unsaved form choices', await cdp.evaluate("return document.querySelector('#examDate').value==='2031-07-16' && document.querySelector('#language').value==='uk'")
+        && await cdp.evaluate('return ' + shellText('#settings-state', 'm189')));
       await clickSel(cdp, '#settings-reload');
-      await cdp.waitFor("document.querySelector('#settings-state').textContent.includes('auf deinen Wunsch')");
+      await cdp.waitFor(shellText('#settings-state', 'm188'));
     });
 
-    await run('S1 partial settings failure is explicit', async () => {
+    await run('S1 partial settings failure is explicitly reconciled', async () => {
+      const before = await request('/api/v1/settings');
       await hook('*/api/v1/settings', async (event, controls) => {
         if (event.request.method === 'PUT') await controls.reply(event, 503, { error: 'synthetic_settings_unavailable' });
         else await controls.proceed(event);
       });
       await setInputs(cdp, { examDate: '2031-07-16', language: 'uk' });
       await clickSel(cdp, '#save-settings');
-      await cdp.waitFor("document.querySelector('#settings-reload')");
-      const prep = await request(prepPath);
-      record('S1 partial save reports committed date and retains unsaved language', prep.data.exam_date === '2031-07-16'
-        && await cdp.evaluate("return document.querySelector('#language').value==='uk' && document.querySelector('#settings-state').textContent.includes('Prüfungsdatum ist gespeichert')"));
-      await clickSel(cdp, '#settings-reload');
-      await cdp.waitFor("document.querySelector('#settings-state').textContent.includes('auf deinen Wunsch')");
+      await cdp.waitFor(shellText('#settings-state', 'reconciled'));
+      const prep = await request(prepPath), settings = await request('/api/v1/settings');
+      record('S1 partial save preserves committed date and restores the confirmed account language',
+        prep.data.exam_date === '2031-07-16' && settings.data.settings.language === before.data.settings.language
+        && await cdp.evaluate('return ' + shellText('#settings-state', 'm192'))
+        && await cdp.evaluate(`return document.querySelector('#language').value===${JSON.stringify(before.data.settings.language)}
+          && !document.querySelector('#save-settings').disabled`));
     });
 
     if (preparationFixtures) {
@@ -265,17 +282,17 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
         await responseFinished(delayed.event);
         // An explicit scoped view read also proves the API transport selection agrees with the picker.
         const mark = cdp.events.length;
-        await go('einstellungen'); await go('fortschritt');
-        await cdp.waitFor("!document.querySelector('#history-list').textContent.includes('wird geladen')");
+        await go('einstellungen'); await go('verlauf');
+        await cdp.waitFor("document.querySelector('#history-list')?.getBoundingClientRect().height>0 && !document.querySelector('#history-list [data-i18n=\"shell.m161\"]')");
         await cdp.waitFor(`document.querySelector('#preparation-credits').textContent.includes(${JSON.stringify(otherPrep.data.exam)})`);
         const reads = requestsSince(mark).filter(r => new URL(r.url).pathname === '/api/v1/attempts');
         record('S1 late recovery response cannot replace picker, route, credit or API context', reads.length > 0
           && reads.every(r => new URL(r.url).searchParams.get('preparationId') === other)
           && await cdp.evaluate(`return document.querySelector('#preparation-picker').value===${JSON.stringify(other)}
-            && location.hash===${JSON.stringify('#/prep/' + other + '/fortschritt')}
-            && document.querySelector('#preparation-exam').textContent===${JSON.stringify(otherPrep.data.exam)}
+            && location.hash===${JSON.stringify('#/prep/' + other + '/verlauf')}
+            && document.querySelector('#sidebar-exam').textContent===${JSON.stringify(otherPrep.data.exam)}
             && document.querySelector('#preparation-credits').textContent.includes(${JSON.stringify(otherPrep.data.exam)})
-            && !document.querySelector('#settings-state').textContent.includes('auf deinen Wunsch')`));
+            && document.querySelector('#settings-state').textContent===''`));
         await shot(cdp, 's1-settings-recovery-after-switch');
         await select(preparationId);
       });
@@ -291,13 +308,13 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
         await setInputs(cdp, { language: 'uk' }); await clickSel(cdp, '#save-settings');
         const delayed = await paused(write);
         await changeHash('#/prep/' + preparationId + '/heute');
-        await changeHash('#/prep/' + other + '/fortschritt');
+        await changeHash('#/prep/' + other + '/verlauf');
         const mark = cdp.events.length;
         await delayed.controls.proceed(delayed.event);
-        await cdp.waitFor(`location.hash===${JSON.stringify('#/prep/' + other + '/fortschritt')}
+        await cdp.waitFor(`location.hash===${JSON.stringify('#/prep/' + other + '/verlauf')}
           && document.querySelector('#preparation-picker').value===${JSON.stringify(other)}
-          && !document.querySelector('#preparation-picker').disabled && !document.querySelector('#view-fortschritt').hidden`, 15000);
-        await cdp.waitFor("!document.querySelector('#history-list').textContent.includes('wird geladen')");
+          && !document.querySelector('#preparation-picker').disabled && !document.querySelector('#view-verlauf').hidden`, 15000);
+        await cdp.waitFor("document.querySelector('#history-list')?.getBoundingClientRect().height>0 && !document.querySelector('#history-list [data-i18n=\"shell.m161\"]')");
         const saved = await request('/api/v1/settings');
         const selected = await request('/api/v1/preparations/' + other);
         await cdp.waitFor(`document.querySelector('#preparation-credits').textContent.includes(${JSON.stringify(selected.data.exam)})`);
@@ -320,27 +337,25 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
         });
         await setInputs(cdp, { language: 'tr' }); await clickSel(cdp, '#save-settings');
         const delayed = await paused(write);
-        await changeHash('#/prep/' + other + '/fortschritt');
+        await changeHash('#/prep/' + other + '/verlauf');
         await changeHash('#/prep/' + preparationId + '/heute');
         await delayed.controls.reply(delayed.event, 503, { error: 'synthetic_settings_unavailable' });
-        await cdp.waitFor("document.querySelector('#settings-reload') && !document.querySelector('#save-settings').disabled");
+        await cdp.waitFor(shellText('#settings-state', 'reconciled'));
         const after = await request('/api/v1/settings');
-        record('S1 refused settings write retains the original form, unsaved language and explicit recovery',
+        record('S1 refused settings write cancels queued navigation and restores the confirmed language',
           JSON.stringify(before.data) === JSON.stringify(after.data)
           && await cdp.evaluate(`return location.hash===${JSON.stringify('#/prep/' + preparationId + '/einstellungen')}
             && document.querySelector('#preparation-picker').value===${JSON.stringify(preparationId)}
-            && !document.querySelector('#view-einstellungen').hidden && document.querySelector('#language').value==='tr'`));
+            && !document.querySelector('#view-einstellungen').hidden && document.querySelector('#language').value===${JSON.stringify(before.data.settings.language)}`));
         await shot(cdp, 's1-settings-write-navigation-recovery');
         await stopIntercept();
-        await clickSel(cdp, '#settings-reload');
-        await cdp.waitFor("document.querySelector('#settings-state').textContent.includes('auf deinen Wunsch')");
       });
 
       await run('S1 latest deep link survives a delayed autosave', async () => {
-        await fresh('#/prep/' + preparationId + '/ueben'); await ready();
-        await cdp.waitFor("document.querySelector('#task-list [data-write]')");
-        const binding = await cdp.evaluate("const button=document.querySelector('#task-list [data-write]'); return {task:button.dataset.write,version:button.dataset.version};");
-        await clickSel(cdp, '#task-list [data-write]'); await cdp.waitFor("document.querySelector('#writing-text')");
+        await fresh('#/prep/' + preparationId + '/schreiben'); await ready();
+        await cdp.waitFor("document.querySelector('#skill-schreiben [data-write]')");
+        const binding = await cdp.evaluate("const button=document.querySelector('#skill-schreiben [data-write]'); return {task:button.dataset.write,version:button.dataset.version};");
+        await clickSel(cdp, '#skill-schreiben [data-write]'); await cdp.waitFor("document.querySelector('#writing-text')");
         let held = false, receive;
         const autosave = new Promise(resolve => { receive = resolve; });
         await hook('*/api/v1/attempts/*', async (event, controls) => {
@@ -349,7 +364,7 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
         });
         const text = 'Synthetischer Text vor zwei schnellen Navigationen ' + randomUUID();
         await setInputs(cdp, { 'writing-text': text });
-        await changeHash('#/prep/' + other + '/fortschritt');
+        await changeHash('#/prep/' + other + '/verlauf');
         const delayed = await paused(autosave);
         await cdp.waitFor("document.querySelector('#preparation-picker').disabled");
         await changeHash('#/prep/' + preparationId + '/einstellungen');
@@ -369,14 +384,14 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
 
       await run('S1 browser history wins over an obsolete failed preparation read', async () => {
         await fresh('#/prep/' + preparationId + '/heute'); await ready();
-        await go('ueben'); await cdp.waitFor("document.querySelector('#task-list [data-open]')");
+        await go('ueben'); await cdp.waitFor("document.querySelector('#drill-host [data-drill-option]')");
         let held = false, receive;
         const prepRead = new Promise(resolve => { receive = resolve; });
         await hook('*/api/v1/preparations/' + other, async (event, controls) => {
           if (!held && event.request.method === 'GET') { held = true; receive({ event, controls }); }
           else await controls.proceed(event);
         });
-        await changeHash('#/prep/' + other + '/fortschritt');
+        await changeHash('#/prep/' + other + '/verlauf');
         const delayed = await paused(prepRead);
         await cdp.evaluate("return new Promise(resolve=>{window.addEventListener('hashchange',()=>resolve(true),{once:true}); history.go(-2);});");
         await delayed.controls.reply(delayed.event, 503, { error: 'synthetic_obsolete_preparation_read' });
@@ -387,9 +402,9 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
       });
 
       await run('S1 switch waits for a successful draft save', async () => {
-        await go('ueben'); await cdp.waitFor("document.querySelector('#task-list [data-write]')");
-        const binding = await cdp.evaluate("const button=document.querySelector('#task-list [data-write]'); return {task:button.dataset.write,version:button.dataset.version};");
-        await clickSel(cdp, '#task-list [data-write]'); await cdp.waitFor("document.querySelector('#writing-text')");
+        await go('schreiben'); await cdp.waitFor("document.querySelector('#skill-schreiben [data-write]')");
+        const binding = await cdp.evaluate("const button=document.querySelector('#skill-schreiben [data-write]'); return {task:button.dataset.write,version:button.dataset.version};");
+        await clickSel(cdp, '#skill-schreiben [data-write]'); await cdp.waitFor("document.querySelector('#writing-text')");
         let held = false, receive;
         const failedSave = new Promise(resolve => { receive = resolve; });
         await hook('*/api/v1/attempts/*', async (event, controls) => {
@@ -403,8 +418,8 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
         const delayed = await paused(failedSave);
         await changeHash('#/prep/' + preparationId + '/einstellungen');
         await delayed.controls.reply(delayed.event, 503, { error: 'synthetic_save_unavailable' });
-        await cdp.waitFor("document.querySelector('#preparation-state').textContent.includes('angehalten') && !document.querySelector('#preparation-picker').disabled", 12000);
-        record('S1 failed autosave drops queued navigation and preserves the original context and visible draft', await cdp.evaluate(`return document.querySelector('#preparation-picker').value===${JSON.stringify(preparationId)} && location.hash===${JSON.stringify('#/prep/' + preparationId + '/ueben')} && !document.querySelector('#view-ueben').hidden && document.querySelector('#writing-text').value===${JSON.stringify(text)}`));
+        await cdp.waitFor('(' + shellText('#preparation-state', 'm033') + ' || ' + shellText('#preparation-state', 'm035') + ') && !document.querySelector("#preparation-picker").disabled', 12000);
+        record('S1 failed autosave drops queued navigation and preserves the original context and visible draft', await cdp.evaluate(`return document.querySelector('#preparation-picker').value===${JSON.stringify(preparationId)} && location.hash===${JSON.stringify('#/prep/' + preparationId + '/schreiben')} && !document.querySelector('#view-schreiben').hidden && document.querySelector('#writing-text').value===${JSON.stringify(text)}`));
         await shot(cdp, 's1-switch-unsaved-recovery');
         await stopIntercept();
         await select(other);
@@ -419,14 +434,15 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
         await select(other);
         const selected = await request('/api/v1/preparations/' + other);
         record('S1B12 explicit switch selects the owned fixture context', selected.status === 200
-          && await cdp.evaluate(`return document.querySelector('#preparation-exam').textContent===${JSON.stringify(selected.data.exam)}`));
+          && await cdp.evaluate(`return document.querySelector('#sidebar-exam').textContent===${JSON.stringify(selected.data.exam)}`));
         const otherCredits = await request('/api/v1/preparations/' + other + '/credits');
         const after = await request(prepPath + '/credits');
         record('S1 switching displays the other exam balance without transfer or refill', otherCredits.status === 200
           && otherCredits.data.examId === selected.data.exam_id && JSON.stringify(before.data) === JSON.stringify(after.data));
         if (selected.data.state === 'archived') {
-          await go('ueben');
-          record('S1B13 archive exposes history without new practice controls', await cdp.evaluate("return !document.querySelector('#task-list [data-open],#task-list [data-write]') && document.querySelector('#task-list').textContent.includes('archiviert')"));
+          await go('schreiben');
+          record('S1B13 archive exposes history without new writing controls', await cdp.evaluate("return !document.querySelector('#skill-schreiben [data-write]') && !document.querySelector('#view-schreiben').hidden")
+            && await cdp.evaluate('return ' + shellText('#skill-schreiben', 'm146')));
         }
         await select(preparationId);
       });
@@ -436,7 +452,7 @@ export async function verifyExamS1({ base, email, password, freePort, record, sh
 
     for (const width of [390, 320]) {
       await run('S1 mobile ' + width, async () => {
-        await go('ueben'); await cdp.waitFor("document.querySelector('#task-list [data-open]')");
+        await go('ueben'); await cdp.waitFor("document.querySelector('#drill-host [data-drill-option]')");
         await viewport(cdp, width, 844, true);
         for (const mode of ['light', 'dark']) {
           await theme(cdp, mode);

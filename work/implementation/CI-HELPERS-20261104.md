@@ -1,0 +1,11 @@
+# CI browser helper migration
+
+Execution `CI-HELPERS-20261104-C`, issue [181](https://github.com/ronslink/hatoove/issues/181), base `6f4f84ca749e335cc77534bcfd6e3094bafcf233`. Author scope is `tools/exam-s1-browser.mjs`, `tools/review-ux-browser.mjs` and this receipt. No runtime, workflow, learner data or production changes.
+
+S1 now follows the current single-item drill, Schreiben catalogue and Verlauf routes. The checks retain exact selected-preparation/sitting bindings, saved text and history isolation, delayed write/read navigation fences, failed-save preservation, archive behavior and narrow layouts. Settings assertions use the confirmed language catalogue. An uncertain account-language save is checked against the current read-after-write reconciliation contract: retain the committed preparation date, restore the server-confirmed language and show explicit reconciliation. Date conflicts still preserve unsaved form choices until explicit recovery.
+
+Review-UX now checks reading-part controls against the served catalogue, the exact set/version actually returned by the part-opening request, and its visible rendered identity. Long LV3 option text is compared with the exact authored API payload in the visible option bank, with a corresponding keyboard-selectable choice. Desktop, 390px and 320px checks retain full-text, wrapping, unclipped and no-page-overflow assertions. The current complete-set action returns to the part index. Schreiben retains exact task/version/rubric binding and real double-click/open-draft verification plus owned cleanup.
+
+Retired assumptions: the old per-set `#task-list` catalogue, one-answer buttons, `#/fortschritt`, objective close button and tooltip-era option-button markup were replaced by the redesigned client. Their semantic coverage is carried by the current controls above. No assertion is removed to conceal an actual runtime failure.
+
+Validation: both files pass `node --check`. Full disposable browser integration and independent review are pending; this is a candidate delivery, not a passing-browser claim. The coordinator/primary CI author will run the complete app suite with all slices integrated. No physical-device or content acceptance is inferred.
