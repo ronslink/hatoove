@@ -29,7 +29,7 @@ export async function verifyAccountContext({ base, freePort, record, shot, viewp
     await nav(a, base + '/signin');
     await setInputs(a, { 'si-email': accounts[0].email, 'si-password': password });
     await clickSel(a, '#si-submit');
-    await a.waitFor("document.querySelector('#account-email')?.textContent.includes('@')", 15000);
+    await a.waitFor("document.querySelector('#account-email')?.textContent.includes('@') && document.querySelector('#app-shell')?.inert===false && document.querySelector('#app-shell')?.getAttribute('aria-busy')==='false'", 15000);
     await clickSel(a, '.side [data-view="einstellungen"]');
     await a.waitFor("!document.querySelector('#view-einstellungen').hidden");
     const settingsA = (await raw(accounts[0].cookie, '/api/v1/settings')).data;
