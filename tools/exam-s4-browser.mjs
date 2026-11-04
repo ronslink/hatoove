@@ -2,6 +2,19 @@
 import { randomUUID } from 'node:crypto';
 import { launchBrowser, connectToPage } from './cdp.js';
 
+// Measure visible text nodes, not the duplicate boxes of nested translation spans or
+// the deliberately clipped screen-reader label inside each criterion band.
+function visibleTextRects(element) {
+  const walker=document.createTreeWalker(element,NodeFilter.SHOW_TEXT),rects=[];
+  for(let node=walker.nextNode();node;node=walker.nextNode()) {
+    if(!node.textContent.trim()||node.parentElement.closest('.sr-only,[hidden]'))continue;
+    const style=getComputedStyle(node.parentElement);if(style.display==='none'||style.visibility==='hidden')continue;
+    const range=document.createRange();range.selectNodeContents(node);
+    for(const rect of range.getClientRects())if(rect.width>1&&rect.height>1)rects.push({top:rect.top,right:rect.right,bottom:rect.bottom,left:rect.left});
+  }
+  return rects;
+}
+
 export async function verifyExamS4({base,email,password,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,query,runWorker}) {
   const origin = new URL(base);
   if (origin.protocol !== 'http:' || !['localhost','127.0.0.1'].includes(origin.hostname)
@@ -13,19 +26,22 @@ export async function verifyExamS4({base,email,password,freePort,record,shot,vie
   const assert=(value,message)=>{if(!value)throw Error(message);};
   const run=async(name,test)=>{try{await test();record(name,true);}catch(error){record(name,false,error.stack||error.message);}};
   const launch=async()=>{const port=await freePort(),browser=await launchBrowser(port);browsers.push(browser);const cdp=await connectToPage(port);connections.push(cdp);await cdp.send('Network.enable');await viewport(cdp,1440,900,false);await theme(cdp,'light');return cdp;};
-  const request=(cdp,route,method='GET',body)=>cdp.evaluate(`return (async()=>{const response=await fetch(${JSON.stringify(route)},{method:${JSON.stringify(method)},credentials:'same-origin',headers:{'content-type':'application/json'}${body===undefined?'':',body:'+JSON.stringify(JSON.stringify(body))}});return {status:response.status,data:await response.json()};})()`);
+  const request=(cdp,route,method='GET',body)=>cdp.evaluate(`return (async()=>{const session=await (await fetch('/api/auth/get-session',{credentials:'same-origin'})).json();const response=await fetch(${JSON.stringify(route)},{method:${JSON.stringify(method)},credentials:'same-origin',headers:{'content-type':'application/json','X-Hatoove-Account':session.user.id}${body===undefined?'':',body:'+JSON.stringify(JSON.stringify(body))}});return {status:response.status,data:await response.json()};})()`);
   const ready=cdp=>cdp.waitFor("document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden && document.querySelector('#preparation-picker').value",20000);
-  const signin=async cdp=>{await nav(cdp,base+'/signin');await setInputs(cdp,{'si-email':email,'si-password':password});await clickSel(cdp,'#si-submit');await cdp.waitFor("document.querySelector('#boot-choices') && !document.querySelector('#boot-choices').hidden || document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden",20000);};
+  const signin=async cdp=>{await nav(cdp,base+'/signin');await cdp.evaluate("const picker=document.querySelector('#interface-language');picker.value='de';picker.dispatchEvent(new Event('change',{bubbles:true}));return true;");await cdp.waitFor("document.documentElement.lang==='de'");await setInputs(cdp,{'si-email':email,'si-password':password});await clickSel(cdp,'#si-submit');await cdp.waitFor("document.querySelector('#boot-choices') && !document.querySelector('#boot-choices').hidden || document.querySelector('#app-shell') && !document.querySelector('#app-shell').hidden",20000);};
   const fresh=async(cdp,hash)=>{const token=randomUUID();await cdp.evaluate(`window.__s4Document=${JSON.stringify(token)};return true;`);const result=await cdp.send('Page.navigate',{url:base+'/app/?s4Probe='+token+hash});assert(result.loaderId,'fresh document required');await cdp.waitFor(`window.__s4Document!==${JSON.stringify(token)} && document.readyState==='complete'`,20000);await ready(cdp);};
   const go=async(cdp,view)=>{await cdp.evaluate(`location.hash=${JSON.stringify('#/'+view)};return true;`);await cdp.waitFor(`location.hash.endsWith('/${view}') && !document.querySelector('#view-${view}').hidden`);};
   const select=async(cdp,id)=>{await cdp.evaluate(`const picker=document.querySelector('#preparation-picker');picker.value=${JSON.stringify(id)};picker.dispatchEvent(new Event('change',{bubbles:true}));return true;`);await cdp.waitFor(`document.querySelector('#preparation-picker').value===${JSON.stringify(id)} && !document.querySelector('#preparation-picker').disabled && location.hash.includes(${JSON.stringify(id)})`);};
   const current=async(cdp,id)=>{const r=await request(cdp,'/api/v1/mock-runs/'+id);assert(r.status===200,'run read failed '+JSON.stringify(r));return r.data;};
   const savedWriting=cdp=>cdp.waitFor("document.querySelector('#writing-state')?.textContent.includes('Gespeichert')",15000);
   const finaliseUI=async cdp=>{await clickSel(cdp,'[data-mock-action="confirm"]');await cdp.waitFor("document.querySelector('[data-mock-action=finalise]')");await clickSel(cdp,'[data-mock-action="finalise"]');await cdp.waitFor("document.querySelector('.mock-results') || document.querySelector('#writing-state')?.textContent.includes('Abgegeben') || document.querySelector('#writing-state')?.textContent.includes('Unbewertet')",15000);};
+  // Partial forms no longer have a start card after the redesign. Create a synthetic historical run
+  // through the owned API, then exercise the supported saved-run editor, recovery and result views.
+  const historicalRun=async(cdp,formId)=>{const form=forms.find(f=>f.form_id===formId);assert(form,'historical form missing');const made=await request(cdp,'/api/v1/mock-runs','POST',{preparationId:dtz.id,formId:form.form_id,formVersion:form.version,releaseVersion:form.release_version,eventId:randomUUID()});assert(made.status===201,'historical run setup refused '+JSON.stringify(made));await fresh(cdp,'#/lauf/'+made.data.id);return made.data.id;};
   let a,b,dtz,telc,forms,writingRun,combinedRun,originalText,originalSubmission,selectedTask,telcCredits;
   try {
     a=await launch();await signin(a);
-    await run('S4B1 internal two-exam entry and writing form catalogue',async()=>{
+    await run('S4B1 internal two-exam entry retains the historical writing form contract',async()=>{
       const choice=await a.evaluate("return Boolean(document.querySelector('[data-preparation=\"new:dtz-a2-b1\"]'))");
       if(choice){await clickSel(a,'[data-preparation="new:dtz-a2-b1"]');await ready(a);} else await ready(a);
       let list=await request(a,'/api/v1/preparations');
@@ -38,16 +54,13 @@ export async function verifyExamS4({base,email,password,freePort,record,shot,vie
       const response=await request(a,'/api/v1/mock-forms?preparationId='+dtz.id);forms=response.data.forms;
       assert(response.status===200&&forms.length===2,'S4 must expose two internal partial forms');
       assert(forms.every(f=>f.release_version==='v3'&&f.release_state==='internal'&&f.scope==='section'),'S4 exposed complete or public form');
-      await go(a,'abschnitt');await a.waitFor("document.querySelectorAll('[data-mock-start]').length===2");
-      assert(await a.evaluate("return document.querySelector('#view-abschnitt').textContent.includes('Fachliche Prüfung ausstehend')"),'missing unreviewed label');
     });
     if(!dtz||!forms)return;
     await run('S4B2 A/B prompts are shown before immutable selection',async()=>{
-      const index=forms.findIndex(f=>f.form_id==='dtz-a2-b1.writing.original01');assert(index>=0,'writing-only form missing');
-      await clickSel(a,`[data-mock-start="${index}"]`);
+      writingRun=await historicalRun(a,'dtz-a2-b1.writing.original01');
       await a.waitFor("location.hash.includes('/abschnitt/') && document.querySelector('[data-mock-choice-option=\"A\"]')");
-      writingRun=await a.evaluate("return location.hash.split('/').at(-1)");
       const before=await current(a,writingRun);assert(before.writing===null&&before.writing_choices[0].options.length===2,'choice already bound before selection');
+      assert(await a.evaluate("return document.querySelector('#mock-host').textContent.includes('Prüfung ausstehend')"),'saved run omitted the unreviewed label');
       selectedTask=before.writing_choices[0].options.find(o=>o.id==='A').task;
       await shot(a,'s4-choice-desktop-light');
       await clickSel(a,'[data-mock-choice-group="SA1"][data-mock-choice-option="A"]');
@@ -130,13 +143,15 @@ export async function verifyExamS4({base,email,password,freePort,record,shot,vie
       assert(result.data.assessment.feedback.criteria.every(c=>['B1_PLUS','B1','A2_PLUS','A2','A1','ZERO'].includes(c.band)),'unexpected DTZ position');
       const credit=(await request(a,'/api/v1/preparations/'+dtz.id+'/credits')).data;assert(credit.used===1&&credit.reserved===0,'successful feedback not debited exactly once');
       assert(JSON.stringify((await request(a,'/api/v1/preparations/'+telc.id+'/credits')).data)===JSON.stringify(telcCredits),'DTZ assessment touched telc allowance');
+      const detectsWrap=await a.evaluate(`const band=document.querySelector('#writing-state .criterion-head .band'),before=band.getAttribute('style');try{band.style.cssText='display:inline-block;width:24px;white-space:normal';const rects=(${visibleTextRects.toString()})(band);return rects.length>1&&Math.max(...rects.map(r=>r.top))-Math.min(...rects.map(r=>r.top))>2;}finally{if(before===null)band.removeAttribute('style');else band.setAttribute('style',before);}`);
+      assert(detectsWrap,'visible-text geometry did not detect a deliberately wrapped band');
       for(const width of [1440,390,320]){
         await viewport(a,width,width===1440?900:844,width!==1440);await theme(a,width===320?'dark':'light');
         const layout=await overflow(a);assert(layout.offenderCount===0,'feedback overflow');
         const collisions=await a.evaluate(`return [...document.querySelectorAll('#writing-state .criterion-head')].flatMap(head=>{
           const label=head.querySelector('strong'),band=head.querySelector('.band');if(!label||!band)return ['missing criterion heading'];
-          const boxes=el=>{const range=document.createRange();range.selectNodeContents(el);return [...range.getClientRects()];};
-          if(boxes(band).length!==1)return ['band label must stay together: '+band.textContent];
+          const boxes=${visibleTextRects.toString()},bandBoxes=boxes(band);
+          if(!bandBoxes.length||Math.max(...bandBoxes.map(r=>r.top))-Math.min(...bandBoxes.map(r=>r.top))>2)return ['band label must stay together: '+band.textContent];
           return boxes(label).some(l=>boxes(band).some(b=>Math.min(l.right,b.right)-Math.max(l.left,b.left)>1&&Math.min(l.bottom,b.bottom)-Math.max(l.top,b.top)>1))?[label.textContent]:[];
         });`);
         await shot(a,`s4-feedback-${width}`,'#writing-state');
@@ -160,10 +175,7 @@ export async function verifyExamS4({base,email,password,freePort,record,shot,vie
       await shot(a,'s4-independent-revision-desktop','#writing-text');
     });
     await run('S4B11 exhausted writing credit preserves completed objective work without spending telc',async()=>{
-      await go(a,'abschnitt');await a.waitFor("document.querySelectorAll('[data-mock-start]').length===2");
-      const index=forms.findIndex(f=>f.form_id==='dtz-a2-b1.reading-writing.internal01');
-      await clickSel(a,`[data-mock-start="${index}"]`);await a.waitFor("document.querySelector('[data-mock-choice-option=\"B\"]')");
-      combinedRun=await a.evaluate("return location.hash.split('/').at(-1)");
+      combinedRun=await historicalRun(a,'dtz-a2-b1.reading-writing.internal01');await a.waitFor("document.querySelector('[data-mock-choice-option=\"B\"]')");
       await clickSel(a,'[data-mock-choice-option="B"]');await a.waitFor("document.querySelector('#writing-text')");
       await setInputs(a,{'writing-text':'Liebe Nachbarin, ich möchte dir eine kurze Nachricht zu unserem Vorhaben schreiben. Bitte melde dich, sobald du Zeit hast. Viele Grüße, Alex'});await savedWriting(a);
       await a.evaluate("const input=document.querySelector('input[name=mock-answer]');if(!input)throw Error('reading answer missing');input.click();return true;");
@@ -178,11 +190,11 @@ export async function verifyExamS4({base,email,password,freePort,record,shot,vie
       assert(JSON.stringify((await request(a,'/api/v1/preparations/'+telc.id+'/credits')).data)===JSON.stringify(telcCredits),'exhausted DTZ spent telc');
       await shot(a,'s4-objective-complete-writing-unassessed-desktop');
       await viewport(a,390,844,true);
-      assert(await a.evaluate("const chip=document.querySelector('.writing-prompt .card-head .chip');const range=document.createRange();range.selectNodeContents(chip);return range.getClientRects().length===1;"),'writing prompt chip breaks into multiple lines');
+      assert(await a.evaluate(`const rects=(${visibleTextRects.toString()})(document.querySelector('.writing-prompt .card-head .chip'));return rects.length>0&&Math.max(...rects.map(r=>r.top))-Math.min(...rects.map(r=>r.top))<=2;`),'writing prompt chip breaks into multiple lines');
       await shot(a,'s4-objective-complete-writing-unassessed-mobile','#writing-state');
     });
     await run('S4B12 history and export keep original exam, selected option and saved work',async()=>{
-      await go(a,'fortschritt');await a.waitFor(`document.querySelector('[data-mock-run="${combinedRun}"]')`);
+      await go(a,'verlauf');await a.waitFor(`document.querySelector('[data-mock-run="${combinedRun}"]')`);
       const exported=await request(a,'/api/v1/export');
       assert(exported.status===200,'account export failed');
       const serialized=JSON.stringify(exported.data);assert(serialized.includes(originalSubmission)&&serialized.includes(writingRun)&&serialized.includes(combinedRun)&&serialized.includes('dtz-a2-b1'),'export lost writing/run identities');

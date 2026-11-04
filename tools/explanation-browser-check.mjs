@@ -174,7 +174,7 @@ finally{
   if(started)try{
     // Every removable volume must belong to this unique project; no global pruning or fixed names.
     for(const id of labelled('volume')){const row=JSON.parse(command('docker',['volume','inspect',id]))[0];if(row.Labels?.['com.docker.compose.project']!==project)throw Error('Unsafe cleanup volume');}
-    for(const id of labelled('image')){const row=JSON.parse(command('docker',['image','inspect',id]))[0];if(row.Config.Labels?.['com.docker.compose.project']!==project||!(row.RepoTags||[]).every(tag=>['app','worker','migrate'].some(service=>tag===project+'-'+service+':latest')))throw Error('Unsafe cleanup image');}
+    for(const id of labelled('image')){const row=JSON.parse(command('docker',['image','inspect',id]))[0];if(row.Config.Labels?.['com.docker.compose.project']!==project||!(row.RepoTags||[]).every(tag=>['app','worker','migrate','media'].some(service=>tag===project+'-'+service+':latest')))throw Error('Unsafe cleanup image');}
     compose(['down','-v','--remove-orphans','--rmi','local']);if(['container','volume','network','image'].some(kind=>labelled(kind).length))throw Error('Disposable resources remain');cleaned=true;console.log('Removed and verified disposable project '+project);
   }catch(error){record('Explanation fixture cleanup',false,error.message);}
   const resolved=fs.realpathSync(scratch);

@@ -89,10 +89,10 @@ export async function verifyPayments({ base, email, password, freePort, record, 
             if (!paused) await new Promise(resolve => setTimeout(resolve, 50));
           }
           assert(paused, 'Offer request was not actually delayed');
-          if (moveOutside) assert(await cdp.evaluate("document.querySelector('#lang-btn').focus();return document.activeElement.id==='lang-btn'"), 'Outside control was not focusable');
+          if (moveOutside) assert(await cdp.evaluate("document.querySelector('#header-language').focus();return document.activeElement.id==='header-language'"), 'Outside control was not focusable');
           await cdp.send('Fetch.continueRequest', { requestId: paused.params.requestId });
           await state(cdp, 'ready');
-          const expected = moveOutside ? 'lang-btn' : 'checkout-market';
+          const expected = moveOutside ? 'header-language' : 'checkout-market';
           assert(await cdp.evaluate(`return document.activeElement.id===${JSON.stringify(expected)}`), 'Delayed offer changed keyboard focus incorrectly');
         } finally { await cdp.send('Fetch.disable'); }
       }
