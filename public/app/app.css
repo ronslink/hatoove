@@ -520,7 +520,7 @@ dialog::backdrop { background: color-mix(in srgb, var(--nav-bg) 60%, transparent
 .topbar .mobile-bar { display: none; }
 @media (max-width:860px) {
   .topbar .mobile-bar { display: flex; }
-  .tabbar a { font-size: 13px; min-height: 68px; white-space: normal; line-height: 1.15; padding: 8px 2px; text-align: center; }
+  .tabbar a { font-size: 12px; min-height: 68px; white-space: normal; line-height: 1.15; padding: 8px 2px; text-align: center; }
   .tabbar a span { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: normal; hyphens: auto; }
   .topbar { background: var(--nav-bg); }
   .topbar .feedback-flag { color: var(--nav-ink); background: var(--nav-active-bg); border-color: var(--nav-ink-muted); }
