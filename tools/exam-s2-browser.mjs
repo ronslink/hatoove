@@ -25,9 +25,9 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
     await cdp.waitFor(`document.querySelector('#view-${view}') && !document.querySelector('#view-${view}').hidden && location.hash.endsWith('/${view}')`);
   };
   const choose = async value => {
-    await cdp.evaluate(`const radio=document.querySelector('input[name="mock-answer"][value=${JSON.stringify(value)}]');if(!radio)throw Error('radio missing');radio.click();return true;`);
+    await cdp.evaluate(`const radio=document.querySelector('#view-abschnitt:not([hidden]) input[name="mock-answer"][value=${JSON.stringify(value)}]');if(!radio || radio.disabled || radio.closest('fieldset')?.disabled || !radio.closest('.option')?.getBoundingClientRect().height)throw Error('visible writable answer missing');radio.click();return true;`);
   };
-  const saved = () => cdp.waitFor("document.querySelector('#mock-save-state')?.textContent.startsWith('Gespeichert') && !document.querySelector('[data-mock-action=save]')?.disabled");
+  const saved = () => cdp.waitFor("!document.querySelector('#view-abschnitt')?.hidden && document.querySelector('#mock-save-state')?.textContent.startsWith('Gespeichert') && !document.querySelector('[data-mock-action=save]')?.disabled");
   const intercept = async (stage, handler, pattern = '*/api/v1/mock-runs/*') => {
     const pending = new Set(); let failure;
     const listener = event => {
@@ -111,14 +111,34 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
       assert(await cdp.evaluate(`return document.querySelector('input[name=mock-answer]:checked').value===${JSON.stringify(choice)} && document.querySelector('#preparation-picker').value===${JSON.stringify(preparationId)}`),'fresh document did not resolve original preparation and response');
     });
     await run('S2B4a queued run link survives a delayed settings save',async()=>{
-      await go('einstellungen');let release;const held=new Promise(resolve=>{release=resolve;});let reached;const requested=new Promise(resolve=>{reached=resolve;});
+      await go('einstellungen');
+      const originalLanguage=await cdp.evaluate("return document.querySelector('#language').value");
+      const changedLanguage=originalLanguage==='en'?'de':'en';
+      // The locale controller intentionally does not PUT an unchanged preference. Exercise a real
+      // account-language mutation, then restore the fixture language before the player checks.
+      await cdp.evaluate(`document.querySelector('#language').value=${JSON.stringify(changedLanguage)};return true;`);
+      let release;const held=new Promise(resolve=>{release=resolve;});let reached;const requested=new Promise(resolve=>{reached=resolve;});
       await intercept('Request',async event=>{if(event.request.method==='PUT'&&new URL(event.request.url).pathname==='/api/v1/settings'){reached();await held;}return false;},'*/api/v1/settings');
       try {
         await clickSel(cdp,'#save-settings');await Promise.race([requested,new Promise((_,reject)=>setTimeout(()=>reject(Error('delayed settings request missing')),10000))]);
         await cdp.evaluate(`return new Promise(resolve=>{window.addEventListener('hashchange',()=>resolve(true),{once:true});location.hash='#/lauf/${runId}';});`);
         assert(await cdp.evaluate("return !document.querySelector('#view-einstellungen').hidden"),'navigation was not queued behind settings');release();
         await cdp.waitFor(`location.hash.endsWith('/abschnitt/${runId}') && document.querySelector('input[name=mock-answer]') && !document.querySelector('#view-abschnitt').hidden`);
-      }finally{release();await stopIntercept();}
+        const settings=await request('/api/v1/settings');
+        assert(settings.status===200&&settings.data.settings.language===changedLanguage
+          &&await cdp.evaluate(`return document.documentElement.lang===${JSON.stringify(changedLanguage)}`),'queued navigation lost the confirmed language');
+      }finally{
+        release();await stopIntercept();
+        await go('einstellungen');
+        await cdp.waitFor("!document.querySelector('#save-settings').disabled");
+        await cdp.evaluate(`document.querySelector('#language').value=${JSON.stringify(originalLanguage)};return true;`);
+        await clickSel(cdp,'#save-settings');
+        await cdp.waitFor(`!document.querySelector('#save-settings').disabled && document.documentElement.lang===${JSON.stringify(originalLanguage)}`);
+        const restored=await request('/api/v1/settings');
+        assert(restored.status===200&&restored.data.settings.language===originalLanguage,'fixture language restore failed');
+        await fresh('#/lauf/'+runId);
+        await cdp.waitFor("!document.querySelector('#view-abschnitt').hidden && document.querySelector('input[name=mock-answer]')");
+      }
     });
     await run('S2B5 all three parts render with complete choices at 390/320 in both themes',async()=>{
       for(const width of [390,320]) {
