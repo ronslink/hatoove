@@ -53,10 +53,11 @@ export async function verifyExamS2({ base, email, password, freePort, record, sh
       const form = forms.data.forms?.find(value => value.scope === 'section'
         && value.sections?.length === 1 && value.sections[0] === 'LV' && value.item_count === 20);
       assert(forms.status === 200 && form, 'exact twenty-item reading form unavailable');
-      const started = await request('/api/v1/mock-runs?preparationId='+preparationId, 'POST', {
+      const started = await request('/api/v1/mock-runs', 'POST', {
         preparationId, formId:form.form_id,formVersion:form.version,releaseVersion:form.release_version,eventId:randomUUID(),
       });
-      assert(started.status === 201 && started.data.id, 'section fixture creation failed');
+      assert(started.status === 201 && started.data.id,
+        `section fixture creation failed: HTTP ${started.status}, ${started.data.error || 'missing run identity'}`);
       await go('heute'); await go('probepruefung');
       const selector = '#mock-intro-host a[href="#/lauf/'+started.data.id+'"]';
       await cdp.waitFor(`document.querySelector(${JSON.stringify(selector)})`);
