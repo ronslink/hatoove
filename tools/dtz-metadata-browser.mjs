@@ -99,8 +99,8 @@ export async function verifyDtzMetadata({ c, base, prep, fixture, availableVersi
   await nav(c, base + '/app/#/prep/' + telc.id + '/pruefungsteile');
   await ready(c);
   await c.waitFor("document.querySelector('#part-index-host [data-part=LV1]') && !document.querySelector('#part-index-host [data-part=LV5]')", 15000);
-  const telcTile = await c.evaluate("return document.querySelector('#part-index-host [data-part=LV1]').dataset;");
-  assert(telcTile.items === '5' && telcTile.points === '25', 'Switching back must restore telc facts');
+  const telcTile = await c.evaluate("const tile=document.querySelector('#part-index-host [data-part=LV1]');return {items:tile.dataset.items,points:tile.dataset.points};");
+  assert(telcTile.items === '5' && telcTile.points === '25', 'Switching back must restore telc facts: ' + JSON.stringify(telcTile));
   await layout('dtz-metadata-switched-telc', '#part-index-host');
   await c.evaluate(`const picker=document.querySelector('#preparation-picker');picker.value=${JSON.stringify(prep.id)};picker.dispatchEvent(new Event('change',{bubbles:true}));return true;`);
   await c.waitFor(`document.querySelector('#preparation-picker').value===${JSON.stringify(prep.id)} && !document.querySelector('#preparation-picker').disabled`, 15000);
