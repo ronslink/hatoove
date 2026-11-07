@@ -23,6 +23,7 @@ The client calls the existing scoped route. Part order, membership, item counts,
 - Client `DTZ-METADATA-20261107-C`: `public/app/api.js`, `public/app/part-index.js`, `public/app/mock-intro.js`, `public/assets/i18n/practice-messages.js` if needed, `tools/part-index-check.mjs`, `tools/mock-intro-check.mjs`. Worktree/branch suffix `-client`.
 - Coordinator: browser evidence/checks, CI wiring if required, paired central records and this receipt. Other shared paths require explicit allocation.
 - Coordinator follow-up allocation: `public/app/part-index.css` for the observed 320px section-title/badge wrapping, plus the matching rendered assertion; no shared design tokens changed.
+- Coordinator visual follow-up: `public/app/mock-intro.css` allows unknown-point text to wrap inside the existing narrow table columns; the browser checks table-level overflow in every locale.
 - Reviewer: independent, read-only, assigned after implementation.
 
 ## Acceptance

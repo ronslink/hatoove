@@ -89,6 +89,8 @@ export async function verifyDtzMetadata({ c, base, prep, fixture, availableVersi
     await openIntro();
     await inspectIntro();
     await shot(c, 'dtz-metadata-intro-' + language + '-320', '#mock-intro-host');
+    const tableFits = await c.evaluate("const table=document.querySelector('#mock-intro-host .mock-intro-table');return table.scrollWidth <= table.clientWidth + 2;");
+    assert(tableFits, 'Localized unknown points must remain visible without horizontal table scrolling');
     const introSize = await overflow(c);
     assert(introSize.offenderCount === 0 && introSize.scrollWidth <= introSize.innerWidth + 2, 'Localized DTZ introduction overflows');
   }

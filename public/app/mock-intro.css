@@ -67,4 +67,5 @@
   .mock-intro-table table.t thead th:nth-child(2) { width: 26%; }
   .mock-intro-table table.t thead th:nth-child(3) { width: 22%; }
   .mock-intro-table table.t tbody th { hyphens: auto; overflow-wrap: break-word; }
+  .mock-intro-table table.t .mock-intro-points { white-space: normal; overflow-wrap: anywhere; }
 }
