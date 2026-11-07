@@ -8,8 +8,8 @@
  * is the pure half of the fix — normalise a blueprint payload into parts — and the adapter owns the read,
  * the admission gate and the transaction. No SQL here, no policy here, no connection here.
  *
- * READ-ONLY AND ADDITIVE. Nothing in this file writes, migrates or changes an existing response shape. It is
- * consulted only by `GET /api/v1/exam-parts`.
+ * READ-ONLY AND ADDITIVE. Nothing in this file writes or migrates. The existing parts array remains, and
+ * `GET /api/v1/exam-parts` also exposes the selected blueprint's sections and timing groups.
  *
  * NO POINTS. The packaged blueprint carries `itemCount`, `interaction`, `mediaRequired` and `playback`, but
  * no per-part points (verified: no `points` key anywhere under `content/exams/telc-deutsch-b1/`). Per-part
@@ -18,8 +18,7 @@
  * without the client changing its reader. Until then this module must NOT invent one.
  */
 
-/** The eight written parts in examination order — the order the index renders. */
-export const PART_ORDER = Object.freeze(['LV1', 'LV2', 'LV3', 'SB1', 'SB2', 'HV1', 'HV2', 'HV3']);
+import { validateTimeGroups } from './package-contract.mjs';
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const positiveInteger = (value) => (Number.isInteger(value) && value > 0 ? value : null);
@@ -52,7 +51,7 @@ export function partPoints(part) {
 }
 
 /**
- * Every part of a blueprint payload, in `PART_ORDER`, as the route serves it.
+ * Every part in the selected blueprint's section/part order. Family names are not exam identities.
  *
  * A malformed blueprint is a `TypeError`, not a silently short list: the caller turns it into a 503, because
  * "the package is corrupt" and "this exam has fewer parts" must not look the same to the client. Parts the
@@ -64,10 +63,12 @@ export function blueprintParts(blueprint) {
   const sections = Array.isArray(blueprint.sections) ? blueprint.sections : null;
   if (!sections || !sections.length) throw new TypeError('exam_blueprint_invalid');
   const byFamily = new Map();
+  const sectionIds = new Set();
   for (const section of sections) {
     const sectionId = nonEmptyString(section?.id);
-    if (!sectionId) throw new TypeError('exam_blueprint_invalid');
-    const parts = Array.isArray(section.parts) ? section.parts : [];
+    if (!sectionId || sectionIds.has(sectionId) || !Array.isArray(section.parts) || !section.parts.length) throw new TypeError('exam_blueprint_invalid');
+    sectionIds.add(sectionId);
+    const parts = section.parts;
     for (const part of parts) {
       const family = nonEmptyString(part?.family);
       const itemCount = positiveInteger(part?.itemCount);
@@ -76,17 +77,31 @@ export function blueprintParts(blueprint) {
       byFamily.set(family, Object.freeze({
         family,
         section: sectionId,
-        part: positiveInteger(part.part) ?? null,
+        part: positiveInteger(part.part) ?? positiveInteger(Number(/^(?:LV|SB|HV|SA)([1-9][0-9]?)$/.exec(family)?.[1])),
         itemCount,
+        interaction: nonEmptyString(part.interaction),
         mediaRequired: part.mediaRequired === true,
         playback: partPlayback(part),
         points: partPoints(part),
       }));
     }
   }
-  const ordered = PART_ORDER.filter((family) => byFamily.has(family)).map((family) => byFamily.get(family));
-  const rest = [...byFamily.values()]
-    .filter((part) => !PART_ORDER.includes(part.family))
-    .sort((a, b) => a.family.localeCompare(b.family));
-  return Object.freeze([...ordered, ...rest]);
+  return Object.freeze([...byFamily.values()]);
+}
+
+/** Non-content facts from one exact blueprint; absent points or schedules stay unknown. */
+export function blueprintMetadata(blueprint) {
+  const parts = blueprintParts(blueprint);
+  try { validateTimeGroups(blueprint); }
+  catch { throw new TypeError('exam_blueprint_invalid'); }
+  return {
+    sections: blueprint.sections.map(section => ({
+      id: section.id,
+      title: nonEmptyString(section.title),
+      timeGroup: nonEmptyString(section.timeGroup),
+      points: partPoints(section),
+    })),
+    time_groups: (blueprint.timeGroups ?? []).map(group => ({ id: group.id, seconds: group.seconds, sections: [...group.sections] })),
+    parts,
+  };
 }

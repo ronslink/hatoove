@@ -1120,10 +1120,10 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
        * WHY A ROUTE. A tile must show its part's item count and, for the hearing parts, the playback rule.
        * Both live in the packaged blueprint the server already reads to validate a form, and neither was
        * reachable: `/objective-sets` filters `media_required = false`, so HV1–HV3 never appear in it. This
-       * route serves the blueprint's parts and nothing else — no learner data, no answer material.
+       * route serves the blueprint's structure and exact release identity — no learner data or answers.
        *
-       * ADDITIVE. It is a new path, so no existing response changes shape; the sibling addition on
-       * `/practice/progress` (`parts`) is a new member beside the untouched ones.
+       * ADDITIVE. Existing exam_id/parts remain; sections, timing groups and release/blueprint versions
+       * let the selected exam explain its own structure without borrowing another package's facts.
        *
        * NARROWING ONLY, like every neighbouring catalogue route: the exam is the ACTIVE preparation's, and an
        * explicit `examId` may only confirm it. A different exam is `preparation_mismatch`, never a second
@@ -1136,8 +1136,16 @@ export function createOwnedApi({ datastore, sessions, settings = null, accountDe
       if (asked !== null && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(asked)) fault(422, 'invalid_exam');
       const prep = await preparationContext(query);
       if (asked !== null && asked !== prep.exam_id) fault(422, 'preparation_mismatch');
+      if (typeof datastore.readExamMetadata === 'function') {
+        const metadata = await datastore.readExamMetadata(owner, { examId: prep.exam_id });
+        if (!metadata || metadata.exam_id !== prep.exam_id) fault(503, 'catalogue_unavailable');
+        return reply(200, metadata);
+      }
+      if (typeof datastore.listExamParts !== 'function') fault(503, 'catalogue_unavailable');
       const parts = await datastore.listExamParts(owner, { examId: prep.exam_id });
-      return reply(200, { exam_id: prep.exam_id, parts: Array.isArray(parts) ? parts : [] });
+      // Older ports can supply parts without claiming an exact release or inventing its structure.
+      return reply(200, { exam_id: prep.exam_id, release_version: null, blueprint_version: null,
+        sections: [], time_groups: [], parts: Array.isArray(parts) ? parts : [] });
     }
     if (pathname === '/api/v1/vocab' && method === 'GET') {
       if (!catalogueWired) fault(503, 'catalogue_unavailable');
