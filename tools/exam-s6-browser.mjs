@@ -1,6 +1,7 @@
 /** Rendered public admission and pinned-history proof; all content and accounts are synthetic. */
 import {randomUUID} from 'node:crypto';
 import {launchBrowser,connectToPage} from './cdp.js';
+import {verifyDtzMetadata} from './dtz-metadata-browser.mjs';
 
 export async function verifyExamS6({base,email,newcomerEmail,password,fixture,availableVersion,incompleteVersion,freePort,record,shot,viewport,theme,nav,setInputs,clickSel,overflow,publishAvailable,publishIncomplete,withdrawPinned}) {
   const url=new URL(base);
@@ -41,6 +42,9 @@ export async function verifyExamS6({base,email,newcomerEmail,password,fixture,av
       const offer=await api(a,'/api/v1/checkout/offer?exam='+DTZ+'&market=DE');assert(offer.status===200&&offer.data.offer.purchasable,'Available purchase offer absent');
       await nav(a,base+'/app/#/prep/'+prep.id+'/probepruefung');await ready(a);await a.waitFor("document.querySelector('[data-mock-intro-start]')",10000);await shot(a,'s6-public-full-catalogue-desktop','#mock-intro-host');
     });
+    await check('S6B2M selected DTZ metadata, all parts, exact mock timing, five locales and telc switching',async()=>{
+      await verifyDtzMetadata({c:a,base,prep,fixture,availableVersion,api,nav,ready,viewport,theme,shot,overflow,clickSel});
+    });
     await check('S6B3 learner starts the public45-item mock, saves an HV response and loads protected fixed audio',async()=>{
       await pointer(a,'[data-mock-intro-start]');await a.waitFor("/[a-f0-9-]{36}$/.test(location.hash) && document.querySelector('.mock-options input') && document.querySelector('[data-mock-action=save]')",15000);
       const id=await a.evaluate("return location.hash.split('/').at(-1)");run=(await api(a,'/api/v1/mock-runs/'+id)).data;
@@ -58,6 +62,8 @@ export async function verifyExamS6({base,email,newcomerEmail,password,fixture,av
       const question=set.payload.questions[0],binding={taskId:task.taskId,taskVersion:task.version,rubricId:task.rubricId,rubricVersion:task.rubricVersion};
       assert(!(await api(a,'/api/v1/exams')).data.exams.some(row=>row.exam_id===DTZ),'Incomplete DTZ discovery remains open');
       assert((await api(a,'/api/v1/mock-forms'+query)).data.forms.length===0,'Incomplete mock catalogue remains open');
+      const metadata=(await api(a,'/api/v1/exam-parts'+query)).data;
+      assert(metadata.exam_id===DTZ&&metadata.parts.length===0&&metadata.sections.length===0&&metadata.time_groups.length===0&&metadata.release_version===null,'Incomplete release retained display facts');
       assert((await api(a,'/api/v1/objective-sets'+query)).data.length===0,'Incomplete objective catalogue remains open');
       assert((await api(a,'/api/v1/tasks'+query)).data.length===0,'Incomplete writing catalogue remains open');
       assert((await api(a,'/api/v1/practice/next'+query)).data.reason==='nothing_available','Incomplete next practice remains open');
@@ -79,6 +85,7 @@ export async function verifyExamS6({base,email,newcomerEmail,password,fixture,av
       await layouts('s6-pinned-after-closure','.mock-options');
       await nav(a,base+'/app/#/prep/'+prep.id+'/probepruefung');await ready(a);await a.waitFor("document.querySelector('#mock-intro-host .mock-intro-start')?.textContent.includes('Zurzeit ist kein Lauf') && !document.querySelector('#mock-intro-host [data-mock-intro-start]')",10000);
       const resume=`#mock-intro-host a[href="#/lauf/${run.id}"]`;await a.waitFor(`document.querySelector(${JSON.stringify(resume)})?.textContent.trim().length>0`,10000);await shot(a,'s6-closed-new-start-preserved-history','#mock-intro-host');
+      assert(await a.evaluate("return !document.querySelector('#mock-intro-host tbody [data-mock-intro-block]') && !document.querySelector('#mock-intro-host [data-mock-intro-total-note]') && Boolean(document.querySelector('#mock-intro-host [data-mock-intro-metadata-unavailable]'))"),'Closed release retained a fabricated or stale schedule');
       await clickSel(a,resume);await a.waitFor("document.querySelector('.mock-options input:checked')",10000);assert((await read()).release_version===availableVersion,'History link lost the pinned release');
     });
     await check('S6B6 exact media rights withdrawal blocks the protected bundle while retaining answers and history',async()=>{
