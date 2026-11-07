@@ -23,7 +23,8 @@
  *     "Angabe folgt" — not zero and not a section number attributed to a part;
  *  6. no per-set cards: no set id, no set-level control anywhere in the markup;
  *  7. D22: no prediction/forecast/probability/readiness vocabulary in any of the five locales;
- *  8. degradation: absent/failed parts payload renders no invented numbers;
+ *  8. degradation: absent/failed parts payload renders no invented numbers; exact exam identity gates
+ *     the telc supplement, and DTZ order/counts/playback/section timing survive all five locales;
  *  9. the stylesheet: tokens only, module-scoped, no extra breakpoint;
  * 10. (--postgres) the route serves all eight parts with the blueprint's numbers, refuses a mismatched or
  *     malformed examId, proves it does NOT come from the media-filtered objective catalogue, and runs
@@ -263,8 +264,8 @@ await aLeg('8 degradation: absent, failed and count-less APIs never invent a num
   const view = viewModule.createPartIndexView({ esc, uiText, examLanguage: 'de' });
   await view.mount(host);
   assert.deepEqual(Object.keys(view).sort(), ['canLeave', 'mount', 'unmount']);
-  assert.equal(tilesOf(host.innerHTML).length, 8, 'the documented constant still yields eight tiles');
-  assert.match(host.innerHTML, /data-parts-source="documented"/);
+  assert.equal(tilesOf(host.innerHTML).length, 0, 'a missing API cannot create telc tiles');
+  assert.match(host.innerHTML, /data-parts-source="unavailable"/);
   assert.match(host.innerHTML, /data-counts-source="unavailable"/);
   assert.ok(!/data-own-count="0\/0"/.test(host.innerHTML), 'an unavailable count is not rendered as zero');
   view.unmount();
@@ -287,7 +288,7 @@ await aLeg('8 degradation: absent, failed and count-less APIs never invent a num
   const hvView = viewModule.createPartIndexView({
     esc, uiText, examLanguage: 'de',
     api: {
-      examParts: { list: async () => ({ ok: true, status: 200, data: { parts: payloadParts() } }) },
+      examParts: { list: async () => ({ ok: true, status: 200, data: { exam_id: 'telc-deutsch-b1', parts: payloadParts() } }) },
       practice: { progress: async () => ({ ok: true, status: 200, data: { sections: [], parts: [{ family: 'HV2', attempts: 6, correct: 6 }] } }) },
     },
   });
@@ -295,6 +296,110 @@ await aLeg('8 degradation: absent, failed and count-less APIs never invent a num
   assert.deepEqual(tilesOf(withPayload.innerHTML), ['HV1', 'HV2', 'HV3'], 'the host selects the filter');
   assert.match(withPayload.innerHTML, /data-own-count="6\/6"/);
   hvView.unmount();
+});
+
+const DTZ_ORDER = ['HV1', 'HV2', 'HV3', 'HV4', 'LV1', 'LV2', 'LV3', 'LV4', 'LV5'];
+const dtzMetadata = () => ({
+  exam_id: 'dtz-a2-b1', release_version: 'v9701', blueprint_version: 'v9700',
+  sections: [{ id: 'HV', timeGroup: 'dtz-hv-25' }, { id: 'LV', timeGroup: 'dtz-lv-45' }, { id: 'SA', timeGroup: 'dtz-sa-30' }],
+  time_groups: [{ id: 'dtz-hv-25', seconds: 1500, sections: ['HV'] }, { id: 'dtz-lv-45', seconds: 2700, sections: ['LV'] }, { id: 'dtz-sa-30', seconds: 1800, sections: ['SA'] }],
+  parts: DTZ_ORDER.map((family, index) => ({ family, section: family.slice(0, 2), part: Number(family.slice(2)),
+    itemCount: [4, 5, 8, 3, 5, 5, 6, 3, 6][index], points: null,
+    playback: family.startsWith('HV') ? { practice: 1, mock: 1 } : null })),
+});
+const metadataApi = data => ({ examParts: { list: async () => ({ ok: true, status: 200, data }) } });
+
+await aLeg('8b DTZ keeps every released part, blueprint order, counts, plays and its own section timing', async () => {
+  const result = await viewModule.readExamParts(metadataApi(dtzMetadata()), 'dtz-a2-b1');
+  assert.equal(result.source, 'payload');
+  const model = viewModule.buildIndexModel({ ...result, partsSource: result.source });
+  assert.deepEqual(model.sections.map(section => [section.id, section.minutes, section.points]), [['HV', 25, null], ['LV', 45, null], ['SA', 30, null]]);
+  const previous = getLocale();
+  for (const locale of LOCALES) {
+    setLocale(locale);
+    const markup = viewModule.indexMarkup({ esc, uiText, examLanguage: 'de', model });
+    assert.deepEqual(tilesOf(markup), DTZ_ORDER, locale + ' must retain LV4/LV5/HV4 and package order');
+    for (const family of DTZ_ORDER) assert.equal(attrOf(markup, family, 'data-points'), '', family + ' must not inherit telc points');
+    assert.equal(attrOf(markup, 'LV3', 'data-items'), '6');
+    assert.equal(attrOf(markup, 'HV3', 'data-items'), '8');
+    assert.equal(attrOf(markup, 'HV4', 'data-plays'), '1');
+    assert.ok(!markup.includes('data-subtest="SB"'), 'DTZ has no separate telc language-elements section');
+    assert.ok(!/partSkill|Übersetzung nicht verfügbar|Translation unavailable/.test(markup), locale + ' leaked a missing or telc skill label');
+    assert.ok(!/Globalverstehen|Detailverstehen|Selektives Verstehen/.test(textOf(markup)), 'DTZ must not inherit telc skill names');
+    assert.match(markup, /data-subtest="SA"[\s\S]*?href="#\/schreiben"/);
+    if (locale === 'ar') assert.match(markup, /lang="ar" dir="rtl"/);
+  }
+  setLocale(previous);
+});
+
+await aLeg('8c missing, unknown, mismatched and withheld metadata never borrow telc facts', async () => {
+  for (const data of [{ parts: payloadParts() }, { ...dtzMetadata(), exam_id: 'telc-deutsch-b1' }]) {
+    const result = await viewModule.readExamParts(metadataApi(data), 'dtz-a2-b1');
+    assert.equal(result.source, 'unavailable');
+    assert.deepEqual(result.parts, []);
+  }
+  const unknown = await viewModule.readExamParts(metadataApi({ ...dtzMetadata(), exam_id: 'future-exam', time_groups: [] }), 'future-exam');
+  const unknownModel = viewModule.buildIndexModel({ ...unknown });
+  assert.ok(unknownModel.tiles.every(part => part.points === null));
+  assert.ok(unknownModel.sections.every(section => section.minutes === null && section.points === null));
+  const withheld = await viewModule.readExamParts(metadataApi({ exam_id: 'telc-deutsch-b1', parts: [], sections: [], time_groups: [] }), 'telc-deutsch-b1');
+  const emptyModel = viewModule.buildIndexModel({ ...withheld });
+  assert.deepEqual(emptyModel.tiles, []);
+  assert.deepEqual(emptyModel.sections, []);
+  const unidentified = await viewModule.readExamParts(metadataApi({ ...dtzMetadata(), exam_id: null, parts: [] }));
+  assert.deepEqual(unidentified.sections, [], 'an identityless empty response carries no section facts');
+  assert.deepEqual(unidentified.timeGroups, []);
+  const telc = await viewModule.readExamParts(metadataApi({ exam_id: 'telc-deutsch-b1', parts: [{ family: 'LV1', section: 'LV', part: null, itemCount: null, points: null, playback: null }] }), 'telc-deutsch-b1');
+  assert.equal(telc.parts[0].points, 25, 'documented points remain limited to explicit telc identity');
+  assert.equal(telc.parts[0].itemCount, null, 'missing package counts cannot be invented');
+});
+
+await aLeg('8d changing preparation while loading prevents old facts reaching the new host', async () => {
+  let resolve;
+  const state = { preparation: { id: 'old', exam_id: 'telc-deutsch-b1' } };
+  const host = { id: 'part-index-host', innerHTML: '' };
+  const instance = viewModule.createPartIndexView({ state, uiText, api: { examParts: { list: () => new Promise(done => { resolve = done; }) } } });
+  const load = instance.mount(host);
+  state.preparation = { id: 'new', exam_id: 'dtz-a2-b1' };
+  resolve({ ok: true, data: { exam_id: 'telc-deutsch-b1', parts: payloadParts() } });
+  assert.equal(await load, false);
+  assert.deepEqual(tilesOf(host.innerHTML), []);
+  instance.unmount();
+});
+
+await aLeg('8e exam-parts transport requires a verified account/preparation and rejects stale responses', async () => {
+  const { createApi } = await import(new URL('./api.js', pathToFileURL(MODULE_PATH)).href);
+  const calls = []; let resolve;
+  const client = createApi({ onSessionInvalid: () => {}, fetchImpl: async (url, options) => {
+    calls.push({ url, options });
+    if (url === '/api/auth/get-session') return { ok: true, status: 200, json: async () => ({ user: { id: 'synthetic-account' } }) };
+    return new Promise(done => { resolve = () => done({ ok: true, status: 200, json: async () => dtzMetadata() }); });
+  } });
+  assert.equal((await client.examParts.list()).error, 'account_context_required');
+  await client.session();
+  assert.equal((await client.examParts.list()).error, 'preparation_required');
+  client.preparations.select({ id: '11111111-2222-4333-8444-555555555555', state: 'active' });
+  const pending = client.examParts.list();
+  assert.equal(calls.at(-1).url, '/api/v1/exam-parts?preparationId=11111111-2222-4333-8444-555555555555');
+  assert.equal(calls.at(-1).options.headers['X-Hatoove-Account'], 'synthetic-account');
+  client.preparations.select({ id: '22222222-3333-4444-8555-666666666666', state: 'active' });
+  resolve();
+  assert.equal((await pending).error, 'stale_preparation');
+});
+
+await aLeg('8f a failed metadata read can be reloaded through the visible control', async () => {
+  let reads = 0;
+  const host = { id: 'part-index-host', innerHTML: '' };
+  const instance = viewModule.createPartIndexView({ uiText, state: { preparation: { id: 'dtz', exam_id: 'dtz-a2-b1' } },
+    api: { examParts: { list: async () => ++reads === 1 ? { ok: false, status: 503 } : { ok: true, data: dtzMetadata() } } } });
+  await instance.mount(host);
+  assert.match(host.innerHTML, /data-load-error/);
+  assert.match(host.innerHTML, /data-part-reload/);
+  host.onclick({ target: { closest: selector => selector === '[data-part-reload]' ? {} : null } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(tilesOf(host.innerHTML), DTZ_ORDER);
+  assert.ok(!host.innerHTML.includes('data-load-error'));
+  instance.unmount();
 });
 
 leg('9 stylesheet: tokens only, module-scoped, no extra breakpoint', () => {

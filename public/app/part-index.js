@@ -17,8 +17,8 @@
  * THE ONE DATA SEAM. `readExamParts(api)` is the ONLY place that decides where the per-part facts come from:
  *   - `api.examParts.list()` — the normalised payload slice B asks the server for (per part: family,
  *     section, part, itemCount/items, points, playback {practice, mock}).
- *   - `EXAM_PARTS` — the documented fallback, transcribed from the two authoritative files in this
- *     repository and cited line by line below. It carries no learner data.
+ *   - `EXAM_PARTS` — a cited telc-only point/part-label supplement. It never creates a tile, a time or a
+ *     playback rule, and is never applied to another exam or to an unavailable response.
  * The surface above the seam (model, markup, view) is identical either way, so repointing it is one function.
  *
  * COUNTS. `readPracticeCounts(api)` prefers `progress.parts[]` (per part, from `item_evidence.family`).
@@ -36,27 +36,25 @@ import { getLocale, subscribeLocale } from '../assets/i18n/core.js';
 import { pt } from '../assets/i18n/practice-messages.js';
 
 /** Shell keys for the four subtests — the same mapping the shell uses (app.js SECTION_NAMES). */
-const SECTION_KEYS = Object.freeze({ LV: 'm002', SB: 'm003', HV: 'm004', writing: 'm005' });
-/** The written examination's four subtests with their official points and the timed block they run in. */
+const SECTION_KEYS = Object.freeze({ LV: 'm002', SB: 'm003', HV: 'm004', writing: 'm005', SA: 'm005' });
+/** Cited telc Deutsch B1 points only; section membership and times always come from the served package. */
 export const SUBTESTS = Object.freeze([
   Object.freeze({ id: 'LV', points: 75, block: 'lv-sb-90' }),
   Object.freeze({ id: 'SB', points: 30, block: 'lv-sb-90' }),
   Object.freeze({ id: 'HV', points: 75, block: 'hv-30' }),
   Object.freeze({ id: 'writing', points: 45, block: 'writing-30' }),
 ]);
-/** Minutes per timed block: the canonical `timeGroups` plus the writing task's own 30 minutes. */
-export const BLOCK_MINUTES = Object.freeze({ 'lv-sb-90': 90, 'hv-30': 30, 'writing-30': 30 });
 /** The listening play rule as the package states it, per part. */
 export const PLAYBACK = Object.freeze({
   HV1: Object.freeze({ practice: 1, mock: 1 }),
   HV2: Object.freeze({ practice: 1, mock: 2 }),
   HV3: Object.freeze({ practice: 1, mock: 2 }),
 });
-/** The eight parts, in examination order. */
+/** The telc families with cited skill labels. This never determines rendered part order. */
 export const PART_ORDER = Object.freeze(['LV1', 'LV2', 'LV3', 'SB1', 'SB2', 'HV1', 'HV2', 'HV3']);
 
 /**
- * The documented fallback for `api.examParts.list()`.
+ * The documented telc-only supplement to a successful, identified `api.examParts.list()` payload.
  *
  * SOURCES, per fact:
  *  - items — `content/exams/telc-deutsch-b1/listening-package.json`, blueprint.sections[].parts[].itemCount
@@ -81,7 +79,7 @@ export const EXAM_PARTS = Object.freeze([
 ]);
 
 /** Where each section's practice lives today; slice C replaces the destination with the part runner. */
-export const SECTION_ROUTES = Object.freeze({ LV: '#/lesen', SB: '#/sprachbausteine', HV: '#/hoeren', writing: '#/schreiben' });
+export const SECTION_ROUTES = Object.freeze({ LV: '#/lesen', SB: '#/sprachbausteine', HV: '#/hoeren', writing: '#/schreiben', SA: '#/schreiben' });
 
 const defaultEsc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const countOrNull = value => (Number.isInteger(value) && value >= 0 ? value : null);
@@ -108,32 +106,28 @@ export function partFilterForHost(host) {
   return ({ 'hoeren-host': 'HV', 'lesen-host': 'LV', 'sprachbausteine-host': 'SB' })[id] ?? null;
 }
 
-/** The per-part facts: the server payload when it exists, the cited table otherwise. */
-export async function readExamParts(api) {
+/** Read one preparation-scoped release. Missing data never selects a default exam. */
+export async function readExamParts(api, expectedExamId = null) {
   if (typeof api?.examParts?.list === 'function') {
     let response;
     try { response = await api.examParts.list(); } catch { response = { ok: false, status: 0 }; }
     const parts = Array.isArray(response?.data?.parts) ? response.data.parts.filter(part => typeof part?.family === 'string') : [];
-    if (response?.ok && Array.isArray(response?.data?.parts)) {
-      /*
-       * REVIEW-PRACTICE-UI-01 F1. The published blueprint carries family, itemCount, interaction and
-       * mediaRequired — it has no `part` number and no `points`, so those arrive as null. Replacing the
-       * cited table with that shape would drop "Teil 1" from a heading and print "Angabe folgt" where the
-       * documented source has a number. A served value therefore wins only where it is actually non-null,
-       * and every field it cannot answer keeps the cited one. This is what makes amendment A6's upgrade
-       * path ("move the numbers into the blueprint later, no client edit") true.
-       */
-      const documented = new Map(EXAM_PARTS.map(part => [part.family, part]));
+    const examId = typeof response?.data?.exam_id === 'string' ? response.data.exam_id : null;
+    if (response?.ok && Array.isArray(response?.data?.parts)
+      && (!expectedExamId || examId === expectedExamId) && (examId || parts.length === 0)) {
+      const documented = new Map((examId === 'telc-deutsch-b1' ? EXAM_PARTS : []).map(part => [part.family, part]));
       const merged = parts.map((part) => {
         const fallback = documented.get(part.family) || {};
         const pref = (key) => (part[key] === null || part[key] === undefined ? (fallback[key] ?? null) : part[key]);
-        return { ...part, part: pref('part'), itemCount: pref('itemCount'), points: pref('points'), playback: pref('playback') };
+        return { ...part, part: pref('part'), points: pref('points') };
       });
-      return { source: 'payload', parts: merged, error: null };
+      return { source: 'payload', examId, parts: merged,
+        sections: examId && Array.isArray(response.data.sections) ? response.data.sections : [],
+        timeGroups: examId && Array.isArray(response.data.time_groups) ? response.data.time_groups : [], error: null };
     }
     return { source: 'unavailable', parts: [], error: response?.error ?? 'exam_parts_unavailable' };
   }
-  return { source: 'documented', parts: EXAM_PARTS.map(part => ({ ...part })), error: null };
+  return { source: 'unavailable', parts: [], error: 'exam_parts_unavailable' };
 }
 
 /** The learner's own counts, per part when the server can attribute them, otherwise per section. */
@@ -152,11 +146,8 @@ export async function readPracticeCounts(api) {
 }
 
 /** Join both sources into the model the markup renders. Pure, so the check needs no api at all. */
-export function buildIndexModel({ parts = [], partsSource = null, counts = { source: 'unavailable', parts: null, sections: null }, filter = null, error = null } = {}) {
-  const byFamily = new Map(parts.filter(part => typeof part?.family === 'string').map(part => [part.family, part]));
-  const tiles = PART_ORDER
-    .map(family => byFamily.get(family))
-    .filter(part => Boolean(part))
+export function buildIndexModel({ examId = null, parts = [], sections: declaredSections = [], timeGroups = [], partsSource = null, counts = { source: 'unavailable', parts: null, sections: null }, filter = null, error = null } = {}) {
+  const tiles = parts.filter(part => typeof part?.family === 'string')
     .filter(part => !filter || part.section === filter)
     .map(part => ({
       family: part.family,
@@ -168,10 +159,18 @@ export function buildIndexModel({ parts = [], partsSource = null, counts = { sou
       /* Per part or unknown — never a section number on a part tile. */
       own: counts.parts?.get(part.family) ?? null,
     }));
-  const sections = SUBTESTS
+  const sectionFacts = declaredSections.length ? declaredSections : [...new Set(parts.map(part => part.section))].map(id => ({ id }));
+  const sections = sectionFacts
     .filter(subtest => !filter || subtest.id === filter)
-    .map(subtest => ({ ...subtest, minutes: BLOCK_MINUTES[subtest.block] ?? null, own: counts.sections?.get(subtest.id) ?? null }));
-  return { error, filter, tiles, sections, countsSource: counts.source, partsSource: partsSource ?? (tiles.length ? 'payload' : 'unavailable') };
+    .map(subtest => {
+      const group = timeGroups.find(group => group.id === subtest.timeGroup && group.sections?.includes(subtest.id));
+      const seconds = countOrNull(group?.seconds);
+      const supplement = examId === 'telc-deutsch-b1' ? SUBTESTS.find(value => value.id === subtest.id) : null;
+      return { ...subtest, points: countOrNull(subtest.points) ?? supplement?.points ?? null,
+        minutes: seconds > 0 ? seconds / 60 : null, shared: group?.sections?.length > 1,
+        own: counts.sections?.get(subtest.id) ?? null };
+    });
+  return { examId, error, filter, tiles, sections, countsSource: counts.source, partsSource: partsSource ?? (tiles.length ? 'payload' : 'unavailable') };
 }
 
 /* --------------------------------------------------------------------------------- markup */
@@ -193,7 +192,7 @@ export function indexMarkup({ esc = defaultEsc, uiText = key => key, examLanguag
     + '<div class="card-head"><h2>' + sectionName(section.id) + '</h2>'
     + '<span class="chip">' + (section.points === null ? t('partIndexPending') : t('partIndexPoints') + ' ' + esc(String(section.points))) + '</span></div>'
     + '<p class="small muted">' + (section.minutes === null ? t('partIndexPending')
-      : t('minutes', { minutes: section.minutes }) + (section.block === 'lv-sb-90' ? ' · ' + t('partIndexSharedBlock') : '')) + '</p>'
+      : t('minutes', { minutes: section.minutes }) + (section.shared ? ' · ' + t('partIndexSharedBlock') : '')) + '</p>'
     + (section.own ? '<p class="small muted" data-subtest-count="' + section.own.attempts + '/' + section.own.correct + '">' + t('partPractised', { practised: section.own.attempts, correct: section.own.correct }) + '</p>' : '')
     + '<p><a class="btn" href="' + esc(SECTION_ROUTES[section.id] ?? '#/pruefungsteile') + '" data-subtest-route="' + esc(SECTION_ROUTES[section.id] ?? '') + '">' + t('partIndexOpen') + '</a></p>'
     + '</article>').join('');
@@ -214,7 +213,8 @@ export function indexMarkup({ esc = defaultEsc, uiText = key => key, examLanguag
     return '<li class="part-index-tile" data-part="' + esc(tile.family) + '" data-section="' + esc(tile.section) + '" data-part-number="' + esc(String(tile.part)) + '"'
       + (tile.playback ? ' data-plays="' + esc(String(tile.playback.exam)) + '"' : '')
       + ' data-items="' + esc(tile.items === null ? '' : String(tile.items)) + '" data-points="' + esc(tile.points === null ? '' : String(tile.points)) + '">'
-      + '<h3>' + t('part', { part: tile.part }) + ' · ' + t('partSkill' + tile.family) + '</h3>'
+      + '<h3>' + (tile.part === null ? t('partIndexPending') : t('part', { part: tile.part })) + ' · '
+      + (model.examId === 'telc-deutsch-b1' && PART_ORDER.includes(tile.family) ? t('partSkill' + tile.family) : sectionName(tile.section)) + '</h3>'
       + '<p class="small muted part-index-facts">' + facts.join(' · ') + '</p>'
       + own
       + '<p class="part-index-open-row"><button type="button" class="btn" data-part-open="' + esc(tile.family) + '">' + t('partRunnerOpen') + '</button></p>'
@@ -226,7 +226,8 @@ export function indexMarkup({ esc = defaultEsc, uiText = key => key, examLanguag
     + '<header class="page-head"><div><h1 id="part-index-title">' + (model.filter ? sectionName(model.filter) : t('partIndexTitle')) + '</h1>'
     + '<p class="part-index-lead">' + t('partIndexLead') + '</p></div></header>'
     + (model.filter ? '' : '<section class="part-index-subtests" aria-label="' + t('partIndexSubtests') + '">' + cards + '</section>')
-    + (model.error ? '<p class="err" role="alert" data-load-error>' + t('partIndexFailed') + '</p>' : '')
+    + (model.error ? '<p class="err" role="alert" data-load-error>' + t('partIndexFailed') + '</p>'
+      + '<p><button type="button" class="btn" data-part-reload>' + t('ui64') + '</button></p>' : '')
     + '<section class="stack part-index-parts" aria-labelledby="part-index-parts-title">'
     + '<h2 id="part-index-parts-title">' + t('partIndexParts') + '</h2>'
     + (tiles ? '<ul class="part-index-grid">' + tiles + '</ul>' : '<p class="card" data-parts-empty>' + t('partIndexEmpty') + '</p>')
@@ -261,12 +262,14 @@ export function createPartIndexView(ctx = {}) {
   }
   async function load() {
     const ticket = ++generation;
+    const preparationId = ctx.state?.preparation?.id;
+    const examId = ctx.state?.preparation?.exam_id ?? null;
     const filter = partFilterForHost(host);
-    const [partsResult, countsResult] = await Promise.all([readExamParts(ctx.api), readPracticeCounts(ctx.api)]);
-    if (ticket !== generation) return false;
+    const [partsResult, countsResult] = await Promise.all([readExamParts(ctx.api, examId), readPracticeCounts(ctx.api)]);
+    if (ticket !== generation || preparationId !== ctx.state?.preparation?.id || examId !== (ctx.state?.preparation?.exam_id ?? null)) return false;
     failed = partsResult.source === 'unavailable';
     parts = Array.isArray(partsResult.parts) ? partsResult.parts : [];
-    model = buildIndexModel({ parts, partsSource: partsResult.source, counts: countsResult, filter, error: partsResult.error });
+    model = buildIndexModel({ ...partsResult, parts, partsSource: partsResult.source, counts: countsResult, filter });
     render();
     return true;
   }
@@ -314,9 +317,11 @@ export function createPartIndexView(ctx = {}) {
       opening++;
       generation++;
       closeRunner();
-      model = { ...model, filter: partFilterForHost(host), error: null };
+      model = { filter: partFilterForHost(host), error: null, tiles: [], sections: [], countsSource: 'unavailable', partsSource: 'unavailable' };
+      failed = false;
       render();
       host.onclick = (event) => {
+        if (event.target.closest?.('[data-part-reload]')) { void load(); return; }
         const button = event.target.closest?.('[data-part-open]');
         if (button) void openPart(button.dataset.partOpen);
       };

@@ -42,7 +42,7 @@ import { readExplanationRepresentations, readObjectiveEvidenceExplanation as rea
 import { explanationLanguage, blockedExplanation, projectStoredExplanation, explanationFault, protectedExplanationRead, selectedExplanationExports } from './explanation-views.mjs';
 import { readGuideTranslations as readTranslations } from '../library-translations.mjs';
 /* PRACTICE-UI-01 (slice B): the pure blueprint → parts normaliser the exam-parts route serves. */
-import { blueprintParts } from '../exam-parts.mjs';
+import { blueprintMetadata } from '../exam-parts.mjs';
 /* PRACTICE-01 (slice C): the pure selection rule and the served-set normaliser. */
 import { selectPracticeSet, normalisePracticeSet, practiceRoundState } from '../practice-sets.mjs';
 
@@ -154,6 +154,36 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
     } finally {
       client.release();
     }
+  }
+
+  /** One eligible release snapshot supplies both structure and its actually servable part tiles. */
+  async function examMetadata(owner, examId) {
+    const empty = { exam_id: examId ?? null, release_version: null, blueprint_version: null,
+      sections: [], time_groups: [], parts: [] };
+    if (typeof examId !== 'string' || !examId) return empty;
+    return settle(owner, async client => {
+      if (!(await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible) return empty;
+      const row = (await client.query(
+        `SELECT r.version AS release_version, r.blueprint_version, b.payload
+           FROM exam_release_head h
+           JOIN exam_release r ON r.exam_id = h.exam_id AND r.version = h.release_version
+           JOIN exam_blueprint b ON b.exam_id = r.exam_id AND b.version = r.blueprint_version
+          WHERE h.exam_id = $1`, [examId])).rows[0];
+      if (!row || !row.payload) return empty;
+      let metadata;
+      try {
+        if (row.payload.exam?.id !== examId) throw new TypeError('exam_blueprint_invalid');
+        metadata = blueprintMetadata(row.payload);
+      } catch { fail(503, 'catalogue_unavailable'); }
+      const available = new Set((await client.query(
+        `SELECT DISTINCT s.family FROM objective_set s
+           JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
+           LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
+          WHERE s.exam_id = $1 AND ${servablePartSetSql('$2', '$3')}`,
+        [examId, servableReview(), contentPolicy().rights])).rows.map(value => value.family));
+      return { exam_id: examId, release_version: row.release_version, blueprint_version: row.blueprint_version,
+        ...metadata, parts: metadata.parts.filter(part => available.has(part.family)) };
+    }, true);
   }
 
   /** Live, owned attempt or 404. Locked for the writer paths. */
@@ -435,35 +465,16 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
      * structurally absent from it (and that is exactly why slice B's hearing tiles had no source). This
      * method is the only place the hearing parts' item counts and playback rule are served.
      *
-     * NO POINTS: the packaged blueprint carries none (contract amendment A6 keeps per-part points as a cited
-     * client constant until a blueprint revision carries them). The assembler therefore emits `points: null`
-     * and `part: null` rather than omitting the members, and the client keeps the cited value wherever the
-     * served one is null (REVIEW-PRACTICE-UI-01 F1). Null here means "the blueprint cannot answer this", not
-     * "zero" — do not read it as a number.
+     * Exact metadata is additive; the legacy parts port keeps its array contract. Unknown blueprint
+     * points stay null, and section/time-group order comes only from this exam's selected release.
      */
     async listExamParts(owner, { examId } = {}) {
       note('listExamParts');
-      if (typeof examId !== 'string' || !examId) return [];
-      return settle(owner, async (client) => {
-        if (!(await readCurrentReleaseEligibility(client, examId, { catalogue: examCatalogue })).eligible) return [];
-        const row = (await client.query(
-          `SELECT b.payload
-             FROM exam_release_head h
-             JOIN exam_release r ON r.exam_id = h.exam_id AND r.version = h.release_version
-             JOIN exam_blueprint b ON b.exam_id = r.exam_id AND b.version = r.blueprint_version
-            WHERE h.exam_id = $1`, [examId])).rows[0];
-        if (!row || !row.payload) return [];
-        let parts;
-        try { parts = blueprintParts(row.payload); }
-        catch { fail(503, 'catalogue_unavailable'); }
-        const available = new Set((await client.query(
-          `SELECT DISTINCT s.family FROM objective_set s
-             JOIN reviewed_content_version c ON c.content_version_id = s.content_version_id
-             LEFT JOIN content_rights cr ON cr.content_version_id = c.content_version_id
-            WHERE s.exam_id = $1 AND ${servablePartSetSql('$2', '$3')}`,
-          [examId, servableReview(), contentPolicy().rights])).rows.map(value => value.family));
-        return parts.filter(part => available.has(part.family));
-      }, true);
+      return (await examMetadata(owner, examId)).parts;
+    },
+    async readExamMetadata(owner, { examId } = {}) {
+      note('readExamMetadata');
+      return examMetadata(owner, examId);
     },
     async listObjectiveSets(owner, { examId = null, family = null, group = null, part = null, serveReview = 'approved+unreviewed' } = {}) {
       note('listObjectiveSets');

@@ -18,6 +18,7 @@ const GROUPS = {
   /* The offline MIRROR-B1PREP-01 gates: fast, no database, no Docker. */
   mirror: [
     gate('nav-ia-check'), gate('mock-intro-check'), gate('part-index-check'), gate('redesign-parts-check'),
+    gate('dtz-metadata-server-check'),
     gate('practice-runner-check'), gate('redesign-task-check'), gate('redesign-result-check'), gate('redesign-mistakes-check'), gate('redesign-assets-check'), gate('redesign-registry-check'), gate('practice-selection-check'), gate('drill-check'),
     gate('pool-01-check'),
     gate('library-render-check'), gate('vocab-check'), gate('library-i18n-check'),
@@ -32,6 +33,7 @@ const GROUPS = {
   /* The database gates. Each needs OWNAPI_PG_* pointed at a disposable database. */
   'mirror-db': [
     gate('library-i18n-check', '--postgres'), gate('part-index-check', '--postgres'),
+    gate('dtz-metadata-server-check', '--postgres'),
     gate('practice-selection-check', '--postgres'), gate('practice-media-check'),
     gate('drill-check', '--postgres'), gate('content-rights-check', '--postgres'),
     gate('pool-01-check', '--postgres'),

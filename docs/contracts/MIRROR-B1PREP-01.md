@@ -449,4 +449,20 @@ production and its checksum is frozen.
   D22 phrase forms are still missing from `mock-intro-check`, and `nav-ia-check` checks route shape by regex
   rather than running the router. **Nothing merged needs reverting; every fix is forward.**
 
-*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A13 added 5 October 2026.*
+- **A14 (7 Nov 2026, DTZ-METADATA-20261107 / issue182).** The shipped client now consumes the existing
+  preparation-scoped `GET /api/v1/exam-parts?preparationId=UUID` rather than the telc fallback table.
+  The additive response is `{exam_id,release_version,blueprint_version,sections,time_groups,parts}`.
+  Sections carry `{id,title,timeGroup,points}`; time groups carry `{id,seconds,sections}`; parts retain
+  the previous fields and add `interaction`. All metadata comes from one eligible release snapshot,
+  in blueprint order. Parts remain filtered by the existing review/rights/media-availability rules.
+  Section structure includes writing even though writing has no objective set. A withheld release
+  returns the selected exam identity, null version identities and empty arrays; malformed metadata is
+  unavailable, never a partial invented structure. The existing `listExamParts` array method remains
+  compatible; `readExamMetadata` supplies the richer route payload.
+  The A6 cited telc points and labels apply only to exact `telc-deutsch-b1`, never by family alone.
+  Item counts, playback, membership and timing have no client fallback. DTZ uses localized section/part
+  labels, including LV4/LV5/HV4. Mock introductions use the selected released form's `time_groups`;
+  missing schedules remain unknown, and telc-only totals/pass-rule text cannot appear on DTZ or unknown
+  exams. Existing saved runs, starts, history, policy gates and content approvals are unchanged.
+
+*Amendment log: v1 frozen 5 October 2026 by the coordinator; A1–A13 added 5 October 2026; A14 added 7 November 2026.*

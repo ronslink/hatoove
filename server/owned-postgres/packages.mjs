@@ -150,7 +150,7 @@ export async function listReleasedForms(client,examId) {
     const {form,release,members}=item;
     forms.push({exam_id:examId,release_version:release.version,blueprint_version:release.blueprint_version,
       release_state:release.state,form_id:form.form_id,version:form.version,title:form.payload.title,scope:form.payload.scope,sections:form.payload.sections,
-      mode:form.payload.mode,time_limit_seconds:form.payload.timeLimitSeconds,writing_choice_count:(form.payload.writingChoices||[]).length,writing_task_count:form.payload.writingTask?1:0,item_count:members.reduce((n,m)=>n+m.item_count,0),
+      mode:form.payload.mode,time_limit_seconds:form.payload.timeLimitSeconds,time_groups:item.timeGroups.map(group=>({id:group.id,seconds:group.seconds,sections:[...group.sections]})),writing_choice_count:(form.payload.writingChoices||[]).length,writing_task_count:form.payload.writingTask?1:0,item_count:members.reduce((n,m)=>n+m.item_count,0),
       ...(form.payload.attemptMode?{attempt_mode:form.payload.attemptMode}:{}),
       review_status:item.reviewStatus,review_basis:item.reviewBasis});
   }
