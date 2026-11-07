@@ -27,6 +27,7 @@ const PATHS = Object.freeze({
   account: '/api/v1/account',
   settings: '/api/v1/settings',
   exams: '/api/v1/exams',
+  examParts: '/api/v1/exam-parts',
   preparations: '/api/v1/preparations',
   tasks: '/api/v1/tasks',
   objectiveSets: '/api/v1/objective-sets',
@@ -196,6 +197,7 @@ return Object.freeze({
   }),
 
   exams: Object.freeze({ list: () => call('GET', PATHS.exams) }),
+  examParts: Object.freeze({ list: () => scopedCall('GET', PATHS.examParts) }),
   preparations: Object.freeze({
     list: () => call('GET', PATHS.preparations),
     create: (examId) => call('POST', PATHS.preparations, { examId }),

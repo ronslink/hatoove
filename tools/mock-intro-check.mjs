@@ -151,6 +151,8 @@ function stubApi({ forms = { ok: true, status: 200, data: { forms: [completeForm
   };
 }
 const completeForm = (over = {}) => ({
+  exam_id: 'telc-deutsch-b1', sections: ['LV', 'SB', 'HV', 'writing'],
+  time_groups: [{ id: 'lv-sb-90', seconds: 5400, sections: ['LV', 'SB'] }, { id: 'hv-30', seconds: 1800, sections: ['HV'] }, { id: 'writing-30', seconds: 1800, sections: ['writing'] }],
   form_id: 'telc-complete', version: 'v3', release_version: 'v2', scope: 'complete_supported_written',
   title: 'Schriftliche Prüfung · Technologiesimulation', item_count: 61, mode: 'timed', time_limit_seconds: 9000, ...over,
 });
@@ -183,6 +185,58 @@ const clickTarget = selectorName => ({ target: { closest: selector => (selector 
 function renderModel(model) {
   return view.introMarkup({ esc, uiText, examLanguage: 'de', model });
 }
+
+const dtzForm = (over = {}) => completeForm({ exam_id: 'dtz-a2-b1', form_id: 'dtz-complete', sections: ['HV', 'LV', 'SA'], item_count: 45, time_limit_seconds: 6000,
+  time_groups: [{ id: 'dtz-hv-25', seconds: 1500, sections: ['HV'] }, { id: 'dtz-lv-45', seconds: 2700, sections: ['LV'] }, { id: 'dtz-sa-30', seconds: 1800, sections: ['SA'] }], ...over });
+
+leg('DTZ schedule: ordered 25/45/30-minute blocks and no telc points, totals or pass rule in five locales', () => {
+  const previous = getLocale();
+  for (const locale of LOCALES) {
+    setLocale(locale);
+    const markup = renderModel({ examId: 'dtz-a2-b1', form: dtzForm(), runs: [] });
+    assert.deepEqual([...markup.matchAll(/<tr data-mock-intro-block="([^"]+)"/g)].map(match => match[1]), ['dtz-hv-25', 'dtz-lv-45', 'dtz-sa-30', 'total']);
+    for (const [id, minutes] of [['dtz-hv-25', 25], ['dtz-lv-45', 45], ['dtz-sa-30', 30], ['total', 100]]) {
+      assert.match(row(markup, id), new RegExp('data-minutes="' + minutes + '"'));
+      assert.match(row(markup, id), /data-points=""/);
+    }
+    assert.ok(!/data-mock-intro-rule>|data-mock-intro-total-note|data-minutes="150"|data-points="(?:105|225|300)"|60\s*%/.test(markup));
+    assert.ok(/data-mock-intro-oral/.test(markup), 'generic no-speaking limitation remains');
+    assert.ok(!/Übersetzung nicht verfügbar|Translation unavailable|mockIntroBlockReading|mockIntroScopeTitle/.test(textOf(markup)));
+    if (locale === 'ar') assert.match(markup, /lang="ar" dir="rtl"/);
+  }
+  setLocale(previous);
+});
+
+leg('Unknown/missing/malformed schedule and mismatched selected exam never receive telc defaults', () => {
+  for (const form of [null, completeForm({ exam_id: null }), completeForm({ time_groups: null }), dtzForm({ time_groups: [{ id: 'bad', seconds: null, sections: ['HV'] }] }), dtzForm({ sections: ['LV', 'HV', 'SA'] }), dtzForm({ time_limit_seconds: 9000 })]) {
+    const markup = renderModel({ form, runs: [] });
+    assert.equal(count(markup, '<tr data-mock-intro-block='), 0);
+    assert.ok(!/data-mock-intro-rule>|data-mock-intro-total-note/.test(markup));
+    assert.match(markup, /data-mock-intro-metadata-unavailable/);
+  }
+  const mismatched = renderModel({ examId: 'dtz-a2-b1', form: completeForm(), runs: [] });
+  assert.equal(count(mismatched, '<tr data-mock-intro-block='), 0);
+  assert.equal(view.completeForm([completeForm(), dtzForm()], undefined, 'dtz-a2-b1').exam_id, 'dtz-a2-b1');
+  const unknown = renderModel({ form: dtzForm({ exam_id: 'future-exam' }), runs: [] });
+  assert.ok(!/data-mock-intro-rule>|data-mock-intro-total-note/.test(unknown));
+  assert.match(row(unknown, 'total'), /data-minutes="100" data-points=""/);
+});
+
+await asyncLeg('Changing selected preparation while loading refuses stale schedule and start controls', async () => {
+  let resolve;
+  const state = { preparation: { id: 'old', exam_id: 'telc-deutsch-b1', state: 'active' } };
+  const api = stubApi();
+  api.mock.forms = () => new Promise(done => { resolve = done; });
+  const host = new StubHost();
+  const instance = view.createMockIntroView({ api, state, uiText, esc });
+  const pending = instance.mount(host);
+  state.preparation = { id: 'new', exam_id: 'dtz-a2-b1', state: 'active' };
+  resolve({ ok: true, status: 200, data: { forms: [completeForm()] } });
+  assert.equal(await pending, false);
+  assert.ok(!host.innerHTML.includes('data-mock-intro-start='));
+  assert.equal(count(host.innerHTML, '<tr data-mock-intro-block='), 0);
+  instance.unmount();
+});
 
 /* -------------------------------------------------------------------- 1-6 */
 

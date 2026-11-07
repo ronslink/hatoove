@@ -1,7 +1,7 @@
 /**
  * MOCK-01 (MIRROR-B1PREP-01 slice D) — the Probeprüfung intro page.
  *
- * WHAT IT IS. One page: what the written mock exam contains, the official pass rule stated as a FACT, the
+ * WHAT IT IS. One page: what the selected written mock form contains, the telc-only official rule where known, the
  * note that speaking is not part of it, ONE button that starts the existing `complete_supported_written`
  * run through the existing api client, and the saved runs below it.
  *
@@ -25,9 +25,9 @@
  * so this module does not repeat that word: its own `h1` names the subject these facts belong to — the
  * WRITTEN mock exam — and every other heading on the page is an `h2` beneath it.
  *
- * SUBTOTALS are the verified telc B1 written weighting (Leseverstehen 75 + Sprachbausteine 30 = 105,
- * Hörverstehen 75, Schriftlicher Ausdruck 45 → 225 of 300) and the canonical `timeGroups` of
- * `content/exams/telc-deutsch-b1` (90 + 30 + 30 minutes). Nothing here is computed from the learner.
+ * TIMING comes from the exact released form's validated `time_groups`, not a shared exam default.
+ * SUBTOTALS are a cited telc-only supplement (75 + 30 + 75 + 45 → 225 of 300). Other exams retain unknown
+ * points and the generic speaking limitation. Nothing here is computed from the learner.
  */
 import { getLocale, subscribeLocale, formatDate } from '../assets/i18n/core.js';
 import { pt } from '../assets/i18n/practice-messages.js';
@@ -42,7 +42,6 @@ export const MOCK_INTRO_BLOCKS = Object.freeze([
   Object.freeze({ id: 'listening', label: 'mockIntroBlockListening', minutes: 30, points: 75 }),
   Object.freeze({ id: 'writing', label: 'mockIntroBlockWriting', minutes: 30, points: 45 }),
 ]);
-export const MOCK_INTRO_MINUTES = 150;
 export const MOCK_INTRO_WRITTEN_POINTS = 225;
 export const MOCK_INTRO_ORAL_POINTS = 75;
 export const MOCK_INTRO_TOTAL_POINTS = 300;
@@ -57,8 +56,41 @@ const defaultEventId = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.
 const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /** The one form this page may start, or null. Pure, so the rule is testable without a server. */
-export function completeForm(forms, scope = MOCK_INTRO_SCOPE) {
-  return (Array.isArray(forms) ? forms : []).find(form => form?.scope === scope) || null;
+export function completeForm(forms, scope = MOCK_INTRO_SCOPE, examId = null) {
+  return (Array.isArray(forms) ? forms : []).find(form => form?.scope === scope
+    && typeof form.exam_id === 'string' && (!examId || form.exam_id === examId)) || null;
+}
+
+/** Exact selected-form schedule; a missing or inconsistent schedule stays unknown. */
+export function mockIntroSchedule(form, expectedExamId = null) {
+  const unknown = { blocks: [], minutes: null, points: null, telc: false };
+  if (!form?.exam_id || (expectedExamId && form.exam_id !== expectedExamId)
+    || !Array.isArray(form.time_groups) || !form.time_groups.length) return unknown;
+  const groups = form.time_groups;
+  const ids = new Set(); const covered = new Set();
+  for (const group of groups) {
+    if (typeof group?.id !== 'string' || !group.id || ids.has(group.id)
+      || !Number.isInteger(group.seconds) || group.seconds <= 0 || !Array.isArray(group.sections) || !group.sections.length) return unknown;
+    ids.add(group.id);
+    for (const section of group.sections) {
+      if (typeof section !== 'string' || !section || covered.has(section)) return unknown;
+      covered.add(section);
+    }
+  }
+  if (Array.isArray(form.sections) && !equal([...covered], form.sections)) return unknown;
+  const seconds = groups.reduce((sum, group) => sum + group.seconds, 0);
+  if (form.time_limit_seconds != null && form.time_limit_seconds !== seconds) return unknown;
+  const telc = form.exam_id === 'telc-deutsch-b1';
+  const blocks = groups.map(group => {
+    const sections = group.sections.join('+');
+    const label = ({ 'LV+SB': 'mockIntroBlockWritten', HV: 'mockIntroBlockListening', LV: 'mockIntroBlockReading',
+      writing: 'mockIntroBlockWriting', SA: 'mockIntroBlockWriting' })[sections] ?? null;
+    const supplement = telc ? ({ 'LV+SB': MOCK_INTRO_BLOCKS[0], HV: MOCK_INTRO_BLOCKS[1], writing: MOCK_INTRO_BLOCKS[2] })[sections] : null;
+    return { id: supplement?.id ?? group.id, label, sections: group.sections,
+      minutes: group.seconds / 60, points: supplement?.points ?? null };
+  });
+  return { blocks, minutes: seconds / 60,
+    points: blocks.every(block => block.points !== null) ? blocks.reduce((sum, block) => sum + block.points, 0) : null, telc };
 }
 
 /**
@@ -70,12 +102,12 @@ export function completeForm(forms, scope = MOCK_INTRO_SCOPE) {
  */
 export function createMockStarter({ api = null, navigate = null, eventId = defaultEventId, scope = MOCK_INTRO_SCOPE } = {}) {
   let operation = null;
-  async function forms() {
+  async function forms(examId = null) {
     if (typeof api?.mock?.forms !== 'function') return { ok: false, reason: 'unavailable', status: 0, form: null };
     let response;
     try { response = await api.mock.forms(); } catch { response = { ok: false, status: 0 }; }
     if (!response?.ok) return { ok: false, reason: 'forms', status: response?.status ?? 0, form: null };
-    return { ok: true, reason: null, status: response.status, form: completeForm(response.data?.forms, scope) };
+    return { ok: true, reason: null, status: response.status, form: completeForm(response.data?.forms, scope, examId) };
   }
   async function history() {
     if (typeof api?.mock?.list !== 'function') return { ok: false, reason: 'unavailable', status: 0, runs: null };
@@ -127,25 +159,27 @@ export function introMarkup({ esc = defaultEsc, uiText = key => key, examLanguag
   const locale = getLocale();
   const t = (key, parameters = {}) => esc(pt(key, parameters, locale));
   const rtl = locale === 'ar';
-  const rows = MOCK_INTRO_BLOCKS.map(block => '<tr data-mock-intro-block="' + block.id + '" data-minutes="' + block.minutes + '" data-points="' + block.points + '">'
-    + '<th scope="row">' + t(block.label) + '</th>'
+  const schedule = mockIntroSchedule(model.form, model.examId);
+  const pointsText = points => points === null ? t('partIndexPending') : esc(String(points));
+  const rows = schedule.blocks.map(block => '<tr data-mock-intro-block="' + esc(block.id) + '" data-minutes="' + block.minutes + '" data-points="' + (block.points ?? '') + '">'
+    + '<th scope="row">' + (block.label ? t(block.label) : block.sections.map(section => esc(section)).join(' + ')) + '</th>'
     + '<td data-mock-intro-time>' + t('minutes', { minutes: block.minutes }) + '</td>'
-    + '<td class="mock-intro-points" data-mock-intro-points>' + esc(String(block.points)) + '</td></tr>').join('');
+    + '<td class="mock-intro-points" data-mock-intro-points>' + pointsText(block.points) + '</td></tr>').join('');
   const blocks = '<section class="card stack mock-intro-blocks" aria-labelledby="mock-intro-blocks-title">'
     + '<h2 id="mock-intro-blocks-title">' + t('mockIntroBlocks') + '</h2>'
-    + '<div class="mock-intro-table"><table class="t"><caption class="sr-only">' + t('mockIntroBlocks') + '</caption>'
+    + (rows ? '<div class="mock-intro-table"><table class="t"><caption class="sr-only">' + t('mockIntroBlocks') + '</caption>'
     + '<thead><tr><th scope="col">' + t('mockIntroColPart') + '</th><th scope="col">' + t('mockIntroColTime') + '</th><th scope="col">' + t('mockIntroColPoints') + '</th></tr></thead>'
     + '<tbody>' + rows + '</tbody>'
-    + '<tfoot><tr data-mock-intro-block="total" data-minutes="' + MOCK_INTRO_MINUTES + '" data-points="' + MOCK_INTRO_WRITTEN_POINTS + '">'
+    + '<tfoot><tr data-mock-intro-block="total" data-minutes="' + schedule.minutes + '" data-points="' + (schedule.points ?? '') + '">'
     + '<th scope="row">' + t('mockIntroBlockTotal') + '</th>'
-    + '<td data-mock-intro-time>' + t('minutes', { minutes: MOCK_INTRO_MINUTES }) + '</td>'
-    + '<td class="mock-intro-points" data-mock-intro-points>' + esc(String(MOCK_INTRO_WRITTEN_POINTS)) + '</td></tr></tfoot>'
-    + '</table></div>'
-    + '<p class="small muted" data-mock-intro-total-note>' + t('mockIntroTotalNote', { written: MOCK_INTRO_WRITTEN_POINTS, total: MOCK_INTRO_TOTAL_POINTS, oral: MOCK_INTRO_ORAL_POINTS }) + '</p>'
+    + '<td data-mock-intro-time>' + t('minutes', { minutes: schedule.minutes }) + '</td>'
+    + '<td class="mock-intro-points" data-mock-intro-points>' + pointsText(schedule.points) + '</td></tr></tfoot>'
+    + '</table></div>' : '<p data-mock-intro-metadata-unavailable>' + t('partIndexPending') + '</p>')
+    + (schedule.telc && schedule.points === MOCK_INTRO_WRITTEN_POINTS ? '<p class="small muted" data-mock-intro-total-note>' + t('mockIntroTotalNote', { written: MOCK_INTRO_WRITTEN_POINTS, total: MOCK_INTRO_TOTAL_POINTS, oral: MOCK_INTRO_ORAL_POINTS }) + '</p>' : '')
     + '</section>';
   const rule = '<section class="card-peach stack mock-intro-rule" aria-labelledby="mock-intro-rule-title">'
-    + '<h2 id="mock-intro-rule-title">' + t('mockIntroRuleTitle') + '</h2>'
-    + '<p data-mock-intro-rule>' + t('mockIntroRule') + '</p>'
+    + '<h2 id="mock-intro-rule-title">' + t(schedule.telc ? 'mockIntroRuleTitle' : 'mockIntroScopeTitle') + '</h2>'
+    + (schedule.telc ? '<p data-mock-intro-rule>' + t('mockIntroRule') + '</p>' : '')
     + '<p data-mock-intro-oral>' + t('mockIntroOral') + '</p>'
     + '</section>';
   const startBody = model.archived ? '<p class="hint">' + t('ui60') + '</p>'
@@ -246,7 +280,8 @@ export function createMockIntroView(ctx = {}) {
     return Boolean(preparation && typeof preparation.state === 'string' && preparation.state !== 'active');
   }
   function blank() {
-    return { form: null, formsFailed: false, runs: null, historyFailed: false, startPhase: 'idle', archived: archived() };
+    return { preparationId: ctx.state?.preparation?.id, examId: ctx.state?.preparation?.exam_id ?? null,
+      form: null, formsFailed: false, runs: null, historyFailed: false, startPhase: 'idle', archived: archived() };
   }
   function render() {
     if (!host) return;
@@ -256,13 +291,15 @@ export function createMockIntroView(ctx = {}) {
   }
   async function load() {
     const ticket = ++generation;
+    const preparationId = ctx.state?.preparation?.id;
+    const examId = ctx.state?.preparation?.exam_id ?? null;
     if (typeof ctx.api?.mock?.forms !== 'function') {
       model = { ...blank(), formsFailed: true, historyFailed: true };
       render();
       return false;
     }
-    const [formOutcome, historyOutcome] = await Promise.all([starter.forms(), starter.history()]);
-    if (ticket !== generation) return false;
+    const [formOutcome, historyOutcome] = await Promise.all([starter.forms(examId), starter.history()]);
+    if (ticket !== generation || preparationId !== ctx.state?.preparation?.id || examId !== (ctx.state?.preparation?.exam_id ?? null)) return false;
     model = {
       ...blank(),
       form: formOutcome.ok ? formOutcome.form : null,
@@ -279,6 +316,7 @@ export function createMockIntroView(ctx = {}) {
     if (closest('[' + RELOAD_ATTRIBUTE + ']')) { await load(); return; }
     const trigger = closest('[' + START_ATTRIBUTE + ']');
     if (!trigger || trigger.disabled || model.startPhase === 'starting' || !model.form) return;
+    if (model.preparationId !== ctx.state?.preparation?.id || model.examId !== (ctx.state?.preparation?.exam_id ?? null)) return;
     const ticket = generation;
     model.startPhase = 'starting';
     render();
