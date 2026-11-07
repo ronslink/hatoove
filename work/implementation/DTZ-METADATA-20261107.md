@@ -22,6 +22,7 @@ The client calls the existing scoped route. Part order, membership, item counts,
 - Backend `DTZ-METADATA-20261107-B`: `server/exam-parts.mjs`, `server/owned-postgres/adapter.mjs`, `server/owned-postgres/packages.mjs`, `server/owned-api.mjs`, new `tools/dtz-metadata-server-check.mjs`. Worktree/branch suffix `-backend`.
 - Client `DTZ-METADATA-20261107-C`: `public/app/api.js`, `public/app/part-index.js`, `public/app/mock-intro.js`, `public/assets/i18n/practice-messages.js` if needed, `tools/part-index-check.mjs`, `tools/mock-intro-check.mjs`. Worktree/branch suffix `-client`.
 - Coordinator: browser evidence/checks, CI wiring if required, paired central records and this receipt. Other shared paths require explicit allocation.
+- Coordinator follow-up allocation: `public/app/part-index.css` for the observed 320px section-title/badge wrapping, plus the matching rendered assertion; no shared design tokens changed.
 - Reviewer: independent, read-only, assigned after implementation.
 
 ## Acceptance

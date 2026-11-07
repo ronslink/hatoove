@@ -24,6 +24,12 @@ export async function verifyDtzMetadata({ c, base, prep, fixture, availableVersi
       await viewport(c, width, width === 1440 ? 900 : 844, width !== 1440);
       await theme(c, width === 320 ? 'dark' : 'light');
       await shot(c, label + '-' + width, selector);
+      if (label === 'dtz-metadata-parts-de' && width === 320) {
+        const headingsFit = await c.evaluate("return [...document.querySelectorAll('#part-index-host .card-head h2')].every(el => el.getBoundingClientRect().height <= parseFloat(getComputedStyle(el).fontSize) * 1.5);");
+        assert(headingsFit, 'The unknown-points badge must not split the German section heading');
+        await shot(c, 'dtz-metadata-tiles-top-320', '#part-index-host .part-index-parts');
+        await shot(c, 'dtz-metadata-tiles-LV5-320', '#part-index-host [data-part="LV5"]');
+      }
       const size = await overflow(c);
       assert(size.offenderCount === 0 && size.scrollWidth <= size.innerWidth + 2, 'Metadata layout overflow: ' + JSON.stringify(size));
     }
@@ -55,6 +61,9 @@ export async function verifyDtzMetadata({ c, base, prep, fixture, availableVersi
     await clickSel(c, '[data-part-open="' + family + '"]');
     await c.waitFor(`document.querySelector('[data-part-runner][data-runner-family="${family}"][data-runner-phase="answering"]')`, 15000);
     await shot(c, 'dtz-metadata-open-' + family, '[data-part-runner]');
+    // Opening a part composes into the same route. Navigate away before returning to its index.
+    await clickSel(c, 'a[data-view="heute"]');
+    await c.waitFor("document.querySelector('#view-heute') && !document.querySelector('#view-heute').hidden", 15000);
     await openIndex();
   }
   const inspectIntro = async () => {

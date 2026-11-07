@@ -21,6 +21,8 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
 }
 .part-index-card { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.part-index-card .card-head { flex-wrap: wrap; }
+.part-index-card .card-head .chip { flex-shrink: 0; white-space: nowrap; }
 .part-index-card p { margin: 0; }
 
 /* ---------- one tile per part ---------- */
