@@ -56,6 +56,12 @@
  *      `/nope.html` was indistinguishable from the app shell. Leg S12 requires a missing URL to
  *      answer 404 in both modes, while S9 keeps proving the app surface itself is still gated.
  *
+ *   6. THE SNIPPET WAS WRITTEN BY HAND, AT ANY LENGTH. Title and description are the two strings a
+ *      search result shows, and nothing measured them: the redesigned landing page arrived at a
+ *      344-character description and a 73-character title, both truncated in results. Leg S13 holds
+ *      every public page to 15–70 characters of title and 25–160 of description, the bounds the
+ *      repo's own SEO record already states.
+ *
  * Offline: no database, no provider call, no network. The child server is killed in `finally`.
  *
  * Usage: node tools/seo-check.mjs
@@ -193,6 +199,29 @@ console.log(`\n=== SEO surface check ===\n`);
     if ((!png && !jpeg) || actualW !== w || actualH !== h) fail('S4', 'Open Graph and Twitter cards are complete', `${ogImage} is ${actualW}x${actualH} but the markup declares ${w}x${h}`);
     else pass('S4', 'Open Graph and Twitter cards are complete', `${ogImage} ${actualW}x${actualH}, card=${meta('name', 'twitter:card')}`);
   }
+}
+
+/* S13 — THE SNIPPET FITS. Title and description are the two strings a search result shows; an
+ * over-long description is truncated and a short one wastes the result. The repo's own SEO rule
+ * records 25–160 characters for a description and most results cut a title near 70. This leg exists
+ * because hand-written metadata kept drifting past both bounds with nothing measuring it — the
+ * redesigned landing page arrived at 344 characters and a 73-character title.
+ */
+{
+  const PAGES = ['index.html', 'telc-deutsch-b1.html'];
+  const decode = (value) => value
+    .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  const problems = [];
+  for (const name of PAGES) {
+    const source = name === 'index.html' ? html : await readFile(path.join(PUBLIC, name), 'utf8');
+    const title = decode(((source.match(/<title>([^<]*)<\/title>/i) || [])[1] || '').trim());
+    const desc = decode(((source.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i) || [])[1] || '').trim());
+    if (title.length < 15 || title.length > 70) problems.push(`${name}: title ${title.length} chars, expected 15–70`);
+    if (desc.length < 25 || desc.length > 160) problems.push(`${name}: description ${desc.length} chars, expected 25–160`);
+  }
+  if (problems.length) fail('S13', 'title and description fit a search result', problems.join(' | '));
+  else pass('S13', 'title and description fit a search result', `${PAGES.length} public page(s) within 15–70 / 25–160 characters`);
 }
 
 /* S5 — the JSON-LD graph parses, and its FAQ is word-for-word the visible FAQ.
