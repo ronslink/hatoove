@@ -47,6 +47,15 @@
  *      package ships the area, and no offer while it does not — and holds the markup tile to the
  *      catalogue's own German values, so the no-JavaScript page cannot keep a retired sentence.
  *
+ *   5. THE GATE ANSWERED FOR FILES THAT DO NOT EXIST. The page surface is auth-gated, and the gate
+ *      used to run BEFORE resolution: an unknown URL answered `302 -> /signin` for a navigation and
+ *      `401` for a fetch (on a ready runtime; a no-database run answers 503 first, which is why S12
+ *      runs offline and simply requires 404). A crawler reads both as "this exists, you just cannot
+ *      have it", so a
+ *      retired page, a typo'd link or a stale backlink could never drop out of the index, and
+ *      `/nope.html` was indistinguishable from the app shell. Leg S12 requires a missing URL to
+ *      answer 404 in both modes, while S9 keeps proving the app surface itself is still gated.
+ *
  * Offline: no database, no provider call, no network. The child server is killed in `finally`.
  *
  * Usage: node tools/seo-check.mjs
@@ -549,6 +558,38 @@ try {
     if (refusalHeaders !== 3) appProblems.push(`server.js sets X-Robots-Tag ${refusalHeaders} time(s); the 503, 302 and 401 refusals must each set it`);
     if (appProblems.length) fail('S9', 'the gated app stays out of the index', appProblems.join(' | '));
     else pass('S9', 'the gated app stays out of the index', `/app/ ${appProbe.status} + X-Robots-Tag noindex, /signin noindex, all three refusals carry the header`);
+
+    /* S12 — A URL WITH NO FILE BEHIND IT IS A 404, NOT A LOCKED PAGE.
+     *
+     * S9 proves the gate still refuses the APP. This leg proves the gate STOPS WHERE THE FILES STOP:
+     * before the fix, resolution ran after the gate, so a URL that does not exist answered exactly
+     * like the app -- `302 -> /signin` for a navigation, `401` for a fetch on a ready runtime (and
+     * 503 offline, because readiness refuses before the gate). Both tell a crawler the
+     * URL exists and is merely locked, which is how a retired page or a typo'd backlink stays in the
+     * index as "Page with redirect" / "Blocked due to unauthorized request (401)" forever. The two
+     * modes are checked separately because a fix that only taught the navigation path would pass a
+     * single-probe leg while still mislabelling every fetch.
+     */
+    const M1 = '/this-page-does-not-exist-xyz';
+    const M2 = '/this-page-does-not-exist-xyz.html';
+    // A DIRECTORY WITH NO index.html is the same bug one level down: resolution used to synthesise
+    // `<dir>/index.html` without checking it, so `/js/` and `/fonts/` still answered as gated.
+    const absent = [
+      ['a navigation to a missing URL', await probe(M1, { accept: NAVIGATION }), 404],
+      ['a fetch of a missing URL', await probe(M1), 404],
+      ['a missing .html file', await probe(M2, { accept: NAVIGATION }), 404],
+      ['a directory with no index (/js/)', await probe('/js/', { accept: NAVIGATION }), 404],
+      ['a directory fetch with no index (/fonts/)', await probe('/fonts/'), 404],
+      // The boundary INSIDE the gated tree: a future `/app/*` catch-all would serve the shell for
+      // any path and leave this leg green while the app's own URLs stopped telling the truth.
+      ['a missing file inside the gated tree (/app/)', await probe('/app/this-page-does-not-exist.js', { accept: NAVIGATION }), 404],
+    ];
+    const said = (p) => `${p.status}${p.location ? ` -> ${p.location}` : ''}`;
+    const absentProblems = absent
+      .filter(([, p, expected]) => p.status !== expected)
+      .map(([label, p, expected]) => `${label} answered ${said(p)}, expected ${expected}${[302, 401].includes(p.status) ? ' (the gate answered for a file that does not exist)' : ''}`);
+    if (absentProblems.length) fail('S12', 'a URL with no file behind it answers 404', absentProblems.join(' | '));
+    else pass('S12', 'a URL with no file behind it answers 404', absent.map(([label, p]) => `${label} ${said(p)}`).join(', '));
   }
 } finally {
   child.kill('SIGTERM');
