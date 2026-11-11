@@ -1,9 +1,11 @@
 # https://hatoove.com — crawler policy
 #
 # Only the API is disallowed. The private pages (/app/, /reset-password, /verify-email) are kept
-# crawlable ON PURPOSE: they answer with `X-Robots-Tag: noindex` (and /app/ is behind the session
-# gate), and a page that robots.txt disallows can never be fetched, so its noindex would never be
-# read. Disallowing them would leave them eligible for URL-only indexing from links.
+# crawlable ON PURPOSE: they all answer `noindex` -- the two public forms with a meta robots tag,
+# /app/ with `X-Robots-Tag` on its anonymous refusals -- and a page that robots.txt disallows can
+# never be fetched, so its noindex would never be read. Disallowing them would leave them eligible
+# for URL-only indexing from links. A URL with no file behind it answers 404, not 401/302, so a
+# retired page drops out of the index instead of reading as "blocked".
 User-agent: *
 Allow: /
 Disallow: /api/

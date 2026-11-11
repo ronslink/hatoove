@@ -508,7 +508,23 @@ async function resolveStaticFile(decodedPath) {
       return { status: 404 };
     }
   }
-  return { file: stat.isDirectory() ? path.join(target, 'index.html') : target };
+  if (!stat.isDirectory()) return { file: target };
+  /*
+   * A DIRECTORY IS SERVED BY ITS index.html, AND THE INDEX HAS TO EXIST (SEO-404, 11 November 2026).
+   *
+   * Synthesising `<dir>/index.html` without stat'ing it made every directory URL look like a real
+   * gated file: `/js/`, `/fonts/` and `/auth/` carry no index, so `sendStaticFile` would have
+   * answered 404 -- but the gate ran first and answered `302 -> /signin` / `401` instead. That is
+   * exactly the "Page with redirect" signal this slice exists to remove, one level down from the
+   * unknown-path case. `/app/` keeps its gate because its index does exist.
+   */
+  const index = path.join(target, 'index.html');
+  try {
+    const stats = await fsp.stat(index);
+    return stats.isFile() ? { file: index } : { status: 404 };
+  } catch {
+    return { status: 404 };
+  }
 }
 
 async function sendStaticFile(res, file) {
@@ -789,7 +805,37 @@ export function createServer({ ownedApi = null, readinessCheck = null } = {}) {
       // The owned API is resolved here rather than reusing the `/api/` branch's binding, which is
       // scoped to that branch. Same accessor, one identity source.
       const ownedApi = resolveOwnedApi(serverRef);
-      if (!isPublicTarget(resolved)) {
+      /*
+       * A URL NOTHING IS STORED AT IS A 404, NOT A LOCKED DOOR (SEO-404, 11 November 2026).
+       *
+       * Resolution used to happen AFTER the gate, so every unknown URL was answered as if it were an
+       * app page: a navigation got `302 -> /signin`, a fetch got `401`. That is the right answer for
+       * a gated page and the wrong answer for a URL that has no file at all. A crawler never learns
+       * the URL is gone, so a retired page, a typo'd link or a stale backlink stays in the index as
+       * "Page with redirect" or "Blocked due to unauthorized request (401)" instead of dropping out
+       * as a 404 -- and `/nope.html` was indistinguishable from the app shell, for a human too.
+       *
+       * The file is now resolved FIRST. Missing: 404 before any identity check, because there is
+       * nothing to withhold. Found and public: served. Found and not public: the gate below.
+       *
+       * Resolving before the gate does mean an anonymous caller can tell an EXISTING gated file from
+       * a missing one. That old non-enumeration property is deliberately given up here, because it no
+       * longer protects anything: the answer keys are a hard 404 above, learner data is API-only, and
+       * what remains behind the gate is shipped client code and fonts (`app/app.js`, its styles,
+       * `js/owned-client.js`) whose FILENAMES are not secrets -- no public page loads them, but no
+       * public page reveals learner data either, and `public/` holds none. The gate withholds
+       * CONTENT; it does not have to deny that the application has an `app.js`.
+       */
+      const found = await resolveStaticFile(decodedPath);
+      if (!found.file) {
+        // 404 and not 403: an escape, a backslash or a NUL is already refused above, before this
+        // call, with the same 404. `resolveStaticFile` cannot answer 403 from here, so pretending it
+        // might would advertise a branch no input can reach.
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Not found');
+        return;
+      }
+      if (!isPublicTarget(found.file)) {
         if (!readiness.ready || !ownedApi) {
           // A gated page surface is never indexable, ready or not: otherwise a crawler that arrives
           // while the runtime is starting could keep this host's content as a not-ready app page.
@@ -811,13 +857,6 @@ export function createServer({ ownedApi = null, readinessCheck = null } = {}) {
           }
           return;
         }
-      }
-      // Resolution happens AFTER the gate, so a refusal never reveals whether a gated file exists.
-      const found = await resolveStaticFile(decodedPath);
-      if (!found.file) {
-        res.writeHead(found.status || 404, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end(found.status === 403 ? 'Forbidden' : 'Not found');
-        return;
       }
       await sendStaticFile(res, found.file);
     } catch (err) {
