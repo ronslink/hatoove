@@ -56,13 +56,25 @@
  *      `/nope.html` was indistinguishable from the app shell. Leg S12 requires a missing URL to
  *      answer 404 in both modes, while S9 keeps proving the app surface itself is still gated.
  *
+ *   6. THE SNIPPET WAS WRITTEN BY HAND, AT ANY LENGTH. Title and description are the two strings a
+ *      search result shows, and nothing measured them: the redesigned landing page arrived at a
+ *      344-character description and a 73-character title, both truncated in results. Leg S13 holds
+ *      every public page — and every locale, because site.js rewrites both from the catalogue — to
+ *      15–70 characters of title and 25–160 of description. The description bound is recorded in the
+ *      SEO-META-20261021 slice; the title ceiling is this check's own choice.
+ *
+ *   7. THE "AVAILABLE" CARD COULD LIE. Only `ENABLED_EXAM_IDS` decides which exams an account can
+ *      select, and the landing page names them independently. Leg S14 requires the card marked
+ *      `Jetzt verfügbar` to list exactly the enabled ids, so enabling an exam or marking a card
+ *      available for one no account can choose both fail the check.
+ *
  * Offline: no database, no provider call, no network. The child server is killed in `finally`.
  *
  * Usage: node tools/seo-check.mjs
  */
 
 import { spawn } from 'node:child_process';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { jpegDimensions } from './redesign-image-dimensions.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -193,6 +205,97 @@ console.log(`\n=== SEO surface check ===\n`);
     if ((!png && !jpeg) || actualW !== w || actualH !== h) fail('S4', 'Open Graph and Twitter cards are complete', `${ogImage} is ${actualW}x${actualH} but the markup declares ${w}x${h}`);
     else pass('S4', 'Open Graph and Twitter cards are complete', `${ogImage} ${actualW}x${actualH}, card=${meta('name', 'twitter:card')}`);
   }
+}
+
+/* S13 — THE SNIPPET FITS. Title and description are the two strings a search result shows; an
+ * over-long description is truncated and a short one wastes the result. The 25–160 character
+ * description bound is recorded in the SEO-META-20261021 slice; the 70-character title ceiling is
+ * this leg's own, stated here rather than claimed from a record. This exists because hand-written
+ * metadata kept drifting past both bounds with nothing measuring it: the redesigned landing page
+ * arrived at 344 characters and a 73-character title.
+ *
+ * The page list is DERIVED from the tree (any public/*.html carrying a canonical), because a
+ * hardcoded pair would silently miss the next page — the drafted DTZ overview already has a
+ * canonical and was not in the list. The catalogue is checked too: site.js writes title and
+ * description from public-messages.js per locale, so the static markup matching German is not
+ * enough; every locale has to fit, and the German catalogue value has to be the static one.
+ */
+{
+  const decode = (value) => value
+    .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  const problems = [];
+  const pages = [];
+  for (const entry of await readdir(PUBLIC, { withFileTypes: true }).catch(() => [])) {
+    if (!entry.isFile() || !entry.name.endsWith('.html')) continue;
+    const source = await readFile(path.join(PUBLIC, entry.name), 'utf8').catch(() => null);
+    if (source === null) continue;
+    if (!/<link[^>]+rel=["']canonical["']/i.test(source)) continue;
+    const title = decode(((source.match(/<title>([^<]*)<\/title>/i) || [])[1] || '').trim());
+    const desc = decode(((source.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i) || [])[1] || '').trim());
+    pages.push({ name: entry.name, title, desc });
+    if (title.length < 15 || title.length > 70) problems.push(`${entry.name}: title ${title.length} chars, expected 15–70`);
+    if (desc.length < 25 || desc.length > 160) problems.push(`${entry.name}: description ${desc.length} chars, expected 25–160`);
+  }
+  if (!pages.length) problems.push('no public page with a canonical was found');
+  const catalogue = await import(pathToFileURL(path.join(PUBLIC, 'assets', 'i18n', 'public-messages.js')).href)
+    .then((module) => module.publicMessages).catch(() => null);
+  if (catalogue === null) problems.push('public/assets/i18n/public-messages.js did not load');
+  else {
+    for (const [locale, values] of Object.entries(catalogue)) {
+      if (values.title.length < 15 || values.title.length > 70) problems.push(`${locale}.title ${values.title.length} chars, expected 15–70`);
+      if (values.description.length < 25 || values.description.length > 160) problems.push(`${locale}.description ${values.description.length} chars, expected 25–160`);
+    }
+    const index = pages.find((page) => page.name === 'index.html');
+    if (!index) problems.push('index.html is missing, so the catalogue cannot be compared to it');
+    else {
+      if (index.title !== catalogue.de.title) problems.push(`index.html title "${index.title}" is not the catalogue's German value`);
+      if (index.desc !== catalogue.de.description) problems.push('index.html description is not the catalogue German value');
+    }
+  }
+  if (problems.length) fail('S13', 'title and description fit a search result', problems.join(' | '));
+  else pass('S13', 'title and description fit a search result', `${pages.length} page(s) and ${Object.keys(catalogue || {}).length} locale(s) within 15–70 / 25–160 characters`);
+}
+
+/* S14 — THE "AVAILABLE" CARD AND THE ENABLED CATALOGUE AGREE.
+ *
+ * The card marked "Jetzt verfügbar" is a product claim: it says an account can select those exams.
+ * `ENABLED_EXAM_IDS` (server/preparation-contract.mjs) is the only source of truth for that, and the
+ * two live in separate files with nothing connecting them — enable an exam and the page keeps saying
+ * the old thing, or mark a card available for an exam no account can choose. This leg maps the
+ * available card's list items to exam ids and requires the set to equal the enabled ids.
+ */
+{
+  const { ENABLED_EXAM_IDS } = await import(pathToFileURL(path.join(ROOT, 'server', 'preparation-contract.mjs')).href);
+  const KEY_TO_EXAM = Object.freeze({
+    'public.examTelcDeB1': 'telc-deutsch-b1',
+    'public.examTelcDeB2': 'telc-deutsch-b2',
+    'public.examDtz': 'dtz-a2-b1',
+    'public.examGoetheDeB1': 'goethe-deutsch-b1',
+    'public.examGoetheDeB2': 'goethe-deutsch-b2',
+    'public.examTelcEnB1': 'telc-english-b1',
+    'public.examTelcEnB2': 'telc-english-b2',
+    'public.examCambridgeB1': 'cambridge-b1',
+    'public.examCambridgeB2': 'cambridge-b2',
+    'public.examToefl': 'toefl-ibt',
+    'public.examIeltsAcademic': 'ielts-academic',
+    'public.examIeltsGeneral': 'ielts-general',
+  });
+  const problems = [];
+  const cards = html.split('<article class="track-card">').slice(1);
+  const available = cards.filter((card) => card.includes('public.availableNow'));
+  if (available.length !== 1) problems.push(`${available.length} cards carry the available marker, expected exactly 1`);
+  else {
+    const list = available[0].slice(available[0].indexOf('<ul class="track-exams">'));
+    const keys = [...list.matchAll(/data-i18n="(public\.exam[A-Za-z0-9]+)"/g)].map((match) => match[1]);
+    const unknown = keys.filter((key) => !KEY_TO_EXAM[key]);
+    if (unknown.length) problems.push(`no exam id mapped for ${unknown.join(', ')}`);
+    const mapped = keys.filter((key) => KEY_TO_EXAM[key]).map((key) => KEY_TO_EXAM[key]).sort();
+    const enabled = [...ENABLED_EXAM_IDS].sort();
+    if (mapped.join(',') !== enabled.join(',')) problems.push(`the available card lists [${mapped.join(', ')}], the enabled catalogue is [${enabled.join(', ')}]`);
+  }
+  if (problems.length) fail('S14', 'the available card matches the enabled exam catalogue', problems.join(' | '));
+  else pass('S14', 'the available card matches the enabled exam catalogue', `${ENABLED_EXAM_IDS.join(', ')} — and nothing else`);
 }
 
 /* S5 — the JSON-LD graph parses, and its FAQ is word-for-word the visible FAQ.
