@@ -1,0 +1,389 @@
+{
+  "schemaVersion": 1,
+  "examId": "dtz-a2-b1",
+  "setVersion": "v1",
+  "provenance": {
+    "reviewStatus": "unreviewed",
+    "rightsStatus": "generated",
+    "source": "original-generated:content/exams/dtz-a2-b1/listening-source.json; original A2-B1 German DTZ listening scripts, items, keys and explanations; human educational and audio review pending",
+    "formatReference": {
+      "id": "S1",
+      "kind": "official-practice-test-pdf",
+      "title": "Deutsch-Test für Zuwanderer — Übungssatz 1 (Formatstruktur Hören Teil 1–4)",
+      "url": "https://www.gast.de/fileadmin/gast.de/GAST/5_DTZ/PDF/gast_DTZ_UEbungssatz_1.pdf",
+      "retrieved": "2026-10-03",
+      "note": "Used solely to confirm DTZ listening part counts (4+5+8+3 = 20 items), single-play rule and interaction shapes. No official text, recording or item was copied or reproduced."
+    }
+  },
+  "parts": [
+    {
+      "part": 1,
+      "family": "HV1",
+      "setId": "dtz-a2-b1.hv1.original01",
+      "title": "Hören Teil 1 · Ansagen und Mitteilungen",
+      "recordings": [
+        {
+          "id": "hv1-01",
+          "mediaId": "dtz-a2-b1.hv1.01.audio",
+          "label": "Ansage 1 · Bahnhof",
+          "transcript": "[Durchsage]: Achtung, eine Durchsage für Reisende nach Hannover. Der Regionalexpress RE 4, planmäßige Abfahrt 14 Uhr 22, fährt heute wegen Bauarbeiten nicht von Gleis 3, sondern von Gleis 7 ab. Bitte beachten Sie außerdem: Der Zug hat etwa zehn Minuten Verspätung. Wir bitten um Ihr Verständnis.",
+          "questions": [
+            {
+              "n": 1,
+              "question": "Von welchem Gleis fährt der Zug nach Hannover heute ab?",
+              "options": {
+                "a": "Von Gleis 3.",
+                "b": "Von Gleis 4.",
+                "c": "Von Gleis 7."
+              },
+              "answer": "c",
+              "explanation": "Die Durchsage sagt, dass der Regionalexpress RE 4 heute wegen Bauarbeiten nicht von Gleis 3, sondern von Gleis 7 abfährt."
+            }
+          ]
+        },
+        {
+          "id": "hv1-02",
+          "mediaId": "dtz-a2-b1.hv1.02.audio",
+          "label": "Ansage 2 · Zahnarztpraxis",
+          "transcript": "[Anrufbeantworter]: Guten Tag, hier ist die Zahnarztpraxis Dr. Lindner. Leider rufen Sie außerhalb unserer Sprechzeiten an. Unsere Praxis ist Montag bis Donnerstag von 8 bis 17 Uhr und am Freitag von 8 bis 13 Uhr für Sie geöffnet. In dringenden Notfällen am Wochenende wenden Sie sich bitte an den zahnärztlichen Notdienst im Klinikum Nord.",
+          "questions": [
+            {
+              "n": 2,
+              "question": "Bis wann ist die Zahnarztpraxis am Freitag geöffnet?",
+              "options": {
+                "a": "Bis 13 Uhr.",
+                "b": "Bis 17 Uhr.",
+                "c": "Am Freitag ist die Praxis geschlossen."
+              },
+              "answer": "a",
+              "explanation": "Auf dem Anrufbeantworter wird gesagt, dass die Praxis am Freitag von 8 bis 13 Uhr geöffnet ist."
+            }
+          ]
+        },
+        {
+          "id": "hv1-03",
+          "mediaId": "dtz-a2-b1.hv1.03.audio",
+          "label": "Ansage 3 · Bürgeramt",
+          "transcript": "[Sprecherin 1]: Guten Tag, hier spricht Frau Bergmann vom Bürgeramt Mitte. Herr Al-Mansour, Ihr neuer Reisepass ist eingetroffen und liegt zur Abholung bereit. Bitte bringen Sie Ihren alten Pass und den Abholschein mit. Sie brauchen für die Abholung keinen neuen Termin; kommen Sie einfach an Schalter 2 im Erdgeschoss.",
+          "questions": [
+            {
+              "n": 3,
+              "question": "Was soll Herr Al-Mansour zur Abholung mitbringen?",
+              "options": {
+                "a": "Ein neues Passfoto und eine Terminbestätigung.",
+                "b": "Seinen alten Pass und den Abholschein.",
+                "c": "Nur seinen Personalausweis."
+              },
+              "answer": "b",
+              "explanation": "Frau Bergmann bittet ihn, seinen alten Pass und den Abholschein mitzubringen; ein neuer Termin ist nicht nötig."
+            }
+          ]
+        },
+        {
+          "id": "hv1-04",
+          "mediaId": "dtz-a2-b1.hv1.04.audio",
+          "label": "Ansage 4 · Kaufhaus",
+          "transcript": "[Durchsage]: Liebe Kundinnen und Kunden, wir schließen unser Haus in fünfzehn Minuten. Bitte bringen Sie Ihre Einkäufe jetzt zu den Kassen im Erdgeschoss. Die Kassen im ersten Obergeschoss sind bereits geschlossen. Ab morgen früh um neun Uhr sind wir wieder für Sie da.",
+          "questions": [
+            {
+              "n": 4,
+              "question": "Wo können die Kundinnen und Kunden jetzt noch bezahlen?",
+              "options": {
+                "a": "Im Erdgeschoss.",
+                "b": "Im ersten Obergeschoss.",
+                "c": "Erst wieder morgen früh um neun Uhr."
+              },
+              "answer": "a",
+              "explanation": "Die Durchsage weist darauf hin, dass die Kassen im ersten Obergeschoss bereits geschlossen sind und man jetzt im Erdgeschoss bezahlen soll."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "part": 2,
+      "family": "HV2",
+      "setId": "dtz-a2-b1.hv2.original01",
+      "title": "Hören Teil 2 · Meldungen im Radio",
+      "recordings": [
+        {
+          "id": "hv2-01",
+          "mediaId": "dtz-a2-b1.hv2.01.audio",
+          "label": "Meldung 1 · Wetterbericht",
+          "transcript": "[Moderatorin]: Und nun das Wetter für unsere Region. Heute Nachmittag bleibt es zunächst trocken und sonnig bei angenehmen zwanzig Grad. Am Abend ziehen jedoch von Westen dichte Wolken auf, und in der Nacht beginnt es kräftig zu regnen. Morgen früh liegen die Temperaturen dann nur noch bei zwölf Grad.",
+          "questions": [
+            {
+              "n": 5,
+              "question": "Wie wird das Wetter heute am Nachmittag?",
+              "options": {
+                "a": "Regnerisch und kühl.",
+                "b": "Trocken und sonnig.",
+                "c": "Stark bewölkt bei zwölf Grad."
+              },
+              "answer": "b",
+              "explanation": "Im Wetterbericht heißt es, dass es heute Nachmittag zunächst trocken und sonnig bleibt; der Regen beginnt erst in der Nacht."
+            }
+          ]
+        },
+        {
+          "id": "hv2-02",
+          "mediaId": "dtz-a2-b1.hv2.02.audio",
+          "label": "Meldung 2 · Verkehrsfunk",
+          "transcript": "[Moderator]: Der Verkehrsservice: Auf der Autobahn A 7 Richtung Norden gibt es zwischen dem Kreuz Ost und der Ausfahrt Langenfeld fünf Kilometer Stau nach einem Unfall. Die rechte Spur ist gesperrt. Ortskundige Autofahrer werden gebeten, die Bundesstraße B 52 als Umleitung zu nutzen.",
+          "questions": [
+            {
+              "n": 6,
+              "question": "Warum gibt es einen Stau auf der A 7?",
+              "options": {
+                "a": "Wegen einer Baustelle.",
+                "b": "Wegen eines Unfalls.",
+                "c": "Weil die ganze Autobahn gesperrt ist."
+              },
+              "answer": "b",
+              "explanation": "Der Verkehrsservice meldet fünf Kilometer Stau nach einem Unfall, bei dem die rechte Spur gesperrt ist."
+            }
+          ]
+        },
+        {
+          "id": "hv2-03",
+          "mediaId": "dtz-a2-b1.hv2.03.audio",
+          "label": "Meldung 3 · Stadtbibliothek",
+          "transcript": "[Moderatorin]: Eine kurze Information für alle Leserinnen und Leser der Stadtbibliothek. Wegen der Umstellung unseres Ausleihsystems bleibt die Hauptstelle am kommenden Mittwoch den ganzen Tag geschlossen. Medien, die an diesem Tag fällig wären, werden automatisch um eine Woche verlängert. Die Zweigstelle im Südviertel ist regulär geöffnet.",
+          "questions": [
+            {
+              "n": 7,
+              "question": "Was gilt für Bücher, die am Mittwoch zurückgegeben werden müssten?",
+              "options": {
+                "a": "Sie müssen in der Zweigstelle abgegeben werden.",
+                "b": "Die Leihfrist verlängert sich automatisch um eine Woche.",
+                "c": "Man muss eine kleine Gebühr bezahlen."
+              },
+              "answer": "b",
+              "explanation": "In der Meldung wird erklärt, dass Medien, die am Mittwoch fällig wären, automatisch um eine Woche verlängert werden."
+            }
+          ]
+        },
+        {
+          "id": "hv2-04",
+          "mediaId": "dtz-a2-b1.hv2.04.audio",
+          "label": "Meldung 4 · Straßenfest",
+          "transcript": "[Moderator]: Veranstaltungstipp fürs Wochenende: Am Samstag findet im Stadtpark das jährliche Sommerfest der Vereine statt. Ab elf Uhr gibt es Musik, internationales Essen und ein großes Kinderprogramm. Der Eintritt ist frei. Da es rund um den Park kaum Parkplätze gibt, empfiehlt die Stadt die Anreise mit der Straßenbahn Linie 5.",
+          "questions": [
+            {
+              "n": 8,
+              "question": "Wie soll man laut der Stadt am besten zum Sommerfest kommen?",
+              "options": {
+                "a": "Mit der Straßenbahn.",
+                "b": "Mit dem eigenen Auto.",
+                "c": "Mit dem kostenlosen Shuttlebus."
+              },
+              "answer": "a",
+              "explanation": "Da es kaum Parkplätze gibt, empfiehlt die Stadt die Anreise mit der Straßenbahn Linie 5."
+            }
+          ]
+        },
+        {
+          "id": "hv2-05",
+          "mediaId": "dtz-a2-b1.hv2.05.audio",
+          "label": "Meldung 5 · Schwimmbad",
+          "transcript": "[Moderatorin]: Gute Nachrichten für Sportbegeisterte: Das Hallenbad West öffnet nach der Renovierung ab Montag wieder seine Türen. In der ersten Woche erhalten alle Besucherinnen und Besucher fünfzig Prozent Rabatt auf die Tageskarte. Das Außenbecken bleibt wegen der niedrigen Temperaturen jedoch noch bis Mai geschlossen.",
+          "questions": [
+            {
+              "n": 9,
+              "question": "Was ist ab Montag im Hallenbad West wieder möglich?",
+              "options": {
+                "a": "Man kann auch im Außenbecken schwimmen.",
+                "b": "Man bekommt eine Woche lang die Tageskarte zum halben Preis.",
+                "c": "Der Eintritt ist den ganzen Monat kostenlos."
+              },
+              "answer": "b",
+              "explanation": "In der ersten Woche nach der Wiedereröffnung erhalten alle Gäste fünfzig Prozent Rabatt auf die Tageskarte; das Außenbecken bleibt bis Mai zu."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "part": 3,
+      "family": "HV3",
+      "setId": "dtz-a2-b1.hv3.original01",
+      "title": "Hören Teil 3 · Alltagsgespräche",
+      "recordings": [
+        {
+          "id": "hv3-01",
+          "mediaId": "dtz-a2-b1.hv3.01.audio",
+          "label": "Gespräch 1 · Fahrradwerkstatt",
+          "transcript": "[Mitarbeiter]: Fahrradwerkstatt Krüger, guten Tag.\n[Kundin]: Guten Tag, hier ist Katja Novak. Ich habe mein Fahrrad am Montag zur Reparatur gebracht. Sie sagten, ich könnte es heute Nachmittag abholen.\n[Mitarbeiter]: Moment, ich schaue kurz nach … Frau Novak, richtig? Die Bremsen sind schon fertig, aber das bestellte Ersatzteil für die Gangschaltung wurde leider noch nicht geliefert. Es kommt erst morgen früh.\n[Kundin]: Oh, das ist schade. Ich brauche das Rad eigentlich für meinen Arbeitsweg. Wann könnte ich es denn morgen holen?\n[Mitarbeiter]: Ab 14 Uhr ist es sicher abholbereit. Soll ich Ihnen zur Sicherheit eine SMS schicken, sobald wir fertig sind?\n[Kundin]: Ja, sehr gern. Vielen Dank!",
+          "questions": [
+            {
+              "n": 10,
+              "question": "Frau Novak kann ihr Fahrrad heute Nachmittag abholen.",
+              "options": {
+                "richtig": "Richtig",
+                "falsch": "Falsch"
+              },
+              "answer": "falsch",
+              "explanation": "Das Ersatzteil für die Gangschaltung ist noch nicht geliefert worden, deshalb ist das Fahrrad erst morgen ab 14 Uhr fertig."
+            },
+            {
+              "n": 11,
+              "question": "Was vereinbaren Frau Novak und der Mitarbeiter?",
+              "options": {
+                "a": "Die Werkstatt liefert das Fahrrad nach Hause.",
+                "b": "Die Werkstatt schickt ihr morgen eine SMS.",
+                "c": "Frau Novak holt das Rad heute ohne Gangschaltung ab."
+              },
+              "answer": "b",
+              "explanation": "Der Mitarbeiter bietet an, ihr eine SMS zu schicken, sobald das Fahrrad fertig ist, und Frau Novak stimmt zu."
+            }
+          ]
+        },
+        {
+          "id": "hv3-02",
+          "mediaId": "dtz-a2-b1.hv3.02.audio",
+          "label": "Gespräch 2 · Abschiedsgeschenk im Büro",
+          "transcript": "[Sprecher 1]: Sag mal, Anna, nächste Woche Freitag ist doch Herr Webers letzter Arbeitstag. Haben wir schon ein Geschenk für ihn?\n[Sprecherin 1]: Ich habe gestern im Team herumgefragt. Fast alle haben zehn Euro in den Umschlag gelegt, wir haben jetzt schon achtzig Euro zusammen.\n[Sprecher 1]: Super! Was kaufen wir denn? Vielleicht einen großen Blumenstrauß und eine Kaffeemaschine?\n[Sprecherin 1]: Eine Kaffeemaschine hat er doch zu Hause schon. Er fährt im Sommer mit seiner Frau an die Ostsee und liest total gern. Ich dachte an einen Gutschein für die Buchhandlung hier um die Ecke und eine schöne Karte, auf der alle unterschreiben.\n[Sprecher 1]: Gute Idee! Ich besorge heute nach der Arbeit die Karte und lasse sie morgen im Büro herumgehen.",
+          "questions": [
+            {
+              "n": 12,
+              "question": "Die Kolleginnen und Kollegen haben bereits Geld für das Geschenk gesammelt.",
+              "options": {
+                "richtig": "Richtig",
+                "falsch": "Falsch"
+              },
+              "answer": "richtig",
+              "explanation": "Anna sagt, dass fast alle zehn Euro in den Umschlag gelegt haben und schon achtzig Euro zusammengekommen sind."
+            },
+            {
+              "n": 13,
+              "question": "Was übernimmt der Mann?",
+              "options": {
+                "a": "Er kauft die Kaffeemaschine.",
+                "b": "Er besorgt die Karte für die Unterschriften.",
+                "c": "Er holt den Gutschein in der Buchhandlung."
+              },
+              "answer": "b",
+              "explanation": "Am Ende sagt der Mann: „Ich besorge heute nach der Arbeit die Karte und lasse sie morgen im Büro herumgehen.“"
+            }
+          ]
+        },
+        {
+          "id": "hv3-03",
+          "mediaId": "dtz-a2-b1.hv3.03.audio",
+          "label": "Gespräch 3 · Ausflug in der Kita",
+          "transcript": "[Sprecherin 2]: Kita Sonnenschein, hier spricht Frau Sommer.\n[Sprecher 2]: Guten Morgen Frau Sommer, hier ist Herr Demir, der Vater von Emre. Ich rufe wegen des Ausflugs in den Tierpark am Donnerstag an. Auf dem Zettel steht, dass die Kinder schon um acht Uhr da sein sollen?\n[Sprecherin 2]: Ja, genau, der Bus fährt pünktlich um acht Uhr fünfzehn ab. Deshalb treffen wir uns schon um acht in der Gruppe.\n[Sprecher 2]: Gut, das schaffen wir. Muss ich für Emre Essen mitgeben, oder gibt es im Tierpark etwas?\n[Sprecherin 2]: Getränke bringen wir von der Kita mit, aber ein kleines Frühstück und festes Schuhwerk sollte jedes Kind im eigenen Rucksack dabei haben. Zurück sind wir gegen fünfzehn Uhr.",
+          "questions": [
+            {
+              "n": 14,
+              "question": "Die Kinder sollen am Donnerstag pünktlich um acht Uhr in der Kita sein.",
+              "options": {
+                "richtig": "Richtig",
+                "falsch": "Falsch"
+              },
+              "answer": "richtig",
+              "explanation": "Frau Sommer bestätigt, dass sich die Gruppe schon um acht Uhr trifft, weil der Bus um acht Uhr fünfzehn abfährt."
+            },
+            {
+              "n": 15,
+              "question": "Was müssen die Eltern für den Ausflug einpacken?",
+              "options": {
+                "a": "Getränke und Geld für den Eintritt.",
+                "b": "Ein kleines Frühstück und feste Schuhe.",
+                "c": "Nichts, die Kita sorgt für alles."
+              },
+              "answer": "b",
+              "explanation": "Die Kita bringt Getränke mit, aber jedes Kind soll ein kleines Frühstück und festes Schuhwerk im eigenen Rucksack dabeihaben."
+            }
+          ]
+        },
+        {
+          "id": "hv3-04",
+          "mediaId": "dtz-a2-b1.hv3.04.audio",
+          "label": "Gespräch 4 · Hausverwaltung",
+          "transcript": "[Sprecher 3]: Hausverwaltung Becker, guten Tag.\n[Sprecherin 3]: Guten Tag, hier ist Frau Kovács aus der Gartenstraße 12, zweiter Stock. Seit gestern Abend wird die Heizung im Wohnzimmer nicht mehr warm, obwohl ich sie voll aufgedreht habe.\n[Sprecher 3]: Funktionieren die anderen Heizkörper in Ihrer Wohnung denn normal?\n[Sprecherin 3]: Ja, im Schlafzimmer und im Bad ist alles in Ordnung. Nur im Wohnzimmer bleibt sie komplett kalt.\n[Sprecher 3]: Das klingt nach Luft im Heizkörper oder einem defekten Ventil. Unser Hausmeister kann am Donnerstag zwischen neun und elf Uhr vorbeikommen. Passt das bei Ihnen?\n[Sprecherin 3]: Am Donnerstagvormittag bin ich leider im Sprachkurs, ich bin erst ab dreizehn Uhr zu Hause. Aber meine Nachbarin Frau Lenz hat meinen Ersatzschlüssel und kann ihn gern hereinlassen.\n[Sprecher 3]: Wunderbar, ich notiere mir das so.",
+          "questions": [
+            {
+              "n": 16,
+              "question": "In der gesamten Wohnung von Frau Kovács funktioniert die Heizung nicht.",
+              "options": {
+                "richtig": "Richtig",
+                "falsch": "Falsch"
+              },
+              "answer": "falsch",
+              "explanation": "Im Schlafzimmer und im Bad funktioniert die Heizung normal; nur der Heizkörper im Wohnzimmer bleibt kalt."
+            },
+            {
+              "n": 17,
+              "question": "Wie kommt der Hausmeister am Donnerstag in die Wohnung?",
+              "options": {
+                "a": "Frau Kovács kommt früher aus dem Sprachkurs zurück.",
+                "b": "Die Nachbarin öffnet ihm die Tür.",
+                "c": "Der Termin wird auf den Nachmittag verschoben."
+              },
+              "answer": "b",
+              "explanation": "Frau Kovács sagt, dass ihre Nachbarin Frau Lenz ihren Ersatzschlüssel hat und den Hausmeister hereinlassen kann."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "part": 4,
+      "family": "HV4",
+      "setId": "dtz-a2-b1.hv4.original01",
+      "title": "Hören Teil 4 · Meinungen im Radio",
+      "statementBank": {
+        "a": "Ich helfe älteren Nachbarn regelmäßig beim Einkaufen.",
+        "b": "Ich habe leider überhaupt keine Zeit für ein Ehrenamt.",
+        "c": "Ich unterstütze Kinder aus der Nachbarschaft bei den Hausaufgaben.",
+        "d": "Ich spende lieber Geld, statt selbst mitzuarbeiten.",
+        "e": "Ich repariere in einem kleinen Treffpunkt kaputte Haushaltsgeräte.",
+        "f": "Ich finde, dass die Stadt solche Angebote allein organisieren sollte."
+      },
+      "recordings": [
+        {
+          "id": "hv4-01",
+          "mediaId": "dtz-a2-b1.hv4.01.audio",
+          "label": "Meinung 1 · Hörerstimme 1",
+          "transcript": "[Sprecherin 4]: Ich bin vor drei Jahren in diesen Stadtteil gezogen und wollte schnell Menschen kennenlernen. Seitdem gehe ich zweimal pro Woche ins Nachbarschaftszentrum und übe dort mit Grundschulkindern Rechnen und Lesen. Viele Eltern arbeiten lange und sind sehr dankbar, wenn jemand nachmittags mit den Kindern die Aufgaben für die Schule durchgeht. Mir macht das riesigen Spaß.",
+          "questions": [
+            {
+              "n": 18,
+              "question": "Welche Aussage passt zu Meinung 1? (Nachbarschaftshilfe im Stadtteil)",
+              "answer": "c",
+              "explanation": "Die Sprecherin geht zweimal pro Woche ins Nachbarschaftszentrum und hilft Grundschulkindern bei den Aufgaben für die Schule."
+            }
+          ]
+        },
+        {
+          "id": "hv4-02",
+          "mediaId": "dtz-a2-b1.hv4.02.audio",
+          "label": "Meinung 2 · Hörerstimme 2",
+          "transcript": "[Sprecher 4]: In unserem Mehrfamilienhaus wohnen mehrere Rentnerinnen und Rentner, denen das Treppensteigen schwerfällt. Deshalb frage ich immer am Freitagabend, wer schwere Sachen wie Getränke oder Obst braucht, und bringe am Samstagmorgen alles vom Markt mit. Das kostet mich kaum extra Zeit, weil ich sowieso einkaufen gehe, und wir plaudern danach oft kurz im Treppenhaus.",
+          "questions": [
+            {
+              "n": 19,
+              "question": "Welche Aussage passt zu Meinung 2? (Nachbarschaftshilfe im Stadtteil)",
+              "answer": "a",
+              "explanation": "Der Sprecher fragt die älteren Bewohner im Haus jeden Freitag und bringt am Samstagmorgen ihre Einkäufe mit."
+            }
+          ]
+        },
+        {
+          "id": "hv4-03",
+          "mediaId": "dtz-a2-b1.hv4.03.audio",
+          "label": "Meinung 3 · Hörerstimme 3",
+          "transcript": "[Sprecher 5]: Ich habe früher als Elektriker gearbeitet und bin seit letztem Jahr in Rente. Einmal im Monat helfe ich im Repair-Café bei uns im Viertel aus. Die Leute bringen kaputte Toaster, Lampen oder Kaffeemaschinen vorbei, und wir schauen gemeinsam, ob man sie wieder zum Laufen bringt. Es ist ein tolles Gefühl, wenn man etwas rettet, statt es wegzuwerfen.",
+          "questions": [
+            {
+              "n": 20,
+              "question": "Welche Aussage passt zu Meinung 3? (Nachbarschaftshilfe im Stadtteil)",
+              "answer": "e",
+              "explanation": "Der Sprecher hilft einmal im Monat im Repair-Café dabei, defekte Haushaltsgeräte wie Toaster, Lampen oder Kaffeemaschinen zu reparieren."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

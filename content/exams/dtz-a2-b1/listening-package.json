@@ -1,0 +1,1580 @@
+{
+  "schemaVersion": 1,
+  "exam": {
+    "id": "dtz-a2-b1",
+    "title": "Deutsch-Test für Zuwanderer (DTZ), A2–B1",
+    "language": "de",
+    "levelModel": {
+      "type": "cefr-range",
+      "levels": [
+        "A2",
+        "B1"
+      ]
+    }
+  },
+  "blueprint": {
+    "version": "v4",
+    "timeGroups": [
+      {
+        "id": "dtz-hv-25",
+        "seconds": 1500,
+        "sections": [
+          "HV"
+        ]
+      },
+      {
+        "id": "dtz-lv-45",
+        "seconds": 2700,
+        "sections": [
+          "LV"
+        ]
+      },
+      {
+        "id": "dtz-sa-30",
+        "seconds": 1800,
+        "sections": [
+          "SA"
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "id": "HV",
+        "title": "Hörverstehen",
+        "timeGroup": "dtz-hv-25",
+        "parts": [
+          {
+            "family": "HV1",
+            "itemCount": 4,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV2",
+            "itemCount": 5,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV3",
+            "itemCount": 8,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV4",
+            "itemCount": 3,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "LV",
+        "title": "Leseverstehen",
+        "timeGroup": "dtz-lv-45",
+        "parts": [
+          {
+            "family": "LV1",
+            "itemCount": 5,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV2",
+            "itemCount": 5,
+            "interaction": "matching_ads",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV3",
+            "itemCount": 6,
+            "interaction": "grouped_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV4",
+            "itemCount": 3,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV5",
+            "itemCount": 6,
+            "interaction": "gap_choice",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "SA",
+        "title": "Schreiben",
+        "timeGroup": "dtz-sa-30",
+        "parts": [
+          {
+            "family": "writing",
+            "itemCount": 1,
+            "interaction": "writing_choice",
+            "mediaRequired": false
+          }
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "S1",
+        "kind": "official-practice-test-pdf",
+        "title": "Deutsch-Test für Zuwanderer — Übungssatz 1 (Formatstruktur Hören Teil 1–4)",
+        "url": "https://www.gast.de/fileadmin/gast.de/GAST/5_DTZ/PDF/gast_DTZ_UEbungssatz_1.pdf",
+        "retrieved": "2026-10-03",
+        "note": "Used solely to confirm DTZ listening part counts (4+5+8+3 = 20 items), single-play rule and interaction shapes. No official text, recording or item was copied or reproduced."
+      },
+      {
+        "id": "S1",
+        "kind": "official-practice-test-pdf",
+        "title": "Deutsch-Test für Zuwanderer — Übungssatz 2 (Juni 2024), Schreiben",
+        "url": "https://www.gast.de/fileadmin/gast.de/GAST/5_DTZ/PDF/gast_DTZ_UEbungssatz_2.pdf",
+        "pages": [
+          42,
+          43,
+          47
+        ],
+        "retrieved": "2026-10-03",
+        "verification": "Coordinator retrieved the June 2024 practice set 2 and read rendered pages 42, 43 and 47 on 3 October 2026 to establish the writing task, its four content points and the band-scale shape only. No official task text was copied, translated or reproduced, and this format reference is not a content licence."
+      },
+      {
+        "id": "S2",
+        "kind": "official-faq",
+        "title": "Deutsch-Test für Zuwanderer (DTZ) — FAQ",
+        "url": "https://www.gast.de/de/forschung-entwicklung/entwicklung/auftraege/deutsch-test-fuer-zuwanderer-dtz/faq",
+        "retrieved": "2026-10-03",
+        "verification": "Coordinator read the current FAQ on 3 October 2026 to confirm the writing part's role and the A2–B1 reporting structure only. No official prose is reproduced, and the citation confers no rights to any official material."
+      }
+    ]
+  },
+  "release": {
+    "version": "v4",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [
+    {
+      "id": "dtz-a2-b1.complete.original01",
+      "version": "v1",
+      "title": "Schriftliche Prüfung · DTZ A2–B1 (Hören, Lesen, Schreiben)",
+      "scope": "complete_supported_written",
+      "sections": [
+        "HV",
+        "LV",
+        "SA"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 6000,
+      "attemptMode": "mock",
+      "timingPolicy": "ordered-fixed-v1",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "dtz-a2-b1.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 4
+        },
+        {
+          "setId": "dtz-a2-b1.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "dtz-a2-b1.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 8
+        },
+        {
+          "setId": "dtz-a2-b1.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 3
+        },
+        {
+          "setId": "dtz-a2-b1.lv1.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 5
+        },
+        {
+          "setId": "dtz-a2-b1.lv2.original01",
+          "version": "v1",
+          "interaction": "matching_ads",
+          "itemCount": 5
+        },
+        {
+          "setId": "dtz-a2-b1.lv3.original01",
+          "version": "v1",
+          "interaction": "grouped_choice",
+          "itemCount": 6
+        },
+        {
+          "setId": "dtz-a2-b1.lv4.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 3
+        },
+        {
+          "setId": "dtz-a2-b1.lv5.original01",
+          "version": "v1",
+          "interaction": "gap_choice",
+          "itemCount": 6
+        }
+      ],
+      "writingChoices": [
+        {
+          "id": "SA1",
+          "section": "SA",
+          "options": [
+            {
+              "id": "A",
+              "taskId": "dtz-a2-b1.writing.original01.a",
+              "taskVersion": "v1"
+            },
+            {
+              "id": "B",
+              "taskId": "dtz-a2-b1.writing.original01.b",
+              "taskVersion": "v1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dtz-a2-b1.listening.practice",
+      "version": "v1",
+      "title": "Hören · Übung (DTZ A2–B1)",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "attemptMode": "practice",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "dtz-a2-b1.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 4
+        },
+        {
+          "setId": "dtz-a2-b1.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "dtz-a2-b1.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 8
+        },
+        {
+          "setId": "dtz-a2-b1.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 3
+        }
+      ]
+    },
+    {
+      "id": "dtz-a2-b1.listening.mock",
+      "version": "v1",
+      "title": "Hören · Prüfungsmodus (DTZ A2–B1)",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 1500,
+      "attemptMode": "mock",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "dtz-a2-b1.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 4
+        },
+        {
+          "setId": "dtz-a2-b1.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "dtz-a2-b1.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 8
+        },
+        {
+          "setId": "dtz-a2-b1.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 3
+        }
+      ]
+    }
+  ],
+  "sets": [
+    {
+      "setId": "dtz-a2-b1.hv1.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "HV1",
+      "section": "HV",
+      "part": 1,
+      "title": "Hören Teil 1 · Ansagen und Mitteilungen",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv1-01",
+            "mediaId": "dtz-a2-b1.hv1.01.audio",
+            "mediaVersion": "v1",
+            "label": "Ansage 1 · Bahnhof",
+            "questions": [
+              {
+                "n": 1,
+                "question": "Von welchem Gleis fährt der Zug nach Hannover heute ab?",
+                "options": {
+                  "a": "Von Gleis 3.",
+                  "b": "Von Gleis 4.",
+                  "c": "Von Gleis 7."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-02",
+            "mediaId": "dtz-a2-b1.hv1.02.audio",
+            "mediaVersion": "v1",
+            "label": "Ansage 2 · Zahnarztpraxis",
+            "questions": [
+              {
+                "n": 2,
+                "question": "Bis wann ist die Zahnarztpraxis am Freitag geöffnet?",
+                "options": {
+                  "a": "Bis 13 Uhr.",
+                  "b": "Bis 17 Uhr.",
+                  "c": "Am Freitag ist die Praxis geschlossen."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-03",
+            "mediaId": "dtz-a2-b1.hv1.03.audio",
+            "mediaVersion": "v1",
+            "label": "Ansage 3 · Bürgeramt",
+            "questions": [
+              {
+                "n": 3,
+                "question": "Was soll Herr Al-Mansour zur Abholung mitbringen?",
+                "options": {
+                  "a": "Ein neues Passfoto und eine Terminbestätigung.",
+                  "b": "Seinen alten Pass und den Abholschein.",
+                  "c": "Nur seinen Personalausweis."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-04",
+            "mediaId": "dtz-a2-b1.hv1.04.audio",
+            "mediaVersion": "v1",
+            "label": "Ansage 4 · Kaufhaus",
+            "questions": [
+              {
+                "n": 4,
+                "question": "Wo können die Kundinnen und Kunden jetzt noch bezahlen?",
+                "options": {
+                  "a": "Im Erdgeschoss.",
+                  "b": "Im ersten Obergeschoss.",
+                  "c": "Erst wieder morgen früh um neun Uhr."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 4,
+      "interaction": "fixed_audio",
+      "answers": {
+        "1": "c",
+        "2": "a",
+        "3": "b",
+        "4": "a"
+      },
+      "explanations": {
+        "1": "Die Durchsage sagt, dass der Regionalexpress RE 4 heute wegen Bauarbeiten nicht von Gleis 3, sondern von Gleis 7 abfährt.",
+        "2": "Auf dem Anrufbeantworter wird gesagt, dass die Praxis am Freitag von 8 bis 13 Uhr geöffnet ist.",
+        "3": "Frau Bergmann bittet ihn, seinen alten Pass und den Abholschein mitzubringen; ein neuer Termin ist nicht nötig.",
+        "4": "Die Durchsage weist darauf hin, dass die Kassen im ersten Obergeschoss bereits geschlossen sind und man jetzt im Erdgeschoss bezahlen soll."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "original-generated:content/exams/dtz-a2-b1/listening-source.json; original A2-B1 German DTZ listening scripts, items, keys and explanations; human educational and audio review pending"
+    },
+    {
+      "setId": "dtz-a2-b1.hv2.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "HV2",
+      "section": "HV",
+      "part": 2,
+      "title": "Hören Teil 2 · Meldungen im Radio",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv2-01",
+            "mediaId": "dtz-a2-b1.hv2.01.audio",
+            "mediaVersion": "v1",
+            "label": "Meldung 1 · Wetterbericht",
+            "questions": [
+              {
+                "n": 5,
+                "question": "Wie wird das Wetter heute am Nachmittag?",
+                "options": {
+                  "a": "Regnerisch und kühl.",
+                  "b": "Trocken und sonnig.",
+                  "c": "Stark bewölkt bei zwölf Grad."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv2-02",
+            "mediaId": "dtz-a2-b1.hv2.02.audio",
+            "mediaVersion": "v1",
+            "label": "Meldung 2 · Verkehrsfunk",
+            "questions": [
+              {
+                "n": 6,
+                "question": "Warum gibt es einen Stau auf der A 7?",
+                "options": {
+                  "a": "Wegen einer Baustelle.",
+                  "b": "Wegen eines Unfalls.",
+                  "c": "Weil die ganze Autobahn gesperrt ist."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv2-03",
+            "mediaId": "dtz-a2-b1.hv2.03.audio",
+            "mediaVersion": "v1",
+            "label": "Meldung 3 · Stadtbibliothek",
+            "questions": [
+              {
+                "n": 7,
+                "question": "Was gilt für Bücher, die am Mittwoch zurückgegeben werden müssten?",
+                "options": {
+                  "a": "Sie müssen in der Zweigstelle abgegeben werden.",
+                  "b": "Die Leihfrist verlängert sich automatisch um eine Woche.",
+                  "c": "Man muss eine kleine Gebühr bezahlen."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv2-04",
+            "mediaId": "dtz-a2-b1.hv2.04.audio",
+            "mediaVersion": "v1",
+            "label": "Meldung 4 · Straßenfest",
+            "questions": [
+              {
+                "n": 8,
+                "question": "Wie soll man laut der Stadt am besten zum Sommerfest kommen?",
+                "options": {
+                  "a": "Mit der Straßenbahn.",
+                  "b": "Mit dem eigenen Auto.",
+                  "c": "Mit dem kostenlosen Shuttlebus."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv2-05",
+            "mediaId": "dtz-a2-b1.hv2.05.audio",
+            "mediaVersion": "v1",
+            "label": "Meldung 5 · Schwimmbad",
+            "questions": [
+              {
+                "n": 9,
+                "question": "Was ist ab Montag im Hallenbad West wieder möglich?",
+                "options": {
+                  "a": "Man kann auch im Außenbecken schwimmen.",
+                  "b": "Man bekommt eine Woche lang die Tageskarte zum halben Preis.",
+                  "c": "Der Eintritt ist den ganzen Monat kostenlos."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "fixed_audio",
+      "answers": {
+        "5": "b",
+        "6": "b",
+        "7": "b",
+        "8": "a",
+        "9": "b"
+      },
+      "explanations": {
+        "5": "Im Wetterbericht heißt es, dass es heute Nachmittag zunächst trocken und sonnig bleibt; der Regen beginnt erst in der Nacht.",
+        "6": "Der Verkehrsservice meldet fünf Kilometer Stau nach einem Unfall, bei dem die rechte Spur gesperrt ist.",
+        "7": "In der Meldung wird erklärt, dass Medien, die am Mittwoch fällig wären, automatisch um eine Woche verlängert werden.",
+        "8": "Da es kaum Parkplätze gibt, empfiehlt die Stadt die Anreise mit der Straßenbahn Linie 5.",
+        "9": "In der ersten Woche nach der Wiedereröffnung erhalten alle Gäste fünfzig Prozent Rabatt auf die Tageskarte; das Außenbecken bleibt bis Mai zu."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "original-generated:content/exams/dtz-a2-b1/listening-source.json; original A2-B1 German DTZ listening scripts, items, keys and explanations; human educational and audio review pending"
+    },
+    {
+      "setId": "dtz-a2-b1.hv3.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "HV3",
+      "section": "HV",
+      "part": 3,
+      "title": "Hören Teil 3 · Alltagsgespräche",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv3-01",
+            "mediaId": "dtz-a2-b1.hv3.01.audio",
+            "mediaVersion": "v1",
+            "label": "Gespräch 1 · Fahrradwerkstatt",
+            "questions": [
+              {
+                "n": 10,
+                "question": "Frau Novak kann ihr Fahrrad heute Nachmittag abholen.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 11,
+                "question": "Was vereinbaren Frau Novak und der Mitarbeiter?",
+                "options": {
+                  "a": "Die Werkstatt liefert das Fahrrad nach Hause.",
+                  "b": "Die Werkstatt schickt ihr morgen eine SMS.",
+                  "c": "Frau Novak holt das Rad heute ohne Gangschaltung ab."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv3-02",
+            "mediaId": "dtz-a2-b1.hv3.02.audio",
+            "mediaVersion": "v1",
+            "label": "Gespräch 2 · Abschiedsgeschenk im Büro",
+            "questions": [
+              {
+                "n": 12,
+                "question": "Die Kolleginnen und Kollegen haben bereits Geld für das Geschenk gesammelt.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 13,
+                "question": "Was übernimmt der Mann?",
+                "options": {
+                  "a": "Er kauft die Kaffeemaschine.",
+                  "b": "Er besorgt die Karte für die Unterschriften.",
+                  "c": "Er holt den Gutschein in der Buchhandlung."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv3-03",
+            "mediaId": "dtz-a2-b1.hv3.03.audio",
+            "mediaVersion": "v1",
+            "label": "Gespräch 3 · Ausflug in der Kita",
+            "questions": [
+              {
+                "n": 14,
+                "question": "Die Kinder sollen am Donnerstag pünktlich um acht Uhr in der Kita sein.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 15,
+                "question": "Was müssen die Eltern für den Ausflug einpacken?",
+                "options": {
+                  "a": "Getränke und Geld für den Eintritt.",
+                  "b": "Ein kleines Frühstück und feste Schuhe.",
+                  "c": "Nichts, die Kita sorgt für alles."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv3-04",
+            "mediaId": "dtz-a2-b1.hv3.04.audio",
+            "mediaVersion": "v1",
+            "label": "Gespräch 4 · Hausverwaltung",
+            "questions": [
+              {
+                "n": 16,
+                "question": "In der gesamten Wohnung von Frau Kovács funktioniert die Heizung nicht.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 17,
+                "question": "Wie kommt der Hausmeister am Donnerstag in die Wohnung?",
+                "options": {
+                  "a": "Frau Kovács kommt früher aus dem Sprachkurs zurück.",
+                  "b": "Die Nachbarin öffnet ihm die Tür.",
+                  "c": "Der Termin wird auf den Nachmittag verschoben."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 8,
+      "interaction": "fixed_audio",
+      "answers": {
+        "10": "falsch",
+        "11": "b",
+        "12": "richtig",
+        "13": "b",
+        "14": "richtig",
+        "15": "b",
+        "16": "falsch",
+        "17": "b"
+      },
+      "explanations": {
+        "10": "Das Ersatzteil für die Gangschaltung ist noch nicht geliefert worden, deshalb ist das Fahrrad erst morgen ab 14 Uhr fertig.",
+        "11": "Der Mitarbeiter bietet an, ihr eine SMS zu schicken, sobald das Fahrrad fertig ist, und Frau Novak stimmt zu.",
+        "12": "Anna sagt, dass fast alle zehn Euro in den Umschlag gelegt haben und schon achtzig Euro zusammengekommen sind.",
+        "13": "Am Ende sagt der Mann: „Ich besorge heute nach der Arbeit die Karte und lasse sie morgen im Büro herumgehen.“",
+        "14": "Frau Sommer bestätigt, dass sich die Gruppe schon um acht Uhr trifft, weil der Bus um acht Uhr fünfzehn abfährt.",
+        "15": "Die Kita bringt Getränke mit, aber jedes Kind soll ein kleines Frühstück und festes Schuhwerk im eigenen Rucksack dabeihaben.",
+        "16": "Im Schlafzimmer und im Bad funktioniert die Heizung normal; nur der Heizkörper im Wohnzimmer bleibt kalt.",
+        "17": "Frau Kovács sagt, dass ihre Nachbarin Frau Lenz ihren Ersatzschlüssel hat und den Hausmeister hereinlassen kann."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "original-generated:content/exams/dtz-a2-b1/listening-source.json; original A2-B1 German DTZ listening scripts, items, keys and explanations; human educational and audio review pending"
+    },
+    {
+      "setId": "dtz-a2-b1.hv4.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "HV4",
+      "section": "HV",
+      "part": 4,
+      "title": "Hören Teil 4 · Meinungen im Radio",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv4-01",
+            "mediaId": "dtz-a2-b1.hv4.01.audio",
+            "mediaVersion": "v1",
+            "label": "Meinung 1 · Hörerstimme 1",
+            "questions": [
+              {
+                "n": 18,
+                "question": "Welche Aussage passt zu Meinung 1? (Nachbarschaftshilfe im Stadtteil)",
+                "options": {
+                  "a": "Ich helfe älteren Nachbarn regelmäßig beim Einkaufen.",
+                  "b": "Ich habe leider überhaupt keine Zeit für ein Ehrenamt.",
+                  "c": "Ich unterstütze Kinder aus der Nachbarschaft bei den Hausaufgaben.",
+                  "d": "Ich spende lieber Geld, statt selbst mitzuarbeiten.",
+                  "e": "Ich repariere in einem kleinen Treffpunkt kaputte Haushaltsgeräte.",
+                  "f": "Ich finde, dass die Stadt solche Angebote allein organisieren sollte."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv4-02",
+            "mediaId": "dtz-a2-b1.hv4.02.audio",
+            "mediaVersion": "v1",
+            "label": "Meinung 2 · Hörerstimme 2",
+            "questions": [
+              {
+                "n": 19,
+                "question": "Welche Aussage passt zu Meinung 2? (Nachbarschaftshilfe im Stadtteil)",
+                "options": {
+                  "a": "Ich helfe älteren Nachbarn regelmäßig beim Einkaufen.",
+                  "b": "Ich habe leider überhaupt keine Zeit für ein Ehrenamt.",
+                  "c": "Ich unterstütze Kinder aus der Nachbarschaft bei den Hausaufgaben.",
+                  "d": "Ich spende lieber Geld, statt selbst mitzuarbeiten.",
+                  "e": "Ich repariere in einem kleinen Treffpunkt kaputte Haushaltsgeräte.",
+                  "f": "Ich finde, dass die Stadt solche Angebote allein organisieren sollte."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv4-03",
+            "mediaId": "dtz-a2-b1.hv4.03.audio",
+            "mediaVersion": "v1",
+            "label": "Meinung 3 · Hörerstimme 3",
+            "questions": [
+              {
+                "n": 20,
+                "question": "Welche Aussage passt zu Meinung 3? (Nachbarschaftshilfe im Stadtteil)",
+                "options": {
+                  "a": "Ich helfe älteren Nachbarn regelmäßig beim Einkaufen.",
+                  "b": "Ich habe leider überhaupt keine Zeit für ein Ehrenamt.",
+                  "c": "Ich unterstütze Kinder aus der Nachbarschaft bei den Hausaufgaben.",
+                  "d": "Ich spende lieber Geld, statt selbst mitzuarbeiten.",
+                  "e": "Ich repariere in einem kleinen Treffpunkt kaputte Haushaltsgeräte.",
+                  "f": "Ich finde, dass die Stadt solche Angebote allein organisieren sollte."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 3,
+      "interaction": "fixed_audio",
+      "answers": {
+        "18": "c",
+        "19": "a",
+        "20": "e"
+      },
+      "explanations": {
+        "18": "Die Sprecherin geht zweimal pro Woche ins Nachbarschaftszentrum und hilft Grundschulkindern bei den Aufgaben für die Schule.",
+        "19": "Der Sprecher fragt die älteren Bewohner im Haus jeden Freitag und bringt am Samstagmorgen ihre Einkäufe mit.",
+        "20": "Der Sprecher hilft einmal im Monat im Repair-Café dabei, defekte Haushaltsgeräte wie Toaster, Lampen oder Kaffeemaschinen zu reparieren."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "original-generated:content/exams/dtz-a2-b1/listening-source.json; original A2-B1 German DTZ listening scripts, items, keys and explanations; human educational and audio review pending"
+    },
+    {
+      "setId": "dtz-a2-b1.lv1.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "LV1",
+      "section": "LV",
+      "part": 1,
+      "title": "Nachbarschaftszentrum Sonnenhof — Verzeichnis (Originalentwurf)",
+      "payload": {
+        "text": "Nachbarschaftszentrum Sonnenhof – Wegweiser\n\nErdgeschoss (EG)\nInformation und Anmeldung für die Wohnberatung · Beratung zu Mietverträgen und Nebenkosten · Kopierer und Drucker · Empfang für Fundsachen\n\n1. Obergeschoss (1. OG)\nSprachbüro: Anmeldung und Beratung für Deutschkurse · Kursräume 101 bis 104 · Lernraum mit Wörterbüchern · Büro der Kursleitung\n\n2. Obergeschoss (2. OG)\nBewegungsraum: Kinderturnen und Gymnastik · Werkstatt: gemeinsame Fahrradreparatur · Ausleihe von Werkzeug · Raum für die Jugendgruppe\n\nDie Information im Erdgeschoss ist montags bis freitags von 9 bis 17 Uhr besetzt. Zu allen Etagen fährt ein Aufzug.",
+        "questions": [
+          {
+            "n": 21,
+            "question": "Sie möchten sich zu Ihrer Nebenkostenabrechnung beraten lassen. Wohin gehen Sie?",
+            "options": {
+              "a": "Ins Erdgeschoss.",
+              "b": "Ins 1. Obergeschoss.",
+              "c": "Ins 2. Obergeschoss."
+            }
+          },
+          {
+            "n": 22,
+            "question": "Sie möchten sich für einen Deutschkurs anmelden. Wohin gehen Sie?",
+            "options": {
+              "a": "Ins Erdgeschoss.",
+              "b": "Ins 1. Obergeschoss.",
+              "c": "Ins 2. Obergeschoss."
+            }
+          },
+          {
+            "n": 23,
+            "question": "Sie bringen Ihr Kind zum Kinderturnen. Wohin gehen Sie?",
+            "options": {
+              "a": "Ins Erdgeschoss.",
+              "b": "Ins 1. Obergeschoss.",
+              "c": "Ins 2. Obergeschoss."
+            }
+          },
+          {
+            "n": 24,
+            "question": "Sie möchten ein Formular ausdrucken. Wohin gehen Sie?",
+            "options": {
+              "a": "Ins Erdgeschoss.",
+              "b": "Ins 1. Obergeschoss.",
+              "c": "Ins 2. Obergeschoss."
+            }
+          },
+          {
+            "n": 25,
+            "question": "Sie möchten Ihr Fahrrad gemeinsam mit anderen reparieren. Wohin gehen Sie?",
+            "options": {
+              "a": "Ins Erdgeschoss.",
+              "b": "Ins 1. Obergeschoss.",
+              "c": "Ins 2. Obergeschoss."
+            }
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "single_choice",
+      "answers": {
+        "21": "a",
+        "22": "b",
+        "23": "c",
+        "24": "a",
+        "25": "c"
+      },
+      "explanations": {
+        "21": "Die Beratung zu Nebenkosten gehört zur Wohnberatung im Erdgeschoss.",
+        "22": "Das Sprachbüro im 1. Obergeschoss nimmt Anmeldungen für Deutschkurse entgegen.",
+        "23": "Das Kinderturnen findet im Bewegungsraum im 2. Obergeschoss statt.",
+        "24": "Kopierer und Drucker stehen im Erdgeschoss.",
+        "25": "Die Werkstatt für gemeinsame Fahrradreparaturen liegt im 2. Obergeschoss."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/manifest.json — original generated internal draft, coordinator authored; not copied from any official examination."
+    },
+    {
+      "setId": "dtz-a2-b1.lv2.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "LV2",
+      "section": "LV",
+      "part": 2,
+      "title": "Anzeigen und Situationen (Originalentwurf)",
+      "payload": {
+        "situations": [
+          {
+            "n": 26,
+            "text": "Ihr Toaster funktioniert nicht mehr, und Sie möchten ihn lieber reparieren lassen, statt ihn wegzuwerfen."
+          },
+          {
+            "n": 27,
+            "text": "Ihre Tochter möchte ein Musikinstrument lernen und sucht einen Kurs in der Nähe."
+          },
+          {
+            "n": 28,
+            "text": "Sie arbeiten abends und suchen jemanden, der in dieser Zeit auf Ihr Kind aufpasst."
+          },
+          {
+            "n": 29,
+            "text": "Sie möchten im Sommer eigenes Gemüse anbauen, haben aber keinen eigenen Garten."
+          },
+          {
+            "n": 30,
+            "text": "Sie möchten heute Abend mit Freunden auswärts essen und suchen dafür ein Restaurant."
+          }
+        ],
+        "ads": [
+          {
+            "id": "a",
+            "text": "Babysitter-Vermittlung Regenbogen: Wir vermitteln zuverlässige Babysitterinnen in Ihrem Viertel, auch abends und am Wochenende. Anmeldung online oder telefonisch."
+          },
+          {
+            "id": "b",
+            "text": "Musikschule Klangraum: Klavier, Gitarre und Gesang für Kinder ab sechs Jahren. Die erste Probestunde ist kostenlos. Unterricht dienstags und freitags."
+          },
+          {
+            "id": "c",
+            "text": "Reparaturcafé Lichtblick: Bringen Sie kaputte Kleingeräte mit — wir reparieren Toaster, Lampen und Radios gemeinsam mit Ihnen. Jeden ersten Samstag im Monat, kostenlos."
+          },
+          {
+            "id": "d",
+            "text": "Sprachschule Tor: Intensivkurse Deutsch für den Beruf, abends und samstags. Kleine Gruppen, auch online möglich. Kostenlose Einstufung."
+          },
+          {
+            "id": "e",
+            "text": "Stadtbibliothek Nord: Neue Kinderbücher und Gesellschaftsspiele zum Ausleihen. Vorlesestunde für Kinder jeden Mittwoch um 16 Uhr, Eintritt frei."
+          },
+          {
+            "id": "f",
+            "text": "Sportverein Blauweiß: Fußball und Leichtathletik für Kinder und Jugendliche. Ein Probetraining ist jederzeit möglich. Monatsbeitrag 12 Euro."
+          },
+          {
+            "id": "g",
+            "text": "Fahrradverleih Pedal: Räder und E-Bikes tageweise mieten. Helm inklusive, kleine Reparaturen unterwegs inklusive. Abholung direkt am Bahnhof."
+          },
+          {
+            "id": "h",
+            "text": "Gartenverein Grüne Hand: Kleine Gärten zum Anbau von Gemüse zu vergeben. Ein Wasseranschluss ist vorhanden, Werkzeug kann geteilt werden."
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "matching_ads",
+      "answers": {
+        "26": "c",
+        "27": "b",
+        "28": "a",
+        "29": "h",
+        "30": "x"
+      },
+      "explanations": {
+        "26": "Anzeige c ist ein Reparaturcafé, in dem Kleingeräte wie Toaster gemeinsam mit den Besuchern repariert werden.",
+        "27": "Anzeige b, die Musikschule, bietet Unterricht für Kinder ab sechs Jahren an, unter anderem Klavier und Gitarre.",
+        "28": "Anzeige a vermittelt Babysitterinnen im Viertel und nennt ausdrücklich Abende und Wochenenden als mögliche Zeiten.",
+        "29": "Anzeige h bietet kleine Gärten zum Anbau von Gemüse an. So kann die Person auch ohne eigenen Garten Gemüse anbauen.",
+        "30": "Keine der Anzeigen bietet ein Restaurant oder Speisen an. Anzeige e (Bibliothek) und Anzeige d (Sprachschule) sind keine Gaststätten."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/manifest.json — original generated internal draft, coordinator authored; not copied from any official examination."
+    },
+    {
+      "setId": "dtz-a2-b1.lv3.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "LV3",
+      "section": "LV",
+      "part": 3,
+      "title": "Drei kurze Texte (Originalentwurf)",
+      "payload": {
+        "groups": [
+          {
+            "id": "g1",
+            "text": "Seit drei Monaten fahre ich mit dem Fahrrad zur Arbeit. Früher habe ich den Bus genommen und war oft zwanzig Minuten unterwegs. Mit dem Rad brauche ich nur zwölf Minuten, und ich spare außerdem die Fahrkarte. Nur bei starkem Regen nehme ich noch den Bus.",
+            "questions": [
+              {
+                "n": 31,
+                "question": "Die Person ist mit dem Fahrrad länger unterwegs als früher mit dem Bus.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 32,
+                "question": "Wann nimmt die Person noch den Bus?",
+                "options": {
+                  "a": "An jedem Arbeitstag.",
+                  "b": "Nie, sie fährt immer Rad.",
+                  "c": "Nur bei starkem Regen."
+                }
+              }
+            ]
+          },
+          {
+            "id": "g2",
+            "text": "Unsere Nachbarin Frau Yilmaz hat letzten Monat einen kleinen Blumenladen eröffnet. Vorher hat sie in einem Büro gearbeitet, aber sie wollte lieber mit Pflanzen und mit Menschen zu tun haben. Der Laden ist montags bis samstags geöffnet, am Sonntag nicht. Am ersten Tag haben alle Nachbarn Blumen gekauft, um sie zu unterstützen.",
+            "questions": [
+              {
+                "n": 33,
+                "question": "Frau Yilmaz hat früher in einem Büro gearbeitet.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 34,
+                "question": "Was ist über den neuen Laden richtig?",
+                "options": {
+                  "a": "Er ist montags bis samstags geöffnet.",
+                  "b": "Er ist auch am Sonntag geöffnet.",
+                  "c": "Er verkauft nur Bürobedarf."
+                }
+              }
+            ]
+          },
+          {
+            "id": "g3",
+            "text": "Mein Bruder und ich arbeiten in derselben Firma, aber unsere Arbeitszeiten sind verschieden. Deshalb fahren wir meistens getrennt zur Arbeit. Einmal pro Woche haben wir aber beide um sechzehn Uhr Schluss; dann fahren wir zusammen und sparen Benzin. Unterwegs sprechen wir über unsere Pläne für das Wochenende.",
+            "questions": [
+              {
+                "n": 35,
+                "question": "Die beiden Geschwister fahren jeden Tag gemeinsam zur Arbeit.",
+                "options": {
+                  "richtig": "Richtig",
+                  "falsch": "Falsch"
+                }
+              },
+              {
+                "n": 36,
+                "question": "Wann fahren die Geschwister zusammen?",
+                "options": {
+                  "a": "An jedem Arbeitstag.",
+                  "b": "Nur am Wochenende.",
+                  "c": "Einmal pro Woche, wenn beide um 16 Uhr Schluss haben."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 6,
+      "interaction": "grouped_choice",
+      "answers": {
+        "31": "falsch",
+        "32": "c",
+        "33": "richtig",
+        "34": "a",
+        "35": "falsch",
+        "36": "c"
+      },
+      "explanations": {
+        "31": "Im Text heißt es, dass die Person mit dem Bus oft zwanzig Minuten brauchte, mit dem Rad aber nur zwölf Minuten. Mit dem Fahrrad ist sie also kürzer unterwegs, nicht länger.",
+        "32": "Der letzte Satz sagt ausdrücklich: Nur bei starkem Regen nimmt sie noch den Bus.",
+        "33": "Im Text steht, dass Frau Yilmaz vorher in einem Büro gearbeitet hat und lieber mit Pflanzen und Menschen arbeiten wollte.",
+        "34": "Der Text nennt die Öffnungszeiten montags bis samstags; am Sonntag ist der Laden geschlossen, und Bürobedarf wird nicht verkauft.",
+        "35": "Die Geschwister haben verschiedene Arbeitszeiten und fahren deshalb meistens getrennt; gemeinsam fahren sie nur einmal pro Woche.",
+        "36": "Laut Text haben beide einmal pro Woche um 16 Uhr Schluss und fahren dann zusammen nach Hause."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/manifest.json — original generated internal draft, coordinator authored; not copied from any official examination."
+    },
+    {
+      "setId": "dtz-a2-b1.lv4.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "LV4",
+      "section": "LV",
+      "part": 4,
+      "title": "Stadtmuseum am Fluss — Broschüre (Originalentwurf)",
+      "payload": {
+        "text": "Stadtmuseum am Fluss\n\nDas Stadtmuseum am Fluss zeigt die Geschichte unserer Stadt von der Römerzeit bis heute. Es ist dienstags bis sonntags von 10 bis 18 Uhr geöffnet. Montags ist das Museum geschlossen.\n\nDer Eintritt für Erwachsene kostet 8 Euro. Kinder und Jugendliche bis 18 Jahre zahlen 3 Euro. Für Familien gibt es eine günstige Karte: zwei Erwachsene und bis zu drei Kinder zahlen zusammen 18 Euro.\n\nJeden Samstag um 14 Uhr beginnt eine öffentliche Führung, die eine Stunde dauert. Die Teilnahme ist im Eintrittspreis enthalten. Wer eine Führung in einer anderen Sprache möchte, kann sie vorher telefonisch anmelden; dafür wird ein Aufpreis von 10 Euro pro Gruppe berechnet.\n\nIm Erdgeschoss befindet sich ein kleines Café. Dort kann man Kaffee, Kuchen und kleine Speisen kaufen. Eigene Getränke und Speisen dürfen nicht mitgebracht werden. Im Museumsladen am Eingang gibt es Bücher, Postkarten und Geschenke aus der Region.",
+        "questions": [
+          {
+            "n": 37,
+            "question": "Das Museum ist auch montags geöffnet.",
+            "options": {
+              "richtig": "Richtig",
+              "falsch": "Falsch"
+            }
+          },
+          {
+            "n": 38,
+            "question": "Die Familienkarte gilt für zwei Erwachsene und bis zu drei Kinder.",
+            "options": {
+              "richtig": "Richtig",
+              "falsch": "Falsch"
+            }
+          },
+          {
+            "n": 39,
+            "question": "Man darf eigene Getränke in das Museumscafé mitbringen.",
+            "options": {
+              "richtig": "Richtig",
+              "falsch": "Falsch"
+            }
+          }
+        ]
+      },
+      "itemCount": 3,
+      "interaction": "single_choice",
+      "answers": {
+        "37": "falsch",
+        "38": "richtig",
+        "39": "falsch"
+      },
+      "explanations": {
+        "37": "Der Text sagt, dass das Museum dienstags bis sonntags geöffnet und montags geschlossen ist. Die Aussage ist daher falsch.",
+        "38": "Im Text steht ausdrücklich: zwei Erwachsene und bis zu drei Kinder zahlen zusammen 18 Euro. Die Aussage stimmt.",
+        "39": "Laut Text dürfen eigene Getränke und Speisen nicht mitgebracht werden. Die Aussage ist falsch."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/manifest.json — original generated internal draft, coordinator authored; not copied from any official examination."
+    },
+    {
+      "setId": "dtz-a2-b1.lv5.original01",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "LV5",
+      "section": "LV",
+      "part": 5,
+      "title": "Brief: Besuch am Wochenende (Originalentwurf)",
+      "payload": {
+        "letter": "Liebe Frau Kessler,\n\nvielen Dank für Ihre E-Mail. Ich habe mich sehr [40] gefreut, dass Sie mich besuchen möchten. Am nächsten Samstag [41] ich leider arbeiten, deshalb passt mir dieser Termin nicht so gut. [42] Sie am Sonntag Zeit haben, treffen wir uns gern in einem Café in der Nähe.\n\nMeine Wohnung liegt nicht weit [43] Bahnhof, nur fünf Minuten zu Fuß. Wenn Sie mit dem Zug kommen, [44] ich Sie am Ausgang ab. Bringen Sie bitte [45] Regenschirm mit, denn am Wochenende soll es regnen.\n\nÜber Ihren Besuch freue ich mich schon sehr.\n\nViele Grüße\nAnna Berger",
+        "gaps": [
+          {
+            "n": 40,
+            "options": {
+              "a": "darauf",
+              "b": "darüber",
+              "c": "daran"
+            }
+          },
+          {
+            "n": 41,
+            "options": {
+              "a": "muss",
+              "b": "musst",
+              "c": "müssen"
+            }
+          },
+          {
+            "n": 42,
+            "options": {
+              "a": "Ob",
+              "b": "Wenn",
+              "c": "Dass"
+            }
+          },
+          {
+            "n": 43,
+            "options": {
+              "a": "vom",
+              "b": "zum",
+              "c": "im"
+            }
+          },
+          {
+            "n": 44,
+            "options": {
+              "a": "hebe",
+              "b": "hole",
+              "c": "halte"
+            }
+          },
+          {
+            "n": 45,
+            "options": {
+              "a": "einen",
+              "b": "ein",
+              "c": "einem"
+            }
+          }
+        ]
+      },
+      "itemCount": 6,
+      "interaction": "gap_choice",
+      "answers": {
+        "40": "b",
+        "41": "a",
+        "42": "b",
+        "43": "a",
+        "44": "b",
+        "45": "a"
+      },
+      "explanations": {
+        "40": "„sich freuen über“ verlangt das Präpositionaladverb „darüber“: Ich habe mich darüber gefreut, dass …",
+        "41": "Das Subjekt ist „ich“, deshalb steht die erste Person: Am Samstag muss ich arbeiten. „musst“ gehört zu „du“, „müssen“ zu „wir/sie“.",
+        "42": "Die Bedingung wird mit „Wenn“ eingeleitet: Wenn Sie am Sonntag Zeit haben, treffen wir uns.",
+        "43": "„nicht weit von“ steht mit dem Dativ; die Kurzform von „von dem“ ist „vom“: nicht weit vom Bahnhof.",
+        "44": "Das trennbare Verb heißt „abholen“; in der ersten Person Singular lautet die Form „hole“: ich hole Sie ab.",
+        "45": "„mitbringen“ verlangt hier den Akkusativ; „Regenschirm“ ist maskulin, also „einen Regenschirm“."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/manifest.json — original generated internal draft, coordinator authored; not copied from any official examination."
+    }
+  ],
+  "media": [
+    {
+      "mediaId": "dtz-a2-b1.hv1.01.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv1.01-v1.wav",
+      "sha256": "af0867b7a9972aa91dbcbe5bd4cdd6b335d2252dceea10c26ece5d0c95694bad",
+      "byteLength": 907492,
+      "durationMs": 18905,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv1-01"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv1.02.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv1.02-v1.wav",
+      "sha256": "854b81eb6a824ff336d66f1ba07833741ac33d029f8b48f705158d05ce226a07",
+      "byteLength": 1058566,
+      "durationMs": 22053,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv1-02"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv1.03.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv1.03-v1.wav",
+      "sha256": "bd62ef5dc25f7edd7c63aba87be95ec6541714a98c1fa797dc5eb9562af9adc8",
+      "byteLength": 926042,
+      "durationMs": 19292,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv1-03"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv1.04.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv1.04-v1.wav",
+      "sha256": "9f4c175e7aa4ff32d5dcb1f7ce6ea3e1927f460f4f75d6fea2195e02a3f11725",
+      "byteLength": 677384,
+      "durationMs": 14111,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv1-04"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv2.01.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv2.01-v1.wav",
+      "sha256": "46ea5d3a632081eb9b0dcb3ed05ad9ce1d9e56f254caffeaa969146c14874958",
+      "byteLength": 857438,
+      "durationMs": 17862,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv2-01"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv2.02.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv2.02-v1.wav",
+      "sha256": "a12457459161d1f8952e1daaa1bc690009ce505e932b3d6965208c18a3bd18c3",
+      "byteLength": 825906,
+      "durationMs": 17205,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv2-02"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv2.03.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv2.03-v1.wav",
+      "sha256": "6bc5067d5cdd7828f1b8efa41c751c51990b2e171c50aa7740156dc63e16e8c6",
+      "byteLength": 1002934,
+      "durationMs": 20894,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv2-03"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv2.04.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv2.04-v1.wav",
+      "sha256": "512b38609862be145be0a27e3f60e967c7cebbce0c4f23635a62ee26b57f457c",
+      "byteLength": 915982,
+      "durationMs": 19082,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv2-04"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv2.05.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv2.05-v1.wav",
+      "sha256": "ed302467f498930653b0c2e6081724db01a50f819c02944b6f57c42640a472a9",
+      "byteLength": 926688,
+      "durationMs": 19305,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv2-05"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv3.01.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv3.01-v1.wav",
+      "sha256": "0204e0cef3a3c4b39720b7a60859031b9305320d3a3ab12e15cc38b266698ec7",
+      "byteLength": 2061030,
+      "durationMs": 42937,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv3-01"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv3.02.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv3.02-v1.wav",
+      "sha256": "b80967c1401575b1f95447cf35a68c738a48be951801168e6c973273b04534ae",
+      "byteLength": 2061470,
+      "durationMs": 42946,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv3-02"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv3.03.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv3.03-v1.wav",
+      "sha256": "6c4d9bad576da7004341f42adebc172a7e0be1bc448279e83d05d8d97244aec8",
+      "byteLength": 1977242,
+      "durationMs": 41192,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv3-03"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv3.04.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv3.04-v1.wav",
+      "sha256": "0564cddeb9d42ab14af67bd09e498e5523aca2afb4a918db2ddfac0a5d151b01",
+      "byteLength": 2413554,
+      "durationMs": 50281,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv3-04"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv4.01.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv4.01-v1.wav",
+      "sha256": "b0b1f49d430d2c4475a2b8015902e143ca3d2102c8ce1e5d1ae3d3e09d1ec908",
+      "byteLength": 1053340,
+      "durationMs": 21944,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv4-01"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv4.02.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv4.02-v1.wav",
+      "sha256": "c4a003cde33b2a0cc0c129937395a73bbb08827e864ec8b7fd7368ab8a09fced",
+      "byteLength": 986902,
+      "durationMs": 20560,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv4-02"
+    },
+    {
+      "mediaId": "dtz-a2-b1.hv4.03.audio",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "path": "content/exams/dtz-a2-b1/audio/hv4.03-v1.wav",
+      "sha256": "a1ad1cff0c77ad6e016c897519d4cac0342ab464ab625fe38d83db64d4b82591",
+      "byteLength": 957910,
+      "durationMs": 19956,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/dtz-a2-b1/listening-source.json#hv4-03"
+    }
+  ],
+  "writingTasks": [
+    {
+      "taskId": "dtz-a2-b1.writing.original01.a",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "writing",
+      "section": "SA",
+      "register": "Sie",
+      "topic": "Beschädigte Monatskarte — Bitte um Ersatz und Erstattung",
+      "situation": "Sie haben eine Monatskarte für Bus und Bahn. Letzte Woche wurde die Karte an einer Haltestelle nicht mehr erkannt; ein Kontrolleur erklärte sie für ungültig, und Sie mussten ein Einzelticket kaufen. Sie schreiben an den Kundenservice des Verkehrsbetriebs, schildern den Vorfall und bitten um eine neue Karte.",
+      "adressat": "Kundenservice des Verkehrsbetriebs",
+      "leitpunkte": [
+        "Nennen, warum Sie schreiben und welche Karte betroffen ist.",
+        "Den Vorfall an der Haltestelle und mit dem Kontrolleur schildern.",
+        "Um eine neue Karte und um Erstattung des Einzeltickets bitten.",
+        "Um eine kurze schriftliche Rückmeldung bitten."
+      ],
+      "rubricId": "writing.dtz-a2-b1",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/writing-manifest.json — original generated internal draft by Hermes under coordinator assignment EXAM-S4-HERMES-20261003-A on 3 October 2026; not copied, translated or adapted from an official examination task."
+    },
+    {
+      "taskId": "dtz-a2-b1.writing.original01.b",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "writing",
+      "section": "SA",
+      "register": "du",
+      "topic": "Urlaubsvertretung für die Nachbarin — Pflanzen, Post und Schlüssel",
+      "situation": "Ihre Nachbarin Frau Novak fährt in zwei Wochen für drei Wochen zu ihrer Familie ins Ausland. Sie haben ihr schon angeboten, in dieser Zeit nach der Wohnung zu sehen. Sie schreiben ihr eine kurze Nachricht und klären, was Sie übernehmen und was Sie dafür brauchen.",
+      "adressat": "Ihre Nachbarin Frau Novak; Sie duzen sich.",
+      "leitpunkte": [
+        "Den Zeitraum Ihrer Vertretung bestätigen.",
+        "Sagen, welche Aufgaben Sie übernehmen (Pflanzen, Post, Lüften).",
+        "Nach dem Ersatzschlüssel oder nach wichtigen Hinweisen fragen.",
+        "Einen kurzen Termin vor der Abreise vorschlagen."
+      ],
+      "rubricId": "writing.dtz-a2-b1",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "content/exams/dtz-a2-b1/writing-manifest.json — original generated internal draft by Hermes under coordinator assignment EXAM-S4-HERMES-20261003-A on 3 October 2026; not copied, translated or adapted from an official examination task."
+    }
+  ],
+  "rubrics": [
+    {
+      "rubricId": "writing.dtz-a2-b1",
+      "version": "v1",
+      "examId": "dtz-a2-b1",
+      "family": "writing",
+      "policy": "dtz-writing-practice-v1",
+      "feedbackKind": "dtz-writing-bands",
+      "criteria": [
+        {
+          "key": "dtz_aufgabe",
+          "label": "Aufgabenbewältigung",
+          "bands": {
+            "B1_PLUS": 5,
+            "B1": 4,
+            "A2_PLUS": 3,
+            "A2": 2,
+            "A1": 1,
+            "ZERO": 0
+          },
+          "bandLabels": {
+            "B1_PLUS": "B1 gut erfüllt",
+            "B1": "B1 erfüllt",
+            "A2_PLUS": "A2 gut erfüllt",
+            "A2": "A2 erfüllt",
+            "A1": "A1 erfüllt",
+            "ZERO": "Nicht erfüllt"
+          },
+          "descriptors": {
+            "B1_PLUS": "Alle vier Inhaltspunkte sind präzise und auf die Schreibsituation bezogen bearbeitet.",
+            "B1": "Entweder sind alle vier Inhaltspunkte nur teilweise erschließbar vorhanden, oder drei Inhaltspunkte sind angemessen bearbeitet.",
+            "A2_PLUS": "Entweder sind drei Inhaltspunkte nur teilweise erschließbar vorhanden, oder zwei Inhaltspunkte sind angemessen bearbeitet.",
+            "A2": "Entweder sind zwei Inhaltspunkte nur teilweise erschließbar vorhanden, oder ein Inhaltspunkt ist angemessen bearbeitet.",
+            "A1": "Nur ein Inhaltspunkt ist teilweise erschließbar vorhanden.",
+            "ZERO": "Kein relevanter Inhaltspunkt oder eine falsche Schreibsituation."
+          }
+        },
+        {
+          "key": "dtz_kommunikation",
+          "label": "Kommunikative Gestaltung",
+          "bands": {
+            "B1_PLUS": 5,
+            "B1": 4,
+            "A2_PLUS": 3,
+            "A2": 2,
+            "A1": 1,
+            "ZERO": 0
+          },
+          "bandLabels": {
+            "B1_PLUS": "B1 gut erfüllt",
+            "B1": "B1 erfüllt",
+            "A2_PLUS": "A2 gut erfüllt",
+            "A2": "A2 erfüllt",
+            "A1": "A1 erfüllt",
+            "ZERO": "Nicht erfüllt"
+          },
+          "descriptors": {
+            "B1_PLUS": "Zweck, Textsorte und Register passen sicher zum Anlass; der Text ist durchgehend und klar verbunden.",
+            "B1": "Zweck, Textsorte und Register passen zum Anlass; der Text ist überwiegend zusammenhängend.",
+            "A2_PLUS": "Zweck und Register sind im Alltag erkennbar; die Verbindungen sind einfach, aber verständlich.",
+            "A2": "Zweck und Register sind teilweise passend; ein Zusammenhang ist in Ansätzen erkennbar.",
+            "A1": "Einfache Höflichkeitsformen stellen Kontakt her; einzelne Aussagen sind mit sehr einfachen Verbindungen verknüpft.",
+            "ZERO": "Kein erkennbarer kommunikativer Zusammenhang zum Anlass."
+          }
+        },
+        {
+          "key": "dtz_korrektheit",
+          "label": "Korrektheit",
+          "bands": {
+            "B1_PLUS": 5,
+            "B1": 4,
+            "A2_PLUS": 3,
+            "A2": 2,
+            "A1": 1,
+            "ZERO": 0
+          },
+          "bandLabels": {
+            "B1_PLUS": "B1 gut erfüllt",
+            "B1": "B1 erfüllt",
+            "A2_PLUS": "A2 gut erfüllt",
+            "A2": "A2 erfüllt",
+            "A1": "A1 erfüllt",
+            "ZERO": "Nicht erfüllt"
+          },
+          "descriptors": {
+            "B1_PLUS": "Trotz einzelner Fehler durchgehend verständlich; Formen und Wortstellung sind sicher genug für das Verständnis.",
+            "B1": "Im Ganzen verständlich; Fehler stören das Verständnis nicht wesentlich.",
+            "A2_PLUS": "Überwiegend verständlich; Fehler sind häufiger, die Aussage bleibt aber meist erkennbar.",
+            "A2": "Grundsätzlich verständlich; Fehler erschweren einzelne Sätze.",
+            "A1": "Wenige vertraute Satzmuster und kurze Wendungen sind verwendbar; die grammatische Kontrolle bleibt stark begrenzt.",
+            "ZERO": "Der Text ist nicht verständlich."
+          }
+        },
+        {
+          "key": "dtz_wortschatz",
+          "label": "Wortschatz",
+          "bands": {
+            "B1_PLUS": 5,
+            "B1": 4,
+            "A2_PLUS": 3,
+            "A2": 2,
+            "A1": 1,
+            "ZERO": 0
+          },
+          "bandLabels": {
+            "B1_PLUS": "B1 gut erfüllt",
+            "B1": "B1 erfüllt",
+            "A2_PLUS": "A2 gut erfüllt",
+            "A2": "A2 erfüllt",
+            "A1": "A1 erfüllt",
+            "ZERO": "Nicht erfüllt"
+          },
+          "descriptors": {
+            "B1_PLUS": "Breiter, treffender Alltagswortschatz; Wendungen sind passend und abwechslungsreich.",
+            "B1": "Ausreichender Alltagswortschatz; die Aussage wird klar ausgedrückt.",
+            "A2_PLUS": "Einfacher, aber ausreichender Alltagswortschatz; Umschreibungen gelingen meist.",
+            "A2": "Grundwortschatz reicht für den Anlass; Umschreibungen bleiben einfach.",
+            "A1": "Einzelne vertraute Wörter und kurze Wendungen ermöglichen Aussagen zu konkreten Alltagsanliegen.",
+            "ZERO": "Zu wenig Wortschatz, um den Anlass zu bearbeiten."
+          }
+        }
+      ],
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original German provisional descriptions by Hermes under EXAM-S4-HERMES-20261003-A, 3 October 2026. Coordinator verified the format in https://www.gast.de/fileadmin/gast.de/GAST/5_DTZ/PDF/gast_DTZ_UEbungssatz_2.pdf pages 42, 43, 47 and the current DTZ FAQ. Generated, unreviewed internal practice; no official wording, content licence or licensed assessment."
+    }
+  ]
+}
