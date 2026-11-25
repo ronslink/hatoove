@@ -48,6 +48,17 @@ export async function main(){
  async function blocking(blocker){for(let n=0;n<160;n++){const r=await one('SELECT pid,query,wait_event FROM pg_stat_activity WHERE $1=ANY(pg_blocking_pids(pid)) LIMIT 1',[blocker]);if(r?.wait_event==='advisory')return r;await new Promise(resolve=>setTimeout(resolve,25));}throw Error('Actual backend advisory wait not observed');}
  function pausedPool(match){const reached=gate(),release=gate();let once=false;return {reached:reached.ready,release:release.open,pool:wrapped(async(sql,args,c)=>{const r=await c.query(sql,args);if(!once&&match(String(sql))){once=true;reached.open((await c.query('SELECT pg_backend_pid() AS pid')).rows[0].pid);await release.ready;}return r;})};}
  const currentWindow=()=>({from:new Date(Date.now()-86400000).toISOString(),to:new Date(Date.now()-1).toISOString()});
+ // readProviderUsageSummary uses date_trunc('milliseconds', statement_timestamp()) as its cutoff,
+ // so observations recorded with microsecond clock_timestamp() in the same millisecond are excluded
+ // until the database clock crosses into the next millisecond.
+ async function waitUntilReportable(attemptIds){
+  for(let n=0;n<100;n++){
+   const {ready}=await one("SELECT date_trunc('milliseconds',statement_timestamp())>=coalesce((SELECT max(recorded_at) FROM provider_attempt_observation WHERE attempt_id=ANY($1::uuid[])),'-infinity'::timestamptz) AS ready",[attemptIds]);
+   if(ready)return;
+   await new Promise(resolve=>setTimeout(resolve,2));
+  }
+  throw Error('provider_report_clock_not_advanced');
+ }
  async function review(q,decision){const c=await one('SELECT c.content_version_id,c.content_sha256,c.exam_id FROM task_version t JOIN content_version c USING(content_version_id) WHERE t.task_id=$1 AND t.version=$2',[q.attempt.task_id,q.attempt.task_version]);return tx(db.migration,client=>syntheticContentReview(db,client,{kind:'content',examId:c.exam_id,subjectId:c.content_version_id,version:'',sha256:c.content_sha256},{decision}));}
  async function historicalIntent(q,createdAt,selectedIdentity=identity){
   // Explicit synthetic temporal row, checked by the real insert guards; no trigger disabling/backfill path.
@@ -220,7 +231,7 @@ export async function main(){
    const from='2026-01-01T00:00:00.000Z',to='2026-01-02T00:00:00.000Z';const dated=[];
    for(const date of ['2025-12-31T23:59:59.999Z',from,'2026-01-01T23:59:59.999Z',to]){const q=await claim(await queued());dated.push({q,id:await historicalIntent(q,date)});}
    const summary=await tx(db.worker,c=>readProviderUsageSummary(c,{from,to}),{readOnly:true});assert.equal(summary.totals.intents,2);assert.equal(summary.totals.withoutObservation,2);assert.equal(summary.totals.unknownCost,2);assert.equal(summary.groups[0].knownEstimatedSubtotal,null);assert.equal(summary.groups[0].latency.p50Ms,null);assert(summary.queue.unresolvedIntents>=4);assert(summary.queue.oldestUnresolvedIntentAgeMs>31*86400000);
-   await tx(db.worker,c=>appendProviderObservation(c,command(dated[1].id,response)));const late=await tx(db.worker,c=>readProviderUsageSummary(c,{from,to}),{readOnly:true});assert.equal(late.totals.intents,2);assert.equal(late.totals.estimated,1);assert.equal(late.groups.reduce((n,g)=>n+g.latency.samples,0),1);
+   await tx(db.worker,c=>appendProviderObservation(c,command(dated[1].id,response)));await waitUntilReportable([dated[1].id]);const late=await tx(db.worker,c=>readProviderUsageSummary(c,{from,to}),{readOnly:true});assert.equal(late.totals.intents,2);assert.equal(late.totals.estimated,1);assert.equal(late.groups.reduce((n,g)=>n+g.latency.samples,0),1);
    // Queue age uses submission time. This guarded raw INSERT models an old queued historical job.
    const q=await queued();await tx(db.admin,async c=>{await c.query("SELECT set_config('hatoove.owner_id',$1,true)",[q.owner]);const sid=randomUUID();await c.query("INSERT INTO submissions(id,attempt_id,owner_id,event_id,draft_revision,text,task_version,rubric_version,created_at,explanation_language) SELECT $2,attempt_id,owner_id,$3,99,text,task_version,rubric_version,$4,explanation_language FROM submissions WHERE id=$1",[q.submissionId,sid,randomUUID(),from]);await c.query("INSERT INTO jobs(id,submission_id,owner_id,exam_id,status) VALUES($1,$2,$3,$4,'queued')",[randomUUID(),sid,q.owner,q.attempt.exam_id]);await c.query('UPDATE entitlements SET reserved=reserved+1 WHERE owner_id=$1 AND exam_id=$2',[q.owner,q.attempt.exam_id]);});
    const current=await tx(db.worker,c=>readProviderUsageSummary(c,currentWindow()),{readOnly:true});assert(current.queue.oldestQueuedAgeMs>31*86400000);
@@ -238,8 +249,9 @@ export async function main(){
    for(const file of ['tools/provider-usage-report.mjs','server/worker.mjs']){const invalid=spawnSync(process.execPath,file.includes('provider')?argv:[file,'--once'],{encoding:'utf8',env:{...env,OWNAPI_PG_SCHEMA:privateValue+'!'},timeout:15000});assert.equal(invalid.status,2);assert(!invalid.stderr.includes(privateValue));assert(!invalid.stdout.includes(privateValue));}
   });
   await check('actual report currencies, zero, partial coverage and nearest-rank latency remain exact',async()=>{
-   const window={from:'2026-02-01T00:00:00.000Z',to:'2026-02-02T00:00:00.000Z'},list=[];
-   for(const currency of ['usd','eur'])for(const elapsed of [0,10,20,100]){const q=await claim(await queued());list.push(q);const i=validateProviderIdentity({adapterId:'synthetic-grader-v1',pricingCardId:'synthetic-'+currency+'-v1'},{builtin:false}),id=await historicalIntent(q,window.from,i);await tx(db.worker,c=>appendProviderObservation(c,command(id,{...response,elapsedMs:elapsed,receipt:normalizeUsageReceipt({...raw,inputTokens:0,outputTokens:0,cachedInputTokens:0},i)})));}
+   const window={from:'2026-02-01T00:00:00.000Z',to:'2026-02-02T00:00:00.000Z'},list=[],attemptIds=[];
+   for(const currency of ['usd','eur'])for(const elapsed of [0,10,20,100]){const q=await claim(await queued());list.push(q);const i=validateProviderIdentity({adapterId:'synthetic-grader-v1',pricingCardId:'synthetic-'+currency+'-v1'},{builtin:false}),id=await historicalIntent(q,window.from,i);attemptIds.push(id);await tx(db.worker,c=>appendProviderObservation(c,command(id,{...response,elapsedMs:elapsed,receipt:normalizeUsageReceipt({...raw,inputTokens:0,outputTokens:0,cachedInputTokens:0},i)})));}
+   await waitUntilReportable(attemptIds);
    const report=await tx(db.worker,c=>readProviderUsageSummary(c,window),{readOnly:true});assert.equal(report.totals.intents,8);assert.deepEqual(report.groups.map(g=>g.currency),['EUR','USD']);for(const g of report.groups){assert.equal(g.knownEstimatedSubtotal,'0');assert.equal(g.usage.input.knownTotal,'0');assert.equal(g.usage.reasoningOutput.knownTotal,null);assert.deepEqual(g.latency,{samples:4,p50Ms:10,p95Ms:100,maxMs:100});}assert.deepEqual(report.realSpend,{status:'not_measured',amount:null});for(const q of list)await createPostgresAccountDeletion({pool:db.deletion}).deleteAccount(q.owner);
   });
   await check('owned export uses only protected snapshot and hard deletion rollback then absence',async()=>{
