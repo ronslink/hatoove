@@ -103,12 +103,12 @@ try {
   const finished=await world.store.port.finaliseMockRun(owner,pinned.id,{expectedRevision:selected.revision,eventId:randomUUID(),expectedWritingRevision:selected.writing.draft_revision,explanationLanguage:'de'});
   assert.equal(finished.result.total,45);assert.equal(finished.state,'finalised');
  });
- await check('internal partial DTZ remains explicit preview, while public and default catalogue reject it',async()=>{
+ await check('internal partial DTZ remains explicit preview, while public and telc-only catalogue reject it',async()=>{
   const partial=structuredClone(pkg.published);partial.release={version:'v9803',state:'internal',resumeBlockedReleases:[]};
   const form={...partial.forms[0],id:'synthetic.internal.partial',scope:'section',sections:['SA'],mode:'untimed',timeLimitSeconds:null,members:[]};delete form.timingPolicy;delete form.attemptMode;partial.forms=[form];
   await importPackage(db.migration,partial,{mediaRoot});
   assert.equal((await eligibility()).eligible,true);assert.equal((await readCurrentReleaseEligibility(db.learner,DTZ,{catalogue})).eligible,false);
-  process.env.B1PREP_CONTENT_MODE='internal-preview';assert.equal((await readCurrentReleaseEligibility(db.learner,DTZ,{catalogue})).eligible,true);assert.equal((await readCurrentReleaseEligibility(db.learner,DTZ)).eligible,false);
+  process.env.B1PREP_CONTENT_MODE='internal-preview';assert.equal((await readCurrentReleaseEligibility(db.learner,DTZ,{catalogue})).eligible,true);assert.equal((await readCurrentReleaseEligibility(db.learner,DTZ,{catalogue:createExamCatalogue({enabled:['telc-deutsch-b1']})})).eligible,false);
   assert.equal((await asOwner(c=>c.query("INSERT INTO learner_preparation(id,owner_id,exam_id,state) VALUES($1,$2,$3,'archived') RETURNING id",[randomUUID(),owner,DTZ]))).rowCount,1);
  });
  for(const admissionFirst of [true,false])await check('direct SQL admission and rights withdrawal serialize: '+(admissionFirst?'admission commits first':'withdrawal commits first'),async()=>{

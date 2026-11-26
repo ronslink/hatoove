@@ -71,7 +71,7 @@
  */
 
 import pg from 'pg';
-import { importDefaultPackage } from './package-importer.mjs';
+import { importDefaultPackage, importBundledDtzPackage } from './package-importer.mjs';
 import { readFile } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -382,6 +382,7 @@ export async function provisionPersistent({ config = persistentConfig() } = {}) 
     const result = await applyMigrations(migrationPool, config);
     await grantProvisionerRights(migrationPool, config);
     await importDefaultPackage(migrationPool,{initializeListening:true});
+    await importBundledDtzPackage(migrationPool);
     for (const role of ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner']) opened[role] = persistentRolePool(config, role);
     const pools = {
       config,
@@ -417,6 +418,7 @@ export async function migrate({ config = persistentConfig() } = {}) {
     const result = await applyMigrations(migrationPool, config);
     await grantProvisionerRights(migrationPool, config);
     await importDefaultPackage(migrationPool,{initializeListening:true});
+    await importBundledDtzPackage(migrationPool);
     return { ...result, schema: config.schema };
   } finally {
     if (migrationPool) await migrationPool.end().catch(() => {});

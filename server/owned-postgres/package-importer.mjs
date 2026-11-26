@@ -275,3 +275,9 @@ export async function importDefaultPackage(pool,{initializeListening=false}={}) 
   }
   return importPackage(pool,input,{publisher:'bundled-telc-source'});
 }
+
+/** Persistent runtime initialization for the bundled DTZ listening + complete written package. */
+export async function importBundledDtzPackage(pool) {
+  const dtz=JSON.parse(await readFile(new URL('../../content/exams/dtz-a2-b1/listening-package.json',import.meta.url),'utf8'));
+  return importPackage(pool,dtz,{publisher:'bundled-dtz-source',activation:'if-missing'});
+}

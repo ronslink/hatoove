@@ -89,10 +89,12 @@ try {
   await importPackage(db.migration, partial);
   const a = await owner('a'), b = await owner('b'), newcomer = await owner('new');
   a.dtz = (await port.createPreparation(a.id, DTZ)).preparation;
-  await check('default remains telc-only while explicit internal partial DTZ remains usable', async () => {
+  await check('explicit telc-only catalogue refuses DTZ while default enables telc and DTZ internal preview', async () => {
+    const telcOnlyPort = createPostgresDatastore({ pool: db.learner, examCatalogue: createExamCatalogue({ enabled: [TELC] }) });
+    assert.deepEqual((await telcOnlyPort.listExams(a.id)).map(row => row.exam_id), [TELC]);
+    await rejects(telcOnlyPort.createPreparation(newcomer.id, DTZ), 'exam_unavailable');
     const defaultPort = createPostgresDatastore({ pool: db.learner });
-    assert.deepEqual((await defaultPort.listExams(a.id)).map(row => row.exam_id), [TELC]);
-    await rejects(defaultPort.createPreparation(newcomer.id, DTZ), 'exam_unavailable');
+    assert.deepEqual((await defaultPort.listExams(a.id)).map(row => row.exam_id).sort(), [DTZ, TELC]);
     assert.equal((await port.listObjectiveSets(a.id, { examId: DTZ })).length, 5);
     assert.equal((await port.listMockForms(a.id, { preparationId: a.dtz.id })).length, 1);
   });
@@ -169,9 +171,9 @@ try {
   await check('existing preparation, exact start receipt, pinned writing choice, revision and history survive', async () => {
     assert.deepEqual(await port.createPreparation(a.id, DTZ), { created: false, preparation: a.dtz });
     assert.equal((await port.startMockRun(a.id, startReceipt)).run.id, readingRun.id);
-    const defaultPort = createPostgresDatastore({ pool: db.learner });
-    assert.deepEqual(await defaultPort.createPreparation(a.id, DTZ), { created: false, preparation: a.dtz });
-    assert.equal((await defaultPort.startMockRun(a.id, startReceipt)).run.id, readingRun.id);
+    const disabledPort = createPostgresDatastore({ pool: db.learner, examCatalogue: createExamCatalogue({ enabled: [TELC] }) });
+    assert.deepEqual(await disabledPort.createPreparation(a.id, DTZ), { created: false, preparation: a.dtz });
+    assert.equal((await disabledPort.startMockRun(a.id, startReceipt)).run.id, readingRun.id);
     assert.equal((await port.readMockRun(a.id, readingRun.id)).blocked_reason, null);
     const selected = await port.selectMockWriting(a.id, writingRun.id, { expectedRevision: writingRun.revision, eventId: randomUUID(), choiceGroupId: writing.writingChoices[0].id, optionId: 'A' });
     assert.equal(selected.writing.selected_option_id, 'A');

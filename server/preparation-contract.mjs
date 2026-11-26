@@ -14,10 +14,12 @@
 // Circular with owned-api.mjs on purpose and safely: `Fault` is only used inside functions.
 import { Fault } from './owned-api.mjs';
 
-/** The package every existing and newly registered account prepares for in S1. */
+/** The package every existing and newly registered account prepares for by default. */
 export const INITIAL_EXAM_ID = 'telc-deutsch-b1';
-/** The packages S1 offers. Frozen: widening it is a reviewed code change, not a setting. */
-export const ENABLED_EXAM_IDS = Object.freeze([INITIAL_EXAM_ID]);
+/** The second supported German exam package (DTZ A2–B1). */
+export const DTZ_EXAM_ID = 'dtz-a2-b1';
+/** The packages Hatoove currently offers. Frozen: widening it is a reviewed code change, not a setting. */
+export const ENABLED_EXAM_IDS = Object.freeze([INITIAL_EXAM_ID, DTZ_EXAM_ID]);
 
 export const PREPARATION_STATES = Object.freeze(['active', 'archived']);
 export const EXAM_ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;

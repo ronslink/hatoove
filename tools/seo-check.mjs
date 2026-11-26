@@ -154,7 +154,7 @@ console.log(`\n=== SEO surface check ===\n`);
     fail('S2', 'sitemap.xml lists exactly the canonical URLs', 'public/sitemap.xml is missing');
   } else {
     const locs = [...sitemap.matchAll(/<loc>([^<]*)<\/loc>/g)].map((match) => match[1].trim());
-    const expected = [`${APEX}/`, `${APEX}/telc-deutsch-b1`];
+    const expected = [`${APEX}/`, `${APEX}/telc-deutsch-b1`, `${APEX}/dtz-a2-b1`];
     const malformed = locs.filter((loc) => !loc.startsWith(`${APEX}/`) || loc !== loc.trim());
     if (!locs.length) fail('S2', 'sitemap.xml lists exactly the canonical URLs', 'no <loc> entries found');
     else if (malformed.length) fail('S2', 'sitemap.xml lists exactly the canonical URLs', `not absolute https apex URLs: ${malformed.join(', ')}`);
@@ -620,6 +620,7 @@ try {
     const indexNowSuffixProbe = await probe(`/${indexNowKey}.txt/private`);
     const rootProbe = await probe('/', { accept: NAVIGATION });
     const overviewProbe = await probe('/telc-deutsch-b1', { accept: NAVIGATION });
+    const dtzOverviewProbe = await probe('/dtz-a2-b1', { accept: NAVIGATION });
     const appProbe = await probe('/app/', { accept: NAVIGATION });
     const problems = [];
     if (indexNowProbe.status !== 200 || indexNowProbe.body.trim() !== indexNowKey || !String(indexNowProbe.type || '').startsWith('text/plain')) problems.push('IndexNow key is not an exact public text response');
@@ -633,12 +634,16 @@ try {
     if (overviewProbe.status !== 200) problems.push(`/telc-deutsch-b1 answered ${overviewProbe.status}`);
     if (overviewProbe.robots) problems.push(`/telc-deutsch-b1 carries X-Robots-Tag: ${overviewProbe.robots}`);
     if (!overviewProbe.body.includes(`<link rel="canonical" href="${APEX}/telc-deutsch-b1">`)) problems.push('/telc-deutsch-b1 is missing its canonical link');
+    if (dtzOverviewProbe.status !== 200) problems.push(`/dtz-a2-b1 answered ${dtzOverviewProbe.status}`);
+    if (dtzOverviewProbe.robots) problems.push(`/dtz-a2-b1 carries X-Robots-Tag: ${dtzOverviewProbe.robots}`);
+    if (!dtzOverviewProbe.body.includes(`<link rel="canonical" href="${APEX}/dtz-a2-b1">`)) problems.push('/dtz-a2-b1 is missing its canonical link');
     const offerSignupLinks = [...html.matchAll(/<div class="exam-grid">([\s\S]*?)<\/div>/g)][0]?.[1] || '';
     const offerHrefs = [...offerSignupLinks.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
     if (!offerHrefs.length || offerHrefs.some((href) => href !== '/signin?mode=signup')) {
       problems.push(`offer-grid links must point to /signin?mode=signup, found: ${offerHrefs.join(', ') || '(none)'}`);
     }
     if (!html.includes('href="/telc-deutsch-b1"')) problems.push('index.html does not link to /telc-deutsch-b1');
+    if (!html.includes('href="/dtz-a2-b1"')) problems.push('index.html does not link to /dtz-a2-b1');
     if (problems.length) fail('S8', 'crawler files are public without a session', problems.join(' | '));
     else pass('S8', 'crawler files are public without a session', `/robots.txt ${robotsProbe.type}, /sitemap.xml ${sitemapProbe.type}, / 200 with no noindex`);
 

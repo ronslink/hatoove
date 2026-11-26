@@ -258,7 +258,7 @@ try {
     process.env.B1PREP_CONTENT_MODE = 'public';
     try { await reject(port.readMockMedia(b.id, active.id, rec.media_id, rec.media_version), 'mock_content_unavailable'); }
     finally { process.env.B1PREP_CONTENT_MODE = 'internal-preview'; }
-    const disabled = createPostgresDatastore({ pool: db.learner, mediaRoot });
+    const disabled = createPostgresDatastore({ pool: db.learner, mediaRoot, examCatalogue: createExamCatalogue({ enabled: ['telc-deutsch-b1'] }) });
     await reject(disabled.readMockMedia(b.id, active.id, rec.media_id, rec.media_version), 'exam_unavailable');
   });
   await check('export keeps learner audio progress without playback UUIDs or receipt transport data', async () => {

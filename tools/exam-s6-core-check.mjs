@@ -9,7 +9,8 @@ try {
  process.env.B1PREP_CONTENT_MODE='public';delete process.env.B1PREP_SERVE_RIGHTS;
  const calls=[];let row={eligible:true,exam_id:DTZ,release_version:'v2',state:'available',reason:'eligible',complete_form_id:'full',complete_form_version:'v1'};
  const client={query:async(sql,args)=>{calls.push({sql,args});return {rows:sql.startsWith('SELECT *')?[row]:[]};}};
- await check('default catalogue refuses DTZ without querying private metadata',async()=>{assert.equal((await readCurrentReleaseEligibility(client,DTZ)).eligible,false);assert.equal(calls.length,0);});
+ const telcOnly=createExamCatalogue({enabled:['telc-deutsch-b1']});
+ await check('unenabled catalogue refuses DTZ without querying private metadata',async()=>{assert.equal((await readCurrentReleaseEligibility(client,DTZ,{catalogue:telcOnly})).eligible,false);assert.equal(calls.length,0);});
  await check('one SQL predicate supplies only the contracted DTO',async()=>{assert.deepEqual(await readCurrentReleaseEligibility(client,DTZ,{catalogue}),{eligible:true,examId:DTZ,releaseVersion:'v2',state:'available',reason:'eligible',completeForm:{formId:'full',formVersion:'v1'}});assert.deepEqual(calls.at(-1).args,[DTZ,['generated']]);});
  await check('mutation optionally acquires the exact exam fence before its eligibility query',async()=>{calls.length=0;await readCurrentReleaseEligibility(client,DTZ,{catalogue,lock:true});assert.equal(calls.length,2);assert.match(calls[0].sql,/7351/);assert.deepEqual(calls[0].args,[DTZ]);assert.match(calls[1].sql,/current_release_eligibility/);});
  await check('available eligibility without exact release and complete-form metadata fails closed',async()=>{const good=row;for(const key of ['release_version','complete_form_id','complete_form_version']){row={...good,[key]:null};assert.equal((await readCurrentReleaseEligibility(client,DTZ,{catalogue})).eligible,false);}row=good;});

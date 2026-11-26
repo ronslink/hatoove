@@ -117,8 +117,8 @@ try {
     await sql("INSERT INTO payment_price VALUES($1,'DE','EUR',1000,'Synthetic EUR 10',$2,true),($1,'US','USD',1200,'Synthetic USD 12',$3,true)",[id,'price_'+id,'price_us_'+id]);
   }
   const payments=payment();
-  await check('default telc-only catalogue preserves telc terms and hides DTZ offers and new orders',async()=>{
-    const id=await owner('default'),defaults=payment({examCatalogue:createExamCatalogue()});
+  await check('explicit telc-only catalogue preserves telc terms and hides DTZ offers and new orders',async()=>{
+    const id=await owner('default'),defaults=payment({examCatalogue:createExamCatalogue({enabled:[TELC]})});
     const offer=await defaults.offer(id,{examId:TELC,market:'DE'});
     assert.equal(offer.offer.amountMinor,1000);assert.equal(offer.offer.currency,'EUR');assert.equal(offer.offer.allowance,10);
     await defaults.checkout(id,{examId:TELC,market:'DE',eventId:randomUUID()});

@@ -714,6 +714,7 @@ async function postgresLegs() {
   delete process.env.B1PREP_SERVE_RIGHTS;
   const EXAM = 'telc-deutsch-b1';
   const listeningPackage = validatePackage(JSON.parse(read('content/exams/telc-deutsch-b1/listening-package.json')));
+  const dtzPackage = validatePackage(JSON.parse(read('content/exams/dtz-a2-b1/listening-package.json')));
 
   /* ---------------------------------------------------- a real migration into a scratch schema */
   const leg = 'pool01_l1';
@@ -886,13 +887,17 @@ async function postgresLegs() {
                 c.rights_status, c.content_sha256, c.source_path FROM "${leg}".content_version c
           LEFT JOIN "${leg}".content_rights r USING (content_version_id)
          WHERE r.content_version_id IS NULL ORDER BY c.content_version_id`)).rows;
-      const declared = [
-        ...listeningPackage.sets.map(item => ({item,id:item.setId+'@'+item.version,kind:'task',family:item.family})),
-        ...listeningPackage.media.map(item => ({item,id:item.mediaId+'@'+item.version,kind:'media',family:'listening'})),
-      ].map(({item,id,kind,family}) => ({
-        content_version_id:id,kind,family,exam_id:EXAM,review_status:'unreviewed',rights_status:'generated',
-        content_sha256:packageHash(item),source_path:'content/exams/'+EXAM+'/manifest.json#'+id,
-      })).sort((a,b) => a.content_version_id.localeCompare(b.content_version_id));
+      const declaredFrom = (pkg) => [
+        ...(pkg.sets || []).map(item => ({item,id:item.setId+'@'+item.version,kind:'task',family:item.family,exam:pkg.exam.id,file:'manifest.json'})),
+        ...(pkg.media || []).map(item => ({item,id:item.mediaId+'@'+item.version,kind:'media',family:'listening',exam:pkg.exam.id,file:'manifest.json'})),
+        ...(pkg.rubrics || []).map(item => ({item,id:item.rubricId+'@'+item.version,kind:'rubric',family:'writing',exam:pkg.exam.id,file:'writing-manifest.json'})),
+        ...(pkg.writingTasks || []).map(item => ({item,id:item.taskId+'@'+item.version,kind:'task',family:'writing',exam:pkg.exam.id,file:'writing-manifest.json'})),
+      ].map(({item,id,kind,family,exam,file}) => ({
+        content_version_id:id,kind,family,exam_id:exam,review_status:'unreviewed',rights_status:'generated',
+        content_sha256:packageHash(item),source_path:'content/exams/'+exam+'/'+file+'#'+id,
+      }));
+      const declared = [...declaredFrom(listeningPackage), ...declaredFrom(dtzPackage)]
+        .sort((a,b) => a.content_version_id.localeCompare(b.content_version_id));
       assert.deepEqual(unrecorded, declared, 'only exact imported declarations may lack a later rights override; every migrated row keeps its decision');
       const release = (await legAdmin.query(
         `SELECT sha256, publisher, manifest FROM "${leg}".exam_release WHERE exam_id=$1 AND version=$2`,
