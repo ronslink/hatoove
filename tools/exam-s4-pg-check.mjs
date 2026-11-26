@@ -132,9 +132,9 @@ try {
    assert.equal((await db.admin.query('SELECT used,reserved FROM entitlements WHERE owner_id=$1 AND exam_id=$2',[a.id,DTZ])).rows[0].used,1);
    const revision=await port.create(a.id,result.submission.id);assert.equal(revision.task_id,'s4.synthetic.b');assert.equal((await port.read(a.id,revision.id)).mock_run_id,null);
  });
- await check('default worker refuses internal DTZ before any grader call and refunds its reservation',async()=>{
+ await check('telc-only worker refuses internal DTZ before any grader call and refunds its reservation',async()=>{
    const done=await finalise(a,await saved(a));let called=false;
-   const result=await createWorker({pool:db.worker,grade:async x=>{called=true;return stubGrade(x);}}).runOnce();
+   const result=await createWorker({pool:db.worker,examCatalogue:createExamCatalogue({enabled:[TELC]}),grade:async x=>{called=true;return stubGrade(x);}}).runOnce();
    assert.equal(result.outcome,'failed');assert.equal(result.code,'unsupported_rubric');assert.equal(called,false);
    assert.equal((await port.result(a.id,done.writing.submission_id)).submission.text,'Synthetic learner text.');
    assert.equal((await db.admin.query('SELECT reserved FROM entitlements WHERE owner_id=$1 AND exam_id=$2',[a.id,DTZ])).rows[0].reserved,0);
