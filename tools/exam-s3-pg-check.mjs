@@ -34,7 +34,7 @@ const catalogue=createExamCatalogue({enabled:[TELC,S3_EXAM]});
 const db=await createFixture({stopBefore:'0026-'});
 const world=await createPostgresWorld({fixture:db,examCatalogue:catalogue});
 const port=world.store.port;
-const defaultPort=createPostgresDatastore({pool:db.learner});
+const defaultPort=createPostgresDatastore({pool:db.learner,examCatalogue:createExamCatalogue({enabled:[TELC]})});
 const defaultApi=createOwnedApi({datastore:defaultPort,sessions:world.sessions});
 let passed=0;
 const check=async(name,fn)=>{await fn();passed++;console.log('PASS '+name);};
