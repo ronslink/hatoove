@@ -89,10 +89,12 @@ try {
   await importPackage(db.migration, partial);
   const a = await owner('a'), b = await owner('b'), newcomer = await owner('new');
   a.dtz = (await port.createPreparation(a.id, DTZ)).preparation;
-  await check('default remains telc-only while explicit internal partial DTZ remains usable', async () => {
+  await check('explicit telc-only catalogue refuses DTZ while default enables telc and DTZ internal preview', async () => {
+    const telcOnlyPort = createPostgresDatastore({ pool: db.learner, examCatalogue: createExamCatalogue({ enabled: [TELC] }) });
+    assert.deepEqual((await telcOnlyPort.listExams(a.id)).map(row => row.exam_id), [TELC]);
+    await rejects(telcOnlyPort.createPreparation(newcomer.id, DTZ), 'exam_unavailable');
     const defaultPort = createPostgresDatastore({ pool: db.learner });
-    assert.deepEqual((await defaultPort.listExams(a.id)).map(row => row.exam_id), [TELC]);
-    await rejects(defaultPort.createPreparation(newcomer.id, DTZ), 'exam_unavailable');
+    assert.deepEqual((await defaultPort.listExams(a.id)).map(row => row.exam_id).sort(), [DTZ, TELC]);
     assert.equal((await port.listObjectiveSets(a.id, { examId: DTZ })).length, 5);
     assert.equal((await port.listMockForms(a.id, { preparationId: a.dtz.id })).length, 1);
   });

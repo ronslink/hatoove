@@ -90,8 +90,8 @@ export function runOfflineChecks() {
     assert.equal(p.forms[0].id,'dtz-a2-b1.reading.original01');assert.ok(p.sets.every(s=>s.setId.endsWith('.original01')));
     const exposed=structuredClone(p);exposed.release.state='available';assert.throws(()=>validatePackage(exposed),e=>e.code==='invalid_package');
   });
-  check('default catalogue and historical family parser remain telc-only and closed',()=>{
-    assert.deepEqual(ENABLED_EXAM_IDS,['telc-deutsch-b1']);assert.equal(parseFamily('LV4'),null);assert.equal(parseFamily('LV5'),null);
+  check('default catalogue includes telc and DTZ while historical family parser stays closed',()=>{
+    assert.deepEqual(ENABLED_EXAM_IDS,['telc-deutsch-b1','dtz-a2-b1']);assert.equal(parseFamily('LV4'),null);assert.equal(parseFamily('LV5'),null);
     assert.equal(parseFamily('LV3').part,3);assert.equal(parseFamily('lv4'),null);
     reject(p=>p.release.state='available');
   });
