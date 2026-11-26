@@ -30,7 +30,7 @@ process.env.B1PREP_CONTENT_MODE='internal-preview';delete process.env.B1PREP_SER
 const DTZ='dtz-a2-b1',TELC='telc-deutsch-b1';
 const db=await createFixture({stopBefore:'0027-'});const catalogue=createExamCatalogue({enabled:[TELC,DTZ]});
 const world=await createPostgresWorld({fixture:db,examCatalogue:catalogue}),port=world.store.port;
-const defaultPort=createPostgresDatastore({pool:db.learner});
+const defaultPort=createPostgresDatastore({pool:db.learner,examCatalogue:createExamCatalogue({enabled:[TELC]})});
 let passed=0;const check=async(name,fn)=>{await fn();passed++;console.log('PASS '+name);};
 const reject=(promise,code)=>assert.rejects(promise,e=>e.code===code);
 async function owner(tag){const r=await world.sessions.signUp({name:'Synthetic S4 '+tag,email:`s4-${tag}-${randomUUID()}@example.invalid`,password:'synthetic-password-s4'});const cookie=String(r.setCookie).split(';')[0];return {id:(await world.sessions.getSession({cookie})).userId,cookie};}

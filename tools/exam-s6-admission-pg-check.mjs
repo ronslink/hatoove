@@ -171,9 +171,9 @@ try {
   await check('existing preparation, exact start receipt, pinned writing choice, revision and history survive', async () => {
     assert.deepEqual(await port.createPreparation(a.id, DTZ), { created: false, preparation: a.dtz });
     assert.equal((await port.startMockRun(a.id, startReceipt)).run.id, readingRun.id);
-    const defaultPort = createPostgresDatastore({ pool: db.learner });
-    assert.deepEqual(await defaultPort.createPreparation(a.id, DTZ), { created: false, preparation: a.dtz });
-    assert.equal((await defaultPort.startMockRun(a.id, startReceipt)).run.id, readingRun.id);
+    const disabledPort = createPostgresDatastore({ pool: db.learner, examCatalogue: createExamCatalogue({ enabled: [TELC] }) });
+    assert.deepEqual(await disabledPort.createPreparation(a.id, DTZ), { created: false, preparation: a.dtz });
+    assert.equal((await disabledPort.startMockRun(a.id, startReceipt)).run.id, readingRun.id);
     assert.equal((await port.readMockRun(a.id, readingRun.id)).blocked_reason, null);
     const selected = await port.selectMockWriting(a.id, writingRun.id, { expectedRevision: writingRun.revision, eventId: randomUUID(), choiceGroupId: writing.writingChoices[0].id, optionId: 'A' });
     assert.equal(selected.writing.selected_option_id, 'A');
