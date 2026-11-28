@@ -91,7 +91,7 @@ export function runOfflineChecks() {
     const exposed=structuredClone(p);exposed.release.state='available';assert.throws(()=>validatePackage(exposed),e=>e.code==='invalid_package');
   });
   check('default catalogue includes telc and DTZ while historical family parser stays closed',()=>{
-    assert.deepEqual(ENABLED_EXAM_IDS,['telc-deutsch-b1','dtz-a2-b1','goethe-zertifikat-b1']);assert.equal(parseFamily('LV4'),null);assert.equal(parseFamily('LV5'),null);
+    assert.deepEqual(ENABLED_EXAM_IDS,['telc-deutsch-b1','dtz-a2-b1','goethe-zertifikat-b1','telc-deutsch-b2']);assert.equal(parseFamily('LV4'),null);assert.equal(parseFamily('LV5'),null);
     assert.equal(parseFamily('LV3').part,3);assert.equal(parseFamily('lv4'),null);
     reject(p=>p.release.state='available');
   });

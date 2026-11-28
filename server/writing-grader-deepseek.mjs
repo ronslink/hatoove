@@ -9,7 +9,7 @@
  * provider payloads into errors or logs.
  */
 import { readFileSync } from 'node:fs';
-import { DTZ_POLICY, DTZ_KIND, DTZ_INSTRUCTIONS, GOETHE_B1_POLICY, GOETHE_B1_KIND, GOETHE_B1_INSTRUCTIONS } from './writing-policy.mjs';
+import { DTZ_POLICY, DTZ_KIND, DTZ_INSTRUCTIONS, GOETHE_B1_POLICY, GOETHE_B1_KIND, GOETHE_B1_INSTRUCTIONS, TELC_B2_POLICY, TELC_B2_KIND, TELC_B2_INSTRUCTIONS } from './writing-policy.mjs';
 import { firstSentence } from './owned-postgres/worker.mjs';
 
 export const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com/chat/completions';
@@ -80,6 +80,7 @@ export function readDeepSeekConfig(env = process.env) {
 export function buildWritingPrompt({ text, rubric, policy, explanationLanguage = 'de', task = null }) {
   const isDtz = policy === DTZ_POLICY;
   const isGoethe = policy === GOETHE_B1_POLICY;
+  const isTelcB2 = policy === TELC_B2_POLICY;
   const lang = LANGUAGE_NAMES[String(explanationLanguage || 'de').slice(0, 2)] || LANGUAGE_NAMES.de;
   const criteriaSpec = (rubric?.criteria || []).map((c) => {
     const allowedBands = Array.isArray(c.bands) ? c.bands : Object.keys(c.bands || {});
@@ -91,6 +92,8 @@ export function buildWritingPrompt({ text, rubric, policy, explanationLanguage =
       ? `You are a strict, supportive German DTZ (A2-B1) writing examiner. ${DTZ_INSTRUCTIONS}`
       : isGoethe
       ? `You are a strict, supportive German Goethe-Zertifikat B1 writing examiner. ${GOETHE_B1_INSTRUCTIONS}`
+      : isTelcB2
+      ? `You are a strict, supportive German telc Deutsch B2 writing examiner. ${TELC_B2_INSTRUCTIONS}`
       : 'You are a strict, supportive German telc Deutsch B1 writing examiner. Assess each criterion against its own band (A, B, C, or D).',
     `Write every criterion "comment" in ${lang}. Write "corrections" as short, concrete German improvement examples (max 8 items).`,
     'Rules:',
@@ -167,7 +170,7 @@ export function parseDeepSeekAssessment(rawContent, { text, rubric, policy, mode
 
   return {
     feedback: {
-      kind: policy === DTZ_POLICY ? DTZ_KIND : policy === GOETHE_B1_POLICY ? GOETHE_B1_KIND : 'telc-b1-bands',
+      kind: policy === DTZ_POLICY ? DTZ_KIND : policy === GOETHE_B1_POLICY ? GOETHE_B1_KIND : policy === TELC_B2_POLICY ? TELC_B2_KIND : 'telc-b1-bands',
       criteria,
       corrections,
     },

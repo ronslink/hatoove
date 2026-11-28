@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "examId": "telc-deutsch-b2",
+  "version": "v1",
+  "language": "de",
+  "source": "Original Hatoove telc Deutsch B2 listening transcripts and items (HV1-HV3, 20 items, 11 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review.",
+  "parts": [
+    {
+      "family": "HV1",
+      "part": 1,
+      "title": "Hörverstehen Teil 1: Globalverstehen (5 Kurznachrichten)",
+      "playback": { "practice": 1, "mock": 1 },
+      "recordings": [
+        {
+          "id": "hv1-01",
+          "mediaId": "telc-deutsch-b2.hv1.01.audio",
+          "mediaVersion": "v1",
+          "label": "Nachricht 1 · Kultur & Museen",
+          "transcript": "[Nachrichtensprecherin]: Immer mehr staatliche Museen in Deutschland testen einen eintrittsfreien Sonntag pro Monat. Eine Auswertung aus fünf Großstädten zeigt, dass an diesen Tagen besonders viele junge Erwachsene und Familien kommen, die sonst selten Ausstellungen besuchen. Die befürchteten Einnahmeverluste blieben bislang aus, da der Umsatz in den Museumscafés und Buchläden deutlich stieg.",
+          "questions": [
+            {
+              "n": 1,
+              "question": "Der eintrittsfreie Museumssonntag hat bislang zu hohen finanziellen Verlusten geführt.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Die befürchteten Einnahmeverluste blieben aus, weil Cafés und Buchläden mehr Umsatz machten."
+            }
+          ]
+        },
+        {
+          "id": "hv1-02",
+          "mediaId": "telc-deutsch-b2.hv1.02.audio",
+          "mediaVersion": "v1",
+          "label": "Nachricht 2 · Verkehr & Infrastruktur",
+          "transcript": "[Nachrichtensprecher]: Ab dem kommenden Fahrplanwechsel will die Bahn auf stark belasteten Pendlerstrecken längere Züge mit zusätzlichen Fahrradabteilen einsetzen. Gleichzeitig warnt der Fahrgastverband, dass viele Bahnhöfe noch zu kurze Bahnsteige haben und die Modernisierung voraussichtlich erst in drei Jahren abgeschlossen sein wird.",
+          "questions": [
+            {
+              "n": 2,
+              "question": "Alle Bahnhöfe auf den Pendlerstrecken sind bereits für die längeren Züge ausgebaut.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Viele Bahnhöfe haben noch zu kurze Bahnsteige; die Modernisierung dauert voraussichtlich noch drei Jahre."
+            }
+          ]
+        },
+        {
+          "id": "hv1-03",
+          "mediaId": "telc-deutsch-b2.hv1.03.audio",
+          "mediaVersion": "v1",
+          "label": "Nachricht 3 · Energie & Forschung",
+          "transcript": "[Nachrichtensprecherin]: Ein Forschungsteam in Aachen hat ein Verfahren entwickelt, mit dem sich alte Lithium-Ionen-Akkus aus Elektroautos zu über neunzig Prozent recyceln lassen. Bisher mussten viele der wertvollen Rohstoffe aufwendig eingeschmolzen werden; das neue mechanische Trennverfahren spart rund die Hälfte der bisher benötigten Energie.",
+          "questions": [
+            {
+              "n": 3,
+              "question": "Mit dem neuen Recyclingverfahren lässt sich im Vergleich zu früher deutlich Energie einsparen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Das neue mechanische Trennverfahren spart rund die Hälfte der bisher benötigten Energie."
+            }
+          ]
+        },
+        {
+          "id": "hv1-04",
+          "mediaId": "telc-deutsch-b2.hv1.04.audio",
+          "mediaVersion": "v1",
+          "label": "Nachricht 4 · Arbeitsmarkt",
+          "transcript": "[Nachrichtensprecher]: Laut einer aktuellen Umfrage unter Personalabteilungen legen Unternehmen bei Bewerbungen zunehmend Wert auf nachgewiesene Projekt- und Teamerfahrung. Formale Abschlussnoten spielen zwar beim Berufseinstieg weiterhin eine Rolle, verlieren aber bereits nach wenigen Jahren Berufspraxis stark an Bedeutung.",
+          "questions": [
+            {
+              "n": 4,
+              "question": "Abschlussnoten bleiben während des gesamten Berufslebens das wichtigste Auswahlkriterium.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Nach wenigen Jahren Berufspraxis verlieren formale Abschlussnoten stark an Bedeutung."
+            }
+          ]
+        },
+        {
+          "id": "hv1-05",
+          "mediaId": "telc-deutsch-b2.hv1.05.audio",
+          "mediaVersion": "v1",
+          "label": "Nachricht 5 · Stadtplanung",
+          "transcript": "[Nachrichtensprecherin]: Um die Sommerhitze in dicht bebauten Wohnvierteln zu senken, entsiegelt die Stadt Mannheim derzeit mehrere große Schulhöfe und asphaltierte Plätze. Statt dunklem Asphalt werden helle Natursteine verlegt und schattenspendende Bäume gepflanzt, die gleichzeitig Regenwasser besser im Boden speichern können.",
+          "questions": [
+            {
+              "n": 5,
+              "question": "Die Umgestaltung der Plätze in Mannheim soll sowohl gegen Hitze helfen als auch Regenwasser besser aufnehmen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Helle Natursteine und Bäume senken die Sommerhitze und speichern Regenwasser besser im Boden."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV2",
+      "part": 2,
+      "title": "Hörverstehen Teil 2: Detailverstehen (Radiointerview · Mehrsprachigkeit im Beruf)",
+      "playback": { "practice": 1, "mock": 1 },
+      "recordings": [
+        {
+          "id": "hv2-01",
+          "mediaId": "telc-deutsch-b2.hv2.01.audio",
+          "mediaVersion": "v1",
+          "label": "Radiointerview · Mehrsprachigkeit in internationalen Teams",
+          "transcript": "[Moderator]: Willkommen zu unserem Wirtschaftsmagazin. Heute spreche ich mit Dr. Elena Vogt, Sprachwissenschaftlerin und Beraterin für internationale Unternehmen. Frau Dr. Vogt, in vielen Firmen gilt Englisch als alleinige Arbeitssprache. Reicht das aus?\n[Dr. Vogt]: Auf dem Papier klingt eine einzige Konzernsprache sehr effizient. In der Praxis beobachten wir aber etwas anderes: Wenn Fachkräfte aus fünf verschiedenen Ländern zusammenarbeiten, entstehen Missverständnisse selten wegen fehlender Fachbegriffe, sondern wegen unterschiedlicher Kommunikationsstile. Direkte Kritik, wie sie in Deutschland üblich ist, wird in manchen anderen Kulturen als unhöflich empfunden.\n[Moderator]: Heißt das, Unternehmen sollten lieber auf Englisch verzichten?\n[Dr. Vogt]: Nein, keineswegs! Englisch bleibt für internationale Projekte unverzichtbar. Aber wer sich ausschließlich auf Englisch verlässt, verschenkt enormes Potenzial. Studien zeigen, dass Kundengespräche deutlich vertrauensvoller verlaufen, wenn mindestens ein Teammitglied die Landessprache des Kunden spricht – selbst wenn die Verträge am Ende auf Englisch unterzeichnet werden.\n[Moderator]: Viele mittelständische Betriebe klagen aber, dass ihnen das Budget für regelmäßige Sprachkurse fehlt.\n[Dr. Vogt]: Das ist tatsächlich ein häufiges Hindernis. Dabei müssen wirksame Maßnahmen gar nicht teuer sein. In einem Maschinenbauunternehmen in Baden-Württemberg, das ich letztes Jahr begleitet habe, wurden interne Sprachtandems eingeführt: Zwei Mitarbeitende treffen sich einmal pro Woche für dreißig Minuten während der Arbeitszeit und sprechen abwechselnd Deutsch und Spanisch oder Türkisch. Nach sechs Monaten hatten sich nicht nur die Sprachkenntnisse verbessert, sondern auch die Zusammenarbeit zwischen Entwicklung und Produktion.\n[Moderator]: Werden Sprachkenntnisse denn bei Beförderungen inzwischen stärker berücksichtigt?\n[Dr. Vogt]: Ja, das ändert sich spürbar. Früher wurden Fremdsprachen vor allem im Vertrieb erwartet. Heute suchen auch IT-Abteilungen und das Projektmanagement gezielt Menschen, die zwischen verschiedenen Abteilungen und Standorten vermitteln können. Wichtig ist dabei nicht akzentfreies Sprechen, sondern die Fähigkeit, komplexe Sachverhalte klar und strukturiert zu erklären.\n[Moderator]: Welchen konkreten Rat geben Sie Berufstätigen, die ihre Deutsch- oder Fremdsprachenkenntnisse neben einem Vollzeitjob ausbauen möchten?\n[Dr. Vogt]: Setzen Sie auf kurze, tägliche Routinen statt auf seltene Marathon-Lerneinheiten am Wochenende. Fünfzehn Minuten gezieltes Hören oder das Schreiben einer kurzen Zusammenfassung nach einem Meeting bringen langfristig deutlich mehr als drei Stunden Grammatik pauken am Sonntagabend.\n[Moderator]: Frau Dr. Vogt, vielen Dank für diese praxisnahen Einblicke!",
+          "questions": [
+            {
+              "n": 6,
+              "question": "Laut Dr. Vogt entstehen Missverständnisse in internationalen Teams meist durch fehlende Fachwörter.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Missverständnisse entstehen selten wegen fehlender Fachbegriffe, sondern wegen unterschiedlicher Kommunikationsstile."
+            },
+            {
+              "n": 7,
+              "question": "Dr. Vogt empfiehlt Unternehmen, Englisch als Projektsprache vollständig abzuschaffen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Sie sagt ausdrücklich „Nein, keineswegs! Englisch bleibt für internationale Projekte unverzichtbar.“"
+            },
+            {
+              "n": 8,
+              "question": "Kundengespräche gewinnen an Vertrauen, wenn jemand im Team die Landessprache des Kunden spricht.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Studien zeigen, dass Kundengespräche deutlich vertrauensvoller verlaufen, selbst wenn Verträge auf Englisch geschlossen werden."
+            },
+            {
+              "n": 9,
+              "question": "In dem genannten Maschinenbauunternehmen fanden die Sprachtandems außerhalb der Arbeitszeit statt.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Die Mitarbeitenden trafen sich einmal pro Woche für dreißig Minuten während der Arbeitszeit."
+            },
+            {
+              "n": 10,
+              "question": "Die Sprachtandems verbesserten auch die Zusammenarbeit zwischen verschiedenen Abteilungen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Nach sechs Monaten hatte sich auch die Zusammenarbeit zwischen Entwicklung und Produktion verbessert."
+            },
+            {
+              "n": 11,
+              "question": "Sprachkenntnisse werden heute nur noch in Vertriebsabteilungen geschätzt.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Heute suchen auch IT-Abteilungen und das Projektmanagement gezielt mehrsprachige Fachkräfte."
+            },
+            {
+              "n": 12,
+              "question": "Für Unternehmen ist akzentfreies Sprechen wichtiger als eine klare Struktur der Aussagen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Wichtig ist nicht akzentfreies Sprechen, sondern komplexe Sachverhalte klar und strukturiert zu erklären."
+            },
+            {
+              "n": 13,
+              "question": "Dr. Vogt rät Berufstätigen zu kurzen, täglichen Lernroutinen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Sie empfiehlt kurze tägliche Routinen von etwa fünfzehn Minuten."
+            },
+            {
+              "n": 14,
+              "question": "Nach Meinung von Dr. Vogt sind dreistündige Grammatiksitzungen am Sonntagabend am wirksamsten.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Sie sagt, kurze tägliche Routinen bringen langfristig deutlich mehr als drei Stunden Grammatik am Sonntagabend."
+            },
+            {
+              "n": 15,
+              "question": "Dr. Vogt arbeitet als Sprachwissenschaftlerin und berät internationale Unternehmen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Der Moderator stellt sie zu Beginn genau so vor."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV3",
+      "part": 3,
+      "title": "Hörverstehen Teil 3: Selektives Verstehen (5 Ansagen & Mitteilungen)",
+      "playback": { "practice": 1, "mock": 1 },
+      "recordings": [
+        {
+          "id": "hv3-01",
+          "mediaId": "telc-deutsch-b2.hv3.01.audio",
+          "mediaVersion": "v1",
+          "label": "Ansage 1 · Kongresszentrum",
+          "transcript": "[Durchsage]: Liebe Kongressgäste, eine kurze Programmänderung für den Nachmittag: Der Vortrag von Professor Weber zum Thema nachhaltige Lieferketten wird wegen der großen Nachfrage vom Konferenzraum B in den großen Plenarsaal im Erdgeschoss verlegt. Die Beginnzeit bleibt unverändert um 14:30 Uhr.",
+          "questions": [
+            {
+              "n": 16,
+              "question": "Der Vortrag von Professor Weber beginnt heute erst um 15:30 Uhr.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Nur der Raum ändert sich (Plenarsaal); die Beginnzeit bleibt unverändert um 14:30 Uhr."
+            }
+          ]
+        },
+        {
+          "id": "hv3-02",
+          "mediaId": "telc-deutsch-b2.hv3.02.audio",
+          "mediaVersion": "v1",
+          "label": "Ansage 2 · Anrufbeantworter IT-Support",
+          "transcript": "[Anrufbeantworter]: Hallo Frau Richter, hier ist der interne IT-Support. Ihr bestellter Ersatzmonitor ist heute Morgen eingetroffen und steht ab 13 Uhr im Raum 204 zur Abholung bereit. Bitte bringen Sie Ihren defekten Bildschirm sowie das Netzteil gleich mit, damit wir den Austausch im System verbuchen können.",
+          "questions": [
+            {
+              "n": 17,
+              "question": "Frau Richter soll bei der Abholung des neuen Monitors ihr altes Gerät samt Netzteil mitbringen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Der IT-Support bittet ausdrücklich darum, den defekten Bildschirm und das Netzteil gleich mitzubringen."
+            }
+          ]
+        },
+        {
+          "id": "hv3-03",
+          "mediaId": "telc-deutsch-b2.hv3.03.audio",
+          "mediaVersion": "v1",
+          "label": "Ansage 3 · Universitätsbibliothek",
+          "transcript": "[Durchsage]: Achtung, liebe Nutzerinnen und Nutzer: Wegen einer Wartung unseres Servers ist der Online-Katalog heute zwischen 20 Uhr und 22 Uhr vorübergehend nicht erreichbar. Die Ausleihe und Rückgabe vor Ort an den Automaten funktionieren jedoch ohne Einschränkung.",
+          "questions": [
+            {
+              "n": 18,
+              "question": "Während der Serverwartung können vor Ort keine Bücher zurückgegeben werden.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Ausleihe und Rückgabe vor Ort an den Automaten funktionieren ohne Einschränkung."
+            }
+          ]
+        },
+        {
+          "id": "hv3-04",
+          "mediaId": "telc-deutsch-b2.hv3.04.audio",
+          "mediaVersion": "v1",
+          "label": "Ansage 4 · Reiseveranstalter",
+          "transcript": "[Anrufbeantworter]: Guten Tag Herr Demir, hier spricht das Reisebüro Fernblick. Für Ihren Flug nach Lissabon am kommenden Montag hat die Fluggesellschaft das Abfluggate noch nicht festgelegt, aber der Online-Check-in öffnet bereits 36 Stunden vor Abflug. Bitte prüfen Sie zudem, ob Ihr Personalausweis noch mindestens drei Monate gültig ist.",
+          "questions": [
+            {
+              "n": 19,
+              "question": "Herr Demir kann bereits 36 Stunden vor seinem Abflug online einchecken.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Der Online-Check-in öffnet bereits 36 Stunden vor Abflug."
+            }
+          ]
+        },
+        {
+          "id": "hv3-05",
+          "mediaId": "telc-deutsch-b2.hv3.05.audio",
+          "mediaVersion": "v1",
+          "label": "Ansage 5 · Volkshochschule",
+          "transcript": "[Anrufbeantworter]: Guten Tag, Sie sind verbunden mit dem Servicebüro der Volkshochschule. Die Anmeldefrist für die neuen B2-Prüfungsvorbereitungskurse endet diesen Freitag um 16 Uhr. Eine kostenlose Einstufungsberatung ohne Termin bieten wir noch am Mittwoch und Donnerstag jeweils zwischen 10 und 13 Uhr im Hauptgebäude an.",
+          "questions": [
+            {
+              "n": 20,
+              "question": "Für die Einstufungsberatung am Mittwochvormittag muss man vorher zwingend einen Termin buchen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Die kostenlose Einstufungsberatung findet ausdrücklich ohne Termin statt."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

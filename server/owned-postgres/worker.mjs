@@ -32,7 +32,7 @@
 
 import { createExamCatalogue } from '../preparation-contract.mjs';
 import { readWritingTask, writingAccess, readWritingOrigin, writingServable, readReleasedForm } from './packages.mjs';
-import { supportedWritingPolicy, DTZ_POLICY, DTZ_KIND, DTZ_INSTRUCTIONS, GOETHE_B1_POLICY, GOETHE_B1_KIND, GOETHE_B1_INSTRUCTIONS } from '../writing-policy.mjs';
+import { supportedWritingPolicy, DTZ_POLICY, DTZ_KIND, DTZ_INSTRUCTIONS, GOETHE_B1_POLICY, GOETHE_B1_KIND, GOETHE_B1_INSTRUCTIONS, TELC_B2_POLICY, TELC_B2_KIND, TELC_B2_INSTRUCTIONS } from '../writing-policy.mjs';
 import { randomUUID } from 'node:crypto';
 import { TELC_B1_WRITING_RUBRIC, FORMATIVE_WRITING_RUBRIC } from './content-seed.mjs';
 import { extractWritingExplanationSource, makeOriginalExplanationRepresentation, validateExplanationRepresentation } from '../explanation-contract.mjs';
@@ -99,12 +99,14 @@ export function firstSentence(text) {
 }
 
 export function stubGrade({ text = '', explanationLanguage = 'de', rubric = null, policy = null } = {}) {
-  if(policy===DTZ_POLICY||policy===GOETHE_B1_POLICY) {
-    const isGoethe=policy===GOETHE_B1_POLICY;
+  if(policy===DTZ_POLICY||policy===GOETHE_B1_POLICY||policy===TELC_B2_POLICY) {
+    const kind=policy===GOETHE_B1_POLICY?GOETHE_B1_KIND:policy===TELC_B2_POLICY?TELC_B2_KIND:DTZ_KIND;
+    const band=policy===DTZ_POLICY?'A2':'B';
+    const ver=policy===GOETHE_B1_POLICY?'goethe-b1-simulation-v1':policy===TELC_B2_POLICY?'telc-b2-simulation-v1':'dtz-simulation-v1';
     return {
-      feedback:{kind:isGoethe?GOETHE_B1_KIND:DTZ_KIND,criteria:rubric.criteria.map(c=>({key:c.key,band:isGoethe?'B':'A2',evidence:firstSentence(text).slice(0,500),
+      feedback:{kind,criteria:rubric.criteria.map(c=>({key:c.key,band,evidence:firstSentence(text).slice(0,500),
         comment:({'de':'Simulation ohne Sprachbewertung: Diese feste Beispielposition bewertet Ihren Text nicht.','en':'Simulation without language assessment: this fixed example position does not assess your text.','uk':'Симуляція без мовного оцінювання: ця фіксована позиція не оцінює ваш текст.','ar':'محاكاة دون تقييم لغوي: هذا المثال الثابت لا يقيّم نصك.','tr':'Dil değerlendirmesi olmadan simülasyon: bu sabit örnek metninizi değerlendirmez.'})[explanationLanguage]||'Simulation ohne Sprachbewertung.'})),corrections:[]},
-      modelVersion:isGoethe?'goethe-b1-simulation-v1':'dtz-simulation-v1',promptVersion:isGoethe?'goethe-b1-simulation-v1':'dtz-simulation-v1'};
+      modelVersion:ver,promptVersion:ver};
   }
   const body = String(text || '');
   const comment = SYNTHETIC_COMMENT[String(explanationLanguage || 'de').slice(0, 2)] || SYNTHETIC_COMMENT.de;
@@ -473,7 +475,7 @@ export function createWorker({ pool, grade, providerIdentity, reclaimBatchSize=D
     try {
       assessment = await gradeFn({
         submissionId,
-        task, rubric, policy, policyInstructions:policy===DTZ_POLICY?DTZ_INSTRUCTIONS:policy===GOETHE_B1_POLICY?GOETHE_B1_INSTRUCTIONS:null, selectedOption,
+        task, rubric, policy, policyInstructions:policy===DTZ_POLICY?DTZ_INSTRUCTIONS:policy===GOETHE_B1_POLICY?GOETHE_B1_INSTRUCTIONS:policy===TELC_B2_POLICY?TELC_B2_INSTRUCTIONS:null, selectedOption,
         text: row.text,
         taskVersion: row.task_version,
         rubricId: row.rubric_id,

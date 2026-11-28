@@ -1,0 +1,1520 @@
+{
+  "schemaVersion": 1,
+  "exam": {
+    "id": "telc-deutsch-b2",
+    "title": "telc Deutsch B2",
+    "language": "de",
+    "levelModel": {
+      "type": "cefr-single",
+      "level": "B2"
+    }
+  },
+  "blueprint": {
+    "version": "v2",
+    "timeGroups": [
+      {
+        "id": "telc-b2-lv-sb-90",
+        "seconds": 5400,
+        "sections": [
+          "LV",
+          "SB"
+        ]
+      },
+      {
+        "id": "telc-b2-hv-20",
+        "seconds": 1200,
+        "sections": [
+          "HV"
+        ]
+      },
+      {
+        "id": "telc-b2-sa-30",
+        "seconds": 1800,
+        "sections": [
+          "SA"
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "id": "LV",
+        "title": "Leseverstehen",
+        "timeGroup": "telc-b2-lv-sb-90",
+        "parts": [
+          {
+            "family": "LV1",
+            "itemCount": 5,
+            "interaction": "matching_headlines",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV2",
+            "itemCount": 5,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV3",
+            "itemCount": 10,
+            "interaction": "matching_ads",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "SB",
+        "title": "Sprachbausteine",
+        "timeGroup": "telc-b2-lv-sb-90",
+        "parts": [
+          {
+            "family": "SB1",
+            "itemCount": 10,
+            "interaction": "gap_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "SB2",
+            "itemCount": 10,
+            "interaction": "gap_bank",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "HV",
+        "title": "Hörverstehen",
+        "timeGroup": "telc-b2-hv-20",
+        "parts": [
+          {
+            "family": "HV1",
+            "itemCount": 5,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV2",
+            "itemCount": 10,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV3",
+            "itemCount": 5,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "SA",
+        "title": "Schriftlicher Ausdruck",
+        "timeGroup": "telc-b2-sa-30",
+        "parts": [
+          {
+            "family": "writing",
+            "itemCount": 1,
+            "interaction": "writing_choice",
+            "mediaRequired": false
+          }
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "S1",
+        "kind": "official-exam-specification",
+        "title": "telc Deutsch B2 — Übungstest & Prüfungsaufbau (LV, SB, HV, SA)",
+        "url": "https://www.telc.net/sprachpruefungen/deutsch/telc-deutsch-b2/",
+        "retrieved": "2026-11-28",
+        "verification": "Structural format reference only (section durations, part counts, 1x listening playback and four-criterion A-D writing band structure). All passages, items, tasks and explanations are 100% original Hatoove practice material; no official telc text was copied."
+      }
+    ]
+  },
+  "release": {
+    "version": "v2",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [
+    {
+      "id": "telc-deutsch-b2.complete.original01",
+      "version": "v1",
+      "title": "Schriftliche Prüfung · telc Deutsch B2 (LV, SB, HV, SA)",
+      "scope": "complete_supported_written",
+      "sections": [
+        "LV",
+        "SB",
+        "HV",
+        "SA"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 8400,
+      "attemptMode": "mock",
+      "timingPolicy": "ordered-fixed-v1",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "telc-deutsch-b2.lv1.original01",
+          "version": "v1",
+          "interaction": "matching_headlines",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b2.lv2.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b2.lv3.original01",
+          "version": "v1",
+          "interaction": "matching_ads",
+          "itemCount": 10
+        },
+        {
+          "setId": "telc-deutsch-b2.sb1.original01",
+          "version": "v1",
+          "interaction": "gap_choice",
+          "itemCount": 10
+        },
+        {
+          "setId": "telc-deutsch-b2.sb2.original01",
+          "version": "v1",
+          "interaction": "gap_bank",
+          "itemCount": 10
+        },
+        {
+          "setId": "telc-deutsch-b2.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b2.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "telc-deutsch-b2.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        }
+      ],
+      "writingChoices": [
+        {
+          "id": "SA1",
+          "section": "SA",
+          "options": [
+            {
+              "id": "A",
+              "taskId": "telc-deutsch-b2.writing.original01.a",
+              "taskVersion": "v1"
+            },
+            {
+              "id": "B",
+              "taskId": "telc-deutsch-b2.writing.original01.b",
+              "taskVersion": "v1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "telc-deutsch-b2.listening.practice",
+      "version": "v1",
+      "title": "Hörverstehen · Übung (telc Deutsch B2)",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "attemptMode": "practice",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "telc-deutsch-b2.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b2.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "telc-deutsch-b2.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        }
+      ]
+    },
+    {
+      "id": "telc-deutsch-b2.listening.mock",
+      "version": "v1",
+      "title": "Hörverstehen · Prüfungsmodus (telc Deutsch B2)",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 1200,
+      "attemptMode": "mock",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "telc-deutsch-b2.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "telc-deutsch-b2.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "telc-deutsch-b2.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        }
+      ]
+    }
+  ],
+  "sets": [
+    {
+      "setId": "telc-deutsch-b2.lv1.original01",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "LV1",
+      "section": "LV",
+      "part": 1,
+      "title": "Leseverstehen Teil 1: Globalverstehen (5 Texte, 10 Überschriften)",
+      "interaction": "matching_headlines",
+      "itemCount": 5,
+      "payload": {
+        "headlines": [
+          {
+            "id": "a",
+            "text": "Städtische Dächer liefern zunehmend Gemüse für lokale Kantinen"
+          },
+          {
+            "id": "b",
+            "text": "Warum klassische Kaufhäuser immer mehr Verkaufsfläche anmieten"
+          },
+          {
+            "id": "c",
+            "text": "Schlafmangel beeinträchtigt nachweislich die Entscheidungsfähigkeit im Beruf"
+          },
+          {
+            "id": "d",
+            "text": "Kleine Handwerksbetriebe profitieren von regionalen Ausbildungsverbünden"
+          },
+          {
+            "id": "e",
+            "text": "Neues Förderprogramm unterstützt den Ausbau privater Solaranlagen"
+          },
+          {
+            "id": "f",
+            "text": "Historische Bibliotheken digitalisieren seltene Karten für die Öffentlichkeit"
+          },
+          {
+            "id": "g",
+            "text": "Wie flexible Viertagewochen in mittelständischen Unternehmen getestet werden"
+          },
+          {
+            "id": "h",
+            "text": "Künstliche Intelligenz ersetzt künftig alle Fremdsprachenkurse an Schulen"
+          },
+          {
+            "id": "i",
+            "text": "Steigende Mietpreise zwingen Universitäten zum Umzug aufs Land"
+          },
+          {
+            "id": "j",
+            "text": "Bürgerinitiativen fordern strengere Grenzwerte für nächtlichen Fluglärm"
+          }
+        ],
+        "texts": [
+          {
+            "id": 1,
+            "text": "Auf dem ehemaligen Parkdeck eines Bürokomplexes in Köln wachsen heute Tomaten, Kräuter und Pflücksalat. Statt lange Lieferketten über Autobahnen zu finanzieren, beliefert das Gewächshaus seit Frühjahr zwölf Betriebskantinen im Umkreis von drei Kilometern. Betreiber und Küchenchefs loben nicht nur die Frische, sondern auch den deutlich geringeren Verpackungsmüll."
+          },
+          {
+            "id": 2,
+            "text": "Wer regelmäßig weniger als sechs Stunden pro Nacht schläft, überschätzt im Arbeitsalltag häufig seine eigene Konzentration. Eine arbeitspsychologische Studie mit 600 Angestellten zeigt, dass müde Teilnehmende deutlich risikoreichere Urteile fällen und komplexe Informationen seltener kritisch prüfen als ausgeruhte Kolleginnen und Kollegen."
+          },
+          {
+            "id": 3,
+            "text": "Für kleine Schreinereien oder Elektrotechnikbetriebe ist es oft schwer, sämtliche Ausbildungsinhalte allein abzudecken. In Süddeutschland schließen sich daher immer mehr Firmen zu Verbünden zusammen: Auszubildende wechseln turnusmäßig zwischen drei Partnerbetrieben und lernen so sowohl traditionelle Techniken als auch moderne Steuerungssysteme kennen."
+          },
+          {
+            "id": 4,
+            "text": "In den Archiven zweier Landesbibliotheken lagerten jahrzehntelang empfindliche Stadtpläne aus dem 17. und 18. Jahrhundert unter Verschluss. Mithilfe berührungsloser Hochleistungsscanner werden die Originale nun hochauflösend erfasst und weltweit kostenfrei im Internet zugänglich gemacht – ein Gewinn für Forschung und Heimatgeschichte."
+          },
+          {
+            "id": 5,
+            "text": "Nach einem halbjährigen Pilotversuch ziehen rund vierzig mittelständische Firmen eine gemischte, überwiegend positive Bilanz zur verkürzten Arbeitswoche. Wo interne Abläufe gestrafft und überflüssige Besprechungen abgeschafft wurden, blieb die Produktivität stabil; in Schichtbetrieben erwies sich die Umstellung hingegen als organisatorisch anspruchsvoll."
+          }
+        ]
+      },
+      "answers": {
+        "1": "a",
+        "2": "c",
+        "3": "d",
+        "4": "f",
+        "5": "g"
+      },
+      "explanations": {
+        "1": "Überschrift a passt: Auf einem städtischen Parkdeck werden Gemüse und Kräuter angebaut und direkt an lokale Betriebskantinen geliefert.",
+        "2": "Überschrift c passt: Die Studie belegt, dass Schlafmangel zu risikoreicheren Urteilen und geringerer Prüfgenauigkeit im Beruf führt.",
+        "3": "Überschrift d passt: Kleine Handwerksbetriebe schließen sich zu regionalen Ausbildungsverbünden zusammen, damit Auszubildende alle Inhalte kennenlernen.",
+        "4": "Überschrift f passt: Empfindliche historische Stadtpläne aus Bibliotheksarchiven werden gescannt und online öffentlich zugänglich gemacht.",
+        "5": "Überschrift g passt: Der Text berichtet über Ergebnisse eines Pilotversuchs zur Viertagewoche in rund vierzig mittelständischen Unternehmen."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 practice draft (LV1, 2026-11-28)."
+    },
+    {
+      "setId": "telc-deutsch-b2.lv2.original01",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "LV2",
+      "section": "LV",
+      "part": 2,
+      "title": "Leseverstehen Teil 2: Detailverstehen — Die Zukunft des Ehrenamts",
+      "interaction": "single_choice",
+      "itemCount": 5,
+      "payload": {
+        "text": "Wandel im Ehrenamt: Projektbezogen statt lebenslang gebunden\n\nÜber Jahrzehnte hinweg bildeten klassische Vereine das Rückgrat des gesellschaftlichen Engagements im deutschsprachigen Raum. Wer einmal als Kassenwart im Sportverein oder als Schriftführerin im Musikclub gewählt wurde, blieb diesem Amt oft bis ins hohe Alter treu. Heute jedoch berichten zahlreiche Vorstände von Nachwuchssorgen – obwohl die generelle Bereitschaft, sich für andere einzusetzen, laut aktuellen Umfragen kaum gesunken ist.\n\nWie passt dieser scheinbare Widerspruch zusammen? Soziologinnen wie Prof. Dr. Katrin Mehler beobachten weniger einen Rückgang des Engagements als vielmehr einen grundlegenden Strukturwandel. Berufliche Mobilität, wechselnde Arbeitszeiten und familiäre Verpflichtungen machen langfristige, feste Verpflichtungen für viele Menschen unattraktiv. Stattdessen suchen gerade jüngere Erwachsene nach zeitlich überschaubaren Projekten mit klarem Ziel: etwa der Organisation eines Nachbarschaftsfests, einer mehrwöchigen Lernbegleitung für Geflüchtete oder einer Baumpflanzaktion am Wochenende.\n\nDigitale Freiwilligenplattformen verstärken diesen Trend. Über kurze Profile lassen sich konkrete Aufgaben finden, die genau zu den eigenen Fähigkeiten und dem verfügbaren Zeitfenster passen. Kritiker befürchten allerdings, dass durch dieses „Mikro-Engagement“ die Verlässlichkeit leidet, auf die soziale Einrichtungen angewiesen sind. Eine Tafel oder ein Besuchsdienst im Pflegeheim könne schließlich nicht nur dann öffnen, wenn zufällig genügend Freiwillige spontan Zeit haben.\n\nErfolgreiche Organisationen reagieren daher mit hybriden Modellen: Ein kleiner Kreis fester Koordinatorinnen übernimmt die langfristige Planung und rechtliche Verantwortung, während punktuelle Aufgaben flexibel an Projektteams vergeben werden. Zudem spielt Anerkennung eine größere Rolle als früher – nicht in Form von Geld, sondern durch professionelle Einarbeitung, Weiterbildungsangebote und die Möglichkeit, eigene Ideen einzubringen.",
+        "questions": [
+          {
+            "n": 1,
+            "question": "Welchen Widerspruch beschreibt der erste Absatz?",
+            "options": {
+              "a": "Es gibt immer mehr Vereine, aber immer weniger Mitglieder über sechzig Jahre.",
+              "b": "Vereinsvorstände finden schwer Nachwuchs, obwohl die Engagementbereitschaft insgesamt stabil bleibt.",
+              "c": "Junge Menschen lehnen jedes freiwillige Engagement grundsätzlich ab."
+            }
+          },
+          {
+            "n": 2,
+            "question": "Was bevorzugen laut Prof. Dr. Katrin Mehler viele jüngere Freiwillige heute?",
+            "options": {
+              "a": "Langfristige Vorstandsämter mit fester juristischer Verantwortung.",
+              "b": "Zeitlich begrenzte Projekte mit einem klar erkennbaren Ziel.",
+              "c": "Ausschließlich bezahlte Nebentätigkeiten im sozialen Bereich."
+            }
+          },
+          {
+            "n": 3,
+            "question": "Welche Sorge äußern Kritiker gegenüber dem sogenannten „Mikro-Engagement“?",
+            "options": {
+              "a": "Es könnte die dauerhafte Verlässlichkeit sozialer Einrichtungen gefährden.",
+              "b": "Digitale Plattformen verlangen zu hohe Gebühren von den Freiwilligen.",
+              "c": "Ältere Menschen werden von den Projekten gezielt ausgeschlossen."
+            }
+          },
+          {
+            "n": 4,
+            "question": "Wie funktioniert das im letzten Absatz beschriebene hybride Modell?",
+            "options": {
+              "a": "Alle Aufgaben werden ausschließlich an externe Dienstleister vergeben.",
+              "b": "Ein fester Kern koordiniert langfristig, während flexible Teams punktuelle Aufgaben übernehmen.",
+              "c": "Die Vorstandsämter wechseln jeden Monat per Losverfahren."
+            }
+          },
+          {
+            "n": 5,
+            "question": "Welche Form der Anerkennung wird im Text als besonders wichtig genannt?",
+            "options": {
+              "a": "Eine steuerfreie monatliche Aufwandsentschädigung.",
+              "b": "Öffentliche Auszeichnungen durch die Stadtverwaltung.",
+              "c": "Gute Einarbeitung, Weiterbildung und Raum für eigene Ideen."
+            }
+          }
+        ]
+      },
+      "answers": {
+        "1": "b",
+        "2": "b",
+        "3": "a",
+        "4": "b",
+        "5": "c"
+      },
+      "explanations": {
+        "1": "b ist richtig: Vorstände klagen über Nachwuchssorgen, obwohl die generelle Bereitschaft zum Engagement kaum gesunken ist.",
+        "2": "b ist richtig: Jüngere Erwachsene suchen laut Text nach zeitlich überschaubaren Projekten mit klarem Ziel.",
+        "3": "a ist richtig: Kritiker befürchten, dass die Verlässlichkeit leidet, auf die Einrichtungen wie Tafeln oder Besuchsdienste angewiesen sind.",
+        "4": "b ist richtig: Ein kleiner Kreis fester Koordinatorinnen trägt die langfristige Verantwortung, während Projektteams flexibel punktuelle Aufgaben übernehmen.",
+        "5": "c ist richtig: Der letzte Satz nennt professionelle Einarbeitung, Weiterbildungsangebote und die Möglichkeit, eigene Ideen einzubringen – ausdrücklich nicht Geld."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 practice draft (LV2, 2026-11-28)."
+    },
+    {
+      "setId": "telc-deutsch-b2.lv3.original01",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "LV3",
+      "section": "LV",
+      "part": 3,
+      "title": "Leseverstehen Teil 3: Selektives Verstehen (10 Situationen, 12 Texte)",
+      "interaction": "matching_ads",
+      "itemCount": 10,
+      "payload": {
+        "situations": [
+          {
+            "n": 1,
+            "text": "Eine Kollegin sucht ein berufsbegleitendes Seminar, um ihre Präsentationstechnik auf Deutsch zu verbessern."
+          },
+          {
+            "n": 2,
+            "text": "Ein Student möchte während der Semesterferien in einem ökologischen Bergbauernhof mitarbeiten und dort kostenlos wohnen."
+          },
+          {
+            "n": 3,
+            "text": "Eine Familie sucht eine barrierefreie Ferienwohnung an der Ostsee, in der auch ihr Hund willkommen ist."
+          },
+          {
+            "n": 4,
+            "text": "Ein Ingenieur möchte seine im Ausland erworbene Berufsqualifikation in Deutschland anerkennen lassen und sucht kostenlose Beratung."
+          },
+          {
+            "n": 5,
+            "text": "Eine Musikerin sucht einen schallisolierten Proberaum, den sie stundenweise am Abend mieten kann."
+          },
+          {
+            "n": 6,
+            "text": "Ein Ehepaar möchte eine geführte Fahrradreise entlang der Donau buchen, bei der das Gepäck von Hotel zu Hotel transportiert wird."
+          },
+          {
+            "n": 7,
+            "text": "Eine Gründerin sucht einen festen Schreibtisch in einem Coworking-Space mit Zugang rund um die Uhr."
+          },
+          {
+            "n": 8,
+            "text": "Ein Hobbyfotograf möchte an einem Wochenend-Workshop für Nacht- und Architekturfotografie teilnehmen."
+          },
+          {
+            "n": 9,
+            "text": "Ein Rentner möchte kostenlos lernen, wie er Online-Banking und digitale Behördengänge sicher nutzt."
+          },
+          {
+            "n": 10,
+            "text": "Eine Ärztin sucht einen Intensivkurs Medizinisches Englisch auf Niveau C2 im August."
+          }
+        ],
+        "ads": [
+          {
+            "id": "a",
+            "text": "Akademie Klartext: Überzeugend präsentieren im Beruf (Deutsch B2/C1). Abendseminar donnerstags 18–21 Uhr über 6 Wochen, inklusive Videofeedback und Stimmtraining."
+          },
+          {
+            "id": "b",
+            "text": "Alpenhof Wiesengrund (Bio-Betrieb): Helferinnen und Helfer für Heuernte und Käseherstellung im Juli/August gesucht. Freie Kost und Unterkunft im Gästezimmer."
+          },
+          {
+            "id": "c",
+            "text": "Strandhaus Möwe (Usedom): Erdgeschoss-Ferienwohnung, stufenlos zugänglich, breite Türen, eingezäunter Garten. Haustiere auf Anfrage erlaubt (ohne Aufpreis)."
+          },
+          {
+            "id": "d",
+            "text": "IQ-Beratungsstelle Süd: Unabhängige und kostenfreie Erstberatung zur Anerkennung ausländischer Hochschul- und Berufsabschlüsse. Termine persönlich oder per Video."
+          },
+          {
+            "id": "e",
+            "text": "Klangfabrik West: Fünf akustisch gedämmte Proberäume für Bands und Solistinnen. Flexibel buchbar ab 1 Stunde, täglich bis 23 Uhr geöffnet."
+          },
+          {
+            "id": "f",
+            "text": "Radreisen Fluss & Kultur: 7 Tage Donauradweg Passau–Wien mit erfahrener Reiseleitung, Übernachtung in 4-Sterne-Hotels und täglichem Gepäcktransfer."
+          },
+          {
+            "id": "g",
+            "text": "Werkraum Mitte (Coworking): Fix-Desk mit eigenem abschließbarem Rollcontainer, Highspeed-Glasfaser und 24/7-Transponderzugang. Monatlich kündbar."
+          },
+          {
+            "id": "h",
+            "text": "Lichtspiel Fotoschule: Wochenendkurs „Die Stadt bei Nacht“ – Langzeitbelichtung und architektonische Perspektiven. Samstag/Sonntag in kleiner Gruppe."
+          },
+          {
+            "id": "i",
+            "text": "Bürgerzentrum Digital 60+: Ehrenamtliche Lotsen helfen Seniorinnen und Senioren kostenfrei beim sicheren Umgang mit Online-Banking, E-Rezept und Bürgerportal."
+          },
+          {
+            "id": "j",
+            "text": "Ferienpark Nordsee: Moderne Bungalows direkt am Deich. Bitte beachten: Aus Rücksicht auf Allergiker sind Hunde in unserer Anlage nicht gestattet."
+          },
+          {
+            "id": "k",
+            "text": "Sprachinstitut Global: Business English B2 für Einsteiger ins internationale Projektmanagement, montags vormittags im Oktober."
+          },
+          {
+            "id": "l",
+            "text": "Proberaum-Genossenschaft Nord: Langfristige Jahresverträge für feste Bandräume; keine stundenweise Vermietung möglich."
+          }
+        ]
+      },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "c",
+        "4": "d",
+        "5": "e",
+        "6": "f",
+        "7": "g",
+        "8": "h",
+        "9": "i",
+        "10": "x"
+      },
+      "explanations": {
+        "1": "Anzeige a passt: Berufsbegleitendes Abendseminar zur Präsentationstechnik auf Deutsch (B2/C1).",
+        "2": "Anzeige b passt: Mitarbeit auf einem Bio-Bergbauernhof im Juli/August gegen freie Kost und Unterkunft.",
+        "3": "Anzeige c passt: Stufenlose (barrierefreie) Ferienwohnung auf Usedom (Ostsee), Haustiere erlaubt. Anzeige j schließt Hunde aus.",
+        "4": "Anzeige d passt: Kostenfreie Erstberatung zur Anerkennung ausländischer Berufsabschlüsse.",
+        "5": "Anzeige e passt: Akustisch gedämmte Proberäume, flexibel ab 1 Stunde bis 23 Uhr buchbar. Anzeige l bietet nur Jahresverträge.",
+        "6": "Anzeige f passt: Geführte Radreise entlang der Donau mit täglichem Gepäcktransfer.",
+        "7": "Anzeige g passt: Fester Schreibtisch (Fix-Desk) im Coworking-Space mit 24/7-Zugang.",
+        "8": "Anzeige h passt: Wochenend-Workshop für Nacht- und Architekturfotografie.",
+        "9": "Anzeige i passt: Kostenfreie Hilfe für Seniorinnen und Senioren bei Online-Banking und digitalen Behördengängen.",
+        "10": "x (keine Anzeige passt): Anzeige k ist Business English B2 im Oktober, nicht Medizinisches Englisch C2 im August."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 practice draft (LV3, 2026-11-28)."
+    },
+    {
+      "setId": "telc-deutsch-b2.sb1.original01",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "SB1",
+      "section": "SB",
+      "part": 1,
+      "title": "Sprachbausteine Teil 1: Grammatik im Textzusammenhang (10 Lücken)",
+      "interaction": "gap_choice",
+      "itemCount": 10,
+      "payload": {
+        "letter": "Sehr geehrte Frau Dr. Hartmann,\n\nvielen Dank für das freundliche Gespräch, [1] wir am vergangenen Dienstag über das geplante Forschungsprojekt geführt haben. Wie besprochen sende ich Ihnen heute den überarbeiteten Zeitplan, [2] alle beteiligten Institute ihre Rückmeldung einbringen können.\n\n[3] der engen Frist bis zum Monatsende ist es uns gelungen, sämtliche Kostenvoranschläge einzuholen. Sollte es noch Rückfragen zu den einzelnen Positionen geben, [4] ich Ihnen selbstverständlich jederzeit telefonisch zur Verfügung.\n\nBesonders wichtig erscheint mir die Frage, [5] die erhobenen Daten anonymisiert und langfristig archiviert werden. In unserem letzten Projekt hat sich gezeigt, dass eine frühzeitige Abstimmung mit dem Datenschutzbeauftragten viel Zeit spart, [6] man erst kurz vor Abschluss damit beginnt.\n\nDarüber hinaus möchte ich vorschlagen, unser nächstes Treffen [7] vor Ort durchzuführen, da sich technische Details im direkten Austausch deutlich leichter klären lassen. [8] Sie am kommenden Donnerstagvormittag verhindert sein sollten, könnten wir alternativ auf Freitag ausweichen.\n\nBitte lassen Sie mich wissen, [9] der beiden Termine Ihnen besser passt. Ich freue mich [10] unsere weitere Zusammenarbeit und verbleibe\n\nmit freundlichen Grüßen\nMartin Albrecht",
+        "gaps": [
+          {
+            "n": 1,
+            "options": {
+              "a": "das",
+              "b": "dem",
+              "c": "dessen"
+            }
+          },
+          {
+            "n": 2,
+            "options": {
+              "a": "damit",
+              "b": "obwohl",
+              "c": "während"
+            }
+          },
+          {
+            "n": 3,
+            "options": {
+              "a": "Trotz",
+              "b": "Wegen",
+              "c": "Dank"
+            }
+          },
+          {
+            "n": 4,
+            "options": {
+              "a": "stehe",
+              "b": "stand",
+              "c": "gestanden"
+            }
+          },
+          {
+            "n": 5,
+            "options": {
+              "a": "wie",
+              "b": "wer",
+              "c": "wohin"
+            }
+          },
+          {
+            "n": 6,
+            "options": {
+              "a": "anstatt dass",
+              "b": "sodass",
+              "c": "falls"
+            }
+          },
+          {
+            "n": 7,
+            "options": {
+              "a": "lieber",
+              "b": "liebsten",
+              "c": "gern"
+            }
+          },
+          {
+            "n": 8,
+            "options": {
+              "a": "Falls",
+              "b": "Seitdem",
+              "c": "Indem"
+            }
+          },
+          {
+            "n": 9,
+            "options": {
+              "a": "welcher",
+              "b": "welchem",
+              "c": "welches"
+            }
+          },
+          {
+            "n": 10,
+            "options": {
+              "a": "auf",
+              "b": "über",
+              "c": "für"
+            }
+          }
+        ]
+      },
+      "answers": {
+        "1": "a",
+        "2": "a",
+        "3": "a",
+        "4": "a",
+        "5": "a",
+        "6": "a",
+        "7": "a",
+        "8": "a",
+        "9": "a",
+        "10": "a"
+      },
+      "explanations": {
+        "1": "das: Relativpronomen im Akkusativ Neutrum, bezogen auf „das Gespräch“ (ein Gespräch führen).",
+        "2": "damit: Finalsatz – der Zeitplan wird gesendet, mit dem Ziel, dass alle Institute Rückmeldung geben können.",
+        "3": "Trotz: Konzessive Präposition mit Genitiv („Trotz der engen Frist“ – Gegensatz zu „ist es uns gelungen“).",
+        "4": "stehe: Präsens 1. Person Singular im Hauptsatz nach einem vorangestellten Konditionalsatz („Sollte es … geben, stehe ich …“).",
+        "5": "wie: Indirekter Fragesatz nach der Art und Weise der Anonymisierung und Archivierung.",
+        "6": "anstatt dass: Ausdruck einer nicht gewünschten Alternative („anstatt dass man erst kurz vor Abschluss damit beginnt“).",
+        "7": "lieber: Komparativ von „gern“, um eine Präferenz gegenüber einer Online-Besprechung auszudrücken.",
+        "8": "Falls: Konditionale Konjunktion für den möglichen Fall einer Verhinderung.",
+        "9": "welcher: Nominativ Maskulinum („welcher der beiden Termine“ – Subjekt zu „passt“).",
+        "10": "auf: „sich freuen auf + Akkusativ“ bezieht sich auf etwas Zukünftiges (die weitere Zusammenarbeit)."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 practice draft (SB1, 2026-11-28)."
+    },
+    {
+      "setId": "telc-deutsch-b2.sb2.original01",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "SB2",
+      "section": "SB",
+      "part": 2,
+      "title": "Sprachbausteine Teil 2: Wortschatz im Zusammenhang (10 Lücken, 15 Wörter)",
+      "interaction": "gap_bank",
+      "itemCount": 10,
+      "payload": {
+        "letter": "Sehr geehrte Damen und Herren,\n\nim vergangenen Monat habe ich an Ihrem zweitägigen Seminar „Konfliktmanagement im Team“ teilgenommen und möchte Ihnen hierzu ein kurzes Feedback [1].\n\nInsgesamt hat mir die Veranstaltung sehr gut [2]. Besonders hilfreich fand ich die praxisnahen Rollenspiele, durch die wir typische Gesprächssituationen direkt [3] konnten. Unsere Dozentin ging geduldig auf alle Fragen ein und vermittelte auch komplexe theoretische Modelle auf [4] Weise.\n\nEin kleiner Kritikpunkt betrifft jedoch die zeitliche [5] am zweiten Seminartag: Da am Vormittag sehr viel diskutiert wurde, blieb am Nachmittag kaum noch genügend Raum, um die Ergebnisse der Gruppenarbeit ausführlich zu [6]. Für künftige Kurse wäre es daher [7], für diesen Abschnitt mindestens eine halbe Stunde mehr einzuplanen.\n\nDarüber hinaus möchte ich mich erkundigen, ob Sie im Herbst einen [8] für Fortgeschrittene anbieten. Mehrere Kolleginnen aus meiner Abteilung haben bereits großes [9] bekundet. Über die Zusendung Ihres aktuellen Programms würde ich mich sehr [10].\n\nMit freundlichen Grüßen\nSabine Keller",
+        "bank": [
+          {
+            "id": "a",
+            "word": "geben"
+          },
+          {
+            "id": "b",
+            "word": "gefallen"
+          },
+          {
+            "id": "c",
+            "word": "erproben"
+          },
+          {
+            "id": "d",
+            "word": "verständliche"
+          },
+          {
+            "id": "e",
+            "word": "Einteilung"
+          },
+          {
+            "id": "f",
+            "word": "besprechen"
+          },
+          {
+            "id": "g",
+            "word": "sinnvoll"
+          },
+          {
+            "id": "h",
+            "word": "Aufbaukurs"
+          },
+          {
+            "id": "i",
+            "word": "Interesse"
+          },
+          {
+            "id": "j",
+            "word": "freuen"
+          },
+          {
+            "id": "k",
+            "word": "nehmen"
+          },
+          {
+            "id": "l",
+            "word": "vermeiden"
+          },
+          {
+            "id": "m",
+            "word": "Entscheidung"
+          },
+          {
+            "id": "n",
+            "word": "dringend"
+          },
+          {
+            "id": "o",
+            "word": "erwarten"
+          }
+        ],
+        "gaps": [
+          {
+            "n": 1
+          },
+          {
+            "n": 2
+          },
+          {
+            "n": 3
+          },
+          {
+            "n": 4
+          },
+          {
+            "n": 5
+          },
+          {
+            "n": 6
+          },
+          {
+            "n": 7
+          },
+          {
+            "n": 8
+          },
+          {
+            "n": 9
+          },
+          {
+            "n": 10
+          }
+        ]
+      },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "c",
+        "4": "d",
+        "5": "e",
+        "6": "f",
+        "7": "g",
+        "8": "h",
+        "9": "i",
+        "10": "j"
+      },
+      "explanations": {
+        "1": "geben: Feste Verbindung „ein Feedback geben“.",
+        "2": "gefallen: Perfekt von „gefallen“ („hat mir sehr gut gefallen“).",
+        "3": "erproben: Gesprächssituationen praktisch ausprobieren / erproben.",
+        "4": "verständliche: Feste Wendung „auf verständliche Weise“.",
+        "5": "Einteilung: „die zeitliche Einteilung“ bezeichnet die Strukturierung der Seminarzeit.",
+        "6": "besprechen: Ergebnisse einer Gruppenarbeit werden ausführlich besprochen.",
+        "7": "sinnvoll: Höfliche Empfehlung („wäre es daher sinnvoll, … einzuplanen“).",
+        "8": "Aufbaukurs: Ein weiterführender Kurs für Fortgeschrittene.",
+        "9": "Interesse: Feste Verbindung „Interesse bekunden“.",
+        "10": "freuen: Höfliche Schlussformel („über … würde ich mich sehr freuen“)."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 practice draft (SB2, 2026-11-28)."
+    },
+    {
+      "setId": "telc-deutsch-b2.hv1.original01",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "HV1",
+      "section": "HV",
+      "part": 1,
+      "title": "Hörverstehen Teil 1: Globalverstehen (5 Kurznachrichten)",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv1-01",
+            "mediaId": "telc-deutsch-b2.hv1.01.audio",
+            "mediaVersion": "v1",
+            "label": "Nachricht 1 · Kultur & Museen",
+            "questions": [
+              {
+                "n": 1,
+                "question": "Der eintrittsfreie Museumssonntag hat bislang zu hohen finanziellen Verlusten geführt.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-02",
+            "mediaId": "telc-deutsch-b2.hv1.02.audio",
+            "mediaVersion": "v1",
+            "label": "Nachricht 2 · Verkehr & Infrastruktur",
+            "questions": [
+              {
+                "n": 2,
+                "question": "Alle Bahnhöfe auf den Pendlerstrecken sind bereits für die längeren Züge ausgebaut.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-03",
+            "mediaId": "telc-deutsch-b2.hv1.03.audio",
+            "mediaVersion": "v1",
+            "label": "Nachricht 3 · Energie & Forschung",
+            "questions": [
+              {
+                "n": 3,
+                "question": "Mit dem neuen Recyclingverfahren lässt sich im Vergleich zu früher deutlich Energie einsparen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-04",
+            "mediaId": "telc-deutsch-b2.hv1.04.audio",
+            "mediaVersion": "v1",
+            "label": "Nachricht 4 · Arbeitsmarkt",
+            "questions": [
+              {
+                "n": 4,
+                "question": "Abschlussnoten bleiben während des gesamten Berufslebens das wichtigste Auswahlkriterium.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-05",
+            "mediaId": "telc-deutsch-b2.hv1.05.audio",
+            "mediaVersion": "v1",
+            "label": "Nachricht 5 · Stadtplanung",
+            "questions": [
+              {
+                "n": 5,
+                "question": "Die Umgestaltung der Plätze in Mannheim soll sowohl gegen Hitze helfen als auch Regenwasser besser aufnehmen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "fixed_audio",
+      "answers": {
+        "1": "F",
+        "2": "F",
+        "3": "R",
+        "4": "F",
+        "5": "R"
+      },
+      "explanations": {
+        "1": "Falsch: Die befürchteten Einnahmeverluste blieben aus, weil Cafés und Buchläden mehr Umsatz machten.",
+        "2": "Falsch: Viele Bahnhöfe haben noch zu kurze Bahnsteige; die Modernisierung dauert voraussichtlich noch drei Jahre.",
+        "3": "Richtig: Das neue mechanische Trennverfahren spart rund die Hälfte der bisher benötigten Energie.",
+        "4": "Falsch: Nach wenigen Jahren Berufspraxis verlieren formale Abschlussnoten stark an Bedeutung.",
+        "5": "Richtig: Helle Natursteine und Bäume senken die Sommerhitze und speichern Regenwasser besser im Boden."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 listening transcripts and items (HV1-HV3, 20 items, 11 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    },
+    {
+      "setId": "telc-deutsch-b2.hv2.original01",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "HV2",
+      "section": "HV",
+      "part": 2,
+      "title": "Hörverstehen Teil 2: Detailverstehen (Radiointerview · Mehrsprachigkeit im Beruf)",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv2-01",
+            "mediaId": "telc-deutsch-b2.hv2.01.audio",
+            "mediaVersion": "v1",
+            "label": "Radiointerview · Mehrsprachigkeit in internationalen Teams",
+            "questions": [
+              {
+                "n": 6,
+                "question": "Laut Dr. Vogt entstehen Missverständnisse in internationalen Teams meist durch fehlende Fachwörter.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 7,
+                "question": "Dr. Vogt empfiehlt Unternehmen, Englisch als Projektsprache vollständig abzuschaffen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 8,
+                "question": "Kundengespräche gewinnen an Vertrauen, wenn jemand im Team die Landessprache des Kunden spricht.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 9,
+                "question": "In dem genannten Maschinenbauunternehmen fanden die Sprachtandems außerhalb der Arbeitszeit statt.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 10,
+                "question": "Die Sprachtandems verbesserten auch die Zusammenarbeit zwischen verschiedenen Abteilungen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 11,
+                "question": "Sprachkenntnisse werden heute nur noch in Vertriebsabteilungen geschätzt.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 12,
+                "question": "Für Unternehmen ist akzentfreies Sprechen wichtiger als eine klare Struktur der Aussagen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 13,
+                "question": "Dr. Vogt rät Berufstätigen zu kurzen, täglichen Lernroutinen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 14,
+                "question": "Nach Meinung von Dr. Vogt sind dreistündige Grammatiksitzungen am Sonntagabend am wirksamsten.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 15,
+                "question": "Dr. Vogt arbeitet als Sprachwissenschaftlerin und berät internationale Unternehmen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 10,
+      "interaction": "fixed_audio",
+      "answers": {
+        "6": "F",
+        "7": "F",
+        "8": "R",
+        "9": "F",
+        "10": "R",
+        "11": "F",
+        "12": "F",
+        "13": "R",
+        "14": "F",
+        "15": "R"
+      },
+      "explanations": {
+        "6": "Falsch: Missverständnisse entstehen selten wegen fehlender Fachbegriffe, sondern wegen unterschiedlicher Kommunikationsstile.",
+        "7": "Falsch: Sie sagt ausdrücklich „Nein, keineswegs! Englisch bleibt für internationale Projekte unverzichtbar.“",
+        "8": "Richtig: Studien zeigen, dass Kundengespräche deutlich vertrauensvoller verlaufen, selbst wenn Verträge auf Englisch geschlossen werden.",
+        "9": "Falsch: Die Mitarbeitenden trafen sich einmal pro Woche für dreißig Minuten während der Arbeitszeit.",
+        "10": "Richtig: Nach sechs Monaten hatte sich auch die Zusammenarbeit zwischen Entwicklung und Produktion verbessert.",
+        "11": "Falsch: Heute suchen auch IT-Abteilungen und das Projektmanagement gezielt mehrsprachige Fachkräfte.",
+        "12": "Falsch: Wichtig ist nicht akzentfreies Sprechen, sondern komplexe Sachverhalte klar und strukturiert zu erklären.",
+        "13": "Richtig: Sie empfiehlt kurze tägliche Routinen von etwa fünfzehn Minuten.",
+        "14": "Falsch: Sie sagt, kurze tägliche Routinen bringen langfristig deutlich mehr als drei Stunden Grammatik am Sonntagabend.",
+        "15": "Richtig: Der Moderator stellt sie zu Beginn genau so vor."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 listening transcripts and items (HV1-HV3, 20 items, 11 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    },
+    {
+      "setId": "telc-deutsch-b2.hv3.original01",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "HV3",
+      "section": "HV",
+      "part": 3,
+      "title": "Hörverstehen Teil 3: Selektives Verstehen (5 Ansagen & Mitteilungen)",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv3-01",
+            "mediaId": "telc-deutsch-b2.hv3.01.audio",
+            "mediaVersion": "v1",
+            "label": "Ansage 1 · Kongresszentrum",
+            "questions": [
+              {
+                "n": 16,
+                "question": "Der Vortrag von Professor Weber beginnt heute erst um 15:30 Uhr.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv3-02",
+            "mediaId": "telc-deutsch-b2.hv3.02.audio",
+            "mediaVersion": "v1",
+            "label": "Ansage 2 · Anrufbeantworter IT-Support",
+            "questions": [
+              {
+                "n": 17,
+                "question": "Frau Richter soll bei der Abholung des neuen Monitors ihr altes Gerät samt Netzteil mitbringen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv3-03",
+            "mediaId": "telc-deutsch-b2.hv3.03.audio",
+            "mediaVersion": "v1",
+            "label": "Ansage 3 · Universitätsbibliothek",
+            "questions": [
+              {
+                "n": 18,
+                "question": "Während der Serverwartung können vor Ort keine Bücher zurückgegeben werden.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv3-04",
+            "mediaId": "telc-deutsch-b2.hv3.04.audio",
+            "mediaVersion": "v1",
+            "label": "Ansage 4 · Reiseveranstalter",
+            "questions": [
+              {
+                "n": 19,
+                "question": "Herr Demir kann bereits 36 Stunden vor seinem Abflug online einchecken.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv3-05",
+            "mediaId": "telc-deutsch-b2.hv3.05.audio",
+            "mediaVersion": "v1",
+            "label": "Ansage 5 · Volkshochschule",
+            "questions": [
+              {
+                "n": 20,
+                "question": "Für die Einstufungsberatung am Mittwochvormittag muss man vorher zwingend einen Termin buchen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "fixed_audio",
+      "answers": {
+        "16": "F",
+        "17": "R",
+        "18": "F",
+        "19": "R",
+        "20": "F"
+      },
+      "explanations": {
+        "16": "Falsch: Nur der Raum ändert sich (Plenarsaal); die Beginnzeit bleibt unverändert um 14:30 Uhr.",
+        "17": "Richtig: Der IT-Support bittet ausdrücklich darum, den defekten Bildschirm und das Netzteil gleich mitzubringen.",
+        "18": "Falsch: Ausleihe und Rückgabe vor Ort an den Automaten funktionieren ohne Einschränkung.",
+        "19": "Richtig: Der Online-Check-in öffnet bereits 36 Stunden vor Abflug.",
+        "20": "Falsch: Die kostenlose Einstufungsberatung findet ausdrücklich ohne Termin statt."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 listening transcripts and items (HV1-HV3, 20 items, 11 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    }
+  ],
+  "media": [
+    {
+      "mediaId": "telc-deutsch-b2.hv1.01.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv1.01-v1.wav",
+      "sha256": "8b1e28c1d9273f98caa4a97ed9b9ec48b7edcdadab3670b78c8f2e93c33e119f",
+      "byteLength": 1121550,
+      "durationMs": 23365,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv1-01"
+    },
+    {
+      "mediaId": "telc-deutsch-b2.hv1.02.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv1.02-v1.wav",
+      "sha256": "6a50ba070cc56b7ff82cad384b9719ea817ad7e81f614566bf4a808f62d88342",
+      "byteLength": 817180,
+      "durationMs": 17024,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv1-02"
+    },
+    {
+      "mediaId": "telc-deutsch-b2.hv1.03.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv1.03-v1.wav",
+      "sha256": "56592ca7bcb511dca6a376e33ba01058f561e40f1eb77857d1e76c7980ddcb77",
+      "byteLength": 992736,
+      "durationMs": 20681,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv1-03"
+    },
+    {
+      "mediaId": "telc-deutsch-b2.hv1.04.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv1.04-v1.wav",
+      "sha256": "2e16e2a0541d96fd2247836685bbec2fdc1599c8199f060a1b4aa4160c14d538",
+      "byteLength": 795114,
+      "durationMs": 16564,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv1-04"
+    },
+    {
+      "mediaId": "telc-deutsch-b2.hv1.05.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv1.05-v1.wav",
+      "sha256": "f82f64fb222c786de016764e3f8e4d5d4b699cbbdf724fd9afbe253e42a3c484",
+      "byteLength": 904006,
+      "durationMs": 18833,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv1-05"
+    },
+    {
+      "mediaId": "telc-deutsch-b2.hv2.01.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv2.01-v1.wav",
+      "sha256": "8e54892cc655dffc4621e2d12443dd108a750bc147bc421eb3066a06fed4cd66",
+      "byteLength": 7942404,
+      "durationMs": 165466,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv2-01"
+    },
+    {
+      "mediaId": "telc-deutsch-b2.hv3.01.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv3.01-v1.wav",
+      "sha256": "6e694df094a6e0d9bd0e7ae2f95b1e17daf5147481a0f38d618a6632bd679c6b",
+      "byteLength": 797068,
+      "durationMs": 16605,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv3-01"
+    },
+    {
+      "mediaId": "telc-deutsch-b2.hv3.02.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv3.02-v1.wav",
+      "sha256": "5f88d665b6555c0009d1295006b7ddbf935e9fd003f3cefb2fda76fb09770124",
+      "byteLength": 904668,
+      "durationMs": 18846,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv3-02"
+    },
+    {
+      "mediaId": "telc-deutsch-b2.hv3.03.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv3.03-v1.wav",
+      "sha256": "0944dbfda5d6c95208d7ed3baca51f3ac33889b9b5a0b0244d9f5dbc4e7289ef",
+      "byteLength": 732590,
+      "durationMs": 15261,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv3-03"
+    },
+    {
+      "mediaId": "telc-deutsch-b2.hv3.04.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv3.04-v1.wav",
+      "sha256": "0f6257c8ab2e421c43a7ec70f2a771a9dc3a3dac117f28d0595d35f5f473dbd2",
+      "byteLength": 1009168,
+      "durationMs": 21023,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv3-04"
+    },
+    {
+      "mediaId": "telc-deutsch-b2.hv3.05.audio",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "path": "content/exams/telc-deutsch-b2/audio/hv3.05-v1.wav",
+      "sha256": "0d60f783cc95fd7fc491dcc42c1c2f4d9557375bcd2c3cfb9d95726ad578d73f",
+      "byteLength": 958292,
+      "durationMs": 19964,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/telc-deutsch-b2/listening-source.json#hv3-05"
+    }
+  ],
+  "writingTasks": [
+    {
+      "taskId": "telc-deutsch-b2.writing.original01.a",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "writing",
+      "section": "SA",
+      "register": "Sie",
+      "topic": "Bitte um Informationen: Berufsbegleitende Weiterbildung Projektmanagement",
+      "situation": "Sie interessieren sich für eine sechsmonatige berufsbegleitende Weiterbildung „Agiles Projektmanagement“ bei der Akademie Nord und möchten sich vor der Anmeldung genauer informieren. Schreiben Sie eine formelle E-Mail an die Studienberatung (ca. 150 Wörter) und gehen Sie auf alle vier Punkte ein.",
+      "adressat": "Studienberatung der Akademie Nord",
+      "leitpunkte": [
+        "Stellen Sie kurz Ihren beruflichen Hintergrund vor und begründen Sie Ihr Interesse an der Weiterbildung.",
+        "Fragen Sie nach den genauen Unterrichtszeiten sowie dem Anteil von Online- und Präsenzterminen.",
+        "Erkundigen Sie sich nach den Gesamtkosten, möglichen Förderungen (z. B. Bildungsgutschein) und den Zahlungsbedingungen.",
+        "Fragen Sie nach der Art der Abschlussprüfung und dem anerkannten Zertifikat."
+      ],
+      "rubricId": "writing.telc-b2",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 writing task A draft (Bitte um Informationen, 2026-11-28)."
+    },
+    {
+      "taskId": "telc-deutsch-b2.writing.original01.b",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "writing",
+      "section": "SA",
+      "register": "Sie",
+      "topic": "Beschwerde: Unzufriedenheit mit einer gebuchten Bildungsreise",
+      "situation": "Sie haben über das Reisebüro „Kultur & Sprache“ eine einwöchige Bildungsreise nach Wien gebucht. Vor Ort entsprachen mehrere Leistungen nicht der Beschreibung im Prospekt (z. B. Hotel weit außerhalb statt im Zentrum, ausgefallene Führungen, sehr große Gruppe). Schreiben Sie eine formelle Beschwerde (ca. 150 Wörter) und gehen Sie auf alle vier Punkte ein.",
+      "adressat": "Kundenservice des Reisebüros „Kultur & Sprache“",
+      "leitpunkte": [
+        "Nennen Sie den Anlass Ihres Schreibens und die wichtigsten Daten Ihrer gebuchten Reise.",
+        "Schildern Sie konkret, welche versprochenen Leistungen nicht erfüllt wurden.",
+        "Erklären Sie, wie die Reiseleitung vor Ort auf Ihre Hinweise reagiert hat.",
+        "Formulieren Sie klar, welche Entschädigung oder Lösung Sie erwarten, und setzen Sie eine angemessene Frist."
+      ],
+      "rubricId": "writing.telc-b2",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 writing task B draft (Beschwerde, 2026-11-28)."
+    }
+  ],
+  "rubrics": [
+    {
+      "rubricId": "writing.telc-b2",
+      "version": "v1",
+      "examId": "telc-deutsch-b2",
+      "family": "writing",
+      "policy": "telc-b2-writing-practice-v1",
+      "feedbackKind": "telc-b2-writing-bands",
+      "criteria": [
+        {
+          "key": "telc_b2_aufgabe",
+          "label": "Behandlung des Schreibanlasses",
+          "bands": {
+            "A": 3,
+            "B": 2,
+            "C": 1,
+            "D": 0
+          },
+          "bandLabels": {
+            "A": "A · Vollständig & überzeugend",
+            "B": "B · Überwiegend erfüllt",
+            "C": "C · Teilweise erfüllt",
+            "D": "D · Nicht erfüllt"
+          },
+          "descriptors": {
+            "A": "Alle Leitpunkte sind differenziert, sachlich treffend und dem B2-Schreibanlass angemessen bearbeitet.",
+            "B": "Alle oder fast alle Leitpunkte sind klar behandelt; kleinere Lücken beeinträchtigen das Gesamtbild kaum.",
+            "C": "Mehrere Leitpunkte sind nur oberflächlich angerissen oder fehlen; der Schreibanlass wird nur teilweise erreicht.",
+            "D": "Die Aufgabe ist nicht bearbeitet oder der Text verfehlt das Thema vollständig."
+          }
+        },
+        {
+          "key": "telc_b2_kommunikation",
+          "label": "Kommunikative Gestaltung",
+          "bands": {
+            "A": 3,
+            "B": 2,
+            "C": 1,
+            "D": 0
+          },
+          "bandLabels": {
+            "A": "A · Klar gegliedert & stilsicher",
+            "B": "B · Überwiegend flüssig",
+            "C": "C · Stellenweise unklar",
+            "D": "D · Kaum zusammenhängend"
+          },
+          "descriptors": {
+            "A": "Professionelle Brief-/E-Mail-Struktur, durchgängig angemessenes Register und geschmeidige Verknüpfung der Absätze.",
+            "B": "Klarer Aufbau mit passender Anrede und Schlussformel; Verknüpfungen gelingen überwiegend sicher.",
+            "C": "Aufbau und Register schwanken; Übergänge wirken stellenweise abgehackt oder unpassend.",
+            "D": "Keine erkennbare Textsortenstruktur; fehlender Zusammenhang."
+          }
+        },
+        {
+          "key": "telc_b2_korrektheit",
+          "label": "Formale Richtigkeit",
+          "bands": {
+            "A": 3,
+            "B": 2,
+            "C": 1,
+            "D": 0
+          },
+          "bandLabels": {
+            "A": "A · Hohe grammatische Sicherheit",
+            "B": "B · Überwiegend korrekt",
+            "C": "C · Häufige Fehler, verständlich",
+            "D": "D · Schwer verständlich"
+          },
+          "descriptors": {
+            "A": "Auch komplexe B2-Strukturen (Nebensätze, Passiv, Konjunktiv II) gelingen weitgehend fehlerfrei; sichere Orthografie.",
+            "B": "Gute Beherrschung der Grammatik; gelegentliche Fehler stören das Verständnis nicht.",
+            "C": "Wiederkehrende Fehler in Syntax, Kasus oder Rechtschreibung, die das Lesen stellenweise erschweren.",
+            "D": "Durchgängige Fehler verhindern ein klares Verständnis des Textes."
+          }
+        },
+        {
+          "key": "telc_b2_wortschatz",
+          "label": "Wortschatz",
+          "bands": {
+            "A": 3,
+            "B": 2,
+            "C": 1,
+            "D": 0
+          },
+          "bandLabels": {
+            "A": "A · Breites B2-Spektrum",
+            "B": "B · Solider B2-Wortschatz",
+            "C": "C · Eingeschränkter Wortschatz",
+            "D": "D · Unzureichend"
+          },
+          "descriptors": {
+            "A": "Differenzierter, präziser und dem formellen Kontext angemessener B2-Wortschatz ohne störende Wiederholungen.",
+            "B": "Passender Wortschatz für den Schreibanlass; vereinzelte Ungenauigkeiten beeinträchtigen die Aussage kaum.",
+            "C": "Eher einfacher Wortschatz mit Wiederholungen und mehreren ungenauen Formulierungen.",
+            "D": "Wortschatz reicht nicht aus, um das Anliegen verständlich zu formulieren."
+          }
+        }
+      ],
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove telc Deutsch B2 four-criterion A-D practice rubric draft (2026-11-28)."
+    }
+  ]
+}
