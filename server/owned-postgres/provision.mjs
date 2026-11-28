@@ -71,7 +71,7 @@
  */
 
 import pg from 'pg';
-import { importDefaultPackage, importBundledDtzPackage, promoteBundledDtzAvailable } from './package-importer.mjs';
+import { importDefaultPackage, importBundledDtzPackage, promoteBundledDtzAvailable, importBundledGoetheB1Package } from './package-importer.mjs';
 import { applyDtzApprovedReviews } from './dtz-review-approval.mjs';
 import { readFile } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
@@ -386,6 +386,7 @@ export async function provisionPersistent({ config = persistentConfig() } = {}) 
     await importBundledDtzPackage(migrationPool);
     await applyDtzApprovedReviews(migrationPool);
     await promoteBundledDtzAvailable(migrationPool);
+    await importBundledGoetheB1Package(migrationPool);
     for (const role of ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner']) opened[role] = persistentRolePool(config, role);
     const pools = {
       config,
@@ -424,6 +425,7 @@ export async function migrate({ config = persistentConfig() } = {}) {
     await importBundledDtzPackage(migrationPool);
     await applyDtzApprovedReviews(migrationPool);
     await promoteBundledDtzAvailable(migrationPool);
+    await importBundledGoetheB1Package(migrationPool);
     return { ...result, schema: config.schema };
   } finally {
     if (migrationPool) await migrationPool.end().catch(() => {});

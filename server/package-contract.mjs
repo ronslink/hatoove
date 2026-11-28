@@ -1,5 +1,5 @@
 /** Declarative package validation with explicit supported-format policy. No SQL or provider calls. */
-import { DTZ_KEYS, DTZ_BANDS, DTZ_POLICY, DTZ_KIND } from './writing-policy.mjs';
+import { DTZ_KEYS, DTZ_BANDS, DTZ_POLICY, DTZ_KIND, GOETHE_B1_KEYS, GOETHE_B1_BANDS, GOETHE_B1_POLICY, GOETHE_B1_KIND } from './writing-policy.mjs';
 import { createHash } from 'node:crypto';
 import { validateMediaDescriptor } from './media-contract.mjs';
 
@@ -201,12 +201,17 @@ export function validatePackage(input) {
   for(const r of p.rubrics) {
     keys(r,['rubricId','version','examId','family','policy','feedbackKind','criteria','reviewStatus','rightsStatus','source'],'rubric');
     demand(text(r.rubricId,128)&&ID.test(r.rubricId)&&VERSION.test(r.version)&&r.examId===p.exam.id&&r.family==='writing','invalid rubric identity');
-    demand(r.examId==='dtz-a2-b1'&&r.policy===DTZ_POLICY&&r.feedbackKind===DTZ_KIND,'unsupported writing policy');
-    demand(Array.isArray(r.criteria)&&r.criteria.length===4&&unique(r.criteria.map(c=>c.key))&&DTZ_KEYS.every(k=>r.criteria.some(c=>c.key===k)),'invalid DTZ criteria');
+    const rubricSpec=r.examId==='dtz-a2-b1'&&r.policy===DTZ_POLICY&&r.feedbackKind===DTZ_KIND
+      ? {keys:DTZ_KEYS,bands:DTZ_BANDS,bandCount:6,label:'DTZ'}
+      : r.examId==='goethe-zertifikat-b1'&&r.policy===GOETHE_B1_POLICY&&r.feedbackKind===GOETHE_B1_KIND
+      ? {keys:GOETHE_B1_KEYS,bands:GOETHE_B1_BANDS,bandCount:5,label:'Goethe B1'}
+      : null;
+    demand(rubricSpec!==null,'unsupported writing policy');
+    demand(Array.isArray(r.criteria)&&r.criteria.length===4&&unique(r.criteria.map(c=>c.key))&&rubricSpec.keys.every(k=>r.criteria.some(c=>c.key===k)),`invalid ${rubricSpec.label} criteria`);
     for(const c of r.criteria) {
       keys(c,['key','label','bands','bandLabels','descriptors'],'criterion');
-      demand(text(c.label,200)&&canonicalJson(c.bands)===canonicalJson(DTZ_BANDS),'invalid DTZ scale');
-      for(const field of ['bandLabels','descriptors']) demand(object(c[field])&&Object.keys(c[field]).length===6&&Object.keys(DTZ_BANDS).every(k=>text(c[field][k],2000)),'invalid criterion '+field);
+      demand(text(c.label,200)&&canonicalJson(c.bands)===canonicalJson(rubricSpec.bands),`invalid ${rubricSpec.label} scale`);
+      for(const field of ['bandLabels','descriptors']) demand(object(c[field])&&Object.keys(c[field]).length===rubricSpec.bandCount&&Object.keys(rubricSpec.bands).every(k=>text(c[field][k],2000)),'invalid criterion '+field);
     }
     demand(r.reviewStatus==='unreviewed'&&r.rightsStatus==='generated'&&text(r.source,1000),'new rubrics need separate review');
   }
@@ -263,6 +268,10 @@ const COMPLETE_TARGETS={
   'dtz-a2-b1':{
     sections:['HV','LV','SA'],groups:[[['HV'],1500],[['LV'],2700],[['SA'],1800]],
     parts:[['HV','HV1',4,'fixed_audio'],['HV','HV2',5,'fixed_audio'],['HV','HV3',8,'fixed_audio'],['HV','HV4',3,'fixed_audio'],['LV','LV1',5,'single_choice'],['LV','LV2',5,'matching_ads'],['LV','LV3',6,'grouped_choice'],['LV','LV4',3,'single_choice'],['LV','LV5',6,'gap_choice'],['SA','writing',1,'writing_choice']]
+  },
+  'goethe-zertifikat-b1':{
+    sections:['LV','HV','SA'],groups:[[['LV'],3900],[['HV'],2400],[['SA'],3600]],
+    parts:[['LV','LV1',6,'single_choice'],['LV','LV2',6,'grouped_choice'],['LV','LV3',7,'matching_ads'],['LV','LV4',7,'single_choice'],['LV','LV5',4,'single_choice'],['HV','HV1',10,'fixed_audio'],['HV','HV2',5,'fixed_audio'],['HV','HV3',7,'fixed_audio'],['HV','HV4',8,'fixed_audio'],['SA','writing',1,'writing_choice']]
   }
 };
 
@@ -313,18 +322,24 @@ const TELC_PLAYBACK = Object.freeze({
   HV2: Object.freeze({ practice: 1, mock: 2 }),
   HV3: Object.freeze({ practice: 1, mock: 2 }),
 });
+const GOETHE_B1_PLAYBACK = Object.freeze({
+  HV1: Object.freeze({ practice: 1, mock: 2 }),
+  HV2: Object.freeze({ practice: 1, mock: 1 }),
+  HV3: Object.freeze({ practice: 1, mock: 1 }),
+  HV4: Object.freeze({ practice: 1, mock: 2 }),
+});
 /** Dormant historical blueprints keep their hashes; actual listening needs the exact policy. */
 export function validatePlayback(part,examId) {
   demand(part.mediaRequired===true&&part.interaction==='fixed_audio','playback requires fixed audio');
   keys(part.playback,['practice','mock'],'playback');
   demand(['practice','mock'].every(mode=>Number.isSafeInteger(part.playback[mode])&&part.playback[mode]>0&&part.playback[mode]<=10),'invalid playback allowance');
-  const expected=examId==='dtz-a2-b1'?{practice:1,mock:1}:examId==='telc-deutsch-b1'?TELC_PLAYBACK[part.family]:null;
+  const expected=examId==='dtz-a2-b1'?{practice:1,mock:1}:examId==='telc-deutsch-b1'?TELC_PLAYBACK[part.family]:examId==='goethe-zertifikat-b1'?GOETHE_B1_PLAYBACK[part.family]:null;
   if(expected!==null) demand(expected!==undefined&&part.playback.practice===expected.practice&&part.playback.mock===expected.mock,'incorrect target playback policy');
   return part.playback;
 }
 
 function validateListeningBlueprint(p) {
-  const counts=p.exam.id==='dtz-a2-b1'?[4,5,8,3]:p.exam.id==='telc-deutsch-b1'?[5,10,5]:null;
+  const counts=p.exam.id==='dtz-a2-b1'?[4,5,8,3]:p.exam.id==='telc-deutsch-b1'?[5,10,5]:p.exam.id==='goethe-zertifikat-b1'?[10,5,7,8]:null;
   if(!counts) return;
   const section=p.blueprint.sections.find(s=>s.id==='HV');
   demand(section?.parts.length===counts.length&&section.parts.every((part,i)=>part.family==='HV'+(i+1)&&part.itemCount===counts[i]&&part.mediaRequired&&part.interaction==='fixed_audio'),'incorrect target listening format');
