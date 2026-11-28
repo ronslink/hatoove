@@ -204,6 +204,11 @@ jobs:
         run: node tools/session-cookie-check.mjs
       - name: Private invocation receipts and exact synthetic cost contracts
         run: node tools/provider-attempt-check.mjs
+      - name: Live grader contracts and original exam package integrity
+        run: |
+          node tools/writing-grader-deepseek-check.mjs
+          node tools/goethe-b2-package-check.mjs
+          node tools/ielts-package-check.mjs
       - name: Payment signatures, test provider and activation refusals
         run: node tools/payment-path-check.mjs
       - name: Payment API ownership and exact webhook boundary
@@ -364,6 +369,11 @@ jobs:
         run: |
           node tools/provider-attempt-pg-check.mjs
           node tools/provider-table-class-check.mjs
+      - name: Required writing tasks and real provider accounting without network calls
+        run: |
+          node tools/live-grading-pg-check.mjs
+          node tools/required-writing-pg-check.mjs
+          node tools/required-writing-pg-check.mjs --ielts
       - name: Bounded readiness probes recover after a real PostgreSQL connection loss
         run: node tools/readiness-pg-check.mjs
       - name: The hosted runtime refuses by default

@@ -1,4 +1,4 @@
-import { INSTRUCTIONS, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
+import { instructionFor, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
 import { answerTiles } from './task-layout.js';
 
 /** Render the accepted mock verdict with typed booleans preserved through the shared tiles. */
@@ -25,8 +25,9 @@ const key = row => [row.setId, row.version, row.itemId].join('\u0000');
 const wallNow = () => Date.now();
 const steadyNow = () => globalThis.performance?.now() ?? Date.now();
 export const mockScopeLabel = run => run?.scope === 'complete_supported_written' ? pt('mockScope') : pt('sectionScope');
-export const mockWritingSection = run => run?.writing_task?.section || run?.writing_choices?.[0]?.section || 'writing';
-export function mockWritingTask(run) {
+export const mockWritingSection = run => run?.writing_task?.section || run?.writing_choices?.[0]?.section || run?.writing_tasks?.[0]?.section || 'writing';
+export function mockWritingTask(run,bindingId=null) {
+  if(bindingId) return run?.writing_tasks?.find(t=>t.binding_id===bindingId)?.task??null;
   if (run?.writing?.binding_kind === 'assigned') return run.writing_task?.task || null;
   return run?.writing_choices?.find(group => group.id === run.writing?.choice_group_id)?.options.find(option => option.id === run.writing?.selected_option_id)?.task || null;
 }
@@ -62,13 +63,21 @@ export function mockWritingStatus(writing) {
 }
 
 /** Finalisation binds the last acknowledged draft; a failed save must never freeze older text. */
-export async function finaliseMockWriting({ session, writing, language = 'de', ready = Promise.resolve(true) }) {
+export async function finaliseMockWriting({ session, writing, language = 'de', ready = Promise.resolve(true), savedRevisions={} }) {
   const runId = session.state().run?.id;
   await ready;
   if (!(await writing.flush()) || session.state().run?.id !== runId || !(await session.flush())) return false;
   const run = session.state().run;
   if (!run || run.id !== runId) return false;
-  const fields = run.writing_task || run.writing_choices?.length ? { explanationLanguage: language } : {};
+  const fields = run.writing_task || run.writing_choices?.length || run.writing_tasks?.length ? { explanationLanguage: language } : {};
+  if(run.writing_tasks?.length) {
+    const attachments=run.writing_attachments??[];
+    if(attachments.length!==run.writing_tasks.length) return false;
+    if(writing.active && !attachments.some(a=>a.attempt_id===writing.active.attempt)) return false;
+    fields.expectedWritingRevisions=Object.fromEntries(attachments.map(a=>[a.binding_id,
+      writing.active?.attempt===a.attempt_id?writing.active.revision:Math.max(savedRevisions[a.attempt_id]??0,a.draft_revision)]));
+    if(Object.values(fields.expectedWritingRevisions).some(v=>!Number.isInteger(v)))return false;
+  }
   if (run.writing) {
     // Assigned writing already has a durable empty draft before its window opens.
     if (!writing.active && run.writing_task && Number.isInteger(run.writing.draft_revision)) fields.expectedWritingRevision = run.writing.draft_revision;
@@ -100,7 +109,7 @@ export function mockMember(member) {
       }
       return { passage: '', items };
     }
-    case 'matching_headlines': return { passage: '', options: options(p.headlines), items: (p.texts || []).map(v => ({ id: String(v.id), text: v.text })) };
+    case 'matching_headlines': return { passage: p.text || p.instructions || '', options: options(p.headlines), items: (p.texts || []).map(v => ({ id: String(v.id), text: v.text })) };
     case 'grouped_choice': {
       if (!Array.isArray(p.groups) || !p.groups.length) return null;
       const groups = new Set(), questions = new Set(), items = [];
@@ -262,13 +271,14 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
   let displayPosition = null, deadlineReached = false, workspace = 'objective', observedGroup = null;
   let boundaryChanging = false, boundaryMessage = '', boundaryFlight = null, boundaryAudioPending = false, copyPending = false, draftCopies = [];
   let writingBinding = null, writingReady = Promise.resolve(true), finishing = false;
+  let selectedWritingBinding=null,savedWritingRevisions={},switchingWriting=false;
   const writingAllowed = () => canEdit() && (writing.active && !writing.active.attached || session.state().run?.state === 'finalised' || session.sectionWritable(mockWritingSection(session.state().run)));
   const writing = createWritingController({ getExamLanguage, api, esc, readAloud, explanations, canEdit: writingAllowed, onChange: () => { onChange(); if (writing.active?.error === 'mock_group_inactive') void refreshTiming(); } });
   const listening = createListeningController({ getExamLanguage, api, esc, canEdit });
   const session = createMockSession({ api, canEdit, onChange: () => { render(); onChange(); } });
   const button = (action, label, primary = false) => '<button type="button" class="btn' + (primary ? ' btn-primary' : '') + '" data-mock-action="' + action + '">' + label + '</button>';
   const date = (value,locale=getLocale()) => formatDate(value,{dateStyle:'medium',timeStyle:'short'},locale);
-  const instruction = (id,run) => { const examLanguage=run?.exam_language || getExamLanguage() || 'und'; return instructionMarkup({id,examLanguage,original:INSTRUCTIONS[id]?.examLanguage===examLanguage ? INSTRUCTIONS[id].original : ''}); };
+  const instruction = (id,run) => { const examLanguage=run?.exam_language || getExamLanguage() || 'und'; return instructionMarkup({id,examLanguage,original:instructionFor(id,examLanguage)?.original || ''}); };
   const review = value => '<span data-mock-review="' + esc(JSON.stringify({release_state:value.release_state,review_status:value.review_status,review_basis:value.review_basis,review_withdrawn:value.review_withdrawn})) + '">' + esc(mockReviewLabel(value)) + '</span>';
   const languageAttrs = language => 'lang="'+esc(language || 'und')+'" dir="'+(language === 'ar' ? 'rtl' : 'ltr')+'"';
   const examAttrs = (source=session.state().run) => languageAttrs(source?.exam_language || getExamLanguage() || 'und');
@@ -369,25 +379,29 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
   }
   function renderWriting(snapshot) {
     const target = host.querySelector('#mock-writing-host'), run = snapshot.run;
-    const attachment = run.writing, groups = run.writing_choices || [];
+    const required=run.writing_tasks??[];
+    if(required.length&&!required.some(t=>t.binding_id===selectedWritingBinding))selectedWritingBinding=required[0].binding_id;
+    const attachment = required.length?run.writing_attachments?.find(a=>a.binding_id===selectedWritingBinding):run.writing, groups = run.writing_choices || [];
     target.hidden = Boolean(run.timing && workspace !== 'writing' && run.state !== 'finalised');
     if (target.hidden) { freezeWriting(); return; }
     if (!attachment) {
       if (writing.active) writing.dispose();
       writingBinding = null;
-      target.hidden = !groups.length && !run.writing_task;
+      target.hidden = !groups.length && !run.writing_task && !required.length;
       target.innerHTML = run.writing_task ? '<section class="card"><p class="err" data-practice-key="ui30">Der zugewiesene Schreibentwurf konnte nicht geladen werden. Laden Sie den gespeicherten Stand erneut.</p></section>' : !groups.length ? '' : run.blocked_reason ? '<section class="card"><p data-practice-key="ui31">Die Schreibaufgaben sind zurzeit gesperrt.</p></section>'
         : run.state === 'finalised' ? '<section class="card"><h3 data-practice-key="ui32">Schreiben · Unbewertet</h3><p data-practice-key="ui33">Es wurde keine Schreibaufgabe ausgewählt. Der Abschnitt bleibt gespeichert.</p></section>'
         : '<section class="card stack"><h3 data-practice-key="ui34">Schreiben · Wählen Sie eine Aufgabe</h3>' + instruction('writing.choose_one',run) + (!session.sectionWritable(mockWritingSection(run)) ? '<p class="hint" data-practice-key="ui36">Außerhalb der Schreibzeit · Auswahl gesperrt.</p>' : '') + '<div class="mock-writing-choices">' + groups.map(group => group.options.map(option => '<article class="card-flat stack"><p class="kicker">' + pl('taskNumber',{id:option.id}) + '</p>' + writingPrompt(option.task || {},esc,run.exam_language || getExamLanguage() || 'und') + '<button type="button" class="btn btn-primary" data-mock-choice-group="' + esc(group.id) + '" data-mock-choice-option="' + esc(option.id) + '"' + (!session.sectionWritable(mockWritingSection(run)) || snapshot.pending || boundaryChanging ? ' disabled' : '') + '>' + pl('chooseTask',{id:option.id}) + '</button></article>').join('')).join('') + '</div></section>';
       return;
     }
     target.hidden = false;
-    if (!target.querySelector('#mock-writing-editor')) target.innerHTML = '<p class="kicker" id="mock-writing-binding" tabindex="-1"></p><div id="mock-writing-editor"></div>';
+    if (!target.querySelector('#mock-writing-editor')) target.innerHTML = '<div id="mock-required-tasks" class="row"></div><p class="kicker" id="mock-writing-binding" tabindex="-1"></p><div id="mock-writing-editor"></div>';
+    const navigation=target.querySelector('#mock-required-tasks');
+    if(navigation) navigation.innerHTML=required.map((b,i)=>'<button type="button" class="btn" data-mock-writing-binding="'+esc(b.binding_id)+'"'+(b.binding_id===selectedWritingBinding?' aria-current="step"':'')+'>'+pl('taskNumber',{id:i+1})+' · '+esc(mockWritingStatus(run.writing_attachments?.find(a=>a.binding_id===b.binding_id)))+'</button>').join('');
     paintWritingBinding();
     const binding = [run.id, attachment.attempt_id, attachment.submission_id, run.blocked_reason || '', isArchived()].join(':');
     if (writingBinding !== binding) {
       writingBinding = binding;
-      const task = mockWritingTask(run) || {};
+      const task = mockWritingTask(run,required.length?selectedWritingBinding:null) || {};
       writingReady = writing.open(target.querySelector('#mock-writing-editor'), task, { attached: true, readonly: !canEdit() || Boolean(run.blocked_reason), ...(attachment.submission_id ? { submissionId: attachment.submission_id } : { attemptId: attachment.attempt_id }) }).then(opened => { freezeWriting(); return opened; });
     }
     freezeWriting();
@@ -456,7 +470,7 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
           + '</fieldset>' + (!readonly ? button('clear', pl('clear')).replace('data-mock-action="clear"', 'data-mock-action="clear" data-mock-qi="' + qi + '"') : '');
       };
       body = '<div class="mock-layout"><section class="card stack mock-question"><p class="kicker">' + pl('partPosition',{part:position.member+1,total:members.length,id:item.id}) + '</p><h3 id="mock-question-title" tabindex="-1" ' + languageAttrs(setLabelLanguage(member)) + '>' + esc(setLabel(member)) + '</h3>'
-        + instruction(member.interaction,run) + (item.recordingId ? '<div id="mock-listening-host"></div>' : '')
+        + instruction(run.exam_id==='goethe-zertifikat-b2'&&member.family==='LV4'?'matching_opinions':member.interaction,run) + (item.recordingId ? '<div id="mock-listening-host"></div>' : '')
         + (run.timing && !mockSectionWritable(run, member.section, snapshot.serverNow) ? '<p class="hint" data-mock-readonly data-practice-key="ui42">Außerhalb der Bearbeitungszeit · nur ansehen. Ihre bestätigten Antworten bleiben erhalten.</p>' : '')
         + ((item.passage ?? form.passage) ? '<div class="stimulus mock-passage" ' + examAttrs() + '>' + esc(item.passage ?? form.passage) + '</div>' : '')
         + group.map(question).join('') + '<div class="row">' + button('previous', pl('previous')) + button('next', pl('next'), true) + '</div></section>'
@@ -464,7 +478,7 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
           const done = snapshot.responses.some(row => row.setId === m.set_id && row.version === m.version && row.itemId === q.id && row.answer !== null);
           return '<button type="button" class="btn btn-small' + (done ? ' mock-answered' : '') + '" data-mock-member="' + mi + '" data-mock-item="' + qi + '" ' + pa('aria-label',done ? 'answeredNav' : 'unansweredNav',{part:mi+1,id:q.id}) + (position.member === mi && (position.item === qi || (item?.recordingId && q.recordingId === item.recordingId)) ? ' aria-current="step"' : '') + '>' + esc(q.id) + '</button>';
         }).join('') + '</div></div>').join('') + '<p class="small muted" data-practice-key="ui44">Rückmeldung erst nach dem Abschließen.</p></aside></div>';
-    } else body = run.writing_task || run.writing_choices?.length ? '' : '<section class="card"><p data-practice-key="ui45">Dieser Inhalt kann nicht angezeigt werden. Ihre Antworten bleiben gespeichert.</p></section>';
+    } else body = run.writing_task || run.writing_choices?.length || run.writing_tasks?.length ? '' : '<section class="card"><p data-practice-key="ui45">Dieser Inhalt kann nicht angezeigt werden. Ihre Antworten bleiben gespeichert.</p></section>';
     const expired = snapshot.expired;
     // Keep the editor node mounted: objective autosaves must not lose text, selection or IME focus.
     if (!host.querySelector('#mock-content')) host.innerHTML = '<div id="mock-content"></div><section id="mock-writing-host" class="stack" data-practice-aria-label="ui01"></section><div id="mock-footer"></div>';
@@ -537,10 +551,27 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
     };
     updateLocale();
     host.onclick = async event => {
-      const element = event.target.closest('[data-mock-action], [data-mock-member], [data-mock-choice-option], [data-mock-group]');
-      if (!element || element.disabled) return;
+      const element = event.target.closest('[data-mock-action], [data-mock-member], [data-mock-choice-option], [data-mock-group], [data-mock-writing-binding]');
+      if (!element || element.disabled || switchingWriting) return;
       const snapshot = session.state(), run = snapshot.run;
       if (!run) return;
+      if(element.dataset.mockWritingBinding!==undefined) {
+        const binding=element.dataset.mockWritingBinding;
+        if(finishing||boundaryChanging||binding===selectedWritingBinding||!run.writing_tasks?.some(b=>b.binding_id===binding))return;
+        const ticket=generation;
+        switchingWriting=true;
+        try {
+          await writingReady;
+          if(ticket!==generation || session.state().run?.id!==run.id || boundaryChanging)return;
+          if(!(await writing.flush()))return;
+          if(ticket!==generation || session.state().run?.id!==run.id || boundaryChanging)return;
+          if(writing.active?.attempt&&Number.isInteger(writing.active.revision))savedWritingRevisions[writing.active.attempt]=writing.active.revision;
+          selectedWritingBinding=binding;writing.dispose();writingBinding=null;render();
+          await writingReady;
+          if(ticket===generation)host?.querySelector('#mock-writing-binding')?.focus();
+        } finally { if(ticket===generation)switchingWriting=false; }
+        return;
+      }
       const p = displayPosition || snapshot.position, m = run.members[p.member], form = m && mockMember(m);
       const action = element.dataset.mockAction;
       if (action === 'ack-copy') { copyPending = false; render(); return; }
@@ -564,7 +595,7 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
         finishing = true; writing.freeze(true); render();
         try {
           clearTimeout(timer);
-          await finaliseMockWriting({ session, writing, language: explanationLanguage(), ready: writingReady }); confirm = false;
+          await finaliseMockWriting({ session, writing, language: explanationLanguage(), ready: writingReady, savedRevisions:savedWritingRevisions }); confirm = false;
         } finally { finishing = false; render(); }
       }
       let next = null;
@@ -593,6 +624,7 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
     };
   }
   async function showRun(target, id) {
+    selectedWritingBinding=null;savedWritingRevisions={};switchingWriting=false;
     const ticket = ++generation; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); boundaryChanging = false; boundaryFlight = null; boundaryMessage = ''; boundaryAudioPending = false; copyPending = false; draftCopies = []; workspace = 'objective'; attach(target); host.innerHTML = '<p class="muted" role="status" data-practice-key="ui53">Gespeicherter Lauf wird geladen …</p>'; updateLocale();
     const response = await api.mock.read(id);
     if (ticket !== generation) return false;
@@ -602,6 +634,7 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
     session.load(response.data); chooseWorkspace(); render(); deadlineTimer = setInterval(updateDeadline, 250); return true;
   }
   async function list(target, { section = null } = {}) {
+    selectedWritingBinding=null;savedWritingRevisions={};switchingWriting=false;
     const ticket = ++generation; stopTimers(); listening.dispose(); writing.dispose(); writingBinding = null; writingReady = Promise.resolve(true); boundaryChanging = false; boundaryFlight = null; boundaryMessage = ''; copyPending = false; draftCopies = []; session.dispose(); attach(target); host.innerHTML = '<p class="muted" role="status" data-practice-key="ui56">Gespeicherte Übungen werden geladen …</p>'; updateLocale();
     const [forms, runs] = await Promise.all([api.mock.forms(), api.mock.list()]);
     if (ticket !== generation) return;
@@ -629,10 +662,11 @@ export function createMockController({ getExamLanguage = () => null, api, esc, s
     };
   }
   function historyMarkup(rows) {
-    return rows.length ? rows.map(run => '<article class="card"><p class="kicker">' + scope(run) + '</p><h3 ' + examAttrs(run) + '>' + esc(run.title) + '</h3><p class="small muted">' + '<span data-practice-date="' + esc(run.updated_at || run.created_at) + '">' + esc(date(run.updated_at || run.created_at)) + '</span></p><p>' + pl(run.state === 'finalised' ? 'finished' : 'openRun') + '</p>' + (run.writing ? '<p>' + pl(({not_started:'writingDraft',pending:'writingPending',assessed:'writingAssessed',failed:'writingFailed',unassessed:'writingUnassessed'})[run.writing.assessment_state] || 'writingUnassessed') + '</p>' : '') + '<a class="btn" data-mock-run="' + esc(run.id) + '" href="#/lauf/' + esc(run.id) + '">' + pl(run.state === 'finalised' || !canEdit() ? 'view' : 'resume') + '</a></article>').join('') : '<article class="card"><p>' + pl('ui67') + '</p></article>';
+    return rows.length ? rows.map(run => '<article class="card"><p class="kicker">' + scope(run) + '</p><h3 ' + examAttrs(run) + '>' + esc(run.title) + '</h3><p class="small muted">' + '<span data-practice-date="' + esc(run.updated_at || run.created_at) + '">' + esc(date(run.updated_at || run.created_at)) + '</span></p><p>' + pl(run.state === 'finalised' ? 'finished' : 'openRun') + '</p>' + (run.writing ? '<p>' + pl(({not_started:'writingDraft',pending:'writingPending',assessed:'writingAssessed',failed:'writingFailed',unassessed:'writingUnassessed'})[run.writing.assessment_state] || 'writingUnassessed') + '</p>' : '') + (run.writing_attachments??[]).map((a,i)=>'<p>'+pl('taskNumber',{id:i+1})+' · '+esc(mockWritingStatus(a))+'</p>').join('') + '<a class="btn" data-mock-run="' + esc(run.id) + '" href="#/lauf/' + esc(run.id) + '">' + pl(run.state === 'finalised' || !canEdit() ? 'view' : 'resume') + '</a></article>').join('') : '<article class="card"><p>' + pl('ui67') + '</p></article>';
   }
   function paintWritingBinding(locale=getLocale()) {
     const snapshot=session.state(),run=snapshot.run,attachment=run?.writing,target=host?.querySelector('#mock-writing-binding');
+    if(run?.writing_tasks?.length&&target){target.textContent=pt('assigned',{},locale)+' · '+pt('taskNumber',{id:run.writing_tasks.findIndex(b=>b.binding_id===selectedWritingBinding)+1},locale);return;}
     if (!attachment || !target) return;
     target.textContent=(attachment.binding_kind === 'assigned' ? pt('assigned',{},locale) : pt('chosenTask',{id:attachment.selected_option_id},locale)) + (run.state === 'active' && !mockSectionWritable(run,mockWritingSection(run),snapshot.serverNow) ? ' · '+pt('outsideWriting',{},locale) : '');
   }

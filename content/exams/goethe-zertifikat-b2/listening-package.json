@@ -10,7 +10,7 @@
     }
   },
   "blueprint": {
-    "version": "v2",
+    "version": "v4",
     "timeGroups": [
       {
         "id": "goethe-b2-lv-65",
@@ -67,7 +67,7 @@
           {
             "family": "LV5",
             "itemCount": 3,
-            "interaction": "single_choice",
+            "interaction": "matching_headlines",
             "mediaRequired": false
           }
         ]
@@ -126,8 +126,8 @@
         "parts": [
           {
             "family": "writing",
-            "itemCount": 1,
-            "interaction": "writing_choice",
+            "itemCount": 2,
+            "interaction": "extended_writing",
             "mediaRequired": false
           }
         ]
@@ -150,14 +150,14 @@
     ]
   },
   "release": {
-    "version": "v2",
+    "version": "v4",
     "state": "internal",
     "resumeBlockedReleases": []
   },
   "forms": [
     {
       "id": "goethe-zertifikat-b2.complete.original01",
-      "version": "v1",
+      "version": "v2",
       "title": "Schriftliche Prüfung · Goethe-Zertifikat B2 (Lesen, Hören, Schreiben)",
       "scope": "complete_supported_written",
       "sections": [
@@ -191,14 +191,14 @@
         },
         {
           "setId": "goethe-zertifikat-b2.lv4.original01",
-          "version": "v1",
+          "version": "v2",
           "interaction": "matching_headlines",
           "itemCount": 6
         },
         {
           "setId": "goethe-zertifikat-b2.lv5.original01",
-          "version": "v1",
-          "interaction": "single_choice",
+          "version": "v2",
+          "interaction": "matching_headlines",
           "itemCount": 3
         },
         {
@@ -226,28 +226,24 @@
           "itemCount": 8
         }
       ],
-      "writingChoices": [
+      "writingTasks": [
         {
-          "id": "SA1",
+          "id": "task1",
           "section": "SA",
-          "options": [
-            {
-              "id": "A",
-              "taskId": "goethe-zertifikat-b2.writing.original01.a",
-              "taskVersion": "v1"
-            },
-            {
-              "id": "B",
-              "taskId": "goethe-zertifikat-b2.writing.original01.b",
-              "taskVersion": "v1"
-            }
-          ]
+          "taskId": "goethe-zertifikat-b2.writing.original01.a",
+          "taskVersion": "v1"
+        },
+        {
+          "id": "task2",
+          "section": "SA",
+          "taskId": "goethe-zertifikat-b2.writing.original01.b",
+          "taskVersion": "v1"
         }
       ]
     },
     {
       "id": "goethe-zertifikat-b2.listening.practice",
-      "version": "v1",
+      "version": "v2",
       "title": "Hören · Übung (Goethe-Zertifikat B2)",
       "scope": "section",
       "sections": [
@@ -286,7 +282,7 @@
     },
     {
       "id": "goethe-zertifikat-b2.listening.mock",
-      "version": "v1",
+      "version": "v2",
       "title": "Hören · Prüfungsmodus (Goethe-Zertifikat B2)",
       "scope": "section",
       "sections": [
@@ -634,7 +630,7 @@
     },
     {
       "setId": "goethe-zertifikat-b2.lv4.original01",
-      "version": "v1",
+      "version": "v2",
       "examId": "goethe-zertifikat-b2",
       "family": "LV4",
       "section": "LV",
@@ -643,66 +639,63 @@
       "interaction": "matching_headlines",
       "itemCount": 6,
       "payload": {
-        "headlines": [
-          {
-            "id": "a",
-            "text": "Sorge um den Verlust der eigenen Ausgabenkontrolle bei Kartenzahlung"
-          },
-          {
-            "id": "b",
-            "text": "Zeitersparnis an der Kasse und weniger Aufwand bei der Buchhaltung"
-          },
-          {
-            "id": "c",
-            "text": "Angst vor Störungen bei Strom- oder Internetausfällen"
-          },
-          {
-            "id": "d",
-            "text": "Schutz der Privatsphäre gegenüber Banken und Zahlungsdienstleistern"
-          },
-          {
-            "id": "e",
-            "text": "Vorteile auf Auslandsreisen ohne ständigen Geldwechsel"
-          },
-          {
-            "id": "f",
-            "text": "Forderung nach Wahlfreiheit für ältere Menschen und Kinder"
-          },
-          {
-            "id": "g",
-            "text": "Abschaffung sämtlicher Bankfilialen innerhalb eines Jahres"
-          },
-          {
-            "id": "h",
-            "text": "Kritik an steigenden Zinsen für Immobilienkredite"
-          }
-        ],
         "texts": [
           {
             "id": 1,
-            "text": "Wenn ich alles nur noch mit dem Smartphone bezahle, verliere ich viel schneller den Überblick darüber, wie viel Geld ich in einer Woche tatsächlich ausgegeben habe. Mit Scheinen im Portemonnaie merke ich sofort, wann mein Budget knapper wird."
+            "text": "Sorge um den Verlust der eigenen Ausgabenkontrolle bei Kartenzahlung"
           },
           {
             "id": 2,
-            "text": "In meiner kleinen Bäckerei spart das kontaktlose Bezahlen morgens enorm viel Zeit. Außerdem muss ich abends kein schweres Münzgeld mehr zählen und zur Bank bringen – die Abrechnung läuft fast von selbst."
+            "text": "Zeitersparnis an der Kasse und weniger Aufwand bei der Buchhaltung"
           },
           {
             "id": 3,
-            "text": "Letzten Monat fiel im gesamten Stadtteil für drei Stunden das Kassenterminal aus. Wer kein Bargeld dabeihatte, musste seinen Einkaufswagen stehen lassen. Eine funktionierende Gesellschaft braucht ein krisensicheres Zahlungsmittel ohne Strom."
+            "text": "Angst vor Störungen bei Strom- oder Internetausfällen"
           },
           {
             "id": 4,
-            "text": "Es geht niemanden etwas an, in welcher Apotheke ich einkaufe oder welche Zeitung ich am Kiosk mitnehme. Jede digitale Transaktion hinterlässt Datenspuren, die ausgewertet werden können."
+            "text": "Schutz der Privatsphäre gegenüber Banken und Zahlungsdienstleistern"
           },
           {
             "id": 5,
-            "text": "Als ich im Sommer durch Dänemark und Schweden gereist bin, war es wunderbar unkompliziert: Selbst ein einzelnes Busticket oder ein Kaffee ließen sich problemlos per Karte zahlen, ohne teure Wechselstuben suchen zu müssen."
+            "text": "Vorteile auf Auslandsreisen ohne ständigen Geldwechsel"
           },
           {
             "id": 6,
-            "text": "Natürlich zahle ich im Supermarkt gern mit Karte, aber mein siebenjähriger Sohn lernt den Wert von Geld am besten mit seinem Taschengeld in Münzen, und auch viele Senioren möchten nicht zur App gezwungen werden."
+            "text": "Forderung nach Wahlfreiheit für ältere Menschen und Kinder"
           }
-        ]
+        ],
+        "headlines": [
+          {
+            "id": "a",
+            "text": "Wenn ich alles nur noch mit dem Smartphone bezahle, verliere ich viel schneller den Überblick darüber, wie viel Geld ich in einer Woche tatsächlich ausgegeben habe. Mit Scheinen im Portemonnaie merke ich sofort, wann mein Budget knapper wird."
+          },
+          {
+            "id": "b",
+            "text": "In meiner kleinen Bäckerei spart das kontaktlose Bezahlen morgens enorm viel Zeit. Außerdem muss ich abends kein schweres Münzgeld mehr zählen und zur Bank bringen – die Abrechnung läuft fast von selbst."
+          },
+          {
+            "id": "c",
+            "text": "Letzten Monat fiel im gesamten Stadtteil für drei Stunden das Kassenterminal aus. Wer kein Bargeld dabeihatte, musste seinen Einkaufswagen stehen lassen. Eine funktionierende Gesellschaft braucht ein krisensicheres Zahlungsmittel ohne Strom."
+          },
+          {
+            "id": "d",
+            "text": "Es geht niemanden etwas an, in welcher Apotheke ich einkaufe oder welche Zeitung ich am Kiosk mitnehme. Jede digitale Transaktion hinterlässt Datenspuren, die ausgewertet werden können."
+          },
+          {
+            "id": "e",
+            "text": "Als ich im Sommer durch Dänemark und Schweden gereist bin, war es wunderbar unkompliziert: Selbst ein einzelnes Busticket oder ein Kaffee ließen sich problemlos per Karte zahlen, ohne teure Wechselstuben suchen zu müssen."
+          },
+          {
+            "id": "f",
+            "text": "Natürlich zahle ich im Supermarkt gern mit Karte, aber mein siebenjähriger Sohn lernt den Wert von Geld am besten mit seinem Taschengeld in Münzen, und auch viele Senioren möchten nicht zur App gezwungen werden."
+          },
+          {
+            "id": "g",
+            "text": "Für mich kommt es vor allem darauf an, dass die Bank ihre Gebühren verständlich ausweist. Die aufwendigen Preisverzeichnisse machen einen Vergleich der Konten fast unmöglich. Ob ich danach mit Scheinen oder Karte bezahle, ist mir weniger wichtig."
+          }
+        ],
+        "text": "Ordnen Sie den sechs Überschriften die passenden Meinungen a–g zu. Jede Meinung darf nur einmal verwendet werden. Eine Meinung bleibt übrig. Beispiel 0: Weniger Gewicht in der Tasche → h. Meinung h: Seit ich nur noch eine Karte mitnehme, brauche ich keine schwere Geldbörse mehr. Der Beispieltext h kann nicht erneut gewählt werden."
       },
       "answers": {
         "1": "a",
@@ -726,55 +719,70 @@
     },
     {
       "setId": "goethe-zertifikat-b2.lv5.original01",
-      "version": "v1",
+      "version": "v2",
       "examId": "goethe-zertifikat-b2",
       "family": "LV5",
       "section": "LV",
       "part": 5,
-      "title": "Lesen Teil 5: Teilnahmebedingungen — Berufsakademie Weiterbildung",
-      "interaction": "single_choice",
+      "title": "Lesen Teil 5: Überschriften zu Teilnahmebedingungen",
+      "interaction": "matching_headlines",
       "itemCount": 3,
       "payload": {
-        "text": "Teilnahmebedingungen der Berufsakademie Südwest (Auszug)\n\n§ 3 Rücktritt und Stornierung\nEine kostenfreie Abmeldung von einem gebuchten Lehrgang ist bis spätestens 14 Kalendertage vor Kursbeginn in Textform (Brief oder E-Mail) möglich. Bei einem Rücktritt zwischen dem 13. und dem 3. Tag vor Beginn wird eine Bearbeitungspauschale in Höhe von 30 Prozent der Lehrgangsgebühr erhoben. Erfolgt die Abmeldung später oder erscheint die angemeldete Person nicht, ist die volle Gebühr zu entrichten – es sei denn, es wird rechtzeitig eine geeignete Ersatzperson benannt.\n\n§ 5 Teilnahmebescheinigung und Zertifikat\nEine qualifizierte Teilnahmebescheinigung erhalten Personen, die mindestens 80 Prozent der angesetzten Unterrichtseinheiten besucht haben. Bei ärztlich attestierter Krankheit können versäumte Module einmalig kostenfrei im darauffolgenden Halbjahr nachgeholt werden.\n\n§ 6 Urheberrecht an Lehrmaterialien\nSämtliche ausgehändigten Skripte und digitalen Arbeitsunterlagen sind ausschließlich für den persönlichen Gebrauch im Rahmen des Lehrgangs bestimmt. Eine Weitergabe an Dritte oder Veröffentlichung im Internet bedarf der vorherigen schriftlichen Zustimmung der Akademie.",
-        "questions": [
+        "headlines": [
           {
-            "n": 1,
-            "question": "Wann muss bei einer sehr kurzfristigen Abmeldung (2 Tage vor Beginn) NICHT die volle Gebühr gezahlt werden?",
-            "options": {
-              "a": "Wenn man telefonisch absagt.",
-              "b": "Wenn rechtzeitig eine geeignete Ersatzperson benannt wird.",
-              "c": "Wenn man bereits früher einen Kurs besucht hat."
-            }
+            "id": "a",
+            "text": "Rücktritt und Ersatzteilnahme"
           },
           {
-            "n": 2,
-            "question": "Was gilt, wenn jemand wegen einer ärztlich bescheinigten Krankheit Unterricht verpasst?",
-            "options": {
-              "a": "Versäumte Module können einmalig kostenfrei im nächsten Halbjahr nachgeholt werden.",
-              "b": "Das Zertifikat wird ohne weitere Bedingungen sofort ausgestellt.",
-              "c": "Die gesamte Kursgebühr muss neu bezahlt werden."
-            }
+            "id": "b",
+            "text": "Bescheinigungen und Nachholtermine"
           },
           {
-            "n": 3,
-            "question": "Wie dürfen die digitalen Arbeitsunterlagen verwendet werden?",
-            "options": {
-              "a": "Sie dürfen frei im Firmenintranet veröffentlicht werden.",
-              "b": "Nur für den persönlichen Gebrauch im Rahmen des Lehrgangs.",
-              "c": "Sie müssen am letzten Kurstag vernichtet werden."
-            }
+            "id": "c",
+            "text": "Nutzung und Weitergabe von Unterrichtsmaterial"
+          },
+          {
+            "id": "d",
+            "text": "Zulassungsvoraussetzungen"
+          },
+          {
+            "id": "e",
+            "text": "Zahlungsfristen und Ratenzahlung"
+          },
+          {
+            "id": "f",
+            "text": "Beratung und Anmeldung"
+          },
+          {
+            "id": "g",
+            "text": "Beschwerden über Prüfungsergebnisse"
           }
-        ]
+        ],
+        "texts": [
+          {
+            "id": 1,
+            "text": "Eine kostenfreie Abmeldung von einem gebuchten Lehrgang ist bis spätestens 14 Kalendertage vor Kursbeginn in Textform (Brief oder E-Mail) möglich. Bei einem Rücktritt zwischen dem 13. und dem 3. Tag vor Beginn wird eine Bearbeitungspauschale in Höhe von 30 Prozent der Lehrgangsgebühr erhoben. Erfolgt die Abmeldung später oder erscheint die angemeldete Person nicht, ist die volle Gebühr zu entrichten – es sei denn, es wird rechtzeitig eine geeignete Ersatzperson benannt."
+          },
+          {
+            "id": 2,
+            "text": "Eine qualifizierte Teilnahmebescheinigung erhalten Personen, die mindestens 80 Prozent der angesetzten Unterrichtseinheiten besucht haben. Bei ärztlich attestierter Krankheit können versäumte Module einmalig kostenfrei im darauffolgenden Halbjahr nachgeholt werden."
+          },
+          {
+            "id": 3,
+            "text": "Sämtliche ausgehändigten Skripte und digitalen Arbeitsunterlagen sind ausschließlich für den persönlichen Gebrauch im Rahmen des Lehrgangs bestimmt. Eine Weitergabe an Dritte oder Veröffentlichung im Internet bedarf der vorherigen schriftlichen Zustimmung der Akademie."
+          }
+        ],
+        "text": "Wählen Sie für jeden Paragrafen die passende Überschrift a–g aus dem Inhaltsverzeichnis. Vier Überschriften werden nicht gebraucht. Beispiel 0: Die Kurse beginnen jeweils am ersten Montag im April und Oktober. → h: Kursbeginn. Die Überschrift h ist nur für das Beispiel bestimmt."
       },
       "answers": {
-        "1": "b",
-        "2": "a",
-        "3": "b"
+        "1": "a",
+        "2": "b",
+        "3": "c"
       },
       "explanations": {
-        "1": "b ist richtig: Nach § 3 entfällt die volle Gebühr, wenn rechtzeitig eine geeignete Ersatzperson benannt wird.",
-        "2": "a ist richtig: Nach § 5 können versäumte Module bei ärztlichem Attest einmalig kostenfrei im darauffolgenden Halbjahr nachgeholt werden.",
-        "3": "b ist richtig: Nach § 6 sind Skripte und digitale Unterlagen ausschließlich für den persönlichen Gebrauch bestimmt."
+        "1": "a passt: Der Paragraf regelt Stornierungsfristen, Gebühren und die Benennung einer Ersatzperson. Zahlungsfristen nach einer Anmeldung sind hier nicht das Thema.",
+        "2": "b passt: Anwesenheitsanforderungen für die Bescheinigung und das Nachholen versäumter Module werden gemeinsam geregelt.",
+        "3": "c passt: Die Unterlagen sind für den eigenen Kursgebrauch bestimmt; eine Weitergabe benötigt die Zustimmung der Akademie."
       },
       "reviewStatus": "unreviewed",
       "rightsStatus": "generated",

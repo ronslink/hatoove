@@ -1,6 +1,6 @@
 import { getLocale } from '../assets/i18n/core.js';
 import { pt, pl, updatePracticeLocale } from '../assets/i18n/practice-messages.js';
-import { INSTRUCTIONS, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
+import { instructionFor, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
 
 /** Fixed recording playback. The server owns allowances; this module keeps only document-local state. */
 const copy = value => structuredClone(value);
@@ -134,7 +134,7 @@ export function listeningPlayerMarkup(state = {}, recording = {}, options = {}) 
   const chip = run?.scope === 'complete_supported_written' ? pl('mockScope')
     : (attemptMode ?? run?.attempt_mode) === 'mock' ? pl('audioMock') : pl('audioPractice');
   const playbackInstruction = Number.isInteger(recording?.max_plays) && recording.max_plays > 0
-    ? instructionMarkup({ id: 'listening.playback', examLanguage: run?.exam_language || examLanguage || 'und', original: INSTRUCTIONS['listening.playback'].examLanguage === (run?.exam_language || examLanguage) ? INSTRUCTIONS['listening.playback'].original : '', parameters: { maxPlays: recording.max_plays } })
+    ? instructionMarkup({ id: 'listening.playback', examLanguage: run?.exam_language || examLanguage || 'und', original: instructionFor('listening.playback',run?.exam_language || examLanguage)?.original || '', parameters: { maxPlays: recording.max_plays } })
     : '';
   return '<section class="card-flat listening-player stack" aria-label="Höraufnahme" data-practice-aria-label="recording"><div class="spread"><h3 lang="' + esc(run?.exam_language || examLanguage || 'und') + '" dir="' + ((run?.exam_language || examLanguage) === 'ar' ? 'rtl' : 'ltr') + '">' + esc(recording?.label ?? '') + '</h3><span class="chip">' + chip + '</span></div>'
     + (run?.release_state === 'internal' ? '<p class="small muted" data-practice-key="ui68">Internes Testmaterial · fachliche und Audio-Prüfung ausstehend.</p>' : '')
@@ -201,7 +201,7 @@ export function createListeningController({ getExamLanguage = () => null, api, e
     host.innerHTML = listeningPlayerMarkup(s, recording, {
       run, examLanguage, esc, locale: getLocale(),
       instruction: instructionMarkup({ id: 'listening.playback', examLanguage,
-        original: INSTRUCTIONS['listening.playback'].examLanguage === examLanguage ? INSTRUCTIONS['listening.playback'].original : '',
+        original: instructionFor('listening.playback',examLanguage)?.original || '',
         parameters: { maxPlays: recording.max_plays } }),
       canEdit, frozen, loading, playing, arming, terminal, position, ready,
       message: listing => listeningStatusText(listing, getLocale()),

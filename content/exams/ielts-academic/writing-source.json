@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "rubrics": [
+    {
+      "rubricId": "writing.ielts-academic.task1",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "family": "writing",
+      "policy": "ielts-academic-formative-v1",
+      "feedbackKind": "ielts-academic-criteria",
+      "criteria": [
+        {
+          "key": "ielts_task",
+          "label": "Task Achievement",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Presents a clear overview and accurate key features of the supplied visual information, with relevant comparisons and no unsupported explanations.",
+            "DEVELOPING": "Reports some correct features, but the overview or comparisons are incomplete, or supporting details contain inaccuracies.",
+            "LIMITED": "Lists isolated details or gives a misleading account; a meaningful overview is missing and key comparisons are overlooked.",
+            "NO_EVIDENCE": "Provides no meaningful response to the assigned task."
+          }
+        },
+        {
+          "key": "ielts_cohesion",
+          "label": "Coherence and Cohesion",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Organises ideas clearly with purposeful paragraphs, logical progression and unobtrusive links.",
+            "DEVELOPING": "Has an identifiable sequence, with some awkward links, unclear references or uneven paragraphing.",
+            "LIMITED": "Connections are frequently unclear; repetition or weak organisation makes the response difficult to follow.",
+            "NO_EVIDENCE": "Provides too little connected language to assess organisation."
+          }
+        },
+        {
+          "key": "ielts_lexis",
+          "label": "Lexical Resource",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Uses precise and flexible vocabulary appropriate to the task, with only occasional slips.",
+            "DEVELOPING": "Uses sufficient vocabulary to express the main meaning, but repetition or imprecision limits detail.",
+            "LIMITED": "Restricted vocabulary and frequent word-choice or word-formation errors obscure meaning.",
+            "NO_EVIDENCE": "Provides insufficient meaningful vocabulary to assess."
+          }
+        },
+        {
+          "key": "ielts_grammar",
+          "label": "Grammatical Range and Accuracy",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Uses varied sentence structures with sustained control; occasional errors rarely affect understanding.",
+            "DEVELOPING": "Combines simple and some complex structures; recurring errors sometimes reduce clarity.",
+            "LIMITED": "Relies heavily on simple patterns and makes frequent errors that interfere with understanding.",
+            "NO_EVIDENCE": "Provides too little intelligible sentence structure to assess."
+          }
+        }
+      ],
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove qualitative formative descriptors (2026-11-28), organised around IELTS writing criteria. These categories are not official IELTS bands; no conversion, aggregate score or calibration claim. Format reference: https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-writing"
+    },
+    {
+      "rubricId": "writing.ielts-academic.task2",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "family": "writing",
+      "policy": "ielts-academic-formative-v1",
+      "feedbackKind": "ielts-academic-criteria",
+      "criteria": [
+        {
+          "key": "ielts_task",
+          "label": "Task Response",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Answers the question directly, maintains a clear position, and develops relevant reasons and examples.",
+            "DEVELOPING": "Presents a position and relevant ideas, but development or support is uneven, or parts of the question are insufficiently addressed.",
+            "LIMITED": "Provides limited relevant argument; the position is unclear or major parts of the question are not addressed.",
+            "NO_EVIDENCE": "Provides no meaningful response to the assigned task."
+          }
+        },
+        {
+          "key": "ielts_cohesion",
+          "label": "Coherence and Cohesion",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Organises ideas clearly with purposeful paragraphs, logical progression and unobtrusive links.",
+            "DEVELOPING": "Has an identifiable sequence, with some awkward links, unclear references or uneven paragraphing.",
+            "LIMITED": "Connections are frequently unclear; repetition or weak organisation makes the response difficult to follow.",
+            "NO_EVIDENCE": "Provides too little connected language to assess organisation."
+          }
+        },
+        {
+          "key": "ielts_lexis",
+          "label": "Lexical Resource",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Uses precise and flexible vocabulary appropriate to the task, with only occasional slips.",
+            "DEVELOPING": "Uses sufficient vocabulary to express the main meaning, but repetition or imprecision limits detail.",
+            "LIMITED": "Restricted vocabulary and frequent word-choice or word-formation errors obscure meaning.",
+            "NO_EVIDENCE": "Provides insufficient meaningful vocabulary to assess."
+          }
+        },
+        {
+          "key": "ielts_grammar",
+          "label": "Grammatical Range and Accuracy",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Uses varied sentence structures with sustained control; occasional errors rarely affect understanding.",
+            "DEVELOPING": "Combines simple and some complex structures; recurring errors sometimes reduce clarity.",
+            "LIMITED": "Relies heavily on simple patterns and makes frequent errors that interfere with understanding.",
+            "NO_EVIDENCE": "Provides too little intelligible sentence structure to assess."
+          }
+        }
+      ],
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove qualitative formative descriptors (2026-11-28), organised around IELTS writing criteria. These categories are not official IELTS bands; no conversion, aggregate score or calibration claim. Format reference: https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-writing"
+    }
+  ],
+  "writingTasks": [
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "family": "writing",
+      "section": "SA",
+      "register": "academic",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original AI-assisted Hatoove IELTS Academic practice task, 2026-11-28. Human review pending; no official task copied.",
+      "taskId": "ielts-academic.writing.original01.task1",
+      "topic": "Task 1: Travel to a university campus",
+      "situation": "Spend about 20 minutes on this task. The table shows the percentage of journeys to Westhaven University made by each mode of transport in three years. Summarise the main features and make relevant comparisons. Write at least 150 words.\n\n| Mode of transport | 2010 | 2018 | 2026 |\n| --- | --- | --- | --- |\n| Private car | 52% | 41% | 30% |\n| Bus | 24% | 27% | 29% |\n| Bicycle | 12% | 19% | 27% |\n| Walking | 12% | 13% | 14% |\n\nEach column totals 100%. The figures form an original practice dataset.",
+      "adressat": "An academic or neutral report; no greeting or sign-off.",
+      "leitpunkte": [
+        "Select the most important trends for an overview.",
+        "Compare the modes and changes using accurate figures.",
+        "Organise the report in connected paragraphs.",
+        "Describe the information shown without inventing causes."
+      ],
+      "rubricId": "writing.ielts-academic.task1"
+    },
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "family": "writing",
+      "section": "SA",
+      "register": "academic",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original AI-assisted Hatoove IELTS Academic practice task, 2026-11-28. Human review pending; no official task copied.",
+      "taskId": "ielts-academic.writing.original01.task2",
+      "topic": "Task 2: Public funding for practical skills",
+      "situation": "Spend about 40 minutes on this task. Some people think local governments should fund free courses that teach adults practical skills, such as repairing household objects or managing personal finances. Others believe adults should pay for this training themselves. Discuss both views and give your own opinion. Support your response with reasons and relevant examples. Write at least 250 words.",
+      "adressat": "An academic or semi-formal essay for a general educated reader.",
+      "leitpunkte": [
+        "Explain the case for public funding.",
+        "Explain the case for individual payment.",
+        "State and develop your own position.",
+        "Support your ideas with relevant reasons or examples."
+      ],
+      "rubricId": "writing.ielts-academic.task2"
+    }
+  ]
+}

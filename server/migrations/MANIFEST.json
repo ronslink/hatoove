@@ -36,6 +36,8 @@
     "0049-review-owner-approval": "88d890e0ff010c2e7a2df7cfe776d9a81e9aed079625524cc26ea7c9568369a9",
     "0050-pilot-feedback": "89cc010f659ab04eb79f7cf8b546ce8988d8af5f929dc383dc01baae054e5624",
   "0051-pilot-feedback-operator": "1c92023e131f57deb85ad0a98ee572e0f4f14f79f35f44b5005b58e48b398316",
-    "0052-practice-item-retry": "5db3e9a7fb3845778ef0f83074aa6746c8b4d2f6b2ade1458344b76f5f90edff"
+    "0052-practice-item-retry": "5db3e9a7fb3845778ef0f83074aa6746c8b4d2f6b2ade1458344b76f5f90edff",
+    "0053-live-grading-provider": "d54527bbc97d522906e65c01d0bf4bed1c77388b49f468878ce36504d7a67cc0",
+    "0054-required-writing-tasks": "4767b7c4bc373f8b0ce8e8d05a1b34b4b9d1279952a8bea18749217f02378f09"
   }
 }

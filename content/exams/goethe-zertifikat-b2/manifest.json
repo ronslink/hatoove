@@ -10,10 +10,22 @@
     }
   },
   "blueprint": {
-    "version": "v1",
+    "version": "v3",
     "timeGroups": [
-      { "id": "goethe-b2-lv-65", "seconds": 3900, "sections": ["LV"] },
-      { "id": "goethe-b2-sa-75", "seconds": 4500, "sections": ["SA"] }
+      {
+        "id": "goethe-b2-lv-65",
+        "seconds": 3900,
+        "sections": [
+          "LV"
+        ]
+      },
+      {
+        "id": "goethe-b2-sa-75",
+        "seconds": 4500,
+        "sections": [
+          "SA"
+        ]
+      }
     ],
     "sections": [
       {
@@ -21,11 +33,36 @@
         "title": "Lesen",
         "timeGroup": "goethe-b2-lv-65",
         "parts": [
-          { "family": "LV1", "itemCount": 9, "interaction": "single_choice", "mediaRequired": false },
-          { "family": "LV2", "itemCount": 6, "interaction": "gap_bank", "mediaRequired": false },
-          { "family": "LV3", "itemCount": 6, "interaction": "single_choice", "mediaRequired": false },
-          { "family": "LV4", "itemCount": 6, "interaction": "matching_headlines", "mediaRequired": false },
-          { "family": "LV5", "itemCount": 3, "interaction": "single_choice", "mediaRequired": false }
+          {
+            "family": "LV1",
+            "itemCount": 9,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV2",
+            "itemCount": 6,
+            "interaction": "gap_bank",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV3",
+            "itemCount": 6,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV4",
+            "itemCount": 6,
+            "interaction": "matching_headlines",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV5",
+            "itemCount": 3,
+            "interaction": "matching_headlines",
+            "mediaRequired": false
+          }
         ]
       },
       {
@@ -33,11 +70,20 @@
         "title": "Schreiben",
         "timeGroup": "goethe-b2-sa-75",
         "parts": [
-          { "family": "writing", "itemCount": 1, "interaction": "writing_choice", "mediaRequired": false }
+          {
+            "family": "writing",
+            "itemCount": 2,
+            "interaction": "extended_writing",
+            "mediaRequired": false
+          }
         ]
       }
     ],
-    "assessment": { "policy": "objective-count-v1", "correct": 1, "incorrect": 0 },
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
     "sources": [
       {
         "id": "S1",
@@ -49,43 +95,80 @@
       }
     ]
   },
-  "release": { "version": "v1", "state": "internal", "resumeBlockedReleases": [] },
+  "release": {
+    "version": "v3",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
   "forms": [
     {
       "id": "goethe-zertifikat-b2.reading.original01",
-      "version": "v1",
+      "version": "v2",
       "title": "Lesen (Teil 1–5) — Originalübung (interner Entwurf)",
       "scope": "section",
-      "sections": ["LV"],
+      "sections": [
+        "LV"
+      ],
       "mode": "untimed",
       "timeLimitSeconds": null,
       "feedback": "finalise",
       "members": [
-        { "setId": "goethe-zertifikat-b2.lv1.original01", "version": "v1", "interaction": "single_choice", "itemCount": 9 },
-        { "setId": "goethe-zertifikat-b2.lv2.original01", "version": "v1", "interaction": "gap_bank", "itemCount": 6 },
-        { "setId": "goethe-zertifikat-b2.lv3.original01", "version": "v1", "interaction": "single_choice", "itemCount": 6 },
-        { "setId": "goethe-zertifikat-b2.lv4.original01", "version": "v1", "interaction": "matching_headlines", "itemCount": 6 },
-        { "setId": "goethe-zertifikat-b2.lv5.original01", "version": "v1", "interaction": "single_choice", "itemCount": 3 }
+        {
+          "setId": "goethe-zertifikat-b2.lv1.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 9
+        },
+        {
+          "setId": "goethe-zertifikat-b2.lv2.original01",
+          "version": "v1",
+          "interaction": "gap_bank",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.lv3.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.lv4.original01",
+          "version": "v2",
+          "interaction": "matching_headlines",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.lv5.original01",
+          "version": "v2",
+          "interaction": "matching_headlines",
+          "itemCount": 3
+        }
       ]
     },
     {
       "id": "goethe-zertifikat-b2.writing.original01",
-      "version": "v1",
+      "version": "v2",
       "title": "Schreiben — Originalübung (interner Entwurf)",
       "scope": "section",
-      "sections": ["SA"],
+      "sections": [
+        "SA"
+      ],
       "mode": "untimed",
       "timeLimitSeconds": null,
       "feedback": "finalise",
       "members": [],
-      "writingChoices": [
+      "writingTasks": [
         {
-          "id": "SA1",
+          "id": "task1",
           "section": "SA",
-          "options": [
-            { "id": "A", "taskId": "goethe-zertifikat-b2.writing.original01.a", "taskVersion": "v1" },
-            { "id": "B", "taskId": "goethe-zertifikat-b2.writing.original01.b", "taskVersion": "v1" }
-          ]
+          "taskId": "goethe-zertifikat-b2.writing.original01.a",
+          "taskVersion": "v1"
+        },
+        {
+          "id": "task2",
+          "section": "SA",
+          "taskId": "goethe-zertifikat-b2.writing.original01.b",
+          "taskVersion": "v1"
         }
       ]
     }
@@ -104,18 +187,109 @@
       "payload": {
         "text": "Thema im Berufsforum: Wie realistisch ist lebenslanges Lernen neben dem Arbeitsalltag?\n\nA · Miriam (37, Architektin): Nach zehn Jahren im selben Planungsbüro merkte ich, dass mir moderne Software für nachhaltiges Bauen fehlte. Mein Arbeitgeber übernahm zwar die Kursgebühren, aber die eigentliche Hürde war die Zeit: Abends nach neun Stunden Arbeit noch konzentriert zu lernen, hat mich anfangs völlig erschöpft. Erst als ich meine Stelle für ein halbes Jahr auf 80 Prozent reduzierte, machte die Weiterbildung wirklich Freude.\n\nB · Jonas (29, Logistikplaner): Ich halte nicht viel von langen, teuren Zertifikatskursen, die oft schon veraltet sind, wenn man die Prüfung ablegt. In meiner Branche ändern sich digitale Werkzeuge so rasch, dass ich lieber wöchentlich gezielt Fachartikel lese, kurze Online-Tutorials nutze und mich mit Kolleginnen austausche. Entscheidend ist für mich Neugier, nicht ein gerahmtes Diplom.\n\nC · Dr. Birgit Seidel (54, Personalleiterin): In Vorstellungsgesprächen achte ich längst nicht mehr nur auf den ursprünglichen Studienabschluss, sondern darauf, wie Bewerberinnen und Bewerber mit Veränderungen umgehen. Wer eine berufliche Pause oder einen Quereinstieg bewusst für neue Kompetenzen genutzt hat, bringt oft genau die Anpassungsfähigkeit mit, die Unternehmen heute brauchen. Allerdings sollten Firmen dafür feste Lernzeiten im Dienstplan verankern.\n\nD · Kemal (43, Techniker): Vor drei Jahren habe ich eine berufsbegleitende Weiterbildung zum staatlich geprüften Techniker abgeschlossen. Ohne die Unterstützung meiner Familie hätte ich die Wochenendseminare nicht durchgehalten. Finanziell hat sich die Anstrengung aber gelohnt: Ich konnte direkt eine Teamleitung übernehmen und verdiene heute spürbar besser als zuvor.",
         "questions": [
-          { "n": 1, "question": "Welche Person hat ihre Arbeitszeit vorübergehend verringert, um besser lernen zu können?", "options": { "a": "Miriam (A)", "b": "Jonas (B)", "c": "Dr. Birgit Seidel (C)", "d": "Kemal (D)" } },
-          { "n": 2, "question": "Welche Person bevorzugt kurze, informelle Lernformate gegenüber langen Kursen mit Abschluss?", "options": { "a": "Miriam (A)", "b": "Jonas (B)", "c": "Dr. Birgit Seidel (C)", "d": "Kemal (D)" } },
-          { "n": 3, "question": "Welche Person beurteilt Bewerbungen stark danach, wie flexibel Menschen auf Wandel reagieren?", "options": { "a": "Miriam (A)", "b": "Jonas (B)", "c": "Dr. Birgit Seidel (C)", "d": "Kemal (D)" } },
-          { "n": 4, "question": "Welche Person hebt hervor, dass sich die Weiterbildung in einem höheren Gehalt ausgezahlt hat?", "options": { "a": "Miriam (A)", "b": "Jonas (B)", "c": "Dr. Birgit Seidel (C)", "d": "Kemal (D)" } },
-          { "n": 5, "question": "Welche Person fand es anfangs sehr anstrengend, nach einem langen Arbeitstag abends zu lernen?", "options": { "a": "Miriam (A)", "b": "Jonas (B)", "c": "Dr. Birgit Seidel (C)", "d": "Kemal (D)" } },
-          { "n": 6, "question": "Welche Person fordert, dass Unternehmen feste Lernzeiten während der Arbeitszeit einplanen?", "options": { "a": "Miriam (A)", "b": "Jonas (B)", "c": "Dr. Birgit Seidel (C)", "d": "Kemal (D)" } },
-          { "n": 7, "question": "Welche Person betont die entscheidende Unterstützung durch die eigene Familie?", "options": { "a": "Miriam (A)", "b": "Jonas (B)", "c": "Dr. Birgit Seidel (C)", "d": "Kemal (D)" } },
-          { "n": 8, "question": "Welche Person glaubt, dass manche langen Kurse bereits überholt sind, bevor sie enden?", "options": { "a": "Miriam (A)", "b": "Jonas (B)", "c": "Dr. Birgit Seidel (C)", "d": "Kemal (D)" } },
-          { "n": 9, "question": "Welche Person bekam die Kursgebühren von ihrem Arbeitgeber bezahlt?", "options": { "a": "Miriam (A)", "b": "Jonas (B)", "c": "Dr. Birgit Seidel (C)", "d": "Kemal (D)" } }
+          {
+            "n": 1,
+            "question": "Welche Person hat ihre Arbeitszeit vorübergehend verringert, um besser lernen zu können?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 2,
+            "question": "Welche Person bevorzugt kurze, informelle Lernformate gegenüber langen Kursen mit Abschluss?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 3,
+            "question": "Welche Person beurteilt Bewerbungen stark danach, wie flexibel Menschen auf Wandel reagieren?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 4,
+            "question": "Welche Person hebt hervor, dass sich die Weiterbildung in einem höheren Gehalt ausgezahlt hat?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 5,
+            "question": "Welche Person fand es anfangs sehr anstrengend, nach einem langen Arbeitstag abends zu lernen?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 6,
+            "question": "Welche Person fordert, dass Unternehmen feste Lernzeiten während der Arbeitszeit einplanen?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 7,
+            "question": "Welche Person betont die entscheidende Unterstützung durch die eigene Familie?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 8,
+            "question": "Welche Person glaubt, dass manche langen Kurse bereits überholt sind, bevor sie enden?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 9,
+            "question": "Welche Person bekam die Kursgebühren von ihrem Arbeitgeber bezahlt?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          }
         ]
       },
-      "answers": { "1": "a", "2": "b", "3": "c", "4": "d", "5": "a", "6": "c", "7": "d", "8": "b", "9": "a" },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "c",
+        "4": "d",
+        "5": "a",
+        "6": "c",
+        "7": "d",
+        "8": "b",
+        "9": "a"
+      },
       "explanations": {
         "1": "a (Miriam): Sie reduzierte ihre Stelle für ein halbes Jahr auf 80 Prozent.",
         "2": "b (Jonas): Er nutzt lieber Fachartikel, kurze Online-Tutorials und kollegialen Austausch.",
@@ -144,18 +318,68 @@
       "payload": {
         "letter": "Neue Baumarten für heiße Sommer: Wie Städte ihre Alleen umbauen\n\nJahrhundertelang prägten Linden, Ahorne und Kastanien das Bild mitteleuropäischer Straßen. [1] Anhaltende Trockenperioden, verdichtete Böden und hohe nächtliche Temperaturen setzen vielen heimischen Arten massiv zu.\n\nIn mehreren deutschen Großstädten prüfen Gartenämter deshalb systematisch widerstandsfähigere Alternativen. [2] Dabei geht es keineswegs darum, heimische Bäume pauschal zu verdrängen, sondern die Straßenbepflanzung deutlich vielfältiger zu gestalten.\n\nEin entscheidender Faktor ist der Wurzelraum unter dem Asphalt. [3] Moderne Bauweisen nutzen daher sogenannte Baumrigolen, die Regenwasser gezielt in grobkörnige Bodenschichten leiten und dort wie ein Schwamm speichern.\n\n[4] Wenn etwa im Juli mehrere Wochen lang kein Tropfen Regen fällt, rücken Freiwillige mit Gießkannen oder mobilen Wassertanks aus, um junge Bäume vor dem Austrocknen zu bewahren.\n\nWissenschaftler weisen jedoch darauf hin, dass neue Baumarten auch ökologisch sorgfältig geprüft werden müssen. [5] Nur wenn ein Baum heimischen Insekten und Vögeln ausreichend Nahrung und Nistplätze bietet, erfüllt er seine volle Funktion im städtischen Ökosystem.\n\n[6] Denn ein ausgewachsener Schattenbaum senkt die gefühlte Temperatur an heißen Nachmittagen lokal um mehrere Grad und verbessert die Lebensqualität im gesamten Viertel.",
         "bank": [
-          { "id": "a", "word": "Doch in den vergangenen zehn Jahren hat sich gezeigt, dass diese Klassiker den veränderten Bedingungen kaum noch gewachsen sind." },
-          { "id": "b", "word": "Dazu zählen unter anderem die Silberlinde, die Hopfenbuche oder bestimmte Eichenarten aus Südosteuropa." },
-          { "id": "c", "word": "Oft steht einem Stadtbaum nur eine winzige Erdgrube zur Verfügung, aus der das Wasser sofort in die Kanalisation abfließt." },
-          { "id": "d", "word": "Neben den städtischen Betrieben engagieren sich vielerorts auch Anwohnerinnen und Anwohner als Baumpaten." },
-          { "id": "e", "word": "Nicht jede hitzeresistente Art aus fernen Regionen fügt sich problemlos in die heimische Tierwelt ein." },
-          { "id": "f", "word": "Trotz der hohen Investitionskosten sind sich Stadtplaner einig, dass sich jeder gepflanzte Baum langfristig auszahlt." },
-          { "id": "g", "word": "Aus diesem Grund wurden in fast allen Innenstädten sämtliche Parkanlagen vollständig geschlossen." },
-          { "id": "h", "word": "Zudem verlangen die meisten Versicherungen neuerdings eine wöchentliche Bodenprobe jedes einzelnen Privatgartens." }
+          {
+            "id": "a",
+            "word": "Doch in den vergangenen zehn Jahren hat sich gezeigt, dass diese Klassiker den veränderten Bedingungen kaum noch gewachsen sind."
+          },
+          {
+            "id": "b",
+            "word": "Dazu zählen unter anderem die Silberlinde, die Hopfenbuche oder bestimmte Eichenarten aus Südosteuropa."
+          },
+          {
+            "id": "c",
+            "word": "Oft steht einem Stadtbaum nur eine winzige Erdgrube zur Verfügung, aus der das Wasser sofort in die Kanalisation abfließt."
+          },
+          {
+            "id": "d",
+            "word": "Neben den städtischen Betrieben engagieren sich vielerorts auch Anwohnerinnen und Anwohner als Baumpaten."
+          },
+          {
+            "id": "e",
+            "word": "Nicht jede hitzeresistente Art aus fernen Regionen fügt sich problemlos in die heimische Tierwelt ein."
+          },
+          {
+            "id": "f",
+            "word": "Trotz der hohen Investitionskosten sind sich Stadtplaner einig, dass sich jeder gepflanzte Baum langfristig auszahlt."
+          },
+          {
+            "id": "g",
+            "word": "Aus diesem Grund wurden in fast allen Innenstädten sämtliche Parkanlagen vollständig geschlossen."
+          },
+          {
+            "id": "h",
+            "word": "Zudem verlangen die meisten Versicherungen neuerdings eine wöchentliche Bodenprobe jedes einzelnen Privatgartens."
+          }
         ],
-        "gaps": [{ "n": 1 }, { "n": 2 }, { "n": 3 }, { "n": 4 }, { "n": 5 }, { "n": 6 }]
+        "gaps": [
+          {
+            "n": 1
+          },
+          {
+            "n": 2
+          },
+          {
+            "n": 3
+          },
+          {
+            "n": 4
+          },
+          {
+            "n": 5
+          },
+          {
+            "n": 6
+          }
+        ]
       },
-      "answers": { "1": "a", "2": "b", "3": "c", "4": "d", "5": "e", "6": "f" },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "c",
+        "4": "d",
+        "5": "e",
+        "6": "f"
+      },
       "explanations": {
         "1": "a passt: „diese Klassiker“ greift Linden, Ahorne und Kastanien auf und leitet zu den Trockenperioden über.",
         "2": "b passt: „Dazu zählen“ nennt konkrete Beispiele für die im Vorsatz erwähnten widerstandsfähigeren Alternativen.",
@@ -181,15 +405,70 @@
       "payload": {
         "text": "Wenn Stille zum knappen Gut wird: Was Lärm im Büro wirklich anrichtet\n\nOffene Bürolandschaften sollten einst die Zusammenarbeit fördern, Hierarchien abbauen und teure Quadratmeter sparen. Inzwischen zeigen zahlreiche arbeitsmedizinische Untersuchungen jedoch eine deutliche Schattenseite: Nichts stört Büroangestellte im Alltag so sehr wie unfreiwillig mitgehörte Gespräche der Kolleginnen und Kollegen.\n\nEntgegen einer verbreiteten Annahme ist dabei nicht die absolute Lautstärke entscheidend. Ein gleichmäßiges Hintergrundrauschen – etwa leise Lüftungsgeräusche – blendet das menschliche Gehirn nach wenigen Minuten weitgehend aus. Deutlich belastender ist sogenannte verständliche Hintergrundsprache: Sobald wir halbe Telefongespräche am Nachbartisch verstehen, verarbeitet unser Sprachzentrum diese automatisch mit, selbst wenn wir uns eigentlich auf eine komplexe Tabelle oder einen Bericht konzentrieren wollen.\n\nDie Folgen sind messbar. In Experimenten sank die Fehlerquote bei anspruchsvollen Lese- und Rechenaufgaben deutlich, sobald die Teilnehmenden in akustisch abgeschirmten Räumen arbeiteten. Viele Betroffene greifen im Alltag zwar zu geräuschunterdrückenden Kopfhörern, doch Arbeitspsychologen sehen darin lediglich eine Notlösung: Dauerhaftes Tragen isoliert das Team und ersetzt keine durchdachte Raumplanung.\n\nModerne Bürokonzepte setzen daher zunehmend auf Zonierung statt auf eine einzige große Halle. Telefonboxen für kurze Anrufe, schallschluckende Wandpaneele, Teppichböden und klar gekennzeichnete Ruhezonen, in denen weder telefoniert noch diskutiert wird, reduzieren die kognitive Ermüdung spürbar. Entscheidend ist außerdem eine gemeinsame Teamvereinbarung: Wer weiß, dass spontane Abstimmungen in der Kaffeeküche oder im Besprechungsraum stattfinden, schützt die Konzentration der anderen ganz automatisch.",
         "questions": [
-          { "n": 1, "question": "Was war ursprünglich ein Ziel offener Bürolandschaften?", "options": { "a": "Die Zusammenarbeit zu erleichtern und Raumkosten zu senken.", "b": "Mitarbeitende vollständig voneinander abzuschirmen.", "c": "Telefonate am Arbeitsplatz komplett zu verbieten." } },
-          { "n": 2, "question": "Warum stören Telefongespräche am Nachbartisch stärker als gleichmäßiges Lüftungsrauschen?", "options": { "a": "Weil sie immer lauter als jede Lüftung sind.", "b": "Weil das Gehirn verständliche Sprache automatisch mitverarbeitet.", "c": "Weil Lüftungsgeräusche nur nachts auftreten." } },
-          { "n": 3, "question": "Was zeigten Experimente zur Arbeitsleistung?", "options": { "a": "In akustisch abgeschirmten Räumen machten Teilnehmende weniger Fehler.", "b": "Lärm hatte keinerlei Einfluss auf Lese- und Rechenaufgaben.", "c": "Offene Hallen führten zu deutlich schnelleren Ergebnissen." } },
-          { "n": 4, "question": "Wie bewerten Arbeitspsychologen geräuschunterdrückende Kopfhörer?", "options": { "a": "Als ideale und vollständig ausreichende Dauerlösung.", "b": "Als Notlösung, die eine gute Raumplanung nicht ersetzt.", "c": "Als gesundheitsschädlich für das Gehör." } },
-          { "n": 5, "question": "Was kennzeichnet das im letzten Absatz beschriebene Zonierungskonzept?", "options": { "a": "Einzelbüros für alle ohne gemeinsame Treffpunkte.", "b": "Getrennte Bereiche wie Telefonboxen und klare Ruhezonen.", "c": "Die Abschaffung aller Besprechungsräume." } },
-          { "n": 6, "question": "Welche Rolle spielen gemeinsame Teamvereinbarungen?", "options": { "a": "Sie regeln, wo spontane Gespräche stattfinden, und schützen so die Konzentration.", "b": "Sie legen die genauen Arbeitszeiten jeder Person fest.", "c": "Sie ersetzen bauliche Maßnahmen wie schallschluckende Paneele vollständig." } }
+          {
+            "n": 1,
+            "question": "Was war ursprünglich ein Ziel offener Bürolandschaften?",
+            "options": {
+              "a": "Die Zusammenarbeit zu erleichtern und Raumkosten zu senken.",
+              "b": "Mitarbeitende vollständig voneinander abzuschirmen.",
+              "c": "Telefonate am Arbeitsplatz komplett zu verbieten."
+            }
+          },
+          {
+            "n": 2,
+            "question": "Warum stören Telefongespräche am Nachbartisch stärker als gleichmäßiges Lüftungsrauschen?",
+            "options": {
+              "a": "Weil sie immer lauter als jede Lüftung sind.",
+              "b": "Weil das Gehirn verständliche Sprache automatisch mitverarbeitet.",
+              "c": "Weil Lüftungsgeräusche nur nachts auftreten."
+            }
+          },
+          {
+            "n": 3,
+            "question": "Was zeigten Experimente zur Arbeitsleistung?",
+            "options": {
+              "a": "In akustisch abgeschirmten Räumen machten Teilnehmende weniger Fehler.",
+              "b": "Lärm hatte keinerlei Einfluss auf Lese- und Rechenaufgaben.",
+              "c": "Offene Hallen führten zu deutlich schnelleren Ergebnissen."
+            }
+          },
+          {
+            "n": 4,
+            "question": "Wie bewerten Arbeitspsychologen geräuschunterdrückende Kopfhörer?",
+            "options": {
+              "a": "Als ideale und vollständig ausreichende Dauerlösung.",
+              "b": "Als Notlösung, die eine gute Raumplanung nicht ersetzt.",
+              "c": "Als gesundheitsschädlich für das Gehör."
+            }
+          },
+          {
+            "n": 5,
+            "question": "Was kennzeichnet das im letzten Absatz beschriebene Zonierungskonzept?",
+            "options": {
+              "a": "Einzelbüros für alle ohne gemeinsame Treffpunkte.",
+              "b": "Getrennte Bereiche wie Telefonboxen und klare Ruhezonen.",
+              "c": "Die Abschaffung aller Besprechungsräume."
+            }
+          },
+          {
+            "n": 6,
+            "question": "Welche Rolle spielen gemeinsame Teamvereinbarungen?",
+            "options": {
+              "a": "Sie regeln, wo spontane Gespräche stattfinden, und schützen so die Konzentration.",
+              "b": "Sie legen die genauen Arbeitszeiten jeder Person fest.",
+              "c": "Sie ersetzen bauliche Maßnahmen wie schallschluckende Paneele vollständig."
+            }
+          }
         ]
       },
-      "answers": { "1": "a", "2": "b", "3": "a", "4": "b", "5": "b", "6": "a" },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "a",
+        "4": "b",
+        "5": "b",
+        "6": "a"
+      },
       "explanations": {
         "1": "a ist richtig: Im ersten Satz steht, offene Büros sollten Zusammenarbeit fördern, Hierarchien abbauen und Quadratmeter sparen.",
         "2": "b ist richtig: Verständliche Hintergrundsprache wird vom Sprachzentrum automatisch mitverarbeitet.",
@@ -204,7 +483,7 @@
     },
     {
       "setId": "goethe-zertifikat-b2.lv4.original01",
-      "version": "v1",
+      "version": "v2",
       "examId": "goethe-zertifikat-b2",
       "family": "LV4",
       "section": "LV",
@@ -213,26 +492,72 @@
       "interaction": "matching_headlines",
       "itemCount": 6,
       "payload": {
-        "headlines": [
-          { "id": "a", "text": "Sorge um den Verlust der eigenen Ausgabenkontrolle bei Kartenzahlung" },
-          { "id": "b", "text": "Zeitersparnis an der Kasse und weniger Aufwand bei der Buchhaltung" },
-          { "id": "c", "text": "Angst vor Störungen bei Strom- oder Internetausfällen" },
-          { "id": "d", "text": "Schutz der Privatsphäre gegenüber Banken und Zahlungsdienstleistern" },
-          { "id": "e", "text": "Vorteile auf Auslandsreisen ohne ständigen Geldwechsel" },
-          { "id": "f", "text": "Forderung nach Wahlfreiheit für ältere Menschen und Kinder" },
-          { "id": "g", "text": "Abschaffung sämtlicher Bankfilialen innerhalb eines Jahres" },
-          { "id": "h", "text": "Kritik an steigenden Zinsen für Immobilienkredite" }
-        ],
         "texts": [
-          { "id": 1, "text": "Wenn ich alles nur noch mit dem Smartphone bezahle, verliere ich viel schneller den Überblick darüber, wie viel Geld ich in einer Woche tatsächlich ausgegeben habe. Mit Scheinen im Portemonnaie merke ich sofort, wann mein Budget knapper wird." },
-          { "id": 2, "text": "In meiner kleinen Bäckerei spart das kontaktlose Bezahlen morgens enorm viel Zeit. Außerdem muss ich abends kein schweres Münzgeld mehr zählen und zur Bank bringen – die Abrechnung läuft fast von selbst." },
-          { "id": 3, "text": "Letzten Monat fiel im gesamten Stadtteil für drei Stunden das Kassenterminal aus. Wer kein Bargeld dabeihatte, musste seinen Einkaufswagen stehen lassen. Eine funktionierende Gesellschaft braucht ein krisensicheres Zahlungsmittel ohne Strom." },
-          { "id": 4, "text": "Es geht niemanden etwas an, in welcher Apotheke ich einkaufe oder welche Zeitung ich am Kiosk mitnehme. Jede digitale Transaktion hinterlässt Datenspuren, die ausgewertet werden können." },
-          { "id": 5, "text": "Als ich im Sommer durch Dänemark und Schweden gereist bin, war es wunderbar unkompliziert: Selbst ein einzelnes Busticket oder ein Kaffee ließen sich problemlos per Karte zahlen, ohne teure Wechselstuben suchen zu müssen." },
-          { "id": 6, "text": "Natürlich zahle ich im Supermarkt gern mit Karte, aber mein siebenjähriger Sohn lernt den Wert von Geld am besten mit seinem Taschengeld in Münzen, und auch viele Senioren möchten nicht zur App gezwungen werden." }
-        ]
+          {
+            "id": 1,
+            "text": "Sorge um den Verlust der eigenen Ausgabenkontrolle bei Kartenzahlung"
+          },
+          {
+            "id": 2,
+            "text": "Zeitersparnis an der Kasse und weniger Aufwand bei der Buchhaltung"
+          },
+          {
+            "id": 3,
+            "text": "Angst vor Störungen bei Strom- oder Internetausfällen"
+          },
+          {
+            "id": 4,
+            "text": "Schutz der Privatsphäre gegenüber Banken und Zahlungsdienstleistern"
+          },
+          {
+            "id": 5,
+            "text": "Vorteile auf Auslandsreisen ohne ständigen Geldwechsel"
+          },
+          {
+            "id": 6,
+            "text": "Forderung nach Wahlfreiheit für ältere Menschen und Kinder"
+          }
+        ],
+        "headlines": [
+          {
+            "id": "a",
+            "text": "Wenn ich alles nur noch mit dem Smartphone bezahle, verliere ich viel schneller den Überblick darüber, wie viel Geld ich in einer Woche tatsächlich ausgegeben habe. Mit Scheinen im Portemonnaie merke ich sofort, wann mein Budget knapper wird."
+          },
+          {
+            "id": "b",
+            "text": "In meiner kleinen Bäckerei spart das kontaktlose Bezahlen morgens enorm viel Zeit. Außerdem muss ich abends kein schweres Münzgeld mehr zählen und zur Bank bringen – die Abrechnung läuft fast von selbst."
+          },
+          {
+            "id": "c",
+            "text": "Letzten Monat fiel im gesamten Stadtteil für drei Stunden das Kassenterminal aus. Wer kein Bargeld dabeihatte, musste seinen Einkaufswagen stehen lassen. Eine funktionierende Gesellschaft braucht ein krisensicheres Zahlungsmittel ohne Strom."
+          },
+          {
+            "id": "d",
+            "text": "Es geht niemanden etwas an, in welcher Apotheke ich einkaufe oder welche Zeitung ich am Kiosk mitnehme. Jede digitale Transaktion hinterlässt Datenspuren, die ausgewertet werden können."
+          },
+          {
+            "id": "e",
+            "text": "Als ich im Sommer durch Dänemark und Schweden gereist bin, war es wunderbar unkompliziert: Selbst ein einzelnes Busticket oder ein Kaffee ließen sich problemlos per Karte zahlen, ohne teure Wechselstuben suchen zu müssen."
+          },
+          {
+            "id": "f",
+            "text": "Natürlich zahle ich im Supermarkt gern mit Karte, aber mein siebenjähriger Sohn lernt den Wert von Geld am besten mit seinem Taschengeld in Münzen, und auch viele Senioren möchten nicht zur App gezwungen werden."
+          },
+          {
+            "id": "g",
+            "text": "Für mich kommt es vor allem darauf an, dass die Bank ihre Gebühren verständlich ausweist. Die aufwendigen Preisverzeichnisse machen einen Vergleich der Konten fast unmöglich. Ob ich danach mit Scheinen oder Karte bezahle, ist mir weniger wichtig."
+          }
+        ],
+        "text": "Ordnen Sie den sechs Überschriften die passenden Meinungen a–g zu. Jede Meinung darf nur einmal verwendet werden. Eine Meinung bleibt übrig. Beispiel 0: Weniger Gewicht in der Tasche → h. Meinung h: Seit ich nur noch eine Karte mitnehme, brauche ich keine schwere Geldbörse mehr. Der Beispieltext h kann nicht erneut gewählt werden."
       },
-      "answers": { "1": "a", "2": "b", "3": "c", "4": "d", "5": "e", "6": "f" },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "c",
+        "4": "d",
+        "5": "e",
+        "6": "f"
+      },
       "explanations": {
         "1": "a passt: Die Person verliert bei digitaler Zahlung schneller den Überblick über ihre Ausgaben.",
         "2": "b passt: Die Bäckerei spart Zeit an der Kasse und Aufwand bei der abendlichen Abrechnung.",
@@ -247,27 +572,70 @@
     },
     {
       "setId": "goethe-zertifikat-b2.lv5.original01",
-      "version": "v1",
+      "version": "v2",
       "examId": "goethe-zertifikat-b2",
       "family": "LV5",
       "section": "LV",
       "part": 5,
-      "title": "Lesen Teil 5: Teilnahmebedingungen — Berufsakademie Weiterbildung",
-      "interaction": "single_choice",
+      "title": "Lesen Teil 5: Überschriften zu Teilnahmebedingungen",
+      "interaction": "matching_headlines",
       "itemCount": 3,
       "payload": {
-        "text": "Teilnahmebedingungen der Berufsakademie Südwest (Auszug)\n\n§ 3 Rücktritt und Stornierung\nEine kostenfreie Abmeldung von einem gebuchten Lehrgang ist bis spätestens 14 Kalendertage vor Kursbeginn in Textform (Brief oder E-Mail) möglich. Bei einem Rücktritt zwischen dem 13. und dem 3. Tag vor Beginn wird eine Bearbeitungspauschale in Höhe von 30 Prozent der Lehrgangsgebühr erhoben. Erfolgt die Abmeldung später oder erscheint die angemeldete Person nicht, ist die volle Gebühr zu entrichten – es sei denn, es wird rechtzeitig eine geeignete Ersatzperson benannt.\n\n§ 5 Teilnahmebescheinigung und Zertifikat\nEine qualifizierte Teilnahmebescheinigung erhalten Personen, die mindestens 80 Prozent der angesetzten Unterrichtseinheiten besucht haben. Bei ärztlich attestierter Krankheit können versäumte Module einmalig kostenfrei im darauffolgenden Halbjahr nachgeholt werden.\n\n§ 6 Urheberrecht an Lehrmaterialien\nSämtliche ausgehändigten Skripte und digitalen Arbeitsunterlagen sind ausschließlich für den persönlichen Gebrauch im Rahmen des Lehrgangs bestimmt. Eine Weitergabe an Dritte oder Veröffentlichung im Internet bedarf der vorherigen schriftlichen Zustimmung der Akademie.",
-        "questions": [
-          { "n": 1, "question": "Wann muss bei einer sehr kurzfristigen Abmeldung (2 Tage vor Beginn) NICHT die volle Gebühr gezahlt werden?", "options": { "a": "Wenn man telefonisch absagt.", "b": "Wenn rechtzeitig eine geeignete Ersatzperson benannt wird.", "c": "Wenn man bereits früher einen Kurs besucht hat." } },
-          { "n": 2, "question": "Was gilt, wenn jemand wegen einer ärztlich bescheinigten Krankheit Unterricht verpasst?", "options": { "a": "Versäumte Module können einmalig kostenfrei im nächsten Halbjahr nachgeholt werden.", "b": "Das Zertifikat wird ohne weitere Bedingungen sofort ausgestellt.", "c": "Die gesamte Kursgebühr muss neu bezahlt werden." } },
-          { "n": 3, "question": "Wie dürfen die digitalen Arbeitsunterlagen verwendet werden?", "options": { "a": "Sie dürfen frei im Firmenintranet veröffentlicht werden.", "b": "Nur für den persönlichen Gebrauch im Rahmen des Lehrgangs.", "c": "Sie müssen am letzten Kurstag vernichtet werden." } }
-        ]
+        "headlines": [
+          {
+            "id": "a",
+            "text": "Rücktritt und Ersatzteilnahme"
+          },
+          {
+            "id": "b",
+            "text": "Bescheinigungen und Nachholtermine"
+          },
+          {
+            "id": "c",
+            "text": "Nutzung und Weitergabe von Unterrichtsmaterial"
+          },
+          {
+            "id": "d",
+            "text": "Zulassungsvoraussetzungen"
+          },
+          {
+            "id": "e",
+            "text": "Zahlungsfristen und Ratenzahlung"
+          },
+          {
+            "id": "f",
+            "text": "Beratung und Anmeldung"
+          },
+          {
+            "id": "g",
+            "text": "Beschwerden über Prüfungsergebnisse"
+          }
+        ],
+        "texts": [
+          {
+            "id": 1,
+            "text": "Eine kostenfreie Abmeldung von einem gebuchten Lehrgang ist bis spätestens 14 Kalendertage vor Kursbeginn in Textform (Brief oder E-Mail) möglich. Bei einem Rücktritt zwischen dem 13. und dem 3. Tag vor Beginn wird eine Bearbeitungspauschale in Höhe von 30 Prozent der Lehrgangsgebühr erhoben. Erfolgt die Abmeldung später oder erscheint die angemeldete Person nicht, ist die volle Gebühr zu entrichten – es sei denn, es wird rechtzeitig eine geeignete Ersatzperson benannt."
+          },
+          {
+            "id": 2,
+            "text": "Eine qualifizierte Teilnahmebescheinigung erhalten Personen, die mindestens 80 Prozent der angesetzten Unterrichtseinheiten besucht haben. Bei ärztlich attestierter Krankheit können versäumte Module einmalig kostenfrei im darauffolgenden Halbjahr nachgeholt werden."
+          },
+          {
+            "id": 3,
+            "text": "Sämtliche ausgehändigten Skripte und digitalen Arbeitsunterlagen sind ausschließlich für den persönlichen Gebrauch im Rahmen des Lehrgangs bestimmt. Eine Weitergabe an Dritte oder Veröffentlichung im Internet bedarf der vorherigen schriftlichen Zustimmung der Akademie."
+          }
+        ],
+        "text": "Wählen Sie für jeden Paragrafen die passende Überschrift a–g aus dem Inhaltsverzeichnis. Vier Überschriften werden nicht gebraucht. Beispiel 0: Die Kurse beginnen jeweils am ersten Montag im April und Oktober. → h: Kursbeginn. Die Überschrift h ist nur für das Beispiel bestimmt."
       },
-      "answers": { "1": "b", "2": "a", "3": "b" },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "c"
+      },
       "explanations": {
-        "1": "b ist richtig: Nach § 3 entfällt die volle Gebühr, wenn rechtzeitig eine geeignete Ersatzperson benannt wird.",
-        "2": "a ist richtig: Nach § 5 können versäumte Module bei ärztlichem Attest einmalig kostenfrei im darauffolgenden Halbjahr nachgeholt werden.",
-        "3": "b ist richtig: Nach § 6 sind Skripte und digitale Unterlagen ausschließlich für den persönlichen Gebrauch bestimmt."
+        "1": "a passt: Der Paragraf regelt Stornierungsfristen, Gebühren und die Benennung einer Ersatzperson. Zahlungsfristen nach einer Anmeldung sind hier nicht das Thema.",
+        "2": "b passt: Anwesenheitsanforderungen für die Bescheinigung und das Nachholen versäumter Module werden gemeinsam geregelt.",
+        "3": "c passt: Die Unterlagen sind für den eigenen Kursgebrauch bestimmt; eine Weitergabe benötigt die Zustimmung der Akademie."
       },
       "reviewStatus": "unreviewed",
       "rightsStatus": "generated",
@@ -286,7 +654,13 @@
         {
           "key": "goethe_b2_erfuellung",
           "label": "Erfüllung der Aufgabenstellung",
-          "bands": { "A": 4, "B": 3, "C": 2, "D": 1, "E": 0 },
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
           "bandLabels": {
             "A": "A · Vollständig & differenziert",
             "B": "B · Überwiegend erfüllt",
@@ -305,7 +679,13 @@
         {
           "key": "goethe_b2_kohaerenz",
           "label": "Kohärenz (Textaufbau & Verknüpfung)",
-          "bands": { "A": 4, "B": 3, "C": 2, "D": 1, "E": 0 },
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
           "bandLabels": {
             "A": "A · Flüssig & logisch strukturiert",
             "B": "B · Überwiegend schlüssig",
@@ -324,7 +704,13 @@
         {
           "key": "goethe_b2_wortschatz",
           "label": "Wortschatz",
-          "bands": { "A": 4, "B": 3, "C": 2, "D": 1, "E": 0 },
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
           "bandLabels": {
             "A": "A · Breites & präzises B2-Spektrum",
             "B": "B · Solider B2-Wortschatz",
@@ -343,7 +729,13 @@
         {
           "key": "goethe_b2_strukturen",
           "label": "Strukturen (Grammatik & Rechtschreibung)",
-          "bands": { "A": 4, "B": 3, "C": 2, "D": 1, "E": 0 },
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
           "bandLabels": {
             "A": "A · Komplexe Strukturen sicher",
             "B": "B · Überwiegend korrekt",

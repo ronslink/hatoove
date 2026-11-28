@@ -23,7 +23,14 @@ export const GOETHE_B2_KEYS = Object.freeze(['goethe_b2_erfuellung','goethe_b2_k
 export const GOETHE_B2_BANDS = Object.freeze({A:4,B:3,C:2,D:1,E:0});
 export const GOETHE_B2_INSTRUCTIONS = 'Assess each criterion against its own bound Goethe-Zertifikat B2 descriptors (A to E). No total score or pass/fail prediction. Text with no meaningful relation to the selected prompt receives E in all four criteria.';
 
+export const IELTS_POLICY='ielts-academic-formative-v1';
+export const IELTS_KIND='ielts-academic-criteria';
+export const IELTS_KEYS=Object.freeze(['ielts_task','ielts_cohesion','ielts_lexis','ielts_grammar']);
+export const IELTS_BANDS=Object.freeze({STRONG:3,DEVELOPING:2,LIMITED:1,NO_EVIDENCE:0});
+export const IELTS_INSTRUCTIONS='Assess English IELTS Academic practice against the bound task-specific descriptors. Task Achievement applies to the visual report; Task Response applies to the essay. Use qualitative practice categories only. These are not official IELTS bands. Do not infer an overall score, weight or average the two tasks, predict readiness, or claim examiner calibration. Give English correction examples and feedback in the requested interface language.';
+
 export function supportedWritingPolicy(rubric, examId) {
+  if(rubric?.policy===IELTS_POLICY&&examId==='ielts-academic'&&rubric.feedback_kind===IELTS_KIND) return Array.isArray(rubric.criteria)&&rubric.criteria.length===4&&IELTS_KEYS.every(key=>rubric.criteria.some(c=>c.key===key));
   if (rubric?.policy === DTZ_POLICY && examId === 'dtz-a2-b1' && rubric.feedback_kind === DTZ_KIND) {
     return Array.isArray(rubric.criteria) && rubric.criteria.length === 4
       && DTZ_KEYS.every(key => rubric.criteria.some(c => c.key === key));

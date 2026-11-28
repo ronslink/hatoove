@@ -151,8 +151,8 @@ services:
     restart: unless-stopped
 
   # The worker is a separate container on purpose: the runtime must not carry the worker's
-  # privileges, and it connects with the restricted `<prefix>_worker` role. No model provider is
-  # called - the grader is the deterministic stub until PILOT-06 injects a real one.
+  # privileges, and it connects with the restricted `<prefix>_worker` role. Live grading requires
+  # compose.grading-live.yaml and its external secret file. Missing configuration fails closed.
   # MEDIA-MOUNT-01 RESIDUAL: this service depends only on `migrate`, so it still STARTS when the `media`
   # preflight fails. Harmless while the worker grades text and never reads a recording — but if it ever
   # touches audio or serves media, give it the same `depends_on: media: service_completed_successfully`
@@ -160,7 +160,10 @@ services:
   worker:
     build: .
     command: ["node", "server/worker.mjs"]
-    environment: *ownapi-env
+    environment:
+      <<: *ownapi-env
+      HATOVE_GRADER_MODE: "${HATOVE_GRADER_MODE:-live}"
+      NODE_ENV: "${NODE_ENV:-production}"
     depends_on:
       migrate:
         condition: service_completed_successfully

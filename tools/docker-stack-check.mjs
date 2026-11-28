@@ -29,7 +29,7 @@ const passed=label=>console.log('PASS '+(++count)+' '+label);
 const childEnv=Object.fromEntries(Object.entries(process.env).filter(([key])=>
   !/^(?:HATOVE_|OWNAPI_|B1PREP_|STRIPE_|PAYMENTS_|COMPOSE_|NODE_OPTIONS$|NODE_PATH$)/i.test(key)));
 function dockerResult(args) {
-  return spawnSync('docker',args,{cwd:root,env:{...childEnv,HATOVE_APP_PORT:String(appPort),HATOVE_DB_PORT:String(dbPort),HATOVE_PUBLIC_ORIGIN:base,HATOVE_CONTENT_MODE:'internal-preview',HATOVE_PAYMENTS_MODE:'off',STRIPE_SECRET_KEY:'',STRIPE_WEBHOOK_SECRET:'',OWNAPI_PG_PAYMENTS_PASSWORD:''},encoding:'utf8',windowsHide:true,timeout:240000,maxBuffer:8*1024*1024});
+  return spawnSync('docker',args,{cwd:root,env:{...childEnv,NODE_ENV:'test',HATOVE_GRADER_MODE:'stub',HATOVE_APP_PORT:String(appPort),HATOVE_DB_PORT:String(dbPort),HATOVE_PUBLIC_ORIGIN:base,HATOVE_CONTENT_MODE:'internal-preview',HATOVE_PAYMENTS_MODE:'off',STRIPE_SECRET_KEY:'',STRIPE_WEBHOOK_SECRET:'',OWNAPI_PG_PAYMENTS_PASSWORD:''},encoding:'utf8',windowsHide:true,timeout:240000,maxBuffer:8*1024*1024});
 }
 function docker(args) {
   const r=dockerResult(args);

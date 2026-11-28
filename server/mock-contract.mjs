@@ -30,11 +30,16 @@ export function validateStartMockRun(body) {
 }
 
 export function validateFinaliseMockRun(body) {
-  fields(body, ['expectedRevision', 'eventId', 'expectedWritingRevision', 'explanationLanguage']);
+  fields(body, ['expectedRevision', 'eventId', 'expectedWritingRevision', 'expectedWritingRevisions', 'explanationLanguage']);
+  if(body.expectedWritingRevisions!==undefined) {
+    if(body.expectedWritingRevision!==undefined||!object(body.expectedWritingRevisions)||Object.keys(body.expectedWritingRevisions).length!==2) fail('invalid_mock_revision');
+    for(const [id,value] of Object.entries(body.expectedWritingRevisions)){token(id);revision(value);}
+  }
   if(body.expectedWritingRevision !== undefined) revision(body.expectedWritingRevision);
   if(body.explanationLanguage !== undefined && !['de','en','uk','ar','tr'].includes(body.explanationLanguage)) fail('invalid_explanation_language');
   return { expectedRevision: revision(body.expectedRevision), eventId: event(body.eventId),
     ...(body.expectedWritingRevision !== undefined ? {expectedWritingRevision:body.expectedWritingRevision}:{}),
+    ...(body.expectedWritingRevisions !== undefined ? {expectedWritingRevisions:{...body.expectedWritingRevisions}}:{}),
     ...(body.explanationLanguage !== undefined ? {explanationLanguage:body.explanationLanguage}:{}) };
 }
 

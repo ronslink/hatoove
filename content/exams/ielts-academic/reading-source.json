@@ -1,0 +1,496 @@
+{
+  "schemaVersion": 1,
+  "examId": "ielts-academic",
+  "provenance": "Original Hatoove practice passages and questions authored with AI assistance on 2026-11-28. Named places and research programmes are fictional teaching scenarios; no official IELTS passages or items copied. Human content review pending.",
+  "readings": [
+    {
+      "title": "The second life of a public library",
+      "text": "A\nFor much of the twentieth century, the Eastborough library measured success by counting the books that crossed its counter. When borrowing declined, the obvious response appeared to be a smaller building. Instead, its director asked staff to record what visitors actually did. Many used the reference desks without borrowing anything; others brought documents they could not understand or met classmates before an examination. None appeared in the loan statistics. The resulting account did not prove that books had become unimportant. It showed that a measure designed around one service could conceal several others.\n\nB\nThe first redesign proposal placed a café beside the entrance and removed most of the reference shelves. At public meetings, however, residents challenged the assumption that every quiet corner was an unused corner. A retired engineer explained that she needed somewhere to study without buying a drink. Parents wanted their children to encounter books even when visiting for another reason. The final plan retained a substantial printed collection and created three clearly separated areas: a conversational ground floor, a silent upstairs room and a workshop behind a soundproof door. The café proposal was dropped.\n\nC\nStaff also introduced a lending collection of practical equipment. A drill, a sewing machine or a thermal camera might be useful for one project yet remain idle for years afterwards. The attraction was not merely the price of borrowing. Before taking an unfamiliar tool home, a user could attend a demonstration and ask basic questions without embarrassment. Volunteers with relevant experience supported these sessions, but librarians remained responsible for bookings and safety information. Equipment with missing parts was withdrawn until it could be checked. Popularity alone was never sufficient reason to keep an unsafe item circulating.\n\nD\nThis expansion produced a problem that its supporters had underestimated. Unlike a novel, a sewing machine cannot simply be returned through a slot after closing time. Each return required inspection, and demonstrations needed preparation. Staff initially absorbed the work alongside their existing duties, causing delays elsewhere. The solution was a dedicated maintenance budget and a booking system that left time between loans. The library also limited the equipment collection rather than accepting every donation. A generous offer could create a long-term obligation; storage, replacement parts and staff attention all had costs, even when the object itself was free.\n\nE\nTo assess the project, the library compared use before and after the redesign and interviewed visitors who had stopped attending. Attendance rose, but the team avoided claiming that the building changes had caused the whole increase. A nearby college had expanded during the same period, and a bus route now stopped outside. Interviews nevertheless identified improvements that the figures could not explain: several visitors said the signs helped them find quieter areas, while workshop participants described returning specifically to practise a skill. The evaluation combined different kinds of evidence because no single number captured both access and experience.\n\nF\nDigital assistance became another significant service. A person applying for a job might know how to use a phone but have difficulty uploading a document to an unfamiliar website. Staff did not complete applications on visitors' behalf or keep their passwords. They explained the process, then allowed the applicant to enter private information alone. This boundary sometimes made a session slower. It also protected the distinction between helping someone learn and taking control of their affairs. Printed guides were available so that users could repeat the steps later without relying on the same member of staff.\n\nG\nNot everyone welcomed the changes. Some regular readers complained about noise, and a few volunteers expected the workshop to function like a private club. The director responded by publishing room-use rules and collecting complaints at different times of day. Most noise reports concerned the staircase rather than the workshop, so adding a door at the stairwell proved more useful than shortening workshop hours. Volunteers were reminded that places had to remain available to beginners. The intention was not to eliminate disagreement but to make it possible to distinguish a design problem from a conflict over who belonged.\n\nH\nEastborough's experience suggests a broader question for public institutions. When established activities decline, should a service defend its original form or reconsider the need that form once met? The library's answer was selective rather than revolutionary. It kept books, professional staff and spaces for independent thought, while admitting that learning could involve repairing an object or navigating an online form. Other towns might make different choices because their buildings, budgets and communities differ. Copying the visible additions without funding the less visible work of maintenance and guidance would miss the most important lesson.",
+      "questions": [
+        {
+          "n": 1,
+          "question": "What did the initial observation exercise reveal?",
+          "options": {
+            "a": "Loan figures overlooked some uses of the library.",
+            "b": "Visitors preferred digital books to printed ones.",
+            "c": "Most reference enquiries could be automated.",
+            "d": "The building was too large for its users."
+          },
+          "answer": "a",
+          "explanation": "Paragraph A describes visitors whose activities never appeared in borrowing statistics."
+        },
+        {
+          "n": 2,
+          "question": "Why was the café removed from the final plan?",
+          "options": {
+            "a": "Staff could not find a suitable supplier.",
+            "b": "Residents wanted access to quiet space without a purchase.",
+            "c": "The entrance lacked enough natural light.",
+            "d": "The library had already opened a café upstairs."
+          },
+          "answer": "b",
+          "explanation": "Paragraph B reports residents' objections to having to buy a drink and states that the café proposal was dropped."
+        },
+        {
+          "n": 3,
+          "question": "What advantage did demonstrations offer?",
+          "options": {
+            "a": "They removed the need for safety checks.",
+            "b": "They guaranteed that every project would succeed.",
+            "c": "They let borrowers ask questions before using equipment.",
+            "d": "They qualified volunteers to replace librarians."
+          },
+          "answer": "c",
+          "explanation": "Paragraph C connects demonstrations with learning how to use an unfamiliar tool and asking basic questions."
+        },
+        {
+          "n": 4,
+          "question": "What was the main lesson concerning donated equipment?",
+          "options": {
+            "a": "Older equipment was always more reliable.",
+            "b": "Donations should be accepted only from companies.",
+            "c": "Free items could still create ongoing costs.",
+            "d": "Equipment loans required no extra storage."
+          },
+          "answer": "c",
+          "explanation": "Paragraph D distinguishes the purchase price from maintenance, storage and staffing obligations."
+        },
+        {
+          "n": 5,
+          "question": "The redesign removed every printed reference book. Choose TRUE, FALSE or NOT GIVEN.",
+          "options": {
+            "a": "TRUE",
+            "b": "FALSE",
+            "c": "NOT GIVEN"
+          },
+          "answer": "b",
+          "explanation": "Paragraph B explicitly says that a substantial printed collection was retained."
+        },
+        {
+          "n": 6,
+          "question": "The library employed more volunteers than librarians. Choose TRUE, FALSE or NOT GIVEN.",
+          "options": {
+            "a": "TRUE",
+            "b": "FALSE",
+            "c": "NOT GIVEN"
+          },
+          "answer": "c",
+          "explanation": "Paragraph C describes their roles but gives no staffing totals."
+        },
+        {
+          "n": 7,
+          "question": "The evaluation considered explanations for higher attendance other than the redesign. Choose TRUE, FALSE or NOT GIVEN.",
+          "options": {
+            "a": "TRUE",
+            "b": "FALSE",
+            "c": "NOT GIVEN"
+          },
+          "answer": "a",
+          "explanation": "Paragraph E names a college expansion and a changed bus route as other possible influences."
+        },
+        {
+          "n": 8,
+          "question": "Staff stored passwords so that applicants could return later. Choose TRUE, FALSE or NOT GIVEN.",
+          "options": {
+            "a": "TRUE",
+            "b": "FALSE",
+            "c": "NOT GIVEN"
+          },
+          "answer": "b",
+          "explanation": "Paragraph F explicitly says staff did not keep visitors' passwords."
+        },
+        {
+          "n": 9,
+          "question": "Which paragraph describes a repair that addressed the actual source of complaints?",
+          "options": {
+            "a": "B",
+            "b": "D",
+            "c": "F",
+            "d": "G"
+          },
+          "answer": "d",
+          "explanation": "Paragraph G identifies noise at the staircase and the addition of a stairwell door."
+        },
+        {
+          "n": 10,
+          "question": "Which paragraph explains why a smaller equipment collection was chosen?",
+          "options": {
+            "a": "A",
+            "b": "D",
+            "c": "E",
+            "d": "H"
+          },
+          "answer": "b",
+          "explanation": "Paragraph D describes the workload and the decision to limit equipment donations."
+        },
+        {
+          "n": 11,
+          "question": "Which paragraph describes help that preserves a user's control over private information?",
+          "options": {
+            "a": "C",
+            "b": "E",
+            "c": "F",
+            "d": "H"
+          },
+          "answer": "c",
+          "explanation": "Paragraph F separates explanation from entering personal information."
+        },
+        {
+          "n": 12,
+          "question": "Which paragraph warns other communities against copying only visible changes?",
+          "options": {
+            "a": "A",
+            "b": "C",
+            "c": "G",
+            "d": "H"
+          },
+          "answer": "d",
+          "explanation": "Paragraph H stresses the less visible maintenance and guidance costs."
+        },
+        {
+          "n": 13,
+          "question": "What is the writer's overall view of the project?",
+          "options": {
+            "a": "It demonstrates that libraries should abandon books.",
+            "b": "It offers a selective adaptation whose support costs matter.",
+            "c": "It proves that all libraries need identical workshops.",
+            "d": "It shows that attendance is the only useful measure."
+          },
+          "answer": "b",
+          "explanation": "The conclusion combines retaining core library functions with carefully supported new services."
+        }
+      ],
+      "family": "LV1"
+    },
+    {
+      "title": "Listening to a changing landscape",
+      "text": "A\nA landscape can be documented without a camera. A recording made before sunrise may contain insects, moving water, passing vehicles and the calls of birds hidden in vegetation. Researchers interested in environmental change increasingly use such recordings to supplement field observations. The equipment can remain in place for weeks, collecting sounds when no observer is present. This does not turn a microphone into a complete census of life. It provides a different sample: evidence of activity that produces sound, within a particular distance and under particular recording conditions.\n\nB\nIn an imaginary research programme at Willow Marsh, the team placed identical recorders at twelve sites, some beside restored channels and others in areas that had not been altered. Every device recorded for five minutes at the start of each hour. The repeated schedule mattered because a recording at noon could not fairly be compared with one at dawn. The researchers also noted rainfall and wind. A silent recording during a storm might reflect interference rather than an absence of animals. Standardising the equipment removed one possible source of variation, but it did not make the surroundings identical.\n\nC\nThe first stage of analysis was deliberately simple. Software divided each recording into frequency ranges and measured how much acoustic energy occurred in each range. A colourful chart could then show changes over time. Such charts were useful for finding unusual periods, but the team resisted describing them as direct maps of biodiversity. Several species can occupy similar frequency ranges, while a single loud species can dominate a recording. An electrical pump may produce a regular band that looks striking on a chart without indicating any wildlife at all. Listening to selected samples therefore remained essential.\n\nD\nRecognising particular species introduced another difficulty. Automated classifiers are trained on labelled examples, and those examples may not resemble the conditions in which the system is later used. A bird recorded alone near a microphone is easier to identify than the same bird calling behind reeds while rain falls. At Willow Marsh, the team tested the software against recordings that local specialists had labelled independently. They reported both missed calls and false identifications. Publishing only the percentage of correct labels would have hidden the fact that mistakes were concentrated among quieter species and the noisiest recording periods.\n\nE\nThere was also a less obvious question about the choice of sites. Recorders attached to convenient fence posts were easy to retrieve, but those posts followed the main walking path. A survey based only on them would describe the edge of the marsh rather than its interior. Moving some devices required permission from landowners and longer visits by field staff. The additional effort made the sample less convenient but more informative. It also revealed why a large quantity of automatically collected data is not necessarily representative: the decision about where to place the instrument occurs before the first file is created.\n\nF\nCommunity participation helped with interpretation. Residents remembered when a nearby factory had changed its working hours, explaining why evening mechanical noise disappeared from several recordings. Volunteers also identified a recurring sound that the software had classified as an animal: a loose metal sign moving in the wind. Their contributions were logged with dates and reasons so that another analyst could examine them. The team did not accept every confident identification without checking it. Local knowledge and formal procedures were treated as complementary, with each capable of correcting an error in the other.\n\nG\nThe programme raised questions about privacy because microphones sometimes captured human conversation on the public path. The researchers shortened the retention period for raw recordings and restricted access to files containing intelligible speech. Public demonstrations used selected clips from which conversations had been removed. These safeguards reduced what could be shared, but the team considered them part of the research design rather than an inconvenience to be solved afterwards. Permission to study a wetland did not automatically imply permission to publish everything audible there. Signs near the recorders explained their purpose and provided a contact address.\n\nH\nAfter two seasons, calls from several wetland birds appeared more frequently near the restored channels. The finding was encouraging, but it was not equivalent to proving that the total population had grown. Birds might have moved from nearby areas, become more vocal or approached the microphones more closely. The team therefore combined the acoustic record with visual surveys and water-level measurements. Its strongest conclusion concerned the value of repeated, comparable observations, not the superiority of one instrument. A microphone can extend human attention across time, provided that researchers remain equally attentive to the limits of what it hears.",
+      "questions": [
+        {
+          "n": 14,
+          "question": "Why can recorders be useful alongside field observers?",
+          "options": {
+            "a": "They detect every animal in a habitat.",
+            "b": "They collect evidence when observers are absent.",
+            "c": "They require no decisions about sampling.",
+            "d": "They replace all visual surveys."
+          },
+          "answer": "b",
+          "explanation": "Paragraph A says equipment can collect sounds for weeks without an observer present."
+        },
+        {
+          "n": 15,
+          "question": "Why did every recorder follow the same hourly schedule?",
+          "options": {
+            "a": "To reduce differences caused by time of day.",
+            "b": "To avoid recording any human speech.",
+            "c": "To increase the number of restored channels.",
+            "d": "To eliminate interference from wind."
+          },
+          "answer": "a",
+          "explanation": "Paragraph B explains that dawn and noon recordings are not directly comparable."
+        },
+        {
+          "n": 16,
+          "question": "What does the pump example illustrate?",
+          "options": {
+            "a": "Mechanical sounds always occupy low frequencies.",
+            "b": "Colourful charts can include non-biological patterns.",
+            "c": "Pumps attract the greatest variety of birds.",
+            "d": "All regular sounds should be deleted."
+          },
+          "answer": "b",
+          "explanation": "Paragraph C uses a pump to show why an impressive frequency band need not represent wildlife."
+        },
+        {
+          "n": 17,
+          "question": "What weakness can arise when a classifier is used in a new location?",
+          "options": {
+            "a": "It cannot accept recordings from identical devices.",
+            "b": "Its training examples may not match field conditions.",
+            "c": "It always labels rain as a quiet bird.",
+            "d": "It stops measuring acoustic energy."
+          },
+          "answer": "b",
+          "explanation": "Paragraph D contrasts clear training recordings with obscured calls in a noisy marsh."
+        },
+        {
+          "n": 18,
+          "question": "All twelve sites were beside restored channels. Choose TRUE, FALSE or NOT GIVEN.",
+          "options": {
+            "a": "TRUE",
+            "b": "FALSE",
+            "c": "NOT GIVEN"
+          },
+          "answer": "b",
+          "explanation": "Paragraph B explicitly includes unaltered areas."
+        },
+        {
+          "n": 19,
+          "question": "The programme continued for two seasons. Choose TRUE, FALSE or NOT GIVEN.",
+          "options": {
+            "a": "TRUE",
+            "b": "FALSE",
+            "c": "NOT GIVEN"
+          },
+          "answer": "a",
+          "explanation": "Paragraph H states that the findings were considered after two seasons."
+        },
+        {
+          "n": 20,
+          "question": "The recorders were manufactured in the same country. Choose TRUE, FALSE or NOT GIVEN.",
+          "options": {
+            "a": "TRUE",
+            "b": "FALSE",
+            "c": "NOT GIVEN"
+          },
+          "answer": "c",
+          "explanation": "The devices are described as identical; their country of manufacture is not stated."
+        },
+        {
+          "n": 21,
+          "question": "Every identification proposed by a resident was accepted immediately. Choose TRUE, FALSE or NOT GIVEN.",
+          "options": {
+            "a": "TRUE",
+            "b": "FALSE",
+            "c": "NOT GIVEN"
+          },
+          "answer": "b",
+          "explanation": "Paragraph F says confident identifications were still checked."
+        },
+        {
+          "n": 22,
+          "question": "Which paragraph explains how convenient placement can bias a sample?",
+          "options": {
+            "a": "B",
+            "b": "D",
+            "c": "E",
+            "d": "G"
+          },
+          "answer": "c",
+          "explanation": "Paragraph E contrasts path-side fence posts with the marsh interior."
+        },
+        {
+          "n": 23,
+          "question": "Which paragraph describes reducing access to sensitive source material?",
+          "options": {
+            "a": "C",
+            "b": "E",
+            "c": "F",
+            "d": "G"
+          },
+          "answer": "d",
+          "explanation": "Paragraph G discusses retention limits and restricted access to intelligible conversations."
+        },
+        {
+          "n": 24,
+          "question": "Which paragraph gives an example of local knowledge explaining a change in noise?",
+          "options": {
+            "a": "B",
+            "b": "D",
+            "c": "F",
+            "d": "H"
+          },
+          "answer": "c",
+          "explanation": "Paragraph F mentions residents' knowledge of a factory's working hours."
+        },
+        {
+          "n": 25,
+          "question": "Which conclusion is supported by the final paragraph?",
+          "options": {
+            "a": "More recorded calls necessarily mean more individual birds.",
+            "b": "Acoustic evidence is most useful when its limits are considered.",
+            "c": "Visual surveys cannot reveal changes near restored channels.",
+            "d": "Two seasons are sufficient to measure all population changes."
+          },
+          "answer": "b",
+          "explanation": "Paragraph H gives alternative explanations and combines recordings with other observations."
+        },
+        {
+          "n": 26,
+          "question": "Why were both missed calls and false identifications reported?",
+          "options": {
+            "a": "To show that the equipment had failed completely.",
+            "b": "To avoid concealing uneven patterns of error.",
+            "c": "To remove the need for specialist judgement.",
+            "d": "To establish which site had the most visitors."
+          },
+          "answer": "b",
+          "explanation": "Paragraph D explains that a single correctness percentage would hide errors concentrated in particular conditions."
+        }
+      ],
+      "family": "LV2"
+    },
+    {
+      "title": "When a shorter route takes longer",
+      "text": "A\nA navigation application usually recommends the journey with the lowest predicted travel time. For one driver, this seems an uncontroversial objective. For a city, however, the result of thousands of people following individual recommendations can be harder to predict. A narrow residential road may become crowded because it briefly appears faster than a main route. Once enough drivers enter it, the apparent advantage disappears. The interesting problem is not that drivers behave irrationally. It is that individually reasonable decisions can interact in ways that make the shared system perform poorly.\n\nB\nTransport analysts distinguish between the time a traveller experiences and the delay that traveller imposes on others. When traffic is light, an additional car may have little effect. Near capacity, the same car can contribute to a queue that slows many people behind it. A route planner that considers only its own user's arrival time has no direct reason to include that wider cost. This difference does not imply that private navigation is useless. It explains why a service that works well for an isolated journey may need additional constraints when widely adopted.\n\nC\nConsider a simplified network with two roads between the same places. One has a narrow bridge near the beginning; the other has a narrow bridge near the end. Drivers distribute themselves between the routes. If a connecting road opens between the bridges, it may look as though everyone has gained an attractive shortcut. Yet drivers choosing that connection can end up placing pressure on both bottlenecks. Under some traffic conditions, closing the connection can reduce the journey time experienced by all drivers. This is a property of certain network arrangements, not a claim that removing roads always improves traffic.\n\nD\nReal streets are more complicated than such diagrams. People travel at different times, use different modes and respond differently to delays. Deliveries, school entrances and pedestrian crossings create constraints that a diagram may omit. A proposed change therefore needs more than an elegant theoretical explanation. In a trial in the fictional city of Norchester, analysts used traffic counts, bus journey records and interviews with residents before changing access to a connecting street. They treated the network model as a way to generate questions about the trial, rather than as evidence that the trial had already succeeded.\n\nE\nThe evaluation also had to define what success meant. Car travel time was one consideration, but residents cared about crossing the road and hearing conversations in their gardens. Bus passengers cared about reliability, especially when a short delay caused them to miss a connection. The team published separate measures rather than combining everything into a single score whose weights were difficult to justify. A change could benefit one group while inconveniencing another. Making that disagreement visible was preferable to announcing a universal improvement based on a number that most participants had no opportunity to interpret.\n\nF\nTiming complicated the comparison. Immediately after the restriction began, some drivers followed their old route and turned around at the barrier. Others tried several alternatives before settling into a new pattern. Measurements from the first morning would therefore have exaggerated disruption. On the other hand, waiting only for a favourable week would have been equally misleading. The evaluation specified observation periods in advance and compared similar school weeks. It also recorded roadworks elsewhere in the city. These choices did not remove every uncertainty, but they made it harder to select results solely because they supported a preferred conclusion.\n\nG\nNavigation providers can help by incorporating legal access restrictions and avoiding unsuitable streets. However, the goal of preventing congestion everywhere cannot be achieved simply by sending every user along a different road. Recommendations affect the conditions on which later recommendations depend, and some streets have little spare capacity. Sharing aggregate traffic information may improve predictions, but it does not resolve the political question of how road space should be allocated. That question includes people who never use the application: pedestrians, cyclists and residents still experience the consequences of the routes it recommends.\n\nH\nThe Norchester trial produced mixed results. Average car journeys within the measured area became slightly longer, while bus journeys became more predictable and residents reported easier crossings. The council retained the restriction but modified delivery access during quiet hours. It did not claim that theory had promised or delivered a faster trip for every driver. The decision reflected a publicly stated balance among different objectives. The wider lesson is that a shortcut is not inherently beneficial merely because it reduces distance on a map. Understanding its value requires asking who uses the network, how their choices interact and whose time or safety is being counted.",
+      "questions": [
+        {
+          "n": 27,
+          "question": "What is the central problem introduced in paragraph A?",
+          "options": {
+            "a": "Drivers cannot understand route recommendations.",
+            "b": "Individual route choices can produce an inefficient shared outcome.",
+            "c": "Residential roads are always faster than main roads.",
+            "d": "Applications recommend routes without estimating time."
+          },
+          "answer": "b",
+          "explanation": "Paragraph A explains how many reasonable individual choices can remove a shortcut's advantage."
+        },
+        {
+          "n": 28,
+          "question": "What wider cost is described in paragraph B?",
+          "options": {
+            "a": "The price paid for a navigation subscription.",
+            "b": "The delay an additional traveller creates for others.",
+            "c": "The distance between two bridges.",
+            "d": "The cost of producing road maps."
+          },
+          "answer": "b",
+          "explanation": "The paragraph contrasts a user's own travel time with the delay imposed on other travellers."
+        },
+        {
+          "n": 29,
+          "question": "In the simplified network, the connecting road may make travel worse because it",
+          "options": {
+            "a": "reduces the number of destinations.",
+            "b": "causes drivers to use both bottlenecks.",
+            "c": "prevents all drivers from changing route.",
+            "d": "removes the two original bridges."
+          },
+          "answer": "b",
+          "explanation": "Paragraph C states that the connection can place pressure on both bottlenecks."
+        },
+        {
+          "n": 30,
+          "question": "How did the Norchester team use its model?",
+          "options": {
+            "a": "As a source of questions to investigate.",
+            "b": "As proof that the restriction would work.",
+            "c": "As a replacement for traffic counts.",
+            "d": "As a reason to ignore bus journeys."
+          },
+          "answer": "a",
+          "explanation": "Paragraph D explicitly distinguishes generating questions from evidence of success."
+        },
+        {
+          "n": 31,
+          "question": "The writer believes removing a road always improves traffic. Choose YES, NO or NOT GIVEN.",
+          "options": {
+            "a": "YES",
+            "b": "NO",
+            "c": "NOT GIVEN"
+          },
+          "answer": "b",
+          "explanation": "Paragraph C expressly rejects that universal claim."
+        },
+        {
+          "n": 32,
+          "question": "The writer regards private navigation as entirely useless. Choose YES, NO or NOT GIVEN.",
+          "options": {
+            "a": "YES",
+            "b": "NO",
+            "c": "NOT GIVEN"
+          },
+          "answer": "b",
+          "explanation": "Paragraph B says the wider-cost problem does not imply that private navigation is useless."
+        },
+        {
+          "n": 33,
+          "question": "The application used in Norchester had more than a million subscribers. Choose YES, NO or NOT GIVEN.",
+          "options": {
+            "a": "YES",
+            "b": "NO",
+            "c": "NOT GIVEN"
+          },
+          "answer": "c",
+          "explanation": "No application subscriber total is given."
+        },
+        {
+          "n": 34,
+          "question": "Publishing separate measures can make conflicts between objectives clearer. Choose YES, NO or NOT GIVEN.",
+          "options": {
+            "a": "YES",
+            "b": "NO",
+            "c": "NOT GIVEN"
+          },
+          "answer": "a",
+          "explanation": "Paragraph E argues for making different groups' gains and losses visible."
+        },
+        {
+          "n": 35,
+          "question": "Which paragraph discusses choosing observation periods before seeing the results?",
+          "options": {
+            "a": "D",
+            "b": "E",
+            "c": "F",
+            "d": "G"
+          },
+          "answer": "c",
+          "explanation": "Paragraph F describes periods specified in advance and similar school weeks."
+        },
+        {
+          "n": 36,
+          "question": "Which paragraph argues that better information cannot itself decide who should receive road space?",
+          "options": {
+            "a": "B",
+            "b": "D",
+            "c": "F",
+            "d": "G"
+          },
+          "answer": "d",
+          "explanation": "Paragraph G distinguishes improved prediction from political allocation."
+        },
+        {
+          "n": 37,
+          "question": "Which paragraph reports an adjustment to delivery access?",
+          "options": {
+            "a": "C",
+            "b": "E",
+            "c": "G",
+            "d": "H"
+          },
+          "answer": "d",
+          "explanation": "Paragraph H states that quiet-hour delivery access was modified."
+        },
+        {
+          "n": 38,
+          "question": "Why could the first morning give a misleading impression?",
+          "options": {
+            "a": "Drivers had not yet adapted to the restriction.",
+            "b": "All schools were permanently closed.",
+            "c": "The council had stopped measuring traffic.",
+            "d": "The application had deleted every route."
+          },
+          "answer": "a",
+          "explanation": "Paragraph F describes drivers turning around and trying alternatives before habits settled."
+        },
+        {
+          "n": 39,
+          "question": "What happened to average car journeys in the measured area?",
+          "options": {
+            "a": "They became slightly longer.",
+            "b": "They were reduced by half.",
+            "c": "They became impossible to measure.",
+            "d": "They became identical to bus journeys."
+          },
+          "answer": "a",
+          "explanation": "Paragraph H directly reports a slight increase in average car journey times."
+        },
+        {
+          "n": 40,
+          "question": "Which statement best expresses the final conclusion?",
+          "options": {
+            "a": "A shorter distance guarantees a better journey for everyone.",
+            "b": "Network decisions require attention to interactions and competing objectives.",
+            "c": "Only application users should influence transport policy.",
+            "d": "Theoretical models should never inform street trials."
+          },
+          "answer": "b",
+          "explanation": "Paragraph H asks whose time and safety are counted and how users' choices interact."
+        }
+      ],
+      "family": "LV3"
+    }
+  ]
+}

@@ -79,7 +79,7 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
   }
   if(form.payload.scope==='complete_supported_written') {
     try {
-      timeGroups=validateCompleteForm(blueprint.exam,blueprint,form.payload);
+      timeGroups=validateCompleteForm(blueprint.exam,blueprint,form.payload,{historical:!newStart});
       validateCompleteMembers(examId,blueprint,form.payload,rows);
     } catch {return null;}
     // A complete form is one pinned rights boundary, including its reading/language parts.
@@ -131,9 +131,18 @@ export async function readReleasedForm(client,{examId,formId,formVersion,release
     reviews.push(task.review_status,task.rubric_review_status);
     writingTask={section:binding.section,task:writingTaskDto(task)};
   }
+  const writingTasks=[];
+  for(const binding of form.payload.writingTasks??[]) {
+    const task=await readWritingTask(client,binding.taskId,binding.taskVersion);
+    if(!task||task.exam_id!==examId||task.section!==binding.section||task.family!=='writing') return null;
+    const reason=checkWriting(task);if(reason){if(newStart)return null;if(reason==='rights_blocked'||!blockedReason)blockedReason=reason;}
+    reviewRows.push(task,{review_basis:task.rubric_review_basis,review_explicit_negative:task.rubric_review_explicit_negative});
+    reviews.push(task.review_status,task.rubric_review_status);
+    writingTasks.push({binding_id:binding.id,section:binding.section,task:writingTaskDto(task)});
+  }
   for(const row of rows) if(row.review_explicit_negative&&!completed) blockedReason ||= 'review_blocked';
   if (newStart && rows.some(r=>!contentIsServable(r))) return null;
-  return {release,form,members:blockedReason?[]:rows,media:blockedReason?[]:media,writingChoices:blockedReason?[]:writingChoices,writingTask:blockedReason?null:writingTask,timeGroups,blockedReason,
+  return {release,form,members:blockedReason?[]:rows,media:blockedReason?[]:media,writingChoices:blockedReason?[]:writingChoices,writingTask:blockedReason?null:writingTask,writingTasks:blockedReason?[]:writingTasks,timeGroups,blockedReason,
     reviewWithdrawn:reviewRows.some(r=>r.review_explicit_negative||r.explicit_negative),
     reviewBasis:reviewRows.every(r=>r.review_basis==='named_decision')?'named_decision':reviewRows.some(r=>r.review_basis==='legacy_unattributed')?'legacy_unattributed':'none',
     reviewStatus:reviews.length && reviews.every(r=>r==='approved')?'approved':'unreviewed'};
@@ -150,7 +159,7 @@ export async function listReleasedForms(client,examId) {
     const {form,release,members}=item;
     forms.push({exam_id:examId,release_version:release.version,blueprint_version:release.blueprint_version,
       release_state:release.state,form_id:form.form_id,version:form.version,title:form.payload.title,scope:form.payload.scope,sections:form.payload.sections,
-      mode:form.payload.mode,time_limit_seconds:form.payload.timeLimitSeconds,time_groups:item.timeGroups.map(group=>({id:group.id,seconds:group.seconds,sections:[...group.sections]})),writing_choice_count:(form.payload.writingChoices||[]).length,writing_task_count:form.payload.writingTask?1:0,item_count:members.reduce((n,m)=>n+m.item_count,0),
+      mode:form.payload.mode,time_limit_seconds:form.payload.timeLimitSeconds,time_groups:item.timeGroups.map(group=>({id:group.id,seconds:group.seconds,sections:[...group.sections]})),writing_choice_count:(form.payload.writingChoices||[]).length,writing_task_count:form.payload.writingTask?1:(form.payload.writingTasks??[]).length,item_count:members.reduce((n,m)=>n+m.item_count,0),
       ...(form.payload.attemptMode?{attempt_mode:form.payload.attemptMode}:{}),
       review_status:item.reviewStatus,review_basis:item.reviewBasis});
   }
@@ -188,7 +197,8 @@ export async function writingAccess(client,t,{historical=false,completed=false}=
  JOIN exam_release_head h ON h.exam_id=r.exam_id JOIN exam_release head ON head.exam_id=h.exam_id AND head.version=h.release_version
  WHERE r.exam_id=$1 AND (EXISTS(SELECT 1 FROM jsonb_array_elements(coalesce(f.payload->'writingChoices','[]'::jsonb)) g,
  jsonb_array_elements(g->'options') o WHERE o->>'taskId'=$2 AND o->>'taskVersion'=$3)
- OR (f.payload->'writingTask'->>'taskId'=$2 AND f.payload->'writingTask'->>'taskVersion'=$3))`,[t.exam_id,t.task_id,t.version])).rows;
+ OR (f.payload->'writingTask'->>'taskId'=$2 AND f.payload->'writingTask'->>'taskVersion'=$3)
+ OR EXISTS(SELECT 1 FROM jsonb_array_elements(coalesce(f.payload->'writingTasks','[]'::jsonb)) t WHERE t->>'taskId'=$2 AND t->>'taskVersion'=$3))`,[t.exam_id,t.task_id,t.version])).rows;
  const eligible=rows.filter(r=>(historical||r.version===r.head_version)&&permittedStates().includes(r.state));
  if(!eligible.length) return 'content_policy_blocked';
  return eligible.some(r=>!r.head_manifest?.release?.resumeBlockedReleases?.includes(r.version))?null:'rights_blocked';

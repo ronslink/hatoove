@@ -24,7 +24,8 @@ for (const entry of entries) {
     failures.push(`${name}: excluded local/runtime file`);
     continue;
   }
-  const bytes = execFileSync('git', ['cat-file', 'blob', oid], { maxBuffer: 16 * 1024 * 1024 });
+  // Full-length PCM exam recordings can exceed 16 MiB; retain the same binary/secret checks.
+  const bytes = execFileSync('git', ['cat-file', 'blob', oid], { maxBuffer: 128 * 1024 * 1024 });
   if (name === '.env.example' && bytes.includes(0)) {
     failures.push(`${name}: template must be plain UTF-8 text`);
     continue;
