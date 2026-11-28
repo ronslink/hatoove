@@ -128,7 +128,37 @@ await check('German assessed sample bank, writing points and model are byte-equi
 });
 await check('all public copy bindings target only leaf nodes and never assessed German content',()=>{
   const app=boot('public');for(const node of app.document.querySelectorAll('[data-i18n]')){assert.equal(node.children.length,0);assert.equal(node.closest('.task-stimulus,.writing-points,#writing-response,.answer-option'),null,'translated assessed island');}
-  assert(!read('public/site.js').includes('localStorage'));assert(!read('public/auth/entry.js').includes('localStorage'));
+  assert(!read('public/site.js').includes('localStorage'));assert(!read('public/auth/entry.js').includes('localStorage'));assert(!read('public/public-shell.js').includes('localStorage'));
+});
+await check('every public HTML page exposes the five-language switcher and secondary shells translate cleanly',async()=>{
+  const htmlFiles=fs.readdirSync(new URL('../public/',import.meta.url)).filter(name=>name.endsWith('.html')).sort();
+  for(const name of htmlFiles){
+    const html=read('public/'+name);
+    assert(html.includes('id="interface-language"'),name+' is missing #interface-language');
+    for(const code of locales)assert(html.includes('value="'+code+'"'),name+' is missing locale option '+code);
+  }
+  for(const file of ['telc-deutsch-b1','dtz-a2-b1']){
+    for(const locale of locales){
+      const document=makeDocument(read('public/'+file+'.html'));const storage=new Map([['hatoove.interface-language.v1',locale]]),writes=[],lifecycle={};
+      const context=vm.createContext({document,navigator:{languages:['en-US']},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>{writes.push([k,v]);storage.set(k,v);}},addEventListener:(t,l)=>{(lifecycle[t]||=[]).push(l);}});
+      const run=s=>vm.runInContext(s,context,{timeout:2000});
+      run(moduleBody(read('public/assets/i18n/core.js')));
+      for(const ns of ['common','public-messages'])run('(()=>{'+moduleBody(read('public/assets/i18n/'+ns+'.js'))+'})()');
+      run('(()=>{'+moduleBody(read('public/public-shell.js'))+'})()');
+      assert.equal(document.documentElement.lang,locale);
+      assert.equal(document.documentElement.dir,locale==='ar'?'rtl':'ltr');
+      assert.equal(document.getElementById('interface-language').value,locale);
+      assert.equal(writes.length,0);
+      for(const node of document.querySelectorAll('[data-i18n]')){
+        assert.equal(node.children.length,0,file+' binding replaces children');
+        assert.equal(node.textContent,run('t('+JSON.stringify(node.dataset.i18n)+')'));
+      }
+      if(locale==='de'){
+        const select=document.getElementById('interface-language');select.value='en';await select.fire('change');
+        assert.equal(document.documentElement.lang,'en');assert.equal(storage.get('hatoove.interface-language.v1'),'en');
+      }
+    }
+  }
 });
 await check('frozen pre-change source discriminates missing demo locale handling and signup language snapshot',async()=>{
   const historical=path=>execFileSync('git',['-c','safe.directory='+root.replace(/[\\/]$/,''),'show','83e03310f32c02f80dcac01dbbfcef5d01f4ef72:'+path],{cwd:root,encoding:'utf8'});
