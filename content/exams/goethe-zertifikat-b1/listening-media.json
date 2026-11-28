@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "examId": "goethe-zertifikat-b1",
+  "generatedBy": "tools/goethe-b1-listening-tts-build.mjs",
+  "media": [
+    {
+      "mediaId": "goethe-zertifikat-b1.hv1.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv1.01-v1.wav",
+      "sha256": "342e5d9763dd9463ef30c2e92172b860eae2b4788d7b23118a79ae05bb5530e0",
+      "byteLength": 1257492,
+      "durationMs": 26197,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv1-01"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv1.02.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv1.02-v1.wav",
+      "sha256": "3158a3b4dda8598090447abbed906c51e29625a69775e952ec23344e698ba719",
+      "byteLength": 1338264,
+      "durationMs": 27880,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv1-02"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv1.03.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv1.03-v1.wav",
+      "sha256": "78d27798a916b5bb46b975b4f8a0b801982e67154b3e83108772b3a90ab85079",
+      "byteLength": 1111010,
+      "durationMs": 23145,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv1-03"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv1.04.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv1.04-v1.wav",
+      "sha256": "0dcfc4ab58a80e81c4bab5e02609d95a1aa694ac6fe045d9906d6383feaefbca",
+      "byteLength": 1354420,
+      "durationMs": 28216,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv1-04"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv1.05.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv1.05-v1.wav",
+      "sha256": "8194a93a364159d0fb9775db2367fca18b58b17d3d40377a1dafa4805941505f",
+      "byteLength": 1008982,
+      "durationMs": 21020,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv1-05"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv2.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv2.01-v1.wav",
+      "sha256": "7df5fd30b83ecaf253a18be6724917a233234c5cde2e6e2cc72c5154bc72b53e",
+      "byteLength": 5034570,
+      "durationMs": 104886,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv2-01"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv3.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv3.01-v1.wav",
+      "sha256": "99e651f725635e95eb6524faf0e3ccfee669579589fc3b410c5af81b3746fdf1",
+      "byteLength": 5672078,
+      "durationMs": 118167,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv3-01"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv4.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv4.01-v1.wav",
+      "sha256": "b1db22bdd9a2eed3c2b892294e4dab76dd1a5f1f319f9e5b7c30ae8e7283df38",
+      "byteLength": 7039694,
+      "durationMs": 146659,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv4-01"
+    }
+  ]
+}

@@ -134,7 +134,7 @@ async function main() {
   if (!key) throw new Error('missing GOOGLE_TTS_API_KEY or --key-file');
 
   const source = JSON.parse(fs.readFileSync(SOURCE_PATH, 'utf8'));
-  const outDir = path.join(mediaRoot, EXAM);
+  const outDir = path.join(mediaRoot, 'content', 'exams', EXAM, 'audio');
   fs.mkdirSync(outDir, { recursive: true });
   const descriptors = [];
 
@@ -147,27 +147,26 @@ async function main() {
       const wav = assemble(pcmList);
       const parsed = parsePcmWav(wav);
       const filename = rec.id.replace('-', '.') + '-' + rec.mediaVersion + '.wav';
-      const relPath = EXAM + '/' + filename;
+      const relPath = `content/exams/${EXAM}/audio/${filename}`;
       fs.writeFileSync(path.join(outDir, filename), wav);
       const sha256 = createHash('sha256').update(wav).digest('hex');
       descriptors.push({
         mediaId: rec.mediaId,
         version: rec.mediaVersion,
         examId: EXAM,
-        kind: 'audio',
-        mimeType: 'audio/wav',
         path: relPath,
+        sha256,
         byteLength: wav.length,
         durationMs: parsed.durationMs,
-        sha256,
+        mimeType: 'audio/wav',
         reviewStatus: 'unreviewed',
         rightsStatus: 'generated',
-        source: 'Google Cloud TTS Standard German synthesis from content/exams/goethe-zertifikat-b1/listening-source.json.',
+        source: `Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/${EXAM}/listening-source.json#${rec.id}`,
       });
       console.log(`SYNTH ${rec.id} -> ${relPath} (${wav.length} bytes, ${parsed.durationMs} ms)`);
     }
   }
-  if (!only) fs.writeFileSync(MEDIA_OUT, JSON.stringify({ examId: EXAM, media: descriptors }, null, 2) + '\n');
+  if (!only) fs.writeFileSync(MEDIA_OUT, JSON.stringify({ schemaVersion: 1, examId: EXAM, generatedBy: 'tools/goethe-b1-listening-tts-build.mjs', media: descriptors }, null, 2) + '\n');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

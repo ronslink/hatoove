@@ -7,8 +7,10 @@
  * - Stub grader + DeepSeek live grader prompt/parser compatibility
  */
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { validatePackage, validateCompleteForm } from '../server/package-contract.mjs';
+import { parsePcmWav } from '../server/media-contract.mjs';
 import { supportedWritingPolicy, GOETHE_B1_POLICY, GOETHE_B1_KIND, GOETHE_B1_KEYS } from '../server/writing-policy.mjs';
 import { stubGrade, validateAssessment } from '../server/owned-postgres/worker.mjs';
 import { buildWritingPrompt, parseDeepSeekAssessment } from '../server/writing-grader-deepseek.mjs';
@@ -171,6 +173,28 @@ check('validateCompleteForm accepts valid complete Goethe B1 v2 blueprint and re
   const badBlueprint = structuredClone(completeBlueprint);
   badBlueprint.sections[1].parts[0].playback.mock = 1; // HV1 must be 2 plays in mock
   assert.throws(() => validateCompleteForm(manifest.exam, badBlueprint, completeForm), /incorrect target playback policy/);
+});
+
+check('listening-package.json (v2) passes validatePackage and all 8 WAV files match byteLength, sha256 and PCM duration', () => {
+  const pkg = JSON.parse(readFileSync(new URL('../content/exams/goethe-zertifikat-b1/listening-package.json', import.meta.url), 'utf8'));
+  const validated = validatePackage(pkg);
+  assert.equal(validated.release.version, 'v2');
+  assert.equal(validated.release.state, 'internal');
+  assert.equal(validated.forms.length, 3);
+  assert.equal(validated.sets.length, 9);
+  assert.equal(validated.media.length, 8);
+  assert.equal(validated.writingTasks.length, 2);
+  assert.equal(validated.rubrics.length, 1);
+  const complete = validated.forms.find((f) => f.scope === 'complete_supported_written');
+  assert(complete, 'missing complete_supported_written form');
+  validateCompleteForm(validated.exam, validated.blueprint, complete);
+  for (const m of validated.media) {
+    const bytes = readFileSync(new URL('../' + m.path, import.meta.url));
+    assert.equal(bytes.length, m.byteLength, `${m.mediaId} byteLength mismatch`);
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), m.sha256, `${m.mediaId} sha256 mismatch`);
+    const wav = parsePcmWav(bytes);
+    assert.equal(wav.durationMs, m.durationMs, `${m.mediaId} durationMs mismatch`);
+  }
 });
 
 console.log(`Goethe-Zertifikat B1 package check: ${passed} passed, 0 failed.`);
