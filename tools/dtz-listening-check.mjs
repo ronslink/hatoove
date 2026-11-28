@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validatePackage, packageHash, assertPublicPayload } from '../server/package-contract.mjs';
 import { buildDtzListeningPackage } from './dtz-listening-package-build.mjs';
+import { buildBundledDtzAvailablePackage } from '../server/owned-postgres/package-importer.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PKG_PATH = path.join(ROOT, 'content', 'exams', 'dtz-a2-b1', 'listening-package.json');
@@ -132,6 +133,18 @@ await check('provenance stays honestly unreviewed and generated', async () => {
     assert.equal(row.reviewStatus, 'unreviewed');
     assert.equal(row.rightsStatus, 'generated');
   }
+});
+
+await check('reference-only v5 available promotion package validates cleanly', async () => {
+  const available = buildBundledDtzAvailablePackage(pkg);
+  validatePackage(available);
+  assert.equal(available.release.version, 'v5');
+  assert.equal(available.release.state, 'available');
+  assert.deepEqual(available.sets, []);
+  assert.deepEqual(available.media, []);
+  assert.deepEqual(available.writingTasks, []);
+  assert.deepEqual(available.rubrics, []);
+  assert.equal(available.forms.some((f) => f.scope === 'complete_supported_written'), true);
 });
 
 console.log(`DTZ listening check: ${passed} passed, 0 failed.`);

@@ -281,3 +281,20 @@ export async function importBundledDtzPackage(pool) {
   const dtz=JSON.parse(await readFile(new URL('../../content/exams/dtz-a2-b1/listening-package.json',import.meta.url),'utf8'));
   return importPackage(pool,dtz,{publisher:'bundled-dtz-source',activation:'if-missing'});
 }
+
+/** Reference-only v5 available release derived from the approved bundled DTZ v4 package. */
+export function buildBundledDtzAvailablePackage(dtz) {
+  return {
+    ...structuredClone(dtz),
+    release:{version:'v5',state:'available',resumeBlockedReleases:[]},
+    sets:[],media:[],writingTasks:[],rubrics:[],
+  };
+}
+
+/** Promote bundled DTZ from v4 (internal) to v5 (available) once all v4 subjects have named approvals. */
+export async function promoteBundledDtzAvailable(pool) {
+  const head=(await pool.query("SELECT release_version FROM exam_release_head WHERE exam_id='dtz-a2-b1'")).rows[0]?.release_version;
+  if(head!=='v4') return {examId:'dtz-a2-b1',releaseVersion:head??null,unchanged:true};
+  const dtz=JSON.parse(await readFile(new URL('../../content/exams/dtz-a2-b1/listening-package.json',import.meta.url),'utf8'));
+  return importPackage(pool,buildBundledDtzAvailablePackage(dtz),{publisher:'bundled-dtz-source',activation:'new-release'});
+}
