@@ -1,0 +1,1515 @@
+{
+  "schemaVersion": 1,
+  "exam": {
+    "id": "goethe-zertifikat-b1",
+    "title": "Goethe-Zertifikat B1",
+    "language": "de",
+    "levelModel": {
+      "type": "cefr-single",
+      "level": "B1"
+    }
+  },
+  "blueprint": {
+    "version": "v2",
+    "timeGroups": [
+      {
+        "id": "goethe-b1-lv-65",
+        "seconds": 3900,
+        "sections": [
+          "LV"
+        ]
+      },
+      {
+        "id": "goethe-b1-hv-40",
+        "seconds": 2400,
+        "sections": [
+          "HV"
+        ]
+      },
+      {
+        "id": "goethe-b1-sa-60",
+        "seconds": 3600,
+        "sections": [
+          "SA"
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "id": "LV",
+        "title": "Lesen",
+        "timeGroup": "goethe-b1-lv-65",
+        "parts": [
+          {
+            "family": "LV1",
+            "itemCount": 6,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV2",
+            "itemCount": 6,
+            "interaction": "grouped_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV3",
+            "itemCount": 7,
+            "interaction": "matching_ads",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV4",
+            "itemCount": 7,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV5",
+            "itemCount": 4,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "HV",
+        "title": "Hören",
+        "timeGroup": "goethe-b1-hv-40",
+        "parts": [
+          {
+            "family": "HV1",
+            "itemCount": 10,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 2
+            }
+          },
+          {
+            "family": "HV2",
+            "itemCount": 5,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV3",
+            "itemCount": 7,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV4",
+            "itemCount": 8,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 2
+            }
+          }
+        ]
+      },
+      {
+        "id": "SA",
+        "title": "Schreiben",
+        "timeGroup": "goethe-b1-sa-60",
+        "parts": [
+          {
+            "family": "writing",
+            "itemCount": 1,
+            "interaction": "writing_choice",
+            "mediaRequired": false
+          }
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "S1",
+        "kind": "official-exam-specification",
+        "title": "Goethe-Zertifikat B1 — Prüfungsziele, Testbeschreibung (Lesen, Hören, Schreiben)",
+        "url": "https://www.goethe.de/de/spr/prf/gzb1/ueb.html",
+        "retrieved": "2026-11-28",
+        "verification": "Structural format reference only (section durations, part counts and four-criterion A-E writing band structure). All passages, items, tasks and explanations are 100% original Hatoove practice material; no official Goethe-Institut text was copied."
+      }
+    ]
+  },
+  "release": {
+    "version": "v2",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [
+    {
+      "id": "goethe-zertifikat-b1.complete.original01",
+      "version": "v1",
+      "title": "Schriftliche Prüfung · Goethe-Zertifikat B1 (Lesen, Hören, Schreiben)",
+      "scope": "complete_supported_written",
+      "sections": [
+        "LV",
+        "HV",
+        "SA"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 9900,
+      "attemptMode": "mock",
+      "timingPolicy": "ordered-fixed-v1",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "goethe-zertifikat-b1.lv1.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b1.lv2.original01",
+          "version": "v1",
+          "interaction": "grouped_choice",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b1.lv3.original01",
+          "version": "v1",
+          "interaction": "matching_ads",
+          "itemCount": 7
+        },
+        {
+          "setId": "goethe-zertifikat-b1.lv4.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 7
+        },
+        {
+          "setId": "goethe-zertifikat-b1.lv5.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 4
+        },
+        {
+          "setId": "goethe-zertifikat-b1.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "goethe-zertifikat-b1.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "goethe-zertifikat-b1.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 7
+        },
+        {
+          "setId": "goethe-zertifikat-b1.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 8
+        }
+      ],
+      "writingChoices": [
+        {
+          "id": "SA1",
+          "section": "SA",
+          "options": [
+            {
+              "id": "A",
+              "taskId": "goethe-zertifikat-b1.writing.original01.a",
+              "taskVersion": "v1"
+            },
+            {
+              "id": "B",
+              "taskId": "goethe-zertifikat-b1.writing.original01.b",
+              "taskVersion": "v1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "goethe-zertifikat-b1.listening.practice",
+      "version": "v1",
+      "title": "Hören · Übung (Goethe-Zertifikat B1)",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "attemptMode": "practice",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "goethe-zertifikat-b1.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "goethe-zertifikat-b1.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "goethe-zertifikat-b1.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 7
+        },
+        {
+          "setId": "goethe-zertifikat-b1.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 8
+        }
+      ]
+    },
+    {
+      "id": "goethe-zertifikat-b1.listening.mock",
+      "version": "v1",
+      "title": "Hören · Prüfungsmodus (Goethe-Zertifikat B1)",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 2400,
+      "attemptMode": "mock",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "goethe-zertifikat-b1.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "goethe-zertifikat-b1.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 5
+        },
+        {
+          "setId": "goethe-zertifikat-b1.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 7
+        },
+        {
+          "setId": "goethe-zertifikat-b1.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 8
+        }
+      ]
+    }
+  ],
+  "sets": [
+    {
+      "setId": "goethe-zertifikat-b1.lv1.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "LV1",
+      "section": "LV",
+      "part": 1,
+      "title": "Lesen Teil 1: Blogbeitrag — Ein halbes Jahr ohne eigenes Auto",
+      "interaction": "single_choice",
+      "itemCount": 6,
+      "payload": {
+        "text": "Ein halbes Jahr ohne eigenes Auto – meine Erfahrungen\n\nAls mein alter Kleinwagen im März nicht mehr durch die Hauptuntersuchung kam, stand ich vor einer schwierigen Entscheidung: Sollte ich viel Geld für eine teure Reparatur ausgeben oder es einfach einmal ohne eigenes Auto versuchen? Da ich seit zwei Jahren zentral in Freiburg wohne und mein Arbeitsplatz nur vier Kilometer entfernt liegt, habe ich mich für das Experiment entschieden – zunächst für sechs Monate.\n\nDie ersten Wochen waren ungewohnt. Vor allem beim Wocheneinkauf habe ich gemerkt, wie praktisch ein Kofferraum ist. Am Anfang bin ich dreimal pro Woche mit dem Rucksack zum Supermarkt gefahren, weil ich nicht alles auf einmal transportieren konnte. Inzwischen habe ich mir zwei stabile Fahrradtaschen gekauft. Damit schaffe ich problemlos den gesamten Einkauf für vier Tage, und bei starkem Regen nehme ich einfach die Straßenbahn, die direkt vor meinem Haus hält.\n\nÜberrascht hat mich, wie viel Geld ich spare. Versicherung, Steuer, Benzin und Parkgebühren haben mich früher fast 300 Euro im Monat gekostet. Jetzt zahle ich für das Deutschlandticket und gelegentliche Carsharing-Fahrten zusammen weniger als 90 Euro. Einen Carsharing-Wagen nutze ich allerdings nur selten – bisher genau viermal, vor allem, als ich meine Eltern auf dem Land besucht und Getränkekisten transportiert habe.\n\nNatürlich gibt es auch Nachteile. Spontane Ausflüge in abgelegene Dörfer im Schwarzwald dauern mit Bus und Bahn oft doppelt so lange wie mit dem Auto. Und im November, als es morgens schon kalt und dunkel war, habe ich mein warmes Auto manchmal vermisst. Trotzdem überwiegen für mich die Vorteile: Ich bewege mich täglich an der frischen Luft, muss nie mehr nach einem Parkplatz suchen und komme entspannter im Büro an. Deshalb habe ich letzte Woche beschlossen, mein Experiment unbefristet zu verlängern.",
+        "questions": [
+          {
+            "n": 1,
+            "question": "Die Autorin hat ihr Auto verkauft, weil sie in eine neue Stadt umgezogen ist.",
+            "options": {
+              "R": "Richtig",
+              "F": "Falsch"
+            }
+          },
+          {
+            "n": 2,
+            "question": "Mit ihren neuen Fahrradtaschen kann sie Einkäufe für mehrere Tage transportieren.",
+            "options": {
+              "R": "Richtig",
+              "F": "Falsch"
+            }
+          },
+          {
+            "n": 3,
+            "question": "Wenn es stark regnet, bestellt sie ihre Lebensmittel online.",
+            "options": {
+              "R": "Richtig",
+              "F": "Falsch"
+            }
+          },
+          {
+            "n": 4,
+            "question": "Ihre monatlichen Mobilitätskosten sind deutlich niedriger als früher.",
+            "options": {
+              "R": "Richtig",
+              "F": "Falsch"
+            }
+          },
+          {
+            "n": 5,
+            "question": "Sie nutzt Carsharing fast jedes Wochenende für Ausflüge in den Schwarzwald.",
+            "options": {
+              "R": "Richtig",
+              "F": "Falsch"
+            }
+          },
+          {
+            "n": 6,
+            "question": "Nach den sechs Monaten möchte sie weiterhin ohne eigenes Auto leben.",
+            "options": {
+              "R": "Richtig",
+              "F": "Falsch"
+            }
+          }
+        ]
+      },
+      "answers": {
+        "1": "F",
+        "2": "R",
+        "3": "F",
+        "4": "R",
+        "5": "F",
+        "6": "R"
+      },
+      "explanations": {
+        "1": "Falsch: Sie wohnt bereits seit zwei Jahren in Freiburg. Auslöser war, dass ihr alter Kleinwagen nicht mehr durch die Hauptuntersuchung kam.",
+        "2": "Richtig: Im zweiten Absatz schreibt sie, dass sie mit zwei stabilen Fahrradtaschen problemlos den Einkauf für vier Tage schafft.",
+        "3": "Falsch: Bei starkem Regen nimmt sie die Straßenbahn, die direkt vor ihrem Haus hält – von Online-Bestellungen steht nichts im Text.",
+        "4": "Richtig: Früher zahlte sie fast 300 Euro im Monat, jetzt für Deutschlandticket und Carsharing zusammen weniger als 90 Euro.",
+        "5": "Falsch: Sie schreibt, dass sie einen Carsharing-Wagen nur selten nutzt – bisher genau viermal in sechs Monaten.",
+        "6": "Richtig: Im letzten Satz steht, dass sie beschlossen hat, ihr Experiment unbefristet zu verlängern."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 practice draft (LV1, 2026-11-28)."
+    },
+    {
+      "setId": "goethe-zertifikat-b1.lv2.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "LV2",
+      "section": "LV",
+      "part": 2,
+      "title": "Lesen Teil 2: Zwei Pressetexte — Reparatur-Cafés & Nachtzüge",
+      "interaction": "grouped_choice",
+      "itemCount": 6,
+      "payload": {
+        "groups": [
+          {
+            "id": "text1",
+            "text": "Reparieren statt wegwerfen: Warum Reparatur-Cafés immer beliebter werden\n\nJeden ersten Samstag im Monat verwandelt sich das Nachbarschaftszentrum in Mainz-Neustadt in eine lebendige Werkstatt. An sechs langen Tischen sitzen ehrenamtliche Elektriker, Schneiderinnen und Fahrradmechaniker neben Besucherinnen und Besuchern, die defekte Toaster, wackelige Stühle oder zerrissene Jacken mitgebracht haben. Das Prinzip ist einfach: Niemand gibt sein Gerät einfach ab und holt es später ab – stattdessen reparieren alle gemeinsam.\n\n„Viele Menschen trauen sich allein nicht an ein Elektrogerät heran“, erklärt Organisatorin Petra Lindner. „Wenn sie aber einmal gesehen haben, wie man ein loses Kabel prüft oder einen Schalter ersetzt, wächst das Selbstvertrauen.“ Etwa zwei Drittel der mitgebrachten Gegenstände funktionieren am Ende des Nachmittags wieder. Die Hilfe ist kostenlos; lediglich Ersatzteile müssen bezahlt werden, und wer möchte, wirft eine kleine Spende in die Kaffeekasse.\n\nBesonders junge Familien und Studierende nutzen das Angebot regelmäßig. Für die Stadtverwaltung ist das Projekt ebenfalls ein Gewinn, weil so pro Jahr mehrere Tonnen Elektroschrott vermieden werden.",
+            "questions": [
+              {
+                "n": 1,
+                "question": "In diesem Text geht es um ...",
+                "options": {
+                  "a": "einen neuen Ausbildungsberuf für Elektriker.",
+                  "b": "einen Treffpunkt zum gemeinsamen Reparieren von Alltagsgegenständen.",
+                  "c": "einen städtischen Flohmarkt für gebrauchte Elektrogeräte."
+                }
+              },
+              {
+                "n": 2,
+                "question": "Was müssen Besucherinnen und Besucher im Reparatur-Café bezahlen?",
+                "options": {
+                  "a": "Einen festen Eintrittspreis von zehn Euro.",
+                  "b": "Nur die benötigten Ersatzteile; Spenden sind freiwillig.",
+                  "c": "Nichts, denn die Stadt übernimmt alle Kosten inklusive Ersatzteile."
+                }
+              },
+              {
+                "n": 3,
+                "question": "Was ist das Besondere an der Arbeitsweise im Reparatur-Café?",
+                "options": {
+                  "a": "Die Besucher arbeiten gemeinsam mit den Ehrenamtlichen an ihren Geräten.",
+                  "b": "Die Geräte werden eine Woche lang in der Werkstatt gelagert.",
+                  "c": "Es werden ausschließlich Fahrräder und Kleidung angenommen."
+                }
+              }
+            ]
+          },
+          {
+            "id": "text2",
+            "text": "Im Schlaf durch Europa: Die Rückkehr der Nachtzüge\n\nLange Zeit galten Nachtzüge als veraltet und wurden auf vielen Strecken eingestellt. Doch seit einigen Jahren steigt die Nachfrage wieder deutlich. Immer mehr Reisende möchten Kurzstreckenflüge vermeiden und schätzen es, abends im Stadtzentrum einzusteigen und am nächsten Morgen ausgeruht am Zielort anzukommen – ohne lange Wartezeiten am Flughafen.\n\nDie Betreiber reagieren auf diesen Trend mit modernen Wagen. Neben klassischen Liegewagen gibt es inzwischen sogenannte Mini-Kabinen für Alleinreisende, die mehr Privatsphäre bieten und sich von innen abschließen lassen. Allerdings sind die Preise nicht immer günstig: Wer kurzfristig bucht, zahlt oft mehr als für einen Billigflug. Frühbucher hingegen finden häufig attraktive Angebote.\n\nVerkehrsexperten weisen jedoch darauf hin, dass das europäische Netz noch Lücken hat. Unterschiedliche Stromsysteme und aufwendige Genehmigungen in den einzelnen Ländern erschweren neue Verbindungen. Dennoch planen mehrere Bahngesellschaften bis 2028 zusätzliche Strecken zwischen Deutschland, Italien und Skandinavien.",
+            "questions": [
+              {
+                "n": 4,
+                "question": "Warum entscheiden sich wieder mehr Menschen für Nachtzüge?",
+                "options": {
+                  "a": "Weil Nachtzüge immer billiger sind als jedes Flugzeugticket.",
+                  "b": "Weil sie Flüge vermeiden und direkt im Stadtzentrum ankommen möchten.",
+                  "c": "Weil es auf europäischen Strecken kaum noch Tageszüge gibt."
+                }
+              },
+              {
+                "n": 5,
+                "question": "Was bieten die neuen Mini-Kabinen?",
+                "options": {
+                  "a": "Besonders viel Platz für große Familien mit Kindern.",
+                  "b": "Ein eigenes Restaurant für die Fahrgäste.",
+                  "c": "Mehr Privatsphäre für Menschen, die allein reisen."
+                }
+              },
+              {
+                "n": 6,
+                "question": "Welches Problem nennen Verkehrsexperten beim Ausbau der Nachtzüge?",
+                "options": {
+                  "a": "Es gibt zu wenige interessierte Fahrgäste.",
+                  "b": "Technische Unterschiede und Genehmigungen zwischen den Ländern.",
+                  "c": "Die Bahnhöfe schließen nachts aus Sicherheitsgründen."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "answers": {
+        "1": "b",
+        "2": "b",
+        "3": "a",
+        "4": "b",
+        "5": "c",
+        "6": "b"
+      },
+      "explanations": {
+        "1": "b ist richtig: Der Artikel beschreibt ein Reparatur-Café im Nachbarschaftszentrum, in dem Ehrenamtliche und Besucher gemeinsam Alltagsgegenstände reparieren.",
+        "2": "b ist richtig: Im Text steht ausdrücklich: „Die Hilfe ist kostenlos; lediglich Ersatzteile müssen bezahlt werden, und wer möchte, wirft eine kleine Spende in die Kaffeekasse.“",
+        "3": "a ist richtig: „Niemand gibt sein Gerät einfach ab und holt es später ab – stattdessen reparieren alle gemeinsam.“",
+        "4": "b ist richtig: Reisende möchten Kurzstreckenflüge vermeiden und direkt im Stadtzentrum ein- und aussteigen.",
+        "5": "c ist richtig: Die Mini-Kabinen sind für Alleinreisende gedacht, bieten mehr Privatsphäre und lassen sich von innen abschließen.",
+        "6": "b ist richtig: Unterschiedliche Stromsysteme und aufwendige Genehmigungen in den einzelnen Ländern erschweren neue Verbindungen."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 practice draft (LV2, 2026-11-28)."
+    },
+    {
+      "setId": "goethe-zertifikat-b1.lv3.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "LV3",
+      "section": "LV",
+      "part": 3,
+      "title": "Lesen Teil 3: Anzeigen zuordnen (7 Situationen, 10 Anzeigen)",
+      "interaction": "matching_ads",
+      "itemCount": 7,
+      "payload": {
+        "situations": [
+          {
+            "n": 1,
+            "text": "Sie suchen für Ihre neunjährige Tochter einen Schwimmkurs am Wochenende."
+          },
+          {
+            "n": 2,
+            "text": "Sie möchten am Abend in einer kleinen Gruppe Spanisch für den Urlaub lernen – Sie haben noch keine Vorkenntnisse."
+          },
+          {
+            "n": 3,
+            "text": "Ihr Laptop startet nicht mehr und Sie brauchen schnell Hilfe bei Ihnen zu Hause."
+          },
+          {
+            "n": 4,
+            "text": "Sie ziehen bald um und suchen kostenlose Umzugskartons."
+          },
+          {
+            "n": 5,
+            "text": "Sie möchten am Sonntag mit einer geführten Gruppe in der Natur wandern gehen."
+          },
+          {
+            "n": 6,
+            "text": "Sie suchen eine gebrauchte Gitarre für den Musikunterricht Ihres Sohnes."
+          },
+          {
+            "n": 7,
+            "text": "Sie möchten ehrenamtlich älteren Menschen beim Einkaufen helfen."
+          }
+        ],
+        "ads": [
+          {
+            "id": "a",
+            "text": "Hallenschwimmbad Nord: Kinder-Schwimmkurse (6–10 Jahre), samstags 10:00–11:00 Uhr. Kleine Gruppen, erfahrene Trainer. Anmeldung unter schwimmbad-nord.example."
+          },
+          {
+            "id": "b",
+            "text": "Sprachstudio Viva: Spanisch für Fortgeschrittene (Niveau B1), dienstags 18:30–20:00 Uhr. Freie Konversation in lockerer Atmosphäre."
+          },
+          {
+            "id": "c",
+            "text": "PC-Hilfe Mobil: Probleme mit Laptop, WLAN oder Drucker? Ich komme kurzfristig zu Ihnen nach Hause – auch abends. Faire Festpreise. Tel. 0151-5550192."
+          },
+          {
+            "id": "d",
+            "text": "Abzugeben: 25 stabile Umzugskartons, einmal benutzt, zusammengefaltet. Gegen Selbstabholung in der Weststadt zu verschenken!"
+          },
+          {
+            "id": "e",
+            "text": "Wanderfreunde Taunus: Jeden Sonntag geführte Tagestour (ca. 12 km) durch Wald und Weinberge. Gäste sind herzlich willkommen, keine Vereinsmitgliedschaft nötig."
+          },
+          {
+            "id": "f",
+            "text": "Musikschule Klangwerk: Gitarrenunterricht für Kinder und Jugendliche. Einzel- oder Partnerunterricht. Instrumente können vor Ort nicht gekauft werden."
+          },
+          {
+            "id": "g",
+            "text": "Volkshochschule: Spanisch A1 – Fit für die Reise! Für Anfänger ohne Vorkenntnisse. Donnerstags 19:00–20:30 Uhr, max. 8 Teilnehmende."
+          },
+          {
+            "id": "h",
+            "text": "Nachbarschaftshilfe Aktiv sucht Freiwillige! Begleiten Sie Seniorinnen und Senioren zum Supermarkt oder zur Apotheke. Flexible Zeiten nach Absprache."
+          },
+          {
+            "id": "i",
+            "text": "Umzugsservice Blitz: Wir transportieren Ihre Möbel sicher und zuverlässig. Umzugskartons zum Kauf (3,50 € pro Stück) direkt in unserem Lager."
+          },
+          {
+            "id": "j",
+            "text": "Aqua-Fitness für Erwachsene: Jeden Samstagvormittag im Freizeitbad Süd. Gelenkschonendes Training im warmen Wasser."
+          }
+        ]
+      },
+      "answers": {
+        "1": "a",
+        "2": "g",
+        "3": "c",
+        "4": "d",
+        "5": "e",
+        "6": "x",
+        "7": "h"
+      },
+      "explanations": {
+        "1": "Anzeige a passt: Schwimmkurs für Kinder von 6 bis 10 Jahren am Samstagvormittag (Wochenende). Anzeige j ist für Erwachsene.",
+        "2": "Anzeige g passt: Spanisch A1 für Anfänger ohne Vorkenntnisse am Abend in kleiner Gruppe (max. 8 Teilnehmende). Anzeige b ist für Fortgeschrittene (B1).",
+        "3": "Anzeige c passt: Mobiler PC-Service, der bei Laptop-Problemen kurzfristig nach Hause kommt.",
+        "4": "Anzeige d passt: 25 stabile Umzugskartons zu verschenken (kostenlos). In Anzeige i kosten die Kartons 3,50 € pro Stück.",
+        "5": "Anzeige e passt: Geführte Wanderung in der Natur jeden Sonntag, auch für Gäste offen.",
+        "6": "x (keine Anzeige passt): Anzeige f bietet nur Gitarrenunterricht und weist ausdrücklich darauf hin, dass keine Instrumente gekauft werden können.",
+        "7": "Anzeige h passt: Die Nachbarschaftshilfe sucht Freiwillige, die Seniorinnen und Senioren beim Einkaufen begleiten."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 practice draft (LV3, 2026-11-28)."
+    },
+    {
+      "setId": "goethe-zertifikat-b1.lv4.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "LV4",
+      "section": "LV",
+      "part": 4,
+      "title": "Lesen Teil 4: Lesermeinungen — Pflichtfach Informatik ab Klasse 7?",
+      "interaction": "single_choice",
+      "itemCount": 7,
+      "payload": {
+        "text": "Thema im Leserforum: Sollten alle Schulen ab der 7. Klasse verpflichtend Informatik unterrichten?\n\n1. Hannah (34, Softwareentwicklerin): Digitale Technik bestimmt heute fast jeden Beruf. Trotzdem lernen Jugendliche oft nur, wie man Apps bedient, nicht aber, wie Programme funktionieren oder wie man Daten schützt. Ein Pflichtfach ab Klasse 7 ist längst überfällig.\n\n2. Markus (48, Vater von zwei Kindern): Der Stundenplan meiner Kinder ist jetzt schon völlig überfüllt. Wenn ein weiteres Pflichtfach dazukommt, müssen Kunst, Musik oder Sport gekürzt werden. Informatik sollte eine freiwillige Arbeitsgemeinschaft am Nachmittag bleiben.\n\n3. Selma (19, Studentin): Ich hätte mir in der Schule sehr gewünscht, früh die Grundlagen zu lernen. Als ich mein Studium begann, hatte ich das Gefühl, den anderen weit hinterherzuhinken. Gerade Mädchen profitieren davon, wenn alle teilnehmen müssen.\n\n4. Herr Kowalski (61, Schulleiter im Ruhestand): Die Idee klingt auf dem Papier gut, aber in der Praxis fehlen vielerorts ausgebildete Lehrkräfte und zuverlässige Geräte. Bevor man Informatik für alle vorschreibt, sollte man erst einmal die Grundfächer Deutsch und Mathematik stärken.\n\n5. Lukas (27, Handwerksmeister): Selbst in meinem kleinen Betrieb arbeiten wir täglich mit digitalen Plänen und Messgeräten. Wer schon in der Schule logisches Denken und den sicheren Umgang mit Software übt, hat es später in jeder Ausbildung leichter. Ich bin klar dafür.\n\n6. Miriam (41, Lehrerin für Geschichte): Medienkompetenz ist extrem wichtig, aber dafür braucht es kein eigenes Pflichtfach. Wir können den kritischen Umgang mit Quellen und digitalen Werkzeugen viel sinnvoller in die bestehenden Fächer integrieren.\n\n7. David (23, Auszubildender): Ich hatte in der 7. und 8. Klasse verpflichtend Informatik, und das war das nützlichste Fach meiner ganzen Schulzeit. Selbst Mitschüler, die eigentlich keine Technikfans waren, fanden am Ende das eigene kleine Webprojekt toll.",
+        "questions": [
+          {
+            "n": 1,
+            "question": "Ist Hannah für ein Pflichtfach Informatik ab der 7. Klasse?",
+            "options": {
+              "J": "Ja",
+              "N": "Nein"
+            }
+          },
+          {
+            "n": 2,
+            "question": "Ist Markus für ein Pflichtfach Informatik ab der 7. Klasse?",
+            "options": {
+              "J": "Ja",
+              "N": "Nein"
+            }
+          },
+          {
+            "n": 3,
+            "question": "Ist Selma für ein Pflichtfach Informatik ab der 7. Klasse?",
+            "options": {
+              "J": "Ja",
+              "N": "Nein"
+            }
+          },
+          {
+            "n": 4,
+            "question": "Ist Herr Kowalski für ein Pflichtfach Informatik ab der 7. Klasse?",
+            "options": {
+              "J": "Ja",
+              "N": "Nein"
+            }
+          },
+          {
+            "n": 5,
+            "question": "Ist Lukas für ein Pflichtfach Informatik ab der 7. Klasse?",
+            "options": {
+              "J": "Ja",
+              "N": "Nein"
+            }
+          },
+          {
+            "n": 6,
+            "question": "Ist Miriam für ein Pflichtfach Informatik ab der 7. Klasse?",
+            "options": {
+              "J": "Ja",
+              "N": "Nein"
+            }
+          },
+          {
+            "n": 7,
+            "question": "Ist David für ein Pflichtfach Informatik ab der 7. Klasse?",
+            "options": {
+              "J": "Ja",
+              "N": "Nein"
+            }
+          }
+        ]
+      },
+      "answers": {
+        "1": "J",
+        "2": "N",
+        "3": "J",
+        "4": "N",
+        "5": "J",
+        "6": "N",
+        "7": "J"
+      },
+      "explanations": {
+        "1": "Ja: Hannah sagt ausdrücklich, dass ein Pflichtfach ab Klasse 7 längst überfällig ist.",
+        "2": "Nein: Markus hält den Stundenplan für überfüllt und meint, Informatik sollte eine freiwillige AG bleiben.",
+        "3": "Ja: Selma hätte sich das Fach früh gewünscht und betont, dass alle – gerade Mädchen – von der Pflichtteilnahme profitieren.",
+        "4": "Nein: Herr Kowalski nennt fehlende Lehrkräfte/Geräte und möchte stattdessen zuerst Deutsch und Mathematik stärken.",
+        "5": "Ja: Lukas sagt am Ende eindeutig „Ich bin klar dafür“, weil digitale Kenntnisse in jeder Ausbildung helfen.",
+        "6": "Nein: Miriam meint, dafür brauche es kein eigenes Pflichtfach; digitale Werkzeuge sollten in bestehende Fächer integriert werden.",
+        "7": "Ja: David beschreibt verpflichtenden Informatikunterricht in Klasse 7/8 als das nützlichste Fach seiner Schulzeit."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 practice draft (LV4, 2026-11-28)."
+    },
+    {
+      "setId": "goethe-zertifikat-b1.lv5.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "LV5",
+      "section": "LV",
+      "part": 5,
+      "title": "Lesen Teil 5: Benutzungsordnung der Stadtbibliothek Neustadt",
+      "interaction": "single_choice",
+      "itemCount": 4,
+      "payload": {
+        "text": "Benutzungsordnung der Stadtbibliothek Neustadt (Auszug)\n\n§ 1 Anmeldung und Bibliotheksausweis\nFür die Ausleihe von Medien ist ein gültiger Bibliotheksausweis erforderlich. Bei der Anmeldung sind ein amtlicher Lichtbildausweis sowie ein aktueller Adressnachweis vorzulegen. Für Jugendliche unter 18 Jahren ist zusätzlich die schriftliche Einverständniserklärung einer erziehungsberechtigten Person nötig. Der Ausweis ist persönlich und darf nicht an andere Personen weitergegeben werden.\n\n§ 2 Leihfristen und Verlängerung\nBücher und Hörbücher können für vier Wochen ausgeliehen werden, Zeitschriften und Filme für zwei Wochen. Sofern ein Medium nicht von einer anderen Person vorgemerkt wurde, lässt sich die Leihfrist bis zu zweimal verlängern – persönlich an der Theke, telefonisch oder über das Online-Konto.\n\n§ 3 Rückgabe und Gebühren\nDie Rückgabe ist während der Öffnungszeiten an den Selbstverbuchungsautomaten sowie rund um die Uhr über die Außenrückgabebox am Haupteingang möglich. Bei Überschreitung der Leihfrist fällt pro angefangener Woche und Medium eine Säumnisgebühr von 1,50 Euro an. Ab einem offenen Betrag von 15 Euro wird das Ausleihkonto vorübergehend gesperrt.\n\n§ 4 Aufenthalt in den Lesesälen\nIn den Lern- und Lesesälen im Obergeschoss ist Ruhe zu bewahren. Mobiltelefone sind lautlos zu stellen. Das Mitbringen von Wasser in fest verschließbaren Flaschen ist erlaubt; Speisen sowie offene Getränke sind im gesamten Lesebereich nicht gestattet.",
+        "questions": [
+          {
+            "n": 1,
+            "question": "Was gilt für den Bibliotheksausweis?",
+            "options": {
+              "a": "Er darf innerhalb der eigenen Familie frei verliehen werden.",
+              "b": "Er ist persönlich und darf nicht weitergegeben werden.",
+              "c": "Er wird erst ab einem Alter von 18 Jahren ausgestellt."
+            }
+          },
+          {
+            "n": 2,
+            "question": "Wann kann man die Leihfrist eines Buches NICHT verlängern?",
+            "options": {
+              "a": "Wenn man es telefonisch versuchen möchte.",
+              "b": "Wenn jemand anderes das Buch bereits vorgemerkt hat.",
+              "c": "Wenn man das Buch bereits vier Wochen zu Hause hatte."
+            }
+          },
+          {
+            "n": 3,
+            "question": "Wie kann man Medien außerhalb der Öffnungszeiten zurückgeben?",
+            "options": {
+              "a": "Gar nicht – eine Rückgabe ist nur während der Öffnungszeiten möglich.",
+              "b": "Über die Außenrückgabebox am Haupteingang.",
+              "c": "Nur nach vorheriger Anmeldung im Online-Konto."
+            }
+          },
+          {
+            "n": 4,
+            "question": "Was darf man in die Lesesäle im Obergeschoss mitnehmen?",
+            "options": {
+              "a": "Wasser in einer fest verschließbaren Flasche.",
+              "b": "Kleine Snacks und Kaffee im offenen Becher.",
+              "c": "Gar keine Getränke."
+            }
+          }
+        ]
+      },
+      "answers": {
+        "1": "b",
+        "2": "b",
+        "3": "b",
+        "4": "a"
+      },
+      "explanations": {
+        "1": "b ist richtig: In § 1 steht, dass der Ausweis persönlich ist und nicht an andere Personen weitergegeben werden darf.",
+        "2": "b ist richtig: Nach § 2 ist eine Verlängerung nur möglich, „sofern ein Medium nicht von einer anderen Person vorgemerkt wurde“.",
+        "3": "b ist richtig: Nach § 3 ist die Rückgabe rund um die Uhr über die Außenrückgabebox am Haupteingang möglich.",
+        "4": "a ist richtig: Nach § 4 ist Wasser in fest verschließbaren Flaschen erlaubt, während Speisen und offene Getränke untersagt sind."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 practice draft (LV5, 2026-11-28)."
+    },
+    {
+      "setId": "goethe-zertifikat-b1.hv1.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "HV1",
+      "section": "HV",
+      "part": 1,
+      "title": "Hören Teil 1: Fünf kurze Texte aus dem Alltag",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv1-01",
+            "mediaId": "goethe-zertifikat-b1.hv1.01.audio",
+            "mediaVersion": "v1",
+            "label": "Text 1 · Durchsage am Bahnhof",
+            "questions": [
+              {
+                "n": 1,
+                "question": "Der Regionalexpress nach Stuttgart fällt heute komplett aus.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 2,
+                "question": "Wo sollen Fahrgäste einsteigen, die bis nach Stuttgart fahren möchten?",
+                "options": {
+                  "a": "Im vorderen Zugteil auf Gleis 3.",
+                  "b": "Im hinteren Zugteil auf Gleis 7.",
+                  "c": "In jedem beliebigen Wagen auf Gleis 7."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-02",
+            "mediaId": "goethe-zertifikat-b1.hv1.02.audio",
+            "mediaVersion": "v1",
+            "label": "Text 2 · Nachricht auf dem Anrufbeantworter",
+            "questions": [
+              {
+                "n": 3,
+                "question": "Der Fotokurs am Donnerstag wurde wegen der kaputten Heizung abgesagt.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 4,
+                "question": "Was soll Lukas zum Treffen mitbringen?",
+                "options": {
+                  "a": "Sein Stativ und eine warme Jacke.",
+                  "b": "Einen Laptop und seine alten Fotos.",
+                  "c": "Eine Taschenlampe und einen Regenschirm."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-03",
+            "mediaId": "goethe-zertifikat-b1.hv1.03.audio",
+            "mediaVersion": "v1",
+            "label": "Text 3 · Radiomeldung zum Stadtfest",
+            "questions": [
+              {
+                "n": 5,
+                "question": "Für die Konzerte des Straßenmusikfestivals muss man Eintrittskarten kaufen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 6,
+                "question": "Wie kommen Besucher am besten in die Innenstadt?",
+                "options": {
+                  "a": "Mit dem Auto über die Bahnhofstraße.",
+                  "b": "Mit den zusätzlichen Straßenbahnen alle zehn Minuten.",
+                  "c": "Mit einem speziellen Festival-Shuttle ab dem Flughafen."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-04",
+            "mediaId": "goethe-zertifikat-b1.hv1.04.audio",
+            "mediaVersion": "v1",
+            "label": "Text 4 · Anruf aus der Zahnarztpraxis",
+            "questions": [
+              {
+                "n": 7,
+                "question": "Herr Weber soll morgen wie geplant um 10:30 Uhr in die Praxis kommen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 8,
+                "question": "Welche Ausweichtermine bietet die Praxis an?",
+                "options": {
+                  "a": "Dienstag um 9:00 Uhr oder Donnerstag um 15:15 Uhr.",
+                  "b": "Dienstag um 17:00 Uhr oder Mittwoch um 9:00 Uhr.",
+                  "c": "Nur nächste Woche Montagvormittag."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-05",
+            "mediaId": "goethe-zertifikat-b1.hv1.05.audio",
+            "mediaVersion": "v1",
+            "label": "Text 5 · Ansage im Sportverein",
+            "questions": [
+              {
+                "n": 9,
+                "question": "Während der Bauarbeiten fallen die Sportkurse für zwei Wochen aus.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 10,
+                "question": "Wo können sich die Mitglieder ab nächster Woche umziehen?",
+                "options": {
+                  "a": "In den Umkleidekabinen im Erdgeschoss.",
+                  "b": "In den Kabinen im ersten Stock.",
+                  "c": "Gar nicht – sie müssen bereits in Sportkleidung kommen."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 10,
+      "interaction": "fixed_audio",
+      "answers": {
+        "1": "F",
+        "2": "b",
+        "3": "F",
+        "4": "a",
+        "5": "F",
+        "6": "b",
+        "7": "F",
+        "8": "a",
+        "9": "F",
+        "10": "b"
+      },
+      "explanations": {
+        "1": "Falsch: Der Zug fährt, aber von einem anderen Gleis (Gleis 7 statt Gleis 3).",
+        "2": "b ist richtig: Der Zug fährt von Gleis 7 ab, und nur der hintere Zugteil fährt bis Stuttgart.",
+        "3": "Falsch: Der Kurs findet statt, aber draußen im Stadtpark statt im Kulturhaus.",
+        "4": "a ist richtig: Nina bittet ihn ausdrücklich, sein Stativ und eine warme Jacke mitzubringen.",
+        "5": "Falsch: Der Moderator sagt, dass der Eintritt zu allen Bühnen frei ist.",
+        "6": "b ist richtig: Marktplatz und Bahnhofstraße sind für Autos gesperrt; die Stadtwerke lassen alle zehn Minuten zusätzliche Straßenbahnen fahren.",
+        "7": "Falsch: Der Termin um 10:30 Uhr muss verschoben werden.",
+        "8": "a ist richtig: Frau Scholz schlägt morgen (Dienstag) um 9:00 Uhr oder Donnerstag um 15:15 Uhr vor.",
+        "9": "Falsch: Die Sporthalle bleibt uneingeschränkt geöffnet und alle Kurse finden wie gewohnt statt.",
+        "10": "b ist richtig: Während der Renovierung im Erdgeschoss stehen die Kabinen im ersten Stock zur Verfügung."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 listening transcripts and items (HV1-HV4, 30 items, 8 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    },
+    {
+      "setId": "goethe-zertifikat-b1.hv2.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "HV2",
+      "section": "HV",
+      "part": 2,
+      "title": "Hören Teil 2: Führung im Botanischen Garten",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv2-01",
+            "mediaId": "goethe-zertifikat-b1.hv2.01.audio",
+            "mediaVersion": "v1",
+            "label": "Führung im Botanischen Garten",
+            "questions": [
+              {
+                "n": 11,
+                "question": "Warum sollen die Besucher große Taschen in die Schließfächer legen?",
+                "options": {
+                  "a": "Weil im Tropenhaus enge Wege sind und Pflanzen geschützt werden sollen.",
+                  "b": "Weil die Schließfächer eine Pflichtgebühr von zwei Euro kosten.",
+                  "c": "Weil im gesamten Garten Fotografierverbot gilt."
+                }
+              },
+              {
+                "n": 12,
+                "question": "Für wen wurde der Botanische Garten im Jahr 1894 ursprünglich angelegt?",
+                "options": {
+                  "a": "Für Touristen aus dem Ausland.",
+                  "b": "Für Medizinstudierende zum Kennenlernen von Heilkräutern.",
+                  "c": "Für Schulklassen aus der Region."
+                }
+              },
+              {
+                "n": 13,
+                "question": "Was hat sich nach der Modernisierung des Palmenhauses verändert?",
+                "options": {
+                  "a": "Es benötigt dank Solartechnik deutlich weniger Heizenergie.",
+                  "b": "Es ist doppelt so groß geworden.",
+                  "c": "Es bleibt im Winter geschlossen."
+                }
+              },
+              {
+                "n": 14,
+                "question": "Was gilt beim Fotografieren während der Führung?",
+                "options": {
+                  "a": "Fotografieren ist komplett verboten.",
+                  "b": "Es ist privat erlaubt, aber ohne Blitzlicht.",
+                  "c": "Man darf nur im Gartencafé Fotos machen."
+                }
+              },
+              {
+                "n": 15,
+                "question": "Wo endet die Führung gegen 15:30 Uhr?",
+                "options": {
+                  "a": "Am Haupteingang bei den Schließfächern.",
+                  "b": "Im großen Hörsaal der Universität.",
+                  "c": "Am Gartencafé mit Kräutertee und einer Ausstellung."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 5,
+      "interaction": "fixed_audio",
+      "answers": {
+        "11": "a",
+        "12": "b",
+        "13": "a",
+        "14": "b",
+        "15": "c"
+      },
+      "explanations": {
+        "11": "a ist richtig: Im Tropenhaus sind die Wege sehr schmal, und empfindliche Pflanzen sollen nicht beschädigt werden.",
+        "12": "b ist richtig: Der Garten wurde 1894 ursprünglich ausschließlich für Medizinstudierende angelegt.",
+        "13": "a ist richtig: Durch moderne Solartechnik verbraucht es fast die Hälfte weniger Heizenergie als früher.",
+        "14": "b ist richtig: Privates Fotografieren ist erlaubt, aber ohne Blitzlicht wegen der frei fliegenden Schmetterlinge.",
+        "15": "c ist richtig: Am Ende der Führung kommt die Gruppe am Gartencafé vorbei, wo es Kräutertee und eine kleine Ausstellung gibt."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 listening transcripts and items (HV1-HV4, 30 items, 8 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    },
+    {
+      "setId": "goethe-zertifikat-b1.hv3.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "HV3",
+      "section": "HV",
+      "part": 3,
+      "title": "Hören Teil 3: Gespräch über eine geplante Radtour",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv3-01",
+            "mediaId": "goethe-zertifikat-b1.hv3.01.audio",
+            "mediaVersion": "v1",
+            "label": "Gespräch im Büro · Planung einer Radtour",
+            "questions": [
+              {
+                "n": 16,
+                "question": "Die geplante Fahrradstrecke nach Wertheim ist sehr steil und hügelig.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 17,
+                "question": "Die beiden möchten sowohl hin als auch zurück mit dem Fahrrad fahren.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 18,
+                "question": "Am Wochenende kostet die Fahrradmitnahme im Regionalzug nichts extra.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 19,
+                "question": "Am Samstagvormittag muss die Frau ihr Fahrrad noch reparieren lassen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 20,
+                "question": "Sie verabreden sich für Sonntag um 9:30 Uhr an der alten Brücke.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 21,
+                "question": "Zum Mittagessen möchten sie nur selbst mitgebrachte Brote essen.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 22,
+                "question": "Die Frau möchte ihre Schwester fragen, ob sie ebenfalls mitkommt.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 7,
+      "interaction": "fixed_audio",
+      "answers": {
+        "16": "F",
+        "17": "F",
+        "18": "R",
+        "19": "R",
+        "20": "R",
+        "21": "F",
+        "22": "R"
+      },
+      "explanations": {
+        "16": "Falsch: Felix sagt, die Strecke sei fast völlig flach ohne steile Berge.",
+        "17": "Falsch: Für den Rückweg möchten sie den Regionalzug nehmen.",
+        "18": "Richtig: Felix erwähnt, dass die Fahrradmitnahme am Wochenende mit dem Verbundticket kostenlos ist.",
+        "19": "Richtig: Sie muss ihr Fahrrad zur Werkstatt bringen, weil die Hinterradbremse quietscht.",
+        "20": "Richtig: Beide einigen sich auf Sonntag, 9:30 Uhr an der alten Brücke.",
+        "21": "Falsch: Felix bringt Kaffee und Äpfel für unterwegs mit; mittags wollen sie in ein Gasthaus am Wasser gehen.",
+        "22": "Richtig: Sie sagt, sie fragt heute Abend noch ihre Schwester Miriam."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 listening transcripts and items (HV1-HV4, 30 items, 8 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    },
+    {
+      "setId": "goethe-zertifikat-b1.hv4.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "HV4",
+      "section": "HV",
+      "part": 4,
+      "title": "Hören Teil 4: Radiodiskussion — Autofreie Innenstädte?",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv4-01",
+            "mediaId": "goethe-zertifikat-b1.hv4.01.audio",
+            "mediaVersion": "v1",
+            "label": "Radiodiskussion · Brauchen wir mehr autofreie Innenstädte?",
+            "questions": [
+              {
+                "n": 23,
+                "question": "Wer befürchtet, dass Kunden aus den Dörfern künftig eher online bestellen?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Herr Berger",
+                  "c": "Frau Lindner"
+                }
+              },
+              {
+                "n": 24,
+                "question": "Wer erklärt, dass Lieferfahrzeuge morgens weiterhin zufahren dürfen?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Herr Berger",
+                  "c": "Frau Lindner"
+                }
+              },
+              {
+                "n": 25,
+                "question": "Wer verweist auf Studien, nach denen ruhige Straßen den Einkauf fördern?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Herr Berger",
+                  "c": "Frau Lindner"
+                }
+              },
+              {
+                "n": 26,
+                "question": "Wer fragt kritisch nach, ob das Konzept auch im Winter funktioniert?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Herr Berger",
+                  "c": "Frau Lindner"
+                }
+              },
+              {
+                "n": 27,
+                "question": "Wer betont, dass ein besserer öffentlicher Nahverkehr Voraussetzung ist?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Herr Berger",
+                  "c": "Frau Lindner"
+                }
+              },
+              {
+                "n": 28,
+                "question": "Wer kritisiert, dass neue Buslinien ins Umland viel zu langsam entstehen?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Herr Berger",
+                  "c": "Frau Lindner"
+                }
+              },
+              {
+                "n": 29,
+                "question": "Wer schlägt vor, das Konzept nach dem Bau von Park-and-Ride-Plätzen ein Jahr zu testen?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Herr Berger",
+                  "c": "Frau Lindner"
+                }
+              },
+              {
+                "n": 30,
+                "question": "Wer lobt zeitlich begrenzte Verkehrsversuche, weil danach echte Erfahrungen vorliegen?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Herr Berger",
+                  "c": "Frau Lindner"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 8,
+      "interaction": "fixed_audio",
+      "answers": {
+        "23": "b",
+        "24": "c",
+        "25": "c",
+        "26": "a",
+        "27": "c",
+        "28": "b",
+        "29": "b",
+        "30": "c"
+      },
+      "explanations": {
+        "23": "b ist richtig: Herr Berger sorgt sich, dass Stammkunden aus den Dörfern ohne Parkplätze im Internet bestellen.",
+        "24": "c ist richtig: Frau Lindner erläutert die festen Zeitfenster am Morgen für Lieferfahrzeuge und Handwerker.",
+        "25": "c ist richtig: Frau Lindner sagt, Studien zeigten, dass Menschen in ruhigeren Straßen länger bleiben und mehr einkaufen.",
+        "26": "a ist richtig: Die Moderatorin fragt nach, ob das auch bei schlechtem Wetter im Winter klappt.",
+        "27": "c ist richtig: Frau Lindner sagt, ohne gute Bus- und Bahnverbindungen klappe die Umstellung nicht.",
+        "28": "b ist richtig: Herr Berger beklagt, dass über Parkverbote gesprochen wird, neue Buslinien aber zu langsam kommen.",
+        "29": "b ist richtig: Herr Berger wäre bei Park-and-Ride-Plätzen und Shuttlebussen bereit, das Konzept ein Jahr zu testen.",
+        "30": "c ist richtig: Frau Lindner bezeichnet Verkehrsversuche als das beste Instrument für Entscheidungen auf Basis echter Erfahrungen."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 listening transcripts and items (HV1-HV4, 30 items, 8 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    }
+  ],
+  "media": [
+    {
+      "mediaId": "goethe-zertifikat-b1.hv1.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv1.01-v1.wav",
+      "sha256": "342e5d9763dd9463ef30c2e92172b860eae2b4788d7b23118a79ae05bb5530e0",
+      "byteLength": 1257492,
+      "durationMs": 26197,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv1-01"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv1.02.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv1.02-v1.wav",
+      "sha256": "3158a3b4dda8598090447abbed906c51e29625a69775e952ec23344e698ba719",
+      "byteLength": 1338264,
+      "durationMs": 27880,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv1-02"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv1.03.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv1.03-v1.wav",
+      "sha256": "78d27798a916b5bb46b975b4f8a0b801982e67154b3e83108772b3a90ab85079",
+      "byteLength": 1111010,
+      "durationMs": 23145,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv1-03"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv1.04.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv1.04-v1.wav",
+      "sha256": "0dcfc4ab58a80e81c4bab5e02609d95a1aa694ac6fe045d9906d6383feaefbca",
+      "byteLength": 1354420,
+      "durationMs": 28216,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv1-04"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv1.05.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv1.05-v1.wav",
+      "sha256": "8194a93a364159d0fb9775db2367fca18b58b17d3d40377a1dafa4805941505f",
+      "byteLength": 1008982,
+      "durationMs": 21020,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv1-05"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv2.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv2.01-v1.wav",
+      "sha256": "7df5fd30b83ecaf253a18be6724917a233234c5cde2e6e2cc72c5154bc72b53e",
+      "byteLength": 5034570,
+      "durationMs": 104886,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv2-01"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv3.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv3.01-v1.wav",
+      "sha256": "99e651f725635e95eb6524faf0e3ccfee669579589fc3b410c5af81b3746fdf1",
+      "byteLength": 5672078,
+      "durationMs": 118167,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv3-01"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b1.hv4.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "path": "content/exams/goethe-zertifikat-b1/audio/hv4.01-v1.wav",
+      "sha256": "b1db22bdd9a2eed3c2b892294e4dab76dd1a5f1f319f9e5b7c30ae8e7283df38",
+      "byteLength": 7039694,
+      "durationMs": 146659,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b1/listening-source.json#hv4-01"
+    }
+  ],
+  "writingTasks": [
+    {
+      "taskId": "goethe-zertifikat-b1.writing.original01.a",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "writing",
+      "section": "SA",
+      "register": "du",
+      "topic": "Einladung in die neue Wohnung",
+      "situation": "Sie sind vor Kurzem in eine neue Wohnung umgezogen und möchten Ihren guten Freund Tobias zu einer kleinen Einweihungsfeier einladen. Schreiben Sie eine E-Mail an Tobias (ca. 80–100 Wörter) und gehen Sie auf alle vier Punkte ein.",
+      "adressat": "Tobias (ein guter Freund)",
+      "leitpunkte": [
+        "Beschreiben Sie kurz Ihre neue Wohnung und die Umgebung.",
+        "Begründen Sie, warum Sie sich in der neuen Wohnung wohlfühlen.",
+        "Nennen Sie den Termin für die Einweihungsfeier und schlagen Sie vor, was Sie gemeinsam machen können.",
+        "Bitten Sie Tobias um eine kurze Rückmeldung, ob er kommen kann."
+      ],
+      "rubricId": "writing.goethe-b1",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 writing task A draft (2026-11-28)."
+    },
+    {
+      "taskId": "goethe-zertifikat-b1.writing.original01.b",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "writing",
+      "section": "SA",
+      "register": "Sie",
+      "topic": "Diskussionsbeitrag: Arbeiten im Homeoffice",
+      "situation": "In einem Online-Magazin lesen Sie eine Diskussion zum Thema „Arbeiten von zu Hause oder im Büro?“. Viele Leserinnen und Leser teilen dort ihre Erfahrungen. Schreiben Sie einen eigenen Diskussionsbeitrag für die Redaktion und Leser (ca. 80–100 Wörter) und gehen Sie auf alle vier Punkte ein.",
+      "adressat": "Leserinnen, Leser und Redaktion des Online-Magazins",
+      "leitpunkte": [
+        "Schildern Sie Ihre persönliche Meinung zum Arbeiten im Homeoffice.",
+        "Nennen Sie mindestens einen Vorteil und einen Nachteil der Arbeit von zu Hause.",
+        "Berichten Sie von einer eigenen Erfahrung oder einer Situation aus Ihrem Umfeld.",
+        "Machen Sie einen konkreten Vorschlag, wie Unternehmen Homeoffice und Büroarbeit gut verbinden können."
+      ],
+      "rubricId": "writing.goethe-b1",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 writing task B draft (2026-11-28)."
+    }
+  ],
+  "rubrics": [
+    {
+      "rubricId": "writing.goethe-b1",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b1",
+      "family": "writing",
+      "policy": "goethe-b1-writing-practice-v1",
+      "feedbackKind": "goethe-b1-writing-bands",
+      "criteria": [
+        {
+          "key": "goethe_erfuellung",
+          "label": "Erfüllung der Aufgabenstellung",
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
+          "bandLabels": {
+            "A": "A · Vollständig erfüllt",
+            "B": "B · Überwiegend erfüllt",
+            "C": "C · Teilweise erfüllt",
+            "D": "D · Kaum erfüllt",
+            "E": "E · Nicht erfüllt"
+          },
+          "descriptors": {
+            "A": "Alle Leitpunkte sind inhaltlich angemessen, klar und ausführlich bearbeitet; Textsorte und Register passen durchgehend.",
+            "B": "Alle oder fast alle Leitpunkte sind verständlich bearbeitet; Textsorte und Register sind weitgehend passend.",
+            "C": "Einige Leitpunkte fehlen oder sind nur sehr knapp angerissen; Register oder Textsorte schwanken.",
+            "D": "Nur einzelne Leitpunkte sind erkennbar; wesentliche Anforderungen der Aufgabe fehlen.",
+            "E": "Die Aufgabe ist nicht bearbeitet oder der Text hat keinen erkennbaren Bezug zur Aufgabenstellung."
+          }
+        },
+        {
+          "key": "goethe_kohaerenz",
+          "label": "Kohärenz (Textaufbau & Verknüpfung)",
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
+          "bandLabels": {
+            "A": "A · Klar gegliedert & flüssig",
+            "B": "B · Überwiegend schlüssig",
+            "C": "C · Teilweise sprunghaft",
+            "D": "D · Kaum zusammenhängend",
+            "E": "E · Kein Zusammenhang"
+          },
+          "descriptors": {
+            "A": "Klarer Aufbau mit passender Einleitung und Schluss; Sätze und Abschnitte sind natürlich und abwechslungsreich verknüpft.",
+            "B": "Insgesamt logischer Aufbau; Verknüpfungen gelingen überwiegend mit einfachen Konnektoren.",
+            "C": "Gedanken sind stellenweise unverbunden aneinandergereiht; der Textfluss stockt gelegentlich.",
+            "D": "Kaum erkennbare Gliederung; fehlende oder irreführende Verknüpfungen erschweren das Verständnis.",
+            "E": "Keine zusammenhängende Textstruktur erkennbar."
+          }
+        },
+        {
+          "key": "goethe_wortschatz",
+          "label": "Wortschatz",
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
+          "bandLabels": {
+            "A": "A · Differenzierter B1-Wortschatz",
+            "B": "B · Solider B1-Wortschatz",
+            "C": "C · Begrenzter Wortschatz",
+            "D": "D · Stark eingeschränkt",
+            "E": "E · Unzureichend"
+          },
+          "descriptors": {
+            "A": "Treffender, abwechslungsreicher B1-Wortschatz; vereinzelte Fehlgriffe beeinträchtigen das Verständnis nicht.",
+            "B": "Angemessener Alltagswortschatz für das Thema; einzelne Ungenauigkeiten oder Wiederholungen treten auf.",
+            "C": "Einfacher, sich wiederholender Wortschatz; einige Fehlgriffe erfordern Mitdenken beim Lesen.",
+            "D": "Wortschatz reicht kaum für das Thema aus; häufige Wortwahlfehler stören das Verständnis.",
+            "E": "Wortschatz ermöglicht keine verständliche Aussage zur Aufgabe."
+          }
+        },
+        {
+          "key": "goethe_strukturen",
+          "label": "Strukturen (Grammatik & Rechtschreibung)",
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
+          "bandLabels": {
+            "A": "A · Sicher & vielfältig",
+            "B": "B · Überwiegend korrekt",
+            "C": "C · Mehrere Fehler, verständlich",
+            "D": "D · Häufige Fehler, schwer verständlich",
+            "E": "E · Kaum verständlich"
+          },
+          "descriptors": {
+            "A": "Vielfältige Satzstrukturen (auch Nebensätze) werden überwiegend sicher verwendet; nur wenige leichte Fehler in Grammatik oder Orthografie.",
+            "B": "Einfache und einige komplexere Strukturen gelingen meist korrekt; Fehler beeinträchtigen das Verständnis kaum.",
+            "C": "Einfache Sätze meist verständlich, aber wiederkehrende Fehler bei Verbstellung, Kasus, Endungen oder Rechtschreibung.",
+            "D": "Sehr häufige Fehler in Satzbau und Formenlehre erschweren das Verständnis deutlich.",
+            "E": "Durchgängige Fehler verhindern das Verständnis des Textes."
+          }
+        }
+      ],
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B1 four-criterion A-E practice rubric draft (2026-11-28)."
+    }
+  ]
+}

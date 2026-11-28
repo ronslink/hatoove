@@ -1,0 +1,363 @@
+{
+  "schemaVersion": 1,
+  "examId": "goethe-zertifikat-b1",
+  "version": "v1",
+  "language": "de",
+  "source": "Original Hatoove Goethe-Zertifikat B1 listening transcripts and items (HV1-HV4, 30 items, 8 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review.",
+  "parts": [
+    {
+      "family": "HV1",
+      "part": 1,
+      "title": "Hören Teil 1: Fünf kurze Texte aus dem Alltag",
+      "playback": { "practice": 1, "mock": 2 },
+      "recordings": [
+        {
+          "id": "hv1-01",
+          "mediaId": "goethe-zertifikat-b1.hv1.01.audio",
+          "mediaVersion": "v1",
+          "label": "Text 1 · Durchsage am Bahnhof",
+          "transcript": "[Durchsage]: Achtung, eine wichtige Information für die Fahrgäste des Regionalexpress RE 14 nach Stuttgart, planmäßige Abfahrt 14:22 Uhr. Wegen einer Baustelle zwischen Heilbronn und Bietigheim fährt dieser Zug heute nicht von Gleis 3, sondern von Gleis 7. Bitte beachten Sie außerdem: Der vordere Zugteil endet bereits in Heilbronn. Fahrgäste mit Reiseziel Stuttgart steigen bitte in den hinteren Zugteil ein. Wir bitten um Ihr Verständnis.",
+          "questions": [
+            {
+              "n": 1,
+              "question": "Der Regionalexpress nach Stuttgart fällt heute komplett aus.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Der Zug fährt, aber von einem anderen Gleis (Gleis 7 statt Gleis 3)."
+            },
+            {
+              "n": 2,
+              "question": "Wo sollen Fahrgäste einsteigen, die bis nach Stuttgart fahren möchten?",
+              "options": {
+                "a": "Im vorderen Zugteil auf Gleis 3.",
+                "b": "Im hinteren Zugteil auf Gleis 7.",
+                "c": "In jedem beliebigen Wagen auf Gleis 7."
+              },
+              "answer": "b",
+              "explanation": "b ist richtig: Der Zug fährt von Gleis 7 ab, und nur der hintere Zugteil fährt bis Stuttgart."
+            }
+          ]
+        },
+        {
+          "id": "hv1-02",
+          "mediaId": "goethe-zertifikat-b1.hv1.02.audio",
+          "mediaVersion": "v1",
+          "label": "Text 2 · Nachricht auf dem Anrufbeantworter",
+          "transcript": "[Anrufbeantworter]: Hallo Lukas, hier ist Nina aus dem Fotokurs. Ich wollte dir kurz Bescheid geben: Unser Treffen am Donnerstagabend kann leider nicht im Kulturhaus stattfinden, weil dort die Heizung repariert wird. Unsere Kursleiterin hat vorgeschlagen, dass wir stattdessen direkt um 18 Uhr am Stadtpark-Eingang starten und draußen Fotos in der Dämmerung machen. Bring bitte dein Stativ und eine warme Jacke mit. Ruf mich kurz zurück, falls du später kommst!",
+          "questions": [
+            {
+              "n": 3,
+              "question": "Der Fotokurs am Donnerstag wurde wegen der kaputten Heizung abgesagt.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Der Kurs findet statt, aber draußen im Stadtpark statt im Kulturhaus."
+            },
+            {
+              "n": 4,
+              "question": "Was soll Lukas zum Treffen mitbringen?",
+              "options": {
+                "a": "Sein Stativ und eine warme Jacke.",
+                "b": "Einen Laptop und seine alten Fotos.",
+                "c": "Eine Taschenlampe und einen Regenschirm."
+              },
+              "answer": "a",
+              "explanation": "a ist richtig: Nina bittet ihn ausdrücklich, sein Stativ und eine warme Jacke mitzubringen."
+            }
+          ]
+        },
+        {
+          "id": "hv1-03",
+          "mediaId": "goethe-zertifikat-b1.hv1.03.audio",
+          "mediaVersion": "v1",
+          "label": "Text 3 · Radiomeldung zum Stadtfest",
+          "transcript": "[Moderator]: Und jetzt noch ein Tipp für alle, die am Wochenende in die Innenstadt möchten: Wegen des jährlichen Straßenmusikfestivals bleiben der Marktplatz und die Bahnhofstraße von Freitag 17 Uhr bis Sonntagabend für den Autoverkehr gesperrt. Die Stadtwerke setzen deshalb alle zehn Minuten zusätzliche Straßenbahnen ein. Der Eintritt zu allen Bühnen ist frei; bei starkem Regen werden die Abendkonzerte in die Stadthalle verlegt.",
+          "questions": [
+            {
+              "n": 5,
+              "question": "Für die Konzerte des Straßenmusikfestivals muss man Eintrittskarten kaufen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Der Moderator sagt, dass der Eintritt zu allen Bühnen frei ist."
+            },
+            {
+              "n": 6,
+              "question": "Wie kommen Besucher am besten in die Innenstadt?",
+              "options": {
+                "a": "Mit dem Auto über die Bahnhofstraße.",
+                "b": "Mit den zusätzlichen Straßenbahnen alle zehn Minuten.",
+                "c": "Mit einem speziellen Festival-Shuttle ab dem Flughafen."
+              },
+              "answer": "b",
+              "explanation": "b ist richtig: Marktplatz und Bahnhofstraße sind für Autos gesperrt; die Stadtwerke lassen alle zehn Minuten zusätzliche Straßenbahnen fahren."
+            }
+          ]
+        },
+        {
+          "id": "hv1-04",
+          "mediaId": "goethe-zertifikat-b1.hv1.04.audio",
+          "mediaVersion": "v1",
+          "label": "Text 4 · Anruf aus der Zahnarztpraxis",
+          "transcript": "[Anrufbeantworter]: Guten Tag, Herr Weber, hier spricht Frau Scholz von der Zahnarztpraxis Dr. Klein. Sie haben morgen, am Dienstag um 10:30 Uhr, einen Termin zur Kontrolluntersuchung. Leider hat sich bei uns kurzfristig etwas verschoben. Könnten Sie vielleicht stattdessen schon um 9:00 Uhr kommen oder erst am Donnerstag um 15:15 Uhr? Bitte rufen Sie uns heute noch bis 17 Uhr zurück, damit wir den neuen Termin fest eintragen können. Vielen Dank!",
+          "questions": [
+            {
+              "n": 7,
+              "question": "Herr Weber soll morgen wie geplant um 10:30 Uhr in die Praxis kommen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Der Termin um 10:30 Uhr muss verschoben werden."
+            },
+            {
+              "n": 8,
+              "question": "Welche Ausweichtermine bietet die Praxis an?",
+              "options": {
+                "a": "Dienstag um 9:00 Uhr oder Donnerstag um 15:15 Uhr.",
+                "b": "Dienstag um 17:00 Uhr oder Mittwoch um 9:00 Uhr.",
+                "c": "Nur nächste Woche Montagvormittag."
+              },
+              "answer": "a",
+              "explanation": "a ist richtig: Frau Scholz schlägt morgen (Dienstag) um 9:00 Uhr oder Donnerstag um 15:15 Uhr vor."
+            }
+          ]
+        },
+        {
+          "id": "hv1-05",
+          "mediaId": "goethe-zertifikat-b1.hv1.05.audio",
+          "mediaVersion": "v1",
+          "label": "Text 5 · Ansage im Sportverein",
+          "transcript": "[Durchsage]: Liebe Mitglieder, ein kurzer Hinweis vor dem Training: Ab nächster Woche montags beginnt die Renovierung der Umkleidekabinen im Erdgeschoss. Während der zweiwöchigen Bauarbeiten stehen Ihnen die Kabinen im ersten Stock sowie die Duschen neben dem Fitnessraum zur Verfügung. Die Sporthalle selbst bleibt uneingeschränkt geöffnet, und alle Kurse finden zu den gewohnten Zeiten statt.",
+          "questions": [
+            {
+              "n": 9,
+              "question": "Während der Bauarbeiten fallen die Sportkurse für zwei Wochen aus.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Die Sporthalle bleibt uneingeschränkt geöffnet und alle Kurse finden wie gewohnt statt."
+            },
+            {
+              "n": 10,
+              "question": "Wo können sich die Mitglieder ab nächster Woche umziehen?",
+              "options": {
+                "a": "In den Umkleidekabinen im Erdgeschoss.",
+                "b": "In den Kabinen im ersten Stock.",
+                "c": "Gar nicht – sie müssen bereits in Sportkleidung kommen."
+              },
+              "answer": "b",
+              "explanation": "b ist richtig: Während der Renovierung im Erdgeschoss stehen die Kabinen im ersten Stock zur Verfügung."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV2",
+      "part": 2,
+      "title": "Hören Teil 2: Führung im Botanischen Garten",
+      "playback": { "practice": 1, "mock": 1 },
+      "recordings": [
+        {
+          "id": "hv2-01",
+          "mediaId": "goethe-zertifikat-b1.hv2.01.audio",
+          "mediaVersion": "v1",
+          "label": "Führung im Botanischen Garten",
+          "transcript": "[Führerin]: Herzlich willkommen im Botanischen Garten unserer Universität! Mein Name ist Sandra Hoffmann und ich begleite Sie in den nächsten 45 Minuten durch unsere Gewächshäuser und den Heilpflanzengarten. Bevor wir losgehen, noch ein paar praktische Hinweise: Wenn Sie schwere Rucksäcke oder große Taschen dabeihaben, schließen Sie diese bitte gleich hier links in den kostenlosen Schließfächern ein. Im Tropenhaus sind die Wege sehr schmal, und wir möchten nicht, dass empfindliche Pflanzen beschädigt werden. Sie brauchen dafür keine Münze – die Fächer funktionieren mit einem einfachen Zahlencode.\n\nUnser Garten wurde bereits im Jahr 1894 angelegt, ursprünglich ausschließlich für Medizinstudierende, die hier Heilkräuter kennenlernen sollten. Heute wachsen auf rund fünf Hektar mehr als 7.000 verschiedene Pflanzenarten aus allen Klimazonen der Erde. Besonders stolz sind wir auf unser Palmenhaus, das vor drei Jahren komplett modernisiert wurde. Dank moderner Solartechnik verbraucht es jetzt fast die Hälfte weniger Heizenergie als früher.\n\nWährend unseres Rundgangs dürfen Sie selbstverständlich für den privaten Gebrauch fotografieren – aber bitte ohne Blitzlicht, da wir in einem der Häuser frei fliegende Schmetterlinge halten, die sonst erschrecken. Bitte pflücken Sie außerdem keine Blätter oder Blüten, auch wenn manche Kräuter wunderbar duften. Am Ende der Führung, gegen 15:30 Uhr, kommen wir am Gartencafé vorbei. Dort gibt es hausgemachten Kräutertee aus eigenem Anbau und eine kleine Ausstellung mit historischen Pflanzenzeichnungen. Haben alle ihre Jacken bereit? Im Tropenhaus hat es angenehme 26 Grad. Dann folgen Sie mir bitte durch den rechten Eingang!",
+          "questions": [
+            {
+              "n": 11,
+              "question": "Warum sollen die Besucher große Taschen in die Schließfächer legen?",
+              "options": {
+                "a": "Weil im Tropenhaus enge Wege sind und Pflanzen geschützt werden sollen.",
+                "b": "Weil die Schließfächer eine Pflichtgebühr von zwei Euro kosten.",
+                "c": "Weil im gesamten Garten Fotografierverbot gilt."
+              },
+              "answer": "a",
+              "explanation": "a ist richtig: Im Tropenhaus sind die Wege sehr schmal, und empfindliche Pflanzen sollen nicht beschädigt werden."
+            },
+            {
+              "n": 12,
+              "question": "Für wen wurde der Botanische Garten im Jahr 1894 ursprünglich angelegt?",
+              "options": {
+                "a": "Für Touristen aus dem Ausland.",
+                "b": "Für Medizinstudierende zum Kennenlernen von Heilkräutern.",
+                "c": "Für Schulklassen aus der Region."
+              },
+              "answer": "b",
+              "explanation": "b ist richtig: Der Garten wurde 1894 ursprünglich ausschließlich für Medizinstudierende angelegt."
+            },
+            {
+              "n": 13,
+              "question": "Was hat sich nach der Modernisierung des Palmenhauses verändert?",
+              "options": {
+                "a": "Es benötigt dank Solartechnik deutlich weniger Heizenergie.",
+                "b": "Es ist doppelt so groß geworden.",
+                "c": "Es bleibt im Winter geschlossen."
+              },
+              "answer": "a",
+              "explanation": "a ist richtig: Durch moderne Solartechnik verbraucht es fast die Hälfte weniger Heizenergie als früher."
+            },
+            {
+              "n": 14,
+              "question": "Was gilt beim Fotografieren während der Führung?",
+              "options": {
+                "a": "Fotografieren ist komplett verboten.",
+                "b": "Es ist privat erlaubt, aber ohne Blitzlicht.",
+                "c": "Man darf nur im Gartencafé Fotos machen."
+              },
+              "answer": "b",
+              "explanation": "b ist richtig: Privates Fotografieren ist erlaubt, aber ohne Blitzlicht wegen der frei fliegenden Schmetterlinge."
+            },
+            {
+              "n": 15,
+              "question": "Wo endet die Führung gegen 15:30 Uhr?",
+              "options": {
+                "a": "Am Haupteingang bei den Schließfächern.",
+                "b": "Im großen Hörsaal der Universität.",
+                "c": "Am Gartencafé mit Kräutertee und einer Ausstellung."
+              },
+              "answer": "c",
+              "explanation": "c ist richtig: Am Ende der Führung kommt die Gruppe am Gartencafé vorbei, wo es Kräutertee und eine kleine Ausstellung gibt."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV3",
+      "part": 3,
+      "title": "Hören Teil 3: Gespräch über eine geplante Radtour",
+      "playback": { "practice": 1, "mock": 1 },
+      "recordings": [
+        {
+          "id": "hv3-01",
+          "mediaId": "goethe-zertifikat-b1.hv3.01.audio",
+          "mediaVersion": "v1",
+          "label": "Gespräch im Büro · Planung einer Radtour",
+          "transcript": "[Sprecherin 1]: Hallo Felix! Hast du schon gesehen, dass für das nächste Wochenende endlich Sonne und 22 Grad gemeldet sind?\n[Sprecher 1]: Ja, zum Glück! Nach dem ganzen Regen in dieser Woche habe ich richtig Lust, rauszukommen. Wollten wir nicht schon lange mal den Radweg am Fluss entlang bis nach Wertheim fahren?\n[Sprecherin 1]: Super Idee! Wie lang ist die Strecke eigentlich genau? Ich bin seit dem Frühling nicht mehr so viel gefahren.\n[Sprecher 1]: Hin sind es ziemlich genau 42 Kilometer, und die Strecke ist fast völlig flach. Keine steilen Berge, das schaffen wir ganz gemütlich in etwa drei Stunden mit Pausen.\n[Sprecherin 1]: 42 Kilometer hin – und dann nochmal 42 zurück? Das wäre mir an einem Tag ehrlich gesagt zu anstrengend.\n[Sprecher 1]: Keine Sorge, wir müssen nicht zurückradeln! Von Wertheim fährt jede Stunde ein Regionalzug direkt zurück in unsere Stadt, und die Fahrradmitnahme ist am Wochenende mit dem Verbundticket sogar kostenlos.\n[Sprecherin 1]: Oh, das klingt perfekt! Wollen wir am Samstag oder am Sonntag fahren? Am Samstagvormittag muss ich nämlich noch kurz auf den Wochenmarkt und danach mein Fahrrad zur Werkstatt bringen, weil die Hinterradbremse quietscht.\n[Sprecher 1]: Dann nehmen wir auf jeden Fall den Sonntag! Sagen wir, wir treffen uns um 9:30 Uhr an der alten Brücke? Dann sind wir rechtzeitig zum Mittagessen in Wertheim.\n[Sprecherin 1]: 9:30 Uhr passt wunderbar. Sollen wir Brote mitnehmen oder dort in ein Lokal gehen?\n[Sprecher 1]: Ich bringe eine Thermoskanne Kaffee und Äpfel für unterwegs mit, und in Wertheim kenne ich ein kleines Gasthaus direkt am Wasser, wo es tolle Salate und Flammkuchen gibt. Soll ich uns dort einen Tisch reservieren?\n[Sprecherin 1]: Ja, gern – vor allem, weil bei schönem Wetter bestimmt viel los ist. Ich frage heute Abend noch meine Schwester Miriam, ob sie auch Lust hat mitzukommen.\n[Sprecher 1]: Sehr gern! Sag mir einfach bis Freitag Bescheid, ob wir zu zweit oder zu dritt sind, dann reserviere ich den Tisch.",
+          "questions": [
+            {
+              "n": 16,
+              "question": "Die geplante Fahrradstrecke nach Wertheim ist sehr steil und hügelig.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Felix sagt, die Strecke sei fast völlig flach ohne steile Berge."
+            },
+            {
+              "n": 17,
+              "question": "Die beiden möchten sowohl hin als auch zurück mit dem Fahrrad fahren.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Für den Rückweg möchten sie den Regionalzug nehmen."
+            },
+            {
+              "n": 18,
+              "question": "Am Wochenende kostet die Fahrradmitnahme im Regionalzug nichts extra.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Felix erwähnt, dass die Fahrradmitnahme am Wochenende mit dem Verbundticket kostenlos ist."
+            },
+            {
+              "n": 19,
+              "question": "Am Samstagvormittag muss die Frau ihr Fahrrad noch reparieren lassen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Sie muss ihr Fahrrad zur Werkstatt bringen, weil die Hinterradbremse quietscht."
+            },
+            {
+              "n": 20,
+              "question": "Sie verabreden sich für Sonntag um 9:30 Uhr an der alten Brücke.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Beide einigen sich auf Sonntag, 9:30 Uhr an der alten Brücke."
+            },
+            {
+              "n": 21,
+              "question": "Zum Mittagessen möchten sie nur selbst mitgebrachte Brote essen.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "F",
+              "explanation": "Falsch: Felix bringt Kaffee und Äpfel für unterwegs mit; mittags wollen sie in ein Gasthaus am Wasser gehen."
+            },
+            {
+              "n": 22,
+              "question": "Die Frau möchte ihre Schwester fragen, ob sie ebenfalls mitkommt.",
+              "options": { "R": "Richtig", "F": "Falsch" },
+              "answer": "R",
+              "explanation": "Richtig: Sie sagt, sie fragt heute Abend noch ihre Schwester Miriam."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV4",
+      "part": 4,
+      "title": "Hören Teil 4: Radiodiskussion — Autofreie Innenstädte?",
+      "playback": { "practice": 1, "mock": 2 },
+      "recordings": [
+        {
+          "id": "hv4-01",
+          "mediaId": "goethe-zertifikat-b1.hv4.01.audio",
+          "mediaVersion": "v1",
+          "label": "Radiodiskussion · Brauchen wir mehr autofreie Innenstädte?",
+          "transcript": "[Moderatorin]: Guten Abend bei „Stadtgespräch“. Immer mehr Kommunen denken darüber nach, ihre Innenstädte weitgehend autofrei zu machen. Heute diskutiere ich darüber mit zwei Gästen: Frau Dr. Sabine Lindner, Verkehrsplanerin, und Herrn Thomas Berger, Inhaber eines traditionsreichen Buchladens in der Altstadt. Herzlich willkommen! Herr Berger, fangen wir bei Ihnen an: Macht Ihnen die Idee einer autofreien Innenstadt Sorgen?\n[Herr Berger]: Ehrlich gesagt ja. Viele meiner Stammkunden kommen aus den umliegenden Dörfern, wo abends kaum noch Busse fahren. Wenn diese Menschen keinen Parkplatz mehr in der Nähe finden, bestellen sie ihre Bücher eben im Internet statt zu mir zu kommen. Außerdem brauche ich für meine täglichen Bücherlieferungen eine verlässliche Zufahrt direkt vor dem Laden.\n[Frau Lindner]: Das Argument mit den Lieferungen höre ich oft, Herr Berger, aber autofrei bedeutet ja nicht lieferfrei! In fast allen europäischen Modellstädten bleiben feste Zeitfenster am Morgen für Lieferfahrzeuge, Handwerker und natürlich für Menschen mit Behinderung frei. Was die Kundenzahlen angeht, zeigen unsere Studien tatsächlich das Gegenteil: Wo Straßen ruhiger werden und mehr Platz für Außencafés und Bäume entsteht, bleiben die Menschen länger und kaufen sogar mehr ein.\n[Moderatorin]: Frau Lindner, das klingt optimistisch – aber funktioniert das auch bei schlechtem Wetter im Winter, wenn niemand im Straßencafé sitzen möchte?\n[Frau Lindner]: Eine berechtigte Frage. Entscheidend ist, dass man nicht einfach nur Autos aussperrt, sondern gleichzeitig den öffentlichen Nahverkehr massiv verbessert: dichtere Takte, saubere Haltestellen und bezahlbare Tickets. Ohne gute Bus- und Bahnverbindungen klappt die Umstellung nicht.\n[Herr Berger]: Genau da liegt mein Problem! Bei uns wird seit Jahren über Parkverbote gesprochen, aber neue Buslinien ins Umland kommen viel zu langsam. Wenn die Stadt erst einmal moderne Park-and-Ride-Plätze am Stadtrand baut und kostenlose Shuttlebusse ins Zentrum anbietet, wäre ich sofort bereit, das Konzept für ein Jahr zu testen.\n[Moderatorin]: Ein einjähriger Probelauf wäre also ein Kompromiss, den Sie mittragen würden? Das finde ich einen sehr konkreten Vorschlag für die Gemeinderatssitzung nächste Woche.\n[Frau Lindner]: Absolut! Solche zeitlich begrenzten Verkehrsversuche sind das beste Instrument, weil Anwohner und Geschäftsleute danach auf Basis echter Erfahrungen mitentscheiden können.",
+          "questions": [
+            {
+              "n": 23,
+              "question": "Wer befürchtet, dass Kunden aus den Dörfern künftig eher online bestellen?",
+              "options": { "a": "Moderatorin", "b": "Herr Berger", "c": "Frau Lindner" },
+              "answer": "b",
+              "explanation": "b ist richtig: Herr Berger sorgt sich, dass Stammkunden aus den Dörfern ohne Parkplätze im Internet bestellen."
+            },
+            {
+              "n": 24,
+              "question": "Wer erklärt, dass Lieferfahrzeuge morgens weiterhin zufahren dürfen?",
+              "options": { "a": "Moderatorin", "b": "Herr Berger", "c": "Frau Lindner" },
+              "answer": "c",
+              "explanation": "c ist richtig: Frau Lindner erläutert die festen Zeitfenster am Morgen für Lieferfahrzeuge und Handwerker."
+            },
+            {
+              "n": 25,
+              "question": "Wer verweist auf Studien, nach denen ruhige Straßen den Einkauf fördern?",
+              "options": { "a": "Moderatorin", "b": "Herr Berger", "c": "Frau Lindner" },
+              "answer": "c",
+              "explanation": "c ist richtig: Frau Lindner sagt, Studien zeigten, dass Menschen in ruhigeren Straßen länger bleiben und mehr einkaufen."
+            },
+            {
+              "n": 26,
+              "question": "Wer fragt kritisch nach, ob das Konzept auch im Winter funktioniert?",
+              "options": { "a": "Moderatorin", "b": "Herr Berger", "c": "Frau Lindner" },
+              "answer": "a",
+              "explanation": "a ist richtig: Die Moderatorin fragt nach, ob das auch bei schlechtem Wetter im Winter klappt."
+            },
+            {
+              "n": 27,
+              "question": "Wer betont, dass ein besserer öffentlicher Nahverkehr Voraussetzung ist?",
+              "options": { "a": "Moderatorin", "b": "Herr Berger", "c": "Frau Lindner" },
+              "answer": "c",
+              "explanation": "c ist richtig: Frau Lindner sagt, ohne gute Bus- und Bahnverbindungen klappe die Umstellung nicht."
+            },
+            {
+              "n": 28,
+              "question": "Wer kritisiert, dass neue Buslinien ins Umland viel zu langsam entstehen?",
+              "options": { "a": "Moderatorin", "b": "Herr Berger", "c": "Frau Lindner" },
+              "answer": "b",
+              "explanation": "b ist richtig: Herr Berger beklagt, dass über Parkverbote gesprochen wird, neue Buslinien aber zu langsam kommen."
+            },
+            {
+              "n": 29,
+              "question": "Wer schlägt vor, das Konzept nach dem Bau von Park-and-Ride-Plätzen ein Jahr zu testen?",
+              "options": { "a": "Moderatorin", "b": "Herr Berger", "c": "Frau Lindner" },
+              "answer": "b",
+              "explanation": "b ist richtig: Herr Berger wäre bei Park-and-Ride-Plätzen und Shuttlebussen bereit, das Konzept ein Jahr zu testen."
+            },
+            {
+              "n": 30,
+              "question": "Wer lobt zeitlich begrenzte Verkehrsversuche, weil danach echte Erfahrungen vorliegen?",
+              "options": { "a": "Moderatorin", "b": "Herr Berger", "c": "Frau Lindner" },
+              "answer": "c",
+              "explanation": "c ist richtig: Frau Lindner bezeichnet Verkehrsversuche als das beste Instrument für Entscheidungen auf Basis echter Erfahrungen."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

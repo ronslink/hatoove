@@ -282,6 +282,12 @@ export async function importBundledDtzPackage(pool) {
   return importPackage(pool,dtz,{publisher:'bundled-dtz-source',activation:'if-missing'});
 }
 
+/** Persistent runtime initialization for the bundled Goethe-Zertifikat B1 complete written package (LV + HV + SA). */
+export async function importBundledGoetheB1Package(pool) {
+  const goethe=JSON.parse(await readFile(new URL('../../content/exams/goethe-zertifikat-b1/listening-package.json',import.meta.url),'utf8'));
+  return importPackage(pool,goethe,{publisher:'bundled-goethe-b1-source',activation:'if-missing'});
+}
+
 /** Reference-only v5 available release derived from the approved bundled DTZ v4 package. */
 export function buildBundledDtzAvailablePackage(dtz) {
   return {
