@@ -24,7 +24,7 @@ const appPort = await port(), dbPort = await port();
 assert.notEqual(appPort,dbPort);
 assert.ok(![appPort,dbPort].some(p => [4300,55440].includes(p)));
 const base = 'http://127.0.0.1:' + appPort;
-const env = {...browserEnvironment(),HATOVE_APP_PORT:String(appPort),HATOVE_DB_PORT:String(dbPort),
+const env = {...browserEnvironment(),NODE_ENV: 'test', HATOVE_GRADER_MODE: 'stub', HATOVE_APP_PORT:String(appPort),HATOVE_DB_PORT:String(dbPort),
   HATOVE_PUBLIC_ORIGIN:base,HATOVE_CONTENT_MODE:'internal-preview',HATOVE_PAYMENTS_MODE:'off',
   STRIPE_SECRET_KEY:'',STRIPE_WEBHOOK_SECRET:'',OWNAPI_PG_PAYMENTS_PASSWORD:''};
 const command = (name,args) => {

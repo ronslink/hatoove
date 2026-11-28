@@ -31,7 +31,7 @@ function command(binary, args, cwd = root, env = process.env) {
 const compose = args => {
   const env = browserEnvironment();
   return command('docker', ['compose', '--env-file', envFile, '-p', project, '-f', path.join(source, 'compose.yaml'), ...args], source,
-    { ...env, HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base,
+    { ...env, NODE_ENV: 'test', HATOVE_GRADER_MODE: 'stub', HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base,
       HATOVE_CONTENT_MODE: 'internal-preview', HATOVE_PAYMENTS_MODE: paymentMode,
       STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: webhookSecret });
 };

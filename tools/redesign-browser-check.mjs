@@ -23,7 +23,7 @@ const appPort = await port(), dbPort = await port(), debugPort = await port();
 assert.equal(new Set([appPort, dbPort, debugPort]).size, 3);
 assert.ok(![appPort, dbPort].some(value => [4300, 55440].includes(value)));
 const base = 'http://127.0.0.1:' + appPort;
-const env = { ...browserEnvironment(), HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base, HATOVE_CONTENT_MODE: 'internal-preview', HATOVE_PAYMENTS_MODE: 'off', STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '', OWNAPI_PG_PAYMENTS_PASSWORD: '' };
+const env = { ...browserEnvironment(), NODE_ENV: 'test', HATOVE_GRADER_MODE: 'stub', HATOVE_APP_PORT: String(appPort), HATOVE_DB_PORT: String(dbPort), HATOVE_PUBLIC_ORIGIN: base, HATOVE_CONTENT_MODE: 'internal-preview', HATOVE_PAYMENTS_MODE: 'off', STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '', OWNAPI_PG_PAYMENTS_PASSWORD: '' };
 const command = (name, args) => { const result = spawnSync(name, args, { cwd: root, env, encoding: 'utf8', windowsHide: true, timeout: 300000, maxBuffer: 16e6 }); if (result.status !== 0) throw Error(name + ' failed: ' + (result.stderr || result.stdout).slice(-1200)); return result.stdout.trim(); };
 const compose = args => command('docker', ['compose', '--env-file', envFile, '-p', project, '-f', path.join(source, 'compose.yaml'), ...args]);
 const verify = () => verifyBrowserProject({ project, dbPort, compose, command });

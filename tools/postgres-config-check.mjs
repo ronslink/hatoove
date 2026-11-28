@@ -113,7 +113,8 @@ check('partial runtime initialization closes already-created pools', async () =>
 });
 
 check('actual worker entry point selects runner separately and closes it', async () => {
-  const env = { OWNAPI_PG_DATABASE: 'synthetic', OWNAPI_PG_USER: 'synthetic-admin', OWNAPI_PG_POOL_WORKER_MAX: '1', OWNAPI_PG_WORKER_RUNNER_POOL_MAX: '3', OWNAPI_PG_REQUIRE_PASSWORDS: '1', OWNAPI_PG_WORKER_PASSWORD: 'synthetic-runner', OWNAPI_PG_PASSWORD_FILE: 'unused-admin' };
+  const env = { NODE_ENV: 'test', HATOVE_GRADER_MODE: 'stub', OWNAPI_PG_DATABASE: 'synthetic', OWNAPI_PG_USER: 'synthetic-admin', OWNAPI_PG_POOL_WORKER_MAX: '1', OWNAPI_PG_WORKER_RUNNER_POOL_MAX: '3', OWNAPI_PG_REQUIRE_PASSWORDS: '1', OWNAPI_PG_WORKER_PASSWORD: 'synthetic-runner', OWNAPI_PG_PASSWORD_FILE: 'unused-admin' };
+  const prior = Object.fromEntries(Object.keys(env).map(key=>[key,process.env[key]]));
   const log = console.log;
   try {
     Object.assign(process.env, env); console.log = () => {};
@@ -122,7 +123,7 @@ check('actual worker entry point selects runner separately and closes it', async
       assert.equal(created.length, 1); assert.equal(created[0].options.max, 3);
       assert.equal(created[0].options.user, 'hatoove_worker'); assert.equal(created[0].ended, true);
     });
-  } finally { console.log = log; for (const key of Object.keys(env)) delete process.env[key]; }
+  } finally { console.log = log; for (const [key,value] of Object.entries(prior)) { if(value===undefined)delete process.env[key];else process.env[key]=value; } }
 });
 
 check('actual migrator/provisioner use migration allocation and close on refusal', async () => {

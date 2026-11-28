@@ -29,7 +29,7 @@ function command(binary,args,cwd=root,env=commandEnv) {
   return (result.stdout||'').trim();
 }
 const compose=args=>command('docker',['compose','--env-file',envFile,'-p',project,'-f',path.join(source,'compose.yaml'),...args],source,
-  {...commandEnv,HATOVE_APP_PORT:String(appPort),HATOVE_DB_PORT:String(dbPort),HATOVE_PUBLIC_ORIGIN:base,HATOVE_CONTENT_MODE:'public',
+  {...commandEnv,NODE_ENV: 'test', HATOVE_GRADER_MODE: 'stub', HATOVE_APP_PORT:String(appPort),HATOVE_DB_PORT:String(dbPort),HATOVE_PUBLIC_ORIGIN:base,HATOVE_CONTENT_MODE:'public',
     HATOVE_PAYMENTS_MODE:'stub',STRIPE_SECRET_KEY:'',STRIPE_WEBHOOK_SECRET:testSecret,OWNAPI_PG_PAYMENTS_PASSWORD:''});
 function record(name,ok,detail=''){results.push({name,ok,detail});console.log(`${ok?'PASS':'FAIL'} ${name}${detail?': '+detail:''}`);}
 async function freePort(){const server=net.createServer();await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});const port=server.address().port;await new Promise(resolve=>server.close(resolve));return port;}
