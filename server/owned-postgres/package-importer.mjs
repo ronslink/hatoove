@@ -304,3 +304,20 @@ export async function promoteBundledDtzAvailable(pool) {
   const dtz=JSON.parse(await readFile(new URL('../../content/exams/dtz-a2-b1/listening-package.json',import.meta.url),'utf8'));
   return importPackage(pool,buildBundledDtzAvailablePackage(dtz),{publisher:'bundled-dtz-source',activation:'new-release'});
 }
+
+/** Reference-only v3 available release derived from the approved bundled Goethe-Zertifikat B1 v2 package. */
+export function buildBundledGoetheB1AvailablePackage(goethe) {
+  return {
+    ...structuredClone(goethe),
+    release:{version:'v3',state:'available',resumeBlockedReleases:[]},
+    sets:[],media:[],writingTasks:[],rubrics:[],
+  };
+}
+
+/** Promote bundled Goethe-Zertifikat B1 from v2 (internal) to v3 (available) once all v2 subjects have named approvals. */
+export async function promoteBundledGoetheB1Available(pool) {
+  const head=(await pool.query("SELECT release_version FROM exam_release_head WHERE exam_id='goethe-zertifikat-b1'")).rows[0]?.release_version;
+  if(head!=='v2') return {examId:'goethe-zertifikat-b1',releaseVersion:head??null,unchanged:true};
+  const goethe=JSON.parse(await readFile(new URL('../../content/exams/goethe-zertifikat-b1/listening-package.json',import.meta.url),'utf8'));
+  return importPackage(pool,buildBundledGoetheB1AvailablePackage(goethe),{publisher:'bundled-goethe-b1-source',activation:'new-release'});
+}
