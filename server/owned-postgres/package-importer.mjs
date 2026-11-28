@@ -288,6 +288,12 @@ export async function importBundledGoetheB1Package(pool) {
   return importPackage(pool,goethe,{publisher:'bundled-goethe-b1-source',activation:'if-missing'});
 }
 
+/** Persistent runtime initialization for the bundled telc Deutsch B2 complete written package (LV + SB + HV + SA). */
+export async function importBundledTelcB2Package(pool) {
+  const telcB2=JSON.parse(await readFile(new URL('../../content/exams/telc-deutsch-b2/listening-package.json',import.meta.url),'utf8'));
+  return importPackage(pool,telcB2,{publisher:'bundled-telc-b2-source',activation:'if-missing'});
+}
+
 /** Reference-only v5 available release derived from the approved bundled DTZ v4 package. */
 export function buildBundledDtzAvailablePackage(dtz) {
   return {

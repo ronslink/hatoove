@@ -716,6 +716,7 @@ async function postgresLegs() {
   const listeningPackage = validatePackage(JSON.parse(read('content/exams/telc-deutsch-b1/listening-package.json')));
   const dtzPackage = validatePackage(JSON.parse(read('content/exams/dtz-a2-b1/listening-package.json')));
   const goetheB1Package = validatePackage(JSON.parse(read('content/exams/goethe-zertifikat-b1/listening-package.json')));
+  const telcB2Package = validatePackage(JSON.parse(read('content/exams/telc-deutsch-b2/listening-package.json')));
 
   /* ---------------------------------------------------- a real migration into a scratch schema */
   const leg = 'pool01_l1';
@@ -897,7 +898,7 @@ async function postgresLegs() {
         content_version_id:id,kind,family,exam_id:exam,review_status:'unreviewed',rights_status:'generated',
         content_sha256:packageHash(item),source_path:'content/exams/'+exam+'/'+file+'#'+id,
       }));
-      const declared = [...declaredFrom(listeningPackage), ...declaredFrom(dtzPackage), ...declaredFrom(goetheB1Package)]
+      const declared = [...declaredFrom(listeningPackage), ...declaredFrom(dtzPackage), ...declaredFrom(goetheB1Package), ...declaredFrom(telcB2Package)]
         .sort((a,b) => a.content_version_id.localeCompare(b.content_version_id));
       assert.deepEqual(unrecorded, declared, 'only exact imported declarations may lack a later rights override; every migrated row keeps its decision');
       const release = (await legAdmin.query(
